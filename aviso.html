@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>maisPje</title>
+		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.13.0/css/all.css">
+		<style>
+			body {
+				font-family: "NunitoSans Regular", "Arial", sans-serif;
+				font-size: 0.8em;
+				color: #333;
+				font-weight: normal;
+				padding-left: 10px;
+				line-height:1.5;
+				background: #ebf0f3;
+			}
+			
+			fieldset {
+				position: relative;
+				border-radius: 5px;
+				margin-bottom: 10px;
+				background: white;
+				border: #cccccc solid 1px;
+				box-shadow: 0 0 0.9em #bbb;
+				padding: 15px;
+			}
+			
+			#atencao{
+				font-weight: normal;
+				color: #000;
+				text-align: center;
+				text-shadow: 1px 1px #fff;
+			}
+			
+			.categorias{
+				text-align: center;
+			}
+			
+			.logo {
+				font-family: fantasy;
+				font-weight: bold;
+				font-size: 36px;
+				font-variant: small-caps;
+				display: flex;
+				align-items: flex-start;
+				color: #3d3f3f;
+				position: relative;
+				left: calc(50% - 70px);
+			}
+			
+			.container {
+				position: relative;
+				padding-left: 35px;
+				margin-bottom: 12px;
+				cursor: pointer;
+				font-size: 20px;
+			}
+
+			.container input {
+				position: absolute;
+				opacity: 0;
+				cursor: pointer;
+				height: 0;
+				width: 0;
+				top: 0;
+				left: 0;
+			}
+
+			.checkmark {
+				position: absolute;
+				top: 0;
+				left: 0;
+				height: 20px;
+				width: 20px;
+				background-color: #fff;
+				border: 1px dashed darkgray;
+			}
+
+			.container:hover input ~ .checkmark {
+				background-color: #ccc;
+			}
+
+			.container input:checked ~ .checkmark {
+				background-color: #2196F3;
+			}
+
+			.checkmark:after {
+				content: "";
+				position: absolute;
+				display: none;
+			}
+
+			.container input:checked ~ .checkmark:after {
+				display: block;
+			}
+
+			.container .checkmark:after {
+				left: 6px;
+				top: 2px;
+				width: 5px;
+				height: 10px;
+				border: solid white;
+				border-width: 0 3px 3px 0;
+				-webkit-transform: rotate(45deg);
+				-ms-transform: rotate(45deg);
+				transform: rotate(45deg);
+			}
+
+			.decisao {
+				display: flex; 
+				justify-content: center;
+				gap: 45px;
+			}
+
+			.decisao > button {
+				border: 0;
+				border-radius: .25em;
+				padding: 15px 45px 15px 45px;
+				font-size: 20px;
+				background-color: gray;
+				color: #fff;
+				cursor: pointer;	
+			}
+
+			#concordo:hover, #concordo:focus {
+				background-color: #0f7b00;
+			}
+
+			#naoconcordo:hover, #naoconcordo:focus {
+				background-color: #d70000;
+			}
+		</style>		
+	</head>
+
+	<body>
+			<nav class="categorias">
+				<div class="logo">
+					<span style="padding: 0 5px 0 0;"><i class="fas fa-box-open"></i></span>
+					<span style="font-size: 30px; padding: 0 5px 0 0;"><i class="fas fa-plus fa-xs"></i></span>	
+					<span><img src="icons/logo-pje.png" style="width: auto; height: 32px;padding-top: 10px;"></span>
+				</div>
+				<div>
+					<b>Módulo de Automatizacao Interna de Secretaria</b>
+					<br>
+					Tribunal Regional do Trabalho da 12ª Região - TRT12
+					<br>
+					ft. Fernando de Medeiros Marcon
+				</div>
+			</nav>
+			<fieldset id="atencao" style="margin-top: 30px">
+				<div>
+				<span style="font-size: 2vh;font-weight: bold;">AVISO LEGAL</span>
+				<br /> 
+				<br />
+				<span style="font-style: italic;">LEIA COM ATENÇÃO</span>
+				<br />
+				<br />
+				<div>
+				A extensão maisPJe não faz parte do Processo Judicial Eletrônico sendo apenas um programa que agrega funcionalidades ao sistema.
+				<br />
+				<br />
+				Para isso, trabalhamos com as informações que aparecem na tela do usuário, armazenando-as na memória do navegador para depois utilizá-las preenchendo automaticamente campos na tela e/ou automatizando ações pré-programadas.
+				<br />
+				<br />
+				A extensão armazena dados apenas das aplicações do PJe e dos convênios firmados com a Justiça do Trabalho, não atuando em quaisquer outros sites e serviços.
+				<br />
+				<br />
+				<span style="background-color: #ffa50082;padding: 2px;border: 2px dotted orangered;border-radius: 5px;text-shadow: 1px 1px #ffffff82;">
+				A coleta de dados descrita acima é <b>obrigatória</b> para o funcionamento da extensão. Infelizmente a extensão não funciona sem a coleta de dados da tela do usuário. Caso não concorde, a extensão será desinstalada automaticamente.
+				</span>
+				<br />
+				<br />
+				Sabemos que algumas dessas informações armazenadas pela extensão, como o nome e CPF/CNPJ das partes, são sensíveis e podem ser capturadas por softwares mal-intencionados. Por isso é muito importante manter sempre o antivírus e o firewall do seu computador ligados e atualizados, bem como evitar baixar programas de origem desconhecida.
+				<br />
+				<br />
+				Também é importante conhecer a nossa <a href="https://portal.trt12.jus.br/lgpd/politica-de-privacidade" target="_blank" id="politicaprivacidade">política de privacidade</a>.
+				<br />
+				<br />
+				Por fim, destacamos que a extensão passou por todos os testes de segurança da informação realizados pelo Tribunal Regional do Trabalho da 12ª Região - TRT12 a fim de garantir ao usuário a utilização plena das suas funcionalidades.
+				<br />
+				<br />
+				Ciente dessas informações, você concorda com a nossa política de privacidade e com os termos apresentados?
+				</div>
+				<br />
+				<br />
+				<br />
+				<div class="decisao">
+					<button name="concordo" id="concordo">SIM, concordo</button>
+					<button name="naoconcordo" id="naoconcordo">NÃO, discordo</button>
+				</div>
+				<br />
+				<br /><br />
+								
+			</fieldset>
+			<span style="display: block;width: 100%;text-align: right;font-style: italic;font-size: .7rem;">Os direitos sobre a extensão foram cedidos ao Tribunal Regional do Trabalho da 12ª Região - TRT12.</span>
+			<script src="aviso.js"></script>
+			<script src="../js/sweetalert2.all.min.js"></script>
+	</body>
+</html>

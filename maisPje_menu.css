@@ -1,0 +1,135 @@
+/* corrige o cabeçalho */
+/* .mat-drawer-container[fullscreen] { */
+	/* position: relative !important; */
+	/* position: absolute !important; */
+/* } */
+
+menuMaisPje{
+	position: fixed;
+	top: 92%;
+	left: 96%;
+	opacity: 1;
+	width: auto;
+	height: auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: grab;
+	z-index: 1000;
+}
+@media print {
+	menuMaisPje{
+		display:none;
+	}
+}
+.maisPje-img{
+	border: 2px solid #0000009e;
+	border-radius: 50%;
+}
+menuMaisPje .menuMaisPje-content{
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.menuMaisPje-content .toggle-btn,
+.menuMaisPje-content span a{
+	height: 30px;
+	width: 30px;
+	background: orangered;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	box-shadow: 0px 1px 2px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.1);
+}
+.menuMaisPje-content .toggle-btn{
+	font-size: 35px;
+	color: #0e2431;
+	cursor: pointer;
+	transform: rotate(360deg);
+	transition: all 0.6s ease;
+	z-index: 1001;
+}
+menuMaisPje.openv .toggle-btn{
+	transform: rotate(0deg);
+}
+
+menuMaisPje.openv .menuMaisPje-content span{
+	/* p = posicao do icone no menu    d = direção que abre o menu    c = coluna do icone no menu (0 ou 1)*/
+	transform: translateY(calc(var(--p) * 35px * var(--d))) translateX(calc(var(--c) * 35px)); 
+	opacity: 1;
+}
+
+.menuMaisPje-content span{
+	position: absolute;
+	transition: all 0.6s ease;
+	opacity: 0;
+}
+
+menuMaisPje.openh .toggle-btn{
+	transform: rotate(0deg);
+}
+
+menuMaisPje.openh .menuMaisPje-content span{
+	/* p = posicao do icone no menu    d = direção que abre o menu    c = coluna do icone no menu (0 ou 1)*/
+	transform: translateX(calc(var(--p) * 35px * var(--d))) translateY(calc(var(--c) * 35px)); 
+	opacity: 1;
+}
+.menuMaisPje-content span a{
+	text-decoration: none;
+	border: 1px solid #0000009e;
+}
+.menuMaisPje-content span a i{
+	opacity: 0.8;
+	transition: 0.2s;
+	border-radius: 10px;
+}
+.menuMaisPje-content span a:hover i{
+	opacity: 1;
+}
+
+.tamanho60 {
+	-webkit-mask-size: 60% !important;
+}
+
+.tamanho70 {
+	-webkit-mask-size: 70% !important;
+}
+
+.tamanho50 {
+	-webkit-mask-size: 50% !important;
+}
+
+.tamanho40 {
+	-webkit-mask-size: 40% !important;
+}
+
+.maisPje_destaque_elemento_on {
+	animation: animacao_destaque_elemento 1.5s infinite;
+}
+
+.maisPje_destaque_elemento_off {
+	background-color: #ff00;
+}
+
+@keyframes animacao_destaque_elemento {
+	0% {background-color: #ff0;}
+	10% {background-color: #ff09;}
+	20% {background-color: #ff08;}
+	30% {background-color: #ff06;}
+	40% {background-color: #ff05;}
+	50% {background-color: #ff02;}
+	60% {background-color: #ff01;}
+	70% {background-color: #ff00;}
+	80% {background-color: #ff00;}
+	90% {background-color: #ff00;}
+	100% {background-color: #ff00;}
+}
+.maisPje_checklist_cabecalho {
+	border: 1px solid #add8e6;
+}
+
+.maisPje_checklist_linha:hover {
+	background-color: rgb(173, 216, 230) !important;
+	cursor: pointer;
+}

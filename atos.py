@@ -473,44 +473,19 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
             )
             btn_pen_nib.click()
             time.sleep(1)
-        except Exception as e:
-            log(f'[ERRO] Não foi possível clicar em .fa-pen-nib: {e}')
-            return False
-        # Agora estamos em /minutas: clicar em .pec-polo-passivo-partes-processo
+        # Após inserir modelo, clicar em .fa-pen-nib para fechar a caixa de diálogo
         try:
-            log('Clicando em .pec-polo-passivo-partes-processo')
-            btn_polo_passivo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, '.pec-polo-passivo-partes-processo'))
+            log('Clicando em .fa-pen-nib para finalizar comunicação')
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            btn_pen_nib = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa-pen-nib'))
             )
-            btn_polo_passivo.click()
+            btn_pen_nib.click()
             time.sleep(1)
-        except Exception as e:
-            log(f'[ERRO] Não foi possível clicar em .pec-polo-passivo-partes-processo: {e}')
-            return False
-        # Clicar no botão Salvar (span com texto Salvar)
-        try:
-            log('Clicando no botão Salvar em /minutas')
-            btn_salvar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and contains(text(), 'Salvar')]/parent::button"))
-            )
-            btn_salvar.click()
-            time.sleep(1)
-        except Exception as e:
-            log(f'[ERRO] Não foi possível clicar no botão Salvar em /minutas: {e}')
-            return False
-        # Fechar a aba de minutas e voltar para a original
-        try:
-            log('Fechando aba de minutas e voltando para a original')
-            driver.close()
-            if aba_origem in driver.window_handles:
-                driver.switch_to.window(aba_origem)
-            else:
-                driver.switch_to.window(driver.window_handles[0])
-            log('Comunicação processual finalizada.')
-            return True
-        except Exception as e:
-            log(f'[ERRO] Não foi possível fechar a aba de minutas ou voltar para a original: {e}')
-            return False
+    except Exception as e:
+        log(f'[ERRO] Falha no fluxo de comunicação: {e}')
+        return False
 
 # Wrappers para comunicações processuais
 

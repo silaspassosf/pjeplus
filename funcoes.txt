@@ -1,0 +1,24 @@
+# Arquivo: funcoes.txt
+# Funções e modelos de atos/pec
+
+[BLOCOS DE ATOS JUDICIAIS]
+1. ato_meios - Modelo: xsmeios
+2. ato_pesquisas - Modelo: xsbacen
+3. ato_crda - Modelo: a reclda
+4. ato_crte - Modelo: xreit
+5. ato_bloq - Modelo: xsparcial
+6. ato_idpj - Modelo: pjsem
+7. ato_termoE - Modelo: xempre
+8. ato_termoS - Modelo: xsocio
+
+[BLOCOS DE COMUNICAÇÃO PROCESSUAL]
+1. pec_bloqueio - Modelo: zzintbloq
+2. pec_Decisao - Modelo: xs dec reg
+3. pec_idpj - Modelo: xidpj c
+4. pec_editalidpj - Modelo: IDPJ (edital)
+5. pec_editaldec - Modelo: 3dec
+6. pec_cpgeral - Modelo: mdd cp geral
+7. pec_excluiargos - Modelo: asa/cnib
+8. pec_mddgeral - Modelo: 02 - gené
+9. pec_mddaud - Modelo: xmdd aud
+10. pec_editalaud - Modelo: 1cit

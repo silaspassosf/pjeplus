@@ -1,0 +1,134 @@
+1- seletor prazosjavascript:(function(){async function a(e,t=10000){return new Promise((n,o)=>{const r=Date.now(),i=()=>{const o=document.querySelector(e);o&&null!==o.offsetParent?n(o):Date.now()-r>t?o(new Error(`Tempo esgotado: ${e}`)):setTimeout(i,200)};i()})}async function s(e,t,n=300){e.value="";for(let o=0;o<t.length;o++)e.value+=t[o],e.dispatchEvent(new Event("input",{bubbles:!0})),await new Promise(e=>setTimeout(e,n))}async function c(){try{const e=document.querySelectorAll("tr.cdk-drag");let t=0;return e.forEach(e=>{const n=e.querySelector("td:nth-child(9) time"),o=!n||""===n.textContent.trim(),r=null!==e.querySelector("i.fa-comment"),i=e.querySelector("input[matinput]"),l=i&&""!==i.value.trim(),c=null!==e.querySelector("td:nth-child(3) i.fa-search");if(o&&!r&&!l&&!c){const n=e.querySelector("mat-checkbox input[type=checkbox]");n&&!n.checked&&(n.click(),e.style.backgroundColor="#ffccd2",t++)}}),console.log(`${t} processos selecionados`),t}catch(e){return console.error("Erro:",e),0}}async function p(){try{const e=await a("pje-botoes-etiquetas-lote button i.far.fa-circle.texto-verde");e.click(),await new Promise(e=>setTimeout(e,2e3));const t=await a("mat-dialog-container input[matinput]");t.click(),await s(t,"Mídias",300),await new Promise(e=>setTimeout(e,2e3));let n=!1;const o=document.querySelectorAll("mat-dialog-container pje-data-table tbody tr");for(const e of o)if(e.textContent.includes("Mídias")){e.querySelector("mat-checkbox .mat-checkbox-inner-container").click(),n=!0,console.log("Chip Mídias selecionado");break}return n||(await a("mat-dialog-container pje-data-table tbody tr:first-child mat-checkbox")).click(),await new Promise(e=>setTimeout(e,1e3)),(await a("mat-dialog-container button.mat-primary span")).click(),!0}catch(e){return console.error("Erro ao aplicar chip:",e),!1}}async function d(){const e=await c();e>0?(await new Promise(e=>setTimeout(e,1e3)),await p()):console.log("Nenhum processo selecionado")}setTimeout(d,1e3)})();
+(falta funçao para vencer em lote)2 - Analise de prazos vencidos.
+a- filtro para selecionar os vencidos
+javascript:(async function(){function a(e,t=8e3){return new Promise((n,o)=>{const i=Date.now(),c=()=>{const o=document.querySelector(e);o&&null!==o.offsetParent?n(o):Date.now()-i>t?o(new Error):setTimeout(c,200)};c()})};try{(await a(".fa-laptop")).click();await new Promise(e=>setTimeout(e,2e3));(await a("pje-painel-item.item-painel:nth-child(4) > div:nth-child(1) > mat-card:nth-child(2) > mat-card-title:nth-child(1)")).click();await new Promise(e=>setTimeout(e,2e3));(await a("span.ng-tns-c179-3515")).click();await new Promise(e=>setTimeout(e,1e3));const e=await a("#mat-select-228-panel");e.scrollTop=e.scrollHeight;await new Promise(e=>setTimeout(e,800));(await a("#mat-option-4433 > mat-pseudo-checkbox:nth-child(1)")).click();await new Promise(e=>setTimeout(e,800));(await a(".botao-filtrar")).click()}catch(e){}})();
+b- função de analise.
+3- MAndados devolvidos, pesquisas antes de analisar dociumnetos.
+javascript:(function(){const a=()=>{b("Certidão de devolução").then(c).then(d).then(e).then(f).catch(a=>console.error("Erro:",a))};const b=a=>new Promise(b=>{const c=[...document.querySelectorAll("li.tl-item-container")].find(b=>b.textContent.includes(a));c?(c.click(),setTimeout(()=>b(c),1500)):(console.warn(`Documento '${a}' não encontrado.`),b(null))});const c=a=>new Promise(b=>{if(!a)return b(null);const c=a.querySelector("pje-doc-sigiloso span button i.fa-wpexplorer");c?(c.click(),setTimeout(()=>b(a),1500)):(console.warn("Botão de sigilo não encontrado."),b(a))});const d=a=>new Promise(b=>{if(!a)return b(null);const c=a.querySelector("pje-timeline-anexos > div > div");c?(c.click(),setTimeout(()=>{g(Array.from(document.querySelectorAll(".tl-item-anexo")),b)},2e3)):(console.warn("Botão de anexos não encontrado."),b(null))});const g=(a,b)=>{if(!Array.isArray(a)||!a.length)return b(null);const c=a.shift(),d=c.textContent.trim(),e=d.match(/- ([a-zA-Z0-9]+)$/)?.[1];if(d.includes("INFOJUD")||d.includes("DOI")||d.includes("IRPF")){const f=document.querySelector(`#doc_${e} > span:nth-child(1) > pje-doc-sigiloso:nth-child(1) > span:nth-child(1) > button:nth-child(1) > span:nth-child(1) > i:nth-child(1)`);f?f.click():null;setTimeout(()=>{const e=c.querySelector("button .fa-plus");e?(e.click(),setTimeout(()=>{const c=document.querySelector(".fa-check");c?(c.click(),setTimeout(()=>{const c=document.querySelector(".mat-dialog-actions > button:nth-child(1) > span:nth-child(1)");c&&c.click(),setTimeout(()=>g(a,b),1500)},800)):g(a,b)},800)):g(a,b)},1e3)}else setTimeout(()=>g(a,b),300)};const e=()=>new Promise(a=>{const b=document.querySelectorAll("li.tl-item-container");let c=null,d=null,e=null;for(const a of b)!c&&a.textContent.includes("Planilha")&&(c=a),!d&&a.textContent.includes("Decisão")&&(d=a),!e&&a.textContent.includes("Intimação")&&(e=a),c&&d&&e&&break;const f=[];c&&c.querySelector("pje-doc-sigiloso span button i.fa-wpexplorer")&&f.push(c),d&&d.querySelector("pje-doc-sigiloso span button i.fa-wpexplorer")&&f.push(d);const g=b=>{b.length?(b[0].querySelector("pje-doc-sigiloso span button i.fa-wpexplorer").click(),setTimeout(()=>g(b.slice(1)),1e3)):a(e)};g(f)});const f=a=>{if(!a)return Promise.resolve();return new Promise(b=>{const c=a.querySelector("i.fa-envelope.fa-lg.icone-cinza");c?(c.click(),setTimeout(()=>{const a=document.querySelector(".flex-container-raiz, .mat-dialog-container");a?(a.querySelector(".mat-checkbox-inner-container-no-side-margin")?(a.querySelector(".mat-checkbox-inner-container-no-side-margin").click(),setTimeout(()=>{const c=a.querySelector(".mat-raised-button > span:nth-child(1)");c?(c.click(),setTimeout(()=>{const a=document.querySelector(".mat-dialog-actions > button:nth-child(1) > span:nth-child(1)");a&&a.click(),b()},800)):(h(a),b())},800)):(h(a),b())):b()},1e3)):b()})};const h=a=>{const b=a.querySelector(".fa-window-close, .btn-fechar-link");b&&b.click()};a()})();
+
+Analise de prazo em cada processo - Hipoteses de GIGS:
+/**
+ * Workflow completo para análise de processos no PJE
+ */
+async function workflow() {
+    try {
+        // Remover chips
+        document.querySelector('#menu-do-processo-expandido-remover-chips')?.click();
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Criar chip "Analisar"
+        document.querySelector('.fa-plus')?.click();
+        await new Promise(r => setTimeout(r, 2000));
+        document.querySelector('#mat-checkbox-12-input')?.click();
+        document.querySelector('.container-botoes > button:nth-child(1)')?.click();
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Abrir documento e extrair conteúdo
+        document.querySelector('.fa-file-code')?.click();
+        await new Promise(r => setTimeout(r, 3000));
+        const preview = document.querySelector('#previewModeloDocumento');
+        if (!preview) throw new Error('Documento ativo não encontrado');
+        const texto = preview.textContent?.toLowerCase() || '';
+        const conteudo = texto.match(/servidor\s+respons[aá]vel/i)
+            ? texto.substring(texto.indexOf('servidor responsável') + 20).trim()
+            : texto.trim();
+
+        console.log("Conteúdo extraído:", conteudo);
+
+        // Fechar visualização
+        document.querySelector('.div-preview-botoes > div:nth-child(1) > button:nth-child(1)')?.click();
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Analisar conteúdo e criar GIGS
+        await analisarConteudo(conteudo);
+    } catch (e) {
+        console.error('Erro no workflow:', e.message);
+    }
+}
+
+/**
+ * Analisa o conteúdo do documento e executa ações específicas
+ */
+async function analisarConteudo(conteudo) {
+    if (!conteudo) return await criarGigs("SILAS - Prazo Manual", "0");
+    console.log("Analisando conteúdo...");
+
+    if (conteudo.includes("determinações necessárias para realização de hasta"))
+        return await criarGigs("xs - hasta");
+    if (conteudo.includes("ficando a reclamada ciente quanto ao saldo devedor remanescente"))
+        return await criarGigs("xs - parcela");
+    if (conteudo.includes("reconhecimento da prescrição intercorrente"))
+        return await criarGigs("xs - arquivamento");
+    if (conteudo.includes("ê-se visibilidade apenas aos advogados habilitados"))
+        return await criarGigs("Guilherme – conf sobrest", "0");
+    if (conteudo.includes("início da fluência do prazo prescricional"))
+        return await criarGigs("Guilherme conf sobrest", "0");
+    if (conteudo.includes("indicar meios para o prosseguimento da execução"))
+        return await criarGigs("Guilherme conf sobrest", "0");
+    if (conteudo.includes("revel"))
+        return await criarGigs("Silvia - Homologação");
+    if (conteudo.includes("expeçam-se ofícios requisitórios"))
+        return await criarGigs("Bruna - RPV");
+    if (conteudo.includes("se concorda com a homologação"))
+        return await criarGigs("SILVIA - Homologação");
+
+    return await criarGigs("SILAS - Prazo Manual", "0");
+}
+
+/**
+ * Cria um GIGS com os parâmetros específicos
+ */
+async function criarGigs(txt, prazo = "1") {
+    try {
+        console.log(`Criando GIGS: ${txt} (Prazo: ${prazo})`);
+
+        // Abrir modal
+        document.querySelector('#nova-atividade')?.click();
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Preencher Dias Úteis
+        const campoDias = Array.from(document.querySelectorAll('label'))
+            .find(l => l.textContent.includes('Dias Úteis'))
+            ?.closest('mat-form-field')
+            ?.querySelector('input');
+        if (campoDias) {
+            campoDias.value = prazo;
+            campoDias.dispatchEvent(new Event('input', { bubbles: true }));
+            campoDias.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+            throw new Error("Campo Dias Úteis não encontrado");
+        }
+
+        // Preencher Observação
+        const campoObs = Array.from(document.querySelectorAll('label'))
+            .find(l => l.textContent.includes('Observação'))
+            ?.closest('mat-form-field')
+            ?.querySelector('textarea');
+        if (campoObs) {
+            campoObs.value = txt;
+            campoObs.dispatchEvent(new Event('input', { bubbles: true }));
+            campoObs.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+            throw new Error("Campo Observação não encontrado");
+        }
+
+        // Clicar no botão Salvar
+        const btnSalvar = Array.from(document.querySelectorAll('button'))
+            .find(btn => btn.textContent.trim() === 'Salvar');
+        if (btnSalvar) {
+            btnSalvar.click();
+            await new Promise(r => setTimeout(r, 1500));
+            console.log("GIGS criado com sucesso:", txt);
+        } else {
+            throw new Error("Botão Salvar não encontrado");
+        }
+    } catch (e) {
+        console.error('Erro ao criar GIGS:', e.message);
+    }
+}
+
+// Executar workflow
+workflow();
+
+Funcao de ver se tem bloqueio:
+function a(){const e=document.querySelector('object.conteudo-pdf');if(e){const t=e.contentDocument||e.contentWindow.document;if(t){const o=t.querySelectorAll('.page');if(o.length>2){const d=o[2];d.scrollIntoView(),setTimeout(()=>{const e=t.createRange();e.selectNodeContents(d);const o=t.getSelection();o.removeAllRanges(),o.addRange(e);setTimeout(()=>{const t=o.toString();console.log(t),o.removeAllRanges();const e=t.match(/SISBAJUD\s*\n\s*(Negativo|Positivo)/i);console.log(e?`SISBAJUD ${e[1].toUpperCase()}`:'SISBAJUD não encontrado')},1500)},2000)}}}}setTimeout(a,3e3);

@@ -8,8 +8,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
-import pyperclip
 import re
+import shutil
+import tempfile
+import os
 
 # ========== CONFIGURAÇÕES ==========
 PJE_LISTA_URL = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
@@ -877,620 +879,94 @@ def injetar_botoes_interface(driver):
                     window._seleniumPrazoListenerAdded = true;
                 }
             ''')
+            # INÍCIO: INJETAR BOTÃO ARGOS
+            for tent in range(50):
+                if driver.execute_script("return document.querySelector('#btnArgosMandado') === null"):
+                    botao_argos_script = '''
+                    if (!document.getElementById('btnArgosMandado')) {
+                        var btn = document.createElement('button');
+                        btn.id = 'btnArgosMandado';
+                        btn.textContent = 'Mandado Argos';
+                        btn.style.position = 'fixed';
+                        btn.style.bottom = '60px';
+                        btn.style.left = '20px';
+                        btn.style.zIndex = '9999';
+                        btn.style.padding = '12px 18px';
+                        btn.style.backgroundColor = '#FF9800';
+                        btn.style.color = 'white';
+                        btn.style.border = 'none';
+                        btn.style.borderRadius = '7px';
+                        btn.style.cursor = 'pointer';
+                        btn.style.fontWeight = 'bold';
+                        btn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+                        btn.onclick = function() { window.dispatchEvent(new CustomEvent('botaoArgosClicadoSelenium')); };
+                        document.body.appendChild(btn);
+                    }
+                    '''
+                    driver.execute_script(botao_argos_script)
+                if driver.execute_script("return document.querySelector('#btnArgosMandado') !== null"):
+                    break
+                time.sleep(0.2)
+            driver.execute_script('''
+                window._seleniumArgosListenerAdded = window._seleniumArgosListenerAdded || false;
+                if (!window._seleniumArgosListenerAdded) {
+                    window.addEventListener('botaoArgosClicadoSelenium', () => {
+                        document.title = '[ARGOS_CLICADO]';
+                    });
+                    window._seleniumArgosListenerAdded = true;
+                }
+            ''')
+            # FIM: INJETAR BOTÃO ARGOS
         except Exception as e:
-            print(f'[DEBUG] Falha ao injetar botão Prazo: {e}')
+            print(f'[DEBUG] Falha ao injetar botão Prazo ou Argos: {e}')
 
 # Exemplo de uso: chame após carregar a página desejada
 # injetar_botoes_interface(driver)
 
 # ========== FLUXO PRINCIPAL ==========
+def limpar_temp_selenium():
+    """
+    Remove pastas webdriver-py-profilecopy e arquivos temporários antigos do Selenium no diretório TEMP.
+    """
+    temp_dir = tempfile.gettempdir()
+    for nome in os.listdir(temp_dir):
+        if nome.startswith('tmp') or nome.startswith('webdriver-py-profilecopy'):
+            caminho = os.path.join(temp_dir, nome)
+            try:
+                if os.path.isdir(caminho):
+                    shutil.rmtree(caminho, ignore_errors=True)
+                else:
+                    os.remove(caminho)
+                print(f'[LIMPEZA TEMP] Removido: {caminho}')
+            except Exception as e:
+                print(f'[LIMPEZA TEMP][ERRO] Falha ao remover {caminho}: {e}')
+
 def main():
+    from selenium.webdriver.firefox.service import Service as FirefoxService
+    from selenium.webdriver.firefox.options import Options as FirefoxOptions
+    from webdriver_manager.firefox import GeckoDriverManager
+    import time
+
+    limpar_temp_selenium()
     firefox_options = FirefoxOptions()
-    firefox_options.add_argument("--start-maximized")
-    firefox_options.set_preference("profile", r"C:\\Users\\s164283\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\2bge54ld.Robot")
-    driver = webdriver.Firefox(options=firefox_options)
+    firefox_options.add_argument('--start-maximized')
+    # Atualiza para usar o novo perfil dedicado criado pelo usuário
+    profile_path = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\bs41tjj2.Selenium'
+    firefox_options.profile = profile_path
+    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=firefox_options)
     driver.implicitly_wait(10)
 
-    driver.get('https://pje.trt2.jus.br/pjekz/')
-    time.sleep(2)
-    login_automatico(driver, '35305203813', 'SpF59866')
-    verificar_login_ativo(driver)
-    print('[DEBUG] Login realizado com sucesso.')
-
-    print('[DEBUG] Aguardando contexto de página para injetar botões...')
-    url_aba_anterior = None
-    botao_analise_injetado = False
-    botao_argos_injetado = False
-    ultima_url = None
-    handles_anteriores = driver.window_handles
-    aba_doc_internos_handle = None
-    aba_doc_internos_registrada = False
-    while True:
-        current_url = driver.current_url
-        if current_url != ultima_url:
-            print(f'[DEBUG] URL atual: {current_url}')
-            if url_aba_anterior:
-                print(f'[DEBUG] URL anterior: {url_aba_anterior}')
-            ultima_url = current_url
-        # Detecta se está em documentos internos e guarda o handle apenas uma vez
-        if (current_url.startswith('https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos') and not aba_doc_internos_registrada):
-            aba_doc_internos_handle = driver.current_window_handle
-            aba_doc_internos_registrada = True
-            print(f'[DEBUG] Handle da aba documentos internos: {aba_doc_internos_handle}')
-        # Se saiu da aba de documentos internos, limpa o registro para permitir novo ciclo
-        if (aba_doc_internos_registrada and not current_url.startswith('https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos')):
-            aba_doc_internos_handle = None
-            aba_doc_internos_registrada = False
-        # Injeta botão "Analisar 1º Processo" apenas na lista de processos, e só uma vez por navegação
-        if current_url.startswith('https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos'):
-            try:
-                if not driver.execute_script("return document.getElementById('btnAnaliseProcesso') !== null;"):
-                    injetar_botoes_interface(driver)
-                    print('[DEBUG] Botão "Analisar 1º Processo" injetado na lista.')
-                    botao_analise_injetado = True
-            except Exception as e:
-                print(f'[DEBUG] Falha ao injetar botão de análise: {e}')
-            url_aba_anterior = current_url
-            botao_argos_injetado = False  # reset ao voltar para lista
-        # Detecta abertura de nova aba após documentos internos
-        handles_atuais = driver.window_handles
-        if aba_doc_internos_handle and len(handles_atuais) > len(handles_anteriores):
-            novas_abas = list(set(handles_atuais) - set(handles_anteriores))
-            for nova_aba in novas_abas:
-                driver.switch_to.window(nova_aba)
-                url_nova_aba = driver.current_url
-                print(f'[DEBUG] Nova aba detectada: {nova_aba} | URL: {url_nova_aba}')
-                if url_nova_aba.startswith('https://pje.trt2.jus.br/pjekz/processo/') and '/detalhe/peticao/' in url_nova_aba:
-                    print('[DEBUG] Critério para botão Argos atendido (nova aba após documentos internos).')
-                    try:
-                        if not driver.execute_script("return document.getElementById('btn-argos-cascade') !== null;"):
-                            injetar_botao_argos(driver)
-                            print('[DEBUG] Botão Argos injetado na aba de detalhes/petição.')
-                            botao_argos_injetado = True
-                        # Permanece na nova aba de petição após injetar o botão
-                        print(f'[DEBUG] Permanecendo na aba de petição: {nova_aba}')
-                        url_aba_anterior = url_nova_aba
-                        handles_anteriores = handles_atuais
-                        break  # Sai do loop após encontrar a aba correta
-                    except Exception as e:
-                        print(f'[DEBUG] Falha ao injetar botão Argos: {e}')
-                else:
-                    # Se não for a aba de petição, volta para documentos internos
-                    driver.switch_to.window(aba_doc_internos_handle)
-            else:
-                handles_anteriores = handles_atuais
-        # Monitora clique manual no botão Prazo
-        if '[PRAZO_CLICADO]' in driver.title:
-            print('[DEBUG] Botão Prazo foi clicado! Iniciando análise...')
-            analisar_prazo_detalhe(driver)
-            break
-        # Monitora clique manual no botão Argos
-        if '[ARGOS_CLICADO]' in driver.title:
-            print('[DEBUG] Botão Argos foi clicado! Iniciando fluxo Mandados Argos...')
-            fluxo_mandados_argos(driver)
-            break
-        time.sleep(0.2)
-    driver.quit()
-
-def criar_gigs_prazo(driver, observacao_nome="silas", dias_uteis=1):
-    """
-    Automatiza a criação de um GIGS tipo prazo, preenchendo:
-    - Observação: 'silas'
-    - Dias úteis: 1
-    """
-    from selenium.webdriver.common.by import By
-    import time
-    print(f"[DEBUG] Iniciando criação do GIGS prazo: observacao={observacao_nome}, dias_uteis={dias_uteis}")
     try:
-        # 1. Abrir painel de GIGS/Atividades clicando em "Nova atividade"
-        print("[DEBUG] Procurando botão 'Nova atividade'...")
-        try:
-            btn_nova_atividade = driver.find_element(By.CSS_SELECTOR, "button#nova-atividade > span.mat-button-wrapper > span")
-            safe_click(driver, btn_nova_atividade)
-            print("[DEBUG] Botão 'Nova atividade' clicado.")
-        except Exception as e:
-            print(f"[ERRO] Não foi possível clicar em 'Nova atividade': {e}")
-            return False
-        time.sleep(1.2)
-
-        # 2. Tipo de atividade (input#mat-input-6) - NÃO mexer, assume que vem preenchido corretamente
-        # [DEBUG] Não altera o campo tipo de atividade. Assume valor padrão 'Prazo'.
-        time.sleep(0.6)
-
-        # 3. Dias úteis (input#mat-input-10)
-        try:
-            input_dias = driver.find_element(By.CSS_SELECTOR, "input#mat-input-10")
-            input_dias.clear()
-            input_dias.send_keys(str(dias_uteis))
-            print(f"[DEBUG] Preencheu dias úteis: {dias_uteis}")
-        except Exception as e:
-            print(f"[ERRO] Não foi possível preencher dias úteis: {e}")
-            return False
-        time.sleep(0.6)
-
-        # 4. Observação (textarea#mat-input-8)
-        try:
-            input_obs = driver.find_element(By.CSS_SELECTOR, "textarea#mat-input-8")
-            input_obs.clear()
-            input_obs.send_keys(observacao_nome)
-            print(f"[DEBUG] Preencheu observação: {observacao_nome}")
-        except Exception as e:
-            print(f"[ERRO] Não foi possível preencher a observação: {e}")
-            return False
-        time.sleep(0.6)
-
-        # 5. Clicar em Salvar usando seletor robusto fornecido
-        try:
-            btn_salvar = driver.find_element(By.CSS_SELECTOR, "button.mat-focus-indicator.mat-tooltip-trigger.mat-raised-button.mat-button-base.mat-primary > span.mat-button-wrapper")
-            # O botão é o <span>, mas precisamos clicar no <button> pai
-            btn_salvar_button = btn_salvar.find_element(By.XPATH, "..")
-            safe_click(driver, btn_salvar_button)
-            print("[DEBUG] GIGS prazo criado com sucesso! (clicou em Salvar)")
-            return True
-        except Exception as e:
-            print(f"[ERRO] Botão Salvar não encontrado pelo seletor robusto: {e}")
-            return False
+        driver.get('https://pje.trt2.jus.br/pjekz/')
+        time.sleep(2)
+        login_automatico(driver, '35305203813', 'SpF59866')
+        verificar_login_ativo(driver)
+        print('[DEBUG] Login realizado com sucesso.')
+        # Continue o fluxo principal normalmente...
     except Exception as e:
-        print(f"[ERRO] Exceção ao criar GIGS prazo: {e}")
-        return False
-
-# Exemplo de uso: chame após carregar a página desejada
-# criar_gigs_prazo(driver, observacao_nome="silas", dias_uteis=1)
-
-def criar_gigs_prazo_generico(driver, dias_uteis, observacao):
-    """
-    Cria um GIGS do tipo Prazo usando seletores robustos e parâmetros informados.
-    Não altera o campo Tipo de Atividade (assume 'Prazo' já está preenchido).
-    Preenche Dias Úteis e Observação, e clica em Salvar.
-    """
-    from selenium.webdriver.common.by import By
-    import time
-    print(f"[DEBUG] Iniciando criação GIGS (dias_uteis={dias_uteis}, observacao={observacao})")
-    try:
-        # 1. Clicar em Nova Atividade
-        print("[DEBUG] Procurando botão 'Nova atividade'...")
-        btn_nova_atividade = driver.find_element(By.CSS_SELECTOR, "button#nova-atividade > span.mat-button-wrapper > span")
-        safe_click(driver, btn_nova_atividade)
-        print("[DEBUG] Botão 'Nova atividade' clicado.")
-        time.sleep(1.2)
-
-        # 2. NÃO mexe no campo Tipo de Atividade
-        time.sleep(0.6)
-
-        # 3. Dias úteis
-        input_dias = driver.find_element(By.CSS_SELECTOR, "input#mat-input-10")
-        input_dias.clear()
-        input_dias.send_keys(str(dias_uteis))
-        print(f"[DEBUG] Preencheu dias úteis: {dias_uteis}")
-        time.sleep(0.6)
-
-        # 4. Observação
-        input_obs = driver.find_element(By.CSS_SELECTOR, "textarea#mat-input-8")
-        input_obs.clear()
-        input_obs.send_keys(observacao)
-        print(f"[DEBUG] Preencheu observação: {observacao}")
-        time.sleep(0.6)
-
-        # 5. Clicar em Salvar
-        btn_salvar = driver.find_element(By.CSS_SELECTOR, "button.mat-focus-indicator.mat-tooltip-trigger.mat-raised-button.mat-button-base.mat-primary > span.mat-button-wrapper")
-        btn_salvar_button = btn_salvar.find_element(By.XPATH, "..")
-        safe_click(driver, btn_salvar_button)
-        print("[DEBUG] GIGS criado com sucesso! (clicou em Salvar)")
-        return True
-    except Exception as e:
-        print(f"[ERRO] na criação do GIGS: {e}")
-        return False
-
-def tipo_gigs_por_texto(texto):
-    """
-    Retorna o tipo de GIGS a ser criado com base no texto analisado, seguindo as regras do Tampermonkey.
-    """
-    import re
-    regras = [
-        (re.compile(r'concede-se 05 dias|visibilidade.*advogados|início da fluência|indicar meios|oito dias para apresentação', re.I), 'ConfG'),
-        (re.compile(r'revel|concorda com homologação', re.I), 'Homol'),
-        (re.compile(r'hasta|saldo devedor|prescrição', re.I), 'Pec'),
-        (re.compile(r'impugnações apresentadas', re.I), 'Pesq')
-    ]
-    for regex, tipo in regras:
-        if regex.search(texto):
-            return tipo
-    return 'Sconf'  # fallback
-
-def analisar_e_criar_gigs(driver, texto):
-    tipo = tipo_gigs_por_texto(texto)
-    descricoes = {
-        'Pec': 'xs pec',
-        'Homol': 'Silvia - Homologação',
-        'ConfG': 'Guilherme - Conferir Sobrestamento.',
-        'Sconf': 'Silas - Prazo Manual',
-        'Pesq': 'Silvia - Argos'
-    }
-    dias_uteis = 0 if tipo == 'Sconf' else 1
-    observacao = descricoes.get(tipo, f"GIGS automático: {tipo}")
-    print(f"[DEBUG] Tipo de GIGS identificado: {tipo}. Criando GIGS com {dias_uteis} dias úteis e observação '{observacao}'...")
-    criar_gigs_prazo_generico(driver, dias_uteis, observacao)
-    # Pós-criação: ações automáticas específicas
-    pos_criacao_gigs(driver, tipo)
-    if tipo == "Pesq":
-        fluxo_minuta_silvia_argos(driver)
-
-def fluxo_minuta_silvia_argos(driver):
-    """
-    Fluxo automatizado para minutar processo após criação do GIGS Silvia - Argos.
-    1. Abrir tarefa do processo (clicar no botão com span.texto-tarefa-processo)
-    2. Selecionar 'Conclusão ao magistrado'
-    3. Selecionar tipo de minuta: BACEN / BNDT / Sigilo Fiscal / Indisponibilidade de Bens
-    4. Validar URL final
-    """
-    from selenium.webdriver.common.by import By
-    import time
-    # 1. Abrir tarefa do processo e trocar para nova aba
-    try:
-        print('[DEBUG] Procurando botão de tarefa do processo...')
-        abas_antes = driver.window_handles
-        btn_tarefa = driver.find_element(By.CSS_SELECTOR, 'span.texto-tarefa-processo')
-        btn_tarefa_button = btn_tarefa.find_element(By.XPATH, '../../..')
-        safe_click(driver, btn_tarefa_button)
-        print('[DEBUG] Botão de tarefa do processo clicado.')
-        # Aguarde até a URL conter '/transicao' ou timeout
-        for i in range(20):
-            if '/transicao' in driver.current_url:
-                break
-            time.sleep(0.5)
-        abas_depois = driver.window_handles
-        nova_aba = [aba for aba in abas_depois if aba not in abas_antes]
-        if nova_aba:
-            driver.switch_to.window(nova_aba[0])
-            print(f'[DEBUG] Switched para nova aba: {nova_aba[0]} | URL: {driver.current_url}')
-        else:
-            print('[ALERTA] Nenhuma nova aba detectada após clicar na tarefa!')
-        if '/transicao' not in driver.current_url:
-            print(f'[ALERTA] URL inesperada após clicar na tarefa: {driver.current_url}')
-    except Exception as e:
-        print(f'[ERRO] Não foi possível clicar na tarefa do processo: {e}')
-        return False
-    # 2. Seleciona 'Conclusão ao magistrado'
-    try:
-        print('[DEBUG] Procurando botão "Conclusão ao magistrado"...')
-        click_button_conclusao_ao_magistrado(driver, timeout=10)
-        print('[DEBUG] Botão "Conclusão ao magistrado" clicado.')
-        # Aguarde até a URL conter '/conclusao' ou timeout
-        for i in range(20):
-            if '/conclusao' in driver.current_url:
-                break
-            time.sleep(0.5)
-        if '/conclusao' not in driver.current_url:
-            print(f'[ALERTA] URL inesperada após clicar em "Conclusão ao magistrado": {driver.current_url}')
-    except Exception as e:
-        print(f'[ERRO] Não foi possível clicar em "Conclusão ao magistrado": {e}')
-        return False
-    # 3. Seleciona tipo de minuta
-    try:
-        print('[DEBUG] Procurando botão "BACEN / BNDT / Sigilo Fiscal / Indisponibilidade de Bens"...')
-        click_element_by_visible_text(driver, 'BACEN / BNDT / Sigilo Fiscal / Indisponibilidade de Bens', tag_preferida='button')
-        print('[DEBUG] Botão de minuta "BACEN / BNDT / Sigilo Fiscal / Indisponibilidade de Bens" clicado.')
-        # Aguarde até a URL conter '/minutar' ou timeout
-        for i in range(20):
-            if '/minutar' in driver.current_url:
-                break
-            time.sleep(0.5)
-        if '/minutar' not in driver.current_url:
-            print(f'[ALERTA] URL inesperada após clicar na minuta: {driver.current_url}')
-    except Exception as e:
-        print(f'[ERRO] Não foi possível clicar no botão de minuta: {e}')
-        return False
-    # 4. Validar página de minuta
-    try:
-        print('[DEBUG] Checando URL da página de minutar...')
-        if '/minutar' in driver.current_url:
-            print('[DEBUG] Página de minutar carregada com sucesso.')
-            return True
-        else:
-            print(f'[ALERTA] Não está na página esperada de minutar: {driver.current_url}')
-            return False
-    except Exception as e:
-        print(f'[ERRO] Erro ao validar página de minutar: {e}')
-        return False
-
-def click_button_conclusao_ao_magistrado(driver, timeout=10):
-    """
-    Clica no botão de conclusão ao magistrado usando, em ordem:
-    1. O ícone .fa-clipboard-check
-    2. <button> com aria-label='Conclusão ao magistrado'
-    """
-    from selenium.webdriver.common.by import By
-    import time
-    for tent in range(timeout * 2):
-        # 1. Buscar pelo ícone .fa-clipboard-check
-        icones = driver.find_elements(By.CSS_SELECTOR, '.fa-clipboard-check')
-        for icone in icones:
-            if icone.is_displayed():
-                # Subir até 5 níveis para achar um <button>
-                parent = icone
-                for _ in range(5):
-                    parent = parent.find_element(By.XPATH, '..')
-                    if parent.tag_name.lower() == 'button' and parent.is_displayed():
-                        print(f"[DEBUG] Clique em <button> via .fa-clipboard-check na tentativa {tent+1}")
-                        parent.click()
-                        return True
-        # 2. Buscar <button> por aria-label
-        botoes_aria = driver.find_elements(By.CSS_SELECTOR, 'button[aria-label="Conclusão ao magistrado"]')
-        botoes_aria = [b for b in botoes_aria if b.is_displayed()]
-        if botoes_aria:
-            print(f"[DEBUG] Clique em <button aria-label='Conclusão ao magistrado'> na tentativa {tent+1}")
-            botoes_aria[0].click()
-            return True
-        time.sleep(0.5)
-    # Log detalhado
-    print(f"[ERRO] Não foi possível clicar em conclusão ao magistrado. Candidatos:")
-    icones = driver.find_elements(By.CSS_SELECTOR, '.fa-clipboard-check')
-    for idx, ic in enumerate(icones):
-        print(f"[DEBUG] .fa-clipboard-check idx={idx}, visível={ic.is_displayed()}, tag={ic.tag_name}")
-    botoes_aria = driver.find_elements(By.CSS_SELECTOR, 'button[aria-label]')
-    for idx, b in enumerate(botoes_aria):
-        print(f"[DEBUG] <button> idx={idx}, aria-label='{b.get_attribute('aria-label')}', texto='{b.text}', visível={b.is_displayed()}, classes='{b.get_attribute('class')}'")
-    print("[ERRO] Busca finalizada. Nenhum botão de conclusão ao magistrado clicável encontrado.")
-    raise Exception("Nenhum botão de conclusão ao magistrado encontrado.")
-
-def pos_criacao_gigs(driver, tipo_gigs):
-    """
-    Executa ação automática após criar o GIGS, podendo mudar de aba e realizar movimentação ou outra ação.
-    """
-    print(f"[DEBUG] Iniciando ação pós-GIGS para tipo: {tipo_gigs}")
-    if tipo_gigs == "Pesq":  # Silvia - Argos
-        fluxo_minuta_silvia_argos(driver)
-    # Outras regras futuras podem ser adicionadas aqui
-    print("[DEBUG] Fase 3 concluída para tipo:", tipo_gigs)
-    if tipo_gigs == "Pesq":  # Silvia - Argos
-        sucesso_ajuste = ajuste_minuta_silvia_argos(driver)
-        if not sucesso_ajuste:
-            print('[ERRO] Ajuste de minuta Silvia - Argos falhou.')
-        else:
-            print('[DEBUG] Ajuste de minuta Silvia - Argos concluído.')
-
-def ajuste_minuta_silvia_argos(driver):
-    """
-    Fluxo final de ajuste de minuta para o caso Silvia - Argos:
-    1. Seleciona o campo #inputFiltro[aria-label], clica, limpa e digita 'xsbacen'.
-    2. Seleciona o modelo destacado com .nodo-filtrado > span:nth-child(1) e clica.
-    3. Na janela, localiza e clica no botão Inserir (button.mat-primary > span, texto ou aria inserir).
-    """
-    from selenium.webdriver.common.by import By
-    import time
-    print('[DEBUG] Iniciando ajuste de minuta Silvia - Argos...')
-    try:
-        # 1. Selecionar campo de busca de modelo
-        campo_busca = driver.find_element(By.CSS_SELECTOR, '#inputFiltro[aria-label]')
-        campo_busca.click()
-        time.sleep(0.5)
-        campo_busca.clear()
-        campo_busca.send_keys('xsbacen')
-        print('[DEBUG] Digitado "xsbacen" no campo de busca do modelo.')
-        time.sleep(1)
-        # 2. Selecionar modelo destacado
-        modelo_destacado = driver.find_element(By.CSS_SELECTOR, '.nodo-filtrado > span:nth-child(1)')
-        modelo_destacado.click()
-        print('[DEBUG] Modelo destacado selecionado.')
-        time.sleep(1)
-        # 3. Clicar em inserir na janela
-        botoes_inserir = driver.find_elements(By.CSS_SELECTOR, 'button.mat-primary > span')
-        btn_inserir = None
-        for btn in botoes_inserir:
-            if 'inserir' in btn.text.lower():
-                btn_inserir = btn.find_element(By.XPATH, '..')
-                break
-        if btn_inserir:
-            btn_inserir.click()
-            print('[DEBUG] Botão Inserir clicado.')
-        else:
-            print('[ALERTA] Botão Inserir não encontrado!')
-        time.sleep(1)
-    except Exception as e:
-        print(f'[ERRO] Erro no ajuste de minuta Silvia - Argos: {e}')
-        return False
-    return True
-
-# === MÓDULO MANDADOS: Hipótese 1 - Pesquisas (Argos) ===
-def fluxo_mandados_argos(driver):
-    """
-    Fluxo Mandados Argos - Hipótese 1 (Pesquisas)
-    1. Abrir sigilo da Certidão de devolução e tratar anexos INFOJUD/DOI/IRPF
-    2. Tratar documentos seguintes: abrir sigilo de Planilha, Decisão e Certidão de expedição
-    3. Tratar Intimação (envelope, checkbox, confirmar) - apenas se Decisão e Intimação estiverem na mesma data, e Planilha logo após Intimação
-    4. Ao final, garantir seleção da Certidão de devolução
-    """
-    from selenium.webdriver.common.by import By
-    import time
-    print('[DEBUG] Iniciando fluxo Mandados Argos...')
-    abas = driver.window_handles
-    if len(abas) < 2:
-        print('[ERRO] Não há aba anterior para validar escaninho!')
-        return False
-    print('[DEBUG] Escaninho de documentos internos validado.')
-    if not fechar_overlays(driver, timeout=10):
-        print('[ERRO] Não foi possível fechar overlay/modal. Corrija manualmente e tente novamente.')
-        return False
-    try:
-        # 1. Certidão de devolução
-        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-        certidao = next((el for el in itens if 'Certidão de devolução' in el.text), None)
-        if not certidao:
-            print('[ERRO] Certidão de devolução não encontrada.')
-            return False
-        certidao.click()
-        print('[DEBUG] Certidão de devolução clicada.')
-        time.sleep(1)
-        # 2. Coletar todos os documentos relevantes (com data)
-        docs_info = []
-        for el in itens:
-            try:
-                nome = el.text.split('\n')[0].strip()
-                data = el.find_element(By.CSS_SELECTOR, '.tl-data').text.strip()
-                docs_info.append({'el': el, 'nome': nome, 'data': data})
-            except Exception:
-                continue
-        # 3. Identificar Decisão, Intimação e Planilha agrupados
-        decisao = next((d for d in docs_info if 'Decisão' in d['nome']), None)
-        intimacao = next((d for d in docs_info if 'Intimação' in d['nome']), None)
-        planilha = next((d for d in docs_info if 'Planilha' in d['nome']), None)
-        # Critério: Decisão e Intimação na mesma data, Planilha logo após Intimação
-        if not (decisao and intimacao and planilha):
-            print('[ERRO] Não localizados Decisão, Intimação e Planilha para o critério.')
-            return False
-        idx_dec = docs_info.index(decisao)
-        idx_int = docs_info.index(intimacao)
-        idx_pla = docs_info.index(planilha)
-        if decisao['data'] != intimacao['data']:
-            print('[ERRO] Decisão e Intimação não estão na mesma data.')
-            return False
-        if not (idx_pla == idx_int + 1):
-            print('[ERRO] Planilha de cálculos não está logo após a Intimação.')
-            return False
-        # 4. Tratar Decisão, Intimação e Planilha
-        for doc in [decisao, intimacao, planilha]:
-            el = doc['el']
-            try:
-                el.click()
-                print(f'[DEBUG] Documento tratado: {doc["nome"]} ({doc["data"]})')
-                time.sleep(1)
-            except Exception as e:
-                print(f'[ERRO] Falha ao clicar em {doc["nome"]}: {e}')
-                return False
-        # 5. Tratar Certidão de expedição se existir
-        cert_exp = next((d for d in docs_info if 'Certidão de expedição' in d['nome']), None)
-        if cert_exp:
-            try:
-                cert_exp['el'].click()
-                print(f'[DEBUG] Certidão de expedição tratada: {cert_exp["data"]}')
-                time.sleep(1)
-            except Exception as e:
-                print(f'[ERRO] Falha ao clicar em Certidão de expedição: {e}')
-        # 6. Garantir seleção da Certidão de devolução
-        certidao.click()
-        print('[DEBUG] Certidão de devolução selecionada ao final.')
-        return True
-    except Exception as e:
-        print(f'[ERRO] Falha no fluxo Mandados Argos: {e}')
-        return False
-
-def injetar_botao_argos(driver):
-    """
-    Injeta o botão 'Argos' na interface da aba de detalhes, se a aba anterior for escaninho de documentos internos.
-    O botão, quando clicado manualmente, executa o fluxo_mandados_argos(driver).
-    """
-    import time
-    try:
-        # Verifica se o botão já existe para não duplicar
-        if driver.execute_script("return document.getElementById('btn-argos-cascade') !== null"):
-            print('[DEBUG] Botão Argos já está presente.')
-            return
-        # Localiza o botão de referência para posicionar o Argos à direita
-        ref_btn = None
-        try:
-            ref_btn = driver.find_element(By.CSS_SELECTOR, '.actions-container > button:nth-child(1)')
-        except Exception:
-            ref_btn = None
-        if ref_btn:
-            driver.execute_script('''
-                var ref = arguments[0];
-                var btn = document.createElement('button');
-                btn.id = 'btn-argos-cascade';
-                btn.innerText = 'Argos';
-                btn.style.marginLeft = '16px';
-                btn.style.backgroundColor = '#1976d2';
-                btn.style.color = 'white';
-                btn.style.border = 'none';
-                btn.style.borderRadius = '5px';
-                btn.style.cursor = 'pointer';
-                btn.style.fontWeight = 'bold';
-                btn.style.padding = '10px 15px';
-                btn.style.fontSize = '16px';
-                btn.style.zIndex = '9999';
-                ref.parentNode.insertBefore(btn, ref.nextSibling);
-            ''', ref_btn)
-        else:
-            driver.execute_script('''
-                var btn = document.createElement('button');
-                btn.id = 'btn-argos-cascade';
-                btn.innerText = 'Argos';
-                btn.style.position = 'fixed';
-                btn.style.top = '90px';
-                btn.style.right = '30px';
-                btn.style.zIndex = '9999';
-                btn.style.padding = '10px 15px';
-                btn.style.backgroundColor = '#1976d2';
-                btn.style.color = 'white';
-                btn.style.border = 'none';
-                btn.style.borderRadius = '5px';
-                btn.style.cursor = 'pointer';
-                btn.style.fontWeight = 'bold';
-                btn.style.fontSize = '16px';
-                document.body.appendChild(btn);
-            ''')
-        print('[DEBUG] Botão Argos injetado na interface.')
-        # Injeta o listener para disparar o fluxo de mandados ao clicar
-        driver.execute_script('''
-            if (!window._argosListenerAdded) {
-                document.getElementById('btn-argos-cascade').addEventListener('click', function() {
-                    document.title = '[ARGOS_CLICADO]';
-                });
-                window._argosListenerAdded = true;
-            }
-        ''')
-    except Exception as e:
-        print(f'[DEBUG] Falha ao injetar botão Argos: {e}')
-
-def aguardar_clique_botao_argos(driver, timeout=600):
-    """
-    Aguarda o clique manual do botão Argos (até timeout em segundos).
-    Só chama fluxo_mandados_argos(driver) se o botão for clicado (data-argos-cascade=1).
-    """
-    import time
-    print('[INFO] Aguarde o clique manual no botão Argos para iniciar o fluxo Mandados...')
-    for _ in range(timeout*2):
-        try:
-            flag = driver.execute_script("return document.body.getAttribute('data-argos-cascade')")
-            if flag == '1':
-                print('[DEBUG] Botão Argos clicado! Iniciando fluxo Mandados Argos.')
-                # Limpa o flag para permitir reuso
-                driver.execute_script("document.body.removeAttribute('data-argos-cascade')")
-                fluxo_mandados_argos(driver)
-                break
-        except Exception:
-            pass
-        time.sleep(0.5)
-    else:
-        print('[INFO] Timeout aguardando clique no botão Argos.')
-
-def fechar_overlays(driver, timeout=10):
-    """
-    Aguarda o fechamento de overlays/backdrops (ex: .cdk-overlay-backdrop) antes de prosseguir.
-    Se houver overlay, tenta clicar ou pressionar ESC para fechá-lo.
-    Se não conseguir fechar, retorna False.
-    """
-    import time
-    from selenium.webdriver.common.keys import Keys
-    end_time = time.time() + timeout
-    while time.time() < end_time:
-        overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop')
-        overlays_visiveis = [o for o in overlays if o.is_displayed()]
-        if not overlays_visiveis:
-            return True
-        print('[DEBUG] Overlay detectado, tentando fechar...')
-        try:
-            # Tenta clicar no overlay
-            for overlay in overlays_visiveis:
-                overlay.click()
-                time.sleep(0.5)
-            # Tenta pressionar ESC
-            driver.switch_to.active_element.send_keys(Keys.ESCAPE)
-            time.sleep(0.5)
-        except Exception as e:
-            print(f'[DEBUG] Falha ao tentar fechar overlay: {e}')
-        time.sleep(0.5)
-    print('[ERRO] Overlay não foi fechado após timeout.')
-    return False
+        print(f"[ERRO CRÍTICO] {e}")
+        driver.save_screenshot('erro_execucao.png')
+    # NÃO fecha o driver aqui, permitindo execução contínua
 
 if __name__ == "__main__":
     main()

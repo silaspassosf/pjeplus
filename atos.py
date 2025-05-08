@@ -296,23 +296,57 @@ def ato_judicial(
         # 8.2 Movimento
         if movimento:
             try:
-                # Clica na aba "Movimentos" antes de tentar preencher o campo
-                abas = driver.find_elements(By.CSS_SELECTOR, '.mat-tab-labels .mat-tab-label')
-                for aba in abas:
-                    if 'Movimentos' in aba.text:
-                        driver.execute_script("arguments[0].click();", aba)
-                        print('[ATO][DEBUG] Aba "Movimentos" clicada.')
-                        time.sleep(2)  # Pausa para garantir o carregamento da aba
+                # Clique na aba "Movimentos" por id específico
+                aba_mov = driver.find_element(By.CSS_SELECTOR, 'div#mat-tab-label-0-1.mat-tab-label')
+                driver.execute_script("arguments[0].click();", aba_mov)
+                print('[DEPURACAO] Clique na aba "Movimentos" realizado.')
+                time.sleep(1)
+                # DEPURAÇÃO: Tenta clicar no campo de filtro de várias formas
+                filtro_tentativas = [
+                    ('placeholder', 'input.mat-input-element[placeholder="Filtro"]'),
+                    ('data-placeholder', 'input.mat-input-element[data-placeholder="Filtro"]'),
+                    ('id', 'input#mat-input-3'),
+                    ('id', 'input#mat-input-4'),
+                ]
+                filtro_encontrado = False
+                for desc, seletor in filtro_tentativas:
+                    try:
+                        campo_filtro_mov = driver.find_element(By.CSS_SELECTOR, seletor)
+                        campo_filtro_mov.click()
+                        print(f'[DEPURACAO] Clique no campo de filtro de movimento por {desc}: {seletor}')
+                        campo_filtro_mov.clear()
+                        campo_filtro_mov.send_keys(movimento)
+                        campo_filtro_mov.send_keys(Keys.ENTER)
+                        filtro_encontrado = True
+                        input('[DEPURACAO] Pressione ENTER após testar clique e digitação no filtro...')
                         break
-                campo_mov = driver.find_element(By.CSS_SELECTOR, '#inputMovimento')
-                campo_mov.clear()
-                campo_mov.send_keys(movimento)
-                campo_mov.send_keys(Keys.ENTER)
-                if debug: print(f'[ATO] Movimento registrado: {movimento}')
+                    except Exception as e:
+                        print(f'[DEPURACAO] Falha ao tentar filtro por {desc}: {e}')
+                if not filtro_encontrado:
+                    print('[DEPURACAO] Nenhum campo de filtro encontrado, tentando clicar diretamente nas linhas de movimento.')
+                    # Busca e seleciona o checkbox do movimento pelo texto robusto
+                    movimento_texto = movimento.strip().lower()
+                    checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox.mat-checkbox.movimento')
+                    selecionado = False
+                    for cb in checkboxes:
+                        try:
+                            label = cb.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout .mat-checkbox-label').text
+                            label_normalizado = ' '.join(label.split()).lower()
+                            print(f'[DEPURACAO] Verificando linha: {label_normalizado}')
+                            if movimento_texto in label_normalizado:
+                                cb_label = cb.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                                driver.execute_script("arguments[0].click();", cb_label)
+                                print(f'[DEPURACAO] Checkbox do movimento selecionado: {label_normalizado}')
+                                selecionado = True
+                                break
+                        except Exception as e:
+                            print(f'[DEPURACAO] Erro ao tentar clicar na linha: {e}')
+                    if not selecionado:
+                        print(f'[DEPURACAO][ERRO] Nenhum movimento encontrado com o texto: {movimento_texto}')
+                    input('Pressione ENTER para continuar após tentativa de seleção de movimento...')
             except Exception as e:
-                print(f'[ATO][ERRO] Não foi possível registrar movimento: {e}')
-                print('[ATO][DEBUG] Execução pausada após erro em Movimento.')
-                import time; time.sleep(10)
+                print(f'[DEPURACAO][ERRO] Falha geral ao clicar/selecionar movimento: {e}')
+                input('[DEPURACAO] Pressione ENTER para continuar após erro em Movimento...')
         # 8.3 Sigilo (padrão: False)
         sigilo = kwargs.get('sigilo', False)
         try:

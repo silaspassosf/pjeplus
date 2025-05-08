@@ -2,5 +2,5 @@
 cd /d %~dp0
 call limpar_temp.bat
 cls
-python teste.py
+python p1.py
 pause

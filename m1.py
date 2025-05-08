@@ -13,10 +13,24 @@ from Fix import (
     esperar_elemento,
     safe_click,
     buscar_seletor_robusto,
-    limpar_temp_selenium
+    limpar_temp_selenium,
+    driver_notebook,
+    login_notebook
+)
+from atos import (
+    ato_judicial,
+    ato_meios,
+    ato_pesquisas,
+    ato_crda,
+    ato_crte,
+    ato_bloq,
+    ato_idpj,
+    ato_termoE,
+    ato_termoS
 )
 import os
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 
 def lembrete_bloq(driver, debug=False):
     """
@@ -374,56 +388,20 @@ def navegacao(driver):
     Navegação para a lista de documentos internos do PJe TRT2
     """
     try:
-        # 1. Navegação para URL
         url_lista = os.getenv('URL_PJE_ESCANINHO', 'https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos')
         print(f'[NAV] Iniciando navegação para: {url_lista}')
-        
-        # 2. Navegação com função do Fix
         if not navegar_para_tela(driver, url=url_lista, delay=2):
             raise Exception('Falha na navegação para a tela de documentos internos')
-            
-        # 3. Localização do ícone usando seletor CSS preciso
-        icone = esperar_elemento(driver, 'button[title="Mandados Devolvidos"]', timeout=15)
-        if not icone:
-            # Tenta alternativa
-            icone = esperar_elemento(driver, 'button[title*="Mandados"]', timeout=15)
-            if not icone:
-                raise Exception('Ícone de mandados devolvidos não encontrado')
-                
-        # 4. Clique seguro no ícone
-        if not safe_click(driver, icone):
-            raise Exception('Falha ao clicar no ícone de mandados devolvidos')
+
+        print('[NAV] Clicando no ícone reply-all (mandados devolvidos)...')
+        icone = driver.find_element(By.CSS_SELECTOR, 'i.fa-reply-all.icone-clicavel')
+        driver.execute_script('arguments[0].scrollIntoView(true);', icone)
+        icone.click()
         print('[NAV] Ícone de mandados devolvidos clicado com sucesso.')
-        
+        time.sleep(2)
         return True
-        
     except Exception as e:
         print(f'[NAV][ERRO] Falha na navegação: {str(e)}')
-        return False
-
-
-def checagem(driver):
-    """
-    Verifica se a lista de mandados está pronta para processamento
-    """
-    try:
-        # 1. Espera pelo chip indicador
-        chip = esperar_elemento(driver, 'div.mat-chip', timeout=10)
-        if not chip:
-            raise Exception('Chip indicador não encontrado')
-            
-        # 2. Verifica o texto do chip
-        if 'Mandados devolvidos' in chip.text or 'Mandados pendentes' in chip.text:
-            print('[CHECK] Lista de mandados pronta para processamento')
-        if 'devolvidos' in texto_chip.lower():
-            print('[CHECAGEM] Lista pronta para processamento')
-            return True
-        else:
-            print('[CHECAGEM] Lista não está em estado de devolução')
-            return False
-            
-    except Exception as e:
-        print(f'[CHECAGEM][ERRO] Falha na verificação: {str(e)}')
         return False
 
 
@@ -431,27 +409,41 @@ def main():
     # Limpeza inicial
     from Fix import limpar_temp_selenium
     limpar_temp_selenium()
-    
-    # Configuração do navegador
-    options = webdriver.FirefoxOptions()
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    options.set_preference('profile', r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium")
-    
+
     # Inicialização do driver
-    driver = webdriver.Firefox(options=options)
-    
+    driver = driver_notebook()
+
     # Login
-    usuario = os.environ.get('PJE_USUARIO') or input('Usuário PJe: ')
-    senha = os.environ.get('PJE_SENHA') or input('Senha PJe: ')
-    if not login_automatico(driver, usuario, senha):
+    if not login_notebook(driver):
         print('[ERRO] Falha no login.')
         driver.quit()
         return
-    
+
     # Fluxo principal
-    if navegacao(driver) and checagem(driver):
-        fluxo_mandado(driver)
-    
+    if navegacao(driver):
+        # Indexa e processa a lista, já executando o fluxo de análise de mandado ao abrir cada processo
+        def fluxo_callback(driver):
+            try:
+                # Ao abrir o processo, já inicia o fluxo de análise de mandado (argos ou outros)
+                doc_ativo = driver.find_element(By.CSS_SELECTOR, 'li.tl-item-container.tl-item-ativo').text.lower()
+                if 'pesquisa patrimonial - argos' in doc_ativo:
+                    print(f'[MANDADO] Fluxo ARGOS')
+                    processar_argos(driver)
+                elif 'oficial de justiça' in doc_ativo:
+                    print(f'[MANDADO] Fluxo OUTROS')
+                    analise_outros(driver)
+                else:
+                    print(f'[MANDADO] Documento não identificado para decisão de fluxo.')
+            except Exception as e:
+                print(f'[MANDADO][ERRO] Falha ao processar mandado: {e}')
+            finally:
+                # Fechar aba e voltar para lista
+                if len(driver.window_handles) > 1:
+                    driver.close()
+                    driver.switch_to.window(driver.window_handles[0])
+
+        indexar_e_processar_lista(driver, fluxo_callback)
+
     # Finalização
     driver.quit()
 

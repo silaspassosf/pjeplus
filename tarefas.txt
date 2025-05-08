@@ -1,0 +1,21 @@
+-ver  clique em atividade sem prazo em p2.py antes do teste.
+-testar aplicacao de pz_minuta fix.py
+-testar chamada de copiardoc e,m fix.py
+- inverstigar criação de ecarta
+- funcao anexo TESTE
+-fluxo de minuta
+- critar def_carta em carta.py para uso em outros processos:
+1- LOCALIZA\R INTIMAÇÕES ALVO NAO TIMELINE (IMPLEMNTAR)
+a- ulltima data.
+b- registrar e armazenar o ID de cada uma
+c- b- abrir uma por uma e confirma por conteudo ecarta REG
+2- obter numero do processo ativo pela função extrair_dados de fix.py
+3- acessar em npva JANELA
+fhttps://aplicacoes1.trt2.jus.br/eCarta-web/consultarProcesso.xhtml?codigo={numerlo do processo}
+
+4- se localizado- #input_user, preencher login e entrar:
+a user - s164283
+b #input_password - 59Justdoit!1
+c entrar - input.btn
+5- buscar os id extraidos no passo um e copiaf a linha completa konde estão. (implementar) - em cinjunto!
+6- chamar anexo.py função def_carta

@@ -329,7 +329,8 @@ def fluxo_mandado(driver):
                         padrao_positivo = any(p in texto_lower for p in ["citei", "intimei", "recebeu o mandado", "de tudo ficou ciente"])
                         padrao_negativo = any(p in texto_lower for p in [
                             "não localizado", "negativo", "não encontrado",
-                            "deixei de citar", "deixei de efetuar", "não logrei êxito", "desconhecido no local"
+                            "deixei de citar", "deixei de efetuar", "não logrei êxito", "desconhecido no local",
+                            "não foi possível efetuar"
                         ])
                         if padrao_oficial:
                             print("[MANDADOS][OUTROS][LOG] Padrão 'certidão de oficial' ENCONTRADO no texto.")

@@ -47,6 +47,8 @@ class JuntadaAutomatica:
         if configuracao.get('assinar', 'nao').lower() == 'sim':
             self.clicar_elemento('button[aria-label="Assinar documento e juntar ao processo"]')
             print("[JUNTADA] Documento assinado com sucesso.")
+        # Após finalizar e voltar à aba de detalhes, aplica visibilidade se sigilo for positivo
+        aplicar_visibilidade_se_necessario(self.driver, configuracao.get('sigilo', 'nao'))
 
     def preencher_campo(self, seletor, valor):
         """
@@ -98,6 +100,18 @@ def criar_template_juntada():
         "vinculo": "Nenhum",
         "visibilidade": "sim"
     }
+
+# Função auxiliar para aplicar visibilidade extra após juntada, se sigilo for 'sim'
+def aplicar_visibilidade_se_necessario(driver, sigilo, log=True):
+    if str(sigilo).lower() in ("sim", "true", "1"):  # aceita várias formas de positivo
+        try:
+            from Fix import visibilidade_sigilosos
+            visibilidade_sigilosos(driver, log=log)
+            if log:
+                print("[JUNTADA] Visibilidade extra aplicada por sigilo positivo.")
+        except Exception as e:
+            if log:
+                print(f"[JUNTADA][ERRO] Falha ao aplicar visibilidade extra: {e}")
 
 def def_carta(driver, ecarta_data, log=True):
     """

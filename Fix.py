@@ -164,37 +164,52 @@ def login_automatico(driver, usuario, senha):
         return False
 
 def login_notebook(driver):
-    # Realiza login automático no PJe TRT2 para notebooks, sem uso de variáveis de ambiente.
+    # Realiza login automático no PJe TRT2 para notebooks, seguindo o fluxo SSO PDPJ.
     try:
         driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
+        print('[LOGIN][NOTEBOOK] Página de login carregada.')
+        import time
+        from selenium.webdriver.common.by import By
+        
+        # 1. Clicar no botão SSO PDPJ
+        btn_sso = wait(driver, '#btnSsoPdpj', timeout=15)
+        if not btn_sso:
+            print('[LOGIN][ERRO] Botão SSO PDPJ não encontrado.')
+            return False
+        btn_sso.click()
+        print('[LOGIN][NOTEBOOK] Botão SSO PDPJ clicado.')
+        time.sleep(1)
 
-        # Campo de usuário
-        campo_usuario = wait(driver, 'input#username')
+        # 2. Preencher campo usuário
+        campo_usuario = wait(driver, '#username', timeout=15)
         if not campo_usuario:
             print('[LOGIN][ERRO] Campo de usuário não encontrado.')
             return False
         campo_usuario.clear()
         campo_usuario.send_keys('35305203813')
+        print('[LOGIN][NOTEBOOK] Usuário preenchido.')
         time.sleep(1)
 
-        # Campo de senha
-        campo_senha = wait(driver, 'input#password')
+        # 3. Preencher campo senha
+        campo_senha = wait(driver, '#password', timeout=15)
         if not campo_senha:
             print('[LOGIN][ERRO] Campo de senha não encontrado.')
             return False
         campo_senha.clear()
         campo_senha.send_keys('SpF59866')
+        print('[LOGIN][NOTEBOOK] Senha preenchida.')
         time.sleep(1)
 
-        # Botão de entrar
-        btn_entrar = wait(driver, 'button#btnEntrar')
-        if not btn_entrar:
-            print('[LOGIN][ERRO] Botão de entrar não encontrado.')
+        # 4. Clicar no botão de login
+        btn_login = wait(driver, '#kc-login', timeout=15)
+        if not btn_login:
+            print('[LOGIN][ERRO] Botão de login não encontrado.')
             return False
-        btn_entrar.click()
+        btn_login.click()
+        print('[LOGIN][NOTEBOOK] Botão de login clicado.')
         time.sleep(3)
 
-        print('[LOGIN] Login realizado com sucesso.')
+        print('[LOGIN][NOTEBOOK] Login realizado com sucesso.')
         return True
 
     except Exception as e:
@@ -1362,6 +1377,8 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
         print('[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.')
     except Exception as e:
         print(f'[WORKAROUND][ERRO] Falha ao pressionar TAB: {e}')
+    # Chama criar_botoes_detalhes antes de processar a lista
+    criar_botoes_detalhes()
     processar_lista_processos(driver, callback, seletor_btn=seletor_btn, modo=modo, max_processos=max_processos, log=log)
     print('[FLUXO] Fim do processamento da lista de processos.', flush=True)
 
@@ -1927,4 +1944,107 @@ def verificar_documento_decisao_sentenca(driver):
     except Exception as e:
         print(f'[DOC CHECK][ERRO] Falha ao verificar documentos: {e}')
         return False
+
+def visibilidade_sigilosos(driver, log=True):
+    """
+    Aplica visibilidade a documentos sigilosos anexados automaticamente.
+    """
+    try:
+        # Localiza o último documento juntado
+        ultimo_documento = driver.find_element(By.CSS_SELECTOR, "div.timeline-item:last-child")
+        if not ultimo_documento:
+            if log:
+                print("[VISIBILIDADE][ERRO] Último documento não encontrado.")
+            return False
+
+        # Verifica se o documento é sigiloso
+        btn_sigilo = ultimo_documento.find_element(By.CSS_SELECTOR, "i.fa-wpexplorer")
+        if btn_sigilo:
+            btn_sigilo.click()
+            time.sleep(0.5)
+
+        # Aplica visibilidade
+        btn_visibilidade = ultimo_documento.find_element(By.CSS_SELECTOR, "i.fa-plus")
+        if btn_visibilidade.is_displayed():
+            btn_visibilidade.click()
+            time.sleep(0.5)
+
+            # Confirma a visibilidade no modal
+            modal_contexto = driver.find_element(By.CSS_SELECTOR, ".mat-dialog-content")
+            btn_coluna = modal_contexto.find_element(By.CSS_SELECTOR, "i.botao-icone-titulo-coluna")
+            btn_coluna.click()
+            time.sleep(0.3)
+
+            btn_salvar = driver.find_element(By.CSS_SELECTOR, ".mat-dialog-actions > button:nth-child(1) > span:nth-child(1)")
+            btn_salvar.click()
+            if log:
+                print("[VISIBILIDADE] Visibilidade aplicada com sucesso.")
+
+            # Fecha o modal
+            modal_contexto.send_keys(Keys.ESCAPE)
+            time.sleep(1)
+        else:
+            if log:
+                print("[VISIBILIDADE][ERRO] Botão de visibilidade não visível.")
+            return False
+
+        return True
+
+    except Exception as e:
+        if log:
+            print(f"[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}")
+        return False
+
+def criar_botoes_detalhes():
+    """
+    Creates buttons with specific icons and actions, replicating the functionality from MaisPje.
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
+    # Use the standardized driver instance
+    driver = obter_driver_padronizado()
+
+    try:
+        base_element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "pjextension_bt_detalhes_base"))
+        )
+    except:
+        base_element = driver.find_element(By.TAG_NAME, "body")
+
+    # Create the container div if it doesn't exist
+    if not driver.find_elements(By.ID, "pjextension_bt_detalhes_base"):
+        container = driver.execute_script(
+            "var div = document.createElement('div');"
+            "div.id = 'pjextension_bt_detalhes_base';"
+            "div.style = 'float: left';"
+            "div.setAttribute('role', 'toolbar');"
+            "document.body.appendChild(div);"
+            "return div;"
+        )
+    else:
+        container = driver.find_element(By.ID, "pjextension_bt_detalhes_base")
+
+    # Define button configurations
+    buttons = [
+        {"title": "Abrir o Gigs", "icon": "fa fa-tag", "action": "abrir_gigs"},
+        {"title": "Expedientes", "icon": "fa fa-envelope", "action": "acao_botao_detalhes('Expedientes')"},
+        {"title": "Lembretes", "icon": "fas fa-thumbtack", "action": "acao_botao_detalhes('Lembretes')"},
+    ]
+
+    # Add buttons to the container
+    for button in buttons:
+        driver.execute_script(
+            f"var a = document.createElement('a');"
+            f"a.title = '{button['title']}';"
+            f"a.style = 'cursor: pointer; position: relative; vertical-align: middle; padding: 5px; top: 5px; z-index: 1; opacity: 1; font-size: 1.5rem; margin: 5px;';"
+            f"a.onmouseover = function() {{ a.style.opacity = 0.5; }};"
+            f"a.onmouseleave = function() {{ a.style.opacity = 1; }};"
+            f"var i = document.createElement('i');"
+            f"i.className = '{button['icon']}';"
+            f"a.appendChild(i);"
+            f"a.onclick = function() {{ {button['action']} }};"
+            f"document.getElementById('pjextension_bt_detalhes_base').appendChild(a);"
+        )
 

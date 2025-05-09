@@ -21,6 +21,7 @@ import os
 import logging
 import time
 from selectors_pje import BTN_TAREFA_PROCESSO
+from selenium.webdriver.common.by import By
 
 logger = logging.getLogger(__name__)
 
@@ -193,8 +194,14 @@ def ato_judicial(
     **kwargs
 ):
     """
-    Refatorado fluxo generalizado para qualquer ato judicial que siga o padrão do sobrestamento.
-    Utiliza fluxo_cls para a etapa final de conclusão.
+    Fluxo generalizado para qualquer ato judicial, seguindo a ordem:
+    1. Sigilo
+    2. PEC
+    3. Prazo
+    4. Movimento
+    5. GIGS
+    6. Fechar aba
+    7. Função extra de sigilo (se necessário)
     """
     try:
         # 1. Executa fluxo_cls até o clique/foco no campo de modelo
@@ -206,7 +213,6 @@ def ato_judicial(
         # 2. Digitação do modelo e prosseguimento (padrão MaisPje)
         from selenium.webdriver.common.by import By
         from selenium.webdriver.common.keys import Keys
-        import time
         campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
         campo_filtro_modelo.clear()
         campo_filtro_modelo.send_keys(modelo_nome)
@@ -254,33 +260,23 @@ def ato_judicial(
         print(f'[ATO][DEBUG] Após Salvar: URL atual = {driver.current_url}, Título = {driver.title}')
         time.sleep(1)
 
-        # 6. Preenchimento de prazos e campos personalizados
+        # 1. Sigilo (apenas marca/desmarca, fluxo extra depois)
+        sigilo = kwargs.get('sigilo', False)
+        sigilo_ativado = False
         try:
-            print('[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...')
-            preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario)
+            sigilo_input = driver.find_element(By.CSS_SELECTOR, 'input.mat-slide-toggle-input[name="sigiloso"]')
+            checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected()
+            if sigilo and not checked:
+                driver.execute_script("arguments[0].click();", sigilo_input)
+                sigilo_ativado = True
+                if debug: print('[ATO] Sigilo ativado.')
+            elif not sigilo and checked:
+                driver.execute_script("arguments[0].click();", sigilo_input)
+                if debug: print('[ATO] Sigilo desativado.')
         except Exception as e:
-            print(f'[ATO][PRAZO][ERRO] Falha inesperada ao preencher prazos: {e}')
-            return False
+            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')
 
-        campos_personalizados = kwargs.get('campos_personalizados', None)
-        if campos_personalizados:
-            try:
-                campos_personalizados(driver)
-            except Exception as cp_err:
-                print(f'[ATO][ERRO] Falha ao executar campos_personalizados: {cp_err}')
-                return False # Custom fields might be critical
-
-        # 7. Clica em Gravar (Salvar) usando seletor direto
-        try:
-            btn_gravar = driver.find_element(By.CSS_SELECTOR, 'button.botao-salvar[type="submit"]')
-            btn_gravar.click()
-            print('[ATO] Clique no botão Gravar realizado!')
-        except Exception as e:
-            print(f'[ATO][ERRO] Botão Gravar não encontrado ou não clicável: {e}')
-            return False
-
-        # 8. Funções parametrizadas: PEC, Movimento, Sigilo
-        # 8.1 PEC
+        # 2. PEC
         if marcar_pec is not None:
             try:
                 pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label*="PEC"]')
@@ -293,15 +289,22 @@ def ato_judicial(
                     if debug: print('[ATO] Caixa PEC desmarcada.')
             except Exception as e:
                 print(f'[ATO][ERRO] Não foi possível ajustar PEC: {e}')
-        # 8.2 Movimento
+
+        # 3. Prazo
+        try:
+            print('[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...')
+            preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario)
+        except Exception as e:
+            print(f'[ATO][PRAZO][ERRO] Falha inesperada ao preencher prazos: {e}')
+            return False
+
+        # 4. Movimento
         if movimento:
             try:
-                # Clique na aba "Movimentos" por id específico
                 aba_mov = driver.find_element(By.CSS_SELECTOR, 'div#mat-tab-label-0-1.mat-tab-label')
                 driver.execute_script("arguments[0].click();", aba_mov)
                 print('[DEPURACAO] Clique na aba "Movimentos" realizado.')
                 time.sleep(1)
-                # DEPURAÇÃO: Tenta clicar no campo de filtro de várias formas
                 filtro_tentativas = [
                     ('placeholder', 'input.mat-input-element[placeholder="Filtro"]'),
                     ('data-placeholder', 'input.mat-input-element[data-placeholder="Filtro"]'),
@@ -318,16 +321,13 @@ def ato_judicial(
                         campo_filtro_mov.send_keys(movimento)
                         campo_filtro_mov.send_keys(Keys.ENTER)
                         filtro_encontrado = True
-                        input('[DEPURACAO] Pressione ENTER após testar clique e digitação no filtro...')
                         break
                     except Exception as e:
                         print(f'[DEPURACAO] Falha ao tentar filtro por {desc}: {e}')
                 if not filtro_encontrado:
                     print('[DEPURACAO] Nenhum campo de filtro encontrado, tentando clicar diretamente nas linhas de movimento.')
-                    # Busca e seleciona o checkbox do movimento pelo texto robusto
                     movimento_texto = movimento.strip().lower()
                     checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox.mat-checkbox.movimento')
-                    selecionado = False
                     for cb in checkboxes:
                         try:
                             label = cb.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout .mat-checkbox-label').text
@@ -337,32 +337,14 @@ def ato_judicial(
                                 cb_label = cb.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                                 driver.execute_script("arguments[0].click();", cb_label)
                                 print(f'[DEPURACAO] Checkbox do movimento selecionado: {label_normalizado}')
-                                selecionado = True
                                 break
                         except Exception as e:
                             print(f'[DEPURACAO] Erro ao tentar clicar na linha: {e}')
-                    if not selecionado:
-                        print(f'[DEPURACAO][ERRO] Nenhum movimento encontrado com o texto: {movimento_texto}')
-                    input('Pressione ENTER para continuar após tentativa de seleção de movimento...')
             except Exception as e:
                 print(f'[DEPURACAO][ERRO] Falha geral ao clicar/selecionar movimento: {e}')
                 input('[DEPURACAO] Pressione ENTER para continuar após erro em Movimento...')
-        # 8.3 Sigilo (padrão: False)
-        sigilo = kwargs.get('sigilo', False)
-        try:
-            # Busca o input do slide-toggle pelo atributo name ou id
-            sigilo_input = driver.find_element(By.CSS_SELECTOR, 'input.mat-slide-toggle-input[name="sigiloso"]')
-            checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected()
-            if sigilo and not checked:
-                driver.execute_script("arguments[0].click();", sigilo_input)
-                if debug: print('[ATO] Sigilo ativado.')
-            elif not sigilo and checked:
-                driver.execute_script("arguments[0].click();", sigilo_input)
-                if debug: print('[ATO] Sigilo desativado.')
-        except Exception as e:
-            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')
 
-        # 9. Cria GIGS (minuta) como última etapa, se definido
+        # 5. GIGS (minuta)
         if gigs:
             try:
                 from Fix import gigs_minuta
@@ -371,23 +353,34 @@ def ato_judicial(
             except Exception as e:
                 print(f'[ATO][ERRO] Falha ao criar GIGS (minuta): {e}')
 
-        # 10. Executa o fluxo de conclusão usando fluxo_cls
-        print(f'[ATO] Iniciando fluxo de conclusão para tipo: {conclusao_tipo}')
-        if not fluxo_cls(driver, conclusao_tipo):
-            print(f'[ATO][ERRO] Falha no fluxo_cls para {conclusao_tipo}.')
-            return False # Indicate failure if fluxo_cls fails
+        # 6. Fechar aba da minuta
+        try:
+            if len(driver.window_handles) > 1:
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
+                print('[ATO] Aba da minuta fechada e foco retornado para aba principal.')
+        except Exception as e:
+            print(f'[ATO][ERRO] Falha ao fechar aba da minuta: {e}')
+
+        # 7. Função extra de sigilo (se ativado)
+        if sigilo_ativado:
+            try:
+                from Fix import visibilidade_sigilosos
+                visibilidade_sigilosos(driver, log=debug)
+                print('[ATO] Fluxo extra de visibilidade sigilosa executado.')
+            except Exception as e:
+                print(f'[ATO][ERRO] Falha no fluxo extra de sigilo: {e}')
 
         print(f'[ATO] Fluxo de ato judicial ({conclusao_tipo}, {modelo_nome}) finalizado com sucesso.')
-        return True # Indicate success
+        return True
 
     except Exception as e:
         print(f'[ATO][ERRO] Falha no fluxo do ato judicial ({conclusao_tipo}, {modelo_nome}): {e}')
-        # Attempt screenshot on error
         try:
             driver.save_screenshot(f'erro_ato_{conclusao_tipo}_{modelo_nome}.png')
         except Exception as screen_err:
             print(f'[ATO][WARN] Falha ao salvar screenshot do erro: {screen_err}')
-        return False # Indicate failure
+        return False
 
 # Definição de wrappers para atos judiciais padrão
 def ato_meios(driver, debug=False):
@@ -744,11 +737,19 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
                         log(f'[ERRO] Não foi possível voltar para aba original: {e}')
                 else:
                     log('[ERRO] Aba original não está mais disponível após fechar minutas.')
-            log('Comunicação processual finalizada.')
-            return True
         except Exception as e:
             log(f'[ERRO] Não foi possível clicar em salvar: {e}')
             return False
+        # Após voltar à aba de detalhes, aplica visibilidade se sigilo for positivo
+        if str(sigilo).lower() in ("sim", "true", "1"):  # aceita várias formas de positivo
+            try:
+                from Fix import visibilidade_sigilosos
+                visibilidade_sigilosos(driver, log=debug)
+                log('[COMUNICACAO] Visibilidade extra aplicada por sigilo positivo.')
+            except Exception as e:
+                log(f'[COMUNICACAO][ERRO] Falha ao aplicar visibilidade extra: {e}')
+        log('Comunicação processual finalizada.')
+        return True
     except Exception as e:
         log(f'[ERRO] Falha no fluxo de comunicação: {e}')
         # Consider adding tab closing logic here too if an error occurs earlier

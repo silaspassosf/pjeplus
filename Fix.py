@@ -7,6 +7,7 @@ import shutil
 import tempfile
 import time
 import re
+import json
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -113,64 +114,132 @@ def driver_notebook(headless=False):
     return driver
 
 # Função de login automático
-def login_automatico(driver, usuario, senha):
-    # Realiza login automático no PJe TRT2 e navega diretamente para a página de atividades.
-    try:
-        driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
-        
-        # Campo de usuário
-        campo_usuario = wait(driver, 'input#username')
-        if not campo_usuario:
-            print('[LOGIN][ERRO] Campo de usuário não encontrado.')
-            return False
-        campo_usuario.clear()
-        campo_usuario.send_keys(usuario)
-        time.sleep(1)
-        
-        # Campo de senha
-        campo_senha = wait(driver, 'input#password')
-        if not campo_senha:
-            print('[LOGIN][ERRO] Campo de senha não encontrado.')
-            return False
-        campo_senha.clear()
-        campo_senha.send_keys(senha)
-        time.sleep(1)
-        
-        # Botão de entrar
-        btn_entrar = wait(driver, 'button#btnEntrar')
-        if not btn_entrar:
-            print('[LOGIN][ERRO] Botão de entrar não encontrado.')
-            return False
-        btn_entrar.click()
-        time.sleep(3)
-        
-        print('[LOGIN] Login realizado com sucesso.')
-        
-        # Navega diretamente para a página de atividades
-        driver.get('https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades')
-        print('[NAVEGAR] Página de atividades carregada.')
-        time.sleep(3)  # Aguarda o carregamento da página
-        
-        # Aplica o filtro 100
-        if aplicar_filtro_100(driver):
-            print('[FILTRO] Filtro 100 aplicado com sucesso.')
+def login_pc(driver):
+    """
+    Login automático no PJe TRT2 para PC, com tentativa de reutilização de cookies e lógica de cliques robusta.
+    Usuário e senha são lidos das variáveis de ambiente PJE_USER e PJE_PASS.
+    """
+    import os
+    import time
+    usuario = os.environ.get('PJE_USER')
+    senha = os.environ.get('PJE_PASS')
+    if not usuario or not senha:
+        print('[LOGIN][ERRO] Variáveis de ambiente PJE_USER e/ou PJE_PASS não definidas.')
+        return False
+    caminho_cookies = 'cookies_pjeplus_pc.json'
+    # Tenta carregar cookies antes de login manual
+    if carregar_cookies(driver, caminho_cookies):
+        print('[LOGIN][PC] Cookies carregados, tentando acesso sem login manual...')
+        time.sleep(2)
+        if 'login' not in driver.current_url.lower():
+            print('[LOGIN][PC] Login por cookies bem-sucedido.')
+            return True
         else:
-            print('[FILTRO][ERRO] Falha ao aplicar o filtro 100.')
-        
-        return True
-        
+            print('[LOGIN][PC] Cookies inválidos ou expirados, prosseguindo com login manual.')
+    driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
+    print('[LOGIN][PC] Página de login carregada.')
+    # 1. Clicar no botão SSO PDPJ
+    btn_sso = wait(driver, '#btnSsoPdpj', timeout=15)
+    if not btn_sso:
+        print('[LOGIN][ERRO] Botão SSO PDPJ não encontrado.')
+        return False
+    btn_sso.click()
+    print('[LOGIN][PC] Botão SSO PDPJ clicado.')
+    time.sleep(1)
+    # 2. Preencher campo usuário
+    campo_usuario = wait(driver, '#username', timeout=15)
+    if not campo_usuario:
+        print('[LOGIN][ERRO] Campo de usuário não encontrado.')
+        return False
+    campo_usuario.clear()
+    campo_usuario.send_keys(usuario)
+    print('[LOGIN][PC] Usuário preenchido.')
+    time.sleep(1)
+    # 3. Preencher campo senha
+    campo_senha = wait(driver, '#password', timeout=15)
+    if not campo_senha:
+        print('[LOGIN][ERRO] Campo de senha não encontrado.')
+        return False
+    campo_senha.clear()
+    campo_senha.send_keys(senha)
+    print('[LOGIN][PC] Senha preenchida.')
+    time.sleep(1)
+    # 4. Clicar no botão de login
+    btn_login = wait(driver, '#kc-login', timeout=15)
+    if not btn_login:
+        print('[LOGIN][ERRO] Botão de login não encontrado.')
+        return False
+    btn_login.click()
+    print('[LOGIN][PC] Botão de login clicado.')
+    time.sleep(3)
+    # Após clicar no botão de login, checar acesso negado
+    time.sleep(2)
+    if checar_acesso_negado(driver):
+        return False
+    print('[LOGIN][PC] Login realizado com sucesso.')
+    # Salva cookies após login bem-sucedido
+    salvar_cookies(driver, caminho_cookies)
+    # Navega diretamente para a página de atividades
+    driver.get('https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades')
+    print('[NAVEGAR] Página de atividades carregada.')
+    time.sleep(3)
+    # Aplica o filtro 100
+    if aplicar_filtro_100(driver):
+        print('[FILTRO] Filtro 100 aplicado com sucesso.')
+    else:
+        print('[FILTRO][ERRO] Falha ao aplicar o filtro 100.')
+    return True
+
+def salvar_cookies(driver, caminho_arquivo):
+    """Salva os cookies do navegador em um arquivo JSON."""
+    import json
+    try:
+        cookies = driver.get_cookies()
+        with open(caminho_arquivo, 'w', encoding='utf-8') as f:
+            json.dump(cookies, f, ensure_ascii=False, indent=2)
+        print(f'[COOKIES] Cookies salvos em {caminho_arquivo}')
     except Exception as e:
-        print(f'[LOGIN][ERRO] Falha no login ou navegação: {e}')
+        print(f'[COOKIES][ERRO] Falha ao salvar cookies: {e}')
+
+def carregar_cookies(driver, caminho_arquivo, url_base='https://pje.trt2.jus.br'):
+    """Carrega cookies de um arquivo JSON e injeta no navegador."""
+    import os
+    import json
+    if not os.path.exists(caminho_arquivo):
+        print(f'[COOKIES] Arquivo de cookies não encontrado: {caminho_arquivo}')
+        return False
+    try:
+        driver.get(url_base)  # Necessário para definir domínio
+        with open(caminho_arquivo, 'r', encoding='utf-8') as f:
+            cookies = json.load(f)
+        for cookie in cookies:
+            cookie.pop('sameSite', None)
+            cookie.pop('expiry', None)
+            driver.add_cookie(cookie)
+        print(f'[COOKIES] Cookies carregados de {caminho_arquivo}')
+        driver.refresh()
+        return True
+    except Exception as e:
+        print(f'[COOKIES][ERRO] Falha ao carregar cookies: {e}')
         return False
 
 def login_notebook(driver):
-    # Realiza login automático no PJe TRT2 para notebooks, seguindo o fluxo SSO PDPJ.
+    # Realiza login automático no PJe TRT2 para notebooks, simulando digitação humana lenta e navegação por TAB/ENTER.
     try:
+        from selenium.webdriver.common.keys import Keys
+        import random
+        caminho_cookies = 'cookies_pjeplus_notebook.json'
+        # Tenta carregar cookies antes de login manual
+        if carregar_cookies(driver, caminho_cookies):
+            print('[LOGIN][NOTEBOOK] Cookies carregados, tentando acesso sem login manual...')
+            time.sleep(2)
+            if 'login' not in driver.current_url.lower():
+                print('[LOGIN][NOTEBOOK] Login por cookies bem-sucedido.')
+                return True
+            else:
+                print('[LOGIN][NOTEBOOK] Cookies inválidos ou expirados, prosseguindo com login manual.')
         driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
         print('[LOGIN][NOTEBOOK] Página de login carregada.')
-        import time
-        from selenium.webdriver.common.by import By
-        
         # 1. Clicar no botão SSO PDPJ
         btn_sso = wait(driver, '#btnSsoPdpj', timeout=15)
         if not btn_sso:
@@ -179,42 +248,178 @@ def login_notebook(driver):
         btn_sso.click()
         print('[LOGIN][NOTEBOOK] Botão SSO PDPJ clicado.')
         time.sleep(1)
-
-        # 2. Preencher campo usuário
+        # 2. Preencher campo usuário simulando digitação humana lenta e imperfeita
+        usuario = '35305203813'
         campo_usuario = wait(driver, '#username', timeout=15)
         if not campo_usuario:
             print('[LOGIN][ERRO] Campo de usuário não encontrado.')
             return False
+        campo_usuario.click()
         campo_usuario.clear()
-        campo_usuario.send_keys('35305203813')
-        print('[LOGIN][NOTEBOOK] Usuário preenchido.')
-        time.sleep(1)
-
-        # 3. Preencher campo senha
+        time.sleep(0.4)
+        for c in usuario:
+            campo_usuario.send_keys(c)
+            time.sleep(0.22 + random.uniform(0, 0.09))
+        print('[LOGIN][NOTEBOOK] Usuário preenchido (digitação simulada, lenta e imperfeita).')
+        time.sleep(0.7 + random.uniform(0, 0.5))
+        # 3. Navegar para o campo senha com TAB
+        campo_usuario.send_keys(Keys.TAB)
+        time.sleep(0.4)
+        # 4. Preencher campo senha simulando digitação humana lenta e imperfeita
+        senha = 'SpF59866'
         campo_senha = wait(driver, '#password', timeout=15)
         if not campo_senha:
             print('[LOGIN][ERRO] Campo de senha não encontrado.')
             return False
+        campo_senha.click()
         campo_senha.clear()
-        campo_senha.send_keys('SpF59866')
-        print('[LOGIN][NOTEBOOK] Senha preenchida.')
-        time.sleep(1)
-
-        # 4. Clicar no botão de login
-        btn_login = wait(driver, '#kc-login', timeout=15)
-        if not btn_login:
-            print('[LOGIN][ERRO] Botão de login não encontrado.')
-            return False
-        btn_login.click()
-        print('[LOGIN][NOTEBOOK] Botão de login clicado.')
-        time.sleep(3)
-
+        time.sleep(0.4)
+        for c in senha:
+            campo_senha.send_keys(c)
+            time.sleep(0.22 + random.uniform(0, 0.09))
+        print('[LOGIN][NOTEBOOK] Senha preenchida (digitação simulada, lenta e imperfeita).')
+        time.sleep(0.7 + random.uniform(0, 0.5))
+        # 5. Submeter com TAB+ENTER
+        campo_senha.send_keys(Keys.TAB)
+        time.sleep(0.2)
+        campo_senha.send_keys(Keys.ENTER)
+        print('[LOGIN][NOTEBOOK] TAB+Enter pressionados após senha.')
+        # 6. Espera aleatória após submissão
+        time.sleep(2 + random.uniform(0, 1.5))
+        # 7. Fallback: se login falhar, tenta novamente mais devagar
+        if checar_acesso_negado(driver):
+            print('[LOGIN][NOTEBOOK] Login falhou, tentando novamente com digitação ainda mais lenta.')
+            driver.refresh()
+            time.sleep(2)
+            campo_usuario = wait(driver, '#username', timeout=15)
+            if not campo_usuario:
+                print('[LOGIN][ERRO] Campo de usuário não encontrado (2ª tentativa).')
+                return False
+            campo_usuario.click()
+            campo_usuario.clear()
+            time.sleep(0.7)
+            for c in usuario:
+                campo_usuario.send_keys(c)
+                time.sleep(0.32 + random.uniform(0, 0.13))
+            time.sleep(1)
+            campo_usuario.send_keys(Keys.TAB)
+            time.sleep(0.5)
+            campo_senha = wait(driver, '#password', timeout=15)
+            if not campo_senha:
+                print('[LOGIN][ERRO] Campo de senha não encontrado (2ª tentativa).')
+                return False
+            campo_senha.click()
+            campo_senha.clear()
+            time.sleep(0.7)
+            for c in senha:
+                campo_senha.send_keys(c)
+                time.sleep(0.32 + random.uniform(0, 0.13))
+            time.sleep(1)
+            campo_senha.send_keys(Keys.TAB)
+            time.sleep(0.3)
+            campo_senha.send_keys(Keys.ENTER)
+            print('[LOGIN][NOTEBOOK] TAB+Enter pressionados após senha (2ª tentativa).')
+            time.sleep(3 + random.uniform(0, 1.5))
+            if checar_acesso_negado(driver):
+                print('[LOGIN][ERRO] Login falhou mesmo após 2ª tentativa.')
+                return False
         print('[LOGIN][NOTEBOOK] Login realizado com sucesso.')
         return True
-
     except Exception as e:
         print(f'[LOGIN][ERRO] Falha no login: {e}')
         return False
+
+# Novo login humanizado usando undetected-chromedriver (Chrome)
+def login_notebook_humano():
+    """
+    Login humanizado no PJe TRT2 usando undetected-chromedriver (Chrome),
+    simulando digitação, clique, scroll e delays realistas.
+    Usa as credenciais já presentes em login_notebook.
+    """
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.common.action_chains import ActionChains
+    import time
+    import random
+
+    usuario = '35305203813'
+    senha = 'SpF59866'
+
+    options = uc.ChromeOptions()
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--window-size=1366,768')
+    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36')
+
+    def human_type(element, text):
+        for char in text:
+            element.send_keys(char)
+            time.sleep(random.uniform(0.07, 0.25))
+
+    def human_click(driver, element):
+        actions = ActionChains(driver)
+        actions.move_to_element(element).pause(random.uniform(0.2, 1.2)).click().perform()
+
+    driver = uc.Chrome(options=options)
+    driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
+    time.sleep(random.uniform(1.2, 2.5))
+    driver.execute_script('window.scrollBy(0, 100)')
+    time.sleep(random.uniform(0.7, 1.7))
+    try:
+        btn_sso = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.ID, 'btnSsoPdpj'))
+        )
+        human_click(driver, btn_sso)
+        time.sleep(random.uniform(1, 2))
+        campo_usuario = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.ID, 'username'))
+        )
+        human_click(driver, campo_usuario)
+        time.sleep(random.uniform(0.3, 0.7))
+        human_type(campo_usuario, usuario)
+        time.sleep(random.uniform(0.5, 1.2))
+        campo_usuario.send_keys(Keys.TAB)
+        time.sleep(random.uniform(0.3, 0.7))
+        campo_senha = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.ID, 'password'))
+        )
+        human_click(driver, campo_senha)
+        time.sleep(random.uniform(0.3, 0.7))
+        human_type(campo_senha, senha)
+        time.sleep(random.uniform(0.5, 1.2))
+        campo_senha.send_keys(Keys.ENTER)
+        print('[LOGIN][HUMANO] Login submetido com Enter.')
+        time.sleep(random.uniform(2, 4))
+        # Captcha
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.ID, 'captcha-container'))
+            )
+            print('Captcha detectado! Resolva manualmente e pressione Enter...')
+            input()
+        except:
+            pass
+        # Verifica login
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CLASS_NAME, 'dashboard'))
+        )
+        print('Login realizado com sucesso!')
+        return driver
+    except Exception as e:
+        print(f'[LOGIN][HUMANO][ERRO] {e}')
+        driver.save_screenshot('erro_login_humano.png')
+        driver.quit()
+        return None
+
+def checar_acesso_negado(driver):
+    """Verifica se a página atual é de acesso negado e retorna True se for, senão False."""
+    url = driver.current_url.lower()
+    if 'negado' in url or 'acesso-negado' in url or 'acessonegado' in url:
+        print('[LOGIN][ERRO] Página de acesso negado detectada! Reiniciando fluxo de login...')
+        return True
+    return False
 
 # Função para navegar e esperar carregamento
 def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=True):
@@ -967,12 +1172,24 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
                 if log:
                     print(f'[GIGS][ERRO] Não está na tela de minuta! URL atual: {driver.current_url}')
                 return False
-            btn_bars = driver.find_element(By.CSS_SELECTOR, '.fa-bars')
-            btn_bars.click()
-            time.sleep(0.7)
-            btn_tag = driver.find_element(By.CSS_SELECTOR, '.fa-tag')
-            btn_tag.click()
-            time.sleep(1.2)
+            if log:
+                print('[GIGS][MINUTA] Confirmação: na tela de minuta.')
+            # NOVO: dois cliques antes de abrir o formulário de atividade
+            try:
+                btn_bars = driver.find_element(By.CSS_SELECTOR, '.fa-bars')
+                btn_bars.click()
+                if log:
+                    print('[GIGS][MINUTA] Clique em .fa-bars realizado.')
+                time.sleep(0.7)
+                btn_tag = driver.find_element(By.CSS_SELECTOR, '.icone-descricao > span:nth-child(1) > i.fa-tag')
+                btn_tag.click()
+                if log:
+                    print('[GIGS][MINUTA] Clique em .fa-tag realizado.')
+                time.sleep(0.7)
+            except Exception as e:
+                if log:
+                    print(f'[GIGS][MINUTA][ERRO] Falha nos cliques iniciais (.fa-bars/.fa-tag): {e}')
+                return False
         else:
             # 1. Garante que o GIGS está aberto
             try:
@@ -1006,15 +1223,42 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'form'))
         )
-        time.sleep(0.7)
+        # time.sleep(0.7)  # Removido: WebDriverWait já garante carregamento
         # Preenche Dias Úteis (MaisPje: input[formcontrolname="dias"])
-        campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
+        campo_dias = None
+        tentativas = 0
+        max_tentativas = int(timeout * 5)  # tenta por até 'timeout' segundos, a cada 0.2s
+        while tentativas < max_tentativas and not campo_dias:
+            try:
+                campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
+                if campo_dias.is_displayed() and campo_dias.is_enabled():
+                    break
+            except Exception:
+                pass
+            # Alternativa: busca por input[type="number"] visível
+            try:
+                inputs = driver.find_elements(By.CSS_SELECTOR, 'input[type="number"]')
+                for inp in inputs:
+                    if inp.is_displayed() and inp.is_enabled():
+                        campo_dias = inp
+                        break
+            except Exception:
+                pass
+            if not campo_dias:
+                if log:
+                    print(f'[GIGS][WAIT] Campo de dias úteis não disponível, tentativa {tentativas+1}/{max_tentativas}...')
+                time.sleep(0.2)  # Mais responsivo
+            tentativas += 1
+        if not campo_dias:
+            if log:
+                print('[GIGS][ERRO] Campo de dias úteis (input[formcontrolname="dias"]) não encontrado após múltiplas tentativas!')
+            return False
         campo_dias.clear()
-        time.sleep(0.3)
+        # time.sleep(0.3)  # Removido: não necessário após clear
         campo_dias.send_keys(str(dias_uteis))
         if log:
             print(f'[GIGS] Dias úteis preenchido: {dias_uteis}')
-        time.sleep(0.7)
+        # time.sleep(0.7)  # Removido: não necessário após preenchimento
         # Preenche Observação (MaisPje: textarea[formcontrolname="observacao"])
         campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
         campo_obs.clear()
@@ -1453,6 +1697,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 
 # Seleciona '100' no filtro de itens por página do painel global.
 def aplicar_filtro_100(driver):
+   
     # Aplica o filtro para exibir 100 itens por página no painel global.
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
@@ -2047,4 +2292,11 @@ def criar_botoes_detalhes():
             f"a.onclick = function() {{ {button['action']} }};"
             f"document.getElementById('pjextension_bt_detalhes_base').appendChild(a);"
         )
+    # NOVO: Força a atualização da posição dos botões
+    driver.execute_script(
+        "setTimeout(function() {"
+        "  var div = document.getElementById('pjextension_bt_detalhes_base');"
+        "  if (div) { div.style.display='none'; div.offsetHeight; div.style.display=''; }"
+        "}, 100);"
+    )
 

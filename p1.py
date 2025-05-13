@@ -6,7 +6,7 @@ from Fix import (
     safe_click,
     criar_gigs,
     extrair_documento,
-    processar_lista_processos,
+    indexar_e_processar_lista,
     driver_notebook,
     login_notebook,
     limpar_temp_selenium,

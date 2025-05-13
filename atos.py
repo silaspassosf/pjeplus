@@ -1,9 +1,8 @@
 # atos.py
 from Fix import (
-    login_automatico,
+    login_pc,
     safe_click,
     esperar_elemento,
-    processar_lista_processos,
     criar_gigs,
     aplicar_filtro_100,
     limpar_temp_selenium,
@@ -157,15 +156,16 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
             print(f'[CLS][ERRO] URL inesperada após clicar em conclusão tipo: {driver.current_url}')
             return False
 
-        # NOVO: Clique/foco no campo de filtro de modelos ao entrar em /minutar (padrão MaisPje)
+        # Clique e foco no campo de filtro de modelos ao entrar em /minutar
         try:
             campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
             if not campo_filtro_modelo.is_displayed() or not campo_filtro_modelo.is_enabled():
                 print('[CLS][MODELO][ERRO] Campo de filtro de modelos não está visível/habilitado!')
                 return False
             driver.execute_script("arguments[0].focus();", campo_filtro_modelo)
+            driver.execute_script("arguments[0].click();", campo_filtro_modelo)
+            print('[CLS][MODELO][OK] Clique e foco no campo de filtro de modelos realizado (padrão MaisPje).')
             time.sleep(0.3)
-            print('[CLS][MODELO][OK] Clique/foco no campo de filtro de modelos realizado (padrão MaisPje).')
         except Exception as e:
             print(f'[CLS][MODELO][ERRO] Falha ao clicar/focar no campo de filtro de modelos: {e}')
             return False
@@ -191,17 +191,20 @@ def ato_judicial(
     gigs=None,
     marcar_primeiro_destinatario=None,
     debug=False,
+    sigilo=None,
+    descricao=None,  # NOVO: parâmetro para descrição
     **kwargs
 ):
     """
     Fluxo generalizado para qualquer ato judicial, seguindo a ordem:
-    1. Sigilo
-    2. PEC
-    3. Prazo
-    4. Movimento
-    5. GIGS
-    6. Fechar aba
-    7. Função extra de sigilo (se necessário)
+    1. Descrição (NOVO)
+    2. Sigilo
+    3. PEC
+    4. Prazo
+    5. Movimento
+    6. GIGS
+    7. Fechar aba
+    8. Função extra de sigilo (se necessário)
     """
     try:
         # 1. Executa fluxo_cls até o clique/foco no campo de modelo
@@ -256,41 +259,43 @@ def ato_judicial(
             print(f'[ATO][ERRO] Botão Salvar não encontrado ou não clicável: {e}')
             return False
 
-        # NOVO: Log robusto após clicar em Salvar
-        print(f'[ATO][DEBUG] Após Salvar: URL atual = {driver.current_url}, Título = {driver.title}')
-        time.sleep(1)
-
-        # 1. Sigilo (apenas marca/desmarca, fluxo extra depois)
-        sigilo = kwargs.get('sigilo', False)
+        # LOGS DETALHADOS DE FLUXO
+        print(f'[ATO][DEBUG] Iniciando etapas pós-Salvar: Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo')
+        # 1. Sigilo (apenas ativa se explicitamente solicitado)
         sigilo_ativado = False
+        print('[ATO][DEBUG] Etapa: Sigilo')
         try:
             sigilo_input = driver.find_element(By.CSS_SELECTOR, 'input.mat-slide-toggle-input[name="sigiloso"]')
             checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected()
-            if sigilo and not checked:
+            if str(sigilo).lower() in ("sim", "true", "1") and not checked:
                 driver.execute_script("arguments[0].click();", sigilo_input)
                 sigilo_ativado = True
-                if debug: print('[ATO] Sigilo ativado.')
-            elif not sigilo and checked:
-                driver.execute_script("arguments[0].click();", sigilo_input)
-                if debug: print('[ATO] Sigilo desativado.')
+                print('[ATO][SIGILO][DEBUG] Sigilo ativado por solicitação explícita.')
+            else:
+                print(f'[ATO][SIGILO][DEBUG] Sigilo não solicitado ou já ativado. Nenhuma ação.')
         except Exception as e:
             print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')
 
         # 2. PEC
+        print('[ATO][DEBUG] Etapa: PEC')
         if marcar_pec is not None:
             try:
                 pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label*="PEC"]')
                 checked = pec_checkbox.get_attribute('aria-checked') == 'true' or pec_checkbox.is_selected()
+                print(f'[ATO][PEC][DEBUG] Estado atual da caixa PEC: {"marcada" if checked else "desmarcada"}. Parâmetro marcar_pec: {marcar_pec}')
                 if marcar_pec and not checked:
                     driver.execute_script("arguments[0].click();", pec_checkbox)
-                    if debug: print('[ATO] Caixa PEC marcada.')
+                    print('[ATO][PEC][DEBUG] Caixa PEC estava desmarcada e foi marcada.')
                 elif not marcar_pec and checked:
                     driver.execute_script("arguments[0].click();", pec_checkbox)
-                    if debug: print('[ATO] Caixa PEC desmarcada.')
+                    print('[ATO][PEC][DEBUG] Caixa PEC estava marcada e foi desmarcada.')
+                else:
+                    print('[ATO][PEC][DEBUG] Nenhuma ação necessária na caixa PEC.')
             except Exception as e:
                 print(f'[ATO][ERRO] Não foi possível ajustar PEC: {e}')
 
         # 3. Prazo
+        print('[ATO][DEBUG] Etapa: Prazo')
         try:
             print('[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...')
             preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario)
@@ -299,61 +304,108 @@ def ato_judicial(
             return False
 
         # 4. Movimento
+        print('[ATO][DEBUG] Etapa: Movimento')
         if movimento:
             try:
-                aba_mov = driver.find_element(By.CSS_SELECTOR, 'div#mat-tab-label-0-1.mat-tab-label')
-                driver.execute_script("arguments[0].click();", aba_mov)
-                print('[DEPURACAO] Clique na aba "Movimentos" realizado.')
+                js_mov = f'''
+                (function() {{
+                    // Ativa a aba "Movimentos"
+                    var tentativas = 0, abaMov = null;
+                    while (tentativas < 3 && !abaMov) {{
+                        var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
+                        abaMov = abas.find(a => a.textContent && a.textContent.normalize('NFD').replace(/[^\w\s]/g, '').toLowerCase().includes('movimentos'));
+                        if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {{
+                            abaMov.click();
+                            break;
+                        }}
+                        tentativas++;
+                    }}
+                    setTimeout(function() {{
+                        var textoMov = '{movimento}'.trim().toLowerCase().replace(/\s+/g, ' ');
+                        var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
+                        var selecionado = false;
+                        for (var cb of checkboxes) {{
+                            try {{
+                                var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
+                                var labelNorm = label && label.textContent ? label.textContent.trim().toLowerCase().replace(/\s+/g, ' ') : '';
+                                if (labelNorm.includes(textoMov)) {{
+                                    var input = cb.querySelector('input[type="checkbox"]');
+                                    if (input && !input.checked) input.click();
+                                    selecionado = true;
+                                    break;
+                                }}
+                            }} catch (e) {{}}
+                        }}
+                        if (!selecionado) {{
+                            var allLabels = Array.from(document.querySelectorAll('.mat-checkbox-label'));
+                            for (var labelEl of allLabels) {{
+                                var labelText = labelEl.textContent.trim().toLowerCase().replace(/\s+/g, ' ');
+                                if (labelText.includes(textoMov)) {{
+                                    var cbInput = labelEl.parentElement && labelEl.parentElement.parentElement ? labelEl.parentElement.parentElement.querySelector('input[type="checkbox"]') : null;
+                                    if (cbInput && !cbInput.checked) cbInput.click();
+                                    break;
+                                }}
+                            }}
+                        }}
+                    }}, 700);
+                }})();
+                '''
+                driver.execute_script(js_mov)
+                print(f'[ATO][MOVIMENTO][OK] JS robusto executado para selecionar movimento: {movimento}')
+                time.sleep(0.5)
+                # Clica no botão Gravar dos movimentos
+                from selenium.webdriver.common.by import By
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
+                btn_gravar_mov = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Gravar os movimentos') and contains(@class, 'mat-raised-button') and contains(., 'Gravar')]"))
+                )
+                print('[ATO][MOVIMENTO][LOG] Botão Gravar dos movimentos localizado, clicando...')
+                btn_gravar_mov.click()
+                print('[ATO][MOVIMENTO][OK] Botão Gravar dos movimentos clicado.')
                 time.sleep(1)
-                filtro_tentativas = [
-                    ('placeholder', 'input.mat-input-element[placeholder="Filtro"]'),
-                    ('data-placeholder', 'input.mat-input-element[data-placeholder="Filtro"]'),
-                    ('id', 'input#mat-input-3'),
-                    ('id', 'input#mat-input-4'),
-                ]
-                filtro_encontrado = False
-                for desc, seletor in filtro_tentativas:
-                    try:
-                        campo_filtro_mov = driver.find_element(By.CSS_SELECTOR, seletor)
-                        campo_filtro_mov.click()
-                        print(f'[DEPURACAO] Clique no campo de filtro de movimento por {desc}: {seletor}')
-                        campo_filtro_mov.clear()
-                        campo_filtro_mov.send_keys(movimento)
-                        campo_filtro_mov.send_keys(Keys.ENTER)
-                        filtro_encontrado = True
-                        break
-                    except Exception as e:
-                        print(f'[DEPURACAO] Falha ao tentar filtro por {desc}: {e}')
-                if not filtro_encontrado:
-                    print('[DEPURACAO] Nenhum campo de filtro encontrado, tentando clicar diretamente nas linhas de movimento.')
-                    movimento_texto = movimento.strip().lower()
-                    checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox.mat-checkbox.movimento')
-                    for cb in checkboxes:
-                        try:
-                            label = cb.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout .mat-checkbox-label').text
-                            label_normalizado = ' '.join(label.split()).lower()
-                            print(f'[DEPURACAO] Verificando linha: {label_normalizado}')
-                            if movimento_texto in label_normalizado:
-                                cb_label = cb.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                                driver.execute_script("arguments[0].click();", cb_label)
-                                print(f'[DEPURACAO] Checkbox do movimento selecionado: {label_normalizado}')
-                                break
-                        except Exception as e:
-                            print(f'[DEPURACAO] Erro ao tentar clicar na linha: {e}')
+                # Aguarda o modal de confirmação e clica explicitamente no botão "Sim"
+                try:
+                    btn_sim = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "//mat-dialog-container//button[.//span[normalize-space(text())='Sim'] and contains(@class, 'mat-primary') and contains(@class, 'mat-button') and contains(@class, 'mat-focus-indicator') ]"))
+                    )
+                    btn_sim.click()
+                    print('[ATO][MOVIMENTO][OK] Botão "Sim" do modal de confirmação clicado.')
+                    time.sleep(1)
+                except Exception as e:
+                    print(f'[ATO][MOVIMENTO][ERRO] Não foi possível clicar no botão "Sim" do modal: {e}')
+                    return False
+                # Clica no botão Salvar
+                btn_salvar = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Salvar') and contains(@class, 'mat-raised-button') and contains(., 'Salvar')]"))
+                )
+                print('[ATO][MOVIMENTO][LOG] Botão Salvar localizado, clicando...')
+                btn_salvar.click()
+                print('[ATO][MOVIMENTO][OK] Botão Salvar clicado.')
+                time.sleep(1)
             except Exception as e:
-                print(f'[DEPURACAO][ERRO] Falha geral ao clicar/selecionar movimento: {e}')
-                input('[DEPURACAO] Pressione ENTER para continuar após erro em Movimento...')
+                print(f'[ATO][MOVIMENTO][ERRO] Falha ao executar etapa de movimento: {e}')
+                return False
 
         # 5. GIGS (minuta)
+        print('[ATO][DEBUG] Etapa: GIGS')
         if gigs:
             try:
-                from Fix import gigs_minuta
-                gigs_minuta(driver, **gigs)
+                # Garante que o parâmetro 'tela' seja 'minuta' se a URL contiver '/minutar'
+                gigs_args = dict(gigs) if isinstance(gigs, dict) else {}
+                if '/minutar' in driver.current_url:
+                    gigs_args['tela'] = 'minuta'
+                resultado_gigs = criar_gigs(driver, **gigs_args)
+                if not resultado_gigs:
+                    print('[ATO][ERRO] Falha ao criar GIGS (minuta): criar_gigs retornou False.')
+                    return False
                 print('[ATO] GIGS (minuta) criado com sucesso na etapa final.')
             except Exception as e:
                 print(f'[ATO][ERRO] Falha ao criar GIGS (minuta): {e}')
+                return False
 
         # 6. Fechar aba da minuta
+        print('[ATO][DEBUG] Etapa: Fechar aba')
         try:
             if len(driver.window_handles) > 1:
                 driver.close()
@@ -363,6 +415,7 @@ def ato_judicial(
             print(f'[ATO][ERRO] Falha ao fechar aba da minuta: {e}')
 
         # 7. Função extra de sigilo (se ativado)
+        print('[ATO][DEBUG] Etapa: Função extra de sigilo')
         if sigilo_ativado:
             try:
                 from Fix import visibilidade_sigilosos
@@ -382,136 +435,128 @@ def ato_judicial(
             print(f'[ATO][WARN] Falha ao salvar screenshot do erro: {screen_err}')
         return False
 
-# Definição de wrappers para atos judiciais padrão
-def ato_meios(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='xsmeios',
-        prazo=5,
-        marcar_pec=False,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=True,
-        debug=debug
-    )
+def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None):
+    def wrapper(driver, debug=False, sigilo=None, movimento_=None, descricao=None):
+        return ato_judicial(
+            driver,
+            conclusao_tipo=conclusao_tipo,
+            modelo_nome=modelo_nome,
+            prazo=prazo,
+            marcar_pec=marcar_pec,
+            movimento=movimento_ if movimento_ is not None else movimento,
+            gigs=gigs,
+            marcar_primeiro_destinatario=marcar_primeiro_destinatario,
+            debug=debug,
+            sigilo=sigilo,
+            descricao=descricao
+        )
+    return wrapper
 
-def ato_pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False):
-    # Para pesquisas, a conclusão correta é sempre 'BNDT'
+# Wrappers gerados automaticamente
+ato_meios = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='xsmeios',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=True
+)
+
+ato_crda = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='a reclda',
+    prazo=15,
+    marcar_pec=False,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=False
+)
+
+ato_crte = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='xreit',
+    prazo=15,
+    marcar_pec=False,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=False
+)
+
+ato_bloq = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='xsparcial',
+    prazo=None,
+    marcar_pec=True,
+    movimento=None,
+    gigs={'dias_uteis': 1, 'observacao': 'pec bloq'},
+    marcar_primeiro_destinatario=False
+)
+
+ato_idpj = make_ato_wrapper(
+    conclusao_tipo='IDPJ',
+    modelo_nome='pjsem',
+    prazo=8,
+    marcar_pec=True,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=False
+)
+
+ato_termoE = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='xempre',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=True
+)
+
+ato_termoS = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='xsocio',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=True
+)
+
+ato_edital = make_ato_wrapper(
+    conclusao_tipo='despacho',
+    modelo_nome='xsedit',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=True
+)
+
+ato_sobrestamento = make_ato_wrapper(
+    conclusao_tipo='/ Susp',
+    modelo_nome='suspf',
+    prazo=0,
+    marcar_pec=False,
+    movimento='frustrada',
+    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    marcar_primeiro_destinatario=False
+)
+
+# ato_pesquisas permanece manual, pois tem lógica própria
+def ato_pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False, sigilo=True, descricao=None):
     return ato_judicial(
-        driver,
-        conclusao_tipo='BNDT',  # Força sempre BNDT
+        driver=driver,
+        conclusao_tipo=conclusao_tipo or 'BNDT',
         modelo_nome=modelo_nome or 'xsbacen',
         prazo=prazo if prazo is not None else 30,
         marcar_pec=marcar_pec if marcar_pec is not None else True,
-        movimento=movimento or 'bl',
+        movimento=movimento or 'bloqueio',
         gigs=gigs if gigs is not None else {'dias_uteis': 0, 'observacao': 'pz verificar'},
         marcar_primeiro_destinatario=marcar_primeiro_destinatario if marcar_primeiro_destinatario is not None else True,
-        debug=debug
-    )
-
-def ato_crda(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='a reclda',
-        prazo=15,
-        marcar_pec=False,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=False,
-        debug=debug
-    )
-
-def ato_crte(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='xreit',
-        prazo=15,
-        marcar_pec=False,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=False,
-        debug=debug
-    )
-
-def ato_bloq(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='xsparcial',
-        prazo=None,
-        marcar_pec=True,
-        movimento=None,
-        gigs={'dias_uteis': 1, 'observacao': 'pec bloq'},
-        marcar_primeiro_destinatario=False,
-        debug=debug
-    )
-
-def ato_idpj(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='IDPJ',
-        modelo_nome='pjsem',
-        prazo=8,
-        marcar_pec=True,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=False,
-        debug=debug
-    )
-
-def ato_termoE(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='xempre',
-        prazo=5,
-        marcar_pec=False,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=True,
-        debug=debug
-    )
-
-def ato_termoS(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='xsocio',
-        prazo=5,
-        marcar_pec=False,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=True,
-        debug=debug
-    )
-
-def ato_edital(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='despacho',
-        modelo_nome='xsedit',
-        prazo=5,
-        marcar_pec=False,
-        movimento=None,
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=True,
-        debug=debug
-    )
-
-def ato_sobrestamento(driver, debug=False):
-    return ato_judicial(
-        driver,
-        conclusao_tipo='sobrestamento',
-        modelo_nome='suspf',
-        prazo=0,
-        marcar_pec=False,
-        movimento='fr', # Assuming 'fr' is a string literal
-        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=False,
-        debug=debug
+        debug=debug,
+        sigilo=sigilo,
+        descricao=descricao
     )
 
 # ====================================================
@@ -519,29 +564,38 @@ def ato_sobrestamento(driver, debug=False):
 # ====================================================
 
 # Definição da regra geral de comunicação processual
-def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigilo, modelo_nome, gigs_extra=None, debug=False):
+def comunicacao_judicial(
+    driver,
+    tipo_expediente,
+    prazo,
+    nome_comunicacao,
+    sigilo,
+    modelo_nome,
+    gigs_extra=None,
+    debug=False
+):
     """
-    Novo fluxo: só executa se já estiver na URL do processo (termina com /detalhe).
-    Abre nova aba para /comunicacoesprocessuais/minutas e executa o fluxo nela.
-    Seletores adaptados para padrão MaisPje e máxima robustez.
+    Fluxo generalizado para qualquer comunicação processual.
     """
     def log(msg):
         print(f'[COMUNICACAO] {msg}')
         if debug:
             time.sleep(0.5)
     try:
-        url_atual = driver.current_url
-        if not url_atual.endswith('/detalhe'):
-            log('[ERRO CRÍTICO] comunicacao_judicial só pode ser chamada na URL do processo que termina com /detalhe!')
-            raise Exception('URL inválida para comunicacao_judicial')
-
-        aba_origem = driver.current_window_handle # Define aba_origem HERE
-
-        url_minutas = url_atual.replace('/detalhe', '/comunicacoesprocessuais/minutas')
-        log(f'Abrindo nova aba para minutas: {url_minutas}')
+        # FLUXO INICIAL ROBUSTO: abrir tarefa do processo igual ao fluxo_cls
+        from Fix import esperar_elemento, safe_click
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        from selectors_pje import BTN_TAREFA_PROCESSO
         abas_antes = set(driver.window_handles)
-        driver.execute_script(f"window.open('{url_minutas}', '_blank');")
-        # Aguarda a nova aba aparecer (timeout de 10s)
+        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
+        if not btn_abrir_tarefa:
+            log('[ERRO CRÍTICO] Botão "Abrir tarefa do processo" não encontrado!')
+            raise Exception('Botão tarefa do processo não encontrado')
+        safe_click(driver, btn_abrir_tarefa)
+        log('Botão "Abrir tarefa do processo" clicado.')
+        # Troca para nova aba, se aberta, e espera carregamento completo
         nova_aba = None
         for _ in range(20):
             abas_depois = set(driver.window_handles)
@@ -549,46 +603,147 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
             if novas_abas:
                 nova_aba = novas_abas.pop()
                 break
-            time.sleep(0.5)
-        if not nova_aba:
-            log('[ERRO] Nova aba de minutas não foi aberta.')
-            return False
-        try:
+            time.sleep(0.3)
+        if nova_aba:
             driver.switch_to.window(nova_aba)
-        except Exception as e:
-            log(f'[ERRO] Não foi possível trocar para nova aba de minutas: {e}')
-            return False
-        time.sleep(2)
-        # Seleção padrão MaisPje: abre dropdown do tipo de expediente
-        log('Abrindo dropdown do Tipo de Expediente (MaisPje)...')
-        campo_tipo = driver.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Tipo de Expediente"]')
-        campo_tipo.click()
-        time.sleep(0.5)
-        # Seleciona a opção pelo texto visível
-        log(f'Selecionando opção do tipo de expediente: {tipo_expediente}')
-        xpath_opcao = f"//mat-option//span[contains(text(), '{tipo_expediente}')]"
-        opcao_tipo = driver.find_element(By.XPATH, xpath_opcao)
-        opcao_tipo.click()
-        time.sleep(0.5)
-        # Campo de dias úteis (radio ou botão)
+            log('Foco trocado para nova aba da tarefa do processo.')
+            try:
+                WebDriverWait(driver, 20).until(lambda d: d.find_element(By.TAG_NAME, 'body'))
+                WebDriverWait(driver, 20).until(lambda d: len(d.find_elements(By.TAG_NAME, 'button')) > 0)
+                log('Nova aba carregada completamente.')
+            except Exception as e:
+                log(f'[WARN] Timeout esperando carregamento completo da nova aba: {e}')
+        else:
+            log('[WARN] Nenhuma nova aba detectada após clique. Prosseguindo na aba atual.')
+        # 2. Confirmar URL terminada em /transicao
+        WebDriverWait(driver, 15).until(lambda d: d.current_url.endswith('/transicao'))
+        log('URL de transição confirmada.')
+        # 3. Clicar no botão de Comunicações e expedientes (fa-envelope)
+        def buscar_btn_comunic():
+            # Busca por texto, aria-label, mattooltip, ou ícone fa-envelope
+            try:
+                # 1. Por texto visível
+                btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'comunicacoes e expedientes')]]")
+                for btn in btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        return btn
+                # 2. Por aria-label/mattooltip
+                btns = driver.find_elements(By.CSS_SELECTOR, '*[aria-label*="Comunica"]')
+                for btn in btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        return btn
+                btns = driver.find_elements(By.CSS_SELECTOR, '*[mattooltip*="Comunica"]')
+                for btn in btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        return btn
+                # 3. Por ícone fa-envelope
+                icons = driver.find_elements(By.CSS_SELECTOR, 'i.fa-envelope')
+                for icon in icons:
+                    try:
+                        btn = icon.find_element(By.XPATH, './ancestor::button[1]')
+                        if btn.is_displayed() and btn.is_enabled():
+                            return btn
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+            return None
+
+        btn_comunic = buscar_btn_comunic()
+        if not btn_comunic:
+            # Tenta clicar em "Análise" e tenta de novo
+            log('[INFO] Botão Comunicações e expedientes não encontrado. Tentando clicar em "Análise" e tentar novamente...')
+            try:
+                btn_analise = None
+                # Busca botão Análise por texto
+                btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'analise')]]")
+                for btn in btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_analise = btn
+                        break
+                if not btn_analise:
+                    # Busca por aria-label/mattooltip
+                    btns = driver.find_elements(By.CSS_SELECTOR, '*[aria-label*="Análise"]')
+                    for btn in btns:
+                        if btn.is_displayed() and btn.is_enabled():
+                            btn_analise = btn
+                            break
+                    btns = driver.find_elements(By.CSS_SELECTOR, '*[mattooltip*="Análise"]')
+                    for btn in btns:
+                        if btn.is_displayed() and btn.is_enabled():
+                            btn_analise = btn
+                            break
+                if btn_analise:
+                    safe_click(driver, btn_analise)
+                    log('Botão "Análise" clicado para habilitar botões.')
+                    time.sleep(1.2)
+                else:
+                    log('[WARN] Botão "Análise" não encontrado para workaround.')
+            except Exception as e:
+                log(f'[WARN] Erro ao tentar clicar em "Análise": {e}')
+            # Tenta novamente buscar o botão de comunicações
+            btn_comunic = buscar_btn_comunic()
+        if not btn_comunic:
+            log('[ERRO] Botão de Comunicações e expedientes (fa-envelope) não encontrado mesmo após workaround!')
+            raise Exception('Botão Comunicações e expedientes não encontrado')
+        safe_click(driver, btn_comunic)
+        log('Botão de Comunicações e expedientes clicado.')
+        # 4. Aguardar carregamento da nova URL (aguarda mudança de URL ou modal)
         try:
-            log('Selecionando Dias Úteis (forçando clique)')
-            # Busca o span correto com texto "dias úteis" (ignora espaços e caixa)
+            log('[DEBUG] Aguardando mudança de URL para minutas OU possível modal de lote...')
+            for i in range(30):
+                if '/comunicacoesprocessuais/minutas' in driver.current_url:
+                    log('[DEBUG] URL de minutas detectada.')
+                    break
+                # Verifica se há modal de lote aberto
+                modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container, .cdk-overlay-container .mat-dialog-container')
+                if modais:
+                    log('[DEBUG] Modal de lote detectado após clique em expediente. Aguardando interação manual ou automatize se necessário.')
+                    # Opcional: pode tentar clicar em botão "OK" ou "Confirmar" do modal, se desejado
+                    botoes_ok = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'ok') or contains(translate(., 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'confirmar')]]")
+                    for btn in botoes_ok:
+                        if btn.is_displayed() and btn.is_enabled():
+                            log('[DEBUG] Clicando em botão de confirmação do modal de lote.')
+                            safe_click(driver, btn)
+                            time.sleep(1)
+                            break
+                time.sleep(0.5)
+            else:
+                log('[ERRO] Timeout aguardando URL de minutas ou fechamento de modal de lote.')
+                raise Exception('URL de minutas não carregada nem modal fechado')
+        except Exception as e:
+            log(f'[ERRO] Falha ao aguardar URL de minutas/modal: {e}')
+            return False
+        log(f'[DEBUG] Prosseguindo com URL: {driver.current_url}')
+        # prossegue fluxo original a partir daqui
+        url_atual = driver.current_url
+        aba_origem = driver.current_window_handle
+
+        # 1. Seleção do tipo de expediente
+        log('[DEBUG] Selecionando tipo de expediente...')
+        try:
+            campo_tipo = driver.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Tipo de Expediente"]')
+            campo_tipo.click()
+            time.sleep(0.5)
+            xpath_opcao = f"//mat-option//span[contains(text(), '{tipo_expediente}')]"
+            opcao_tipo = driver.find_element(By.XPATH, xpath_opcao)
+            opcao_tipo.click()
+            log(f'[DEBUG] Tipo de expediente selecionado: {tipo_expediente}')
+            time.sleep(0.5)
+        except Exception as e:
+            log(f'[ERRO] Falha ao selecionar tipo de expediente: {e}')
+            return False
+        # Dias úteis e prazo
+        try:
+            log('[DEBUG] Selecionando opção "dias úteis" se disponível...')
             spans = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-radio-label-content') and contains(translate(normalize-space(.), 'DÍASÚTEIS', 'díasúteis'), 'dias úteis')]")
-            clicou = False
             for span in spans:
                 if span.is_displayed():
                     span.click()
-                    log('Clique em Dias Úteis realizado.')
-                    clicou = True
-                    time.sleep(0.5)
+                    log('[DEBUG] Opção "dias úteis" selecionada.')
                     break
-            if not clicou:
-                log('Nenhum span Dias Úteis visível para clicar.')
-            # Após clicar, aguarda o campo de prazo aparecer
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
             campo_prazo = None
+            log('[DEBUG] Buscando campo de prazo...')
             for selector in ['input[formcontrolname="prazo"]', 'input[type="number"]', 'input[type="text"]']:
                 try:
                     campo_prazo = WebDriverWait(driver, 5).until(
@@ -598,380 +753,257 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
                         break
                 except Exception:
                     pass
-            # Se não apareceu, tenta clicar novamente
             if not campo_prazo:
-                log('Campo de prazo não apareceu, tentando clicar novamente em Dias Úteis...')
-                for span in spans:
-                    if span.is_displayed():
-                        span.click()
-                        time.sleep(0.5)
-                        break
-                # Tenta esperar de novo
-                for selector in ['input[formcontrolname="prazo"]', 'input[type="number"]', 'input[type="text"]']:
-                    try:
-                        campo_prazo = WebDriverWait(driver, 5).until(
-                            EC.visibility_of_element_located((By.CSS_SELECTOR, selector))
-                        )
-                        if campo_prazo.is_displayed() and campo_prazo.is_enabled():
-                            break
-                    except Exception:
-                        pass
-            if not campo_prazo:
-                # Busca qualquer input visível
                 inputs = driver.find_elements(By.CSS_SELECTOR, 'input')
                 for inp in inputs:
                     if inp.is_displayed() and inp.is_enabled():
                         campo_prazo = inp
                         break
             if not campo_prazo:
-                raise Exception('Nenhum campo de prazo localizado por nenhum seletor após tentar Dias Úteis')
+                log('[ERRO] Nenhum campo de prazo localizado!')
+                raise Exception('Nenhum campo de prazo localizado')
+            log(f'[DEBUG] Preenchendo campo de prazo com: {prazo}')
             campo_prazo.clear()
             campo_prazo.send_keys(str(prazo))
-            log(f'Campo de prazo preenchido com: {campo_prazo.get_attribute("value")})')
+            log(f"Campo de prazo preenchido com: {campo_prazo.get_attribute('value')}")
         except Exception as e:
-            log(f'[ERRO] Não foi possível preencher o campo de prazo: {e}')
+            log(f"[ERRO] Não foi possível preencher o campo de prazo: {e}")
             return False
         time.sleep(0.5)
-        # Clique no ícone .fa-edit para abrir a caixa de elaboração do ato
+        # .fa-edit para abrir caixa de elaboração
         try:
-            log('Clicando em .fa-edit para abrir a caixa de elaboração do ato')
+            log('[DEBUG] Clicando no ícone .fa-edit para abrir caixa de elaboração...')
             driver.find_element(By.CSS_SELECTOR, '.fa-edit').click()
             time.sleep(1)
         except Exception as e:
-            log(f'[ERRO] Não foi possível clicar em .fa-edit: {e}')
+            log(f"[ERRO] Não foi possível clicar em .fa-edit: {e}")
             return False
-        # Preencher campo Tipo de Documento (input texto/autocomplete)
+        # Aguarda o modal abrir e faz a seleção/inserção do modelo
         try:
-            log('Preenchendo campo Tipo de Documento (input texto/autocomplete)...')
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            campo_tipo_doc = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[aria-label*="Tipo de Documento"]'))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", campo_tipo_doc)
-            time.sleep(0.2)
-            campo_tipo_doc.clear()
-            campo_tipo_doc.send_keys(tipo_expediente)
-            time.sleep(0.2)
-            from selenium.webdriver.common.keys import Keys
-            campo_tipo_doc.send_keys(Keys.ENTER)
-            log(f'Tipo de Documento preenchido: {tipo_expediente}')
-        except Exception as e:
-            log(f'[ERRO] Não foi possível preencher o campo Tipo de Documento: {e}')
-        # Preencher campo de descrição (Título) com nome_comunicacao, aguardando o campo aparecer
-        try:
-            log(f'Preenchendo campo de descrição com: {nome_comunicacao}')
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            campo_descricao = WebDriverWait(driver, 15).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Descrição"]'))
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", campo_descricao)
-            time.sleep(0.2)
-            campo_descricao.clear()
-            campo_descricao.send_keys(nome_comunicacao)
-            time.sleep(0.2)
-        except Exception as e:
-            log(f'[ERRO] Não foi possível preencher o campo de descrição: {e}')
-            return False
-        # 6. Seleciona o modelo na árvore por texto robusto
-        campo_filtro = WebDriverWait(driver, 15).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, '#inputFiltro'))
-        )
-        campo_filtro.clear()
-        campo_filtro.send_keys(modelo_nome)
-        campo_filtro.send_keys(Keys.ENTER)
-        xpath_modelo = f"//div[@role='treeitem' and contains(translate(normalize-space(), 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), translate('{modelo_nome}', 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'))]"
-        nodo = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, xpath_modelo))
-        )
-        nodo.click()
-        time.sleep(1)
-        # 7. Clica em Inserir na árvore de modelos
-        btn_inserir = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, '.div-botao-inserir > button'))
-        )
-        btn_inserir.click()
-        time.sleep(1)
-        # Botão salvar
-        try:
-            log('Clicando em salvar (final)')
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            btn_salvar_final = WebDriverWait(driver, 20).until(
-                lambda d: next(
-                    (b for b in d.find_elements(By.CSS_SELECTOR, 'button.mat-focus-indicator[type="submit"]')
-                     if b.is_displayed() and b.is_enabled() and 'mat-button-disabled' not in b.get_attribute('class')),
-                    None
-                )
-            )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_salvar_final)
-            WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.mat-focus-indicator[type="submit"]')))
+            log('[DEBUG] Aguardando abertura do modal de minuta/modelo...')
+            modal = None
+            for i in range(20):
+                modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container, .cdk-overlay-container .mat-dialog-container')
+                if modais:
+                    modal = modais[0]
+                    break
+                time.sleep(0.3)
+            if not modal:
+                log('[ERRO] Modal de minuta/modelo não apareceu após clique em .fa-edit!')
+                return False
+            log('[DEBUG] Modal de minuta/modelo detectado.')
+            # Seleciona e insere o modelo corretamente antes do .fa-pen-nib
+            campo_filtro = modal.find_element(By.CSS_SELECTOR, '#inputFiltro')
+            campo_filtro.clear()
+            campo_filtro.send_keys(modelo_nome)
+            campo_filtro.send_keys(Keys.ENTER)
+            # Aguarda e clica no item filtrado (ex: .nodo-filtrado)
+            seletor_item_filtrado = '.nodo-filtrado'
+            nodo = None
+            for _ in range(20):
+                nodos = modal.find_elements(By.CSS_SELECTOR, seletor_item_filtrado)
+                if nodos:
+                    nodo = nodos[0]
+                    break
+                time.sleep(0.2)
+            if not nodo:
+                log('[ERRO] Nodo do modelo não encontrado no modal!')
+                return False
+            nodo.click()
+            # Aguarda e clica no botão de inserir modelo (corrigido para seletor robusto)
+            btn_inserir = None
+            for _ in range(20):
+                botoes = modal.find_elements(By.XPATH, "//button[@aria-label='Inserir modelo de documento' and contains(@class, 'mat-raised-button') and .//span[normalize-space(text())='Inserir']]")
+                for b in botoes:
+                    if b.is_displayed() and b.is_enabled():
+                        btn_inserir = b
+                        break
+                if btn_inserir:
+                    break
+                time.sleep(0.2)
+            if not btn_inserir:
+                log('[ERRO] Botão Inserir modelo de documento não encontrado!')
+                return False
+            btn_inserir.click()
+            time.sleep(0.5)
+            # Agora sim, clicar em .fa-pen-nib
             try:
-                btn_salvar_final.click()
-            except Exception:
-                driver.execute_script("arguments[0].click();", btn_salvar_final)
-            time.sleep(1)
-            # NOVO: clicar em .fa-pen-nib para finalizar
-            try:
-                log('Clicando em .fa-pen-nib para finalizar comunicação')
-                btn_pen_nib = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa-pen-nib'))
-                )
+                btn_pen_nib = modal.find_element(By.CSS_SELECTOR, '.fa-pen-nib')
                 btn_pen_nib.click()
-                time.sleep(1)
+                log('[DEBUG] Clique em .fa-pen-nib realizado.')
             except Exception as e:
-                log(f'[ERRO] Não foi possível clicar em .fa-pen-nib após salvar: {e}')
-                # Logged the error, continuing execution for now.
-
-            # Após .fa-pen-nib, se estiver em /minutas, fecha a aba
-            if '/minutas' in driver.current_url:
-                try:
-                    driver.close()
-                except Exception as e:
-                    log(f'[WARN] Erro ao fechar aba de minutas: {e}')
-                if aba_origem in driver.window_handles: # Now aba_origem is defined
-                    try:
-                        driver.switch_to.window(aba_origem) # Now aba_origem is defined
-                    except Exception as e:
-                        log(f'[ERRO] Não foi possível voltar para aba original: {e}')
-                else:
-                    log('[ERRO] Aba original não está mais disponível após fechar minutas.')
+                log(f'[ERRO] Não foi possível clicar em .fa-pen-nib: {e}')
+                return False
+            # 2. Aguardar fechamento total do modal
+            for i in range(20):
+                modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container, .cdk-overlay-container .mat-dialog-container')
+                if not modais:
+                    log('[DEBUG] Modal fechado após clique em .fa-pen-nib.')
+                    break
+                time.sleep(0.3)
+            else:
+                log('[ERRO] Modal não fechou após clique em .fa-pen-nib!')
+                return False
+            # 3. De volta à tela de minutas, clicar em .pec-polo-passivo-partes-processo
+            try:
+                btn_pec_polo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.pec-polo-passivo-partes-processo'))
+                )
+                btn_pec_polo.click()
+                log('[DEBUG] Clique em .pec-polo-passivo-partes-processo realizado.')
+            except Exception as e:
+                log(f'[ERRO] Não foi possível clicar em .pec-polo-passivo-partes-processo: {e}')
+                return False
+            # 4. Aguardar carregamento (pode ser necessário aguardar algum elemento específico, aqui aguarda 1s)
+            time.sleep(1)
+            # 5. Clicar em <span class="mat-button-wrapper">Salvar</span>
+            try:
+                btn_salvar_final = None
+                spans = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and normalize-space(text())='Salvar']")
+                for span in spans:
+                    btn = span.find_element(By.XPATH, './ancestor::button[1]')
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_salvar_final = btn
+                        break
+                if not btn_salvar_final:
+                    log('[ERRO] Botão Salvar final não encontrado!')
+                    return False
+                btn_salvar_final.click()
+                log('[DEBUG] Clique no botão Salvar final realizado.')
+            except Exception as e:
+                log(f'[ERRO] Não foi possível clicar no botão Salvar final: {e}')
+                return False
+            time.sleep(1)
         except Exception as e:
-            log(f'[ERRO] Não foi possível clicar em salvar: {e}')
+            log(f"[ERRO] Falha ao interagir com o modal de minuta/modelo: {e}")
             return False
-        # Após voltar à aba de detalhes, aplica visibilidade se sigilo for positivo
-        if str(sigilo).lower() in ("sim", "true", "1"):  # aceita várias formas de positivo
+
+        # Fechar aba de minutas
+        if '/minutas' in driver.current_url:
+            try:
+                driver.close()
+            except Exception as e:
+                log(f"[ERRO] Não foi possível fechar aba de minutas: {e}")
+            if aba_origem in driver.window_handles:
+                try:
+                    driver.switch_to.window(aba_origem)
+                except Exception as e:
+                    log(f"[ERRO] Não foi possível voltar para aba original: {e}")
+            else:
+                log('[ERRO] Aba original não está mais disponível após fechar minutas.')
+        # Visibilidade sigilosa
+        if str(sigilo).lower() in ("sim", "true", "1"):
             try:
                 from Fix import visibilidade_sigilosos
                 visibilidade_sigilosos(driver, log=debug)
                 log('[COMUNICACAO] Visibilidade extra aplicada por sigilo positivo.')
             except Exception as e:
-                log(f'[COMUNICACAO][ERRO] Falha ao aplicar visibilidade extra: {e}')
+                log(f"[COMUNICACAO][ERRO] Falha ao aplicar visibilidade extra: {e}")
         log('Comunicação processual finalizada.')
         return True
     except Exception as e:
-        log(f'[ERRO] Falha no fluxo de comunicação: {e}')
-        # Consider adding tab closing logic here too if an error occurs earlier
-        # Ensure aba_origem exists before trying to switch back in case of early failure
+        log(f"[ERRO] Falha no fluxo de comunicação: {e}")
         if 'aba_origem' in locals() and aba_origem in driver.window_handles:
-             try:
-                 driver.switch_to.window(aba_origem)
-             except Exception as switch_err:
-                 log(f'[ERRO] Falha ao tentar voltar para aba original no erro principal: {switch_err}')
+            try:
+                driver.switch_to.window(aba_origem)
+            except Exception as e:
+                log(f"[ERRO] Falha ao tentar voltar para aba original no erro principal: {e}")
         return False
 
-# Wrappers para comunicações processuais
+def make_comunicacao_wrapper(tipo_expediente, prazo, nome_comunicacao, sigilo, modelo_nome, gigs_extra=None):
+    def wrapper(driver, debug=False):
+        return comunicacao_judicial(
+            driver=driver,
+            tipo_expediente=tipo_expediente,
+            prazo=prazo,
+            nome_comunicacao=nome_comunicacao,
+            sigilo=sigilo,
+            modelo_nome=modelo_nome,
+            gigs_extra=gigs_extra,
+            debug=debug
+        )
+    return wrapper
 
-def pec_bloqueio(driver, debug=False):
-    """
-    Wrapper para comunicação de ciência bloqueio (PEC bloqueio).
-    - Tipo de expediente: Intimação
-    - Prazo: 7 dias
-    - Nome da comunicação: ciência bloqueio
-    - Sigilo: Não
-    - Modelo: zzintbloq
-    - GIGS extra: 7/Guilherme - carta
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Intimação',
-        prazo=7,
-        nome_comunicacao='ciência bloqueio',
-        sigilo=False,
-        modelo_nome='zzintbloq',
-        gigs_extra=(7, 'Guilherme - carta'),
-        debug=debug
-    )
-
-def pec_Decisao(driver, debug=False):
-    """
-    Wrapper para comunicação de intimação de decisão (PEC Decisao).
-    - Tipo de expediente: Intimação
-    - Prazo: 10 dias
-    - Nome da comunicação: intimação de decisão
-    - Sigilo: Não
-    - Modelo: xs dec reg
-    - GIGS extra: 7/Guilherme - carta
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Intimação',
-        prazo=10,
-        nome_comunicacao='intimação de decisão',
-        sigilo=False,
-        modelo_nome='xs dec reg',
-        gigs_extra=(7, 'Guilherme - carta'),
-        debug=debug
-    )
-
-def pec_idpj(driver, debug=False):
-    """
-    Wrapper para comunicação de defesa IDPJ (PEC idpj).
-    - Tipo de expediente: Intimação
-    - Prazo: 17 dias
-    - Nome da comunicação: defesa IDPJ
-    - Sigilo: Não
-    - Modelo: xidpj c
-    - GIGS extra: 7/Guilherme - carta
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Intimação',
-        prazo=17,
-        nome_comunicacao='defesa IDPJ',
-        sigilo=False,
-        modelo_nome='xidpj c',
-        gigs_extra=(7, 'Guilherme - carta'),
-        debug=debug
-    )
-
-def pec_editalidpj(driver, debug=False):
-    """
-    Wrapper para comunicação de edital defesa IDPJ (PEC editalidpj).
-    - Tipo de expediente: Edital
-    - Prazo: 15 dias
-    - Nome da comunicação: Defesa IDPJ
-    - Sigilo: Não
-    - Modelo: IDPJ (edital)
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Edital',
-        prazo=15,
-        nome_comunicacao='Defesa IDPJ',
-        sigilo=False,
-        modelo_nome='IDPJ (edital)',
-        gigs_extra=None,
-        debug=debug
-    )
-
-def pec_editaldec(driver, debug=False):
-    """
-    Wrapper para comunicação de edital decisão/sentença (PEC editaldec).
-    - Tipo de expediente: Edital
-    - Prazo: 8 dias
-    - Nome da comunicação: Decisão/Sentença
-    - Sigilo: Não
-    - Modelo: 3dec
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Edital',
-        prazo=8,
-        nome_comunicacao='Decisão/Sentença',
-        sigilo=False,
-        modelo_nome='3dec',
-        gigs_extra=None,
-        debug=debug
-    )
-
-def pec_cpgeral(driver, debug=False):
-    """
-    Wrapper para comunicação de mandado CP Geral (PEC cpgeral).
-    - Tipo de expediente: Mandado
-    - Prazo: 1 dia
-    - Nome da comunicação: Mandado
-    - Sigilo: Não
-    - Modelo: mdd cp geral
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Mandado',
-        prazo=1,
-        nome_comunicacao='Mandado CP',
-        sigilo=False,
-        modelo_nome='mdd cp geral',
-        gigs_extra=None,
-        debug=debug
-    )
-
-def pec_excluiargos(driver, debug=False):
-    """
-    Wrapper para comunicação de exclusão de convênios (PEC excluiargos).
-    - Tipo de expediente: Mandado
-    - Prazo: 1 dia
-    - Nome da comunicação: Exclusão de convênios
-    - Sigilo: Não
-    - Modelo: asa/cnib
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Mandado',
-        prazo=1,
-        nome_comunicacao='Exclusão de convênios',
-        sigilo=False,
-        modelo_nome='asa/cnib',
-        gigs_extra=None,
-        debug=debug
-    )
-
-def pec_mddgeral(driver, debug=False):
-    """
-    Wrapper para comunicação de mandado geral (PEC mddgeral).
-    - Tipo de expediente: Mandado
-    - Prazo: 8 dias
-    - Nome da comunicação: Mandado
-    - Sigilo: Não
-    - Modelo: 02 - gené
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Mandado',
-        prazo=8,
-        nome_comunicacao='Mandado',
-        sigilo=False,
-        modelo_nome='02 - gené',
-        gigs_extra=None,
-        debug=debug
-    )
-
-def pec_mddaud(driver, debug=False):
-    """
-    Wrapper para comunicação de mandado citação (PEC mddaud).
-    - Tipo de expediente: Mandado
-    - Prazo: 1 dia
-    - Nome da comunicação: Mandado citação
-    - Sigilo: Não
-    - Modelo: xmdd aud
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Mandado',
-        prazo=1,
-        nome_comunicacao='Mandado citação',
-        sigilo=False,
-        modelo_nome='xmdd aud',
-        gigs_extra=None,
-        debug=debug
-    )
-
-def pec_editalaud(driver, debug=False):
-    """
-    Wrapper para comunicação de edital citação (PEC editalaud).
-    - Tipo de expediente: Edital
-    - Prazo: 1 dia
-    - Nome da comunicação: Citação
-    - Sigilo: Não
-    - Modelo: 1cit
-    - Sem GIGS extra
-    """
-    return comunicacao_judicial(
-        driver,
-        tipo_expediente='Edital',
-        prazo=1,
-        nome_comunicacao='Citação',
-        sigilo=False,
-        modelo_nome='1cit',
-        gigs_extra=None,
-        debug=debug
-    )
+pec_bloqueio = make_comunicacao_wrapper(
+    tipo_expediente='Intimação',
+    prazo=7,
+    nome_comunicacao='ciência bloqueio',
+    sigilo=False,
+    modelo_nome='zzintbloq',
+    gigs_extra=(7, 'Guilherme - carta')
+)
+pec_decisao = make_comunicacao_wrapper(
+    tipo_expediente='Intimação',
+    prazo=10,
+    nome_comunicacao='intimação de decisão',
+    sigilo=False,
+    modelo_nome='xs dec reg',
+    gigs_extra=(7, 'Guilherme - carta')
+)
+pec_idpj = make_comunicacao_wrapper(
+    tipo_expediente='Intimação',
+    prazo=17,
+    nome_comunicacao='defesa IDPJ',
+    sigilo=False,
+    modelo_nome='xidpj c',
+    gigs_extra=(7, 'Guilherme - carta')
+)
+pec_editalidpj = make_comunicacao_wrapper(
+    tipo_expediente='Edital',
+    prazo=15,
+    nome_comunicacao='Defesa IDPJ',
+    sigilo=False,
+    modelo_nome='IDPJ (edital)',
+    gigs_extra=None
+)
+pec_editaldec = make_comunicacao_wrapper(
+    tipo_expediente='Edital',
+    prazo=8,
+    nome_comunicacao='Decisão/Sentença',
+    sigilo=False,
+    modelo_nome='3dec',
+    gigs_extra=None
+)
+pec_cpgeral = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=1,
+    nome_comunicacao='Mandado CP',
+    sigilo=False,
+    modelo_nome='mdd cp geral',
+    gigs_extra=None
+)
+pec_excluiargos = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=1,
+    nome_comunicacao='Exclusão de convênios',
+    sigilo=False,
+    modelo_nome='asa/cnib',
+    gigs_extra=None
+)
+pec_mddgeral = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=8,
+    nome_comunicacao='Mandado',
+    sigilo=False,
+    modelo_nome='02 - gené',
+    gigs_extra=None
+)
+pec_mddaud = make_comunicacao_wrapper(
+    tipo_expediente='Mandado',
+    prazo=1,
+    nome_comunicacao='Mandado citação',
+    sigilo=False,
+    modelo_nome='xmdd aud',
+    gigs_extra=None
+)
+pec_editalaud = make_comunicacao_wrapper(
+    tipo_expediente='Edital',
+    prazo=1,
+    nome_comunicacao='Citação',
+    sigilo=False,
+    modelo_nome='1cit',
+    gigs_extra=None
+)
 
 # ====================================================
 # BLOCO 3 - FLUXOS DE EXECUÇÃO E AUXILIARES
@@ -1039,7 +1071,7 @@ def iniciar_fluxo_pec(driver):
             # time.sleep(1)
             return True
 
-        if not processar_lista_processos(driver, tratar_pec, seletor_btn='button[aria-label="Abrir processo"]'):
+        if not indexar_e_processar_lista(driver, tratar_pec, seletor_btn='button[aria-label="Abrir processo"]'):
             print('[ERRO] Falha ao processar lista de PECs')
 
     except Exception as e:
@@ -1137,15 +1169,16 @@ def fluxo_sincrono_processo(driver):
             else:
                 print('[FLUXO] Só existe uma aba aberta, não será fechada.')
             time.sleep(1)
-            return True
+            return False
         texto = resultados[0].lower()
-        m = re.search(r'xs[\s\+]+([\w-]+)', texto) # Regex atualizado para 'xs'
+        import re
+        m = re.search(r'xs[\s\+]+([\w-]+)', texto)  # Regex atualizado para 'xs'
         if m:
             termo = m.group(1).strip()
             print(f'[FLUXO] Termo extraído: {termo}')
             # A lógica de chamar 'pec_{termo}' pode não fazer mais sentido com 'xs'
             # Precisa revisar se os wrappers 'pec_*' são aplicáveis ou se uma nova lógica é necessária
-            func_name = f'pec_{termo.lower()}' # Mantido por enquanto, mas revisar!
+            func_name = f'pec_{termo.lower()}'  # Mantido por enquanto, mas revisar!
             func = globals().get(func_name)
             if callable(func):
                 print(f'[FLUXO] Executando wrapper: {func_name}')
@@ -1156,7 +1189,7 @@ def fluxo_sincrono_processo(driver):
             else:
                 print(f'[FLUXO] Wrapper {func_name} não encontrado. Nenhuma ação extra.')
         else:
-            print(f'[FLUXO] Não foi possível extrair termo após "xs". Nenhuma ação extra.') # Log atualizado
+            print(f'[FLUXO] Não foi possível extrair termo após "xs". Nenhuma ação extra.')  # Log atualizado
         # Após o wrapper, garantir que está na aba da lista ou fechar a aba do processo se ainda existir
         current_handle = driver.current_window_handle
         handles = driver.window_handles
@@ -1201,7 +1234,7 @@ def main():
     try:
         usuario = os.environ.get('PJE_USUARIO') or input('Usuário PJe: ')
         senha = os.environ.get('PJE_SENHA') or input('Senha PJe: ')
-        if not login_automatico(driver, usuario, senha):
+        if not login_pc(driver, usuario, senha):
             raise Exception('Falha no login')
         print('Clicando no ícone de tags...')
         icone_tags = esperar_elemento(driver, '.fa-tags', timeout=15)
@@ -1273,3 +1306,34 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False):
         except Exception as e:
             print(f'[ATO][PRAZO][WARN] Erro ao preencher prazo: {e}')
     return True
+
+        # ---
+        # SEGUNDA TENTATIVA (REFERÊNCIA JS/ASYNC PARA MOVIMENTO)
+        # if (comandos?.movimento) {
+        #     // Ativa a guia Movimentos se desativada
+        #     let guia = await esperarElemento('pje-editor-lateral div[aria-posinset="2"]');
+        #     if (guia.getAttribute('aria-selected') == "false") {
+        #         await clicarBotao(guia);
+        #         await sleep(500);
+        #     }
+        #     let movimentos = comandos.movimento.split(',');
+        #     for (const [i,mo] of movimentos.entries()) {
+        #         if (i == 0) { // Checkbox de movimento
+        #             let chk = await esperarElemento('pje-movimento mat-checkbox', mo);
+        #             if (!chk.className.includes('checked')) {
+        #                 await clicarBotao('pje-movimento mat-checkbox label',mo);
+        #                 await sleep(500);
+        #             }
+        #         } else { // Complementos do tipo
+        #             await sleep(500);
+        #             let complementosDoTipo = await esperarColecao('pje-complemento');
+        #             await sleep(500);
+        #             let comboBox = complementosDoTipo[i-1].querySelector('mat-select');
+        #             await escolherOpcaoTeste2(comboBox,mo)
+        #             await sleep(500);
+        #         }
+        #     }
+        #     await clicarBotao('pje-lancador-de-movimentos button[aria-label*="Gravar"]');
+        #     await clicarBotao('mat-dialog-container button', 'Sim', true);
+        # }
+        # ---

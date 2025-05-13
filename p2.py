@@ -1,4 +1,4 @@
-from Fix import login_automatico, driver_notebook, obter_driver_padronizado, aplicar_filtro_100, processar_lista_processos, pz_minuta
+from Fix import login_automatico, driver_notebook, obter_driver_padronizado, aplicar_filtro_100, indexar_e_processar_lista, pz_minuta
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -7,7 +7,7 @@ import re
 import logging
 import os
 from Fix import esperar_elemento, safe_click
-from Fix import indexar_e_processar_lista, criar_gigs, obter_driver_padronizado, login_notebook, aplicar_filtro_100
+from Fix import criar_gigs, obter_driver_padronizado, login_notebook, aplicar_filtro_100
 from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, obter_driver_padronizado, login_notebook, aplicar_filtro_100
 from atos import ato_pesquisas, ato_sobrestamento
 from mov import def_arq

@@ -19,3 +19,7 @@ b #input_password - 59Justdoit!1
 c entrar - input.btn
 5- buscar os id extraidos no passo um e copiaf a linha completa konde estão. (implementar) - em cinjunto!
 6- chamar anexo.py função def_carta
+- executar com py teste.py, não python teste.py
+testes de anexo, pec, clonar sisbajud e criar mais automacoes, testar infojud + retificação de autuação em função unica
+testar ecarta criado.
+lembrar que java resolve muitas coisas de forma mais simples.

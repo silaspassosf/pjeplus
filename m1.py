@@ -2,7 +2,7 @@
 # Fluxo automatizado de mandados PJe TRT2
 
 from Fix import (
-    login_automatico,
+    login_pc,  # Corrigido: era login_automatico
     navegar_para_tela,
     processar_lista_processos,
     extrair_texto_pdf_por_conteudo,
@@ -15,7 +15,8 @@ from Fix import (
     buscar_seletor_robusto,
     limpar_temp_selenium,
     driver_notebook,
-    login_notebook
+    login_notebook,
+    indexar_e_processar_lista
 )
 from atos import (
     ato_judicial,
@@ -381,7 +382,7 @@ def fluxo_mandado(driver):
                 driver.switch_to.window(driver.window_handles[0])
 
     # processar_lista do Fix.py aceita: driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True
-    processar_lista_processos(driver, fluxo_callback)
+    indexar_e_processar_lista(driver, fluxo_callback)
 
 
 def navegacao(driver):
@@ -411,42 +412,37 @@ def main():
     from Fix import limpar_temp_selenium
     limpar_temp_selenium()
 
-    # Inicialização do driver
-    driver = driver_notebook()
-
-    # Login
-    if not login_notebook(driver):
-        print('[ERRO] Falha no login.')
-        driver.quit()
+    # Login humanizado Chrome
+    from Fix import login_notebook_humano
+    driver = login_notebook_humano()
+    if not driver:
+        print('[ERRO] Falha no login humanizado.')
         return
 
-    # Fluxo principal
-    if navegacao(driver):
-        # Indexa e processa a lista, já executando o fluxo de análise de mandado ao abrir cada processo
-        def fluxo_callback(driver):
-            try:
-                # Ao abrir o processo, já inicia o fluxo de análise de mandado (argos ou outros)
-                doc_ativo = driver.find_element(By.CSS_SELECTOR, 'li.tl-item-container.tl-item-ativo').text.lower()
-                if 'pesquisa patrimonial - argos' in doc_ativo:
-                    print(f'[MANDADO] Fluxo ARGOS')
-                    processar_argos(driver)
-                elif 'oficial de justiça' in doc_ativo:
-                    print(f'[MANDADO] Fluxo OUTROS')
-                    analise_outros(driver)
-                else:
-                    print(f'[MANDADO] Documento não identificado para decisão de fluxo.')
-            except Exception as e:
-                print(f'[MANDADO][ERRO] Falha ao processar mandado: {e}')
-            finally:
-                # Fechar aba e voltar para lista
-                if len(driver.window_handles) > 1:
-                    driver.close()
-                    driver.switch_to.window(driver.window_handles[0])
-
-        indexar_e_processar_lista(driver, fluxo_callback)
-
-    # Finalização
+    # --- TESTE: Executar fluxo_callback em uma URL específica ---
+    url_teste = "https://pje.trt2.jus.br/pjekz/processo/6018878/detalhe"
+    driver.get(url_teste)
+    import time; time.sleep(2)
+    def fluxo_callback_teste(driver):
+        try:
+            doc_ativo = driver.find_element(By.CSS_SELECTOR, 'li.tl-item-container.tl-item-ativo').text.lower()
+            if 'pesquisa patrimonial - argos' in doc_ativo:
+                print(f'[MANDADO] Fluxo ARGOS')
+                processar_argos(driver)
+            elif 'oficial de justiça' in doc_ativo:
+                print(f'[MANDADO] Fluxo OUTROS')
+                analise_outros(driver)
+            else:
+                print(f'[MANDADO] Documento não identificado para decisão de fluxo.')
+        except Exception as e:
+            print(f'[MANDADO][ERRO] Falha ao processar mandado: {e}')
+        finally:
+            if len(driver.window_handles) > 1:
+                driver.close()
+                driver.switch_to.window(driver.window_handles[0])
+    fluxo_callback_teste(driver)
+    input("Pressione ENTER para encerrar o teste...")
     driver.quit()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

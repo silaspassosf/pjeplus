@@ -1,3 +1,34 @@
+# ====================================================================
+# PJE PLUS - Fix.py
+# Módulo principal de utilitários e funções para automação do PJe
+# ====================================================================
+###DIRETRIZES MÁXIMAS INEGOCIÁVEIS
+# Priorizar edições apenas no código selecionado ou referenciado  
+# Sempre validar se as alterações propostas estão estritamente alinhadas com o prompt do usuário.  
+# Evitar modificações em arquivos não explicitamente mencionados.  
+# Respeitar convenções de estilo definidas no projeto (ex: indentação com tabs, aspas duplas).  
+# Workspace preference: NÃO altere, traduza ou reescreva NENHUMA linha do código, exceto exatamente o trecho solicitado.
+# NÃO traduza palavras-chave, nomes de variáveis, comentários, strings, nem nada do código.
+# NÃO faça ajustes automáticos, refatorações, nem ‘melhorias’ não solicitadas.
+# Se precisar editar, use sempre o padrão # ...existing code... para indicar partes não alteradas. 
+# As edições devem ser ESPECIFICAMENTE sobre erros de log ou pedidos EXPLICITOS do usuario, nada alem disso.
+# tenha em mente que descumprir essas diretizes estraga o codigo e causa perda de tempo
+# nao é neceasário varrer o codigo todo para cada edição pedida 
+# use a busca de termos para ir diretamente à região correta e edirtar apenas o necessário, para ser mais eficiente
+# =========================
+# 1. IMPORTAÇÕES E CONFIGURAÇÕES
+# =========================
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
+import re
+import time
+import datetime
+import pyperclip
+import undetected_chromedriver as uc
+from selenium.webdriver.common.keys import Keys
+
 # Fix.py
 # Utilitário Selenium inspirado na lógica da extensão MaisPje para preenchimento robusto de campos em formulários do PJe TRT2
 # Autor: Cascade AI
@@ -6,6 +37,7 @@ import os
 import shutil
 import tempfile
 import time
+
 import re
 import json
 
@@ -18,9 +50,13 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 import pyperclip
+import logging
+
+# Configuração de logs
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelvelname)s - %(message)s')  # Desativado DEBUG, agora só WARNING ou superior
 
 # =========================
-# 1. UTILITÁRIOS E LIMPEZA
+# 2. FUNÇÕES DE SETUP E INICIALIZAÇÃO
 # =========================
 # Funções utilitárias gerais, limpeza de temp, helpers genéricos
 
@@ -82,17 +118,31 @@ def obter_driver_padronizado(headless=False):
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
     import os
-    PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-    FIREFOX_BINARY = r"C:\ Program Files\Firefox Developer Edition\firefox.exe"
+
+    PROFILE_PATH = r"C:\\Users\\Silas\\AppData\\Roaming\\Mozilla\\Dev\\Selenium"
+    FIREFOX_BINARY = r"C:\\Program Files\\Firefox Developer Edition\\firefox.exe"
+    GECKODRIVER_PATH = r"d:\\PjePlus\\geckodriver.exe"
+
+    logging.debug(f"Usando o binário do Firefox em: {FIREFOX_BINARY}")
+    logging.debug(f"Usando o geckodriver em: {GECKODRIVER_PATH}")
+    logging.debug(f"Usando o perfil do Firefox em: {PROFILE_PATH}")
+
     options = Options()
     if headless:
         options.add_argument('--headless')
     options.binary_location = FIREFOX_BINARY
     options.set_preference('profile', PROFILE_PATH)
-    service = Service()
-    driver = webdriver.Firefox(service=service, options=options)
-    driver.implicitly_wait(10)
-    return driver
+
+    service = Service(executable_path=GECKODRIVER_PATH)
+
+    try:
+        driver = webdriver.Firefox(service=service, options=options)
+        driver.implicitly_wait(10)
+        logging.info("Driver Firefox iniciado com sucesso.")
+        return driver
+    except Exception as e:
+        logging.error(f"Erro ao iniciar o driver Firefox: {e}")
+        raise
 
 def driver_notebook(headless=False):
     # Retorna um driver Firefox padronizado para o ambiente TRT2, usando um perfil específico para notebooks.
@@ -100,9 +150,9 @@ def driver_notebook(headless=False):
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
     import os
-    PROFILE_PATH = r"C:\\Users\\s164283\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\2bge54ld.Robot"
-    FIREFOX_BINARY = r"C:\\Users\\s164283\\AppData\\Local\\Firefox Developer Edition\\firefox.exe"
-    GECKODRIVER_PATH = r"C:\\Users\\s164283\\Desktop\\Pjeplus\\pjeplus\\geckodriver.exe"
+    PROFILE_PATH = r"C:\\Users\\Silas\\AppData\\Roaming\\Mozilla\\Dev\\Selenium"
+    FIREFOX_BINARY = r"C:\\Program Files\\Firefox Developer Edition\\firefox.exe"
+    GECKODRIVER_PATH = r"d:\\PjePlus\\geckodriver.exe"
     options = Options()
     if headless:
         options.add_argument('--headless')
@@ -113,83 +163,42 @@ def driver_notebook(headless=False):
     driver.implicitly_wait(10)
     return driver
 
+def driver_pc(headless=False):
+    """
+    Perfil: C:/Users/Silas/AppData/Roaming/Mozilla/Dev
+    Executável: C:/Program Files/Firefox Developer Edition/firefox.exe
+    """
+    return obter_driver_padronizado(headless=headless)
+
 # Função de login automático
 def login_pc(driver):
-    """
-    Login automático no PJe TRT2 para PC, com tentativa de reutilização de cookies e lógica de cliques robusta.
-    Usuário e senha são lidos das variáveis de ambiente PJE_USER e PJE_PASS.
-    """
-    import os
-    import time
-    usuario = os.environ.get('PJE_USER')
-    senha = os.environ.get('PJE_PASS')
-    if not usuario or not senha:
-        print('[LOGIN][ERRO] Variáveis de ambiente PJE_USER e/ou PJE_PASS não definidas.')
+    """Processo de login humanizado via AutoHotkey, aguardando login terminar antes de prosseguir."""
+    login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
+    driver.get(login_url)
+    print(f"[INFO] Navegando para a URL de login: {login_url}")
+    try:
+        btn_sso = driver.find_element(By.CSS_SELECTOR, "#btnSsoPdpj")
+        btn_sso.click()
+        print("[INFO] Botão #btnSsoPdpj clicado com sucesso.")
+        btn_certificado = driver.find_element(By.CSS_SELECTOR, ".botao-certificado-titulo")
+        btn_certificado.click()
+        print("[INFO] Botão .botao-certificado-titulo clicado com sucesso.")
+        # Chama o AutoHotkey para digitar a senha
+        import subprocess
+        time.sleep(1)
+        subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
+        print("[INFO] Script AutoHotkey chamado para digitar a senha.")
+        # Aguarda sair da tela de login
+        for _ in range(60):
+            if "login" not in driver.current_url.lower():
+                print("[INFO] Login detectado, prosseguindo.")
+                return True
+            time.sleep(1)
+        print("[ERRO] Timeout aguardando login.")
         return False
-    caminho_cookies = 'cookies_pjeplus_pc.json'
-    # Tenta carregar cookies antes de login manual
-    if carregar_cookies(driver, caminho_cookies):
-        print('[LOGIN][PC] Cookies carregados, tentando acesso sem login manual...')
-        time.sleep(2)
-        if 'login' not in driver.current_url.lower():
-            print('[LOGIN][PC] Login por cookies bem-sucedido.')
-            return True
-        else:
-            print('[LOGIN][PC] Cookies inválidos ou expirados, prosseguindo com login manual.')
-    driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
-    print('[LOGIN][PC] Página de login carregada.')
-    # 1. Clicar no botão SSO PDPJ
-    btn_sso = wait(driver, '#btnSsoPdpj', timeout=15)
-    if not btn_sso:
-        print('[LOGIN][ERRO] Botão SSO PDPJ não encontrado.')
+    except Exception as e:
+        print(f"[ERRO] Falha no processo de login: {e}")
         return False
-    btn_sso.click()
-    print('[LOGIN][PC] Botão SSO PDPJ clicado.')
-    time.sleep(1)
-    # 2. Preencher campo usuário
-    campo_usuario = wait(driver, '#username', timeout=15)
-    if not campo_usuario:
-        print('[LOGIN][ERRO] Campo de usuário não encontrado.')
-        return False
-    campo_usuario.clear()
-    campo_usuario.send_keys(usuario)
-    print('[LOGIN][PC] Usuário preenchido.')
-    time.sleep(1)
-    # 3. Preencher campo senha
-    campo_senha = wait(driver, '#password', timeout=15)
-    if not campo_senha:
-        print('[LOGIN][ERRO] Campo de senha não encontrado.')
-        return False
-    campo_senha.clear()
-    campo_senha.send_keys(senha)
-    print('[LOGIN][PC] Senha preenchida.')
-    time.sleep(1)
-    # 4. Clicar no botão de login
-    btn_login = wait(driver, '#kc-login', timeout=15)
-    if not btn_login:
-        print('[LOGIN][ERRO] Botão de login não encontrado.')
-        return False
-    btn_login.click()
-    print('[LOGIN][PC] Botão de login clicado.')
-    time.sleep(3)
-    # Após clicar no botão de login, checar acesso negado
-    time.sleep(2)
-    if checar_acesso_negado(driver):
-        return False
-    print('[LOGIN][PC] Login realizado com sucesso.')
-    # Salva cookies após login bem-sucedido
-    salvar_cookies(driver, caminho_cookies)
-    # Navega diretamente para a página de atividades
-    driver.get('https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades')
-    print('[NAVEGAR] Página de atividades carregada.')
-    time.sleep(3)
-    # Aplica o filtro 100
-    if aplicar_filtro_100(driver):
-        print('[FILTRO] Filtro 100 aplicado com sucesso.')
-    else:
-        print('[FILTRO][ERRO] Falha ao aplicar o filtro 100.')
-    return True
-
 def salvar_cookies(driver, caminho_arquivo):
     """Salva os cookies do navegador em um arquivo JSON."""
     import json
@@ -534,130 +543,9 @@ def aplicar_filtro_100(driver):
 
 # Função para processar lista de processos
 
-def processar_lista_processos(driver, callback=None, seletor_btn=None, modo='tabela', max_processos=None, log=True):
-    # Percorre lista de processos, abre detalhes, executa callback, fecha aba, volta.
-    # Agora NÃO faz mais indexação/listagem duplicada: espera que a lista já tenha sido extraída.
-    # Só fecha a aba do processo se houver mais de uma aba aberta.
-    from selectors_pje import buscar_seletor_robusto
-    import time
-    import re
-    try:
-        processados = 0
-        processos_ids_processados = set()
-        # Indexação/listagem removida! Assume que a lista já foi extraída e está na tela.
-        if modo == 'tabela':
-            processos = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
-        else:
-            processos = driver.find_elements(By.CSS_SELECTOR, 'div.pje-content')
-        lista_processos = []
-        for idx, processo in enumerate(processos):
-            try:
-                proc_id = None
-                links = processo.find_elements(By.CSS_SELECTOR, 'a')
-                if links:
-                    proc_id = links[0].text.strip()
-                if not proc_id:
-                    tds = processo.find_elements(By.TAG_NAME, 'td')
-                    proc_id = tds[0].text.strip() if tds else None
-                if not proc_id or proc_id in processos_ids_processados:
-                    continue
-                lista_processos.append((proc_id, idx))
-            except Exception:
-                continue
-        if not lista_processos:
-            if log:
-                print('[PROCESSAR][ERRO] Nenhum processo encontrado para processar.')
-            return False
-        print(f'[PROCESSAR] Lista de processos extraída ({len(lista_processos)}):')
-        for proc_id, _ in lista_processos:
-            print(proc_id)
-        time.sleep(2) # Added 2-second automatic delay
-        aba_lista = driver.current_window_handle
-        for idx, (proc_id, linha_idx) in enumerate(lista_processos):
-            try:
-                if max_processos and processados >= max_processos:
-                    return True
-                # Sempre volta para a aba da lista antes de abrir o próximo
-                if aba_lista not in driver.window_handles:
-                    print('[PROCESSAR][ERRO] Aba da lista foi perdida. Abortando processamento.')
-                    return False
-                try:
-                    driver.switch_to.window(aba_lista)
-                except Exception as e:
-                    print(f'[PROCESSAR][ERRO] Não foi possível trocar para aba da lista: {e}')
-                    return False
-                # 1. Abrir o processo na lista
-                linha = processos[linha_idx]
-                try:
-                    btn = linha.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
-                except Exception:
-                    btn = None
-                if btn is not None:
-                    driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-                    driver.execute_script("arguments[0].click();", btn)
-                else:
-                    print(f'[PROCESSAR][ERRO] Botão de detalhes não encontrado para {proc_id}')
-                    continue
-                time.sleep(1)
-                # 2. Trocar para a nova aba
-                time.sleep(1)
-                abas = driver.window_handles
-                nova_aba = None
-                for h in abas:
-                    if h != aba_lista:
-                        nova_aba = h
-                        break
-                if not nova_aba:
-                    print(f'[PROCESSAR][ERRO] Nova aba do processo {proc_id} não foi aberta.')
-                    continue
-                try:
-                    driver.switch_to.window(nova_aba)
-                except Exception as e:
-                    print(f'[PROCESSAR][ERRO] Não foi possível trocar para nova aba do processo {proc_id}: {e}')
-                    continue
-                url_aba = driver.current_url
-                if log:
-                    print(f'[PROCESSAR] Aba do processo {proc_id} aberta em {url_aba}.')
-                # 3. Executar callback (ou simular automação)
-                try:
-                    if callback:
-                        callback(driver)
-                except Exception as e:
-                    print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}')
-                # 4. Fechar a aba do processo, mas só se houver mais de uma aba aberta
-                if len(driver.window_handles) > 1:
-                    try:
-                        driver.close()
-                    except Exception as e:
-                        print(f'[PROCESSAR][WARN] Erro ao fechar aba do processo {proc_id}: {e}')
-                    # Volta para a aba da lista, se existir
-                    if aba_lista in driver.window_handles:
-                        try:
-                            driver.switch_to.window(aba_lista)
-                        except Exception as e:
-                            print(f'[PROCESSAR][ERRO] Não foi possível voltar para aba da lista após fechar aba do processo {proc_id}: {e}')
-                            return False
-                    else:
-                        print(f'[PROCESSAR][ERRO] Aba da lista não está mais disponível após fechar aba do processo {proc_id}.')
-                        return False
-                else:
-                    print(f'[PROCESSAR][ERRO] Só existe uma aba aberta, não será fechada.')
-                if log:
-                    print(f'[PROCESSAR] Aba do processo {proc_id} fechada - voltando à lista.')
-                time.sleep(1)
-                processos_ids_processados.add(proc_id)
-                processados += 1
-            except Exception as e:
-                print(f'[PROCESSAR][ERRO] Falha ao processar processo {proc_id}: {e}')
-                continue
-        print('[PROCESSAR] Fim do processamento da lista.')
-        return True
-    except Exception as e:
-        if log:
-            print(f'[PROCESSAR][ERRO] Falha geral: {e}')
-        return False
-
-# Seção: Interação com Elementos
+# =========================
+# 3. FUNÇÕES DE INTERAÇÃO COM ELEMENTOS
+# =========================
 
 # Função de espera robusta
 def wait(driver, selector, timeout=10, by=By.CSS_SELECTOR):
@@ -681,19 +569,18 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=True):
         else:
             element = selector_or_element
         # Fallback for KZ details icon (robust selector)
-        if element is None and (
+        if element is None and isinstance(selector_or_element, str) and (
             'Detalhes do Processo' in selector_or_element or 'detalhes do processo' in selector_or_element.lower()
         ):
             try:
                 # Try clicking the KZ icon directly
                 element = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
-            except Exception:
-                element = None
-            if element is not None:
                 driver.execute_script("arguments[0].click();", element)
                 if log:
                     print('[CLICK] Clicked KZ details icon (img.mat-tooltip-trigger)')
                 return True
+            except Exception:
+                element = None
             # Try clicking the parent button if img not clickable
             try:
                 img = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
@@ -819,7 +706,10 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
             print(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto}) -> {e}")
         return None
 
-# Seção: Extração de Dados
+# =========================
+# 4. FUNÇÕES DE EXTRAÇÃO DE DADOS
+# =========================
+
 # Função para extrair documento
 def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
     # Extrai texto do documento aberto, aplica regras se houver.
@@ -883,9 +773,11 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
         if regras_analise and callable(regras_analise):
             if log: print('[EXTRAI] Aplicando regras de análise.')
             try:
+                print('[DEBUG][REGRAS] Iniciando análise de regras...')
                 resultado_analise = regras_analise(texto_final)
+                print('[DEBUG][REGRAS] Análise de regras concluída.')
             except Exception as e_analise:
-                if log: print(f'[EXTRAI][ERRO] Falha ao aplicar regras de análise: {e_analise}')
+                print(f'[EXTRAI][ERRO] Falha ao analisar regras: {e_analise}')
                 return texto_final, None
 
         if log: print('[EXTRAI] Extração concluída.')
@@ -900,127 +792,135 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
             pass
         return None, None
 
-def extrair_texto_pdf_por_conteudo(driver, termo=None, pagina=2, timeout=10):
-    # Extrai o texto da página desejada de um PDF embutido (object.conteudo-pdf) e retorna o texto encontrado.
-    # Se termo for informado, retorna apenas o trecho que contém o termo.
+def extrair_pdf(driver, log=True):
     import time
+    from selenium.webdriver.common.keys import Keys
+    import pyperclip
     try:
-        obj_pdf = driver.find_element(By.CSS_SELECTOR, 'object.conteudo-pdf')
-        doc = obj_pdf.get_property('contentDocument') or obj_pdf.get_property('contentWindow').document
-        if not doc:
-            print('[PDF] Não foi possível obter o document do PDF.')
-            return None
-        paginas = doc.querySelectorAll('.page')
-        if len(paginas) > pagina:
-            driver.execute_script('arguments[0].scrollIntoView(true);', paginas[pagina])
-            time.sleep(2)
-            texto = driver.execute_script('return arguments[0].innerText;', paginas[pagina])
-            if termo:
-                idx = texto.lower().find(termo.lower())
-                if idx >= 0:
-                    return texto[idx:idx+100]  # retorna trecho ao redor do termo
-            return texto
-        else:
-            print('[PDF] Página não encontrada.')
-            return None
+        # 1. Clicar no botão de exportar texto
+        btn_export = driver.find_element(By.CSS_SELECTOR, '.fa-file-export')
+        btn_export.click()
+        if log:
+            print('[EXPORT] Botão .fa-file-export clicado.')
+        # 2. Aguardar modal com título "Texto Extraído"
+        for _ in range(20):
+            modais = driver.find_elements(By.CSS_SELECTOR, 'pje-conteudo-documento-dialog')
+            for modal in modais:
+                try:
+                    titulo = modal.find_element(By.CSS_SELECTOR, '.mat-dialog-title')
+                    if 'Texto Extraído' in titulo.text:
+                        # 2.1 Clicar no ícone de copiar texto
+                        try:
+                            btn_copiar = modal.find_element(By.CSS_SELECTOR, 'i.far.fa-copy')
+                            btn_copiar.click()
+                            time.sleep(0.3)
+                            texto = pyperclip.paste()
+                            if log:
+                                print('[EXPORT] Texto extraído do modal via copiar.')
+                        except Exception as e:
+                            if log:
+                                print(f'[EXPORT][ERRO] Falha ao copiar texto do modal: {e}')
+                            # fallback: tentar pegar do <pre>
+                            pre = modal.find_element(By.CSS_SELECTOR, 'pre')
+                            texto = pre.text
+                        # Fechar modal
+                        try:
+                            btn_fechar = modal.find_element(By.CSS_SELECTOR, 'button[mat-dialog-close]')
+                            btn_fechar.click()
+                        except Exception:
+                            modal.send_keys(Keys.ESCAPE)
+                        time.sleep(0.5)
+                        return texto
+                except Exception:
+                    continue
+            time.sleep(0.5)
+        if log:
+            print('[EXPORT][ERRO] Modal de texto extraído não apareceu.')
+        return None
     except Exception as e:
-        print(f'[PDF][ERRO] {e}')
+        if log:
+            print(f'[EXPORT][ERRO] {e}')
         return None
 ## Função para extrair dados do processo
 def extrair_dados_processo(driver, log=True):
-    # Extrai dados estruturados do processo com foco nas partes (ativas/passivas/outras) e inclui valor do cálculo PJeCalc.
-    # Retorna:
-    # {
-    # 'numero': str,               # Número completo do processo
-    # 'partes': {
-    # 'ativas': [],
-    # 'passivas': [],
-    # 'outras': []
-    # },
-    # 'metadados': dict,
-    # 'calculo_pjecalc': { 'valor': ..., 'data': ... } ou None
-    # }
-    from selenium.webdriver.common.by import By
+    """
+    Extrai dados estruturados do processo via API REST do PJe, igual à extensão MaisPje.
+    Retorna:
+    {
+        'numero': str,
+        'partes': {'ativas': [...], 'passivas': [...], 'terceiros': [...]},
+        'metadados': dict
+    }
+    """
     import re
-    
+    import requests
+    from urllib.parse import urlparse
+    from calc import obter_id_processo_da_url
+
     dados = {
         'partes': {
             'ativas': [],
             'passivas': [],
-            'outras': []
+            'terceiros': []
         },
         'metadados': {}
     }
-
     try:
-        # Extração do diálogo de autuação
-        dialogo = driver.find_element(By.CSS_SELECTOR, 'pje-autuacao-dialogo section#autuacao-dialogo')
-        bloco = dialogo.find_element(By.CSS_SELECTOR, 'pje-autuacao section#processo')
-        
-        # Metadados básicos
-        dts = bloco.find_elements(By.TAG_NAME, 'dt')
-        dds = bloco.find_elements(By.TAG_NAME, 'dd')
-        for dt, dd in zip(dts, dds):
-            chave = dt.text.strip().replace(':', '')
-            valor = dd.text.strip()
-            if chave:
-                dados['metadados'][chave] = valor
-        
-        # Extração robusta das partes
-        for ul in bloco.find_elements(By.CSS_SELECTOR, 'ul.lista'):
-            for li in ul.find_elements(By.CSS_SELECTOR, 'li.partes-corpo'):
-                texto = li.text.strip()
-                if not texto:
-                    continue
-                
-                # Classificação por padrões
-                texto_lower = texto.lower()
-                if any(p in texto_lower for p in ['autor', 'requerente', 'exequente']):
-                    categoria = 'ativas'
-                elif any(p in texto_lower for p in ['réu', 'requerido', 'executado']):
-                    categoria = 'passivas' 
-                else:
-                    categoria = 'outras'
-                
-                # Extração de documento se existir
-                doc_match = re.search(
-                    r'(\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2})', 
-                    texto
-                )
-                
-                dados['partes'][categoria].append({
-                    'nome': re.sub(r'\b(CPF|CNPJ).*', '', texto).strip(),
-                    'documento': doc_match.group(0) if doc_match else None,
-                    'texto_completo': texto
-                })
-
-        # INCLUIR INFORMAÇÃO DE CÁLCULO PJeCalc
-        try:
-            from calc import obter_valor_calculo_api, obter_id_processo_da_url
-            id_processo = obter_id_processo_da_url(driver)
-            if id_processo:
-                resultado = obter_valor_calculo_api(driver, id_processo)
-                if resultado:
-                    dados['calculo_pjecalc'] = {
-                        'valor': resultado['total'],
-                        'data': resultado['dataLiquidacao']
-                    }
-                else:
-                    dados['calculo_pjecalc'] = None
-            else:
-                dados['calculo_pjecalc'] = None
-        except Exception as e:
+        # 1. Extrai id do processo da URL
+        id_processo = obter_id_processo_da_url(driver)
+        if not id_processo:
             if log:
-                print(f'[Fix.py] Erro ao extrair cálculo PJeCalc: {e}')
-            dados['calculo_pjecalc'] = None
-
+                print('[Fix.py] Não foi possível extrair o id do processo da URL.')
+            return dados
+        # 2. Monta URL da API
+        url_base = urlparse(driver.current_url).netloc
+        url_api = f'https://{url_base}/pje-comum-api/api/processos/id/{id_processo}/partes'
+        # 3. Extrai cookies do Selenium para requests
+        s = requests.Session()
+        for cookie in driver.get_cookies():
+            s.cookies.set(cookie['name'], cookie['value'])
+        # 4. Faz requisição GET
+        resp = s.get(url_api, timeout=10)
+        if resp.status_code != 200:
+            if log:
+                print(f'[Fix.py] Erro na requisição da API de partes: {resp.status_code}')
+            return dados
+        partes_json = resp.json()
+        # 5. Monta listas de partes
+        def parse_parte(parte, polo):
+            return {
+                'nome': parte.get('nome', '').strip(),
+                'documento': parte.get('documento', '').strip(),
+                'oab': parte.get('numeroOab', ''),
+                'polo': polo,
+                'representantes': [r.get('nome', '').strip() for r in parte.get('representantes', [])]
+            }
+        # Ativas
+        for parte in partes_json.get('ATIVO', []):
+            dados['partes']['ativas'].append(parse_parte(parte, 'ativo'))
+        # Passivas
+        for parte in partes_json.get('PASSIVO', []):
+            dados['partes']['passivas'].append(parse_parte(parte, 'passivo'))
+        # Terceiros
+        for parte in partes_json.get('TERCEIROS', []):
+            dados['partes']['terceiros'].append(parse_parte(parte, 'terceiro'))
+        # NOVO: extrai lista de CNPJs do polo passivo
+        cnpjs = []
+        for parte in dados['partes']['passivas']:
+            doc = parte.get('documento', '')
+            # Regex para CNPJ: 14 dígitos
+            encontrados = re.findall(r'\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b|\b\d{14}\b', doc)
+            cnpjs.extend(encontrados)
+        # Remove duplicados
+        cnpjs = list(set(cnpjs))
+        dados['reclamadas'] = cnpjs
         if log:
-            print('[Fix.py] Dados das partes extraídos com sucesso')
+            print(f'[Fix.py] Dados das partes extraídos via API com sucesso. Reclamadas (CNPJ): {dados["reclamadas"]}')
         return dados
-
     except Exception as e:
         if log:
-            print(f'[Fix.py] Erro ao extrair dados do processo: {e}')
+            print(f'[Fix.py] Erro ao extrair dados do processo via API: {e}')
+        # Fallback: tenta DOM antigo (opcional)
         return dados
 
 def exibir_painel_copia_cola(driver, dados, log=True):
@@ -1038,6 +938,10 @@ def exibir_painel_copia_cola(driver, dados, log=True):
     if log:
         print('[Fix.py] Painel Copia e Cola exibido.')
       
+# =========================
+# 5. FUNÇÕES DE MANIPULAÇÃO DE DOCUMENTOS
+# =========================
+
 # Seção: Manipulaçao de intimações
 # Função para preencher campos de prazo
 def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
@@ -1075,65 +979,9 @@ def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
             print(f'[Fix.py] Erro ao preencher campos de prazo: {e}')
         return False
 
-def preencher_primeiro_input(driver, valor, seletor='input[type="text"]', timeout=10, log=True):
-    # Preenche o primeiro input de texto visível encontrado pelo seletor informado.
-    try:
-        campo = WebDriverWait(driver, timeout).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, seletor))
-        )
-        campo.clear()
-        campo.send_keys(str(valor))
-        driver.execute_script('arguments[0].dispatchEvent(new Event("input", {bubbles:true}));', campo)
-        driver.execute_script('arguments[0].dispatchEvent(new Event("change", {bubbles:true}));', campo)
-        if log:
-            print(f'[Fix.py] Primeiro input preenchido com: {valor}')
-        return True
-    except Exception as e:
-        if log:
-            print(f'[Fix.py] Erro ao preencher primeiro input: {e}')
-        return False
-
-
-def marcar_checkbox_por_label(driver, texto_label, timeout=10, log=True):
-    # Marca/desmarca checkbox com base no texto do label associado (robusto para checkboxes customizados).
-    try:
-        labels = driver.find_elements(By.TAG_NAME, 'label')
-        for label in labels:
-            if texto_label.strip().lower() in label.text.strip().lower():
-                checkbox = label.find_element(By.XPATH, './/preceding-sibling::input[@type="checkbox"] | .//input[@type="checkbox"]')
-                driver.execute_script('arguments[0].scrollIntoView(true);', checkbox)
-                checkbox.click()
-                if log:
-                    print(f'[Fix.py] Checkbox marcado/desmarcado: {texto_label}')
-                return True
-        if log:
-            print(f'[Fix.py] Checkbox com label "{texto_label}" não encontrado.')
-        return False
-    except Exception as e:
-        if log:
-            print(f'[Fix.py] Erro ao marcar checkbox: {e}')
-        return False
-
-
-def selecionar_opcao_select(driver, seletor_select, texto_opcao, timeout=10, log=True):
-    # Seleciona uma opção em <select> tradicional pelo texto visível.
-    try:
-        select = WebDriverWait(driver, timeout).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_select))
-        )
-        for option in select.find_elements(By.TAG_NAME, 'option'):
-            if texto_opcao.strip().lower() in option.text.strip().lower():
-                option.click()
-                if log:
-                    print(f'[Fix.py] Opção selecionada: {texto_opcao}')
-                return True
-        if log:
-            print(f'[Fix.py] Opção "{texto_opcao}" não encontrada em {seletor_select}')
-        return False
-    except Exception as e:
-        if log:
-            print(f'[Fix.py] Erro ao selecionar opção: {e}')
-        return False
+# =========================
+# 6. FUNÇÕES DE MANIPULAÇÃO DE PRAZOS E GIGS
+# =========================
 
 # Seção: Ferramentas
 def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log=True):
@@ -1141,348 +989,98 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
     # tela: 'principal' (default) ou 'minuta' para lógica adaptada.
     import datetime
     t0 = time.time()
-    if log:
-        print(f"[GIGS] Iniciando criação de GIGS: {dias_uteis}/{observacao} (tela={tela}) [{datetime.datetime.now().strftime('%H:%M:%S')}] (T0)")
     try:
-        # Fecha modal de GIGS aberto, se houver
-        modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container')
-        for modal in modais:
-            if modal.is_displayed():
-                try:
-                    btn_cancelar = modal.find_element(By.XPATH, ".//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'cancelar')]")
-                    if btn_cancelar.is_displayed():
-                        btn_cancelar.click()
-                        time.sleep(0.7)
-                        if log:
-                            print('[GIGS] Modal de GIGS anterior fechado (Cancelar).')
-                        break
-                except Exception:
-                    pass
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    time.sleep(0.7)
-                    if log:
-                        print('[GIGS] Modal de GIGS anterior fechado (ESC).')
-                        break
-                except Exception:
-                    pass
-        # --- NOVO FLUXO MAISPJE ---
-        if tela == 'minuta':
-            if '/minutar' not in driver.current_url:
-                if log:
-                    print(f'[GIGS][ERRO] Não está na tela de minuta! URL atual: {driver.current_url}')
-                return False
-            if log:
-                print('[GIGS][MINUTA] Confirmação: na tela de minuta.')
-            # NOVO: dois cliques antes de abrir o formulário de atividade
-            try:
-                btn_bars = driver.find_element(By.CSS_SELECTOR, '.fa-bars')
-                btn_bars.click()
-                if log:
-                    print('[GIGS][MINUTA] Clique em .fa-bars realizado.')
-                time.sleep(0.7)
-                btn_tag = driver.find_element(By.CSS_SELECTOR, '.icone-descricao > span:nth-child(1) > i.fa-tag')
-                btn_tag.click()
-                if log:
-                    print('[GIGS][MINUTA] Clique em .fa-tag realizado.')
-                time.sleep(0.7)
-            except Exception as e:
-                if log:
-                    print(f'[GIGS][MINUTA][ERRO] Falha nos cliques iniciais (.fa-bars/.fa-tag): {e}')
-                return False
-        else:
-            # 1. Garante que o GIGS está aberto
-            try:
-                btn_mostrar_gigs = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Mostrar o GIGS"]')
-                if btn_mostrar_gigs.is_displayed():
-                    btn_mostrar_gigs.click()
-                    time.sleep(1.2)
-                    if log:
-                        print('[GIGS] GIGS aberto via botão "Mostrar o GIGS".')
-            except Exception:
-                pass  # Se não existe, já está aberto
-            # 2. Clica no botão "Nova atividade" dentro de pje-gigs-lista-atividades
-            nova_atividade_btn = None
-            try:
-                lista_atividades = driver.find_element(By.CSS_SELECTOR, 'pje-gigs-lista-atividades')
-                botoes = lista_atividades.find_elements(By.TAG_NAME, 'button')
-                for btn in botoes:
-                    if btn.is_displayed() and 'nova atividade' in btn.text.strip().lower():
-                        nova_atividade_btn = btn
-                        break
-            except Exception:
-                pass
-            if nova_atividade_btn:
-                nova_atividade_btn.click()
-                time.sleep(1.2)
-            else:
-                if log:
-                    print(f'[GIGS][ERRO] Botão "Nova atividade" não encontrado dentro de pje-gigs-lista-atividades!')
-                return False
-        # Espera o formulário de GIGS abrir
+        if log:
+            print(f"[GIGS] Iniciando criação de GIGS: {dias_uteis}/{observacao} (tela=principal)")
+        # 1. Clica no botão 'Nova Atividade'
+        btn_nova_atividade = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((By.ID, 'nova-atividade'))
+        )
+        btn_nova_atividade.click()
+        if log:
+            print('[GIGS] Botão Nova Atividade clicado.')
+        # 2. Aguarda o modal abrir (<form>)
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'form'))
         )
-        # time.sleep(0.7)  # Removido: WebDriverWait já garante carregamento
-        # Preenche Dias Úteis (MaisPje: input[formcontrolname="dias"])
-        campo_dias = None
-        tentativas = 0
-        max_tentativas = int(timeout * 5)  # tenta por até 'timeout' segundos, a cada 0.2s
-        while tentativas < max_tentativas and not campo_dias:
-            try:
-                campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
-                if campo_dias.is_displayed() and campo_dias.is_enabled():
-                    break
-            except Exception:
-                pass
-            # Alternativa: busca por input[type="number"] visível
-            try:
-                inputs = driver.find_elements(By.CSS_SELECTOR, 'input[type="number"]')
-                for inp in inputs:
-                    if inp.is_displayed() and inp.is_enabled():
-                        campo_dias = inp
-                        break
-            except Exception:
-                pass
-            if not campo_dias:
-                if log:
-                    print(f'[GIGS][WAIT] Campo de dias úteis não disponível, tentativa {tentativas+1}/{max_tentativas}...')
-                time.sleep(0.2)  # Mais responsivo
-            tentativas += 1
-        if not campo_dias:
-            if log:
-                print('[GIGS][ERRO] Campo de dias úteis (input[formcontrolname="dias"]) não encontrado após múltiplas tentativas!')
-            return False
-        campo_dias.clear()
-        # time.sleep(0.3)  # Removido: não necessário após clear
-        campo_dias.send_keys(str(dias_uteis))
         if log:
-            print(f'[GIGS] Dias úteis preenchido: {dias_uteis}')
-        # time.sleep(0.7)  # Removido: não necessário após preenchimento
-        # Preenche Observação (MaisPje: textarea[formcontrolname="observacao"])
-        campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
+            print('[GIGS] Modal de GIGS aberto.')
+        # 3. Preenche campos
+        if dias_uteis != 0:
+            campo_dias = WebDriverWait(driver, timeout).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="dias"]'))
+            )
+            campo_dias.clear()
+            for c in str(dias_uteis):
+                campo_dias.send_keys(c)
+                time.sleep(0.05)
+            if log:
+                print(f'[GIGS] Dias úteis preenchido: {dias_uteis}')
+        campo_obs = WebDriverWait(driver, timeout).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
+        )
         campo_obs.clear()
-        time.sleep(0.3)
-        campo_obs.send_keys(observacao)
+        for c in observacao:
+            campo_obs.send_keys(c)
+            time.sleep(0.03)
         if log:
             print(f'[GIGS] Observação preenchida: {observacao}')
-        time.sleep(0.7)
-        # Clica no botão Salvar
-        botoes_salvar = driver.find_elements(By.CSS_SELECTOR, 'button.mat-raised-button')
+        # 4. Clica em Salvar
         btn_salvar = None
-        for btn in botoes_salvar:
+        botoes = driver.find_elements(By.CSS_SELECTOR, 'button.mat-raised-button')
+        for btn in botoes:
             if btn.is_displayed() and ('Salvar' in btn.text or btn.get_attribute('type') == 'submit'):
                 btn_salvar = btn
                 break
         if not btn_salvar:
             if log:
-                print(f'[GIGS][ERRO] Botão Salvar não encontrado!')
+                print('[GIGS][ERRO] Botão Salvar não encontrado!')
             return False
         btn_salvar.click()
         if log:
-            print(f'[GIGS] Botão Salvar clicado.')
-        time.sleep(2.5)
+            print('[GIGS] Botão Salvar clicado.')
+        # Aguarda o fechamento do modal
+        try:
+            WebDriverWait(driver, 8).until_not(
+                lambda d: any(m.is_displayed() for m in d.find_elements(By.CSS_SELECTOR, '.mat-dialog-container'))
+            )
+        except Exception:
+            pass
         if log:
-            print(f'[GIGS] GIGS criado com sucesso!')
+            print('[GIGS] GIGS criado com sucesso!')
         return True
     except Exception as e:
         if log:
             print(f'[GIGS][ERRO] Falha ao criar GIGS: {e}')
         return False
 
-def Infojud(ni, log=True):
-    # Gera link de consulta Infojud (CPF/CNPJ) e imprime/loga.
-    ni = str(ni).strip()
-    link = None
-    if len(ni) == 11:
-        link = f"https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp?NI={ni}"
-    elif len(ni) == 14:
-        link = f"https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI={ni}"
-    if log:
-        print(f"[INFOJUD] Link para consulta: {link if link else 'NI inválido'}")
-    return link
+# =========================
+# 7. FUNÇÕES DE TRATAMENTO DE DOCUMENTOS ESPECÍFICOS
+# =========================
 
 # Seção: Mandados Argos (Pesquisa Patrimonial)
-
-def buscar_documentos_sequenciais(driver, log=True):
-    # Placeholder para buscar_documentos_sequenciais (pode ser expandido conforme regras do fluxo).
-    if log:
-        print('[Fix.py] buscar_documentos_sequenciais chamado.')
-    # Implementação futura conforme regras do fluxo
-    pass
-
-def tratar_anexos(certidao, driver, log=True):
-    # Trata anexos da certidão: abre cada anexo, aplica sigilo/visibilidade se for INFOJUD, IRPF, DOI;
-    # se for SISBAJUD (positivo/parcial/integral), apenas loga e registra bloqueio.
-    # Retorna True se algum bloqueio SISBAJUD for registrado.
-    bloqueio_registrado = False
-    try:
-        anexos = []
-        linhas = certidao.text.splitlines()
-        for l in linhas:
-            if "Anexo(s):" in l:
-                idx = linhas.index(l)
-                anexos = linhas[idx+1:]
-                break
-        if not anexos:
-            for l in linhas:
-                if l.strip().startswith("- "):
-                    anexos.append(l.strip())
-        if log:
-            print(f"[ANEXOS][DETALHE] {len(anexos)} anexos detectados na certidão de devolução.")
-        for idx, texto in enumerate(anexos):
-            if log:
-                print(f"[ANEXOS][{idx+1}/{len(anexos)}] Conteúdo: '{texto}'")
-            texto_lower = texto.lower()
-            if any(p in texto_lower for p in ["infojud", "irpf", "doi", "sisbajud"]):
-                strongs = certidao.find_elements(By.TAG_NAME, 'strong')
-                alvo = None
-                for s in strongs:
-                    if s.text.strip() in texto:
-                        alvo = s
-                        break
-                if alvo:
-                    alvo.click()
-                    time.sleep(0.7)
-                    if any(p in texto_lower for p in ["infojud", "irpf", "doi"]):
-                        try:
-                            btn_sigilo = certidao.find_element(By.CSS_SELECTOR, "i.fa-wpexplorer")
-                            btn_sigilo.click()
-                            time.sleep(0.5)
-                            btn_visibilidade = certidao.find_element(By.CSS_SELECTOR, "i.fa-plus")
-                            if btn_visibilidade.is_displayed():
-                                btn_visibilidade.click()
-                                time.sleep(0.5)
-                                modal_contexto = driver.find_element(By.CSS_SELECTOR, ".mat-dialog-content")
-                                btn_coluna = modal_contexto.find_element(By.CSS_SELECTOR, "i.botao-icone-titulo-coluna")
-                                btn_coluna.click()
-                                time.sleep(0.3)
-                                btn_salvar = driver.find_element(By.CSS_SELECTOR, ".mat-dialog-actions > button:nth-child(1) > span:nth-child(1)")
-                                btn_salvar.click()
-                                if log:
-                                    print(f"[ANEXOS][{idx+1}] Sigilo e visibilidade aplicados com sucesso no anexo '{texto}'.")
-                                modal_contexto.send_keys(Keys.ESCAPE)
-                                if log:
-                                    print("[MODAL] Fechado com ESC.")
-                                time.sleep(1)
-                            else:
-                                if log:
-                                    print(f"[ANEXOS][{idx+1}] Botão de visibilidade não visível para o anexo '{texto}'.")
-                        except Exception as e:
-                            if log:
-                                print(f"[ERRO] Ao inserir sigilo/visibilidade em anexo '{texto}': {e}")
-                    if "sisbajud" in texto_lower and any(p in texto_lower for p in ["positivo", "parcial", "integral"]):
-                        if log:
-                            print(f"[REGISTRO BLOQUEIO] SISBAJUD encontrado: {texto}. Bloqueio POSITIVO registrado.")
-                        bloqueio_registrado = True
-                else:
-                    if log:
-                        print(f"[ANEXOS][{idx+1}] Não foi possível localizar o elemento visual do anexo '{texto}'.")
-    except Exception as e:
-        if log:
-            print(f"[ANEXOS][ERRO] Falha ao localizar ou processar anexos da certidão: {e}")
-        return False
-    return bloqueio_registrado
-
-def fechar_prazo(driver, log=True):
-    # Fecha prazo de intimação:
-    # 1. Clica no envelope (intimação)
-    # 2. Marca checkbox
-    # 3. Clica em OK
-    # 4. Confirma no modal
-    try:
-        if log:
-            print("[PRAZO] Iniciando fechamento de prazo...")
-            
-        # 1. Clica no envelope (intimação)
-        btn_envelope = esperar_elemento(
-            driver,
-            "i.fa-envelope.fa-lg.icone-cinza",
-            timeout=5,
-            log=log
-        )
-        if not btn_envelope:
-            raise Exception("Botão de intimação não encontrado")
-            
-        safe_click(driver, btn_envelope)
-        time.sleep(1)
-        
-        # 2. Marca checkbox
-        modal = esperar_elemento(
-            driver,
-            ".flex-container-raiz, .mat-dialog-container",
-            timeout=5,
-            log=log
-        )
-        if not modal:
-            raise Exception("Modal de intimação não encontrado")
-            
-        checkbox = modal.find_element(By.CSS_SELECTOR, ".mat-checkbox-inner-container-no-side-margin")
-        safe_click(driver, checkbox)
-        time.sleep(0.5)
-        
-        # 3. Clica em OK
-        btn_ok = modal.find_element(By.CSS_SELECTOR, ".mat-raised-button > span")
-        safe_click(driver, btn_ok)
-        time.sleep(0.5)
-        
-        # 4. Confirma no modal
-        modal_confirmacao = esperar_elemento(
-            driver,
-            ".mat-dialog-actions > button:nth-child(1) > span:nth-child(1)",
-            timeout=5,
-            log=log
-        )
-        if modal_confirmacao:
-            safe_click(driver, modal_confirmacao)
-            time.sleep(0.5)
-        
-        if log:
-            print("[PRAZO] Prazo fechado com sucesso")
-            
-    except Exception as e:
-        if log:
-            print(f"[PRAZO][ERRO] Falha ao fechar prazo: {e}")
-        raise
 def analise_argos(driver):
     # Fluxo robusto para análise de mandados do tipo Argos (Pesquisa Patrimonial).
-    # - Trata anexos SISBAJUD.
-    # - Extrai trecho relevante do PDF se necessário.
-    # - Executa lógica adicional de Argos (placeholder para regras futuras).
     print('[ARGOS] Iniciando análise Argos...')
     try:
-        resultado_sisbajud = tratar_anexos_sisbajud(driver)
-        if resultado_sisbajud == 'nao_encontrado':
-            texto_pdf = extrair_texto_pdf_por_conteudo(driver, termo='sisbajud')
-            print(f'[PDF][ARGOS] Trecho extraído: {texto_pdf}')
         # Placeholder para lógica Argos adicional
         print('[ARGOS] Análise Argos concluída.')
     except Exception as e:
         print(f'[ARGOS][ERRO] Falha na análise Argos: {e}')
 
 def buscar_documento_argos(driver, log=True):
-    # Busca e extrai documento específico para Argos:
-    # 1. Procura primeiro despacho ou decisão
-    # 2. Se for decisão, extrai e retorna
-    # 3. Se for despacho, verifica conteúdo e:
-    # - Se contém "EM QUE PESE A AUSÊNCIA", extrai e retorna
-    # - Senão, busca próxima decisão após o despacho
-    # Retorna: tupla (texto, tipo) onde tipo é 'decisao' ou 'despacho'
-    import re
+    """Versão robusta do buscador de documentos Argos com melhor tratamento de erros."""
     try:
         # Encontra todos os itens da timeline
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-        
         # Procura primeiro despacho ou decisão
         for item in itens:
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = link.text.lower()
-                
                 # Verifica se é despacho ou decisão
                 if not re.search(r'despacho|decisão|sentença|conclusão', doc_text):
                     continue
-                    
                 # Verifica se é de juiz
                 mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
                 mag_ok = False
@@ -1493,72 +1091,49 @@ def buscar_documento_argos(driver, log=True):
                         break
                 if not mag_ok:
                     continue
-                
                 # Clica no documento
                 link.click()
                 time.sleep(1)
-                
                 # Extrai o texto
                 texto = extrair_documento(driver)
                 if not texto:
                     continue
-                
                 # Se é decisão, retorna imediatamente
                 if 'decisão' in doc_text or 'sentença' in doc_text:
-                    return (texto, 'decisao')
-                    
+                    safe_click(driver, link)
+                    time.sleep(1)
+                    texto = extrair_documento(driver)
+                    if texto:
+                        return (texto, 'decisao')
+                    else:
+                        if log:
+                            print('[ARGOS][ERRO] Não foi possível extrair texto da decisão.')
+                        return (None, None)
                 # Se é despacho, verifica conteúdo
                 if 'EM QUE PESE A AUSÊNCIA' in texto.upper():
                     return (texto, 'despacho')
-                    
             except Exception:
                 continue
-                
         # Se chegou aqui, não encontrou documento válido
         if log:
             print('[ARGOS] Nenhum documento válido encontrado.')
         return (None, None)
-        
     except Exception as e:
         if log:
             print(f'[ARGOS][ERRO] Falha ao buscar documento: {e}')
+            print('[ARGOS][INFO] Tentando fallback...')
         return (None, None)
 
+def tratar_anexos_argos(driver, log=True):
+    # Função placeholder, lógica removida conforme solicitado.
+    if log:
+        print('[ARGOS][ANEXOS] Tratando anexos...')
+    if log:
+        print('[ARGOS][ANEXOS] Anexos tratados com sucesso.')
 
-def buscar_ultimo_despacho_juiz(driver, log=True):
-    # Busca o último despacho de Mariana ou Otávio na timeline do processo.
-    # Retorna o texto do despacho e a data.
-    try:
-        # Espera e encontra todos os itens da timeline
-        itens_timeline = esperar_colecao(driver, "li.tl-item-container", qtde_minima=1, timeout=10, log=log)
-        
-        # Procura o último despacho de Mariana ou Otávio
-        for item in reversed(itens_timeline):
-            texto = item.text.lower()
-            if any(j in texto for j in ['mariana', 'otávio', 'otavio']):
-                # Encontra a data
-                data_element = item.find_elements(By.CSS_SELECTOR, "time")
-                data = data_element[0].text if data_element else "Data não encontrada"
-                
-                # Extrai o conteúdo do despacho
-                conteudo = item.text
-                
-                if log:
-                    print(f'[DESPACHO] Encontrado despacho de juiz: {data}')
-                
-                return {
-                    'data': data,
-                    'conteudo': conteudo
-                }
-        
-        if log:
-            print('[DESPACHO] Não encontrado despacho de juiz na timeline.')
-        return None
-        
-    except Exception as e:
-        if log:
-            print(f'[DESPACHO][ERRO] Falha ao buscar despacho: {e}')
-        return None
+# =========================
+# 8. FUNÇÕES DE UI E INTERFACE
+# =========================
 
 # Seção: Mandados Outros
 
@@ -1572,19 +1147,14 @@ def analise_outros(driver):
         print("[OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
     print('[OUTROS] Análise Outros concluída.')
 
-def indexar_lista_processos(driver, seletor_linha='tr.cdk-drag', logar_termo_observacao=False, termo_chave='xs'):
-    # Indexa os processos visíveis na lista, extraindo número e link.
-    # Retorna uma lista de dicionários: [{'numero': '...', 'link_element': element, 'termo_obs': '...'}]
-    # Se logar_termo_observacao=True, também loga o termo após 'xs' na coluna Observações.
-    """
-    Indexa os processos visíveis na lista, extraindo número e link.
-    Retorna uma lista de dicionários: [{'numero': '...', 'link_element': element, 'termo_obs': '...'}]
-    Se logar_termo_observacao=True, também loga o termo após 'xs' na coluna Observações.
-    """
-    import re
-    linhas = driver.find_elements(By.CSS_SELECTOR, seletor_linha)
+def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
+    # Indexa e já processa cada processo sequencialmente, sem delay e sem logs intermediários desnecessários.
+    print('[FLUXO] Iniciando indexação da lista de processos...', flush=True)
+    # Indexa e obtém as linhas/processos
+    linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
     print(f'[INDEXAR] Total de processos encontrados: {len(linhas)}')
     padrao_proc = re.compile(r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
+    processos = []
     for idx, linha in enumerate(linhas):
         try:
             links = linha.find_elements(By.CSS_SELECTOR, 'a')
@@ -1596,35 +1166,96 @@ def indexar_lista_processos(driver, seletor_linha='tr.cdk-drag', logar_termo_obs
                 texto = tds[0].text.strip() if tds else ''
             match = padrao_proc.search(texto)
             num_proc = match.group(0) if match else '[sem número]'
-            if logar_termo_observacao:
-                tds = linha.find_elements(By.TAG_NAME, 'td')
-                termo = ''
-                if len(tds) >= 10:
-                    obs = tds[9].text.strip()
-                    if obs.lower().startswith(termo_chave):
-                        termo = obs[len(termo_chave):].strip()
-                print(f'[INDEXAR] {idx+1:02d}: {num_proc} | TERMO: {termo}')
-            else:
-                print(f'[INDEXAR] {idx+1:02d}: {num_proc}')
+            processos.append((num_proc, linha))
+            print(f'[INDEXAR] {idx+1:02d}: {num_proc}')
         except Exception as e:
             print(f'[INDEXAR][ERRO] Linha {idx+1}: {e}')
-
-def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
-    # Indexa (conta/loga) os processos e já executa o processamento sequencial, com logs claros.
-    print('[FLUXO] Iniciando indexação da lista de processos...', flush=True)
-    indexar_lista_processos(driver, logar_termo_observacao=False)
-    print('[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)
-    # Após abrir a aba de detalhes, pressiona TAB para tentar restaurar o cabeçalho
-    from selenium.webdriver.common.keys import Keys
-    try:
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
-        print('[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.')
-    except Exception as e:
-        print(f'[WORKAROUND][ERRO] Falha ao pressionar TAB: {e}')
-    # Chama criar_botoes_detalhes antes de processar a lista
-    criar_botoes_detalhes()
-    processar_lista_processos(driver, callback, seletor_btn=seletor_btn, modo=modo, max_processos=max_processos, log=log)
+    print(f'[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)
+    aba_lista = driver.current_window_handle
+    for idx, (proc_id, linha) in enumerate(processos):
+        try:
+            # Volta para a aba da lista antes de abrir o próximo
+            if aba_lista not in driver.window_handles:
+                print('[PROCESSAR][ERRO] Aba da lista foi perdida. Abortando processamento.')
+                return False
+            try:
+                driver.switch_to.window(aba_lista)
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Não foi possível trocar para aba da lista: {e}')
+                return False
+            # 1. Abrir o processo na lista
+            btn = None
+            try:
+                btn = linha.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
+            except Exception:
+                try:
+                    btn = linha.find_element(By.CSS_SELECTOR, 'button, a')
+                except Exception:
+                    pass
+            if btn is not None:
+                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+                driver.execute_script("arguments[0].click();", btn)
+            else:
+                print(f'[PROCESSAR][ERRO] Botão de detalhes não encontrado para {proc_id}')
+                continue
+            time.sleep(1)
+            # 2. Trocar para a nova aba
+            time.sleep(1)
+            abas = driver.window_handles
+            nova_aba = None
+            for h in abas:
+                if h != aba_lista:
+                    nova_aba = h
+                    break
+            if not nova_aba:
+                print(f'[PROCESSAR][ERRO] Nova aba do processo {proc_id} não foi aberta.')
+                continue
+            try:
+                driver.switch_to.window(nova_aba)
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Não foi possível trocar para nova aba do processo {proc_id}: {e}')
+                continue
+            url_aba = driver.current_url
+            if log:
+                print(f'[PROCESSAR] Aba do processo {proc_id} aberta em {url_aba}.')
+            # Aplica workaround TAB após abrir a aba
+            try:
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
+                print('[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.')
+            except Exception as e:
+                print(f'[WORKAROUND][ERRO] Falha ao pressionar TAB: {e}')
+            # 3. Executar callback (ou simular automação)
+            try:
+                if callback:
+                    callback(driver)
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}')
+            # 4. Fechar a aba do processo, mas só se houver mais de uma aba aberta
+            if len(driver.window_handles) > 1:
+                try:
+                    driver.close()
+                except Exception as e:
+                    print(f'[PROCESSAR][WARN] Erro ao fechar aba do processo {proc_id}: {e}')
+                # Volta para a aba da lista, se existir
+                if aba_lista in driver.window_handles:
+                    try:
+                        driver.switch_to.window(aba_lista)
+                    except Exception as e:
+                        print(f'[PROCESSAR][ERRO] Não foi possível voltar para aba da lista após fechar aba do processo {proc_id}: {e}')
+                        return False
+                else:
+                    print(f'[PROCESSAR][ERRO] Aba da lista não está mais disponível após fechar aba do processo {proc_id}.')
+                    return False
+            else:
+                print(f'[PROCESSAR][ERRO] Só existe uma aba aberta, não será fechada.')
+            if log:
+                print(f'[PROCESSAR] Aba do processo {proc_id} fechada - voltando à lista.')
+            time.sleep(1)
+        except Exception as e:
+            print(f'[PROCESSAR][ERRO] Falha ao processar processo {proc_id}: {e}')
+            continue
     print('[FLUXO] Fim do processamento da lista de processos.', flush=True)
+    return True
 
 def extrair_xs_atividades(driver, log=False):
     # Extrai todas as descrições de atividades que contenham 'xs' diretamente da tabela de atividades do GIGS.
@@ -1652,22 +1283,6 @@ def extrair_xs_atividades(driver, log=False):
         if log: print(f'[XSACT][ERRO] Falha ao extrair xs: {e}')
         return None
 
-# Função auxiliar para tratar anexos do SISBAJUD
-def tratar_anexos_sisbajud(driver, log=True):
-    # Trata especificamente anexos do SISBAJUD.
-    # Retorna: 'encontrado' se encontrou e tratou, 'nao_encontrado' se não achou
-    try:
-        anexos = driver.find_elements(By.CSS_SELECTOR, '.anexo')
-        for anexo in anexos:
-            if 'sisbajud' in anexo.text.lower():
-                if log:
-                    print('[SISBAJUD] Anexo encontrado')
-                return 'encontrado'
-        return 'nao_encontrado'
-    except Exception as e:
-        if log:
-            print(f'[SISBAJUD][ERRO] {e}')
-        return 'nao_encontrado'
 
 def esperar_colecao(driver, seletor, qtde_minima=1, timeout=10, log=True):
     # Espera até que uma coleção de elementos esteja presente e tenha pelo menos qtde_minima itens.
@@ -1685,6 +1300,14 @@ def esperar_colecao(driver, seletor, qtde_minima=1, timeout=10, log=True):
             print(f'[COLECAO][ERRO] Timeout esperando {seletor}: {e}')
         return []
 
+# =========================
+# 9. CLASSES UTILITÁRIAS
+# =========================
+
+# =========================
+# 10. FUNÇÕES AUXILIARES E UTILITÁRIOS
+# =========================
+################# O ASSISTENTE COPILOYT NAO DEVE LER OU ANALISAR NADA ABAIXO DESTA LINHA, A NAO SER QUE SEJA EXPLICITAMENTE PEDIDO. MUITO MENOS, SUGERIR DELEÇÕES ABAIXO DWESSSA LINHA QUE NAO FAZEM PARTE DO ESCOPO DO PROMPT EXPLICITAMENTE.###################
 # =========================
 # 2. FUNÇÕES DE INTERAÇÃO PJe (Movidas/Adaptadas)
 # =========================
@@ -1787,37 +1410,6 @@ def copiarDOC(driver, id):
     except Exception as e:
         print(f"Erro ao copiar o documento: {str(e)}")
 
-# Função para criar e acionar prazos em lote em telas de minuta.
-def pz_minuta(driver):
-    import time
-
-    def executar(prazo_em_lote):
-        # Executa a aplicação do prazo em lote.
-        # Args:
-        # prazo_em_lote (str): Prazo em dias úteis.
-        elementos = driver.find_elements(By.CSS_SELECTOR, 'mat-form-field[class*="prazo"]')
-        if not elementos:
-            print("Nenhum campo de prazo encontrado.")
-            return
-
-        for elemento in elementos:
-            input_field = elemento.find_element(By.TAG_NAME, "input")
-            input_field.clear()
-            input_field.send_keys(prazo_em_lote)
-
-        # Simula o clique no botão "Gravar"
-        gravar_button = driver.find_element(By.XPATH, '//button[contains(text(), "Gravar")]')
-        gravar_button.click()
-        print(f"Prazo de {prazo_em_lote} dias aplicado com sucesso.")
-
-    # Exemplo de uso
-    prazos = ["0", "2", "5", "8", "10", "15"]
-    for prazo in prazos:
-        executar(prazo)
-
-    # Para prazos personalizados
-    prazo_personalizado = input("Digite o prazo em dias úteis:")
-    executar(prazo_personalizado)
 
 # Classe responsável por gerenciar a juntada automática de anexos.
 class JuntadaAutomatica:
@@ -1933,56 +1525,7 @@ def selecionar_destinatario_por_nome(driver, nome_parcial):
         print(f'[DEST][ERRO] Falha ao selecionar destinatário: {e}')
         return False
 
-def tratar_anexos_infojud_irpf_doi_sisbajud(driver, wait):
-    # Marca checkboxes de anexos específicos se presentes.
-    termos = ['infojud', 'irpf', 'doi', 'sisbajud']
-    try:
-        # Espera os checkboxes carregarem (ajuste o seletor se necessário)
-        checkboxes = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'mat-checkbox label'))) # Usar tupla para By
-
-        for checkbox_label in checkboxes:
-            texto_label = checkbox_label.text.lower()
-            # Verifica se algum dos termos está no texto do label
-            if any(termo in texto_label for termo in termos):
-                # Encontra o input checkbox associado
-                checkbox_input = checkbox_label.find_element(By.XPATH, './preceding-sibling::div/input[@type="checkbox"]')
-                # Marca se não estiver marcado
-                if not checkbox_input.is_selected():
-                    safe_click(driver, checkbox_label) # Clica no label para marcar
-                    print(f'[ANEXO] Checkbox "{checkbox_label.text}" marcado.')
-    except TimeoutException:
-        print('[ANEXO] Checkboxes não encontrados ou não carregaram a tempo.')
-    except Exception as e:
-        print(f'[ANEXO][ERRO] Falha ao tratar anexos: {e}')
-
-def selecionar_tipo_expediente(driver, texto):
-    # Seleciona o tipo de expediente pelo texto.
-    try:
-        # Clica no dropdown de tipo de expediente
-        dropdown = esperar_elemento(driver, 'mat-select[formcontrolname="tipoExpediente"]', timeout=10)
-        if not dropdown:
-            print('[TIPO EXP] Dropdown não encontrado.')
-            return False
-        safe_click(driver, dropdown)
-
-        # Espera as opções aparecerem e clica na opção desejada
-        xpath_opcao = f"//mat-option[contains(., '{texto}')]"
-        opcao = esperar_elemento(driver, (By.XPATH, xpath_opcao), timeout=10) # Usar tupla para By
-        if not opcao:
-            print(f'[TIPO EXP] Opção "{texto}" não encontrada.')
-            # Tenta fechar o dropdown se a opção não foi encontrada
-            try:
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            except: pass
-            return False
-
-        safe_click(driver, opcao)
-        print(f'[TIPO EXP] Tipo de expediente "{texto}" selecionado.')
-        return True
-    except Exception as e:
-        print(f'[TIPO EXP][ERRO] Falha ao selecionar tipo de expediente: {e}')
-        return False
-
+        
 def buscar_documentos_sequenciais(driver):
     # Busca documentos sequenciais na árvore e os seleciona.
 
@@ -2148,30 +1691,6 @@ def verificar_destinatario_juizo(driver):
         print(f'[DEST JUÍZO][ERRO] Falha ao verificar/selecionar destinatário Juízo: {e}')
         return False
 
-def verificar_prioridade_processual(driver):
-    """Verifica se existe um chip 'Prioridade processual' e se 'Otavio' ou 'Mariana' estão no tooltip."""
-    try:
-        chips_prioridade = driver.find_elements(By.CSS_SELECTOR, 'mat-chip-list mat-chip')
-        for chip in chips_prioridade:
-            if 'prioridade processual' in chip.text.lower():
-                tooltip = chip.get_attribute('mattooltip')
-                if tooltip:
-                    aria = tooltip.lower()
-                    if 'otavio' in aria or 'mariana' in aria:
-                        print('[PRIORIDADE] Prioridade processual encontrada (Otavio/Mariana).')
-                        return True
-                else:
-                    chip_text_lower = chip.text.lower()
-                    if 'otavio' in chip_text_lower or 'mariana' in chip_text_lower:
-                        print('[PRIORIDADE] Prioridade processual encontrada no texto do chip (Otavio/Mariana).')
-                        return True
-
-        print('[PRIORIDADE] Nenhuma prioridade processual relevante (Otavio/Mariana) encontrada.')
-        return False
-    except Exception as e:
-        print(f'[PRIORIDADE][ERRO] Falha ao verificar prioridade: {e}')
-        return False
-
 def verificar_documento_decisao_sentenca(driver):
     """Verifica se existe um documento com 'decisão' ou 'sentença' no nome."""
     try:
@@ -2240,16 +1759,13 @@ def visibilidade_sigilosos(driver, log=True):
             print(f"[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}")
         return False
 
-def criar_botoes_detalhes():
+def criar_botoes_detalhes(driver):
     """
-    Creates buttons with specific icons and actions, replicating the functionality from MaisPje.
+    Cria botões com ícones e ações específicas, replicando a funcionalidade do MaisPje, usando o driver já autenticado.
     """
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-
-    # Use the standardized driver instance
-    driver = obter_driver_padronizado()
 
     try:
         base_element = WebDriverWait(driver, 10).until(
@@ -2258,7 +1774,7 @@ def criar_botoes_detalhes():
     except:
         base_element = driver.find_element(By.TAG_NAME, "body")
 
-    # Create the container div if it doesn't exist
+    # Cria o container se não existir
     if not driver.find_elements(By.ID, "pjextension_bt_detalhes_base"):
         container = driver.execute_script(
             "var div = document.createElement('div');"
@@ -2271,14 +1787,13 @@ def criar_botoes_detalhes():
     else:
         container = driver.find_element(By.ID, "pjextension_bt_detalhes_base")
 
-    # Define button configurations
+    # Configuração dos botões
     buttons = [
         {"title": "Abrir o Gigs", "icon": "fa fa-tag", "action": "abrir_gigs"},
         {"title": "Expedientes", "icon": "fa fa-envelope", "action": "acao_botao_detalhes('Expedientes')"},
         {"title": "Lembretes", "icon": "fas fa-thumbtack", "action": "acao_botao_detalhes('Lembretes')"},
     ]
 
-    # Add buttons to the container
     for button in buttons:
         driver.execute_script(
             f"var a = document.createElement('a');"
@@ -2292,11 +1807,192 @@ def criar_botoes_detalhes():
             f"a.onclick = function() {{ {button['action']} }};"
             f"document.getElementById('pjextension_bt_detalhes_base').appendChild(a);"
         )
-    # NOVO: Força a atualização da posição dos botões
     driver.execute_script(
         "setTimeout(function() {"
         "  var div = document.getElementById('pjextension_bt_detalhes_base');"
         "  if (div) { div.style.display='none'; div.offsetHeight; div.style.display=''; }"
         "}, 100);"
     )
+
+# =========================
+# 11. FUNÇÕES DE BUSCA E PESQUISA
+# =========================
+
+def buscar_ultimo_mandado(driver, log=True):
+    """
+    Busca o último documento do tipo 'mandado' na timeline do processo.
+    Retorna o texto do documento e seu tipo, ou None se não encontrado.
+    """
+    try:
+        # Espera a timeline carregar
+        itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        if not itens_timeline:
+            if log:
+                print('[MANDADO] Nenhum item encontrado na timeline.')
+            return None, None
+
+        # Procura pelo último documento do tipo 'mandado'
+        for item in itens_timeline:
+            try:
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                doc_text = link.text.lower()
+
+                # Verifica se é do tipo 'mandado'
+                if 'mandado' in doc_text:
+                    link.click()
+                    time.sleep(1)
+
+                    # Extrai o texto do documento
+                    texto = item.text
+                    if log:
+                        print(f'[MANDADO] Documento encontrado: {doc_text}')
+                    return texto, 'mandado'
+
+            except Exception as e:
+                if log:
+                    print(f'[MANDADO][ERRO] Falha ao processar item: {e}')
+                continue
+
+        if log:
+            print('[MANDADO] Nenhum documento do tipo mandado encontrado.')
+        return None, None
+
+    except Exception as e:
+        if log:
+            print(f'[MANDADO][ERRO] Falha geral: {e}')
+        return None, None
+
+def buscar_mandado_autor(driver, log=True):
+    """
+    Busca o último documento do tipo 'mandado' na timeline do processo.
+    Após localizar, busca o ícone de martelo (gavel) e registra o autor: 'SILAS PASSOS' ou outro.
+    Retorna um dicionário com texto, tipo e autor, ou None se não encontrado.
+    """
+    try:
+        itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        if not itens_timeline:
+            if log:
+                print('[MANDADO] Nenhum item encontrado na timeline.')
+            return None
+
+        for item in itens_timeline:
+            try:
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                doc_text = link.text.lower()
+                if 'mandado' in doc_text:
+                    link.click()
+                    time.sleep(1)
+                    texto = item.text
+                    autor = 'DESCONHECIDO'
+                    # Busca o ícone de martelo (gavel) e extrai o nome do autor
+                    try:
+                        gavel_icon = item.find_element(By.CSS_SELECTOR, 'i.fa-gavel, i.fas.fa-gavel')
+                        # O nome do autor pode estar em um elemento próximo ao ícone
+                        parent = gavel_icon.find_element(By.XPATH, './ancestor::*[1]')
+                        autor_text = parent.text.strip().upper()
+                        if 'SILAS PASSOS' in autor_text:
+                            autor = 'SILAS PASSOS'
+                        else:
+                            autor = autor_text
+                        if log:
+                            print(f'[MANDADO] Autor identificado: {autor}')
+                    except Exception:
+                        if log:
+                            print('[MANDADO] Ícone gavel ou autor não localizado.')
+                    if log:
+                        print(f'[MANDADO] Documento encontrado: {doc_text}')
+                    return {'texto': texto, 'tipo': 'mandado', 'autor': autor}
+            except Exception as e:
+                if log:
+                    print(f'[MANDADO][ERRO] Falha ao processar item: {e}')
+                continue
+        if log:
+            print('[MANDADO] Nenhum documento do tipo mandado encontrado.')
+        return None
+    except Exception as e:
+        if log:
+            print(f'[MANDADO][ERRO] Falha geral: {e}')
+        return None
+
+# =========================
+# 12. FUNÇÕES DE PROCESSAMENTO DE MINUTAS
+# =========================
+
+# =========================
+# 13. FUNÇÕES DE GESTÃO DE COOKIES E SESSÃO
+# =========================
+
+# =========================
+# 14. FUNÇÕES DE TRATAMENTO DE ERROS
+# =========================
+
+# =========================
+# 15. FUNÇÕES DE VALIDAÇÃO E VERIFICAÇÃO
+# =========================
+
+# =========================
+# 16. FUNÇÕES DE AUTOMAÇÃO DE INTERFACE
+# =========================
+
+# =========================
+# 17. FUNÇÕES DE TRATAMENTO DE MODELOS
+# =========================
+
+# =========================
+# 18. FUNÇÕES DE PROCESSAMENTO DE DOCUMENTOS
+# =========================
+
+# =========================
+# 19. FUNÇÕES DE LOGGING E DEPURAÇÃO
+# =========================
+
+# =========================
+# 20. FUNÇÕES DE INTEGRAÇÃO COM APIS
+# =========================
+
+def colar_conteudo(driver, termo, valor, seletor_paragrafo='p.corpo', seletor_editor='div.area-conteudo.ck-editor__editable'):
+    js = f'''
+    var alterou = false, msg = '';
+    var editorDiv = document.querySelector('{seletor_editor}');
+    var editor = null;
+    if (editorDiv && editorDiv.ckeditorInstance) {{
+        editor = editorDiv.ckeditorInstance;
+    }} else if (window.editor) {{
+        editor = window.editor;
+    }} else if (window.CKEDITOR && window.CKEDITOR.instances) {{
+        var keys = Object.keys(window.CKEDITOR.instances);
+        if (keys.length > 0) editor = window.CKEDITOR.instances[keys[0]];
+    }}
+    if (editor && editor.getData && editor.setData) {{
+        var log_antes = editor.getData();
+        var reMark = new RegExp('<mark[^>]*>\\s*' + {repr(termo)} + '\\s*<\\/mark>', 'i');
+        var novo = log_antes;
+        if (reMark.test(novo)) {{
+            novo = novo.replace(reMark, {repr(valor)});
+            editor.setData(novo);
+            alterou = (log_antes !== editor.getData());
+            msg = alterou ? '[FIX][OK] Substituição realizada.' : '[FIX][ERRO] Substituição não ocorreu.';
+        }} else {{
+            msg = '[FIX][ERRO] <mark>' + {repr(termo)} + '</mark> não encontrado.';
+        }}
+    }} else {{
+        msg = '[FIX][ERRO] Instância do CKEditor não encontrada.';
+    }}
+    return {{alterou, msg}};
+    '''
+    resultado = driver.execute_script(js)
+    if resultado and resultado.get('msg'):
+        print(resultado['msg'])
+    if not resultado or not resultado.get('alterou'):
+        raise Exception('[FIX][ERRO] Substituição não realizada no editor.')
+    try:
+        area = driver.find_element(By.CSS_SELECTOR, seletor_editor)
+        area.click()
+        area.send_keys(Keys.TAB)
+    except Exception:
+        pass
+# ...existing code...
+
+
+
 

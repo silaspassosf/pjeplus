@@ -10,9 +10,8 @@ from Fix import (
     preencher_campos_prazo,
     # Funções adicionadas para corrigir erros
     esperar_url_conter,
-    tratar_anexos_infojud_irpf_doi_sisbajud,
-    selecionar_tipo_expediente,
-    buscar_documentos_sequenciais
+    buscar_documentos_sequenciais,
+    indexar_e_processar_lista  # <--- Importação adicionada
 )
 from modulo import aplicar_filtro_100
 from selenium.webdriver.common.keys import Keys
@@ -87,34 +86,18 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
             except Exception as e:
                 print(f'[CLS][INFO] Botão "Iniciar execução" não encontrado ou não clicável: {e}')
 
-        # 3. Clica no botão 'Conclusão ao Magistrado' de forma robusta
-        btn_conclusao = None
-        seletor_usado = None
+        # 3. Clica no botão 'Conclusão ao Magistrado' usando aria-label
         try:
-            xpath_btn = "//button[.//div[contains(@class, 'texto-botao-app') and contains(normalize-space(), 'Conclusão ao magistrado')]]"
             btn_conclusao = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, xpath_btn))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
             )
-            driver.execute_script("arguments[0].click();", btn_conclusao)
-            seletor_usado = xpath_btn
-            print(f'[CLS][DEBUG] Clique JS no botão Conclusão ao magistrado realizado. Seletor usado: {xpath_btn}')
-        except Exception as e1:
-            print(f'[CLS][WARN] Falha ao clicar via JS no botão pelo texto: {e1}')
-            try:
-                btn_icon = esperar_elemento(driver, '.fa-clipboard-check', timeout=10)
-                if btn_icon:
-                    btn_pai = btn_icon.find_element(By.XPATH, './ancestor::button[1]')
-                    driver.execute_script("arguments[0].click();", btn_pai)
-                    seletor_usado = '.fa-clipboard-check > button'
-                    print(f'[CLS][DEBUG] Clique JS no botão pai do ícone realizado. Seletor usado: .fa-clipboard-check > button')
-                else:
-                    print('[CLS][ERRO] Ícone .fa-clipboard-check não encontrado!')
-                    return False
-            except Exception as e2:
-                print(f'[CLS][ERRO] Falha ao clicar no botão pai do ícone: {e2}')
-                return False
+            btn_conclusao.click()
+            print(f'[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label=\'Conclusão ao magistrado\']')
+        except Exception as e:
+            print(f'[CLS][ERRO] Falha ao clicar no botão Conclusão ao magistrado por aria-label: {e}')
+            return False
         time.sleep(1)
-        print(f'[CLS][DEBUG] Seletor de clique usado para conclusão: {seletor_usado}')
+        print(f'[CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label=\'Conclusão ao magistrado\']')
 
         # 4. Aguarda a URL mudar para /conclusao
         from Fix import esperar_url_conter
@@ -122,33 +105,39 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
             print(f'[CLS][ERRO] URL inesperada após clicar em conclusão: {driver.current_url}')
             return False
 
-        # 5. Clica no botão do tipo de conclusão
+        # 5. Clica no botão do tipo de conclusão priorizando aria-label (contém), com fallback para texto visível (contém)
         print(f'[CLS] Procurando botão de conclusão: {conclusao_tipo}')
-        btn_tipo_conclusao = None
         try:
-            # Busca dentro do componente pje-concluso-tarefa-botao pelo texto do tipo de conclusão
-            xpath_conclusao = f"//pje-concluso-tarefa-botao//button[contains(translate(normalize-space(), 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), translate('{conclusao_tipo}', 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'))]"
-            time.sleep(0.5)  # Aguarda meio segundo antes do clique, para garantir renderização
-            btn_tipo_conclusao = WebDriverWait(driver, 8).until(
-                EC.element_to_be_clickable((By.XPATH, xpath_conclusao))
-            )
-            safe_click(driver, btn_tipo_conclusao)
-            print(f'[CLS] Botão de conclusão "{conclusao_tipo}" (pje-concluso-tarefa-botao) clicado.')
+            # Primeiro tenta por aria-label que CONTÉM o tipo de conclusão
+            btn_tipo_conclusao = None
+            try:
+                btns = driver.find_elements(By.CSS_SELECTOR, f"button[aria-label]")
+                for btn in btns:
+                    aria = btn.get_attribute('aria-label')
+                    if aria and conclusao_tipo.lower() in aria.lower():
+                        btn_tipo_conclusao = btn
+                        break
+                if btn_tipo_conclusao:
+                    print(f"[CLS] Botão de conclusão '{conclusao_tipo}' localizado por aria-label que contém.")
+                else:
+                    raise Exception('Não encontrado por aria-label contém')
+            except Exception:
+                # Fallback: tenta por texto visível (contém)
+                xpath_conclusao = f"//button[contains(normalize-space(text()), '{conclusao_tipo}') or .//span[contains(normalize-space(text()), '{conclusao_tipo}')]]"
+                btns = driver.find_elements(By.XPATH, xpath_conclusao)
+                for btn in btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_tipo_conclusao = btn
+                        break
+                if btn_tipo_conclusao:
+                    print(f"[CLS] Botão de conclusão '{conclusao_tipo}' localizado por texto visível que contém.")
+                else:
+                    raise Exception('Não encontrado por texto visível contém')
+            btn_tipo_conclusao.click()
+            print(f'[CLS] Botão de conclusão "{conclusao_tipo}" clicado.')
         except Exception as e:
-            print(f'[CLS][WARN] Botão de conclusão robusto não encontrado: {e}')
-            # Fallbacks
-            btn_tipo_conclusao = buscar_seletor_robusto(driver, [conclusao_tipo], timeout=8)
-            if not btn_tipo_conclusao:
-                xpath_selector = f"//button[contains(., '{conclusao_tipo}')] | //button/span[contains(., '{conclusao_tipo}')]/.."
-                try:
-                    btn_tipo_conclusao = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, xpath_selector))
-                    )
-                except Exception:
-                    print(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado (nem via texto/XPath)!')
-                    return False
-            safe_click(driver, btn_tipo_conclusao)
-            print(f'[CLS] Botão de conclusão "{conclusao_tipo}" (fallback) clicado.')
+            print(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado por aria-label nem texto visível: {e}')
+            return False
         time.sleep(1)
 
         # 6. Aguarda a URL mudar para /minutar
@@ -158,16 +147,31 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
 
         # Clique e foco no campo de filtro de modelos ao entrar em /minutar
         try:
-            campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
-            if not campo_filtro_modelo.is_displayed() or not campo_filtro_modelo.is_enabled():
-                print('[CLS][MODELO][ERRO] Campo de filtro de modelos não está visível/habilitado!')
-                return False
-            driver.execute_script("arguments[0].focus();", campo_filtro_modelo)
-            driver.execute_script("arguments[0].click();", campo_filtro_modelo)
-            print('[CLS][MODELO][OK] Clique e foco no campo de filtro de modelos realizado (padrão MaisPje).')
-            time.sleep(0.3)
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            campo_filtro_modelo = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, '#inputFiltro'))
+            )
+            # Tenta clicar normalmente
+            try:
+                campo_filtro_modelo.click()
+                print('[CLS][MODELO][OK] Clique direto no campo de filtro de modelos realizado (#inputFiltro).')
+                time.sleep(0.3)
+            except Exception as e_click:
+                print(f'[CLS][MODELO][WARN] Falha ao clicar normalmente: {e_click}. Tentando workarounds JS...')
+                # Tenta scrollIntoView e click via JS
+                try:
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', campo_filtro_modelo)
+                    driver.execute_script('arguments[0].removeAttribute("disabled"); arguments[0].removeAttribute("readonly");', campo_filtro_modelo)
+                    driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+                    driver.execute_script('arguments[0].click();', campo_filtro_modelo)
+                    print('[CLS][MODELO][OK] Clique/foco via JS realizado no campo de filtro de modelos.')
+                    time.sleep(0.3)
+                except Exception as e_js:
+                    print(f'[CLS][MODELO][ERRO] Falha ao clicar/focar via JS: {e_js}')
+                    return False
         except Exception as e:
-            print(f'[CLS][MODELO][ERRO] Falha ao clicar/focar no campo de filtro de modelos: {e}')
+            print(f'[CLS][MODELO][ERRO] Falha ao acessar o campo de filtro de modelos: {e}')
             return False
 
         print('[CLS] Fluxo de CLS finalizado com sucesso.')
@@ -213,14 +217,18 @@ def ato_judicial(
             print(f'[ATO][ERRO] Falha no fluxo_cls para {conclusao_tipo}.')
             return False
 
-        # 2. Digitação do modelo e prosseguimento (padrão MaisPje)
+        # 2. Digitação do modelo e prosseguimento (padrão MaisPje/gigs-plugin.js)
         from selenium.webdriver.common.by import By
-        from selenium.webdriver.common.keys import Keys
         campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
-        campo_filtro_modelo.clear()
-        campo_filtro_modelo.send_keys(modelo_nome)
+        driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+        driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo_nome)
+        # Dispara eventos como no gigs-plugin.js
+        for ev in ['input', 'change', 'keyup']:
+            driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+        # Simula Enter
+        from selenium.webdriver.common.keys import Keys
         campo_filtro_modelo.send_keys(Keys.ENTER)
-        print(f'[ATO][MODELO][OK] Modelo "{modelo_nome}" digitado e ENTER pressionado no filtro.')
+        print(f'[ATO][MODELO][OK] Modelo "{modelo_nome}" preenchido via JS e ENTER pressionado no filtro.')
         # Seleciona o modelo filtrado destacado (fundo amarelo)
         seletor_item_filtrado = '.nodo-filtrado'
         nodo = esperar_elemento(driver, seletor_item_filtrado, timeout=15)
@@ -280,14 +288,21 @@ def ato_judicial(
         print('[ATO][DEBUG] Etapa: PEC')
         if marcar_pec is not None:
             try:
-                pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label*="PEC"]')
-                checked = pec_checkbox.get_attribute('aria-checked') == 'true' or pec_checkbox.is_selected()
+                # Busca o mat-checkbox pelo aria-label
+                pec_checkbox_input = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]')
+                # Estado atual
+                checked = pec_checkbox_input.get_attribute('aria-checked') == 'true' or pec_checkbox_input.is_selected() or pec_checkbox_input.get_attribute('checked') == 'true'
                 print(f'[ATO][PEC][DEBUG] Estado atual da caixa PEC: {"marcada" if checked else "desmarcada"}. Parâmetro marcar_pec: {marcar_pec}')
                 if marcar_pec and not checked:
-                    driver.execute_script("arguments[0].click();", pec_checkbox)
+                    # Clica no mat-checkbox (label) para marcar
+                    mat_checkbox = pec_checkbox_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', mat_checkbox)
+                    mat_checkbox.click()
                     print('[ATO][PEC][DEBUG] Caixa PEC estava desmarcada e foi marcada.')
                 elif not marcar_pec and checked:
-                    driver.execute_script("arguments[0].click();", pec_checkbox)
+                    mat_checkbox = pec_checkbox_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', mat_checkbox)
+                    mat_checkbox.click()
                     print('[ATO][PEC][DEBUG] Caixa PEC estava marcada e foi desmarcada.')
                 else:
                     print('[ATO][PEC][DEBUG] Nenhuma ação necessária na caixa PEC.')
@@ -296,12 +311,26 @@ def ato_judicial(
 
         # 3. Prazo
         print('[ATO][DEBUG] Etapa: Prazo')
-        try:
-            print('[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...')
-            preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario)
-        except Exception as e:
-            print(f'[ATO][PRAZO][ERRO] Falha inesperada ao preencher prazos: {e}')
-            return False
+        if prazo is not None:
+            try:
+                print('[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...')
+                preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario)
+                # NOVO: Clica no botão Gravar após preencher prazos (ajustado para o label visível)
+                from selenium.webdriver.common.by import By
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
+                btn_gravar_prazo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"))
+                )
+                print('[ATO][PRAZO][LOG] Botão Gravar (prazo) localizado, clicando...')
+                btn_gravar_prazo.click()
+                print('[ATO][PRAZO][OK] Botão Gravar (prazo) clicado.')
+                time.sleep(1)
+            except Exception as e:
+                print(f'[ATO][PRAZO][ERRO] Falha inesperada ao preencher prazos ou clicar em Gravar: {e}')
+                return False
+        else:
+            print('[ATO][PRAZO][DEBUG] Nenhum prazo informado, etapa ignorada.')
 
         # 4. Movimento
         print('[ATO][DEBUG] Etapa: Movimento')
@@ -395,6 +424,10 @@ def ato_judicial(
                 gigs_args = dict(gigs) if isinstance(gigs, dict) else {}
                 if '/minutar' in driver.current_url:
                     gigs_args['tela'] = 'minuta'
+                # Remove argumentos inesperados do wrapper
+                for k in list(kwargs.keys()):
+                    if k not in gigs_args:
+                        kwargs.pop(k)
                 resultado_gigs = criar_gigs(driver, **gigs_args)
                 if not resultado_gigs:
                     print('[ATO][ERRO] Falha ao criar GIGS (minuta): criar_gigs retornou False.')
@@ -436,9 +469,10 @@ def ato_judicial(
         return False
 
 def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None):
-    def wrapper(driver, debug=False, sigilo=None, movimento_=None, descricao=None):
-        return ato_judicial(
-            driver,
+    def wrapper(driver, debug=False, sigilo=None, movimento_=None, descricao=None, **kwargs):
+        # Remove argumentos inesperados que possam ser passados por FLUXO_PZ ou outros fluxos
+        call_args = dict(
+            driver=driver,
             conclusao_tipo=conclusao_tipo,
             modelo_nome=modelo_nome,
             prazo=prazo,
@@ -450,11 +484,13 @@ def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, m
             sigilo=sigilo,
             descricao=descricao
         )
+        # Só passa argumentos que ato_judicial aceita
+        return ato_judicial(**call_args)
     return wrapper
 
 # Wrappers gerados automaticamente
 ato_meios = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='xsmeios',
     prazo=5,
     marcar_pec=False,
@@ -464,7 +500,7 @@ ato_meios = make_ato_wrapper(
 )
 
 ato_crda = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='a reclda',
     prazo=15,
     marcar_pec=False,
@@ -474,7 +510,7 @@ ato_crda = make_ato_wrapper(
 )
 
 ato_crte = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='xreit',
     prazo=15,
     marcar_pec=False,
@@ -484,7 +520,7 @@ ato_crte = make_ato_wrapper(
 )
 
 ato_bloq = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='xsparcial',
     prazo=None,
     marcar_pec=True,
@@ -504,7 +540,7 @@ ato_idpj = make_ato_wrapper(
 )
 
 ato_termoE = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='xempre',
     prazo=5,
     marcar_pec=False,
@@ -514,7 +550,7 @@ ato_termoE = make_ato_wrapper(
 )
 
 ato_termoS = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='xsocio',
     prazo=5,
     marcar_pec=False,
@@ -524,7 +560,7 @@ ato_termoS = make_ato_wrapper(
 )
 
 ato_edital = make_ato_wrapper(
-    conclusao_tipo='despacho',
+    conclusao_tipo='Despacho',
     modelo_nome='xsedit',
     prazo=5,
     marcar_pec=False,
@@ -818,62 +854,59 @@ def comunicacao_judicial(
                     if b.is_displayed() and b.is_enabled():
                         btn_inserir = b
                         break
-                if btn_inserir:
-                    break
-                time.sleep(0.2)
-            if not btn_inserir:
-                log('[ERRO] Botão Inserir modelo de documento não encontrado!')
-                return False
-            btn_inserir.click()
-            time.sleep(0.5)
-            # Agora sim, clicar em .fa-pen-nib
-            try:
-                btn_pen_nib = modal.find_element(By.CSS_SELECTOR, '.fa-pen-nib')
-                btn_pen_nib.click()
-                log('[DEBUG] Clique em .fa-pen-nib realizado.')
-            except Exception as e:
-                log(f'[ERRO] Não foi possível clicar em .fa-pen-nib: {e}')
-                return False
-            # 2. Aguardar fechamento total do modal
-            for i in range(20):
-                modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container, .cdk-overlay-container .mat-dialog-container')
-                if not modais:
-                    log('[DEBUG] Modal fechado após clique em .fa-pen-nib.')
-                    break
-                time.sleep(0.3)
-            else:
-                log('[ERRO] Modal não fechou após clique em .fa-pen-nib!')
-                return False
-            # 3. De volta à tela de minutas, clicar em .pec-polo-passivo-partes-processo
-            try:
-                btn_pec_polo = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.pec-polo-passivo-partes-processo'))
-                )
-                btn_pec_polo.click()
-                log('[DEBUG] Clique em .pec-polo-passivo-partes-processo realizado.')
-            except Exception as e:
-                log(f'[ERRO] Não foi possível clicar em .pec-polo-passivo-partes-processo: {e}')
-                return False
-            # 4. Aguardar carregamento (pode ser necessário aguardar algum elemento específico, aqui aguarda 1s)
-            time.sleep(1)
-            # 5. Clicar em <span class="mat-button-wrapper">Salvar</span>
-            try:
-                btn_salvar_final = None
-                spans = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and normalize-space(text())='Salvar']")
-                for span in spans:
-                    btn = span.find_element(By.XPATH, './ancestor::button[1]')
-                    if btn.is_displayed() and btn.is_enabled():
-                        btn_salvar_final = btn
-                        break
-                if not btn_salvar_final:
-                    log('[ERRO] Botão Salvar final não encontrado!')
+                if not btn_inserir:
+                    log('[ERRO] Botão Inserir modelo de documento não encontrado!')
                     return False
-                btn_salvar_final.click()
-                log('[DEBUG] Clique no botão Salvar final realizado.')
-            except Exception as e:
-                log(f'[ERRO] Não foi possível clicar no botão Salvar final: {e}')
-                return False
-            time.sleep(1)
+                btn_inserir.click()
+                time.sleep(0.5)
+                # Agora sim, clicar em .fa-pen-nib
+                try:
+                    btn_pen_nib = modal.find_element(By.CSS_SELECTOR, '.fa-pen-nib')
+                    btn_pen_nib.click()
+                    log('[DEBUG] Clique em .fa-pen-nib realizado.')
+                except Exception as e:
+                    log(f'[ERRO] Não foi possível clicar em .fa-pen-nib: {e}')
+                    return False
+                # 2. Aguardar fechamento total do modal
+                for i in range(20):
+                    modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container, .cdk-overlay-container .mat-dialog-container')
+                    if not modais:
+                        log('[DEBUG] Modal fechado após clique em .fa-pen-nib.')
+                        break
+                    time.sleep(0.3)
+                else:
+                    log('[ERRO] Modal não fechou após clique em .fa-pen-nib!')
+                    return False
+                # 3. De volta à tela de minutas, clicar em .pec-polo-passivo-partes-processo
+                try:
+                    btn_pec_polo = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, '.pec-polo-passivo-partes-processo'))
+                    )
+                    btn_pec_polo.click()
+                    log('[DEBUG] Clique em .pec-polo-passivo-partes-processo realizado.')
+                except Exception as e:
+                    log(f'[ERRO] Não foi possível clicar em .pec-polo-passivo-partes-processo: {e}')
+                    return False
+                # 4. Aguardar carregamento (pode ser necessário aguardar algum elemento específico, aqui aguarda 1s)
+                time.sleep(1)
+                # 5. Clicar em <span class="mat-button-wrapper">Salvar</span>
+                try:
+                    btn_salvar_final = None
+                    spans = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and normalize-space(text())='Salvar']")
+                    for span in spans:
+                        btn = span.find_element(By.XPATH, './ancestor::button[1]')
+                        if btn.is_displayed() and btn.is_enabled():
+                            btn_salvar_final = btn
+                            break
+                    if not btn_salvar_final:
+                        log('[ERRO] Botão Salvar final não encontrado!')
+                        return False
+                    btn_salvar_final.click()
+                    log('[DEBUG] Clique no botão Salvar final realizado.')
+                except Exception as e:
+                    log(f'[ERRO] Não foi possível clicar no botão Salvar final: {e}')
+                    return False
+                time.sleep(1)
         except Exception as e:
             log(f"[ERRO] Falha ao interagir com o modal de minuta/modelo: {e}")
             return False
@@ -1026,8 +1059,6 @@ def fluxo_principal(driver):
 def callback_ato(driver):
     # Fluxo completo de ato judicial/minuta
     preencher_campos_prazo(driver, valor=0)
-    tratar_anexos_infojud_irpf_doi_sisbajud(driver, driver)
-    selecionar_tipo_expediente(driver, texto='Intimação')
     criar_gigs(driver, dias_uteis=5, observacao='Ato Judicial', tela='minuta')
     buscar_documentos_sequenciais(driver)
     print('[ATOS] Fluxo de ato judicial executado.')
@@ -1278,6 +1309,7 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False):
     for tr in linhas:
         try:
             checkbox = tr.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Intimar parte"]')
+            # CORRIGIDO: Selenium Python usa get_attribute, não getAttribute
             if checkbox.get_attribute('aria-checked') == 'true':
                 ativos.append((tr, checkbox))
         except Exception as e:
@@ -1337,3 +1369,139 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False):
         #     await clicarBotao('mat-dialog-container button', 'Sim', true);
         # }
         # ---
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+
+def add_botao_despacho_selenium(driver):
+    """
+    Adiciona um botão flutuante na página para ativar o despacho automatizado.
+    """
+    driver.execute_script('''
+        if (!document.getElementById('btn-despacho-auto')) {
+            var btn = document.createElement('button');
+            btn.id = 'btn-despacho-auto';
+            btn.innerText = 'Despacho Automático';
+            btn.style.position = 'fixed';
+            btn.style.top = '10px';
+            btn.style.right = '10px';
+            btn.style.zIndex = 9999;
+            btn.style.background = '#1976d2';
+            btn.style.color = '#fff';
+            btn.style.padding = '10px 16px';
+            btn.style.border = 'none';
+            btn.style.borderRadius = '6px';
+            btn.style.fontSize = '16px';
+            btn.onclick = function() { alert("Execute o comando Python para despacho automático!"); };
+            document.body.appendChild(btn);
+        }
+    ''')
+
+def acao_bt_aaDespacho_selenium(driver, config):
+    """
+    Executa o fluxo de despacho automatizado, fiel ao gigs-plugin.js.
+    config: dict com chaves nm_botao, tipo, descricao, sigilo, modelo, juiz, responsavel, cor, vinculo, assinar
+    """
+    try:
+        print(f"[DESPACHO] Iniciando ação automatizada: {config.get('nm_botao','')} (vínculo: {config.get('vinculo','')})")
+        # 1. Movimentar para tarefa correta (Análise → Conclusão ao Magistrado)
+        # (Exemplo: clique em botão de transição, ajuste conforme DOM real)
+        try:
+            btn_analise = driver.find_element(By.XPATH, "//button[contains(translate(.,'ANÁLISE','análise'),'análise')]")
+            btn_analise.click()
+            print('[DESPACHO] Movimentado para Análise.')
+            time.sleep(1)
+        except Exception:
+            print('[DESPACHO] Botão Análise não encontrado ou já na tarefa correta.')
+        try:
+            btn_conclusao = driver.find_element(By.XPATH, "//button[contains(translate(.,'CONCLUSÃO','conclusão'),'conclusão ao magistrado')]")
+            btn_conclusao.click()
+            print('[DESPACHO] Movimentado para Conclusão ao Magistrado.')
+            time.sleep(1)
+        except Exception:
+            print('[DESPACHO] Botão Conclusão ao Magistrado não encontrado ou já na tarefa correta.')
+        # 2. Selecionar magistrado (se necessário)
+        if config.get('juiz'):
+            try:
+                select_juiz = driver.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Magistrado"]')
+                select_juiz.click()
+                time.sleep(0.5)
+                opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
+                for op in opcoes:
+                    if config['juiz'].lower() in op.text.lower():
+                        op.click()
+                        print(f"[DESPACHO] Magistrado selecionado: {config['juiz']}")
+                        break
+                time.sleep(1)
+            except Exception:
+                print('[DESPACHO] Não foi possível selecionar magistrado.')
+        # 3. Selecionar tipo de conclusão (Despacho)
+        try:
+            btn_tipo = driver.find_element(By.XPATH, "//button[contains(.,'Despacho')]")
+            btn_tipo.click()
+            print('[DESPACHO] Tipo de conclusão selecionado: Despacho.')
+            time.sleep(1)
+        except Exception:
+            print('[DESPACHO] Botão de tipo Despacho não encontrado ou já selecionado.')
+        # 4. Preencher descrição
+        if config.get('descricao'):
+            try:
+                input_desc = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Descrição"]')
+                input_desc.clear()
+                input_desc.send_keys(config['descricao'])
+                print(f"[DESPACHO] Descrição preenchida: {config['descricao']}")
+            except Exception:
+                print('[DESPACHO] Campo de descrição não encontrado.')
+        # 5. Sigilo
+        if config.get('sigilo','').lower() == 'sim':
+            try:
+                chk_sigilo = driver.find_element(By.CSS_SELECTOR, 'input[name="sigiloso"]')
+                if not chk_sigilo.is_selected():
+                    chk_sigilo.click()
+                print('[DESPACHO] Sigilo ativado.')
+            except Exception:
+                print('[DESPACHO] Campo de sigilo não encontrado.')
+        # 6. Escolher modelo
+        if config.get('modelo'):
+            try:
+                campo_modelo = driver.find_element(By.CSS_SELECTOR, 'input[id="inputFiltro"]')
+                campo_modelo.clear()
+                campo_modelo.send_keys(config['modelo'])
+                campo_modelo.send_keys(Keys.ENTER)
+                print(f"[DESPACHO] Modelo selecionado: {config['modelo']}")
+                time.sleep(1)
+                # Seleciona o modelo na árvore
+                modelo_item = driver.find_element(By.XPATH, f"//div[@role='treeitem' and contains(.,'{config['modelo']}')]")
+                modelo_item.click()
+                print('[DESPACHO] Modelo inserido no editor.')
+            except Exception:
+                print('[DESPACHO] Não foi possível selecionar/inserir modelo.')
+        # 7. Salvar documento
+        try:
+            btn_salvar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
+            btn_salvar.click()
+            print('[DESPACHO] Documento salvo.')
+            time.sleep(1)
+        except Exception:
+            print('[DESPACHO] Botão Salvar não encontrado.')
+        # 8. Intimação, PEC, prazo, movimento, etc (adapte conforme comandos extras do seu sistema)
+        # ...adicione aqui comandos extras conforme o fluxo do gigs-plugin.js...
+        # 9. Enviar para assinatura
+        if config.get('assinar','não').lower() == 'sim':
+            try:
+                btn_assinar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Enviar para assinatura"]')
+                btn_assinar.click()
+                print('[DESPACHO] Documento enviado para assinatura.')
+                time.sleep(1)
+            except Exception:
+                print('[DESPACHO] Botão Enviar para assinatura não encontrado.')
+        # 10. Inserir responsável (se necessário)
+        if config.get('responsavel'):
+            # ...adicione aqui o fluxo de inserir responsável, se aplicável...
+            print(f"[DESPACHO] Responsável: {config['responsavel']} (implementar fluxo se necessário)")
+        print('[DESPACHO] Fluxo de despacho automatizado finalizado.')
+        return True
+    except Exception as e:
+        print(f'[DESPACHO][ERRO] {e}')
+        return False

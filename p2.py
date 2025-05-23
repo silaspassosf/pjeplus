@@ -1,4 +1,19 @@
-from Fix import login_automatico, driver_notebook, obter_driver_padronizado, aplicar_filtro_100, indexar_e_processar_lista, pz_minuta
+###DIRETRIZES MÁXIMAS INEGOCIÁVEIS
+# Priorizar edições apenas no código selecionado ou referenciado  
+# Sempre validar se as alterações propostas estão estritamente alinhadas com o prompt do usuário.  
+# Evitar modificações em arquivos não explicitamente mencionados.  
+# Respeitar convenções de estilo definidas no projeto (ex: indentação com tabs, aspas duplas).  
+# Workspace preference: NÃO altere, traduza ou reescreva NENHUMA linha do código, exceto exatamente o trecho solicitado.
+# NÃO traduza palavras-chave, nomes de variáveis, comentários, strings, nem nada do código.
+# NÃO faça ajustes automáticos, refatorações, nem ‘melhorias’ não solicitadas.
+# Se precisar editar, use sempre o padrão # ...existing code... para indicar partes não alteradas. 
+# As edições devem ser ESPECIFICAMENTE sobre erros de log ou pedidos EXPLICITOS do usuario, nada alem disso.
+# tenha em mente que descumprir essas diretizes estraga o codigo e causa perda de tempo
+# nao é neceasário varrer o codigo todo para cada edição pedida 
+# use a busca de termos para ir diretamente à região correta e edirtar apenas o necessário, para ser mais eficiente
+
+
+from Fix import login_pc, driver_notebook, aplicar_filtro_100, indexar_e_processar_lista, extrair_dados_processo
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -7,12 +22,13 @@ import re
 import logging
 import os
 from Fix import esperar_elemento, safe_click
-from Fix import criar_gigs, obter_driver_padronizado, login_notebook, aplicar_filtro_100
-from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, obter_driver_padronizado, login_notebook, aplicar_filtro_100
+from Fix import criar_gigs, login_pc, aplicar_filtro_100
+from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, login_notebook, aplicar_filtro_100
 from atos import ato_pesquisas, ato_sobrestamento
 from mov import def_arq
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.keys import Keys
+from Fix import driver_pc, login_pc
 
 # Configuração do logging
 logging.basicConfig(
@@ -92,19 +108,51 @@ def fluxo_pz(driver):
         logger.info('[FLUXO_PZ] Analisando regras...')
 
         # 4. Define as regras com parâmetros e ações sequenciais
+        def remover_acentos(txt):
+            import unicodedata
+            return ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
+
+        def normalizar_texto(txt):
+            return remover_acentos(txt.lower())
+
+        texto_normalizado = normalizar_texto(texto)
+
+        def gerar_regex_geral(termo):
+            # Remove acentos e deixa minúsculo para o termo
+            termo_norm = normalizar_texto(termo)
+            # Divide termo em palavras
+            palavras = termo_norm.split()
+            # Monta regex permitindo pontuação, vírgula, etc. entre as palavras
+            partes = [re.escape(p) for p in palavras]
+            # Entre cada palavra, aceita qualquer quantidade de espaços, pontuação, vírgula, etc.
+            regex = r''
+            for i, parte in enumerate(partes):
+                regex += parte
+                if i < len(partes) - 1:
+                    regex += r'[\s\.,;:!\-–—]*'
+            # Permite o trecho em qualquer lugar do texto (texto antes/depois)
+            return re.compile(rf"{regex}", re.IGNORECASE)
+
         regras = [
-            (['concede-se 05 dias', 'visibilidade aos advogados', 'início da fluência', 'indicar meios', 'oito dias para apresentação', 'oito dias para apresentacao'],
+            ([gerar_regex_geral(k) for k in [
+                '05 dias para a apresentação',
+                'cinco dias para apresentação',
+                'visibilidade aos advogados',
+                'início da fluência',
+                'indicar meios',
+                'oito dias para apresentação',
+                'oito dias para apresentacao',
+            ]],
              'gigs', (1, 'Guilherme - Sobrestamento'), ato_sobrestamento),
-            (['revel', 'concorda com homologação', 'concorda com homologacao', 'tomarem ciência dos esclarecimentos apresentados'],
+            ([gerar_regex_geral(k) for k in ['revel', 'concorda com homologação', 'concorda com homologacao', 'tomarem ciência dos esclarecimentos apresentados', 'oito dias impugnar os']],
              'gigs', (1, 'Silvia - Homologação'), None),
-            (['hasta', 'saldo devedor', 'prescrição', 'prescricao'],
+            ([gerar_regex_geral(k) for k in ['hasta', 'saldo devedor', 'prescrição', 'prescricao']],
              'gigs', (1, 'xs - pec'), None),
-            (['impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em'],
+            ([gerar_regex_geral(k) for k in ['impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em', 'referente ao principal']],
              'gigs', (1, 'SILVIA - Argos'), ato_pesquisas),
-            # Add the new phrase to the keywords for def_arq
-            (['cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924'],
+            ([gerar_regex_geral(k) for k in ['cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']],
              'movimentar', def_arq, None),
-            (['bloqueio realizado, ora convertido'], 'gigs', (1, 'xs pec bloqueio'), None),
+            ([gerar_regex_geral(k) for k in ['bloqueio realizado, ora convertido']], 'gigs', (1, 'xs pec bloqueio'), None),
         ]
 
         # Regra especial: bloqueio de valores realizado, ora
@@ -140,13 +188,13 @@ def fluxo_pz(driver):
         acao_secundaria = None # Reset before checking rules
 
         for keywords, tipo_acao, params, acao_sec in regras:
-            for keyword in keywords:
-                if keyword in texto:
+            for regex in keywords:
+                if regex.search(texto_normalizado):
                     acao_definida = tipo_acao
                     parametros_acao = params
                     acao_secundaria = acao_sec
-                    termo_encontrado = keyword
-                    logger.info(f'[FLUXO_PZ] Regra encontrada pelo termo: "{termo_encontrado}". Ação Primária: {acao_definida}, Secundária: {acao_secundaria.__name__ if acao_secundaria else "Nenhuma"}')
+                    termo_encontrado = regex.pattern
+                    logger.info(f'[FLUXO_PZ] Regra encontrada pelo termo (regex): "{termo_encontrado}". Ação Primária: {acao_definida}, Secundária: {acao_secundaria.__name__ if acao_secundaria else "Nenhuma"}')
                     break
             if acao_definida:
                 break
@@ -154,14 +202,15 @@ def fluxo_pz(driver):
         # 6. Perform action(s) based on the matched rule (or default)
         import datetime
         t_inicio_gigs = datetime.datetime.now()
+        gigs_aplicado = False
         if acao_definida == 'gigs':
              dias, obs = parametros_acao
              logger.info(f'[FLUXO_PZ][PERF] Início criação GIGS: {t_inicio_gigs.strftime("%H:%M:%S.%f")[:-3]}')
              try:
                  criar_gigs(driver, dias, obs)
+                 gigs_aplicado = True
                  t_fim_gigs = datetime.datetime.now()
                  logger.info(f'[FLUXO_PZ][PERF] Fim criação GIGS: {t_fim_gigs.strftime("%H:%M:%S.%f")[:-3]} (duração: {(t_fim_gigs-t_inicio_gigs).total_seconds():.2f}s)')
-                 # ...existing code...
                  if acao_secundaria:
                      logger.info(f'[FLUXO_PZ] Executando Ação Secundária: {acao_secundaria.__name__}')
                      # Monta dicionário de parâmetros para o ato secundário
@@ -192,15 +241,6 @@ def fluxo_pz(driver):
                  time.sleep(1) # Pause after movement
              except Exception as mov_error:
                   logger.error(f'[FLUXO_PZ][ERRO] Falha ao executar movimentação {func_movimento.__name__}: {mov_error}')
-        else:
-             # Default action if no rule matched
-             logger.info('[FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".')
-             try:
-                 criar_gigs(driver, 0, 'Pz')
-                 time.sleep(1) # Pause after default GIGS
-             except Exception as default_gigs_error:
-                  logger.error(f'[FLUXO_PZ][ERRO] Falha ao criar GIGS padrão "Pz": {default_gigs_error}')
-
 
         logger.info('[FLUXO_PZ] Análise de prazo detalhado e ações concluídas.')
 
@@ -302,17 +342,11 @@ def esperar_url(driver, url_esperada, timeout=30):
     return False
 
 # Updated the executar_fluxo function to use the new driver and login function.
-def executar_fluxo():
+def executar_fluxo(driver):
     """
-    Executa o fluxo completo de login, navegação, filtro e processamento.
+    Executa o fluxo completo de navegação, filtro e processamento, usando o driver já autenticado.
     """
-    driver = driver_notebook()
     try:
-        # 1. Login
-        if not login_notebook(driver):
-            raise Exception('Falha no login')
-        logger.info('[LOGIN] Login realizado com sucesso.')
-
         # Maximizar a janela do navegador
         logger.info('[NAVEGAR] Maximizar a janela do navegador.')
         driver.maximize_window()
@@ -370,10 +404,23 @@ def executar_fluxo():
     except Exception as e:
         logger.error(f'[EXECUCAO][ERRO] {e}')
     finally:
+        try:
+            driver.quit()
+        except Exception as e:
+            logger.error(f'[EXECUCAO][ERRO] Falha ao fechar o driver: {e}')
+
+def main():
+    driver = driver_pc(headless=False)
+    if not driver:
+        print('[ERRO] Falha ao iniciar o driver.')
+        return
+    if not login_pc(driver):
+        print('[ERRO] Falha no login. Encerrando script.')
         driver.quit()
+        return
+    print('[P2] Login realizado com sucesso.')
+    # Passa o driver já autenticado para o fluxo principal
+    executar_fluxo(driver)
 
 if __name__ == "__main__":
-    try:
-        executar_fluxo()
-    except Exception as e:
-        logger.error(f"[MAIN][ERRO] {e}")
+    main()

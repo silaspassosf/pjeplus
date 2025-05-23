@@ -90,31 +90,29 @@ def mostrar_calculo_ao_lado_novo_executado(driver, valor, data):
         data_br = f"{partes[2]}/{partes[1]}/{partes[0]}"
     else:
         data_br = data_fmt
-    script = f'''
-    (function() {{
-        // Busca qualquer elemento com texto 'Novo Executado'
-        let alvo = Array.from(document.querySelectorAll('button, span, a, div, mat-card, mat-card-title, mat-card-content, *'))
-            .find(e => e.textContent && e.textContent.trim().toLowerCase().includes('novo executado'));
-        let html = 'Cálculo: {valor_str}<br>Data: {data_br}';
-        let id = 'pjeplus-calc-inline';
-        let antigo = document.getElementById(id);
-        if (antigo) antigo.remove();
-        if (alvo) {
-            let span = document.createElement('span');
-            span.id = id;
-            span.style = `color: #b71c1c; font-weight: bold; font-size: 1.1em; margin-left: 18px; vertical-align: middle; display: inline-block;`;
-            span.innerHTML = html;
-            alvo.parentNode.insertBefore(span, alvo.nextSibling);
-        } else {
-            // Fallback: exibe no topo da tela de detalhes
-            let div = document.createElement('div');
-            div.id = id;
-            div.style = `position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #fff0f0; color: #b71c1c; font-weight: bold; font-size: 1.2em; padding: 8px 24px; border-radius: 8px; z-index: 99999; box-shadow: 0 2px 8px #0002;`;
-            div.innerHTML = html;
-            document.body.appendChild(div);
-        }
-    }})();
-    '''
+    script = (
+        "(function() {"
+        "    let alvo = Array.from(document.querySelectorAll('button, span, a, div, mat-card, mat-card-title, mat-card-content, *'))"
+        "        .find(e => e.textContent && e.textContent.trim().toLowerCase().includes('novo executado'));"
+        "    let html = 'Cálculo: {valor_str}<br>Data: {data_br}';"
+        "    let id = 'pjeplus-calc-inline';"
+        "    let antigo = document.getElementById(id);"
+        "    if (antigo) antigo.remove();"
+        "    if (alvo) {"
+        "        let span = document.createElement('span');"
+        "        span.id = id;"
+        "        span.style = 'color: #b71c1c; font-weight: bold; font-size: 1.1em; margin-left: 18px; vertical-align: middle; display: inline-block;';"
+        "        span.innerHTML = html;"
+        "        alvo.parentNode.insertBefore(span, alvo.nextSibling);"
+        "    } else {"
+        "        let div = document.createElement('div');"
+        "        div.id = id;"
+        "        div.style = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: #fff0f0; color: #b71c1c; font-weight: bold; font-size: 1.2em; padding: 8px 24px; border-radius: 8px; z-index: 99999; box-shadow: 0 2px 8px #0002;';"
+        "        div.innerHTML = html;"
+        "        document.body.appendChild(div);"
+        "    }"
+        "})();"
+    ).format(valor_str=valor_str, data_br=data_br)
     driver.execute_script(script)
 
 def mostrar_sem_calculo_ao_lado_novo_executado(driver):

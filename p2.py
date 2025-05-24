@@ -298,7 +298,7 @@ def fluxo_prazo(driver):
         logger.info(f'[FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.')
         fluxo_pz(driver_processo) # Call the main function for the process tab
         logger.info(f'[FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.')
-        # The callback finishes when fluxo_pz finishes (including secondary actions)
+        time.sleep(1)  # Pausa para evitar race condition/travamento entre processamentos
 
     # Chama indexar_e_processar_lista com o callback definido
     indexar_e_processar_lista(driver, callback_processo) # Use the correct processing function
@@ -351,6 +351,9 @@ def executar_fluxo(driver):
         logger.info('[NAVEGAR] Maximizar a janela do navegador.')
         driver.maximize_window()
 
+        # Ajustar o zoom da página para 70% para garantir visibilidade do dropdown de quantidade por página
+        driver.execute_script("document.body.style.zoom='70%'")
+
         # 2. Navegar diretamente para a página de atividades
         url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
         logger.info(f'[NAVEGAR] Navegando diretamente para {url_atividades}...')
@@ -360,31 +363,29 @@ def executar_fluxo(driver):
         if not esperar_url(driver, url_atividades, timeout=30):
             logger.error(f'[NAVEGAR] Timeout aguardando URL {url_atividades}. URL atual: {driver.current_url}')
             raise Exception(f'Timeout aguardando URL {url_atividades}')
-        logger.info('[NAVEGAR] Página de atividades carregada com sucesso.')
-
-        # 3. Aplicar filtro de 100 itens por página
+        logger.info('[NAVEGAR] Página de atividades carregada com sucesso.')        # 3. Aplicar filtro de 100 itens por página
+        from Fix import aplicar_filtro_100
         if not aplicar_filtro_100(driver):
             raise Exception('Falha ao aplicar filtro de 100 itens por página')
-
-        # 4. Filtro de atividade sem prazo e descrição "xs"
+        # Espera única de 2 segundos após aplicar o filtro 100
+        time.sleep(2)
         try:
-            logger.info('[FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...')
+            logger.info('[FILTRO] Removendo chip "Vencidas" se existir...')
             # Remover chip "Vencidas" se existir
-            chip_remove_button = esperar_elemento(driver, '.mat-chip-remove', timeout=5)
-            if chip_remove_button and chip_remove_button.is_displayed():
-                safe_click(driver, chip_remove_button)
-                logger.info('[FILTRO] Chip "Vencidas" removido.')
-                time.sleep(0.5)
-
-            # Clicar em Atividade sem prazo
+            chip_remove_buttons = driver.find_elements(By.CSS_SELECTOR, 'button.chips-icone-fechar')
+            for button in chip_remove_buttons:
+                if button.is_displayed() and button.is_enabled():
+                    safe_click(driver, button)
+                    logger.info('[FILTRO] Chip "Vencidas" removido.')
+                    break
+            # Clicar no ícone de caneta (fa-pen)
+            logger.info('[FILTRO] Clicando no ícone de caneta (fa-pen)...')
             btn_atividade_sem_prazo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa-pen:nth-child(1)'))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa-pen'))
             )
             safe_click(driver, btn_atividade_sem_prazo)
-            logger.info('[FILTRO] Atividade sem prazo selecionada.')
-            time.sleep(1)
-
-            # Aplicar descrição "xs"
+            logger.info('[FILTRO] Ícone de caneta clicado.')
+            # Aplicar filtro "xs" no campo de descrição
             campo_descricao = WebDriverWait(driver, 15).until(
                 EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[aria-label*="Descrição"]'))
             )
@@ -393,9 +394,8 @@ def executar_fluxo(driver):
             campo_descricao.send_keys(Keys.ENTER)
             logger.info('[FILTRO] Descrição da atividade "xs" aplicada.')
             time.sleep(2)
-
         except Exception as e:
-            logger.error(f'[FILTRO][ERRO] Erro ao aplicar filtro de atividade: {e}')
+            logger.error(f'[FILTRO][ERRO] Erro ao aplicar filtros: {e}')
             raise
 
         # 5. Executar fluxo de prazo
@@ -424,3 +424,59 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+class AutomacaoP2:
+    def __init__(self):
+        self.driver = None
+        self.etapa_atual = None
+
+    def iniciar(self):
+        try:
+            from Fix import driver_pc
+            self.driver = driver_pc(headless=False)
+            if not self.driver:
+                logging.error('[AutomacaoP2] Falha ao iniciar o driver.')
+                return False
+            return True
+        except Exception as e:
+            logging.error(f'[AutomacaoP2] Erro ao iniciar driver: {e}')
+            return False
+
+    def login(self):
+        self.etapa_atual = 'login'
+        try:
+            from Fix import login_pc
+            if not login_pc(self.driver):
+                logging.error('[AutomacaoP2] Falha no login.')
+                return False
+            logging.info('[AutomacaoP2] Login realizado com sucesso.')
+            return True
+        except Exception as e:
+            logging.error(f'[AutomacaoP2] Erro no login: {e}')
+            return False
+
+    def executar_fluxo(self):
+        self.etapa_atual = 'fluxo_principal'
+        try:
+            if not self.driver:
+                if not self.iniciar():
+                    return False
+            if not self.login():
+                return False
+            executar_fluxo(self.driver)
+            return True
+        except Exception as e:
+            logging.error(f'[AutomacaoP2] Erro ao executar fluxo: {e}')
+            return False
+
+    def reiniciar_etapa(self):
+        logging.info(f'[AutomacaoP2] Reiniciando etapa: {self.etapa_atual}')
+        # Implementar lógica de reinício se necessário
+
+    def finalizar(self):
+        if self.driver:
+            try:
+                self.driver.quit()
+                logging.info('[AutomacaoP2] Driver finalizado.')
+            except Exception as e:
+                logging.error(f'[AutomacaoP2] Erro ao finalizar driver: {e}')

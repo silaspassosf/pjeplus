@@ -13,7 +13,6 @@ from Fix import (
     buscar_documentos_sequenciais,
     indexar_e_processar_lista  # <--- Importação adicionada
 )
-from modulo import aplicar_filtro_100
 from selenium.webdriver.common.keys import Keys
 import os
 import logging
@@ -579,6 +578,7 @@ ato_sobrestamento = make_ato_wrapper(
     marcar_primeiro_destinatario=False
 )
 
+# ato_pesquisas permanece manual, pois tem lógica própria
 # ato_pesquisas permanece manual, pois tem lógica própria
 def ato_pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False, sigilo=True, descricao=None):
     return ato_judicial(

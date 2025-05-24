@@ -8,6 +8,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import time
 from Fix import driver_pc, login_pc, extrair_dados_processo
+import json
+import tempfile
+import os
+import json
+import tempfile
+# Certifique-se de que driver_firefox_sisbajud está definido ou importado
+from bacen import driver_firefox_sisbajud
 
 # ===================== CONFIGURAÇÕES =====================
 CONFIG = {
@@ -118,6 +125,24 @@ def abrir_sisbajud_em_nova_aba(driver):
     # Força salvamento de cookies SISBAJUD
     salvar_cookies_sisbajud(driver)
     return driver.current_window_handle
+
+def abrir_sisbajud_em_firefox_sisbajud():
+    driver = driver_firefox_sisbajud(headless=False)
+    driver.get('https://sisbajud.cnj.jus.br/')
+    print('[SISBAJUD] SISBAJUD aberto em Firefox (perfil Sisb).')
+    # Integração: carrega dados extraídos do processo do arquivo temporário
+    global processo_dados_extraidos
+    try:
+        temp_path = os.path.join(tempfile.gettempdir(), 'processo_dados_extraidos.json')
+        if os.path.exists(temp_path):
+            with open(temp_path, 'r', encoding='utf-8') as f:
+                processo_dados_extraidos = json.load(f)
+            print('[SISBAJUD] Dados do processo carregados do arquivo temporário:', processo_dados_extraidos)
+        else:
+            print('[SISBAJUD][ERRO] Arquivo temporário de dados do processo não encontrado.')
+    except Exception as e:
+        print(f'[SISBAJUD][ERRO] Falha ao carregar dados do processo do arquivo temporário: {e}')
+    return driver
 
 def minuta_bloqueio(driver):
     """

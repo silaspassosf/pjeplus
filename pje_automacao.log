@@ -1,0 +1,501 @@
+2025-05-23 22:40:59,501 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 22:41:11,711 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 22:41:11,983 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 22:41:12,527 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 22:41:24,037 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-23 22:50:39,968 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 22:50:52,037 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 22:50:52,312 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 22:50:52,851 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 22:51:04,424 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 1000 itens por página
+2025-05-23 22:53:09,727 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 22:53:21,681 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 22:53:21,949 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 22:53:22,489 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 22:53:33,999 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-23 23:25:08,229 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 23:25:20,618 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 23:25:20,911 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 23:25:21,506 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 23:25:31,518 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-23 23:38:55,875 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 23:39:07,967 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 23:39:08,315 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 23:39:08,867 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 23:39:18,883 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-23 23:43:17,088 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 23:43:30,189 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 23:43:30,487 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 23:43:31,014 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 23:43:41,022 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-23 23:51:04,873 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 23:51:16,904 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 23:51:17,202 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 23:51:17,745 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 23:51:27,753 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-23 23:54:03,235 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 23:54:34,206 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-23 23:54:46,288 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-23 23:54:46,609 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-23 23:54:47,158 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-23 23:54:57,784 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 00:05:18,973 [ERROR] [root] Erro ao iniciar o driver Firefox: Message: binary is not a Firefox executable
+
+2025-05-24 00:06:08,671 [ERROR] [root] Erro ao iniciar o driver Firefox: Message: binary is not a Firefox executable
+
+2025-05-24 00:06:24,583 [ERROR] [root] Erro ao iniciar o driver Firefox: Message: binary is not a Firefox executable
+
+2025-05-24 09:21:30,704 [ERROR] [root] Erro ao iniciar o driver Firefox: Message: binary is not a Firefox executable
+
+2025-05-24 09:32:10,066 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 09:32:22,135 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 09:32:22,556 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 09:32:23,147 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 09:32:33,159 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 09:39:46,847 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 09:39:58,854 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 09:39:59,302 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 09:39:59,877 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 09:40:11,286 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 09:40:31,307 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 09:40:31,308 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 09:41:26,906 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 09:41:38,929 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 09:41:39,210 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 09:41:39,739 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 09:41:51,094 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 09:42:11,122 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 09:42:11,123 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 09:43:29,819 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 09:43:41,874 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 09:43:42,298 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 09:43:42,870 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 09:43:54,256 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 09:44:14,282 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 09:44:14,282 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 09:53:19,504 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 09:53:31,523 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 09:53:31,807 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 09:53:32,383 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 09:53:43,364 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 10:10:50,627 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 10:11:03,766 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 10:11:04,052 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 10:11:04,594 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 10:11:15,540 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:01:20,264 [ERROR] [root] Erro ao iniciar o driver Firefox: Message: binary is not a Firefox executable
+
+2025-05-24 13:08:00,099 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:11:53,666 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:12:45,918 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:12:46,199 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:12:46,756 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:12:46,950 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:13:00,455 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:13:13,562 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:13:13,940 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:13:14,512 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:13:14,714 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:20:27,107 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:20:39,298 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:20:39,571 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:20:40,180 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:21:11,380 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:25:53,386 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:26:41,974 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:26:54,151 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:26:54,420 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:26:55,027 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:27:36,503 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:33:19,469 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:33:31,649 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:33:31,994 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:33:32,547 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:34:14,592 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:35:02,179 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:35:14,402 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:35:14,675 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:35:15,237 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:35:29,820 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 13:35:49,842 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 13:35:49,842 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 13:48:53,779 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:49:05,830 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:49:06,114 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:49:06,857 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:49:07,074 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 13:52:27,305 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 13:52:39,404 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 13:52:39,692 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 13:52:40,244 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 13:52:40,259 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 14:04:28,945 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:04:41,171 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 14:04:41,466 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 14:04:42,009 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 14:05:05,780 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 14:05:05,838 [INFO] [AutomacaoPJe] [FILTRO] Chip removido.
+2025-05-24 14:05:16,713 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 14:05:16,713 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 14:11:59,417 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:12:12,604 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 14:12:12,878 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 14:12:13,472 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 14:12:37,221 [INFO] [AutomacaoPJe] [FILTRO] Aguardando estabilização do DOM após filtro 100...
+2025-05-24 14:12:40,222 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 14:12:40,297 [INFO] [AutomacaoPJe] [FILTRO] Chip removido.
+2025-05-24 14:12:40,798 [INFO] [AutomacaoPJe] [FILTRO] Aguardando elementos de filtro após refresh do DOM...
+2025-05-24 14:12:51,051 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 14:12:51,051 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 14:15:43,948 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:15:56,495 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 14:15:56,780 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 14:15:57,364 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 14:16:07,384 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-24 14:34:43,239 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:34:55,436 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 14:34:55,710 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 14:34:56,249 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 14:34:58,985 [INFO] [AutomacaoPJe] [FILTRO] Aguardando estabilização do DOM após filtro 100...
+2025-05-24 14:35:01,986 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 14:35:01,986 [INFO] [AutomacaoPJe] [FILTRO] Aguardando elementos de filtro após refresh do DOM...
+2025-05-24 14:35:12,005 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 14:35:12,005 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-24 14:38:02,498 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:38:14,541 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 14:38:14,821 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 14:38:15,363 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 14:38:17,833 [INFO] [AutomacaoPJe] [FILTRO] Aguardando estabilização do DOM após filtro 100...
+2025-05-24 14:38:20,833 [INFO] [AutomacaoPJe] [FILTRO] Aplicando filtro de atividade sem prazo e descrição "xs"...
+2025-05-24 14:38:20,833 [INFO] [AutomacaoPJe] [FILTRO] Aguardando elementos de filtro após refresh do DOM...
+2025-05-24 14:38:21,192 [ERROR] [AutomacaoPJe] [FILTRO][ERRO] Erro ao aplicar filtro de atividade: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.findElement@chrome://remote/content/marionette/driver.sys.mjs:1724:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+observe@resource://gre/modules/AsyncShutdown.sys.mjs:569:17
+
+2025-05-24 14:38:21,193 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.findElement@chrome://remote/content/marionette/driver.sys.mjs:1724:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+observe@resource://gre/modules/AsyncShutdown.sys.mjs:569:17
+
+2025-05-24 14:46:12,159 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:46:36,681 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 14:46:49,706 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 14:46:49,994 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 14:46:50,723 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 14:46:55,184 [INFO] [AutomacaoPJe] [FILTRO] Removendo chip "Vencidas" se existir...
+2025-05-24 14:46:55,288 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-24 14:46:55,289 [INFO] [AutomacaoPJe] [FILTRO] Clicando no ícone de caneta (fa-pen)...
+2025-05-24 14:46:55,388 [INFO] [AutomacaoPJe] [FILTRO] Ícone de caneta clicado.
+2025-05-24 14:46:56,190 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada.
+2025-05-24 14:46:58,190 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-24 14:47:00,350 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 14:47:00,351 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 14:47:00,381 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 14:47:02,643 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 14:47:02.643
+2025-05-24 14:47:04,300 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 14:47:04.300 (duração: 1.66s)
+2025-05-24 14:47:04,300 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+intime(m)-se o(s) reclamado(s) para, no prazo de oito dias, impugnar os cálculos juntados pelo(a) reclamante, e apresentar os seus, através de planilha detalhada, nos termos do § 2º do art. 879 da clt, ou informar se aceita(m) a imediata homologação da conta ofertada pela parte obreira.
+sao paulo/sp, 29 de abril de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-24 14:47:04,301 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 14:47:04,308 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "oito[\s\.,;:!\-–—]*dias[\s\.,;:!\-–—]*impugnar[\s\.,;:!\-–—]*os". Ação Primária: gigs, Secundária: Nenhuma
+2025-05-24 14:47:04,308 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 14:47:04.308
+2025-05-24 14:47:16,111 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 14:47:16.111 (duração: 11.80s)
+2025-05-24 14:47:16,111 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 14:47:16,113 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 14:47:16,132 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 14:47:16,133 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 14:47:19,219 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 14:47:19,219 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 14:47:19,303 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 14:47:21,562 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 14:47:21.562
+2025-05-24 14:47:23,216 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 14:47:23.216 (duração: 1.65s)
+2025-05-24 14:47:23,216 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+julgo extinta a presente execução, nos termos do art. 924, ii do cpc.
+expeça-se mandado para exclusão do nome da executada do cnib e serasajud, bem como do bndt.
+registrem-se, no sistema, os valores considerados pagos, para fins estatísticos e, após, arquivem-se os autos, com as cautelas de praxe.
+sao paulo/sp, 07 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-24 14:47:23,216 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 14:47:23,217 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "julgo[\s\.,;:!\-–—]*extinta[\s\.,;:!\-–—]*a[\s\.,;:!\-–—]*presente[\s\.,;:!\-–—]*execucao,[\s\.,;:!\-–—]*nos[\s\.,;:!\-–—]*termos[\s\.,;:!\-–—]*do[\s\.,;:!\-–—]*art\.[\s\.,;:!\-–—]*924". Ação Primária: movimentar, Secundária: Nenhuma
+2025-05-24 14:47:23,217 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Primária: Movimentar Processo (def_arq)
+2025-05-24 14:47:36,871 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 14:47:36,874 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 14:47:36,970 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 14:47:36,970 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 14:47:37,056 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.
+2025-05-24 15:06:42,149 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 15:06:54,239 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 15:06:54,521 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 15:06:55,053 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 15:06:59,512 [INFO] [AutomacaoPJe] [FILTRO] Removendo chip "Vencidas" se existir...
+2025-05-24 15:06:59,597 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-24 15:06:59,597 [INFO] [AutomacaoPJe] [FILTRO] Clicando no ícone de caneta (fa-pen)...
+2025-05-24 15:06:59,660 [INFO] [AutomacaoPJe] [FILTRO] Ícone de caneta clicado.
+2025-05-24 15:07:00,788 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada.
+2025-05-24 15:07:02,789 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-24 15:07:05,075 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 15:07:05,075 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 15:07:05,106 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 15:07:07,365 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:07:07.365
+2025-05-24 15:07:09,024 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:07:09.023 (duração: 1.66s)
+2025-05-24 15:07:09,024 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+intime(m)-se o(s) reclamado(s) para, no prazo de oito dias, impugnar os cálculos juntados pelo(a) reclamante, e apresentar os seus, através de planilha detalhada, nos termos do § 2º do art. 879 da clt, ou informar se aceita(m) a imediata homologação da conta ofertada pela parte obreira.
+sao paulo/sp, 29 de abril de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-24 15:07:09,024 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 15:07:09,031 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "oito[\s\.,;:!\-–—]*dias[\s\.,;:!\-–—]*impugnar[\s\.,;:!\-–—]*os". Ação Primária: gigs, Secundária: Nenhuma
+2025-05-24 15:07:09,031 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 15:07:09.031
+2025-05-24 15:07:20,775 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 15:07:20.775 (duração: 11.74s)
+2025-05-24 15:07:20,775 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 15:07:20,777 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 15:07:20,856 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 15:07:20,856 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 15:07:23,953 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 15:07:23,953 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 15:07:24,025 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 15:07:26,283 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:07:26.283
+2025-05-24 15:07:27,945 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:07:27.945 (duração: 1.66s)
+2025-05-24 15:07:27,946 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+julgo extinta a presente execução, nos termos do art. 924, ii do cpc.
+expeça-se mandado para exclusão do nome da executada do cnib e serasajud, bem como do bndt.
+registrem-se, no sistema, os valores considerados pagos, para fins estatísticos e, após, arquivem-se os autos, com as cautelas de praxe.
+sao paulo/sp, 07 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-24 15:07:27,946 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 15:07:27,946 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "julgo[\s\.,;:!\-–—]*extinta[\s\.,;:!\-–—]*a[\s\.,;:!\-–—]*presente[\s\.,;:!\-–—]*execucao,[\s\.,;:!\-–—]*nos[\s\.,;:!\-–—]*termos[\s\.,;:!\-–—]*do[\s\.,;:!\-–—]*art\.[\s\.,;:!\-–—]*924". Ação Primária: movimentar, Secundária: Nenhuma
+2025-05-24 15:07:27,946 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Primária: Movimentar Processo (def_arq)
+2025-05-24 15:07:50,983 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 15:07:50,986 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 15:07:51,046 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 15:07:51,047 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 15:07:51,147 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.
+2025-05-24 15:20:34,294 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 15:20:46,380 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 15:20:46,679 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 15:20:47,237 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 15:20:51,655 [INFO] [AutomacaoPJe] [FILTRO] Removendo chip "Vencidas" se existir...
+2025-05-24 15:20:51,762 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-24 15:20:51,762 [INFO] [AutomacaoPJe] [FILTRO] Clicando no ícone de caneta (fa-pen)...
+2025-05-24 15:20:51,885 [INFO] [AutomacaoPJe] [FILTRO] Ícone de caneta clicado.
+2025-05-24 15:20:52,661 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada.
+2025-05-24 15:20:54,662 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-24 15:20:56,998 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 15:20:56,998 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 15:20:57,097 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 15:20:59,385 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:20:59.385
+2025-05-24 15:21:01,084 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:21:01.084 (duração: 1.70s)
+2025-05-24 15:21:01,085 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+julgo extinta a presente execução, nos termos do art. 924, ii do cpc.
+registrem-se no sistema os valores considerados pagos, para fins estatísticos e, após, arquivem-se os autos, com as cautelas de praxe.
+sao paulo/sp, 08 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-24 15:21:01,085 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 15:21:01,093 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "julgo[\s\.,;:!\-–—]*extinta[\s\.,;:!\-–—]*a[\s\.,;:!\-–—]*presente[\s\.,;:!\-–—]*execucao,[\s\.,;:!\-–—]*nos[\s\.,;:!\-–—]*termos[\s\.,;:!\-–—]*do[\s\.,;:!\-–—]*art\.[\s\.,;:!\-–—]*924". Ação Primária: movimentar, Secundária: Nenhuma
+2025-05-24 15:21:01,093 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Primária: Movimentar Processo (def_arq)
+2025-05-24 15:21:16,168 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 15:21:16,171 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 15:21:16,268 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 15:21:16,268 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 15:21:16,387 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.
+2025-05-24 15:26:33,644 [INFO] [root] Driver Firefox iniciado com sucesso.
+2025-05-24 15:26:45,726 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-05-24 15:26:46,008 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-05-24 15:26:46,583 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-05-24 15:26:51,028 [INFO] [AutomacaoPJe] [FILTRO] Removendo chip "Vencidas" se existir...
+2025-05-24 15:26:51,133 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-24 15:26:51,134 [INFO] [AutomacaoPJe] [FILTRO] Clicando no ícone de caneta (fa-pen)...
+2025-05-24 15:26:51,861 [INFO] [AutomacaoPJe] [FILTRO] Ícone de caneta clicado.
+2025-05-24 15:26:52,033 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada.
+2025-05-24 15:26:54,033 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-24 15:26:56,257 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 15:26:56,257 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 15:26:56,325 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 15:26:58,576 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:26:58.576
+2025-05-24 15:27:00,208 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:27:00.208 (duração: 1.63s)
+2025-05-24 15:27:00,208 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+ante o teor da manifestação id 39f7c0e, intime-se a reclamada para apresentar cálculos de liquidação, através de planilha, em quinze dias, nos termos do art. 879 da clt, sob pena de preclusão.
+sao paulo/sp, 02 de abril de 2025.
+mariana kawahashi
+juíza do trabalho substituta
+---
+2025-05-24 15:27:00,208 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 15:27:00,215 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 15:27:00,218 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 15:27:00,280 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 15:27:00,280 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 15:27:03,427 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 15:27:03,427 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 15:27:03,468 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 15:27:05,757 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:27:05.757
+2025-05-24 15:27:07,513 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:27:07.513 (duração: 1.76s)
+2025-05-24 15:27:07,514 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+defiro tão somente realização da pesquisa através do convênio sisbajud, desta feita com cadastramento da opção “teimosinha”. aguarde-se o cumprimento por trinta dias.
+esta decisão permanecerá em sigilo até o encerramento da pesquisa sisbajud, com vistas a se evitar tentativa de frustração da execução por parte do(s) executado(s), com fundamento no art. 765 da clt.
+sao paulo/sp, 29 de março de 2025.
+mariana kawahashi
+juíza do trabalho substituta
+---
+2025-05-24 15:27:07,514 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 15:27:07,515 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-24 15:27:07,517 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 15:27:07,598 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 15:27:07,599 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 15:27:10,689 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-24 15:27:10,690 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-24 15:27:10,719 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-24 15:27:12,981 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:27:12.981
+2025-05-24 15:27:14,621 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:27:14.621 (duração: 1.64s)
+2025-05-24 15:27:14,621 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+intime-se o executado acerca do bloqueio de valores realizado, ora convertido em penhora.
+  silente, já transferido à conta judicial, tornem conclusos.
+sao paulo/sp, 13 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-24 15:27:14,621 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-24 15:35:45,266 [INFO] [AutomacaoPJe] [FLUXO_PZ] Há intimações após despacho. Chamando catya e criando GIGS 1/Bruna - Liberação.
+2025-05-24 15:35:45,268 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Erro durante a análise de prazo detalhado: cannot import name 'catya' from 'carta' (D:\PjePlus\carta.py)
+2025-05-24 15:35:45,332 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-24 15:35:45,354 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-24 15:35:45,354 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-24 15:35:45,375 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.

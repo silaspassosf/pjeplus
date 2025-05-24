@@ -119,9 +119,9 @@ def obter_driver_padronizado(headless=False):
     from selenium.webdriver.firefox.service import Service
     import os
 
-    PROFILE_PATH = r"C:\\Users\\Silas\\AppData\\Roaming\\Mozilla\\Dev\\Selenium"
-    FIREFOX_BINARY = r"C:\\Program Files\\Firefox Developer Edition\\firefox.exe"
-    GECKODRIVER_PATH = r"d:\\PjePlus\\geckodriver.exe"
+    PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
+    FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    GECKODRIVER_PATH = r"d:\PjePlus\geckodriver.exe"
 
     logging.debug(f"Usando o binário do Firefox em: {FIREFOX_BINARY}")
     logging.debug(f"Usando o geckodriver em: {GECKODRIVER_PATH}")
@@ -150,9 +150,9 @@ def driver_notebook(headless=False):
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
     import os
-    PROFILE_PATH = r"C:\\Users\\Silas\\AppData\\Roaming\\Mozilla\\Dev\\Selenium"
-    FIREFOX_BINARY = r"C:\\Program Files\\Firefox Developer Edition\\firefox.exe"
-    GECKODRIVER_PATH = r"d:\\PjePlus\\geckodriver.exe"
+    PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
+    FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    GECKODRIVER_PATH = r"d:\PjePlus\geckodriver.exe"
     options = Options()
     if headless:
         options.add_argument('--headless')
@@ -471,74 +471,71 @@ def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=T
 
 # Aplica o filtro para exibir 100 itens por página no painel global.
 def aplicar_filtro_100(driver):
-    # Aplica o filtro para exibir 100 itens por página no painel global.
+    # Seleciona a opção '100' no filtro de quantidade de itens por página (rodapé da tabela).
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     import time
-
     try:
-        # Aguarda pelo menos uma linha da tabela de atividades estar visível antes de clicar no filtro
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag'))
-            )
-            print('[FILTRO][DEBUG] Tabela de atividades carregada (tr.cdk-drag visível).')
-        except Exception:
-            print('[FILTRO][ERRO] Tabela de atividades não carregou a tempo.')
-            return False
+        driver.execute_script("document.body.style.zoom='50%'")
+        # Busca direta pelo span com texto '20' e classe mat-select-min-line
+        span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
+        mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
+        driver.execute_script("arguments[0].scrollIntoView(true);", mat_select)
+        time.sleep(0.2)
+        mat_select.click()
+        time.sleep(0.3)
+        overlay = WebDriverWait(driver, 3).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+        )
+        time.sleep(0.2)
+        opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']] | .//mat-option[normalize-space(text())='100']")
+        opcao_100.click()
+        time.sleep(1)
+        return True
+    except Exception as e:
+        print(f'[FILTRO_LISTA_100][ERRO] Falha: {e}')
+        return False
 
-        # Encontra todos os spans de linhas por página
-        spans = driver.find_elements(By.CSS_SELECTOR, "span.mat-select-min-line")
-        seletor = None
-        for s in reversed(spans):
-            if s.is_displayed():
-                # Sobe para o div.mat-select-value pai
-                parent_div = s.find_element(By.XPATH, "./ancestor::div[contains(@class,'mat-select-value')]")
-                if parent_div and parent_div.is_displayed():
-                    seletor = parent_div
-                    break
-        if not seletor:
-            print('[FILTRO][ERRO] Nenhum seletor de linhas por página visível encontrado.')
+def filtro_fase(driver):
+    # Seleciona as fases 'Execução' e 'Liquidação' no filtro global do painel, igual ao filtro favorito 'Prazo1'.
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    try:
+        seletor_dropdown = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
+        dropdowns = driver.find_elements(By.CSS_SELECTOR, seletor_dropdown)
+        dropdown = None
+        for d in dropdowns:
+            if d.is_displayed():
+                dropdown = d
+                break
+        if not dropdown:
+            print('[FILTRO_FASE][ERRO] Dropdown de fase processual não encontrado.')
             return False
-        driver.execute_script("arguments[0].scrollIntoView(true);", seletor)
-        seletor.click()
-        print('[FILTRO] Dropdown de linhas por página clicado (div.mat-select-value).')
-        time.sleep(0.7)
-
-        # Aguarda o overlay do dropdown aparecer
-        try:
-            overlay = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-            )
-            print('[FILTRO][DEBUG] Overlay do dropdown detectado.')
-        except Exception:
-            print('[FILTRO][ERRO] Overlay do dropdown não detectado.')
-            return False
-
-        # Busca apenas opções "100" dentro do overlay aberto
-        opcoes = overlay.find_elements(By.XPATH, ".//span[contains(text(), '100')]")
-        print(f'[FILTRO][DEBUG] Encontradas {len(opcoes)} opções "100" dentro do overlay.')
-        clicou = False
-        for idx, opcao in enumerate(opcoes):
-            try:
+        driver.execute_script("arguments[0].scrollIntoView(true);", dropdown)
+        dropdown.click()
+        time.sleep(0.5)
+        overlay = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+        )
+        time.sleep(0.2)
+        fases = ["Execução", "Liquidação"]
+        for fase in fases:
+            opcoes = overlay.find_elements(By.XPATH, f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{fase}']")
+            for opcao in opcoes:
                 if opcao.is_displayed():
                     driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
                     opcao.click()
-                    print(f'[FILTRO] Selecionado 100 itens por página. Clique funcionou em opção #{idx+1} dentro do overlay.')
-                    time.sleep(1)
-                    clicou = True
+                    time.sleep(0.2)
                     break
-                else:
-                    print(f'[FILTRO][DEBUG] Opção #{idx+1} não está visível.')
-            except Exception as e:
-                print(f'[FILTRO][WARN] Falha ao clicar na opção #{idx+1} (100) dentro do overlay: {e}')
-        if not clicou:
-            print('[FILTRO][ERRO] Opção 100 não encontrada entre as opções visíveis no overlay.')
-            return False
+        from selenium.webdriver.common.keys import Keys
+        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+        time.sleep(0.2)
         return True
     except Exception as e:
-        print(f'[FILTRO][ERRO] Falha ao aplicar filtro 100: {e}')
+        print(f'[FILTRO_FASE][ERRO] Falha ao aplicar filtro de fase: {e}')
         return False
 
 # Função para processar lista de processos
@@ -856,8 +853,11 @@ def extrair_dados_processo(driver, log=True):
     import requests
     from urllib.parse import urlparse
     from calc import obter_id_processo_da_url
+    import json
+    import tempfile
 
     dados = {
+        'numero': '',  # Adicionado campo numero
         'partes': {
             'ativas': [],
             'passivas': [],
@@ -872,6 +872,26 @@ def extrair_dados_processo(driver, log=True):
             if log:
                 print('[Fix.py] Não foi possível extrair o id do processo da URL.')
             return dados
+        # 1.1 Extrai número do processo da URL ou da página
+        try:
+            # Tenta extrair da URL (padrão PJe)
+            import re
+            url = driver.current_url
+            m = re.search(r'/processo/(\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{4})', url)
+            if m:
+                dados['numero'] = m.group(1)
+            else:
+                # Fallback: tenta extrair do DOM
+                try:
+                    numero_elem = driver.find_element(By.CSS_SELECTOR, '.numero-processo, .processo-numero, .mat-card-title')
+                    numero_text = numero_elem.text.strip()
+                    m2 = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{4})', numero_text)
+                    if m2:
+                        dados['numero'] = m2.group(1)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         # 2. Monta URL da API
         url_base = urlparse(driver.current_url).netloc
         url_api = f'https://{url_base}/pje-comum-api/api/processos/id/{id_processo}/partes'
@@ -916,6 +936,16 @@ def extrair_dados_processo(driver, log=True):
         dados['reclamadas'] = cnpjs
         if log:
             print(f'[Fix.py] Dados das partes extraídos via API com sucesso. Reclamadas (CNPJ): {dados["reclamadas"]}')
+        # Salva dados extraídos em arquivo temporário para integração entre drivers
+        try:
+            temp_path = os.path.join(tempfile.gettempdir(), 'processo_dados_extraidos.json')
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(dados, f, ensure_ascii=False, indent=2)
+            if log:
+                print(f'[Fix.py] Dados do processo salvos em {temp_path}')
+        except Exception as e:
+            if log:
+                print(f'[Fix.py][ERRO] Falha ao salvar dados extraídos em JSON: {e}')
         return dados
     except Exception as e:
         if log:
@@ -934,7 +964,7 @@ def exibir_painel_copia_cola(driver, dados, log=True):
         else:
             conteudo += f'{v}\n'
     # Preenche o painel (se existir)
-    driver.execute_script(f"document.getElementById('painel_copia_cola_conteudo').innerText = `{conteudo}`;")
+    driver.execute_script(f"document.getElementById('painel_copia_cola_conteudo').innerText = `{{conteudo}}`;")
     if log:
         print('[Fix.py] Painel Copia e Cola exibido.')
       
@@ -1319,76 +1349,45 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 
 # Seleciona '100' no filtro de itens por página do painel global.
-def aplicar_filtro_100(driver):
-   
-    # Aplica o filtro para exibir 100 itens por página no painel global.
+def filtro_fase(driver):
+    # Seleciona as fases 'Execução' e 'Liquidação' no filtro global do painel, igual ao filtro favorito 'Prazo1'.
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     import time
-
     try:
-        # Aguarda pelo menos uma linha da tabela de atividades estar visível antes de clicar no filtro
-        try:
-            WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag'))
-            )
-            print('[FILTRO][DEBUG] Tabela de atividades carregada (tr.cdk-drag visível).')
-        except Exception:
-            print('[FILTRO][ERRO] Tabela de atividades não carregou a tempo.')
+        seletor_dropdown = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
+        dropdowns = driver.find_elements(By.CSS_SELECTOR, seletor_dropdown)
+        dropdown = None
+        for d in dropdowns:
+            if d.is_displayed():
+                dropdown = d
+                break
+        if not dropdown:
+            print('[FILTRO_FASE][ERRO] Dropdown de fase processual não encontrado.')
             return False
-
-        # Encontra todos os spans de linhas por página
-        spans = driver.find_elements(By.CSS_SELECTOR, "span.mat-select-min-line")
-        seletor = None
-        for s in reversed(spans):
-            if s.is_displayed():
-                # Sobe para o div.mat-select-value pai
-                parent_div = s.find_element(By.XPATH, "./ancestor::div[contains(@class,'mat-select-value')]")
-                if parent_div and parent_div.is_displayed():
-                    seletor = parent_div
-                    break
-        if not seletor:
-            print('[FILTRO][ERRO] Nenhum seletor de linhas por página visível encontrado.')
-            return False
-        driver.execute_script("arguments[0].scrollIntoView(true);", seletor)
-        seletor.click()
-        print('[FILTRO] Dropdown de linhas por página clicado (div.mat-select-value).')
-        time.sleep(0.7)
-
-        # Aguarda o overlay do dropdown aparecer
-        try:
-            overlay = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-            )
-            print('[FILTRO][DEBUG] Overlay do dropdown detectado.')
-        except Exception:
-            print('[FILTRO][ERRO] Overlay do dropdown não detectado.')
-            return False
-
-        # Busca apenas opções "100" dentro do overlay aberto
-        opcoes = overlay.find_elements(By.XPATH, ".//span[contains(text(), '100')]")
-        print(f'[FILTRO][DEBUG] Encontradas {len(opcoes)} opções "100" dentro do overlay.')
-        clicou = False
-        for idx, opcao in enumerate(opcoes):
-            try:
+        driver.execute_script("arguments[0].scrollIntoView(true);", dropdown)
+        dropdown.click()
+        time.sleep(0.5)
+        overlay = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+        )
+        time.sleep(0.2)
+        fases = ["Execução", "Liquidação"]
+        for fase in fases:
+            opcoes = overlay.find_elements(By.XPATH, f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{fase}']")
+            for opcao in opcoes:
                 if opcao.is_displayed():
                     driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
                     opcao.click()
-                    print(f'[FILTRO] Selecionado 100 itens por página. Clique funcionou em opção #{idx+1} dentro do overlay.')
-                    time.sleep(1)
-                    clicou = True
+                    time.sleep(0.2)
                     break
-                else:
-                    print(f'[FILTRO][DEBUG] Opção #{idx+1} não está visível.')
-            except Exception as e:
-                print(f'[FILTRO][WARN] Falha ao clicar na opção #{idx+1} (100) dentro do overlay: {e}')
-        if not clicou:
-            print('[FILTRO][ERRO] Opção 100 não encontrada entre as opções visíveis no overlay.')
-            return False
+        from selenium.webdriver.common.keys import Keys
+        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+        time.sleep(0.2)
         return True
     except Exception as e:
-        print(f'[FILTRO][ERRO] Falha ao aplicar filtro 100: {e}')
+        print(f'[FILTRO_FASE][ERRO] Falha ao aplicar filtro de fase: {e}')
         return False
 
 def copiarDOC(driver, id):
@@ -1574,6 +1573,10 @@ def buscar_documentos_sequenciais(driver):
                     checkbox_atual = doc_atual['elemento'].find_element(By.XPATH, './ancestor::mat-tree-node//mat-checkbox')
                     checkbox_proximo = doc_proximo['elemento'].find_element(By.XPATH, './ancestor::mat-tree-node//mat-checkbox')
 
+                   
+
+                   
+
                     # Clica se não estiver selecionado
                     if not checkbox_atual.find_element(By.TAG_NAME, 'input').is_selected():
                         safe_click(driver, checkbox_atual)
@@ -1700,7 +1703,7 @@ def verificar_documento_decisao_sentenca(driver):
         for nome_element in nomes_docs:
             doc_text = nome_element.text.lower()
             if 'decisão' in doc_text or 'sentença' in doc_text:
-                print(f'[DOC CHECK] Documento encontrado: "{nome_element.text}"')
+                print(f'[DOC CHECK] Documento encontrado: "{doc_text}"')
                 return True
 
         print('[DOC CHECK] Nenhum documento de decisão/sentença encontrado.')
@@ -1991,7 +1994,44 @@ def colar_conteudo(driver, termo, valor, seletor_paragrafo='p.corpo', seletor_ed
         area.send_keys(Keys.TAB)
     except Exception:
         pass
-# ...existing code...
+
+def scroll_ate_fim(driver, elemento=None, log=True):
+    """Rola até o final da página ou até o elemento fornecido ficar visível. Tenta END, PageDown e scroll JS para depuração máxima."""
+    import time
+    from selenium.webdriver.common.keys import Keys
+    try:
+        if log:
+            print('[SCROLL] Enviando END para o body...')
+        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.END)
+        time.sleep(0.3)
+    except Exception as e:
+        if log:
+            print(f'[SCROLL][ERRO] Falha ao enviar END: {e}')
+    try:
+        if log:
+            print('[SCROLL] Enviando PageDown para o body...')
+        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
+        time.sleep(0.2)
+    except Exception as e:
+        if log:
+            print(f'[SCROLL][ERRO] Falha ao enviar PageDown: {e}')
+    try:
+        if log:
+            print('[SCROLL] Executando scrollTo(0, document.body.scrollHeight)...')
+        driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
+        time.sleep(0.2)
+    except Exception as e:
+        if log:
+            print(f'[SCROLL][ERRO] Falha no scrollTo JS: {e}')
+    if elemento is not None:
+        try:
+            if log:
+                print('[SCROLL] Usando scrollIntoView para o elemento alvo...')
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
+            time.sleep(0.3)
+        except Exception as e:
+            if log:
+                print(f'[SCROLL][ERRO] Falha no scrollIntoView: {e}')
 
 
 

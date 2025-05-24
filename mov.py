@@ -1,6 +1,6 @@
 import logging
 import time
-from Fix import esperar_elemento, safe_click, criar_gigs
+from Fix import esperar_elemento, safe_click
 from selectors_pje import BTN_TAREFA_PROCESSO
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -54,26 +54,6 @@ def def_arq(driver):
     except Exception as e:
         print(f'[ARQ][ERRO] Botão "Arquivar o processo" não encontrado ou não clicável: {e}')
         return False
-    # 3. Cria GIGS 0/pz checar na tela de minuta (força lógica de minuta)
-    try:
-        # Força o clique no menu lateral antes do .fa-tag, mesmo fora da tela de minuta
-        try:
-            btn_menu = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, '#botao-menu'))
-            )
-            if btn_menu.is_displayed():
-                btn_menu.click()
-                print('[ARQ][GIGS] Clique em #botao-menu realizado (forçado).')
-                time.sleep(0.5)
-        except Exception as e_menu:
-            print(f'[ARQ][GIGS][WARN] #botao-menu não encontrado ou não clicável: {e_menu}')
-        resultado_gigs = criar_gigs(driver, dias_uteis=0, observacao='pz checar', tela='minuta')
-        if not resultado_gigs:
-            print('[ARQ][ERRO] Falha ao criar GIGS (minuta) após arquivamento.')
-            return False
-        print('[ARQ] GIGS (minuta) 0/pz checar criado com sucesso.')
-    except Exception as e:
-        print(f'[ARQ][ERRO] Falha ao criar GIGS (minuta): {e}')
-        return False
+    # 3. (REMOVIDO) Não criar GIGS 0/pz checar na tela de minuta. Lógica removida conforme solicitado.
     print('[ARQ] Fluxo de arquivamento finalizado com sucesso.')
     return True

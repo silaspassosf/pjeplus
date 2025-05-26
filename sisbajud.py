@@ -130,16 +130,20 @@ def abrir_sisbajud_em_firefox_sisbajud():
     driver = driver_firefox_sisbajud(headless=False)
     driver.get('https://sisbajud.cnj.jus.br/')
     print('[SISBAJUD] SISBAJUD aberto em Firefox (perfil Sisb).')
-    # Integração: carrega dados extraídos do processo do arquivo temporário
+    # Integração: carrega dados extraídos do processo do arquivo do projeto
     global processo_dados_extraidos
     try:
-        temp_path = os.path.join(tempfile.gettempdir(), 'processo_dados_extraidos.json')
-        if os.path.exists(temp_path):
-            with open(temp_path, 'r', encoding='utf-8') as f:
+        # Usa caminho do projeto ao invés de pasta temporária
+        import os
+        project_path = os.path.dirname(os.path.abspath(__file__))  # Pasta onde está o sisbajud.py
+        dados_path = os.path.join(project_path, 'dadosatuais.json')
+        
+        if os.path.exists(dados_path):
+            with open(dados_path, 'r', encoding='utf-8') as f:
                 processo_dados_extraidos = json.load(f)
-            print('[SISBAJUD] Dados do processo carregados do arquivo temporário:', processo_dados_extraidos)
+            print('[SISBAJUD] Dados do processo carregados do arquivo:', processo_dados_extraidos)
         else:
-            print('[SISBAJUD][ERRO] Arquivo temporário de dados do processo não encontrado.')
+            print('[SISBAJUD][ERRO] Arquivo de dados do processo não encontrado.')
     except Exception as e:
         print(f'[SISBAJUD][ERRO] Falha ao carregar dados do processo do arquivo temporário: {e}')
     return driver

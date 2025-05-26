@@ -6,6 +6,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 from datetime import datetime
 import re
+from Fix import extrair_documento_silencioso
 
 def carta(driver, log=True):
     """
@@ -51,9 +52,9 @@ def carta(driver, log=True):
             if not in_first_block:
                 break
                 
-            # Procura por Intimação via link e aria-label (seguindo padrão do p2.py)
+            # Procura por Intimação via link e aria-label
             try:
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento')
                 aria = link.get_attribute('aria-label') or ''
                 texto_link = link.text.strip().lower()
                 if 'intimação' in texto_link or 'intimação' in aria.lower():
@@ -69,7 +70,8 @@ def carta(driver, log=True):
             print(f'[CARTA][INFO] Intimações localizadas na primeira data:')
             for i, intim in enumerate(intims):
                 print(f'  [CARTA][INFO] Intimação {i+1}: id={intim["id"]}, aria-label={intim["aria"]}, texto-link={intim["texto"]}')
-          # 2. Seleciona cada intimação e extrai conteúdo usando extração padrão do Fix.py
+        
+        # 2. Seleciona cada intimação e extrai conteúdo usando extração silenciosa do Fix.py
         process_number = None
         for i, intim in enumerate(intims):
             el = intim['element']
@@ -79,24 +81,17 @@ def carta(driver, log=True):
             
             driver.execute_script('arguments[0].scrollIntoView(true);', el)
             
-            # Clica no link seguindo padrão do p2.py (sem remover target)
+            # Remove target="_blank" do link e clica para selecionar na timeline
             link = intim['link']
+            driver.execute_script('arguments[0].removeAttribute("target");', link)
             link.click()
-            time.sleep(2)  # Aguarda seleção do documento
+            time.sleep(1)  # Aguarda seleção do documento
             
-            # Pressiona TAB para restaurar cabeçalho do processo
-            try:
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
-                if log:
-                    print(f'  [CARTA][WORKAROUND] TAB pressionado para restaurar cabeçalho após clique em intimação id={id_curto}')
-            except Exception:
-                pass
-            
-            # Usa extração de documento padrão do Fix.py que já funciona bem            if log:
+            # Usa extração silenciosa do Fix.py - simples e direta
+            if log:
                 print(f'  [CARTA][INFO] Extraindo conteúdo da intimação id={id_curto}')
             
-            from Fix import extrair_documento
-            texto_completo = extrair_documento(driver, timeout=10, log=False)
+            texto_completo = extrair_documento_silencioso(driver, timeout=10, log=False)
             
             if not texto_completo:
                 if log:
@@ -105,31 +100,7 @@ def carta(driver, log=True):
             
             if log:
                 print(f'  [CARTA][INFO] Texto extraído para intimação id={id_curto} ({len(texto_completo)} caracteres)')
-                
-                # Mostra apenas o conteúdo após "INTIMAÇÃO" para melhor diagnóstico
-                try:
-                    marcador = "INTIMAÇÃO"
-                    indice_intimacao = texto_completo.upper().find(marcador)
-                    if indice_intimacao != -1:
-                        conteudo_relevante = texto_completo[indice_intimacao:].strip()
-                    else:
-                        conteudo_relevante = texto_completo.strip()
-                    
-                    # Normaliza espaços em branco mantendo quebras de linha importantes
-                    conteudo_limpo = re.sub(r'[ \t]+', ' ', conteudo_relevante)  # Múltiplos espaços/tabs -> espaço único
-                    conteudo_limpo = re.sub(r'\n\s*\n\s*\n+', '\n\n', conteudo_limpo)  # Remove linhas vazias excessivas
-                    
-                    # Exibe o conteúdo de forma limpa e estruturada
-                    print(f'  [CARTA][CONTEUDO] Conteúdo da intimação (id={id_curto}):')
-                    print('  ' + '-' * 60)
-                    for linha in conteudo_limpo.split('\n'):
-                        if linha.strip():  # Só imprime linhas com conteúdo
-                            print(f'  | {linha.strip()}')
-                    print('  ' + '-' * 60)
-                    
-                except Exception as e:
-                    print(f'  [CARTA][AVISO] Erro ao formatar log do conteúdo: {e}')
-                    print(f'  [CARTA][CONTEUDO] {texto_completo[:500]}...' if len(texto_completo) > 500 else f'  [CARTA][CONTEUDO] {texto_completo}')
+                print(f'  [CARTA][CONTEUDO] {texto_completo[:500]}{"..." if len(texto_completo) > 500 else ""}')
             
             # 3. Confirma que é de correio pelo trecho
             if 'NAO APAGAR NENHUM CARACTERE' not in texto_completo.upper():
@@ -201,35 +172,18 @@ def carta(driver, log=True):
         finally:
             # NÃO fechar a aba da eCarta, manter aberta
             driver.switch_to.window(original_window)
-          # 7. Chama anexos.def_carta com os dados coletados
-        gigs_success = False
+        
+        # 7. Chama anexos.def_carta com os dados coletados
         if ecarta_data:
             try:
                 from anexos import def_carta as anexos_def_carta
-                result = anexos_def_carta(driver, ecarta_data)
-                gigs_success = result if result is not None else True  # Assume sucesso se não retornar valor
-                if log:
-                    if gigs_success:
-                        print(f"[CARTA] GIGS criado com sucesso para {len(ecarta_data)} intimações")
-                    else:
-                        print(f"[CARTA] Falha na criação de GIGS para intimações")
+                anexos_def_carta(driver, ecarta_data)
             except Exception as e:
                 if log:
-                    print(f"[CARTA] Erro ao chamar anexos.def_carta (GIGS): {e}")
-                gigs_success = False
-        else:
-            if log:
-                print(f"[CARTA] Nenhum dado da eCarta encontrado - GIGS não será criado")
-            gigs_success = False
+                    print(f"[CARTA] Erro ao chamar anexos.def_carta: {e}")
+                return False
         
-        # Só reporta processamento completo se GIGS foi criado com sucesso
-        if log:
-            if gigs_success:
-                print(f"[CARTA] Processamento completo: {len(notification_data)} intimações processadas e GIGS criado")
-            else:
-                print(f"[CARTA] Processamento incompleto: {len(notification_data)} intimações processadas mas GIGS falhou")
-        
-        return gigs_success
+        return True
         
     except Exception as e:
         if log:

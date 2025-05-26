@@ -471,30 +471,55 @@ def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=T
 
 # Aplica o filtro para exibir 100 itens por página no painel global.
 def aplicar_filtro_100(driver):
-    # Seleciona a opção '100' no filtro de quantidade de itens por página (rodapé da tabela).
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     import time
+    
     try:
         driver.execute_script("document.body.style.zoom='50%'")
-        # Busca direta pelo span com texto '20' e classe mat-select-min-line
-        span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
-        mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
-        driver.execute_script("arguments[0].scrollIntoView(true);", mat_select)
-        time.sleep(0.2)
-        mat_select.click()
-        time.sleep(0.3)
-        overlay = WebDriverWait(driver, 3).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-        )
-        time.sleep(0.2)
-        opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']] | .//mat-option[normalize-space(text())='100']")
-        opcao_100.click()
-        time.sleep(1)
-        return True
+        
+        # Método simplificado que funciona
+        for tentativa in range(2):  # Reduzido para 2 tentativas
+            try:
+                print(f'[FILTRO_LISTA_100] Tentativa {tentativa + 1}...')
+                
+                # Busca pelo span '20' e encontra o mat-select pai
+                span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
+                mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
+                
+                # Scroll para centralizar o elemento
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", mat_select)
+                time.sleep(0.3)
+                
+                # Clique com fallback para JavaScript
+                try:
+                    mat_select.click()
+                except:
+                    driver.execute_script("arguments[0].click();", mat_select)
+                
+                # Aguarda overlay e seleciona opção 100
+                overlay = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+                )
+                opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
+                opcao_100.click()
+                time.sleep(1)
+                
+                print('[FILTRO_LISTA_100] Filtro aplicado com sucesso!')
+                return True
+                
+            except Exception as e:
+                print(f'[FILTRO_LISTA_100] Tentativa {tentativa + 1} falhou: {e}')
+                if tentativa < 1:
+                    time.sleep(1)
+        
+        # Se chegou aqui, todas as tentativas falharam
+        print('[FILTRO_LISTA_100][ERRO] Falha após todas as tentativas')
+        return False
+        
     except Exception as e:
-        print(f'[FILTRO_LISTA_100][ERRO] Falha: {e}')
+        print(f'[FILTRO_LISTA_100][ERRO] Falha geral: {e}')
         return False
 
 def filtro_fase(driver):
@@ -854,7 +879,6 @@ def extrair_dados_processo(driver, log=True):
     from urllib.parse import urlparse
     from calc import obter_id_processo_da_url
     import json
-    import tempfile
 
     dados = {
         'numero': '',  # Adicionado campo numero
@@ -905,17 +929,26 @@ def extrair_dados_processo(driver, log=True):
             if log:
                 print(f'[Fix.py] Erro na requisição da API de partes: {resp.status_code}')
             return dados
-        partes_json = resp.json()
-        # 5. Monta listas de partes
+        partes_json = resp.json()        # 5. Monta listas de partes
         def parse_parte(parte, polo):
+            # Extrai representantes (advogados) adequadamente
+            representantes = []
+            if parte.get('representantes'):
+                for repr_data in parte['representantes']:
+                    representante = {
+                        'nome': repr_data.get('nome', '').strip(),
+                        'oab': repr_data.get('numeroOab', '').strip(),
+                        'documento': repr_data.get('documento', '').strip()
+                    }
+                    representantes.append(representante)
+            
             return {
                 'nome': parte.get('nome', '').strip(),
                 'documento': parte.get('documento', '').strip(),
                 'oab': parte.get('numeroOab', ''),
                 'polo': polo,
-                'representantes': [r.get('nome', '').strip() for r in parte.get('representantes', [])]
-            }
-        # Ativas
+                'representantes': representantes  # Lista completa de representantes com detalhes
+            }        # Ativas
         for parte in partes_json.get('ATIVO', []):
             dados['partes']['ativas'].append(parse_parte(parte, 'ativo'))
         # Passivas
@@ -924,6 +957,14 @@ def extrair_dados_processo(driver, log=True):
         # Terceiros
         for parte in partes_json.get('TERCEIROS', []):
             dados['partes']['terceiros'].append(parse_parte(parte, 'terceiro'))
+          # Verificação simplificada de advogados (dados detalhados salvos em JSON)
+        if log:
+            partes_sem_advogado = [p for p in dados['partes']['passivas'] if not p['representantes']]
+            if partes_sem_advogado:
+                print(f'[Fix.py] AVISO: {len(partes_sem_advogado)} parte(s) passiva(s) sem advogado registrado')
+            else:
+                print('[Fix.py] Todas as partes passivas possuem advogados registrados')
+            
         # NOVO: extrai lista de CNPJs do polo passivo
         cnpjs = []
         for parte in dados['partes']['passivas']:
@@ -935,14 +976,18 @@ def extrair_dados_processo(driver, log=True):
         cnpjs = list(set(cnpjs))
         dados['reclamadas'] = cnpjs
         if log:
-            print(f'[Fix.py] Dados das partes extraídos via API com sucesso. Reclamadas (CNPJ): {dados["reclamadas"]}')
-        # Salva dados extraídos em arquivo temporário para integração entre drivers
+            print(f'[Fix.py] Dados das partes extraídos via API com sucesso. Reclamadas (CNPJ): {dados["reclamadas"]}')        # Salva dados extraídos na pasta do projeto (sempre sobrescreve)
         try:
-            temp_path = os.path.join(tempfile.gettempdir(), 'processo_dados_extraidos.json')
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            # Usa caminho do projeto ao invés de pasta temporária
+            import os
+            project_path = os.path.dirname(os.path.abspath(__file__))  # Pasta onde está o Fix.py
+            dados_path = os.path.join(project_path, 'dadosatuais.json')
+            
+            # Sempre sobrescreve o arquivo (mode 'w') para garantir que não acumule dados de múltiplos processos
+            with open(dados_path, 'w', encoding='utf-8') as f:
                 json.dump(dados, f, ensure_ascii=False, indent=2)
             if log:
-                print(f'[Fix.py] Dados do processo salvos em {temp_path}')
+                print(f'[Fix.py] Dados do processo salvos em {dados_path}')
         except Exception as e:
             if log:
                 print(f'[Fix.py][ERRO] Falha ao salvar dados extraídos em JSON: {e}')
@@ -1180,6 +1225,11 @@ def analise_outros(driver):
 def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
     # Indexa e já processa cada processo sequencialmente, sem delay e sem logs intermediários desnecessários.
     print('[FLUXO] Iniciando indexação da lista de processos...', flush=True)
+    
+    # Armazena a referência da aba da lista ANTES de qualquer operação
+    aba_lista_original = driver.current_window_handle
+    print(f'[FLUXO] Aba da lista capturada: {aba_lista_original}')
+    
     # Indexa e obtém as linhas/processos
     linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
     print(f'[INDEXAR] Total de processos encontrados: {len(linhas)}')
@@ -1200,92 +1250,237 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
             print(f'[INDEXAR] {idx+1:02d}: {num_proc}')
         except Exception as e:
             print(f'[INDEXAR][ERRO] Linha {idx+1}: {e}')
-    print(f'[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)
-    aba_lista = driver.current_window_handle
+    print(f'[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)    
+    def forcar_fechamento_abas_extras():
+        """Força o fechamento de abas extras, mantendo apenas a aba da lista"""
+        try:
+            abas_atuais = driver.window_handles
+            print(f'[LIMPEZA] Abas detectadas: {len(abas_atuais)}')
+            
+            for aba in abas_atuais:
+                if aba != aba_lista_original:
+                    try:
+                        driver.switch_to.window(aba)
+                        driver.close()
+                        print(f'[LIMPEZA] Aba fechada: {aba}')
+                    except Exception as e:
+                        print(f'[LIMPEZA][WARN] Erro ao fechar aba {aba}: {e}')
+            
+            # Volta para a aba da lista
+            if aba_lista_original in driver.window_handles:
+                driver.switch_to.window(aba_lista_original)
+                print('[LIMPEZA] Retornou para aba da lista')
+                return True
+            else:
+                print('[LIMPEZA][ERRO] Aba da lista original não está mais disponível!')
+                return False
+        except Exception as e:
+            print(f'[LIMPEZA][ERRO] Falha na limpeza de abas: {e}')
+            return False    
+    # Processa cada processo da lista indexada
+    processos_processados = 0
+    processos_com_erro = 0
+    
     for idx, (proc_id, linha) in enumerate(processos):
         try:
-            # Volta para a aba da lista antes de abrir o próximo
-            if aba_lista not in driver.window_handles:
-                print('[PROCESSAR][ERRO] Aba da lista foi perdida. Abortando processamento.')
-                return False
+            print(f'[PROCESSAR] Iniciando processo {idx+1}/{len(processos)}: {proc_id}', flush=True)
+            
+            # PASSO 1: Força limpeza de abas extras ANTES de abrir novo processo
+            print(f'[PROCESSAR][PRE] Verificando estado de abas antes de processar {proc_id}...')
+            abas_iniciais = driver.window_handles
+            print(f'[PROCESSAR][PRE] Abas detectadas inicialmente: {len(abas_iniciais)}')
+            
+            if len(abas_iniciais) > 1:
+                print(f'[PROCESSAR][PRE] Múltiplas abas detectadas! Forçando limpeza antes de {proc_id}...')
+                if not forcar_fechamento_abas_extras():
+                    print(f'[PROCESSAR][ERRO] Não foi possível limpar abas antes do processo {proc_id}. Abortando processamento.')
+                    return False
+            
+            # Verifica se ainda estamos na aba da lista
+            if driver.current_window_handle != aba_lista_original:
+                print(f'[PROCESSAR][WARN] Não estamos na aba da lista antes de {proc_id}. Tentando retornar...')
+                try:
+                    driver.switch_to.window(aba_lista_original)
+                    print(f'[PROCESSAR][PRE] Retornado à aba da lista para {proc_id}')
+                except Exception as e:
+                    print(f'[PROCESSAR][ERRO] Não foi possível retornar à aba da lista antes de {proc_id}: {e}')
+                    return False            # PASSO 2: Reindexar e abrir o processo na lista
+            # A referência DOM da linha pode ter ficado obsoleta após limpeza de abas
+            # Vamos buscar novamente a linha pelo número do processo
+            linha_atual = None
             try:
-                driver.switch_to.window(aba_lista)
+                # Busca todas as linhas novamente
+                linhas_atuais = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
+                for linha_temp in linhas_atuais:
+                    try:
+                        # Extrai o texto da linha para encontrar o processo correto
+                        links = linha_temp.find_elements(By.CSS_SELECTOR, 'a')
+                        texto_linha = ''
+                        if links:
+                            texto_linha = links[0].text.strip()
+                        else:
+                            tds = linha_temp.find_elements(By.TAG_NAME, 'td')
+                            texto_linha = tds[0].text.strip() if tds else ''
+                        
+                        # Verifica se é a linha do processo que queremos
+                        if proc_id in texto_linha:
+                            linha_atual = linha_temp
+                            print(f'[PROCESSAR][REINDEX] Linha reindexada para {proc_id}')
+                            break
+                    except Exception as e:
+                        continue
+                        
+                if not linha_atual:
+                    print(f'[PROCESSAR][ERRO] Não foi possível reindexar a linha para {proc_id}')
+                    processos_com_erro += 1
+                    continue
+                    
             except Exception as e:
-                print(f'[PROCESSAR][ERRO] Não foi possível trocar para aba da lista: {e}')
-                return False
-            # 1. Abrir o processo na lista
+                print(f'[PROCESSAR][ERRO] Falha na reindexação para {proc_id}: {e}')
+                processos_com_erro += 1
+                continue
+            
+            # Agora busca o botão na linha reindexada
             btn = None
             try:
-                btn = linha.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
+                btn = linha_atual.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
             except Exception:
                 try:
-                    btn = linha.find_element(By.CSS_SELECTOR, 'button, a')
+                    btn = linha_atual.find_element(By.CSS_SELECTOR, 'button, a')
                 except Exception:
                     pass
             if btn is not None:
                 driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                 driver.execute_script("arguments[0].click();", btn)
+                print(f'[PROCESSAR][CLICK] Botão de detalhes clicado para {proc_id}')
             else:
                 print(f'[PROCESSAR][ERRO] Botão de detalhes não encontrado para {proc_id}')
+                processos_com_erro += 1
                 continue
             time.sleep(1)
-            # 2. Trocar para a nova aba
+            
+            # PASSO 3: Trocar para a nova aba
             time.sleep(1)
             abas = driver.window_handles
             nova_aba = None
             for h in abas:
-                if h != aba_lista:
+                if h != aba_lista_original:
                     nova_aba = h
                     break
             if not nova_aba:
                 print(f'[PROCESSAR][ERRO] Nova aba do processo {proc_id} não foi aberta.')
+                processos_com_erro += 1
                 continue
             try:
                 driver.switch_to.window(nova_aba)
             except Exception as e:
                 print(f'[PROCESSAR][ERRO] Não foi possível trocar para nova aba do processo {proc_id}: {e}')
+                processos_com_erro += 1
                 continue
             url_aba = driver.current_url
             if log:
                 print(f'[PROCESSAR] Aba do processo {proc_id} aberta em {url_aba}.')
+            
             # Aplica workaround TAB após abrir a aba
             try:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
                 print('[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.')
             except Exception as e:
                 print(f'[WORKAROUND][ERRO] Falha ao pressionar TAB: {e}')
-            # 3. Executar callback (ou simular automação)
+              # PASSO 4: Executar callback (ou simular automação) com tratamento defensivo de abas
+            callback_sucesso = False
             try:
                 if callback:
+                    print(f'[PROCESSAR][DEBUG] Iniciando callback para processo {proc_id}...', flush=True)
+                    
+                    # Captura estado das abas ANTES do callback
+                    abas_antes_callback = set(driver.window_handles)
+                    
+                    # Executa callback
                     callback(driver)
-            except Exception as e:
-                print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}')
-            # 4. Fechar a aba do processo, mas só se houver mais de uma aba aberta
-            if len(driver.window_handles) > 1:
-                try:
-                    driver.close()
-                except Exception as e:
-                    print(f'[PROCESSAR][WARN] Erro ao fechar aba do processo {proc_id}: {e}')
-                # Volta para a aba da lista, se existir
-                if aba_lista in driver.window_handles:
-                    try:
-                        driver.switch_to.window(aba_lista)
-                    except Exception as e:
-                        print(f'[PROCESSAR][ERRO] Não foi possível voltar para aba da lista após fechar aba do processo {proc_id}: {e}')
-                        return False
+                    
+                    # Verifica estado das abas APÓS callback
+                    abas_depois_callback = set(driver.window_handles)
+                    novas_abas_callback = abas_depois_callback - abas_antes_callback
+                    
+                    if novas_abas_callback:
+                        print(f'[PROCESSAR][WARN] Callback criou {len(novas_abas_callback)} nova(s) aba(s): {novas_abas_callback}')
+                    
+                    print(f'[PROCESSAR][DEBUG] Callback concluído para processo {proc_id}.', flush=True)
+                    callback_sucesso = True
+                    processos_processados += 1
                 else:
-                    print(f'[PROCESSAR][ERRO] Aba da lista não está mais disponível após fechar aba do processo {proc_id}.')
+                    print(f'[PROCESSAR][DEBUG] Nenhum callback definido para processo {proc_id}.', flush=True)
+                    callback_sucesso = True
+                    processos_processados += 1
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}', flush=True)
+                import traceback
+                print(f'[PROCESSAR][ERRO] Traceback completo: {traceback.format_exc()}', flush=True)
+                processos_com_erro += 1
+                callback_sucesso = False
+            
+            # PASSO 5: FORÇA limpeza de abas após processamento (SEMPRE, independente do callback)
+            print(f'[PROCESSAR] Processo {proc_id} finalizado (sucesso={callback_sucesso}) - FORÇANDO limpeza completa de abas...')
+            
+            # Limpeza defensiva SEMPRE, mesmo que callback falhe
+            try:
+                abas_antes_limpeza = driver.window_handles
+                print(f'[PROCESSAR][LIMPEZA] Abas antes da limpeza: {len(abas_antes_limpeza)}')
+                
+                if not forcar_fechamento_abas_extras():
+                    print(f'[PROCESSAR][ERRO] Falha na limpeza automática para {proc_id}. Tentando limpeza manual...')
+                    
+                    # Limpeza manual forçada em caso de falha
+                    for aba in driver.window_handles:
+                        if aba != aba_lista_original:
+                            try:
+                                driver.switch_to.window(aba)
+                                driver.close()
+                                print(f'[PROCESSAR][LIMPEZA] Aba manual fechada: {aba}')
+                            except Exception as cleanup_err:
+                                print(f'[PROCESSAR][LIMPEZA][WARN] Erro na limpeza manual da aba {aba}: {cleanup_err}')
+                    
+                    # Volta para a lista após limpeza manual
+                    try:
+                        driver.switch_to.window(aba_lista_original)
+                        print('[PROCESSAR][LIMPEZA] Retornou à aba da lista após limpeza manual')
+                    except Exception as switch_err:
+                        print(f'[PROCESSAR][ERRO] Não foi possível retornar à aba da lista: {switch_err}')
+                        return False
+                
+                abas_depois_limpeza = driver.window_handles
+                print(f'[PROCESSAR][LIMPEZA] Abas após limpeza: {len(abas_depois_limpeza)}')
+                
+                if len(abas_depois_limpeza) > 1:
+                    print(f'[PROCESSAR][WARN] Ainda há {len(abas_depois_limpeza)} abas abertas após limpeza!')
+                
+            except Exception as cleanup_error:
+                print(f'[PROCESSAR][ERRO] Falha crítica na limpeza de abas para {proc_id}: {cleanup_error}')
+                # Mesmo com erro na limpeza, tenta continuar
+                try:
+                    driver.switch_to.window(aba_lista_original)
+                except:
+                    print(f'[PROCESSAR][ERRO] Não foi possível retornar à aba da lista após erro de limpeza')
                     return False
-            else:
-                print(f'[PROCESSAR][ERRO] Só existe uma aba aberta, não será fechada.')
-            if log:
-                print(f'[PROCESSAR] Aba do processo {proc_id} fechada - voltando à lista.')
-            time.sleep(1)
+            
         except Exception as e:
-            print(f'[PROCESSAR][ERRO] Falha ao processar processo {proc_id}: {e}')
+            print(f'[PROCESSAR][ERRO] Falha geral ao processar processo {proc_id}: {e}')
+            processos_com_erro += 1
+            # Mesmo com erro, força limpeza de abas para tentar prosseguir
+            try:
+                forcar_fechamento_abas_extras()
+            except:
+                pass
             continue
-    print('[FLUXO] Fim do processamento da lista de processos.', flush=True)
-    return True
+    
+    # Relatório final
+    print(f'[FLUXO] Processamento concluído!')
+    print(f'[FLUXO] Processos processados com sucesso: {processos_processados}')
+    print(f'[FLUXO] Processos com erro: {processos_com_erro}')
+    print(f'[FLUXO] Total de processos: {len(processos)}')
+    
+    return processos_processados > 0  # Retorna True se pelo menos um processo foi processado
 
 def extrair_xs_atividades(driver, log=False):
     # Extrai todas as descrições de atividades que contenham 'xs' diretamente da tabela de atividades do GIGS.
@@ -1391,23 +1586,108 @@ def filtro_fase(driver):
         return False
 
 def copiarDOC(driver, id):
-    # Função para copiar o conteúdo do documento ativo no PJe.
+    # Função para copiar o conteúdo do documento ativo no PJe via PDF.js.
     # Args:
     # driver: WebDriver instance.
     # id: Identificador do documento a ser copiado.
     # Returns:
-    # None
+    # String com o conteúdo ou None se falhar
     try:
-        # Localiza o elemento do documento ativo
-        documento = driver.find_element(By.CSS_SELECTOR, f'div[class*="cabecalho-direita"] [id="{id}"]')
-        if documento:
-            conteudo = documento.text
-            pyperclip.copy(conteudo)
-            print("Conteúdo copiado para a área de transferência.")
-        else:
-            print("Documento não encontrado.")
+        print(f"[COPIAR_DOC] Tentando extrair texto do documento ID: {id}")
+        
+        # Opção 1: Tentar extrair diretamente do viewer PDF.js principal
+        try:
+            viewer_element = driver.find_element(By.CSS_SELECTOR, 'div#viewer.pdfViewer')
+            if viewer_element:
+                conteudo = viewer_element.text
+                if conteudo and conteudo.strip():
+                    print(f"[COPIAR_DOC] Texto extraído via div#viewer.pdfViewer: {len(conteudo)} caracteres")
+                    return conteudo.strip()
+        except Exception as e:
+            print(f"[COPIAR_DOC] Falha na extração via div#viewer.pdfViewer: {e}")
+        
+        # Opção 2: Tentar acessar elemento de acessibilidade oculto
+        try:
+            elemento_acess = driver.find_element(By.CSS_SELECTOR, f'#acess{id}')
+            if elemento_acess:
+                # Tornar visível temporariamente para extração
+                driver.execute_script("arguments[0].style.display = 'block';", elemento_acess)
+                conteudo = elemento_acess.text
+                driver.execute_script("arguments[0].style.display = 'none';", elemento_acess)
+                
+                if conteudo and conteudo.strip():
+                    print(f"[COPIAR_DOC] Texto extraído via elemento acessibilidade: {len(conteudo)} caracteres")
+                    return conteudo.strip()
+        except Exception as e:
+            print(f"[COPIAR_DOC] Falha na extração via elemento acessibilidade: {e}")
+        
+        # Opção 2: Tentar acessar PDF.js diretamente
+        try:
+            objeto_pdf = driver.find_element(By.CSS_SELECTOR, f'#obj{id}')
+            if objeto_pdf:
+                # Executar JavaScript para acessar conteúdo do PDF.js
+                script = """
+                try {
+                    var obj = arguments[0];
+                    var pdfWindow = obj.contentWindow;
+                    if (pdfWindow && pdfWindow.PDFViewerApplication) {
+                        var pdfApp = pdfWindow.PDFViewerApplication;
+                        if (pdfApp.pdfDocument) {
+                            // Tentar extrair texto de todas as páginas
+                            var extractText = async function() {
+                                var textContent = '';
+                                var numPages = pdfApp.pdfDocument.numPages;
+                                for (var i = 1; i <= numPages; i++) {
+                                    var page = await pdfApp.pdfDocument.getPage(i);
+                                    var content = await page.getTextContent();
+                                    var strings = content.items.map(item => item.str);
+                                    textContent += strings.join(' ') + '\\n';
+                                }
+                                return textContent;
+                            };
+                            return extractText();
+                        }
+                    }
+                    return null;
+                } catch (e) {
+                    return 'ERRO: ' + e.message;
+                }
+                """
+                resultado = driver.execute_script(script, objeto_pdf)
+                
+                if resultado and isinstance(resultado, str) and not resultado.startswith('ERRO'):
+                    print(f"[COPIAR_DOC] Texto extraído via PDF.js: {len(resultado)} caracteres")
+                    return resultado.strip()
+                else:
+                    print(f"[COPIAR_DOC] Falha na extração via PDF.js: {resultado}")
+        except Exception as e:
+            print(f"[COPIAR_DOC] Falha na extração via PDF.js: {e}")
+          # Opção 3: Usar extrair_documento_silencioso como fallback preferencial
+        try:
+            print("[COPIAR_DOC] Tentando usar extrair_documento_silencioso...")
+            resultado = extrair_documento_silencioso(driver, log=False)
+            if resultado:
+                print(f"[COPIAR_DOC] Texto extraído via extrair_documento_silencioso: {len(resultado)} caracteres")
+                return resultado
+        except Exception as e:
+            print(f"[COPIAR_DOC] Falha ao usar extrair_documento_silencioso: {e}")
+        
+        # Opção 4: Usar extrair_documento original como último recurso
+        try:
+            print("[COPIAR_DOC] Tentando usar extrair_documento original como último recurso...")
+            resultado = extrair_documento(driver, log=False)
+            if resultado and resultado[0]:
+                print(f"[COPIAR_DOC] Texto extraído via extrair_documento: {len(resultado[0])} caracteres")
+                return resultado[0]
+        except Exception as e:
+            print(f"[COPIAR_DOC] Falha no fallback extrair_documento: {e}")
+        
+        print("[COPIAR_DOC] Nenhum método de extração funcionou.")
+        return None
+        
     except Exception as e:
-        print(f"Erro ao copiar o documento: {str(e)}")
+        print(f"[COPIAR_DOC] Erro geral: {str(e)}")
+        return None
 
 
 # Classe responsável por gerenciar a juntada automática de anexos.
@@ -1647,11 +1927,9 @@ class EditorTextoPJe:
         # self.preencher_campo('input[aria-label="Tipo de Documento"]', tipo) # Linha original com erro
         self.preencher_campo('input[aria-label*="Tipo de Documento"]', tipo_documento) # Corrigido: usa parâmetro e seletor mais robusto
         self.preencher_campo('input[aria-label="Descrição"]', nome_documento)
-        self.selecionar_modelo(modelo_nome)
+        self.selecionar_modelo(modelo_nome)    # ... (restante da classe) ...
 
-    # ... (restante da classe) ...
-
-def verificar_destinatario_juizo(driver):
+def verificar_selecionar_destinatario_juizo(driver):
     """Verifica se 'Juízo' está entre os destinatários e o seleciona se não estiver."""
     try:
         # Espera a lista de destinatários carregar
@@ -1995,43 +2273,154 @@ def colar_conteudo(driver, termo, valor, seletor_paragrafo='p.corpo', seletor_ed
     except Exception:
         pass
 
-def scroll_ate_fim(driver, elemento=None, log=True):
-    """Rola até o final da página ou até o elemento fornecido ficar visível. Tenta END, PageDown e scroll JS para depuração máxima."""
-    import time
-    from selenium.webdriver.common.keys import Keys
+def extrair_documento_silencioso(driver, timeout=15, log=True):
+    """
+    Extrai documento usando técnica da MaisPje - intercepta modal antes de ficar visível.
+    Retorna o texto extraído sem mostrar modal para o usuário.
+    """
     try:
-        if log:
-            print('[SCROLL] Enviando END para o body...')
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.END)
-        time.sleep(0.3)
-    except Exception as e:
-        if log:
-            print(f'[SCROLL][ERRO] Falha ao enviar END: {e}')
-    try:
-        if log:
-            print('[SCROLL] Enviando PageDown para o body...')
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
+        # Primeiro verifica se existe container HTML (sistema antigo)
+        container_html = driver.find_elements(By.CSS_SELECTOR, '.container-html')
+        if container_html:
+            if log: print('[EXTRAI_SIL] Usando container HTML direto (sistema antigo)')
+            texto = container_html[0].text
+            return texto.strip() if texto else None
+        
+        # Sistema novo - precisa clicar no botão HTML mas interceptar modal
+        btn_html = wait(driver, '.fa-file-code', timeout)
+        if not btn_html:
+            if log: print('[EXTRAI_SIL][ERRO] Botão HTML não encontrado.')
+            return None
+        
+        if log: print('[EXTRAI_SIL] Iniciando extração silenciosa...')
+        
+        # Configura interceptador de modal usando JavaScript
+        setup_script = """
+        window.modalInterceptado = false;
+        window.conteudoExtraido = null;
+        window.overlayHidden = null;
+        
+        // Observer para interceptar modal antes de ficar visível
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (!mutation.addedNodes[0]) return;
+                if (!mutation.addedNodes[0].tagName) return;
+                
+                const node = mutation.addedNodes[0];
+                
+                // Intercepta overlay e esconde
+                if (node.tagName === 'DIV' && node.className === 'cdk-global-overlay-wrapper') {
+                    const overlay = node.parentElement;
+                    overlay.style.visibility = 'hidden';
+                    window.overlayHidden = overlay;
+                    console.log('[INTERCEPT] Overlay escondido');
+                }
+                
+                // Quando modal aparece, extrai conteúdo
+                if (node.tagName === 'PJE-DOCUMENTO-ORIGINAL') {
+                    setTimeout(() => {
+                        try {
+                            const previewElement = document.querySelector('#previewModeloDocumento');
+                            if (previewElement) {
+                                window.conteudoExtraido = previewElement.textContent || previewElement.innerText;
+                                window.modalInterceptado = true;
+                                console.log('[INTERCEPT] Conteúdo extraído silenciosamente');
+                                
+                                // Fecha modal
+                                const btnFechar = document.querySelector('pje-documento-original button[aria-label="Fechar"]');
+                                if (btnFechar) {
+                                    btnFechar.click();
+                                }
+                            }
+                        } catch (e) {
+                            console.log('[INTERCEPT] Erro:', e);
+                            window.modalInterceptado = true; // Para não travar
+                        }
+                    }, 100);
+                }
+                
+                // Caso apareça erro
+                if (node.tagName === 'NG-COMPONENT') {
+                    window.modalInterceptado = true;
+                    const btnOk = document.querySelector('ng-component button');
+                    if (btnOk && btnOk.textContent.includes('OK')) {
+                        btnOk.click();
+                    }
+                }
+            });
+        });
+        
+        const config = { childList: true, subtree: true };
+        observer.observe(document.body, config);
+        
+        // Auto-desconecta após timeout
+        setTimeout(() => {
+            observer.disconnect();
+            window.modalInterceptado = true;
+        }, 10000);
+        
+        return true;
+        """
+        
+        # Injeta o interceptador
+        driver.execute_script(setup_script)
         time.sleep(0.2)
+        
+        # Clica no botão HTML (agora será interceptado)
+        safe_click(driver, btn_html)
+        
+        # Aguarda extração ou timeout
+        max_wait = timeout * 10  # em décimos de segundo
+        for i in range(max_wait):
+            result = driver.execute_script("return window.modalInterceptado;")
+            if result:
+                break
+            time.sleep(0.1)
+        
+        # Recupera conteúdo extraído
+        conteudo = driver.execute_script("return window.conteudoExtraido;")
+        
+        # Restaura overlay se necessário
+        driver.execute_script("""
+        if (window.overlayHidden) {
+            window.overlayHidden.style.visibility = 'revert';
+        }
+        """)
+        
+        if conteudo:
+            if log: print(f'[EXTRAI_SIL] Texto extraído silenciosamente: {len(conteudo)} caracteres')
+            return conteudo.strip()
+        else:
+            if log: print('[EXTRAI_SIL][ERRO] Não foi possível extrair conteúdo silenciosamente.')
+            return None
+            
     except Exception as e:
-        if log:
-            print(f'[SCROLL][ERRO] Falha ao enviar PageDown: {e}')
+        if log: print(f'[EXTRAI_SIL][ERRO] {e}')
+        return None
+
+def extrair_documento_modal_free(driver, regras_analise=None, timeout=15, log=True):
+    """
+    Versão melhorada de extrair_documento que tenta primeiro a extração silenciosa,
+    depois fallback para método tradicional se necessário.
+    """
     try:
-        if log:
-            print('[SCROLL] Executando scrollTo(0, document.body.scrollHeight)...')
-        driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
-        time.sleep(0.2)
+        # Primeira tentativa: extração silenciosa (sem modal visível)
+        if log: print('[EXTRAI_FREE] Tentando extração silenciosa...')
+        texto = extrair_documento_silencioso(driver, timeout, log)
+        
+        if texto:
+            if regras_analise and callable(regras_analise):
+                resultado_analise = regras_analise(texto)
+                return texto, resultado_analise
+            return texto, None
+        
+        # Fallback: método tradicional se silencioso falhar
+        if log: print('[EXTRAI_FREE] Extração silenciosa falhou, usando método tradicional...')
+        return extrair_documento(driver, regras_analise, timeout, log)
+        
     except Exception as e:
-        if log:
-            print(f'[SCROLL][ERRO] Falha no scrollTo JS: {e}')
-    if elemento is not None:
-        try:
-            if log:
-                print('[SCROLL] Usando scrollIntoView para o elemento alvo...')
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
-            time.sleep(0.3)
-        except Exception as e:
-            if log:
-                print(f'[SCROLL][ERRO] Falha no scrollIntoView: {e}')
+        if log: print(f'[EXTRAI_FREE][ERRO] {e}')
+        return None, None
 
 
 

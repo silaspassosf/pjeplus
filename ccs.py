@@ -7,7 +7,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from fix import extrair_dados_processo  # Função existente no fix.py
+from Fix import extrair_dados_processo  # Função existente no Fix.py
 import time
 from datetime import datetime, timedelta
 

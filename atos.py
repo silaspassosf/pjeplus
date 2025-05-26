@@ -83,9 +83,7 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
                 print('[CLS][DEBUG] Clique em "Iniciar execução" realizado.')
                 time.sleep(1)
             except Exception as e:
-                print(f'[CLS][INFO] Botão "Iniciar execução" não encontrado ou não clicável: {e}')
-
-        # 3. Clica no botão 'Conclusão ao Magistrado' usando aria-label
+                print(f'[CLS][INFO] Botão "Iniciar execução" não encontrado ou não clicável: {e}')        # 3. Clica no botão 'Conclusão ao Magistrado' usando aria-label
         try:
             btn_conclusao = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
@@ -94,7 +92,45 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
             print(f'[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label=\'Conclusão ao magistrado\']')
         except Exception as e:
             print(f'[CLS][ERRO] Falha ao clicar no botão Conclusão ao magistrado por aria-label: {e}')
-            return False
+            print('[CLS][INFO] Tentando fluxo alternativo: Análise → Conclusão ao magistrado')
+            
+            # Fluxo alternativo para casos como "Cumprimento de Providências"
+            try:
+                # Primeiro clica em "Análise"
+                btn_analise = None
+                # Busca por texto
+                btns_analise = driver.find_elements(By.XPATH, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]")
+                for btn in btns_analise:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_analise = btn
+                        break
+                
+                if not btn_analise:
+                    # Busca por aria-label
+                    btns_analise = driver.find_elements(By.CSS_SELECTOR, "button[aria-label*='Análise']")
+                    for btn in btns_analise:
+                        if btn.is_displayed() and btn.is_enabled():
+                            btn_analise = btn
+                            break
+                
+                if btn_analise:
+                    btn_analise.click()
+                    print('[CLS][DEBUG] Clique no botão "Análise" realizado.')
+                    time.sleep(1)
+                    
+                    # Agora tenta novamente clicar em "Conclusão ao magistrado"
+                    btn_conclusao = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                    )
+                    btn_conclusao.click()
+                    print('[CLS][DEBUG] Clique no botão "Conclusão ao magistrado" realizado após clique em Análise.')
+                else:
+                    print('[CLS][ERRO] Botão "Análise" não encontrado no fluxo alternativo.')
+                    return False
+                    
+            except Exception as e_alt:
+                print(f'[CLS][ERRO] Falha no fluxo alternativo (Análise → Conclusão ao magistrado): {e_alt}')
+                return False
         time.sleep(1)
         print(f'[CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label=\'Conclusão ao magistrado\']')
 

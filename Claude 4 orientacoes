@@ -1,0 +1,15 @@
+Ser conciso
+Fazer só o que é pedido
+Não criar arquivos não solicitados
+Não explicar cada passo
+Usar importações simples do Fix.py
+nao realizar testes por conta propria.
+EVITAR:
+Foco excessivo em perfeição:
+Perda do contexto:
+Iteração sem validação DO USUARIO 
+Como evitar:
+Sempre começar lendo o resumo para manter contexto dos objetivos principais
+Testar funcionalidade antes de polir detalhes - validar que as correções principais funcionam
+Focar em uma tarefa por vez - não misturar correções funcionais com melhorias de log
+Perguntar ao usuário quando não há ações práticas claras a tomar

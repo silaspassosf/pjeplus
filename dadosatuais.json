@@ -1,0 +1,93 @@
+{
+  "numero": "",
+  "partes": {
+    "ativas": [
+      {
+        "nome": "WALTERIO LOMBARDI JUNIOR",
+        "documento": "325.918.448-10",
+        "oab": "",
+        "polo": "ativo",
+        "representantes": [
+          {
+            "nome": "FABIO QUINTILHANO GOMES",
+            "oab": "SP303338",
+            "documento": "212.706.658-80"
+          }
+        ]
+      }
+    ],
+    "passivas": [
+      {
+        "nome": "PATRICIA DOS SANTOS REFORMAS E MANUTENCAO EM GERAL",
+        "documento": "28.325.671/0001-41",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": [
+          {
+            "nome": "ARIENE DE SOUZA ARTILHEIRO",
+            "oab": "SP268378",
+            "documento": "290.052.368-09"
+          }
+        ]
+      },
+      {
+        "nome": "PATRICIA DOS SANTOS",
+        "documento": "050.149.266-65",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": []
+      },
+      {
+        "nome": "SMARTEC CONSTRUCOES E REFORMAS EIRELI - EPP",
+        "documento": "20.975.730/0001-15",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": []
+      },
+      {
+        "nome": "ROSALVO DOS SANTOS JUNIOR",
+        "documento": "381.644.678-71",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": []
+      },
+      {
+        "nome": "SOLANGE DOS SANTOS",
+        "documento": "125.524.288-43",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": []
+      },
+      {
+        "nome": "PR SANTOS ENGENHARIA LTDA - ME",
+        "documento": "10.673.495/0001-73",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": []
+      },
+      {
+        "nome": "SMARTEC ABC MATERIAL PARA CONSTRUCAO LTDA",
+        "documento": "22.064.856/0001-63",
+        "oab": "",
+        "polo": "passivo",
+        "representantes": []
+      }
+    ],
+    "terceiros": [
+      {
+        "nome": "HITSS DO BRASIL SERVICOS TECNOLOGICOS LTDA.",
+        "documento": "11.168.199/0001-88",
+        "oab": "",
+        "polo": "terceiro",
+        "representantes": []
+      }
+    ]
+  },
+  "metadados": {},
+  "reclamadas": [
+    "22.064.856/0001-63",
+    "20.975.730/0001-15",
+    "28.325.671/0001-41",
+    "10.673.495/0001-73"
+  ]
+}

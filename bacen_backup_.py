@@ -5,8 +5,6 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import time
 from Fix import driver_pc, login_pc, extrair_dados_processo
 import subprocess
@@ -111,40 +109,32 @@ def driver_firefox_sisbajud(headless=False):
 
 def salvar_dados_processo_temp():
     """
-    Salva dados do processo no arquivo do projeto (dadosatuais.json) para integração entre janelas
+    Salva dados do processo em arquivo temporário para integração entre janelas
     """
     global processo_dados_extraidos
     if processo_dados_extraidos:
         try:
-            # Usa caminho do projeto ao invés de pasta temporária
-            import os
-            project_path = os.path.dirname(os.path.abspath(__file__))  # Pasta onde está o bacen.py
-            dados_path = os.path.join(project_path, 'dadosatuais.json')
-            
-            # Sempre sobrescreve o arquivo para não acumular dados de múltiplos processos
-            with open(dados_path, 'w', encoding='utf-8') as f:
+            temp_path = os.path.join(tempfile.gettempdir(), 'processo_dados_extraidos.json')
+            with open(temp_path, 'w', encoding='utf-8') as f:
                 json.dump(processo_dados_extraidos, f, ensure_ascii=False, indent=2)
-            print(f'[BACEN] Dados do processo salvos em: {dados_path}')
+            print(f'[BACEN] Dados do processo salvos em: {temp_path}')
         except Exception as e:
             print(f'[BACEN][ERRO] Falha ao salvar dados do processo: {e}')
 
 def abrir_sisbajud_em_firefox_sisbajud():
     driver = driver_firefox_sisbajud(headless=False)
     driver.get('https://sisbajud.cnj.jus.br/')
-    print('[BACEN] SISBAJUD aberto em Firefox (perfil Sisb).')    # Integração: carrega dados extraídos do processo do arquivo do projeto
+    print('[BACEN] SISBAJUD aberto em Firefox (perfil Sisb).')
+    # Integração: carrega dados extraídos do processo do arquivo temporário
     global processo_dados_extraidos
     try:
-        # Usa caminho do projeto ao invés de pasta temporária
-        import os
-        project_path = os.path.dirname(os.path.abspath(__file__))  # Pasta onde está o bacen.py
-        dados_path = os.path.join(project_path, 'dadosatuais.json')
-        
-        if os.path.exists(dados_path):
-            with open(dados_path, 'r', encoding='utf-8') as f:
+        temp_path = os.path.join(tempfile.gettempdir(), 'processo_dados_extraidos.json')
+        if os.path.exists(temp_path):
+            with open(temp_path, 'r', encoding='utf-8') as f:
                 processo_dados_extraidos = json.load(f)
-            print('[BACEN] Dados do processo carregados do arquivo:', processo_dados_extraidos)
+            print('[BACEN] Dados do processo carregados do arquivo temporário:', processo_dados_extraidos)
         else:
-            print('[BACEN][ERRO] Arquivo de dados do processo não encontrado.')
+            print('[BACEN][ERRO] Arquivo temporário de dados do processo não encontrado.')
     except Exception as e:
         print(f'[BACEN][ERRO] Falha ao carregar dados do processo do arquivo temporário: {e}')
     return driver
@@ -306,7 +296,8 @@ def injetar_menu_kaizen_sisbajud(driver):
             console.log('[KAIZEN] Event listeners registrados');
         }
     ''')
-      # Verificar se o menu foi injetado
+    
+    # Verificar se o menu foi injetado
     time.sleep(1)
     menu_presente = driver.execute_script("return !!document.getElementById('kaizen_menu_sisbajud');")
     if menu_presente:
@@ -315,6 +306,46 @@ def injetar_menu_kaizen_sisbajud(driver):
         print('[KAIZEN] ❌ Falha na injeção do menu SISBAJUD')
     
     return menu_presente
+                    margin: 0 2px;
+                    padding: 8px 14px;
+                    background: ${cor};
+                    color: #fff;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    box-shadow: 0 1px 4px #0002;
+                `;
+                // Apenas clique - sem ações de hover para simplicidade
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    window.dispatchEvent(new CustomEvent(evento));
+                });
+                menu.appendChild(btn);
+            }
+            document.body.appendChild(menu);
+            console.log('[KAIZEN] Menu SISBAJUD injetado/re-injetado com sucesso');
+        }
+        
+        // Inicializar listeners Kaizen se ainda não existem
+        if (!window.kaizen_event_flag) {
+            window.kaizen_event_flag = '';
+            const kaizen_events = [
+                'kaizen_nova_minuta',
+                'kaizen_nova_minuta_end',
+                'kaizen_consultar_teimosinha',
+                'kaizen_consultar_minuta',
+                'kaizen_consulta_rapida',
+                'kaizen_preencher_campos_invertido',
+                'kaizen_preencher_campos',
+            ];
+            for (let evt of kaizen_events) {
+                window.addEventListener(evt, function(){ window.kaizen_event_flag = evt; });
+            }
+            console.log('[KAIZEN] Event listeners registrados');
+        }
+    ''')
 
 def checar_kaizen_evento(driver):
     flag = driver.execute_script("return window.kaizen_event_flag;")
@@ -322,73 +353,143 @@ def checar_kaizen_evento(driver):
         driver.execute_script("window.kaizen_event_flag = '';")
     return flag
 
-def aguardar_tela_minuta_e_injetar_menu(driver):
+def inicializar_menu_persistence_observer(driver):
     """
-    Aguarda a tela de minuta aparecer após login e injeta o menu Kaizen.
-    Estratégia focada: injeção robusta inicial ao invés de re-injeção constante.
+    Inicializa o MutationObserver para persistência automática do menu,
+    baseado na estratégia da extensão original gigs-plugin.js.
     """
-    print('[KAIZEN] Aguardando tela de minuta para injetar menu...')
-    
     try:
-        # Aguardar até estar na tela de minuta (após login)
-        timeout = 30  # 30 segundos de timeout
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            current_url = driver.current_url
+        driver.execute_script('''
+        if (!window._kaizen_menu_observer_initialized) {
+            window._kaizen_menu_observer_initialized = true;
+            console.log('[KAIZEN] Inicializando MutationObserver para persistência do menu...');
             
-            # Verificar se está numa tela de minuta do SISBAJUD
-            if any(path in current_url for path in ['/minuta', '/cadastrar', '/nova-minuta']):
-                print(f'[KAIZEN] Tela de minuta detectada: {current_url}')
+            // Flag para evitar loops infinitos durante re-injeção
+            window._kaizen_menu_injecting = false;
+            
+            // Função para re-injetar o menu (reproduz a lógica original)
+            function reinjetarMenuSeNecessario() {
+                if (window._kaizen_menu_injecting) return;
                 
-                # Aguardar página estar completamente carregada
-                WebDriverWait(driver, 10).until(
-                    lambda d: d.execute_script("return document.readyState") == "complete"
-                )
-                
-                # Aguardar elementos específicos do SISBAJUD aparecerem
-                for tentativa in range(10):
-                    try:
-                        # Verificar se elementos típicos da tela de minuta estão presentes
-                        elementos_presentes = driver.execute_script("""
-                            return !!(
-                                document.querySelector('input[placeholder*="Juiz"]') ||
-                                document.querySelector('mat-select[name*="varaJuizoSelect"]') ||
-                                document.querySelector('input[placeholder="Número do Processo"]') ||
-                                document.querySelector('sisbajud-nova-minuta') ||
-                                document.querySelector('.nova-minuta')
-                            );
-                        """)
-                        
-                        if elementos_presentes:
-                            print(f'[KAIZEN] Elementos da tela de minuta carregados (tentativa {tentativa + 1})')
-                            time.sleep(2)  # Aguardar estabilização
-                            
-                            # Injetar menu com retry
-                            for tentativa_injecao in range(3):
-                                if injetar_menu_kaizen_sisbajud(driver):
-                                    print(f'[KAIZEN] ✅ Menu injetado com sucesso na tela de minuta')
-                                    return True
-                                time.sleep(1)
-                            
-                            print('[KAIZEN] ❌ Falha ao injetar menu após múltiplas tentativas')
-                            return False
-                        
-                    except Exception as e:
-                        print(f'[KAIZEN] Erro verificando elementos da tela (tentativa {tentativa + 1}): {e}')
+                const menuExiste = document.getElementById('kaizen_menu_sisbajud');
+                if (!menuExiste) {
+                    console.log('[KAIZEN] Menu desapareceu - re-injetando via MutationObserver...');
+                    window._kaizen_menu_injecting = true;
                     
-                    time.sleep(1)
-                
-                print('[KAIZEN] ❌ Timeout aguardando elementos da tela de minuta')
-                return False
+                    // Sinalizar para Python que o menu precisa ser re-injetado
+                    window.kaizen_menu_reinjetar_flag = true;
+                    
+                    // Reset flag após delay para evitar loops
+                    setTimeout(() => {
+                        window._kaizen_menu_injecting = false;
+                    }, 1000);
+                }
+            }
             
-            time.sleep(1)
+            // Criar MutationObserver para monitorar mudanças no DOM
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    // Verificar se nós foram removidos
+                    if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                        let menuRemovido = false;
+                        
+                        mutation.removedNodes.forEach(function(node) {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                // Verificar se o menu foi removido diretamente
+                                if (node.id === 'kaizen_menu_sisbajud') {
+                                    menuRemovido = true;
+                                }
+                                // Verificar se o menu estava dentro de um elemento removido
+                                else if (node.querySelector && node.querySelector('#kaizen_menu_sisbajud')) {
+                                    menuRemovido = true;
+                                }
+                            }
+                        });
+                        
+                        if (menuRemovido) {
+                            // Aguardar um pouco antes de re-injetar para evitar conflitos
+                            setTimeout(reinjetarMenuSeNecessario, 100);
+                        }
+                    }
+                    
+                    // Verificar se novos nós foram adicionados que possam interferir
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        mutation.addedNodes.forEach(function(node) {
+                            if (node.nodeType === Node.ELEMENT_NODE) {
+                                // Se uma nova página foi carregada, verificar menu
+                                if (node.tagName && (
+                                    node.tagName === 'SISBAJUD-PESQUISA-TEIMOSINHA' ||
+                                    node.tagName === 'SISBAJUD-NOVA-MINUTA' ||
+                                    node.tagName === 'SISBAJUD-CONSULTA-MINUTA' ||
+                                    node.classList.contains('sisbajud-component')
+                                )) {
+                                    // Aguardar carregamento e verificar menu
+                                    setTimeout(reinjetarMenuSeNecessario, 500);
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Iniciar observação do documento inteiro
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: false,
+                attributeOldValue: false,
+                characterData: false,
+                characterDataOldValue: false
+            });
+            
+            // Observador adicional para mudanças na URL (navegação SPA)
+            let currentUrl = window.location.href;
+            const urlCheckInterval = setInterval(() => {
+                if (window.location.href !== currentUrl) {
+                    currentUrl = window.location.href;
+                    console.log('[KAIZEN] Mudança de URL detectada:', currentUrl);
+                    setTimeout(reinjetarMenuSeNecessario, 1000);
+                }
+            }, 1000);
+            
+            // Limpeza quando a página for fechada
+            window.addEventListener('beforeunload', () => {
+                observer.disconnect();
+                clearInterval(urlCheckInterval);
+            });
+            
+            console.log('[KAIZEN] MutationObserver para menu ativado com sucesso');
+        }
+        ''')
+        return True
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao inicializar MutationObserver: {e}')
+        return False
+
+def verificar_e_reinjetar_menu(driver):
+    """
+    Verifica se há solicitação de re-injeção do menu pelo MutationObserver
+    e realiza a re-injeção se necessário.
+    """
+    try:
+        # Verificar se o MutationObserver solicitou re-injeção
+        reinjetar_solicitado = driver.execute_script("""
+            if (window.kaizen_menu_reinjetar_flag) {
+                window.kaizen_menu_reinjetar_flag = false;
+                return true;
+            }
+            return false;
+        """)
         
-        print('[KAIZEN] ❌ Timeout aguardando tela de minuta')
+        if reinjetar_solicitado:
+            print('[KAIZEN] Re-injeção solicitada pelo MutationObserver...')
+            injetar_menu_kaizen_sisbajud(driver)
+            return True
+            
         return False
         
     except Exception as e:
-        print(f'[KAIZEN][ERRO] Falha ao aguardar tela de minuta: {e}')
+        print(f'[KAIZEN][ERRO] Falha ao verificar solicitação de re-injeção: {e}')
         return False
 
 # ===================== AÇÕES DOS BOTÕES KAIZEN =====================
@@ -1268,23 +1369,25 @@ def main():
         elif evento == 'processar_bloqueios':
             driver = abrir_sisbajud_em_firefox_sisbajud()
             break
-        time.sleep(1)    # Inicializar componentes SISBAJUD uma única vez
+        time.sleep(1)
+      # Inicializar componentes SISBAJUD uma única vez
+    injetar_menu_kaizen_sisbajud(driver)
     dados_login(driver) 
     monitor_janela_sisbajud(driver)
     integrar_storage_processo(driver)
     
-    # Aguardar tela de minuta e injetar menu de forma robusta
-    print('[BACEN] Aguardando tela de minuta para injeção inicial do menu...')
-    menu_injetado = aguardar_tela_minuta_e_injetar_menu(driver)
-    if not menu_injetado:
-        print('[BACEN] ⚠️ Falha na injeção inicial do menu. Tentando injeção básica...')
-        injetar_menu_kaizen_sisbajud(driver)
+    # Inicializar MutationObserver para persistência do menu
+    inicializar_menu_persistence_observer(driver)
     
     print('[BACEN] Componentes SISBAJUD inicializados. Controle transferido para janela SISBAJUD (perfil Sisb).')
     
     # Loop principal para eventos Kaizen no SISBAJUD
     while True:
         try:
+            # Verificar se o MutationObserver solicitou re-injeção do menu
+            menu_reinjetado = verificar_e_reinjetar_menu(driver)
+            if menu_reinjetado:
+                print('[BACEN] Menu SISBAJUD foi re-injetado via MutationObserver')
             
             kaizen_evt = checar_kaizen_evento(driver)
             

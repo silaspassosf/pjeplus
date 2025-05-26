@@ -129,19 +129,25 @@ def fluxo_pz(driver):
             for i, parte in enumerate(partes):
                 regex += parte
                 if i < len(partes) - 1:
-                    regex += r'[\s\.,;:!\-–—]*'
-            # Permite o trecho em qualquer lugar do texto (texto antes/depois)
+                    regex += r'[\s\.,;:!\-–—]*'            # Permite o trecho em qualquer lugar do texto (texto antes/depois)
             return re.compile(rf"{regex}", re.IGNORECASE)
 
         regras = [            ([gerar_regex_geral(k) for k in [
                 '05 dias para a apresentação',
+                '05 dias para oferta',
+                'concede-se 05 dias para oferta',
                 'cinco dias para apresentação',
+                'cinco dias para oferta',
+                'cinco dias para apresentacao',
+                'concedo cinco dias',
+                'concedo o prazo de oito dias',
+                'oito dias para apresentacao',
                 'visibilidade aos advogados',
                 'início da fluência',
                 'oito dias para apresentação',
                 'oito dias para apresentacao',
             ]],
-             'gigs', (1, 'Guilherme - Sobrestamento'), ato_sobrestamento),            ([gerar_regex_geral(k) for k in ['revel', 'concorda com homologação', 'concorda com homologacao', 'tomarem ciência dos esclarecimentos apresentados', 'oito dias impugnar os']],
+             'gigs', (1, 'Guilherme - Sobrestamento'), ato_sobrestamento),([gerar_regex_geral(k) for k in ['revel', 'concorda com homologação', 'concorda com homologacao', 'tomarem ciência dos esclarecimentos apresentados', 'oito dias impugnar os']],
              'gigs', (1, 'Silvia - Homologação'), None),
             ([gerar_regex_geral(k) for k in ['Se revê o novo sobrestamento']],
              'movimentar', def_arq, None),

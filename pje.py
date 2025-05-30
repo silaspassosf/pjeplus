@@ -689,9 +689,14 @@ def buscar_documentos_sequenciais(driver):
 def retirar_sigilo(elemento):
     try:
         btn_sigilo = elemento.find_element(By.CSS_SELECTOR, "pje-doc-sigiloso span button i.fa-wpexplorer")
-        btn_sigilo.click()
-        time.sleep(1)
-        print("[SIGILO] Clique para retirar sigilo realizado.")
+        
+        # Verifica se o ícone está vermelho (com sigilo ativo) através da classe tl-sigiloso
+        if "tl-sigiloso" in btn_sigilo.get_attribute("class"):
+            btn_sigilo.click()
+            time.sleep(1)
+            print("[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).")
+        else:
+            print("[SIGILO] Ícone está azul (sem sigilo ativo). Não é necessário clicar.")
     except Exception as e:
         print("[SIGILO] Erro ao retirar sigilo (pode já estar sem sigilo):", e)
 

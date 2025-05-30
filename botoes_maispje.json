@@ -115,7 +115,8 @@
     {"nm_botao":"Sob","tipo":"prazo","tipo_atividade":"Prazo","prazo":"1","responsavel":"","responsavel_processo":"","observacao":"xs sob ","salvar":"nao","cor":"#008080","vinculo":"Nenhum","visibilidade":"sim"},
     {"nm_botao":"presc chip","tipo":"lembrete","tipo_atividade":"prescricao","prazo":"LOCAL","responsavel":"","responsavel_processo":"","observacao":"sobrestado ou penhora - ","salvar":"sim","cor":"#008040","vinculo":"Nenhum","visibilidade":"sim"},
     {"nm_botao":"Not","tipo":"prazo","tipo_atividade":"Prazo","prazo":"0","responsavel":"","responsavel_processo":"SILAS PASSOS","observacao":"NOT INICIAL","salvar":"sim","cor":"#ff0000","vinculo":"Nenhum","visibilidade":"sim"},
-    {"nm_botao":"mover exec","tipo":"prazo","tipo_atividade":"Prazo","prazo":"1","responsavel":"","responsavel_processo":"","observacao":"xs exec","salvar":"sim","cor":"#ff0000","vinculo":"Nenhum","visibilidade":"não"}
+    {"nm_botao":"mover exec","tipo":"prazo","tipo_atividade":"Prazo","prazo":"1","responsavel":"","responsavel_processo":"","observacao":"xs exec","salvar":"sim","cor":"#ff0000","vinculo":"Nenhum","visibilidade":"não"},
+    {"nm_botao":"Exec1","tipo":"prazo","tipo_atividade":"Prazo","prazo":"2","responsavel":"","responsavel_processo":"","observacao":"xs exec","salvar":"sim","cor":"#ff0000","vinculo":"AutoGigs|Pesq,Despacho|-Pesq,Nenhum","visibilidade":"não"}
   ],
   "aaChecklist": [
     {"nm_botao":"Mdd Pesq","tipo":"BACEN","observacao":"pesquisas","estado":"nenhum","alerta":"Não","salvar":"Não","cor":"#b22222","vinculo":"Nenhum","visibilidade":"sim"}

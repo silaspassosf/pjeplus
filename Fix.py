@@ -775,9 +775,7 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
 
         if not texto_completo:
             if log: print('[EXTRAI][ERRO] Texto do preview vazio.')
-            return None, None
-
-        # Extrai o texto abaixo de "Servidor Responsável"
+            return None, None        # Extrai o texto abaixo de "Servidor Responsável" se encontrar, senão usa documento completo
         marcador = "Servidor Responsável"
         try:
             indice_marcador = texto_completo.rindex(marcador)
@@ -788,7 +786,9 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
                 texto_final = texto_completo.strip()
             if log: print(f'[EXTRAI] Conteúdo extraído abaixo de "{marcador}".')
         except ValueError:
-            if log: print(f'[EXTRAI] Marcador "{marcador}" não encontrado. Usando texto completo.')
+            # Se não encontrar o marcador, usa o documento INTEIRO para análise
+            texto_final = texto_completo.strip()
+            if log: print(f'[EXTRAI] Marcador "{marcador}" não encontrado. Usando texto completo do documento.')
             texto_final = texto_completo.strip()
 
         # Aplica regras de análise se houver
@@ -864,155 +864,135 @@ def extrair_pdf(driver, log=True):
             print(f'[EXPORT][ERRO] {e}')
         return None
 ## Função para extrair dados do processo
-def extrair_dados_processo(driver, log=True):
-    """
-    Extrai dados estruturados do processo via API REST do PJe, igual à extensão MaisPje.
-    Retorna:
-    {
-        'numero': str,
-        'partes': {'ativas': [...], 'passivas': [...], 'terceiros': [...]},
-        'metadados': dict
-    }
-    """
-    import re
-    import requests
-    from urllib.parse import urlparse
-    from calc import obter_id_processo_da_url
-    import json
+def extrair_dados_processo(driver, max_tentativas=3, intervalo_tentativas=5):
+    dados_processo = {"numero": "", "partes": [], "outros_dados": {}}
+    json_path = "d:\\\\PjePlus\\\\dadosatuais.json"  # Corrigido para o caminho correto
+    numero_processo_final = ""
 
-    dados = {
-        'numero': '',  # Adicionado campo numero
-        'partes': {
-            'ativas': [],
-            'passivas': [],
-            'terceiros': []
-        },
-        'metadados': {}
-    }
-    try:
-        # 1. Extrai id do processo da URL
-        id_processo = obter_id_processo_da_url(driver)
-        if not id_processo:
-            if log:
-                print('[Fix.py] Não foi possível extrair o id do processo da URL.')
-            return dados
-        # 1.1 Extrai número do processo da URL ou da página
+    for tentativa in range(max_tentativas):
         try:
-            # Tenta extrair da URL (padrão PJe)
-            import re
-            url = driver.current_url
-            m = re.search(r'/processo/(\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{4})', url)
-            if m:
-                dados['numero'] = m.group(1)
-            else:
-                # Fallback: tenta extrair do DOM
+            logging.info(f"[EXTRAIR_DADOS] Tentativa {tentativa + 1} de extrair dados do processo.")
+
+            # Estratégia Principal: Extrair do elemento clipboard do PJE + obter dados via API
+            try:
+                # Procura pelo elemento pje-icone-clipboard com aria-label contendo "Copia o número do processo"
+                xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
+                elemento_clipboard = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, xpath_clipboard))
+                )
+                
+                # Extrai o aria-label que contém o número do processo
+                aria_label = elemento_clipboard.get_attribute("aria-label")
+                if aria_label:
+                    # Extrai o número do processo do aria-label usando regex
+                    match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
+                    if match_clipboard:
+                        numero_processo_final = match_clipboard.group(1)
+                        logging.info(f"[EXTRAIR_DADOS] Número do processo encontrado no clipboard PJE: {numero_processo_final}")
+                        
+                        # TODO: Aqui você pode adicionar a lógica para obter dados via API usando o número do processo
+                        # dados_api = obter_dados_via_api(numero_processo_final)
+                        # if dados_api:
+                        #     dados_processo.update(dados_api)
+                        
+                        break  # Sai do loop de tentativas
+                        
+            except TimeoutException:
+                logging.warning("[EXTRAIR_DADOS] Elemento clipboard PJE não encontrado nesta tentativa")
+            except Exception as e_clipboard:
+                logging.warning(f"[EXTRAIR_DADOS] Erro na estratégia principal (clipboard PJE): {e_clipboard}")
+
+            # Estratégia Fallback: Click no link de detalhes do processo
+            if not numero_processo_final:
                 try:
-                    numero_elem = driver.find_element(By.CSS_SELECTOR, '.numero-processo, .processo-numero, .mat-card-title')
-                    numero_text = numero_elem.text.strip()
-                    m2 = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{4})', numero_text)
-                    if m2:
-                        dados['numero'] = m2.group(1)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        # 2. Monta URL da API
-        url_base = urlparse(driver.current_url).netloc
-        url_api = f'https://{url_base}/pje-comum-api/api/processos/id/{id_processo}/partes'
-        # 3. Extrai cookies do Selenium para requests
-        s = requests.Session()
-        for cookie in driver.get_cookies():
-            s.cookies.set(cookie['name'], cookie['value'])
-        # 4. Faz requisição GET
-        resp = s.get(url_api, timeout=10)
-        if resp.status_code != 200:
-            if log:
-                print(f'[Fix.py] Erro na requisição da API de partes: {resp.status_code}')
-            return dados
-        partes_json = resp.json()        # 5. Monta listas de partes
-        def parse_parte(parte, polo):
-            # Extrai representantes (advogados) adequadamente
-            representantes = []
-            if parte.get('representantes'):
-                for repr_data in parte['representantes']:
-                    representante = {
-                        'nome': repr_data.get('nome', '').strip(),
-                        'oab': repr_data.get('numeroOab', '').strip(),
-                        'documento': repr_data.get('documento', '').strip()
-                    }
-                    representantes.append(representante)
-            
-            return {
-                'nome': parte.get('nome', '').strip(),
-                'documento': parte.get('documento', '').strip(),
-                'oab': parte.get('numeroOab', ''),
-                'polo': polo,
-                'representantes': representantes  # Lista completa de representantes com detalhes
-            }        # Ativas
-        for parte in partes_json.get('ATIVO', []):
-            dados['partes']['ativas'].append(parse_parte(parte, 'ativo'))
-        # Passivas
-        for parte in partes_json.get('PASSIVO', []):
-            dados['partes']['passivas'].append(parse_parte(parte, 'passivo'))
-        # Terceiros
-        for parte in partes_json.get('TERCEIROS', []):
-            dados['partes']['terceiros'].append(parse_parte(parte, 'terceiro'))
-          # Verificação simplificada de advogados (dados detalhados salvos em JSON)
-        if log:
-            partes_sem_advogado = [p for p in dados['partes']['passivas'] if not p['representantes']]
-            if partes_sem_advogado:
-                print(f'[Fix.py] AVISO: {len(partes_sem_advogado)} parte(s) passiva(s) sem advogado registrado')
-            else:
-                print('[Fix.py] Todas as partes passivas possuem advogados registrados')
-            
-        # NOVO: extrai lista de CNPJs do polo passivo
-        cnpjs = []
-        for parte in dados['partes']['passivas']:
-            doc = parte.get('documento', '')
-            # Regex para CNPJ: 14 dígitos
-            encontrados = re.findall(r'\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b|\b\d{14}\b', doc)
-            cnpjs.extend(encontrados)
-        # Remove duplicados
-        cnpjs = list(set(cnpjs))
-        dados['reclamadas'] = cnpjs
-        if log:
-            print(f'[Fix.py] Dados das partes extraídos via API com sucesso. Reclamadas (CNPJ): {dados["reclamadas"]}')        # Salva dados extraídos na pasta do projeto (sempre sobrescreve)
-        try:
-            # Usa caminho do projeto ao invés de pasta temporária
-            import os
-            project_path = os.path.dirname(os.path.abspath(__file__))  # Pasta onde está o Fix.py
-            dados_path = os.path.join(project_path, 'dadosatuais.json')
-            
-            # Sempre sobrescreve o arquivo (mode 'w') para garantir que não acumule dados de múltiplos processos
-            with open(dados_path, 'w', encoding='utf-8') as f:
-                json.dump(dados, f, ensure_ascii=False, indent=2)
-            if log:
-                print(f'[Fix.py] Dados do processo salvos em {dados_path}')
-        except Exception as e:
-            if log:
-                print(f'[Fix.py][ERRO] Falha ao salvar dados extraídos em JSON: {e}')
-        return dados
-    except Exception as e:
-        if log:
-            print(f'[Fix.py] Erro ao extrair dados do processo via API: {e}')
-        # Fallback: tenta DOM antigo (opcional)
-        return dados
+                    logging.info("[EXTRAIR_DADOS] Tentando estratégia fallback: clicar no link de detalhes do processo")
+                    
+                    # Procura por links que contenham o número do processo (formato padrão)
+                    xpath_link_detalhes = "//a[contains(text(), '-') and contains(text(), '.') and string-length(normalize-space(text())) > 15]"
+                    
+                    link_detalhes = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, xpath_link_detalhes))
+                    )
+                    
+                    # Extrai o número do processo do próprio link antes de clicar
+                    texto_link = link_detalhes.text.strip()
+                    match_link = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", texto_link)
+                    
+                    if match_link:
+                        numero_processo_final = match_link.group(1)
+                        logging.info(f"[EXTRAIR_DADOS] Número do processo encontrado no link: {numero_processo_final}")
+                        
+                        # Clica no link para abrir o modal com detalhes
+                        driver.execute_script("arguments[0].click();", link_detalhes)
+                        logging.info("[EXTRAIR_DADOS] Link de detalhes clicado com sucesso")
+                        
+                        # Aguarda o modal carregar
+                        time.sleep(2)
+                        
+                        # Tenta extrair dados adicionais do modal de detalhes
+                        try:
+                            # Procura pela seção de dados do processo no modal
+                            xpath_secao_dados = "//div[contains(@class, 'modal') or contains(@class, 'dialog')]//div[contains(@class, 'dados') or contains(@class, 'detalhes') or contains(@class, 'informacoes')]"
+                            secao_dados = driver.find_element(By.XPATH, xpath_secao_dados)
+                            
+                            # Extrai texto da seção para logs
+                            texto_secao = secao_dados.text
+                            logging.info(f"[EXTRAIR_DADOS] Dados extraídos da seção de detalhes: {texto_secao[:500]}...")
+                            
+                            # Aqui você pode adicionar lógica específica para extrair outros dados como partes, etc.
+                            # Por exemplo:
+                            # partes_match = re.findall(r"Requerente|Requerido|Autor|Réu.*?([^\n]+)", texto_secao)
+                            # dados_processo["partes"] = partes_match
+                            
+                        except Exception as e_modal:
+                            logging.warning(f"[EXTRAIR_DADOS] Erro ao extrair dados do modal: {e_modal}")
+                        
+                        # Fecha o modal usando 3 ESC
+                        for i in range(3):
+                            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
+                            time.sleep(0.5)
+                        
+                        logging.info("[EXTRAIR_DADOS] Modal fechado com 3 ESC")
+                        break  # Sai do loop de tentativas
+                        
+                except TimeoutException:
+                    logging.warning("[EXTRAIR_DADOS] Link de detalhes do processo não encontrado nesta tentativa")
+                except Exception as e_fallback:
+                    logging.warning(f"[EXTRAIR_DADOS] Erro na estratégia fallback: {e_fallback}")
 
-def exibir_painel_copia_cola(driver, dados, log=True):
-    # Exibe os dados extraídos do processo no painel Copia e Cola (formatação amigável).
-    conteudo = ''
-    for k, v in dados.items():
-        if isinstance(v, list):
-            conteudo += f'\n{k}:\n'
-            for item in v:
-                conteudo += f'  - {item}\n'
-        else:
-            conteudo += f'{v}\n'
-    # Preenche o painel (se existir)
-    driver.execute_script(f"document.getElementById('painel_copia_cola_conteudo').innerText = `{{conteudo}}`;")
-    if log:
-        print('[Fix.py] Painel Copia e Cola exibido.')
-      
+            # Se nenhuma estratégia funcionou nesta tentativa
+            if not numero_processo_final:
+                logging.warning(f"[EXTRAIR_DADOS] Número do processo não encontrado na tentativa {tentativa + 1}.")
+                if tentativa < max_tentativas - 1:
+                    logging.info(f"Aguardando {intervalo_tentativas} segundos para a próxima tentativa.")
+                    time.sleep(intervalo_tentativas)
+                else:
+                    logging.error(f"[EXTRAIR_DADOS] Todas as tentativas de extrair o número do processo falharam após {max_tentativas} tentativas.")
+        
+        except Exception as e_outer:  # Captura exceções inesperadas no loop de tentativa
+            logging.error(f"[EXTRAIR_DADOS] Erro geral inesperado na tentativa {tentativa + 1}: {e_outer}")
+            if tentativa < max_tentativas - 1:
+                time.sleep(intervalo_tentativas)
+            else:
+                logging.error("[EXTRAIR_DADOS] Erro final e inesperado ao tentar extrair dados do processo.")
+        
+        # Verifica novamente se o número foi encontrado para sair do loop principal
+        if numero_processo_final:
+            break
+
+    # Atualiza o dicionário com o número do processo encontrado (ou vazio se não encontrado)
+    dados_processo["numero"] = numero_processo_final
+    
+    # Salva no JSON sempre ao final, após todas as tentativas
+    try:
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(dados_processo, f, ensure_ascii=False, indent=4)
+        logging.info(f"[EXTRAIR_DADOS] Dados do processo salvos em {json_path}: {dados_processo}")
+    except Exception as e_json:
+        logging.error(f"[EXTRAIR_DADOS] Erro crítico ao salvar dados em JSON: {e_json}")
+    
+    return dados_processo
+
 # =========================
 # 5. FUNÇÕES DE MANIPULAÇÃO DE DOCUMENTOS
 # =========================
@@ -1020,7 +1000,7 @@ def exibir_painel_copia_cola(driver, dados, log=True):
 # Seção: Manipulaçao de intimações
 # Função para preencher campos de prazo
 def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
-    # Preenche todos os campos de prazo (input[type=text].mat-input-element) dentro do formulário de minuta/comunicação.
+    """Preenche todos os campos de prazo (input[type=text].mat-input-element) dentro do formulário de minuta/comunicação."""
     try:
         # Busca o formulário principal
         form = wait(driver, '#mat-tab-content-0-0 > div > pje-intimacao-automatica > div > form', timeout)
@@ -1225,8 +1205,7 @@ def analise_outros(driver):
 def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
     # Indexa e já processa cada processo sequencialmente, sem delay e sem logs intermediários desnecessários.
     print('[FLUXO] Iniciando indexação da lista de processos...', flush=True)
-    
-    # Armazena a referência da aba da lista ANTES de qualquer operação
+      # Armazena a referência da aba da lista ANTES de qualquer operação
     aba_lista_original = driver.current_window_handle
     print(f'[FLUXO] Aba da lista capturada: {aba_lista_original}')
     
@@ -1250,16 +1229,50 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
             print(f'[INDEXAR] {idx+1:02d}: {num_proc}')
         except Exception as e:
             print(f'[INDEXAR][ERRO] Linha {idx+1}: {e}')
-    print(f'[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)    
-    def forcar_fechamento_abas_extras():
-        """Força o fechamento de abas extras, mantendo apenas a aba da lista"""
+    
+    print(f'[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)
+    
+    def validar_conexao_driver(driver, contexto="GERAL"):
+        """Valida se a conexão com o driver está ativa e funcional"""
         try:
+            # Verifica se o driver possui session_id válido
+            if not hasattr(driver, 'session_id') or driver.session_id is None:
+                print(f'[{contexto}][CONEXÃO][ERRO] Driver não possui session_id válido')
+                return False
+                
+            # Testa a conexão com comando simples
+            try:
+                current_url = driver.current_url
+                window_handles = driver.window_handles
+                print(f'[{contexto}][CONEXÃO][OK] Driver conectado - URL: {current_url[:50]}... | Abas: {len(window_handles)}')
+                return True
+            except Exception as connection_test_err:
+                print(f'[{contexto}][CONEXÃO][ERRO] Falha no teste de conexão: {connection_test_err}')
+                return False
+                
+        except Exception as validation_err:
+            print(f'[{contexto}][CONEXÃO][ERRO] Falha na validação de conexão: {validation_err}')
+            return False
+    
+    def forcar_fechamento_abas_extras():
+        """Força o fechamento de abas extras, mantendo apenas a aba da lista com validação de conexão"""
+        try:
+            # Valida conexão antes de tentar operações
+            if not validar_conexao_driver(driver, "LIMPEZA"):
+                print('[LIMPEZA][ERRO] Conexão perdida - não é possível limpar abas')
+                return False
+                
             abas_atuais = driver.window_handles
             print(f'[LIMPEZA] Abas detectadas: {len(abas_atuais)}')
             
             for aba in abas_atuais:
                 if aba != aba_lista_original:
                     try:
+                        # Valida conexão antes de cada operação
+                        if not validar_conexao_driver(driver, "LIMPEZA_ABA"):
+                            print(f'[LIMPEZA][ERRO] Conexão perdida durante limpeza da aba {aba}')
+                            return False
+                            
                         driver.switch_to.window(aba)
                         driver.close()
                         print(f'[LIMPEZA] Aba fechada: {aba}')
@@ -1268,6 +1281,10 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
             
             # Volta para a aba da lista
             if aba_lista_original in driver.window_handles:
+                if not validar_conexao_driver(driver, "LIMPEZA_RETORNO"):
+                    print('[LIMPEZA][ERRO] Conexão perdida antes de retornar à aba da lista')
+                    return False
+                    
                 driver.switch_to.window(aba_lista_original)
                 print('[LIMPEZA] Retornou para aba da lista')
                 return True
@@ -1276,7 +1293,7 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
                 return False
         except Exception as e:
             print(f'[LIMPEZA][ERRO] Falha na limpeza de abas: {e}')
-            return False    
+            return False
     # Processa cada processo da lista indexada
     processos_processados = 0
     processos_com_erro = 0
@@ -1786,154 +1803,6 @@ def selecionar_destinatario_por_nome(driver, nome_parcial):
     try:
         # Espera a lista de destinatários carregar
         wait = WebDriverWait(driver, 10)
-        destinatarios = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'mat-list-option'))) # Usar tupla para By
-
-        for dest in destinatarios:
-            nome_dest = dest.text.lower()
-            if nome_parcial.lower() in nome_dest:
-                # Verifica se já está selecionado
-                if dest.get_attribute('aria-selected') != 'true':
-                    safe_click(driver, dest)
-                    print(f'[DEST] Destinatário "{nome_dest}" selecionado.')
-                else:
-                    print(f'[DEST] Destinatário "{nome_dest}" já estava selecionado.')
-                return True
-        print(f'[DEST][ERRO] Nenhum destinatário encontrado contendo "{nome_parcial}".')
-        return False
-    except Exception as e:
-        print(f'[DEST][ERRO] Falha ao selecionar destinatário: {e}')
-        return False
-
-        
-def buscar_documentos_sequenciais(driver):
-    # Busca documentos sequenciais na árvore e os seleciona.
-
-    try:
-        arvore = esperar_elemento(driver, 'pje-arvore-documento', timeout=15)
-        if not arvore:
-            print('[DOC SEQ] Árvore de documentos não encontrada.')
-            return False
-
-        # Encontra todos os nós da árvore
-        # Usar um seletor mais específico se possível, ex: '.node-name', '.mat-tree-node span'
-        nos_texto = arvore.find_elements(By.CSS_SELECTOR, '.node-content-wrapper span') # Exemplo de seletor
-
-        documentos_encontrados = []
-        padrao = re.compile(r"^(\d+)\s*-\s*(.+)") # Padrão: número - texto
-
-        for no in nos_texto:
-            texto_no = no.text.strip()
-            match = padrao.match(texto_no)
-            if match:
-                numero = int(match.group(1))
-                descricao = match.group(2)
-                documentos_encontrados.append({'numero': numero, 'descricao': descricao, 'elemento': no})
-                print(f'[DOC SEQ] Documento potencial encontrado: {texto_no}')
-
-        if not documentos_encontrados:
-            print('[DOC SEQ] Nenhum documento com padrão número-descrição encontrado.')
-            return False
-
-        # Ordena por número
-        documentos_encontrados.sort(key=lambda x: x['numero'])
-
-        # Verifica sequencialidade e seleciona
-        selecionou_algum = False
-        for i in range(len(documentos_encontrados) - 1):
-            doc_atual = documentos_encontrados[i]
-            doc_proximo = documentos_encontrados[i+1]
-
-            # Verifica se são sequenciais
-            if doc_atual['numero'] + 1 == doc_proximo['numero']:
-                print(f'[DOC SEQ] Sequência encontrada: {doc_atual["numero"]} -> {doc_proximo["numero"]}')
-                # Tenta encontrar o checkbox associado ao nó de texto e clicar
-                # A estrutura exata para encontrar o checkbox a partir do span pode variar
-                try:
-                    # Exemplo: Tenta encontrar um mat-checkbox como irmão ou pai próximo
-                    checkbox_atual = doc_atual['elemento'].find_element(By.XPATH, './ancestor::mat-tree-node//mat-checkbox')
-                    checkbox_proximo = doc_proximo['elemento'].find_element(By.XPATH, './ancestor::mat-tree-node//mat-checkbox')
-
-                   
-
-                   
-
-                    # Clica se não estiver selecionado
-                    if not checkbox_atual.find_element(By.TAG_NAME, 'input').is_selected():
-                        safe_click(driver, checkbox_atual)
-                        print(f'[DOC SEQ] Checkbox para doc {doc_atual["numero"]} marcado.')
-                        selecionou_algum = True
-                    if not checkbox_proximo.find_element(By.TAG_NAME, 'input').is_selected():
-                        safe_click(driver, checkbox_proximo)
-                        print(f'[DOC SEQ] Checkbox para doc {doc_proximo["numero"]} marcado.')
-                        selecionou_algum = True
-                except Exception as e:
-                    print(f'[DOC SEQ][WARN] Não foi possível encontrar/clicar no checkbox para os docs {doc_atual["numero"]}/{doc_proximo["numero"]}: {e}')
-
-        if not selecionou_algum:
-            print('[DOC SEQ] Nenhuma sequência válida encontrada ou checkboxes já marcados/não encontrados.')
-
-        return selecionou_algum
-
-    except TimeoutException:
-        print('[DOC SEQ] Árvore de documentos não carregou a tempo.')
-        return False
-    except Exception as e:
-        print(f'[DOC SEQ][ERRO] Falha ao buscar documentos sequenciais: {e}')
-        return False
-
-def esperar_url_conter(driver, fragmento_url, timeout=10):
-    # Espera até que a URL atual contenha o fragmento especificado.
-    try:
-        WebDriverWait(driver, timeout).until(
-            EC.url_contains(fragmento_url)
-        )
-        print(f'[URL WAIT] URL agora contém: "{fragmento_url}"')
-        return True
-    except TimeoutException:
-        print(f'[URL WAIT][ERRO] Timeout esperando URL conter: "{fragmento_url}". URL atual: {driver.current_url}')
-        return False
-    except Exception as e:
-        print(f'[URL WAIT][ERRO] Erro inesperado: {e}')
-        return False
-
-class EditorTextoPJe:
-    # ... (código existente da classe) ...
-
-    def preencher_campo(self, seletor, valor):
-        """Preenche um campo de input/textarea."""
-        try:
-            campo = self.wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, seletor))) # Usar tupla para By
-            campo.clear()
-            campo.send_keys(valor)
-            print(f'[EDITOR] Campo "{seletor}" preenchido.')
-        except Exception as e:
-            print(f'[EDITOR][ERRO] Falha ao preencher campo "{seletor}": {e}')
-
-    def selecionar_opcao_dropdown(self, seletor_dropdown, texto_opcao):
-         """Seleciona uma opção em um dropdown mat-select."""
-         try:
-             dropdown = self.wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_dropdown))) # Usar tupla para By
-             dropdown.click()
-             xpath_opcao = f"//mat-option[contains(., '{texto_opcao}')]"
-             opcao = self.wait.until(EC.element_to_be_clickable((By.XPATH, xpath_opcao))) # Usar tupla para By
-             opcao.click()
-             print(f'[EDITOR] Opção "{texto_opcao}" selecionada em "{seletor_dropdown}".')
-         except Exception as e:
-             print(f'[EDITOR][ERRO] Falha ao selecionar dropdown "{seletor_dropdown}": {e}')
-
-    def configurar_documento(self, tipo_documento, nome_documento, modelo_nome): # Adicionado parâmetro tipo_documento
-        """Configura tipo, nome e modelo do documento."""
-        print('[EDITOR] Configurando documento...')
-        # self.preencher_campo('input[aria-label="Tipo de Documento"]', tipo) # Linha original com erro
-        self.preencher_campo('input[aria-label*="Tipo de Documento"]', tipo_documento) # Corrigido: usa parâmetro e seletor mais robusto
-        self.preencher_campo('input[aria-label="Descrição"]', nome_documento)
-        self.selecionar_modelo(modelo_nome)    # ... (restante da classe) ...
-
-def verificar_selecionar_destinatario_juizo(driver):
-    """Verifica se 'Juízo' está entre os destinatários e o seleciona se não estiver."""
-    try:
-        # Espera a lista de destinatários carregar
-        wait = WebDriverWait(driver, 10)
         destinatarios_options = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'mat-list-option'))) # Usar tupla para By
 
         juizo_option = None
@@ -2246,20 +2115,19 @@ def colar_conteudo(driver, termo, valor, seletor_paragrafo='p.corpo', seletor_ed
     }}
     if (editor && editor.getData && editor.setData) {{
         var log_antes = editor.getData();
-        var reMark = new RegExp('<mark[^>]*>\\s*' + {repr(termo)} + '\\s*<\\/mark>', 'i');
+        var reMark = new RegExp('<mark[^>]*>\\\\s*' + {repr(termo)} + '\\\\s*<\\\\/mark>', 'i');
         var novo = log_antes;
         if (reMark.test(novo)) {{
             novo = novo.replace(reMark, {repr(valor)});
             editor.setData(novo);
             alterou = (log_antes !== editor.getData());
-            msg = alterou ? '[FIX][OK] Substituição realizada.' : '[FIX][ERRO] Substituição não ocorreu.';
-        }} else {{
+            msg = alterou ? '[FIX][OK] Substituição realizada.' : '[FIX][ERRO] Substituição não ocorreu.';        }} else {{
             msg = '[FIX][ERRO] <mark>' + {repr(termo)} + '</mark> não encontrado.';
         }}
     }} else {{
         msg = '[FIX][ERRO] Instância do CKEditor não encontrada.';
     }}
-    return {{alterou, msg}};
+    return {{alterou: alterou, msg: msg}};
     '''
     resultado = driver.execute_script(js)
     if resultado and resultado.get('msg'):
@@ -2275,152 +2143,134 @@ def colar_conteudo(driver, termo, valor, seletor_paragrafo='p.corpo', seletor_ed
 
 def extrair_documento_silencioso(driver, timeout=15, log=True):
     """
-    Extrai documento usando técnica da MaisPje - intercepta modal antes de ficar visível.
-    Retorna o texto extraído sem mostrar modal para o usuário.
+    Extrai texto do documento de forma silenciosa, sem logs excessivos.
+    Retorna o texto extraído ou None se falhar.
     """
     try:
-        # Primeiro verifica se existe container HTML (sistema antigo)
-        container_html = driver.find_elements(By.CSS_SELECTOR, '.container-html')
-        if container_html:
-            if log: print('[EXTRAI_SIL] Usando container HTML direto (sistema antigo)')
-            texto = container_html[0].text
-            return texto.strip() if texto else None
-        
-        # Sistema novo - precisa clicar no botão HTML mas interceptar modal
+        # Espera o botão HTML
         btn_html = wait(driver, '.fa-file-code', timeout)
         if not btn_html:
             if log: print('[EXTRAI_SIL][ERRO] Botão HTML não encontrado.')
             return None
-        
-        if log: print('[EXTRAI_SIL] Iniciando extração silenciosa...')
-        
-        # Configura interceptador de modal usando JavaScript
-        setup_script = """
-        window.modalInterceptado = false;
-        window.conteudoExtraido = null;
-        window.overlayHidden = null;
-        
-        // Observer para interceptar modal antes de ficar visível
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (!mutation.addedNodes[0]) return;
-                if (!mutation.addedNodes[0].tagName) return;
-                
-                const node = mutation.addedNodes[0];
-                
-                // Intercepta overlay e esconde
-                if (node.tagName === 'DIV' && node.className === 'cdk-global-overlay-wrapper') {
-                    const overlay = node.parentElement;
-                    overlay.style.visibility = 'hidden';
-                    window.overlayHidden = overlay;
-                    console.log('[INTERCEPT] Overlay escondido');
-                }
-                
-                // Quando modal aparece, extrai conteúdo
-                if (node.tagName === 'PJE-DOCUMENTO-ORIGINAL') {
-                    setTimeout(() => {
-                        try {
-                            const previewElement = document.querySelector('#previewModeloDocumento');
-                            if (previewElement) {
-                                window.conteudoExtraido = previewElement.textContent || previewElement.innerText;
-                                window.modalInterceptado = true;
-                                console.log('[INTERCEPT] Conteúdo extraído silenciosamente');
-                                
-                                // Fecha modal
-                                const btnFechar = document.querySelector('pje-documento-original button[aria-label="Fechar"]');
-                                if (btnFechar) {
-                                    btnFechar.click();
-                                }
-                            }
-                        } catch (e) {
-                            console.log('[INTERCEPT] Erro:', e);
-                            window.modalInterceptado = true; // Para não travar
-                        }
-                    }, 100);
-                }
-                
-                // Caso apareça erro
-                if (node.tagName === 'NG-COMPONENT') {
-                    window.modalInterceptado = true;
-                    const btnOk = document.querySelector('ng-component button');
-                    if (btnOk && btnOk.textContent.includes('OK')) {
-                        btnOk.click();
-                    }
-                }
-            });
-        });
-        
-        const config = { childList: true, subtree: true };
-        observer.observe(document.body, config);
-        
-        // Auto-desconecta após timeout
-        setTimeout(() => {
-            observer.disconnect();
-            window.modalInterceptado = true;
-        }, 10000);
-        
-        return true;
-        """
-        
-        # Injeta o interceptador
-        driver.execute_script(setup_script)
-        time.sleep(0.2)
-        
-        # Clica no botão HTML (agora será interceptado)
+
+        # Clica no botão HTML
         safe_click(driver, btn_html)
-        
-        # Aguarda extração ou timeout
-        max_wait = timeout * 10  # em décimos de segundo
-        for i in range(max_wait):
-            result = driver.execute_script("return window.modalInterceptado;")
-            if result:
-                break
-            time.sleep(0.1)
-        
-        # Recupera conteúdo extraído
-        conteudo = driver.execute_script("return window.conteudoExtraido;")
-        
-        # Restaura overlay se necessário
-        driver.execute_script("""
-        if (window.overlayHidden) {
-            window.overlayHidden.style.visibility = 'revert';
-        }
-        """)
-        
-        if conteudo:
-            if log: print(f'[EXTRAI_SIL] Texto extraído silenciosamente: {len(conteudo)} caracteres')
-            return conteudo.strip()
-        else:
-            if log: print('[EXTRAI_SIL][ERRO] Não foi possível extrair conteúdo silenciosamente.')
+        time.sleep(1)
+
+        # Extrai o texto do preview
+        preview = wait(driver, '#previewModeloDocumento', timeout)
+        if not preview:
+            if log: print('[EXTRAI_SIL][ERRO] Preview do documento não encontrado.')
+            try:
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            except Exception:
+                pass
             return None
-            
+
+        texto_completo = preview.text
+
+        # Fecha o modal
+        try:
+            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            time.sleep(0.5)
+        except Exception:
+            pass
+
+        if not texto_completo:
+            if log: print('[EXTRAI_SIL][ERRO] Texto do preview vazio.')
+            return None
+
+        return texto_completo.strip()
+
     except Exception as e:
-        if log: print(f'[EXTRAI_SIL][ERRO] {e}')
+        if log: print(f'[EXTRAI_SIL][ERRO] Falha ao extrair documento: {e}')
+        try:
+            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+        except Exception:
+            pass
         return None
 
-def extrair_documento_modal_free(driver, regras_analise=None, timeout=15, log=True):
+def buscar_documentos_sequenciais(driver):
     """
-    Versão melhorada de extrair_documento que tenta primeiro a extração silenciosa,
-    depois fallback para método tradicional se necessário.
+    Busca documentos sequenciais na árvore e os seleciona.
     """
     try:
-        # Primeira tentativa: extração silenciosa (sem modal visível)
-        if log: print('[EXTRAI_FREE] Tentando extração silenciosa...')
-        texto = extrair_documento_silencioso(driver, timeout, log)
-        
-        if texto:
-            if regras_analise and callable(regras_analise):
-                resultado_analise = regras_analise(texto)
-                return texto, resultado_analise
-            return texto, None
-        
-        # Fallback: método tradicional se silencioso falhar
-        if log: print('[EXTRAI_FREE] Extração silenciosa falhou, usando método tradicional...')
-        return extrair_documento(driver, regras_analise, timeout, log)
-        
+        arvore = esperar_elemento(driver, 'pje-arvore-documento', timeout=15)
+        if not arvore:
+            print('[DOC SEQ] Árvore de documentos não encontrada.')
+            return False
+
+        nos_texto = arvore.find_elements(By.CSS_SELECTOR, '.node-content-wrapper span')
+        documentos_encontrados = []
+        padrao = re.compile(r"^(\d+)\s*-\s*(.+)")
+
+        for no in nos_texto:
+            texto_no = no.text.strip()
+            match = padrao.match(texto_no)
+            if match:
+                numero = int(match.group(1))
+                descricao = match.group(2)
+                documentos_encontrados.append({'numero': numero, 'descricao': descricao, 'elemento': no})
+
+        if not documentos_encontrados:
+            print('[DOC SEQ] Nenhum documento com padrão número-descrição encontrado.')
+            return False
+
+        documentos_encontrados.sort(key=lambda x: x['numero'])
+        selecionou_algum = False
+
+        for i in range(len(documentos_encontrados) - 1):
+            doc_atual = documentos_encontrados[i]
+            doc_proximo = documentos_encontrados[i+1]
+
+            # Verifica se são sequenciais
+            if doc_atual['numero'] + 1 == doc_proximo['numero']:
+                print(f'[DOC SEQ] Sequência encontrada: {doc_atual["numero"]} -> {doc_proximo["numero"]}')
+                # Tenta encontrar o checkbox associado ao nó de texto e clicar
+                # A estrutura exata para encontrar o checkbox a partir do span pode variar
+                try:
+                    # Exemplo: Tenta encontrar um mat-checkbox como irmão ou pai próximo
+                    checkbox_atual = doc_atual['elemento'].find_element(By.XPATH, './ancestor::mat-tree-node//mat-checkbox')
+                    checkbox_proximo = doc_proximo['elemento'].find_element(By.XPATH, './ancestor::mat-tree-node//mat-checkbox')
+
+                    # Clica se não estiver selecionado
+                    if not checkbox_atual.find_element(By.TAG_NAME, 'input').is_selected():
+                        safe_click(driver, checkbox_atual)
+                        print(f'[DOC SEQ] Checkbox para doc {doc_atual["numero"]} marcado.')
+                        selecionou_algum = True
+                    if not checkbox_proximo.find_element(By.TAG_NAME, 'input').is_selected():
+                        safe_click(driver, checkbox_proximo)
+                        print(f'[DOC SEQ] Checkbox para doc {doc_proximo["numero"]} marcado.')
+                        selecionou_algum = True
+                except Exception as e:
+                    print(f'[DOC SEQ][WARN] Erro ao selecionar checkboxes: {e}')
+
+        return selecionou_algum
+
     except Exception as e:
-        if log: print(f'[EXTRAI_FREE][ERRO] {e}')
-        return None, None
+        print(f'[DOC SEQ][ERRO] Falha ao buscar documentos sequenciais: {e}')
+        return False
+def esperar_url_conter(driver, substring, timeout=10):
+    """
+    Espera até que a URL atual contenha a substring especificada.
+    Args:
+        driver: WebDriver instance
+        substring: String a ser encontrada na URL
+        timeout: Tempo máximo de espera em segundos
+    Returns:
+        bool: True se encontrou, False se timeout
+    """
+    try:
+        WebDriverWait(driver, timeout).until(
+            lambda d: substring in d.current_url
+        )
+        return True
+    except TimeoutException:
+        print(f'[URL][ERRO] Timeout esperando URL conter: "{substring}". URL atual: {driver.current_url}')
+        return False
+    except Exception as e:
+        print(f'[URL][ERRO] Erro ao esperar URL: {e}')
+        return False
 
 
 

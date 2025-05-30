@@ -4,8 +4,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 
-def Infojud(ni=None, driver=None, log=True, abrir_navegador=True):
-    """Gera link de consulta Infojud (CPF/CNPJ) e imprime/loga. Se ni não for informado, extrai o primeiro documento de parte passiva (reclamada). Se driver for passado, pode abrir a consulta em nova janela e automatizar login GovBR/certificado."""
+def Infojud(ni=None, driver=None, log=True, abrir_navegador=True, usar_perfil_real=True):
+    """Gera link de consulta Infojud (CPF/CNPJ) e imprime/loga. Se ni não for informado, extrai o primeiro documento de parte passiva (reclamada). Se driver for passado, pode abrir a consulta em nova janela e automatizar login GovBR/certificado.
+    Se usar_perfil_real=True, abre nova janela Firefox com perfil real, user-agent real e oculta navigator.webdriver."""
     if ni is None and driver is not None:
         dados = extrair_dados_processo(driver, log=log)
         ni = None
@@ -13,8 +14,9 @@ def Infojud(ni=None, driver=None, log=True, abrir_navegador=True):
         if 'partes' in dados and 'passivas' in dados['partes']:
             for parte in dados['partes']['passivas']:
                 doc = parte.get('documento', '').strip()
-                if doc and (len(doc) == 11 or len(doc) == 14):
-                    ni = doc
+                doc_num = ''.join(filter(str.isdigit, doc))
+                if doc_num and (len(doc_num) == 11 or len(doc_num) == 14):
+                    ni = doc_num
                     break
         if log:
             print(f"[INFOJUD] NI extraído do processo: {ni if ni else 'Não encontrado'}")
@@ -26,7 +28,28 @@ def Infojud(ni=None, driver=None, log=True, abrir_navegador=True):
         link = f"https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI={ni}"
     if log:
         print(f"[INFOJUD] Link para consulta: {link if link else 'NI inválido'}")
-    if link and driver is not None and abrir_navegador:
+    if link and abrir_navegador:
+        if usar_perfil_real:
+            from selenium import webdriver
+            from selenium.webdriver.firefox.options import Options
+            profile_path = r"C:\\Users\\Silas\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\x4fkuw2q.silas-1723037723659"
+            firefox_path = r"C:\\Program Files\\Mozilla Firefox\\firefox.exe"
+            options = Options()
+            options.binary_location = firefox_path
+            options.profile = profile_path
+            options.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0")
+            driver_real = webdriver.Firefox(options=options)
+            driver_real.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            import random
+            import time
+            time.sleep(random.uniform(1.5, 3.5))
+            driver_real.get(link)
+            time.sleep(random.uniform(2, 4))
+            driver_real.execute_script("window.scrollBy(0, 200);")
+            time.sleep(random.uniform(1, 2))
+            if log:
+                print('[INFOJUD] Consulta Infojud aberta em nova janela com perfil real.')
+            return link
         # Abre em nova janela (não apenas nova aba)
         # window.open com features abre nova janela real (não só aba)
         driver.execute_script(

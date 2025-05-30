@@ -147,16 +147,23 @@ def fluxo_pz(driver):
                 'oito dias para apresentação',
                 'oito dias para apresentacao',
             ]],
-             'gigs', (1, 'Guilherme - Sobrestamento'), ato_sobrestamento),([gerar_regex_geral(k) for k in ['revel', 'concorda com homologação', 'concorda com homologacao', 'tomarem ciência dos esclarecimentos apresentados', 'oito dias impugnar os']],
+             'gigs', (1, 'Guilherme - Sobrestamento'), ato_sobrestamento),
+            ([gerar_regex_geral(k) for k in ['revel', 'concorda com homologação', 'concorda com homologacao', 'tomarem ciência dos esclarecimentos apresentados', 'oito dias impugnar os']],
              'gigs', (1, 'Silvia - Homologação'), None),
             ([gerar_regex_geral(k) for k in ['Se revê o novo sobrestamento']],
              'movimentar', def_arq, None),
-            ([gerar_regex_geral(k) for k in ['hasta', 'saldo devedor', 'prescrição', 'prescricao']],
+            ([gerar_regex_geral(k) for k in ['hasta', 'saldo devedor']],
              'gigs', (1, 'xs - pec'), None),
             ([gerar_regex_geral(k) for k in ['impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em', 'referente ao principal']],
              'gigs', (1, 'SILVIA - Argos'), ato_pesquisas),            ([gerar_regex_geral(k) for k in ['cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']],
              'movimentar', def_arq, None),
-            ([gerar_regex_geral(k) for k in ['bloqueio realizado, ora convertido']], 'gigs', (1, 'xs pec bloqueio'), None),]        # Regra especial: bloqueio de valores realizado, ora
+            ([gerar_regex_geral(k) for k in ['A pronúncia da prescrição intercorrente se trata']],
+             'movimentar', def_arq, None),
+            ([gerar_regex_geral(k) for k in ['bloqueio realizado, ora convertido']], 'gigs', (1, 'xs pec bloqueio'), None),
+            # NOVA REGRA SOLICITADA
+            ([gerar_regex_geral(k) for k in ['sobre o preenchimento dos pressupostos legais para concessão do parcelamento']],
+             'gigs', (1, 'Bruna - Liberação'), None),
+        ] # Regra especial: bloqueio de valores realizado, ora
         if 'bloqueio de valores realizado, ora' in texto:
             logger.info('[FLUXO_PZ][DEBUG] Regra especial "bloqueio de valores realizado, ora" detectada.')
             try:
@@ -300,8 +307,8 @@ def fluxo_pz(driver):
                      return  # Sai da função sem log de sucesso
                  time.sleep(1) # Pause after movement
              except Exception as mov_error:
-                  logger.error(f'[FLUXO_PZ][ERRO] Falha ao executar movimentação {func_movimento.__name__}: {mov_error}')
-                  return  # Sai da função sem log de sucesso
+                 logger.error(f'[FLUXO_PZ][ERRO] Falha ao executar movimentação {func_movimento.__name__}: {mov_error}')
+                 return  # Sai da função sem log de sucesso
 
         logger.info('[FLUXO_PZ] Análise de prazo detalhado e ações concluídas.')
 
@@ -491,14 +498,18 @@ def executar_fluxo(driver):
             btn_fa_pen = esperar_elemento(driver, 'i.fa-pen', timeout=15)
             safe_click(driver, btn_fa_pen)
             logger.info('[FILTRO][PASSO_2] Ícone fa-pen clicado.')
-            
-            # Passo 3: Aplicar filtro "xs"
+              # Passo 3: Aplicar filtro "xs"
             logger.info('[FILTRO][PASSO_3] Aplicando filtro "xs"...')
             campo_descricao = esperar_elemento(driver, 'input[aria-label*="Descrição"]', timeout=15)
             campo_descricao.clear()
             campo_descricao.send_keys('xs')
             campo_descricao.send_keys(Keys.ENTER)
             logger.info('[FILTRO][PASSO_3] Filtro "xs" aplicado.')
+            
+            # Aguardar 3 segundos para garantir que o filtro e indexação sejam aplicados completamente
+            logger.info('[FILTRO][AGUARDO] Aguardando 3 segundos para aplicação completa do filtro e indexação...')
+            time.sleep(3)
+            logger.info('[FILTRO][AGUARDO] Filtro e indexação aplicados. Prosseguindo com o processamento da lista.')
             
         except Exception as e:
             logger.error(f'[FILTRO][ERRO] Erro na sequência de filtros: {e}')

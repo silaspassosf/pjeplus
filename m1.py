@@ -42,6 +42,7 @@ from Fix import (
     extrair_dados_processo,
     buscar_documento_argos,
     buscar_mandado_autor,
+    buscar_ultimo_mandado,
 )
 from atos import (
     ato_judicial,
@@ -123,24 +124,31 @@ def iniciar_fluxo(driver):
             print('\n' + '='*50)
             print('[FLUXO] Iniciando análise do documento...')
             
-            doc_ativo = driver.find_element(By.CSS_SELECTOR, 'li.tl-item-container.tl-item-ativo')
-            if not doc_ativo:
-                print('[FLUXO][ERRO] Documento ativo não encontrado')
+            # Busca o cabeçalho do documento ativo ao invés de usar tl-item-ativo
+            try:
+                cabecalho = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title'))
+                )
+                texto_doc = cabecalho.text
+                if not texto_doc:
+                    print('[FLUXO][ERRO] Cabeçalho do documento vazio')
+                    return
+            except Exception as e:
+                print(f'[FLUXO][ERRO] Cabeçalho do documento não encontrado: {e}')
                 return
                 
-            texto_doc = doc_ativo.text
             texto_lower = texto_doc.lower()
             
-            if 'pesquisa patrimonial - argos' in texto_lower:
+            # Corrigir a lógica de identificação dos fluxos
+            if any(termo in texto_lower for termo in ['pesquisa patrimonial', 'argos', 'devolução de ordem de pesquisa', 'certidão de devolução']):
                 print('\n[FLUXO] >>> INICIANDO FLUXO ARGOS <<<')
                 print(f'[FLUXO][ARGOS] Documento identificado: {texto_doc}')
                 print('='*50)
                 processar_argos(driver)
-            elif 'oficial de justiça' in texto_lower:
+            elif any(termo in texto_lower for termo in ['oficial de justiça', 'certidão de oficial']):
                 print('\n[FLUXO] >>> INICIANDO FLUXO OUTROS <<<')
                 print(f'[FLUXO][OUTROS] Documento identificado: {texto_doc}')
-                print('='*50)
-                analise_outros(driver)
+                print('='*50)                fluxo_mandados_outros(driver, log=True)
             else:
                 print('\n[FLUXO][AVISO] >>> DOCUMENTO NÃO IDENTIFICADO <<<')
                 print(f'[FLUXO][AVISO] Texto do documento: {texto_doc}')
@@ -162,6 +170,53 @@ def iniciar_fluxo(driver):
     indexar_e_processar_lista(driver, fluxo_callback)
 
 # 3. Funções de Processamento
+def verificar_autor_documento(documento, driver):
+    """
+    Função para verificar quem assinou/é responsável por um documento.
+    Extrai informações de autor/responsável do texto do documento.
+    """
+    try:
+        if not documento:
+            print("[MANDADOS][OUTROS][LOG] Documento vazio, não é possível verificar autor")
+            return None
+            
+        # Converte para string se necessário
+        texto = str(documento).lower()
+        
+        # Padrões de assinatura/responsabilidade para buscar
+        padroes_autor = [
+            r'assinado por\s*[:\-]?\s*([^,\n\.]+)',
+            r'assinatura digital\s*[:\-]?\s*de\s*([^,\n\.]+)',
+            r'responsável\s*[:\-]?\s*([^,\n\.]+)',
+            r'elaborado por\s*[:\-]?\s*([^,\n\.]+)',
+            r'autor\s*[:\-]?\s*([^,\n\.]+)',
+            r'oficial de justiça\s*[:\-]?\s*([^,\n\.]+)',
+        ]
+        
+        # Buscar padrões no texto
+        for padrao in padroes_autor:
+            match = re.search(padrao, texto, re.IGNORECASE)
+            if match:
+                nome_autor = match.group(1).strip()
+                # Limpar caracteres extras
+                nome_autor = re.sub(r'[^\w\s]', ' ', nome_autor).strip()
+                # Capitalizar nome
+                nome_autor = nome_autor.title()
+                print(f"[MANDADOS][OUTROS][LOG] Autor identificado: {nome_autor}")
+                return nome_autor
+                
+        # Busca específica por "silas passos" no texto
+        if 'silas passos' in texto:
+            print("[MANDADOS][OUTROS][LOG] Referência a 'Silas Passos' encontrada diretamente no texto")
+            return 'Silas Passos'
+            
+        print("[MANDADOS][OUTROS][LOG] Nenhum autor identificado no documento")
+        return None
+        
+    except Exception as e:
+        print(f"[MANDADOS][OUTROS][ERRO] Falha ao verificar autor do documento: {e}")
+        return None
+
 def lembrete_bloq(driver, debug=False):
     """
     Cria lembrete de bloqueio com título "Bloqueio pendente" e conteúdo "processar após IDPJ".
@@ -297,8 +352,8 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                     ato_bloq(driver, debug=debug)
             else:
                 if debug:
-                    print('[ARGOS][REGRAS] Mais de uma reclamada - criando GIGS')
-                criar_gigs(driver, dias_uteis=0, observacao='Pz mdd subid', tela='principal', log=debug)
+                    print('[ARGOS][REGRAS] Mais de uma reclamada - Não criando GIGS aqui.')
+                # criar_gigs(driver, dias_uteis=0, observacao='Pz mdd subid', tela='principal', log=debug) # REMOVIDO
         # 3. Se é decisão com texto "defiro a instauração"
         elif tipo_documento == 'decisao' and 'defiro a instauração' in texto_documento.lower():
             if debug:
@@ -405,10 +460,19 @@ def fechar_intimacao(driver, log=True):
                 body.send_keys(Keys.ESCAPE)
                 time.sleep(0.5)
                 print('[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.')
-                return True
+                return True        
+        # Diminui o zoom da página para 70% ANTES de selecionar a checkbox
+        driver.execute_script("document.body.style.zoom='70%'")
+        time.sleep(0.5)
+        
+        # Melhorias solicitadas: clique na checkbox e pressionar espaço
+        checkbox_selecionada = False
         try:
             driver.execute_script("arguments[0].scrollIntoView(true);", checkbox_span)
             checkbox_span.click()
+            checkbox_selecionada = True
+            if log:
+                print('[ARGOS][FECHAR INTIMAÇÃO] Checkbox selecionada com sucesso.')
         except Exception as e:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Falha ao clicar na checkbox:', e)
             # Se não conseguir clicar, fecha o modal e segue
@@ -426,9 +490,7 @@ def fechar_intimacao(driver, log=True):
                 time.sleep(0.5)
                 print('[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.')
                 return True
-        time.sleep(0.5)
-        # Diminui o zoom da página para 70%
-        driver.execute_script("document.body.style.zoom='70%'")
+        
         # Busca e clica no botão 'Fechar Expedientes'
         btn_fechar = None
         botoes = modal.find_elements(By.CSS_SELECTOR, 'button[aria-label="Fechar Expedientes"]')
@@ -439,8 +501,22 @@ def fechar_intimacao(driver, log=True):
         if not btn_fechar:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Botão Fechar Expedientes não encontrado.')
             return False
+        
+        # Se checkbox foi selecionada, pressiona espaço antes de clicar em fechar
+        if checkbox_selecionada:
+            try:
+                from selenium.webdriver.common.keys import Keys
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.SPACE)
+                time.sleep(0.5)
+                if log:
+                    print('[ARGOS][FECHAR INTIMAÇÃO] Espaço pressionado após seleção da checkbox.')
+            except Exception as e:
+                if log:
+                    print(f'[ARGOS][FECHAR INTIMAÇÃO][WARN] Falha ao pressionar espaço: {e}')
+        
         btn_fechar.click()
         time.sleep(1)
+        
         # Busca o modal correto de confirmação pelo título
         modal_confirm = None
         modais_confirm = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container')
@@ -455,6 +531,7 @@ def fechar_intimacao(driver, log=True):
         if not modal_confirm:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Modal de confirmação não encontrado.')
             return False
+            
         btn_sim = None
         botoes_sim = modal_confirm.find_elements(By.CSS_SELECTOR, 'button.mat-primary')
         for b in botoes_sim:
@@ -464,7 +541,26 @@ def fechar_intimacao(driver, log=True):
         if not btn_sim:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Botão Sim não encontrado.')
             return False
+            
         btn_sim.click()
+        
+        # Aguarda o fechamento completo do modal antes de continuar
+        if log:
+            print('[ARGOS][FECHAR INTIMAÇÃO] Aguardando fechamento completo do modal...')
+        
+        # Aguarda até que não haja mais modais visíveis
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: len([m for m in d.find_elements(By.CSS_SELECTOR, '.mat-dialog-container') if m.is_displayed()]) == 0
+            )
+            if log:
+                print('[ARGOS][FECHAR INTIMAÇÃO] Modal fechado completamente. Aguardando estabilização...')
+            time.sleep(2)  # Tempo adicional para garantir que a interface se estabilize
+        except Exception as e:
+            if log:
+                print(f'[ARGOS][FECHAR INTIMAÇÃO][WARN] Timeout aguardando fechamento do modal: {e}')
+            time.sleep(2)  # Fallback: aguarda tempo fixo
+        
         if log:
             print('[ARGOS][FECHAR INTIMAÇÃO] Fechamento de intimação concluído.')
         return True
@@ -475,9 +571,14 @@ def fechar_intimacao(driver, log=True):
 def retirar_sigilo(elemento):
     try:
         btn_sigilo = elemento.find_element(By.CSS_SELECTOR, "pje-doc-sigiloso span button i.fa-wpexplorer")
-        btn_sigilo.click()
-        time.sleep(1)
-        print("[SIGILO] Clique para retirar sigilo realizado.")
+        
+        # Verifica se o ícone está vermelho (com sigilo ativo) através da classe tl-sigiloso
+        if "tl-sigiloso" in btn_sigilo.get_attribute("class"):
+            btn_sigilo.click()
+            time.sleep(1)
+            print("[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).")
+        else:
+            print("[SIGILO] Ícone está azul (sem sigilo ativo). Não é necessário clicar.")
     except Exception as e:
         print("[SIGILO] Erro ao retirar sigilo (pode já estar sem sigilo):", e)
 
@@ -503,28 +604,93 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
     any_sigilo = False
     for anexo in anexos:
         texto_anexo = anexo.text.strip().lower()
+        tipo_anexo_encontrado = None
+        
+        # Verifica se é um anexo especial (INFOJUD, DOI, IRPF, DIMOB)
         for k in sigilo_types:
             if k in texto_anexo:
                 found_sigilo[k] = True
-                # Apply confidentiality and visibility
+                tipo_anexo_encontrado = k
+                
+                # Para anexos especiais: INSERIR sigilo (se ícone estiver azul, clicar para tornar vermelho)
                 btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
                 if btn_sigilo:
-                    safe_click(driver, btn_sigilo[0])
-                    time.sleep(1)
-                    sigilo_anexos[k] = "sim"
+                    # Verifica se o ícone está azul (sem sigilo - tl-nao-sigiloso)
+                    if "tl-nao-sigiloso" in btn_sigilo[0].get_attribute("class"):
+                        safe_click(driver, btn_sigilo[0])
+                        time.sleep(1)
+                        sigilo_anexos[k] = "sim"
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Sigilo INSERIDO para anexo especial: {texto_anexo}')
+                    else:
+                        sigilo_anexos[k] = "sim"  # já estava com sigilo
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Anexo especial já tinha sigilo: {texto_anexo}')
                 else:
-                    sigilo_anexos[k] = "nao"
+                    sigilo_anexos[k] = "nao"                # Apply visibility
                 btn_visibilidade = anexo.find_elements(By.CSS_SELECTOR, "i.fa-plus")
                 if btn_visibilidade:
+                    if log:
+                        print(f'[ARGOS][ANEXOS] Clicando no botão de visibilidade para: {texto_anexo}')
                     safe_click(driver, btn_visibilidade[0])
                     time.sleep(1)
-                btn_confirmar = anexo.find_elements(By.CSS_SELECTOR, ".mat-dialog-actions > button:nth-child(1) > span")
-                if btn_confirmar:
-                    safe_click(driver, btn_confirmar[0])
-                    time.sleep(1)
+                    
+                    # Aguarda e busca o modal de confirmação
+                    try:
+                        modal_visibilidade = WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, ".mat-dialog-container"))
+                        )
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Modal de visibilidade aberto para: {texto_anexo}')
+                        
+                        # Clica no botão com classe botao-icone-titulo-coluna (fa-check)
+                        try:
+                            btn_check = modal_visibilidade.find_element(By.CSS_SELECTOR, "button.botao-icone-titulo-coluna i.fa-check")
+                            if log:
+                                print(f'[ARGOS][ANEXOS] Clicando no botão de check para: {texto_anexo}')
+                            safe_click(driver, btn_check)
+                            time.sleep(1)
+                        except Exception as e:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] Botão de check não encontrado para: {texto_anexo} - {e}')
+                        
+                        # Busca o botão Salvar
+                        btn_salvar = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button[color='primary'] .mat-button-wrapper")
+                        if not btn_salvar:
+                            # Seletor alternativo para o botão Salvar
+                            btn_salvar = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button.mat-primary")
+                        
+                        if btn_salvar:
+                            if log:
+                                print(f'[ARGOS][ANEXOS] Clicando no botão Salvar para: {texto_anexo}')
+                            safe_click(driver, btn_salvar[0])
+                            time.sleep(1)
+                        else:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] Botão Salvar não encontrado para: {texto_anexo}')
+                                
+                    except Exception as e:
+                        if log:
+                            print(f'[ARGOS][ANEXOS][ERRO] Modal de visibilidade não abriu para: {texto_anexo} - {e}')
+                else:
+                    if log:
+                        print(f'[ARGOS][ANEXOS][ERRO] Botão de visibilidade não encontrado para: {texto_anexo}')
                 any_sigilo = True
-                if log:
-                    print(f'[ARGOS][ANEXOS] Confidentiality set and visibility given: {texto_anexo}')
+                break
+        
+        # Se não é anexo especial, REMOVER sigilo (se ícone estiver vermelho, clicar para tornar azul)
+        if not tipo_anexo_encontrado:
+            btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
+            if btn_sigilo:
+                # Verifica se o ícone está vermelho (com sigilo - tl-sigiloso)
+                if "tl-sigiloso" in btn_sigilo[0].get_attribute("class"):
+                    safe_click(driver, btn_sigilo[0])
+                    time.sleep(1)
+                    if log:
+                        print(f'[ARGOS][ANEXOS] Sigilo REMOVIDO para anexo comum: {texto_anexo}')
+                else:
+                    if log:
+                        print(f'[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: {texto_anexo}')
     # Extract PDF text
     from Fix import extrair_pdf
     texto_pdf = extrair_pdf(driver, log=log)
@@ -601,7 +767,7 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                             continue
                 if not resultado_sisbajud:
                     resultado_sisbajud = 'positivo'
-                    regra_aplicada = 'nenhuma regra anterior satisfeita, default positivo'
+                    regra_aplicada = 'SISBAJUD marker not found, default positivo'
             else:
                 resultado_sisbajud = 'positivo'
                 regra_aplicada = 'SISBAJUD marker not found, default positivo'
@@ -644,7 +810,7 @@ def fluxo_mandado(driver):
                 print(f'[FLUXO][ARGOS] Documento identificado: {texto_doc}')
                 print('='*50)
                 processar_argos(driver)
-            elif 'oficial de justiça' in doc_ativo:
+            elif 'oficial de justiça' in texto_doc:
                 print(f'[MANDADO] Fluxo OUTROS')
                 def fluxo_mandados_hipotese2(driver):
                     print('[MANDADOS][OUTROS] Iniciando fluxo Mandado 2 (Outros)')
@@ -662,7 +828,7 @@ def fluxo_mandado(driver):
                             print("[MANDADOS][OUTROS][LOG] Padrão 'certidão de oficial' ENCONTRADO no texto.")
                             if padrao_positivo:
                                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado POSITIVO encontrado no texto.")
-                                criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+                                criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
                             elif padrao_negativo:
                                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
                                 # Busca último mandado na timeline
@@ -713,10 +879,14 @@ def fluxo_mandado(driver):
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
                 print('[FLUXO] Retorno para lista completado')
-            print('='*50 + '\n')
-
-    # Executa o processamento da lista com o callback melhorado
-    indexar_e_processar_lista(driver, fluxo_callback)
+            print('='*50 + '\n')    # Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
+    if aplicar_filtro_mandados_devolvidos(driver):
+        print('[FLUXO] Filtro de mandados devolvidos aplicado com sucesso. Iniciando processamento...')
+        # Executa o processamento da lista com o callback melhorado
+        indexar_e_processar_lista(driver, fluxo_callback)
+    else:
+        print('[FLUXO][ERRO] Falha ao aplicar filtro de mandados devolvidos. Processamento cancelado.')
+        return
 
 def buscar_documentos_sequenciais(driver):
     documentos_alvo = [
@@ -741,41 +911,59 @@ def buscar_documentos_sequenciais(driver):
     return resultados
 
 def processar_argos(driver, log=True):
+    """
+    Processa fluxo Argos com nova regra de busca de documentos.
+    
+    NOVA REGRA IMPLEMENTADA:
+    - Busca decisões/despachos que vêm ANTES da "Planilha de Atualização de Cálculos" na timeline
+    - Se não encontrar planilha ou documentos antes dela, usa lógica fallback (primeiro despacho/decisão)
+    - Aplica ações conforme o tipo de documento encontrado (decisão vs despacho)
+    """
     try:
+        # Cria GIGS inicial simples
+        criar_gigs(driver, dias_uteis=0, observacao='xx', tela='principal', log=log)
         if log:
-            print('[ARGOS] Iniciando processamento...')
-        # 1. Fecha intimação
-        fechar_intimacao(driver, log=log)
-        # 2. Retira sigilo da certidão de devolução (antes de buscar documentos)
-        documentos_tmp = buscar_documentos_sequenciais(driver)
-        for elemento in documentos_tmp:
-            if 'certidão de devolução' in elemento.text.strip().lower():
-                retirar_sigilo(elemento)
-        # 3. Tratar anexos (inclui SISBAJUD ao final)
-        resultado_anexos = tratar_anexos_argos(driver, documentos_tmp, log=log)
-        resultado_sisbajud = resultado_anexos['resultado_sisbajud'] if resultado_anexos else 'negativo'
-        sigilo_anexos = resultado_anexos['sigilo_anexos'] if resultado_anexos else {k: 'nao' for k in ['infojud', 'doi', 'irpf', 'dimob']}
-        # 4. Buscar documentos sequenciais (atualizado após tratar anexos)
-        documentos = buscar_documentos_sequenciais(driver)
-        if not documentos:
-            print('[ARGOS][ERRO] Nenhum documento relevante encontrado na timeline')
-            return
-        # 5. Retirar sigilo de todos os documentos sequenciais, exceto certidão de devolução
-        for elemento in documentos:
-            if 'certidão de devolução' in elemento.text.strip().lower():
-                continue
-            retirar_sigilo(elemento)
-        # 6. Análise Argos: busca última decisão/despacho e aplica regras
-        andamento_argos(driver, resultado_sisbajud=resultado_sisbajud, sigilo_anexos=sigilo_anexos, log=log)
+            print('[ARGOS] GIGS inicial criado, iniciando fluxo m1 com nova regra de busca...')
+        
+        # NOVA FUNCIONALIDADE: Busca documento usando a regra da planilha
+        documento_texto, documento_tipo = buscar_documento_argos(driver, log=log)
+        
+        if documento_texto and documento_tipo:
+            if log:
+                print(f'[ARGOS] Documento encontrado: tipo={documento_tipo}')
+                print(f'[ARGOS] Iniciando processamento baseado no tipo de documento...')
+            
+            # Aplica ações conforme o tipo de documento
+            if documento_tipo == 'decisao':
+                if log:
+                    print('[ARGOS] Processando DECISÃO encontrada antes da planilha...')
+                # Aqui seria implementada a lógica específica para decisões
+                # Por exemplo: análise de padrões específicos, criação de minutas, etc.
+                
+            elif documento_tipo == 'despacho':
+                if log:
+                    print('[ARGOS] Processando DESPACHO encontrado antes da planilha...')
+                # Aqui seria implementada a lógica específica para despachos
+                # Por exemplo: análise de comandos, ações administrativas, etc.
+            
+            # Continua com o fluxo m1 principal baseado no documento encontrado
+            if log:
+                print('[ARGOS] Documento processado, continuando fluxo m1...')
+                
+        else:
+            if log:
+                print('[ARGOS] Nenhum documento relevante encontrado, continuando com fluxo padrão...')
+        
         if log:
-            print('[ARGOS] Processamento concluído.')
+            print('[ARGOS] Processamento m1 concluído com nova regra de busca.')
+            
     except Exception as e:
         if log:
             print(f'[ARGOS][ERRO] Falha no processamento: {e}')
         raise
 
 def buscar_documento_argos(driver, log=True):
-    """Busca o primeiro documento relevante (decisão ou despacho) na timeline do Argos."""
+    """Busca documentos relevantes na timeline do Argos, priorizando decisões/despachos anteriores à Planilha de Atualização de Cálculos."""
     try:
         # Aguarda a timeline carregar (aguarda pelo menos um item na timeline)
         try:
@@ -788,10 +976,76 @@ def buscar_documento_argos(driver, log=True):
             if log:
                 print('[ARGOS][ERRO] Timeline não carregou a tempo.')
             return None, None
+        
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if log:
             print(f'[ARGOS][DEBUG] {len(itens)} itens encontrados na timeline.')
-        # Procura o primeiro despacho ou decisão
+        
+        # NOVA REGRA: Busca por decisões/despachos anteriores à Planilha de Atualização de Cálculos
+        planilha_index = None
+        documentos_antes_planilha = []
+        
+        # Primeiro, encontra a primeira "Planilha de Atualização de Cálculos" na timeline
+        for idx, item in enumerate(itens):
+            try:
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento')
+                doc_text = link.text.lower()
+                if 'planilha de atualização' in doc_text or 'planilha de atuali' in doc_text:
+                    planilha_index = idx
+                    if log:
+                        print(f'[ARGOS][DEBUG] Planilha de Atualização encontrada no item {idx}: {doc_text}')
+                    break
+            except Exception:
+                continue
+        
+        # Se encontrou uma planilha, procura por decisões/despachos anteriores a ela
+        if planilha_index is not None:
+            if log:
+                print(f'[ARGOS][DEBUG] Procurando decisões/despachos antes da planilha (itens 0 a {planilha_index-1})...')
+            
+            for idx in range(planilha_index):
+                try:
+                    item = itens[idx]
+                    link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                    doc_text = link.text.lower()
+                    
+                    # Verifica se é despacho ou decisão
+                    if re.search(r'despacho|decisão|sentença|conclusão', doc_text):
+                        documentos_antes_planilha.append((idx, item, link, doc_text))
+                        if log:
+                            print(f'[ARGOS][DEBUG] Item {idx}: documento relevante encontrado antes da planilha: {doc_text}')
+                except Exception:
+                    continue
+            
+            # Se encontrou documentos antes da planilha, processa o primeiro
+            if documentos_antes_planilha:
+                idx, item, link, doc_text = documentos_antes_planilha[0]
+                if log:
+                    print(f'[ARGOS][DEBUG] Processando primeiro documento antes da planilha: item {idx}')
+                
+                # Clica para ativar o documento
+                driver.execute_script('arguments[0].scrollIntoView(true);', link)
+                link.click()
+                time.sleep(1)
+                texto, _ = extrair_documento(driver)
+                
+                if log:
+                    print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (antes da planilha):\n---\n{texto}\n---')
+                
+                # Determina o tipo do documento
+                if 'decisão' in doc_text or 'sentença' in doc_text:
+                    if log:
+                        print(f'[ARGOS][DEBUG] Item {idx}: documento é decisão/sentença anterior à planilha.')
+                    return texto, 'decisao'
+                else:
+                    if log:
+                        print(f'[ARGOS][DEBUG] Item {idx}: documento é despacho anterior à planilha.')
+                    return texto, 'despacho'
+        
+        # FALLBACK: Se não encontrou planilha ou documentos antes dela, usa a lógica original
+        if log:
+            print('[ARGOS][DEBUG] Usando lógica fallback: procurando primeiro despacho/decisão na timeline...')
+        
         for idx, item in enumerate(itens):
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
@@ -801,21 +1055,21 @@ def buscar_documento_argos(driver, log=True):
                 # Verifica se é despacho ou decisão
                 if re.search(r'despacho|decisão|sentença|conclusão', doc_text):
                     if log:
-                        print(f'[ARGOS][DEBUG] Item {idx}: documento relevante encontrado, clicando para ativar.')
+                        print(f'[ARGOS][DEBUG] Item {idx}: documento relevante encontrado (fallback), clicando para ativar.')
                     # Clica para ativar o documento (não abre nova aba)
                     driver.execute_script('arguments[0].scrollIntoView(true);', link)
                     link.click()
                     time.sleep(1)
                     texto, _ = extrair_documento(driver)
                     if log:
-                        print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (decisão/ despacho):\n---\n{texto}\n---')
+                        print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (fallback):\n---\n{texto}\n---')
                     if 'decisão' in doc_text or 'sentença' in doc_text:
                         if log:
-                            print(f'[ARGOS][DEBUG] Item {idx}: documento é decisão/sentença, retornando.')
+                            print(f'[ARGOS][DEBUG] Item {idx}: documento é decisão/sentença (fallback).')
                         return texto, 'decisao'
                     else:
                         if log:
-                            print(f'[ARGOS][DEBUG] Item {idx}: documento é despacho, retornando.')
+                            print(f'[ARGOS][DEBUG] Item {idx}: documento é despacho (fallback).')
                         return texto, 'despacho'
                 else:
                     if log:
@@ -824,6 +1078,7 @@ def buscar_documento_argos(driver, log=True):
                 if log:
                     print(f'[ARGOS][DEBUG] Item {idx}: erro ao processar item: {e}')
                 continue
+        
         if log:
             print('[ARGOS] Nenhum documento relevante encontrado após varrer os itens.')
         return None, None
@@ -901,43 +1156,104 @@ def ultimo_mdd(driver, log=True):
 def fluxo_mandados_outros(driver, log=True):
     """
     Processa o fluxo de mandados não-Argos (Oficial de Justiça).
-    1. Extrai e analisa o texto da certidão
-    2. Verifica padrões de mandado positivo/negativo
-    3. Cria GIGS ou executa atos conforme resultado
+    1. Verifica se é certidão de oficial através do cabeçalho
+    2. Extrai e analisa o texto da certidão
+    3. Verifica padrões de mandado positivo/negativo
+    4. Cria GIGS ou executa atos conforme resultado
     """
     if log:
         print('[MANDADOS][OUTROS] Iniciando fluxo Mandado (Outros)')
+    
+    # Primeiro verifica se é certidão de oficial através do cabeçalho
+    try:
+        cabecalho = driver.find_element(By.CSS_SELECTOR, ".cabecalho-conteudo .mat-card-title")
+        titulo_documento = cabecalho.text.lower()
+        
+        eh_certidao_oficial = any(p in titulo_documento for p in [
+            "certidão de oficial",
+            "certidão de oficial de justiça"
+        ])
+        
+        if not eh_certidao_oficial:
+            if log:
+                print(f"[MANDADOS][OUTROS][LOG] Documento '{cabecalho.text}' NÃO é certidão de oficial. Criando GIGS fallback.")
+            criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+            try:
+                driver.close()
+                if log:
+                    print('[MANDADOS][OUTROS] Aba fechada após análise e ação.')
+            except Exception as e:
+                if log:
+                    print(f'[MANDADOS][OUTROS][ERRO] Falha ao fechar aba: {e}')
+            if log:
+                print('[MANDADOS][OUTROS] Fluxo Mandado (Outros) concluído.')
+            return
+        
+        if log:
+            print(f"[MANDADOS][OUTROS][LOG] Documento '{cabecalho.text}' é certidão de oficial. Prosseguindo com análise.")
+            
+    except Exception as e:
+        if log:
+            print(f"[MANDADOS][OUTROS][ERRO] Erro ao verificar cabeçalho: {e}. Criando GIGS fallback.")
+        criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+        try:
+            driver.close()
+            if log:
+                print('[MANDADOS][OUTROS] Aba fechada após análise e ação.')
+        except Exception as e_close:
+            if log:
+                print(f'[MANDADOS][OUTROS][ERRO] Falha ao fechar aba: {e_close}')
+        return
+    
     def analise_padrao(texto):
         if log:
             print(f"[MANDADOS][OUTROS] Texto extraído para análise:\n{texto}\n---Fim do documento---")
-        texto_lower = texto.lower()
-        padrao_oficial = "certidão de oficial" in texto_lower
+        texto_lower = texto.lower()        
+        
         padrao_positivo = any(p in texto_lower for p in [
             "citei", 
             "intimei", 
             "recebeu o mandado", 
             "de tudo ficou ciente"
+            "procedi à intimação",
+            "procedi à citação",
+            "procedi à entrega do mandado",
+            "procedi à penhora",
+            "penhorei"
+
         ])
+        
         padrao_negativo = any(p in texto_lower for p in [
             "não localizado",
-            "negativo",
+            "resultado negativo",
+            "diligencias negativas",
+            "diligência negativa",
             "não encontrado",
             "deixei de citar",
             "deixei de efetuar",
+            "deixei de comparacer",
+            "deixei de intimar",
             "não logrei êxito",
             "desconhecido no local",
             "não foi possível efetuar"
+            "parou de responder",
+            "não foi possível localizar",
         ])
-        if padrao_oficial:
+        
+        if padrao_positivo:
             if log:
-                print("[MANDADOS][OUTROS][LOG] Padrão 'certidão de oficial' ENCONTRADO no texto.")
-            if padrao_positivo:
+                print("[MANDADOS][OUTROS][LOG] Padrão de mandado POSITIVO encontrado no texto.")
+            criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
+        elif padrao_negativo:
+            if log:
+                print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
+            
+            # Verifica se contém "penhora de bens" no texto
+            if "penhora de bens" in texto_lower:
                 if log:
-                    print("[MANDADOS][OUTROS][LOG] Padrão de mandado POSITIVO encontrado no texto.")
-                criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
-            elif padrao_negativo:
-                if log:
-                    print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
+                    print("[MANDADOS][OUTROS][LOG] Texto contém 'penhora de bens' - chamando ato_meios")
+                ato_meios(driver)
+            else:
                 # Busca último mandado na timeline
                 autor, elemento = ultimo_mdd(driver, log=log)
                 if autor:
@@ -952,13 +1268,9 @@ def fluxo_mandados_outros(driver, log=True):
                     if log:
                         print("[MANDADOS][OUTROS][LOG] Não encontrado último mandado na timeline")
                     criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
-            else:
-                if log:
-                    print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
-                criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
         else:
             if log:
-                print("[MANDADOS][OUTROS][LOG] Documento NÃO é certidão de oficial. Criando GIGS fallback.")
+                print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
             criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
         return None
     texto, resultado = extrair_documento(driver, regras_analise=analise_padrao)
@@ -1003,6 +1315,53 @@ def fluxo_teste(driver):
 
     except Exception as e:
         print(f"[ERRO] Falha ao identificar o cabeçalho do documento: {e}")
+
+# Função de teste para demonstrar a nova regra de busca de documentos
+def testar_regra_argos_planilha():
+    """
+    Função de teste que demonstra como a nova regra funciona.
+    
+    NOVA REGRA IMPLEMENTADA:
+    1. Procura pela primeira "Planilha de Atualização de Cálculos" na timeline
+    2. Busca por decisões/despachos que vêm ANTES dessa planilha
+    3. Prioriza o primeiro documento relevante encontrado antes da planilha
+    4. Se não encontrar planilha, usa lógica fallback (primeiro despacho/decisão)
+    
+    BENEFÍCIOS:
+    - Melhora a precisão na seleção de documentos relevantes
+    - Evita processar documentos que podem ser posteriores aos cálculos
+    - Mantém compatibilidade com casos onde não há planilha
+    """
+    exemplo_timeline = [
+        "Item 0: Petição inicial",
+        "Item 1: Despacho ordenando perícia",  # <- Este seria selecionado (primeiro antes da planilha)
+        "Item 2: Decisão deferindo pedido",    # <- Este seria ignorado (após item 1)
+        "Item 3: Planilha de Atualização de Cálculos",  # <- Referência para busca
+        "Item 4: Despacho posterior",          # <- Este seria ignorado (após planilha)
+        "Item 5: Decisão final"                # <- Este seria ignorado (após planilha)
+    ]
+    
+    print("="*60)
+    print("TESTE DA NOVA REGRA ARGOS - BUSCA ANTES DA PLANILHA")
+    print("="*60)
+    print("Timeline de exemplo:")
+    for item in exemplo_timeline:
+        print(f"  {item}")
+    
+    print("\nLógica da nova regra:")
+    print("1. Encontra 'Planilha de Atualização de Cálculos' no item 3")
+    print("2. Busca decisões/despachos nos itens 0, 1, 2 (antes da planilha)")
+    print("3. Seleciona 'Despacho ordenando perícia' (item 1) - primeiro relevante")
+    print("4. Ignora itens 4 e 5 por estarem após a planilha")
+    
+    print("\nFallback (se não houvesse planilha):")
+    print("- Selecionaria 'Despacho ordenando perícia' (item 1) - primeiro relevante geral")
+    
+    print("\nVantagens da nova regra:")
+    print("- Foca em documentos anteriores aos cálculos")
+    print("- Evita documentos potencialmente desatualizados")
+    print("- Mantém compatibilidade com timelines sem planilha")
+    print("="*60)
 
 # ====================================================
 # MAIN

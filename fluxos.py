@@ -442,74 +442,74 @@ def processar_fila_vinculos(driver):
             fila_execucao.task_done()
 
     print('[VINCULO][FILA] Thread processar_fila_vinculos finalizada.')
-            # Portanto, vinculos_da_fila_str DEVE ser UM ÚNICO comando "tipo|botao" ou "botao".
+    # Portanto, vinculos_da_fila_str DEVE ser UM ÚNICO comando "tipo|botao" ou "botao".
 
-            proximo_item_para_executar = vinculos_da_fila_str # Deveria ser um único item aqui.
+    proximo_item_para_executar = vinculos_da_fila_str # Deveria ser um único item aqui.
 
-            partes = proximo_item_para_executar.split('|', 1)
-            tipo_vinculo_item = None
-            nm_botao_vinculo_item = ''
+    partes = proximo_item_para_executar.split('|', 1)
+    tipo_vinculo_item = None
+    nm_botao_vinculo_item = ''
 
-            if len(partes) == 2:
-                tipo_vinculo_item = partes[0].lower().strip()
-                nm_botao_vinculo_item = partes[1].strip()
-            else:
-                nm_botao_vinculo_item = partes[0].strip()
-            
-            print(f"[VINCULO][FILA] Próximo item para executar: Tipo='{tipo_vinculo_item}', Botão='{nm_botao_vinculo_item}'")
+    if len(partes) == 2:
+        tipo_vinculo_item = partes[0].lower().strip()
+        nm_botao_vinculo_item = partes[1].strip()
+    else:
+        nm_botao_vinculo_item = partes[0].strip()
+    
+    print(f"[VINCULO][FILA] Próximo item para executar: Tipo='{tipo_vinculo_item}', Botão='{nm_botao_vinculo_item}'")
 
-            config_para_proxima_acao = None
-            secao_identificada = None
+    config_para_proxima_acao = None
+    secao_identificada = None
 
-            # Busca a configuração completa do botão no JSON `botoes`
-            for secao_json, lista_botoes_json in botoes.items():
-                for botao_cfg_original_json in lista_botoes_json:
-                    if botao_cfg_original_json.get('nm_botao') == nm_botao_vinculo_item:
-                        # Verificação opcional de tipo para desambiguação
-                        # Se tipo_vinculo_item existe E (tipo no JSON é diferente E seção não corresponde ao tipo_vinculo_item)
-                        # pode ser um problema. Mas priorizamos o nome do botão.
-                        if tipo_vinculo_item and \
-                           botao_cfg_original_json.get('tipo','').lower() != tipo_vinculo_item and \
-                           not secao_json.lower().replace('aa','').startswith(tipo_vinculo_item):
-                            print(f"[VINCULO][FILA][AVISO] Tipo do vínculo ('{tipo_vinculo_item}') diverge do tipo no JSON ('{botao_cfg_original_json.get('tipo')}') para o botão '{nm_botao_vinculo_item}'. Usando config do JSON.")
-                        
-                        config_para_proxima_acao = copy.deepcopy(botao_cfg_original_json)
-                        secao_identificada = secao_json
-                        break
-                if config_para_proxima_acao: break
-            
-            if config_para_proxima_acao:
-                # Garante que a seção está no config para executar_acao_por_tipo
-                config_para_proxima_acao['secao'] = secao_identificada 
-                # Se o tipo veio do vinculo (ex: "despacho|Meu Botao"), pode ser útil tê-lo.
-                if tipo_vinculo_item: config_para_proxima_acao['tipo_vinculo_origem'] = tipo_vinculo_item
+    # Busca a configuração completa do botão no JSON `botoes`
+    for secao_json, lista_botoes_json in botoes.items():
+        for botao_cfg_original_json in lista_botoes_json:
+            if botao_cfg_original_json.get('nm_botao') == nm_botao_vinculo_item:
+                # Verificação opcional de tipo para desambiguação
+                # Se tipo_vinculo_item existe E (tipo no JSON é diferente E seção não corresponde ao tipo_vinculo_item)
+                # pode ser um problema. Mas priorizamos o nome do botão.
+                if tipo_vinculo_item and \
+                   botao_cfg_original_json.get('tipo','').lower() != tipo_vinculo_item and \
+                   not secao_json.lower().replace('aa','').startswith(tipo_vinculo_item):
+                    print(f"[VINCULO][FILA][AVISO] Tipo do vínculo ('{tipo_vinculo_item}') diverge do tipo no JSON ('{botao_cfg_original_json.get('tipo')}') para o botão '{nm_botao_vinculo_item}'. Usando config do JSON.")
                 
-                print(f"[VINCULO][FILA] Config para executar_autogigs (item da fila): {config_para_proxima_acao}")
-                # Chama executar_autogigs para a ação vinculada.
-                # O `vinculo` dentro de `config_para_proxima_acao` (se existir) será o próximo da cadeia.
-                executar_autogigs(driver, config_para_proxima_acao)
-            else:
-                print(f"[VINCULO][FILA][ERRO] Botão '{nm_botao_vinculo_item}' (tipo do vinculo: {tipo_vinculo_item}) não encontrado no JSON de botões. Cadeia interrompida.")
-                monitor_fim('Nenhum') # Sinaliza que esta tentativa de vínculo falhou e interrompe.
-            
-            fila_execucao.task_done()
-            
-        except queue.Empty:
-            # Timeout é esperado, permite que o loop verifique _parar_processador_vinculos_event
-            if _parar_processador_vinculos_event.is_set():
-                print("[VINCULO][FILA] Evento de parada recebido, finalizando thread processar_fila_vinculos.")
-                break # Sai do loop while
-            continue # Volta para o início do while
-        except Exception as e:
-            print(f'[VINCULO][FILA][ERRO GRAVE] Falha no processamento da fila: {e}')
-            import traceback
-            traceback.print_exc()
-            if not fila_execucao.empty(): # Evitar erro se a fila estiver vazia e get falhou
-                 try:
-                    fila_execucao.task_done() # Tenta marcar como feito para não bloquear join() indefinidamente
-                 except ValueError: # Se task_done() for chamado mais vezes que put()
-                    pass 
-            monitor_fim('Nenhum') # Tenta limpar o estado em caso de erro grave na thread.
+                config_para_proxima_acao = copy.deepcopy(botao_cfg_original_json)
+                secao_identificada = secao_json
+                break
+        if config_para_proxima_acao: break
+    
+    if config_para_proxima_acao:
+        # Garante que a seção está no config para executar_acao_por_tipo
+        config_para_proxima_acao['secao'] = secao_identificada 
+        # Se o tipo veio do vinculo (ex: "despacho|Meu Botao"), pode ser útil tê-lo.
+        if tipo_vinculo_item: config_para_proxima_acao['tipo_vinculo_origem'] = tipo_vinculo_item
+        
+        print(f"[VINCULO][FILA] Config para executar_autogigs (item da fila): {config_para_proxima_acao}")
+        # Chama executar_autogigs para a ação vinculada.
+        # O `vinculo` dentro de `config_para_proxima_acao` (se existir) será o próximo da cadeia.
+        executar_autogigs(driver, config_para_proxima_acao)
+    else:
+        print(f"[VINCULO][FILA][ERRO] Botão '{nm_botao_vinculo_item}' (tipo do vinculo: {tipo_vinculo_item}) não encontrado no JSON de botões. Cadeia interrompida.")
+        monitor_fim('Nenhum') # Sinaliza que esta tentativa de vínculo falhou e interrompe.
+    
+    fila_execucao.task_done()
+    
+except queue.Empty:
+    # Timeout é esperado, permite que o loop verifique _parar_processador_vinculos_event
+    if _parar_processador_vinculos_event.is_set():
+        print("[VINCULO][FILA] Evento de parada recebido, finalizando thread processar_fila_vinculos.")
+        break # Sai do loop while
+    continue # Volta para o início do while
+except Exception as e:
+    print(f'[VINCULO][FILA][ERRO GRAVE] Falha no processamento da fila: {e}')
+    import traceback
+    traceback.print_exc()
+    if not fila_execucao.empty(): # Evitar erro se a fila estiver vazia e get falhou
+         try:
+            fila_execucao.task_done() # Tenta marcar como feito para não bloquear join() indefinidamente
+         except ValueError: # Se task_done() for chamado mais vezes que put()
+            pass 
+    monitor_fim('Nenhum') # Tenta limpar o estado em caso de erro grave na thread.
 
 _processador_vinculos_thread = None
 _parar_processador_vinculos_event = threading.Event()
@@ -1281,7 +1281,6 @@ def _remover_chips(driver, chips_para_remover):
                     print(f"[AUTOGIGS][CHIP] Chip removido: {chip}")
                 except:
                     pass
-                    
             except Exception as e:
                 print(f"[AUTOGIGS][CHIP][AVISO] Chip não encontrado para remoção: {chip}")
         
@@ -1771,7 +1770,6 @@ def _adicionar_atividade_gigs(driver, config, gigs_fechado):
                     btn_fechar.click()
                 except:
                     pass
-                    
             except:
                 print("[AUTOGIGS][GIGS][AVISO] Confirmação de salvamento não detectada")
             
@@ -2137,3 +2135,8 @@ def acao_bt_aaVariados_selenium(driver, config):
     except Exception as e:
         print(f'[VARIADOS][ERRO] {e}')
         return False
+
+def acionar_botao_exec1():
+    # Lógica para acionar o botão Exec1 do grupo aaAutogigs
+    # Exemplo: chamar função de fluxo, automação, etc.
+    print("Botão Exec1 (aaAutogigs) acionado.")

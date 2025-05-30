@@ -23,10 +23,9 @@ CONFIG = {
     'agencia_preferida': '5905',
     'teimosinha': '60',
     'nome_default': '',
-    'documento_default': '',
-    'valor_default': '',
+    'documento_default': '',    'valor_default': '',
     'juiz_default': 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA',
-    'vara_default': '30006 - 3ª VARA DO TRABALHO DA ZONA SUL DE SÃO PAULO',
+    'vara_default': '3006',
 }
 
 processo_dados_extraidos = None
@@ -222,13 +221,10 @@ def injetar_menu_kaizen_sisbajud(driver):
             menu.appendChild(title);
             
             const botoes = [
-                ['Nova Minuta', 'kaizen_nova_minuta', '#1976d2'],
-                ['Minuta Endereço', 'kaizen_nova_minuta_end', '#009688'],
-                ['Teimosinha', 'kaizen_consultar_teimosinha', '#e65100'],
-                ['Minuta', 'kaizen_consultar_minuta', '#6d4c41'],
-                ['Rápida', 'kaizen_consulta_rapida', '#512da8'],
-                ['Polo Ativo', 'kaizen_preencher_campos_invertido', '#388e3c'],
-                ['Polo Passivo', 'kaizen_preencher_campos', '#c62828'],
+                ['Passivo (Bloqueio)', 'kaizen_minuta_bloqueio_passivo', '#c62828'],
+                ['Passivo (Endereço)', 'kaizen_minuta_endereco_passivo', '#009688'],
+                ['Autor (Bloqueio)', 'kaizen_minuta_bloqueio_ativo', '#388e3c'],
+                ['Consultar Teimosinha', 'kaizen_consultar_teimosinha', '#e65100']
             ];
             
             for (let [texto, evento, cor] of botoes) {
@@ -289,13 +285,10 @@ def injetar_menu_kaizen_sisbajud(driver):
         if (!window.kaizen_event_flag) {
             window.kaizen_event_flag = '';
             const kaizen_events = [
-                'kaizen_nova_minuta',
-                'kaizen_nova_minuta_end',
-                'kaizen_consultar_teimosinha',
-                'kaizen_consultar_minuta',
-                'kaizen_consulta_rapida',
-                'kaizen_preencher_campos_invertido',
-                'kaizen_preencher_campos',
+                'kaizen_minuta_bloqueio_passivo',
+                'kaizen_minuta_endereco_passivo',
+                'kaizen_minuta_bloqueio_ativo',
+                'kaizen_consultar_teimosinha'
             ];
             for (let evt of kaizen_events) {
                 window.addEventListener(evt, function(){ 
@@ -409,15 +402,17 @@ def kaizen_preencher_campos(driver, invertido=False):
     
     try:
         # Verificar se estamos na página correta (cadastrar minuta)
-        if '/minuta/cadastrar' not in driver.current_url:
-            print('[KAIZEN][ERRO] Não está na página de cadastro de minuta.')
-            return
-            
-        # Ação 1: JUIZ SOLICITANTE
+        # Ajuste para URLs mais genéricas de nova minuta
+        current_url = driver.current_url
+        if not ('/minuta/cadastrar' in current_url or '/minuta/nova' in current_url or '/minuta/criar' in current_url):
+            print(f'[KAIZEN][AVISO] Não parece estar na página de cadastro de minuta (URL: {current_url}). Tentando prosseguir...')
+            # Não retorna mais, tenta preencher mesmo assim. A verificação de elementos abaixo será mais crucial.
+
+        # Ação 1: JUIZ SOLICITANTE (revertendo para a função que usa CONFIG)
         _preencher_juiz_solicitante(driver)
         time.sleep(0.5)
         
-        # Ação 2: VARA/JUÍZO  
+        # Ação 2: VARA/JUÍZO (revertendo para a função que usa CONFIG e lida com CONFIG)
         _preencher_vara_juizo(driver)
         time.sleep(0.5)
         
@@ -450,56 +445,186 @@ def kaizen_preencher_campos(driver, invertido=False):
         print(f'[KAIZEN][ERRO] Falha no preenchimento de campos SISBAJUD: {e}')
 
 def _preencher_juiz_solicitante(driver):
-    """Ação 1: Preencher Juiz Solicitante"""
+    """Ação 1: Preencher Juiz Solicitante baseado no padrão gigs-plugin.js"""
     print('[KAIZEN] Ação 1: JUIZ SOLICITANTE')
+    global processo_dados_extraidos
     try:
-        juiz = CONFIG.get('juiz_default', 'SILAS SILVA SANTOS')
-        if juiz:
-            escolher_opcao_sisbajud_avancado(driver, 'input[placeholder*="Juiz"]', juiz)
+        # Usar magistrado dos dados extraídos ou CONFIG como fallback
+        magistrado = ''
+        if processo_dados_extraidos:
+            magistrado = processo_dados_extraidos.get('magistrado', '')
+        
+        if not magistrado:
+            magistrado = CONFIG.get('juiz_default', 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA')
+            
+        script = f"""
+const selectors = [
+    'input[placeholder*="Juiz"]',
+    'input[placeholder*="Magistrado"]', 
+    'input[formcontrolname="juizSolicitante"]',
+    'input[name*="juiz"]',
+    'input[aria-label*="Juiz"]',
+    'input[id*="juiz"]'
+];
+let el = null;
+let successfulSelector = '';
+
+for (let selector of selectors) {{
+    try {{
+        el = document.querySelector(selector);
+        if (el && el.offsetParent !== null && !el.disabled && !el.readOnly) {{
+            successfulSelector = selector;
+            break;
+        }}
+        el = null;
+    }} catch (e) {{
+        console.warn('[KAIZEN] Error with selector: ' + selector, e);
+        el = null;
+    }}
+}}
+
+if (el) {{
+    el.focus();
+    el.value = '{magistrado}';
+    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+    el.blur();
+    console.log('[KAIZEN] Magistrado preenchido com: {magistrado} usando seletor: ' + successfulSelector);
+}} else {{
+    console.error('[KAIZEN] Campo "Juiz Solicitante" não encontrado ou não interativo.');
+}}
+"""
+        driver.execute_script(script)
     except Exception as e:
-        print(f'[KAIZEN][ERRO] Falha ao preencher juiz: {e}')
+        print(f'[KAIZEN][ERRO] Falha ao preencher juiz solicitante: {e}')
 
 def _preencher_vara_juizo(driver):
-    """Ação 2: Preencher Vara/Juízo"""
+    """Ação 2: Preencher Vara/Juízo baseado no padrão gigs-plugin.js"""
     print('[KAIZEN] Ação 2: VARA/JUÍZO')
+    global processo_dados_extraidos
     try:
-        vara = CONFIG.get('vara_default', '2ª VARA DO TRABALHO DE SANTOS')
-        if vara:
-            driver.execute_script("""
-                let el = document.querySelector('mat-select[name*="varaJuizoSelect"]');
-                if (el) {
-                    el.focus();
-                    el.click();
-                }
-            """)
-            time.sleep(1)
-            driver.execute_script(f"""
-                let options = document.querySelectorAll('mat-option[role="option"]');
-                for (let opt of options) {{
-                    if (opt.innerText.includes('{vara}')) {{
-                        opt.click();
-                        break;
-                    }}
+        # Usar juízo dos dados extraídos ou CONFIG como fallback
+        juizo = ''
+        if processo_dados_extraidos:
+            juizo = processo_dados_extraidos.get('juizo', '')
+        
+        if not juizo:
+            juizo = CONFIG.get('vara_default', '3006')
+            
+        script = f"""
+const selectors = [
+    'mat-select[name*="varaJuizoSelect"]',
+    'mat-select[formcontrolname="vara"]',
+    'mat-select[formcontrolname="juizo"]',
+    'select[name*="vara"]',
+    'select[name*="juizo"]',
+    'input[placeholder*="Vara"]',
+    'input[placeholder*="Juízo"]'
+];
+let el = null;
+let successfulSelector = '';
+
+for (let selector of selectors) {{
+    try {{
+        el = document.querySelector(selector);
+        if (el && el.offsetParent !== null && !el.disabled && !el.readOnly) {{
+            successfulSelector = selector;
+            break;
+        }}
+        el = null;
+    }} catch (e) {{
+        console.warn('[KAIZEN] Error with selector: ' + selector, e);
+        el = null;
+    }}
+}}
+
+if (el) {{
+    if (el.tagName.toLowerCase() === 'mat-select' || el.tagName.toLowerCase() === 'select') {{
+        // Para selects, tentar abrir e buscar opção
+        el.focus();
+        el.click();
+        
+        setTimeout(() => {{
+            let options = document.querySelectorAll('mat-option[role="option"], option');
+            for (let opt of options) {{
+                if (opt.innerText.includes('{juizo}') || opt.value === '{juizo}') {{
+                    opt.click();
+                    console.log('[KAIZEN] Vara/Juízo selecionado: {juizo} usando seletor: ' + successfulSelector);
+                    return;
                 }}
-            """)
+            }}
+            console.warn('[KAIZEN] Opção {juizo} não encontrada no select');
+        }}, 500);
+    }} else {{
+        // Para inputs de texto
+        el.focus();
+        el.value = '{juizo}';
+        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+        el.blur();
+        console.log('[KAIZEN] Vara/Juízo preenchido: {juizo} usando seletor: ' + successfulSelector);
+    }}
+}} else {{
+    console.error('[KAIZEN] Campo "Vara/Juízo" não encontrado ou não interativo.');
+}}
+"""
+        driver.execute_script(script)
     except Exception as e:
-        print(f'[KAIZEN][ERRO] Falha ao preencher vara: {e}')
+        print(f'[KAIZEN][ERRO] Falha ao preencher vara/juízo: {e}')
 
 def _preencher_numero_processo(driver):
-    """Ação 3: Preencher Número do Processo"""
+    """Ação 3: Preencher Número do Processo baseado no padrão gigs-plugin.js"""
     print('[KAIZEN] Ação 3: NÚMERO DO PROCESSO')
+    global processo_dados_extraidos
     try:
-        numero = processo_dados_extraidos.get('numero', '')
+        numero = processo_dados_extraidos.get('numero', '') if processo_dados_extraidos else ''
         if numero:
-            driver.execute_script(f"""
-                let el = document.querySelector('input[placeholder="Número do Processo"]');
-                if (el) {{
-                    el.focus();
-                    el.value = '{numero}';
-                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    el.blur();
-                }}
-            """)
+            # Limpar formatação mantendo apenas dígitos
+            numero_limpo = ''.join(filter(str.isdigit, numero))
+            script = f"""
+const selectors = [
+    'input[formcontrolname="numeroProcesso"]', 
+    'input[placeholder="Número do Processo"]',
+    'input[placeholder*="Número"]',
+    'input[placeholder*="Processo"]',
+    'input[name*="numeroProcesso"]',
+    'input[id*="numeroProcesso"]',
+    'input[aria-label*="Número do processo"]',
+    'input[id^="mat-input-"][placeholder*="Processo"]'
+];
+let el = null;
+let successfulSelector = '';
+
+for (let selector of selectors) {{
+    try {{
+        el = document.querySelector(selector);
+        if (el && el.offsetParent !== null && !el.disabled && !el.readOnly) {{
+            successfulSelector = selector;
+            break;
+        }}
+        el = null;
+    }} catch (e) {{
+        console.warn('[KAIZEN] Error with selector: ' + selector, e);
+        el = null;
+    }}
+}}
+
+if (el) {{
+    el.focus();
+    el.value = '';
+    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    el.value = '{numero_limpo}';
+    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+    el.blur();
+    console.log('[KAIZEN] Número do processo preenchido com: {numero_limpo} usando seletor: ' + successfulSelector);
+}} else {{
+    console.error('[KAIZEN] Campo "Número do Processo" não encontrado ou não interativo.');
+}}
+"""
+            driver.execute_script(script)
+        else:
+            print('[KAIZEN][INFO] Número do processo não disponível em processo_dados_extraidos.')
     except Exception as e:
         print(f'[KAIZEN][ERRO] Falha ao preencher número do processo: {e}')
 
@@ -571,18 +696,9 @@ def _preencher_nome_autor(driver, invertido):
             nome = partes.get('ativas', [{}])[0].get('nome', '')
             
         if nome:
-            nome_escape = nome.replace("'", "\\'").replace('"', '\\"')
-            driver.execute_script(f"""
-                let el = document.querySelector('input[placeholder="Nome do autor/exequente da ação"]');
-                if (el) {{
-                    el.focus();
-                    setTimeout(function() {{
-                        el.value = '{nome_escape}';
-                        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                        el.blur();
-                    }}, 250);
-                }}
-            """)
+            # Preencher o campo nome do autor (similar ao CPF, mas com nome)
+            # Adaptar o seletor se necessário
+            escolher_opcao_sisbajud_avancado(driver, 'input[placeholder*="Nome do Autor"]', nome) # Exemplo de seletor
     except Exception as e:
         print(f'[KAIZEN][ERRO] Falha ao preencher nome do autor: {e}')
 
@@ -915,8 +1031,7 @@ def kaizen_nova_minuta(driver, endereco=False):
                 }
                 
                 verificarElementos();
-            });
-        """)
+            });        """)
         
         if elementos_encontrados:
             print('[KAIZEN] ✅ Elementos do formulário carregados!')
@@ -925,10 +1040,8 @@ def kaizen_nova_minuta(driver, endereco=False):
             
         time.sleep(1)
         
-        # Agora executar o preenchimento automático dos campos
-        kaizen_preencher_campos(driver, invertido=endereco)
-        
-        print('[KAIZEN] Nova minuta criada e campos preenchidos automaticamente.')
+        print('[KAIZEN] ✅ Nova minuta criada com sucesso!')
+        print('[KAIZEN] 💡 Para preencher os campos, clique em "Polo Ativo" ou "Polo Passivo" conforme necessário.')
         
     except Exception as e:
         print(f'[KAIZEN][ERRO] Falha ao criar nova minuta: {e}')
@@ -997,61 +1110,157 @@ def kaizen_consultar_minuta(driver):
 
 def kaizen_consultar_teimosinha(driver):
     """
-    Implementação fiel à função consultarTeimosinhaSisbajud do gigs-plugin.js
-    Reproduz a navegação: Ocultar barra lateral -> Menu -> Teimosinha -> Consultar
+    Preenche o número do processo na tela de consulta de teimosinha do SISBAJUD
+    e clica em "Consultar", carregando os dados de 'dadosatuais.json'.
     """
-    print('[KAIZEN] Consultar Teimosinha SISBAJUD')
-    try:
-        # Passo 1: Ocultar barra lateral (como no JavaScript original)
-        driver.execute_script("""
-            let barraLateral = document.querySelector('mat-sidenav-container mat-sidenav');
-            if (barraLateral) {
-                barraLateral.style.marginLeft = '-1000px';
-            }
-        """)
-        
-        # Passo 2: Clicar no menu de navegação
-        driver.execute_script("""
-            let btn = document.querySelector('button[aria-label*="menu de navegação"]');
-            if (btn) btn.click();
-        """)
-        time.sleep(0.8)
-        
-        # Passo 3: Ir para Teimosinha
-        driver.execute_script("""
-            let link = document.querySelector('a[aria-label*="Ir para Teimosinha"]');
-            if (link) link.click();
-        """)
-        time.sleep(1.5)
-        
-        # Passo 4: Preencher número do processo e consultar
-        numero = processo_dados_extraidos.get('numero', '') if processo_dados_extraidos else ''
-        if numero:
-            numero_escape = numero.replace("'", "\\'").replace('"', '\\"')
-            driver.execute_script(f"""
-                let input = document.querySelector('input[placeholder="Número do Processo"]');
-                if (input) {{
-                    input.value = '{numero_escape}';
-                    input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    print('[KAIZEN] Iniciando Consulta de Teimosinha...')
+    
+    project_path = os.path.dirname(os.path.abspath(__file__))
+    dados_path = os.path.join(project_path, 'dadosatuais.json')
+    
+    processo_local_data = None
+    if os.path.exists(dados_path):
+        try:
+            with open(dados_path, 'r', encoding='utf-8') as f:
+                processo_local_data = json.load(f)
+            print(f'[KAIZEN] Dados carregados de {dados_path}: {processo_local_data}')
+        except json.JSONDecodeError as e:
+            print(f'[KAIZEN][ERRO] Falha ao decodificar JSON de {dados_path}: {e}')
+            return
+        except Exception as e:
+            print(f'[KAIZEN][ERRO] Falha ao ler {dados_path}: {e}')
+            return
+    else:
+        print(f'[KAIZEN][ERRO] Arquivo {dados_path} não encontrado.')
+        return
+
+    if not processo_local_data or not isinstance(processo_local_data, dict):
+        print('[KAIZEN][ERRO] Conteúdo de dadosatuais.json inválido ou não é um dicionário.')
+        return
+
+    numero_processo = processo_local_data.get("numero")
+    if not numero_processo:
+        print('[KAIZEN][ERRO] "numero" do processo não encontrado em dadosatuais.json.')
+        return
+    
+    print(f'[KAIZEN] Consultando Teimosinha para o processo: {numero_processo}')
+
+    # Escape single quotes in numero_processo for JavaScript
+    numero_processo_js = numero_processo.replace("'", "\\\\'")
+
+    js_script = f"""
+        const numeroProcesso = '{numero_processo_js}';
+        let campoProcessoEncontrado = false;
+        let botaoConsultarEncontrado = false;
+        let mensagemRetorno = '';
+
+        console.log('[KAIZEN JS] Iniciando script para consulta teimosinha. Processo:', numeroProcesso);
+
+        // Tentar preencher o campo do número do processo
+        const selectorsProcesso = [
+            'input[formcontrolname="numeroProcesso"]', // Angular
+            'input[data-placeholder="Número do processo"]', // Material com data-placeholder
+            'input[placeholder="Número do Processo"]', // Placeholder genérico
+            'input[placeholder="Nº do processo"]', // Variação placeholder
+            'input[aria-label="Número do processo"]',
+            'input[id*="numeroProcesso"]', 
+            'input[name*="numeroProcesso"]',
+            'input[id^="mat-input-"][placeholder*="Processo"]' // Angular Material common pattern
+        ];
+
+        for (const selector of selectorsProcesso) {{
+            const field = document.querySelector(selector);
+            if (field && field.offsetParent !== null && !field.disabled && !field.readOnly) {{
+                try {{
+                    field.value = ''; // Limpar campo primeiro
+                    field.dispatchEvent(new Event('input', {{ bubbles: true }})); 
+                    field.value = numeroProcesso;
+                    field.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    field.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    field.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+                    console.log('[KAIZEN JS] Campo "Número do Processo" preenchido com:', numeroProcesso, 'usando seletor:', selector);
+                    campoProcessoEncontrado = true;
+                    break;
+                }} catch (e) {{
+                    console.error('[KAIZEN JS] Erro ao tentar preencher campo com seletor', selector, e);
                 }}
-            """)
-            time.sleep(0.5)
+            }}
+        }}
+
+        if (!campoProcessoEncontrado) {{
+            mensagemRetorno = 'Campo "Número do Processo" não encontrado ou não interagível.';
+            console.error('[KAIZEN JS]', mensagemRetorno);
+            return {{success: false, message: mensagemRetorno}};
+        }}
+
+        // Aguardar um instante para que o preenchimento seja processado
+        // e o botão Consultar possa ser habilitado/estado da UI atualizado.
+        // Usar uma Promise para garantir que o Selenium espere.
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Tentar clicar no botão "Consultar"
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        let consultarButton = null;
+
+        for (const btn of allButtons) {{
+            if (btn.disabled || btn.offsetParent === null) continue; 
+
+            const buttonText = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
+            let spanText = '';
+            const spanElement = btn.querySelector('span.mat-button-wrapper') || btn.querySelector('span');
+            if (spanElement) {{
+                spanText = (spanElement.innerText || spanElement.textContent || '').trim().toLowerCase();
+            }}
             
-            driver.execute_script("""
-                let buttons = document.querySelectorAll('button');
-                for (let btn of buttons) {
-                    if (btn.innerText === 'Consultar') {
-                        btn.click();
-                        break;
-                    }
-                }
-            """)
-            print('[KAIZEN] Consulta de teimosinha disparada.')
+            if (buttonText === 'consultar' || 
+                ariaLabel.includes('consultar') || 
+                spanText === 'consultar' ||
+                (btn.matches('button[type="submit"]') && (buttonText.includes('consultar') || spanText.includes('consultar'))) ||
+                (btn.querySelector('mat-icon') && (btn.querySelector('mat-icon').textContent || '').trim() === 'search')
+               ) {{
+                consultarButton = btn;
+                console.log('[KAIZEN JS] Botão "Consultar" encontrado:', btn, 'Texto:', buttonText, 'Span:', spanText, 'Aria:', ariaLabel);
+                break;
+            }}
+        }}
+        
+        if (consultarButton) {{
+            try {{
+                consultarButton.click();
+                botaoConsultarEncontrado = true;
+                mensagemRetorno = 'Botão "Consultar" clicado com sucesso.';
+                console.log('[KAIZEN JS]', mensagemRetorno);
+                return {{success: true, message: mensagemRetorno}};
+            }} catch (e) {{
+                mensagemRetorno = 'Erro ao clicar no botão "Consultar": ' + e.message;
+                console.error('[KAIZEN JS]', mensagemRetorno, e);
+                return {{success: false, message: mensagemRetorno, raw_error: e.toString()}};
+            }}
+        }} else {{
+            mensagemRetorno = 'Botão "Consultar" não encontrado, não visível ou não clicável.';
+            console.error('[KAIZEN JS]', mensagemRetorno);
+            const visibleButtons = Array.from(document.querySelectorAll('button:not([disabled])'))
+                                     .filter(b => b.offsetParent !== null)
+                                     .map(b => `Text: '${{(b.innerText || b.textContent || '').trim()}}', ID: ${{b.id}}, Classes: ${{b.className}}`);
+            console.log('[KAIZEN JS] Botões visíveis e habilitados para depuração:', visibleButtons.join('; '));
+            return {{success: false, message: mensagemRetorno}};
+        }}
+    """
+    
+    try:
+        resultado_js = driver.execute_script(js_script) # execute_script handles promises returned by the JS
+        
+        if resultado_js and isinstance(resultado_js, dict) and resultado_js.get('success'):
+            print(f'[KAIZEN] Consulta Teimosinha: {resultado_js.get("message")}')
         else:
-            print('[KAIZEN][ERRO] Número do processo não encontrado.')
-            
+            error_message = resultado_js.get("message") if isinstance(resultado_js, dict) else "Resultado inesperado ou falha na execução do script JS."
+            print(f'[KAIZEN][ERRO] Consulta Teimosinha falhou: {error_message}')
+            if isinstance(resultado_js, dict) and 'raw_error' in resultado_js:
+                 print(f'[KAIZEN][ERRO JS Bruto] {resultado_js["raw_error"]}')
+
     except Exception as e:
-        print(f'[KAIZEN][ERRO] Falha ao consultar teimosinha: {e}')
+        print(f'[KAIZEN][ERRO] Exceção ao executar script de consulta teimosinha: {e}')
 
 def escolher_opcao_sisbajud(driver, seletor, valor):
     try:
@@ -1290,20 +1499,47 @@ def main():
             
             if kaizen_evt == 'kaizen_guardar_senha':
                 kaizen_guardar_senha(driver)
-            elif kaizen_evt == 'kaizen_preencher_campos_invertido':
-                kaizen_preencher_campos(driver, invertido=True)
-            elif kaizen_evt == 'kaizen_preencher_campos':
-                kaizen_preencher_campos(driver, invertido=False)
-            elif kaizen_evt == 'kaizen_nova_minuta_end':
-                kaizen_nova_minuta(driver, endereco=True)
-            elif kaizen_evt == 'kaizen_nova_minuta':
+            elif kaizen_evt == 'kaizen_minuta_bloqueio_passivo':
+                print("[KAIZEN_EVT] Evento: kaizen_minuta_bloqueio_passivo")
                 kaizen_nova_minuta(driver, endereco=False)
+                # Adicionar uma pequena pausa e verificação de URL antes de preencher
+                time.sleep(1) # Pausa para a navegação da nova minuta acontecer
+                if '/minuta/cadastrar' in driver.current_url or '/minuta/nova' in driver.current_url: # Checar se está na tela correta
+                    kaizen_preencher_campos(driver, invertido=False)
+                else:
+                    print(f"[KAIZEN_EVT][ERRO] Após kaizen_nova_minuta, não está na URL esperada para preenchimento. URL atual: {driver.current_url}")
+            elif kaizen_evt == 'kaizen_minuta_endereco_passivo':
+                print("[KAIZEN_EVT] Evento: kaizen_minuta_endereco_passivo")
+                kaizen_nova_minuta(driver, endereco=True)
+                time.sleep(1)
+                if '/minuta/cadastrar' in driver.current_url or '/minuta/nova' in driver.current_url:
+                    kaizen_preencher_campos(driver, invertido=False)
+                else:
+                    print(f"[KAIZEN_EVT][ERRO] Após kaizen_nova_minuta (endereço), não está na URL esperada. URL atual: {driver.current_url}")
+            elif kaizen_evt == 'kaizen_minuta_bloqueio_ativo':
+                print("[KAIZEN_EVT] Evento: kaizen_minuta_bloqueio_ativo")
+                kaizen_nova_minuta(driver, endereco=False)
+                time.sleep(1)
+                if '/minuta/cadastrar' in driver.current_url or '/minuta/nova' in driver.current_url:
+                    kaizen_preencher_campos(driver, invertido=True)
+                else:
+                    print(f"[KAIZEN_EVT][ERRO] Após kaizen_nova_minuta, não está na URL esperada para preenchimento (ativo). URL atual: {driver.current_url}")
             elif kaizen_evt == 'kaizen_consultar_teimosinha':
+                print("[KAIZEN_EVT] Evento: kaizen_consultar_teimosinha")
                 kaizen_consultar_teimosinha(driver)
-            elif kaizen_evt == 'kaizen_consultar_minuta':
-                kaizen_consultar_minuta(driver)
-            elif kaizen_evt == 'kaizen_consulta_rapida':
-                kaizen_consulta_rapida(driver)
+            # Remover os handlers antigos:
+            # elif kaizen_evt == 'kaizen_preencher_campos_invertido':
+            #     kaizen_preencher_campos(driver, invertido=True)
+            # elif kaizen_evt == 'kaizen_preencher_campos':
+            #     kaizen_preencher_campos(driver, invertido=False)
+            # elif kaizen_evt == 'kaizen_nova_minuta_end':
+            #     kaizen_nova_minuta(driver, endereco=True)
+            # elif kaizen_evt == 'kaizen_nova_minuta':
+            #     kaizen_nova_minuta(driver, endereco=False)
+            # elif kaizen_evt == 'kaizen_consultar_minuta':
+            #     kaizen_consultar_minuta(driver)
+            # elif kaizen_evt == 'kaizen_consulta_rapida':
+            #     kaizen_consulta_rapida(driver)
                 
         except Exception as e:
             print(f'[BACEN][ERRO] Erro no loop principal: {e}')
@@ -1366,6 +1602,8 @@ def debug_botao_nova(driver):
     print(f'[KAIZEN][DEBUG] Total de botões: {resultado["total_botoes"]}')
     print(f'[KAIZEN][DEBUG] Botões mat-fab: {len(resultado["botoes_mat_fab"])}')
     print(f'[KAIZEN][DEBUG] Botões com "nova": {len(resultado["botoes_com_nova"])}')
+    
+   
     
     if resultado["botoes_com_nova"]:
         print('[KAIZEN][DEBUG] Detalhes dos botões com "nova":')

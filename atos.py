@@ -70,67 +70,97 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
                 print(f'[CLS][WARN] Timeout esperando carregamento completo da nova aba: {e}')
         else:
             print('[CLS][WARN] Nenhuma nova aba detectada após clique. Prosseguindo na aba atual.')
-        # 2. Não precisa aguardar URL /transicao, pois já estará nela
-
-        # 0. (Ajuste para ato_pesquisas) Tenta clicar em "Iniciar execução" antes de seguir para conclusão ao magistrado
-        if forcar_iniciar_execucao:
+          # NOVO: Limpa qualquer overlay/modal que possa estar interferindo
+        def limpar_overlays():
             try:
-                xpath_iniciar = "//button[.//div[contains(@class, 'texto-botao-app') and contains(normalize-space(), 'Iniciar execução')]]"
-                btn_iniciar = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.XPATH, xpath_iniciar))
+                overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
+                if overlays:
+                    print('[CLS][DEBUG] Overlays detectados no início, limpando...')
+                    from selenium.webdriver.common.keys import Keys
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                    time.sleep(0.3)
+                    # Re-fetch elements to avoid stale reference
+                    try:
+                        fresh_overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
+                        for overlay in fresh_overlays:
+                            try:
+                                if overlay.is_displayed():
+                                    driver.execute_script('arguments[0].click();', overlay)
+                                    time.sleep(0.2)
+                            except:
+                                pass
+                    except:
+                        pass
+            except Exception as clean_err:
+                print(f'[CLS][DEBUG] Erro na limpeza de overlays: {clean_err}')
+        
+        limpar_overlays()
+        
+        # 2. Verifica se já está na URL de conclusão antes de tentar clicar no botão
+        current_url = driver.current_url
+        if '/conclusao' in current_url:
+            print(f'[CLS][INFO] Já está na página de conclusão ({current_url}), pulando clique em "Conclusão ao magistrado"')
+        else:
+            # 0. (Ajuste para ato_pesquisas) Tenta clicar em "Iniciar execução" antes de seguir para conclusão ao magistrado
+            if forcar_iniciar_execucao:
+                try:
+                    xpath_iniciar = "//button[.//div[contains(@class, 'texto-botao-app') and contains(normalize-space(), 'Iniciar execução')]]"
+                    btn_iniciar = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, xpath_iniciar))
+                    )
+                    driver.execute_script("arguments[0].click();", btn_iniciar)
+                    print('[CLS][DEBUG] Clique em "Iniciar execução" realizado.')
+                    time.sleep(1)
+                except Exception as e:
+                    print(f'[CLS][INFO] Botão "Iniciar execução" não encontrado ou não clicável: {e}')            # 3. Clica no botão 'Conclusão ao Magistrado' usando aria-label
+            try:
+                btn_conclusao = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
                 )
-                driver.execute_script("arguments[0].click();", btn_iniciar)
-                print('[CLS][DEBUG] Clique em "Iniciar execução" realizado.')
-                time.sleep(1)
+                btn_conclusao.click()
+                print(f'[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label=\'Conclusão ao magistrado\']')
             except Exception as e:
-                print(f'[CLS][INFO] Botão "Iniciar execução" não encontrado ou não clicável: {e}')        # 3. Clica no botão 'Conclusão ao Magistrado' usando aria-label
-        try:
-            btn_conclusao = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
-            )
-            btn_conclusao.click()
-            print(f'[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label=\'Conclusão ao magistrado\']')
-        except Exception as e:
-            print(f'[CLS][ERRO] Falha ao clicar no botão Conclusão ao magistrado por aria-label: {e}')
-            print('[CLS][INFO] Tentando fluxo alternativo: Análise → Conclusão ao magistrado')
-            
-            # Fluxo alternativo para casos como "Cumprimento de Providências"
-            try:
-                # Primeiro clica em "Análise"
-                btn_analise = None
-                # Busca por texto
-                btns_analise = driver.find_elements(By.XPATH, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]")
-                for btn in btns_analise:
-                    if btn.is_displayed() and btn.is_enabled():
-                        btn_analise = btn
-                        break
+                print(f'[CLS][ERRO] Falha ao clicar no botão Conclusão ao magistrado por aria-label: {e}')
+                print('[CLS][INFO] Tentando fluxo alternativo: Análise → Conclusão ao magistrado')
                 
-                if not btn_analise:
-                    # Busca por aria-label
-                    btns_analise = driver.find_elements(By.CSS_SELECTOR, "button[aria-label*='Análise']")
+                # Fluxo alternativo para casos como "Cumprimento de Providências"
+                try:
+                    # Primeiro clica em "Análise"
+                    btn_analise = None
+                    # Busca por texto
+                    btns_analise = driver.find_elements(By.XPATH, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]")
                     for btn in btns_analise:
                         if btn.is_displayed() and btn.is_enabled():
                             btn_analise = btn
                             break
-                
-                if btn_analise:
-                    btn_analise.click()
-                    print('[CLS][DEBUG] Clique no botão "Análise" realizado.')
-                    time.sleep(1)
                     
-                    # Agora tenta novamente clicar em "Conclusão ao magistrado"
-                    btn_conclusao = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
-                    )
-                    btn_conclusao.click()
-                    print('[CLS][DEBUG] Clique no botão "Conclusão ao magistrado" realizado após clique em Análise.')
-                else:
-                    print('[CLS][ERRO] Botão "Análise" não encontrado no fluxo alternativo.')
+                    if not btn_analise:
+                        # Busca por aria-label
+                        btns_analise = driver.find_elements(By.CSS_SELECTOR, "button[aria-label*='Análise']")
+                        for btn in btns_analise:
+                            if btn.is_displayed() and btn.is_enabled():
+                                btn_analise = btn
+                                break
+                    
+                    if btn_analise:
+                        btn_analise.click()
+                        print('[CLS][DEBUG] Clique no botão "Análise" realizado.')
+                        time.sleep(1)
+                        
+                        # Agora tenta novamente clicar em "Conclusão ao magistrado"
+                        btn_conclusao = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                        )
+                        btn_conclusao.click()
+                        print('[CLS][DEBUG] Clique no botão "Conclusão ao magistrado" realizado após clique em Análise.')
+                    else:
+                        print('[CLS][ERRO] Botão "Análise" não encontrado no fluxo alternativo.')
+                        return False
+                        
+                except Exception as e_alt:
+                    print(f'[CLS][ERRO] Falha no fluxo alternativo (Análise → Conclusão ao magistrado): {e_alt}')
                     return False
-                    
-            except Exception as e_alt:
-                print(f'[CLS][ERRO] Falha no fluxo alternativo (Análise → Conclusão ao magistrado): {e_alt}')
-                return False
+        
         time.sleep(1)
         print(f'[CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label=\'Conclusão ao magistrado\']')
 
@@ -138,11 +168,44 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
         from Fix import esperar_url_conter
         if not esperar_url_conter(driver, '/conclusao', timeout=15):
             print(f'[CLS][ERRO] URL inesperada após clicar em conclusão: {driver.current_url}')
-            return False
-
-        # 5. Clica no botão do tipo de conclusão priorizando aria-label (contém), com fallback para texto visível (contém)
+            return False        # 5. Clica no botão do tipo de conclusão priorizando aria-label (contém), com fallback para texto visível (contém)
         print(f'[CLS] Procurando botão de conclusão: {conclusao_tipo}')
         try:
+            # NOVO: Primeiro verifica e fecha qualquer overlay/modal aberto
+            try:
+                # Verifica se há overlay/backdrop ativo
+                overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
+                if overlays:
+                    print('[CLS][DEBUG] Overlay/modal detectado, tentando fechar...')
+                    # Tenta pressionar ESC para fechar
+                    from selenium.webdriver.common.keys import Keys
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                    time.sleep(0.5)
+                    # Re-fetch elements to avoid stale reference and try to close them
+                    try:
+                        fresh_overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
+                        for overlay in fresh_overlays:
+                            try:
+                                if overlay.is_displayed():
+                                    driver.execute_script('arguments[0].click();', overlay)
+                                    time.sleep(0.3)
+                            except:
+                                pass
+                    except:
+                        pass
+                    # Aguarda overlay desaparecer
+                    for _ in range(10):
+                        try:
+                            remaining_overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop-showing, .mat-dialog-container')
+                            if not any(o.is_displayed() for o in remaining_overlays):
+                                break
+                        except:
+                            break
+                        time.sleep(0.2)
+                    print('[CLS][DEBUG] Overlay/modal fechado.')
+            except Exception as overlay_err:
+                print(f'[CLS][WARN] Erro ao tentar fechar overlay: {overlay_err}')
+            
             # Primeiro tenta por aria-label que CONTÉM o tipo de conclusão
             btn_tipo_conclusao = None
             try:
@@ -168,8 +231,12 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
                     print(f"[CLS] Botão de conclusão '{conclusao_tipo}' localizado por texto visível que contém.")
                 else:
                     raise Exception('Não encontrado por texto visível contém')
-            btn_tipo_conclusao.click()
-            print(f'[CLS] Botão de conclusão "{conclusao_tipo}" clicado.')
+            
+            # Garante que o botão está visível e clica usando JavaScript (mais robusto)
+            driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
+            time.sleep(0.3)
+            driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+            print(f'[CLS] Botão de conclusão "{conclusao_tipo}" clicado via JavaScript.')
         except Exception as e:
             print(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado por aria-label nem texto visível: {e}')
             return False
@@ -317,32 +384,93 @@ def ato_judicial(
             else:
                 print(f'[ATO][SIGILO][DEBUG] Sigilo não solicitado ou já ativado. Nenhuma ação.')
         except Exception as e:
-            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')
-
-        # 2. PEC
+            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')        # 2. PEC
         print('[ATO][DEBUG] Etapa: PEC')
         if marcar_pec is not None:
             try:
-                # Busca o mat-checkbox pelo aria-label
-                pec_checkbox_input = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]')
-                # Estado atual
-                checked = pec_checkbox_input.get_attribute('aria-checked') == 'true' or pec_checkbox_input.is_selected() or pec_checkbox_input.get_attribute('checked') == 'true'
+                # Busca primeiro o mat-checkbox container usando múltiplos seletores
+                pec_checkbox = None
+                pec_input = None
+                
+                # Tenta encontrar o mat-checkbox pelo aria-label
+                try:
+                    pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]')
+                    pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                except:
+                    # Fallback: busca pela div container e depois o mat-checkbox
+                    try:
+                        pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'div.checkbox-pec mat-checkbox')
+                        pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                    except:
+                        # Último fallback: busca diretamente pelo input
+                        pec_input = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]')
+                        pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                
+                if not pec_checkbox or not pec_input:
+                    raise Exception("Não foi possível localizar o checkbox PEC")
+                
+                # Verifica estado atual do checkbox usando múltiplos métodos
+                checked = False
+                try:
+                    # Método 1: aria-checked
+                    aria_checked = pec_input.get_attribute('aria-checked')
+                    if aria_checked == 'true':
+                        checked = True
+                    # Método 2: propriedade checked
+                    elif pec_input.get_attribute('checked') == 'true':
+                        checked = True
+                    # Método 3: is_selected()
+                    elif pec_input.is_selected():
+                        checked = True
+                    # Método 4: verificar classes CSS do mat-checkbox
+                    elif 'mat-checkbox-checked' in pec_checkbox.get_attribute('class'):
+                        checked = True
+                except Exception as state_err:
+                    print(f'[ATO][PEC][WARN] Erro ao verificar estado do checkbox: {state_err}')
+                    # Em caso de erro, assume desmarcado
+                    checked = False
+                
                 print(f'[ATO][PEC][DEBUG] Estado atual da caixa PEC: {"marcada" if checked else "desmarcada"}. Parâmetro marcar_pec: {marcar_pec}')
+                
+                # Executa ação baseada no estado e parâmetro
                 if marcar_pec and not checked:
-                    # Clica no mat-checkbox (label) para marcar
-                    mat_checkbox = pec_checkbox_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
-                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', mat_checkbox)
-                    mat_checkbox.click()
+                    # Precisa marcar - clica no label ou mat-checkbox
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', pec_checkbox)
+                    time.sleep(0.2)
+                    # Tenta clicar no label primeiro (mais confiável)
+                    try:
+                        label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
+                        driver.execute_script('arguments[0].click();', label)
+                    except:
+                        # Fallback: clica no mat-checkbox
+                        driver.execute_script('arguments[0].click();', pec_checkbox)
                     print('[ATO][PEC][DEBUG] Caixa PEC estava desmarcada e foi marcada.')
+                    time.sleep(0.3)
                 elif not marcar_pec and checked:
-                    mat_checkbox = pec_checkbox_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
-                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', mat_checkbox)
-                    mat_checkbox.click()
+                    # Precisa desmarcar - clica no label ou mat-checkbox
+                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', pec_checkbox)
+                    time.sleep(0.2)
+                    # Tenta clicar no label primeiro (mais confiável)
+                    try:
+                        label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
+                        driver.execute_script('arguments[0].click();', label)
+                    except:
+                        # Fallback: clica no mat-checkbox
+                        driver.execute_script('arguments[0].click();', pec_checkbox)
                     print('[ATO][PEC][DEBUG] Caixa PEC estava marcada e foi desmarcada.')
+                    time.sleep(0.3)
                 else:
                     print('[ATO][PEC][DEBUG] Nenhuma ação necessária na caixa PEC.')
+                    
             except Exception as e:
                 print(f'[ATO][ERRO] Não foi possível ajustar PEC: {e}')
+                # Log adicional para debug
+                try:
+                    print(f'[ATO][PEC][DEBUG] URL atual: {driver.current_url}')
+                    checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox')
+                    print(f'[ATO][PEC][DEBUG] Encontrados {len(checkboxes)} mat-checkbox na página')
+                except:
+                    pass
 
         # 3. Prazo
         print('[ATO][DEBUG] Etapa: Prazo')
@@ -530,7 +658,7 @@ ato_meios = make_ato_wrapper(
     prazo=5,
     marcar_pec=False,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=True
 )
 
@@ -540,7 +668,7 @@ ato_crda = make_ato_wrapper(
     prazo=15,
     marcar_pec=False,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=False
 )
 
@@ -550,7 +678,7 @@ ato_crte = make_ato_wrapper(
     prazo=15,
     marcar_pec=False,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=False
 )
 
@@ -570,7 +698,7 @@ ato_idpj = make_ato_wrapper(
     prazo=8,
     marcar_pec=True,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=False
 )
 
@@ -580,7 +708,7 @@ ato_termoE = make_ato_wrapper(
     prazo=5,
     marcar_pec=False,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=True
 )
 
@@ -590,7 +718,7 @@ ato_termoS = make_ato_wrapper(
     prazo=5,
     marcar_pec=False,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=True
 )
 
@@ -600,7 +728,7 @@ ato_edital = make_ato_wrapper(
     prazo=5,
     marcar_pec=False,
     movimento=None,
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=True
 )
 
@@ -610,26 +738,28 @@ ato_sobrestamento = make_ato_wrapper(
     prazo=0,
     marcar_pec=False,
     movimento='frustrada',
-    gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+    gigs=None,
     marcar_primeiro_destinatario=False
 )
 
 # ato_pesquisas permanece manual, pois tem lógica própria
 # ato_pesquisas permanece manual, pois tem lógica própria
 def ato_pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False, sigilo=True, descricao=None):
-    return ato_judicial(
+    # Wrapper de pesquisa: prazo 30 apenas para o primeiro destinatário
+    resultado = ato_judicial(
         driver=driver,
         conclusao_tipo=conclusao_tipo or 'BNDT',
         modelo_nome=modelo_nome or 'xsbacen',
-        prazo=prazo if prazo is not None else 30,
+        prazo=30,  # sempre 30 para o primeiro destinatário
         marcar_pec=marcar_pec if marcar_pec is not None else True,
         movimento=movimento or 'bloqueio',
-        gigs=gigs if gigs is not None else {'dias_uteis': 0, 'observacao': 'pz verificar'},
-        marcar_primeiro_destinatario=marcar_primeiro_destinatario if marcar_primeiro_destinatario is not None else True,
+        gigs=gigs if gigs is not None else None,
+        marcar_primeiro_destinatario=True,  # só o primeiro
         debug=debug,
         sigilo=sigilo,
         descricao=descricao
     )
+    return resultado
 
 # ====================================================
 # BLOCO 2 - COMUNICAÇÕES PROCESSUAIS (Wrappers + Regra Geral)
@@ -794,7 +924,7 @@ def comunicacao_judicial(
         # 1. Seleção do tipo de expediente
         log('[DEBUG] Selecionando tipo de expediente...')
         try:
-            campo_tipo = driver.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Tipo de Expediente"]')
+            campo_tipo = driver.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Magistrado"]')
             campo_tipo.click()
             time.sleep(0.5)
             xpath_opcao = f"//mat-option//span[contains(text(), '{tipo_expediente}')]"
@@ -1377,6 +1507,7 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False):
 
         # ---
         # SEGUNDA TENTATIVA (REFERÊNCIA JS/ASYNC PARA MOVIMENTO)
+       
         # if (comandos?.movimento) {
         #     // Ativa a guia Movimentos se desativada
         #     let guia = await esperarElemento('pje-editor-lateral div[aria-posinset="2"]');

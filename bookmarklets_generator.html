@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Bookmarklets - Atos Judiciais PJe</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        /* Generator Form Styles */
+        .generator-form {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #495057;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 10px;
+            border: 2px solid #ced4da;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .generated-output {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            display: none;
+        }
+        
+        /* Predefined Bookmarklets Styles */
+        .bookmarklets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .bookmarklet-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .bookmarklet-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+        
+        .bookmarklet-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .bookmarklet-details {
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .detail-item {
+            margin-bottom: 5px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        
+        .copy-btn:hover {
+            background: #218838;
+        }
+        
+        .copy-btn.copied {
+            background: #17a2b8;
+        }
+        
+        .instructions {
+            background: #e8f4f8;
+            border-left: 4px solid #17a2b8;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .note {
+            background: #d1ecf1;
+            border-left: 4px solid #bee5eb;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔖 Gerador de Bookmarklets</h1>
+            <p>Atos Judiciais PJe - TRT2 | PEC, Prazo e Movimento</p>
+        </div>
+        
+        <div class="content">
+            <!-- Seção do Gerador -->
+            <div class="section">
+                <h2>🛠️ Criar Bookmarklet Personalizado</h2>
+                
+                <div class="instructions">
+                    <strong>Como usar:</strong>
+                    <ol>
+                        <li>Preencha os campos abaixo conforme necessário</li>
+                        <li>Clique em "Gerar Bookmarklet" para criar o código</li>
+                        <li>Copie o código gerado</li>
+                        <li>Adicione como favorito no navegador na barra de bookmarks</li>
+                        <li>Execute na tela de minuta do PJe após inserir o modelo</li>
+                    </ol>
+                </div>
+                
+                <div class="generator-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nome">Nome do Bookmarklet:</label>
+                            <input type="text" id="nome" placeholder="Ex: Ato Personalizado" value="Ato Personalizado">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="pec">PEC (Comunicação Eletrônica):</label>
+                            <select id="pec">
+                                <option value="">Não alterar</option>
+                                <option value="true">Sim - Marcar PEC</option>
+                                <option value="false">Não - Desmarcar PEC</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="prazo">Prazo (dias):</label>
+                            <input type="number" id="prazo" placeholder="Ex: 15" min="0" max="999">
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="primeiro-dest">
+                                <label for="primeiro-dest">Apenas primeiro destinatário</label>
+                            </div>
+                        </div>
+                    </div>
+                      <div class="form-row">
+                        <div class="form-group">
+                            <label for="movimento">Movimento (trecho para busca):</label>
+                            <input type="text" id="movimento" placeholder="Ex: bloq, frustr, cita" maxlength="50">
+                        </div>
+                    </div>
+                    
+                    <button class="generate-btn" onclick="generateBookmarklet()">
+                        ✨ Gerar Bookmarklet
+                    </button>
+                    
+                    <div id="generated-output" class="generated-output">
+                        <div style="margin-bottom: 10px; color: #a0aec0;">Bookmarklet gerado aparecerá aqui:</div>
+                        <div id="generated-code"></div>
+                        <button style="margin-top: 15px; padding: 8px 15px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;" onclick="copyGeneratedCode()">
+                            📋 Copiar Código
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Seção dos Bookmarklets Predefinidos -->
+            <div class="section">
+                <h2>📚 Bookmarklets Predefinidos</h2>
+                
+                <div class="warning">
+                    <strong>⚠️ Atenção:</strong> Estes bookmarklets utilizam seletores corrigidos baseados no código Python funcional. Execute apenas na tela de minuta do PJe após inserir o modelo.
+                </div>
+                
+                <div class="bookmarklets-grid" id="predefined-bookmarklets">
+                    <!-- Os bookmarklets serão inseridos aqui via JavaScript -->
+                </div>
+                
+                <div class="note">
+                    <strong>💡 Dica:</strong> Para adicionar um bookmarklet, copie o código e cole na URL ao criar um novo favorito no seu navegador. Organize-os em uma pasta "PJe Bookmarklets" na barra de favoritos.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Bookmarklets predefinidos com seletores corrigidos
+        const predefinedBookmarklets = [
+            {
+                name: "Ato Meios",
+                details: "PEC: Não | Prazo: 5 dias (1º dest.) | Movimento: Nenhum",
+                pec: false,
+                prazo: 5,
+                primeiroDestinatario: true,
+                movimento: null
+            },
+            {
+                name: "Ato CRDA", 
+                details: "PEC: Não | Prazo: 15 dias | Movimento: Nenhum",
+                pec: false,
+                prazo: 15,
+                primeiroDestinatario: false,
+                movimento: null
+            },
+            {
+                name: "Ato CRTE",
+                details: "PEC: Não | Prazo: 15 dias | Movimento: Nenhum", 
+                pec: false,
+                prazo: 15,
+                primeiroDestinatario: false,
+                movimento: null
+            },
+            {
+                name: "Ato Bloqueio",
+                details: "PEC: Sim | Prazo: Nenhum | Movimento: Nenhum",
+                pec: true,
+                prazo: null,
+                primeiroDestinatario: false,
+                movimento: null
+            },
+            {
+                name: "Ato IDPJ",
+                details: "PEC: Sim | Prazo: 8 dias | Movimento: Nenhum",
+                pec: true,
+                prazo: 8,
+                primeiroDestinatario: false,
+                movimento: null
+            },
+            {
+                name: "Ato Termo E",
+                details: "PEC: Não | Prazo: 5 dias (1º dest.) | Movimento: Nenhum",
+                pec: false,
+                prazo: 5,
+                primeiroDestinatario: true,
+                movimento: null
+            },
+            {
+                name: "Ato Termo S",
+                details: "PEC: Não | Prazo: 5 dias (1º dest.) | Movimento: Nenhum",
+                pec: false,
+                prazo: 5,
+                primeiroDestinatario: true,
+                movimento: null
+            },
+            {
+                name: "Ato Edital",
+                details: "PEC: Não | Prazo: 5 dias (1º dest.) | Movimento: Nenhum",
+                pec: false,
+                prazo: 5,
+                primeiroDestinatario: true,
+                movimento: null
+            },            {
+                name: "Ato Sobrestamento",
+                details: "PEC: Não | Prazo: 0 dias | Movimento: frustr",
+                pec: false,
+                prazo: 0,
+                primeiroDestinatario: false,
+                movimento: "frustr"
+            },
+            {
+                name: "Ato Pesquisas",
+                details: "PEC: Sim | Prazo: 30 dias (1º dest.) | Movimento: bloq",
+                pec: true,
+                prazo: 30,
+                primeiroDestinatario: true,
+                movimento: "bloq"
+            }
+        ];
+
+        function generateBookmarkletCode(name, pec, prazo, primeiroDestinatario, movimento) {
+            let code = `javascript:(function() {
+    console.log('[${name.toUpperCase()}] Iniciando configuração...');
+    
+    function setPEC(marcar) {
+        try {
+            const pecInput = document.querySelector('input[type="checkbox"][aria-label="Enviar para PEC"]');
+            if (pecInput) {
+                const isChecked = pecInput.checked || pecInput.getAttribute('aria-checked') === 'true';
+                if (marcar && !isChecked) {
+                    pecInput.click();
+                    console.log('[BOOKMARKLET] PEC marcado');
+                    return true;
+                } else if (!marcar && isChecked) {
+                    pecInput.click();
+                    console.log('[BOOKMARKLET] PEC desmarcado');
+                    return true;
+                } else {
+                    console.log('[BOOKMARKLET] PEC já no estado correto');
+                    return true;
+                }
+            } else {
+                console.error('[BOOKMARKLET] Input PEC não encontrado');
+                return false;
+            }
+        } catch (error) {
+            console.error('[BOOKMARKLET] Erro ao configurar PEC:', error);
+            return false;
+        }
+    }
+
+    function setPrazo(dias, apenasprimeiro = false) {
+        try {
+            const linhas = document.querySelectorAll('table.t-class tr.ng-star-inserted');
+            let preenchidos = 0;
+            
+            for (let i = 0; i < linhas.length; i++) {
+                const linha = linhas[i];
+                const checkbox = linha.querySelector('input[type="checkbox"][aria-label="Intimar parte"]');
+                const camposPrazo = linha.querySelectorAll('mat-form-field.prazo input[type="text"].mat-input-element');
+                
+                if (checkbox && checkbox.checked && camposPrazo.length > 0) {
+                    for (const campo of camposPrazo) {
+                        if (campo.offsetParent !== null) {
+                            campo.focus();
+                            campo.value = dias.toString();
+                            campo.dispatchEvent(new Event('input', {bubbles: true}));
+                            campo.dispatchEvent(new Event('change', {bubbles: true}));
+                            preenchidos++;
+                            break;
+                        }
+                    }
+                    if (apenasprimeiro) break;
+                }
+            }
+            
+            console.log('[BOOKMARKLET] Prazo definido para', preenchidos, 'destinatário(s):', dias, 'dias');
+            return preenchidos > 0;
+        } catch (error) {
+            console.error('[BOOKMARKLET] Erro ao configurar prazo:', error);
+            return false;
+        }
+    }
+
+    function setMovimento(movimento) {
+        try {
+            const movimentoSelect = document.querySelector('mat-select[aria-label="Movimento"]');
+            if (movimentoSelect) {
+                movimentoSelect.click();
+                setTimeout(() => {
+                    const opcao = Array.from(document.querySelectorAll('mat-option')).find(opt => 
+                        opt.textContent.toLowerCase().includes(movimento.toLowerCase())
+                    );
+                    if (opcao) {
+                        opcao.click();
+                        console.log('[BOOKMARKLET] Movimento selecionado:', movimento);
+                        return true;
+                    } else {
+                        console.error('[BOOKMARKLET] Movimento não encontrado:', movimento);
+                        return false;
+                    }
+                }, 200);
+            } else {
+                console.error('[BOOKMARKLET] Select de movimento não encontrado');
+                return false;
+            }
+        } catch (error) {
+            console.error('[BOOKMARKLET] Erro movimento:', error);
+            return false;
+        }
+    }`;
+
+            // Adiciona as chamadas das funções baseadas nos parâmetros
+            if (pec !== null) {
+                code += `\n    setPEC(${pec});`;
+            }
+            
+            if (prazo !== null) {
+                code += `\n    setTimeout(() => { setPrazo(${prazo}${primeiroDestinatario ? ', true' : ''}); }, 500);`;
+            }
+            
+            if (movimento) {
+                code += `\n    setTimeout(() => { setMovimento('${movimento}'); }, 1000);`;
+            }
+
+            code += `\n    console.log('[${name.toUpperCase()}] Configuração completa!');
+})();`;
+
+            return code;
+        }
+
+        function generateBookmarklet() {
+            const nome = document.getElementById('nome').value || 'Ato Personalizado';
+            const pecValue = document.getElementById('pec').value;
+            const pec = pecValue === '' ? null : pecValue === 'true';
+            const prazoValue = document.getElementById('prazo').value;
+            const prazo = prazoValue === '' ? null : parseInt(prazoValue);
+            const primeiroDestinatario = document.getElementById('primeiro-dest').checked;
+            const movimento = document.getElementById('movimento').value.trim() || null;
+
+            const code = generateBookmarkletCode(nome, pec, prazo, primeiroDestinatario, movimento);
+            
+            document.getElementById('generated-code').textContent = code;
+            document.getElementById('generated-output').style.display = 'block';
+        }
+
+        function copyGeneratedCode() {
+            const code = document.getElementById('generated-code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copiado!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#667eea';
+                }, 2000);
+            });
+        }
+
+        function copyPredefinedBookmarklet(bookmarkletData) {
+            const code = generateBookmarkletCode(
+                bookmarkletData.name,
+                bookmarkletData.pec,
+                bookmarkletData.prazo,
+                bookmarkletData.primeiroDestinatario,
+                bookmarkletData.movimento
+            );
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copiado!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        // Gerar os cards dos bookmarklets predefinidos
+        function generatePredefinedCards() {
+            const container = document.getElementById('predefined-bookmarklets');
+            
+            predefinedBookmarklets.forEach(bookmarklet => {
+                const card = document.createElement('div');
+                card.className = 'bookmarklet-card';
+                
+                card.innerHTML = `
+                    <div class="bookmarklet-title">${bookmarklet.name}</div>
+                    <div class="bookmarklet-details">
+                        <div class="detail-item">
+                            <span class="detail-label">PEC:</span> ${bookmarklet.pec ? 'Sim' : 'Não'}
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Prazo:</span> ${bookmarklet.prazo !== null ? bookmarklet.prazo + ' dias' : 'Nenhum'}
+                            ${bookmarklet.primeiroDestinatario ? ' (1º destinatário)' : ''}
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Movimento:</span> ${bookmarklet.movimento || 'Nenhum'}
+                        </div>
+                    </div>
+                    <button class="copy-btn" onclick="copyPredefinedBookmarklet(predefinedBookmarklets[${predefinedBookmarklets.indexOf(bookmarklet)}])">
+                        📋 Copiar Bookmarklet
+                    </button>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Inicializar a página
+        document.addEventListener('DOMContentLoaded', generatePredefinedCards);
+    </script>
+</body>
+</html>

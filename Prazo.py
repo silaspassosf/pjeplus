@@ -13,7 +13,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 import os
 import shutil
-from acoes import criar_gigs, extrair_documento, login_automatico # Importação correta da função criar_gigs
+from Fix import criar_gigs, extrair_documento, login_automatico # Importação correta da função criar_gigs
 import re
 import math
 

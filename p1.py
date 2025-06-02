@@ -4,14 +4,13 @@
 from Fix import (
     esperar_elemento,
     safe_click,
-    navegar_para_tela,
     criar_gigs,
     extrair_documento,
     processar_lista_processos,
-    configurar_navegador,
-    obter_driver_padronizado,
-    login_pje_robusto,
-    limpar_temp_selenium
+    driver_notebook,
+    login_notebook,
+    limpar_temp_selenium,
+    buscar_seletor_robusto  # Adicionado para uso de seletores robustos
 )
 import os
 from selenium import webdriver
@@ -21,6 +20,11 @@ import re
 import time
 import logging
 from selenium.webdriver.support.ui import WebDriverWait
+import traceback
+from selenium.common.exceptions import TimeoutException
+
+# URL base do sistema
+URL_BASE = 'https://pje.trt2.jus.br/pjekz/'
 
 # Configuração do logging
 logging.basicConfig(
@@ -33,86 +37,127 @@ logging.basicConfig(
 )
 logger = logging.getLogger('PJeAutomation')
 
-def processar_andamento(driver):
-    """
-    Processa o andamento dos processos livres com base no conteúdo do último ato judicial.
-    """
+def esperar_colecao(driver, seletor, timeout=10):
+    """Espera e retorna uma coleção de elementos"""
     try:
-        # Navega para a página de atividades
-        url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
-        navegar_para_tela(driver, url=url_atividades)
-        
-        # Remover chip Vencidas
-        chip_vencidas = esperar_elemento(driver, '.mat-chip-remove')
-        safe_click(driver, chip_vencidas)
-        time.sleep(0.5)
-        
-        # Clicar em atividades sem prazo
-        btn_atividades_sem_prazo = esperar_elemento(driver, 'i.fa-pen:nth-child(1)')
-        safe_click(driver, btn_atividades_sem_prazo)
-        time.sleep(0.5)
-        
-        # Digitar xs no campo de descrição
-        campo_descricao = esperar_elemento(driver, 'mat-form-field.ng-tns-c82-209 > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) input')
-        campo_descricao.clear()
-        campo_descricao.send_keys('xs')
-        campo_descricao.send_keys(Keys.ENTER)
-        time.sleep(1)
-        
-        # Aguardar lista filtrada
-        linhas = esperar_colecao(driver, 'tr.cdk-drag')
-        print(f'[ANDAMENTO] Total de processos filtrados: {len(linhas)}')
-        
-        for idx, linha in enumerate(linhas):
-            try:
-                # Abrir processo
-                link_processo = linha.find_element(By.CSS_SELECTOR, 'a')
-                safe_click(driver, link_processo)
-                time.sleep(2)
-                
-                # Buscar último ato judicial
-                from Fix import buscar_ultimo_ato_judicial
-                autor, texto = buscar_ultimo_ato_judicial(driver)
-                
-                # Aplicar regras
-                if autor in ['otavio', 'mariana']:
-                    if re.search(r'concede-se 05 dias|visibilidade.*advogados|início da fluência|indicar meios|oito dias para apresentação', texto, re.IGNORECASE):
-                        # Sobrestamento
-                        criar_gigs(driver, 1, 'Guilerme', 'Sobrestamento')
-                        ato_sobrestar(driver)
-                    elif re.search(r'revel|concorda com homologação', texto, re.IGNORECASE):
-                        # Homologação
-                        criar_gigs(driver, 1, 'Silvia', 'Homologação')
-                    elif re.search(r'hasta|saldo devedor|prescrição', texto, re.IGNORECASE):
-                        # PEC
-                        criar_gigs(driver, 1, 'xs', 'pec')
-                    elif re.search(r'impugnações apresentadas', texto, re.IGNORECASE):
-                        # Argos
-                        criar_gigs(driver, 1, 'Silvia', 'Argos')
-                        ato_pesquisas(driver)
-                    elif re.search(r'cumprido o acordo homologado', texto, re.IGNORECASE):
-                        # Arquivar
-                        criar_gigs(driver, 0, 'pz', 'Arquivar')
-                    else:
-                        print(f'[ANDAMENTO] Nenhuma regra aplicável para o processo {idx}')
-                else:
-                    print(f'[ANDAMENTO] Autor não é Otávio ou Mariana: {autor}')
-                
-                # Fechar processo
-                safe_click(driver, 'i.fas.fa-times')
-                time.sleep(1)
-                
-            except Exception as e:
-                logging.error(f'[ANDAMENTO][ERRO] Falha ao processar processo {idx}: {e}')
-                driver.save_screenshot(f'screenshot_erro_processo_{idx}.png')
-                continue
-        
-        logging.info('[ANDAMENTO] Todos os processos processados com sucesso.')
-        
+        return WebDriverWait(driver, timeout).until(
+            lambda d: d.find_elements(By.CSS_SELECTOR, seletor)
+        )
+    except TimeoutException:
+        logging.error(f'[ESPERA][ERRO] Timeout esperando elementos: {seletor}')
+        return []
+
+def inicializar_driver():
+    """Inicializa o driver do Selenium"""
+    logger = logging.getLogger('PJeAutomation')
+    try:
+        logger.info("[DRIVER] Iniciando driver...")
+        options = webdriver.FirefoxOptions()
+        # ... configuração do driver ...
+        driver = webdriver.Firefox(options=options)
+        logger.info("[DRIVER] Driver iniciado com sucesso")
+        return driver
     except Exception as e:
-        logging.error(f'[ANDAMENTO][ERRO] Falha no fluxo de andamento: {e}')
-        driver.save_screenshot('screenshot_erro_andamento.png')
-        raise
+        logger.error(f"[DRIVER][ERRO] Falha ao inicializar driver: {str(e)}")
+        return False
+
+
+
+def filtrar_fase_processual(driver, fases_alvo=None):
+    """
+    Filtra as fases desejadas no painel global do PJe.
+    Por padrão, seleciona 'Liquidação' e 'Execução'.
+    Após selecionar, clica no botão de filtrar (ícone fa-filter).
+    """
+    from selenium.webdriver.common.by import By
+    import time
+    if fases_alvo is None:
+        fases_alvo = ['liquidação', 'execução']
+    print(f'Filtrando fase processual: {", ".join(fases_alvo).title()}...')
+    try:
+        # 1. Clica no seletor de fase processual
+        fase_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Fase processual')]")
+        driver.execute_script("arguments[0].click();", fase_element)
+        time.sleep(1)
+
+        # 2. Seleciona as fases desejadas
+        for fase in fases_alvo:
+            opcao = driver.find_element(By.XPATH, f"//span[contains(translate(text(), 'ÇÃLIUEO', 'çãliueo'), '{fase}')]")
+            driver.execute_script("arguments[0].click();", opcao)
+            time.sleep(0.5)
+
+        # 3. NÃO clicar no botão de filtrar
+        # 4. Navegação por teclado: pressionar TAB 6x e depois ESPAÇO
+        from selenium.webdriver.common.keys import Keys
+        from selenium.webdriver.common.action_chains import ActionChains
+        actions = ActionChains(driver)
+        for _ in range(6):
+            actions.send_keys(Keys.TAB)
+            time.sleep(0.2)
+        actions.send_keys(Keys.SPACE)
+        actions.perform()
+        print('[OK] Fases selecionadas e filtro aplicado via navegação por teclado.')
+        time.sleep(1)
+        return True
+    except Exception as e:
+        print(f'[ERRO] Erro no filtro de fase: {e}')
+        return False
+
+def movimentar_processos(driver):
+    """
+    Movimenta os processos selecionados para a tarefa 'Análise'.
+    O fluxo é:
+    1. Marca todos os processos usando o ícone check (agora apenas via navegação por teclado)
+    2. Inicia movimentação pelo ícone mala (suitcase)
+    3. Seleciona 'Análise' como tarefa destino
+    4. Confirma movimentação dos processos
+    """
+    print('Movimentando processos...')
+    try:
+        total_elem = WebDriverWait(driver, 10).until(
+            lambda d: d.find_element(By.CSS_SELECTOR, '.total-registros')
+        )
+        total_text = total_elem.text.strip()
+        match = re.search(r'(\d+)$', total_text)
+        total = int(match.group(1)) if match else 0
+        blocos = (total + 19) // 20 if total > 0 else 0
+        logger.info(f'[BLOCOS] Total de processos: {total} | Número de loops (blocos de 20): {blocos}')
+    except Exception as e:
+        logger.error(f'[BLOCOS][ERRO] Falha ao obter total de processos: {e}')
+        total = 0
+        blocos = 0
+    try:
+        # Não tentar clicar no botão de marcar todas, apenas navegação por teclado já foi feita no filtro
+        time.sleep(0.7)
+        # 2. Iniciar movimentação
+        safe_click(driver, "//i[contains(@class, 'fa-suitcase') and contains(@class, 'icone')]", by=By.XPATH)
+        print('[OK] Processos selecionados para movimentação.')
+        time.sleep(2)
+        # 3. Selecionar tarefa destino única
+        print('[MOV] Selecionando tarefa destino única...')
+        tarefa_select = driver.find_element(By.XPATH, "//span[contains(@class, 'mat-select-placeholder') and contains(@class, 'mat-select-min-line')]")
+        driver.execute_script("arguments[0].click();", tarefa_select)
+        time.sleep(1)
+        # 4. Selecionar opção "Análise"
+        opcoes = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-option-text')]")
+        for opcao in opcoes:
+            if 'análise' in opcao.text.strip().lower():
+                driver.execute_script("arguments[0].click();", opcao)
+                print('[MOV] Opção "Análise" selecionada.')
+                time.sleep(1)
+                break
+        # 5. Confirmar movimentação
+        btns = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and contains(text(), 'Movimentar processos')]")
+        for btn in btns:
+            try:
+                driver.execute_script("arguments[0].click();", btn)
+                print('[MOV] Movimentação de processos confirmada.')
+                break
+            except Exception as e:
+                print(f'[MOV][ERRO] Falha ao clicar no botão "Movimentar processos": {e}')
+        time.sleep(2)
+    except Exception as e:
+        print(f'[ERRO] Erro ao movimentar processos: {e}')
 
 def selecionar_processos_livres(driver):
     """
@@ -125,7 +170,8 @@ def selecionar_processos_livres(driver):
         url_analises = 'https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos'
         logger.info(f'[SELECAO] Navegando para {url_analises}...')
         if not navegar_para_tela(driver, url=url_analises):
-            raise Exception('[SELECAO][ERRO] Falha ao navegar para seção de Análises')
+            logger.error('[SELECAO][ERRO] Falha ao navegar para seção de Análises')
+            return False
         
         # Configura 100 linhas por página
         logger.info('[SELECAO] Configurando 100 linhas por página...')
@@ -137,9 +183,8 @@ def selecionar_processos_livres(driver):
             time.sleep(1)
             logger.info('[SELECAO] Configuração de 100 linhas concluída.')
         except Exception as e:
-            logger.error(f'[SELECAO][ERRO] Falha no filtro de linhas: {e}')
-            driver.save_screenshot('screenshot_erro_filtro_linhas.png')
-            raise
+            logger.error(f'[SELECAO][ERRO] Falha no filtro de linhas: {str(e)}')
+            return False
         
         # Encontra todas as linhas da tabela
         logger.info('[SELECAO] Buscando linhas na tabela...')
@@ -149,7 +194,7 @@ def selecionar_processos_livres(driver):
         
         for idx, linha in enumerate(linhas):
             try:
-                logger.info(f'[SELECAO] Processando linha {idx + 1}...')
+                logger.debug(f'[SELECAO] Processando linha {idx + 1}...')
                 
                 # Verifica se não tem prazo (coluna 9 vazia)
                 prazo = linha.find_elements(By.CSS_SELECTOR, 'td:nth-child(9) time')
@@ -173,6 +218,12 @@ def selecionar_processos_livres(driver):
                 logger.debug(f'[SELECAO] Linha {idx + 1} - Tem ícone de pesquisa: {tem_lupa}')
                 
                 # Se atende todos os critérios
+                
+                # Verifica se não tem ícone de pesquisa na coluna 3
+                tem_lupa = len(linha.find_elements(By.CSS_SELECTOR, 'td:nth-child(3) i.fa-search')) > 0
+                logger.debug(f'[SELECAO] Linha {idx + 1} - Tem ícone de pesquisa: {tem_lupa}')
+                
+                # Se atende todos os critérios
                 if prazo_vazio and not has_comment and not campo_preenchido and not tem_lupa:
                     try:
                         checkbox = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox input[type="checkbox"]')
@@ -182,18 +233,15 @@ def selecionar_processos_livres(driver):
                             selecionados += 1
                             logger.info(f'[SELECAO] Linha {idx + 1} selecionada com sucesso.')
                     except Exception as e:
-                        logger.error(f'[SELECAO][ERRO] Falha ao marcar checkbox na linha {idx + 1}: {e}')
-                        driver.save_screenshot(f'screenshot_erro_checkbox_{idx + 1}.png')
+                        logger.error(f'[SELECAO][ERRO] Falha ao marcar checkbox na linha {idx + 1}: {str(e)}')
                         continue
             except Exception as e:
-                logger.error(f'[SELECAO][ERRO] Falha ao processar linha {idx + 1}: {e}')
-                driver.save_screenshot(f'screenshot_erro_processamento_{idx + 1}.png')
+                logger.error(f'[SELECAO][ERRO] Falha ao processar linha {idx + 1}: {str(e)}')
                 continue
         
         logger.info(f'[SELECAO] Total de processos livres selecionados: {selecionados}')
         if selecionados == 0:
             logger.warning('[SELECAO] Nenhum processo livre encontrado para seleção.')
-            driver.save_screenshot('screenshot_nenhum_processo_livre.png')
             return 0
         
         # Registrar atividade em lote
@@ -204,12 +252,6 @@ def selecionar_processos_livres(driver):
             safe_click(driver, tag_verde)
             time.sleep(0.8)
             
-            # Clicar em "Atividade" no menu
-            span_atividade = esperar_elemento(driver, "//span[text()='Atividade']", by=By.XPATH)
-            safe_click(driver, span_atividade)
-            time.sleep(0.8)
-            
-            # Preencher e salvar atividade
             def preencher_atividade():
                 try:
                     # Esperar e preencher dias
@@ -217,40 +259,38 @@ def selecionar_processos_livres(driver):
                     driver.execute_script("arguments[0].value = '0';", input_dias)
                     input_dias.send_keys('0')
                     input_dias.send_keys(Keys.TAB)
-                    
+
                     # Esperar e preencher observação
                     textarea_obs = esperar_elemento(driver, 'pje-gigs-cadastro-atividades textarea[formcontrolname="observacao"]')
-                    driver.execute_script("arguments[0].value = 'xs';", textarea_obs)
-                    textarea_obs.send_keys('xs')
+                    driver.execute_script("arguments[0].value = 'pz checar';", textarea_obs)
+                    textarea_obs.send_keys('pz checar')
                     textarea_obs.send_keys(Keys.TAB)
-                    
+
                     # Esperar e clicar em salvar
                     btn_salvar = esperar_elemento(driver, 'pje-gigs-cadastro-atividades button[type="submit"].mat-primary')
                     safe_click(driver, btn_salvar)
                     time.sleep(1.2)
-                    
+
                     logger.info('[ATIVIDADE] Atividade registrada com sucesso para o lote.')
                     return True
                 except Exception as e:
-                    logger.error(f'[ATIVIDADE][ERRO] Falha ao preencher atividade: {e}')
+                    logger.error(f'[ATIVIDADE][ERRO] Falha ao preencher atividade: {str(e)}')
                     return False
-            
+
             if not preencher_atividade():
-                raise Exception('[ATIVIDADE][ERRO] Falha ao preencher atividade')
+                logger.error('[ATIVIDADE][ERRO] Falha ao preencher atividade')
+                return False
             
         except Exception as e:
-            logger.error(f'[SELECAO][ERRO] Falha ao registrar atividade em lote: {e}')
-            driver.save_screenshot('screenshot_erro_atividade.png')
-            raise
+            logger.error(f'[SELECAO][ERRO] Falha ao registrar atividade em lote: {str(e)}')
+            return False
         
         logger.info('[SELECAO] Seleção de processos e atividade concluída com sucesso.')
         return selecionados
-        
     except Exception as e:
-        logger.error(f'[SELECAO][ERRO] Erro crítico na seleção de processos: {e}')
-        driver.save_screenshot('screenshot_erro_selecao.png')
-        raise
-        
+        logger.error(f'[SELECAO][ERRO] Erro crítico na seleção de processos: {str(e)}')
+        return False
+
 def navegar_para_pagina(driver, numero_pagina):
     """Navega para página específica usando padrão Fix.py"""
     try:
@@ -265,26 +305,13 @@ def navegar_para_pagina(driver, numero_pagina):
         logger.error(f'[NAVEGACAO][ERRO] Página {numero_pagina}: {str(e)}')
         return False
 
-def processar_lote(driver, num_lote):
-    """Processa todos os itens do lote atual"""
-    # 1. Processar andamentos
-    if not processar_andamento(driver):
-        raise Exception('Falha ao processar andamentos')
-    
-    # 2. Movimentar processos
-    if not movimentar_processos(driver):
-        raise Exception('Falha ao movimentar processos')
-    
-    # 3. Verificar conclusão
-    if not verificar_conclusao(driver):
-        raise Exception('Processos não concluídos corretamente')
 
 def fazer_login():
     """
     Wrapper simplificado para login
     """
-    driver = obter_driver_padronizado()
-    return login_pje_robusto(driver)
+    driver = driver_notebook()
+    return login_notebook(driver)
 
 def obter_driver():
     from selenium.webdriver import Firefox
@@ -294,116 +321,69 @@ def obter_driver():
     opts.profile = '/caminho/do/seu/perfil/firefox-dev'  # Ajuste conforme seu ambiente
     return Firefox(options=opts)
 
-def main():
-    """
-    Fluxo principal de automação do PJe TRT2.
-    1. Configura navegador e faz login
-    2. Navega para painel de prazos
-    3. Processa lotes de processos
-    """
+def loop_principal(driver):
+    # 1. Aplicar filtro de fases apenas uma vez
+    if not filtrar_fase_processual(driver):
+        logger.info('[LOOP] Filtro de fase processual não aplicável ou sem processos. Encerrando loop.')
+        return
+    # 2. Contabilizar blocos/lotes
     try:
-        # Limpeza inicial
-        logger.info('[SCRIPT] Iniciando script...')
-        limpar_temp_selenium()
-        logger.info('[SCRIPT] Limpeza inicial concluída.')
-        
-        # Configuração do navegador
-        logger.info('[CONFIG] Configurando navegador...')
-        driver = fazer_login()
-        if not driver:
-            raise Exception('[CONFIG][ERRO] Falha ao configurar navegador')
-        logger.info('[CONFIG] Navegador configurado com sucesso.')
-        
-        # Navegação para o painel de prazos
-        logger.info('[NAVEGAR] Navegando para painel de prazos...')
-        url_painel = 'https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos'
-        navegar_result = navegar_para_tela(driver, url=url_painel)
-        if not navegar_result:
-            driver.save_screenshot('screenshot_erro_navegacao.png')
-            raise Exception(f'[NAVEGAR][ERRO] Falha ao navegar para {url_painel}')
-        logger.info('[NAVEGAR] Navegação concluída.')
-        
-        # Espera até que o sistema esteja totalmente carregado
-        def sistema_pronto(driver):
-            try:
-                # Verifica spinner/loading
-                loadings = driver.find_elements(By.CSS_SELECTOR, '.loading-spinner, .mat-progress-spinner')
-                if any(loading.is_displayed() for loading in loadings):
-                    return False
-                
-                # Verifica se a tabela principal está visível
-                tabela = driver.find_element(By.CSS_SELECTOR, 'mat-table.mat-table')
-                return tabela.is_displayed()
-            except:
-                return False
-        
-        # Aguarda até 60 segundos pelo carregamento
-        WebDriverWait(driver, 60).until(sistema_pronto)
-        
-        # Extração definitiva do total
-        try:
-            # Método 1: Via elemento de total
-            total_elem = driver.find_element(By.CSS_SELECTOR, 'span.total-registros')
-            texto = total_elem.text.strip()
-            if 'de' in texto:
-                total = int(texto.split('de')[-1].strip().split()[0])
-                logger.info(f'[LOOP] Total oficial: {total} processos')
-            else:
-                raise ValueError('Formato não reconhecido')
-        except Exception as e:
-            # Método 2: Contagem direta como fallback
-            processos = driver.find_elements(By.CSS_SELECTOR, 'mat-row.mat-row')
-            total = len(processos)
-            logger.warning(f'[LOOP] Total estimado: {total} processos (fallback)')
-        
-        if total == 0:
-            driver.save_screenshot('screenshot_sem_processos.png')
-            logger.error('[LOOP][ERRO CRÍTICO] Nenhum processo encontrado após carregamento completo')
-            raise Exception('Nenhum processo encontrado - verifique manualmente')
-        
-        # Cálculo de lotes
-        ITENS_POR_PAGINA = 20
-        lotes = max(1, (total + ITENS_POR_PAGINA - 1) // ITENS_POR_PAGINA)
-        logger.info(f'[LOOP] Total confirmado: {total} processos ({lotes} lotes)')
-        
-        # Processa cada lote
-        for lote_atual in range(lotes):
-            try:
-                # Processa o lote atual
-                logger.info(f'[LOOP] Processando andamento do lote {lote_atual}...')
-                
-                # Verifica se há processos antes de continuar
-                processos = esperar_elemento(driver, 'mat-row.mat-row', timeout=10)
-                if not processos:
-                    driver.save_screenshot('screenshot_sem_processos_lote.png')
-                    logger.warning('[LOOP] Nenhum processo encontrado no lote - pulando')
-                    continue
-                        
-                # Executa o processamento
-                resultado = processar_andamento(driver)
-                
-                if not resultado:
-                    driver.save_screenshot('screenshot_erro_processamento.png')
-                    logger.error('[LOOP] Falha no processamento - continuando para próximo lote')
-                    continue
-                        
-            except Exception as e:
-                driver.save_screenshot('screenshot_erro_critico.png')
-                logger.error(f'[LOOP][ERRO] Falha crítica: {str(e)}')
-                raise
-
-        # Após processar todos os lotes, vai para processos livres
-        logger.info('[SELECAO] Iniciando seleção de processos livres...')
-        selecionar_processos_livres(driver)
-            
-        logger.info('[LOOP] Todos os lotes processados com sucesso.')
-                
-        logger.info(f'[LOOP] Lote {lote_atual} processado com sucesso.')
-            
+        total_elem = WebDriverWait(driver, 10).until(
+            lambda d: d.find_element(By.CSS_SELECTOR, '.total-registros')
+        )
+        total_text = total_elem.text.strip()
+        match = re.search(r'(\d+)$', total_text)
+        total = int(match.group(1)) if match else 0
+        blocos = (total + 19) // 20 if total > 0 else 0
+        logger.info(f'[BLOCOS] Total de processos: {total} | Número de loops (blocos de 20): {blocos}')
     except Exception as e:
-        logger.error(f'[SCRIPT][ERRO] Erro crítico: {str(e)}')
-        driver.save_screenshot('screenshot_erro_critico.png')
-        raise
-            
-if __name__ == '__main__':
+        logger.error(f'[BLOCOS][ERRO] Falha ao obter total de processos: {e}')
+    # 3. Prosseguir com a movimentação
+    while True:
+        movimentar_processos(driver)
+        # Sair da tela com ALT + seta para a esquerda
+        from selenium.webdriver.common.action_chains import ActionChains
+        ActionChains(driver).key_down(u'\ue00c').send_keys(u'\ue012').key_up(u'\ue00c').perform()  # ALT + seta esquerda
+        time.sleep(1)
+        # Checar se ainda há processos para movimentar
+        try:
+            total_elem = WebDriverWait(driver, 5).until(
+                lambda d: d.find_element(By.CSS_SELECTOR, '.total-registros')
+            )
+            total_text = total_elem.text.strip()
+            match = re.search(r'(\d+)$', total_text)
+            total = int(match.group(1)) if match else 0
+            if total == 0:
+                logger.info('[LOOP] Não há mais processos para movimentar. Encerrando loop.')
+                break
+        except Exception:
+            logger.info('[LOOP] Não foi possível obter o total de processos. Encerrando loop.')
+            break
+
+def main():
+    logger.info("[SCRIPT] Iniciando automação...")
+    driver = driver_notebook()
+    if not driver:
+        logger.error("[SCRIPT][ERRO] Falha ao inicializar driver")
+        return
+    if not login_notebook(driver):
+        logger.error("[SCRIPT][ERRO] Falha no login. Encerrando script.")
+        driver.quit()
+        return
+    logger.info("[SCRIPT] Login realizado com sucesso.")
+    # Maximizar a janela do navegador após login
+    try:
+        driver.maximize_window()
+        logger.info("[SCRIPT] Janela do navegador maximizada.")
+    except Exception as e:
+        logger.warning(f"[SCRIPT][WARN] Não foi possível maximizar a janela: {e}")
+    url_lista = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
+    logger.info(f"[SCRIPT] Navegando diretamente para {url_lista} ...")
+    driver.get(url_lista)
+    time.sleep(2)
+    loop_principal(driver)
+    driver.quit()
+    logger.info("[SCRIPT] Driver encerrado")
+
+if __name__ == "__main__":
     main()

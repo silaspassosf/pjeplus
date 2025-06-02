@@ -1,0 +1,775 @@
+2025-05-04 21:04:01,418 [ERROR] [AutomacaoPJe] [MAIN][ERRO] Message: Unable to obtain driver for firefox; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors/driver_location
+
+2025-05-04 21:10:26,902 [ERROR] [AutomacaoPJe] [MAIN][ERRO] Message: Unable to obtain driver for firefox; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors/driver_location
+
+2025-05-04 21:18:33,036 [ERROR] [AutomacaoPJe] [MAIN][ERRO] Message: Unable to obtain driver for firefox; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors/driver_location
+
+2025-05-04 21:22:30,750 [ERROR] [AutomacaoPJe] [MAIN][ERRO] Message: Unable to obtain driver for firefox; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors/driver_location
+
+2025-05-04 21:29:27,663 [ERROR] [AutomacaoPJe] [MAIN][ERRO] [WinError 216] Esta versão de %1 não é compatível com a versão do Windows sendo executada. Verifique as informações de sistema do computador e contate o fornecedor do software
+2025-05-04 21:31:48,075 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha no login
+2025-05-04 22:50:41,110 [INFO] [AutomacaoPJe] [NAVEGACAO] Navegação para o painel concluída.
+2025-05-04 22:50:53,017 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Falha ao aplicar filtro de 100 itens por página
+2025-05-04 22:54:27,169 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-04 22:54:27,170 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-04 22:54:29,292 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-04 22:54:32,492 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-04 22:54:42,543 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-04 22:58:08,912 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-04 22:58:08,913 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-04 22:58:11,034 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-04 22:58:13,818 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-04 22:58:13,939 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-04 22:58:15,530 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-04 22:58:25,550 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Erro ao aplicar filtro de atividade: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-04 23:02:36,741 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-04 23:02:36,741 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-04 23:02:38,876 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-04 23:02:41,702 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-04 23:02:41,815 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-04 23:02:43,078 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-04 23:02:44,229 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs pz" aplicada e ENTER enviado.
+2025-05-04 23:03:08,022 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] ('Connection aborted.', ConnectionResetError(10054, 'Foi forçado o cancelamento de uma conexão existente pelo host remoto', None, 10054, None))
+2025-05-04 23:11:38,262 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-04 23:11:38,263 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-04 23:11:40,574 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-04 23:11:43,467 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-04 23:11:43,638 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-04 23:11:45,709 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-04 23:11:47,021 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs pz" aplicada e ENTER enviado.
+2025-05-04 23:15:02,051 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-04 23:15:02,052 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-04 23:15:04,646 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-04 23:15:07,564 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-04 23:15:07,830 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-04 23:15:10,088 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-04 23:15:11,507 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 16:03:42,374 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 16:03:42,375 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 16:03:44,526 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 16:03:47,271 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 16:03:47,327 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 16:03:48,338 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 16:03:49,432 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 16:07:30,307 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 16:07:30,308 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 16:07:32,440 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 16:07:35,163 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 16:07:35,258 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 16:07:35,820 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 16:07:37,028 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 16:07:39,028 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 16:08:10,159 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:08:21,176 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:08:32,493 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:08:34,198 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento.
+2025-05-05 16:08:34,201 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhum trecho de regra encontrado no texto.
+2025-05-05 16:08:34,202 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:08:59,699 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:09:02,934 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:09:02,992 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:09:14,260 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:09:15,884 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento.
+2025-05-05 16:09:15,885 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhum trecho de regra encontrado no texto.
+2025-05-05 16:09:15,886 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:09:44,078 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:09:47,382 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:09:47,423 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:09:58,723 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:10:00,438 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento.
+2025-05-05 16:10:00,438 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhum trecho de regra encontrado no texto.
+2025-05-05 16:10:00,438 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:10:28,665 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:10:31,968 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:10:32,403 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:10:43,718 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:10:45,419 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento.
+2025-05-05 16:10:45,420 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhum trecho de regra encontrado no texto.
+2025-05-05 16:10:45,420 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:11:13,693 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:11:14,948 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.
+2025-05-05 16:42:52,986 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 16:42:52,986 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 16:42:55,106 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 16:42:57,819 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 16:42:57,876 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 16:42:58,876 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 16:42:59,986 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 16:43:01,987 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 16:43:14,503 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:43:29,944 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:43:41,270 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:43:42,955 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento. Analisando regras...
+2025-05-05 16:43:42,955 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto.
+2025-05-05 16:43:42,955 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma ação específica definida ou regra não resultou em GIGS. Criando GIGS padrão "Pz".
+2025-05-05 16:44:08,462 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:44:08,469 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:44:11,686 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:44:11,787 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:44:23,087 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:44:24,728 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento. Analisando regras...
+2025-05-05 16:44:24,729 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto.
+2025-05-05 16:44:24,729 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma ação específica definida ou regra não resultou em GIGS. Criando GIGS padrão "Pz".
+2025-05-05 16:44:52,919 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:44:52,928 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:44:56,241 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:44:56,323 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:44:59,574 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:44:59,577 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento.
+2025-05-05 16:44:59,581 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Falha ao fechar/trocar aba: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.getWindowHandle@chrome://remote/content/marionette/driver.sys.mjs:1258:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+2025-05-05 16:45:02,679 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:45:02,929 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-05-05 16:45:02,934 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Falha ao fechar/trocar aba: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.getWindowHandle@chrome://remote/content/marionette/driver.sys.mjs:1258:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+2025-05-05 16:51:37,744 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 16:51:37,745 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 16:51:39,852 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 16:51:42,579 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 16:51:42,646 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 16:51:43,680 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 16:51:44,786 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 16:51:46,787 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 16:51:56,687 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:52:06,881 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:52:18,155 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 16:52:19,884 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído do documento. Analisando regras...
+2025-05-05 16:52:19,885 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto.
+2025-05-05 16:52:19,885 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma ação específica definida ou regra não resultou em GIGS. Criando GIGS padrão "Pz".
+2025-05-05 16:52:45,397 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado concluída.
+2025-05-05 16:52:45,407 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 16:52:48,708 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 16:52:48,785 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 16:52:59,081 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Conteúdo HTML não encontrado, tentando visualizar código...
+2025-05-05 17:36:52,419 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 17:36:52,419 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 17:36:54,542 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 17:36:57,270 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 17:36:57,315 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 17:36:58,379 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 17:36:59,470 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 17:37:01,471 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 17:38:17,641 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 17:38:17,642 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 17:38:19,765 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 17:38:22,475 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 17:38:22,522 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 17:38:23,571 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 17:38:24,676 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 17:38:26,677 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 17:38:34,112 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:38:34,112 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:38:45,613 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:38:47,884 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:38:49,027 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 17:38:49,027 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+poder judiciário
+justiça do trabalho
+tribunal regional do trabalho da 2ª região
+3ª vara do trabalho de são paulo - zona sul
+1001272-55.2023.5.02.0703
+: ivaneth sabina de santana de brito
+: alberto winkler blanco e outros (3)
+
+  conclusão
+
+  nesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) do trabalho da 3ª vt de zona sul de são paulo.
+são paulo, 03 de abril de 2025.
+silas passos ferreira
+servidor responsável
+decisão
+vistos, etc.
+incidente de desconsideração inversa da personalidade...
+---
+2025-05-05 17:38:49,028 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 17:38:49,028 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 17:39:22,425 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 17:39:22,430 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:39:22,580 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:39:22,581 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:39:25,700 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:39:25,701 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:39:25,762 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:39:28,045 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:39:29,163 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 17:39:29,163 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+poder judiciário
+justiça do trabalho
+tribunal regional do trabalho da 2ª região
+3ª vara do trabalho de são paulo - zona sul
+1001796-18.2024.5.02.0703
+: yuleimi daily abreu delgado
+: a m da silva hortifruit
+
+conclusão
+nesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) do trabalho da 3ª vt de zona sul de são paulo.
+são paulo, 02 de abril de 2025.
+andrei boareto coimbra
+servidor responsável
+  decisão
+vistos, etc.
+julgo extinta a presente execução, nos termos do art. 924, ii do cpc.
+regi...
+---
+2025-05-05 17:39:29,164 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 17:39:29,164 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 17:39:58,066 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 17:39:58,075 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:39:58,163 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:39:58,164 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:40:01,264 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:40:01,265 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:40:01,320 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:40:03,583 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:40:04,718 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 17:40:04,719 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+poder judiciário
+justiça do trabalho
+tribunal regional do trabalho da 2ª região
+3ª vara do trabalho de são paulo - zona sul
+1001188-11.2024.5.02.0609
+: vilma felix da silva
+: lume servicos e engenharia ltda
+
+conclusão
+nesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) do trabalho da 3ª vt de zona sul de são paulo. 
+são paulo, 09 de abril de 2025.
+bruna pati soares
+servidor responsável
+  despacho
+vistos, etc.
+compulsando os autos principais, verifico que houve erro material quanto à d...
+---
+2025-05-05 17:40:04,719 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 17:40:04,720 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 17:40:33,785 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 17:40:33,790 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:40:33,895 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:40:33,895 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:40:37,001 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:40:37,001 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:40:37,568 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:40:39,856 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:40:41,004 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 17:40:41,005 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+poder judiciário
+justiça do trabalho
+tribunal regional do trabalho da 2ª região
+3ª vara do trabalho de são paulo - zona sul
+1001867-54.2023.5.02.0703
+: guilherme gibran pogibin
+: associacao princesa isabel de educacao e cultura e outros (7)
+
+conclusão
+nesta data, faço os autos conclusos ao exmo(a). sr(a). juiz(a) do trabalho da 3ª vt de zona sul de são paulo. 
+são paulo, 02 de abril de 2025.
+andrei boareto coimbra
+servidor responsável
+  despacho
+vistos, etc.
+intimem-se as partes para tomarem ciê...
+---
+2025-05-05 17:40:41,005 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 17:40:41,005 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 17:54:27,821 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 17:54:27,822 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 17:54:29,924 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 17:54:32,648 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 17:54:32,695 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 17:54:34,010 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 17:54:35,100 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 17:54:37,102 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 17:54:51,542 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:54:51,542 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:03,828 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:06,082 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:07,720 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:07,721 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:07,785 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:55:07,789 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:55:07,869 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:55:07,870 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:11,007 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:11,007 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:11,081 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:13,336 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:14,991 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:14,991 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:15,053 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:55:15,059 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:55:15,144 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:55:15,144 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:18,276 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:18,276 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:18,768 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:21,037 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:22,678 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:22,678 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:22,744 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:55:22,748 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:55:22,830 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:55:22,830 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:25,943 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:25,944 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:26,459 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:28,741 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:28,748 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:28,749 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:28,753 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Falha ao tirar screenshot de erro de extração: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.takeScreenshot@chrome://remote/content/marionette/driver.sys.mjs:2749:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+2025-05-05 17:55:28,756 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Falha ao tentar fechar/trocar aba no finally: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.getWindowHandle@chrome://remote/content/marionette/driver.sys.mjs:1258:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+2025-05-05 17:55:28,756 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:31,861 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:31,861 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:32,100 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:34,393 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:36,234 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:36,235 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:36,298 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:55:36,301 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:55:36,402 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:55:36,402 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:39,498 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:39,498 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:41,111 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:43,435 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:45,308 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:45,308 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:45,370 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:55:45,376 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:55:45,505 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:55:45,506 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:48,635 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:48,635 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:48,775 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:55:51,081 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:55:52,739 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:55:52,739 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:55:52,813 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:55:52,817 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:55:52,886 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:55:52,887 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:55:56,075 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:55:56,075 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:55:58,797 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:56:01,162 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:56:02,960 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:56:02,961 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:56:03,024 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:56:03,028 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:56:03,133 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:56:03,134 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:56:06,236 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:56:06,237 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:56:08,540 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:56:10,923 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:56:12,672 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:56:12,674 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:56:12,738 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:56:12,743 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:56:12,828 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:56:12,828 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:56:15,938 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:56:15,939 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:56:18,557 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:56:20,889 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:56:22,716 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:56:22,717 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:56:22,796 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:56:22,801 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:56:22,933 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:56:22,933 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:56:26,044 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:56:26,044 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:56:28,570 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:56:30,935 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:56:32,737 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:56:32,738 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:56:32,812 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:56:32,817 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:56:32,931 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:56:32,932 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:56:36,092 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:56:36,092 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:56:38,111 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:56:40,389 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:56:42,228 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:56:42,228 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:56:42,308 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:56:42,312 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:56:42,465 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:56:42,466 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:56:45,637 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:56:45,637 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:01,161 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:03,472 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:05,311 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:05,311 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:05,383 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:05,388 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:05,515 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:05,515 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:08,694 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:08,694 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:09,007 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:11,300 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:12,998 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:12,998 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:13,078 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:13,083 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:13,157 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:13,157 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:16,328 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:16,329 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:16,947 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:19,228 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:20,988 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:20,988 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:21,063 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:21,068 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:21,145 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:21,145 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:24,228 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:24,228 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:26,008 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:28,316 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:30,103 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:30,104 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:30,167 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:30,172 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:30,280 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:30,281 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:33,402 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:33,402 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:34,788 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:37,097 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:38,871 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:38,872 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:38,933 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:38,938 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:39,055 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:39,055 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:42,181 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:42,181 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:43,265 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:45,568 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:47,311 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:47,313 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:47,383 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:47,387 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:47,503 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:47,504 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:50,628 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:50,629 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:57:52,492 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:57:54,778 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:57:56,616 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:57:56,617 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:57:56,724 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:57:56,730 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:57:56,864 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:57:56,864 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:57:59,988 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:57:59,989 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:58:06,222 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:58:08,535 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:58:10,332 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:58:10,332 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:58:10,420 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:58:10,424 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:58:10,538 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:58:10,538 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:58:13,667 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:58:13,667 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:58:23,673 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-05-05 17:58:23,681 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:58:23,814 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:58:23,814 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:58:26,978 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:58:26,979 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:58:33,112 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:58:35,470 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:58:37,297 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:58:37,298 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:58:37,410 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:58:37,415 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:58:37,550 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:58:37,551 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 17:58:40,856 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 17:58:40,857 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 17:58:44,791 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 17:58:47,168 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 17:58:49,025 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Erro ao chamar extrair_documento: 'tuple' object has no attribute 'lower'
+2025-05-05 17:58:49,026 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-05-05 17:58:49,129 [INFO] [AutomacaoPJe] [FLUXO_PZ] Screenshot de erro de extração salvo.
+2025-05-05 17:58:49,137 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 17:58:49,398 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 17:58:49,399 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 18:05:44,263 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 18:05:44,264 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 18:05:46,365 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 18:05:49,081 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 18:05:49,119 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 18:05:49,680 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 18:05:50,739 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 18:05:52,739 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 18:13:26,745 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-05 18:13:26,746 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-05 18:13:28,881 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone de etiquetas clicado com sucesso.
+2025-05-05 18:13:31,579 [INFO] [AutomacaoPJe] [FILTRO] Tentando remover chip "Vencidas"...
+2025-05-05 18:13:31,623 [INFO] [AutomacaoPJe] [FILTRO] Chip "Vencidas" removido.
+2025-05-05 18:13:32,696 [INFO] [AutomacaoPJe] [FILTRO] Atividade sem prazo selecionada.
+2025-05-05 18:13:33,804 [INFO] [AutomacaoPJe] [FILTRO] Descrição da atividade "xs" aplicada e ENTER enviado.
+2025-05-05 18:13:35,805 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-05-05 18:13:43,741 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 18:13:43,741 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 18:13:54,428 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 18:13:56,699 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 18:13:58,990 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 18:13:58,991 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+incidente de desconsideração inversa da personalidade jurídica instaurado em face de alberto winkler blanco, cpf: 106.614.008-16; empresas silver channel consultoria e publicidade ltda, cnpj: 08.726.464/0001-91; waimea participacoes ltda, cnpj: 26.773.949/0001-18; participe - empresa de participacoes em negocios ltda, cnpj: 07.446.665/0001-72.
+intimados os reclamados, não apresentaram defesa.
+relatados.
+decido.
+trata-se o presente caso de desconsideração inversa da personali...
+---
+2025-05-05 18:13:58,991 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 18:13:58,992 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 18:14:24,487 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 18:14:24,492 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 18:14:24,586 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 18:14:24,587 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 18:14:27,699 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 18:14:27,699 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 18:14:27,801 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 18:14:30,066 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 18:14:31,723 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 18:14:31,723 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+compulsando os autos principais, verifico que houve erro material quanto à determinação de anotação da ctps da autora, pelo que reconsidero o item 2 do despacho de id. 286c102.
+intimem-se.
+  sao paulo/sp, 10 de abril de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-05-05 18:14:31,723 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 18:14:31,724 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 18:15:00,127 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 18:15:00,133 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 18:15:00,232 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 18:15:00,232 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 18:15:03,338 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 18:15:03,338 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 18:15:03,721 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 18:15:06,044 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 18:15:07,694 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 18:15:07,695 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+intimem-se as partes para tomarem ciência dos esclarecimentos apresentados pelo(a) i. perito(a) contábil e, querendo, se manifestarem no prazo de cinco dias, sob pena de preclusão e, após, venham os autos conclusos para homologação de cálculos.
+sao paulo/sp, 02 de abril de 2025.
+mariana kawahashi
+juíza do trabalho substituta
+---
+2025-05-05 18:15:07,696 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 18:15:07,696 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo: "tomarem ciência dos esclarecimentos apresentados". Ação Primária: gigs, Secundária: Nenhuma
+2025-05-05 18:15:07,697 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Primária: Criar GIGS (1 dias, Obs: "Silvia - Homologação")
+2025-05-05 18:15:36,408 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 18:15:36,413 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-05-05 18:15:36,508 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-05-05 18:15:36,508 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-05 18:15:39,616 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-05-05 18:15:39,616 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-05-05 18:15:39,738 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-05-05 18:15:41,997 [INFO] [AutomacaoPJe] [FLUXO_PZ] Tentando extrair texto do documento via extrair_documento...
+2025-05-05 18:15:43,659 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído com sucesso via extrair_documento.
+2025-05-05 18:15:43,660 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+julgo extinta a presente execução, nos termos do art. 924, ii do cpc.
+já registrados os valores, arquivem-se os autos, com as cautelas de praxe.
+sao paulo/sp, 02 de abril de 2025.
+mariana kawahashi
+juíza do trabalho substituta
+---
+2025-05-05 18:15:43,661 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-05-05 18:15:43,662 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma regra aplicável encontrada no texto. Aplicando ação padrão: Criar GIGS "Pz".
+2025-05-05 18:16:14,211 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-05-05 18:16:14,376 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Falha ao tentar fechar/trocar aba no finally: Message: Failed to decode response from marionette
+
+2025-05-05 18:16:14,377 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído para o processo atual.
+2025-05-07 13:08:56,378 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 13:09:19,893 [ERROR] [AutomacaoPJe] [LOGIN] Timeout esperando página principal carregar
+2025-05-07 13:09:19,956 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Timeout aguardando carregamento após login
+2025-05-07 13:30:46,780 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 13:31:10,314 [ERROR] [AutomacaoPJe] [LOGIN] Timeout esperando página principal carregar
+2025-05-07 13:31:10,401 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Timeout aguardando carregamento após login
+2025-05-07 13:54:46,993 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 13:55:10,519 [ERROR] [AutomacaoPJe] [LOGIN] Timeout esperando página principal carregar
+2025-05-07 13:55:10,646 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Timeout aguardando carregamento após login
+2025-05-07 14:01:51,793 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 14:01:51,794 [INFO] [AutomacaoPJe] [LOGIN] Aguardando URL https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar após login...
+2025-05-07 14:01:51,798 [INFO] [AutomacaoPJe] [LOGIN] URL de quadro de avisos confirmada, seguindo fluxo.
+2025-05-07 14:02:12,327 [ERROR] [AutomacaoPJe] [LOGIN] Timeout esperando página principal carregar
+2025-05-07 14:02:12,444 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Timeout aguardando carregamento após login
+2025-05-07 14:06:27,541 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 14:06:27,541 [INFO] [AutomacaoPJe] [LOGIN] Aguardando URL https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar após login...
+2025-05-07 14:06:27,545 [INFO] [AutomacaoPJe] [LOGIN] URL de quadro de avisos confirmada, seguindo fluxo.
+2025-05-07 14:06:27,545 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-07 14:06:49,146 [ERROR] [AutomacaoPJe] [NAVEGAR][ERRO] Falha ao acessar painel de etiquetas: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:06:49,191 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:15:24,345 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 14:15:24,346 [INFO] [AutomacaoPJe] [LOGIN] Aguardando URL https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar após login...
+2025-05-07 14:15:24,349 [INFO] [AutomacaoPJe] [LOGIN] URL de quadro de avisos confirmada, seguindo fluxo.
+2025-05-07 14:15:24,352 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-07 14:15:45,935 [ERROR] [AutomacaoPJe] [NAVEGAR][ERRO] Falha ao acessar painel de etiquetas: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:15:45,983 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:20:10,025 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 14:20:10,026 [INFO] [AutomacaoPJe] [LOGIN] Aguardando URL https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar após login...
+2025-05-07 14:20:10,032 [INFO] [AutomacaoPJe] [LOGIN] URL de quadro de avisos confirmada, seguindo fluxo.
+2025-05-07 14:20:10,035 [INFO] [AutomacaoPJe] [NAVEGAR] URL atual após login: https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar
+2025-05-07 14:20:10,042 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-07 14:20:31,635 [ERROR] [AutomacaoPJe] [NAVEGAR][ERRO] Falha ao acessar painel de etiquetas: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:20:31,684 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:30:46,912 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 14:30:46,912 [INFO] [AutomacaoPJe] [LOGIN] Aguardando URL https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar após login...
+2025-05-07 14:30:46,916 [INFO] [AutomacaoPJe] [LOGIN] URL de quadro de avisos confirmada, seguindo fluxo.
+2025-05-07 14:30:46,921 [INFO] [AutomacaoPJe] [NAVEGAR] URL atual após login: https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar
+2025-05-07 14:30:46,930 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-07 14:31:08,535 [ERROR] [AutomacaoPJe] [NAVEGAR][ERRO] Falha ao acessar painel de etiquetas: Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:31:08,589 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+
+2025-05-07 14:37:27,806 [INFO] [AutomacaoPJe] [LOGIN] Login realizado com sucesso.
+2025-05-07 14:37:27,807 [INFO] [AutomacaoPJe] [LOGIN] Aguardando URL https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar após login...
+2025-05-07 14:37:27,812 [INFO] [AutomacaoPJe] [LOGIN] URL de quadro de avisos confirmada, seguindo fluxo.
+2025-05-07 14:37:27,816 [INFO] [AutomacaoPJe] [NAVEGAR] URL atual após login: https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar
+2025-05-07 14:37:27,831 [INFO] [AutomacaoPJe] [NAVEGAR] Clicando no ícone de etiquetas (fa-tags)...
+2025-05-07 14:37:28,898 [INFO] [AutomacaoPJe] [NAVEGAR] Ícone fa-tags clicado com sucesso.
+2025-05-07 14:37:28,899 [INFO] [AutomacaoPJe] [NAVEGAR] Verificando carregamento do painel de etiquetas...
+2025-05-07 14:37:49,419 [ERROR] [AutomacaoPJe] [NAVEGAR][ERRO] Timeout ao acessar o painel de etiquetas. Verifique se o seletor está correto ou se há atrasos no carregamento.
+2025-05-07 14:37:49,420 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Message: 
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
+dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+

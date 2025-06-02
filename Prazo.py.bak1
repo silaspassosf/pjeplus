@@ -175,93 +175,39 @@ def filtrar_fase_processual(driver, fases_alvo=None):
     except Exception as e:
         print(f'[ERRO] Erro no filtro de fase: {e}')
         return False
-
-def selecionar_processos_livres(driver):
+    def movimentar_processos(driver):
     """
-    Seleciona processos "livres" na lista, conforme o seletor JS fornecido.
-    Marca checkboxes dos processos que:
-    - Não possuem prazo (coluna 9 vazia)
-    - Não possuem comentário
-    - Não possuem valor preenchido em input[matinput]
-    - Não possuem ícone de pesquisa na coluna 3
-    Retorna o número de processos selecionados.
+    Movimenta os processos selecionados para a tarefa 'Análise'.
+    
+    O fluxo é:
+    1. Clica fora de painéis abertos para garantir interface limpa
+    2. Marca todos os processos usando o ícone check
+    3. Inicia movimentação pelo ícone mala (suitcase)
+    4. Seleciona 'Análise' como tarefa destino
+    5. Confirma movimentação dos processos
     """
-    # 1. Filtro de linhas (100 por página)
-    try:
-        btn_linhas = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, '#mat-select-value-117'))
-        )
-        btn_linhas.click()
-        print('[FILTRO][LINHAS] Dropdown de linhas clicado.')
-        time.sleep(0.5)
-        opcao_100 = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, '#mat-option-266 > span'))
-        )
-        opcao_100.click()
-        print('[FILTRO][LINHAS] Selecionado 100 por página.')
-        time.sleep(1)
-    except Exception as e:
-        print(f'[FILTRO][ERRO] Falha no filtro de linhas: {e}')
-    print('Selecionando processos Livres e aplicando atividade...')
-    try:
-        linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
-        print(f'[DEBUG] Total de linhas encontradas na tabela: {len(linhas)}')
-        selecionados = 0
-        for idx, linha in enumerate(linhas):
-            try:
-                prazo = linha.find_elements(By.CSS_SELECTOR, 'td:nth-child(9) time')
-                prazo_vazio = not prazo or not prazo[0].text.strip()
-            except Exception:
-                prazo_vazio = True
-            has_comment = len(linha.find_elements(By.CSS_SELECTOR, 'i.fa-comment')) > 0
-            try:
-                input_field = linha.find_elements(By.CSS_SELECTOR, 'input[matinput]')
-                campo_preenchido = input_field and input_field[0].get_attribute('value').strip()
-            except Exception:
-                campo_preenchido = False
-            tem_lupa = len(linha.find_elements(By.CSS_SELECTOR, 'td:nth-child(3) i.fa-search')) > 0
-            print(f'[DEBUG] Linha {idx}: prazo_vazio={prazo_vazio}, comentario={bool(has_comment)}, campo_preenchido={bool(campo_preenchido)}, lupa={bool(tem_lupa)}')
-            if prazo_vazio and not has_comment and not campo_preenchido and not tem_lupa:
-                try:
-                    checkbox = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox input[type="checkbox"]')
-                    if not checkbox.is_selected():
-                        driver.execute_script('arguments[0].click()', checkbox)
-                        driver.execute_script('arguments[0].style.backgroundColor = "#ffccd2";', linha)
-                        selecionados += 1
-                except Exception as e:
-                    print(f'[DEBUG] Falha ao marcar checkbox na linha {idx}: {e}')
-                    continue
-        print(f'[DEBUG] Total de processos livres selecionados: {selecionados}')
-        if selecionados == 0:
-            driver.save_screenshot('screenshot_nenhum_processo_livre.png')
-            print('Nenhum processo livre encontrado para seleção. Screenshot salvo.')
-            return 0
-        return selecionados
-    except Exception as e:
-        print(f'Erro ao selecionar processos livres: {e}')
-        driver.save_screenshot('screenshot_atividade_silas_fail.png')
-        print('[DEBUG] Screenshot salvo: screenshot_atividade_silas_fail.png')
-        return 0
-
-def movimentar_processos(driver):
     print('Movimentando processos...')
     try:
+        # 1. Garantir interface limpa
         clicar_fora_painel(driver)
-        # Marcar todos os processos com ícone fa-check
+        
+        # 2. Marcar todos os processos
         safe_click(driver, "//i[contains(@class, 'fa-check') and contains(@class, 'marcar-todas')]")
         time.sleep(0.7)
         clicar_fora_painel(driver)
-        # Clicar no ícone de mala (fa-suitcase)
+        
+        # 3. Iniciar movimentação
         safe_click(driver, "//i[contains(@class, 'fa-suitcase') and contains(@class, 'icone')]")
-        print('[OK] Processos movimentados.')
+        print('[OK] Processos selecionados para movimentação.')
         time.sleep(2)
-        # Após clicar na mala, selecionar "Tarefa destino única"
+        
+        # 4. Selecionar tarefa destino única
         print('[MOV] Selecionando tarefa destino única...')
-        # 1. Abrir select
         tarefa_select = driver.find_element(By.XPATH, "//span[contains(@class, 'mat-select-placeholder') and contains(@class, 'mat-select-min-line')]")
         driver.execute_script("arguments[0].click();", tarefa_select)
         time.sleep(1)
-        # 2. Selecionar opção "Análise"
+        
+        # 5. Selecionar opção "Análise"
         opcoes = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-option-text')]")
         for opcao in opcoes:
             if 'análise' in opcao.text.strip().lower():
@@ -269,16 +215,18 @@ def movimentar_processos(driver):
                 print('[MOV] Opção "Análise" selecionada.')
                 time.sleep(1)
                 break
-        # 3. Clicar no botão "Movimentar processos"
+        
+        # 6. Confirmar movimentação
         btns = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and contains(text(), 'Movimentar processos')]")
         for btn in btns:
             try:
                 driver.execute_script("arguments[0].click();", btn)
-                print('[MOV] Botão "Movimentar processos" clicado.')
+                print('[MOV] Movimentação de processos confirmada.')
                 break
             except Exception as e:
                 print(f'[MOV][ERRO] Falha ao clicar no botão "Movimentar processos": {e}')
         time.sleep(2)
+        
     except Exception as e:
         print(f'[ERRO] Erro ao movimentar processos: {e}')
 
@@ -310,48 +258,287 @@ def safe_click(driver, xpath, timeout=10):
         print(f'[ERRO] Erro ao clicar (safe_click): {e}')
         return False
 
+def selecionar_processos_livres(driver):
+    """
+    Seleciona processos "livres" na lista que atendem aos critérios:
+    - Sem prazo (coluna 9 vazia)
+    - Sem comentário
+    - Sem valor em input[matinput]
+    - Sem ícone de pesquisa na coluna 3
+    
+    Returns:
+        int: Número de processos selecionados
+        bool: True se executou com sucesso, False caso contrário
+    """
+    print('\n[SELECAO] Iniciando seleção de processos livres...')
+
+    # 1. Configurar visualização para 100 linhas
+    print('[SELECAO] Configurando visualização para 100 linhas por página...')
+    try:
+        btn_linhas = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, '#mat-select-value-117'))
+        )
+        print('[SELECAO][DEBUG] Botão de linhas encontrado e clicável')
+        
+        driver.execute_script("arguments[0].click();", btn_linhas)
+        print('[SELECAO][DEBUG] Dropdown de linhas clicado via JavaScript')
+        time.sleep(0.5)
+        
+        opcao_100 = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, '#mat-option-266 > span'))
+        )
+        driver.execute_script("arguments[0].click();", opcao_100)
+        print('[SELECAO][OK] Opção 100 linhas selecionada')
+        time.sleep(1)
+        
+    except TimeoutException:
+        print('[SELECAO][ERRO] Timeout ao aguardar elementos do filtro de linhas')
+        driver.save_screenshot('debug_timeout_filtro_linhas.png')
+        return 0, False
+    except Exception as e:
+        print(f'[SELECAO][ERRO] Falha ao configurar linhas por página: {str(e)}')
+        driver.save_screenshot('debug_erro_filtro_linhas.png')
+        return 0, False
+
+    # 2. Localizar e analisar linhas da tabela
+    print('\n[SELECAO] Iniciando análise das linhas da tabela...')
+    try:
+        linhas = WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'tr.cdk-drag'))
+        )
+        print(f'[SELECAO][DEBUG] {len(linhas)} linhas encontradas na tabela')
+        
+        if not linhas:
+            print('[SELECAO][AVISO] Nenhuma linha encontrada na tabela')
+            driver.save_screenshot('debug_tabela_vazia.png')
+            return 0, False
+        
+        # 3. Processar cada linha
+        selecionados = 0
+        erros = 0
+        for idx, linha in enumerate(linhas, 1):
+            print(f'\n[SELECAO] Analisando linha {idx}/{len(linhas)}...')
+            try:
+                # Verificar prazo
+                prazo = linha.find_elements(By.CSS_SELECTOR, 'td:nth-child(9) time')
+                prazo_vazio = not prazo or not prazo[0].text.strip()
+                print(f'[SELECAO][DEBUG] Linha {idx} - Prazo vazio: {prazo_vazio}')
+
+                # Verificar comentário
+                has_comment = len(linha.find_elements(By.CSS_SELECTOR, 'i.fa-comment')) > 0
+                print(f'[SELECAO][DEBUG] Linha {idx} - Tem comentário: {has_comment}')
+
+                # Verificar campo preenchido
+                try:
+                    input_field = linha.find_elements(By.CSS_SELECTOR, 'input[matinput]')
+                    campo_preenchido = bool(input_field and input_field[0].get_attribute('value').strip())
+                except Exception:
+                    campo_preenchido = False
+                print(f'[SELECAO][DEBUG] Linha {idx} - Campo preenchido: {campo_preenchido}')
+
+                # Verificar lupa
+                tem_lupa = len(linha.find_elements(By.CSS_SELECTOR, 'td:nth-child(3) i.fa-search')) > 0
+                print(f'[SELECAO][DEBUG] Linha {idx} - Tem lupa: {tem_lupa}')
+
+                # Processo é livre se atender todos os critérios
+                if prazo_vazio and not has_comment and not campo_preenchido and not tem_lupa:
+                    try:
+                        checkbox = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox input[type="checkbox"]')
+                        if not checkbox.is_selected():
+                            driver.execute_script('arguments[0].click()', checkbox)
+                            driver.execute_script('arguments[0].style.backgroundColor = "#ffccd2";', linha)
+                            selecionados += 1
+                            print(f'[SELECAO][OK] Linha {idx} selecionada e destacada')
+                    except Exception as e:
+                        print(f'[SELECAO][ERRO] Falha ao marcar checkbox da linha {idx}: {str(e)}')
+                        erros += 1
+                        continue
+
+            except Exception as e:
+                print(f'[SELECAO][ERRO] Falha ao analisar linha {idx}: {str(e)}')
+                erros += 1
+                continue
+
+        # 4. Relatório final
+        print(f'\n[SELECAO] === Relatório Final ===')
+        print(f'[SELECAO] Total de linhas processadas: {len(linhas)}')
+        print(f'[SELECAO] Processos selecionados: {selecionados}')
+        print(f'[SELECAO] Erros encontrados: {erros}')
+
+        if selecionados == 0:
+            print('[SELECAO][AVISO] Nenhum processo livre encontrado')
+            driver.save_screenshot('debug_nenhum_processo_livre.png')
+            return 0, True
+
+        # 5. Registrar atividade para os processos selecionados
+        print('\n[SELECAO] Registrando atividade para processos selecionados...')
+        try:
+            # Clicar no ícone verde de tag
+            tag_verde = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde'))
+            )
+            driver.execute_script("arguments[0].click();", tag_verde)
+            print('[SELECAO][DEBUG] Tag verde clicada')
+            time.sleep(0.8)
+            
+            # Clicar em "Atividade"
+            span_atividade = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//span[text()='Atividade']"))
+            )
+            driver.execute_script("arguments[0].click();", span_atividade)
+            print('[SELECAO][DEBUG] Menu Atividade clicado')
+            time.sleep(0.8)
+            
+            # Preencher campos da atividade
+            input_dias = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="dias"]'))
+            )
+            driver.execute_script("arguments[0].value = '0';", input_dias)
+            input_dias.send_keys('0')
+            input_dias.send_keys(Keys.TAB)
+            print('[SELECAO][DEBUG] Campo dias preenchido com 0')
+            
+            textarea_obs = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
+            )
+            driver.execute_script("arguments[0].value = 'pz checar';", textarea_obs)
+            textarea_obs.send_keys('xs')
+            textarea_obs.send_keys(Keys.TAB)
+            print('[SELECAO][DEBUG] Campo observação preenchido com pz checar')
+            
+            # Salvar atividade
+            btn_salvar = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[type="submit"].mat-primary'))
+            )
+            driver.execute_script("arguments[0].click();", btn_salvar)
+            print('[SELECAO][OK] Atividade registrada com sucesso')
+            time.sleep(1.2)
+
+            return selecionados, True
+
+        except Exception as e:
+            print(f'[SELECAO][ERRO] Falha ao registrar atividade: {str(e)}')
+            driver.save_screenshot('debug_erro_registro_atividade.png')
+            return selecionados, False
+
+    except Exception as e:
+        print(f'[SELECAO][ERRO] Erro geral na seleção: {str(e)}')
+        driver.save_screenshot('debug_erro_geral_selecao.png')
+        return 0, False
+
+
+
+def processar_apos_selecao(driver, num_selecionados):
+    """
+    Processa os próximos passos após a seleção de processos livres.
+    Retorna True se conseguiu processar com sucesso.
+    """
+    print(f'\n[POS-SELECAO] Iniciando processamento de {num_selecionados} processos...')
+    
+    try:
+        # 1. Verificar se há processos para processar
+        if num_selecionados == 0:
+            print('[POS-SELECAO][AVISO] Nenhum processo para processar')
+            return True
+            
+        # 2. Iniciar movimentação
+        print('[POS-SELECAO] Iniciando movimentação dos processos...')
+        
+        try:
+            movimentar_processos(driver)
+            print('[POS-SELECAO][OK] Movimentação concluída com sucesso')
+            
+            # 3. Verificar se processos sumiram da lista (movimentação efetiva)
+            time.sleep(2)
+            linhas_apos = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
+            total_apos = len(linhas_apos)
+            
+            if total_apos >= num_selecionados:
+                print('[POS-SELECAO][ALERTA] Possível falha na movimentação - quantidade de processos não diminuiu')
+                driver.save_screenshot('debug_movimentacao_suspeita.png')
+            else:
+                print(f'[POS-SELECAO][OK] {num_selecionados - total_apos} processos movimentados com sucesso')
+            
+            return True
+            
+        except Exception as e:
+            print(f'[POS-SELECAO][ERRO] Falha ao movimentar processos: {str(e)}')
+            driver.save_screenshot('debug_erro_pos_selecao.png')
+            return False
+            
+    except Exception as e:
+        print(f'[POS-SELECAO][ERRO] Erro geral no processamento pós-seleção: {str(e)}')
+        driver.save_screenshot('debug_erro_geral_pos_selecao.png')
+        return False
+
 def loop_movimentacao_processos(driver):
     """
     Loop principal: repete o fluxo de filtro, seleção e movimentação até não restarem processos.
-    Antes da primeira execução, calcula o total de lotes (20 por vez) com base em .total-registros.
+    O fluxo completo é:
+    1. Acessar lista de prazos
+    2. Aplicar filtro de fase processual
+    3. Calcular total de processos e lotes
+    4. Para cada lote:
+       4.1 Selecionar processos livres
+       4.2 Registrar atividade para selecionados
+       4.3 Movimentar processos
+       4.4 Verificar resultado da movimentação
     """
     url_lista = 'https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos'
     print('\n[LOOP] Acessando lista de prazos para contagem inicial...')
     driver.get(url_lista)
     time.sleep(2)
+
     if not filtrar_fase_processual(driver):
-        print('[LOOP] Filtro de fase não aplicável ou não há mais processos.')
+        print('[LOOP][ERRO] Filtro de fase não aplicável. Encerrando loop.')
         return
+
     try:
+        # Aguardar e obter total de registros
         total_elem = WebDriverWait(driver, 10).until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, '.total-registros'))
         )
         total_text = total_elem.text.strip()
-        print(f'[LOOP] Texto do total-registros: "{total_text}"')
+        print(f'[LOOP][DEBUG] Texto do total-registros: "{total_text}"')
+        
+        # Extrair número do texto
         match = re.search(r'(\d+)', total_text)
         total = int(match.group(1)) if match else 0
         print(f'[LOOP] Total de processos encontrados: {total}')
-        lotes = math.ceil(total / 20) if total > 0 else 0
-        print(f'[LOOP] Serão necessários {lotes} loop(s) para processar todos os lotes (20 por vez).')
+        
         if total == 0:
-            print('[LOOP] Nenhum processo encontrado após filtro. Encerrando loop.')
+            print('[LOOP][AVISO] Nenhum processo encontrado após filtro.')
+            driver.save_screenshot('debug_sem_processos_apos_filtro.png')
             return
-    except Exception as e:
-        print(f'[LOOP][ERRO] Não foi possível ler o total de registros: {e}')
-        return
-    for i in range(lotes):
-        print(f'\n[LOOP] Execução do lote {i+1}/{lotes}')
-        try:
-            filtrar_fase_processual(driver)
-            movimentar_processos(driver)
-            # Voltar para a lista usando ALT + seta esquerda
-            print('[LOOP] Retornando à lista com ALT + seta esquerda.')
-            body = driver.find_element(By.TAG_NAME, 'body')
-            body.send_keys(Keys.ALT, Keys.ARROW_LEFT)
+
+        # Loop principal de processamento
+        while True:
+            print('\n[LOOP] === Iniciando novo ciclo de processamento ===')
+            
+            # 1. Selecionar processos livres
+            num_selecionados, sucesso = selecionar_processos_livres(driver)
+            
+            if not sucesso:
+                print('[LOOP][ERRO] Falha crítica na seleção de processos. Encerrando loop.')
+                driver.save_screenshot('debug_erro_critico_selecao.png')
+                return
+                
+            if num_selecionados == 0:
+                print('[LOOP] Não há mais processos livres para processar. Encerrando loop.')
+                return
+                
+            # 2. Processar os selecionados
+            if not processar_apos_selecao(driver, num_selecionados):
+                print('[LOOP][ERRO] Falha no processamento pós-seleção. Tentando próximo ciclo...')
+                driver.save_screenshot('debug_erro_processamento.png')
+                continue
+                
+            print('[LOOP] Ciclo completado com sucesso. Aguardando 2 segundos...')
             time.sleep(2)
-        except Exception as e:
-            print(f'[LOOP][ERRO] Erro durante a execução do lote {i+1}: {e}')
-    print('[LOOP] Não há mais processos para movimentar.')
+            
+    except Exception as e:
+        print(f'[LOOP][ERRO] Erro geral no loop principal: {str(e)}')
+        driver.save_screenshot('debug_erro_geral_loop.png')
 
 if __name__ == "__main__":
     main()

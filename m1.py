@@ -13,7 +13,20 @@ from Fix import (
     esperar_elemento,
     safe_click,
     buscar_seletor_robusto,
-    limpar_temp_selenium
+    limpar_temp_selenium,
+    driver_notebook,
+    login_notebook
+)
+from atos import (
+    ato_judicial,
+    ato_meios,
+    ato_pesquisas,
+    ato_crda,
+    ato_crte,
+    ato_bloq,
+    ato_idpj,
+    ato_termoE,
+    ato_termoS
 )
 import os
 from selenium import webdriver
@@ -431,27 +444,20 @@ def main():
     # Limpeza inicial
     from Fix import limpar_temp_selenium
     limpar_temp_selenium()
-    
-    # Configuração do navegador
-    options = webdriver.FirefoxOptions()
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    options.set_preference('profile', r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium")
-    
+
     # Inicialização do driver
-    driver = webdriver.Firefox(options=options)
-    
+    driver = driver_notebook()
+
     # Login
-    usuario = os.environ.get('PJE_USUARIO') or input('Usuário PJe: ')
-    senha = os.environ.get('PJE_SENHA') or input('Senha PJe: ')
-    if not login_automatico(driver, usuario, senha):
+    if not login_notebook(driver):
         print('[ERRO] Falha no login.')
         driver.quit()
         return
-    
+
     # Fluxo principal
     if navegacao(driver) and checagem(driver):
         fluxo_mandado(driver)
-    
+
     # Finalização
     driver.quit()
 

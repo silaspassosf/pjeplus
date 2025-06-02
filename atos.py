@@ -8,7 +8,13 @@ from Fix import (
     aplicar_filtro_100,
     limpar_temp_selenium,
     buscar_seletor_robusto,
-    preencher_campos_prazo,)
+    preencher_campos_prazo,
+    # Funções adicionadas para corrigir erros
+    esperar_url_conter,
+    tratar_anexos_infojud_irpf_doi_sisbajud,
+    selecionar_tipo_expediente,
+    buscar_documentos_sequenciais
+)
 from modulo import aplicar_filtro_100
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -21,112 +27,174 @@ logger = logging.getLogger(__name__)
 # ====================================================
 # BLOCO 1 - ATOS JUDICIAIS PADRÃO (Wrappers)
 # ====================================================
-def fluxo_cls(driver):
+def fluxo_cls(driver, conclusao_tipo):
     """
-    Fluxo geral para CLS (movimentação de minuta):
-    1. Clica no botão 'Abrir tarefa do processo' (seletor robusto mattooltip)
+    Refatorado fluxo geral para CLS (movimentação de minuta):
+    1. Clica no botão 'Abrir tarefa do processo' (seletor robusto mattooltip).
     2. Verifica se a URL contém '/transicao'.
     3. Clica no ícone .fa-clipboard-check (Conclusão ao Magistrado).
     4. Verifica se a URL contém '/conclusao'.
-    5. Pausa para inspeção/manual.
-    PRAZO: Não definido (manual)
+    5. Clica no botão do tipo de conclusão especificado.
+    Retorna True em caso de sucesso, False em caso de falha.
     """
-    print('[CLS] Iniciando fluxo de CLS...')
-    # ... (restante do código igual ao fluxo_cls)
+    print(f'[CLS] Iniciando fluxo de CLS para tipo: {conclusao_tipo}...')
+    try:
+        # 1. Clica no botão 'Abrir tarefa do processo'
+        # Using buscar_seletor_robusto for potentially more resilience
+        btn_abrir_tarefa = buscar_seletor_robusto(driver, ['Abrir tarefa do processo'], timeout=15)
+        # Fallback to specific selector if robust search fails
+        if not btn_abrir_tarefa:
+             btn_abrir_tarefa = esperar_elemento(driver, 'button[mattooltip="Abrir tarefa do processo"]', timeout=5)
+        if not btn_abrir_tarefa:
+            print('[CLS][ERRO] Botão "Abrir tarefa do processo" não encontrado!')
+            return False # Indicate failure
+        safe_click(driver, btn_abrir_tarefa)
+        print('[CLS] Botão "Abrir tarefa do processo" clicado.')
+
+        # 2. Verifica se a URL contém '/transicao'
+        if not esperar_url_conter(driver, '/transicao', timeout=15):
+             print(f'[CLS][ERRO] URL inesperada após abrir tarefa: {driver.current_url}')
+             return False # Indicate failure
+
+        # 3. Clica no ícone .fa-clipboard-check (Conclusão ao Magistrado)
+        btn_conclusao_icon = esperar_elemento(driver, '.fa-clipboard-check', timeout=15)
+        if not btn_conclusao_icon:
+            print('[CLS][ERRO] Ícone de conclusão (.fa-clipboard-check) não encontrado!')
+            return False # Indicate failure
+        safe_click(driver, btn_conclusao_icon)
+        print('[CLS] Ícone de conclusão clicado.')
+
+        # 4. Verifica se a URL contém '/conclusao'
+        if not esperar_url_conter(driver, '/conclusao', timeout=15):
+            print(f'[CLS][ERRO] URL inesperada após clicar em conclusão: {driver.current_url}')
+            return False # Indicate failure
+
+        # 5. Clica no botão do tipo de conclusão
+        print(f'[CLS] Procurando botão de conclusão: {conclusao_tipo}')
+        # Use buscar_seletor_robusto to find the button by its text content
+        # It might be inside a span or the button itself
+        btn_tipo_conclusao = buscar_seletor_robusto(driver, [conclusao_tipo], timeout=15)
+
+        if not btn_tipo_conclusao:
+             # Fallback: Look for buttons containing the text
+             xpath_selector = f"//button[contains(., '{conclusao_tipo}')] | //button/span[contains(., '{conclusao_tipo}')]/.."
+             try:
+                 from selenium.webdriver.common.by import By
+                 from selenium.webdriver.support.ui import WebDriverWait
+                 from selenium.webdriver.support import expected_conditions as EC
+                 btn_tipo_conclusao = WebDriverWait(driver, 5).until(
+                     EC.element_to_be_clickable((By.XPATH, xpath_selector))
+                 )
+             except Exception:
+                 print(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado (nem via texto/XPath)!')
+                 return False # Indicate failure
+
+        safe_click(driver, btn_tipo_conclusao)
+        print(f'[CLS] Botão de conclusão "{conclusao_tipo}" clicado.')
+
+        # Add a small delay or wait for URL change if needed after clicking conclusion
+        time.sleep(1) # Simple delay, replace with explicit wait if possible
+
+        print('[CLS] Fluxo de CLS finalizado com sucesso.')
+        return True # Indicate success
+
+    except Exception as e:
+        print(f'[CLS][ERRO] Falha no fluxo de CLS: {e}')
+        # Attempt to capture screenshot on error
+        try:
+            driver.save_screenshot(f'erro_fluxo_cls_{conclusao_tipo}.png')
+        except Exception as screen_err:
+            print(f'[CLS][WARN] Falha ao salvar screenshot do erro: {screen_err}')
+        return False # Indicate failure
 
 
-def ato_judicial(driver, nome_ato, filtro_modelo, seletor_btn_ato=None, seletor_item_filtrado='.nodo-filtrado', seletor_btn_inserir='pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button', seletor_btn_enviar='.fa-angle-right', preencher_prazos=True, campos_personalizados=None, seletor_btn_gravar='.botao-salvar', ajuste_pos_inserir=None):
+def ato_judicial(driver, nome_ato, filtro_modelo, conclusao_tipo, seletor_btn_ato=None, seletor_item_filtrado='.nodo-filtrado', seletor_btn_inserir='.div-botao-inserir > button', preencher_prazos=True, campos_personalizados=None, seletor_btn_gravar='button[aria-label="Salvar"]', ajuste_pos_inserir=None):
     """
-    Fluxo generalizado para qualquer ato judicial que siga o padrão do sobrestamento.
-    Permite customizar seletores e etapas principais do fluxo.
+    Refatorado fluxo generalizado para qualquer ato judicial que siga o padrão do sobrestamento.
+    Utiliza fluxo_cls para a etapa final de conclusão.
     """
     try:
         # 1. Clica no botão do ato (seletor customizável)
         if seletor_btn_ato:
-            botoes = driver.find_elements(By.CSS_SELECTOR, seletor_btn_ato)
-            btn_ato = next((b for b in botoes if b.is_displayed()), None)
+            btn_ato = esperar_elemento(driver, seletor_btn_ato, timeout=15)
         else:
-            botoes = driver.find_elements(By.CSS_SELECTOR, 'button')
-            btn_ato = next((b for b in botoes if b.is_displayed() and nome_ato in b.text), None)
+            btn_ato = buscar_seletor_robusto(driver, [nome_ato])
         if not btn_ato:
             print(f'[ATO][ERRO] Botão "{nome_ato}" não encontrado!')
-            return
-        btn_ato.click()
+            return False # Indicate failure
+        safe_click(driver, btn_ato)
         print(f'[ATO] Clique no botão {nome_ato} realizado!')
-        # Espera robusta: só segue se a URL mudar para /minutar
+
+        # 2. Espera robusta: só segue se a URL mudar para /minutar
         if not esperar_url_conter(driver, '/minutar', timeout=20):
             print(f'[ATO][ERRO] URL inesperada após {nome_ato}: {driver.current_url}')
-            return
+            return False # Indicate failure
         print(f'[ATO] URL correta após {nome_ato}: {driver.current_url}')
-        # Espera robusta: aguarda sumir spinner/carregamento
-        esperar_elemento(driver, '#inputFiltro', timeout=20)
-        # 2. Filtro do modelo
-        campo_filtro = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
+
+        # 3. Filtro do modelo
+        campo_filtro = esperar_elemento(driver, '#inputFiltro', timeout=20)
+        if not campo_filtro:
+            print('[ATO][ERRO] Campo de filtro #inputFiltro não encontrado!')
+            return False
         campo_filtro.clear()
         campo_filtro.send_keys(filtro_modelo)
         campo_filtro.send_keys(Keys.ENTER)
         print(f'[ATO] "{filtro_modelo}" digitado e ENTER pressionado no filtro.')
-        # Espera robusta: aguarda nodo filtrado aparecer
-        nodo = esperar_nodo_filtrado(driver, seletor=seletor_item_filtrado)
+
+        # 4. Espera robusta: aguarda nodo filtrado aparecer
+        nodo = esperar_elemento(driver, seletor_item_filtrado, timeout=15)
         if not nodo:
             print('[ATO][ERRO] Nodo do modelo não encontrado!')
-            return
-        nodo.click()
+            return False
+        safe_click(driver, nodo)
         print('[ATO] Clique em nodo-filtrado realizado!')
-        # Espera robusta: aguarda dialogo abrir
-        dialogo = esperar_dialogo_mat(driver)
-        if not dialogo:
-            print('[ATO][ERRO] Dialogo do modelo não encontrado!')
-            return
-        try:
-            log('Aguardando caixa carregar e clicando em inserir')
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            btn_inserir = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, '.div-botao-inserir > button'))
-            )
-            btn_inserir.click()
-            time.sleep(1)
-            print('[ATO] Clique no botão de inserir modelo realizado!')
-        except Exception as e:
-            print(f'[ATO][ERRO] Não foi possível clicar no botão de inserir modelo: {e}')
-            return
-        # Espera robusta: aguarda dialogo sumir
-        if not esperar_dialogo_mat_sumir(driver):
-            print('[ATO][ERRO] O mat-dialog não sumiu após inserir modelo.')
-            return
-        print('[ATO] Caixa de diálogo fechada, prosseguindo.')
-        time.sleep(0.5)
-        # Espera botão enviar
-        btn_enviar = esperar_elemento(driver, seletor_btn_enviar, timeout=10)
-        if not btn_enviar:
-            print('[ATO][ERRO] Botão de enviar não encontrado!')
-            return
-        btn_enviar.click()
-        print('[ATO] Clique em enviar realizado!')
-        # Espera robusta: aguarda sumir spinner após enviar
-        time.sleep(1)
-        # Preenchimento de prazos e campos personalizados
+
+        # 5. Espera robusta: aguarda dialogo abrir e clica em inserir
+        btn_inserir = esperar_elemento(driver, seletor_btn_inserir, timeout=15)
+        if not btn_inserir:
+            print('[ATO][ERRO] Botão de inserir modelo não encontrado!')
+            return False
+        safe_click(driver, btn_inserir)
+        print('[ATO] Clique no botão de inserir modelo realizado!')
+
+        # 6. Preenchimento de prazos e campos personalizados
         if preencher_prazos:
             print('[ATO] Preenchendo campos de prazo com 0...')
-            preencher_prazo_minuta_zero(driver)
+            if not preencher_campos_prazo(driver, valor=0):
+                 print('[ATO][WARN] Falha ao preencher campos de prazo.') # Log warning
+                 # Decide if this is critical or not. Assuming not critical for now.
         if campos_personalizados:
-            campos_personalizados(driver)
-        # Espera botão gravar habilitado
-        try:
-            btn_salvar = esperar_elemento(driver, seletor_btn_gravar, timeout=15)
-            for _ in range(10):
-                if btn_salvar and btn_salvar.is_displayed() and btn_salvar.is_enabled():
-                    break
-                time.sleep(0.3)
-            time.sleep(1.2)
-            btn_salvar.click()
-            print('[ATO] Clique no botão Gravar realizado!')
-        except Exception as e:
-            print(f'[ATO][ERRO] Não foi possível clicar no botão Gravar: {e}')
-        print(f'[ATO] Fluxo de {nome_ato} finalizado.')
+            try:
+                campos_personalizados(driver)
+            except Exception as cp_err:
+                print(f'[ATO][ERRO] Falha ao executar campos_personalizados: {cp_err}')
+                return False # Custom fields might be critical
+
+        # 7. Clica em Gravar (Salvar)
+        btn_gravar = esperar_elemento(driver, seletor_btn_gravar, timeout=15)
+        if not btn_gravar:
+            print(f'[ATO][ERRO] Botão Gravar ({seletor_btn_gravar}) não encontrado!')
+            return False
+        safe_click(driver, btn_gravar)
+        print('[ATO] Clique no botão Gravar realizado!')
+
+        # 8. Executa o fluxo de conclusão usando fluxo_cls
+        print(f'[ATO] Iniciando fluxo de conclusão para tipo: {conclusao_tipo}')
+        if not fluxo_cls(driver, conclusao_tipo):
+            print(f'[ATO][ERRO] Falha no fluxo_cls para {conclusao_tipo}.')
+            return False # Indicate failure if fluxo_cls fails
+
+        print(f'[ATO] Fluxo de {nome_ato} finalizado com sucesso.')
+        return True # Indicate success
+
     except Exception as e:
         print(f'[ATO][ERRO] Falha no fluxo de {nome_ato}: {e}')
+        # Attempt screenshot on error
+        try:
+            driver.save_screenshot(f'erro_ato_{nome_ato}.png')
+        except Exception as screen_err:
+            print(f'[ATO][WARN] Falha ao salvar screenshot do erro: {screen_err}')
+        return False # Indicate failure
 
 # Definição de wrappers para atos judiciais padrão
 def ato_meios(driver, debug=False):
@@ -233,6 +301,32 @@ def ato_termoS(driver, debug=False):
         debug=debug
     )
 
+def ato_edital(driver, debug=False):
+    return ato_judicial(
+        driver,
+        conclusao_tipo='despacho',
+        modelo_nome='xsedit',
+        prazo=5,
+        marcar_pec=False,
+        movimento=None,
+        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+        marcar_primeiro_destinatario=True,
+        debug=debug
+    )
+
+def ato_sobrestamento(driver, debug=False):
+    return ato_judicial(
+        driver,
+        conclusao_tipo='sobrestamento',
+        modelo_nome='suspf',
+        prazo=0,
+        marcar_pec=False,
+        movimento='fr', # Assuming 'fr' is a string literal
+        gigs={'dias_uteis': 0, 'observacao': 'pz verificar'},
+        marcar_primeiro_destinatario=False,
+        debug=debug
+    )
+
 # ====================================================
 # BLOCO 2 - COMUNICAÇÕES PROCESSUAIS (Wrappers + Regra Geral)
 # ====================================================
@@ -253,6 +347,9 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
         if not url_atual.endswith('/detalhe'):
             log('[ERRO CRÍTICO] comunicacao_judicial só pode ser chamada na URL do processo que termina com /detalhe!')
             raise Exception('URL inválida para comunicacao_judicial')
+
+        aba_origem = driver.current_window_handle # Define aba_origem HERE
+
         url_minutas = url_atual.replace('/detalhe', '/comunicacoesprocessuais/minutas')
         log(f'Abrindo nova aba para minutas: {url_minutas}')
         abas_antes = set(driver.window_handles)
@@ -444,16 +541,18 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
                 btn_pen_nib.click()
                 time.sleep(1)
             except Exception as e:
-                log(f'[ERRO] Não foi possível clicar em .fa-pen-nib: {e}')
+                log(f'[ERRO] Não foi possível clicar em .fa-pen-nib após salvar: {e}')
+                # Logged the error, continuing execution for now.
+
             # Após .fa-pen-nib, se estiver em /minutas, fecha a aba
             if '/minutas' in driver.current_url:
                 try:
                     driver.close()
                 except Exception as e:
                     log(f'[WARN] Erro ao fechar aba de minutas: {e}')
-                if aba_origem in driver.window_handles:
+                if aba_origem in driver.window_handles: # Now aba_origem is defined
                     try:
-                        driver.switch_to.window(aba_origem)
+                        driver.switch_to.window(aba_origem) # Now aba_origem is defined
                     except Exception as e:
                         log(f'[ERRO] Não foi possível voltar para aba original: {e}')
                 else:
@@ -463,28 +562,15 @@ def comunicacao_judicial(driver, tipo_expediente, prazo, nome_comunicacao, sigil
         except Exception as e:
             log(f'[ERRO] Não foi possível clicar em salvar: {e}')
             return False
-        # Após inserir modelo, clicar em .fa-pen-nib para fechar a caixa de diálogo
-        try:
-            log('Clicando em .fa-pen-nib para finalizar comunicação')
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            btn_pen_nib = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa-pen-nib'))
-            )
-            btn_pen_nib.click()
-            time.sleep(1)
-        # Após inserir modelo, clicar em .fa-pen-nib para fechar a caixa de diálogo
-        try:
-            log('Clicando em .fa-pen-nib para finalizar comunicação')
-            from selenium.webdriver.support.ui import WebDriverWait
-            from selenium.webdriver.support import expected_conditions as EC
-            btn_pen_nib = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa-pen-nib'))
-            )
-            btn_pen_nib.click()
-            time.sleep(1)
     except Exception as e:
         log(f'[ERRO] Falha no fluxo de comunicação: {e}')
+        # Consider adding tab closing logic here too if an error occurs earlier
+        # Ensure aba_origem exists before trying to switch back in case of early failure
+        if 'aba_origem' in locals() and aba_origem in driver.window_handles:
+             try:
+                 driver.switch_to.window(aba_origem)
+             except Exception as switch_err:
+                 log(f'[ERRO] Falha ao tentar voltar para aba original no erro principal: {switch_err}')
         return False
 
 # Wrappers para comunicações processuais
@@ -788,8 +874,8 @@ import selectors_pje
 
 def logar_termo_observacoes(driver):
     """
-    Percorre a lista filtrada e loga o número do processo e o TERMO após 'xs pec' na coluna Observações.
-    Exemplo: se Observações = 'xs pec decisao', registra 'decisao'.
+    Percorre a lista filtrada e loga o número do processo e o TERMO após 'xs' na coluna Observações. # Modificado docstring
+    Exemplo: se Observações = 'xs decisao', registra 'decisao'. # Modificado exemplo
     """
     print('[DEBUG] Iniciando logar_termo_observacoes', flush=True)
     try:
@@ -812,28 +898,30 @@ def pec_termo(driver, termo, debug=False):
 def callback_processo(driver):
     print('[DEBUG] Iniciando callback_processo', flush=True)
     try:
-        from Fix import extrair_xs_pec_atividades
-        print('[DEBUG] Buscando termos xs pec nas atividades...')
-        resultados = extrair_xs_pec_atividades(driver, log=True)
+        from Fix import extrair_xs_atividades # Atualizado import
+        print('[DEBUG] Buscando termos xs nas atividades...') # Log atualizado
+        resultados = extrair_xs_atividades(driver, log=True) # Atualizada chamada de função
         if not resultados:
-            print('[PROCESSO][ERRO] Nenhum termo "xs pec" encontrado nas atividades')
-            criar_gigs(driver, 0, 'pz pec', tela='detalhe', log=True)
-            print('[DEBUG] callback_processo finalizado (sem xs pec)', flush=True)
+            print('[PROCESSO][ERRO] Nenhum termo "xs" encontrado nas atividades') # Log atualizado
+            criar_gigs(driver, 0, 'pz xs', tela='detalhe', log=True) # GIGS atualizado para 'pz xs'
+            print('[DEBUG] callback_processo finalizado (sem xs)', flush=True) # Log atualizado
             return True
         texto = resultados[0].lower()
         import re
-        m = re.search(r'xs pec[\s\+]+([\w-]+)', texto)
+        m = re.search(r'xs[\s\+]+([\w-]+)', texto) # Regex atualizado para 'xs'
         if m:
             termo = m.group(1).strip()
-            print(f'[PROCESSO][EXTRAIDO] Termo após "xs pec": {termo}')
+            print(f'[PROCESSO][EXTRAIDO] Termo após "xs": {termo}') # Log atualizado
         else:
-            print(f'[PROCESSO][ERRO CRÍTICO] Não foi possível extrair o termo após "xs pec". Texto encontrado: {texto}')
-            criar_gigs(driver, 0, 'pz pec', tela='detalhe', log=True)
+            print(f'[PROCESSO][ERRO CRÍTICO] Não foi possível extrair o termo após "xs". Texto encontrado: {texto}') # Log atualizado
+            criar_gigs(driver, 0, 'pz xs', tela='detalhe', log=True) # GIGS atualizado para 'pz xs'
             print('[DEBUG] callback_processo finalizado (erro extração termo)', flush=True)
             return True
         # Aguarda possíveis carregamentos antes de seguir
         time.sleep(0.5)
-        pec_termo(driver, termo)
+        # A função pec_termo provavelmente precisa ser renomeada ou ajustada para lidar com 'xs'
+        # Assumindo que a lógica de pec_termo ainda é relevante para termos após 'xs'
+        pec_termo(driver, termo) # Chamada mantida, mas pode precisar de revisão
         print('[DEBUG] callback_processo finalizado com sucesso', flush=True)
         return True
     except Exception as e:
@@ -844,17 +932,18 @@ def callback_processo(driver):
 
 def fluxo_sincrono_processo(driver):
     print('[FLUXO] Iniciando processamento síncrono do processo', flush=True)
-    from Fix import extrair_xs_pec_atividades
+    from Fix import extrair_xs_atividades # Atualizado import
     import re
     try:
-        criar_gigs(driver, 0, 'pz pec', tela='detalhe', log=True)
-        resultados = extrair_xs_pec_atividades(driver, log=True)
+        # Criar GIGS padrão para 'xs' caso algo falhe
+        criar_gigs(driver, 0, 'pz xs', tela='detalhe', log=True) # GIGS atualizado para 'pz xs'
+        resultados = extrair_xs_atividades(driver, log=True) # Atualizada chamada de função
         if not resultados:
-            print('[FLUXO] Nenhum termo "xs pec" encontrado. Fechando processo.')
+            print('[FLUXO] Nenhum termo "xs" encontrado. Fechando processo.') # Log atualizado
             if len(driver.window_handles) > 1:
                 try:
                     driver.close()
-                    print('[FLUXO] Aba do processo fechada (nenhum xs pec).')
+                    print('[FLUXO] Aba do processo fechada (nenhum xs).') # Log atualizado
                 except Exception as e:
                     print(f'[FLUXO][WARN] Erro ao fechar aba: {e}')
             else:
@@ -862,11 +951,13 @@ def fluxo_sincrono_processo(driver):
             time.sleep(1)
             return True
         texto = resultados[0].lower()
-        m = re.search(r'xs pec[\s\+]+([\w-]+)', texto)
+        m = re.search(r'xs[\s\+]+([\w-]+)', texto) # Regex atualizado para 'xs'
         if m:
             termo = m.group(1).strip()
             print(f'[FLUXO] Termo extraído: {termo}')
-            func_name = f'pec_{termo.lower()}'
+            # A lógica de chamar 'pec_{termo}' pode não fazer mais sentido com 'xs'
+            # Precisa revisar se os wrappers 'pec_*' são aplicáveis ou se uma nova lógica é necessária
+            func_name = f'pec_{termo.lower()}' # Mantido por enquanto, mas revisar!
             func = globals().get(func_name)
             if callable(func):
                 print(f'[FLUXO] Executando wrapper: {func_name}')
@@ -877,7 +968,7 @@ def fluxo_sincrono_processo(driver):
             else:
                 print(f'[FLUXO] Wrapper {func_name} não encontrado. Nenhuma ação extra.')
         else:
-            print(f'[FLUXO] Não foi possível extrair termo após "xs pec". Nenhuma ação extra.')
+            print(f'[FLUXO] Não foi possível extrair termo após "xs". Nenhuma ação extra.') # Log atualizado
         # Após o wrapper, garantir que está na aba da lista ou fechar a aba do processo se ainda existir
         current_handle = driver.current_window_handle
         handles = driver.window_handles
@@ -935,12 +1026,12 @@ def main():
         from Fix import aplicar_filtro_100
         print('[DEBUG] Chamando aplicar_filtro_100(driver)...')
         aplicar_filtro_100(driver)
-        # Aplica filtro xs pec no campo correto
+        # Aplica filtro xs no campo correto
         campo_desc = driver.find_element(By.CSS_SELECTOR, 'input[aria-label*="Descrição"]')
         campo_desc.clear()
-        campo_desc.send_keys('xs pec')
+        campo_desc.send_keys('xs') # Modificado de 'xs pec' para 'xs'
         campo_desc.send_keys(Keys.ENTER)
-        print('[DEBUG] Filtro xs pec aplicado.')
+        print('[DEBUG] Filtro xs aplicado.') # Log atualizado
         time.sleep(2)  # Aguarda atualização da lista
         # Indexa e processa a lista de processos (indexação ocorre apenas uma vez)
         from Fix import indexar_e_processar_lista

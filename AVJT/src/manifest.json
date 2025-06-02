@@ -1,0 +1,95 @@
+{
+	"name":							"Quinzinho - Assistente Virtual do TRT-15",
+	"short_name":				"Quinzinho",
+	"description":			"Esta extensão se destina a oferecer ferramentas de gestão de processos e otimização de trabalhos no âmbito do Tribunal Regional do Trabalho da 15ª Região.",
+	"manifest_version":	2,
+	"version":					"1.7",
+	"author":						"Sisenando Gomes Calixto de Sousa",
+
+	"browser_specific_settings":{
+		"gecko":{
+			"id":						"{08bcc6f9-6e67-47b0-85d7-cac3c3179a46}"
+		}
+	},
+
+	"developer":{
+		"name":						"Sisenando Gomes Calixto de Sousa"
+	},
+
+	"icons":{
+		"16":		"imagens/icones/extensao/ativo.svg",
+		"24":		"imagens/icones/extensao/ativo.svg",
+		"32":		"imagens/icones/extensao/ativo.svg",
+		"48":		"imagens/icones/extensao/ativo.svg",
+		"128":	"imagens/icones/extensao/ativo.svg"
+	},
+
+	"background":{
+		"scripts":[
+			"publicas/definicoes.js",
+			"publicas/relatar.js",
+			"publicas/dom.js",
+			"publicas/gerais.js",
+			"publicas/navegador.js",
+			"navegador/navegador.js"
+		]
+	},
+
+	"content_scripts":[
+		{
+			"matches":[
+				"<all_urls>"
+			],
+			"css":[
+				"css/animacoes.css",
+				"css/cores.css",
+				"css/icones.css",
+				"css/informacoes.css",
+				"css/menu-arrastavel.css",
+				"css/quinzinho.css"
+			],
+			"js":[
+				"publicas/definicoes.js",
+				"publicas/relatar.js",
+				"publicas/dom.js",
+				"publicas/gerais.js",
+				"publicas/google-docs.js",
+				"publicas/navegador.js",
+				"publicas/quinzinho.js",
+				"publicas/trt15.js",
+				"iniciar.js",
+				"ad-hoc.js",
+				"selecao.js",
+				"exe15.js",
+				"pje/api.js",
+				"pje/pje.js"
+			],
+			"all_frames":					true,
+			"match_about_blank":	true,
+			"run_at":							"document_end"
+		}
+	],
+
+	"permissions":[
+		"<all_urls>",
+		"activeTab",
+		"clipboardRead",
+		"clipboardWrite",
+		"contextMenus",
+		"storage",
+		"tabs",
+		"notifications",
+		"unlimitedStorage"
+	],
+
+	"options_ui":{
+		"page": "navegador/configuracoes/pagina.htm",
+		"open_in_tab": false
+	},
+
+	"browser_action":{
+		"browser_style":	true,
+		"default_popup": 	"navegador/menu/pagina.htm"
+	}
+
+}

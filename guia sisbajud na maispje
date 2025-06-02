@@ -1,0 +1,69 @@
+# Funções de Automação do Convênio SISBAJUD no Arquivo gigs-plugin.js  
+
+## Funções Principais (Linhas de Início e Finalidade)  
+
+### **novaMinutaSisbajud** (Linha 12670)  
+Cria minutas padrão para ordens judiciais no SISBAJUD, integrando modelos predefinidos com dados processuais extraídos do PJe[5].  
+
+### **consultarMinutaSisbajud** (Linha 12683)  
+Realiza consultas automatizadas de minutas existentes, validando conformidade com parâmetros do CNJ[7].  
+
+### **preenchercamposSisbajud** (Linha 12706)  
+Preenche formulários do SISBAJUD com dados do processo (valores, partes, instituições financeiras), incluindo tratamento de caracteres especiais[9].  
+
+### **escolherOpcaoSISBAJUD** (Linha 13198)  
+Seleciona automaticamente opções em menus dinâmicos do SISBAJUD (ex: tipo de bloqueio, reiteração de ordens)[7].  
+
+### **monitor_janela_sisbajud** (Linha 15206)  
+Monitora a abertura/fechamento de janelas do SISBAJUD, sincronizando ações com o PJe[5].  
+
+---
+
+## Funções Auxiliares  
+
+### **consultarTeimosinhaSisbajud** (Linha 12694)  
+Gerencia a funcionalidade de reiteração automática de ordens ("teimosinha") por até 30 dias[7][9].  
+
+### **tratarOrdemTeimosinha** (Linha 19833)  
+Processa respostas das instituições financeiras e atualiza o status das ordens reiteradas[10].  
+
+### **conferirTeimosinhaEmLote** (Linha 21023)  
+Executa verificações em massa de ordens pendentes, identificando inconsistências[7].  
+
+---
+
+## Mecanismos de Integração PJe-SISBAJUD  
+
+### **logStorageChange** (Linha 15457)  
+Registra alterações no storage local para sincronia entre sessões do PJe e SISBAJUD[5].  
+
+### **verificarTransferenciaDeValor** (Linha 15498)  
+Valida transferências bancárias realizadas via SISBAJUD, comparando com valores judiciais[9].  
+
+---
+
+## Conclusão  
+As funções mapeadas permitem:  
+1. Criação automatizada de ordens judiciais no SISBAJUD[5]  
+2. Integração bidirecional com o PJe para atualização de processos[7]  
+3. Gestão de reiterações ("teimosinha") e tratamento de respostas[9]  
+4. Conformidade com regulamentos do CNJ para bloqueio de ativos[10].  
+
+Para reprodução em Selenium, focar nas funções de preenchimento de formulários (linhas 12706+) e monitoramento de janelas (linha 15206+)[5].
+
+Citations:
+[1] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/58600029/0275fc5e-7f17-4b49-92fa-4d34b8f75901/gigs-plugin.js
+[2] https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/58600029/b05b7c33-cdd9-4f3d-a630-9b843c0a0bef/mini-selenium.js
+[3] https://portal.trt12.jus.br/pje/mais-pje
+[4] https://wordpress.org/plugins/tags/gigs/
+[5] https://www.cnj.jus.br/sistemas/sisbajud/
+[6] https://site.trt19.jus.br/sites/default/files/bancoMidias/49160.pdf
+[7] https://www.cnj.jus.br/wp-content/uploads/2024/05/manual-complet-sisbajud-2a-edicao.pdf
+[8] https://portal.trt12.jus.br/sites/default/files/2023-10/AULA%2010%20-%20EJUD12.pdf
+[9] https://www.trt24.jus.br/widget/web/guest/-/sisbajud-novo-sistema-para-o-bloqueio-de-ativos-de-devedores-do-judiciario-e-lancado-pelo-cnj
+[10] https://www.tjpr.jus.br/noticias/-/asset_publisher/9jZB/content/id/47625484
+[11] https://ensino.trt1.jus.br/ej/pluginfile.php/54763/mod_resource/content/1/Plano%20de%20Curso%20-%20MAIS%20PJe%20e%20AVJT%20-%20Turma%201.pdf
+[12] https://www.tjba.jus.br/primeirograu/integracao-do-pje-com-o-sisbajud-e-tema-de-apresentacao-promovida-pelo-tjba-para-magistrados-e-servidores-nesta-quarta-feira-19/
+
+---
+Resposta do Perplexity: pplx.ai/share

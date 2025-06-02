@@ -6,7 +6,7 @@ from Fix import (
     safe_click,
     criar_gigs,
     extrair_documento,
-    processar_lista_processos,
+    indexar_e_processar_lista,
     driver_notebook,
     login_notebook,
     limpar_temp_selenium,
@@ -387,3 +387,99 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+import logging
+import time
+from Fix import (
+    inicializar_driver,
+    esperar_elemento,
+    safe_click,
+    navegar_para_tela,
+    limpar_temp_selenium,
+    # ...outras funções utilitárias...
+)
+
+logging.basicConfig(
+    filename='pje_automation.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
+class AutomacaoPJe:
+    def __init__(self):
+        self.driver = None
+        self.etapa_atual = None
+
+    def iniciar(self):
+        try:
+            self.driver = inicializar_driver()
+            logging.info("Driver inicializado com sucesso")
+            return True
+        except Exception as e:
+            logging.error(f"Erro ao inicializar driver: {e}")
+            return False
+
+    def login(self, usuario=None, senha=None):
+        self.etapa_atual = 'login'
+        try:
+            # ...código de login usando Fix.py...
+            logging.info("Login realizado com sucesso")
+            return True
+        except Exception as e:
+            logging.error(f"Erro no login: {e}")
+            return False
+
+    def filtrar_fase_processual(self):
+        self.etapa_atual = 'filtrar_fase_processual'
+        try:
+            # ...código para filtrar fase processual...
+            logging.info("Filtro de fase processual aplicado")
+            return True
+        except Exception as e:
+            logging.error(f"Erro ao filtrar fase processual: {e}")
+            return False
+
+    def movimentar_processo(self):
+        self.etapa_atual = 'movimentar_processo'
+        try:
+            # ...código para movimentar processo...
+            logging.info("Processo movimentado com sucesso")
+            return True
+        except Exception as e:
+            logging.error(f"Erro ao movimentar processo: {e}")
+            return False
+
+    def executar_fluxo(self):
+        etapas = [
+            self.login,
+            self.filtrar_fase_processual,
+            self.movimentar_processo,
+            # ...outras etapas...
+        ]
+        for etapa in etapas:
+            sucesso = etapa()
+            if not sucesso:
+                logging.error(f"Falha na etapa {self.etapa_atual}, interrompendo fluxo")
+                return False
+            time.sleep(2)
+        logging.info("Fluxo executado com sucesso")
+        return True
+
+    def reiniciar_etapa(self):
+        logging.info(f"Reiniciando etapa {self.etapa_atual}")
+        # ...lógica para reiniciar a etapa atual...
+
+    def finalizar(self):
+        if self.driver:
+            self.driver.quit()
+            logging.info("Driver finalizado")
+
+if __name__ == "__main__":
+    automacao = AutomacaoPJe()
+    if automacao.iniciar():
+        sucesso = automacao.executar_fluxo()
+        if not sucesso:
+            logging.error("Execução do fluxo falhou")
+        automacao.finalizar()
+    else:
+        logging.error("Não foi possível iniciar a automação")

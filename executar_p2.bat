@@ -1,3 +1,4 @@
+
 @echo off
 REM Batch script para executar o script p2.py diretamente no PowerShell
 

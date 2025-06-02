@@ -1,0 +1,130 @@
+# Análise e Referência DOM - Movimento (PJe TRT2)
+
+## 1. Contexto da Função
+Função: movimento do fluxo de `ato_judicial` em `atos.py`
+Objetivo: Selecionar corretamente o movimento desejado na aba "Movimentos" do PJe TRT2, de forma robusta e automatizável.
+
+---
+
+## 2. Estrutura do DOM relevante
+
+### 2.1. Aba "Movimentos"
+Exemplo:
+<div id="mat-tab-label-0-1" class="mat-ripple mat-tab-label ... mat-tab-label-active" role="tab" ... aria-selected="true">
+  <div class="mat-tab-label-content">Movimentos</div>
+</div>
+Seletores possíveis:
+- `//div[contains(@class, 'mat-tab-label') and contains(., 'Movimentos')]` (XPath)
+- `.mat-tab-label-content` (CSS, mas pode ser genérico)
+
+### 2.2. Caixa de Filtro de Movimentos
+Exemplo:
+<div class="filtro-movimentos">
+  <mat-card ...>
+    <input ... placeholder="Filtro" type="search" class="mat-input-element ..." id="mat-input-3" data-placeholder="Filtro" ...>
+    ...
+  </mat-card>
+  ...
+</div>
+Seletores possíveis:
+- `input[placeholder="Filtro"]`
+- `input[data-placeholder="Filtro"]`
+- `input#mat-input-3`
+- `input.mat-input-element[type="search"]`
+
+### 2.3. Lista de Movimentos (Checkboxes)
+Exemplo:
+<mat-card class="mat-card mat-focus-indicator lancador-movimento">
+  <pje-movimento ...>
+    <mat-card-content ... class="container-movimentos">
+      <mat-checkbox class="mat-checkbox movimento ...">
+        <label class="mat-checkbox-layout" ...>
+          ...
+          <input type="checkbox" class="mat-checkbox-input ...">
+          ...
+          <span class="mat-checkbox-label"> Determinada a indisponibilidade de bens (12040) </span>
+        </label>
+      </mat-checkbox>
+      ...
+    </mat-card-content>
+  </pje-movimento>
+  ...
+</mat-card>
+Seletores possíveis para checkboxes:
+- `mat-checkbox.mat-checkbox.movimento`
+- Dentro: `label.mat-checkbox-layout .mat-checkbox-label` (texto)
+- Dentro: `input[type="checkbox"]` (input real)
+
+---
+
+## 3. Recomendações para Automação Selenium (Guia)
+
+- Ativar a aba "Movimentos":
+  Use XPath robusto para garantir ativação correta:
+  ```python
+  aba_mov = driver.find_element(By.XPATH, "//div[contains(@class, 'mat-tab-label') and contains(., 'Movimentos')]")
+  if aba_mov.get_attribute('aria-selected') != 'true':
+      driver.execute_script("arguments[0].click();", aba_mov)
+  ```
+
+- Foco e uso do filtro:
+  Tente todos os seletores possíveis para o campo de filtro.
+  Após digitar, pressione ENTER e aguarde atualização.
+  ```python
+  for seletor in [
+      'input[placeholder="Filtro"]',
+      'input[data-placeholder="Filtro"]',
+      'input#mat-input-3',
+      'input.mat-input-element[type="search"]'
+  ]:
+      try:
+          campo_filtro = driver.find_element(By.CSS_SELECTOR, seletor)
+          if campo_filtro.is_displayed() and campo_filtro.is_enabled():
+              break
+      except Exception:
+          continue
+  if campo_filtro:
+      campo_filtro.clear()
+      campo_filtro.send_keys(movimento)
+      campo_filtro.send_keys(Keys.ENTER)
+  ```
+
+- Busca e clique no checkbox do movimento:
+  Percorra todos os `mat-checkbox.mat-checkbox.movimento`.
+  Compare o texto de `.mat-checkbox-label` (normalizado, minúsculo, sem espaços extras) com o movimento desejado.
+  Clique no `input[type="checkbox"]` correspondente se não estiver marcado.
+  ```python
+  checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox.mat-checkbox.movimento')
+  for cb in checkboxes:
+      label = cb.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout .mat-checkbox-label').text
+      if movimento_texto in label.lower():
+          cb_input = cb.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+          if not cb_input.is_selected():
+              driver.execute_script("arguments[0].click();", cb_input)
+  ```
+
+- Dicas do Guia de Automação Selenium:
+  Sempre garanta que a aba correta está ativa antes de buscar campos.
+  Use logs detalhados para cada tentativa de seletor.
+  Se o filtro não funcionar, tente busca direta por texto nos checkboxes.
+  Use fallback para diferentes seletores e estratégias.
+
+---
+
+## 4. Possibilidades de Refino dos Seletores
+- Testar todos os seletores de input de filtro listados acima.
+- Se o DOM mudar, buscar por outros atributos como `data-placeholder`, `aria-label`, etc.
+- Para checkboxes, garantir que o texto do label seja buscado de forma robusta (strip, lower, normalização de espaços).
+- Se houver múltiplos cards de movimento, iterar por todos.
+- Se o filtro não reduzir a lista, buscar por texto diretamente.
+
+---
+
+## 5. Resumo
+- O fluxo robusto deve:
+  1. Ativar a aba "Movimentos".
+  2. Tentar o filtro, mas sempre buscar o checkbox por texto.
+  3. Clicar no checkbox correto.
+  4. Logar cada etapa e falha.
+
+- Consulte sempre o `selectors_pje.py` e o guia de automação Selenium para ajustes futuros.

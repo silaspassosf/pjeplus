@@ -19,3 +19,12 @@ b #input_password - 59Justdoit!1
 c entrar - input.btn
 5- buscar os id extraidos no passo um e copiaf a linha completa konde estão. (implementar) - em cinjunto!
 6- chamar anexo.py função def_carta
+- executar com py teste.py, não python teste.py
+testes de anexo, pec, clonar sisbajud e criar mais automacoes, testar infojud + retificação de autuação em função unica
+testar ecarta criado.
+lembrar que java resolve muitas coisas de forma mais simples.
+
+bacen.py
+reveja os botoes de menu copiados da extensao maispje e use os ICONES que sao usados na extensao. o caminho deles é a pasta maispje/icons - verifique la para usar os mesmo icones.
+
+localize a funcao de criaçao doo botao para o sisbajud para ver quais os icones e aplique usando a pasta do  projeto

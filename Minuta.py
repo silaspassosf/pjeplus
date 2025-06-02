@@ -289,7 +289,7 @@ def ato_judicial(
     prazo=None,          # int (dias) ou None para não alterar
     marcar_pec=None,     # True, False ou None (para não mexer)
     movimento=None,      # string do movimento ou None
-    gigs=None,           # dict com params para gigs_minuta ou None
+    gigs=None,           # dict com params para criar_gigs ou None
     marcar_primeiro_destinatario=False,
     debug=False
 ):
@@ -365,14 +365,7 @@ def ato_judicial(
                 if debug: print(f'[ATO] Movimento registrado: {movimento}')
             except Exception as e:
                 print(f'[ATO][ERRO] Não foi possível registrar movimento: {e}')
-        # 7. GIGS
-        if gigs:
-            try:
-                from acoes import gigs_minuta
-                gigs_minuta(driver, **gigs)
-                if debug: print('[ATO] GIGS executado.')
-            except Exception as e:
-                print(f'[ATO][ERRO] Falha ao executar GIGS: {e}')
+        # 7. GIGS - removido, usando apenas criar_gigs do Fix.py
         # 8. Gravar
         try:
             btn_salvar = driver.find_element(By.CSS_SELECTOR, '.botao-salvar')
@@ -616,12 +609,11 @@ def comunicacao_judicial(
         nome_comunicacao: string (nome a ser digitado)
         sigilo: bool (True para marcar sigilo, False para não marcar)
         modelo_nome: string (nome do modelo para buscar)
-        gigs_extra: tupla (dias_uteis, observacao) para segunda chamada de gigs_minuta, ou None
+        gigs_extra: tupla (dias_uteis, observacao) para segunda chamada de criar_gigs, ou None
     """
     import time
     from selenium.webdriver.common.by import By
     from selenium.webdriver.common.keys import Keys
-    from acoes import gigs_minuta
     from Fix import selecionar_tipo_expediente, buscar_seletor_robusto
     def log(msg):
         print(f'[COMUNICACAO] {msg}')
@@ -697,12 +689,13 @@ def comunicacao_judicial(
         div_ato = driver.find_element(By.CSS_SELECTOR, 'div.pec-item-dialogo-ato:nth-child(2)')
         div_ato.click()
         time.sleep(1)
-        log('Chamando gigs_minuta (0/Pz - Pec Verificar)')
-        gigs_minuta(driver, 0, 'Pz - Pec Verificar')
+        log('Criando GIGS inicial (0/Pz - Pec Verificar)')
+        from Fix import criar_gigs
+        criar_gigs(driver, dias_uteis=0, observacao='Pz - Pec Verificar', tela='principal', log=True)
         time.sleep(1)
         if gigs_extra:
-            log(f'Chamando gigs_minuta extra: {gigs_extra}')
-            gigs_minuta(driver, gigs_extra[0], gigs_extra[1])
+            log(f'Criando GIGS extra: {gigs_extra}')
+            criar_gigs(driver, dias_uteis=gigs_extra[0], observacao=gigs_extra[1], tela='principal', log=True)
             time.sleep(1)
         log('TAB real - 0.5s - seta para baixo - 0.5s - ENTER real - TAB real')
         campo = driver.switch_to.active_element

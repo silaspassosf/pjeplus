@@ -48,6 +48,7 @@ BTN_CONFIRMAR_DIALOG = ".mat-dialog-actions > button:nth-child(1) > span"
 # 5. BOTÕES GERAIS
 # =========================
 BTN_SALVAR_GIGS = "button.mat-raised-button"
+BTN_TAREFA_PROCESSO = 'button[mattooltip="Abre a tarefa do processo"]'
 
 # =========================
 # 6. FUNÇÕES PARA SELETORES DINÂMICOS

@@ -773,3 +773,535 @@ WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
 NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
 dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
 
+2025-06-02 13:15:08,977 [ERROR] [AutomacaoPJe] [LOGIN_AHK] AutoHotkey.exe não encontrado em nenhum dos caminhos: ['C:\\Users\\s164283\\Desktop\\pjeplus\\AHK\\UX\\AutoHotkey.exe', 'C:\\Program Files\\AutoHotkey\\AutoHotkey.exe', 'C:\\Program Files (x86)\\AutoHotkey\\AutoHotkey.exe']
+2025-06-02 15:06:14,263 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-06-02 15:06:14,541 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-06-02 15:06:45,953 [ERROR] [AutomacaoPJe] [NAVEGAR] Timeout aguardando URL https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades. URL atual: https://pje.trt2.jus.br/pjekz/quadro-avisos/visualizar
+2025-06-02 15:06:45,954 [ERROR] [AutomacaoPJe] [EXECUCAO][ERRO] Timeout aguardando URL https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades
+2025-06-03 15:00:08,284 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-06-03 15:00:08,580 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-06-03 15:00:09,282 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-06-03 15:00:13,174 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Removendo chip "Vencidas"...
+2025-06-03 15:00:13,730 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Chip "Vencidas" removido.
+2025-06-03 15:00:13,730 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Clicando no ícone fa-pen...
+2025-06-03 15:00:13,746 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Ícone fa-pen clicado.
+2025-06-03 15:00:13,747 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Aplicando filtro "xs"...
+2025-06-03 15:00:13,825 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Filtro "xs" aplicado.
+2025-06-03 15:00:13,825 [INFO] [AutomacaoPJe] [FILTRO][AGUARDO] Aguardando 3 segundos para aplicação completa do filtro e indexação...
+2025-06-03 15:00:16,825 [INFO] [AutomacaoPJe] [FILTRO][AGUARDO] Filtro e indexação aplicados. Prosseguindo com o processamento da lista.
+2025-06-03 15:00:16,826 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-06-03 15:00:19,202 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:19,204 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/2741106/detalhe
+2025-06-03 15:00:19,206 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:19,207 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:19,209 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-03 15:00:19,209 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:19,209 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:22,374 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:22,375 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/3231294/detalhe
+2025-06-03 15:00:22,376 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:22,377 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:22,378 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-03 15:00:22,378 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:22,378 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:25,628 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:25,630 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5451288/detalhe
+2025-06-03 15:00:25,632 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:25,632 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:25,699 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:00:27,956 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:00:27.956
+2025-06-03 15:00:29,620 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:00:29.620 (duração: 1.66s)
+2025-06-03 15:00:29,620 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando texto extraído...
+2025-06-03 15:00:29,620 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum prazo encontrado no texto.
+2025-06-03 15:00:29,621 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma palavra-chave relevante encontrada.
+2025-06-03 15:00:29,621 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fluxo principal concluído.
+2025-06-03 15:00:29,621 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:29,621 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:32,883 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:32,884 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/488387/detalhe
+2025-06-03 15:00:32,886 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:32,886 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:32,889 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-03 15:00:32,889 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:32,890 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:36,103 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:36,105 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/4941745/detalhe
+2025-06-03 15:00:36,106 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:36,107 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:36,171 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:00:38,420 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:00:38.420
+2025-06-03 15:00:40,074 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:00:40.073 (duração: 1.65s)
+2025-06-03 15:00:40,074 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando texto extraído...
+2025-06-03 15:00:40,074 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum prazo encontrado no texto.
+2025-06-03 15:00:40,074 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma palavra-chave relevante encontrada.
+2025-06-03 15:00:40,074 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fluxo principal concluído.
+2025-06-03 15:00:40,074 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:40,074 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:43,581 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:43,583 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5502846/detalhe
+2025-06-03 15:00:43,584 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:43,584 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:43,657 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:00:45,949 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:00:45.949
+2025-06-03 15:00:47,631 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:00:47.631 (duração: 1.68s)
+2025-06-03 15:00:47,631 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando texto extraído...
+2025-06-03 15:00:47,631 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum prazo encontrado no texto.
+2025-06-03 15:00:47,631 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma palavra-chave relevante encontrada.
+2025-06-03 15:00:47,631 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fluxo principal concluído.
+2025-06-03 15:00:47,632 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:47,632 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:50,914 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:50,915 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/1005432/detalhe
+2025-06-03 15:00:50,917 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:50,917 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:50,919 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-03 15:00:50,920 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:50,920 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:54,151 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:54,153 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/3908511/detalhe
+2025-06-03 15:00:54,155 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:54,155 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:54,158 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-03 15:00:54,159 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:00:54,159 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:00:57,672 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:00:57,674 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/7043809/detalhe
+2025-06-03 15:00:57,675 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:00:57,675 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:00:57,740 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:00:59,983 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:00:59.983
+2025-06-03 15:01:01,614 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:01:01.614 (duração: 1.63s)
+2025-06-03 15:01:01,614 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando texto extraído...
+2025-06-03 15:01:01,615 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum prazo encontrado no texto.
+2025-06-03 15:01:01,615 [INFO] [AutomacaoPJe] [FLUXO_PZ] Nenhuma palavra-chave relevante encontrada.
+2025-06-03 15:01:01,615 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fluxo principal concluído.
+2025-06-03 15:01:01,615 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:01:01,615 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:01:05,011 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:01:05,014 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6233870/detalhe
+2025-06-03 15:01:05,016 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:01:05,016 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:01:05,182 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:01:07,456 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:01:07.456
+2025-06-03 15:01:08,823 [WARNING] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-06-03 15:01:08,823 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-06-03 15:01:08,824 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Falha ao tirar screenshot de erro de extração: Message: Tried to run command without establishing a connection
+
+2025-06-03 15:01:08,825 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:01:08,825 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:01:09,854 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.
+2025-06-03 15:10:26,578 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-06-03 15:10:26,864 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-06-03 15:10:27,427 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-06-03 15:10:32,232 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Removendo chip "Vencidas"...
+2025-06-03 15:10:32,793 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Chip "Vencidas" removido.
+2025-06-03 15:10:32,794 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Clicando no ícone fa-pen...
+2025-06-03 15:10:32,812 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Ícone fa-pen clicado.
+2025-06-03 15:10:32,812 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Aplicando filtro "xs"...
+2025-06-03 15:10:32,870 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Filtro "xs" aplicado.
+2025-06-03 15:10:32,870 [INFO] [AutomacaoPJe] [FILTRO][AGUARDO] Aguardando 3 segundos para aplicação completa do filtro e indexação...
+2025-06-03 15:10:35,871 [INFO] [AutomacaoPJe] [FILTRO][AGUARDO] Filtro e indexação aplicados. Prosseguindo com o processamento da lista.
+2025-06-03 15:10:35,872 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-06-03 15:10:38,292 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:10:38,294 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/2741106/detalhe
+2025-06-03 15:10:38,295 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:10:38,296 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:10:38,296 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:10:38,348 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:10:40,627 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:10:40.627
+2025-06-03 15:10:42,305 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:10:42.305 (duração: 1.68s)
+2025-06-03 15:10:42,305 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+  vistos, etc.
+cientes as partes quanto à autuação da cp.
+aguarde-se cumprimento.
+  ausente indicação do juízo deprecado, serve o presente como ofício para solicitar dados acerca do andamento.
+sao paulo/sp, 14 de março de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-06-03 15:10:42,306 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:10:42,314 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:10:42,318 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:10:42,409 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:10:42,409 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:10:42,409 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:10:45,608 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:10:45,609 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/3231294/detalhe
+2025-06-03 15:10:45,611 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:10:45,611 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:10:45,611 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:10:45,662 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:10:47,957 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:10:47.957
+2025-06-03 15:10:49,683 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:10:49.683 (duração: 1.73s)
+2025-06-03 15:10:49,684 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+ante o teor do correio eletrônico anexado à certidão id 15e23f8, intime-se a reclamada para indicar os dados bancários corretos, em cinco dias.
+cumprida a determinação, informe-se ao setor competente e retornem-se os autos ao arquivo.
+sao paulo/sp, 19 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-06-03 15:10:49,684 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:10:49,684 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:10:49,687 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:10:49,783 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:10:49,784 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:10:49,784 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:10:52,936 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:10:52,938 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5451288/detalhe
+2025-06-03 15:10:52,940 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:10:52,940 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:10:52,940 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:10:52,991 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:10:55,263 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:10:55.263
+2025-06-03 15:10:56,914 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:10:56.914 (duração: 1.65s)
+2025-06-03 15:10:56,915 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+indefiro a repetição de expediente realizado há menos de um ano, conforme certidão id fccd074, nos termos do art. 765 da clt e parágrafo único do art. 370 do cpc.
+informo, ainda, reiteração de medida sub-rogatória já empregada, desprovido de novo fundamento, será apenas juntado independente de despacho, em respeito ao art. 878 da clt, eis que é obrigação da parte promover a execução.
+concedo o prazo de oito dias para apresentação de meios eficazes para prosseguimento, sob p...
+---
+2025-06-03 15:10:56,915 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:10:56,916 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "concedo[\s\.,;:!\-–—]*o[\s\.,;:!\-–—]*prazo[\s\.,;:!\-–—]*de[\s\.,;:!\-–—]*oito[\s\.,;:!\-–—]*dias". Ação Primária: gigs, Secundária: wrapper
+2025-06-03 15:10:56,916 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 15:10:56.916
+2025-06-03 15:10:58,727 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 15:10:58.727 (duração: 1.81s)
+2025-06-03 15:10:58,728 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: wrapper
+2025-06-03 15:11:09,906 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária wrapper concluída.
+2025-06-03 15:11:10,906 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:11:10,915 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:11:10,978 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:11:10,979 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:11:10,979 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:11:14,219 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:11:14,221 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/488387/detalhe
+2025-06-03 15:11:14,223 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:11:14,224 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:11:14,224 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:11:14,227 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-03 15:11:14,230 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:11:14,276 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:11:14,276 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:11:14,276 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:11:17,522 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:11:17,524 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/4941745/detalhe
+2025-06-03 15:11:17,526 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:11:17,527 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:11:17,527 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:11:17,574 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:11:19,886 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:11:19.886
+2025-06-03 15:11:21,631 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:11:21.631 (duração: 1.75s)
+2025-06-03 15:11:21,632 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+intime-se o executado acerca do bloqueio de valores realizado, ora convertido em penhora.
+moura, nakano, silva pereira sociedade de advogados. - escritório do patrono do autor.
+silente, já transferido à conta judicial, tornem conclusos.
+sao paulo/sp, 19 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-06-03 15:11:21,632 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:11:21,632 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Regra especial "bloqueio de valores realizado, ora" detectada.
+2025-06-03 15:11:21,632 [INFO] [root] [EXTRAIR_DADOS] Tentativa 1 de extrair dados do processo.
+2025-06-03 15:11:21,642 [INFO] [root] [EXTRAIR_DADOS] Número do processo encontrado no clipboard PJE: 1001537-91.2022.5.02.0703
+2025-06-03 15:11:21,642 [ERROR] [root] [EXTRAIR_DADOS] Erro crítico ao salvar dados em JSON: [Errno 2] No such file or directory: 'd:\\\\PjePlus\\\\dadosatuais.json'
+2025-06-03 15:11:21,642 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Dados do processo extraídos.
+2025-06-03 15:11:21,642 [ERROR] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Erro na regra especial de bloqueio: 'list' object has no attribute 'get'
+2025-06-03 15:11:21,642 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Erro durante a análise de prazo detalhado: 'list' object has no attribute 'get'
+2025-06-03 15:11:21,739 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:11:21,819 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:11:21,819 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:11:21,819 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:11:25,249 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:11:25,251 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5502846/detalhe
+2025-06-03 15:11:25,252 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:11:25,252 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:11:25,253 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:11:25,301 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:11:27,586 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:11:27.586
+2025-06-03 15:11:29,300 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:11:29.300 (duração: 1.71s)
+2025-06-03 15:11:29,300 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+considerando-se o efeito modificativo pretendido, se intime o exequente para manifestação em 05 dias.
+sao paulo/sp, 19 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-06-03 15:11:29,300 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:11:29,301 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:11:29,303 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:11:29,377 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:11:29,377 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:11:29,377 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:11:32,952 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:11:32,954 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/1005432/detalhe
+2025-06-03 15:11:32,956 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:11:32,956 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:11:32,957 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:11:33,063 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:11:35,393 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:11:35.393
+2025-06-03 15:11:37,124 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:11:37.124 (duração: 1.73s)
+2025-06-03 15:11:37,124 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+interposto agravo de petição pela parte exequente, contra despacho id 8290643, que se encontra tempestivo e subscrito por advogado regularmente constituído nos autos.
+nesta especializada, os despachos de mero expediente e as decisões de natureza interlocutória são irrecorríveis, conforme interpretação da súmula 214 do tst e do próprio art. 893, §1º da clt.
+o apelo apresentado busca reforma da decisão não terminativa, razão pela qual deixo de receber o agravo de petição apres...
+---
+2025-06-03 15:11:37,124 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:11:37,125 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:11:37,128 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:11:37,240 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:11:37,240 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:11:37,240 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:11:40,470 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:11:40,471 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/3908511/detalhe
+2025-06-03 15:11:40,473 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:11:40,473 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:11:40,473 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:11:40,508 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:11:42,883 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:11:42.883
+2025-06-03 15:11:44,603 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:11:44.603 (duração: 1.72s)
+2025-06-03 15:11:44,603 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+o obreiro requer a inclusão de possíveis sócios ocultos no polo passivo do feito.
+em que pese o fato de que qualquer discussão sobre sócios da empresa executada, ocultos ou não, deva ser realizada através de meio jurídico próprio, qual seja, a instauração de incidente de desconsideração da personalidade jurídica, analiso o requerimento.
+verifica-se que não há indicação de quais atos de gestão ou de administração da executada teriam sido realizados pelas pessoas arroladas, n...
+---
+2025-06-03 15:11:44,603 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:11:44,605 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "concedo[\s\.,;:!\-–—]*o[\s\.,;:!\-–—]*prazo[\s\.,;:!\-–—]*de[\s\.,;:!\-–—]*oito[\s\.,;:!\-–—]*dias". Ação Primária: gigs, Secundária: wrapper
+2025-06-03 15:11:44,606 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 15:11:44.605
+2025-06-03 15:11:46,960 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 15:11:46.960 (duração: 2.35s)
+2025-06-03 15:11:46,960 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: wrapper
+2025-06-03 15:12:09,365 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária wrapper concluída.
+2025-06-03 15:12:10,365 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:12:10,369 [INFO] [AutomacaoPJe] [FLUXO_PZ] Já na aba principal, nenhuma ação de fechamento/troca necessária.
+2025-06-03 15:12:10,369 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:12:10,369 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:12:13,729 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:12:13,731 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/7043809/detalhe
+2025-06-03 15:12:13,733 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:12:13,733 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:12:13,733 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:12:13,812 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:12:16,055 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:12:16.055
+2025-06-03 15:12:17,734 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:12:17.734 (duração: 1.68s)
+2025-06-03 15:12:17,734 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+poder judiciário
+justiça do trabalho
+tribunal regional do trabalho da 2ª região
+3ª vara do trabalho de são paulo - zona sul
+cumsen 1000441-36.2025.5.02.0703
+autor: marilyn moreira de lima
+réu: planet-spmkt comercio de confeccoes ltda e outros (2)
+
+conclusão
+nesta data, faço o feito concluso ao(a) mm(a) juiz(a) da 3ª vara do trabalho de são paulo - zona sul/sp.
+sao paulo/sp, 30 de maio de 2025.
+silvia mari okuyama
+  decisão
+  vistos.
+ante a concordância tácita das reclamadas quanto aos cálculos a...
+---
+2025-06-03 15:12:17,735 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:12:17,736 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "fixando[\s\.,;:!\-–—]*o[\s\.,;:!\-–—]*credito[\s\.,;:!\-–—]*do[\s\.,;:!\-–—]*autor[\s\.,;:!\-–—]*em". Ação Primária: gigs, Secundária: ato_pesquisas
+2025-06-03 15:12:17,736 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 15:12:17.736
+2025-06-03 15:12:19,016 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 15:12:19.016 (duração: 1.28s)
+2025-06-03 15:12:19,016 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: ato_pesquisas
+2025-06-03 15:12:50,586 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária ato_pesquisas concluída.
+2025-06-03 15:12:51,587 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:12:51,596 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:12:51,633 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:12:51,633 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:12:51,634 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:12:54,931 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:12:54,932 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6233870/detalhe
+2025-06-03 15:12:54,933 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:12:54,933 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:12:54,934 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:12:54,975 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:12:57,230 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:12:57.230
+2025-06-03 15:12:58,862 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 15:12:58.862 (duração: 1.63s)
+2025-06-03 15:12:58,862 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+concede-se 05 dias para oferta de novos meios de execução não diligenciados, considerando as pesquisas  já juntadas e diligências já cumpridas.
+caso silente, prossiga-se com remessa ao sobrestamento, com fluência da contagem do prazo prescricional do artigo 11-a da clt.
+frise-se que novos pedidos de medidas de execução deverão ser inéditos e acompanhados de comprovação documental da alteração fática da situação de insolvência dos executados.
+informo, ainda, que reiteração d...
+---
+2025-06-03 15:12:58,862 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-03 15:12:58,862 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "05[\s\.,;:!\-–—]*dias[\s\.,;:!\-–—]*para[\s\.,;:!\-–—]*oferta". Ação Primária: gigs, Secundária: wrapper
+2025-06-03 15:12:58,863 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 15:12:58.863
+2025-06-03 15:13:00,499 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 15:13:00.499 (duração: 1.64s)
+2025-06-03 15:13:00,500 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: wrapper
+2025-06-03 15:13:11,871 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária wrapper concluída.
+2025-06-03 15:13:12,872 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-03 15:13:12,876 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-03 15:13:12,931 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-03 15:13:12,931 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-03 15:13:12,932 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-03 15:13:16,226 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-03 15:13:16,229 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6447478/detalhe
+2025-06-03 15:13:16,231 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-03 15:13:16,231 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-03 15:13:16,231 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-03 15:13:16,276 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-03 15:13:18,524 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 15:13:18.524
+2025-06-05 16:21:42,381 [INFO] [AutomacaoPJe] [NAVEGAR] Maximizar a janela do navegador.
+2025-06-05 16:21:42,673 [INFO] [AutomacaoPJe] [NAVEGAR] Navegando diretamente para https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades...
+2025-06-05 16:21:43,158 [INFO] [AutomacaoPJe] [NAVEGAR] Página de atividades carregada com sucesso.
+2025-06-05 16:21:47,968 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Removendo chip "Vencidas"...
+2025-06-05 16:21:48,518 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Chip "Vencidas" removido.
+2025-06-05 16:21:48,518 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Clicando no ícone fa-pen...
+2025-06-05 16:21:48,532 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Ícone fa-pen clicado.
+2025-06-05 16:21:48,532 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Aplicando filtro "xs"...
+2025-06-05 16:21:48,589 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Filtro "xs" aplicado.
+2025-06-05 16:21:48,589 [INFO] [AutomacaoPJe] [FILTRO][AGUARDO] Aguardando 3 segundos para aplicação completa do filtro e indexação...
+2025-06-05 16:21:51,589 [INFO] [AutomacaoPJe] [FILTRO][AGUARDO] Filtro e indexação aplicados. Prosseguindo com o processamento da lista.
+2025-06-05 16:21:51,590 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
+2025-06-05 16:21:53,776 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:21:53,778 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/2545532/detalhe
+2025-06-05 16:21:53,779 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:21:53,779 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:21:53,779 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:21:53,781 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-05 16:21:53,783 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:21:53,825 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:21:53,826 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:21:53,826 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:21:56,922 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:21:56,923 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/2604673/detalhe
+2025-06-05 16:21:56,925 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:21:56,925 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:21:56,925 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:21:56,926 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-05 16:21:56,929 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:21:56,952 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:21:56,952 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:21:56,952 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:22:00,128 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:22:00,130 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6297338/detalhe
+2025-06-05 16:22:00,132 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:22:00,132 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:22:00,132 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:22:00,181 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-05 16:22:02,414 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 16:22:02.414
+2025-06-05 16:22:04,029 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 16:22:04.029 (duração: 1.62s)
+2025-06-05 16:22:04,030 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+poder judiciário
+justiça do trabalho
+tribunal regional do trabalho da 2ª região
+3ª vara do trabalho de são paulo - zona sul
+1001108-56.2024.5.02.0703
+: sindicato dos trab da empresa brasileira de correios e telegrafos e simil de sao paulo, regiao da grd sao paulo e z postal de sorocaba - sintect-sp e outros (1)
+: empresa brasileira de correios e telegrafos
+
+conclusão
+nesta data, faço o feito concluso ao(a) mm(a) juiz(a) da 3ª vara do trabalho de são paulo - zona sul/sp.
+sao paulo/sp, data abaixo...
+---
+2025-06-05 16:22:04,030 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-05 16:22:04,039 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-05 16:22:04,044 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:22:04,079 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:22:04,079 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:22:04,079 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:22:07,221 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:22:07,224 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5987682/detalhe
+2025-06-05 16:22:07,226 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:22:07,226 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:22:07,227 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:22:07,269 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-05 16:22:09,518 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 16:22:09.518
+2025-06-05 16:22:11,177 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 16:22:11.177 (duração: 1.66s)
+2025-06-05 16:22:11,177 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+despacho
+vistos, etc.
+intime-se o executado acerca do bloqueio de valores realizado, ora convertido em penhora.
+  silente, já transferido à conta judicial, tornem conclusos.
+sao paulo/sp, 23 de maio de 2025.
+otavio augusto machado de oliveira
+juiz do trabalho titular
+---
+2025-06-05 16:22:11,178 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-05 16:22:11,178 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Regra especial "bloqueio de valores realizado, ora" detectada.
+2025-06-05 16:22:11,178 [INFO] [root] [EXTRAIR_DADOS] Tentativa 1 de extrair dados do processo.
+2025-06-05 16:22:11,184 [INFO] [root] [EXTRAIR_DADOS] Número do processo encontrado no clipboard PJE: 1000355-02.2024.5.02.0703
+2025-06-05 16:22:11,184 [ERROR] [root] [EXTRAIR_DADOS] Erro crítico ao salvar dados em JSON: [Errno 2] No such file or directory: 'd:\\\\PjePlus\\\\dadosatuais.json'
+2025-06-05 16:22:11,185 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Dados do processo extraídos.
+2025-06-05 16:22:11,185 [ERROR] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Erro na regra especial de bloqueio: 'list' object has no attribute 'get'
+2025-06-05 16:22:11,185 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Erro durante a análise de prazo detalhado: 'list' object has no attribute 'get'
+2025-06-05 16:22:11,267 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:22:11,315 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:22:11,315 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:22:11,315 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:22:14,477 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:22:14,478 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6701778/detalhe
+2025-06-05 16:22:14,480 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:22:14,481 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:22:14,481 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:22:14,551 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-05 16:22:16,799 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 16:22:16.799
+2025-06-05 16:22:18,409 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 16:22:18.409 (duração: 1.61s)
+2025-06-05 16:22:18,409 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc. 
+a singela petição id deec2d8 do exequente nada menciona sobre abuso da personalidade jurídica, desvio de finalidade ou confusão patrimonial e não junta ficha jucesp simplificada atual da empresa que requer a desconsideração da personalidade jurídica, motivos pelos quais, com fundamento no art. 855-a da clt, § 1º do art. 133 e § 4º do art. 134, ambos do cpc, da forma solicitada, não há como se deferir o pedido de instauração de idpj, por ausências de fundamentação fática e j...
+---
+2025-06-05 16:22:18,409 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-05 16:22:18,410 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "concedo[\s\.,;:!\-–—]*o[\s\.,;:!\-–—]*prazo[\s\.,;:!\-–—]*de[\s\.,;:!\-–—]*oito[\s\.,;:!\-–—]*dias". Ação Primária: gigs, Secundária: wrapper
+2025-06-05 16:22:18,410 [ERROR] [AutomacaoPJe] [FLUXO_PZ][ERRO] Erro durante a análise de prazo detalhado: too many values to unpack (expected 2)
+2025-06-05 16:22:18,500 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:22:18,556 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:22:18,556 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:22:18,557 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:22:21,753 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:22:21,755 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6031618/detalhe
+2025-06-05 16:22:21,757 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:22:21,757 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:22:21,757 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:22:21,865 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
+2025-06-05 16:22:24,113 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 16:22:24.113
+2025-06-05 16:22:25,773 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 16:22:25.773 (duração: 1.66s)
+2025-06-05 16:22:25,773 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+---
+decisão
+vistos, etc.
+tendo em vista que o(a) reclamado(a), apesar de devidamente intimado(a), deixou transcorrer in albis o prazo para pagamento do valor apurado, e ante a preferência indicada no art. 835 do cpc, expeça-se ordem de bloqueio de numerários existentes em suas contas e/ou aplicações financeiras junto ao convênio sisbajud, nos exatos termos da decisão de homologação de cálculos.
+frustrada a tentativa, proceda-se à inclusão no bndt do(a) executado(a) e prossiga-se o feito, com a conse...
+---
+2025-06-05 16:22:25,773 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
+2025-06-05 16:22:25,774 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
+2025-06-05 16:22:25,778 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:22:25,836 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:22:25,836 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:22:25,836 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:22:28,962 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
+2025-06-05 16:22:28,964 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/313343/detalhe
+2025-06-05 16:22:28,965 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
+2025-06-05 16:22:28,965 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
+2025-06-05 16:22:28,965 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
+2025-06-05 16:22:28,966 [WARNING] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-05 16:22:28,968 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
+2025-06-05 16:22:29,006 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
+2025-06-05 16:22:29,006 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
+2025-06-05 16:22:29,006 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
+2025-06-05 16:22:30,019 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.

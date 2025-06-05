@@ -1047,6 +1047,17 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
     try:
         if log:
             print(f"[GIGS] Iniciando criação de GIGS: {dias_uteis}/{observacao} (tela=principal)")
+        # Permite padrão Prazo/Responsável/Observação
+        responsavel = ''
+        obs = observacao
+        if isinstance(observacao, str) and observacao.count('/') >= 2:
+            partes = observacao.split('/', 2)
+            try:
+                dias_uteis = int(partes[0]) if partes[0].isdigit() else dias_uteis
+            except Exception:
+                pass
+            responsavel = partes[1].strip()
+            obs = partes[2].strip()
         # 1. Clica no botão 'Nova Atividade'
         btn_nova_atividade = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.ID, 'nova-atividade'))
@@ -1071,15 +1082,33 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
                 time.sleep(0.05)
             if log:
                 print(f'[GIGS] Dias úteis preenchido: {dias_uteis}')
+        # Preenche responsável pelo GIGS se informado
+        if responsavel:
+            try:
+                campo_resp = WebDriverWait(driver, timeout).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[aria-label*="Responsável pela atividade"]'))
+                )
+                campo_resp.clear()
+                campo_resp.send_keys(responsavel)
+                time.sleep(0.2)
+                # Seleciona a opção do dropdown se existir
+                from selenium.webdriver.common.keys import Keys
+                campo_resp.send_keys(Keys.ARROW_DOWN)
+                campo_resp.send_keys(Keys.ENTER)
+                if log:
+                    print(f'[GIGS] Responsável preenchido: {responsavel}')
+            except Exception as e:
+                if log:
+                    print(f'[GIGS][AVISO] Campo responsável não encontrado ou não preenchido: {e}')
         campo_obs = WebDriverWait(driver, timeout).until(
             EC.visibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
         )
         campo_obs.clear()
-        for c in observacao:
+        for c in obs:
             campo_obs.send_keys(c)
             time.sleep(0.03)
         if log:
-            print(f'[GIGS] Observação preenchida: {observacao}')
+            print(f'[GIGS] Observação preenchida: {obs}')
         # 4. Clica em Salvar
         btn_salvar = None
         botoes = driver.find_elements(By.CSS_SELECTOR, 'button.mat-raised-button')

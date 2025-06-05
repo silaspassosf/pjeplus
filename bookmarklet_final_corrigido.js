@@ -1,0 +1,263 @@
+// Versão final do bookmarklet MaisPJe com todas as correções aplicadas
+// Este código deve ser usado em um bookmarklet no navegador
+
+javascript:(function(){
+    // Remove instância anterior se existir
+    var old=document.getElementById('maisPjeBox');
+    if(old)old.remove();
+    
+    // Definição das funções de fluxo apenas se não existirem
+    if(!window.fluxoDespacho){
+        window.fluxoDespacho=function(config){
+            console.log('[DESPACHO] Iniciando fluxo:',config);
+            try{
+                var btnAnalise=document.querySelector('button[title*="Análise"], button[aria-label*="Análise"]');
+                if(btnAnalise){
+                    btnAnalise.click();
+                    console.log('[DESPACHO] Movimentado para Análise.');
+                }
+                setTimeout(function(){
+                    var btnConclusao=document.querySelector('button[title*="Conclusão"], button[aria-label*="Conclusão"]');
+                    if(btnConclusao){
+                        btnConclusao.click();
+                        console.log('[DESPACHO] Movimentado para Conclusão ao Magistrado.');
+                    }
+                    setTimeout(function(){
+                        var modelo=config.modelo||'';
+                        if(modelo){
+                            var campoFiltro=document.querySelector('#inputFiltro[aria-label]');
+                            if(campoFiltro){
+                                campoFiltro.click();
+                                campoFiltro.value='';
+                                campoFiltro.value=modelo;
+                                campoFiltro.dispatchEvent(new Event('input',{bubbles:true}));
+                                console.log('[DESPACHO] Modelo preenchido:',modelo);
+                            }
+                        }
+                    },1000);
+                },1000);
+            }catch(e){
+                console.error('[DESPACHO] Erro:',e);
+                alert('Erro no fluxo Despacho: '+e.message);
+            }
+        };
+        
+        window.fluxoGigs=function(config){
+            console.log('[AUTOGIGS] Iniciando:',config.nm_botao,'- Tipo:',config.tipo);
+            try{
+                var gigsFechado=!document.querySelector('pje-gigs-ficha-processo');
+                if(gigsFechado){
+                    var btnMostrar=document.querySelector('button[aria-label="Mostrar o GIGS"]');
+                    if(btnMostrar){
+                        btnMostrar.click();
+                        console.log('[AUTOGIGS] GIGS aberto');
+                    }
+                }
+                setTimeout(function(){
+                    if(config.tipo==='chip'){
+                        var nomeChip=config.tipo_atividade||config.nm_botao;
+                        var chips=document.querySelectorAll('button[mattooltip*="'+nomeChip+'"], button[title*="'+nomeChip+'"]');
+                        if(chips.length>0){
+                            chips[0].click();
+                            console.log('[AUTOGIGS] Chip aplicado:',nomeChip);
+                        }else{
+                            alert('Chip não encontrado: '+nomeChip);
+                        }
+                    }else if(config.tipo==='comentario'){
+                        var btnComentario=document.querySelector('button[aria-label*="comentário"], button[title*="comentário"]');
+                        if(btnComentario){
+                            btnComentario.click();
+                            setTimeout(function(){
+                                var campoObs=document.querySelector('textarea[formcontrolname="observacao"]');
+                                if(campoObs){
+                                    campoObs.value=config.observacao||'';
+                                    campoObs.dispatchEvent(new Event('input',{bubbles:true}));
+                                    console.log('[AUTOGIGS] Comentário adicionado');
+                                }
+                            },500);
+                        }
+                    }else{
+                        // CORREÇÃO APLICADA: Busca manual por botão "Nova atividade"
+                        var btnNova=null;
+                        var botoes=document.querySelectorAll('button');
+                        for(var i=0;i<botoes.length;i++){
+                            if(botoes[i].textContent.includes('Nova atividade')||
+                               (botoes[i].getAttribute('aria-label')&&botoes[i].getAttribute('aria-label').includes('Nova'))){
+                                btnNova=botoes[i];
+                                break;
+                            }
+                        }
+                        if(btnNova){
+                            btnNova.click();
+                            setTimeout(function(){
+                                if(config.tipo_atividade){
+                                    var campoTipo=document.querySelector('input[formcontrolname="tipoAtividade"]');
+                                    if(campoTipo){
+                                        campoTipo.value=config.tipo_atividade;
+                                        campoTipo.dispatchEvent(new Event('input',{bubbles:true}));
+                                    }
+                                }
+                                if(config.observacao){
+                                    var campoObs=document.querySelector('textarea[formcontrolname="observacao"]');
+                                    if(campoObs){
+                                        campoObs.value=config.observacao;
+                                        campoObs.dispatchEvent(new Event('input',{bubbles:true}));
+                                    }
+                                }
+                                if(config.responsavel){
+                                    var campoResp=document.querySelector('input[aria-label*="Responsável pela atividade"]');
+                                    if(campoResp){
+                                        campoResp.value=config.responsavel;
+                                        campoResp.dispatchEvent(new Event('input',{bubbles:true}));
+                                    }
+                                }
+                                if(config.prazo){
+                                    var campoPrazo=document.querySelector('input[formcontrolname="prazo"]');
+                                    if(campoPrazo){
+                                        campoPrazo.value=config.prazo;
+                                        campoPrazo.dispatchEvent(new Event('input',{bubbles:true}));
+                                    }
+                                }
+                                console.log('[AUTOGIGS] Atividade GIGS criada');
+                            },1000);
+                        }
+                    }
+                },1000);
+            }catch(e){
+                console.error('[AUTOGIGS] Erro:',e);
+                alert('Erro no fluxo AutoGigs: '+e.message);
+            }
+        };
+        
+        window.fluxoAnexar=function(config){
+            console.log('[ANEXAR] Iniciando:',config.tipo||'','-',config.modelo||'');
+            try{
+                setTimeout(function(){
+                    var btnAnexar=document.querySelector('#pjextension_bt_detalhes_4')||
+                                  document.querySelector('button[aria-label*="anexar"], button[title*="anexar"]')||
+                                  document.querySelector('button i.fa-paperclip');
+                    if(btnAnexar){
+                        if(btnAnexar.tagName!=='BUTTON')btnAnexar=btnAnexar.closest('button');
+                        btnAnexar.click();
+                        console.log('[ANEXAR] Botão de anexar clicado');
+                    }
+                    setTimeout(function(){
+                        if(config.modelo&&config.modelo.toLowerCase()==='pdf'){
+                            var switchPdf=document.querySelector('input[role="switch"]');
+                            if(switchPdf&&!switchPdf.checked){
+                                switchPdf.click();
+                                console.log('[ANEXAR] Switch PDF ativado');
+                            }
+                        }
+                        setTimeout(function(){
+                            var tipo=config.tipo||'Certidão';
+                            var campoTipo=document.querySelector('input[aria-label="Tipo de Documento"]');
+                            if(campoTipo){
+                                campoTipo.value='';
+                                campoTipo.value=tipo;
+                                campoTipo.dispatchEvent(new Event('input',{bubbles:true}));
+                                var enterEvent=new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true});
+                                campoTipo.dispatchEvent(enterEvent);
+                                console.log('[ANEXAR] Tipo selecionado:',tipo);
+                            }
+                            if(config.descricao){
+                                setTimeout(function(){
+                                    var campoDesc=document.querySelector('input[aria-label="Descrição"]');
+                                    if(campoDesc){
+                                        campoDesc.value=config.descricao;
+                                        campoDesc.dispatchEvent(new Event('input',{bubbles:true}));
+                                        console.log('[ANEXAR] Descrição preenchida:',config.descricao);
+                                    }
+                                },500);
+                            }
+                        },1000);
+                    },1000);
+                },500);
+            }catch(e){
+                console.error('[ANEXAR] Erro:',e);
+                alert('Erro no fluxo Anexar: '+e.message);
+            }
+        };
+    }
+    
+    // Dados dos botões (preservados do original)
+    var dados={'aaDespacho':[{nm_botao:'Genérico',tipo:'Despacho',descricao:'Despacho',sigilo:'não',modelo:'xsgen',cor:'#0080ff'},{nm_botao:'Meios',tipo:'Despacho',descricao:'Indicação de meios',sigilo:'nao',modelo:'xsmeios',cor:'#008000'},{nm_botao:'EmpreTermo',tipo:'Despacho',descricao:'Indicar meios',sigilo:'nao',modelo:'xempresatermo',assinar:'sim',cor:'#ff8040'},{nm_botao:'SócioTermo',tipo:'Despacho',descricao:'Indicar meios',sigilo:'nao',modelo:'xsociotermo',assinar:'sim',cor:'#ff8040'},{nm_botao:'Homol',tipo:'Homologação de C',descricao:'Homologação de Cálculos',sigilo:'nao',modelo:'homol. cálculos',cor:'#228b22'},{nm_botao:'Parcial',tipo:'Despacho',descricao:'Despacho',sigilo:'não',modelo:'XSPARCIAL',cor:'#ff8040'},{nm_botao:'Rosto sob',tipo:'Sobrest',descricao:'',sigilo:'nao',modelo:'x180',cor:'#8080ff'},{nm_botao:'SuspPROV',tipo:'Sobrestamento /',descricao:'Sobrestamento',sigilo:'não',modelo:'xsuspPROV',cor:'#ff8040'},{nm_botao:'Meios P/Exec',tipo:'Homologação de C',descricao:'indcar meios - mudança para exec',sigilo:'nao',modelo:'xsmeios',cor:'#228b22'},{nm_botao:'Pesq P/Exec',tipo:'Homologação de C',descricao:'PESQUISAS - mudança para exec',sigilo:'nao',modelo:'xsmeios',cor:'#ff8040'},{nm_botao:'UnaP',tipo:'Despacho',descricao:'',sigilo:'nao',modelo:'-Aud una presen',assinar:'sim',cor:'#0080ff'},{nm_botao:'UnaP100%',tipo:'Despacho',descricao:'',sigilo:'nao',modelo:'al 100',assinar:'sim',cor:'#800000'},{nm_botao:'SuspSEM',tipo:'Sobrestamento',descricao:'Sobrestamento',sigilo:'não',modelo:'suspf',cor:'#c0c0c0'},{nm_botao:'IDPJ',tipo:'IDPJ',descricao:'Julgamento IDPJ',sigilo:'não',modelo:'IDPJsemdef',cor:'#0080ff'},{nm_botao:'Edital',tipo:'Despacho',descricao:'Determina Edital',sigilo:'não',modelo:'xsedit',cor:'#0000a0'},{nm_botao:'CUMPRIR CP',tipo:'Despacho',descricao:'CUMPRIR CP',sigilo:'nao',modelo:'. depre',assinar:'sim',cor:'#0080ff'},{nm_botao:'CALCrcte',tipo:'Despacho',descricao:'Reitera Calc Rcte',sigilo:'nao',modelo:'xreiteracalcrcte',assinar:'sim',cor:'#008080'},{nm_botao:'CALCrcda',tipo:'Despacho',descricao:'Intima Rcda Calc',sigilo:'nao',modelo:'a reclda',assinar:'sim',cor:'#008080'},{nm_botao:'Parcela',tipo:'Despacho',descricao:'Despacho',sigilo:'nao',modelo:'xsparcela',cor:'#ff8000'}],'aaAutogigs':[{nm_botao:'Pesq',tipo:'prazo',tipo_atividade:'Pesquisas Patrimoniais',observacao:'Aguardar pesquisas',prazo:'30',cor:'#008000'},{nm_botao:'IDPJ',tipo:'prazo',tipo_atividade:'IDPJ',observacao:'Aguardar IDPJ',prazo:'15',cor:'#ff8040'},{nm_botao:'Lib',tipo:'prazo',tipo_atividade:'Liberação',observacao:'Processo liberado',prazo:'0',cor:'#708090'},{nm_botao:'Homol',tipo:'prazo',tipo_atividade:'Homologação',observacao:'Homologação de cálculos',prazo:'15',cor:'#008040'},{nm_botao:'pec',tipo:'comentario',observacao:'PEC processada',prazo:'Magistrado',cor:'#ff0000'},{nm_botao:'pecG',tipo:'comentario',observacao:'PEC processada - Gabinete',prazo:'Gabinete',cor:'#ff0000'},{nm_botao:'recado',tipo:'lembrete',tipo_atividade:'Recado',observacao:'Lembrete importante',prazo:'7',cor:'#ff0000'},{nm_botao:'arq1',tipo:'prazo',tipo_atividade:'Arquivo',observacao:'Processo arquivado',prazo:'0',cor:'#804040'},{nm_botao:'Lib Silvia',tipo:'prazo',tipo_atividade:'Liberação',responsavel:'Silvia',observacao:'Processo liberado para Silvia',prazo:'0',cor:'#008040'},{nm_botao:'CalcArgos',tipo:'prazo',tipo_atividade:'Cálculos',observacao:'Cálculo de Argos',prazo:'30',cor:'#ff8000'},{nm_botao:'ConfG',tipo:'comentario',observacao:'Confirmação do Gabinete',prazo:'Gabinete',cor:'#800040'},{nm_botao:'CartaG',tipo:'prazo',tipo_atividade:'Carta Precatória',observacao:'Carta Precatória - Gabinete',prazo:'60',cor:'#008080'},{nm_botao:'Lib0',tipo:'prazo',tipo_atividade:'Liberação',observacao:'Liberação imediata',prazo:'0',cor:'#c0c0c0'}],'aaAnexar':[{nm_botao:'CP',tipo:'Carta Precatória',descricao:'Carta Precatória',sigilo:'nao',modelo:'carta precatoria',cor:'#c0c0c0'},{nm_botao:'DEVCP',tipo:'Certidão',descricao:'Devolução de CP',sigilo:'nao',modelo:'devolucao cp',cor:'#0080ff'},{nm_botao:'Parcial+Desp',tipo:'Despacho',descricao:'Parcial + Despacho',sigilo:'nao',modelo:'parcial despacho',cor:'#ff8000'},{nm_botao:'SBJNEG',tipo:'Certidão',descricao:'SBJ Negativo',sigilo:'nao',modelo:'sbj negativo',cor:'#ff8000'},{nm_botao:'transf pedida',tipo:'Certidão',descricao:'Transferência Pedida',sigilo:'nao',modelo:'transferencia',cor:'#ff8000'},{nm_botao:'Carta',tipo:'Carta',descricao:'Carta',sigilo:'nao',modelo:'carta',cor:'#008080'},{nm_botao:'PDF TRANSF',tipo:'PDF',descricao:'PDF Transferência',sigilo:'nao',modelo:'pdf',cor:'#1fe059'},{nm_botao:'OficMalote',tipo:'Ofício',descricao:'Ofício Malote',sigilo:'nao',modelo:'oficio malote',cor:'#c0c0c0'},{nm_botao:'Recibo PDF',tipo:'PDF',descricao:'Recibo PDF',sigilo:'nao',modelo:'pdf',cor:'#ff8000'},{nm_botao:'Calc',tipo:'Cálculo',descricao:'Cálculo',sigilo:'nao',modelo:'calculo',cor:'#008000'},{nm_botao:'Extrato',tipo:'Extrato',descricao:'Extrato',sigilo:'nao',modelo:'extrato',cor:'#ff8000'},{nm_botao:'ARISP',tipo:'Certidão',descricao:'ARISP',sigilo:'nao',modelo:'arisp',cor:'#c0c0c0'},{nm_botao:'Arq',tipo:'Arquivo',descricao:'Arquivo',sigilo:'nao',modelo:'arquivo',cor:'#0080c0'},{nm_botao:'Teimosinha consulta',tipo:'Certidão',descricao:'Consulta Teimosinha',sigilo:'nao',modelo:'teimosinha',cor:'#ff8000'},{nm_botao:'t2',tipo:'Certidão',descricao:'T2',sigilo:'nao',modelo:'t2',cor:'#ff8000'},{nm_botao:'GENÉRICA',tipo:'Certidão',descricao:'Certidão Genérica',sigilo:'nao',modelo:'generica',cor:'#c0c0c0'},{nm_botao:'Infojud',tipo:'Certidão',descricao:'Infojud',sigilo:'sim',modelo:'infojud',cor:'#ff0000'},{nm_botao:'juntadaPROV',tipo:'Juntada',descricao:'Juntada Provisória',sigilo:'nao',modelo:'juntada prov',cor:'#ff8040'},{nm_botao:'Provdocs',tipo:'Juntada',descricao:'Documentos Provisórios',sigilo:'nao',modelo:'prov docs',cor:'#ff8040'},{nm_botao:'EMAIL',tipo:'E-mail',descricao:'E-mail',sigilo:'nao',modelo:'email',cor:'#c0c0c0'},{nm_botao:'Transf+Lib',tipo:'Certidão',descricao:'Transferência + Liberação',sigilo:'nao',modelo:'transf lib',cor:'#ff8000'},{nm_botao:'Reg$',tipo:'Registro',descricao:'Registro Financeiro',sigilo:'nao',modelo:'reg financeiro',cor:'#ff80c0'}]};
+    
+    var grupos=[{nome:'Despacho',chave:'aaDespacho'},{nome:'AutoGigs',chave:'aaAutogigs'},{nome:'Anexar',chave:'aaAnexar'}];
+    
+    // Criação da interface
+    var box=document.createElement('div');
+    box.id='maisPjeBox';
+    box.style.cssText='position:fixed;top:20px;right:20px;z-index:99999;background:#fff;border:2px solid #0080ff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.2);padding:16px 12px 12px 12px;min-width:460px;max-width:600px;font-family:Arial,sans-serif;max-height:85vh;overflow-y:auto;transition:all 0.3s ease';
+    
+    var titulo=document.createElement('div');
+    titulo.textContent='MaisPJe Automação';
+    titulo.style.cssText='font-weight:bold;font-size:18px;margin-bottom:12px;color:#0080ff;text-align:center';
+    box.appendChild(titulo);
+    
+    var botoesArea=document.createElement('div');
+    botoesArea.style.cssText='display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-start';
+    box.appendChild(botoesArea);
+    
+    var voltar=document.createElement('button');
+    voltar.textContent='← Voltar';
+    voltar.style.cssText='display:none;margin-bottom:10px;background:#f0f0f0;color:#0080ff;border:1px solid #0080ff;border-radius:6px;padding:8px 12px;font-weight:bold;cursor:pointer;transition:all 0.2s';
+    voltar.onmouseover=function(){this.style.background='#0080ff';this.style.color='#fff';};
+    voltar.onmouseout=function(){this.style.background='#f0f0f0';this.style.color='#0080ff';};
+    voltar.onclick=function(){exibirGrupos();};
+    box.appendChild(voltar);
+    
+    var fechar=document.createElement('span');
+    fechar.textContent='×';
+    fechar.title='Fechar';
+    fechar.style.cssText='position:absolute;top:8px;right:12px;cursor:pointer;font-size:20px;color:#0080ff;font-weight:bold;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.2s';
+    fechar.onmouseover=function(){this.style.background='#ff0000';this.style.color='#fff';};
+    fechar.onmouseout=function(){this.style.background='transparent';this.style.color='#0080ff';};
+    fechar.onclick=function(){box.remove();};
+    box.appendChild(fechar);
+    
+    document.body.appendChild(box);
+    
+    function exibirGrupos(){
+        botoesArea.innerHTML='';
+        botoesArea.style.cssText='display:flex;flex-direction:column;gap:8px';
+        voltar.style.display='none';
+        grupos.forEach(function(g){
+            var b=document.createElement('button');
+            b.textContent=g.nome;
+            b.style.cssText='background:#0080ff;color:#fff;border:none;border-radius:8px;padding:12px 20px;font-size:16px;cursor:pointer;width:100%;transition:all 0.2s;font-weight:500';
+            b.onmouseover=function(){this.style.background='#0066cc';this.style.transform='translateY(-1px)';};
+            b.onmouseout=function(){this.style.background='#0080ff';this.style.transform='translateY(0)';};
+            b.onclick=function(){exibirBotoesGrupo(g);};
+            botoesArea.appendChild(b);
+        });
+    }
+    
+    function exibirBotoesGrupo(grupo){
+        botoesArea.innerHTML='';
+        botoesArea.style.cssText='display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-start';
+        voltar.style.display='block';
+        var lista=dados[grupo.chave]||[];
+        lista.forEach(function(btn){
+            var b=document.createElement('button');
+            b.textContent=btn.nm_botao;
+            var fontSize=btn.nm_botao.length>12?'12px':'13px';
+            var padding=btn.nm_botao.length>15?'6px 8px':'8px 10px';
+            b.style.cssText='background:'+btn.cor+';color:#fff;border:none;border-radius:6px;padding:'+padding+';margin:0;font-size:'+fontSize+';cursor:pointer;white-space:nowrap;transition:all 0.2s;font-weight:500;flex:0 0 auto;min-width:60px;max-width:140px;text-align:center';
+            b.onmouseover=function(){this.style.transform='scale(1.05)';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.3)';};
+            b.onmouseout=function(){this.style.transform='scale(1)';this.style.boxShadow='none';};
+            b.onclick=function(){
+                if(grupo.chave==='aaDespacho'){
+                    window.fluxoDespacho(btn);
+                }else if(grupo.chave==='aaAutogigs'){
+                    window.fluxoGigs(btn);
+                }else if(grupo.chave==='aaAnexar'){
+                    window.fluxoAnexar(btn);
+                }
+            };
+            botoesArea.appendChild(b);
+        });
+    }
+    
+    exibirGrupos();
+})();

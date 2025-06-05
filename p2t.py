@@ -97,7 +97,19 @@ def fluxo_pz(driver):
 
         logger.info('[FLUXO_PZ] Documento relevante encontrado, abrindo painel...')
         doc_link.click()
-        time.sleep(2) # Wait for panel/URL to load
+        # Aguarda até que a timeline esteja carregada (pelo menos um item)
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'li.tl-item-container'))
+            )
+        except TimeoutException:
+            logger.warning('[FLUXO_PZ] Timeout aguardando timeline do processo carregar.')
+            return
+
+        # Aguarda o painel do documento abrir (alinhar com p2.py)
+        time.sleep(2)  # Espera fixa igual ao p2.py para garantir carregamento do painel
+        # Alternativamente, pode-se usar um WebDriverWait para um seletor exclusivo do painel do documento
+        # Exemplo: WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div.painel-documento')))
 
         # 2. Extrair texto usando a função de Fix.py
         import datetime

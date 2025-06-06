@@ -29,6 +29,7 @@ from mov import def_arq
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
 from Fix import driver_pc, login_pc
+from driver_config import criar_driver, login_func
 
 # Configuração do logging
 logging.basicConfig(
@@ -527,16 +528,15 @@ def executar_fluxo(driver):
             logger.error(f'[EXECUCAO][ERRO] Falha ao fechar o driver: {e}')
 
 def main():
-    driver = driver_pc(headless=False)
+    driver = criar_driver(headless=False)
     if not driver:
         print('[ERRO] Falha ao iniciar o driver.')
         return
-    if not login_pc(driver):
+    if not login_func(driver):
         print('[ERRO] Falha no login. Encerrando script.')
         driver.quit()
         return
     print('[P2] Login realizado com sucesso.')
-    # Passa o driver já autenticado para o fluxo principal
     executar_fluxo(driver)
 
 if __name__ == "__main__":

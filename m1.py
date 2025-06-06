@@ -26,7 +26,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from Fix import (
-    login_pc,
     navegar_para_tela,
     extrair_pdf,
     analise_outros,
@@ -37,7 +36,6 @@ from Fix import (
     buscar_seletor_robusto,
     limpar_temp_selenium,
     driver_pc,
-    login_notebook,
     indexar_e_processar_lista,
     extrair_dados_processo,
     buscar_documento_argos,
@@ -57,45 +55,18 @@ from atos import (
     ato_edital,
     pec_idpj
 )
+from driver_config import criar_driver, login_func
 
 # 1. Funções de Login e Setup
 def setup_driver():
     """Setup inicial do driver e limpeza"""
+    from Fix import limpar_temp_selenium
     limpar_temp_selenium()
-    driver = driver_pc(headless=False)
+    driver = criar_driver(headless=False)
     if not driver:
         print('[ERRO] Falha ao iniciar o driver.')
         return None
     return driver
-
-def login_pc(driver):
-    """Processo de login humanizado via AutoHotkey, aguardando login terminar antes de prosseguir."""
-    login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
-    driver.get(login_url)
-    print(f"[INFO] Navegando para a URL de login: {login_url}")
-    try:
-        btn_sso = driver.find_element(By.CSS_SELECTOR, "#btnSsoPdpj")
-        btn_sso.click()
-        print("[INFO] Botão #btnSsoPdpj clicado com sucesso.")
-        btn_certificado = driver.find_element(By.CSS_SELECTOR, ".botao-certificado-titulo")
-        btn_certificado.click()
-        print("[INFO] Botão .botao-certificado-titulo clicado com sucesso.")
-        # Chama o AutoHotkey para digitar a senha
-        import subprocess
-        time.sleep(1)
-        subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
-        print("[INFO] Script AutoHotkey chamado para digitar a senha.")
-        # Aguarda sair da tela de login
-        for _ in range(60):
-            if "login" not in driver.current_url.lower():
-                print("[INFO] Login detectado, prosseguindo.")
-                return True
-            time.sleep(1)
-        print("[ERRO] Timeout aguardando login.")
-        return False
-    except Exception as e:
-        print(f"[ERRO] Falha no processo de login: {e}")
-        return False
 
 # 2. Funções de Navegação
 def navegacao(driver):
@@ -1381,7 +1352,7 @@ def main():
         return
 
     # Login process (agora usando login_pc do Fix.py)
-    if not login_pc(driver):
+    if not login_func(driver):
         driver.quit()
         return
 

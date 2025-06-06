@@ -19,6 +19,7 @@ import logging
 import time
 from selectors_pje import BTN_TAREFA_PROCESSO
 from selenium.webdriver.common.by import By
+from driver_config import criar_driver, login_func
 
 logger = logging.getLogger(__name__)
 
@@ -1431,7 +1432,7 @@ def main():
     try:
         usuario = os.environ.get('PJE_USUARIO') or input('Usuário PJe: ')
         senha = os.environ.get('PJE_SENHA') or input('Senha PJe: ')
-        if not login_pc(driver, usuario, senha):
+        if not login_func(driver, usuario, senha):
             raise Exception('Falha no login')
         print('Clicando no ícone de tags...')
         icone_tags = esperar_elemento(driver, '.fa-tags', timeout=15)

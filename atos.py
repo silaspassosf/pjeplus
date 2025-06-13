@@ -171,76 +171,29 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
             print(f'[CLS][ERRO] URL inesperada após clicar em conclusão: {driver.current_url}')
             return False        # 5. Clica no botão do tipo de conclusão priorizando aria-label (contém), com fallback para texto visível (contém)
         print(f'[CLS] Procurando botão de conclusão: {conclusao_tipo}')
-        try:
-            # NOVO: Primeiro verifica e fecha qualquer overlay/modal aberto
-            try:
-                # Verifica se há overlay/backdrop ativo
-                overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
-                if overlays:
-                    print('[CLS][DEBUG] Overlay/modal detectado, tentando fechar...')
-                    # Tenta pressionar ESC para fechar
-                    from selenium.webdriver.common.keys import Keys
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    time.sleep(0.5)
-                    # Re-fetch elements to avoid stale reference and try to close them
-                    try:
-                        fresh_overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
-                        for overlay in fresh_overlays:
-                            try:
-                                if overlay.is_displayed():
-                                    driver.execute_script('arguments[0].click();', overlay)
-                                    time.sleep(0.3)
-                            except:
-                                pass
-                    except:
-                        pass
-                    # Aguarda overlay desaparecer
-                    for _ in range(10):
-                        try:
-                            remaining_overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop-showing, .mat-dialog-container')
-                            if not any(o.is_displayed() for o in remaining_overlays):
-                                break
-                        except:
-                            break
-                        time.sleep(0.2)
-                    print('[CLS][DEBUG] Overlay/modal fechado.')
-            except Exception as overlay_err:
-                print(f'[CLS][WARN] Erro ao tentar fechar overlay: {overlay_err}')
-            
-            # Primeiro tenta por aria-label que CONTÉM o tipo de conclusão
-            btn_tipo_conclusao = None
-            try:
-                btns = driver.find_elements(By.CSS_SELECTOR, f"button[aria-label]")
-                for btn in btns:
-                    aria = btn.get_attribute('aria-label')
-                    if aria and conclusao_tipo.lower() in aria.lower():
-                        btn_tipo_conclusao = btn
-                        break
-                if btn_tipo_conclusao:
-                    print(f"[CLS] Botão de conclusão '{conclusao_tipo}' localizado por aria-label que contém.")
-                else:
-                    raise Exception('Não encontrado por aria-label contém')
-            except Exception:
-                # Fallback: tenta por texto visível (contém)
-                xpath_conclusao = f"//button[contains(normalize-space(text()), '{conclusao_tipo}') or .//span[contains(normalize-space(text()), '{conclusao_tipo}')]]"
-                btns = driver.find_elements(By.XPATH, xpath_conclusao)
-                for btn in btns:
-                    if btn.is_displayed() and btn.is_enabled():
-                        btn_tipo_conclusao = btn
-                        break
-                if btn_tipo_conclusao:
-                    print(f"[CLS] Botão de conclusão '{conclusao_tipo}' localizado por texto visível que contém.")
-                else:
-                    raise Exception('Não encontrado por texto visível contém')
-            
-            # Garante que o botão está visível e clica usando JavaScript (mais robusto)
-            driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
-            time.sleep(0.3)
-            driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
-            print(f'[CLS] Botão de conclusão "{conclusao_tipo}" clicado via JavaScript.')
-        except Exception as e:
-            print(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado por aria-label nem texto visível: {e}')
+        btn_tipo_conclusao = None
+        # Primeiro tenta por aria-label que CONTÉM o tipo de conclusão
+        btns = driver.find_elements(By.CSS_SELECTOR, f"button[aria-label]")
+        for btn in btns:
+            aria = btn.get_attribute('aria-label')
+            if aria and conclusao_tipo.lower() in aria.lower():
+                btn_tipo_conclusao = btn
+                break
+        if not btn_tipo_conclusao:
+            # Fallback: tenta por texto visível (contém)
+            xpath_conclusao = f"//button[contains(normalize-space(text()), '{conclusao_tipo}') or .//span[contains(normalize-space(text()), '{conclusao_tipo}')]]"
+            btns = driver.find_elements(By.XPATH, xpath_conclusao)
+            for btn in btns:
+                if btn.is_displayed() and btn.is_enabled():
+                    btn_tipo_conclusao = btn
+                    break
+        if not btn_tipo_conclusao:
+            print(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado por aria-label nem texto visível.')
             return False
+        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
+        time.sleep(0.3)
+        driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+        print(f'[CLS] Botão de conclusão "{conclusao_tipo}" clicado via JavaScript.')
         time.sleep(1)
 
         # 6. Aguarda a URL mudar para /minutar
@@ -314,6 +267,17 @@ def ato_judicial(
     8. Função extra de sigilo (se necessário)
     """
     try:
+        # 1. Preencher campo Descrição se fornecido
+        if descricao:
+            try:
+                # Seletor do campo de descrição conforme gigs-plugin.js para despacho
+                campo_desc = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="descricao"], input[name="descricao"], input[aria-label="Descrição"], input[data-placeholder="Descrição"]')
+                campo_desc.clear()
+                campo_desc.send_keys(descricao)
+                for ev in ['input', 'change', 'keyup']:
+                    driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_desc, ev)
+            except Exception as e:
+                print(f'[ATO][DESCRICAO][WARN] Não foi possível preencher o campo Descrição: {e}')
         # 1. Executa fluxo_cls até o clique/foco no campo de modelo
         if debug: print(f'[ATO] Executando fluxo_cls para {conclusao_tipo}...')
         if not fluxo_cls(driver, conclusao_tipo):
@@ -376,16 +340,71 @@ def ato_judicial(
         sigilo_ativado = False
         print('[ATO][DEBUG] Etapa: Sigilo')
         try:
-            sigilo_input = driver.find_element(By.CSS_SELECTOR, 'input.mat-slide-toggle-input[name="sigiloso"]')
-            checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected()
-            if str(sigilo).lower() in ("sim", "true", "1") and not checked:
-                driver.execute_script("arguments[0].click();", sigilo_input)
-                sigilo_ativado = True
-                print('[ATO][SIGILO][DEBUG] Sigilo ativado por solicitação explícita.')
+            ativar_sigilo = str(sigilo).lower() in ("sim", "true", "1")
+            if ativar_sigilo:
+                # Busca todos os mat-slide-toggle e procura o que tem texto 'Sigiloso' próximo
+                toggles = driver.find_elements(By.CSS_SELECTOR, 'mat-slide-toggle')
+                sigilo_toggle = None
+                sigilo_input = None
+                for toggle in toggles:
+                    try:
+                        # Verifica se o texto 'Sigiloso' está no label, no próprio toggle ou em elementos próximos
+                        label_text = ''
+                        try:
+                            label = toggle.find_element(By.CSS_SELECTOR, 'label')
+                            label_text = label.text.strip().lower()
+                        except:
+                            pass
+                        # Também verifica texto do próprio toggle
+                        toggle_text = toggle.text.strip().lower()
+                        # Verifica irmãos próximos (ex: span, div)
+                        sibling_text = ''
+                        try:
+                            parent = toggle.find_element(By.XPATH, '..')
+                            siblings = parent.find_elements(By.XPATH, './*')
+                            for sib in siblings:
+                                if sib != toggle:
+                                    sibling_text += sib.text.strip().lower() + ' '
+                        except:
+                            pass
+                        if 'sigiloso' in label_text or 'sigiloso' in toggle_text or 'sigiloso' in sibling_text:
+                            sigilo_toggle = toggle
+                            try:
+                                sigilo_input = toggle.find_element(By.CSS_SELECTOR, 'input[type="checkbox"], input.mat-slide-toggle-input')
+                            except:
+                                sigilo_input = None
+                            break
+                    except Exception as e:
+                        print(f'[ATO][SIGILO][DEBUG] Erro ao inspecionar toggle: {e}')
+                checked = False
+                if sigilo_input:
+                    checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected() or sigilo_input.get_attribute('checked') == 'true'
+                # Se não está ativado, tenta clicar
+                if not checked and sigilo_toggle:
+                    try:
+                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', sigilo_toggle)
+                        driver.execute_script('arguments[0].click();', sigilo_toggle)
+                        time.sleep(0.3)
+                        # Rebusca input para checar estado
+                        if sigilo_input:
+                            checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected() or sigilo_input.get_attribute('checked') == 'true'
+                        if checked:
+                            sigilo_ativado = True
+                            print('[ATO][SIGILO][DEBUG] Sigilo ativado por toggle associado ao texto Sigiloso.')
+                        else:
+                            print('[ATO][SIGILO][ERRO] Não foi possível ativar o sigilo (toggle não marcou).')
+                    except Exception as e:
+                        print(f'[ATO][SIGILO][ERRO] Falha ao clicar no toggle de sigilo: {e}')
+                elif checked:
+                    sigilo_ativado = True
+                    print('[ATO][SIGILO][DEBUG] Sigilo já estava ativado.')
+                else:
+                    print('[ATO][SIGILO][ERRO] Não foi possível localizar toggle de sigilo associado ao texto Sigiloso.')
             else:
-                print(f'[ATO][SIGILO][DEBUG] Sigilo não solicitado ou já ativado. Nenhuma ação.')
+                print(f'[ATO][SIGILO][DEBUG] Sigilo não solicitado. Nenhuma ação.')
         except Exception as e:
-            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')        # 2. PEC
+            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')
+        # 2. PEC
         print('[ATO][DEBUG] Etapa: PEC')
         if marcar_pec is not None:
             try:
@@ -495,89 +514,204 @@ def ato_judicial(
                 return False
         else:
             print('[ATO][PRAZO][DEBUG] Nenhum prazo informado, etapa ignorada.')
-
-        # 4. Movimento
+               # 4. Movimento
         print('[ATO][DEBUG] Etapa: Movimento')
         if movimento:
             try:
+                print(f'[ATO][MOVIMENTO][DEBUG] Parâmetro movimento recebido: {movimento!r}')
+                # 1. JavaScript para ativar a aba Movimentos e selecionar o checkbox correto
                 js_mov = f'''
                 (function() {{
                     // Ativa a aba "Movimentos"
                     var tentativas = 0, abaMov = null;
                     while (tentativas < 3 && !abaMov) {{
                         var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
-                        abaMov = abas.find(a => a.textContent && a.textContent.normalize('NFD').replace(/[^\w\s]/g, '').toLowerCase().includes('movimentos'));
+                        abaMov = abas.find(a => a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos'));
                         if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {{
                             abaMov.click();
                             break;
                         }}
                         tentativas++;
                     }}
+                    
                     setTimeout(function() {{
-                        var textoMov = '{movimento}'.trim().toLowerCase().replace(/\s+/g, ' ');
+                        var textoMov = '{movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
                         var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
                         var selecionado = false;
+                        
+                        // Método mais flexível - não depende de mapeamento fixo
+                        // Normaliza o texto para busca (remove acentos, etc.)
+                        function normalizarTexto(texto) {{
+                            return texto.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
+                        }}
+                        
+                        var termoPesquisa = normalizarTexto(textoMov);
+                        console.log('[ATO][MOVIMENTO][JS][DEBUG] Termo de pesquisa normalizado:', termoPesquisa);
+                          
                         for (var cb of checkboxes) {{
                             try {{
                                 var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
-                                var labelNorm = label && label.textContent ? label.textContent.trim().toLowerCase().replace(/\s+/g, ' ') : '';
-                                if (labelNorm.includes(textoMov)) {{
+                                var labelText = label && label.textContent ? label.textContent : '';
+                                var labelNorm = labelText.trim().toLowerCase().replace(/\\s+/g, ' ');
+                                var labelSemAcento = normalizarTexto(labelText);
+                                
+                                // DEBUG: log do label de cada movimento
+                                console.log('[ATO][MOVIMENTO][JS][DEBUG] labelNorm:', labelNorm);
+                                console.log('[ATO][MOVIMENTO][JS][DEBUG] labelSemAcento:', labelSemAcento);
+                                
+                                // Busca flexível - verifica se o termo pesquisado está contido no texto do checkbox
+                                // Tenta diferentes variações de normalização para aumentar chances de match
+                                var encontrado = labelNorm.includes(textoMov) || 
+                                                labelSemAcento.includes(termoPesquisa) ||
+                                                // Busca específica para "frustrada"/"execução frustrada"
+                                                (textoMov === 'frustrada' && (labelSemAcento.includes('execucao frustrada') || labelSemAcento.includes('276'))) ||
+                                                // Busca por código numérico entre parênteses, se for um número
+                                                (textoMov.match(/^\\d+$/) && labelText.includes('(' + textoMov + ')'));
+                                
+                                if (encontrado) {{
+                                    console.log('[ATO][MOVIMENTO][JS][DEBUG] Encontrado movimento correspondente para:', textoMov);
                                     var input = cb.querySelector('input[type="checkbox"]');
-                                    if (input && !input.checked) input.click();
+                                    // DEBUG: log do input encontrado
+                                    console.log('[ATO][MOVIMENTO][JS][DEBUG] input encontrado:', input);
+                                    if (input && !input.checked) {{
+                                        // Tenta clicar na inner-container (mais confiável)
+                                        var inner = cb.querySelector('.mat-checkbox-inner-container');
+                                        if(inner) {{
+                                            inner.click();
+                                            console.log('[ATO][MOVIMENTO][JS][DEBUG] inner-container clicado para:', labelNorm);
+                                        }} else {{
+                                            input.click();
+                                            console.log('[ATO][MOVIMENTO][JS][DEBUG] input clicado para:', labelNorm);
+                                        }}
+                                    }} else if (input && input.checked) {{
+                                        console.log('[ATO][MOVIMENTO][JS][DEBUG] Checkbox já estava marcado:', labelNorm);
+                                    }}
+                                    window.selecionadoMovimento = true;  // Sinaliza para o Python que o checkbox foi encontrado
+                                    window.labelSelecionadoMovimento = labelText;  // Guarda o texto do label selecionado
                                     selecionado = true;
                                     break;
                                 }}
-                            }} catch (e) {{}}
-                        }}
-                        if (!selecionado) {{
-                            var allLabels = Array.from(document.querySelectorAll('.mat-checkbox-label'));
-                            for (var labelEl of allLabels) {{
-                                var labelText = labelEl.textContent.trim().toLowerCase().replace(/\s+/g, ' ');
-                                if (labelText.includes(textoMov)) {{
-                                    var cbInput = labelEl.parentElement && labelEl.parentElement.parentElement ? labelEl.parentElement.parentElement.querySelector('input[type="checkbox"]') : null;
-                                    if (cbInput && !cbInput.checked) cbInput.click();
-                                    break;
-                                }}
+                            }} catch (e) {{
+                                console.warn('[ATO][MOVIMENTO][JS][CATCH] Erro ao processar checkbox:', e);
                             }}
                         }}
-                    }}, 700);
+                        
+                        if (!selecionado) {{
+                            console.warn('[ATO][MOVIMENTO][JS] Movimento "' + textoMov + '" não encontrado na lista de checkboxes.');
+                            window.selecionadoMovimento = false;
+                            
+                            // Diagnóstico detalhado com sugestões de possíveis matches parciais
+                            console.warn('[ATO][MOVIMENTO][JS][DIAGNÓSTICO] Listando todos os movimentos disponíveis:');
+                            var possivelMatch = [];
+                            
+                            for (var idx = 0; idx < checkboxes.length; idx++) {{
+                                try {{
+                                    var cb = checkboxes[idx];
+                                    var lbl = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
+                                    var labelText = lbl ? lbl.textContent : 'sem label';
+                                    console.warn('[ATO][MOVIMENTO][JS][DIAGNÓSTICO] [' + idx + '] ' + labelText);
+                                    
+                                    // Tenta identificar possíveis matches parciais para sugerir
+                                    var normLabel = normalizarTexto(labelText);
+                                    var palavrasTermoPesquisa = termoPesquisa.split(/\\s+/);
+                                    
+                                    // Conta quantas palavras do termo de pesquisa estão na label
+                                    var matchCount = 0;
+                                    for (var p of palavrasTermoPesquisa) {{
+                                        if (p.length > 2 && normLabel.includes(p)) {{ // Ignora palavras muito curtas
+                                            matchCount++;
+                                        }}
+                                    }}
+                                    
+                                    if (matchCount > 0) {{
+                                        possivelMatch.push({{
+                                            index: idx,
+                                            label: labelText,
+                                            matchCount: matchCount,
+                                            matchPercentage: (matchCount / palavrasTermoPesquisa.length) * 100
+                                        }});
+                                    }}
+                                }} catch(e) {{
+                                    console.warn('[ATO][MOVIMENTO][JS][DIAGNÓSTICO] [' + idx + '] Erro ao ler: ' + e);
+                                }}
+                            }}
+                            
+                            // Ordena por quantidade de matches e mostra as melhores sugestões
+                            if (possivelMatch.length > 0) {{
+                                possivelMatch.sort((a, b) => b.matchPercentage - a.matchPercentage);
+                                console.warn('[ATO][MOVIMENTO][JS][SUGESTÕES] Possíveis matches parciais:');
+                                for (var i = 0; i < Math.min(3, possivelMatch.length); i++) {{
+                                    var match = possivelMatch[i];
+                                    console.warn('[ATO][MOVIMENTO][JS][SUGESTÃO ' + (i+1) + '] [' + match.index + '] ' + 
+                                        match.label + ' (Match: ' + match.matchPercentage.toFixed(1) + '%)');
+                                }}
+                            }}
+                        }} else {{
+                            console.log('[ATO][MOVIMENTO][JS] Movimento "' + textoMov + '" marcado com sucesso.');
+                        }}
+                    }}, 800);
                 }})();
                 '''
+                print('[ATO][MOVIMENTO][DEBUG] Executando JS para marcar movimento...')
                 driver.execute_script(js_mov)
-                print(f'[ATO][MOVIMENTO][OK] JS robusto executado para selecionar movimento: {movimento}')
-                time.sleep(0.5)
-                # Clica no botão Gravar dos movimentos
-                from selenium.webdriver.common.by import By
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                btn_gravar_mov = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Gravar os movimentos') and contains(@class, 'mat-raised-button') and contains(., 'Gravar')]"))
-                )
-                print('[ATO][MOVIMENTO][LOG] Botão Gravar dos movimentos localizado, clicando...')
-                btn_gravar_mov.click()
-                print('[ATO][MOVIMENTO][OK] Botão Gravar dos movimentos clicado.')
-                time.sleep(1)
-                # Aguarda o modal de confirmação e clica explicitamente no botão "Sim"
-                try:
-                    btn_sim = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.XPATH, "//mat-dialog-container//button[.//span[normalize-space(text())='Sim'] and contains(@class, 'mat-primary') and contains(@class, 'mat-button') and contains(@class, 'mat-focus-indicator') ]"))
-                    )
-                    btn_sim.click()
-                    print('[ATO][MOVIMENTO][OK] Botão "Sim" do modal de confirmação clicado.')
-                    time.sleep(1)
-                except Exception as e:
-                    print(f'[ATO][MOVIMENTO][ERRO] Não foi possível clicar no botão "Sim" do modal: {e}')
+                print('[ATO][MOVIMENTO][DEBUG] JS executado. Aguardando efeito...')
+                time.sleep(1.5)  # Aguarda o script JS executar
+                
+                # 2. Verifica se o movimento foi selecionado 
+                movimento_selecionado = driver.execute_script('return window.selecionadoMovimento === true;')
+                if not movimento_selecionado:
+                    print('[ATO][MOVIMENTO][ERRO] Movimento não foi selecionado pelo JavaScript.')
                     return False
-                # Clica no botão Salvar
-                btn_salvar = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Salvar') and contains(@class, 'mat-raised-button') and contains(., 'Salvar')]"))
+                
+                print('[ATO][MOVIMENTO][OK] Movimento selecionado com sucesso:', 
+                      driver.execute_script('return window.labelSelecionadoMovimento || "desconhecido";'))
+                
+                # 3. Clica no botão Gravar (para movimentos)
+                print('[ATO][MOVIMENTO][DEBUG] Clicando no botão Gravar movimentos...')
+                btn_gravar = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Gravar os movimentos a serem lançados']"))
                 )
-                print('[ATO][MOVIMENTO][LOG] Botão Salvar localizado, clicando...')
-                btn_salvar.click()
-                print('[ATO][MOVIMENTO][OK] Botão Salvar clicado.')
+                btn_gravar.click()
+                print('[ATO][MOVIMENTO][DEBUG] Botão Gravar movimentos clicado. Aguardando diálogo de confirmação...')
+                time.sleep(1.5)
+                
+                # 4. Clica no botão "Sim" na caixa de diálogo de confirmação
+                print('[ATO][MOVIMENTO][DEBUG] Clicando em "Sim" na caixa de diálogo de confirmação...')
+                btn_sim = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]"))
+                )
+                btn_sim.click()
+                print('[ATO][MOVIMENTO][DEBUG] Botão "Sim" clicado na caixa de diálogo. Aguardando...')
+                time.sleep(1)
+                
+                # 5. Clica no botão Salvar final
+                print('[ATO][MOVIMENTO][DEBUG] Clicando no botão Salvar final...')
+                btn_salvar_mov = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
+                )
+                btn_salvar_mov.click()
+                print('[ATO][MOVIMENTO][OK] Botão Salvar final clicado.')
                 time.sleep(1)
             except Exception as e:
                 print(f'[ATO][MOVIMENTO][ERRO] Falha ao executar etapa de movimento: {e}')
+                import traceback
+                traceback.print_exc()
+                # Extra: dumpar checkboxes e abas para depuração
+                try:
+                    print('[ATO][MOVIMENTO][DEPURACAO] Listando checkboxes de movimento na página:')
+                    checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox.mat-checkbox.movimento')
+                    for idx, cb in enumerate(checkboxes):
+                        try:
+                            label = cb.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout .mat-checkbox-label').text
+                            print(f'  [MOVIMENTO][{idx}] Label: {label!r}')
+                        except Exception as ecb:
+                            print(f'  [MOVIMENTO][{idx}] Erro ao obter label: {ecb}')
+                    print('[ATO][MOVIMENTO][DEPURACAO] Abas disponíveis:')
+                    abas = driver.find_elements(By.CSS_SELECTOR, '.mat-tab-label')
+                    for idx, aba in enumerate(abas):
+                        print(f'  [ABA][{idx}] Texto: {aba.text!r} | aria-selected: {aba.get_attribute("aria-selected")}')
+                except Exception as edebug:
+                    print(f'[ATO][MOVIMENTO][DEPURACAO][ERRO] Falha ao depurar checkboxes/abas: {edebug}')
                 return False
 
         # 5. GIGS (minuta)
@@ -632,9 +766,8 @@ def ato_judicial(
             print(f'[ATO][WARN] Falha ao salvar screenshot do erro: {screen_err}')
         return False
 
-def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None):
-    def wrapper(driver, debug=False, sigilo=None, movimento_=None, descricao=None, **kwargs):
-        # Remove argumentos inesperados que possam ser passados por FLUXO_PZ ou outros fluxos
+def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, descricao=None, sigilo=None):
+    def wrapper(driver, debug=False, sigilo_=None, movimento_=None, descricao_=None, **kwargs):
         call_args = dict(
             driver=driver,
             conclusao_tipo=conclusao_tipo,
@@ -645,10 +778,9 @@ def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, m
             gigs=gigs,
             marcar_primeiro_destinatario=marcar_primeiro_destinatario,
             debug=debug,
-            sigilo=sigilo,
-            descricao=descricao
+            sigilo=sigilo_ if sigilo_ is not None else sigilo,
+            descricao=descricao_ if descricao_ is not None else descricao
         )
-        # Só passa argumentos que ato_judicial aceita
         return ato_judicial(**call_args)
     return wrapper
 
@@ -666,7 +798,7 @@ ato_meios = make_ato_wrapper(
 ato_crda = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='a reclda',
-    prazo=15,
+    prazo=8,
     marcar_pec=False,
     movimento=None,
     gigs=None,
@@ -676,7 +808,7 @@ ato_crda = make_ato_wrapper(
 ato_crte = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='xreit',
-    prazo=15,
+    prazo=8,
     marcar_pec=False,
     movimento=None,
     gigs=None,
@@ -689,7 +821,7 @@ ato_bloq = make_ato_wrapper(
     prazo=None,
     marcar_pec=True,
     movimento=None,
-    gigs={'dias_uteis': 1, 'observacao': 'pec bloq'},
+    gigs="1/SILAS/pec bloq",
     marcar_primeiro_destinatario=False
 )
 
@@ -734,11 +866,44 @@ ato_edital = make_ato_wrapper(
 )
 
 ato_sobrestamento = make_ato_wrapper(
-    conclusao_tipo='/ Susp',
+    conclusao_tipo='Suspensão',
     modelo_nome='suspf',
     prazo=0,
     marcar_pec=False,
     movimento='frustrada',
+    gigs=None,
+    marcar_primeiro_destinatario=False
+)
+
+ato_180 = make_ato_wrapper(
+    conclusao_tipo='Sobrestamento',
+    modelo_nome='x180',
+    prazo=0,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False
+)
+
+ato_pesqliq = make_ato_wrapper(
+    conclusao_tipo='Homologação de Cálculos',
+    modelo_nome='xsbacen',
+    prazo=30,
+    marcar_pec=True,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='pesquisas para execucao',
+    sigilo=True
+)
+
+# NOVO WRAPPER: ato_calc2
+ato_calc2 = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='xscalc2',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
     gigs=None,
     marcar_primeiro_destinatario=False
 )
@@ -757,9 +922,11 @@ def ato_pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, mar
         gigs=gigs if gigs is not None else None,
         marcar_primeiro_destinatario=True,  # só o primeiro
         debug=debug,
-        sigilo=sigilo,
+        sigilo=True,
         descricao=descricao
     )
+    from Fix import visibilidade_sigilosos
+    visibilidade_sigilosos(driver, polo='ativo', log=debug)
     return resultado
 
 # ====================================================
@@ -821,38 +988,33 @@ def comunicacao_judicial(
         # 2. Confirmar URL terminada em /transicao
         WebDriverWait(driver, 15).until(lambda d: d.current_url.endswith('/transicao'))
         log('URL de transição confirmada.')
-        # 3. Clicar no botão de Comunicações e expedientes (fa-envelope)
-        def buscar_btn_comunic():
-            # Busca por texto, aria-label, mattooltip, ou ícone fa-envelope
-            try:
-                # 1. Por texto visível
-                btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'comunicacoes e expedientes')]]")
-                for btn in btns:
+        # 3. Clicar no botão de Comunicações e expedientes (fa-envelope) - abordagem robusta igual fluxo_cls
+        log('[DEBUG] Buscando botão de Comunicações e expedientes (robusto)...')
+        btn_comunic = None
+        # 1. Por aria-label que contenha "Comunica"
+        btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
+        for btn in btns:
+            aria = btn.get_attribute('aria-label')
+            if aria and 'comunica' in aria.lower():
+                if btn.is_displayed() and btn.is_enabled():
+                    btn_comunic = btn
+                    break
+        # 2. Por texto visível (span ou button)
+        if not btn_comunic:
+            btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'analise')]]")
+            for btn in btns:
+                if btn.is_displayed() and btn.is_enabled():
+                    btn_comunic = btn
+                    break
+        # 3. Por mattooltip
+        if not btn_comunic:
+            btns = driver.find_elements(By.CSS_SELECTOR, "button[mattooltip]")
+            for btn in btns:
+                tip = btn.get_attribute('mattooltip')
+                if tip and 'comunica' in tip.lower():
                     if btn.is_displayed() and btn.is_enabled():
-                        return btn
-                # 2. Por aria-label/mattooltip
-                btns = driver.find_elements(By.CSS_SELECTOR, '*[aria-label*="Comunica"]')
-                for btn in btns:
-                    if btn.is_displayed() and btn.is_enabled():
-                        return btn
-                btns = driver.find_elements(By.CSS_SELECTOR, '*[mattooltip*="Comunica"]')
-                for btn in btns:
-                    if btn.is_displayed() and btn.is_enabled():
-                        return btn
-                # 3. Por ícone fa-envelope
-                icons = driver.find_elements(By.CSS_SELECTOR, 'i.fa-envelope')
-                for icon in icons:
-                    try:
-                        btn = icon.find_element(By.XPATH, './ancestor::button[1]')
-                        if btn.is_displayed() and btn.is_enabled():
-                            return btn
-                    except Exception:
-                        continue
-            except Exception:
-                pass
-            return None
-
-        btn_comunic = buscar_btn_comunic()
+                        btn_comunic = btn
+                        break        
         if not btn_comunic:
             # Tenta clicar em "Análise" e tenta de novo
             log('[INFO] Botão Comunicações e expedientes não encontrado. Tentando clicar em "Análise" e tentar novamente...')
@@ -882,10 +1044,34 @@ def comunicacao_judicial(
                     time.sleep(1.2)
                 else:
                     log('[WARN] Botão "Análise" não encontrado para workaround.')
-            except Exception as e:
-                log(f'[WARN] Erro ao tentar clicar em "Análise": {e}')
-            # Tenta novamente buscar o botão de comunicações
-            btn_comunic = buscar_btn_comunic()
+            except Exception as e:                log(f'[WARN] Erro ao tentar clicar em "Análise": {e}')
+            # Tenta novamente buscar o botão de comunicações de forma similar à busca anterior
+            # (redefinimos a lógica de busca em vez de chamar uma função inexistente)
+            btn_comunic = None
+            # 1. Por aria-label que contenha "Comunica"
+            btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
+            for btn in btns:
+                aria = btn.get_attribute('aria-label')
+                if aria and 'comunica' in aria.lower():
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_comunic = btn
+                        break
+            # 2. Por texto visível (span ou button)
+            if not btn_comunic:
+                btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'comunicacoes')]]")
+                for btn in btns:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_comunic = btn
+                        break
+            # 3. Por mattooltip
+            if not btn_comunic:
+                btns = driver.find_elements(By.CSS_SELECTOR, "button[mattooltip]")
+                for btn in btns:
+                    tip = btn.get_attribute('mattooltip')
+                    if tip and 'comunica' in tip.lower():
+                        if btn.is_displayed() and btn.is_enabled():
+                            btn_comunic = btn
+                            break
         if not btn_comunic:
             log('[ERRO] Botão de Comunicações e expedientes (fa-envelope) não encontrado mesmo após workaround!')
             raise Exception('Botão Comunicações e expedientes não encontrado')
@@ -941,10 +1127,8 @@ def comunicacao_judicial(
             log('[DEBUG] Selecionando opção "dias úteis" se disponível...')
             spans = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-radio-label-content') and contains(translate(normalize-space(.), 'DÍASÚTEIS', 'díasúteis'), 'dias úteis')]")
             for span in spans:
-                if span.is_displayed():
-                    span.click()
-                    log('[DEBUG] Opção "dias úteis" selecionada.')
-                    break
+                if span.isDisplayed():
+                    time.sleep(0.3)
             campo_prazo = None
             log('[DEBUG] Buscando campo de prazo...')
             for selector in ['input[formcontrolname="prazo"]', 'input[type="number"]', 'input[type="text"]']:
@@ -1038,9 +1222,7 @@ def comunicacao_judicial(
                 for i in range(20):
                     modais = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container, .cdk-overlay-container .mat-dialog-container')
                     if not modais:
-                        log('[DEBUG] Modal fechado após clique em .fa-pen-nib.')
-                        break
-                    time.sleep(0.3)
+                        time.sleep(0.3)
                 else:
                     log('[ERRO] Modal não fechou após clique em .fa-pen-nib!')
                     return False
@@ -1206,7 +1388,113 @@ pec_editalaud = make_comunicacao_wrapper(
 )
 
 # ====================================================
-# BLOCO 3 - FLUXOS DE EXECUÇÃO E AUXILIARES
+# BLOCO 3 - MOVIMENTOS (importado de mov.py)
+# ====================================================
+import logging
+import time
+from Fix import esperar_elemento, safe_click
+from selectors_pje import BTN_TAREFA_PROCESSO
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+def mov(driver, seletor_alvo, texto_confirmacao=None, debug=False, timeout=15):
+    """
+    Fluxo geral para movimentos:
+    1. Clica no botão "Abrir tarefa do processo" (BTN_TAREFA_PROCESSO)
+    2. Troca para nova aba, se aberta
+    3. Procura o botão alvo (seletor_alvo)
+       - Se não encontrar, clica em "Análise" e tenta novamente
+    4. Clica no botão alvo
+    5. (Opcional) Confirma ação se texto_confirmacao for fornecido
+    """
+    try:
+        print(f'[MOV][DEBUG] Iniciando fluxo de movimento para seletor: {seletor_alvo}')
+        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
+        if not btn_abrir_tarefa:
+            print('[MOV][ERRO] Botão "Abrir tarefa do processo" não encontrado!')
+            return False
+        abas_antes = set(driver.window_handles)
+        safe_click(driver, btn_abrir_tarefa)
+        print('[MOV] Botão "Abrir tarefa do processo" clicado.')
+        # Troca para nova aba, se aberta
+        nova_aba = None
+        for _ in range(20):
+            abas_depois = set(driver.window_handles)
+            novas_abas = abas_depois - abas_antes
+            if novas_abas:
+                nova_aba = novas_abas.pop()
+                break
+            time.sleep(0.3)
+        if nova_aba:
+            driver.switch_to.window(nova_aba)
+            print('[MOV] Foco trocado para nova aba da tarefa do processo.')
+        else:
+            print('[MOV][WARN] Nenhuma nova aba detectada após clique. Prosseguindo na aba atual.')
+        # Procura botão alvo
+        try:
+            btn_alvo = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_alvo))
+            )
+            safe_click(driver, btn_alvo)
+            print(f'[MOV] Botão alvo ({seletor_alvo}) clicado.')
+        except Exception:
+            # Tenta clicar em "Análise" e tenta novamente
+            print('[MOV][INFO] Botão alvo não encontrado. Tentando clicar em "Análise" e tentar novamente...')
+            btn_analise = None
+            # Busca por texto
+            btns_analise = driver.find_elements(By.XPATH, "//button[contains(translate(normalize-space(text()), 'ANÁLISE', 'análise'), 'análise')]")
+            for btn in btns_analise:
+                if btn.is_displayed() and btn.is_enabled():
+                    btn_analise = btn
+                    break
+            if not btn_analise:
+                btns_analise = driver.find_elements(By.CSS_SELECTOR, "button[aria-label*='Análise']")
+                for btn in btns_analise:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_analise = btn
+                        break
+            if btn_analise:
+                btn_analise.click()
+                print('[MOV][DEBUG] Clique no botão "Análise" realizado.')
+                time.sleep(1)
+                btn_alvo = WebDriverWait(driver, timeout).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_alvo))
+                )
+                safe_click(driver, btn_alvo)
+                print(f'[MOV] Botão alvo ({seletor_alvo}) clicado após "Análise".')
+            else:
+                print('[MOV][ERRO] Botão "Análise" não encontrado no fluxo alternativo.')
+                return False
+        # Confirmação extra se necessário
+        if texto_confirmacao:
+            try:
+                btn_confirma = WebDriverWait(driver, timeout).until(
+                    EC.element_to_be_clickable((By.XPATH, f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"))
+                )
+                btn_confirma.click()
+                print(f'[MOV] Botão de confirmação "{texto_confirmacao}" clicado.')
+            except Exception as e:
+                print(f'[MOV][ERRO] Não foi possível clicar no botão de confirmação "{texto_confirmacao}": {e}')
+                return False
+        print('[MOV] Fluxo de movimento finalizado com sucesso.')
+        return True
+    except Exception as e:
+        print(f'[MOV][ERRO] Falha no fluxo de movimento: {e}')
+        return False
+
+# Wrappers para movimentos específicos
+
+def mov_arquivar(driver, debug=False):
+    """Movimento: Arquivar o processo"""
+    return mov(driver, "button[aria-label='Arquivar o processo']", debug=debug)
+
+def mov_exec(driver, debug=False):
+    """Movimento: Iniciar execução"""
+    return mov(driver, "button[aria-label='Iniciar execução']", debug=debug)
+
+# ====================================================
+# BLOCO 4 - FLUXOS DE EXECUÇÃO E AUXILIARES
 # ====================================================
 
 # Definição do fluxo principal
@@ -1354,6 +1642,7 @@ def fluxo_sincrono_processo(driver):
     import re
     try:
         # Criar GIGS padrão para 'xs' caso algo falhe
+       
         criar_gigs(driver, 0, 'pz xs', tela='detalhe', log=True) # GIGS atualizado para 'pz xs'
         resultados = extrair_xs_atividades(driver, log=True) # Atualizada chamada de função
         if not resultados:
@@ -1374,8 +1663,17 @@ def fluxo_sincrono_processo(driver):
         if m:
             termo = m.group(1).strip()
             print(f'[FLUXO] Termo extraído: {termo}')
-            # A lógica de chamar 'pec_{termo}' pode não fazer mais sentido com 'xs'
-            # Precisa revisar se os wrappers 'pec_*' são aplicáveis ou se uma nova lógica é necessária
+           
+
+           
+
+           
+
+           
+
+           
+
+           
             func_name = f'pec_{termo.lower()}'  # Mantido por enquanto, mas revisar!
             func = globals().get(func_name)
             if callable(func):
@@ -1501,175 +1799,9 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False):
             input_prazo = tr.find_element(By.CSS_SELECTOR, 'mat-form-field.prazo input[type="text"].mat-input-element')
             input_prazo.clear()
             input_prazo.send_keys(str(prazo))
+            input_prazo.clear()
+            input_prazo.send_keys(str(prazo))
             print(f'[ATO][PRAZO][OK] Preenchido prazo {prazo} para destinatário.')
         except Exception as e:
             print(f'[ATO][PRAZO][WARN] Erro ao preencher prazo: {e}')
     return True
-
-        # ---
-        # SEGUNDA TENTATIVA (REFERÊNCIA JS/ASYNC PARA MOVIMENTO)
-       
-        # if (comandos?.movimento) {
-        #     // Ativa a guia Movimentos se desativada
-        #     let guia = await esperarElemento('pje-editor-lateral div[aria-posinset="2"]');
-        #     if (guia.getAttribute('aria-selected') == "false") {
-        #         await clicarBotao(guia);
-        #         await sleep(500);
-        #     }
-        #     let movimentos = comandos.movimento.split(',');
-        #     for (const [i,mo] of movimentos.entries()) {
-        #         if (i == 0) { // Checkbox de movimento
-        #             let chk = await esperarElemento('pje-movimento mat-checkbox', mo);
-        #             if (!chk.className.includes('checked')) {
-        #                 await clicarBotao('pje-movimento mat-checkbox label',mo);
-        #                 await sleep(500);
-        #             }
-        #         } else { // Complementos do tipo
-        #             await sleep(500);
-        #             let complementosDoTipo = await esperarColecao('pje-complemento');
-        #             await sleep(500);
-        #             let comboBox = complementosDoTipo[i-1].querySelector('mat-select');
-        #             await escolherOpcaoTeste2(comboBox,mo)
-        #             await sleep(500);
-        #         }
-        #     }
-        #     await clicarBotao('pje-lancador-de-movimentos button[aria-label*="Gravar"]');
-        #     await clicarBotao('mat-dialog-container button', 'Sim', true);
-        # }
-        # ---
-
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-import time
-
-def add_botao_despacho_selenium(driver):
-    """
-    Adiciona um botão flutuante na página para ativar o despacho automatizado.
-    """
-    driver.execute_script('''
-        if (!document.getElementById('btn-despacho-auto')) {
-            var btn = document.createElement('button');
-            btn.id = 'btn-despacho-auto';
-            btn.innerText = 'Despacho Automático';
-            btn.style.position = 'fixed';
-            btn.style.top = '10px';
-            btn.style.right = '10px';
-            btn.style.zIndex = 9999;
-            btn.style.background = '#1976d2';
-            btn.style.color = '#fff';
-            btn.style.padding = '10px 16px';
-            btn.style.border = 'none';
-            btn.style.borderRadius = '6px';
-            btn.style.fontSize = '16px';
-            btn.onclick = function() { alert("Execute o comando Python para despacho automático!"); };
-            document.body.appendChild(btn);
-        }
-    ''')
-
-def acao_bt_aaDespacho_selenium(driver, config):
-    """
-    Executa o fluxo de despacho automatizado, fiel ao gigs-plugin.js.
-    config: dict com chaves nm_botao, tipo, descricao, sigilo, modelo, juiz, responsavel, cor, vinculo, assinar
-    """
-    try:
-        print(f"[DESPACHO] Iniciando ação automatizada: {config.get('nm_botao','')} (vínculo: {config.get('vinculo','')})")
-        # 1. Movimentar para tarefa correta (Análise → Conclusão ao Magistrado)
-        # (Exemplo: clique em botão de transição, ajuste conforme DOM real)
-        try:
-            btn_analise = driver.find_element(By.XPATH, "//button[contains(translate(.,'ANÁLISE','análise'),'análise')]")
-            btn_analise.click()
-            print('[DESPACHO] Movimentado para Análise.')
-            time.sleep(1)
-        except Exception:
-            print('[DESPACHO] Botão Análise não encontrado ou já na tarefa correta.')
-        try:
-            btn_conclusao = driver.find_element(By.XPATH, "//button[contains(translate(.,'CONCLUSÃO','conclusão'),'conclusão ao magistrado')]")
-            btn_conclusao.click()
-            print('[DESPACHO] Movimentado para Conclusão ao Magistrado.')
-            time.sleep(1)
-        except Exception:
-            print('[DESPACHO] Botão Conclusão ao Magistrado não encontrado ou já na tarefa correta.')
-        # 2. Selecionar magistrado (se necessário)
-        if config.get('juiz'):
-            try:
-                select_juiz = driver.find_element(By.CSS_SELECTOR, 'mat-select[placeholder="Magistrado"]')
-                select_juiz.click()
-                time.sleep(0.5)
-                opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
-                for op in opcoes:
-                    if config['juiz'].lower() in op.text.lower():
-                        op.click()
-                        print(f"[DESPACHO] Magistrado selecionado: {config['juiz']}")
-                        break
-                time.sleep(1)
-            except Exception:
-                print('[DESPACHO] Não foi possível selecionar magistrado.')
-        # 3. Selecionar tipo de conclusão (Despacho)
-        try:
-            btn_tipo = driver.find_element(By.XPATH, "//button[contains(.,'Despacho')]")
-            btn_tipo.click()
-            print('[DESPACHO] Tipo de conclusão selecionado: Despacho.')
-            time.sleep(1)
-        except Exception:
-            print('[DESPACHO] Botão de tipo Despacho não encontrado ou já selecionado.')
-        # 4. Preencher descrição
-        if config.get('descricao'):
-            try:
-                input_desc = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Descrição"]')
-                input_desc.clear()
-                input_desc.send_keys(config['descricao'])
-                print(f"[DESPACHO] Descrição preenchida: {config['descricao']}")
-            except Exception:
-                print('[DESPACHO] Campo de descrição não encontrado.')
-        # 5. Sigilo
-        if config.get('sigilo','').lower() == 'sim':
-            try:
-                chk_sigilo = driver.find_element(By.CSS_SELECTOR, 'input[name="sigiloso"]')
-                if not chk_sigilo.is_selected():
-                    chk_sigilo.click()
-                print('[DESPACHO] Sigilo ativado.')
-            except Exception:
-                print('[DESPACHO] Campo de sigilo não encontrado.')
-        # 6. Escolher modelo
-        if config.get('modelo'):
-            try:
-                campo_modelo = driver.find_element(By.CSS_SELECTOR, 'input[id="inputFiltro"]')
-                campo_modelo.clear()
-                campo_modelo.send_keys(config['modelo'])
-                campo_modelo.send_keys(Keys.ENTER)
-                print(f"[DESPACHO] Modelo selecionado: {config['modelo']}")
-                time.sleep(1)
-                # Seleciona o modelo na árvore
-                modelo_item = driver.find_element(By.XPATH, f"//div[@role='treeitem' and contains(.,'{config['modelo']}')]")
-                modelo_item.click()
-                print('[DESPACHO] Modelo inserido no editor.')
-            except Exception:
-                print('[DESPACHO] Não foi possível selecionar/inserir modelo.')
-        # 7. Salvar documento
-        try:
-            btn_salvar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
-            btn_salvar.click()
-            print('[DESPACHO] Documento salvo.')
-            time.sleep(1)
-        except Exception:
-            print('[DESPACHO] Botão Salvar não encontrado.')
-        # 8. Intimação, PEC, prazo, movimento, etc (adapte conforme comandos extras do seu sistema)
-        # ...adicione aqui comandos extras conforme o fluxo do gigs-plugin.js...
-        # 9. Enviar para assinatura
-        if config.get('assinar','não').lower() == 'sim':
-            try:
-                btn_assinar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Enviar para assinatura"]')
-                btn_assinar.click()
-                print('[DESPACHO] Documento enviado para assinatura.')
-                time.sleep(1)
-            except Exception:
-                print('[DESPACHO] Botão Enviar para assinatura não encontrado.')
-        # 10. Inserir responsável (se necessário)
-        if config.get('responsavel'):
-            # ...adicione aqui o fluxo de inserir responsável, se aplicável...
-            print(f"[DESPACHO] Responsável: {config['responsavel']} (implementar fluxo se necessário)")
-        print('[DESPACHO] Fluxo de despacho automatizado finalizado.')
-        return True
-    except Exception as e:
-        print(f'[DESPACHO][ERRO] {e}')
-        return False

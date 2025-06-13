@@ -1,5 +1,40 @@
 {
-    "numero": "",
-    "partes": [],
-    "outros_dados": {}
+  "numero": [
+    "1001889-15.2023.5.02.0703"
+  ],
+  "id": "5818299",
+  "autor": [
+    {
+      "nome": "ANTONIO SANTOS SOUZA",
+      "cpfcnpj": "15534651806",
+      "advogado": {
+        "nome": "JEFERSON RUSSEL HUMAITA RODRIGUES BARBOSA",
+        "cpf": "25098479886",
+        "oab": "SP385746"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "ANTONIO ERNANDO SIQUEIRA DE SOUZA - ME",
+      "cpfcnpj": "05207302000159"
+    },
+    {
+      "nome": "ANTONIO ERNANDO SIQUEIRA DE SOUZA",
+      "cpfcnpj": "45816514334"
+    }
+  ],
+  "terceiro": [
+    {
+      "nome": "MINISTÉRIO PÚBLICO DO TRABALHO"
+    }
+  ],
+  "divida": {
+    "valor": 76543.94,
+    "data": "2024-07-01T00:00:00"
+  },
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "24/12/2023"
 }

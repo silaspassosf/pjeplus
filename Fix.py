@@ -1039,25 +1039,17 @@ def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
 # =========================
 
 # Seção: Ferramentas
-def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log=True):
-    # Cria GIGS em qualquer tela (principal ou minuta), parametrizável.
-    # tela: 'principal' (default) ou 'minuta' para lógica adaptada.
+def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True):
+    # Cria GIGS sempre usando o padrão dias/responsavel/observacao.
     import datetime
     t0 = time.time()
     try:
         if log:
-            print(f"[GIGS] Iniciando criação de GIGS: {dias_uteis}/{observacao} (tela=principal)")
-        # Permite padrão Prazo/Responsável/Observação
-        responsavel = ''
+            print(f"[GIGS] Iniciando criação de GIGS: {dias_uteis}/{responsavel}/{observacao}")
+        # Garante sempre o padrão dias/responsavel/observacao
+        if not responsavel or responsavel.strip() == '-':
+            responsavel = ''
         obs = observacao
-        if isinstance(observacao, str) and observacao.count('/') >= 2:
-            partes = observacao.split('/', 2)
-            try:
-                dias_uteis = int(partes[0]) if partes[0].isdigit() else dias_uteis
-            except Exception:
-                pass
-            responsavel = partes[1].strip()
-            obs = partes[2].strip()
         # 1. Clica no botão 'Nova Atividade'
         btn_nova_atividade = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.ID, 'nova-atividade'))
@@ -1082,16 +1074,16 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
                 time.sleep(0.05)
             if log:
                 print(f'[GIGS] Dias úteis preenchido: {dias_uteis}')
-        # Preenche responsável pelo GIGS se informado
+        # --- Preenchimento do responsável ---
         if responsavel:
             try:
+                # Seletor compatível com gigs-plugin para campo responsável
                 campo_resp = WebDriverWait(driver, timeout).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[aria-label*="Responsável pela atividade"]'))
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]'))
                 )
                 campo_resp.clear()
                 campo_resp.send_keys(responsavel)
                 time.sleep(0.2)
-                # Seleciona a opção do dropdown se existir
                 from selenium.webdriver.common.keys import Keys
                 campo_resp.send_keys(Keys.ARROW_DOWN)
                 campo_resp.send_keys(Keys.ENTER)
@@ -1100,15 +1092,20 @@ def criar_gigs(driver, dias_uteis, observacao, tela='principal', timeout=10, log
             except Exception as e:
                 if log:
                     print(f'[GIGS][AVISO] Campo responsável não encontrado ou não preenchido: {e}')
-        campo_obs = WebDriverWait(driver, timeout).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
-        )
-        campo_obs.clear()
-        for c in obs:
-            campo_obs.send_keys(c)
-            time.sleep(0.03)
-        if log:
-            print(f'[GIGS] Observação preenchida: {obs}')
+        # --- Preenchimento da observação ---
+        try:
+            campo_obs = WebDriverWait(driver, timeout).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
+            )
+            campo_obs.clear()
+            for c in obs:
+                campo_obs.send_keys(c)
+                time.sleep(0.03)
+            if log:
+                print(f'[GIGS] Observação preenchida: {obs}')
+        except Exception as e:
+            if log:
+                print(f'[GIGS][AVISO] Campo observação não encontrado ou não preenchido: {e}')
         # 4. Clica em Salvar
         btn_salvar = None
         botoes = driver.find_elements(By.CSS_SELECTOR, 'button.mat-raised-button')
@@ -1888,54 +1885,76 @@ def verificar_documento_decisao_sentenca(driver):
         print(f'[DOC CHECK][ERRO] Falha ao verificar documentos: {e}')
         return False
 
-def visibilidade_sigilosos(driver, log=True):
+def visibilidade_sigilosos(driver, polo='ativo', log=True):
     """
-    Aplica visibilidade a documentos sigilosos anexados automaticamente.
+    Aplica visibilidade a documentos sigilosos anexados automaticamente, conforme lógica do gigs-plugin.js.
+    polo: 'ambos', 'ativo', 'passivo' ou 'nenhum'
     """
     try:
-        # Localiza o último documento juntado
-        ultimo_documento = driver.find_element(By.CSS_SELECTOR, "div.timeline-item:last-child")
-        if not ultimo_documento:
+        # 1. Seleciona o último documento sigiloso na timeline
+        sigiloso_link = driver.find_element(By.CSS_SELECTOR, 'ul.pje-timeline a.tl-documento.is-sigiloso:last-child')
+        if not sigiloso_link:
             if log:
-                print("[VISIBILIDADE][ERRO] Último documento não encontrado.")
+                print('[VISIBILIDADE][ERRO] Documento sigiloso não encontrado na timeline.')
             return False
-
-        # Verifica se o documento é sigiloso
-        btn_sigilo = ultimo_documento.find_element(By.CSS_SELECTOR, "i.fa-wpexplorer")
-        if btn_sigilo:
-            btn_sigilo.click()
-            time.sleep(0.5)
-
-        # Aplica visibilidade
-        btn_visibilidade = ultimo_documento.find_element(By.CSS_SELECTOR, "i.fa-plus")
-        if btn_visibilidade.is_displayed():
-            btn_visibilidade.click()
-            time.sleep(0.5)
-
-            # Confirma a visibilidade no modal
-            modal_contexto = driver.find_element(By.CSS_SELECTOR, ".mat-dialog-content")
-            btn_coluna = modal_contexto.find_element(By.CSS_SELECTOR, "i.botao-icone-titulo-coluna")
-            btn_coluna.click()
-            time.sleep(0.3)
-
-            btn_salvar = driver.find_element(By.CSS_SELECTOR, ".mat-dialog-actions > button:nth-child(1) > span:nth-child(1)")
-            btn_salvar.click()
+        # Extrai id do documento
+        aria_label = sigiloso_link.get_attribute('aria-label')
+        import re
+        m = re.search(r'Id[:\.\s]+([A-Za-z0-9]{6,8})', aria_label or '')
+        if not m:
             if log:
-                print("[VISIBILIDADE] Visibilidade aplicada com sucesso.")
-
-            # Fecha o modal
-            modal_contexto.send_keys(Keys.ESCAPE)
-            time.sleep(1)
-        else:
-            if log:
-                print("[VISIBILIDADE][ERRO] Botão de visibilidade não visível.")
+                print('[VISIBILIDADE][ERRO] Não foi possível extrair o ID do documento.')
             return False
-
+        id_documento = m.group(1)
+        if log:
+            print(f'[VISIBILIDADE] Documento sigiloso encontrado: {id_documento}')
+        # 2. Ativa múltipla seleção
+        btn_multi = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]')
+        btn_multi.click()
+        time.sleep(0.5)
+        # 3. Marca o checkbox do documento
+        mat_checkbox = driver.find_element(By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox label')
+        mat_checkbox.click()
+        time.sleep(0.5)
+        # 4. Clica no botão de visibilidade
+        btn_visibilidade = driver.find_element(By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
+        btn_visibilidade.click()
+        time.sleep(1)
+        # 5. No modal, seleciona o polo desejado
+        if polo == 'ativo':
+            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo')
+            for icone in icones:
+                linha = icone.find_element(By.XPATH, './../../..')
+                label = linha.find_element(By.CSS_SELECTOR, 'label')
+                label.click()
+        elif polo == 'passivo':
+            icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-passivo')
+            for icone in icones:
+                linha = icone.find_element(By.XPATH, './../../..')
+                label = linha.find_element(By.CSS_SELECTOR, 'label')
+                label.click()
+        elif polo == 'ambos':
+            # Marca todos
+            btn_todos = driver.find_element(By.CSS_SELECTOR, 'th button')
+            btn_todos.click()
+        # 6. Confirma no botão Salvar
+        btn_salvar = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
+        )
+        btn_salvar.click()
+        time.sleep(1)
+        # 7. Oculta múltipla seleção
+        try:
+            btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
+            btn_ocultar.click()
+        except:
+            pass
+        if log:
+            print('[VISIBILIDADE] Visibilidade aplicada com sucesso.')
         return True
-
     except Exception as e:
         if log:
-            print(f"[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}")
+            print(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}')
         return False
 
 def criar_botoes_detalhes(driver):
@@ -2300,7 +2319,145 @@ def esperar_url_conter(driver, substring, timeout=10):
     except Exception as e:
         print(f'[URL][ERRO] Erro ao esperar URL: {e}')
         return False
+def BNDT_apagar(driver):
+    """
+    Executa a rotina de exclusão BNDT conforme instruções:
+    - Sempre parte da tela /detalhes
+    - Navega para BNDT em nova aba
+    - Seleciona Exclusão, Selecionar todos, Gravar
+    - Confirma exclusão se dialog de decisão não encontrada aparecer
+    """
+    # 1. Garante que está em /detalhes
+    if '/detalhes' not in driver.current_url:
+        raise Exception('BNDT_apagar deve ser executado a partir de /detalhes')
 
+    # 2. Clica no menu fa-bars
+    btn_menu = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa-bars.icone-botao-menu'))
+    )
+    btn_menu.click()
+    time.sleep(0.5)
+
+    # 3. Clica no ícone BNDT (fa-money-check-alt)
+    btn_bndt = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-money-check-alt.icone-padrao'))
+    )
+    btn_bndt.click()
+    time.sleep(1)
+
+    # 4. Troca para nova aba BNDT
+    main_window = driver.current_window_handle
+    all_windows = driver.window_handles
+    nova_aba = [w for w in all_windows if w != main_window][-1]
+    driver.switch_to.window(nova_aba)
+    WebDriverWait(driver, 10).until(lambda d: '/BNDT' in d.current_url)
+    time.sleep(1)
+
+    # 5. Seleciona opção Exclusão
+    radio_exclusao = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//span[contains(@class,'mat-radio-label-content')][.//text()[contains(.,'Exclusão')]]"))
+    )
+    radio_exclusao.click()
+    time.sleep(0.5)
+
+    # 6. Clica em Selecionar todos
+    chk_todos = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//span[contains(@class,'mat-checkbox-label')][.//text()[contains(.,'Selecionar todos')]]"))
+    )
+    chk_todos.click()
+    time.sleep(0.5)
+
+    # 7. Clica em Gravar
+    btn_gravar = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.XPATH, "//button[.//span[contains(text(),'Gravar')]]"))
+    )
+    btn_gravar.click()
+    time.sleep(1)
+
+    # 8. Se aparecer dialog de decisão não encontrada, confirma exclusão
+    try:
+        dialog = WebDriverWait(driver, 3).until(
+            EC.visibility_of_element_located((By.XPATH, "//mat-dialog-container[contains(@class,'mat-dialog-container')]//h2[contains(text(),'Decisão não encontrada')]/../../.."))
+        )
+        btn_sim = dialog.find_element(By.XPATH, ".//button[.//span[contains(text(),'Sim')]]")
+        btn_sim.click()
+        time.sleep(1)
+    except Exception:
+        pass  # Dialog pode não aparecer, segue normal
+
+    # 9. Sempre tenta clicar no botão 'Sim' (confirmação final)
+    try:
+        btn_sim_final = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[.//span[contains(text(),'Sim') and contains(@class,'mat-button-wrapper')]]"))
+        )
+        btn_sim_final.click()
+        time.sleep(1)
+    except Exception:
+        pass  # Botão pode não aparecer, segue normal
+
+    # Foco permanece na aba BNDT
+    return True
+def filtrofases(driver, fases_alvo=['liquidação', 'execução']):
+    print(f'Filtrando fase processual: {", ".join(fases_alvo).title()}...')
+    try:
+        fase_element = None
+        try:
+            fase_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Fase processual')]")
+        except Exception:
+            try:
+                seletor_fase = 'span.ng-tns-c82-22.ng-star-inserted'
+                for elem in driver.find_elements(By.CSS_SELECTOR, seletor_fase):
+                    if 'Fase processual' in elem.text:
+                        fase_element = elem
+                        break
+            except Exception:
+                print('[ERRO] Não encontrou o seletor de fase processual.')
+                return False
+        if not fase_element:
+            print('[ERRO] Não encontrou o seletor de fase processual.')
+            return False
+        driver.execute_script("arguments[0].click();", fase_element)
+        time.sleep(1)
+        painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
+        painel = None
+        for _ in range(10):
+            try:
+                painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
+                if painel.is_displayed():
+                    break
+            except Exception:
+                time.sleep(0.3)
+        if not painel or not painel.is_displayed():
+            print('[ERRO] Painel de opções não apareceu.')
+            return False
+        fases_clicadas = set()
+        opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+        for fase in fases_alvo:
+            for opcao in opcoes:
+                try:
+                    texto = opcao.text.strip().lower()
+                    if fase in texto and opcao.is_displayed():
+                        driver.execute_script("arguments[0].click();", opcao)
+                        fases_clicadas.add(fase)
+                        print(f'[OK] Fase "{fase}" selecionada.')
+                        time.sleep(0.5)
+                        break
+                except Exception:
+                    continue
+        if len(fases_clicadas) == 0:
+            print(f'[ERRO] Não encontrou opções {fases_alvo} no painel.')
+            return False
+        try:
+            botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
+            driver.execute_script('arguments[0].click();', botao_filtrar)
+            print('[OK] Fases selecionadas e filtro aplicado (botão filtrar).')
+            time.sleep(1)
+        except Exception as e:
+            print(f'[ERRO] Não conseguiu clicar no botão de filtrar: {e}')
+    except Exception as e:
+        print(f'[ERRO] Erro no filtro de fase: {e}')
+        return False
+    return True
 
 
 

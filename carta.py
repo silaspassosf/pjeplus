@@ -113,45 +113,131 @@ def carta(driver, log=True):
             if log:
                 print("[CARTA] Já logado na eCarta")
         
-        # 4. Extrair dados da tabela do eCarta
+        # 4. Extrair dados da tabela do eCarta usando JavaScript
         table_data = []
         try:
-            table = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "table[id*='tabDoc']"))
-            )
+            # JavaScript para extrair dados da tabela eCarta
+            js_script = """
+            function criarUrlDocumento(documentoId) {
+                var baseUrl = window.location.origin;
+                var currentPath = window.location.pathname;
+                var contexto = '';
+                if (currentPath.includes('/pjekz/')) {
+                    contexto = '/pjekz';
+                } else if (currentPath.includes('/pje/')) {
+                    contexto = '/pje';
+                } else {
+                    contexto = '/pjekz';
+                }
+                if (contexto === '/pjekz') {
+                    return baseUrl + '/pjekz/processo/documento/' + documentoId + '/conteudo';
+                } else {
+                    return baseUrl + '/pje/Processo/ConsultaDocumento/Documento.seam?doc=' + documentoId;
+                }
+            }
             
-            rows = table.find_elements(By.CSS_SELECTOR, "tr")
+            function extrairDadosTabela() {
+                var rows = Array.from(document.querySelectorAll('#main\\\\:tabDoc_data tr'));
+                if (!rows.length) {
+                    return null;
+                }
+                
+                var data = rows.map(function(tr) {
+                    var tds = tr.querySelectorAll('td');
+                    var objetoTd = tds[4];
+                    var objeto = objetoTd ? objetoTd.innerText.trim() : '';
+                    var objetoLink = null;
+                    var idTd = tds[3];
+                    var idPje = idTd ? idTd.innerText.trim() : '';
+                    var idPjeLink = null;
+                    
+                    if (idPje && /^\\d{10,}$/.test(idPje)) {
+                        idPjeLink = criarUrlDocumento(idPje);
+                    }
+                    
+                    var spanElement = objetoTd ? objetoTd.querySelector('span[id*=":rastreamento"]') : null;
+                    if (spanElement) {
+                        var codigoRastreamento = spanElement.innerText.trim();
+                        if (codigoRastreamento && codigoRastreamento.length > 5) {
+                            objeto = codigoRastreamento;
+                            var linkElement = spanElement.closest('a');
+                            if (linkElement && linkElement.href) {
+                                if (linkElement.href.startsWith('/')) {
+                                    objetoLink = 'https://aplicacoes1.trt2.jus.br' + linkElement.href;
+                                } else {
+                                    objetoLink = linkElement.href;
+                                }
+                            }
+                        }
+                    }
+                    
+                    return {
+                        dataEnvio: tds[0] ? tds[0].innerText.trim() : '',
+                        dataEntrega: tds[1] ? tds[1].innerText.trim() : '',
+                        idPje: idPje,
+                        idPjeLink: idPjeLink,
+                        objeto: objeto,
+                        objetoLink: objetoLink,
+                        status: tds[5] ? tds[5].innerText.trim() : '',
+                        destinatario: tds[6] ? tds[6].innerText.trim() : '',
+                        orgaoJulgador: tds[7] ? tds[7].innerText.trim() : ''
+                    };
+                });
+                
+                function parseDate(d) {
+                    var parts = d.split('/');
+                    return new Date(parts[2] + '-' + parts[1] + '-' + parts[0]);
+                }
+                
+                var maxDataEnvio = data.map(function(d) { return d.dataEnvio; })
+                    .filter(function(d) { return /\\d{2}\\/\\d{2}\\/\\d{4}/.test(d); })
+                    .map(parseDate)
+                    .sort(function(a, b) { return b - a; })[0];
+                
+                var recentes = data.filter(function(d) {
+                    if (!/\\d{2}\\/\\d{2}\\/\\d{4}/.test(d.dataEnvio)) return false;
+                    return parseDate(d.dataEnvio).getTime() === maxDataEnvio.getTime();
+                });
+                
+                return recentes;
+            }
             
-            for row in rows[1:]:  # Pula o cabeçalho
-                cells = row.find_elements(By.TAG_NAME, "td")
-                if len(cells) >= 7:  # Verifica se tem colunas suficientes
-                    # Extrai dados conforme estrutura da tabela eCarta
-                    id_pje = cells[3].text.strip()  # Coluna "ID PJe"
-                    destinatario = cells[6].text.strip()  # Coluna "Destinatário"
-                    status = cells[5].text.strip()  # Coluna "Status"
-                    
-                    # Extrai link de rastreamento se houver
-                    rastreamento = ""
-                    try:
-                        rastreamento_link = cells[5].find_element(By.TAG_NAME, "a")
-                        rastreamento = rastreamento_link.get_attribute("href") or rastreamento_link.text.strip()
-                    except:
-                        rastreamento = status
-                    
-                    # Verifica se o ID está na nossa lista de intimações
-                    for intimation_id in intimation_ids:
-                        if intimation_id in id_pje or id_pje in intimation_id:
-                            table_data.append({
-                                "ID": intimation_id,
-                                "DESTINATARIO": destinatario,
-                                "RESULTADO": status,
-                                "RASTREAMENTO": rastreamento
-                            })
-                            break
+            return extrairDadosTabela();
+            """
+            
+            # Executa o JavaScript e obtém os dados
+            ecarta_data = driver.execute_script(js_script)
+            
+            if not ecarta_data:
+                if log:
+                    print("[CARTA] Nenhum dado encontrado na tabela eCarta")
+                return ""
+            
+            # Converte os dados para o formato esperado e filtra por IDs das intimações
+            for item in ecarta_data:
+                id_pje = item.get('idPje', '')
+                destinatario = item.get('destinatario', '')
+                status = item.get('status', '')
+                objeto = item.get('objeto', '')
+                objeto_link = item.get('objetoLink', '')
+                
+                # Usa o link de rastreamento se disponível, senão usa o status
+                rastreamento = objeto_link if objeto_link else (objeto if objeto else status)
+                
+                # Verifica se o ID está na nossa lista de intimações
+                for intimation_id in intimation_ids:
+                    if intimation_id in id_pje or id_pje in intimation_id:
+                        table_data.append({
+                            "ID": intimation_id,
+                            "DESTINATARIO": destinatario,
+                            "RESULTADO": status,
+                            "RASTREAMENTO": rastreamento
+                        })
+                        break
         
         except Exception as e:
             if log:
-                print(f"[CARTA] Erro ao extrair dados da tabela eCarta: {e}")
+                print(f"[CARTA] Erro ao extrair dados da tabela eCarta via JavaScript: {e}")
             return ""
         
         # 5. Gerar tabela HTML
@@ -261,3 +347,37 @@ def gerar_tabela_intimacoes_recentes(driver, log=True):
                                 proc_match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4})', texto_completo)
                                 if proc_match:
                                     process_number = proc_match.group(1)
+                            
+                            # Adiciona linha à tabela com campos vazios
+                            intimation_rows.append({
+                                "ID": id_curto,
+                                "DESTINATARIO": "",
+                                "RESULTADO": "",
+                                "RASTREAMENTO": ""
+                            })
+                            
+                            if log:
+                                print(f"[CARTA] ID da intimação de correio encontrado: {id_curto}")
+            except:
+                pass
+        
+        # Gera tabela HTML se encontrou intimações
+        if intimation_rows:
+            html_table = generate_html_table(intimation_rows)
+            if log:
+                print(f"[CARTA] Tabela HTML gerada com {len(intimation_rows)} intimações de correio")
+                print("\n" + "="*80)
+                print("TABELA INTIMAÇÕES RECENTES - COPIE O CONTEÚDO ABAIXO:")
+                print("="*80)
+                print(html_table)
+                print("="*80 + "\n")
+            return html_table
+        else:
+            if log:
+                print("[CARTA] Nenhuma intimação de correio encontrada nas datas recentes")
+            return ""
+            
+    except Exception as e:
+        if log:
+            print(f"[CARTA] Erro ao gerar tabela de intimações recentes: {e}")
+        return ""

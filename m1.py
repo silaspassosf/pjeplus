@@ -53,9 +53,19 @@ from atos import (
     ato_termoE,
     ato_termoS,
     ato_edital,
-    pec_idpj
+    pec_idpj,
+    def_arq
 )
 from driver_config import criar_driver, login_func
+from urllib.parse import urlparse
+import sys
+import os
+from datetime import datetime
+
+with open("log.py", "w", encoding="utf-8") as f:
+    f.write(f"# Última execução: {datetime.now()}\n")
+    f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
+    f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
 
 # 1. Funções de Login e Setup
 def setup_driver():
@@ -119,7 +129,8 @@ def iniciar_fluxo(driver):
             elif any(termo in texto_lower for termo in ['oficial de justiça', 'certidão de oficial']):
                 print('\n[FLUXO] >>> INICIANDO FLUXO OUTROS <<<')
                 print(f'[FLUXO][OUTROS] Documento identificado: {texto_doc}')
-                print('='*50)                fluxo_mandados_outros(driver, log=True)
+                print('='*50)
+                fluxo_mandados_outros(driver, log=True)
             else:
                 print('\n[FLUXO][AVISO] >>> DOCUMENTO NÃO IDENTIFICADO <<<')
                 print(f'[FLUXO][AVISO] Texto do documento: {texto_doc}')
@@ -135,9 +146,8 @@ def iniciar_fluxo(driver):
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
                 print('[FLUXO] Retorno para lista completado')
-            print('='*50 + '\n')
-
-    # Executa o processamento da lista
+            print('='*50 + '\n')    # Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
+    print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
     indexar_e_processar_lista(driver, fluxo_callback)
 
 # 3. Funções de Processamento
@@ -306,10 +316,17 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                     print('[ARGOS][REGRAS] SISBAJUD positivo - chamando ato_bloq')
                 ato_bloq(driver, debug=debug)
         # 2. Se é decisão com texto "tendo em vista que"
-        elif tipo_documento == 'decisao' and 'tendo em vista que' in texto_documento.lower():
-            if debug:
+        elif tipo_documento == 'decisao' and 'tendo em vista que' in texto_documento.lower():            if debug:
                 print('[ARGOS][REGRAS] Documento identificado como decisão com texto sobre reclamada')
-            dados_processo = extrair_dados_processo(driver, log=debug)
+            # Ensure urlparse is available for extrair_dados_processo
+            try:
+                import sys
+                from urllib.parse import urlparse
+            except ImportError:
+                if debug:
+                    print('[ARGOS][REGRAS] Importação direta de urlparse falhou, tentando via urllib.parse')
+                from urllib.parse import urlparse
+            dados_processo = extrair_dados_processo(driver)  # removido log=debug
             if debug:
                 print(f'[ARGOS][REGRAS] Dados do processo extraídos: {dados_processo}')
             if len(dados_processo.get('reclamadas', [])) == 1:
@@ -374,13 +391,15 @@ def andamento_argos(driver, resultado_sisbajud, sigilo_anexos, log=True):
 
 def fechar_intimacao(driver, log=True):
     try:
+        import time
         if log:
             print('[ARGOS][FECHAR INTIMAÇÃO] Iniciando fechamento de intimação...')
         menu = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, '#botao-menu'))
         )
-        driver.execute_script("arguments[0].scrollIntoView(true);", menu)
         menu.click()
+        if log:
+            print('[ARGOS][FECHAR INTIMAÇÃO] Menu aberto.')
         time.sleep(0.5)
         btns = driver.find_elements(By.CSS_SELECTOR, 'button[aria-label="Expedientes"]')
         btn_exp = None
@@ -392,6 +411,8 @@ def fechar_intimacao(driver, log=True):
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Botão Expedientes não encontrado.')
             return False
         btn_exp.click()
+        if log:
+            print('[ARGOS][FECHAR INTIMAÇÃO] Botão Expedientes clicado.')
         time.sleep(1)
         # Foco no modal
         modal = None
@@ -403,66 +424,74 @@ def fechar_intimacao(driver, log=True):
         if not modal:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Modal não encontrado.')
             return False
-        # Busca a linha com prazo 30
+        if log:
+            print('[ARGOS][FECHAR INTIMAÇÃO] Modal de expedientes aberto.')
+        time.sleep(1)
+        # Buscar linha com prazo 30 e selecionar checkbox
         linhas = modal.find_elements(By.CSS_SELECTOR, 'tbody tr')
         checkbox_span = None
         for linha in linhas:
             tds = linha.find_elements(By.TAG_NAME, 'td')
             if len(tds) > 8 and tds[8].text.strip() == '30':
-                try:
-                    checkbox_span = linha.find_element(By.CSS_SELECTOR, '.mat-checkbox-inner-container')
-                    break
-                except Exception:
-                    continue
+                checkboxs = linha.find_elements(By.CSS_SELECTOR, '.mat-checkbox-inner-container')
+                if not checkboxs:
+                    print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Linha com prazo 30 NÃO possui checkbox. Fechando modal.')
+                    try:
+                        from selenium.webdriver.common.keys import Keys
+                        body = driver.find_element(By.TAG_NAME, 'body')
+                        body.send_keys(Keys.ESCAPE)
+                        time.sleep(0.5)
+                        print('[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.')
+                    except Exception as esc_err:
+                        print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Falha ao enviar ESC para fechar modal:', esc_err)
+                    return False
+                # Verifica se a checkbox está visível e habilitada
+                for cb in checkboxs:
+                    if cb.is_displayed() and cb.is_enabled():
+                        checkbox_span = cb
+                        break
+                if not checkbox_span:
+                    print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Checkbox ao lado do prazo 30 NÃO está visível/habilitada. Fechando modal.')
+                    try:
+                        from selenium.webdriver.common.keys import Keys
+                        body = driver.find_element(By.TAG_NAME, 'body')
+                        body.send_keys(Keys.ESCAPE)
+                        time.sleep(0.5)
+                        print('[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.')
+                    except Exception as esc_err:
+                        print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Falha ao enviar ESC para fechar modal:', esc_err)
+                    return False
+                break
         if not checkbox_span:
-            print('[ARGOS][FECHAR INTIMAÇÃO][WARN] Checkbox visual ao lado do prazo 30 NÃO encontrada. Fechando modal pelo ícone e seguindo.')
-            # Clica no botão de fechar modal (ícone fa-window-close)
+            print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Checkbox ao lado do prazo 30 NÃO encontrada.')
+            # Tenta fechar o modal com ESC
             try:
-                btn_fechar_modal = modal.find_element(By.CSS_SELECTOR, 'a.btn-fechar-link')
-                if btn_fechar_modal.is_displayed():
-                    btn_fechar_modal.click()
-                    time.sleep(0.5)
-                    return True  # Segue normalmente
-            except Exception as e:
-                print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Não foi possível fechar o modal pelo ícone:', e)
-                # Tenta sair com ESC
                 from selenium.webdriver.common.keys import Keys
                 body = driver.find_element(By.TAG_NAME, 'body')
                 body.send_keys(Keys.ESCAPE)
                 time.sleep(0.5)
                 print('[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.')
-                return True        
-        # Diminui o zoom da página para 70% ANTES de selecionar a checkbox
-        driver.execute_script("document.body.style.zoom='70%'")
-        time.sleep(0.5)
-        
-        # Melhorias solicitadas: clique na checkbox e pressionar espaço
-        checkbox_selecionada = False
+            except Exception as esc_err:
+                print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Falha ao enviar ESC para fechar modal:', esc_err)
+            return False
         try:
-            driver.execute_script("arguments[0].scrollIntoView(true);", checkbox_span)
             checkbox_span.click()
-            checkbox_selecionada = True
             if log:
-                print('[ARGOS][FECHAR INTIMAÇÃO] Checkbox selecionada com sucesso.')
+                print('[ARGOS][FECHAR INTIMAÇÃO] Checkbox ao lado do prazo 30 selecionada.')
         except Exception as e:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Falha ao clicar na checkbox:', e)
-            # Se não conseguir clicar, fecha o modal e segue
+            # Tenta fechar o modal com ESC
             try:
-                btn_fechar_modal = modal.find_element(By.CSS_SELECTOR, 'a.btn-fechar-link')
-                if btn_fechar_modal.is_displayed():
-                    btn_fechar_modal.click()
-                    time.sleep(0.5)
-                    return True
-            except Exception as e:
-                print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Não foi possível fechar o modal pelo ícone após erro no clique:', e)
                 from selenium.webdriver.common.keys import Keys
                 body = driver.find_element(By.TAG_NAME, 'body')
                 body.send_keys(Keys.ESCAPE)
                 time.sleep(0.5)
                 print('[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.')
-                return True
-        
-        # Busca e clica no botão 'Fechar Expedientes'
+            except Exception as esc_err:
+                print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Falha ao enviar ESC para fechar modal:', esc_err)
+            return False
+        time.sleep(0.5)
+        # Clicar no botão Fechar Expedientes
         btn_fechar = None
         botoes = modal.find_elements(By.CSS_SELECTOR, 'button[aria-label="Fechar Expedientes"]')
         for b in botoes:
@@ -472,37 +501,24 @@ def fechar_intimacao(driver, log=True):
         if not btn_fechar:
             print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Botão Fechar Expedientes não encontrado.')
             return False
-        
-        # Se checkbox foi selecionada, pressiona espaço antes de clicar em fechar
-        if checkbox_selecionada:
-            try:
-                from selenium.webdriver.common.keys import Keys
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.SPACE)
-                time.sleep(0.5)
-                if log:
-                    print('[ARGOS][FECHAR INTIMAÇÃO] Espaço pressionado após seleção da checkbox.')
-            except Exception as e:
-                if log:
-                    print(f'[ARGOS][FECHAR INTIMAÇÃO][WARN] Falha ao pressionar espaço: {e}')
-        
         btn_fechar.click()
-        time.sleep(1)
-        
-        # Busca o modal correto de confirmação pelo título
+        if log:
+            print('[ARGOS][FECHAR INTIMAÇÃO] Clique em salvar realizado (sem confirmação).')
+        # Espera eficiente pelo modal de confirmação
+        from selenium.common.exceptions import TimeoutException
         modal_confirm = None
-        modais_confirm = driver.find_elements(By.CSS_SELECTOR, '.mat-dialog-container')
-        for m in modais_confirm:
-            try:
-                titulo = m.find_element(By.CSS_SELECTOR, 'h2.mat-dialog-title')
-                if 'Fechamento de prazos em aberto' in titulo.text:
-                    modal_confirm = m
-                    break
-            except Exception:
-                continue
-        if not modal_confirm:
-            print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Modal de confirmação não encontrado.')
+        try:
+            modal_confirm = WebDriverWait(driver, 1).until(
+                lambda d: next((m for m in d.find_elements(By.CSS_SELECTOR, '.mat-dialog-container')
+                                if any('Fechamento de prazos em aberto' in (t.text or '')
+                                       for t in m.find_elements(By.CSS_SELECTOR, 'h2.mat-dialog-title'))), None)
+            )
+        except TimeoutException:
+            print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Modal de confirmação de fechamento de prazos não encontrado.')
             return False
-            
+        if log:
+            print('[ARGOS][FECHAR INTIMAÇÃO] Modal de confirmação de fechamento de prazos em aberto focado.')
+        # Clicar no botão Sim
         btn_sim = None
         botoes_sim = modal_confirm.find_elements(By.CSS_SELECTOR, 'button.mat-primary')
         for b in botoes_sim:
@@ -510,30 +526,12 @@ def fechar_intimacao(driver, log=True):
                 btn_sim = b
                 break
         if not btn_sim:
-            print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Botão Sim não encontrado.')
+            print('[ARGOS][FECHAR INTIMAÇÃO][ERRO] Botão Sim não encontrado no modal de confirmação.')
             return False
-            
         btn_sim.click()
-        
-        # Aguarda o fechamento completo do modal antes de continuar
         if log:
-            print('[ARGOS][FECHAR INTIMAÇÃO] Aguardando fechamento completo do modal...')
-        
-        # Aguarda até que não haja mais modais visíveis
-        try:
-            WebDriverWait(driver, 10).until(
-                lambda d: len([m for m in d.find_elements(By.CSS_SELECTOR, '.mat-dialog-container') if m.is_displayed()]) == 0
-            )
-            if log:
-                print('[ARGOS][FECHAR INTIMAÇÃO] Modal fechado completamente. Aguardando estabilização...')
-            time.sleep(2)  # Tempo adicional para garantir que a interface se estabilize
-        except Exception as e:
-            if log:
-                print(f'[ARGOS][FECHAR INTIMAÇÃO][WARN] Timeout aguardando fechamento do modal: {e}')
-            time.sleep(2)  # Fallback: aguarda tempo fixo
-        
-        if log:
-            print('[ARGOS][FECHAR INTIMAÇÃO] Fechamento de intimação concluído.')
+            print('[ARGOS][FECHAR INTIMAÇÃO] Clique em Sim realizado no modal de confirmação.')
+        time.sleep(1)
         return True
     except Exception as e:
         print('[ARGOS][FECHAR INTIMAÇÃO][ERRO]', e)
@@ -799,7 +797,7 @@ def fluxo_mandado(driver):
                             print("[MANDADOS][OUTROS][LOG] Padrão 'certidão de oficial' ENCONTRADO no texto.")
                             if padrao_positivo:
                                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado POSITIVO encontrado no texto.")
-                                criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
+                                # criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
                             elif padrao_negativo:
                                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
                                 # Busca último mandado na timeline
@@ -814,13 +812,13 @@ def fluxo_mandado(driver):
                                         print("[MANDADOS][OUTROS][LOG] Último mandado assinado por outro autor - não faz nada")
                                 else:
                                     print("[MANDADOS][OUTROS][LOG] Não encontrado último mandado na timeline")
-                                    criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+                                    # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
                             else:
                                 print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
-                                criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+                                # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
                         else:
                             print("[MANDADOS][OUTROS][LOG] Documento NÃO é certidão de oficial. Criando GIGS fallback.")
-                            criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+                            # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
                         return None
                     texto, resultado = extrair_documento(driver, regras_analise=analise_padrao)
                     if not texto:
@@ -851,13 +849,8 @@ def fluxo_mandado(driver):
                 driver.switch_to.window(driver.window_handles[0])
                 print('[FLUXO] Retorno para lista completado')
             print('='*50 + '\n')    # Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
-    if aplicar_filtro_mandados_devolvidos(driver):
-        print('[FLUXO] Filtro de mandados devolvidos aplicado com sucesso. Iniciando processamento...')
-        # Executa o processamento da lista com o callback melhorado
-        indexar_e_processar_lista(driver, fluxo_callback)
-    else:
-        print('[FLUXO][ERRO] Falha ao aplicar filtro de mandados devolvidos. Processamento cancelado.')
-        return
+    print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
+    indexar_e_processar_lista(driver, fluxo_callback)
 
 def buscar_documentos_sequenciais(driver):
     documentos_alvo = [
@@ -884,50 +877,58 @@ def buscar_documentos_sequenciais(driver):
 def processar_argos(driver, log=True):
     """
     Processa fluxo Argos com nova regra de busca de documentos.
-    
-    NOVA REGRA IMPLEMENTADA:
-    - Busca decisões/despachos que vêm ANTES da "Planilha de Atualização de Cálculos" na timeline
-    - Se não encontrar planilha ou documentos antes dela, usa lógica fallback (primeiro despacho/decisão)
-    - Aplica ações conforme o tipo de documento encontrado (decisão vs despacho)
+    0. Fecha intimação (se necessário)
+    1. Busca documentos sequenciais
+    2. Retira sigilo da certidão de pesquisa
+    3. Trata anexos (SISBAJUD, sigilo, etc)
+    4. Busca documento relevante (nova lógica antes da planilha)
+    5. Aplica regras Argos conforme documento e anexos
     """
     try:
-        # Cria GIGS inicial simples
-        criar_gigs(driver, dias_uteis=0, observacao='xx', tela='principal', log=log)
+        # 0. Fechar intimação
+        fechar_intimacao(driver, log=log)
+
+        # 1. Buscar documentos sequenciais
+        documentos_sequenciais = buscar_documentos_sequenciais(driver)
         if log:
-            print('[ARGOS] GIGS inicial criado, iniciando fluxo m1 com nova regra de busca...')
-        
-        # NOVA FUNCIONALIDADE: Busca documento usando a regra da planilha
+            print(f'[ARGOS] Documentos sequenciais localizados: {len(documentos_sequenciais)}')
+
+        # 2. Retirar sigilo da certidão de pesquisa (primeiro documento sequencial)
+        if documentos_sequenciais:
+            if log:
+                print('[ARGOS] Retirando sigilo da certidão de pesquisa (primeiro documento sequencial)...')
+            retirar_sigilo(documentos_sequenciais[0])
+
+        # 3. Tratar anexos (extrai resultado_sisbajud e sigilo_anexos)
+        anexos_info = tratar_anexos_argos(driver, documentos_sequenciais, log=log) if documentos_sequenciais else None
+        if anexos_info:
+            resultado_sisbajud = anexos_info.get('resultado_sisbajud', None)
+            sigilo_anexos = anexos_info.get('sigilo_anexos', {})
+        else:
+            resultado_sisbajud = None
+            sigilo_anexos = {}
+
+        if log:
+            print(f'[ARGOS] Resultado SISBAJUD: {resultado_sisbajud}')
+            print(f'[ARGOS] Sigilo anexos: {sigilo_anexos}')
+
+        # 4. Buscar documento relevante (nova lógica antes da planilha)
         documento_texto, documento_tipo = buscar_documento_argos(driver, log=log)
-        
         if documento_texto and documento_tipo:
             if log:
                 print(f'[ARGOS] Documento encontrado: tipo={documento_tipo}')
-                print(f'[ARGOS] Iniciando processamento baseado no tipo de documento...')
-            
-            # Aplica ações conforme o tipo de documento
-            if documento_tipo == 'decisao':
-                if log:
-                    print('[ARGOS] Processando DECISÃO encontrada antes da planilha...')
-                # Aqui seria implementada a lógica específica para decisões
-                # Por exemplo: análise de padrões específicos, criação de minutas, etc.
-                
-            elif documento_tipo == 'despacho':
-                if log:
-                    print('[ARGOS] Processando DESPACHO encontrado antes da planilha...')
-                # Aqui seria implementada a lógica específica para despachos
-                # Por exemplo: análise de comandos, ações administrativas, etc.
-            
-            # Continua com o fluxo m1 principal baseado no documento encontrado
+                print(f'[ARGOS] Aplicando regras Argos...')
+            # 5. Aplicar regras Argos conforme documento e anexos
+            aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=log)
             if log:
-                print('[ARGOS] Documento processado, continuando fluxo m1...')
-                
+                print('[ARGOS] Documento processado e regras aplicadas.')
         else:
             if log:
-                print('[ARGOS] Nenhum documento relevante encontrado, continuando com fluxo padrão...')
-        
+                print('[ARGOS] Nenhum documento relevante encontrado, fluxo Argos não aplicado.')
+
         if log:
             print('[ARGOS] Processamento m1 concluído com nova regra de busca.')
-            
+
     except Exception as e:
         if log:
             print(f'[ARGOS][ERRO] Falha no processamento: {e}')
@@ -1148,7 +1149,7 @@ def fluxo_mandados_outros(driver, log=True):
         if not eh_certidao_oficial:
             if log:
                 print(f"[MANDADOS][OUTROS][LOG] Documento '{cabecalho.text}' NÃO é certidão de oficial. Criando GIGS fallback.")
-            criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+            # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
             try:
                 driver.close()
                 if log:
@@ -1193,7 +1194,6 @@ def fluxo_mandados_outros(driver, log=True):
             "penhorei"
 
         ])
-        
         padrao_negativo = any(p in texto_lower for p in [
             "não localizado",
             "resultado negativo",
@@ -1204,6 +1204,7 @@ def fluxo_mandados_outros(driver, log=True):
             "deixei de efetuar",
             "deixei de comparacer",
             "deixei de intimar",
+            "deixei de penhorar",
             "não logrei êxito",
             "desconhecido no local",
             "não foi possível efetuar"
@@ -1211,18 +1212,49 @@ def fluxo_mandados_outros(driver, log=True):
             "não foi possível localizar",
         ])
         
+        padrao_cancelamento_total = any(p in texto_lower for p in [
+            "ordem de cancelamento total",
+        ])
+        
+        if padrao_cancelamento_total:
+            if log:
+                print("[MANDADOS][OUTROS][LOG] Ordem de cancelamento total detectada - executando BNDT_apagar e def_arq (atos.py)")
+            from isolar import BNDT_apagar
+            BNDT_apagar(driver)
+            from atos import def_arq
+            def_arq(driver)
+            return None
+        
         if padrao_positivo:
             if log:
                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado POSITIVO encontrado no texto.")
-            criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
+            # criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
         elif padrao_negativo:
             if log:
                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
-            
-            # Verifica se contém "penhora de bens" no texto
+            # NOVA REGRA: localizar mandado anterior na timeline, extrair conteúdo e, se contiver 'penhora', chamar ato_meios
+            autor_ant, elemento_ant = ultimo_mdd(driver, log=log)
+            if elemento_ant:
+                try:
+                    link_ant = elemento_ant.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                    driver.execute_script('arguments[0].scrollIntoView(true);', link_ant)
+                    link_ant.click()
+                    time.sleep(1)
+                    texto_mandado_ant, _ = extrair_documento(driver)
+                    if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
+                        if log:
+                            print("[MANDADOS][OUTROS][LOG] Mandado anterior contém 'penhora' - chamando ato_meios")
+                        ato_meios(driver)
+                except Exception as e:
+                    if log:
+                        print(f"[MANDADOS][OUTROS][ERRO] Falha ao processar mandado anterior: {e}")            # Verifica se contém "penhora de bens" no texto
             if "penhora de bens" in texto_lower:
                 if log:
                     print("[MANDADOS][OUTROS][LOG] Texto contém 'penhora de bens' - chamando ato_meios")
+                ato_meios(driver)
+            elif "deixei de penhorar" in texto_lower:
+                if log:
+                    print("[MANDADOS][OUTROS][LOG] Texto contém 'deixei de penhorar' - chamando ato_meios")
                 ato_meios(driver)
             else:
                 # Busca último mandado na timeline
@@ -1238,11 +1270,11 @@ def fluxo_mandados_outros(driver, log=True):
                 else:
                     if log:
                         print("[MANDADOS][OUTROS][LOG] Não encontrado último mandado na timeline")
-                    criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+                    # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
         else:
             if log:
                 print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
-            criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
+            # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
         return None
     texto, resultado = extrair_documento(driver, regras_analise=analise_padrao)
     if not texto:

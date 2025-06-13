@@ -2,27 +2,26 @@
 """
 Script de teste para análise Argos.
 """
+from selenium.webdriver.common.by import By
 import time
-from Fix import driver_pc, login_pc
-from infojud import Infojud
-
-def main():
-    driver = driver_pc(headless=False)
-    if not driver:
-        print('[ERRO] Falha ao iniciar o driver.')
-        return
-    if not login_pc(driver):
-        print('[ERRO] Falha no login. Encerrando script.')
-        driver.quit()
-        return
-    print('[TESTE] Login realizado com sucesso.')
-    url_teste = 'https://pje.trt2.jus.br/pjekz/processo/3561619/detalhe/peticao/403345675'
-    print(f'[TESTE] Navegando para a URL de teste: {url_teste}')
-    driver.get(url_teste)
-    time.sleep(3)
-    print('[TESTE] Chamando infojud...')
-    Infojud(driver=driver, usar_perfil_real=True)
-    print('[TESTE] Consulta infojud finalizada. Janela permanecerá aberta para conferência manual.')
+from extrair import extrair_dados_processo
 
 if __name__ == "__main__":
-    main()
+    from driver_config import criar_driver, login_func
+    driver = criar_driver(headless=False)
+    if not driver:
+        print('[ERRO] Falha ao iniciar o driver.')
+        exit(1)
+    if not login_func(driver):
+        print('[ERRO] Falha no login. Encerrando script.')
+        driver.quit()
+        exit(1)
+    print('[TESTE] Login realizado com sucesso.')
+    # Teste da automação de movimentação em lote (loop_prazo)
+    from loop_prazo import loop_prazo
+    print('[TESTE] Executando loop_prazo...')
+    resultado = loop_prazo(driver)
+    print('[teste.py] Resultado loop_prazo:', resultado)
+    print('[TESTE] Execução concluída. A aba do navegador permanecerá aberta para inspeção manual.')
+    input('[TESTE] Pressione ENTER para fechar o navegador e encerrar o teste...')
+    driver.quit()

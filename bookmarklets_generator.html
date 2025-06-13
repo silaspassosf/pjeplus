@@ -405,112 +405,97 @@
 
         function generateBookmarkletCode(name, pec, prazo, primeiroDestinatario, movimento) {
             let code = `javascript:(function() {
-    console.log('[${name.toUpperCase()}] Iniciando configuração...');
-    
-    function setPEC(marcar) {
-        try {
-            const pecInput = document.querySelector('input[type="checkbox"][aria-label="Enviar para PEC"]');
-            if (pecInput) {
-                const isChecked = pecInput.checked || pecInput.getAttribute('aria-checked') === 'true';
-                if (marcar && !isChecked) {
-                    pecInput.click();
-                    console.log('[BOOKMARKLET] PEC marcado');
-                    return true;
-                } else if (!marcar && isChecked) {
-                    pecInput.click();
-                    console.log('[BOOKMARKLET] PEC desmarcado');
-                    return true;
+console.log('[${name.toUpperCase()}] Iniciando configuração...');
+
+function setPEC(marcar) {
+    try {
+        const pecCheckbox = document.querySelector('mat-checkbox[aria-label="Enviar para PEC"] input');
+        if (pecCheckbox) {
+            if (marcar && !pecCheckbox.checked) {
+                pecCheckbox.click();
+                console.log('[BOOKMARKLET] PEC marcado');
+                return true;
+            } else if (!marcar && pecCheckbox.checked) {
+                pecCheckbox.click();
+                console.log('[BOOKMARKLET] PEC desmarcado');
+                return true;
+            } else {
+                console.log('[BOOKMARKLET] PEC já no estado correto');
+                return true;
+            }
+        } else {
+            console.error('[BOOKMARKLET] Checkbox PEC não encontrado');
+            return false;
+        }
+    } catch (error) {
+        console.error('[BOOKMARKLET] Erro ao configurar PEC:', error);
+        return false;
+    }
+}
+
+function setPrazo(dias, apenasprimeiro = false) {
+    try {
+        const linhas = document.querySelectorAll('table.t-class tr.ng-star-inserted');
+        let preenchidos = 0;
+        for (const tr of linhas) {
+            try {
+                const checkbox = tr.querySelector('input[type="checkbox"][aria-label="Intimar parte"]');
+                if (checkbox && checkbox.getAttribute('aria-checked') === 'true') {
+                    const campoPrazo = tr.querySelector('mat-form-field.prazo input[type="text"].mat-input-element');
+                    if (campoPrazo) {
+                        campoPrazo.focus();
+                        campoPrazo.value = dias.toString();
+                        campoPrazo.dispatchEvent(new Event('input', {bubbles: true}));
+                        preenchidos++;
+                        if (apenasprimeiro && preenchidos === 1) break;
+                    }
+                }
+            } catch (error) {
+                console.error('[BOOKMARKLET] Erro ao processar linha:', error);
+            }
+        }
+        console.log('[BOOKMARKLET] Prazo definido para', preenchidos, 'destinatário(s):', dias, 'dias');
+        return preenchidos > 0;
+    } catch (error) {
+        console.error('[BOOKMARKLET] Erro ao configurar prazo:', error);
+        return false;
+    }
+}
+
+function setMovimento(movimento) {
+    try {
+        const movimentoSelect = document.querySelector('mat-select[aria-label="Movimento"]');
+        if (movimentoSelect) {
+            movimentoSelect.click();
+            setTimeout(() => {
+                const opcao = Array.from(document.querySelectorAll('mat-option'))
+                    .find(opt => opt.textContent && opt.textContent.toLowerCase().includes(movimento.toLowerCase()));
+                if (opcao) {
+                    opcao.click();
+                    console.log('[BOOKMARKLET] Movimento selecionado:', movimento);
                 } else {
-                    console.log('[BOOKMARKLET] PEC já no estado correto');
-                    return true;
+                    console.error('[BOOKMARKLET] Movimento não encontrado:', movimento);
                 }
-            } else {
-                console.error('[BOOKMARKLET] Input PEC não encontrado');
-                return false;
-            }
-        } catch (error) {
-            console.error('[BOOKMARKLET] Erro ao configurar PEC:', error);
-            return false;
+            }, 200);
+        } else {
+            console.error('[BOOKMARKLET] Select de movimento não encontrado');
         }
+    } catch (error) {
+        console.error('[BOOKMARKLET] Erro movimento:', error);
     }
-
-    function setPrazo(dias, apenasprimeiro = false) {
-        try {
-            const linhas = document.querySelectorAll('table.t-class tr.ng-star-inserted');
-            let preenchidos = 0;
-            
-            for (let i = 0; i < linhas.length; i++) {
-                const linha = linhas[i];
-                const checkbox = linha.querySelector('input[type="checkbox"][aria-label="Intimar parte"]');
-                const camposPrazo = linha.querySelectorAll('mat-form-field.prazo input[type="text"].mat-input-element');
-                
-                if (checkbox && checkbox.checked && camposPrazo.length > 0) {
-                    for (const campo of camposPrazo) {
-                        if (campo.offsetParent !== null) {
-                            campo.focus();
-                            campo.value = dias.toString();
-                            campo.dispatchEvent(new Event('input', {bubbles: true}));
-                            campo.dispatchEvent(new Event('change', {bubbles: true}));
-                            preenchidos++;
-                            break;
-                        }
-                    }
-                    if (apenasprimeiro) break;
-                }
-            }
-            
-            console.log('[BOOKMARKLET] Prazo definido para', preenchidos, 'destinatário(s):', dias, 'dias');
-            return preenchidos > 0;
-        } catch (error) {
-            console.error('[BOOKMARKLET] Erro ao configurar prazo:', error);
-            return false;
-        }
-    }
-
-    function setMovimento(movimento) {
-        try {
-            const movimentoSelect = document.querySelector('mat-select[aria-label="Movimento"]');
-            if (movimentoSelect) {
-                movimentoSelect.click();
-                setTimeout(() => {
-                    const opcao = Array.from(document.querySelectorAll('mat-option')).find(opt => 
-                        opt.textContent.toLowerCase().includes(movimento.toLowerCase())
-                    );
-                    if (opcao) {
-                        opcao.click();
-                        console.log('[BOOKMARKLET] Movimento selecionado:', movimento);
-                        return true;
-                    } else {
-                        console.error('[BOOKMARKLET] Movimento não encontrado:', movimento);
-                        return false;
-                    }
-                }, 200);
-            } else {
-                console.error('[BOOKMARKLET] Select de movimento não encontrado');
-                return false;
-            }
-        } catch (error) {
-            console.error('[BOOKMARKLET] Erro movimento:', error);
-            return false;
-        }
-    }`;
+}`;
 
             // Adiciona as chamadas das funções baseadas nos parâmetros
             if (pec !== null) {
                 code += `\n    setPEC(${pec});`;
             }
-            
             if (prazo !== null) {
                 code += `\n    setTimeout(() => { setPrazo(${prazo}${primeiroDestinatario ? ', true' : ''}); }, 500);`;
             }
-            
             if (movimento) {
                 code += `\n    setTimeout(() => { setMovimento('${movimento}'); }, 1000);`;
             }
-
-            code += `\n    console.log('[${name.toUpperCase()}] Configuração completa!');
-})();`;
-
+            code += `\n    console.log('[${name.toUpperCase()}] Configuração completa!');\n})();`;
             return code;
         }
 

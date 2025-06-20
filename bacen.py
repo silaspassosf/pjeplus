@@ -8,7 +8,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-from Fix import driver_pc, login_pc, extrair_dados_processo
+from Fix import extrair_dados_processo
+from driver_config import criar_driver, login_func
 import subprocess
 import os
 import json
@@ -31,31 +32,24 @@ CONFIG = {
 processo_dados_extraidos = None
 login_ahk_executado = False
 
-# ===================== INJETAR BOTÕES NO PJe =====================
-def injetar_botoes_pje(driver):
+# ===================== INJETAR BOTÃO ÚNICO NO PJe =====================
+def injetar_botao_sisbajud_pje(driver):
+    """Injeta apenas um botão no PJe para abrir o SISBAJUD"""
     driver.execute_script("""
-        if (!document.getElementById('btn_minuta_bloqueio')) {
+        if (!document.getElementById('btn_abrir_sisbajud')) {
             let container = document.createElement('div');
             container.id = 'sisbajud_btn_container';
-            container.style = 'position:fixed;top:60px;right:20px;z-index:9999;background:#fff;padding:8px;border-radius:8px;box-shadow:0 2px 8px #0002;';
-            let btn1 = document.createElement('button');
-            btn1.id = 'btn_minuta_bloqueio';
-            btn1.innerText = 'Minuta de Bloqueio';
-            btn1.style = 'margin:4px;padding:6px 14px;cursor:pointer;';
-            btn1.onclick = function() { window.dispatchEvent(new CustomEvent('minuta_bloqueio')); };
-            container.appendChild(btn1);
-            let btn2 = document.createElement('button');
-            btn2.id = 'btn_minuta_endereco';
-            btn2.innerText = 'Minuta de Endereço';
-            btn2.style = 'margin:4px;padding:6px 14px;cursor:pointer;';
-            btn2.onclick = function() { window.dispatchEvent(new CustomEvent('minuta_endereco')); };
-            container.appendChild(btn2);
-            let btn3 = document.createElement('button');
-            btn3.id = 'btn_processar_bloqueios';
-            btn3.innerText = 'Processar Bloqueios';
-            btn3.style = 'margin:4px;padding:6px 14px;cursor:pointer;';
-            btn3.onclick = function() { window.dispatchEvent(new CustomEvent('processar_bloqueios')); };
-            container.appendChild(btn3);
+            container.style = 'position:fixed;top:60px;right:20px;z-index:9999;background:#1976d2;padding:12px;border-radius:12px;box-shadow:0 4px 12px rgba(25,118,210,0.3);';
+            
+            let btn = document.createElement('button');
+            btn.id = 'btn_abrir_sisbajud';
+            btn.innerHTML = '🏦 Abrir SISBAJUD';
+            btn.style = 'padding:10px 20px;font-size:14px;font-weight:bold;cursor:pointer;background:#fff;color:#1976d2;border:none;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);transition:all 0.3s ease;';
+            btn.onmouseenter = function() { this.style.transform = 'scale(1.05)'; this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'; };
+            btn.onmouseleave = function() { this.style.transform = 'scale(1)'; this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'; };
+            btn.onclick = function() { window.dispatchEvent(new CustomEvent('abrir_sisbajud')); };
+            
+            container.appendChild(btn);
             document.body.appendChild(container);
         }
     """)
@@ -66,11 +60,10 @@ def prompt_js(driver, mensagem, valor_padrao=''):
 
 # ===================== ACIONADORES DE EVENTOS =====================
 def bind_eventos(driver):
+    """Configura apenas o evento de abrir SISBAJUD"""
     driver.execute_script("window.sisbajud_event_flag = '';")
     driver.execute_script("""
-        window.addEventListener('minuta_bloqueio', function() { window.sisbajud_event_flag = 'minuta_bloqueio'; });
-        window.addEventListener('minuta_endereco', function() { window.sisbajud_event_flag = 'minuta_endereco'; });
-        window.addEventListener('processar_bloqueios', function() { window.sisbajud_event_flag = 'processar_bloqueios'; });
+        window.addEventListener('abrir_sisbajud', function() { window.sisbajud_event_flag = 'abrir_sisbajud'; });
     """)
 
 def checar_evento(driver):
@@ -83,10 +76,63 @@ def checar_evento(driver):
 def salvar_cookies_sisbajud(driver, caminho='cookies_sisbajud.json'):
     import json
     cookies = driver.get_cookies()
-    cookies_filtrados = [c for c in cookies if 'sisbajud.cloud.pje.jus.br' in c.get('domain', '')]
+    cookies_filtrados = [c for c in cookies if 'sisbajud.cloud.pje.jus.br' in c.get('domain', '') or 'sso.cloud.pje.jus.br' in c.get('domain', '') or 'cnj.jus.br' in c.get('domain', '')]
     with open(caminho, 'w', encoding='utf-8') as f:
         json.dump(cookies_filtrados, f, ensure_ascii=False, indent=2)
     print(f'[BACEN] Cookies SISBAJUD salvos em {caminho}.')
+
+def carregar_cookies_sisbajud(driver, caminho='cookies_sisbajud.json'):
+    """Carrega cookies salvos para o driver SISBAJUD"""
+    import json
+    import os
+    
+    if not os.path.exists(caminho):
+        print(f'[BACEN] Arquivo de cookies não encontrado: {caminho}')
+        return False
+    
+    try:
+        # Primeiro navegar para uma página válida do domínio
+        print('[BACEN] Navegando para domínio SISBAJUD para carregar cookies...')
+        driver.get('https://sso.cloud.pje.jus.br')
+        time.sleep(2)
+        
+        with open(caminho, 'r', encoding='utf-8') as f:
+            cookies = json.load(f)
+        
+        print(f'[BACEN] Carregando {len(cookies)} cookies...')
+        cookies_carregados = 0
+        
+        for cookie in cookies:
+            try:
+                # Remover campos que podem causar problemas
+                cookie_limpo = {
+                    'name': cookie['name'],
+                    'value': cookie['value'],
+                    'domain': cookie['domain'],
+                    'path': cookie.get('path', '/'),
+                    'secure': cookie.get('secure', False),
+                    'httpOnly': cookie.get('httpOnly', False)
+                }
+                
+                driver.add_cookie(cookie_limpo)
+                cookies_carregados += 1
+                
+            except Exception as e:
+                print(f'[BACEN][DEBUG] Erro ao carregar cookie {cookie.get("name", "desconhecido")}: {e}')
+                continue
+        
+        print(f'[BACEN] ✅ {cookies_carregados} cookies carregados com sucesso!')
+        
+        # Navegar para a URL final do SISBAJUD
+        print('[BACEN] Redirecionando para SISBAJUD com cookies carregados...')
+        driver.get('https://sisbajud.cnj.jus.br/')
+        time.sleep(3)
+        
+        return True
+        
+    except Exception as e:
+        print(f'[BACEN][ERRO] Falha ao carregar cookies: {e}')
+        return False
 
 def driver_firefox_sisbajud(headless=False):
     """
@@ -128,9 +174,28 @@ def salvar_dados_processo_temp():
             print(f'[BACEN][ERRO] Falha ao salvar dados do processo: {e}')
 
 def abrir_sisbajud_em_firefox_sisbajud():
-    driver = driver_firefox_sisbajud(headless=False)
-    driver.get('https://sisbajud.cnj.jus.br/')
-    print('[BACEN] SISBAJUD aberto em Firefox (perfil Sisb).')    # Integração: carrega dados extraídos do processo do arquivo do projeto
+    """Abre driver Firefox SISBAJUD e tenta login automático via cookies ou injeta tabela de login"""
+    # Usar a função de driver Firefox específica para SISBAJUD
+    driver = criar_driver_firefox_sisb()
+    if not driver:
+        print('[BACEN][ERRO] Falha ao criar driver Firefox SISBAJUD')
+        return None
+        
+    print('[BACEN] ✅ Driver SISBAJUD criado.')
+    
+    # Verificar se o login automático via cookies funcionou
+    time.sleep(3)  # Aguardar estabilização
+    current_url = driver.current_url
+    
+    # Verificar se já está logado (não está na tela de login)
+    if not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms']):
+        print('[BACEN] ✅ Login automático realizado via cookies! Pulando login manual.')
+        return driver
+    
+    print('[BACEN] 📋 Cookies não funcionaram ou primeiro acesso. Injetando tabela de dados de login...')
+    dados_login(driver)
+    
+    # Integração: carrega dados extraídos do processo do arquivo do projeto
     global processo_dados_extraidos
     try:
         # Usa caminho do projeto ao invés de pasta temporária
@@ -143,9 +208,12 @@ def abrir_sisbajud_em_firefox_sisbajud():
                 processo_dados_extraidos = json.load(f)
             print('[BACEN] Dados do processo carregados do arquivo:', processo_dados_extraidos)
         else:
-            print('[BACEN][ERRO] Arquivo de dados do processo não encontrado.')
+            print('[BACEN][AVISO] Arquivo de dados do processo não encontrado.')
     except Exception as e:
-        print(f'[BACEN][ERRO] Falha ao carregar dados do processo do arquivo temporário: {e}')
+        print(f'[BACEN][ERRO] Falha ao carregar dados do processo: {e}')
+    
+    print('[BACEN] ✅ SISBAJUD aberto com tabela de login injetada.')
+    print('[BACEN] 👤 Faça login manualmente e aguarde a detecção automática.')
     return driver
 
 def minuta_bloqueio(driver):
@@ -169,145 +237,148 @@ def processar_bloqueios(driver):
 # ===================== INJETAR MENU KAIZEN NO SISBAJUD =====================
 def injetar_menu_kaizen_sisbajud(driver):
     """
-    Injeta um menu Kaizen flutuante, horizontal, pequeno, no canto inferior direito da tela do SISBAJUD.
-    Versão robusta que funciona mesmo após login/navegação.
+    Injeta uma barra de automações moderna e organizada no SISBAJUD
     """
-    print('[KAIZEN] Injetando menu SISBAJUD...')
+    print('[KAIZEN] Injetando barra de automações no SISBAJUD...')
     
     # Aguardar página estar pronta
     try:
         WebDriverWait(driver, 10).until(lambda d: d.execute_script("return document.readyState") == "complete")
-        time.sleep(1)  # Tempo extra para elementos dinâmicos
-    except:
-        print('[KAIZEN] Timeout aguardando página, continuando...')
+        time.sleep(1)
+    except Exception as e:
+        print(f'[KAIZEN] Timeout aguardando página: {e}, continuando...')
     
-    driver.execute_script('''
-        function injetarMenuKaizen() {
-            console.log('[KAIZEN] Iniciando injeção do menu...');
-            
-            // Remover menu existente se houver
-            let old = document.getElementById('kaizen_menu_sisbajud');
-            if (old) {
-                old.remove();
-                console.log('[KAIZEN] Menu antigo removido');
-            }
-            
-            let menu = document.createElement('div');
-            menu.id = 'kaizen_menu_sisbajud';
-            menu.style = `
-                position: fixed !important;
-                bottom: 18px !important;
-                right: 18px !important;
-                z-index: 2147483647 !important;
-                background: #111 !important;
-                border: 2px solid #1976d2 !important;
-                border-radius: 10px !important;
-                box-shadow: 0 4px 16px #0008 !important;
-                padding: 7px 10px 7px 14px !important;
-                min-width: unset !important;
-                font-family: Arial, sans-serif !important;
-                opacity: 0.97 !important;
-                display: flex !important;
-                flex-direction: row !important;
-                align-items: center !important;
-                gap: 8px !important;
-                transform: scale(0.65) !important;
-                transform-origin: bottom right !important;
-            `;
-            
-            let title = document.createElement('div');
-            title.innerText = 'KAIZEN SISBAJUD';
-            title.style = 'font-weight:bold;font-size:13px;margin-right:10px;color:#fff;text-align:center;letter-spacing:1px;';
-            menu.appendChild(title);
-            
-            const botoes = [
-                ['Passivo (Bloqueio)', 'kaizen_minuta_bloqueio_passivo', '#c62828'],
-                ['Passivo (Endereço)', 'kaizen_minuta_endereco_passivo', '#009688'],
-                ['Autor (Bloqueio)', 'kaizen_minuta_bloqueio_ativo', '#388e3c'],
-                ['Consultar Teimosinha', 'kaizen_consultar_teimosinha', '#e65100']
-            ];
-            
-            for (let [texto, evento, cor] of botoes) {
-                let btn = document.createElement('button');
-                btn.innerText = texto;
-                btn.style = `
-                    display: inline-block !important;
-                    margin: 0 2px !important;
-                    padding: 8px 14px !important;
-                    background: ${cor} !important;
-                    color: #fff !important;
-                    border: none !important;
-                    border-radius: 6px !important;
-                    font-size: 13px !important;
-                    font-weight: bold !important;
-                    cursor: pointer !important;
-                    box-shadow: 0 1px 4px #0002 !important;
+    try:
+        driver.execute_script('''
+            function injetarBarraAutomacoes() {
+                console.log('[KAIZEN] Iniciando injeção da barra de automações...');
+                
+                // Remover barra existente se houver
+                let old = document.getElementById('kaizen_barra_automacoes');
+                if (old) {
+                    old.remove();
+                    console.log('[KAIZEN] Barra antiga removida');
+                }
+                
+                // Criar container principal
+                let barra = document.createElement('div');
+                barra.id = 'kaizen_barra_automacoes';
+                barra.style = `
+                    position: fixed !important;
+                    bottom: 20px !important;
+                    left: 50% !important;
+                    transform: translateX(-50%) !important;
+                    z-index: 2147483647 !important;
+                    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%) !important;
+                    border-radius: 16px !important;
+                    box-shadow: 0 8px 32px rgba(25, 118, 210, 0.4) !important;
+                    padding: 12px 20px !important;
+                    font-family: 'Segoe UI', Arial, sans-serif !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 12px !important;
+                    backdrop-filter: blur(10px) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.2) !important;
                 `;
                 
-                // Apenas clique - sem ações de hover para simplicidade
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    console.log('[KAIZEN] Clique em botão:', evento);
-                    window.dispatchEvent(new CustomEvent(evento));
+                // Título da barra
+                let titulo = document.createElement('span');
+                titulo.textContent = '🤖 AUTOMAÇÕES SISBAJUD';
+                titulo.style = `
+                    color: white !important;
+                    font-weight: bold !important;
+                    font-size: 12px !important;
+                    margin-right: 8px !important;
+                    text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+                `;
+                barra.appendChild(titulo);
+                
+                // Separador
+                let separador = document.createElement('div');
+                separador.style = `
+                    width: 1px !important;
+                    height: 24px !important;
+                    background: rgba(255, 255, 255, 0.3) !important;
+                    margin: 0 4px !important;
+                `;
+                barra.appendChild(separador);
+                
+                // Botões de automação
+                const botoes = [
+                    { id: 'nova_minuta_bloqueio', texto: '🔒 Nova Minuta', titulo: 'Criar nova minuta de bloqueio' },
+                    { id: 'nova_minuta_endereco', texto: '🏠 Minuta Endereço', titulo: 'Criar minuta de endereço' },
+                    { id: 'preencher_campos', texto: '📝 Preencher', titulo: 'Preencher dados do processo' },
+                    { id: 'preencher_invertido', texto: '🔄 Polo Passivo', titulo: 'Preencher com polo passivo' },
+                    { id: 'consultar_teimosinha', texto: '🔍 Consultar', titulo: 'Consultar teimosinha' },
+                    { id: 'consultar_minuta', texto: '📋 Minutas', titulo: 'Consultar minutas existentes' }
+                ];
+                
+                botoes.forEach(config => {
+                    let btn = document.createElement('button');
+                    btn.id = config.id;
+                    btn.textContent = config.texto;
+                    btn.title = config.titulo;
+                    btn.style = `
+                        background: rgba(255, 255, 255, 0.95) !important;
+                        color: #1976d2 !important;
+                        border: none !important;
+                        border-radius: 10px !important;
+                        padding: 8px 12px !important;
+                        font-size: 11px !important;
+                        font-weight: 600 !important;
+                        cursor: pointer !important;
+                        transition: all 0.3s ease !important;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+                        text-shadow: none !important;
+                        font-family: inherit !important;
+                    `;
+                    
+                    // Efeitos hover
+                    btn.onmouseenter = function() {
+                        this.style.transform = 'translateY(-2px) scale(1.05)';
+                        this.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2)';
+                        this.style.background = 'white';
+                    };
+                    
+                    btn.onmouseleave = function() {
+                        this.style.transform = 'translateY(0) scale(1)';
+                        this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        this.style.background = 'rgba(255, 255, 255, 0.95)';
+                    };
+                    
+                    // Evento de clique
+                    btn.onclick = function() {
+                        console.log('[KAIZEN] Botão clicado:', config.id);                        window.kaizen_evt = config.id;
+                        
+                        // Efeito visual de clique
+                        this.style.transform = 'scale(0.95)';
+                        setTimeout(() => {
+                            this.style.transform = 'scale(1)';
+                        }, 150);
+                    };
+                    
+                    barra.appendChild(btn);
                 });
-                menu.appendChild(btn);
+                
+                // Adicionar ao DOM
+                document.body.appendChild(barra);
+                
+                console.log('[KAIZEN] ✅ Barra de automações injetada com sucesso!');
+                return true;
             }
             
-            // Adicionar ao body
-            document.body.appendChild(menu);
-            console.log('[KAIZEN] Menu SISBAJUD injetado com sucesso');
-            
-            return true;
-        }
+            // Executar a injeção
+            return injetarBarraAutomacoes();
+        ''')
         
-        // Aguardar DOM estar pronto e então injetar
-        if (document.readyState !== 'complete') {
-            console.log('[KAIZEN] Aguardando DOM ficar pronto...');
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    injetarMenuKaizen();
-                }, 1000);
-            });
-            
-            // Fallback se load não disparar
-            if (document.readyState === 'interactive') {
-                setTimeout(function() {
-                    if (!document.getElementById('kaizen_menu_sisbajud')) {
-                        injetarMenuKaizen();
-                    }
-                }, 2000);
-            }
-        } else {
-            injetarMenuKaizen();
-        }
+        print('[KAIZEN] ✅ Barra de automações SISBAJUD injetada com sucesso!')
         
-        // Inicializar listeners Kaizen se ainda não existem
-        if (!window.kaizen_event_flag) {
-            window.kaizen_event_flag = '';
-            const kaizen_events = [
-                'kaizen_minuta_bloqueio_passivo',
-                'kaizen_minuta_endereco_passivo',
-                'kaizen_minuta_bloqueio_ativo',
-                'kaizen_consultar_teimosinha'
-            ];
-            for (let evt of kaizen_events) {
-                window.addEventListener(evt, function(){ 
-                    console.log('[KAIZEN] Evento capturado:', evt);
-                    window.kaizen_event_flag = evt; 
-                });
-            }
-            console.log('[KAIZEN] Event listeners registrados');
-        }
-    ''')
-      # Verificar se o menu foi injetado
-    time.sleep(1)
-    menu_presente = driver.execute_script("return !!document.getElementById('kaizen_menu_sisbajud');")
-    if menu_presente:
-        print('[KAIZEN] ✅ Menu SISBAJUD injetado com sucesso!')
-    else:
-        print('[KAIZEN] ❌ Falha na injeção do menu SISBAJUD')
-    
-    return menu_presente
+    except Exception as e:
+        print(f'[KAIZEN] ❌ Erro ao injetar barra: {e}')
+        import traceback
+        traceback.print_exc()
+        
+    return True
 
 def checar_kaizen_evento(driver):
     flag = driver.execute_script("return window.kaizen_event_flag;")
@@ -338,8 +409,7 @@ def aguardar_tela_minuta_e_injetar_menu(driver):
                 WebDriverWait(driver, 10).until(
                     lambda d: d.execute_script("return document.readyState") == "complete"
                 )
-                
-                # Aguardar elementos específicos do SISBAJUD aparecerem
+                  # Aguardar elementos específicos do SISBAJUD aparecerem
                 for tentativa in range(10):
                     try:
                         # Verificar se elementos típicos da tela de minuta estão presentes
@@ -704,12 +774,12 @@ def _preencher_nome_autor(driver, invertido):
 
 def _verificar_requisicao_endereco(driver):
     """Verifica se é requisição de endereço/informações"""
-    try:
-        return driver.execute_script("""
+    try:        return driver.execute_script("""
             let radio = document.querySelector('mat-radio-button[class*="mat-radio-checked"]');
             return radio && radio.innerText.includes('Requisição de informações');
         """)
-    except:
+    except Exception as e:
+        print(f'[KAIZEN] Erro ao verificar requisição de endereço: {e}')
         return False
 
 def _preencher_teimosinha(driver):
@@ -1110,7 +1180,7 @@ def kaizen_consultar_minuta(driver):
 
 def kaizen_consultar_teimosinha(driver):
     """
-    Preenche o número do processo na tela de consulta de teimosinha do SISBAJUD
+    Navega para a tela de consulta de teimosinha do SISBAJUD, preenche o número do processo
     e clica em "Consultar", carregando os dados de 'dadosatuais.json'.
     """
     print('[KAIZEN] Iniciando Consulta de Teimosinha...')
@@ -1143,124 +1213,304 @@ def kaizen_consultar_teimosinha(driver):
         print('[KAIZEN][ERRO] "numero" do processo não encontrado em dadosatuais.json.')
         return
     
+    # Se numero_processo é uma lista, pegar o primeiro elemento
+    if isinstance(numero_processo, list):
+        numero_processo = numero_processo[0] if numero_processo else ""
+    
+    if not numero_processo:
+        print('[KAIZEN][ERRO] Número do processo vazio.')
+        return
+    
     print(f'[KAIZEN] Consultando Teimosinha para o processo: {numero_processo}')
 
-    # Escape single quotes in numero_processo for JavaScript
-    numero_processo_js = numero_processo.replace("'", "\\\\'")
-
-    js_script = f"""
-        const numeroProcesso = '{numero_processo_js}';
-        let campoProcessoEncontrado = false;
-        let botaoConsultarEncontrado = false;
-        let mensagemRetorno = '';
-
-        console.log('[KAIZEN JS] Iniciando script para consulta teimosinha. Processo:', numeroProcesso);
-
-        // Tentar preencher o campo do número do processo
-        const selectorsProcesso = [
-            'input[formcontrolname="numeroProcesso"]', // Angular
-            'input[data-placeholder="Número do processo"]', // Material com data-placeholder
-            'input[placeholder="Número do Processo"]', // Placeholder genérico
-            'input[placeholder="Nº do processo"]', // Variação placeholder
-            'input[aria-label="Número do processo"]',
-            'input[id*="numeroProcesso"]', 
-            'input[name*="numeroProcesso"]',
-            'input[id^="mat-input-"][placeholder*="Processo"]' // Angular Material common pattern
-        ];
-
-        for (const selector of selectorsProcesso) {{
-            const field = document.querySelector(selector);
-            if (field && field.offsetParent !== null && !field.disabled && !field.readOnly) {{
-                try {{
-                    field.value = ''; // Limpar campo primeiro
-                    field.dispatchEvent(new Event('input', {{ bubbles: true }})); 
-                    field.value = numeroProcesso;
-                    field.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                    field.dispatchEvent(new Event('change', {{ bubbles: true }}));
-                    field.dispatchEvent(new Event('blur', {{ bubbles: true }}));
-                    console.log('[KAIZEN JS] Campo "Número do Processo" preenchido com:', numeroProcesso, 'usando seletor:', selector);
-                    campoProcessoEncontrado = true;
-                    break;
-                }} catch (e) {{
-                    console.error('[KAIZEN JS] Erro ao tentar preencher campo com seletor', selector, e);
-                }}
-            }}
-        }}
-
-        if (!campoProcessoEncontrado) {{
-            mensagemRetorno = 'Campo "Número do Processo" não encontrado ou não interagível.';
-            console.error('[KAIZEN JS]', mensagemRetorno);
-            return {{success: false, message: mensagemRetorno}};
-        }}
-
-        // Aguardar um instante para que o preenchimento seja processado
-        // e o botão Consultar possa ser habilitado/estado da UI atualizado.
-        // Usar uma Promise para garantir que o Selenium espere.
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Tentar clicar no botão "Consultar"
-        const allButtons = Array.from(document.querySelectorAll('button'));
-        let consultarButton = null;
-
-        for (const btn of allButtons) {{
-            if (btn.disabled || btn.offsetParent === null) continue; 
-
-            const buttonText = (btn.innerText || btn.textContent || '').trim().toLowerCase();
-            const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
-            let spanText = '';
-            const spanElement = btn.querySelector('span.mat-button-wrapper') || btn.querySelector('span');
-            if (spanElement) {{
-                spanText = (spanElement.innerText || spanElement.textContent || '').trim().toLowerCase();
-            }}
-            
-            if (buttonText === 'consultar' || 
-                ariaLabel.includes('consultar') || 
-                spanText === 'consultar' ||
-                (btn.matches('button[type="submit"]') && (buttonText.includes('consultar') || spanText.includes('consultar'))) ||
-                (btn.querySelector('mat-icon') && (btn.querySelector('mat-icon').textContent || '').trim() === 'search')
-               ) {{
-                consultarButton = btn;
-                console.log('[KAIZEN JS] Botão "Consultar" encontrado:', btn, 'Texto:', buttonText, 'Span:', spanText, 'Aria:', ariaLabel);
-                break;
-            }}
-        }}
-        
-        if (consultarButton) {{
-            try {{
-                consultarButton.click();
-                botaoConsultarEncontrado = true;
-                mensagemRetorno = 'Botão "Consultar" clicado com sucesso.';
-                console.log('[KAIZEN JS]', mensagemRetorno);
-                return {{success: true, message: mensagemRetorno}};
-            }} catch (e) {{
-                mensagemRetorno = 'Erro ao clicar no botão "Consultar": ' + e.message;
-                console.error('[KAIZEN JS]', mensagemRetorno, e);
-                return {{success: false, message: mensagemRetorno, raw_error: e.toString()}};
-            }}
-        }} else {{
-            mensagemRetorno = 'Botão "Consultar" não encontrado, não visível ou não clicável.';
-            console.error('[KAIZEN JS]', mensagemRetorno);
-            const visibleButtons = Array.from(document.querySelectorAll('button:not([disabled])'))
-                                     .filter(b => b.offsetParent !== null)
-                                     .map(b => `Text: '${{(b.innerText || b.textContent || '').trim()}}', ID: ${{b.id}}, Classes: ${{b.className}}`);
-            console.log('[KAIZEN JS] Botões visíveis e habilitados para depuração:', visibleButtons.join('; '));
-            return {{success: false, message: mensagemRetorno}};
-        }}
-    """
-    
     try:
-        resultado_js = driver.execute_script(js_script) # execute_script handles promises returned by the JS
+        current_url = driver.current_url
+        print(f'[KAIZEN] URL inicial: {current_url}')
         
-        if resultado_js and isinstance(resultado_js, dict) and resultado_js.get('success'):
-            print(f'[KAIZEN] Consulta Teimosinha: {resultado_js.get("message")}')
+        # Verificar se já estamos na página de teimosinha
+        if '/teimosinha' in current_url:
+            print('[KAIZEN] ✅ Já estamos na página de teimosinha, pulando navegação inicial.')
         else:
-            error_message = resultado_js.get("message") if isinstance(resultado_js, dict) else "Resultado inesperado ou falha na execução do script JS."
-            print(f'[KAIZEN][ERRO] Consulta Teimosinha falhou: {error_message}')
-            if isinstance(resultado_js, dict) and 'raw_error' in resultado_js:
-                 print(f'[KAIZEN][ERRO JS Bruto] {resultado_js["raw_error"]}')
+            print('[KAIZEN] Navegando para página de teimosinha...')
+            
+            # Passo 1: Clicar no menu de navegação
+            print('[KAIZEN] Passo 1: Abrindo menu de navegação...')
+            menu_clicado = driver.execute_script("""
+                let btn = document.querySelector('button[aria-label*="menu de navegação"], button[aria-label*="Abri menu de navegação"]');
+                if (btn) {
+                    console.log('[KAIZEN] Menu de navegação encontrado, clicando...');
+                    btn.click();
+                    return true;
+                } else {
+                    console.log('[KAIZEN][ERRO] Menu de navegação não encontrado');
+                    return false;
+                }
+            """)
+            
+            if not menu_clicado:
+                print('[KAIZEN][ERRO] Falha ao clicar no menu de navegação')
+                return
+                
+            time.sleep(0.8)
+            
+            # Passo 2: Ir para Teimosinha
+            print('[KAIZEN] Passo 2: Navegando para Teimosinha...')
+            teimosinha_clicado = driver.execute_script("""
+                let link = document.querySelector('a[aria-label*="Ir para Teimosinha"]');
+                if (link) {
+                    console.log('[KAIZEN] Link Teimosinha encontrado, clicando...');
+                    link.click();
+                    return true;
+                } else {
+                    console.log('[KAIZEN][ERRO] Link Teimosinha não encontrado');
+                    return false;
+                }
+            """)
+            
+            if not teimosinha_clicado:
+                print('[KAIZEN][ERRO] Falha ao clicar no link Teimosinha')
+                return
+                
+            time.sleep(1.5)
+        
+        # Passo 3: Verificar se chegamos na página de teimosinha
+        print('[KAIZEN] Passo 3: Verificando URL de teimosinha...')
+        for tentativa in range(10):
+            current_url = driver.current_url
+            print(f'[KAIZEN] Tentativa {tentativa + 1}/10 - URL atual: {current_url}')
+            
+            if '/teimosinha' in current_url:
+                print('[KAIZEN] ✅ Página de teimosinha detectada!')
+                break
+                
+            time.sleep(1)
+        else:
+            print(f'[KAIZEN][AVISO] Página de teimosinha não detectada após 10 tentativas. URL final: {current_url}')
+            print('[KAIZEN] Tentando continuar mesmo assim...')        
+        # Passo 4: Preencher campo do número do processo usando Python puro (mais robusto)
+        print('[KAIZEN] Passo 4: Preenchendo número do processo com Python/Selenium...')
+        
+        try:
+            # Lista de seletores para tentar encontrar o campo do número do processo
+            seletores_processo = [
+                'input[formcontrolname="numeroProcesso"]',
+                'input[data-placeholder="Número do processo"]',
+                'input[placeholder="Número do Processo"]',
+                'input[placeholder*="Processo"]',
+                'input[placeholder="Nº do processo"]',
+                'input[aria-label="Número do processo"]',
+                'input[id*="numeroProcesso"]',
+                'input[name*="numeroProcesso"]',
+                'input[id^="mat-input-"]'
+            ]
+            
+            campo_encontrado = False
+            for seletor in seletores_processo:
+                try:
+                    # Aguardar até o campo aparecer (máximo 5 segundos)
+                    campo = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+                    )
+                    
+                    # Limpar e preencher o campo
+                    campo.clear()
+                    campo.send_keys(numero_processo)
+                    
+                    # Disparar eventos para Angular/Material
+                    driver.execute_script("""
+                        arguments[0].dispatchEvent(new Event('input', { bubbles: true }));
+                        arguments[0].dispatchEvent(new Event('change', { bubbles: true }));
+                        arguments[0].blur();
+                    """, campo)
+                    
+                    print(f'[KAIZEN] ✅ Campo "Número do Processo" preenchido com: {numero_processo}')
+                    print(f'[KAIZEN] Seletor usado: {seletor}')
+                    campo_encontrado = True
+                    break
+                    
+                except Exception:
+                    continue
+            
+            if not campo_encontrado:
+                print('[KAIZEN][ERRO] Campo "Número do Processo" não encontrado em nenhum seletor')
+                return
+            
+            # Aguardar um pouco para o preenchimento ser processado
+            time.sleep(1)
+            
+            # Passo 5: Encontrar e clicar no botão "Consultar" usando Python puro
+            print('[KAIZEN] Passo 5: Procurando e clicando no botão "Consultar"...')
+            
+            botao_encontrado = False
+            
+            # Primeiro, tentar encontrar por texto usando XPath (mais confiável)
+            try:
+                botao = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Consultar') or contains(.//span/text(), 'Consultar')]"))
+                )
+                botao.click()
+                print('[KAIZEN] ✅ Botão "Consultar" clicado com sucesso (XPath)')
+                botao_encontrado = True
+                
+            except Exception as e:
+                print(f'[KAIZEN] XPath para botão Consultar falhou: {e}')
+                
+                # Fallback: buscar todos os botões e verificar texto
+                try:
+                    botoes = driver.find_elements(By.TAG_NAME, 'button')
+                    for botao in botoes:
+                        if not botao.is_enabled() or not botao.is_displayed():
+                            continue
+                            
+                        texto_botao = botao.get_attribute('innerText') or botao.text or ''
+                        if 'consultar' in texto_botao.lower():
+                            botao.click()
+                            print(f'[KAIZEN] ✅ Botão "Consultar" clicado com sucesso: {texto_botao}')
+                            botao_encontrado = True
+                            break
+                            
+                except Exception as e2:
+                    print(f'[KAIZEN][ERRO] Fallback para botão Consultar também falhou: {e2}')
+            
+            if not botao_encontrado:
+                print('[KAIZEN][ERRO] Botão "Consultar" não encontrado ou não clicável')
+                return
+            
+            # Aguardar a tabela de resultados carregar
+            print('[KAIZEN] Aguardando carregamento da tabela de resultados...')
+            
+            try:
+                # Aguardar tabela aparecer (máximo 15 segundos)
+                WebDriverWait(driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'table, tbody, tr'))
+                )
+                print('[KAIZEN] ✅ Tabela de resultados carregada!')
+                
+                # Aguardar mais um pouco para garantir que os dados foram preenchidos
+                time.sleep(2)
+                
+                # Buscar linhas com "JUN DE 2025"
+                _buscar_linhas_jun_2025(driver)
+                
+            except Exception as e:
+                print(f'[KAIZEN][AVISO] Tabela não detectada no tempo esperado: {e}')
+                print('[KAIZEN] Tentando buscar linhas mesmo assim...')
+                _buscar_linhas_jun_2025(driver)
+                
+        except Exception as e:
+            print(f'[KAIZEN][ERRO] Falha no preenchimento/consulta Python: {e}')
 
     except Exception as e:
-        print(f'[KAIZEN][ERRO] Exceção ao executar script de consulta teimosinha: {e}')
+        print(f'[KAIZEN][ERRO] Exceção ao executar consulta teimosinha: {e}')
+
+def _buscar_linhas_jun_2025(driver):
+    """
+    Busca na tabela de resultados as linhas que contêm "JUN DE 2025"
+    e exibe o ID da série correspondente usando Python puro (mais robusto que JavaScript).
+    """
+    try:
+        print('[KAIZEN] Buscando linhas com "JUN DE 2025" na tabela...')
+        
+        # Buscar todas as tabelas na página
+        tabelas = driver.find_elements(By.TAG_NAME, 'table')
+        
+        if not tabelas:
+            print('[KAIZEN][AVISO] Nenhuma tabela encontrada na página')
+            return
+        
+        print(f'[KAIZEN] Encontradas {len(tabelas)} tabela(s) na página')
+        
+        linhas_encontradas = []
+        
+        for indice_tabela, tabela in enumerate(tabelas):
+            # Buscar todas as linhas da tabela
+            linhas = tabela.find_elements(By.TAG_NAME, 'tr')
+            
+            for indice_linha, linha in enumerate(linhas):
+                try:
+                    texto_linha = linha.text or linha.get_attribute('innerText') or ''
+                    
+                    # Verificar se a linha contém "JUN DE 2025" (case-insensitive)
+                    if 'JUN DE 2025' in texto_linha.upper():
+                        print(f'[KAIZEN] ✅ Linha com "JUN DE 2025" encontrada!')
+                        
+                        # Buscar células da linha para encontrar o ID da série
+                        celulas = linha.find_elements(By.TAG_NAME, 'td') + linha.find_elements(By.TAG_NAME, 'th')
+                        
+                        id_serie = 'ID não encontrado'
+                        
+                        # Verificar cada célula
+                        for indice_celula, celula in enumerate(celulas):
+                            try:
+                                texto_celula = celula.text or celula.get_attribute('innerText') or ''
+                                
+                                # Procurar por padrões de ID (números com 4+ dígitos)
+                                import re
+                                matches = re.findall(r'\b\d{4,}\b', texto_celula)
+                                if matches:
+                                    id_serie = matches[0]  # Pegar o primeiro match
+                                    break
+                                
+                                # Verificar atributos HTML que possam conter ID
+                                if celula.get_attribute('id'):
+                                    id_serie = celula.get_attribute('id')
+                                    break
+                                if celula.get_attribute('data-id'):
+                                    id_serie = celula.get_attribute('data-id')
+                                    break
+                                if celula.get_attribute('data-serie'):
+                                    id_serie = celula.get_attribute('data-serie')
+                                    break
+                                    
+                            except Exception as e:
+                                continue
+                        
+                        # Baseado no HTML fornecido, o ID da série está na primeira coluna
+                        # Vamos tentar pegar especificamente a primeira célula
+                        if id_serie == 'ID não encontrado' and celulas:
+                            try:
+                                primeira_celula = celulas[0]
+                                texto_primeira = primeira_celula.text or primeira_celula.get_attribute('innerText') or ''
+                                # Remove espaços e pega apenas números
+                                id_candidato = ''.join(filter(str.isdigit, texto_primeira))
+                                if id_candidato and len(id_candidato) >= 4:
+                                    id_serie = id_candidato
+                            except Exception:
+                                pass
+                        
+                        resultado = {
+                            'tabela': indice_tabela,
+                            'linha': indice_linha,
+                            'id_serie': id_serie,
+                            'texto_completo': texto_linha.strip()
+                        }
+                        
+                        linhas_encontradas.append(resultado)
+                        
+                except Exception as e:
+                    continue
+        
+        # Exibir resultados
+        if linhas_encontradas:
+            total = len(linhas_encontradas)
+            print(f'[KAIZEN] ✅ Encontradas {total} linha(s) com "JUN DE 2025":')
+            
+            for i, linha in enumerate(linhas_encontradas, 1):
+                id_serie = linha.get('id_serie', 'N/A')
+                texto = linha.get('texto_completo', '')[:150]  # Primeiros 150 caracteres
+                
+                print(f'[KAIZEN] Linha {i}:')
+                print(f'  - ID da Série: {id_serie}')
+                print(f'  - Texto: {texto}...')
+                print('  ---')
+                
+        else:
+            print('[KAIZEN] ❌ Nenhuma linha com "JUN DE 2025" foi encontrada na tabela.')
+            
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Exceção ao buscar linhas JUN DE 2025: {e}')
+        import traceback
+        traceback.print_exc()
 
 def escolher_opcao_sisbajud(driver, seletor, valor):
     try:
@@ -1353,12 +1603,46 @@ def integrar_storage_processo(driver):
     """
     try:
         if processo_dados_extraidos:
-            # Escapar dados para JavaScript
-            numero = processo_dados_extraidos.get("numero", "").replace("'", "\\'").replace('"', '\\"')
-            nome_ativo = processo_dados_extraidos.get("partes", {}).get("ativas", [{}])[0].get("nome", "").replace("'", "\\'").replace('"', '\\"')
-            doc_ativo = processo_dados_extraidos.get("partes", {}).get("ativas", [{}])[0].get("documento", "").replace("'", "\\'").replace('"', '\\"')
-            nome_passivo = processo_dados_extraidos.get("partes", {}).get("passivas", [{}])[0].get("nome", "").replace("'", "\\'").replace('"', '\\"')
-            doc_passivo = processo_dados_extraidos.get("partes", {}).get("passivas", [{}])[0].get("documento", "").replace("'", "\\'").replace('"', '\\"')
+            # Extrair dados de forma segura, tratando listas e valores nulos
+            def safe_extract(data, key, default=""):
+                """Extrai dados de forma segura, convertendo listas para string se necessário"""
+                value = data.get(key, default)
+                if isinstance(value, list):
+                    if value:  # Se a lista não está vazia
+                        return str(value[0]) if value[0] else default
+                    return default
+                return str(value) if value else default
+            
+            def safe_escape(text):
+                """Escapa texto para JavaScript de forma segura"""
+                if not text:
+                    return ""
+                return str(text).replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+            
+            # Extrair número do processo
+            numero = safe_escape(safe_extract(processo_dados_extraidos, "numero"))
+            
+            # Extrair dados do autor
+            autor_list = processo_dados_extraidos.get("autor", [])
+            if autor_list and len(autor_list) > 0:
+                autor_data = autor_list[0]
+                nome_ativo = safe_escape(autor_data.get("nome", ""))
+                doc_ativo = safe_escape(autor_data.get("cpfcnpj", ""))
+            else:
+                nome_ativo = ""
+                doc_ativo = ""
+            
+            # Extrair dados do réu
+            reu_list = processo_dados_extraidos.get("reu", [])
+            if reu_list and len(reu_list) > 0:
+                reu_data = reu_list[0]
+                nome_passivo = safe_escape(reu_data.get("nome", ""))
+                doc_passivo = safe_escape(reu_data.get("cpfcnpj", ""))
+            else:
+                nome_passivo = ""
+                doc_passivo = ""
+            
+            print(f'[KAIZEN] Integrando dados: numero={numero}, autor={nome_ativo}, reu={nome_passivo}')
             
             driver.execute_script(f"""
                 // Simular storage.local.set do JavaScript original
@@ -1374,9 +1658,11 @@ def integrar_storage_processo(driver):
                 
                 console.log("Dados do processo integrados ao storage:", window.processo_memoria);
             """)
-            print('[KAIZEN] Dados do processo integrados ao storage local.')
+            print('[KAIZEN] ✅ Dados do processo integrados ao storage local.')
     except Exception as e:
         print(f'[KAIZEN][ERRO] Falha ao integrar dados do processo: {e}')
+        import traceback
+        traceback.print_exc()
 
 def kaizen_consulta_rapida(driver):
     print('[KAIZEN] Consulta rápida SISBAJUD/PJe')
@@ -1437,183 +1723,688 @@ def dados_login(driver):
             }
         ''')
 
-# ===================== LOOP PRINCIPAL =====================
-def main():
-    driver = driver_pc(headless=False)
-    if not driver:
-        print('[ERRO] Falha ao iniciar o driver.')
-        return
+# ===================== CONFIGURAÇÃO DO DRIVER FIREFOX =====================
+def criar_driver_firefox_sisb():
+    """Cria driver Firefox para SISBAJUD automaticamente - versão otimizada com cookies"""
+    from selenium.webdriver.firefox.options import Options
+    from selenium.webdriver.firefox.service import Service
+    import subprocess
     
-    if not login_pc(driver):
-        print('[ERRO] Falha no login. Encerrando script.')
-        driver.quit()
-        return
+    print('[BACEN][DRIVER] Criando driver Firefox SISBAJUD (versão otimizada com cookies)...')
+    
+    # Tentar primeiro a abordagem simples que funciona
+    try:
+        print('[BACEN][DRIVER] Iniciando Firefox Developer Edition (modo otimizado)...')
+        options = Options()
+        options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+        options.add_argument("--new-instance")
+        options.add_argument("--no-remote")
         
-    print('[BACEN] Login realizado com sucesso (Firefox).')
-    url_teste = 'https://pje.trt2.jus.br/pjekz/processo/2108106/detalhe'
-    print(f'[BACEN] Navegando para a URL de teste: {url_teste}')
-    driver.get(url_teste)
-    time.sleep(3)
-    
-    global processo_dados_extraidos
-    processo_dados_extraidos = extrair_dados_processo(driver, log=True)
-    print('[BACEN] Dados do processo extraídos:', processo_dados_extraidos)
-    
-    # Salvar dados em arquivo temporário para acesso do SISBAJUD
-    salvar_dados_processo_temp()
-    
-    injetar_botoes_pje(driver)
-    bind_eventos(driver)
-    print('[BACEN] Botões injetados na tela de detalhes do processo.')
-    
-    while True:
-        evento = checar_evento(driver)
-        if evento == 'minuta_bloqueio':
-            driver = abrir_sisbajud_em_firefox_sisbajud()
-            break
-        elif evento == 'minuta_endereco':
-            driver = abrir_sisbajud_em_firefox_sisbajud()
-            break
-        elif evento == 'processar_bloqueios':
-            driver = abrir_sisbajud_em_firefox_sisbajud()
-            break
-        time.sleep(1)    # Inicializar componentes SISBAJUD uma única vez
-    dados_login(driver) 
-    monitor_janela_sisbajud(driver)
-    integrar_storage_processo(driver)
-    
-    # Aguardar tela de minuta e injetar menu de forma robusta
-    print('[BACEN] Aguardando tela de minuta para injeção inicial do menu...')
-    menu_injetado = aguardar_tela_minuta_e_injetar_menu(driver)
-    if not menu_injetado:
-        print('[BACEN] ⚠️ Falha na injeção inicial do menu. Tentando injeção básica...')
-        injetar_menu_kaizen_sisbajud(driver)
-    
-    print('[BACEN] Componentes SISBAJUD inicializados. Controle transferido para janela SISBAJUD (perfil Sisb).')
-    
-    # Loop principal para eventos Kaizen no SISBAJUD
-    while True:
+        driver = webdriver.Firefox(options=options)
+        print('[BACEN][DRIVER] ✅ Firefox SISBAJUD iniciado com sucesso!')
+        
+        # Aguardar estabilização
+        time.sleep(1)
+        
+        # Tentar carregar cookies salvos primeiro
+        print('[BACEN][DRIVER] Tentando carregar cookies salvos...')
+        cookies_carregados = carregar_cookies_sisbajud(driver)
+        
+        if cookies_carregados:
+            print('[BACEN][DRIVER] ✅ Cookies carregados! Verificando se login automático funcionou...')
+            
+            # Verificar se já está logado (não está na tela de login)
+            current_url = driver.current_url
+            if not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms']):
+                print('[BACEN][DRIVER] ✅ Login automático realizado com sucesso via cookies!')
+                return driver
+            else:
+                print('[BACEN][DRIVER] ⚠️ Cookies carregados mas ainda na tela de login. Prosseguindo...')
+        else:
+            print('[BACEN][DRIVER] Navegando automaticamente para SISBAJUD...')
+            driver.get('https://sso.cloud.pje.jus.br/auth/realms/pje/protocol/openid-connect/auth?client_id=sisbajud&redirect_uri=https%3A%2F%2Fsisbajud.cnj.jus.br%2F&state=da9cbb01-be67-419d-8f19-f2c067a9e80f&response_mode=fragment&response_type=code&scope=openid&nonce=3d61a8ca-bb98-4924-88f9-9a0cb00f9f0e')
+        
+        return driver
+        
+    except Exception as e:
+        print(f'[BACEN][DRIVER][ERRO] Falha na abordagem otimizada: {e}')
+        
+        # Fallback: tentar com perfil específico apenas se a abordagem simples falhar
         try:
+            print('[BACEN][DRIVER] Tentando com perfil específico como fallback...')
+            perfil_path = r"C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\arrn673i.Sisb"
             
-            kaizen_evt = checar_kaizen_evento(driver)
+            options_perfil = Options()
+            options_perfil.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+            options_perfil.add_argument(f"--profile={perfil_path}")
+            options_perfil.add_argument("--new-instance")
+            options_perfil.add_argument("--no-remote")
             
-            if kaizen_evt == 'kaizen_guardar_senha':
-                kaizen_guardar_senha(driver)
-            elif kaizen_evt == 'kaizen_minuta_bloqueio_passivo':
-                print("[KAIZEN_EVT] Evento: kaizen_minuta_bloqueio_passivo")
-                kaizen_nova_minuta(driver, endereco=False)
-                # Adicionar uma pequena pausa e verificação de URL antes de preencher
-                time.sleep(1) # Pausa para a navegação da nova minuta acontecer
-                if '/minuta/cadastrar' in driver.current_url or '/minuta/nova' in driver.current_url: # Checar se está na tela correta
-                    kaizen_preencher_campos(driver, invertido=False)
-                else:
-                    print(f"[KAIZEN_EVT][ERRO] Após kaizen_nova_minuta, não está na URL esperada para preenchimento. URL atual: {driver.current_url}")
-            elif kaizen_evt == 'kaizen_minuta_endereco_passivo':
-                print("[KAIZEN_EVT] Evento: kaizen_minuta_endereco_passivo")
-                kaizen_nova_minuta(driver, endereco=True)
-                time.sleep(1)
-                if '/minuta/cadastrar' in driver.current_url or '/minuta/nova' in driver.current_url:
-                    kaizen_preencher_campos(driver, invertido=False)
-                else:
-                    print(f"[KAIZEN_EVT][ERRO] Após kaizen_nova_minuta (endereço), não está na URL esperada. URL atual: {driver.current_url}")
-            elif kaizen_evt == 'kaizen_minuta_bloqueio_ativo':
-                print("[KAIZEN_EVT] Evento: kaizen_minuta_bloqueio_ativo")
-                kaizen_nova_minuta(driver, endereco=False)
-                time.sleep(1)
-                if '/minuta/cadastrar' in driver.current_url or '/minuta/nova' in driver.current_url:
-                    kaizen_preencher_campos(driver, invertido=True)
-                else:
-                    print(f"[KAIZEN_EVT][ERRO] Após kaizen_nova_minuta, não está na URL esperada para preenchimento (ativo). URL atual: {driver.current_url}")
-            elif kaizen_evt == 'kaizen_consultar_teimosinha':
-                print("[KAIZEN_EVT] Evento: kaizen_consultar_teimosinha")
-                kaizen_consultar_teimosinha(driver)
-            # Remover os handlers antigos:
-            # elif kaizen_evt == 'kaizen_preencher_campos_invertido':
-            #     kaizen_preencher_campos(driver, invertido=True)
-            # elif kaizen_evt == 'kaizen_preencher_campos':
-            #     kaizen_preencher_campos(driver, invertido=False)
-            # elif kaizen_evt == 'kaizen_nova_minuta_end':
-            #     kaizen_nova_minuta(driver, endereco=True)
-            # elif kaizen_evt == 'kaizen_nova_minuta':
-            #     kaizen_nova_minuta(driver, endereco=False)
-            # elif kaizen_evt == 'kaizen_consultar_minuta':
-            #     kaizen_consultar_minuta(driver)
-            # elif kaizen_evt == 'kaizen_consulta_rapida':
-            #     kaizen_consulta_rapida(driver)
+            driver = webdriver.Firefox(options=options_perfil)
+            print('[BACEN][DRIVER] ✅ Firefox SISBAJUD iniciado com perfil específico!')
+            
+            time.sleep(1)
+            driver.get('https://sso.cloud.pje.jus.br/auth/realms/pje/protocol/openid-connect/auth?client_id=sisbajud&redirect_uri=https%3A%2F%2Fsisbajud.cnj.jus.br%2F&state=da9cbb01-be67-419d-8f19-f2c067a9e80f&response_mode=fragment&response_type=code&scope=openid&nonce=3d61a8ca-bb98-4924-88f9-9a0cb00f9f0e')
+            
+            return driver
+            
+        except Exception as e2:
+            print(f'[BACEN][DRIVER][ERRO] Falha no fallback com perfil: {e2}')
+            print('[BACEN][DRIVER][ERRO] Não foi possível criar o driver SISBAJUD')
+            return None
+
+def aguardar_login_manual_sisbajud(driver):
+    """
+    Aguarda o usuário fazer login manual no SISBAJUD
+    Detecta quando o login foi realizado verificando mudanças na URL ou elementos da página
+    """
+    print('[BACEN] 👤 Aguardando login manual no SISBAJUD...')
+    print('[BACEN] 💡 Faça o login manualmente na janela do SISBAJUD e aguarde.')
+    
+    login_detectado = False
+    tentativas = 0
+    max_tentativas = 300  # 5 minutos (300 * 1 segundo)
+    
+    while not login_detectado and tentativas < max_tentativas:
+        try:
+            current_url = driver.current_url
+            
+            # Verificar se saiu da tela de login (indicadores de login bem-sucedido)
+            indicadores_login_sucesso = [
+                'sisbajud.cnj.jus.br/web/',  # Após login vai para área principal
+                'dashboard',  # Dashboard principal
+                'home',  # Página inicial
+                'minuta',  # Área de minutas
+                'consulta'  # Área de consultas
+            ]
+            
+            # Verificar se não está mais na tela de login
+            if not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms']):
+                # Verificar se há elementos que indicam login bem-sucedido
+                elementos_pos_login = driver.execute_script("""
+                    // Verificar elementos que aparecem após login
+                    let indicadores = [
+                        'button[aria-label*="menu"]',  // Menu principal
+                        'mat-toolbar',  // Barra de ferramentas
+                        '.mat-toolbar',  // Barra superior
+                        '[role="navigation"]',  // Navegação
+                        'sisbajud-home',  // Componente home
+                        'sisbajud-consulta',  // Componentes do SISBAJUD
+                        'sisbajud-minuta'
+                    ];
+                    
+                    for (let seletor of indicadores) {
+                        if (document.querySelector(seletor)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                """)
+                
+                if elementos_pos_login:
+                    login_detectado = True
+                    print(f'[BACEN] ✅ Login detectado! URL atual: {current_url}')
+                    break
+              # Verificar por URLs específicas de sucesso
+            for indicador in indicadores_login_sucesso:
+                if indicador in current_url.lower():
+                    login_detectado = True
+                    print(f'[BACEN] ✅ Login detectado via URL! URL atual: {current_url}')
+                    break
+            
+            if login_detectado:
+                break
                 
         except Exception as e:
-            print(f'[BACEN][ERRO] Erro no loop principal: {e}')
-            
-        time.sleep(3)  # Ciclo de 3 segundos
-
-if __name__ == '__main__':
-    main()
-
-def debug_botao_nova(driver):
-    """
-    Função de debug para analisar o botão Nova na página
-    """
-    print('[KAIZEN][DEBUG] Analisando botões na página...')
-    
-    # Buscar todos os botões e analisar
-    resultado = driver.execute_script("""
-        let botoes = Array.from(document.querySelectorAll('button'));
-        let analise = {
-            total_botoes: botoes.length,
-            botoes_com_nova: [],
-            botoes_mat_fab: [],
-            url_atual: window.location.href,
-            page_ready: document.readyState
-        };
+            print(f'[BACEN][DEBUG] Erro ao verificar login (tentativa {tentativas}): {e}')
         
-        // Analisar cada botão
-        botoes.forEach((btn, index) => {
-            let texto = btn.textContent.trim().toLowerCase();
-            
-            // Botões que contenham "nova"
-            if (texto.includes('nova')) {
-                analise.botoes_com_nova.push({
-                    index: index,
-                    texto: btn.textContent.trim(),
-                    id: btn.id || 'sem-id',
-                    class: btn.className || 'sem-class',
-                    disabled: btn.disabled,
-                    hasDisabledAttr: btn.hasAttribute('disabled'),
-                    ariaLabel: btn.getAttribute('aria-label') || 'sem-aria-label'
-                });
-            }
-            
-            // Botões mat-fab
-            if (btn.hasAttribute('mat-fab') || btn.classList.contains('mat-fab')) {
-                analise.botoes_mat_fab.push({
-                    index: index,
-                    texto: btn.textContent.trim(),
-                    id: btn.id || 'sem-id',
-                    class: btn.className || 'sem-class'
-                });
-            }
-        });
+        tentativas += 1
+        if tentativas % 30 == 0:  # A cada 30 segundos
+            print(f'[BACEN] ⏳ Ainda aguardando login... ({tentativas//30} min)')
         
-        return analise;
-    """)
+        time.sleep(1)  # Aguardar 1 segundo antes da próxima verificação
     
-    print(f'[KAIZEN][DEBUG] URL atual: {resultado["url_atual"]}')
-    print(f'[KAIZEN][DEBUG] Estado da página: {resultado["page_ready"]}')
-    print(f'[KAIZEN][DEBUG] Total de botões: {resultado["total_botoes"]}')
-    print(f'[KAIZEN][DEBUG] Botões mat-fab: {len(resultado["botoes_mat_fab"])}')
-    print(f'[KAIZEN][DEBUG] Botões com "nova": {len(resultado["botoes_com_nova"])}')
-    
-   
-    
-    if resultado["botoes_com_nova"]:
-        print('[KAIZEN][DEBUG] Detalhes dos botões com "nova":')
-        for botao in resultado["botoes_com_nova"]:
-            print(f'[KAIZEN][DEBUG]   - Texto: "{botao["texto"]}"')
-            print(f'[KAIZEN][DEBUG]     ID: {botao["id"]}')
-            print(f'[KAIZEN][DEBUG]     Classe: {botao["class"]}')
-            print(f'[KAIZEN][DEBUG]     Desabilitado: {botao["disabled"]}')
-            print(f'[KAIZEN][DEBUG]     Aria-label: {botao["ariaLabel"]}')
+    if login_detectado:
+        print('[BACEN] ✅ Login manual detectado com sucesso!')
+        
+        # Salvar cookies após login bem-sucedido
+        print('[BACEN] 💾 Salvando cookies para login automático futuro...')
+        try:
+            salvar_cookies_sisbajud(driver)
+        except Exception as e:
+            print(f'[BACEN][ERRO] Falha ao salvar cookies: {e}')
+        
+        return True
     else:
-        print('[KAIZEN][DEBUG] ❌ Nenhum botão com "nova" encontrado!')
+        print('[BACEN] ⚠️ Timeout aguardando login manual (5 minutos). Continuando mesmo assim...')
+        return False
+
+def processar_evento_kaizen(driver_sisbajud, evento):
+    """
+    Processa eventos de automação Kaizen no SISBAJUD
+    """
+    try:
+        print(f'[BACEN][KAIZEN] Processando evento: {evento}')
+        
+        if evento == 'nova_minuta_bloqueio':
+            print('[BACEN][KAIZEN] Executando: Nova minuta de bloqueio')
+            kaizen_nova_minuta(driver_sisbajud, endereco=False)
+            
+        elif evento == 'nova_minuta_endereco':
+            print('[BACEN][KAIZEN] Executando: Nova minuta de endereço')
+            kaizen_nova_minuta(driver_sisbajud, endereco=True)
+            
+        elif evento == 'preencher_campos':
+            print('[BACEN][KAIZEN] Executando: Preencher campos (polo ativo)')
+            kaizen_preencher_campos(driver_sisbajud, invertido=False)
+            
+        elif evento == 'preencher_invertido':
+            print('[BACEN][KAIZEN] Executando: Preencher campos (polo passivo)')
+            kaizen_preencher_campos(driver_sisbajud, invertido=True)
+            
+        elif evento == 'consultar_teimosinha':
+            print('[BACEN][KAIZEN] Executando: Consultar teimosinha')
+            kaizen_consultar_teimosinha(driver_sisbajud)
+            
+        elif evento == 'consultar_minuta':
+            print('[BACEN][KAIZEN] Executando: Consultar minutas')
+            kaizen_consultar_minuta(driver_sisbajud)
+            
+        else:
+            print(f'[BACEN][KAIZEN] Evento desconhecido: {evento}')
+            
+    except Exception as e:
+        print(f'[BACEN][KAIZEN][ERRO] Erro ao processar evento {evento}: {e}')
+        import traceback
+        traceback.print_exc()
+
+# ===================== GERENCIADOR DE DRIVERS SEPARADOS =====================
+
+def executar_driver_pje():
+    """
+    DRIVER 1: PJe - Completamente autônomo
+    Executa login, extração de dados e interface com botão único
+    """
+    print('[DRIVER 1][PJe] === INICIANDO DRIVER PJe ===')
     
-    return resultado
+    try:
+        print('[DRIVER 1] Passo 1: Criando driver PJe...')
+        driver_pje = criar_driver(headless=False)
+        
+        if not driver_pje:
+            print('[DRIVER 1][ERRO] Falha ao iniciar o driver PJe.')
+            return None
+        
+        print('[DRIVER 1] Passo 2: Driver PJe criado com sucesso!')
+        
+        # Login no PJe
+        print('[DRIVER 1] Passo 3: Realizando login no PJe...')
+        if not login_func(driver_pje):
+            print('[DRIVER 1][ERRO] Falha no login PJe.')
+            driver_pje.quit()
+            return None
+        
+        print('[DRIVER 1] Passo 4: Login PJe realizado com sucesso!')
+        
+        # Navegar para URL de teste
+        url_teste = 'https://pje.trt2.jus.br/pjekz/processo/2661854/detalhe'
+        print(f'[DRIVER 1] Passo 5: Navegando para URL: {url_teste}')
+        driver_pje.get(url_teste)
+        time.sleep(3)
+        
+        # Extrair dados do processo
+        print('[DRIVER 1] Passo 6: Extraindo dados do processo...')
+        global processo_dados_extraidos
+        processo_dados_extraidos = extrair_dados_processo(driver_pje)
+        print('[DRIVER 1] Dados extraídos:', processo_dados_extraidos)
+        
+        # Salvar dados para o Driver 2
+        salvar_dados_processo_temp()
+        
+        # Injetar interface
+        print('[DRIVER 1] Passo 7: Injetando interface PJe...')
+        injetar_botao_sisbajud_pje(driver_pje)
+        bind_eventos(driver_pje)
+        
+        print('[DRIVER 1] ✅ PJe pronto! Botão SISBAJUD disponível.')
+        return driver_pje
+        
+    except Exception as e:
+        print(f'[DRIVER 1][ERRO] Erro crítico: {e}')
+        return None
+
+def executar_driver_sisbajud(modo_teste=False):
+    """
+    DRIVER 2: SISBAJUD - Completamente autônomo
+    Pode ser executado independentemente para testes
+    
+    Args:
+        modo_teste (bool): Se True, tenta login automático via AHK se cookies falharem
+    """
+    print('[DRIVER 2][SISBAJUD] === INICIANDO DRIVER SISBAJUD ===')
+    
+    try:
+        print('[DRIVER 2] Passo 1: Criando driver SISBAJUD...')
+        driver_sisbajud = criar_driver_firefox_sisb()
+        
+        if not driver_sisbajud:
+            print('[DRIVER 2][ERRO] Falha ao criar driver SISBAJUD.')
+            return None
+        
+        print('[DRIVER 2] Passo 2: Driver SISBAJUD criado com sucesso!')
+        
+        # Verificar login automático via cookies
+        current_url = driver_sisbajud.current_url
+        ja_logado = not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms'])
+        
+        if ja_logado:
+            print('[DRIVER 2] ✅ Login automático detectado via cookies!')
+        else:
+            print('[DRIVER 2] Passo 3: Preparando login manual...')
+            
+            # Injetar dados de login
+            dados_login(driver_sisbajud)
+            
+            # TEMPORARIAMENTE DESABILITADO: Login AHK
+            # if modo_teste:
+            #     if tentar_login_automatico_ahk(driver_sisbajud):
+            #         print('[DRIVER 2] ✅ Login automático via AHK realizado!')
+            #     else:
+            #         print('[DRIVER 2] ⚠️ Login AHK falhou. Aguardando login manual...')
+            #         aguardar_login_manual_sisbajud(driver_sisbajud)
+            # else:
+            
+            print('[DRIVER 2] 👤 Aguardando login manual...')
+            aguardar_login_manual_sisbajud(driver_sisbajud)
+        
+        print('[DRIVER 2] Passo 4: Inicializando componentes SISBAJUD...')
+        
+        # Carregar dados do processo (se disponíveis)
+        carregar_dados_processo_temp()
+        
+        # Inicializar componentes
+        monitor_janela_sisbajud(driver_sisbajud)
+        integrar_storage_processo(driver_sisbajud)
+        
+        # Injetar barra de automações
+        print('[DRIVER 2] Passo 5: Injetando barra de automações...')
+        injetar_menu_kaizen_sisbajud(driver_sisbajud)
+        
+        print('[DRIVER 2] ✅ SISBAJUD pronto! Barra de automações ativa.')
+        return driver_sisbajud
+        
+    except Exception as e:
+        print(f'[DRIVER 2][ERRO] Erro crítico: {e}')
+        import traceback
+        traceback.print_exc()
+        return None
+
+def carregar_dados_processo_temp():
+    """Carrega dados do processo salvos pelo Driver 1"""
+    global processo_dados_extraidos
+    try:
+        import os
+        project_path = os.path.dirname(os.path.abspath(__file__))
+        dados_path = os.path.join(project_path, 'dadosatuais.json')
+        
+        if os.path.exists(dados_path):
+            with open(dados_path, 'r', encoding='utf-8') as f:
+                processo_dados_extraidos = json.load(f)
+            print('[DRIVER 2] Dados do processo carregados:', processo_dados_extraidos)
+        else:
+            print('[DRIVER 2][AVISO] Nenhum dado de processo encontrado.')
+    except Exception as e:
+        print(f'[DRIVER 2][ERRO] Falha ao carregar dados: {e}')
+
+def monitorar_driver_sisbajud(driver_sisbajud):
+    """
+    Loop de monitoramento exclusivo do Driver 2
+    Processa todos os eventos de automação
+    """
+    print('[DRIVER 2] 🔄 Iniciando monitoramento de eventos...')
+    
+    try:
+        while True:
+            # Verificar eventos de automação
+            evento_kaizen = driver_sisbajud.execute_script("""
+                return window.kaizen_evt || null;
+            """)
+            
+            if evento_kaizen:
+                print(f'[DRIVER 2] 🔧 Evento detectado: {evento_kaizen}')
+                processar_evento_kaizen(driver_sisbajud, evento_kaizen)
+                # Limpar evento
+                driver_sisbajud.execute_script("window.kaizen_evt = null;")
+            
+            time.sleep(1)
+            
+    except KeyboardInterrupt:
+        print('[DRIVER 2] ⚠️ Monitoramento interrompido pelo usuário.')
+    except Exception as e:
+        print(f'[DRIVER 2][ERRO] Erro no monitoramento: {e}')
+
+# ===================== FUNÇÃO PRINCIPAL REORGANIZADA =====================
+
+def main():
+    """
+    Função principal com drivers separados
+    Permite execução independente ou conjunta
+    """
+    print('[BACEN] === INICIANDO SISTEMA BACEN.PY ===')
+    print('[BACEN] Escolha o modo de execução:')
+    print('[BACEN] 1. Ambos os drivers (modo completo)')
+    print('[BACEN] 2. Apenas Driver SISBAJUD (modo teste)')
+    
+    # Para desenvolvimento/teste: forçar modo SISBAJUD apenas
+    modo = input('[BACEN] Digite 1 ou 2 (Enter = modo completo): ').strip()
+    
+    if modo == '2':
+        # MODO TESTE: Apenas Driver SISBAJUD
+        print('[BACEN] 🧪 MODO TESTE: Executando apenas Driver SISBAJUD')
+        driver_sisbajud = executar_driver_sisbajud()
+        
+        if driver_sisbajud:
+            print('[BACEN] 💡 Use os botões da barra inferior para testar automações.')
+            monitorar_driver_sisbajud(driver_sisbajud)
+        
+    else:
+        # MODO COMPLETO: Ambos os drivers
+        print('[BACEN] 🔄 MODO COMPLETO: Executando ambos os drivers')
+        
+        # Executar Driver 1 (PJe)
+        driver_pje = executar_driver_pje()
+        if not driver_pje:
+            print('[BACEN][ERRO] Falha no Driver PJe. Encerrando.')
+            return
+        
+        driver_sisbajud = None
+        
+        # Loop de aguardar evento do Driver 1
+        print('[BACEN] Aguardando clique no botão SISBAJUD...')
+        while True:
+            evento = checar_evento(driver_pje)
+            
+            if evento == 'abrir_sisbajud':
+                print('[BACEN] 🏦 Acionando Driver SISBAJUD...')
+                driver_sisbajud = executar_driver_sisbajud()
+                
+                if driver_sisbajud:
+                    print('[BACEN] ✅ Ambos os drivers ativos!')
+                    # Monitorar apenas o Driver 2 daqui em diante
+                    monitorar_driver_sisbajud(driver_sisbajud)
+                    break
+            
+            time.sleep(1)
+    
+    print('[BACEN] Sistema finalizado.')
+
+def main_sisbajud_apenas():
+    """
+    Função para testar apenas o SISBAJUD (desenvolvimento)
+    """
+    print('[BACEN] 🧪 MODO DESENVOLVIMENTO: Apenas SISBAJUD')
+    
+    driver_sisbajud = executar_driver_sisbajud()
+    if driver_sisbajud:
+        print('[BACEN] 💡 Testando automações no SISBAJUD...')
+        monitorar_driver_sisbajud(driver_sisbajud)
+
+def obter_caminho_autohotkey():
+    """
+    Extrai o caminho do executável do AutoHotkey do driver_config.py
+    
+    Returns:
+        str: Caminho do executável do AutoHotkey ou None se não encontrado
+    """
+    import re
+    import os
+    
+    try:
+        # Ler o arquivo driver_config.py
+        config_path = os.path.join(os.path.dirname(__file__), 'driver_config.py')
+        if not os.path.exists(config_path):
+            print(f'[CONFIG] ❌ Arquivo driver_config.py não encontrado: {config_path}')
+            return None
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            conteudo = f.read()
+        
+        # Procurar pelo caminho do AutoHotkey usando regex
+        # Procura por padrões como: "C:\\Program Files\\AutoHotkey\\AutoHotkey.exe"
+        padrao = r'["\']([C-Z]:\\[^"\']*AutoHotkey[^"\']*\.exe)["\']'
+        matches = re.findall(padrao, conteudo, re.IGNORECASE)
+        
+        if matches:
+            # Pegar o primeiro match encontrado
+            caminho_ahk = matches[0]
+            print(f'[CONFIG] ✅ Caminho do AutoHotkey encontrado: {caminho_ahk}')
+            return caminho_ahk
+        else:
+            print('[CONFIG] ❌ Caminho do AutoHotkey não encontrado no driver_config.py')
+            return None
+            
+    except Exception as e:
+        print(f'[CONFIG] ❌ Erro ao ler driver_config.py: {e}')
+        return None
+
+def tentar_login_automatico_ahk(driver_sisbajud):
+    """
+    Tenta login automático no SISBAJUD usando APENAS loginsisb.ahk
+    Versão simplificada focada em um único arquivo funcional
+    
+    Args:
+        driver_sisbajud: Driver do Firefox para SISBAJUD
+        
+    Returns:
+        bool: True se login foi bem-sucedido, False caso contrário
+    """
+    import subprocess
+    import time
+    import os
+    
+    try:
+        # Usar APENAS o arquivo loginsisb.ahk
+        script_ahk = os.path.join(os.path.dirname(__file__), 'loginsisb.ahk')
+        
+        if not os.path.exists(script_ahk):
+            print(f'[AHK] ❌ Script loginsisb.ahk não encontrado: {script_ahk}')
+            return False
+        
+        print('[AHK] ✅ Usando loginsisb.ahk (versão humanizada)')
+        print('[AHK] 🤖 Executando script de login automático...')
+        
+        # Garantir que a janela do Firefox esteja em foco
+        driver_sisbajud.switch_to.window(driver_sisbajud.current_window_handle)
+        
+        # Tentar focar no campo CPF (cursor deve estar lá)
+        try:
+            print('[AHK] 🎯 Preparando campo para digitação...')
+            driver_sisbajud.execute_script("""
+                // Tentar focar no primeiro campo de input visível
+                let campos = document.querySelectorAll('input[type="text"], input[type="email"], input[name*="cpf"], input[placeholder*="CPF"]');
+                for (let campo of campos) {
+                    if (campo.offsetParent !== null && !campo.disabled) {
+                        campo.focus();
+                        campo.click();
+                        console.log('Campo focado:', campo);
+                        break;
+                    }
+                }
+            """)
+            time.sleep(0.5)
+        except Exception as e:
+            print(f'[AHK] ⚠️ Não foi possível focar campo via JS: {e}')
+        
+        # Obter caminho do AutoHotkey
+        ahk_exe = obter_caminho_autohotkey()
+        
+        if not ahk_exe:
+            # Fallback para o caminho padrão
+            ahk_exe = r"C:\Program Files\AutoHotkey\AutoHotkey.exe"
+            print(f'[AHK] ⚠️ Usando caminho padrão: {ahk_exe}')
+        
+        # Verificar se o executável existe
+        if not os.path.exists(ahk_exe):
+            print(f'[AHK] ❌ AutoHotkey não encontrado: {ahk_exe}')
+            print('[AHK] 💡 Instale o AutoHotkey de: https://autohotkey.com/')
+            return False
+        
+        # Executar o script AHK
+        try:
+            print(f'[AHK] 🚀 Executando: {ahk_exe} {script_ahk}')
+            print('[AHK] ⏳ O script irá:')
+            print('[AHK]    1. Aguardar 2 segundos')
+            print('[AHK]    2. Digitar CPF onde estiver o cursor')
+            print('[AHK]    3. Pressionar Tab para ir ao campo senha')
+            print('[AHK]    4. Digitar a senha')
+            print('[AHK]    5. Pressionar Enter para enviar')
+            
+            resultado = subprocess.run(
+                [ahk_exe, script_ahk],
+                timeout=60,  # 60 segundos para comportamento humanizado
+                capture_output=True,
+                text=True
+            )
+            
+            if resultado.returncode == 0:
+                print('[AHK] ✅ Script AHK executado com sucesso!')
+            else:
+                print(f'[AHK] ⚠️ Script terminou com código: {resultado.returncode}')
+                if resultado.stderr:
+                    print(f'[AHK] Stderr: {resultado.stderr}')
+                if resultado.stdout:
+                    print(f'[AHK] Stdout: {resultado.stdout}')
+                    
+        except subprocess.TimeoutExpired:
+            print('[AHK] ⏰ Timeout: Script AHK demorou mais que 60 segundos')
+            return False
+        except FileNotFoundError:
+            print(f'[AHK] ❌ Não foi possível executar: {ahk_exe}')
+            return False
+        except Exception as e:
+            print(f'[AHK] ❌ Erro ao executar script: {e}')
+            return False
+        
+        # Aguardar processamento do login (tempo para página responder)
+        print('[AHK] ⏳ Aguardando resposta do login...')
+        time.sleep(8)  # Tempo maior para comportamento humanizado
+        
+        # Verificar se o login foi bem-sucedido
+        try:
+            current_url = driver_sisbajud.current_url
+            print(f'[AHK] 🔍 URL atual: {current_url}')
+            
+            # Verificar se saiu da página de login
+            login_indicators = ['login', 'auth', 'realms', 'signin']
+            ainda_na_tela_login = any(indicador in current_url.lower() for indicador in login_indicators)
+            
+            if not ainda_na_tela_login:
+                print('[AHK] ✅ Login automático realizado com sucesso!')
+                
+                # Salvar cookies para próximas sessões
+                try:
+                    salvar_cookies_sisbajud(driver_sisbajud)
+                    print('[AHK] 💾 Cookies salvos para login futuro')
+                except Exception as e:
+                    print(f'[AHK] ⚠️ Falha ao salvar cookies: {e}')
+                
+                return True
+            else:
+                print('[AHK] ❌ Ainda na tela de login. Verificando possíveis erros...')
+                
+                # Verificar mensagens de erro
+                try:
+                    erros = driver_sisbajud.execute_script("""
+                        let erros = [];
+                        let seletores = ['.error', '.alert-danger', '.invalid-feedback', '[class*="error"]', '.text-danger'];
+                        seletores.forEach(seletor => {
+                            document.querySelectorAll(seletor).forEach(el => {
+                                if (el.textContent.trim()) {
+                                    erros.push(el.textContent.trim());
+                                }
+                            });
+                        });
+                        return erros.join('; ');
+                    """)
+                    
+                    if erros:
+                        print(f'[AHK] ❌ Erro detectado na página: {erros}')
+                    else:
+                        print('[AHK] ❌ Login falhou mas sem mensagem de erro específica')
+                        
+                except Exception as e:
+                    print(f'[AHK] ⚠️ Não foi possível verificar erros: {e}')
+                
+                return False
+                
+        except Exception as e:
+            print(f'[AHK] ❌ Erro ao verificar status do login: {e}')
+            return False
+            
+    except Exception as e:
+        print(f'[AHK] ❌ Erro geral: {e}')
+        return False
+
+
+def main_teste_sisbajud():
+    """
+    Main de teste para executar apenas o SISBAJUD com login automático
+    
+    Este main permite testar o Driver 2 (SISBAJUD) de forma completamente
+    autônoma, incluindo tentativa de login automático via AHK.
+    """
+    print('=' * 60)
+    print('🧪 MODO TESTE: SISBAJUD AUTÔNOMO COM LOGIN AUTOMÁTICO')
+    print('=' * 60)
+    print()
+    
+    print('Este modo irá:')
+    print('1. ✅ Iniciar apenas o Driver 2 (SISBAJUD)')
+    print('2. 🤖 Tentar login automático via cookies')
+    print('3. 🔧 Se falhar, tentar login automático via AHK')
+    print('4. 👤 Se falhar, permitir login manual')
+    print('5. 🚀 Inicializar todas as automações do SISBAJUD')
+    print()
+    
+    confirmar = input('Deseja prosseguir com o teste? (s/n): ').lower().strip()
+    
+    if confirmar != 's':
+        print('❌ Teste cancelado pelo usuário.')
+        return
+    
+    print()
+    print('🚀 Iniciando teste do SISBAJUD...')
+    
+    try:
+        # Executar o Driver 2 em modo teste (com login AHK)
+        driver_sisbajud = executar_driver_sisbajud(modo_teste=True)
+        
+        if driver_sisbajud:
+            print()
+            print('✅ Driver SISBAJUD iniciado com sucesso!')
+            print('🔄 Monitoramento ativo. O driver continuará rodando...')
+            print('💡 Pressione Ctrl+C para encerrar.')
+            
+            # Monitorar o driver
+            monitorar_driver_sisbajud(driver_sisbajud)
+            
+        else:
+            print('❌ Falha ao iniciar o Driver SISBAJUD.')
+            
+    except KeyboardInterrupt:
+        print('\n⏹️ Teste interrompido pelo usuário.')
+    except Exception as e:
+        print(f'\n❌ Erro durante o teste: {e}')
+        import traceback
+        traceback.print_exc()
+
+
+# Execução principal
+if __name__ == "__main__":
+    # Verificar se deve executar o teste do SISBAJUD
+    import sys
+    
+    if len(sys.argv) > 1 and sys.argv[1].lower() in ['teste', 'test', 'sisbajud']:
+        main_teste_sisbajud()
+    else:
+        main()

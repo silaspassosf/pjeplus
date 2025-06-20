@@ -1,62 +1,84 @@
 // ==UserScript==
 // @name         Triagem Petição Inicial Trabalhista - Zona Sul SP
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Análise automática de petição inicial trabalhista conforme roteiro do TRT2 Zona Sul SP
-// @author       GPT-4
-// @match        *://*/*
+// @version      3.2
+// @description  Análise automatizada de petição inicial trabalhista para competência territorial e valor da causa
+// @author       Assistente
+// @match        https://pje.trt2.jus.br/*
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
     
-    console.log('Script Triagem PJe carregado');
-
-    // Carrega pdf.js se necessário
+    // Carrega PDF.js
     function loadPdfJs(callback) {
         if (window.pdfjsLib) return callback();
         let script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
         script.onload = callback;
         document.head.appendChild(script);
-    }    let textoExtraidoGlobal = '';
+    }
 
-    // Cria interface principal
+    let textoExtraidoGlobal = '';
+
     function createUI() {
-        console.log('Tentando criar interface...');
+        console.log('Criando interface...');
         
-        // Remove interface existente
         let existing = document.getElementById('trg-peticao-root');
-        if (existing) {
-            existing.remove();
-            console.log('Interface existente removida');
+        if (existing) existing.remove();
+        
+        let selectors = [
+            'i.fa.fa-plus-circle.icone-acoes-cadastro',
+            'i.fa-plus-circle.icone-acoes-cadastro', 
+            'i.icone-acoes-cadastro',
+            'i.fa.fa-plus-circle',
+            '[class*="icone-acoes-cadastro"]'
+        ];
+        
+        let acaoIcon = null;
+        for (let selector of selectors) {
+            acaoIcon = document.querySelector(selector);
+            if (acaoIcon) {
+                console.log('Icone encontrado:', selector);
+                break;
+            }
         }
         
         let root = document.createElement('div');
         root.id = 'trg-peticao-root';
         
-        // Posiciona no lado direito, centro da tela (região do retângulo verde)
-        root.style = 'position:fixed;bottom:50px;right:20px;z-index:99999;background:#1e3a8a;color:white;border:2px solid #1e40af;border-radius:8px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.18);font-family:Segoe UI,Arial,sans-serif;max-width:420px;box-sizing:border-box;';
-        document.body.appendChild(root);
-        console.log('Interface inserida na região direita (centro)');
-          root.innerHTML = `
-            <div style="background:#1e3a8a;margin:-16px;padding:16px;border-radius:8px;">
-                <b style="font-size:18px;color:white;">Triagem Petição Inicial - Zona Sul SP</b>
-                <button id="trg-close" style="background:#dc2626;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;float:right;margin-top:-5px;">Fechar</button>
+        if (acaoIcon) {
+            root.style = 'position:absolute;right:100%;top:0;margin-right:20px;z-index:10000;background:#1e3a8a !important;color:white;border:2px solid #1e40af;border-radius:8px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.18);font-family:Segoe UI,Arial,sans-serif;max-width:400px;min-width:350px;box-sizing:border-box;pointer-events:auto;';
+            
+            let parentElement = acaoIcon.parentElement;
+            if (getComputedStyle(parentElement).position === 'static') {
+                parentElement.style.position = 'relative';
+            }
+            
+            parentElement.appendChild(root);
+            console.log('Interface inserida a esquerda do icone');
+        } else {
+            root.style = 'position:fixed;top:30px;right:30px;z-index:99999;background:#1e3a8a !important;color:white;border:2px solid #1e40af;border-radius:8px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,0.18);font-family:Segoe UI,Arial,sans-serif;max-width:420px;box-sizing:border-box;pointer-events:auto;';
+            document.body.appendChild(root);
+            console.log('Interface em posicao fixa (fallback)');
+        }
+        
+        root.innerHTML = `
+            <div style="background:#1e3a8a !important;border-radius:8px;padding:16px;box-sizing:border-box;">
+                <b style="font-size:18px;color:white;display:block;margin-bottom:5px;">Triagem Petição Inicial - Zona Sul SP</b>
+                <button id="trg-close" style="background:#dc2626;color:white;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;float:right;margin-top:-30px;">Fechar</button>
                 <div style="clear:both;margin-top:10px;"></div>
                 <div id="trg-status" style="margin:10px 0 12px 0;color:#e5e7eb;">Aguardando upload do PDF...</div>
-                <input type="file" id="trg-file" accept="application/pdf" style="margin-bottom:10px;width:100%;padding:8px;border-radius:4px;border:1px solid #3b82f6;background:white;color:black;">
-                <button id="trg-save-txt" style="display:none;margin-bottom:8px;background:#3b82f6;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;width:100%;">Salvar texto extraído (.txt)</button>
+                <input type="file" id="trg-file" accept="application/pdf" style="margin-bottom:10px;width:100%;padding:8px;border-radius:4px;border:1px solid #3b82f6;background:white;color:black;box-sizing:border-box;">
+                <button id="trg-save-txt" style="display:none;margin-bottom:8px;background:#3b82f6;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;width:100%;box-sizing:border-box;">Salvar texto extraído (.txt)</button>
                 <div id="trg-progress" style="margin:8px 0 8px 0;font-size:13px;color:#bfdbfe;"></div>
-                <div id="trg-table" style="color:white;"></div>
+                <div id="trg-table" style="color:white;background:#1e3a8a !important;"></div>
             </div>
         `;
         
-        // Adiciona evento de fechar
-        document.getElementById('trg-close').onclick = function() {
-            root.remove();
-        };        // Adiciona evento de upload
+        document.getElementById('trg-close').onclick = function() { root.remove(); };
+        
         document.getElementById('trg-file').onchange = async function() {
             let file = this.files[0];
             if (!file) return;
@@ -113,57 +135,30 @@
         console.log('Interface criada com sucesso!');
     }
 
-    // Função para tentar criar interface
     function tryCreateInterface() {
-        if (!document.getElementById('trg-peticao-root')) {
-            createUI();
-            return true;
+        if (document.getElementById('trg-peticao-root')) return true;
+        
+        let selectors = [
+            'i.fa.fa-plus-circle.icone-acoes-cadastro',
+            'i.fa-plus-circle.icone-acoes-cadastro',
+            'i.icone-acoes-cadastro',
+            'i.fa.fa-plus-circle'
+        ];
+        
+        for (let selector of selectors) {
+            if (document.querySelector(selector)) {
+                console.log('Icone encontrado, criando interface...');
+                createUI();
+                return true;
+            }
         }
         return false;
     }
 
-    // Execução principal
-    loadPdfJs(() => {
-        console.log('PDF.js carregado, iniciando detecção...');
-        
-        // Tenta criar imediatamente
-        if (!tryCreateInterface()) {
-            console.log('Ícone não encontrado, observando mudanças no DOM...');
-            
-            let observer = new MutationObserver(() => {
-                if (tryCreateInterface()) {
-                    console.log('Interface criada após mudança no DOM');
-                    observer.disconnect();
-                }
-            });
-            
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            
-            // Para de observar após 10 segundos
-            setTimeout(() => {
-                observer.disconnect();
-                console.log('Parou de observar DOM, adicionando ativação manual');
-            }, 10000);
-        }
-        
-        // Ativação manual com Ctrl+Shift+T
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
-                console.log('Ativação manual detectada');
-                createUI();
-            }
-        });
-    });
-    
-        // Utilitário: normaliza CEP
     function normalizarCEP(cep) {
         return cep.replace(/[^0-9]/g, '');
     }
 
-    // Utilitário: valida CEP nos intervalos da Zona Sul
     function validarCEP(cep) {
         const n = parseInt(cep, 10);
         if (cep.length !== 8 || isNaN(n)) return false;
@@ -176,7 +171,6 @@
         return faixas.some(([ini, fim]) => n >= ini && n <= fim);
     }
 
-    // Função para extrair texto do PDF
     async function extrairTextoPDF(file, onProgress) {
         return new Promise((resolve, reject) => {
             let reader = new FileReader();
@@ -200,11 +194,8 @@
         });
     }
 
-    // Análise de CEP
     function analisarCompetenciaTerritorial(texto) {
         let ceps_do_reclamante = [];
-        let ceps_ignorados = [];
-        
         let contextos_reclamante = [
             /reclamante[\s\S]{0,300}?CEP:?\s*(\d{5}\s?-?\s?\d{3})/gi,
             /residente[\s\S]{0,100}?CEP:?\s*(\d{5}\s?-?\s?\d{3})/gi,
@@ -218,7 +209,6 @@
             while ((match = regex.exec(texto)) !== null) {
                 let cep = normalizarCEP(match[1]);
                 ceps_do_reclamante.push(cep);
-                ceps_ignorados.push({cep, contexto: match[0].trim().slice(0, 120)});
             }
         }
         
@@ -270,86 +260,62 @@
         
         let alerta = null, trecho = '';
         if (ceps_finais.length === 0) {
-            alerta = '🔔 Não há indicação clara do local da prestação dos serviços (CEP não encontrado ou apenas do reclamante).';
+            alerta = 'Não há indicação clara do local da prestação dos serviços (CEP não encontrado ou apenas do reclamante).';
         } else {
             let valido = ceps_finais.some(cep => validarCEP(cep));
             if (!valido) {
-                alerta = '🔔 O(s) CEP(s) encontrado(s) não estão dentro da jurisdição da Zona Sul de São Paulo.';
+                alerta = 'O(s) CEP(s) encontrado(s) não estão dentro da jurisdição da Zona Sul de São Paulo.';
                 trecho = ceps_finais.join(', ');
             } else {
-                alerta = '✅ CEP(s) dentro da jurisdição da Zona Sul de São Paulo.';
+                alerta = 'CEP(s) dentro da jurisdição da Zona Sul de São Paulo.';
                 trecho = ceps_finais.join(', ');
             }
         }
         
-        return {alerta: alerta || '✅ Análise de CEP concluída.', trecho, detalhe};
-    }    // Análise de Valor da Causa
+        return {alerta: alerta || 'Análise de CEP concluída.', trecho, detalhe};
+    }
+
     function analisarValorCausa(texto) {
         let valorCapa = (texto.match(/valor da causa[^\d]{0,20}([\d\.,]+)/i) || [])[1];
+        let pedidos = [...texto.matchAll(/R\$\s?([\d\.]+,[\d]{2})/g)].map(m => parseFloat(m[1].replace(/\./g, '').replace(',', '.')));
+        let soma = pedidos.reduce((a, b) => a + b, 0);
         
-        // Busca pelo valor total dos pedidos no final da petição
         let valorTotal = null;
-        let contextoValorTotal = '';
-        
-        // Padrões para encontrar o valor total dos pedidos
-        let padroes = [
-            /total\s+devido\s+líquido[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i,
-            /total\s+bruto\s+estimado[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i,
-            /total\s+(dos\s+)?pedidos[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i,
-            /valor\s+total[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i,
-            /total\s+(das\s+)?verbas[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i,
-            /valor\s+(das\s+)?verbas[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i,
-            /(total|valor)\s+(estimado|requerido|devido)[^\d]{0,50}R\$\s?([\d\.]+,[\d]{2})/i
-        ];
-        
-        for (let padrao of padroes) {
-            let match = texto.match(padrao);
-            if (match) {
-                let valor = match[match.length - 1]; // Pega o último grupo capturado (o valor)
-                valorTotal = parseFloat(valor.replace(/\./g, '').replace(',', '.'));
-                contextoValorTotal = match[0].trim().slice(0, 80);
-                break;
-            }
+        let regexTotal = /(pedido[s]?|dos pedidos|dos PEDIDOS)[\s\S]{0,400}?(total (apurado|geral|final|dos pedidos|requerido|devidos|valores totais|R\$)[\s\S]{0,40}?([\d\.]+,[\d]{2}))/i;
+        let matchTotal = texto.match(regexTotal);
+        if (matchTotal) {
+            let matchValor = matchTotal[0].match(/R\$\s?([\d\.]+,[\d]{2})/);
+            if (matchValor) valorTotal = parseFloat(matchValor[1].replace(/\./g, '').replace(',', '.'));
         }
         
         let detalhe = '';
         if (valorCapa) detalhe += `Valor da causa (capa): R$ ${valorCapa}\n`;
-        if (valorTotal) {
-            detalhe += `Valor total encontrado: R$ ${valorTotal.toFixed(2)}\n`;
-            detalhe += `Contexto: "${contextoValorTotal}"\n`;
-        }
+        if (pedidos.length > 0) detalhe += `Valores discriminados: ${pedidos.length} itens, soma: R$ ${soma.toFixed(2)}\n`;
+        if (valorTotal) detalhe += `Valor total ao final: R$ ${valorTotal.toFixed(2)}\n`;
         
         let alerta = null, trecho = '';
         if (!valorCapa && !valorTotal) {
-            alerta = '🔔 Valor da causa não informado na capa nem valor total dos pedidos encontrado na petição.';
-        } else if (!valorTotal) {
-            alerta = '🔔 Valor total dos pedidos não encontrado na petição.';
-            trecho = valorCapa ? `Apenas valor da causa: R$ ${valorCapa}` : '';
-        } else if (!valorCapa) {
-            alerta = '🔔 Valor da causa não informado na capa.';
-            trecho = `Valor total dos pedidos: R$ ${valorTotal.toFixed(2)}`;
+            alerta = 'Valor da causa não informado na capa nem valor total ao final da petição.';
+        } else if (pedidos.length > 0 && valorTotal && Math.abs(soma - valorTotal) > 10) {
+            alerta = 'Divergência significativa entre a soma dos pedidos e o valor total ao final da petição (> R$ 10,00).';
+            trecho = `Valor total ao final: R$ ${valorTotal.toFixed(2)}, Soma dos pedidos: R$ ${soma.toFixed(2)}`;
         } else {
-            // Compara valor da capa com total dos pedidos
-            let valorCapaNum = parseFloat(valorCapa.replace(/\./g, '').replace(',', '.'));
-            let diferenca = Math.abs(valorCapaNum - valorTotal);
-            
-            if (diferenca > valorCapaNum * 0.1) { // Diferença maior que 10%
-                alerta = '🔔 Divergência significativa entre valor da causa e valor total dos pedidos (> 10%).';
-                trecho = `Valor da capa: R$ ${valorCapa}, Total dos pedidos: R$ ${valorTotal.toFixed(2)}`;
-            } else {
-                alerta = '✅ Valores verificados - valor da causa compatível com total dos pedidos.';
-                trecho = `Valor da capa: R$ ${valorCapa}, Total dos pedidos: R$ ${valorTotal.toFixed(2)}`;
+            alerta = 'Valores verificados - sem divergências significativas.';
+            if (valorCapa && valorTotal) {
+                trecho = `Valor da capa: R$ ${valorCapa}, Valor total: R$ ${valorTotal.toFixed(2)}`;
+            } else if (valorCapa) {
+                trecho = `Valor da causa: R$ ${valorCapa}`;
             }
         }
         
-        return {alerta: alerta || '✅ Análise de valores concluída.', trecho, detalhe};
+        return {alerta: alerta || 'Análise de valores concluída.', trecho, detalhe};
     }
 
-    // Mapeamento das análises
     const analises = [
         {nome: 'Competência Territorial (CEP)', func: analisarCompetenciaTerritorial},
         {nome: 'Valor da Causa', func: analisarValorCausa}
-    ];    // Cria tabela de alertas
+    ];
+
     function mostrarTabelaAlertas(alertas) {
         let html = `<table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:10px;background:#1e3a8a !important;">
             <tr style="background:#1e40af !important;color:white;">
@@ -371,6 +337,56 @@
         }
         html += `</table>`;
         document.getElementById('trg-table').innerHTML = html;
+    }
+
+    // Execução principal com aguardo de carregamento
+    function iniciar() {
+        console.log('Iniciando deteccao...');
+        
+        if (!tryCreateInterface()) {
+            let tentativas = 0;
+            let observer = new MutationObserver(() => {
+                tentativas++;
+                if (tryCreateInterface()) {
+                    console.log('Interface criada apos mudanca DOM');
+                    observer.disconnect();
+                } else if (tentativas > 100) {
+                    observer.disconnect();
+                    console.log('Muitas tentativas. Use Ctrl+Shift+T para ativar');
+                }
+            });
+            
+            observer.observe(document.body, { childList: true, subtree: true });
+            
+            // Verificação periódica como backup
+            let verificacoes = 0;
+            let intervalo = setInterval(() => {
+                verificacoes++;
+                if (tryCreateInterface()) {
+                    console.log('Interface criada via verificacao periodica');
+                    clearInterval(intervalo);
+                } else if (verificacoes > 20) {
+                    clearInterval(intervalo);
+                }
+            }, 3000);
+        }
+        
+        // Ativação manual
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+                console.log('Ativacao manual');
+                createUI();
+            }
+        });
+    }
+    
+    // Aguarda carregamento completo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => loadPdfJs(iniciar), 2000);
+        });
+    } else {
+        setTimeout(() => loadPdfJs(iniciar), 1000);
     }
 
 })();

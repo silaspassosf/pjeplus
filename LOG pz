@@ -1,395 +1,271 @@
-2025-05-26 00:15:28,264 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Removendo chip "Vencidas"...
-[CLICK][ERROR] Failed to click: Message: The element with the reference 52e71cf6-50bb-4857-80ff-7c87364edafc is stale; either its node document is not the active document, or it is no longer connected to the DOM; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#stale-element-reference-exception
+O Windows PowerShell
+Copyright (C) Microsoft Corporation. Todos os direitos reservados.
+
+Instale o PowerShell mais recente para obter novos recursos e aprimoramentos! https://aka.ms/PSWindows
+
+PS D:\PjePlus> cd d:\PjePlus; python m1.py
+[SELENIUM] Limpeza concluída - 0 arquivos removidos
+[INFO] Navegando para a URL de login: https://pje.trt2.jus.br/primeirograu/login.seam
+[INFO] Botão #btnSsoPdpj clicado com sucesso.
+[INFO] Botão .botao-certificado-titulo clicado com sucesso.
+[INFO] Script AutoHotkey chamado para digitar a senha.
+[INFO] Login detectado, prosseguindo.
+[NAV] Iniciando navegação para: https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos
+[NAVEGAR] Iniciando navegação...
+[NAVEGAR] Navegando para https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos
+[NAV] Clicando no ícone reply-all (mandados devolvidos)...
+[NAV] Ícone de mandados devolvidos clicado com sucesso.
+[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...
+[FLUXO] Iniciando indexação da lista de processos...
+[FLUXO] Aba da lista capturada: 7f9ffa71-d2a8-47cb-acb2-fef525d635ba
+[INDEXAR] Total de processos encontrados: 10
+[INDEXAR] 01: 1001497-41.2024.5.02.0703
+[INDEXAR] 02: 1000763-03.2018.5.02.0703
+[INDEXAR] 03: 1000542-78.2022.5.02.0703
+[INDEXAR] 04: 1001166-30.2022.5.02.0703
+[INDEXAR] 05: 1000067-88.2023.5.02.0703
+[INDEXAR] 06: 1000141-11.2024.5.02.0703
+[INDEXAR] 07: 1001510-98.2024.5.02.0037
+[INDEXAR] 08: 1001565-88.2024.5.02.0703
+[INDEXAR] 09: 1000151-21.2025.5.02.0703
+[INDEXAR] 10: 1000863-11.2025.5.02.0703
+[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...
+[PROCESSAR] Iniciando processo 1/10: 1001497-41.2024.5.02.0703
+[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001497-41.2024.5.02.0703...
+[PROCESSAR][PRE] Abas detectadas inicialmente: 1
+[PROCESSAR][REINDEX] Linha reindexada para 1001497-41.2024.5.02.0703
+[PROCESSAR][CLICK] Botão de detalhes clicado para 1001497-41.2024.5.02.0703
+[PROCESSAR] Aba do processo 1001497-41.2024.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6471688/detalhe/peticao/406264947.
+[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
+[PROCESSAR][DEBUG] Iniciando callback para processo 1001497-41.2024.5.02.0703...
+
+==================================================
+[FLUXO] Iniciando análise do documento...
+
+[FLUXO] >>> INICIANDO FLUXO ARGOS <<<
+[FLUXO][ARGOS] Documento identificado: Id 69b85cd - Certidão de devolução de ordem de pesquisa patrimonial
+==================================================
+[ARGOS][FECHAR INTIMAÇÃO] Iniciando fechamento de intimação...
+[ARGOS][FECHAR INTIMAÇÃO] Menu aberto.
+[ARGOS][FECHAR INTIMAÇÃO] Botão Expedientes clicado.
+[ARGOS][FECHAR INTIMAÇÃO] Modal de expedientes aberto.
+[ARGOS][FECHAR INTIMAÇÃO][ERRO] Message: Browsing context has been discarded
 Stacktrace:
 RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
 WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
-StaleElementReferenceError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:796:5
-getKnownElement@chrome://remote/content/marionette/json.sys.mjs:405:11
-deserializeJSON@chrome://remote/content/marionette/json.sys.mjs:263:20
-cloneObject@chrome://remote/content/marionette/json.sys.mjs:59:24
-deserializeJSON@chrome://remote/content/marionette/json.sys.mjs:293:16
-json.deserialize@chrome://remote/content/marionette/json.sys.mjs:297:10
-receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:152:30
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.findElements@chrome://remote/content/marionette/driver.sys.mjs:1845:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
 
-2025-05-26 00:15:28,867 [INFO] [AutomacaoPJe] [FILTRO][PASSO_1] Chip "Vencidas" removido.
-2025-05-26 00:15:28,868 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Clicando no ícone fa-pen...
-[ESPERAR] Aguardando elemento: 'i.fa-pen' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'i.fa-pen' em 0.01s
-[CLICK] Clicked:
-2025-05-26 00:15:29,551 [INFO] [AutomacaoPJe] [FILTRO][PASSO_2] Ícone fa-pen clicado.
-2025-05-26 00:15:29,551 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Aplicando filtro "xs"...
-[ESPERAR] Aguardando elemento: 'input[aria-label*="Descrição"]' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'input[aria-label*="Descrição"]' em 0.09s
-2025-05-26 00:15:29,710 [INFO] [AutomacaoPJe] [FILTRO][PASSO_3] Filtro "xs" aplicado.
-2025-05-26 00:15:29,710 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando fluxo de prazo.
-[FLUXO] Iniciando indexação da lista de processos...
-[FLUXO] Aba da lista capturada: 09cc4d43-8044-4e01-a57d-2f44a7e958ee
-[INDEXAR] Total de processos encontrados: 18
-[INDEXAR] 01: 1000286-48.2016.5.02.0703
-[INDEXAR] 02: 1000511-68.2016.5.02.0703
-[INDEXAR] 03: 1001119-66.2016.5.02.0703
-[INDEXAR] 04: 1000809-79.2024.5.02.0703
-[INDEXAR] 05: 1001252-30.2024.5.02.0703
-[INDEXAR] 06: 1000809-79.2024.5.02.0703
-[INDEXAR] 07: 1000091-87.2021.5.02.0703
-[INDEXAR] 08: 1001557-87.2019.5.02.0703
-[INDEXAR] 09: 1000408-17.2023.5.02.0703
-[INDEXAR] 10: 1000796-22.2020.5.02.0703
-[INDEXAR] 11: 1000847-28.2023.5.02.0703
-[INDEXAR] 12: 1000225-80.2022.5.02.0703
-[INDEXAR] 13: 1001011-71.2015.5.02.0703
-[INDEXAR] 14: 1001106-57.2022.5.02.0703
-[INDEXAR] 15: 1000619-19.2024.5.02.0703
-[INDEXAR] 16: 1001975-49.2024.5.02.0703
-[INDEXAR] 17: 1000151-21.2025.5.02.0703
-[INDEXAR] 18: 1000338-73.2018.5.02.0703
-[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...
-[PROCESSAR] Iniciando processo 1/18: 1000286-48.2016.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000286-48.2016.5.02.0703...
+[ARGOS][ERRO] Falha no processamento: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.findElements@chrome://remote/content/marionette/driver.sys.mjs:1845:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+
+[FLUXO][ERRO] Falha ao processar mandado:
+[FLUXO][ERRO] Detalhes: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.findElements@chrome://remote/content/marionette/driver.sys.mjs:1845:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+==================================================
+==================================================
+
+[PROCESSAR][DEBUG] Callback concluído para processo 1001497-41.2024.5.02.0703.
+[PROCESSAR] Processo 1001497-41.2024.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
+[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
+[LIMPEZA][CONEXÃO][ERRO] Falha no teste de conexão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.getCurrentUrl@chrome://remote/content/marionette/driver.sys.mjs:1122:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+[LIMPEZA][ERRO] Conexão perdida - não é possível limpar abas
+[PROCESSAR][ERRO] Falha na limpeza automática para 1001497-41.2024.5.02.0703. Tentando limpeza manual...
+[PROCESSAR][LIMPEZA] Retornou à aba da lista após limpeza manual
+[PROCESSAR][LIMPEZA] Abas após limpeza: 1
+[PROCESSAR] Iniciando processo 2/10: 1000763-03.2018.5.02.0703
+[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000763-03.2018.5.02.0703...
 [PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000286-48.2016.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000286-48.2016.5.02.0703
-[PROCESSAR] Aba do processo 1000286-48.2016.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/829954/detalhe.
+[PROCESSAR][REINDEX] Linha reindexada para 1000763-03.2018.5.02.0703
+[PROCESSAR][CLICK] Botão de detalhes clicado para 1000763-03.2018.5.02.0703
+[PROCESSAR] Aba do processo 1000763-03.2018.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/2233745/detalhe/peticao/406249153.
 [WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000286-48.2016.5.02.0703...
-2025-05-26 00:15:32,066 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:15:32,067 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/829954/detalhe
-2025-05-26 00:15:32,068 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:15:32,068 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:15:32,068 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:15:32,277 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:15:34,612 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:15:34.612
+[PROCESSAR][DEBUG] Iniciando callback para processo 1000763-03.2018.5.02.0703...
+
+==================================================
+[FLUXO] Iniciando análise do documento...
+
+[FLUXO] >>> INICIANDO FLUXO ARGOS <<<
+[FLUXO][ARGOS] Documento identificado: Id 87843c9 - Certidão de devolução de ordem de pesquisa patrimonial
+==================================================
+[ARGOS][FECHAR INTIMAÇÃO] Iniciando fechamento de intimação...
+[ARGOS][FECHAR INTIMAÇÃO] Menu aberto.
+[ARGOS][FECHAR INTIMAÇÃO] Botão Expedientes clicado.
+[ARGOS][FECHAR INTIMAÇÃO] Modal de expedientes aberto.
+[ARGOS][FECHAR INTIMAÇÃO][ERRO] Checkbox ao lado do prazo 30 NÃO encontrada.
+[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.
+[ENCONTRADO] Certidão de devolução
+[ENCONTRADO] Certidão de expedição
+[ENCONTRADO] Planilha
+[ENCONTRADO] Intimação
+[ENCONTRADO] Decisão
+[ARGOS] Documentos sequenciais localizados: 5
+[ARGOS] Retirando sigilo de todos os documentos relevantes...
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: 13 jun. 2025
+Certidão(Certidão de devolução de ordem de pesquisa patrimonial) - 87843c9
+10:06
+Anexo(s):
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: 16 mai. 2025
+Certidão(Certidão de expedição de ordem de pesquisa patrimonial) - d2b7f0e
+14:48
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: Planilha de Atualização de Cálculos(Atualização) - bfd1507
+14:47
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: 13 mai. 2025
+Intimação(Intimação) - 88c45a9
+07:49
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: Decisão(Determina Pesquisas) - f7915c4
+07:48
+[ARGOS][ANEXOS] Processing attachments...
+[CLICK] Clicked: Anexo(s):
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (consulta na arisp - positivo - daniela muszkat bretthauer (16582253840)) - 1446520
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (restrição no cnib - positivo) - 4b78d6f
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (restrição no serasajud - positivo) - 21982a3
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Sigilo INSERIDO para anexo especial: documento diverso (consulta dirpf no infojud (2024) - positivo - daniela muszkat bretthauer (16582253840)) - dc6def8
+[ARGOS][ANEXOS] Clicando no botão de visibilidade para: documento diverso (consulta dirpf no infojud (2024) - positivo - daniela muszkat bretthauer (16582253840)) - dc6def8
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Modal de visibilidade aberto para: documento diverso (consulta dirpf no infojud (2024) - positivo - daniela muszkat bretthauer (16582253840)) - dc6def8
+[ARGOS][ANEXOS] Clicando no botão de check para: documento diverso (consulta dirpf no infojud (2024) - positivo - daniela muszkat bretthauer (16582253840)) - dc6def8
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Clicando no botão Salvar para: documento diverso (consulta dirpf no infojud (2024) - positivo - daniela muszkat bretthauer (16582253840)) - dc6def8
+[CLICK] Clicked: Salvar
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Sigilo INSERIDO para anexo especial: documento diverso (consulta dirpf no infojud (2023) - positivo - daniela muszkat bretthauer (16582253840)) - 0db5145
+[ARGOS][ANEXOS] Clicando no botão de visibilidade para: documento diverso (consulta dirpf no infojud (2023) - positivo - daniela muszkat bretthauer (16582253840)) - 0db5145
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Modal de visibilidade aberto para: documento diverso (consulta dirpf no infojud (2023) - positivo - daniela muszkat bretthauer (16582253840)) - 0db5145
+[ARGOS][ANEXOS] Clicando no botão de check para: documento diverso (consulta dirpf no infojud (2023) - positivo - daniela muszkat bretthauer (16582253840)) - 0db5145
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Clicando no botão Salvar para: documento diverso (consulta dirpf no infojud (2023) - positivo - daniela muszkat bretthauer (16582253840)) - 0db5145
+[CLICK] Clicked: Salvar
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Sigilo INSERIDO para anexo especial: documento diverso (consulta dirpf no infojud (2022) - positivo - daniela muszkat bretthauer (16582253840)) - 18ac530
+[ARGOS][ANEXOS] Clicando no botão de visibilidade para: documento diverso (consulta dirpf no infojud (2022) - positivo - daniela muszkat bretthauer (16582253840)) - 18ac530
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Modal de visibilidade aberto para: documento diverso (consulta dirpf no infojud (2022) - positivo - daniela muszkat bretthauer (16582253840)) - 18ac530
+[ARGOS][ANEXOS] Clicando no botão de check para: documento diverso (consulta dirpf no infojud (2022) - positivo - daniela muszkat bretthauer (16582253840)) - 18ac530
+[CLICK] Clicked:
+[ARGOS][ANEXOS] Clicando no botão Salvar para: documento diverso (consulta dirpf no infojud (2022) - positivo - daniela muszkat bretthauer (16582253840)) - 18ac530
+[CLICK] Clicked: Salvar
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (renajud (consulta) - positivo - daniela muszkat bretthauer (16582253840)) - 158169f
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (sisbajud - positivo) - fa5974b
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (sisbajud - positivo) - 5fda1ab
+[EXPORT] Botão .fa-file-export clicado.
+[EXPORT] Texto extraído do modal via copiar.
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'bloqueio de valores'
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'ts ."""ssss e ———a  ms.———'
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'sisbajud'
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'positivo, parcial. valor total bloqueado:'
+[SISBAJUD][DEBUG] Found "positivo" after determinações normativas e legais marker.
+[ARGOS][ANEXOS] Extracted executados (page 1): [{'nome': 'DANIELA MUSZKAT BRETTHAUER', 'documento': '165.822.538-40'}]
+[ARGOS][ANEXOS] SISBAJUD result: positivo
+[ARGOS][ANEXOS] SISBAJUD rule applied: linha contém "positivo"
+[ARGOS][ANEXOS] Found attachments: {'infojud': True, 'doi': False, 'irpf': False, 'dimob': False}
+[ARGOS][ANEXOS] Will register as sigiloso: True
+[ARGOS] Resultado SISBAJUD: positivo
+[ARGOS] Sigilo anexos: {'infojud': 'sim', 'doi': 'nao', 'irpf': 'nao', 'dimob': 'nao'}
+[ARGOS][DEBUG] Timeline carregada, buscando documentos...
+[ARGOS][DEBUG] 114 itens encontrados na timeline.
+[ARGOS][DEBUG] Usando lógica fallback: procurando primeiro despacho/decisão na timeline...
+[ARGOS][DEBUG] Item 0: texto do link = certidão(certidão de devolução de ordem de pesquisa patrimonial) - 87843c9
+[ARGOS][DEBUG] Item 0: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 1: texto do link = certidão(certidão de expedição de ordem de pesquisa patrimonial) - d2b7f0e
+[ARGOS][DEBUG] Item 1: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 2: texto do link = planilha de atualização de cálculos(atualização) - bfd1507
+[ARGOS][DEBUG] Item 2: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 3: texto do link = intimação(intimação) - 88c45a9
+[ARGOS][DEBUG] Item 3: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 4: texto do link = decisão(determina pesquisas) - f7915c4
+[ARGOS][DEBUG] Item 4: documento relevante encontrado (fallback), clicando para ativar.
 [CLICK] Clicked:
 [EXTRAI] Modal HTML fechado.
 [WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
 [EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
 [EXTRAI] Extração concluída.
-2025-05-26 00:15:36,366 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:15:36.366 (duração: 1.75s)
-2025-05-26 00:15:36,366 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
+[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (fallback):
 ---
-decisão
-vistos.
-se revê o novo sobrestamento determinado.
-de acordo com o art. 11-a, caput e § 1o, da clt, ocorre a prescrição intercorrente no processo do trabalho no prazo de dois anos, contados de quando o(a) exequente deixa de cumprir determinação judicial no curso da execução (art. 2°, in 41/2018, tst e art. 3o, recomendação 03/2018, da cgjt).
-a pronúncia da prescrição intercorrente  se trata de ato judicial com natureza declaratória, que apenas evidencia situação jurídica existente, poden...
+DECISÃO
+Vistos, etc.
+Tendo em vista que o(a) reclamado(a), apesar de devidamente intimado(a), deixou transcorrer in albis o prazo para pagamento do valor apurado, e ante a preferência indicada no art. 835 do CPC, expeça-se ordem de bloqueio de numerários existentes em suas contas e/ou aplicações financeiras junto ao convênio SISBAJUD, nos exatos termos da decisão de homologação de cálculos.
+Frustrada a tentativa, proceda-se à inclusão no BNDT do(a) executado(a) e prossiga-se o feito, com a consequente expedição de ordem no sistema ARGOS ser cumprida por Oficial de Justiça a fim de que sejam realizadas pesquisas junto aos convênios RENAJUD, INFOJUD e ARISP.
+Sem resultado, se inclua a reclamada no sistema CNIB, SERASA e se pesquise as três últimas Declarações de Imposto de Renda do(s) executado(s) através do sistema INFOJUD e, após, dê-se vista à parte exequente, que deverá se manifestar em 10 dias.
+Esta decisão permanecerá em sigilo até o encerramento da pesquisa SISBAJUD, com vistas a se evitar tentativa de frustração da execução por parte do(s) executado(s), com fundamento no art. 765 da CLT.
+SAO PAULO/SP, 13 de maio de 2025.
+OTAVIO AUGUSTO MACHADO DE OLIVEIRA
+Juiz do Trabalho Titular
 ---
-2025-05-26 00:15:36,366 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:15:36,373 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "se[\s\.,;:!\-–—]*reve[\s\.,;:!\-–—]*o[\s\.,;:!\-–—]*novo[\s\.,;:!\-–—]*sobrestamento". Ação Primária: movimentar, Secundária: Nenhuma
-2025-05-26 00:15:36,373 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Primária: Movimentar Processo (def_arq)
-[ARQ] Iniciando fluxo de arquivamento...
+[ARGOS][DEBUG] Item 4: documento é decisão/sentença (fallback).
+[ARGOS] Documento encontrado: tipo=decisao
+[ARGOS] Aplicando regras Argos...
+[ARGOS][REGRAS] Analisando regras para tipo: decisao
+[ARGOS][REGRAS] Resultado SISBAJUD: positivo
+[ARGOS][REGRAS] Sigilo anexos: {'infojud': 'sim', 'doi': 'nao', 'irpf': 'nao', 'dimob': 'nao'}
+[ARGOS][REGRAS] Documento identificado como decisão com texto sobre reclamada
+[ARGOS][REGRAS] Dados do processo extraídos: {'numero': '1000763-03.2018.5.02.0703', 'partes': [], 'outros_dados': {}}
+[ARGOS][REGRAS] Mais de uma reclamada - verificando SISBAJUD
+[ARGOS][REGRAS] SISBAJUD positivo com múltiplas reclamadas - chamando ato_bloq
+[ATO] Executando fluxo_cls para Despacho...
+[CLS] Iniciando fluxo de CLS para tipo: Despacho...
 [ESPERAR] Aguardando elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=15, texto=None)
 [ESPERAR][OK] Elemento encontrado: 'button[mattooltip="Abre a tarefa do processo"]' em 0.00s
-[ARQ][DEBUG] Texto do botão: "Escolher tipo de arquivamento"
-[ARQ][DEBUG] Mattooltip: "Abre a tarefa do processo"
-[ARQ][DEBUG] Aria-label: "Abre a tarefa Escolher tipo de arquivamento do processo "
-[ARQ][INFO] Botão indica "Escolher tipo de arquivamento" - processo já está na tarefa correta!
-[ARQ][INFO] Nenhuma ação necessária. Retornando sucesso.
-2025-05-26 00:15:36,395 [INFO] [AutomacaoPJe] [FLUXO_PZ] Movimentação def_arq executada com SUCESSO.
-2025-05-26 00:15:37,396 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:15:37,399 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:15:37,546 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:15:37,546 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:15:37,546 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000286-48.2016.5.02.0703.
-[PROCESSAR] Processo 1000286-48.2016.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 2/18: 1000511-68.2016.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000511-68.2016.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][ERRO] Não foi possível reindexar a linha para 1000511-68.2016.5.02.0703
-[PROCESSAR] Iniciando processo 3/18: 1001119-66.2016.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001119-66.2016.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][ERRO] Não foi possível reindexar a linha para 1001119-66.2016.5.02.0703
-[PROCESSAR] Iniciando processo 4/18: 1000809-79.2024.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000809-79.2024.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000809-79.2024.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000809-79.2024.5.02.0703
-[PROCESSAR] Aba do processo 1000809-79.2024.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6169906/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000809-79.2024.5.02.0703...
-2025-05-26 00:15:40,853 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:15:40,854 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6169906/detalhe
-2025-05-26 00:15:40,855 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:15:40,855 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:15:40,855 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:15:40,916 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:15:43,157 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:15:43.157
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:15:44,785 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:15:44.785 (duração: 1.63s)
-2025-05-26 00:15:44,785 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-ante o teor da manifestação id 39f7c0e, intime-se a reclamada para apresentar cálculos de liquidação, através de planilha, em quinze dias, nos termos do art. 879 da clt, sob pena de preclusão.
-sao paulo/sp, 02 de abril de 2025.
-mariana kawahashi
-juíza do trabalho substituta
----
-2025-05-26 00:15:44,785 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:15:44,786 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:15:44,788 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:15:44,846 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:15:44,846 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:15:44,846 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000809-79.2024.5.02.0703.
-[PROCESSAR] Processo 1000809-79.2024.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 5/18: 1001252-30.2024.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001252-30.2024.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1001252-30.2024.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1001252-30.2024.5.02.0703
-[PROCESSAR] Aba do processo 1001252-30.2024.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6361611/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1001252-30.2024.5.02.0703...
-2025-05-26 00:15:47,939 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:15:47,940 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6361611/detalhe
-2025-05-26 00:15:47,942 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:15:47,942 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:15:47,942 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:15:47,974 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:15:50,217 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:15:50.217
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:15:51,848 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:15:51.848 (duração: 1.63s)
-2025-05-26 00:15:51,848 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-decisão
-vistos, etc.
-vencido o prazo estipulado para pagamento e ausente manifestação da parte reclamante em sentido contrário, presumo integralmente cumprido o acordo homologado.
-julgo extinta a presente execução, nos termos do art. 924, ii do cpc.
-registrem-se no sistema os valores considerados pagos, para fins estatísticos e, após, arquivem-se os autos, com as cautelas de praxe.
-sao paulo/sp, 09 de maio de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:15:51,848 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:15:51,848 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "cumprido[\s\.,;:!\-–—]*o[\s\.,;:!\-–—]*acordo[\s\.,;:!\-–—]*homologado". Ação Primária: movimentar, Secundária: Nenhuma
-2025-05-26 00:15:51,849 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Primária: Movimentar Processo (def_arq)
-[ARQ] Iniciando fluxo de arquivamento...
-[ESPERAR] Aguardando elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'button[mattooltip="Abre a tarefa do processo"]' em 0.00s
-[ARQ][DEBUG] Texto do botão: "Análise"
-[ARQ][DEBUG] Mattooltip: "Abre a tarefa do processo"
-[ARQ][DEBUG] Aria-label: "Abre a tarefa Análise do processo "
-[ARQ][DEBUG] Botão não indica tarefa de arquivamento. Prosseguindo com abertura da tarefa...
-[CLICK] Clicked: Análise
-[ARQ] Botão "Abrir tarefa do processo" clicado.
-[ARQ] Foco trocado para nova aba da tarefa do processo.
-[ARQ] Nova aba carregada completamente.
-[ARQ][DEBUG] URL atual não contém "/arquivamento". Prosseguindo com fluxo: https://pje.trt2.jus.br/pjekz/processo/6361611/tarefa/500/transicao
-[CLICK] Clicked: Arquivar o processo
-[ARQ] Botão "Arquivar o processo" clicado.
-[ARQ] Fluxo de arquivamento finalizado com sucesso.
-2025-05-26 00:15:54,341 [INFO] [AutomacaoPJe] [FLUXO_PZ] Movimentação def_arq executada com SUCESSO.
-2025-05-26 00:15:55,341 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:15:55,344 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:15:55,404 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:15:55,405 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:15:55,405 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1001252-30.2024.5.02.0703.
-[PROCESSAR] Processo 1001252-30.2024.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 2
-[LIMPEZA] Abas detectadas: 2
-[LIMPEZA] Aba fechada: f632775d-6046-4d46-bcc3-fe038ba501f0
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 6/18: 1000809-79.2024.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000809-79.2024.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000809-79.2024.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000809-79.2024.5.02.0703
-[PROCESSAR] Aba do processo 1000809-79.2024.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6169906/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000809-79.2024.5.02.0703...
-2025-05-26 00:15:58,574 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:15:58,575 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6169906/detalhe
-2025-05-26 00:15:58,576 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:15:58,576 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:15:58,576 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:15:58,640 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:16:00,884 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:16:00.884
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:16:02,496 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:16:02.496 (duração: 1.61s)
-2025-05-26 00:16:02,496 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-ante o teor da manifestação id 39f7c0e, intime-se a reclamada para apresentar cálculos de liquidação, através de planilha, em quinze dias, nos termos do art. 879 da clt, sob pena de preclusão.
-sao paulo/sp, 02 de abril de 2025.
-mariana kawahashi
-juíza do trabalho substituta
----
-2025-05-26 00:16:02,496 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:16:02,496 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:16:02,498 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:16:02,554 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:16:02,554 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:16:02,554 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000809-79.2024.5.02.0703.
-[PROCESSAR] Processo 1000809-79.2024.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 7/18: 1000091-87.2021.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000091-87.2021.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000091-87.2021.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000091-87.2021.5.02.0703
-[PROCESSAR] Aba do processo 1000091-87.2021.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/3848398/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000091-87.2021.5.02.0703...
-2025-05-26 00:16:05,692 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:16:05,693 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/3848398/detalhe
-2025-05-26 00:16:05,694 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:16:05,694 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:16:05,694 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:16:05,724 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:16:08,009 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:16:08.009
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:16:09,692 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:16:09.692 (duração: 1.68s)
-2025-05-26 00:16:09,692 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-concede-se 05 dias para oferta de novos meios de execução não diligenciados, considerando as pesquisas  já juntadas e diligências já cumpridas.
-caso silente, prossiga-se com remessa ao sobrestamento, com fluência da contagem do prazo prescricional do artigo 11-a da clt.
-frise-se que novos pedidos de medidas de execução deverão ser inéditos e acompanhados de comprovação documental da alteração fática da situação de insolvência dos executados.
-informo, ainda, que reiteração d...
----
-2025-05-26 00:16:09,693 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:16:09,693 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:16:09,697 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:16:09,862 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:16:09,862 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:16:09,862 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000091-87.2021.5.02.0703.
-[PROCESSAR] Processo 1000091-87.2021.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 8/18: 1001557-87.2019.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001557-87.2019.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1001557-87.2019.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1001557-87.2019.5.02.0703
-[PROCESSAR] Aba do processo 1001557-87.2019.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/2948911/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1001557-87.2019.5.02.0703...
-2025-05-26 00:16:13,162 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:16:13,163 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/2948911/detalhe
-2025-05-26 00:16:13,164 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:16:13,164 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:16:13,164 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:16:13,193 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:16:15,462 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:16:15.462
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:16:17,161 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:16:17.161 (duração: 1.70s)
-2025-05-26 00:16:17,161 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-intimem-se as partes para ciência do laudo técnico apresentado pelo(a) i. perito(a) e, querendo, manifestarem-se no prazo de cinco dias, sob pena de preclusão.
-sao paulo/sp, 14 de maio de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:16:17,161 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:16:17,162 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:16:17,164 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:16:17,234 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:16:17,235 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:16:17,235 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1001557-87.2019.5.02.0703.
-[PROCESSAR] Processo 1001557-87.2019.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 9/18: 1000408-17.2023.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000408-17.2023.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000408-17.2023.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000408-17.2023.5.02.0703
-[PROCESSAR] Aba do processo 1000408-17.2023.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/5134530/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000408-17.2023.5.02.0703...
-2025-05-26 00:16:20,400 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:16:20,401 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5134530/detalhe
-2025-05-26 00:16:20,402 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:16:20,403 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:16:20,403 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:16:20,487 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:16:22,757 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:16:22.757
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:16:24,428 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:16:24.428 (duração: 1.67s)
-2025-05-26 00:16:24,428 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-ante o retorno dos autos da instância superior, com acordão negando provimento ao agravo de petição da parte exequente, exclua-se o nome de rosemeire mezavilla valdebenito do serasa e do cnib, expedindo-se o competente mandado e, após, retifique-se a autuação para sua remoção do polo passivo.
-concedo à parte exequente cinco dias para apresentação de meios eficazes para prosseguimento, sob pena de sobrestamento do feito e fluência do prazo prescricional.
-sao paulo/sp, 14 de ...
----
-2025-05-26 00:16:24,428 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:16:24,429 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "cinco[\s\.,;:!\-–—]*dias[\s\.,;:!\-–—]*para[\s\.,;:!\-–—]*apresentacao". Ação Primária: gigs, Secundária: wrapper
-2025-05-26 00:16:24,429 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 00:16:24.429
-[GIGS] Iniciando criação de GIGS: 1/Guilherme - Sobrestamento (tela=principal)
-[GIGS] Botão Nova Atividade clicado.
-[GIGS] Modal de GIGS aberto.
-[GIGS] Dias úteis preenchido: 1
-[GIGS] Observação preenchida: Guilherme - Sobrestamento
-[GIGS] Botão Salvar clicado.
-[GIGS] GIGS criado com sucesso!
-2025-05-26 00:16:36,674 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 00:16:36.674 (duração: 12.25s)
-2025-05-26 00:16:36,674 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: wrapper
-[CLS] Iniciando fluxo de CLS para tipo: / Susp...
-[ESPERAR] Aguardando elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'button[mattooltip="Abre a tarefa do processo"]' em 0.00s
-[CLICK] Clicked: Análise
+[CLICK] Clicked: Aguardando prazo
 [CLS] Botão "Abrir tarefa do processo" clicado.
 [CLS] Foco trocado para nova aba da tarefa do processo.
 [CLS] Nova aba carregada completamente.
+[CLS][DEBUG] Overlays detectados no início, limpando...
 [CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label='Conclusão ao magistrado']
 [CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label='Conclusão ao magistrado']
-[URL WAIT] URL agora contém: "/conclusao"
-[CLS] Procurando botão de conclusão: / Susp
-[CLS] Botão de conclusão '/ Susp' localizado por texto visível que contém.
-[CLS] Botão de conclusão "/ Susp" clicado.
-[URL WAIT] URL agora contém: "/minutar"
+[CLS] Procurando botão de conclusão: Despacho
+[CLS] Botão de conclusão "Despacho" clicado via JavaScript.
 [CLS][MODELO][WARN] Falha ao clicar normalmente: Message: Element <input id="inputFiltro" class="mat-input-element mat-form-field-autofill-control mat-tooltip-trigger input-filtro ng-tns-c84-13 cdk-text-field-autofill-monitored" type="text"> could not be scrolled into view
 Stacktrace:
 RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
@@ -397,15 +273,15 @@ WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
 ElementNotInteractableError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:368:5
 webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:165:11
 interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
-clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:297:29
-receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:180:31
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:327:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:210:31
 . Tentando workarounds JS...
 [CLS][MODELO][OK] Clique/foco via JS realizado no campo de filtro de modelos.
 [CLS] Fluxo de CLS finalizado com sucesso.
-[ATO][MODELO][OK] Modelo "suspf" preenchido via JS e ENTER pressionado no filtro.
+[ATO][MODELO][OK] Modelo "xsparcial" preenchido via JS e ENTER pressionado no filtro.
 [ESPERAR] Aguardando elemento: '.nodo-filtrado' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: '.nodo-filtrado' em 2.33s
-[CLICK] Clicked: suspf
+[ESPERAR][OK] Elemento encontrado: '.nodo-filtrado' em 1.68s
+[CLICK] Clicked: XSPARCIAL
 [ATO] Clique em nodo-filtrado realizado!
 [ESPERAR] Aguardando elemento: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' (by=css selector, timeout=15, texto=None)
 [ESPERAR][OK] Elemento encontrado: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' em 0.00s
@@ -414,600 +290,230 @@ receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild
 [ATO] Clique no botão Salvar realizado!
 [ATO][DEBUG] Iniciando etapas pós-Salvar: Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo
 [ATO][DEBUG] Etapa: Sigilo
-[ATO][SIGILO][DEBUG] Sigilo não solicitado ou já ativado. Nenhuma ação.
+[ATO][SIGILO][DEBUG] Sigilo não solicitado. Nenhuma ação.
+[ATO][DEBUG] Etapa: PEC
+[ATO][PEC][DEBUG] Estado atual da caixa PEC: desmarcada. Parâmetro marcar_pec: True
+[ATO][PEC][DEBUG] Caixa PEC estava desmarcada e foi marcada.
+[ATO][DEBUG] Etapa: Prazo
+[ATO][PRAZO][DEBUG] Nenhum prazo informado, etapa ignorada.
+[ATO][DEBUG] Etapa: Movimento
+[ATO][DEBUG] Etapa: GIGS
+[ATO][ERRO] Falha ao criar GIGS (minuta): criar_gigs() got an unexpected keyword argument 'tela'
+[ARGOS] Documento processado e regras aplicadas.
+[ARGOS] Processamento m1 concluído com nova regra de busca.
+[FLUXO] Fechando aba de detalhes e voltando para lista
+[FLUXO] Retorno para lista completado
+==================================================
+
+[PROCESSAR][DEBUG] Callback concluído para processo 1000763-03.2018.5.02.0703.
+[PROCESSAR] Processo 1000763-03.2018.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
+[PROCESSAR][LIMPEZA] Abas antes da limpeza: 2
+[LIMPEZA][CONEXÃO][OK] Driver conectado - URL: https://pje.trt2.jus.br/pjekz/escaninho/documentos... | Abas: 2
+[LIMPEZA] Abas detectadas: 2
+[LIMPEZA_ABA][CONEXÃO][OK] Driver conectado - URL: https://pje.trt2.jus.br/pjekz/escaninho/documentos... | Abas: 2
+[LIMPEZA] Aba fechada: 725ff150-f3f5-43bf-a81e-b71aecbe9b50
+[LIMPEZA_RETORNO][CONEXÃO][ERRO] Falha no teste de conexão: Message: Browsing context has been discarded
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+NoSuchWindowError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:747:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.open@chrome://remote/content/shared/webdriver/Assert.sys.mjs:147:4
+GeckoDriver.prototype.getCurrentUrl@chrome://remote/content/marionette/driver.sys.mjs:1122:15
+despatch@chrome://remote/content/marionette/server.sys.mjs:318:40
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+[LIMPEZA][ERRO] Conexão perdida antes de retornar à aba da lista
+[PROCESSAR][ERRO] Falha na limpeza automática para 1000763-03.2018.5.02.0703. Tentando limpeza manual...
+[PROCESSAR][LIMPEZA] Retornou à aba da lista após limpeza manual
+[PROCESSAR][LIMPEZA] Abas após limpeza: 1
+[PROCESSAR] Iniciando processo 3/10: 1000542-78.2022.5.02.0703
+[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000542-78.2022.5.02.0703...
+[PROCESSAR][PRE] Abas detectadas inicialmente: 1
+[PROCESSAR][REINDEX] Linha reindexada para 1000542-78.2022.5.02.0703
+[PROCESSAR][CLICK] Botão de detalhes clicado para 1000542-78.2022.5.02.0703
+[PROCESSAR] Aba do processo 1000542-78.2022.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/4558286/detalhe/peticao/405905067.
+[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
+[PROCESSAR][DEBUG] Iniciando callback para processo 1000542-78.2022.5.02.0703...
+
+==================================================
+[FLUXO] Iniciando análise do documento...
+
+[FLUXO] >>> INICIANDO FLUXO ARGOS <<<
+[FLUXO][ARGOS] Documento identificado: Id 436e7e0 - Certidão de devolução de ordem de pesquisa patrimonial
+==================================================
+[ARGOS][FECHAR INTIMAÇÃO] Iniciando fechamento de intimação...
+[ARGOS][FECHAR INTIMAÇÃO] Menu aberto.
+[ARGOS][FECHAR INTIMAÇÃO] Botão Expedientes clicado.
+[ARGOS][FECHAR INTIMAÇÃO] Modal de expedientes aberto.
+[ARGOS][FECHAR INTIMAÇÃO][ERRO] Checkbox ao lado do prazo 30 NÃO encontrada.
+[ARGOS][FECHAR INTIMAÇÃO][INFO] Enviado ESC para fechar modal.
+[ENCONTRADO] Certidão de devolução
+[ENCONTRADO] Certidão de expedição
+[ENCONTRADO] Planilha
+[ENCONTRADO] Intimação
+[ENCONTRADO] Decisão
+[ARGOS] Documentos sequenciais localizados: 5
+[ARGOS] Retirando sigilo de todos os documentos relevantes...
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: 11 jun. 2025
+Certidão(Certidão de devolução de ordem de pesquisa patrimonial) - 436e7e0
+14:27
+Anexo(s):
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: 27 mai. 2025
+Certidão(Certidão de expedição de ordem de pesquisa patrimonial) - ab1de0e
+09:50
+[SIGILO] Clique para retirar sigilo realizado (ícone estava vermelho).
+[ARGOS] Sigilo retirado do documento: Planilha de Atualização de Cálculos(Atualização) - 1ce1624
+09:49
+[SIGILO] Ícone está azul (sem sigilo ativo). Não é necessário clicar.
+[ARGOS] Sigilo retirado do documento: 08 mai. 2025
+Intimação(Intimação) - b689959
+08:21
+[SIGILO] Ícone está azul (sem sigilo ativo). Não é necessário clicar.
+[ARGOS] Sigilo retirado do documento: Decisão(Decisão) - 2d94ebd
+08:20
+[ARGOS][ANEXOS] Processing attachments...
+[CLICK] Clicked: Anexo(s):
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (serasa inclusão) - 0347924
+[ARGOS][ANEXOS] Anexo comum já estava sem sigilo: documento diverso (cnib inclusão) - a6e1ffc
+[EXPORT] Botão .fa-file-export clicado.
+[EXPORT] Texto extraído do modal via copiar.
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'bloqueio de valores'
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'ts ."""ssss e ———a  ms.———'
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'sisbajud'
+[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: 'negativo valor total bloqueado:'
+[SISBAJUD][DEBUG] Found "negativo" after determinações normativas e legais marker.
+[ARGOS][ANEXOS] Extracted executados (page 1): [{'nome': 'TEAM R3ACTION GAMES LTDA', 'documento': '41.199.751/0001-66'}]
+[ARGOS][ANEXOS] SISBAJUD result: negativo
+[ARGOS][ANEXOS] SISBAJUD rule applied: linha contém "negativo"
+[ARGOS][ANEXOS] Found attachments: {'infojud': False, 'doi': False, 'irpf': False, 'dimob': False}
+[ARGOS][ANEXOS] Will register as sigiloso: False
+[ARGOS] Resultado SISBAJUD: negativo
+[ARGOS] Sigilo anexos: {'infojud': 'nao', 'doi': 'nao', 'irpf': 'nao', 'dimob': 'nao'}
+[ARGOS][DEBUG] Timeline carregada, buscando documentos...
+[ARGOS][DEBUG] 141 itens encontrados na timeline.
+[ARGOS][DEBUG] Usando lógica fallback: procurando primeiro despacho/decisão na timeline...
+[ARGOS][DEBUG] Item 0: texto do link = certidão(certidão de devolução de ordem de pesquisa patrimonial) - 436e7e0
+[ARGOS][DEBUG] Item 0: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 1: texto do link = certidão(retificação de autuação - substabelecimento sem reservas) - f1420ea
+[ARGOS][DEBUG] Item 1: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 2: texto do link = apresentação de substabelecimento sem reserva de poderes(habilitação) - a1067b1
+[ARGOS][DEBUG] Item 2: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 3: texto do link = certidão(certidão de expedição de ordem de pesquisa patrimonial) - ab1de0e
+[ARGOS][DEBUG] Item 3: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 4: texto do link = planilha de atualização de cálculos(atualização) - 1ce1624
+[ARGOS][DEBUG] Item 4: não é despacho/decisão/sentença/conclusão.
+[ARGOS][DEBUG] Item 5: texto do link = sigiloso
+decisão(determina pesquisas) - 288f8f0
+[ARGOS][DEBUG] Item 5: documento relevante encontrado (fallback), clicando para ativar.
+[CLICK] Clicked:
+[EXTRAI] Modal HTML fechado.
+[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
+[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
+[EXTRAI] Extração concluída.
+[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (fallback):
+---
+DECISÃO
+Vistos, etc.
+Tendo em vista que o(a) reclamado(a), apesar de devidamente intimado(a), deixou transcorrer in albis o prazo para pagamento do valor apurado, e ante a preferência indicada no art. 835 do CPC, expeça-se ordem de bloqueio de numerários existentes em suas contas e/ou aplicações financeiras junto ao convênio SISBAJUD, nos exatos termos da decisão de homologação de cálculos.
+Frustrada a tentativa, proceda-se à inclusão no BNDT do(a) executado(a) e prossiga-se o feito, com a consequente expedição de ordem no sistema ARGOS ser cumprida por Oficial de Justiça a fim de que sejam realizadas pesquisas junto aos convênios RENAJUD, INFOJUD e ARISP.
+Sem resultado, se inclua a reclamada no sistema CNIB, SERASA e se pesquise as três últimas Declarações de Imposto de Renda do(s) executado(s) através do sistema INFOJUD e, após, dê-se vista à parte exequente, que deverá se manifestar em 10 dias.
+Esta decisão permanecerá em sigilo até o encerramento da pesquisa SISBAJUD, com vistas a se evitar tentativa de frustração da execução por parte do(s) executado(s), com fundamento no art. 765 da CLT.
+SAO PAULO/SP, 26 de maio de 2025.
+OTAVIO AUGUSTO MACHADO DE OLIVEIRA
+Juiz do Trabalho Titular
+---
+[ARGOS][DEBUG] Item 5: documento é decisão/sentença (fallback).
+[ARGOS] Documento encontrado: tipo=decisao
+[ARGOS] Aplicando regras Argos...
+[ARGOS][REGRAS] Analisando regras para tipo: decisao
+[ARGOS][REGRAS] Resultado SISBAJUD: negativo
+[ARGOS][REGRAS] Sigilo anexos: {'infojud': 'nao', 'doi': 'nao', 'irpf': 'nao', 'dimob': 'nao'}
+[ARGOS][REGRAS] Documento identificado como decisão com texto sobre reclamada
+[ARGOS][REGRAS] Dados do processo extraídos: {'numero': '1000542-78.2022.5.02.0703', 'partes': [], 'outros_dados': {}}
+[ARGOS][REGRAS] Mais de uma reclamada - verificando SISBAJUD
+[ARGOS][REGRAS] SISBAJUD negativo com múltiplas reclamadas - chamando ato_meiosub
+[ATO] Executando fluxo_cls para Decisão Geral...
+[CLS] Iniciando fluxo de CLS para tipo: Decisão Geral...
+[ESPERAR] Aguardando elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=15, texto=None)
+[ESPERAR][OK] Elemento encontrado: 'button[mattooltip="Abre a tarefa do processo"]' em 0.00s
+[CLICK] Clicked: Cumprimento de Providências
+[CLS] Botão "Abrir tarefa do processo" clicado.
+[CLS] Foco trocado para nova aba da tarefa do processo.
+[CLS] Nova aba carregada completamente.
+[CLS][DEBUG] Overlays detectados no início, limpando...
+[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label='Conclusão ao magistrado']
+[CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label='Conclusão ao magistrado']
+[CLS] Procurando botão de conclusão: Decisão Geral
+[CLS] Botão de conclusão "Decisão Geral" clicado via JavaScript.
+[CLS][MODELO][WARN] Falha ao clicar normalmente: Message: Element <input id="inputFiltro" class="mat-input-element mat-form-field-autofill-control mat-tooltip-trigger input-filtro ng-tns-c84-17 cdk-text-field-autofill-monitored" type="text"> could not be scrolled into view
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementNotInteractableError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:368:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:165:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:327:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:210:31
+. Tentando workarounds JS...
+[CLS][MODELO][OK] Clique/foco via JS realizado no campo de filtro de modelos.
+[CLS] Fluxo de CLS finalizado com sucesso.
+[ATO][MODELO][OK] Modelo "meiosub" preenchido via JS e ENTER pressionado no filtro.
+[ESPERAR] Aguardando elemento: '.nodo-filtrado' (by=css selector, timeout=15, texto=None)
+[ESPERAR][OK] Elemento encontrado: '.nodo-filtrado' em 1.95s
+[CLICK] Clicked: meiosub
+[ATO] Clique em nodo-filtrado realizado!
+[ESPERAR] Aguardando elemento: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' (by=css selector, timeout=15, texto=None)
+[ESPERAR][OK] Elemento encontrado: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' em 0.01s
+[ATO] Modelo inserido pressionando ESPAÇO no botão Inserir (padrão MaisPje).
+[CLICK] Clicked: Salvar
+[ATO] Clique no botão Salvar realizado!
+[ATO][DEBUG] Iniciando etapas pós-Salvar: Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo
+[ATO][DEBUG] Etapa: Sigilo
+[ATO][SIGILO][DEBUG] Sigilo não solicitado. Nenhuma ação.
 [ATO][DEBUG] Etapa: PEC
 [ATO][PEC][DEBUG] Estado atual da caixa PEC: desmarcada. Parâmetro marcar_pec: False
 [ATO][PEC][DEBUG] Nenhuma ação necessária na caixa PEC.
 [ATO][DEBUG] Etapa: Prazo
-[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...
-[ATO][PRAZO][OK] Preenchido prazo 0 para destinatário.
-[ATO][PRAZO][OK] Preenchido prazo 0 para destinatário.
-[ATO][PRAZO][OK] Preenchido prazo 0 para destinatário.
-[ATO][PRAZO][LOG] Botão Gravar (prazo) localizado, clicando...
-[ATO][PRAZO][OK] Botão Gravar (prazo) clicado.
+[ATO][PRAZO][DEBUG] Nenhum prazo informado, etapa ignorada.
 [ATO][DEBUG] Etapa: Movimento
-[ATO][MOVIMENTO][OK] JS robusto executado para selecionar movimento: frustrada
-[ATO][MOVIMENTO][LOG] Botão Gravar dos movimentos localizado, clicando...
-[ATO][MOVIMENTO][OK] Botão Gravar dos movimentos clicado.
-[ATO][MOVIMENTO][OK] Botão "Sim" do modal de confirmação clicado.
-[ATO][MOVIMENTO][LOG] Botão Salvar localizado, clicando...
-[ATO][MOVIMENTO][OK] Botão Salvar clicado.
+[ATO][MOVIMENTO][DEBUG] Parâmetro movimento recebido: '50071'
+[ATO][MOVIMENTO][DEBUG] Executando JS para marcar movimento...
+[ATO][MOVIMENTO][DEBUG] JS executado. Aguardando efeito...
+[ATO][MOVIMENTO][OK] Movimento selecionado com sucesso:   Proferida decisão (50071)
+[ATO][MOVIMENTO][DEBUG] Clicando no botão Gravar movimentos...
+[ATO][MOVIMENTO][DEBUG] Botão Gravar movimentos clicado. Aguardando diálogo de confirmação...
+[ATO][MOVIMENTO][DEBUG] Clicando em "Sim" na caixa de diálogo de confirmação...
+[ATO][MOVIMENTO][DEBUG] Botão "Sim" clicado na caixa de diálogo. Aguardando...
+[ATO][MOVIMENTO][DEBUG] Clicando no botão Salvar final...
+[ATO][MOVIMENTO][OK] Botão Salvar final clicado.
 [ATO][DEBUG] Etapa: GIGS
-[GIGS] Iniciando criação de GIGS: 0/pz verificar (tela=principal)
-[GIGS][ERRO] Falha ao criar GIGS: Message:
-Stacktrace:
-RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
-WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
-NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
-dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+[ATO][DEBUG] Etapa: Fechar aba
+[ATO] Aba da minuta fechada e foco retornado para aba principal.
+[ATO][DEBUG] Etapa: Função extra de sigilo
+[ATO] Fluxo de ato judicial (Decisão Geral, meiosub) finalizado com sucesso.
+[ARGOS] Documento processado e regras aplicadas.
+[ARGOS] Processamento m1 concluído com nova regra de busca.
+[FLUXO] Fechando aba de detalhes e voltando para lista
+[FLUXO] Retorno para lista completado
+==================================================
 
-[ATO][ERRO] Falha ao criar GIGS (minuta): criar_gigs retornou False.
-2025-05-26 00:17:05,528 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária wrapper concluída.
-2025-05-26 00:17:06,528 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:17:06,531 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:17:06,575 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:17:06,575 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:17:06,575 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000408-17.2023.5.02.0703.
-[PROCESSAR] Processo 1000408-17.2023.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 2
-[LIMPEZA] Abas detectadas: 2
-[LIMPEZA] Aba fechada: 3a2f3956-d1a8-412d-87de-21e6f4eb76ac
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 10/18: 1000796-22.2020.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000796-22.2020.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000796-22.2020.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000796-22.2020.5.02.0703
-[PROCESSAR] Aba do processo 1000796-22.2020.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/3610540/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000796-22.2020.5.02.0703...
-2025-05-26 00:17:09,936 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:17:09,938 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/3610540/detalhe
-2025-05-26 00:17:09,939 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:17:09,939 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:17:09,939 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:17:11,667 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:17:13,999 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:17:13.999
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:17:15,848 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:17:15.848 (duração: 1.85s)
-2025-05-26 00:17:15,848 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-ciência ao autor quanto às pesquisas - há arquivos sob sigilo.
-dá-se, neste ato, visibilidade apenas aos advogados habilitados, ficando, desde já, proibida a sua reprodução, total ou parcial, inclusive para utilização em outros processos, sob as penas do art. 153, § 1-a, do código penal combinado com o art. 198 do ctn,  ressaltando-se que os litigantes responderão legalmente em caso de divulgação e/ou disponibilização indevida de dados protegidos por sigilo.
-concede-se 05 dias para ofer...
----
-2025-05-26 00:17:15,848 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:17:15,849 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:17:15,851 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:17:15,960 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:17:15,960 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:17:15,960 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000796-22.2020.5.02.0703.
-[PROCESSAR] Processo 1000796-22.2020.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
+[PROCESSAR][DEBUG] Callback concluído para processo 1000542-78.2022.5.02.0703.
+[PROCESSAR] Processo 1000542-78.2022.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
 [PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
+[LIMPEZA][CONEXÃO][OK] Driver conectado - URL: https://pje.trt2.jus.br/pjekz/processo/4558286/det... | Abas: 1
 [LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 11/18: 1000847-28.2023.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000847-28.2023.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000847-28.2023.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000847-28.2023.5.02.0703
-[PROCESSAR] Aba do processo 1000847-28.2023.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/5334804/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000847-28.2023.5.02.0703...
-2025-05-26 00:17:19,154 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:17:19,155 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/5334804/detalhe
-2025-05-26 00:17:19,157 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:17:19,157 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:17:19,157 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:17:19,205 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:17:21,506 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:17:21.506
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:17:23,190 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:17:23.190 (duração: 1.68s)
-2025-05-26 00:17:23,191 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-em atenção à petição id 7f7e895, remeto a exequente à certidão id 8a7d83c e à sentença id 93429f2.
-concedo à parte exequente mais cinco dias para apresentação de meios eficazes para prosseguimento, sob pena de sobrestamento do feito e fluência do prazo prescricional.
-sao paulo/sp, 14 de maio de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:17:23,191 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:17:23,191 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "cinco[\s\.,;:!\-–—]*dias[\s\.,;:!\-–—]*para[\s\.,;:!\-–—]*apresentacao". Ação Primária: gigs, Secundária: wrapper
-2025-05-26 00:17:23,191 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 00:17:23.191
-[GIGS] Iniciando criação de GIGS: 1/Guilherme - Sobrestamento (tela=principal)
-[GIGS] Botão Nova Atividade clicado.
-[GIGS] Modal de GIGS aberto.
-[GIGS] Dias úteis preenchido: 1
-[GIGS] Observação preenchida: Guilherme - Sobrestamento
-[GIGS] Botão Salvar clicado.
-[GIGS] GIGS criado com sucesso!
-2025-05-26 00:17:35,565 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 00:17:35.565 (duração: 12.37s)
-2025-05-26 00:17:35,566 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: wrapper
-[CLS] Iniciando fluxo de CLS para tipo: / Susp...
-[ESPERAR] Aguardando elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'button[mattooltip="Abre a tarefa do processo"]' em 0.00s
-[CLICK] Clicked: Análise
-[CLS] Botão "Abrir tarefa do processo" clicado.
-[CLS] Foco trocado para nova aba da tarefa do processo.
-[CLS] Nova aba carregada completamente.
-[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label='Conclusão ao magistrado']
-[CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label='Conclusão ao magistrado']
-[URL WAIT] URL agora contém: "/conclusao"
-[CLS] Procurando botão de conclusão: / Susp
-[CLS] Botão de conclusão '/ Susp' localizado por texto visível que contém.
-[CLS] Botão de conclusão "/ Susp" clicado.
-[URL WAIT] URL agora contém: "/minutar"
-[CLS][MODELO][OK] Clique direto no campo de filtro de modelos realizado (#inputFiltro).
-[CLS] Fluxo de CLS finalizado com sucesso.
-[ATO][MODELO][OK] Modelo "suspf" preenchido via JS e ENTER pressionado no filtro.
-[ESPERAR] Aguardando elemento: '.nodo-filtrado' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: '.nodo-filtrado' em 1.77s
-[CLICK] Clicked: suspf
-[ATO] Clique em nodo-filtrado realizado!
-[ESPERAR] Aguardando elemento: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' em 0.00s
-[ATO] Modelo inserido pressionando ESPAÇO no botão Inserir (padrão MaisPje).
-[CLICK] Clicked: Salvar
-[ATO] Clique no botão Salvar realizado!
-[ATO][DEBUG] Iniciando etapas pós-Salvar: Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo
-[ATO][DEBUG] Etapa: Sigilo
-[ATO][SIGILO][DEBUG] Sigilo não solicitado ou já ativado. Nenhuma ação.
-[ATO][DEBUG] Etapa: PEC
-[ATO][PEC][DEBUG] Estado atual da caixa PEC: marcada. Parâmetro marcar_pec: False
-[ATO][PEC][DEBUG] Caixa PEC estava marcada e foi desmarcada.
-[ATO][DEBUG] Etapa: Prazo
-[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...
-[ATO][PRAZO][OK] Preenchido prazo 0 para destinatário.
-[ATO][PRAZO][LOG] Botão Gravar (prazo) localizado, clicando...
-[ATO][PRAZO][OK] Botão Gravar (prazo) clicado.
-[ATO][DEBUG] Etapa: Movimento
-[ATO][MOVIMENTO][OK] JS robusto executado para selecionar movimento: frustrada
-[ATO][MOVIMENTO][LOG] Botão Gravar dos movimentos localizado, clicando...
-[ATO][MOVIMENTO][OK] Botão Gravar dos movimentos clicado.
-[ATO][MOVIMENTO][OK] Botão "Sim" do modal de confirmação clicado.
-[ATO][MOVIMENTO][LOG] Botão Salvar localizado, clicando...
-[ATO][MOVIMENTO][OK] Botão Salvar clicado.
-[ATO][DEBUG] Etapa: GIGS
-[GIGS] Iniciando criação de GIGS: 0/pz verificar (tela=principal)
-[GIGS][ERRO] Falha ao criar GIGS: Message:
-Stacktrace:
-RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
-WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
-NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
-dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+[LIMPEZA_ABA][CONEXÃO][OK] Driver conectado - URL: https://pje.trt2.jus.br/pjekz/processo/4558286/det... | Abas: 1
+[LIMPEZA] Aba fechada: 6794daeb-58a3-4c89-bc12-e3e868fc0dde
+[LIMPEZA][ERRO] Falha na limpeza de abas: Message: Tried to run command without establishing a connection
 
-[ATO][ERRO] Falha ao criar GIGS (minuta): criar_gigs retornou False.
-2025-05-26 00:18:04,854 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária wrapper concluída.
-2025-05-26 00:18:05,854 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:18:05,857 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:18:05,908 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:18:05,908 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:18:05,909 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000847-28.2023.5.02.0703.
-[PROCESSAR] Processo 1000847-28.2023.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 2
-[LIMPEZA] Abas detectadas: 2
-[LIMPEZA] Aba fechada: 3d52604b-9f45-4958-8cde-a5e9203aa193
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 12/18: 1000225-80.2022.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000225-80.2022.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000225-80.2022.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000225-80.2022.5.02.0703
-[PROCESSAR] Aba do processo 1000225-80.2022.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/4427058/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000225-80.2022.5.02.0703...
-2025-05-26 00:18:09,185 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:18:09,186 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/4427058/detalhe
-2025-05-26 00:18:09,188 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:18:09,188 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:18:09,188 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:18:09,284 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:18:11,562 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:18:11.562
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:18:13,277 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:18:13.277 (duração: 1.71s)
-2025-05-26 00:18:13,277 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-expeça-se novo mandado para livre penhora de bens, a ser cumprido no endereço indicado pelo exequente e acompanhado por seu patrono.
-sao paulo/sp, 30 de abril de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:18:13,277 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:18:13,278 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:18:13,280 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:18:13,363 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:18:13,363 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:18:13,363 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000225-80.2022.5.02.0703.
-[PROCESSAR] Processo 1000225-80.2022.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 13/18: 1001011-71.2015.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001011-71.2015.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1001011-71.2015.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1001011-71.2015.5.02.0703
-[PROCESSAR] Aba do processo 1001011-71.2015.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/504826/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1001011-71.2015.5.02.0703...
-2025-05-26 00:18:16,505 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:18:16,506 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/504826/detalhe
-2025-05-26 00:18:16,507 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:18:16,507 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:18:16,507 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:18:17,788 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:18:20,197 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:18:20.197
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:18:22,060 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:18:22.060 (duração: 1.86s)
-2025-05-26 00:18:22,060 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho com força de ofício
-vistos, etc.
-conforma juntada retro, a fim de se imprimir celeridade ao expediente, o presente despacho tem força de ofício para determinar que o  representante legal do estabelecimento ebs2 trade e gestao ltda- cnpj 29.016.530/0001-00 informe, no prazo de dez dias, o valor dos salários mensais do(a) executado(a) thiago alves dos santos, cpf: 323.344.758-23 funcionário(a) da empresa, sob pena de crime de desobediência do responsável em caso de descumprimento da prese...
----
-2025-05-26 00:18:22,061 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:18:22,061 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:18:22,064 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:18:22,169 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:18:22,169 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:18:22,170 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1001011-71.2015.5.02.0703.
-[PROCESSAR] Processo 1001011-71.2015.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 14/18: 1001106-57.2022.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001106-57.2022.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1001106-57.2022.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1001106-57.2022.5.02.0703
-[PROCESSAR] Aba do processo 1001106-57.2022.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/4766110/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1001106-57.2022.5.02.0703...
-2025-05-26 00:18:25,351 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:18:25,351 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/4766110/detalhe
-2025-05-26 00:18:25,352 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:18:25,352 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:18:25,352 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:18:25,394 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:18:27,681 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:18:27.681
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:18:29,367 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:18:29.367 (duração: 1.69s)
-2025-05-26 00:18:29,368 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-indefiro a repetição de expediente realizado há menos de um ano, conforme certidão id fe4d53d, nos termos do art. 765 da clt e parágrafo único do art. 370 do cpc.
-informo, ainda, reiteração de medida sub-rogatória já empregada, desprovido de novo fundamento, será apenas juntado independente de despacho, em respeito ao art. 878 da clt, eis que é obrigação da parte promover a execução.
-concedo o prazo de oito dias para apresentação de meios eficazes para prosseguimento, sob p...
----
-2025-05-26 00:18:29,368 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:18:29,368 [INFO] [AutomacaoPJe] [FLUXO_PZ] Regra encontrada pelo termo (regex): "oito[\s\.,;:!\-–—]*dias[\s\.,;:!\-–—]*para[\s\.,;:!\-–—]*apresentacao". Ação Primária: gigs, Secundária: wrapper
-2025-05-26 00:18:29,369 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início criação GIGS: 00:18:29.368
-[GIGS] Iniciando criação de GIGS: 1/Guilherme - Sobrestamento (tela=principal)
-[GIGS] Botão Nova Atividade clicado.
-[GIGS] Modal de GIGS aberto.
-[GIGS] Dias úteis preenchido: 1
-[GIGS] Observação preenchida: Guilherme - Sobrestamento
-[GIGS] Botão Salvar clicado.
-[GIGS] GIGS criado com sucesso!
-2025-05-26 00:18:41,749 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim criação GIGS: 00:18:41.749 (duração: 12.38s)
-2025-05-26 00:18:41,749 [INFO] [AutomacaoPJe] [FLUXO_PZ] Executando Ação Secundária: wrapper
-[CLS] Iniciando fluxo de CLS para tipo: / Susp...
-[ESPERAR] Aguardando elemento: 'button[mattooltip="Abre a tarefa do processo"]' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'button[mattooltip="Abre a tarefa do processo"]' em 0.00s
-[CLICK] Clicked: Análise
-[CLS] Botão "Abrir tarefa do processo" clicado.
-[CLS] Foco trocado para nova aba da tarefa do processo.
-[CLS] Nova aba carregada completamente.
-[CLS][DEBUG] Clique no botão Conclusão ao magistrado realizado. Seletor usado: button[aria-label='Conclusão ao magistrado']
-[CLS][DEBUG] Seletor de clique usado para conclusão: button[aria-label='Conclusão ao magistrado']
-[URL WAIT] URL agora contém: "/conclusao"
-[CLS] Procurando botão de conclusão: / Susp
-[CLS] Botão de conclusão '/ Susp' localizado por texto visível que contém.
-[CLS] Botão de conclusão "/ Susp" clicado.
-[URL WAIT] URL agora contém: "/minutar"
-[CLS][MODELO][WARN] Falha ao clicar normalmente: Message: Element <input id="inputFiltro" class="mat-input-element mat-form-field-autofill-control mat-tooltip-trigger input-filtro ng-tns-c84-13 cdk-text-field-autofill-monitored" type="text"> could not be scrolled into view
-Stacktrace:
-RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
-WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
-ElementNotInteractableError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:368:5
-webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:165:11
-interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
-clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:297:29
-receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:180:31
-. Tentando workarounds JS...
-[CLS][MODELO][OK] Clique/foco via JS realizado no campo de filtro de modelos.
-[CLS] Fluxo de CLS finalizado com sucesso.
-[ATO][MODELO][OK] Modelo "suspf" preenchido via JS e ENTER pressionado no filtro.
-[ESPERAR] Aguardando elemento: '.nodo-filtrado' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: '.nodo-filtrado' em 1.67s
-[CLICK] Clicked: suspf
-[ATO] Clique em nodo-filtrado realizado!
-[ESPERAR] Aguardando elemento: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' (by=css selector, timeout=15, texto=None)
-[ESPERAR][OK] Elemento encontrado: 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button' em 0.00s
-[ATO] Modelo inserido pressionando ESPAÇO no botão Inserir (padrão MaisPje).
-[CLICK] Clicked: Salvar
-[ATO] Clique no botão Salvar realizado!
-[ATO][DEBUG] Iniciando etapas pós-Salvar: Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo
-[ATO][DEBUG] Etapa: Sigilo
-[ATO][SIGILO][DEBUG] Sigilo não solicitado ou já ativado. Nenhuma ação.
-[ATO][DEBUG] Etapa: PEC
-[ATO][PEC][DEBUG] Estado atual da caixa PEC: marcada. Parâmetro marcar_pec: False
-[ATO][PEC][DEBUG] Caixa PEC estava marcada e foi desmarcada.
-[ATO][DEBUG] Etapa: Prazo
-[ATO][PRAZO][DEBUG] Chamando preencher_prazos_destinatarios...
-[ATO][PRAZO][OK] Preenchido prazo 0 para destinatário.
-[ATO][PRAZO][OK] Preenchido prazo 0 para destinatário.
-[ATO][PRAZO][LOG] Botão Gravar (prazo) localizado, clicando...
-[ATO][PRAZO][OK] Botão Gravar (prazo) clicado.
-[ATO][DEBUG] Etapa: Movimento
-[ATO][MOVIMENTO][OK] JS robusto executado para selecionar movimento: frustrada
-[ATO][MOVIMENTO][LOG] Botão Gravar dos movimentos localizado, clicando...
-[ATO][MOVIMENTO][OK] Botão Gravar dos movimentos clicado.
-[ATO][MOVIMENTO][OK] Botão "Sim" do modal de confirmação clicado.
-[ATO][MOVIMENTO][LOG] Botão Salvar localizado, clicando...
-[ATO][MOVIMENTO][OK] Botão Salvar clicado.
-[ATO][DEBUG] Etapa: GIGS
-[GIGS] Iniciando criação de GIGS: 0/pz verificar (tela=principal)
-[GIGS][ERRO] Falha ao criar GIGS: Message:
-Stacktrace:
-RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
-WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
-NoSuchElementError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:552:5
-dom.find/</<@chrome://remote/content/shared/DOM.sys.mjs:136:16
+[PROCESSAR][ERRO] Falha na limpeza automática para 1000542-78.2022.5.02.0703. Tentando limpeza manual...
+[PROCESSAR][ERRO] Falha crítica na limpeza de abas para 1000542-78.2022.5.02.0703: Message: Tried to run command without establishing a connection
 
-[ATO][ERRO] Falha ao criar GIGS (minuta): criar_gigs retornou False.
-2025-05-26 00:19:09,993 [INFO] [AutomacaoPJe] [FLUXO_PZ] Ação Secundária wrapper concluída.
-2025-05-26 00:19:10,993 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:19:10,996 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:19:11,042 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:19:11,042 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:19:11,042 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1001106-57.2022.5.02.0703.
-[PROCESSAR] Processo 1001106-57.2022.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 2
-[LIMPEZA] Abas detectadas: 2
-[LIMPEZA] Aba fechada: 859deb96-14d7-490b-b28d-a0d87366da16
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 15/18: 1000619-19.2024.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000619-19.2024.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000619-19.2024.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000619-19.2024.5.02.0703
-[PROCESSAR] Aba do processo 1000619-19.2024.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6091686/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000619-19.2024.5.02.0703...
-2025-05-26 00:19:14,319 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:19:14,320 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6091686/detalhe
-2025-05-26 00:19:14,321 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:19:14,321 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:19:14,322 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:19:14,380 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:19:16,622 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:19:16.622
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:19:18,287 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:19:18.287 (duração: 1.67s)
-2025-05-26 00:19:18,288 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-decisão
-vistos, etc.
-tendo em vista que o(a) reclamado(a), apesar de devidamente intimado(a), deixou transcorrer in albis o prazo para pagamento do valor apurado, e ante a preferência indicada no art. 835 do cpc, expeça-se ordem de bloqueio de numerários existentes em suas contas e/ou aplicações financeiras junto ao convênio sisbajud, nos exatos termos da decisão de homologação de cálculos.
-frustrada a tentativa, proceda-se à inclusão no bndt do(a) executado(a) e prossiga-se o feito, com a conse...
----
-2025-05-26 00:19:18,288 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:19:18,289 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:19:18,292 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:19:18,355 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:19:18,356 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:19:18,356 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000619-19.2024.5.02.0703.
-[PROCESSAR] Processo 1000619-19.2024.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 16/18: 1001975-49.2024.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1001975-49.2024.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1001975-49.2024.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1001975-49.2024.5.02.0703
-[PROCESSAR] Aba do processo 1001975-49.2024.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6740402/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1001975-49.2024.5.02.0703...
-2025-05-26 00:19:21,546 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:19:21,547 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6740402/detalhe
-2025-05-26 00:19:21,548 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:19:21,548 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:19:21,548 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:19:21,587 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:19:23,841 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:19:23.841
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:19:25,467 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:19:25.467 (duração: 1.63s)
-2025-05-26 00:19:25,467 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-concede-se à reclamada prazo final de 48h para cumprimento da determinação, sob pena de multa diária de r$200,00, limitada a trinta dias.
-  sao paulo/sp, 19 de maio de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:19:25,467 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:19:25,468 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:19:25,470 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:19:25,524 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:19:25,524 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:19:25,524 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1001975-49.2024.5.02.0703.
-[PROCESSAR] Processo 1001975-49.2024.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 17/18: 1000151-21.2025.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000151-21.2025.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000151-21.2025.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000151-21.2025.5.02.0703
-[PROCESSAR] Aba do processo 1000151-21.2025.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/6867739/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000151-21.2025.5.02.0703...
-2025-05-26 00:19:28,722 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:19:28,723 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/6867739/detalhe
-2025-05-26 00:19:28,724 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:19:28,724 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:19:28,724 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:19:28,752 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:19:30,982 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:19:30.982
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:19:32,595 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:19:32.595 (duração: 1.61s)
-2025-05-26 00:19:32,595 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-ante a notícia de descumprimento do convencionado, nos termos do art. 523 do cpc, intime-se o(a) reclamado(a) para, em quinze dias, atestar a quitação tempestiva do acordo, ou pagar o débito atualizado, comprovando nos autos, já acrescido da sanção cominatória ajustada, sob pena de penhora, com bloqueio de suas contas bancárias.
-sao paulo/sp, 28 de abril de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:19:32,596 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:19:32,596 [INFO] [AutomacaoPJe] [FLUXO_PZ] Análise de prazo detalhado e ações concluídas.
-2025-05-26 00:19:32,598 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:19:32,638 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:19:32,638 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:19:32,638 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000151-21.2025.5.02.0703.
-[PROCESSAR] Processo 1000151-21.2025.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[PROCESSAR] Iniciando processo 18/18: 1000338-73.2018.5.02.0703
-[PROCESSAR][PRE] Verificando estado de abas antes de processar 1000338-73.2018.5.02.0703...
-[PROCESSAR][PRE] Abas detectadas inicialmente: 1
-[PROCESSAR][REINDEX] Linha reindexada para 1000338-73.2018.5.02.0703
-[PROCESSAR][CLICK] Botão de detalhes clicado para 1000338-73.2018.5.02.0703
-[PROCESSAR] Aba do processo 1000338-73.2018.5.02.0703 aberta em https://pje.trt2.jus.br/pjekz/processo/2108106/detalhe.
-[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.
-[PROCESSAR][DEBUG] Iniciando callback para processo 1000338-73.2018.5.02.0703...
-2025-05-26 00:19:36,340 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===
-2025-05-26 00:19:36,341 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] URL atual: https://pje.trt2.jus.br/pjekz/processo/2108106/detalhe
-2025-05-26 00:19:36,342 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Número de abas abertas: 2
-2025-05-26 00:19:36,342 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.
-2025-05-26 00:19:36,342 [INFO] [AutomacaoPJe] [FLUXO_PZ] Iniciando análise de prazo detalhado...
-2025-05-26 00:19:36,522 [INFO] [AutomacaoPJe] [FLUXO_PZ] Documento relevante encontrado, abrindo painel...
-2025-05-26 00:19:39,011 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Início extrair_documento: 00:19:39.011
-[CLICK] Clicked:
-[EXTRAI] Modal HTML fechado.
-[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.
-[EXTRAI] Conteúdo extraído abaixo de "Servidor Responsável".
-[EXTRAI] Extração concluída.
-2025-05-26 00:19:41,013 [INFO] [AutomacaoPJe] [FLUXO_PZ][PERF] Fim extrair_documento: 00:19:41.013 (duração: 2.00s)
-2025-05-26 00:19:41,014 [INFO] [AutomacaoPJe] [FLUXO_PZ] Texto extraído para análise (início):
----
-despacho
-vistos, etc.
-intime-se o executado acerca do bloqueio de valores realizado, ora convertido em penhora.
-patricia dos santos
-rosalvo dos santos junior
-solange dos santos
-silente, já transferido à conta judicial, tornem conclusos.
-sao paulo/sp, 21 de maio de 2025.
-otavio augusto machado de oliveira
-juiz do trabalho titular
----
-2025-05-26 00:19:41,014 [INFO] [AutomacaoPJe] [FLUXO_PZ] Analisando regras...
-2025-05-26 00:19:41,014 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Regra especial "bloqueio de valores realizado, ora" detectada.
-[Fix.py] AVISO: 6 parte(s) passiva(s) sem advogado registrado
-[Fix.py] Dados das partes extraídos via API com sucesso. Reclamadas (CNPJ): ['22.064.856/0001-63', '20.975.730/0001-15', '28.325.671/0001-41', '10.673.495/0001-73']
-[Fix.py] Dados do processo salvos em D:\PjePlus\dadosatuais.json
-2025-05-26 00:19:41,174 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Dados do processo extraídos.
-2025-05-26 00:19:41,174 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] 6 parte(s) sem advogado de 7 partes passivas
-2025-05-26 00:19:41,207 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Primeiro item da timeline: 21 mai. 2025
-intimação(intimação) - 9bf6783
-08:42...
-2025-05-26 00:19:41,207 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Item mais recente é intimação. Verificando se é de correio...
-[CARTA][INFO] Primeira data da timeline: 21/05/2025
-[CARTA][INFO] Data do primeiro bloco: 21/05/2025
-[CARTA][INFO] Intimações localizadas na primeira data:
-  [CARTA][INFO] Intimação 1: id=doc_402213344, aria-label=, texto-link=intimação(intimação) - 9bf6783
-  [CARTA][WORKAROUND] TAB pressionado para restaurar cabeçalho após clique em intimação id=doc_402213344
-[CLICK] Clicked:
-  [CARTA][INFO] Texto extraído para intimação id=doc_402213344 (2 caracteres)
-  [CARTA][AVISO] Erro ao formatar log do conteúdo: 'tuple' object has no attribute 'upper'
-  [CARTA][CONTEUDO] ('DESPACHO\nVistos, etc.\nIntime-se o executado acerca do bloqueio de valores realizado, ora convertido em penhora.\nPATRICIA DOS SANTOS\nROSALVO DOS SANTOS JUNIOR\nSOLANGE DOS SANTOS\nSilente, já transferido à conta judicial, tornem conclusos.\nSAO PAULO/SP, 21 de maio de 2025.\nOTAVIO AUGUSTO MACHADO DE OLIVEIRA\nJuiz do Trabalho Titular', None)
-[CARTA] Erro geral no fluxo carta: 'tuple' object has no attribute 'upper'
-2025-05-26 00:19:55,842 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Intimação não é de correio.
-2025-05-26 00:19:55,865 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Despacho encontrado no item 2 da timeline.
-2025-05-26 00:19:55,866 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Condições atendidas: parte sem advogado + despacho anterior. Criando GIGS xs pec bloqueio.
-[GIGS] Iniciando criação de GIGS: 1/xs pec bloqueio (tela=principal)
-[GIGS] Botão Nova Atividade clicado.
-[GIGS] Modal de GIGS aberto.
-[GIGS] Dias úteis preenchido: 1
-[GIGS] Observação preenchida: xs pec bloqueio
-[GIGS] Botão Salvar clicado.
-[GIGS] GIGS criado com sucesso!
-2025-05-26 00:20:08,844 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] GIGS "xs pec bloqueio" criado com sucesso.
-2025-05-26 00:20:08,844 [INFO] [AutomacaoPJe] [FLUXO_PZ][DEBUG] Regra especial bloqueio processada completamente. Retornando do fluxo_pz.
-2025-05-26 00:20:08,846 [INFO] [AutomacaoPJe] [FLUXO_PZ] Fechando aba do processo...
-2025-05-26 00:20:08,981 [INFO] [AutomacaoPJe] [FLUXO_PZ] Foco retornado para a aba principal.
-2025-05-26 00:20:08,981 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.
-2025-05-26 00:20:08,982 [INFO] [AutomacaoPJe] [FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===
-[PROCESSAR][DEBUG] Callback concluído para processo 1000338-73.2018.5.02.0703.
-[PROCESSAR] Processo 1000338-73.2018.5.02.0703 finalizado (sucesso=True) - FORÇANDO limpeza completa de abas...
-[PROCESSAR][LIMPEZA] Abas antes da limpeza: 1
-[LIMPEZA] Abas detectadas: 1
-[LIMPEZA] Retornou para aba da lista
-[PROCESSAR][LIMPEZA] Abas após limpeza: 1
-[FLUXO] Processamento concluído!
-[FLUXO] Processos processados com sucesso: 16
-[FLUXO] Processos com erro: 2
-[FLUXO] Total de processos: 18
-2025-05-26 00:20:09,988 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Fluxo de prazo concluído.
+[PROCESSAR][ERRO] Não foi possível retornar à aba da lista após erro de limpeza
+[INFO] Processamento concluído. Pressione ENTER para encerrar...

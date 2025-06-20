@@ -1,40 +1,69 @@
 {
   "numero": [
-    "1001889-15.2023.5.02.0703"
+    "1000701-26.2019.5.02.0703"
   ],
-  "id": "5818299",
+  "id": 2661854,
   "autor": [
     {
-      "nome": "ANTONIO SANTOS SOUZA",
-      "cpfcnpj": "15534651806",
+      "nome": "CLAUDEANA MARIA GOMES",
+      "cpfcnpj": "36150782840",
       "advogado": {
-        "nome": "JEFERSON RUSSEL HUMAITA RODRIGUES BARBOSA",
-        "cpf": "25098479886",
-        "oab": "SP385746"
+        "nome": "RONALDO ALVES BRILHANTE",
+        "cpf": "03051457892",
+        "oab": "SP145939"
       }
     }
   ],
   "reu": [
     {
-      "nome": "ANTONIO ERNANDO SIQUEIRA DE SOUZA - ME",
-      "cpfcnpj": "05207302000159"
+      "nome": "DRIKA MODAS E MAGAZINE EIRELI - ME",
+      "cpfcnpj": "18748506000149"
     },
     {
-      "nome": "ANTONIO ERNANDO SIQUEIRA DE SOUZA",
-      "cpfcnpj": "45816514334"
+      "nome": "GABI MODAS CALCADOS E CONFECCOES LTDA",
+      "cpfcnpj": "13874415000136"
+    },
+    {
+      "nome": "ADRIANA FERREIRA DE CASTRO DA SILVA",
+      "cpfcnpj": "11855999838"
     }
   ],
   "terceiro": [
     {
-      "nome": "MINISTÉRIO PÚBLICO DO TRABALHO"
+      "nome": "GABRIELLA FERREIRA DA SILVA"
+    },
+    {
+      "nome": "11 OFICIAL DE REGISTRO DE IMOVEIS"
+    },
+    {
+      "nome": "MANOEL FLORENTINO DA SILVA NETO"
+    },
+    {
+      "nome": "DARLAN FERNANDES DE SOUZA"
     }
   ],
   "divida": {
-    "valor": 76543.94,
-    "data": "2024-07-01T00:00:00"
+    "valor": 186196.76,
+    "data": "2024-06-24T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "24/12/2023"
+  "dtAutuacao": "05/06/2019",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 60720.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Execução",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
 }

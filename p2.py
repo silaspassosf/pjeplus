@@ -22,7 +22,7 @@ with open("log.py", "w", encoding="utf-8") as f:
 # use a busca de termos para ir diretamente à região correta e edirtar apenas o necessário, para ser mais eficiente
 
 
-from Fix import login_pc, driver_notebook, aplicar_filtro_100, indexar_e_processar_lista, extrair_dados_processo
+from Fix import login_pc, driver_notebook, aplicar_filtro_100, indexar_e_processar_lista, extrair_dados_processo, finalizar_driver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -33,7 +33,7 @@ import os
 from Fix import esperar_elemento, safe_click
 from Fix import criar_gigs, login_pc, aplicar_filtro_100
 from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, login_notebook, aplicar_filtro_100
-from atos import ato_pesquisas, ato_sobrestamento, ato_180, def_arq, ato_pesqliq, ato_calc2
+from atos import pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
 from Fix import driver_pc, login_pc
@@ -99,10 +99,8 @@ def fluxo_pz(driver):
     Usa extrair_documento para obter texto, analisa regras,
     cria GIGS parametrizadas, executa atos sequenciais e fecha aba.
     """
-    logger.info('[FLUXO_PZ] Iniciando análise de prazo detalhado...')
     acao_secundaria = None
-    texto = None # Initialize texto as None
-    # 1. Seleciona documento relevante (decisão, despacho ou sentença)
+    texto = None # Initialize texto as None    # 1. Seleciona documento relevante (decisão, despacho ou sentença)
     itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
     doc_encontrado = None
     doc_link = None
@@ -123,43 +121,35 @@ def fluxo_pz(driver):
                     break
             except Exception:
                 continue
+        
         if not doc_encontrado or not doc_link:
-            logger.warning('[FLUXO_PZ] Nenhum documento relevante encontrado.')
+            logger.error('[FLUXO_PZ] Nenhum documento relevante encontrado.')
             return
 
-        logger.info(f'[FLUXO_PZ] Documento relevante encontrado na posição {doc_idx}, abrindo painel...')
         doc_link.click()
         time.sleep(2) # Wait for panel/URL to load
-
+        
         # 2. Extrair texto usando a função de Fix.py
         import datetime
-        t_inicio_extrair = datetime.datetime.now()
-        logger.info(f'[FLUXO_PZ][PERF] Início extrair_documento: {t_inicio_extrair.strftime("%H:%M:%S.%f")[:-3]}')
         texto_tuple = None # Initialize tuple variable
         try:
             texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=True) # timeout reduzido
             if texto_tuple and texto_tuple[0]:
                 texto = texto_tuple[0].lower()
-                t_fim_extrair = datetime.datetime.now()
-                logger.info(f'[FLUXO_PZ][PERF] Fim extrair_documento: {t_fim_extrair.strftime("%H:%M:%S.%f")[:-3]} (duração: {(t_fim_extrair-t_inicio_extrair).total_seconds():.2f}s)')
             else:
-                logger.warning('[FLUXO_PZ] extrair_documento retornou None ou texto vazio.')
+                logger.error('[FLUXO_PZ] extrair_documento retornou None ou texto vazio.')
                 texto = None
         except Exception as e_extrair:
             logger.error(f'[FLUXO_PZ] Erro ao chamar/processar extrair_documento: {e_extrair}')
             texto = None
+        
         if not texto:
-            logger.warning('[FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.')
-            try:
-                driver.save_screenshot(f'screenshot_erro_extracao_texto_{time.strftime("%Y%m%d_%H%M%S")}.png')
-                logger.info('[FLUXO_PZ] Screenshot de erro de extração salvo.')
-            except Exception as screen_err:
-                logger.error(f'[FLUXO_PZ][ERRO] Falha ao tirar screenshot de erro de extração: {screen_err}')
+            logger.error('[FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.')
             return
-        # 3. Log the extracted text (if successful)
-        log_texto = texto[:500] + '...' if len(texto) > 500 else texto
-        logger.info(f'[FLUXO_PZ] Texto extraído para análise (início):\n---\n{log_texto}\n---')
-        logger.info('[FLUXO_PZ] Analisando regras...')
+        
+        # Log do texto extraído (início apenas)
+        log_texto = texto[:200] + '...' if len(texto) > 200 else texto
+        print(f'[FLUXO_PZ] Texto extraído: {log_texto}')
 
         # 4. Define as regras com parâmetros e ações sequenciais
         def remover_acentos(txt):
@@ -182,11 +172,12 @@ def fluxo_pz(driver):
             regex = r''
             for i, parte in enumerate(partes):
                 regex += parte
-                if i < len(partes) - 1:
-                    regex += r'[\s\.,;:!\-–—]*'            # Permite o trecho em qualquer lugar do texto (texto antes/depois)
+                if i < len(partes) - 1:                regex += r'[\s\.,;:!\-–—]*'
+            # Permite o trecho em qualquer lugar do texto (texto antes/depois)
             return re.compile(rf"{regex}", re.IGNORECASE)
 
-        regras = [            ([gerar_regex_geral(k) for k in [
+        regras = [
+            ([gerar_regex_geral(k) for k in [
                 '05 dias para a apresentação',
                 '05 dias para oferta',
                 'concede-se 05 dias para oferta',
@@ -197,7 +188,7 @@ def fluxo_pz(driver):
                 'concedo o prazo de oito dias',
                 'oito dias para apresentacao',
                 'visibilidade aos advogados',
-                'início da fluência',
+                'início da fluência',                
                 'oito dias para apresentação',
                 'oito dias para apresentacao',
                 'Reitere-se a intimação para que o(a) reclamante apresente cálculos',
@@ -209,37 +200,37 @@ def fluxo_pz(driver):
                 'concorda com homologação',
                 'concorda com homologacao',
                 'tomarem ciência dos esclarecimentos apresentados',
-                'oito dias impugnar os',
+                'no prazo de oito dias, impugnar',                
                 'concordância quanto à imediata homologação da conta',
+                'conclusos para homologação de cálculos',
             ]],
              'gigs', '1/Silvia/Homologação', None),
             ([gerar_regex_geral('exequente, ora embargado')],
              'gigs', '1/fernanda/julgamento embargos', None),
             ([gerar_regex_geral(k) for k in ['hasta', 'saldo devedor']],
              'gigs', '1/SILAS/pec', None),
-            ([gerar_regex_geral(k) for k in ['impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro', 'comprovar a quitação', 'comprovar o pagamento', 'a reclamada para pagamento da parcela pendente', 'intime-se a reclamada para pagamento das']],
-             'gigs', '1/SILVIA/Argos', ato_pesquisas),          
+            ([gerar_regex_geral(k) for k in ['Ante a notícia de descumprimento', 'impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro', 'comprovar a quitação', 'comprovar o pagamento', 'a reclamada para pagamento da parcela pendente', 'intime-se a reclamada para pagamento das']],
+             'gigs', '1/SILVIA/Argos', pesquisas),          
             ([gerar_regex_geral(k) for k in ['arquivem-se os autos', ' remetam-se os autos ao aquivo', 'A pronúncia da prescrição intercorrente se trata', 'Se revê o novo sobrestamento', 'cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']],
-             'movimentar', def_arq, None),
+             'movimentar', mov_arquivar, None),
             ([gerar_regex_geral(k) for k in ['bloqueio realizado, ora convertido']], 'gigs', '1/SILAS/pec bloqueio', None),
             ([gerar_regex_geral(k) for k in ['sobre o preenchimento dos pressupostos legais para concessão do parcelamento']],
              'gigs', '1/Bruna/Liberação', None),
             ([gerar_regex_geral(k) for k in ['comprovar o recolhimento', 'comprovar os recolhimentos']],
              'gigs', '1/Silvia/Argos', ato_pesqliq),
-            ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo']],
+            ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital']],
              'checar_prox', None, None),
             ([gerar_regex_geral(k) for k in ['Defiro a penhora no rosto dos autos']],
              'gigs', '1/SILAS/sob6', ato_180),
             ([gerar_regex_geral(k) for k in ['RECLAMANTE para apresentar cálculos de liquidação']],
              None, None, ato_calc2),
-        ] # Regra especial: bloqueio de valores realizado, ora
+        ]
+        # ...restante do código...
         if 'bloqueio de valores realizado, ora' in texto:
-            logger.info('[FLUXO_PZ][DEBUG] Regra especial "bloqueio de valores realizado, ora" detectada.')
             try:
                 # 0. Extrair dados do processo
                 from Fix import extrair_dados_processo
                 dados_processo = extrair_dados_processo(driver)
-                logger.info('[FLUXO_PZ][DEBUG] Dados do processo extraídos.')
                   # Verificação simplificada de advogados (dados detalhados salvos em JSON)
                 parte_sem_advogado = False
                 partes_passivas = []
@@ -252,39 +243,28 @@ def fluxo_pz(driver):
                     else:
                         partes_passivas = []
                     partes_sem_advogado = [p for p in partes_passivas if not p.get('representantes')]
-                    parte_sem_advogado = len(partes_sem_advogado) > 0
-                    
-                    if parte_sem_advogado:
-                        logger.info(f'[FLUXO_PZ][DEBUG] {len(partes_sem_advogado)} parte(s) sem advogado de {len(partes_passivas)} partes passivas')
-                    else:
-                        logger.info(f'[FLUXO_PZ][DEBUG] Todas as {len(partes_passivas)} partes passivas possuem advogados')
-                
+                    parte_sem_advogado = len(partes_sem_advogado) > 0                
                 # Verificar item mais recente da timeline
                 itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
                 primeiro_item = itens[0] if itens else None
                 
                 if primeiro_item:
                     primeiro_item_text = primeiro_item.text.lower()
-                    logger.info(f'[FLUXO_PZ][DEBUG] Primeiro item da timeline: {primeiro_item_text[:100]}...')
                     
                     # Hipótese 1: GIGS Bruna - Liberação
                     if any(termo in primeiro_item_text for termo in ['edital', 'certidão de oficial de justiça', 'certidao de oficial de justica']):
-                        logger.info('[FLUXO_PZ][DEBUG] Item mais recente é edital ou certidão. Criando GIGS Bruna - Liberação.')
+                        print('[FLUXO_PZ] Regra: Bloqueio realizado - Bruna/Liberação')
                         dias, responsavel, observacao = parse_gigs_param('1/Bruna/Liberação')
                         criar_gigs(driver, dias, responsavel, observacao)
-                        logger.info('[FLUXO_PZ][DEBUG] GIGS "Bruna - Liberação" criado com sucesso.')
                     elif 'intimação' in primeiro_item_text or 'intimacao' in primeiro_item_text:
                         # Verificar se é intimação de correio via carta()
-                        logger.info('[FLUXO_PZ][DEBUG] Item mais recente é intimação. Verificando se é de correio...')
                         from carta import carta
                         carta_result = carta(driver)
                         if carta_result:  # Se carta() encontrou intimação de correio
-                            logger.info('[FLUXO_PZ][DEBUG] Intimação de correio encontrada. Criando GIGS Bruna - Liberação.')
+                            print('[FLUXO_PZ] Regra: Bloqueio realizado - Bruna/Liberação (correio)')
                             dias, responsavel, observacao = parse_gigs_param('1/Bruna/Liberação')
                             criar_gigs(driver, dias, responsavel, observacao)
-                            logger.info('[FLUXO_PZ][DEBUG] GIGS "Bruna - Liberação" criado com sucesso.')
                         else:
-                            logger.info('[FLUXO_PZ][DEBUG] Intimação não é de correio.')
                             # Verificar se há despacho anterior na timeline para condição "xs pec bloqueio"
                             despacho_encontrado = False
                             if len(itens) > 1:  # Verificar se há mais itens na timeline
@@ -292,154 +272,132 @@ def fluxo_pz(driver):
                                     item_text = item_timeline.text.lower()
                                     if 'despacho' in item_text:
                                         despacho_encontrado = True
-                                        logger.info(f'[FLUXO_PZ][DEBUG] Despacho encontrado no item {i+1} da timeline.')
                                         break
                             # Hipótese 2: parte sem advogado + despacho → GIGS "xs pec bloqueio"
                             if parte_sem_advogado and despacho_encontrado:
-                                logger.info('[FLUXO_PZ][DEBUG] Condições atendidas: parte sem advogado + despacho anterior. Criando GIGS xs pec bloqueio.')
-                                dias, responsavel, observacao = parse_gigs_param('1/xs/pec bloqueio')
+                                print('[FLUXO_PZ] Regra: Bloqueio realizado - SILAS/pec bloqueio')
+                                dias, responsavel, observacao = parse_gigs_param('1/SILAS/pec bloqueio')
                                 criar_gigs(driver, dias, responsavel, observacao)
-                                logger.info('[FLUXO_PZ][DEBUG] GIGS "xs pec bloqueio" criado com sucesso.')
                             else:
-                                logger.info(f'[FLUXO_PZ][DEBUG] Condições não atendidas (parte_sem_advogado={parte_sem_advogado}, despacho_encontrado={despacho_encontrado}). Criando GIGS Bruna - Liberação.')
+                                print('[FLUXO_PZ] Regra: Bloqueio realizado - Bruna/Liberação (padrão)')
                                 dias, responsavel, observacao = parse_gigs_param('1/Bruna/Liberação')
                                 criar_gigs(driver, dias, responsavel, observacao)
-                                logger.info('[FLUXO_PZ][DEBUG] GIGS "Bruna - Liberação" criado com sucesso.')
                     else:
                         # Hipótese 2: verificar despacho + parte sem advogado
                         if parte_sem_advogado and 'despacho' in primeiro_item_text:
-                            logger.info('[FLUXO_PZ][DEBUG] Parte sem advogado + despacho. Criando GIGS xs pec bloqueio.')
+                            print('[FLUXO_PZ] Regra: Bloqueio realizado - xs/pec bloqueio')
                             dias, responsavel, observacao = parse_gigs_param('1/xs/pec bloqueio')
                             criar_gigs(driver, dias, responsavel, observacao)
-                            logger.info('[FLUXO_PZ][DEBUG] GIGS "xs pec bloqueio" criado com sucesso.')
                         else:
-                            logger.info('[FLUXO_PZ][DEBUG] Caso padrão. Criando GIGS Bruna - Liberação.')
+                            print('[FLUXO_PZ] Regra: Bloqueio realizado - Bruna/Liberação (caso padrão)')
                             dias, responsavel, observacao = parse_gigs_param('1/Bruna/Liberação')
                             criar_gigs(driver, dias, responsavel, observacao)
-                            logger.info('[FLUXO_PZ][DEBUG] GIGS "Bruna - Liberação" criado com sucesso.')
                 
-                logger.info('[FLUXO_PZ][DEBUG] Regra especial bloqueio processada completamente. Retornando do fluxo_pz.')
                 return
-                
             except Exception as bloqueio_error:
-                logger.error(f'[FLUXO_PZ][DEBUG] Erro na regra especial de bloqueio: {bloqueio_error}')
+                logger.error(f'[FLUXO_PZ] Erro na regra especial de bloqueio: {bloqueio_error}')
                 raise
 
         # 5. Iterate through rules and keywords to find the first match
         acao_definida = None
         parametros_acao = None
         termo_encontrado = None
-        acao_secundaria = None # Reset before checking rules
-
+        acao_secundaria = None  # Reset before checking rules
         for keywords, tipo_acao, params, acao_sec in regras:
             for regex in keywords:
                 match = regex.search(texto_normalizado)
                 if match:
-                    # Log detalhado do disparo da regra
-                    start, end = match.start(), match.end()
-                    contexto_inicio = max(0, start - 40)
-                    contexto_fim = min(len(texto_normalizado), end + 40)
-                    trecho_contexto = texto_normalizado[contexto_inicio:contexto_fim]
-                    logger.info(f'[FLUXO_PZ][MATCH] Regra disparada pelo termo (regex): "{regex.pattern}". Trecho do texto: ...{trecho_contexto}...')
+                    # Log da regra encontrada
+                    print(f'[FLUXO_PZ] Regra aplicada: {tipo_acao} - {params if params else acao_sec.__name__ if acao_sec else "Nenhuma"}')
                     acao_definida = tipo_acao
                     parametros_acao = params
                     acao_secundaria = acao_sec
                     termo_encontrado = regex.pattern
-                    logger.info(f'[FLUXO_PZ] Regra encontrada pelo termo (regex): "{termo_encontrado}". Ação Primária: {acao_definida}, Secundária: {acao_secundaria.__name__ if acao_secundaria else "Nenhuma"}')
                     # NOVA REGRA: se acao_definida == 'checar_prox', chamar checar_prox imediatamente
                     if acao_definida == 'checar_prox':
                         prox_doc_encontrado, prox_doc_link, prox_doc_idx = checar_prox(driver, itens, doc_idx, regras, texto_normalizado)
                         if prox_doc_encontrado and prox_doc_link:
-                            logger.info(f'[FLUXO_PZ] Regra de cancelamento/baixa: buscando próximo documento relevante na timeline (posição {prox_doc_idx})...')
+                            print(f'[FLUXO_PZ] Regra de cancelamento/baixa: buscando próximo documento relevante')
                             doc_encontrado = prox_doc_encontrado
                             doc_link = prox_doc_link
                             doc_idx = prox_doc_idx
                             break
                     break
             if acao_definida:
-                break
-
-        # 6. Perform action(s) based on the matched rule (or default)
+                break        # 6. Perform action(s) based on the matched rule (or default)
         import datetime
-        t_inicio_gigs = datetime.datetime.now()
         gigs_aplicado = False
         if acao_definida == 'gigs':
             # parametros_acao já está no formato 'dias/responsavel/observacao'
-            logger.info(f'[FLUXO_PZ][PERF] Início criação GIGS: {t_inicio_gigs.strftime("%H:%M:%S.%f")[:-3]}')
             try:
-                logger.info(f'[FLUXO_PZ][GIGS] Parâmetro passado para criar_gigs: {parametros_acao}')
                 dias, responsavel, observacao = parse_gigs_param(parametros_acao)
                 criar_gigs(driver, dias, responsavel, observacao)
                 gigs_aplicado = True
-                t_fim_gigs = datetime.datetime.now()
-                logger.info(f'[FLUXO_PZ][PERF] Fim criação GIGS: {t_fim_gigs.strftime("%H:%M:%S.%f")[:-3]} (duração: {(t_fim_gigs-t_inicio_gigs).total_seconds():.2f}s)')
+                print(f'[FLUXO_PZ] GIGS criado: {observacao}')
                 if acao_secundaria:
-                    logger.info(f'[FLUXO_PZ] Executando Ação Secundária: {acao_secundaria.__name__}')
+                    print(f'[FLUXO_PZ] Executando ação secundária: {acao_secundaria.__name__}')
                     try:
                         acao_secundaria(driver)
                     except TypeError:
                         acao_secundaria(driver)
-                    logger.info(f'[FLUXO_PZ] Ação Secundária {acao_secundaria.__name__} concluída.')
                     time.sleep(1)
             except Exception as gigs_error:
-                logger.error(f'[FLUXO_PZ][ERRO] Falha ao criar GIGS ou na ação secundária: {gigs_error}')
+                logger.error(f'[FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: {gigs_error}')
         elif acao_definida == 'movimentar':
              func_movimento = parametros_acao
-             logger.info(f'[FLUXO_PZ] Executando Ação Primária: Movimentar Processo ({func_movimento.__name__})')
+             print(f'[FLUXO_PZ] Executando movimentação: {func_movimento.__name__}')
              try:
                  resultado_movimento = func_movimento(driver)
                  if resultado_movimento:
-                     logger.info(f'[FLUXO_PZ] Movimentação {func_movimento.__name__} executada com SUCESSO.')
+                     print(f'[FLUXO_PZ] Movimentação {func_movimento.__name__} executada com SUCESSO.')
                  else:
-                     logger.error(f'[FLUXO_PZ][ERRO] Movimentação {func_movimento.__name__} FALHOU (retornou False).')
+                     logger.error(f'[FLUXO_PZ] Movimentação {func_movimento.__name__} FALHOU (retornou False).')
                      return  # Sai da função sem log de sucesso
                  time.sleep(1) # Pause after movement
              except Exception as mov_error:
-                 logger.error(f'[FLUXO_PZ][ERRO] Falha ao executar movimentação {func_movimento.__name__}: {mov_error}')
-                 return  # Sai da função sem log de sucesso
-
-        logger.info('[FLUXO_PZ] Análise de prazo detalhado e ações concluídas.')
-
-        # Se não há ação primária mas existe ação secundária, trate a secundária como primária
+                 logger.error(f'[FLUXO_PZ] Falha ao executar movimentação {func_movimento.__name__}: {mov_error}')
+                 return  # Sai da função sem log de sucesso        # Se não há ação primária mas existe ação secundária, trate a secundária como primária
         if acao_definida is None and acao_secundaria:
-            logger.info(f'[FLUXO_PZ] Ação Primária: {acao_secundaria.__name__} (única definida na regra)')
+            print(f'[FLUXO_PZ] Executando ação: {acao_secundaria.__name__}')
             try:
                 acao_secundaria(driver)
-                logger.info(f'[FLUXO_PZ] Ação {acao_secundaria.__name__} executada com sucesso.')
                 time.sleep(1)
             except Exception as sec_error:
-                logger.error(f'[FLUXO_PZ][ERRO] Falha ao executar ação {acao_secundaria.__name__}: {sec_error}')
-
-        # NOVA LÓGICA: buscar o próximo documento relevante APENAS se a ação primária for 'checar_prox'
+                logger.error(f'[FLUXO_PZ] Falha ao executar ação {acao_secundaria.__name__}: {sec_error}')        # NOVA LÓGICA: buscar o próximo documento relevante APENAS se a ação primária for 'checar_prox'
         if acao_definida == 'checar_prox':
             prox_doc_encontrado, prox_doc_link, prox_doc_idx = checar_prox(driver, itens, doc_idx, regras, texto_normalizado)
             if prox_doc_encontrado and prox_doc_link:
-                logger.info(f'[FLUXO_PZ] Trecho localizado. Buscando próximo documento relevante na timeline (posição {prox_doc_idx})...')
+                print(f'[FLUXO_PZ] Trecho localizado. Buscando próximo documento relevante')
                 doc_encontrado = prox_doc_encontrado
                 doc_link = prox_doc_link
                 doc_idx = prox_doc_idx
                 continue  # repete o while para o próximo documento
         break  # se não encontrou ou acabou a timeline, encerra
-    # Fim do while True
-    # Fechar a aba após o processamento do fluxo_pz (sem usar try/finally)
+    # Fim do while True    # Fechar a aba após o processamento do fluxo_pz (sem usar try/finally)
     all_windows = driver.window_handles
     main_window = all_windows[0]
     current_window = driver.current_window_handle
 
     if current_window != main_window and len(all_windows) > 1:
-        logger.info('[FLUXO_PZ] Fechando aba do processo...')
         driver.close()
-        if main_window in driver.window_handles:
-            driver.switch_to.window(main_window)
-            logger.info('[FLUXO_PZ] Foco retornado para a aba principal.')
-        else:
-            logger.warning('[FLUXO_PZ] Aba principal não encontrada após fechar aba do processo.')
-            if driver.window_handles:
+        # Troca para uma aba válida após fechar
+        try:
+            if main_window in driver.window_handles:
+                driver.switch_to.window(main_window)
+            elif driver.window_handles:
                 driver.switch_to.window(driver.window_handles[0])
-    elif len(all_windows) <= 1:
-        logger.info('[FLUXO_PZ] Apenas uma aba aberta ou já na aba principal, não fechando/trocando.')
-    else:
-        logger.info('[FLUXO_PZ] Já na aba principal, nenhuma ação de fechamento/troca necessária.')
+            else:
+                print("[LIMPEZA][ERRO] Nenhuma aba restante para alternar.")
+        except Exception as e:
+            print(f"[LIMPEZA][ERRO] Falha ao alternar para aba válida após fechar: {e}")
+        # Testa se a aba está realmente acessível
+        from selenium.common.exceptions import NoSuchWindowException
+        try:
+            _ = driver.current_url
+        except NoSuchWindowException:
+            print("[LIMPEZA][ERRO] Tentou acessar uma aba já fechada.")
+    
+    print('[FLUXO_PZ] Processo concluído, retornando à lista')
 
 def fluxo_prazo(driver):
     """
@@ -447,33 +405,25 @@ def fluxo_prazo(driver):
     """
     from Fix import indexar_e_processar_lista # Keep this import
 
-    logger.info('[FLUXO_PRAZO] Iniciando fluxo de prazo.')
+    print('[FLUXO_PRAZO] Iniciando processamento da lista de processos')
 
     def callback_processo(driver_processo):
         """
         Callback para executar fluxo_pz no processo aberto.
         fluxo_pz handles analysis, actions (primary & secondary), and tab closing.
         """
-        logger.info(f'[FLUXO_PRAZO][CALLBACK] === INÍCIO DO CALLBACK ===')
-        logger.info(f'[FLUXO_PRAZO][CALLBACK] URL atual: {driver_processo.current_url}')
-        logger.info(f'[FLUXO_PRAZO][CALLBACK] Número de abas abertas: {len(driver_processo.window_handles)}')
-        
         try:
-            logger.info(f'[FLUXO_PRAZO][CALLBACK] Iniciando fluxo_pz para o processo atual.')
             fluxo_pz(driver_processo) # Call the main function for the process tab
-            logger.info(f'[FLUXO_PRAZO][CALLBACK] fluxo_pz concluído com SUCESSO para o processo atual.')
         except Exception as callback_error:
-            logger.error(f'[FLUXO_PRAZO][CALLBACK] ERRO no fluxo_pz: {callback_error}')
-            # Removido: geração de screenshot em caso de erro
+            logger.error(f'[FLUXO_PRAZO] ERRO no fluxo_pz: {callback_error}')
             raise  # Re-raise para que o indexar_e_processar_lista saiba que houve erro
         
-        logger.info(f'[FLUXO_PRAZO][CALLBACK] === FIM DO CALLBACK ===')
         time.sleep(1)  # Pausa para evitar race condition/travamento entre processamentos
 
     # Chama indexar_e_processar_lista com o callback definido
     indexar_e_processar_lista(driver, callback_processo) # Use the correct processing function
 
-    logger.info('[FLUXO_PRAZO] Fluxo de prazo concluído.')
+    print('[FLUXO_PRAZO] Processamento da lista concluído')
 
 def navegar_para_atividades(driver):
     """
@@ -527,99 +477,71 @@ def executar_fluxo(driver):
     """
     try:
         # Maximizar a janela do navegador
-        logger.info('[NAVEGAR] Maximizar a janela do navegador.')
         driver.maximize_window()
-
-        # Ajustar o zoom da página para 70% para garantir visibilidade do dropdown de quantidade por página
         driver.execute_script("document.body.style.zoom='70%'")
-
-        # 2. Navegar diretamente para a página de atividades
         url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
-        logger.info(f'[NAVEGAR] Navegando diretamente para {url_atividades}...')
         driver.get(url_atividades)
-
-        # Verificar se a página foi carregada corretamente
         if not esperar_url(driver, url_atividades, timeout=30):
             logger.error(f'[NAVEGAR] Timeout aguardando URL {url_atividades}. URL atual: {driver.current_url}')
             raise Exception(f'Timeout aguardando URL {url_atividades}')
-        logger.info('[NAVEGAR] Página de atividades carregada com sucesso.')        # 3. Aplicar filtro de 100 itens por página
         from Fix import aplicar_filtro_100
-        if not aplicar_filtro_100(driver):
-            raise Exception('Falha ao aplicar filtro de 100 itens por página')
-        
-        # Espera única de 2 segundos após aplicar o filtro 100
-        time.sleep(2)
-        
-        try:            # Sequência específica de 3 passos após aplicar filtro lista 100:            # Passo 1: Remover chip "Vencidas" clicando no botão X com estratégia aprimorada
-            logger.info('[FILTRO][PASSO_1] Removendo chip "Vencidas"...')
+        try:
+            # 3. Aplicar filtro de 100 itens por página
+            if not aplicar_filtro_100(driver):
+                raise Exception('Falha ao aplicar filtro de 100 itens por página')
+            time.sleep(2)
+            # Passo 1: Remover chip "Vencidas"
             chip_removal_success = False
             for tentativa in range(3):
                 try:
-                    # Aguarda a página carregar completamente e elementos estarem estáveis
                     time.sleep(0.5)
-                    
-                    # Re-search o elemento a cada tentativa para evitar StaleElementReferenceError
                     chip_remove_button = WebDriverWait(driver, 10).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[ngclass="chips-icone-fechar"][mattooltip="Remover filtro"]'))
                     )
-                    
-                    # Verifica se o elemento ainda está anexado ao DOM
                     try:
                         chip_remove_button.is_displayed()
                     except StaleElementReferenceException:
-                        logger.warning(f'[FILTRO][PASSO_1] Elemento stale detectado na tentativa {tentativa + 1}, re-buscando...')
                         continue
-                    
-                    # Clique com verificação adicional
                     safe_click(driver, chip_remove_button)
-                    logger.info('[FILTRO][PASSO_1] Chip "Vencidas" removido.')
                     chip_removal_success = True
                     break
-                    
                 except StaleElementReferenceException as e:
-                    logger.warning(f'[FILTRO][PASSO_1] StaleElementReferenceException na tentativa {tentativa + 1}: {e}')
                     time.sleep(1)
                 except Exception as e:
-                    logger.warning(f'[FILTRO][PASSO_1] Tentativa {tentativa + 1} falhou: {e}')
                     if tentativa < 2:
                         time.sleep(1)
                     else:
-                        logger.error('[FILTRO][PASSO_1] Falha ao remover chip após 3 tentativas.')
+                        logger.error('[FILTRO] Falha ao remover chip após 3 tentativas.')
                         raise
             if not chip_removal_success:
                 raise Exception("Falha na remoção do chip 'Vencidas'")
-              # Passo 2: Clicar no ícone fa-pen
-            logger.info('[FILTRO][PASSO_2] Clicando no ícone fa-pen...')
+            # Passo 2: Clicar no ícone fa-pen
             btn_fa_pen = esperar_elemento(driver, 'i.fa-pen', timeout=15)
             safe_click(driver, btn_fa_pen)
-            logger.info('[FILTRO][PASSO_2] Ícone fa-pen clicado.')
-              # Passo 3: Aplicar filtro "xs"
-            logger.info('[FILTRO][PASSO_3] Aplicando filtro "xs"...')
+            # Passo 3: Aplicar filtro "xs"
             campo_descricao = esperar_elemento(driver, 'input[aria-label*="Descrição"]', timeout=15)
             campo_descricao.clear()
             campo_descricao.send_keys('xs')
             campo_descricao.send_keys(Keys.ENTER)
-            logger.info('[FILTRO][PASSO_3] Filtro "xs" aplicado.')
-            
-            # Aguardar 3 segundos para garantir que o filtro e indexação sejam aplicados completamente
-            logger.info('[FILTRO][AGUARDO] Aguardando 3 segundos para aplicação completa do filtro e indexação...')
+            logger.info('[FILTRO] Filtro xs aplicado com sucesso.')
             time.sleep(3)
-            logger.info('[FILTRO][AGUARDO] Filtro e indexação aplicados. Prosseguindo com o processamento da lista.')
+        except Exception as e:            logger.error(f'[FILTRO] Erro na sequência de filtros: {e}')
+            # Não raise aqui: tentaremos processar a lista mesmo assim
             
-        except Exception as e:
-            logger.error(f'[FILTRO][ERRO] Erro na sequência de filtros: {e}')
-            raise
-
         # 5. Executar fluxo de prazo
-        fluxo_prazo(driver)
-
+        logger.info('[FLUXO_PRAZO] Iniciando processamento da lista de processos')
+        try:
+            fluxo_prazo(driver)
+            logger.info('[FLUXO_PRAZO] Processamento da lista concluído')
+        except Exception as e:
+            logger.error(f'[FLUXO_PRAZO] Erro ao processar lista: {e}')
     except Exception as e:
-        logger.error(f'[EXECUCAO][ERRO] {e}')
+        logger.error(f'[EXECUCAO] {e}')
     finally:
         try:
-            driver.quit()
+            finalizar_driver(driver)
         except Exception as e:
-            logger.error(f'[EXECUCAO][ERRO] Falha ao fechar o driver: {e}')
+            logger.error(f'[EXECUCAO] Falha ao fechar o driver: {e}')
 
 def main():
     driver = criar_driver(headless=False)
@@ -628,13 +550,38 @@ def main():
         return
     if not login_func(driver):
         print('[ERRO] Falha no login. Encerrando script.')
-        driver.quit()
+        finalizar_driver(driver)
         return
     print('[P2] Login realizado com sucesso.')
     executar_fluxo(driver)
 
+def processar_p2(driver_existente=None):
+    """
+    Função principal que executa o fluxo do p2.py.
+    Aceita um driver existente ou cria um novo se nenhum for fornecido.
+    
+    Args:
+        driver_existente: Driver do Selenium já configurado e logado (opcional)
+    """
+    driver = driver_existente
+    should_quit = False
+    
+    try:
+        if not driver:
+            driver = criar_driver()
+            login_func(driver)
+            should_quit = True  # Só fecha o driver se foi criado aqui
+        executar_fluxo(driver)
+        return True
+    except Exception as e:
+        logger.error(f'[PROCESSAR_P2] Erro: {e}')
+        return False
+    finally:
+        if should_quit and driver:
+            finalizar_driver(driver)
+
 if __name__ == "__main__":
-    main()
+    processar_p2()  # Quando executado diretamente, cria seu próprio driver
 
 class AutomacaoP2:
     def __init__(self):
@@ -687,7 +634,7 @@ class AutomacaoP2:
     def finalizar(self):
         if self.driver:
             try:
-                self.driver.quit()
+                finalizar_driver(self.driver)
                 logging.info('[AutomacaoP2] Driver finalizado.')
             except Exception as e:
                 logging.error(f'[AutomacaoP2] Erro ao finalizar driver: {e}')

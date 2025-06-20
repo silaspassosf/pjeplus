@@ -27,6 +27,7 @@ import time
 import datetime
 import pyperclip
 import undetected_chromedriver as uc
+import requests
 from selenium.webdriver.common.keys import Keys
 
 # Fix.py
@@ -49,6 +50,7 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from urllib.parse import urlparse
 import pyperclip
 import logging
 
@@ -864,134 +866,179 @@ def extrair_pdf(driver, log=True):
             print(f'[EXPORT][ERRO] {e}')
         return None
 ## Função para extrair dados do processo
-def extrair_dados_processo(driver, max_tentativas=3, intervalo_tentativas=5):
-    dados_processo = {"numero": "", "partes": [], "outros_dados": {}}
-    json_path = "d:\\\\PjePlus\\\\dadosatuais.json"  # Corrigido para o caminho correto
-    numero_processo_final = ""
+def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False):
+    """
+    Extrai dados do processo via API do PJe (TRT2), seguindo a mesma lógica da extensão MaisPje.
+    Função completa auto-contida.
+    """
+    # Funções auxiliares internas
+    def get_cookies_dict(driver):
+        cookies = driver.get_cookies()
+        return {c['name']: c['value'] for c in cookies}
 
-    for tentativa in range(max_tentativas):
+    def extrair_numero_processo_url(driver):
+        """Extrai número do processo da URL ou do elemento clipboard"""
+        url = driver.current_url
+        # Primeiro tenta extrair da URL
+        m = re.search(r'processo/(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', url)
+        if m:
+            return m.group(1)
+        
+        # Se não encontrar na URL, tenta extrair do elemento clipboard do PJE
         try:
-            logging.info(f"[EXTRAIR_DADOS] Tentativa {tentativa + 1} de extrair dados do processo.")
-
-            # Estratégia Principal: Extrair do elemento clipboard do PJE + obter dados via API
-            try:
-                # Procura pelo elemento pje-icone-clipboard com aria-label contendo "Copia o número do processo"
-                xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
-                elemento_clipboard = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.XPATH, xpath_clipboard))
-                )
-                
-                # Extrai o aria-label que contém o número do processo
-                aria_label = elemento_clipboard.get_attribute("aria-label")
-                if aria_label:
-                    # Extrai o número do processo do aria-label usando regex
-                    match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
-                    if match_clipboard:
-                        numero_processo_final = match_clipboard.group(1)
-                        logging.info(f"[EXTRAIR_DADOS] Número do processo encontrado no clipboard PJE: {numero_processo_final}")
-                        
-                        # TODO: Aqui você pode adicionar a lógica para obter dados via API usando o número do processo
-                        # dados_api = obter_dados_via_api(numero_processo_final)
-                        # if dados_api:
-                        #     dados_processo.update(dados_api)
-                        
-                        break  # Sai do loop de tentativas
-                        
-            except TimeoutException:
-                logging.warning("[EXTRAIR_DADOS] Elemento clipboard PJE não encontrado nesta tentativa")
-            except Exception as e_clipboard:
-                logging.warning(f"[EXTRAIR_DADOS] Erro na estratégia principal (clipboard PJE): {e_clipboard}")
-
-            # Estratégia Fallback: Click no link de detalhes do processo
-            if not numero_processo_final:
-                try:
-                    logging.info("[EXTRAIR_DADOS] Tentando estratégia fallback: clicar no link de detalhes do processo")
-                    
-                    # Procura por links que contenham o número do processo (formato padrão)
-                    xpath_link_detalhes = "//a[contains(text(), '-') and contains(text(), '.') and string-length(normalize-space(text())) > 15]"
-                    
-                    link_detalhes = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.XPATH, xpath_link_detalhes))
-                    )
-                    
-                    # Extrai o número do processo do próprio link antes de clicar
-                    texto_link = link_detalhes.text.strip()
-                    match_link = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", texto_link)
-                    
-                    if match_link:
-                        numero_processo_final = match_link.group(1)
-                        logging.info(f"[EXTRAIR_DADOS] Número do processo encontrado no link: {numero_processo_final}")
-                        
-                        # Clica no link para abrir o modal com detalhes
-                        driver.execute_script("arguments[0].click();", link_detalhes)
-                        logging.info("[EXTRAIR_DADOS] Link de detalhes clicado com sucesso")
-                        
-                        # Aguarda o modal carregar
-                        time.sleep(2)
-                        
-                        # Tenta extrair dados adicionais do modal de detalhes
-                        try:
-                            # Procura pela seção de dados do processo no modal
-                            xpath_secao_dados = "//div[contains(@class, 'modal') or contains(@class, 'dialog')]//div[contains(@class, 'dados') or contains(@class, 'detalhes') or contains(@class, 'informacoes')]"
-                            secao_dados = driver.find_element(By.XPATH, xpath_secao_dados)
-                            
-                            # Extrai texto da seção para logs
-                            texto_secao = secao_dados.text
-                            logging.info(f"[EXTRAIR_DADOS] Dados extraídos da seção de detalhes: {texto_secao[:500]}...")
-                            
-                            # Aqui você pode adicionar lógica específica para extrair outros dados como partes, etc.
-                            # Por exemplo:
-                            # partes_match = re.findall(r"Requerente|Requerido|Autor|Réu.*?([^\n]+)", texto_secao)
-                            # dados_processo["partes"] = partes_match
-                            
-                        except Exception as e_modal:
-                            logging.warning(f"[EXTRAIR_DADOS] Erro ao extrair dados do modal: {e_modal}")
-                        
-                        # Fecha o modal usando 3 ESC
-                        for i in range(3):
-                            driver.find_element(By.TAG_NAME, "body").send_keys(Keys.ESCAPE)
-                            time.sleep(0.5)
-                        
-                        logging.info("[EXTRAIR_DADOS] Modal fechado com 3 ESC")
-                        break  # Sai do loop de tentativas
-                        
-                except TimeoutException:
-                    logging.warning("[EXTRAIR_DADOS] Link de detalhes do processo não encontrado nesta tentativa")
-                except Exception as e_fallback:
-                    logging.warning(f"[EXTRAIR_DADOS] Erro na estratégia fallback: {e_fallback}")
-
-            # Se nenhuma estratégia funcionou nesta tentativa
-            if not numero_processo_final:
-                logging.warning(f"[EXTRAIR_DADOS] Número do processo não encontrado na tentativa {tentativa + 1}.")
-                if tentativa < max_tentativas - 1:
-                    logging.info(f"Aguardando {intervalo_tentativas} segundos para a próxima tentativa.")
-                    time.sleep(intervalo_tentativas)
-                else:
-                    logging.error(f"[EXTRAIR_DADOS] Todas as tentativas de extrair o número do processo falharam após {max_tentativas} tentativas.")
+            xpath_clipboard = "//pje-icone-clipboard//span[contains(@aria-label, 'Copia o número do processo')]"
+            elemento_clipboard = driver.find_element(By.XPATH, xpath_clipboard)
+            aria_label = elemento_clipboard.get_attribute("aria-label")
+            if aria_label:
+                match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
+                if match_clipboard:
+                    return match_clipboard.group(1)
+        except:
+            pass
         
-        except Exception as e_outer:  # Captura exceções inesperadas no loop de tentativa
-            logging.error(f"[EXTRAIR_DADOS] Erro geral inesperado na tentativa {tentativa + 1}: {e_outer}")
-            if tentativa < max_tentativas - 1:
-                time.sleep(intervalo_tentativas)
-            else:
-                logging.error("[EXTRAIR_DADOS] Erro final e inesperado ao tentar extrair dados do processo.")
-        
-        # Verifica novamente se o número foi encontrado para sair do loop principal
-        if numero_processo_final:
-            break
+        return None
 
-    # Atualiza o dicionário com o número do processo encontrado (ou vazio se não encontrado)
-    dados_processo["numero"] = numero_processo_final
+    def extrair_trt_host(driver):
+        url = driver.current_url
+        parsed = urlparse(url)
+        return parsed.netloc
+
+    def obter_id_processo_via_api(numero_processo, sess, trt_host):
+        """Replica a função obterIdProcessoViaApi do gigs-plugin.js"""
+        url = f'https://{trt_host}/pje-comum-api/api/agrupamentotarefas/processos?numero={numero_processo}'
+        try:
+            resp = sess.get(url, timeout=10)
+            if resp.ok:
+                data = resp.json()
+                if data and len(data) > 0:
+                    return data[0].get('idProcesso')
+        except Exception as e:
+            if debug:
+                print(f'[extrair.py] Erro ao obter ID via API: {e}')
+        return None
+
+    def obter_dados_processo_via_api(id_processo, sess, trt_host):
+        """Replica a função obterDadosProcessoViaApi do gigs-plugin.js"""
+        url = f'https://{trt_host}/pje-comum-api/api/processos/id/{id_processo}'
+        try:
+            resp = sess.get(url, timeout=10)
+            if resp.ok:
+                return resp.json()
+        except Exception as e:
+            if debug:
+                print(f'[extrair.py] Erro ao obter dados via API: {e}')
+        return None
     
-    # Salva no JSON sempre ao final, após todas as tentativas
+    cookies = get_cookies_dict(driver)
+    numero_processo = extrair_numero_processo_url(driver)
+    trt_host = extrair_trt_host(driver)
+    
+    sess = requests.Session()
+    for k, v in cookies.items():
+        sess.cookies.set(k, v)
+    sess.headers.update({
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "X-Grau-Instancia": "1"  # Adiciona header usado pela extensão
+    })
+    
+    if not numero_processo:
+        if debug:
+            print('[extrair.py] Não foi possível extrair o número do processo.')
+        return {}
+
+    # 1. Obter ID do processo usando o número (como na extensão MaisPje)
+    id_processo = obter_id_processo_via_api(numero_processo, sess, trt_host)
+    if not id_processo:
+        if debug:
+            print('[extrair.py] Não foi possível obter o ID do processo via API.')
+        return {}
+
+    # 2. Obter dados completos do processo usando o ID
+    dados_processo = obter_dados_processo_via_api(id_processo, sess, trt_host)
+    if not dados_processo:
+        if debug:
+            print('[extrair.py] Não foi possível obter dados do processo via API.')
+        return {}
+    
+    processo_memoria = {
+        "numero": [dados_processo.get("numero", numero_processo)], 
+        "id": id_processo, 
+        "autor": [], 
+        "reu": [], 
+        "terceiro": [],
+        "divida": {}, 
+        "justicaGratuita": [], 
+        "transito": "", 
+        "custas": "", 
+        "dtAutuacao": "",
+        "classeJudicial": dados_processo.get("classeJudicial", {}),
+        "labelFaseProcessual": dados_processo.get("labelFaseProcessual", ""),
+        "orgaoJuizo": dados_processo.get("orgaoJuizo", {}),
+        "dataUltimo": dados_processo.get("dataUltimo", "")
+    }
+
+    # Extrai data de autuação dos dados principais
+    dt = dados_processo.get("autuadoEm")
+    if dt:
+        from datetime import datetime
+        try:
+            dtobj = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+            processo_memoria["dtAutuacao"] = dtobj.strftime('%d/%m/%Y')
+        except:
+            processo_memoria["dtAutuacao"] = dt
+    
+    # 2. Partes (formato limpo)
+    def criar_pessoa_limpa(parte):
+        nome = parte.get("nome", "").strip()
+        doc = re.sub(r'[^\d]', '', parte.get("documento", ""))
+        
+        pessoa = {"nome": nome, "cpfcnpj": doc}
+        
+        reps = parte.get("representantes", [])
+        if reps:
+            adv = reps[0]
+            pessoa["advogado"] = {
+                "nome": adv.get("nome", "").strip(),
+                "cpf": re.sub(r'[^\d]', '', adv.get("documento", "")),
+                "oab": adv.get("numeroOab", "")
+            }
+        return pessoa
+          # 2. Partes usando API separada (como na extensão)
     try:
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(dados_processo, f, ensure_ascii=False, indent=4)
-        logging.info(f"[EXTRAIR_DADOS] Dados do processo salvos em {json_path}: {dados_processo}")
-    except Exception as e_json:
-        logging.error(f"[EXTRAIR_DADOS] Erro crítico ao salvar dados em JSON: {e_json}")
+        url_partes = f"https://{trt_host}/pje-comum-api/api/processos/id/{id_processo}/partes"
+        resp = sess.get(url_partes, timeout=10)
+        if resp.ok:
+            j = resp.json()
+            for parte in j.get("ATIVO", []):
+                processo_memoria["autor"].append(criar_pessoa_limpa(parte))
+            for parte in j.get("PASSIVO", []):
+                processo_memoria["reu"].append(criar_pessoa_limpa(parte))
+            for parte in j.get("TERCEIROS", []):
+                processo_memoria["terceiro"].append({"nome": parte.get("nome", "").strip()})
+    except Exception as e:
+        if debug:
+            print('[extrair.py] Erro ao buscar partes:', e)
     
-    return dados_processo
+    # 3. Divida
+    try:
+        url_divida = f"https://{trt_host}/pje-comum-api/api/calculos/processo?pagina=1&tamanhoPagina=10&ordenacaoCrescente=true&idProcesso={id_processo}&mostrarCalculosHomologados=true&incluirCalculosHomologados=true"
+        resp = sess.get(url_divida, timeout=10)
+        if resp.ok:
+            j = resp.json()
+            if j and j.get("resultado"):
+                ultimo = j["resultado"][-1]
+                processo_memoria["divida"] = {
+                    "valor": ultimo.get("total", 0),
+                    "data": ultimo.get("dataLiquidacao", "")
+                }
+    except Exception as e:
+        if debug:
+            print('[extrair.py] Erro ao buscar divida:', e)
+      # Salva JSON
+    with open(caminho_json, 'w', encoding='utf-8') as f:
+        json.dump(processo_memoria, f, ensure_ascii=False, indent=2)
+    return processo_memoria
 
 # =========================
 # 5. FUNÇÕES DE MANIPULAÇÃO DE DOCUMENTOS
@@ -1039,6 +1086,11 @@ def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
 # =========================
 
 # Seção: Ferramentas
+import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True):
     # Cria GIGS sempre usando o padrão dias/responsavel/observacao.
     import datetime
@@ -1119,16 +1171,24 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
             return False
         btn_salvar.click()
         if log:
-            print('[GIGS] Botão Salvar clicado.')
-        # Aguarda o fechamento do modal
+            print('[GIGS] Botão Salvar clicado.')        # Aguarda mensagem de sucesso no snackbar
         try:
-            WebDriverWait(driver, 8).until_not(
-                lambda d: any(m.is_displayed() for m in d.find_elements(By.CSS_SELECTOR, '.mat-dialog-container'))
+            success_snackbar = WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'snack-bar-container.success simple-snack-bar span'))
             )
-        except Exception:
-            pass
-        if log:
-            print('[GIGS] GIGS criado com sucesso!')
+            if 'salva com sucesso' in success_snackbar.text.lower():
+                if log:
+                    print('[GIGS] Mensagem de sucesso confirmada.')
+                time.sleep(1)  # Aguarda 1s após confirmação antes de prosseguir
+                if log:
+                    print('[GIGS] GIGS criado com sucesso!')
+                return True
+            else:
+                if log:
+                    print('[GIGS][AVISO] Snackbar encontrado mas sem mensagem de sucesso.')
+        except Exception as e:
+            if log:
+                print(f'[GIGS][AVISO] Não foi possível confirmar mensagem de sucesso: {e}')
         return True
     except Exception as e:
         if log:
@@ -1228,303 +1288,515 @@ def analise_outros(driver):
         print("[OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
     print('[OUTROS] Análise Outros concluída.')
 
-def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
-    # Indexa e já processa cada processo sequencialmente, sem delay e sem logs intermediários desnecessários.
-    print('[FLUXO] Iniciando indexação da lista de processos...', flush=True)
-      # Armazena a referência da aba da lista ANTES de qualquer operação
-    aba_lista_original = driver.current_window_handle
-    print(f'[FLUXO] Aba da lista capturada: {aba_lista_original}')
-    
-    # Indexa e obtém as linhas/processos
-    linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
-    print(f'[INDEXAR] Total de processos encontrados: {len(linhas)}')
+def is_browsing_context_discarded_error(error_message):
+    """
+    Verifica se o erro é do tipo 'Browsing context has been discarded' ou similar.
+    Estes erros são fatais e indicam que o driver não pode mais se comunicar com o navegador.
+    """
+    if not error_message:
+        return False
+    error_str = str(error_message).lower()
+    return ('browsing context has been discarded' in error_str or 
+            'no such window' in error_str or 
+            'nosuchwindowerror' in error_str or
+            'session not created' in error_str or
+            'invalid session id' in error_str)
+
+def indexar_processos(driver):
     padrao_proc = re.compile(r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
+    linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
     processos = []
     for idx, linha in enumerate(linhas):
         try:
             links = linha.find_elements(By.CSS_SELECTOR, 'a')
-            texto = ''
-            if links:
-                texto = links[0].text.strip()
-            else:
-                tds = linha.find_elements(By.TAG_NAME, 'td')
-                texto = tds[0].text.strip() if tds else ''
+            texto = links[0].text.strip() if links else (linha.find_elements(By.TAG_NAME, 'td')[0].text.strip() if linha.find_elements(By.TAG_NAME, 'td') else '')
             match = padrao_proc.search(texto)
             num_proc = match.group(0) if match else '[sem número]'
             processos.append((num_proc, linha))
-            print(f'[INDEXAR] {idx+1:02d}: {num_proc}')
         except Exception as e:
             print(f'[INDEXAR][ERRO] Linha {idx+1}: {e}')
-    
-    print(f'[FLUXO] Indexação concluída. Iniciando processamento da lista de processos...', flush=True)
-    
-    def validar_conexao_driver(driver, contexto="GERAL"):
-        """Valida se a conexão com o driver está ativa e funcional"""
+    return processos
+
+def reindexar_linha(driver, proc_id):
+    linhas_atuais = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
+    for linha_temp in linhas_atuais:
         try:
-            # Verifica se o driver possui session_id válido
-            if not hasattr(driver, 'session_id') or driver.session_id is None:
-                print(f'[{contexto}][CONEXÃO][ERRO] Driver não possui session_id válido')
-                return False
+            links = linha_temp.find_elements(By.CSS_SELECTOR, 'a')
+            texto_linha = links[0].text.strip() if links else (linha_temp.find_elements(By.TAG_NAME, 'td')[0].text.strip() if linha_temp.find_elements(By.TAG_NAME, 'td') else '')
+            if proc_id in texto_linha:
+                return linha_temp
+        except Exception:
+            continue
+    return None
+
+def abrir_detalhes_processo(driver, linha):
+    try:
+        btn = linha.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
+    except Exception:
+        try:
+            btn = linha.find_element(By.CSS_SELECTOR, 'button, a')
+        except Exception:
+            return False
+    driver.execute_script("arguments[0].scrollIntoView(true);", btn)
+    driver.execute_script("arguments[0].click();", btn)
+    return True
+
+def trocar_para_nova_aba(driver, aba_lista_original):
+    """
+    Troca para uma nova aba diferente da aba original da lista.
+    Inclui tratamento robusto de erros e verificações adicionais.
+    
+    Args:
+        driver: O driver Selenium
+        aba_lista_original: O handle da aba original da lista
+        
+    Returns:
+        str: O handle da nova aba se foi bem-sucedido, None caso contrário
+    """
+    try:
+        # Verificar se o driver está conectado
+        if not validar_conexao_driver(driver, "ABAS"):
+            print('[ABAS][ERRO] Driver não está conectado ao tentar trocar de aba')
+            return None
+            
+        # Obter lista atual de abas
+        try:
+            abas = driver.window_handles
+            if not abas:
+                print('[ABAS][ERRO] Nenhuma aba disponível')
+                return None
                 
-            # Testa a conexão com comando simples
+            if len(abas) == 1 and abas[0] == aba_lista_original:
+                print('[ABAS][ERRO] Apenas a aba original está disponível, nenhuma nova aba foi aberta')
+                return None
+                
+            print(f'[ABAS] Detectadas {len(abas)} abas: {abas}')
+        except Exception as e:
+            print(f'[ABAS][ERRO] Falha ao obter lista de abas: {e}')
+            return None
+            
+        # Tentar trocar para uma aba diferente da original
+        for h in abas:
+            if h != aba_lista_original:
+                try:
+                    driver.switch_to.window(h)
+                    # Verificar se realmente trocamos de aba
+                    atual_handle = driver.current_window_handle
+                    if atual_handle == h:
+                        print(f'[ABAS] Troca bem-sucedida para aba: {h}')
+                        return h
+                    else:
+                        print(f'[ABAS][ALERTA] Troca para aba {h} falhou, handle atual é: {atual_handle}')
+                except Exception as e:
+                    print(f'[ABAS][ERRO] Erro ao trocar para aba {h}: {e}')
+                    continue
+                    
+        # Se chegou aqui, não conseguiu trocar para nenhuma nova aba
+        print('[ABAS][ERRO] Não foi possível trocar para nenhuma nova aba')
+        return None
+    except Exception as e:
+        print(f'[ABAS][ERRO] Erro geral ao tentar trocar de aba: {e}')
+        return None
+
+def executar_callback(driver, callback, proc_id):
+    """
+    Executa o callback com tratamento de exceções e verificação de conexão.
+    
+    Args:
+        driver: O driver Selenium
+        callback: A função callback a ser executada
+        proc_id: O identificador do processo
+        
+    Returns:
+        bool: True se o callback foi bem sucedido, False caso contrário
+    """
+    if not callback:
+        print(f'[PROCESSAR] Nenhum callback definido para {proc_id}, considerando como sucesso')
+        return True
+          # Verificar se o driver está conectado antes do callback
+    try:
+        conexao_status = validar_conexao_driver(driver, "CALLBACK")
+        if conexao_status == "FATAL":
+            print(f'[PROCESSAR][FATAL] Driver inutilizável antes do callback para {proc_id}')
+            return False
+        elif not conexao_status:
+            print(f'[PROCESSAR][ERRO] Driver não está conectado antes do callback para {proc_id}')
+            return False
+    except Exception:
+        print(f'[PROCESSAR][ERRO] Falha ao verificar conexão antes do callback para {proc_id}')
+        return False
+        
+    # Executar o callback com tratamento de exceções
+    try:
+        # Executar o callback e capturar o retorno se houver
+        resultado = callback(driver)
+        # Se o callback retornar explicitamente False, respeitamos isso
+        if resultado is False:
+            print(f'[PROCESSAR][ALERTA] Callback para {proc_id} retornou False explicitamente')
+            return False
+        # Qualquer outro retorno é considerado sucesso
+        return True
+    except Exception as e:
+        print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}')
+        import traceback
+        print(f'[PROCESSAR][ERRO] Traceback completo: {traceback.format_exc()}')
+        return False
+
+def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
+    import traceback
+    try:
+        if not hasattr(driver, 'session_id') or driver.session_id is None:
+            print(f'[{contexto}][CONEXÃO][ERRO] Driver não possui session_id válido')
+            return False
+        try:            # Teste 1: Verificar se podemos acessar current_url
             try:
                 current_url = driver.current_url
+            except Exception as url_err:
+                if is_browsing_context_discarded_error(url_err):
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f'[{contexto}][CONEXÃO][FATAL] [{timestamp}] Contexto do navegador foi descartado - driver inutilizável')
+                    print(f'[{contexto}][CONEXÃO][FATAL] Erro: {url_err}')
+                    print(f'[{contexto}][CONEXÃO][FATAL] Stacktrace:\n{traceback.format_exc()}')
+                    if proc_id:
+                        print(f'[{contexto}][CONEXÃO][FATAL] Processo afetado: {proc_id}')
+                    # Log em arquivo
+                    try:
+                        with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
+                            f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{url_err}\n{traceback.format_exc()}\n\n")
+                    except Exception as logerr:
+                        print(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
+                    return "FATAL"  # Retorna "FATAL" para indicar erro irrecuperável
+                else:
+                    print(f'[{contexto}][CONEXÃO][ERRO] Falha ao acessar URL atual: {url_err}')
+                    return False
+            # Teste 2: Verificar se podemos acessar window_handles
+            try:
                 window_handles = driver.window_handles
-                print(f'[{contexto}][CONEXÃO][OK] Driver conectado - URL: {current_url[:50]}... | Abas: {len(window_handles)}')
-                return True
-            except Exception as connection_test_err:
+            except Exception as handles_err:
+                if is_browsing_context_discarded_error(handles_err):
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f'[{contexto}][CONEXÃO][FATAL] [{timestamp}] Contexto do navegador foi descartado - driver inutilizável')
+                    print(f'[{contexto}][CONEXÃO][FATAL] Erro: {handles_err}')
+                    print(f'[{contexto}][CONEXÃO][FATAL] Stacktrace:\n{traceback.format_exc()}')
+                    if proc_id:
+                        print(f'[{contexto}][CONEXÃO][FATAL] Processo afetado: {proc_id}')
+                    try:
+                        with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
+                            f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{handles_err}\n{traceback.format_exc()}\n\n")
+                    except Exception as logerr:
+                        print(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
+                    return "FATAL"  # Retorna "FATAL" para indicar erro irrecuperável
+                else:
+                    print(f'[{contexto}][CONEXÃO][ERRO] Falha ao acessar handles: {handles_err}')
+                    return False
+            # Se ambos os testes passaram, o driver está OK
+            print(f'[{contexto}][CONEXÃO][OK] Driver conectado - URL: {current_url[:50]}... | Abas: {len(window_handles)}')
+            return True
+        except Exception as connection_test_err:
+            if is_browsing_context_discarded_error(connection_test_err):
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f'[{contexto}][CONEXÃO][FATAL] [{timestamp}] Contexto do navegador foi descartado - driver inutilizável')
+                print(f'[{contexto}][CONEXÃO][FATAL] Erro: {connection_test_err}')
+                print(f'[{contexto}][CONEXÃO][FATAL] Stacktrace:\n{traceback.format_exc()}')
+                if proc_id:
+                    print(f'[{contexto}][CONEXÃO][FATAL] Processo afetado: {proc_id}')
+                try:
+                    with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
+                        f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{connection_test_err}\n{traceback.format_exc()}\n\n")
+                except Exception as logerr:
+                    print(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
+                return "FATAL"
+            else:
                 print(f'[{contexto}][CONEXÃO][ERRO] Falha no teste de conexão: {connection_test_err}')
                 return False
-                
-        except Exception as validation_err:
+    except Exception as validation_err:
+        if is_browsing_context_discarded_error(validation_err):
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f'[{contexto}][CONEXÃO][FATAL] [{timestamp}] Contexto do navegador foi descartado - driver inutilizável')
+            print(f'[{contexto}][CONEXÃO][FATAL] Erro: {validation_err}')
+            print(f'[{contexto}][CONEXÃO][FATAL] Stacktrace:\n{traceback.format_exc()}')
+            if proc_id:
+                print(f'[{contexto}][CONEXÃO][FATAL] Processo afetado: {proc_id}')
+            try:
+                with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
+                    f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{validation_err}\n{traceback.format_exc()}\n\n")
+            except Exception as logerr:
+                print(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
+            return "FATAL"
+        else:
             print(f'[{contexto}][CONEXÃO][ERRO] Falha na validação de conexão: {validation_err}')
             return False
-    
-    def forcar_fechamento_abas_extras():
-        """Força o fechamento de abas extras, mantendo apenas a aba da lista com validação de conexão"""
+
+def forcar_fechamento_abas_extras(driver, aba_lista_original):
+    """
+    Fecha todas as abas extras, com tratamento robusto de erros e reconexão.
+    Retorna True se a limpeza foi bem-sucedida, False para erro recuperável, "FATAL" para erro irrecuperável.
+    """
+    try:
+        # Verifica se o driver ainda está conectado
+        conexao_status = validar_conexao_driver(driver, "LIMPEZA")
+        if conexao_status == "FATAL":
+            print('[LIMPEZA][FATAL] Contexto do navegador foi descartado - não é possível limpar abas')
+            return "FATAL"
+        elif not conexao_status:
+            print('[LIMPEZA][ERRO] Conexão perdida - não é possível limpar abas')
+            return False
+            
+        # Etapa 1: Obter lista de abas de forma segura
         try:
-            # Valida conexão antes de tentar operações
-            if not validar_conexao_driver(driver, "LIMPEZA"):
-                print('[LIMPEZA][ERRO] Conexão perdida - não é possível limpar abas')
-                return False
-                
             abas_atuais = driver.window_handles
             print(f'[LIMPEZA] Abas detectadas: {len(abas_atuais)}')
+        except Exception as e:
+            print(f'[LIMPEZA][ERRO] Falha ao obter lista de abas: {e}')
+            return False
             
-            for aba in abas_atuais:
-                if aba != aba_lista_original:
+        # Verifica se a aba original ainda existe
+        if aba_lista_original not in abas_atuais:
+            print('[LIMPEZA][ERRO] Aba original não encontrada entre as abas disponíveis!')
+            # Se tiver pelo menos uma aba, continua com ela
+            if len(abas_atuais) > 0:
+                print('[LIMPEZA][RECUPERAÇÃO] Usando primeira aba disponível como nova aba principal')
+                driver.switch_to.window(abas_atuais[0])
+                return True
+            else:
+                return False
+            
+        # Etapa 2: Fechar abas extras com tratamento de exceções
+        for aba in list(abas_atuais):  # Cria uma cópia da lista para evitar modificação durante iteração
+            if aba != aba_lista_original:
+                for tentativa in range(3):  # Tenta até 3 vezes para cada aba
                     try:
-                        # Valida conexão antes de cada operação
-                        if not validar_conexao_driver(driver, "LIMPEZA_ABA"):
-                            print(f'[LIMPEZA][ERRO] Conexão perdida durante limpeza da aba {aba}')
-                            return False
-                            
                         driver.switch_to.window(aba)
                         driver.close()
                         print(f'[LIMPEZA] Aba fechada: {aba}')
+                        break  # Sai do loop de tentativas se conseguiu fechar
                     except Exception as e:
-                        print(f'[LIMPEZA][WARN] Erro ao fechar aba {aba}: {e}')
+                        print(f'[LIMPEZA][WARN] Tentativa {tentativa+1}/3 - Erro ao fechar aba {aba}: {e}')
+                        if tentativa == 2:  # Na última tentativa
+                            print(f'[LIMPEZA][WARN] Não foi possível fechar a aba {aba} após 3 tentativas')
+        
+        # Etapa 3: Verificar novamente as abas e voltar para a original
+        try:
+            abas_atuais = driver.window_handles
+        except Exception:
+            print('[LIMPEZA][ERRO] Falha ao verificar abas após limpeza')
+            return False
             
-            # Volta para a aba da lista
-            if aba_lista_original in driver.window_handles:
-                if not validar_conexao_driver(driver, "LIMPEZA_RETORNO"):
-                    print('[LIMPEZA][ERRO] Conexão perdida antes de retornar à aba da lista')
-                    return False
-                    
+        if aba_lista_original in abas_atuais:
+            try:
                 driver.switch_to.window(aba_lista_original)
                 print('[LIMPEZA] Retornou para aba da lista')
                 return True
-            else:
-                print('[LIMPEZA][ERRO] Aba da lista original não está mais disponível!')
+            except Exception as e:
+                print(f'[LIMPEZA][ERRO] Não foi possível voltar para aba original: {e}')
                 return False
-        except Exception as e:
-            print(f'[LIMPEZA][ERRO] Falha na limpeza de abas: {e}')
+        else:
+            print('[LIMPEZA][ERRO] Aba da lista original não está mais disponível!')
+            # Se tiver pelo menos uma aba, continua com ela
+            if len(abas_atuais) > 0:
+                print('[LIMPEZA][RECUPERAÇÃO] Usando primeira aba disponível como nova aba principal')
+                driver.switch_to.window(abas_atuais[0])
+                return True
+            else:
+                return False
+    except Exception as e:
+        print(f'[LIMPEZA][ERRO] Falha na limpeza de abas: {e}')
+        return False
+
+def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
+    """
+    Função principal para processar uma lista de processos, com tratamento robusto 
+    para questões de conexão, abas e manipulação do driver.
+    """
+    import time  # Adicionando import explícito do time
+    
+    print('[FLUXO] Iniciando indexação da lista de processos...', flush=True)
+      # Verificar conexão inicial
+    conexao_inicial = validar_conexao_driver(driver, "FLUXO")
+    if conexao_inicial == "FATAL":
+        print('[FLUXO][FATAL] Driver inutilizável no início do processamento!')
+        return False
+    elif not conexao_inicial:
+        print('[FLUXO][ERRO] Driver não está conectado no início do processamento!')
+        return False
+        
+    # Capturar aba original
+    try:
+        aba_lista_original = driver.current_window_handle
+        print(f'[FLUXO] Aba da lista capturada: {aba_lista_original}')
+    except Exception as e:
+        print(f'[FLUXO][ERRO] Falha ao capturar aba da lista: {e}')
+        return False
+    
+    # Indexar processos com tratamento de erro
+    try:
+        processos = indexar_processos(driver)
+        if not processos:
+            print('[FLUXO][ALERTA] Nenhum processo encontrado para indexação')
             return False
-    # Processa cada processo da lista indexada
+    except Exception as e:
+        print(f'[FLUXO][ERRO] Falha ao indexar processos: {e}')
+        return False
+        
     processos_processados = 0
     processos_com_erro = 0
+    interrompido_por_fatal = False
+    
+    # Limitar número de processos se necessário
+    if max_processos and max_processos > 0 and max_processos < len(processos):
+        processos = processos[:max_processos]
+        print(f'[FLUXO] Limitando processamento a {max_processos} processos')
     
     for idx, (proc_id, linha) in enumerate(processos):
+        print(f'[PROCESSAR] Iniciando processo {idx+1}/{len(processos)}: {proc_id}', flush=True)
+        
+        # Verificar conexão antes de cada processo
+        conexao_status = validar_conexao_driver(driver, "PROCESSAR")
+        if conexao_status == "FATAL":
+            print(f'[PROCESSAR][FATAL] Contexto do navegador foi descartado. Interrompendo processamento.')
+            print(f'[PROCESSAR][FATAL] Processos restantes não serão processados: {len(processos) - idx}')
+            interrompido_por_fatal = True
+            break  # Para o loop imediatamente
+        elif not conexao_status:
+            print(f'[PROCESSAR][ERRO] Conexão perdida antes de processar {proc_id}')
+            processos_com_erro += 1
+            continue
+            
+        # Limpar abas extras antes de processar cada item
+        limpeza_status = forcar_fechamento_abas_extras(driver, aba_lista_original)
+        if limpeza_status == "FATAL":
+            print(f'[PROCESSAR][FATAL] Contexto do navegador foi descartado durante limpeza de abas.')
+            print(f'[PROCESSAR][FATAL] Interrompendo processamento.')
+            interrompido_por_fatal = True
+            break  # Para o loop imediatamente
+        elif not limpeza_status:
+            print(f'[PROCESSAR][ERRO] Não foi possível limpar abas antes do processo {proc_id}. Abortando processamento.')
+            processos_com_erro += 1
+            continue
+            
+        # Verificar se ainda estamos na aba da lista
         try:
-            print(f'[PROCESSAR] Iniciando processo {idx+1}/{len(processos)}: {proc_id}', flush=True)
-            
-            # PASSO 1: Força limpeza de abas extras ANTES de abrir novo processo
-            print(f'[PROCESSAR][PRE] Verificando estado de abas antes de processar {proc_id}...')
-            abas_iniciais = driver.window_handles
-            print(f'[PROCESSAR][PRE] Abas detectadas inicialmente: {len(abas_iniciais)}')
-            
-            if len(abas_iniciais) > 1:
-                print(f'[PROCESSAR][PRE] Múltiplas abas detectadas! Forçando limpeza antes de {proc_id}...')
-                if not forcar_fechamento_abas_extras():
-                    print(f'[PROCESSAR][ERRO] Não foi possível limpar abas antes do processo {proc_id}. Abortando processamento.')
-                    return False
-            
-            # Verifica se ainda estamos na aba da lista
-            if driver.current_window_handle != aba_lista_original:
-                print(f'[PROCESSAR][WARN] Não estamos na aba da lista antes de {proc_id}. Tentando retornar...')
+            atual_url = driver.current_url
+            if "escaninho" not in atual_url and "documentos" not in atual_url:
+                print(f'[PROCESSAR][ALERTA] Não estamos na página da lista! URL: {atual_url[:50]}...')
+                # Tentar navegar de volta se possível
                 try:
-                    driver.switch_to.window(aba_lista_original)
-                    print(f'[PROCESSAR][PRE] Retornado à aba da lista para {proc_id}')
-                except Exception as e:
-                    print(f'[PROCESSAR][ERRO] Não foi possível retornar à aba da lista antes de {proc_id}: {e}')
-                    return False            # PASSO 2: Reindexar e abrir o processo na lista
-            # A referência DOM da linha pode ter ficado obsoleta após limpeza de abas
-            # Vamos buscar novamente a linha pelo número do processo
-            linha_atual = None
-            try:
-                # Busca todas as linhas novamente
-                linhas_atuais = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
-                for linha_temp in linhas_atuais:
-                    try:
-                        # Extrai o texto da linha para encontrar o processo correto
-                        links = linha_temp.find_elements(By.CSS_SELECTOR, 'a')
-                        texto_linha = ''
-                        if links:
-                            texto_linha = links[0].text.strip()
-                        else:
-                            tds = linha_temp.find_elements(By.TAG_NAME, 'td')
-                            texto_linha = tds[0].text.strip() if tds else ''
-                        
-                        # Verifica se é a linha do processo que queremos
-                        if proc_id in texto_linha:
-                            linha_atual = linha_temp
-                            print(f'[PROCESSAR][REINDEX] Linha reindexada para {proc_id}')
-                            break
-                    except Exception as e:
+                    if aba_lista_original in driver.window_handles:
+                        driver.switch_to.window(aba_lista_original)
+                        print('[PROCESSAR] Voltamos para a aba da lista')
+                    else:
+                        print('[PROCESSAR][ERRO] Aba da lista não está mais disponível')
+                        processos_com_erro += 1
                         continue
-                        
-                if not linha_atual:
-                    print(f'[PROCESSAR][ERRO] Não foi possível reindexar a linha para {proc_id}')
+                except Exception as e:
+                    print(f'[PROCESSAR][ERRO] Falha ao tentar voltar para a aba da lista: {e}')
                     processos_com_erro += 1
                     continue
-                    
-            except Exception as e:
-                print(f'[PROCESSAR][ERRO] Falha na reindexação para {proc_id}: {e}')
-                processos_com_erro += 1
-                continue
+        except Exception as e:
+            print(f'[PROCESSAR][ERRO] Falha ao verificar URL atual: {e}')
+            processos_com_erro += 1
+            continue
             
-            # Agora busca o botão na linha reindexada
-            btn = None
+        # Reindexar linha com maior tolerância
+        tentativas = 3
+        linha_atual = None
+        for tentativa in range(tentativas):
             try:
-                btn = linha_atual.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
-            except Exception:
-                try:
-                    btn = linha_atual.find_element(By.CSS_SELECTOR, 'button, a')
-                except Exception:
-                    pass
-            if btn is not None:
-                driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-                driver.execute_script("arguments[0].click();", btn)
-                print(f'[PROCESSAR][CLICK] Botão de detalhes clicado para {proc_id}')
-            else:
+                linha_atual = reindexar_linha(driver, proc_id)
+                if linha_atual:
+                    break
+                print(f'[PROCESSAR] Tentativa {tentativa+1}/{tentativas} - Aguardando para reindexar linha')
+                time.sleep(1)
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Falha na tentativa {tentativa+1} de reindexar: {e}')
+                time.sleep(1)
+                
+        if not linha_atual:
+            print(f'[PROCESSAR][ERRO] Não foi possível reindexar a linha para {proc_id} após {tentativas} tentativas')
+            processos_com_erro += 1
+            continue
+            
+        # Abre detalhes
+        try:
+            if not abrir_detalhes_processo(driver, linha_atual):
                 print(f'[PROCESSAR][ERRO] Botão de detalhes não encontrado para {proc_id}')
                 processos_com_erro += 1
                 continue
-            time.sleep(1)
-            
-            # PASSO 3: Trocar para a nova aba
-            time.sleep(1)
-            abas = driver.window_handles
-            nova_aba = None
-            for h in abas:
-                if h != aba_lista_original:
-                    nova_aba = h
-                    break
-            if not nova_aba:
-                print(f'[PROCESSAR][ERRO] Nova aba do processo {proc_id} não foi aberta.')
-                processos_com_erro += 1
-                continue
-            try:
-                driver.switch_to.window(nova_aba)
-            except Exception as e:
-                print(f'[PROCESSAR][ERRO] Não foi possível trocar para nova aba do processo {proc_id}: {e}')
-                processos_com_erro += 1
-                continue
-            url_aba = driver.current_url
-            if log:
-                print(f'[PROCESSAR] Aba do processo {proc_id} aberta em {url_aba}.')
-            
-            # Aplica workaround TAB após abrir a aba
-            try:
-                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
-                print('[WORKAROUND] Pressionada tecla TAB para tentar restaurar cabeçalho da aba detalhes.')
-            except Exception as e:
-                print(f'[WORKAROUND][ERRO] Falha ao pressionar TAB: {e}')
-              # PASSO 4: Executar callback (ou simular automação) com tratamento defensivo de abas
-            callback_sucesso = False
-            try:
-                if callback:
-                    print(f'[PROCESSAR][DEBUG] Iniciando callback para processo {proc_id}...', flush=True)
-                    
-                    # Captura estado das abas ANTES do callback
-                    abas_antes_callback = set(driver.window_handles)
-                    
-                    # Executa callback
-                    callback(driver)
-                    
-                    # Verifica estado das abas APÓS callback
-                    abas_depois_callback = set(driver.window_handles)
-                    novas_abas_callback = abas_depois_callback - abas_antes_callback
-                    
-                    if novas_abas_callback:
-                        print(f'[PROCESSAR][WARN] Callback criou {len(novas_abas_callback)} nova(s) aba(s): {novas_abas_callback}')
-                    
-                    print(f'[PROCESSAR][DEBUG] Callback concluído para processo {proc_id}.', flush=True)
-                    callback_sucesso = True
-                    processos_processados += 1
-                else:
-                    print(f'[PROCESSAR][DEBUG] Nenhum callback definido para processo {proc_id}.', flush=True)
-                    callback_sucesso = True
-                    processos_processados += 1
-            except Exception as e:
-                print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}', flush=True)
-                import traceback
-                print(f'[PROCESSAR][ERRO] Traceback completo: {traceback.format_exc()}', flush=True)
-                processos_com_erro += 1
-                callback_sucesso = False
-            
-            # PASSO 5: FORÇA limpeza de abas após processamento (SEMPRE, independente do callback)
-            print(f'[PROCESSAR] Processo {proc_id} finalizado (sucesso={callback_sucesso}) - FORÇANDO limpeza completa de abas...')
-            
-            # Limpeza defensiva SEMPRE, mesmo que callback falhe
-            try:
-                abas_antes_limpeza = driver.window_handles
-                print(f'[PROCESSAR][LIMPEZA] Abas antes da limpeza: {len(abas_antes_limpeza)}')
-                
-                if not forcar_fechamento_abas_extras():
-                    print(f'[PROCESSAR][ERRO] Falha na limpeza automática para {proc_id}. Tentando limpeza manual...')
-                    
-                    # Limpeza manual forçada em caso de falha
-                    for aba in driver.window_handles:
-                        if aba != aba_lista_original:
-                            try:
-                                driver.switch_to.window(aba)
-                                driver.close()
-                                print(f'[PROCESSAR][LIMPEZA] Aba manual fechada: {aba}')
-                            except Exception as cleanup_err:
-                                print(f'[PROCESSAR][LIMPEZA][WARN] Erro na limpeza manual da aba {aba}: {cleanup_err}')
-                    
-                    # Volta para a lista após limpeza manual
-                    try:
-                        driver.switch_to.window(aba_lista_original)
-                        print('[PROCESSAR][LIMPEZA] Retornou à aba da lista após limpeza manual')
-                    except Exception as switch_err:
-                        print(f'[PROCESSAR][ERRO] Não foi possível retornar à aba da lista: {switch_err}')
-                        return False
-                
-                abas_depois_limpeza = driver.window_handles
-                print(f'[PROCESSAR][LIMPEZA] Abas após limpeza: {len(abas_depois_limpeza)}')
-                
-                if len(abas_depois_limpeza) > 1:
-                    print(f'[PROCESSAR][WARN] Ainda há {len(abas_depois_limpeza)} abas abertas após limpeza!')
-                
-            except Exception as cleanup_error:
-                print(f'[PROCESSAR][ERRO] Falha crítica na limpeza de abas para {proc_id}: {cleanup_error}')
-                # Mesmo com erro na limpeza, tenta continuar
-                try:
-                    driver.switch_to.window(aba_lista_original)
-                except:
-                    print(f'[PROCESSAR][ERRO] Não foi possível retornar à aba da lista após erro de limpeza')
-                    return False
-            
         except Exception as e:
-            print(f'[PROCESSAR][ERRO] Falha geral ao processar processo {proc_id}: {e}')
+            print(f'[PROCESSAR][ERRO] Falha ao abrir detalhes do processo {proc_id}: {e}')
             processos_com_erro += 1
-            # Mesmo com erro, força limpeza de abas para tentar prosseguir
-            try:
-                forcar_fechamento_abas_extras()
-            except:
-                pass
             continue
-    
-    # Relatório final
-    print(f'[FLUXO] Processamento concluído!')
-    print(f'[FLUXO] Processos processados com sucesso: {processos_processados}')
-    print(f'[FLUXO] Processos com erro: {processos_com_erro}')
-    print(f'[FLUXO] Total de processos: {len(processos)}')
-    
-    return processos_processados > 0  # Retorna True se pelo menos um processo foi processado
+            
+        # Pausa para carregamento da nova aba
+        time.sleep(1)
+        
+        # Troca para nova aba com várias tentativas
+        nova_aba = None
+        for tentativa in range(3):
+            try:
+                nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
+                if nova_aba:
+                    print(f'[PROCESSAR] Trocado para nova aba: {nova_aba}')
+                    time.sleep(0.5)  # Pequena pausa para estabilização da nova aba
+                    break
+                print(f'[PROCESSAR] Tentativa {tentativa+1}/3 - Aguardando abertura de nova aba')
+                time.sleep(1)
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Falha na tentativa {tentativa+1} de trocar para nova aba: {e}')
+                time.sleep(1)
+                
+        if not nova_aba:
+            print(f'[PROCESSAR][ERRO] Nova aba do processo {proc_id} não foi aberta após 3 tentativas.')
+            processos_com_erro += 1
+            continue
+            
+        # Verificar se a página carregou corretamente
+        try:
+            # Aguardar carregamento mínimo da página
+            time.sleep(1)
+            page_title = driver.title
+            current_url = driver.current_url
+            print(f'[PROCESSAR] Nova aba carregada: {page_title} | URL: {current_url[:50]}...')
+        except Exception as e:
+            print(f'[PROCESSAR][ALERTA] Não foi possível verificar carregamento da nova aba: {e}')
+            # Continua mesmo assim, o callback pode lidar com isso
+              # Executa callback com tratamento adicional
+        try:
+            if executar_callback(driver, callback, proc_id):
+                processos_processados += 1
+                print(f'[PROCESSAR] Callback executado com sucesso para {proc_id}')
+                  # Verificar conexão imediatamente após o callback para detectar se o crash aconteceu durante o processamento
+                conexao_pos_callback = validar_conexao_driver(driver, "POS-CALLBACK")
+                if conexao_pos_callback == "FATAL":
+                    print(f'[PROCESSAR][FATAL] Contexto do navegador foi descartado durante processamento de {proc_id}')
+                    print(f'[PROCESSAR][FATAL] Interrompendo processamento. Processos restantes: {len(processos) - idx - 1}')
+                    interrompido_por_fatal = True
+                    break  # Para o loop imediatamente
+                elif not conexao_pos_callback:
+                    print(f'[PROCESSAR][ALERTA] Conexão instável após processamento de {proc_id}')
+                    # Continua, mas registra o alerta
+            else:
+                print(f'[PROCESSAR][ERRO] Callback retornou False para {proc_id}')
+                processos_com_erro += 1
+        except Exception as e:
+            print(f'[PROCESSAR][ERRO] Falha inesperada ao executar callback: {e}')
+            processos_com_erro += 1
+              # Relatório final
+    relatorio_final(processos, processos_processados, processos_com_erro, interrompido_por_fatal)
+    return processos_processados > 0
 
+def relatorio_final(processos, processados, erros, interrompido_por_fatal=False):
+    print(f'[FLUXO] Processamento concluído!')
+    if interrompido_por_fatal:
+        print(f'[FLUXO][FATAL] ⚠️  Processamento INTERROMPIDO devido a erro fatal do driver!')
+        print(f'[FLUXO][FATAL] ⚠️  O contexto do navegador foi descartado (driver inutilizável)')
+    print(f'[FLUXO] Processos processados com sucesso: {processados}')
+    print(f'[FLUXO] Processos com erro: {erros}')
+    print(f'[FLUXO] Total de processos: {len(processos)}')
+    if interrompido_por_fatal:
+        processos_nao_processados = len(processos) - processados - erros
+        if processos_nao_processados > 0:
+            print(f'[FLUXO][FATAL] Processos não processados devido ao erro fatal: {processos_nao_processados}')
 def extrair_xs_atividades(driver, log=False):
     # Extrai todas as descrições de atividades que contenham 'xs' diretamente da tabela de atividades do GIGS.
     try:
@@ -1542,7 +1814,6 @@ def extrair_xs_atividades(driver, log=False):
                 if log: print('[XSACT] Linha sem colunas suficientes.')
             except Exception as inner_e:
                 if log: print(f'[XSACT][ERRO INTERNO] {inner_e}')
-
         if not resultados:
             if log: print('[XSACT] Nenhum "xs" encontrado nas descrições.')
             return None
@@ -1628,109 +1899,235 @@ def filtro_fase(driver):
         print(f'[FILTRO_FASE][ERRO] Falha ao aplicar filtro de fase: {e}')
         return False
 
-def copiarDOC(driver, id):
-    # Função para copiar o conteúdo do documento ativo no PJe via PDF.js.
-    # Args:
-    # driver: WebDriver instance.
-    # id: Identificador do documento a ser copiado.
-    # Returns:
-    # String com o conteúdo ou None se falhar
+# Função para processar lista de processos
+
+# =========================
+# 3. FUNÇÕES DE INTERAÇÃO COM ELEMENTOS
+# =========================
+
+# Função de espera robusta
+def sleep(ms):
+    """
+    Função que implementa pausa em milissegundos, similar ao sleep do JavaScript
+    
+    Args:
+        ms: Tempo de pausa em milissegundos
+    
+    Returns:
+        None
+    """
+    time.sleep(ms / 1000)
+
+def wait(driver, selector, timeout=10, by=By.CSS_SELECTOR):
+    """
+    Wait for an element to be present in the DOM.
+    Similar ao esperarElemento do gigs-plugin.js
+    
+    Args:
+        driver: Selenium WebDriver instance
+        selector: CSS selector or XPath
+        timeout: Maximum time to wait in seconds
+        by: Selector type (By.CSS_SELECTOR by default)
+    
+    Returns:
+        WebElement if found, None otherwise
+    """
+    if by is None:
+        by = By.CSS_SELECTOR
+        
     try:
-        print(f"[COPIAR_DOC] Tentando extrair texto do documento ID: {id}")
+        element = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((by, selector))
+        )
         
-        # Opção 1: Tentar extrair diretamente do viewer PDF.js principal
-        try:
-            viewer_element = driver.find_element(By.CSS_SELECTOR, 'div#viewer.pdfViewer')
-            if viewer_element:
-                conteudo = viewer_element.text
-                if conteudo and conteudo.strip():
-                    print(f"[COPIAR_DOC] Texto extraído via div#viewer.pdfViewer: {len(conteudo)} caracteres")
-                    return conteudo.strip()
-        except Exception as e:
-            print(f"[COPIAR_DOC] Falha na extração via div#viewer.pdfViewer: {e}")
-        
-        # Opção 2: Tentar acessar elemento de acessibilidade oculto
-        try:
-            elemento_acess = driver.find_element(By.CSS_SELECTOR, f'#acess{id}')
-            if elemento_acess:
-                # Tornar visível temporariamente para extração
-                driver.execute_script("arguments[0].style.display = 'block';", elemento_acess)
-                conteudo = elemento_acess.text
-                driver.execute_script("arguments[0].style.display = 'none';", elemento_acess)
-                
-                if conteudo and conteudo.strip():
-                    print(f"[COPIAR_DOC] Texto extraído via elemento acessibilidade: {len(conteudo)} caracteres")
-                    return conteudo.strip()
-        except Exception as e:
-            print(f"[COPIAR_DOC] Falha na extração via elemento acessibilidade: {e}")
-        
-        # Opção 2: Tentar acessar PDF.js diretamente
-        try:
-            objeto_pdf = driver.find_element(By.CSS_SELECTOR, f'#obj{id}')
-            if objeto_pdf:
-                # Executar JavaScript para acessar conteúdo do PDF.js
-                script = """
-                try {
-                    var obj = arguments[0];
-                    var pdfWindow = obj.contentWindow;
-                    if (pdfWindow && pdfWindow.PDFViewerApplication) {
-                        var pdfApp = pdfWindow.PDFViewerApplication;
-                        if (pdfApp.pdfDocument) {
-                            // Tentar extrair texto de todas as páginas
-                            var extractText = async function() {
-                                var textContent = '';
-                                var numPages = pdfApp.pdfDocument.numPages;
-                                for (var i = 1; i <= numPages; i++) {
-                                    var page = await pdfApp.pdfDocument.getPage(i);
-                                    var content = await page.getTextContent();
-                                    var strings = content.items.map(item => item.str);
-                                    textContent += strings.join(' ') + '\\n';
-                                }
-                                return textContent;
-                            };
-                            return extractText();
-                        }
-                    }
-                    return null;
-                } catch (e) {
-                    return 'ERRO: ' + e.message;
-                }
-                """
-                resultado = driver.execute_script(script, objeto_pdf)
-                
-                if resultado and isinstance(resultado, str) and not resultado.startswith('ERRO'):
-                    print(f"[COPIAR_DOC] Texto extraído via PDF.js: {len(resultado)} caracteres")
-                    return resultado.strip()
-                else:
-                    print(f"[COPIAR_DOC] Falha na extração via PDF.js: {resultado}")
-        except Exception as e:
-            print(f"[COPIAR_DOC] Falha na extração via PDF.js: {e}")
-          # Opção 3: Usar extrair_documento_silencioso como fallback preferencial
-        try:
-            print("[COPIAR_DOC] Tentando usar extrair_documento_silencioso...")
-            resultado = extrair_documento_silencioso(driver, log=False)
-            if resultado:
-                print(f"[COPIAR_DOC] Texto extraído via extrair_documento_silencioso: {len(resultado)} caracteres")
-                return resultado
-        except Exception as e:
-            print(f"[COPIAR_DOC] Falha ao usar extrair_documento_silencioso: {e}")
-        
-        # Opção 4: Usar extrair_documento original como último recurso
-        try:
-            print("[COPIAR_DOC] Tentando usar extrair_documento original como último recurso...")
-            resultado = extrair_documento(driver, log=False)
-            if resultado and resultado[0]:
-                print(f"[COPIAR_DOC] Texto extraído via extrair_documento: {len(resultado[0])} caracteres")
-                return resultado[0]
-        except Exception as e:
-            print(f"[COPIAR_DOC] Falha no fallback extrair_documento: {e}")
-        
-        print("[COPIAR_DOC] Nenhum método de extração funcionou.")
+        # Verifica se o elemento está habilitado, similar ao gigs-plugin.js
+        disabled = getattr(element, 'disabled', False)
+        if disabled:
+            print(f"[WAIT] Elemento encontrado, mas está desabilitado: {selector}")
+            return None
+            
+        return element
+    except (TimeoutException, NoSuchElementException):
+        if isinstance(selector, str):
+            print(f"[WAIT] Elemento não encontrado: {selector}")
         return None
+
+def wait_for_visible(driver, selector, timeout=10, by=None):
+    """
+    Wait for an element to be visible in the DOM.
+    
+    Args:
+        driver: Selenium WebDriver instance
+        selector: CSS selector or XPath
+        timeout: Maximum time to wait in seconds
+        by: Selector type (By.CSS_SELECTOR by default)
+    
+    Returns:
+        WebElement if visible, None otherwise
+    """
+    if by is None:
+        by = By.CSS_SELECTOR
+        
+    try:
+        element = WebDriverWait(driver, timeout).until(
+            EC.visibility_of_element_located((by, selector))
+        )
+        return element
+    except (TimeoutException, NoSuchElementException):
+        if isinstance(selector, str):
+            print(f"[WAIT_VISIBLE] Elemento não visível: {selector}")
+        return None
+
+def wait_for_clickable(driver, selector, timeout=10, by=None):
+    """
+    Wait for an element to be clickable in the DOM.
+    
+    Args:
+        driver: Selenium WebDriver instance
+        selector: CSS selector or XPath
+        timeout: Maximum time to wait in seconds
+        by: Selector type (By.CSS_SELECTOR by default)
+    
+    Returns:
+        WebElement if clickable, None otherwise
+    """
+    if by is None:
+        by = By.CSS_SELECTOR
+        
+    try:
+        element = WebDriverWait(driver, timeout).until(
+            EC.element_to_be_clickable((by, selector))
+        )
+        return element
+    except (TimeoutException, NoSuchElementException):
+        if isinstance(selector, str):
+            print(f"[WAIT_CLICKABLE] Elemento não clicável: {selector}")
+        return None
+
+def safe_click(driver, selector_or_element, timeout=10, by=None, log=True, retry_count=3):
+    """
+    Clicks safely on an element with multiple fallback mechanisms.
+    Versão robusta baseando-se nas práticas do gigs-plugin.js
+    
+    Args:
+        driver: Selenium WebDriver instance
+        selector_or_element: CSS selector (string) or WebElement
+        timeout: Maximum time to wait in seconds
+        by: Selector type (By.CSS_SELECTOR by default)
+        log: Whether to log actions
+        retry_count: Number of attempts before giving up
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Get the element if a selector was provided
+        if isinstance(selector_or_element, str):
+            if log:
+                print(f"[SAFE_CLICK] Buscando elemento: {selector_or_element}")
+            
+            # Primeiro tenta usando wait_for_clickable que é mais restritivo
+            element = wait_for_clickable(driver, selector_or_element, timeout, by)
+            
+            # Se não conseguir, usa o wait padrão que só verifica presença
+            if element is None:
+                element = wait(driver, selector_or_element, timeout, by)
+        else:
+            element = selector_or_element
+            
+        # Check if element was found
+        if element is None:
+            if log:
+                print(f"[SAFE_CLICK] Elemento não encontrado")
+            return False
+        
+        # Scroll elemento para a visualização antes de tentar clicar
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
+            sleep(300)  # Espera um pouco após o scroll
+        except Exception as e:
+            if log:
+                print(f"[SAFE_CLICK] Não foi possível rolar para o elemento: {str(e)}")
+            
+        # Estratégia de tentativas de click com diferentes abordagens
+        for attempt in range(retry_count):
+            if attempt > 0 and log:
+                print(f"[SAFE_CLICK] Tentativa {attempt+1}/{retry_count}")
+            
+            # Estratégia 1: Click padrão
+            try:
+                if log and attempt == 0:
+                    print(f"[SAFE_CLICK] Tentando click padrão")
+                element.click()
+                if log:
+                    print(f"[SAFE_CLICK] Click bem sucedido!")
+                return True
+            except (ElementClickInterceptedException, ElementNotInteractableException, WebDriverException) as e:
+                if log:
+                    print(f"[SAFE_CLICK] Click padrão falhou: {str(e)}")
+                sleep(200)  # Pequena pausa entre tentativas
+            
+            # Estratégia 2: JavaScript click
+            try:
+                if log:
+                    print(f"[SAFE_CLICK] Tentando click via JavaScript")
+                driver.execute_script("arguments[0].click();", element)
+                if log:
+                    print(f"[SAFE_CLICK] Click via JavaScript bem sucedido!")
+                return True
+            except Exception as e:
+                if log:
+                    print(f"[SAFE_CLICK] Click via JavaScript falhou: {str(e)}")
+                sleep(200)
+            
+            # Estratégia 3: ActionChains
+            try:
+                if log:
+                    print(f"[SAFE_CLICK] Tentando click via ActionChains")
+                actions = ActionChains(driver)
+                actions.move_to_element(element).click().perform()
+                if log:
+                    print(f"[SAFE_CLICK] Click via ActionChains bem sucedido!")
+                return True
+            except Exception as e:
+                if log:
+                    print(f"[SAFE_CLICK] Click via ActionChains falhou: {str(e)}")
+                sleep(300)
+                
+            # Estratégia 4: JavaScript mais avançado
+            try:
+                if log:
+                    print(f"[SAFE_CLICK] Tentando click via JavaScript avançado")
+                script = """
+                    var element = arguments[0];
+                    var e = document.createEvent('MouseEvents');
+                    e.initEvent('mousedown', true, true);
+                    element.dispatchEvent(e);
+                    e.initEvent('mouseup', true, true);
+                    element.dispatchEvent(e);
+                    e.initEvent('click', true, true);
+                    element.dispatchEvent(e);
+                    return true;
+                """
+                driver.execute_script(script, element)
+                if log:
+                    print(f"[SAFE_CLICK] Click via JavaScript avançado bem sucedido!")
+                return True
+            except Exception as e:
+                if log:
+                    print(f"[SAFE_CLICK] Click via JavaScript avançado falhou: {str(e)}")
+                
+            # Espera um pouco mais entre tentativas
+            sleep(500)
+        
+        if log:
+            print(f"[SAFE_CLICK] Todas as tentativas de click falharam após {retry_count} tentativas")
+        return False
         
     except Exception as e:
-        print(f"[COPIAR_DOC] Erro geral: {str(e)}")
-        return None
+        if log:
+            print(f"[SAFE_CLICK] Erro geral: {str(e)}")
+        return False
 
 
 # Classe responsável por gerenciar a juntada automática de anexos.
@@ -2397,7 +2794,7 @@ def BNDT_apagar(driver):
 
     # Foco permanece na aba BNDT
     return True
-def filtrofases(driver, fases_alvo=['liquidação', 'execução']):
+def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
     print(f'Filtrando fase processual: {", ".join(fases_alvo).title()}...')
     try:
         fase_element = None
@@ -2454,10 +2851,92 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução']):
             time.sleep(1)
         except Exception as e:
             print(f'[ERRO] Não conseguiu clicar no botão de filtrar: {e}')
+        # Generalização da seleção de tarefa
+        if tarefas_alvo:
+            print(f'Filtrando tarefa: {", ".join(tarefas_alvo).title()}...')
+            tarefa_element = None
+            try:
+                tarefa_element = driver.find_element(By.XPATH, f"//span[contains(text(), '{seletor_tarefa}')]")
+            except Exception:
+                try:
+                    seletor = 'span.ng-tns-c82-22.ng-star-inserted'
+                    for elem in driver.find_elements(By.CSS_SELECTOR, seletor):
+                        if seletor_tarefa in elem.text:
+                            tarefa_element = elem
+                            break
+                except Exception:
+                    print(f'[ERRO] Não encontrou o seletor de tarefa: {seletor_tarefa}.')
+                    return False
+            if not tarefa_element:
+                print(f'[ERRO] Não encontrou o seletor de tarefa: {seletor_tarefa}.')
+                return False
+            driver.execute_script("arguments[0].click();", tarefa_element)
+            time.sleep(1)
+            painel = None
+            painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
+            for _ in range(10):
+                try:
+                    painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
+                    if painel.is_displayed():
+                        break
+                except Exception:
+                    time.sleep(0.3)
+            if not painel or not painel.is_displayed():
+                print('[ERRO] Painel de opções de tarefa não apareceu.')
+                return False
+            tarefas_clicadas = set()
+            opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+            for tarefa in tarefas_alvo:
+                for opcao in opcoes:
+                    try:
+                        texto = opcao.text.strip().lower()
+                        if tarefa.lower() in texto and opcao.is_displayed():
+                            driver.execute_script("arguments[0].click();", opcao)
+                            tarefas_clicadas.add(tarefa)
+                            print(f'[OK] Tarefa "{tarefa}" selecionada.')
+                            time.sleep(0.5)
+                            break
+                    except Exception:
+                        continue
+            if len(tarefas_clicadas) == 0:
+                print(f'[ERRO] Não encontrou opções {tarefas_alvo} no painel de tarefas.')
+                return False
+            try:
+                botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
+                driver.execute_script('arguments[0].click();', botao_filtrar)
+                print('[OK] Tarefas selecionadas e filtro aplicado (botão filtrar).')
+                time.sleep(1)
+            except Exception as e:
+                print(f'[ERRO] Não conseguiu clicar no botão de filtrar para tarefas: {e}')
     except Exception as e:
         print(f'[ERRO] Erro no filtro de fase: {e}')
         return False
     return True
+def finalizar_driver(driver, log=True):
+    """Finaliza o driver de forma segura, aguardando operações pendentes"""
+    import time
+    try:
+        # Fecha todas as janelas exceto a principal
+        if len(driver.window_handles) > 1:
+            janela_principal = driver.window_handles[0]
+            for handle in driver.window_handles[1:]:
+                driver.switch_to.window(handle)
+                driver.close()
+            driver.switch_to.window(janela_principal)
+        
+        # Pequeno delay para operações pendentes
+        time.sleep(0.5)
+        
+        # Fecha o driver
+        driver.quit()
+        
+        if log:
+            print('[DRIVER] Driver finalizado com sucesso')
+        return True
+    except Exception as e:
+        if log:
+            print(f'[DRIVER][AVISO] Erro ao finalizar driver: {e}')
+        return False
 
 
 

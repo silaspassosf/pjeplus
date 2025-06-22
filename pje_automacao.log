@@ -10322,3 +10322,41 @@ sao paulo/sp...
 2025-06-20 15:00:39,021 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F30AF03750>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/e2747829-e743-433c-93de-18e9f07da7c6
 2025-06-20 15:00:43,128 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F30AF03ED0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/e2747829-e743-433c-93de-18e9f07da7c6
 2025-06-20 15:00:47,205 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F30AF0A650>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/e2747829-e743-433c-93de-18e9f07da7c6
+2025-06-22 18:30:18,443 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-06-22 18:30:22,932 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha na execução do loop_prazo: Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:469:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:37:4
+despatch@chrome://remote/content/marionette/server.sys.mjs:315:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+2025-06-22 18:30:22,932 [ERROR] [__main__] [SEQUENCIA][ERRO] Erro crítico na execução da sequência: Message: WebDriver session does not exist, or is not active
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+InvalidSessionIDError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:469:5
+assert.that/<@chrome://remote/content/shared/webdriver/Assert.sys.mjs:559:13
+assert.session@chrome://remote/content/shared/webdriver/Assert.sys.mjs:37:4
+despatch@chrome://remote/content/marionette/server.sys.mjs:315:19
+execute@chrome://remote/content/marionette/server.sys.mjs:289:16
+onPacket/<@chrome://remote/content/marionette/server.sys.mjs:262:20
+onPacket@chrome://remote/content/marionette/server.sys.mjs:263:9
+_onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
+
+2025-06-22 18:31:01,379 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-06-22 18:32:23,787 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-06-22 18:32:23,788 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-06-22 18:32:30,288 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-06-22 18:32:33,289 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-06-22 18:32:41,581 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-06-22 18:32:44,860 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-06-22 18:32:48,942 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000204CAF37D90>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d5509063-7f24-42d3-9add-8401ffa38f38
+2025-06-22 18:32:53,014 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000204CB010190>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d5509063-7f24-42d3-9add-8401ffa38f38
+2025-06-22 18:32:57,047 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000204CAF42190>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d5509063-7f24-42d3-9add-8401ffa38f38
+2025-06-22 18:33:01,068 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.

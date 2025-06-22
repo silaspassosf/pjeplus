@@ -228,11 +228,322 @@ def minuta_endereco(driver):
     dados_login(sisbajud_driver)
     print('[BACEN] Minuta de endereço: automação disponível na janela Firefox SISBAJUD.')
 
-def processar_bloqueios(driver):
-    sisbajud_driver = abrir_sisbajud_em_firefox_sisbajud()
-    injetar_menu_kaizen_sisbajud(sisbajud_driver)
-    dados_login(sisbajud_driver)
-    print('[BACEN] Processamento de bloqueios: automação disponível na janela Firefox SISBAJUD.')
+def processar_bloqueios(driver, linhas_filtradas=None):
+    """
+    Processa bloqueios na tabela de teimosinha:
+    1. Se linhas_filtradas for fornecido, clica em TODAS as linhas filtradas com "JUN 2025"
+    2. Para cada linha, clica no elemento da linha
+    3. Confirma navegação para /detalhes
+    4. Aplica cores nas linhas baseado no status de bloqueio (verde=positivo, vermelho=negativo)
+    5. Retorna à página anterior e continua com a próxima linha
+    
+    Esta função trabalha com o driver atual, não cria novo driver.
+    
+    Args:
+        driver: O WebDriver Selenium
+        linhas_filtradas: Lista opcional contendo as linhas filtradas com "JUN 2025"
+    """
+    print('[BACEN] Iniciando processamento de bloqueios...')
+    
+    try:        # Verificar se temos linhas filtradas para processar
+        if linhas_filtradas and isinstance(linhas_filtradas, list) and len(linhas_filtradas) > 0:
+            print(f'[BACEN] Recebidas {len(linhas_filtradas)} linhas filtradas para processamento')
+              # URL base fixa para construir URLs de detalhes
+            url_base_sisbajud = 'https://sisbajud.cnj.jus.br/teimosinha/'
+            print(f'[BACEN] URL base definida: {url_base_sisbajud}')
+            
+            # Processar TODAS as linhas filtradas, sem filtro adicional por réu
+            linhas_processadas = 0
+            linhas_com_erro = 0
+            
+            for idx, linha in enumerate(linhas_filtradas, 1):
+                id_serie = linha.get('id_serie', 'N/A')
+                
+                if id_serie and id_serie != 'N/A' and str(id_serie).isdigit():
+                    print(f'[BACEN] Processando linha {idx}/{len(linhas_filtradas)} - ID: {id_serie}')
+                      # Construir URL direta para detalhes da linha específica
+                    url_detalhes = f'{url_base_sisbajud}{id_serie}/detalhes'
+                    print(f'[BACEN] Navegando diretamente para: {url_detalhes}')
+                    
+                    try:
+                        # Navegar diretamente para a página de detalhes
+                        driver.get(url_detalhes)
+                        time.sleep(2)
+                        
+                        # Verificar se conseguimos navegar para detalhes
+                        current_url = driver.current_url
+                        if '/detalhes' in current_url and id_serie in current_url:
+                            print(f'[BACEN] ✅ Navegação direta bem-sucedida para linha {idx} (ID: {id_serie})!')
+                            
+                            # Aplicar cores nas linhas da página de detalhes
+                            _aplicar_cores_status_bloqueio(driver)
+                            linhas_processadas += 1
+                            
+                            # Aguardar um pouco antes de processar a próxima linha
+                            time.sleep(1)
+                            
+                        else:
+                            print(f'[BACEN] ❌ Falha ao navegar para detalhes da linha {idx} (ID: {id_serie})')
+                            print(f'[BACEN] URL atual: {current_url}')
+                            linhas_com_erro += 1
+                            
+                    except Exception as e:
+                        print(f'[BACEN] ❌ Erro ao navegar para detalhes da linha {idx} (ID: {id_serie}): {e}')
+                        linhas_com_erro += 1
+                        
+                else:
+                    print(f'[BACEN] ❌ ID inválido para linha {idx}: {id_serie}')
+                    linhas_com_erro += 1
+            
+            # Relatório final do processamento
+            print(f'[BACEN] ✅ Processamento concluído: {linhas_processadas} linhas processadas, {linhas_com_erro} erros')
+            if linhas_processadas > 0:
+                return True
+        
+        # Se não tem linhas filtradas ou o clique nas linhas não funcionou, seguir com o fluxo original
+        # Passo 1: Procurar e clicar no botão de ações (três pontos)
+        print('[BACEN] Passo 1: Procurando botão de ações (três pontos)...')
+        
+        # Estratégia múltipla para encontrar o botão
+        botao_acoes_encontrado = False
+        
+        # Método 1: Por classe específica do mat-icon
+        try:
+            botao_acoes = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[mat-icon-button] mat-icon.fa-ellipsis-h'))
+            )
+            # Clicar no botão pai (button)
+            botao_pai = botao_acoes.find_element(By.XPATH, './..')
+            botao_pai.click()
+            print('[BACEN] ✅ Botão de ações clicado (método 1 - classe fa-ellipsis-h)')
+            botao_acoes_encontrado = True
+            
+        except Exception:
+            # Método 2: Por seletor CSS mais genérico
+            try:
+                botao_acoes = WebDriverWait(driver, 3).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.mat-menu-trigger.mat-icon-button'))
+                )
+                botao_acoes.click()
+                print('[BACEN] ✅ Botão de ações clicado (método 2 - classes mat-menu-trigger)')
+                botao_acoes_encontrado = True
+                
+            except Exception:
+                # Método 3: Buscar por atributo aria-haspopup
+                try:
+                    botao_acoes = WebDriverWait(driver, 3).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-haspopup="true"]'))
+                    )
+                    botao_acoes.click()
+                    print('[BACEN] ✅ Botão de ações clicado (método 3 - aria-haspopup)')
+                    botao_acoes_encontrado = True
+                    
+                except Exception as e:
+                    print(f'[BACEN][ERRO] Não foi possível encontrar o botão de ações: {e}')
+                    return False
+        
+        if not botao_acoes_encontrado:
+            print('[BACEN][ERRO] Botão de ações não encontrado')
+            return False
+        
+        # Aguardar menu aparecer
+        time.sleep(1)
+        
+        # Passo 2: Procurar e clicar no ícone de lupa/detalhes
+        print('[BACEN] Passo 2: Procurando ícone de detalhes (lupa)...')
+        
+        detalhes_clicado = False
+        
+        # Método 1: Por classe específica fa-search-plus
+        try:
+            icone_detalhes = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-icon.fa-search-plus'))
+            )
+            icone_detalhes.click()
+            print('[BACEN] ✅ Ícone de detalhes clicado (método 1 - fa-search-plus)')
+            detalhes_clicado = True
+            
+        except Exception:
+            # Método 2: Buscar por qualquer ícone de pesquisa/lupa
+            try:
+                seletores_alternativos = [
+                    'mat-icon[class*="search"]',
+                    'mat-icon[class*="zoom"]', 
+                    'mat-icon[class*="detail"]',
+                    'mat-icon.fa-search',
+                    'button[title*="detail" i]',
+                    'button[title*="detalhes" i]'                ]
+                
+                for seletor in seletores_alternativos:
+                    try:
+                        elemento = WebDriverWait(driver, 2).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+                        )
+                        elemento.click()
+                        print(f'[BACEN] ✅ Ícone de detalhes clicado (método alternativo - {seletor})')
+                        detalhes_clicado = True
+                        break
+                    except Exception:
+                        continue
+                        
+            except Exception as e:
+                print(f'[BACEN][ERRO] Não foi possível encontrar o ícone de detalhes: {e}')
+                return False
+        
+        if not detalhes_clicado:
+            print('[BACEN][ERRO] Ícone de detalhes não encontrado')
+            return False
+        
+        # Passo 3: Confirmar navegação para /detalhes
+        print('[BACEN] Passo 3: Confirmando navegação para /detalhes...')
+        
+        # Aguardar navegação
+        time.sleep(2)
+        
+        # Verificar se chegamos na URL de detalhes
+        navegacao_confirmada = False
+        for tentativa in range(10):
+            current_url = driver.current_url
+            print(f'[BACEN] Tentativa {tentativa + 1}/10 - URL atual: {current_url}')
+            
+            if '/detalhes' in current_url:
+                print('[BACEN] ✅ Navegação para /detalhes confirmada!')
+                print(f'[BACEN] URL de detalhes: {current_url}')
+                navegacao_confirmada = True
+                break
+                
+            time.sleep(1)
+        
+        # Se não chegou na URL /detalhes, verificar elementos de detalhes
+        if not navegacao_confirmada:
+            print(f'[BACEN][AVISO] URL /detalhes não detectada após 10 tentativas.')
+            print(f'[BACEN] URL final: {driver.current_url}')
+            print('[BACEN] Verificando se elementos de detalhes estão presentes...')
+            
+            # Verificar se elementos típicos de página de detalhes estão presentes
+            elementos_detalhes = driver.execute_script("""
+                const indicadores = [
+                    'sisbajud-detalhes',
+                    'detalhe-ordem',
+                    'informacoes-ordem',
+                    '[class*="detail"]',
+                    '[class*="detalhes"]'
+                ];
+                
+                for (let seletor of indicadores) {
+                    if (document.querySelector(seletor)) {
+                        console.log('[BACEN] Elemento de detalhes encontrado:', seletor);
+                        return true;
+                    }
+                }
+                return false;            """)
+            
+            if elementos_detalhes:
+                print('[BACEN] ✅ Elementos de detalhes detectados na página!')
+                navegacao_confirmada = True
+            else:
+                print('[BACEN][ERRO] Elementos de detalhes não detectados')
+                return False
+        
+        # Passo 4: Aplicar cores nas linhas após confirmar navegação para detalhes
+        if navegacao_confirmada:
+            print('[BACEN] Passo 4: Aplicando cores nas linhas da tabela após navegação confirmada...')
+            _aplicar_cores_status_bloqueio(driver)
+            print('[BACEN] ✅ Processamento de bloqueios concluído com sucesso!')
+            return True
+        else:
+            print('[BACEN][ERRO] Navegação para detalhes não confirmada')
+            return False
+            
+    except Exception as e:
+        print(f'[BACEN][ERRO] Exceção durante processamento de bloqueios: {e}')
+        return False
+
+def _aplicar_cores_status_bloqueio(driver):
+    """
+    Aplica cores nas linhas da tabela baseado na comparação do valor da coluna 'Valor a bloquear' com o valor do card superior.
+    Verde se igual ao valor do card, vermelho se diferente.
+    """
+    print('[BACEN] Aplicando cores nas linhas da tabela (comparação com valor do card superior)...')
+    try:
+        cor_igual = CONFIG['cor_bloqueio_positivo']
+        cor_diferente = CONFIG['cor_bloqueio_negativo']
+        print(f'[BACEN] Cores configuradas: Igual={cor_igual}, Diferente={cor_diferente}')
+
+        js_aplicar_cores = rf'''
+            console.log('[BACEN] Iniciando aplicação de cores nas linhas...');
+            // 1. Extrair valor de referência do card superior
+            let valorCard = null;
+            let labels = document.querySelectorAll('span.sisbajud-label');
+            labels.forEach(label => {{
+                if (label.textContent.trim() === 'Valor a bloquear') {{
+                    let valorSpan = label.nextElementSibling;
+                    if (valorSpan && valorSpan.classList.contains('sisbajud-label-valor')) {{
+                        let texto = valorSpan.textContent.trim();
+                        let limpo = texto.replace(/R\$/g, '').replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+                        let num = parseFloat(limpo);
+                        if (!isNaN(num)) valorCard = num;
+                    }}
+                }}
+            }});
+            if (valorCard === null) {{
+                console.warn('[BACEN] Valor do card superior não encontrado!');
+                return null;
+            }}
+            console.log('[BACEN] Valor de referência do card superior:', valorCard);
+
+            // 2. Buscar todas as linhas da tabela que tenham a coluna 'Valor a bloquear'
+            let linhas = Array.from(document.querySelectorAll('tr'));
+            let linhasProcessadas = 0;
+            let linhasIguais = 0;
+            let linhasDiferentes = 0;
+            linhas.forEach((linha, idx) => {{
+                let celula = linha.querySelector('td.cdk-column-valorBloquear');
+                if (!celula) return;
+                let textoCelula = (celula.innerText || celula.textContent || '').trim();
+                let limpo = textoCelula.replace(/R\$/g, '').replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+                let valorCelula = parseFloat(limpo);
+                if (isNaN(valorCelula)) return;
+                let cor = null;
+                if (Math.abs(valorCelula - valorCard) < 0.01) {{
+                    cor = '{cor_igual}';
+                    linhasIguais++;
+                }} else {{
+                    cor = '{cor_diferente}';
+                    linhasDiferentes++;
+                }}
+                // Aplicar cor na linha e células
+                linha.style.backgroundColor = cor + ' !important';
+                linha.style.color = 'white !important';
+                linha.style.fontWeight = 'bold !important';
+                Array.from(linha.children).forEach(cel => {{
+                    cel.style.backgroundColor = cor + ' !important';
+                    cel.style.color = 'white !important';
+                    cel.style.fontWeight = 'bold !important';
+                }});
+                linhasProcessadas++;
+            }});
+            console.log('[BACEN] Linhas processadas:', linhasProcessadas, 'Iguais:', linhasIguais, 'Diferentes:', linhasDiferentes);
+            return {{
+                linhasProcessadas: linhasProcessadas,
+                iguais: linhasIguais,
+                diferentes: linhasDiferentes
+            }};
+        '''
+
+        resultado = driver.execute_script(js_aplicar_cores)
+        if resultado:
+            print(f'[BACEN] ✅ Cores aplicadas com sucesso!')
+            print(f"[BACEN] Linhas processadas: {resultado.get('linhasProcessadas', 0)}")
+            print(f"[BACEN] Linhas iguais ao valor do card (verde): {resultado.get('iguais', 0)}")
+            print(f"[BACEN] Linhas diferentes do valor do card (vermelho): {resultado.get('diferentes', 0)}")
+        else:
+            print('[BACEN] ⚠️ Nenhum resultado retornado do JavaScript')
+    except Exception as e:
+        print(f'[BACEN][ERRO] Falha ao aplicar cores nas linhas: {e}')
+        import traceback
+        traceback.print_exc()
+
 
 # ===================== INJETAR MENU KAIZEN NO SISBAJUD =====================
 def injetar_menu_kaizen_sisbajud(driver):
@@ -978,13 +1289,13 @@ def kaizen_nova_minuta(driver, endereco=False):
         
         # Verificar se o clique foi bem-sucedido
         if not sucesso_click:
-            print('[KAIZEN][ERRO] Falha ao clicar no botão Nova')
+            print('[BACEN][ERRO] Falha ao clicar no botão Nova')
             return
-            
-        print('[KAIZEN] ✅ Botão Nova clicado com sucesso!')
+        
+        print('[BACEN] ✅ Botão Nova clicado com sucesso!')
           # Passo 4: Se for minuta de endereço, selecionar "Requisição de informações"
         if endereco:
-            print('[KAIZEN] Passo 4: Selecionando "Requisição de informações"...')
+            print('[BACEN] Passo 4: Selecionando "Requisição de informações"...')
             requisicao_selecionada = driver.execute_script("""
                 // Buscar por labels que contenham "Requisição de informações"
                 let labels = document.querySelectorAll('label');
@@ -1012,12 +1323,12 @@ def kaizen_nova_minuta(driver, endereco=False):
             """)
             
             if requisicao_selecionada:
-                print('[KAIZEN] ✅ "Requisição de informações" selecionada!')
+                print('[BACEN] ✅ "Requisição de informações" selecionada!')
             else:
-                print('[KAIZEN][AVISO] "Requisição de informações" não encontrada, continuando...')
+                print('[BACEN][AVISO] "Requisição de informações" não encontrada, continuando...')
                 
             time.sleep(0.8)# Aguardar a página carregar completamente
-        print('[KAIZEN] Aguardando redirecionamento para página de cadastro...')
+        print('[BACEN] Aguardando redirecionamento para página de cadastro...')
         
         for tentativa in range(20):  # Aumentado de 15 para 20 tentativas
             current_url = driver.current_url
@@ -1034,7 +1345,7 @@ def kaizen_nova_minuta(driver, endereco=False):
             ]
             
             if any(url_pattern in current_url for url_pattern in urls_validas):
-                print(f'[KAIZEN] ✅ Página de cadastro detectada! URL: {current_url}')
+                print(f'[BACEN] ✅ Página de cadastro detectada! URL: {current_url}')
                 break
                 
             # Verificar se elementos de cadastro já estão disponíveis mesmo que a URL não tenha mudado
@@ -1056,7 +1367,7 @@ def kaizen_nova_minuta(driver, endereco=False):
             """)
             
             if elementos_presentes:
-                print('[KAIZEN] ✅ Elementos de cadastro detectados na página!')
+                print('[BACEN] ✅ Elementos de cadastro detectados na página!')
                 break
                 
             time.sleep(1.5)  # Aumentado tempo entre tentativas
@@ -1110,8 +1421,8 @@ def kaizen_nova_minuta(driver, endereco=False):
             
         time.sleep(1)
         
-        print('[KAIZEN] ✅ Nova minuta criada com sucesso!')
-        print('[KAIZEN] 💡 Para preencher os campos, clique em "Polo Ativo" ou "Polo Passivo" conforme necessário.')
+        print('[BACEN] ✅ Nova minuta criada com sucesso!')
+        print('[BACEN] 💡 Para preencher os campos, clique em "Polo Ativo" ou "Polo Passivo" conforme necessário.')
         
     except Exception as e:
         print(f'[KAIZEN][ERRO] Falha ao criar nova minuta: {e}')
@@ -1235,7 +1546,7 @@ def kaizen_consultar_teimosinha(driver):
             
             # Passo 1: Clicar no menu de navegação
             print('[KAIZEN] Passo 1: Abrindo menu de navegação...')
-            menu_clicado = driver.execute_script("""
+            driver.execute_script("""
                 let btn = document.querySelector('button[aria-label*="menu de navegação"], button[aria-label*="Abri menu de navegação"]');
                 if (btn) {
                     console.log('[KAIZEN] Menu de navegação encontrado, clicando...');
@@ -1246,16 +1557,11 @@ def kaizen_consultar_teimosinha(driver):
                     return false;
                 }
             """)
-            
-            if not menu_clicado:
-                print('[KAIZEN][ERRO] Falha ao clicar no menu de navegação')
-                return
-                
             time.sleep(0.8)
             
             # Passo 2: Ir para Teimosinha
             print('[KAIZEN] Passo 2: Navegando para Teimosinha...')
-            teimosinha_clicado = driver.execute_script("""
+            driver.execute_script("""
                 let link = document.querySelector('a[aria-label*="Ir para Teimosinha"]');
                 if (link) {
                     console.log('[KAIZEN] Link Teimosinha encontrado, clicando...');
@@ -1266,11 +1572,6 @@ def kaizen_consultar_teimosinha(driver):
                     return false;
                 }
             """)
-            
-            if not teimosinha_clicado:
-                print('[KAIZEN][ERRO] Falha ao clicar no link Teimosinha')
-                return
-                
             time.sleep(1.5)
         
         # Passo 3: Verificar se chegamos na página de teimosinha
@@ -1323,194 +1624,253 @@ def kaizen_consultar_teimosinha(driver):
                         arguments[0].blur();
                     """, campo)
                     
-                    print(f'[KAIZEN] ✅ Campo "Número do Processo" preenchido com: {numero_processo}')
-                    print(f'[KAIZEN] Seletor usado: {seletor}')
+                    print(f'✅ Campo "Número do Processo" preenchido com: {numero_processo}')
+                    print(f'Seletor usado: {seletor}')
                     campo_encontrado = True
                     break
                     
-                except Exception:
+                except Exception as e:
+                    print(f'Erro ao preencher campo com seletor {seletor}: {e}')
                     continue
             
             if not campo_encontrado:
-                print('[KAIZEN][ERRO] Campo "Número do Processo" não encontrado em nenhum seletor')
+                print('❌ Campo "Número do Processo" não encontrado em nenhum seletor')
                 return
             
             # Aguardar um pouco para o preenchimento ser processado
             time.sleep(1)
             
             # Passo 5: Encontrar e clicar no botão "Consultar" usando Python puro
-            print('[KAIZEN] Passo 5: Procurando e clicando no botão "Consultar"...')
+            print('Passo 5: Procurando e clicando no botão "Consultar"...')
             
             botao_encontrado = False
             
             # Primeiro, tentar encontrar por texto usando XPath (mais confiável)
-            try:
-                botao = WebDriverWait(driver, 10).until(
+            try {
+                let botao = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Consultar') or contains(.//span/text(), 'Consultar')]"))
-                )
-                botao.click()
-                print('[KAIZEN] ✅ Botão "Consultar" clicado com sucesso (XPath)')
-                botao_encontrado = True
+                );
+                botao.click();
+                console.log('[KAIZEN] ✅ Botão "Consultar" clicado com sucesso (XPath)');
+                botao_encontrado = true;
                 
-            except Exception as e:
-                print(f'[KAIZEN] XPath para botão Consultar falhou: {e}')
+            } catch (Exception e) {
+                console.log(`⚠️ XPath para botão Consultar falhou: ${e}`);
                 
                 # Fallback: buscar todos os botões e verificar texto
-                try:
-                    botoes = driver.find_elements(By.TAG_NAME, 'button')
-                    for botao in botoes:
-                        if not botao.is_enabled() or not botao.is_displayed():
-                            continue
-                            
-                        texto_botao = botao.get_attribute('innerText') or botao.text or ''
-                        if 'consultar' in texto_botao.lower():
-                            botao.click()
-                            print(f'[KAIZEN] ✅ Botão "Consultar" clicado com sucesso: {texto_botao}')
-                            botao_encontrado = True
-                            break
-                            
-                except Exception as e2:
-                    print(f'[KAIZEN][ERRO] Fallback para botão Consultar também falhou: {e2}')
+                try {
+                    let botoes = driver.find_elements(By.TAG_NAME, 'button');
+                    for (let botao of botoes) {
+                        if (!botao.is_enabled() || !botao.is_displayed()) {
+                            continue;
+                        }
+                        
+                        let texto_botao = botao.get_attribute('innerText') || botao.text || '';
+                        if (texto_botao.toLowerCase().includes('consultar')) {
+                            botao.click();
+                            console.log(`✅ Botão "Consultar" clicado com sucesso: ${texto_botao}`);
+                            botao_encontrado = true;
+                            break;
+                        }
+                        
+                    }
+                } catch (Exception e2) {
+                    console.log(`❌ Fallback para botão Consultar também falhou: ${e2}`);
+                }
+            }
             
-            if not botao_encontrado:
-                print('[KAIZEN][ERRO] Botão "Consultar" não encontrado ou não clicável')
-                return
+            if (!botao_encontrado) {
+                console.log('[KAIZEN][ERRO] Botão "Consultar" não encontrado ou não clicável');
+                return;
+            }
             
-            # Aguardar a tabela de resultados carregar
-            print('[KAIZEN] Aguardando carregamento da tabela de resultados...')
+            // Aguardar a tabela de resultados carregar
+            console.log('[KAIZEN] Aguardando carregamento da tabela de resultados...');
             
-            try:
-                # Aguardar tabela aparecer (máximo 15 segundos)
+            try {
+                // Aguardar tabela aparecer (máximo 15 segundos)
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, 'table, tbody, tr'))
-                )
-                print('[KAIZEN] ✅ Tabela de resultados carregada!')
+                );
+                console.log('[KAIZEN] ✅ Tabela de resultados carregada!');
                 
-                # Aguardar mais um pouco para garantir que os dados foram preenchidos
-                time.sleep(2)
+                // Aguardar mais um pouco para garantir que os dados foram preenchidos
+                time.sleep(2);
+                  // Buscar linhas com "JUN DE 2025"
+                linhas_jun = _buscar_linhas_jun_2025(driver);
+                // Não precisamos chamar processar_bloqueios aqui, pois é chamado dentro de _buscar_linhas_jun_2025
                 
-                # Buscar linhas com "JUN DE 2025"
-                _buscar_linhas_jun_2025(driver)
+            } catch (Exception e) {
+                console.log(`[KAIZEN][AVISO] Tabela não detectada no tempo esperado: ${e}`);
+                console.log('[KAIZEN] Tentando buscar linhas mesmo assim...');
+                linhas_jun = _buscar_linhas_jun_2025(driver);
+                // Não precisamos chamar processar_bloqueios aqui, pois é chamado dentro de _buscar_linhas_jun_2025
                 
-            except Exception as e:
-                print(f'[KAIZEN][AVISO] Tabela não detectada no tempo esperado: {e}')
-                print('[KAIZEN] Tentando buscar linhas mesmo assim...')
-                _buscar_linhas_jun_2025(driver)
-                
-        except Exception as e:
-            print(f'[KAIZEN][ERRO] Falha no preenchimento/consulta Python: {e}')
+            }
+        } catch (Exception e) {
+            console.log(`❌ Erro no preenchimento/consulta Python: ${e}`);
+        }
 
-    except Exception as e:
-        print(f'[KAIZEN][ERRO] Exceção ao executar consulta teimosinha: {e}')
+    } catch (e) {
+        console.log(`❌ Erro ao executar consulta teimosinha: ${e}`);
+    }
+}
 
-def _buscar_linhas_jun_2025(driver):
+function _buscar_linhas_jun_2025(driver) {
     """
     Busca na tabela de resultados as linhas que contêm "JUN DE 2025"
-    e exibe o ID da série correspondente usando Python puro (mais robusto que JavaScript).
+    e retorna as linhas encontradas para processamento pela função processar_bloqueios.
     """
-    try:
-        print('[KAIZEN] Buscando linhas com "JUN DE 2025" na tabela...')
+    try {
+        console.log('[KAIZEN] Buscando linhas com "JUN DE 2025" na tabela...');
         
-        # Buscar todas as tabelas na página
-        tabelas = driver.find_elements(By.TAG_NAME, 'table')
+        // Buscar todas as tabelas na página
+        let tabelas = driver.find_elements(By.TAG_NAME, 'table');
         
-        if not tabelas:
-            print('[KAIZEN][AVISO] Nenhuma tabela encontrada na página')
-            return
+        if (!tabelas || tabelas.length === 0) {
+            console.log('[KAIZEN][AVISO] Nenhuma tabela encontrada na página');
+            return [];
+        }
         
-        print(f'[KAIZEN] Encontradas {len(tabelas)} tabela(s) na página')
+        console.log(`Encontradas ${tabelas.length} tabela(s) na página`);
         
-        linhas_encontradas = []
+        let linhas_encontradas = [];
         
-        for indice_tabela, tabela in enumerate(tabelas):
-            # Buscar todas as linhas da tabela
-            linhas = tabela.find_elements(By.TAG_NAME, 'tr')
+        for (let indice_tabela = 0; indice_tabela < tabelas.length; indice_tabela++) {
+            let tabela = tabelas[indice_tabela];
+            // Buscar todas as linhas da tabela
+            let linhas = tabela.find_elements(By.TAG_NAME, 'tr');
             
-            for indice_linha, linha in enumerate(linhas):
-                try:
-                    texto_linha = linha.text or linha.get_attribute('innerText') or ''
+            for (let indice_linha = 0; indice_linha < linhas.length; indice_linha++) {
+                try {
+                    let linha = linhas[indice_linha];
+                    let texto_linha = linha.text || linha.get_attribute('innerText') || '';
                     
-                    # Verificar se a linha contém "JUN DE 2025" (case-insensitive)
-                    if 'JUN DE 2025' in texto_linha.upper():
-                        print(f'[KAIZEN] ✅ Linha com "JUN DE 2025" encontrada!')
+                    // Verificar se a linha contém "JUN DE 2025" (case-insensitive)
+                    if (texto_linha.toUpperCase().includes('JUN DE 2025')) {
+                        console.log('✅ Linha com "JUN DE 2025" encontrada!');
+                          // Buscar células da linha para encontrar o ID da série
+                        let celulas = linha.find_elements(By.TAG_NAME, 'td') + linha.find_elements(By.TAG_NAME, 'th');
                         
-                        # Buscar células da linha para encontrar o ID da série
-                        celulas = linha.find_elements(By.TAG_NAME, 'td') + linha.find_elements(By.TAG_NAME, 'th')
+                        let id_serie = 'ID não encontrado';
                         
-                        id_serie = 'ID não encontrado'
-                        
-                        # Verificar cada célula
-                        for indice_celula, celula in enumerate(celulas):
-                            try:
-                                texto_celula = celula.text or celula.get_attribute('innerText') or ''
+                        // PRIORIDADE 1: Tentar pegar o ID da primeira célula (coluna do ID da série)
+                        if (celulas && celulas.length > 0) {
+                            try {
+                                let primeira_celula = celulas[0];
+                                let texto_primeira = primeira_celula.text || primeira_celula.get_attribute('innerText') || '';
                                 
-                                # Procurar por padrões de ID (números com 4+ dígitos)
-                                import re
-                                matches = re.findall(r'\b\d{4,}\b', texto_celula)
-                                if matches:
-                                    id_serie = matches[0]  # Pegar o primeiro match
-                                    break
+                                // Remove espaços e caracteres especiais, mantendo apenas números
+                                let numeros_encontrados = texto_primeira.replace(/[^0-9]/g, '');
                                 
-                                # Verificar atributos HTML que possam conter ID
-                                if celula.get_attribute('id'):
-                                    id_serie = celula.get_attribute('id')
-                                    break
-                                if celula.get_attribute('data-id'):
-                                    id_serie = celula.get_attribute('data-id')
-                                    break
-                                if celula.get_attribute('data-serie'):
-                                    id_serie = celula.get_attribute('data-serie')
-                                    break
+                                // Verificar se encontramos um número válido (8+ dígitos para ID do SISBAJUD)
+                                if (numeros_encontrados && numeros_encontrados.length >= 8) {
+                                    id_serie = numeros_encontrados;
+                                    console.log(`ID da série encontrado na primeira célula: ${id_serie}`);
+                                } else if (numeros_encontrados && numeros_encontrados.length >= 4) {
+                                    // Se não tem 8+ dígitos, aceitar números com 4+ dígitos como fallback
+                                    id_serie = numeros_encontrados;
+                                    console.log(`ID da série (fallback) encontrado na primeira célula: ${id_serie}`);
+                                }
+                                
+                            } catch (Exception e) {
+                                console.log(`Erro ao processar primeira célula: ${e}`);
+                            }
+                        }
+                        
+                        // PRIORIDADE 2: Se não encontrou na primeira célula, procurar em todas as células
+                        if (id_serie === 'ID não encontrado') {
+                            for (let indice_celula = 0; indice_celula < celulas.length; indice_celula++) {
+                                try {
+                                    let celula = celulas[indice_celula];
+                                    let texto_celula = celula.text || celula.get_attribute('innerText') || '';
                                     
-                            except Exception as e:
-                                continue
-                        
-                        # Baseado no HTML fornecido, o ID da série está na primeira coluna
-                        # Vamos tentar pegar especificamente a primeira célula
-                        if id_serie == 'ID não encontrado' and celulas:
-                            try:
-                                primeira_celula = celulas[0]
-                                texto_primeira = primeira_celula.text or primeira_celula.get_attribute('innerText') or ''
-                                # Remove espaços e pega apenas números
-                                id_candidato = ''.join(filter(str.isdigit, texto_primeira))
-                                if id_candidato and len(id_candidato) >= 4:
-                                    id_serie = id_candidato
-                            except Exception:
-                                pass
+                                    // Procurar por padrões de ID (números com 8+ dígitos primeiro, depois 4+)
+                                    let matches_8_plus = texto_celula.match(/\\b\\d{8,}\\b/g);
+                                    if (matches_8_plus) {
+                                        id_serie = matches_8_plus[0];
+                                        console.log(`ID da série (8+ dígitos) encontrado na célula ${indice_celula}: ${id_serie}`);
+                                        break;
+                                    }
+                                    
+                                    let matches_4_plus = texto_celula.match(/\\b\\d{4,}\\b/g);
+                                    if (matches_4_plus) {
+                                        id_serie = matches_4_plus[0];
+                                        console.log(`ID da série (4+ dígitos) encontrado na célula ${indice_celula}: ${id_serie}`);
+                                        break;
+                                    }
+                                    
+                                    // Verificar atributos HTML que possam conter ID
+                                    for (let attr of ['id', 'data-id', 'data-serie', 'data-row-id']) {
+                                        let attr_value = celula.get_attribute(attr);
+                                        if (attr_value && attr_value.length >= 4) {
+                                            id_serie = attr_value;
+                                            console.log(`ID da série encontrado no atributo ${attr}: ${id_serie}`);
+                                            break;
+                                        }
+                                    }
+                                    
+                                    if (id_serie !== 'ID não encontrado') {
+                                        break;
+                                    }
+                                    
+                                } catch (Exception e) {
+                                    continue;
+                                }
+                        }
                         
                         resultado = {
                             'tabela': indice_tabela,
                             'linha': indice_linha,
                             'id_serie': id_serie,
-                            'texto_completo': texto_linha.strip()
-                        }
+                            'texto_completo': texto_linha.strip(),
+                            'elemento': linha  # Salvar referência ao elemento
+                        };
                         
-                        linhas_encontradas.append(resultado)
+                        linhas_encontradas.push(resultado);
                         
-                except Exception as e:
-                    continue
+                } catch (Exception e) {
+                    continue;        // Exibir resultados encontrados
+        if (linhas_encontradas && linhas_encontradas.length > 0) {
+            let total = linhas_encontradas.length;
+            console.log(`✅ Encontradas ${total} linha(s) com "JUN DE 2025":`);
+            
+            for (let i = 0; i < total; i++) {
+                let linha = linhas_encontradas[i];
+                let id_serie = linha.id_serie || 'N/A';
+                let texto = linha.texto_completo || '';
+                
+                console.log(`Linha ${i + 1}:`);
+                console.log(`  - ID da Série: ${id_serie}`);
+                console.log(`  - Texto: ${texto.substring(0, 150)}...`);
+                console.log('  ---');
+            }
+            
+            // Iniciar processamento de bloqueios passando as linhas filtradas
+            console.log('🔄 Enviando linhas filtradas para processamento de bloqueios...');
+            let sucesso_processamento = processar_bloqueios(driver, linhas_encontradas);
+            
+            if (sucesso_processamento) {
+                console.log('✅ Processamento de bloqueios concluído com sucesso!');
+            } else {
+                console.log('❌ Falha no processamento de bloqueios');
+            }
+            
+            // Retornar as linhas encontradas
+            return linhas_encontradas;
+                
+        } else {
+            console.log('❗ Nenhuma linha com "JUN DE 2025" encontrada na tabela');
+            return [];
+        }
         
-        # Exibir resultados
-        if linhas_encontradas:
-            total = len(linhas_encontradas)
-            print(f'[KAIZEN] ✅ Encontradas {total} linha(s) com "JUN DE 2025":')
-            
-            for i, linha in enumerate(linhas_encontradas, 1):
-                id_serie = linha.get('id_serie', 'N/A')
-                texto = linha.get('texto_completo', '')[:150]  # Primeiros 150 caracteres
-                
-                print(f'[KAIZEN] Linha {i}:')
-                print(f'  - ID da Série: {id_serie}')
-                print(f'  - Texto: {texto}...')
-                print('  ---')
-                
-        else:
-            print('[KAIZEN] ❌ Nenhuma linha com "JUN DE 2025" foi encontrada na tabela.')
-            
-    except Exception as e:
-        print(f'[KAIZEN][ERRO] Exceção ao buscar linhas JUN DE 2025: {e}')
+    } catch (e) {
+        console.log(`❌ Falha ao buscar linhas: ${e}`);
         import traceback
-        traceback.print_exc()
+        traceback.print_exc();
+        return [];
+    }
+}
 
 def escolher_opcao_sisbajud(driver, seletor, valor):
     try:
@@ -1601,24 +1961,23 @@ def integrar_storage_processo(driver):
     """
     Integra dados do processo com o storage local, similar ao JavaScript original
     """
+    def safe_extract(data, key, default=""):
+        """Extrai dados de forma segura, convertendo listas para string se necessário"""
+        value = data.get(key, default)
+        if isinstance(value, list):
+            if value:  # Se a lista não está vazia
+                return str(value[0]) if value[0] else default
+            return default
+        return str(value) if value else default
+
+    def safe_escape(text):
+        """Escapa texto para JavaScript de forma segura"""
+        if not text:
+            return ""
+        return str(text).replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
+
     try:
         if processo_dados_extraidos:
-            # Extrair dados de forma segura, tratando listas e valores nulos
-            def safe_extract(data, key, default=""):
-                """Extrai dados de forma segura, convertendo listas para string se necessário"""
-                value = data.get(key, default)
-                if isinstance(value, list):
-                    if value:  # Se a lista não está vazia
-                        return str(value[0]) if value[0] else default
-                    return default
-                return str(value) if value else default
-            
-            def safe_escape(text):
-                """Escapa texto para JavaScript de forma segura"""
-                if not text:
-                    return ""
-                return str(text).replace("'", "\\'").replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
-            
             # Extrair número do processo
             numero = safe_escape(safe_extract(processo_dados_extraidos, "numero"))
             
@@ -1641,8 +2000,7 @@ def integrar_storage_processo(driver):
             else:
                 nome_passivo = ""
                 doc_passivo = ""
-            
-            print(f'[KAIZEN] Integrando dados: numero={numero}, autor={nome_ativo}, reu={nome_passivo}')
+            console.log(`[KAIZEN] Integrando dados: numero=${numero}, autor=${nome_ativo}, reu=${nome_passivo}`);
             
             driver.execute_script(f"""
                 // Simular storage.local.set do JavaScript original
@@ -1883,42 +2241,45 @@ def processar_evento_kaizen(driver_sisbajud, evento):
     """
     Processa eventos de automação Kaizen no SISBAJUD
     """
-    try:
-        print(f'[BACEN][KAIZEN] Processando evento: {evento}')
+    try {
+        print(`[BACEN][KAIZEN] Processando evento: ${evento}`);
         
-        if evento == 'nova_minuta_bloqueio':
-            print('[BACEN][KAIZEN] Executando: Nova minuta de bloqueio')
-            kaizen_nova_minuta(driver_sisbajud, endereco=False)
+        if (evento === 'nova_minuta_bloqueio') {
+            print('[BACEN][KAIZEN] Executando: Nova minuta de bloqueio');
+            kaizen_nova_minuta(driver_sisbajud, false);
             
-        elif evento == 'nova_minuta_endereco':
-            print('[BACEN][KAIZEN] Executando: Nova minuta de endereço')
-            kaizen_nova_minuta(driver_sisbajud, endereco=True)
+        } else if (evento === 'nova_minuta_endereco') {
+            print('[BACEN][KAIZEN] Executando: Nova minuta de endereço');
+            kaizen_nova_minuta(driver_sisbajud, true);
             
-        elif evento == 'preencher_campos':
-            print('[BACEN][KAIZEN] Executando: Preencher campos (polo ativo)')
-            kaizen_preencher_campos(driver_sisbajud, invertido=False)
+        } else if (evento === 'preencher_campos') {
+            print('[BACEN][KAIZEN] Executando: Preencher campos (polo ativo)');
+            kaizen_preencher_campos(driver_sisbajud, false);
             
-        elif evento == 'preencher_invertido':
-            print('[BACEN][KAIZEN] Executando: Preencher campos (polo passivo)')
-            kaizen_preencher_campos(driver_sisbajud, invertido=True)
+        } else if (evento === 'preencher_invertido') {
+            print('[BACEN][KAIZEN] Executando: Preencher campos (polo passivo)');
+            kaizen_preencher_campos(driver_sisbajud, true);
             
-        elif evento == 'consultar_teimosinha':
-            print('[BACEN][KAIZEN] Executando: Consultar teimosinha')
-            kaizen_consultar_teimosinha(driver_sisbajud)
+        } else if (evento === 'consultar_teimosinha') {
+            print('[BACEN][KAIZEN] Executando: Consultar teimosinha');
+            kaizen_consultar_teimosinha(driver_sisbajud);
             
-        elif evento == 'consultar_minuta':
-            print('[BACEN][KAIZEN] Executando: Consultar minutas')
-            kaizen_consultar_minuta(driver_sisbajud)
+        } else if (evento === 'consultar_minuta') {
+            print('[BACEN][KAIZEN] Executando: Consultar minutas');
+            kaizen_consultar_minuta(driver_sisbajud);
             
-        else:
-            print(f'[BACEN][KAIZEN] Evento desconhecido: {evento}')
+        } else {
+            print(`[BACEN][KAIZEN] Evento desconhecido: ${evento}`);
+        }
             
-    except Exception as e:
-        print(f'[BACEN][KAIZEN][ERRO] Erro ao processar evento {evento}: {e}')
+    } catch (Exception e) {
+        print(`[BACEN][KAIZEN][ERRO] Erro ao processar evento ${evento}: ${e}`);
         import traceback
-        traceback.print_exc()
+        traceback.print_exc();
+    }
+}
 
-# ===================== GERENCIADOR DE DRIVERS SEPARADOS =====================
+// ===================== GERENCIADOR DE DRIVERS SEPARADOS =====================
 
 def executar_driver_pje():
     """
@@ -2011,7 +2372,6 @@ def executar_driver_sisbajud(modo_teste=False):
             #         print('[DRIVER 2] ✅ Login automático via AHK realizado!')
             #     else:
             #         print('[DRIVER 2] ⚠️ Login AHK falhou. Aguardando login manual...')
-            #         aguardar_login_manual_sisbajud(driver_sisbajud)
             # else:
             
             print('[DRIVER 2] 👤 Aguardando login manual...')
@@ -2061,29 +2421,31 @@ def monitorar_driver_sisbajud(driver_sisbajud):
     Loop de monitoramento exclusivo do Driver 2
     Processa todos os eventos de automação
     """
-    print('[DRIVER 2] 🔄 Iniciando monitoramento de eventos...')
+    print('🔄 Iniciando monitoramento de eventos...');
     
-    try:
-        while True:
-            # Verificar eventos de automação
-            evento_kaizen = driver_sisbajud.execute_script("""
+    try {
+        while (true) {
+            // Verificar eventos de automação
+            let evento_kaizen = driver_sisbajud.execute_script(`
                 return window.kaizen_evt || null;
-            """)
+            `);
             
-            if evento_kaizen:
-                print(f'[DRIVER 2] 🔧 Evento detectado: {evento_kaizen}')
-                processar_evento_kaizen(driver_sisbajud, evento_kaizen)
-                # Limpar evento
-                driver_sisbajud.execute_script("window.kaizen_evt = null;")
+            if (evento_kaizen) {
+                console.log(`🔧 Evento detectado: ${evento_kaizen}`);
+                processar_evento_kaizen(driver_sisbajud, evento_kaizen);
+                // Limpar evento
+                driver_sisbajud.execute_script("window.kaizen_evt = null;");
+            }
             
-            time.sleep(1)
+            time.sleep(1);
             
-    except KeyboardInterrupt:
-        print('[DRIVER 2] ⚠️ Monitoramento interrompido pelo usuário.')
-    except Exception as e:
-        print(f'[DRIVER 2][ERRO] Erro no monitoramento: {e}')
+        }
+    } catch (Exception e) {
+        console.log(`❌ Erro no monitoramento: ${e}`);
+    }
+}
 
-# ===================== FUNÇÃO PRINCIPAL REORGANIZADA =====================
+// ===================== FUNÇÃO PRINCIPAL REORGANIZADA =====================
 
 def main():
     """
@@ -2217,9 +2579,9 @@ def tentar_login_automatico_ahk(driver_sisbajud):
         driver_sisbajud.switch_to.window(driver_sisbajud.current_window_handle)
         
         # Tentar focar no campo CPF (cursor deve estar lá)
-        try:
-            print('[AHK] 🎯 Preparando campo para digitação...')
-            driver_sisbajud.execute_script("""
+        try {
+            console.log('[AHK] 🎯 Preparando campo para digitação...');
+            driver_sisbajud.execute_script(`
                 // Tentar focar no primeiro campo de input visível
                 let campos = document.querySelectorAll('input[type="text"], input[type="email"], input[name*="cpf"], input[placeholder*="CPF"]');
                 for (let campo of campos) {
@@ -2230,10 +2592,11 @@ def tentar_login_automatico_ahk(driver_sisbajud):
                         break;
                     }
                 }
-            """)
-            time.sleep(0.5)
-        except Exception as e:
-            print(f'[AHK] ⚠️ Não foi possível focar campo via JS: {e}')
+            `);
+            time.sleep(0.5);
+        } catch (Exception e) {
+            console.log(`⚠️ Não foi possível focar campo via JS: ${e}`);
+        }
         
         # Obter caminho do AutoHotkey
         ahk_exe = obter_caminho_autohotkey()
@@ -2250,132 +2613,114 @@ def tentar_login_automatico_ahk(driver_sisbajud):
             return False
         
         # Executar o script AHK
-        try:
-            print(f'[AHK] 🚀 Executando: {ahk_exe} {script_ahk}')
-            print('[AHK] ⏳ O script irá:')
-            print('[AHK]    1. Aguardar 2 segundos')
-            print('[AHK]    2. Digitar CPF onde estiver o cursor')
-            print('[AHK]    3. Pressionar Tab para ir ao campo senha')
-            print('[AHK]    4. Digitar a senha')
-            print('[AHK]    5. Pressionar Enter para enviar')
+        try {
+            console.log(`🚀 Executando: ${ahk_exe} ${script_ahk}`);
+            console.log('⏳ O script irá:');
+            console.log('  1. Aguardar 2 segundos');
+            console.log('  2. Focar no campo CPF');
+            console.log('  3. Digitar o CPF');
+            console.log('  4. Pressionar Tab para ir ao campo senha');
+            console.log('  5. Digitar a senha');
+            console.log('  6. Pressionar Enter para enviar');
             
             resultado = subprocess.run(
                 [ahk_exe, script_ahk],
-                timeout=60,  # 60 segundos para comportamento humanizado
                 capture_output=True,
-                text=True
+                timeout=60
             )
-            
+            print('✅ Script AHK executado com sucesso!')
+            # Aguardar processamento do login (tempo para página responder)
+            print('⏳ Aguardando resposta do login...')
+            time.sleep(8)  # Tempo maior para comportamento humanizado
+
             if resultado.returncode == 0:
-                print('[AHK] ✅ Script AHK executado com sucesso!')
-            else:
-                print(f'[AHK] ⚠️ Script terminou com código: {resultado.returncode}')
-                if resultado.stderr:
-                    print(f'[AHK] Stderr: {resultado.stderr}')
-                if resultado.stdout:
-                    print(f'[AHK] Stdout: {resultado.stdout}')
-                    
-        except subprocess.TimeoutExpired:
-            print('[AHK] ⏰ Timeout: Script AHK demorou mais que 60 segundos')
-            return False
-        except FileNotFoundError:
-            print(f'[AHK] ❌ Não foi possível executar: {ahk_exe}')
-            return False
-        except Exception as e:
-            print(f'[AHK] ❌ Erro ao executar script: {e}')
-            return False
-        
-        # Aguardar processamento do login (tempo para página responder)
-        print('[AHK] ⏳ Aguardando resposta do login...')
-        time.sleep(8)  # Tempo maior para comportamento humanizado
-        
-        # Verificar se o login foi bem-sucedido
-        try:
-            current_url = driver_sisbajud.current_url
-            print(f'[AHK] 🔍 URL atual: {current_url}')
-            
-            # Verificar se saiu da página de login
-            login_indicators = ['login', 'auth', 'realms', 'signin']
-            ainda_na_tela_login = any(indicador in current_url.lower() for indicador in login_indicators)
-            
-            if not ainda_na_tela_login:
-                print('[AHK] ✅ Login automático realizado com sucesso!')
-                
+                print('✅ Login realizado com sucesso!')
                 # Salvar cookies para próximas sessões
                 try:
                     salvar_cookies_sisbajud(driver_sisbajud)
-                    print('[AHK] 💾 Cookies salvos para login futuro')
+                    print('💾 Cookies salvos para login futuro')
                 except Exception as e:
-                    print(f'[AHK] ⚠️ Falha ao salvar cookies: {e}')
-                
+                    print(f'⚠️ Falha ao salvar cookies: {e}')
                 return True
             else:
-                print('[AHK] ❌ Ainda na tela de login. Verificando possíveis erros...')
-                
-                # Verificar mensagens de erro
+                print('❌ Erro ao executar script AHK')
+                if resultado.stderr:
+                    print(f'Erro: {resultado.stderr}')
+                # Verificar se o login foi bem-sucedido
                 try:
-                    erros = driver_sisbajud.execute_script("""
-                        let erros = [];
-                        let seletores = ['.error', '.alert-danger', '.invalid-feedback', '[class*="error"]', '.text-danger'];
-                        seletores.forEach(seletor => {
-                            document.querySelectorAll(seletor).forEach(el => {
-                                if (el.textContent.trim()) {
-                                    erros.push(el.textContent.trim());
-                                }
-                            });
-                        });
-                        return erros.join('; ');
-                    """)
-                    
-                    if erros:
-                        print(f'[AHK] ❌ Erro detectado na página: {erros}')
+                    current_url = driver_sisbajud.current_url
+                    print(f'🔍 URL atual: {current_url}')
+                    # Verificar se saiu da página de login
+                    login_indicators = ['login', 'auth', 'realms']
+                    ainda_na_tela_login = any(indicador in current_url.lower() for indicador in login_indicators)
+                    if not ainda_na_tela_login:
+                        print('✅ Login automático realizado com sucesso!')
+                        # Salvar cookies para próximas sessões
+                        try:
+                            salvar_cookies_sisbajud(driver_sisbajud)
+                            print('💾 Cookies salvos para login futuro')
+                        except Exception as e:
+                            print(f'⚠️ Falha ao salvar cookies: {e}')
+                        return True
                     else:
-                        print('[AHK] ❌ Login falhou mas sem mensagem de erro específica')
-                        
+                        print('❌ Ainda na tela de login. Verificando possíveis erros...')
+                        # Verificar mensagens de erro
+                        erros = driver_sisbajud.execute_script('''
+                            let erros = [];
+                            let seletores = ['.error', '.alert-danger', '.invalid-feedback', '[class*="error"]', '.text-danger'];
+                            seletores.forEach(seletor => {
+                                document.querySelectorAll(seletor).forEach(el => {
+                                    if (el.textContent.trim()) {
+                                        erros.push(el.textContent.trim());
+                                    }
+                                });
+                            });
+                            return erros;
+                        ''')
+                        if erros and len(erros) > 0:
+                            print(f'❌ Erro detectado na página: {'; '.join(erros)}')
+                        else:
+                            print('❌ Login falhou mas sem mensagem de erro específica')
                 except Exception as e:
-                    print(f'[AHK] ⚠️ Não foi possível verificar erros: {e}')
-                
-                return False
-                
-        except Exception as e:
-            print(f'[AHK] ❌ Erro ao verificar status do login: {e}')
+                    print(f'❌ Erro ao verificar status do login: {e}')
             return False
-            
-    except Exception as e:
-        print(f'[AHK] ❌ Erro geral: {e}')
-        return False
-
+        } catch (Exception e) {
+            console.log(`❌ Erro ao executar script: ${e}`);
+            return false;
+        }
+    } catch (e) {
+        console.log(`❌ Erro geral: ${e}`);
+        return false;
+    }
+}
 
 def main_teste_sisbajud():
     """
     Main de teste para executar apenas o SISBAJUD com login automático
-    
-    Este main permite testar o Driver 2 (SISBAJUD) de forma completamente
-    autônoma, incluindo tentativa de login automático via AHK.
     """
-    print('=' * 60)
-    print('🧪 MODO TESTE: SISBAJUD AUTÔNOMO COM LOGIN AUTOMÁTICO')
-    print('=' * 60)
-    print()
+    print('='.repeat(60));
+    print('🧪 MODO TESTE: SISBAJUD AUTÔNOMO COM LOGIN AUTOMÁTICO');
+    print('='.repeat(60));
+    print();
     
-    print('Este modo irá:')
-    print('1. ✅ Iniciar apenas o Driver 2 (SISBAJUD)')
-    print('2. 🤖 Tentar login automático via cookies')
-    print('3. 🔧 Se falhar, tentar login automático via AHK')
-    print('4. 👤 Se falhar, permitir login manual')
-    print('5. 🚀 Inicializar todas as automações do SISBAJUD')
-    print()
+    print('Este modo irá:');
+    print('1. ✅ Iniciar apenas o Driver 2 (SISBAJUD)');
+    print('2. 🤖 Tentar login automático via cookies');
+    print('3. 🔧 Se falhar, tentar login automático via AHK');
+    print('4. 👤 Se falhar, permitir login manual');
+    print('5. 🚀 Inicializar todas as automações do SISBAJUD');
+    print();
     
-    confirmar = input('Deseja prosseguir com o teste? (s/n): ').lower().strip()
+    let confirmar = prompt('Deseja prosseguir com o teste? (s/n): ').toLowerCase().trim();
     
-    if confirmar != 's':
-        print('❌ Teste cancelado pelo usuário.')
-        return
+    if (confirmar !== 's') {
+        console.log('❌ Teste cancelado pelo usuário.');
+        return;
+    }
+    console.log();
+    console.log('🚀 Iniciando teste do SISBAJUD...');
     
-    print()
-    print('🚀 Iniciando teste do SISBAJUD...')
-    
-    try:
+    try {
         # Executar o Driver 2 em modo teste (com login AHK)
         driver_sisbajud = executar_driver_sisbajud(modo_teste=True)
         

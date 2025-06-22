@@ -1067,18 +1067,6 @@ def comunicacao_judicial(
     """
     def log(msg):
         print(f'[COMUNICACAO] {msg}')
-    modelo_nome,
-    subtipo=None,
-    descricao=None,
-    tipo_prazo='dias uteis',
-    gigs_extra=None,
-    debug=False
-):
-    """
-    Fluxo generalizado para qualquer comunicação processual.
-    """
-    def log(msg):
-        print(f'[COMUNICACAO] {msg}')
         if debug:
             time.sleep(0.5)
             
@@ -1329,43 +1317,38 @@ def comunicacao_judicial(
                 else:
                     log('[DEBUG] Documento não marcado como sigiloso.')
             except Exception as e:
-                log(f'[WARN] Falha ao definir sigilo: {e}')            # 8. Selecionar o modelo seguindo o padrão gigs-plugin.js como em ato_judicial
+                log(f'[WARN] Falha ao definir sigilo: {e}')
+            # 8. Selecionar o modelo seguindo o padrão gigs-plugin.js como em ato_judicial
             if modelo_nome:
                 log(f'Selecionando modelo: {modelo_nome}')
-                    
-                    # 3. Disparar eventos como no gigs-plugin.js
-                    for ev in ['input', 'change', 'keyup']:
-                        driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
-                    
-                    # 4. Simular pressionamento de Enter
-                    campo_filtro_modelo.send_keys(Keys.ENTER)
-                    log('[MODELO] Eventos disparados e ENTER pressionado')
-                    
-                    # 5. Selecionar o modelo filtrado destacado (fundo amarelo)
-                    seletor_item_filtrado = '.nodo-filtrado'
-                    nodo = esperar_elemento(driver, seletor_item_filtrado, timeout=15)
-                    if not nodo:
-                        log('[MODELO][ERRO] Nodo do modelo não encontrado!')
-                        return False
-                    
-                    safe_click(driver, nodo)
-                    log('[MODELO] Clique em nodo-filtrado realizado!')
-                    
-                    # 6. Aguardar a caixa de visualização do modelo carregar
-                    seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-                    btn_inserir = esperar_elemento(driver, seletor_btn_inserir, timeout=15)
-                    if not btn_inserir:
-                        log('[MODELO][ERRO] Botão de inserir modelo não encontrado!')
-                        return False
-                    time.sleep(0.6)
-                    
-                    # 7. Pressionar ESPAÇO para inserir o modelo (padrão MaisPje)
-                    btn_inserir.send_keys(Keys.SPACE)
-                    log('[MODELO] Modelo inserido pressionando ESPAÇO no botão Inserir (padrão MaisPje)')
-                    
-                except Exception as e:
-                    log(f'[ERRO] Falha ao selecionar modelo: {str(e)}')
-                    raise# 9. Salvar e finalizar minuta com tratamento robusto
+                # 3. Disparar eventos como no gigs-plugin.js
+                campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
+                driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+                driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo_nome)
+                for ev in ['input', 'change', 'keyup']:
+                    driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+                campo_filtro_modelo.send_keys(Keys.ENTER)
+                log('[MODELO] Eventos disparados e ENTER pressionado')
+                # 5. Selecionar o modelo filtrado destacado (fundo amarelo)
+                seletor_item_filtrado = '.nodo-filtrado'
+                nodo = esperar_elemento(driver, seletor_item_filtrado, timeout=15)
+                if not nodo:
+                    log('[MODELO][ERRO] Nodo do modelo não encontrado!')
+                    return False
+                safe_click(driver, nodo)
+                log('[MODELO] Clique em nodo-filtrado realizado!')
+                # 6. Aguardar a caixa de visualização do modelo carregar
+                seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
+                btn_inserir = esperar_elemento(driver, seletor_btn_inserir, timeout=15)
+                if not btn_inserir:
+                    log('[MODELO][ERRO] Botão de inserir modelo não encontrado!')
+                    return False
+                time.sleep(0.6)
+                # 7. Pressionar ESPAÇO para inserir o modelo (padrão MaisPje)
+                btn_inserir.send_keys(Keys.SPACE)
+                log('[MODELO] Modelo inserido pressionando ESPAÇO no botão Inserir (padrão MaisPje)')
+                
+            # 9. Salvar e finalizar minuta com tratamento robusto
             try:
                 # Primeiro salvar o documento
                 log('[DEBUG] Procurando botão "Salvar"...')
@@ -1509,6 +1492,7 @@ def make_comunicacao_wrapper(
     prazo, 
     nome_comunicacao, 
     sigilo, 
+    
     modelo_nome, 
     subtipo=None, 
     descricao=None,

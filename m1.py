@@ -389,7 +389,6 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 regra_aplicada += ' | sisbajud negativo, nenhum anexo sigiloso => ato_meios'
                 if debug:
                     print('[ARGOS][REGRAS] SISBAJUD negativo e nenhum anexo sigiloso - chamando ato_meios')
-                ato_meios(driver, debug=debug)
             elif resultado_sisbajud == 'negativo' and any(v == 'sim' for v in sigilo_anexos.values()):
                 regra_aplicada += ' | sisbajud negativo, anexo sigiloso => ato_termoS'
                 if debug:
@@ -745,86 +744,53 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
     for anexo in anexos:
         texto_anexo = anexo.text.strip().lower()
         tipo_anexo_encontrado = None
-        
         # Verifica se é um anexo especial (INFOJUD, DOI, IRPF, DIMOB)
         for k in sigilo_types:
             if k in texto_anexo:
                 found_sigilo[k] = True
                 tipo_anexo_encontrado = k
-                
                 # Para anexos especiais: INSERIR sigilo (se ícone estiver azul, clicar para tornar vermelho)
                 btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
                 if btn_sigilo:
-                    # Verifica se o ícone está azul (sem sigilo - tl-nao-sigiloso)
                     if "tl-nao-sigiloso" in btn_sigilo[0].get_attribute("class"):
                         safe_click(driver, btn_sigilo[0])
                         time.sleep(1)
                         sigilo_anexos[k] = "sim"
-                        if log:
-                            print(f'[ARGOS][ANEXOS] Sigilo INSERIDO para anexo especial: {texto_anexo}')
                     else:
-                        sigilo_anexos[k] = "sim"  # já estava com sigilo
-                        if log:
-                            print(f'[ARGOS][ANEXOS] Anexo especial já tinha sigilo: {texto_anexo}')
+                        sigilo_anexos[k] = "sim"
                 else:
                     sigilo_anexos[k] = "nao"
-                # Clique de visibilidade: usar seletor robusto
-                btn_visibilidade = anexo.find_elements(By.CSS_SELECTOR, "span.mat-button-wrapper > i.fas.fa-plus.tl-sigiloso")
-                if btn_visibilidade:
+                # Clique de visibilidade: buscar diretamente o botão correto e clicar com .click()
+                try:
+                    btn_visibilidade = anexo.find_element(By.CSS_SELECTOR, "button:has(i.fas.fa-plus.tl-sigiloso)")
                     if log:
-                        print(f'[ARGOS][ANEXOS] Clicando no botão de visibilidade para: {texto_anexo}')
-                    safe_click(driver, btn_visibilidade[0])
-                    time.sleep(1)
-                    
+                        print(f'[ARGOS][ANEXOS] Clicando no botão de visibilidade correto para: {texto_anexo}')
+                    btn_visibilidade.click()
+                    time.sleep(0.5)
                     # Aguarda e busca o modal de confirmação
-                    try:
-                        modal_visibilidade = WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, ".mat-dialog-container"))
-                        )
+                    modal_visibilidade = WebDriverWait(driver, 5).until(
+                        EC.visibility_of_element_located((By.CSS_SELECTOR, "mat-dialog-container[role='dialog']"))
+                    )
+                    # Busca o botão Salvar
+                    btn_salvar = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button[color='primary'] .mat-button-wrapper")
+                    if not btn_salvar:
                         if log:
-                            print(f'[ARGOS][ANEXOS] Modal de visibilidade aberto para: {texto_anexo}')
-                        
-                        # Clica no botão com classe botao-icone-titulo-coluna (fa-check)
-                        try:
-                            btn_check = modal_visibilidade.find_element(By.CSS_SELECTOR, "button.botao-icone-titulo-coluna i.fa-check")
-                            if log:
-                                print(f'[ARGOS][ANEXOS] Clicando no botão de check para: {texto_anexo}')
-                            safe_click(driver, btn_check)
-                            time.sleep(1)
-                        except Exception as e:
-                            if log:
-                                print(f'[ARGOS][ANEXOS][ERRO] Botão de check não encontrado para: {texto_anexo} - {e}')
-                        
-                        # Busca o botão Salvar
-                        btn_salvar = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button[color='primary'] .mat-button-wrapper")
-                        if not btn_salvar:
-                            # Seletor alternativo para o botão Salvar
-                            btn_salvar = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button.mat-primary")
-                        
-                        if btn_salvar:
-                            if log:
-                                print(f'[ARGOS][ANEXOS] Clicando no botão Salvar para: {texto_anexo}')
-                            safe_click(driver, btn_salvar[0])
-                            time.sleep(1)
-                        else:
-                            if log:
-                                print(f'[ARGOS][ANEXOS][ERRO] Botão Salvar não encontrado para: {texto_anexo}')
-                                
-
-                    except Exception as e:
+                            print(f"[ARGOS][ANEXOS][ERRO] Botão Salvar não encontrado no modal de visibilidade para: {texto_anexo}")
+                    if btn_salvar:
+                        btn_salvar[0].click()
+                        time.sleep(0.5)
+                    else:
                         if log:
-                            print(f'[ARGOS][ANEXOS][ERRO] Modal de visibilidade não abriu para: {texto_anexo} - {e}')
-                else:
+                            print(f"[ARGOS][ANEXOS][ERRO] Botão Salvar não encontrado no modal de visibilidade para: {texto_anexo}")
+                except Exception as e:
                     if log:
-                        print(f'[ARGOS][ANEXOS][ERRO] Botão de visibilidade não encontrado para: {texto_anexo}')
+                        print(f"[ARGOS][ANEXOS][ERRO] Botão de visibilidade não encontrado ou erro ao clicar para: {texto_anexo} | {e}")
                 any_sigilo = True
                 break
-        
         # Se não é anexo especial, REMOVER sigilo (se ícone estiver vermelho, clicar para tornar azul)
         if not tipo_anexo_encontrado:
             btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
             if btn_sigilo:
-                # Verifica se o ícone está vermelho (com sigilo - tl-sigiloso)
                 if "tl-sigiloso" in btn_sigilo[0].get_attribute("class"):
                     safe_click(driver, btn_sigilo[0])
                     time.sleep(1)
@@ -840,9 +806,7 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
     resultado_sisbajud = None
     regra_aplicada = None
     if texto_pdf:
-        # Split pages
         paginas = texto_pdf.split('\f') if '\f' in texto_pdf else [texto_pdf]
-        # 1. Extract executados from page 1
         pagina1 = paginas[0] if paginas else texto_pdf
         lines = pagina1.splitlines()
         i = 0
@@ -851,7 +815,6 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
             if re.match(r'^[0-9]+\.', line):
                 nome = line.split('.', 1)[1].strip()
                 documento = ''
-                # Look for document in the next lines
                 j = i + 1
                 while j < len(lines):
                     doc_line = lines[j].strip()
@@ -863,7 +826,6 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                     j += 1
                 executados.append({'nome': nome, 'documento': documento})
             i += 1
-        # 2. Extract SISBAJUD result from page 3
         if len(paginas) >= 3:
             pagina3 = paginas[2]
             lines3 = pagina3.splitlines()
@@ -877,7 +839,6 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                 print('[SISBAJUD][DEBUG] Lines after SISBAJUD marker:')
                 for k, l in enumerate(trecho_log):
                     print(f'  [{sisbajud_idx+k}] {repr(l)}')
-                # Robust: look ahead up to 6 lines after SISBAJUD, skipping empty lines
                 regra_aplicada = None
                 for offset in range(1, 7):
                     if sisbajud_idx+offset >= len(lines3):
@@ -896,7 +857,6 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                         regra_aplicada = 'linha contém "positivo"'
                         break
                     else:
-                        # Try to parse as value (e.g. R$ 0,00)
                         valor = result_line.replace('r$', '').replace(' ', '').replace('.', '').replace(',', '.').replace('-', '')
                         try:
                             value = float(''.join([c for c in valor if c.isdigit() or c == '.']))
@@ -918,7 +878,6 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
         else:
             resultado_sisbajud = 'positivo'
             regra_aplicada = 'page 3 not found, default positivo'
-        # Use robust SISBAJUD extraction from full text
         resultado_sisbajud, regra_aplicada = extract_sisbajud_result_from_text(texto_pdf, log=log)
     if log:
         print(f'[ARGOS][ANEXOS] Extracted executados (page 1): {executados}')
@@ -1116,45 +1075,27 @@ def processar_argos(driver, log=False):
     """
     try:
         print('[ARGOS][INICIO] Iniciando processamento do fluxo Argos')
-          # 1. Fechar intimação 
+        # 0. Fechar intimação
         print('[ARGOS] Chamando função fechar_intimacao...')
-        # A função fechar_intimacao agora sempre retorna True
         fechar_intimacao(driver, log=log)
         print('[ARGOS] Fechamento de intimação concluído')
-            
-        # 2. Buscar documentos sequenciais
+        # 1. Buscar documentos sequenciais
         print('[ARGOS] Buscando documentos sequenciais...')
         documentos_sequenciais = buscar_documentos_sequenciais(driver)
-        
         if documentos_sequenciais:
             print(f'[ARGOS] Encontrados {len(documentos_sequenciais)} documentos sequenciais')
         else:
             print('[ARGOS][ALERTA] Nenhum documento sequencial encontrado')
-
-        # 2. Retirar sigilo apenas até a decisão anterior à planilha de cálculos
-        if documentos_sequenciais:
-            retirar_ate = None
-            for idx, doc in enumerate(documentos_sequenciais):
-                texto = doc.text.strip().lower()
-                if 'planilha' in texto:
-                    # Encontrou planilha, parar na decisão anterior
-                    break
-                if 'decisão' in texto:
-                    retirar_ate = idx
-            # Retira sigilo até a última decisão antes da planilha (inclusive)
-            if retirar_ate is not None:
-                for doc in documentos_sequenciais[:retirar_ate+1]:
-                    try:
-                        retirar_sigilo(doc)
-                    except Exception:
-                        pass
-            else:
-                # Se não encontrou decisão antes da planilha, retira sigilo de todos
-                for doc in documentos_sequenciais:
-                    try:
-                        retirar_sigilo(doc)
-                    except Exception:
-                        pass        # 3. Tratar anexos (extrai resultado_sisbajud e sigilo_anexos)
+        # 1. Retirar sigilo de certidão, ordem de pesquisa, planilha, intimação, decisão
+        tipos_sigilo = ['certidão', 'certidao', 'ordem de pesquisa', 'planilha', 'intimação', 'intimacao', 'decisão', 'decisao']
+        for doc in documentos_sequenciais or []:
+            texto = doc.text.strip().lower()
+            if any(tp in texto for tp in tipos_sigilo):
+                try:
+                    retirar_sigilo(doc)
+                except Exception:
+                    pass
+        # 2. Processar anexos
         print('[ARGOS] Tratando anexos...')
         anexos_info = tratar_anexos_argos(driver, documentos_sequenciais, log=log) if documentos_sequenciais else None
         
@@ -1448,6 +1389,20 @@ def ultimo_mdd(driver, log=True):
             return None, None
             
         if log:
+                        print(f'[MDD][DEBUG] Mandado encontrado: {doc_text} | Autor: {nome_autor}')
+                    return nome_autor, item
+            except Exception as e:
+                if log:
+                    print(f'[MDD][DEBUG] Erro ao processar item {idx}: {e}')
+                continue
+                
+        # Verificação final de conexão
+        if not validar_conexao_driver(driver, contexto="MDD_FIM"):
+            if log:
+                print('[MDD][ERRO_FATAL] Driver em estado inválido ao finalizar busca de mandado')
+            return None, None
+            
+        if log:
             print('[MDD][DEBUG] Nenhum mandado encontrado na timeline.')
         return None, None
     except Exception as e:
@@ -1598,30 +1553,30 @@ def fluxo_mandados_outros(driver, log=True):
         elif padrao_negativo:
             if log:
                 print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
-            # NOVA REGRA: localizar mandado anterior na timeline, extrair conteúdo e, se contiver 'penhora', chamar ato_meios
-            autor_ant, elemento_ant = ultimo_mdd(driver, log=log)
-            if elemento_ant:
-                # Verificação de conexão antes de interagir com elemento e executar JS
-                if validar_conexao_driver(driver, contexto="ANTES_CLICK_MDD_ANT"):
-                    try:
-                        link_ant = elemento_ant.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-                        # Usar safe_click ao invés de JS direto + click normal
-                        safe_click(driver, link_ant)
-                        time.sleep(1)
-                        
-                        # Verificar novamente após a navegação
-                        if validar_conexao_driver(driver, contexto="ANTES_EXTRAIR_DOC"):
-                            texto_mandado_ant, _ = extrair_documento(driver)
-                            if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
-                                if log:
-                                    print("[MANDADOS][OUTROS][LOG] Mandado anterior contém 'penhora' - chamando ato_meios")
+                # NOVA REGRA: localizar mandado anterior na timeline, extrair conteúdo e, se contiver 'penhora', chamar ato_meios
+                autor_ant, elemento_ant = ultimo_mdd(driver, log=log)
+                if elemento_ant:
+                    # Verificação de conexão antes de interagir com elemento e executar JS
+                    if validar_conexao_driver(driver, contexto="ANTES_CLICK_MDD_ANT"):
+                        try:
+                            link_ant = elemento_ant.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                            # Usar safe_click ao invés de JS direto + click normal
+                            safe_click(driver, link_ant)
+                            time.sleep(1)
+                            
+                            # Verificar novamente após a navegação
+                            if validar_conexao_driver(driver, contexto="ANTES_EXTRAIR_DOC"):
+                                texto_mandado_ant, _ = extrair_documento(driver)
+                                if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
+                                    if log:
+                                        print("[MANDADOS][OUTROS][LOG] Mandado anterior contém 'penhora' - chamando ato_meios")
                                     
-                                # Última verificação antes de chamar ato_meios
-                                if validar_conexao_driver(driver, contexto="ANTES_ATO_MEIOS"):
-                                    ato_meios(driver)
-                    except Exception as e:
-                        if log:
-                            print(f"[MANDADOS][OUTROS][ERRO] Falha ao processar mandado anterior: {e}")
+                                    # Última verificação antes de chamar ato_meios
+                                    if validar_conexao_driver(driver, contexto="ANTES_ATO_MEIOS"):
+                                        ato_meios(driver)
+                        except Exception as e:
+                            if log:
+                                print(f"[MANDADOS][OUTROS][ERRO] Falha ao processar mandado anterior: {e}")
                             
             # Verificação de conexão antes de continuar
             if not validar_conexao_driver(driver, contexto="DURANTE_ANALISE"):
@@ -1633,7 +1588,8 @@ def fluxo_mandados_outros(driver, log=True):
             if "penhora de bens" in texto_lower:
                 if log:
                     print("[MANDADOS][OUTROS][LOG] Texto contém 'penhora de bens' - chamando ato_meios")
-                if checar_conexao_critica(driver, "ANTES_ATO_MEIOS_2", continuar_em_erro=True, log=log):
+                # Substitui checar_conexao_critica por validar_conexao_driver
+                if validar_conexao_driver(driver, contexto="ANTES_ATO_MEIOS_2"):
                     ato_meios(driver)
             elif "deixei de penhorar" in texto_lower:
                 if log:

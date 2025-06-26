@@ -1,0 +1,141 @@
+{
+  "name": "restricted-copilot",
+  "displayName": "Restricted Copilot",
+  "description": "VS Code extension that provides restricted and inquisitive AI assistance with limited context analysis",
+  "version": "0.0.1",
+  "publisher": "pjeplus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "local"
+  },
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "categories": [
+    "Other",
+    "Chat"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:javascript", 
+    "onLanguage:typescript"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "restricted-copilot.analyzeFunction",
+        "title": "Analyze Current Function",
+        "category": "Restricted Copilot"
+      },
+      {
+        "command": "restricted-copilot.analyzeSelection",
+        "title": "Analyze Selection with Limited Context",
+        "category": "Restricted Copilot"
+      },
+      {
+        "command": "restricted-copilot.compileCurrentFile",
+        "title": "🔧 Compile & Validate Current File",
+        "category": "Restricted Copilot"
+      },
+      {
+        "command": "restricted-copilot.toggleRestrictiveMode",
+        "title": "Toggle Restrictive Mode",
+        "category": "Restricted Copilot"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "restricted-copilot.analyzeFunction",
+          "when": "editorTextFocus",
+          "group": "restricted-copilot"
+        },
+        {
+          "command": "restricted-copilot.analyzeSelection",
+          "when": "editorHasSelection",
+          "group": "restricted-copilot"
+        },
+        {
+          "command": "restricted-copilot.compileCurrentFile",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(py|js|ts|ahk)$/",
+          "group": "restricted-copilot"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "restricted-copilot.compileCurrentFile",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(py|js|ts|ahk)$/"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Restricted Copilot",
+      "properties": {
+        "restrictedCopilot.restrictiveMode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable restrictive mode (no unsolicited suggestions)"
+        },
+        "restrictedCopilot.inquisitiveMode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inquisitive mode (ask before making changes)"
+        },
+        "restrictedCopilot.maxContextLines": {
+          "type": "number",
+          "default": 50,
+          "minimum": 10,
+          "maximum": 200,
+          "description": "Maximum lines of context to analyze around selection"
+        },
+        "restrictedCopilot.interceptCopilotChat": {
+          "type": "boolean",
+          "default": true,
+          "description": "Intercept and filter GitHub Copilot Chat responses based on restricted analysis"
+        },
+        "restrictedCopilot.chatFilterStrength": {
+          "type": "string",
+          "enum": ["strict", "moderate", "permissive"],
+          "default": "strict",
+          "description": "How strictly to filter Copilot Chat responses"
+        }
+      }
+    },
+    "chatParticipants": [
+      {
+        "id": "restrictedCopilot.participant",
+        "fullName": "Restricted Copilot",
+        "name": "restricted",
+        "description": "AI assistant with restricted context analysis and inquisitive behavior",
+        "isSticky": true
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.101.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "ts-loader": "^9.5.2",
+    "webpack": "^5.99.7",
+    "webpack-cli": "^6.0.1",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}

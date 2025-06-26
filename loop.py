@@ -372,8 +372,8 @@ def selecionar_processos_nao_livres(driver, max_processos=20):
     Seleciona até max_processos processos "NÃO livres" que atendem aos critérios:
     - Com prazo (coluna 9 preenchida) ou
     - Com comentário (ícone comment) ou
-    - Com valor em input[matinput] ou
-    - Com ícone de pesquisa na coluna 3
+    - Com valor em input[matinput]
+    # Removido: - Com ícone de pesquisa na coluna 3
     
     Args:
         driver: O driver do Selenium
@@ -404,9 +404,9 @@ def selecionar_processos_nao_livres(driver, max_processos=20):
                     const hasComment = linha.querySelector('i.fa-comment') !== null;
                     const inputField = linha.querySelector('input[matinput]');
                     const campoPreenchido = inputField && inputField.value.trim();
-                    const temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null;
+                    // const temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null; // REMOVIDO
                     
-                    if (prazoPreenchido || hasComment || campoPreenchido || temLupa) {
+                    if (prazoPreenchido || hasComment || campoPreenchido) {
                         totalNaoLivres++;
                     }
                 });
@@ -420,9 +420,9 @@ def selecionar_processos_nao_livres(driver, max_processos=20):
                     const hasComment = linha.querySelector('i.fa-comment') !== null;
                     const inputField = linha.querySelector('input[matinput]');
                     const campoPreenchido = inputField && inputField.value.trim();
-                    const temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null;
+                    // const temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null; // REMOVIDO
                     
-                    if (prazoPreenchido || hasComment || campoPreenchido || temLupa) {
+                    if (prazoPreenchido || hasComment || campoPreenchido) {
                         const checkbox = linha.querySelector('mat-checkbox input[type="checkbox"]');
                         if (checkbox && !checkbox.checked) {
                             checkbox.click();

@@ -421,13 +421,13 @@ def ato_judicial(
         try:
             ativar_sigilo = str(sigilo).lower() in ("sim", "true", "1")
             if ativar_sigilo:
-                # Busca todos os mat-slide-toggle e procura o que tem texto 'Sigiloso' próximo
+                # Busca todos os mat-slide-toggle e procura o que tem texto 'Sigilo' próximo
                 toggles = driver.find_elements(By.CSS_SELECTOR, 'mat-slide-toggle')
                 sigilo_toggle = None
                 sigilo_input = None
                 for toggle in toggles:
                     try:
-                        # Verifica se o texto 'Sigiloso' está no label, no próprio toggle ou em elementos próximos
+                        # Verifica se o texto 'Sigilo' está no label, no próprio toggle ou em elementos próximos
                         label_text = ''
                         try:
                             label = toggle.find_element(By.CSS_SELECTOR, 'label')
@@ -446,7 +446,7 @@ def ato_judicial(
                                     sibling_text += sib.text.strip().lower() + ' '
                         except:
                             pass
-                        if 'sigiloso' in label_text or 'sigiloso' in toggle_text or 'sigiloso' in sibling_text:
+                        if 'sigilo' in label_text or 'sigilo' in toggle_text or 'sigilo' in sibling_text:
                             sigilo_toggle = toggle
                             try:
                                 sigilo_input = toggle.find_element(By.CSS_SELECTOR, 'input[type="checkbox"], input.mat-slide-toggle-input')
@@ -469,7 +469,7 @@ def ato_judicial(
                             checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected() or sigilo_input.get_attribute('checked') == 'true'
                         if checked:
                             sigilo_ativado = True
-                            print('[ATO][SIGILO][DEBUG] Sigilo ativado por toggle associado ao texto Sigiloso.')
+                            print('[ATO][SIGILO][DEBUG] Sigilo ativado por toggle associado ao texto Sigilo.')
                         else:
                             print('[ATO][SIGILO][ERRO] Não foi possível ativar o sigilo (toggle não marcou).')
                     except Exception as e:
@@ -478,7 +478,7 @@ def ato_judicial(
                     sigilo_ativado = True
                     print('[ATO][SIGILO][DEBUG] Sigilo já estava ativado.')
                 else:
-                    print('[ATO][SIGILO][ERRO] Não foi possível localizar toggle de sigilo associado ao texto Sigiloso.')
+                    print('[ATO][SIGILO][ERRO] Não foi possível localizar toggle de sigilo associado ao texto Sigilo.')
             else:
                 print(f'[ATO][SIGILO][DEBUG] Sigilo não solicitado. Nenhuma ação.')
         except Exception as e:

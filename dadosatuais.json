@@ -1,51 +1,51 @@
 {
   "numero": [
-    "1000599-96.2022.5.02.0703"
+    "1000042-41.2024.5.02.0703"
   ],
-  "id": 4579798,
+  "id": 5854727,
   "autor": [
     {
-      "nome": "LEONARDO FONTES CALIXTO",
-      "cpfcnpj": "47938383830",
+      "nome": "SINDICATO DOS TRABALHADORES NAS INDUSTRIAS DA CONSTRUCAO CIVIL DE SAO PAULO-SINTRACON-SP",
+      "cpfcnpj": "60505260000140",
       "advogado": {
-        "nome": "TIAGO TEIXEIRA LIMA NASCIMENTO",
-        "cpf": "04590636506",
-        "oab": "SP453832"
+        "nome": "ANDRESSA RAMOS DE LIRA MARTINS",
+        "cpf": "33631074808",
+        "oab": "SP335907"
       }
     }
   ],
   "reu": [
     {
-      "nome": "LA BELLA JR PIZZERIA LTDA - ME",
-      "cpfcnpj": "11856152000107",
-      "advogado": {
-        "nome": "ELTON CLEBERTE TOLENTINO DE SOUZA JUNIOR",
-        "cpf": "27648614863",
-        "oab": "SP226550"
-      }
+      "nome": "SANTALENA EMPREITEIRA DE CONSTRUCAO CIVIL EIRELI",
+      "cpfcnpj": "16858702000140"
+    },
+    {
+      "nome": "EDMAR FERNANDES LOPES",
+      "cpfcnpj": "09969573837"
     }
   ],
   "terceiro": [],
-  "divida": {},
+  "divida": {
+    "valor": 1192.89,
+    "data": "2024-04-30T00:00:00"
+  },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "17/05/2022",
+  "dtAutuacao": "16/01/2024",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
-    "requerProcessoReferenciaCodigo": "NE",
-    "controlaValorCausa": true,
+    "id": 325,
+    "codigo": "980",
+    "descricao": "Ação de Cumprimento",
+    "sigla": "ACum",
+    "requerProcessoReferenciaCodigo": "FC",
+    "controlaValorCausa": false,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3036.01,
-    "tetoValorCausa": 60720.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Liquidação",
+  "labelFaseProcessual": "Execução",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

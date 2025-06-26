@@ -1,3 +1,3 @@
-# Última execução: 2025-06-22 18:30:44.999473
+# Última execução: 2025-06-26 12:42:15.611047
 # Script: D:\PjePlus\prazo.py
 # Argumentos: 

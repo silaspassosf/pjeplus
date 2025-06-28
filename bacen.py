@@ -8,6 +8,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import traceback
 from Fix import extrair_dados_processo
 from driver_config import criar_driver, login_func
 import subprocess
@@ -2535,5 +2536,20 @@ def main_teste_sisbajud():
         print('\n⏹️ Teste interrompido pelo usuário.')
     except Exception as e:
         print(f'\n❌ Erro durante o teste: {e}')
+        import traceback
+        traceback.print_exc()
+
+# ===================== PONTO DE ENTRADA PRINCIPAL =====================
+if __name__ == "__main__":
+    """
+    Ponto de entrada principal do bacen.py
+    Executa a função main() quando o script é executado diretamente
+    """
+    try:
+        main()
+    except KeyboardInterrupt:
+        print('\n[BACEN] ⏹️ Execução interrompida pelo usuário.')
+    except Exception as e:
+        print(f'\n[BACEN] ❌ Erro crítico na execução: {e}')
         import traceback
         traceback.print_exc()

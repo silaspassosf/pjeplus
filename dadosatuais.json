@@ -1,46 +1,49 @@
 {
   "numero": [
-    "1000042-41.2024.5.02.0703"
+    "1001753-81.2024.5.02.0703"
   ],
-  "id": 5854727,
+  "id": 6605149,
   "autor": [
     {
-      "nome": "SINDICATO DOS TRABALHADORES NAS INDUSTRIAS DA CONSTRUCAO CIVIL DE SAO PAULO-SINTRACON-SP",
-      "cpfcnpj": "60505260000140",
+      "nome": "CINTIA DOS SANTOS SILVA",
+      "cpfcnpj": "34278566824",
       "advogado": {
-        "nome": "ANDRESSA RAMOS DE LIRA MARTINS",
-        "cpf": "33631074808",
-        "oab": "SP335907"
+        "nome": "DANIELA BRAGA DOS REIS",
+        "cpf": "39806149807",
+        "oab": "SP420888"
       }
     }
   ],
   "reu": [
     {
-      "nome": "SANTALENA EMPREITEIRA DE CONSTRUCAO CIVIL EIRELI",
-      "cpfcnpj": "16858702000140"
-    },
-    {
-      "nome": "EDMAR FERNANDES LOPES",
-      "cpfcnpj": "09969573837"
+      "nome": "ALTOM INDUSTRIA E COMERCIO DE IMAS LTDA",
+      "cpfcnpj": "36448573000120",
+      "advogado": {
+        "nome": "THIAGO LOBO VIANA GONCALVES NUNES",
+        "cpf": "07006210836",
+        "oab": "SP150958"
+      }
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": 1192.89,
-    "data": "2024-04-30T00:00:00"
+    "valor": 2084.4,
+    "data": "2025-05-01T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "16/01/2024",
+  "dtAutuacao": "24/10/2024",
   "classeJudicial": {
-    "id": 325,
-    "codigo": "980",
-    "descricao": "Ação de Cumprimento",
-    "sigla": "ACum",
-    "requerProcessoReferenciaCodigo": "FC",
-    "controlaValorCausa": false,
+    "id": 388,
+    "codigo": "1126",
+    "descricao": "Ação Trabalhista - Rito Sumário (Alçada)",
+    "sigla": "ATAlc",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
+    "pisoValorCausa": 0.01,
+    "tetoValorCausa": 3036.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

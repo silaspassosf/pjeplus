@@ -1,152 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Teste do filtrofases
-URL: https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos
+Teste de extração de dados de processo
+URL: https://pje.trt2.jus.br/pjekz/processo/2661854/detalhe
 """
 
 from driver_config import criar_driver, login_func
-from selenium.webdriver.common.by import By
+from Fix import extrair_dados_processo
 import time
 import sys
 import os
 
-# Importa a função filtrofases do arquivo 0c.PY
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=['análise']):
-    print(f'Filtrando fase processual: {", ".join(fases_alvo).title()}...')
-    try:
-        fase_element = None
-        try:
-            fase_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Fase processual')]")
-        except Exception:
-            try:
-                seletor_fase = 'span.ng-tns-c82-22.ng-star-inserted'
-                for elem in driver.find_elements(By.CSS_SELECTOR, seletor_fase):
-                    if 'Fase processual' in elem.text:
-                        fase_element = elem
-                        break
-            except Exception:
-                print('[ERRO] Não encontrou o seletor de fase processual.')
-                return False
-        if not fase_element:
-            print('[ERRO] Não encontrou o seletor de fase processual.')
-            return False
-        driver.execute_script("arguments[0].click();", fase_element)
-        time.sleep(1)
-        painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-        painel = None
-        for _ in range(10):
-            try:
-                painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
-                if painel.is_displayed():
-                    break
-            except Exception:
-                time.sleep(0.3)
-        if not painel or not painel.is_displayed():
-            print('[ERRO] Painel de opções não apareceu.')
-            return False
-        fases_clicadas = set()
-        opcoes = painel.find_elements(By.XPATH, ".//mat-option")
-        for fase in fases_alvo:
-            for opcao in opcoes:
-                try:
-                    texto = opcao.text.strip().lower()
-                    if fase in texto and opcao.is_displayed():
-                        driver.execute_script("arguments[0].click();", opcao)
-                        fases_clicadas.add(fase)
-                        print(f'[OK] Fase "{fase}" selecionada.')
-                        time.sleep(0.5)
-                        break
-                except Exception:
-                    continue
-        if len(fases_clicadas) == 0:
-            print(f'[ERRO] Não encontrou opções {fases_alvo} no painel.')
-            return False
-        
-        try:
-            botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-            driver.execute_script('arguments[0].click();', botao_filtrar)
-            print('[OK] Fases selecionadas e filtro aplicado (botão filtrar).')
-            time.sleep(1)
-        except Exception as e:
-            print(f'[ERRO] Não conseguiu clicar no botão de filtrar: {e}')
-        
-        # Se tarefas_alvo foi informado, aplicar filtro de tarefas também
-        if tarefas_alvo:
-            print(f'Filtrando tarefa do processo: {", ".join(tarefas_alvo).title()}...')
-            tarefa_element = None
-            try:
-                tarefa_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Tarefa do processo')]")
-            except Exception:
-                try:
-                    seletor_tarefa = 'span.ng-tns-c82-22.ng-star-inserted'
-                    for elem in driver.find_elements(By.CSS_SELECTOR, seletor_tarefa):
-                        if 'Tarefa do processo' in elem.text:
-                            tarefa_element = elem
-                            break
-                except Exception:
-                    print('[ERRO] Não encontrou o seletor de tarefa do processo.')
-                    return False
-            
-            if not tarefa_element:
-                print('[ERRO] Não encontrou o seletor de tarefa do processo.')
-                return False
-            
-            driver.execute_script("arguments[0].click();", tarefa_element)
-            time.sleep(1)
-            
-            painel = None
-            for _ in range(10):
-                try:
-                    painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
-                    if painel.is_displayed():
-                        break
-                except Exception:
-                    time.sleep(0.3)
-            
-            if not painel or not painel.is_displayed():
-                print('[ERRO] Painel de opções de tarefa não apareceu.')
-                return False
-            
-            tarefas_clicadas = set()
-            opcoes = painel.find_elements(By.XPATH, ".//mat-option")
-            for tarefa in tarefas_alvo:
-                for opcao in opcoes:
-                    try:
-                        texto = opcao.text.strip().lower()
-                        if tarefa in texto and opcao.is_displayed():
-                            driver.execute_script("arguments[0].click();", opcao)
-                            tarefas_clicadas.add(tarefa)
-                            print(f'[OK] Tarefa "{tarefa}" selecionada.')
-                            time.sleep(0.5)
-                            break
-                    except Exception:
-                        continue
-            
-            if len(tarefas_clicadas) == 0:
-                print(f'[ERRO] Não encontrou opções {tarefas_alvo} no painel de tarefas.')
-                return False
-            
-            try:
-                botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-                driver.execute_script('arguments[0].click();', botao_filtrar)
-                print('[OK] Tarefas selecionadas e filtro aplicado (botão filtrar).')
-                time.sleep(1)
-            except Exception as e:
-                print(f'[ERRO] Não conseguiu clicar no botão de filtrar para tarefas: {e}')
-                
-    except Exception as e:
-        print(f'[ERRO] Erro no filtro de fase: {e}')
-        return False
-    return True
-
-def teste_filtrofases():
-    """Testa a função filtrofases na tela de lista de processos."""
+def teste_extracao_dados():
+    """Testa a extração de dados de um processo específico."""
     driver = None
     try:
-        print("[TESTE] Iniciando teste do filtrofases...")
+        print("[TESTE] Iniciando teste de extração de dados...")
         
         # 1. Criar driver e fazer login
         print("[TESTE] Criando driver...")
@@ -158,24 +27,46 @@ def teste_filtrofases():
             print("[TESTE][ERRO] Falha no login!")
             return False
         
-        # 2. Navegar para a lista de processos
-        url_lista = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
-        print(f"[TESTE] Navegando para a lista: {url_lista}")
-        driver.get(url_lista)
+        # 2. Navegar para o processo específico
+        url_processo = "https://pje.trt2.jus.br/pjekz/processo/2661854/detalhe"
+        print(f"[TESTE] Navegando para o processo: {url_processo}")
+        driver.get(url_processo)
         
         # Aguarda carregamento da página
         time.sleep(5)
         print(f"[TESTE] URL atual: {driver.current_url}")
         
-        # 3. Executar filtrofases
-        print("[TESTE] Executando filtrofases...")
-        resultado = filtrofases(driver)
+        # 3. Executar extração de dados
+        print("[TESTE] Executando extração de dados do processo...")
+        dados_extraidos = extrair_dados_processo(driver)
         
-        if resultado:
-            print("[TESTE] ✓ filtrofases executado com sucesso!")
-            print("[TESTE] Filtros aplicados: liquidação, execução e análise")
+        if dados_extraidos:
+            print("[TESTE] ✓ Extração de dados executada com sucesso!")
+            print("[TESTE] Dados extraídos:")
+            print("-" * 50)
+            
+            # Exibir dados de forma organizada
+            if 'numero' in dados_extraidos:
+                print(f"Número: {dados_extraidos['numero']}")
+            if 'id' in dados_extraidos:
+                print(f"ID: {dados_extraidos['id']}")
+            if 'partes' in dados_extraidos:
+                partes = dados_extraidos['partes']
+                if 'ativas' in partes and partes['ativas']:
+                    print(f"Autor: {partes['ativas'][0].get('nome', 'N/A')}")
+                if 'passivas' in partes and partes['passivas']:
+                    print(f"Réu: {partes['passivas'][0].get('nome', 'N/A')}")
+            if 'valor' in dados_extraidos:
+                print(f"Valor: R$ {dados_extraidos['valor']}")
+            if 'magistrado' in dados_extraidos:
+                print(f"Magistrado: {dados_extraidos['magistrado']}")
+            if 'juizo' in dados_extraidos:
+                print(f"Juízo: {dados_extraidos['juizo']}")
+                
+            print("-" * 50)
+            print(f"[TESTE] Total de campos extraídos: {len(dados_extraidos)}")
         else:
-            print("[TESTE] ✗ Falha na execução do filtrofases")
+            print("[TESTE] ✗ Falha na extração de dados")
             return False
         
         # 4. Aguardar para verificar resultado
@@ -186,6 +77,8 @@ def teste_filtrofases():
         
     except Exception as e:
         print(f"[TESTE][ERRO] Exceção durante o teste: {e}")
+        import traceback
+        traceback.print_exc()
         return False
     finally:
         if driver:
@@ -196,7 +89,7 @@ def teste_filtrofases():
                 print(f"[TESTE][WARN] Erro ao fechar driver: {e}")
 
 if __name__ == "__main__":
-    sucesso = teste_filtrofases()
+    sucesso = teste_extracao_dados()
     if sucesso:
         print("[TESTE] Teste finalizado com sucesso!")
     else:

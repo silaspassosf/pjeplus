@@ -210,9 +210,9 @@ def fluxo_pz(driver):
             ([gerar_regex_geral(k) for k in ['hasta', 'saldo devedor']],
              'gigs', '1/SILAS/pec', None),
             ([gerar_regex_geral('Ante a notícia de descumprimento')],
-             'gigs', '1/SILVIA/Argos', ato_pesqliq),
+             'checar_cabecalho', None, None),
             ([gerar_regex_geral(k) for k in ['impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro', 'comprovar a quitação', 'comprovar o pagamento', 'a reclamada para pagamento da parcela pendente', 'intime-se a reclamada para pagamento das']],
-             'gigs', '1/SILVIA/Argos', lambda driver: (mov_exec(driver), pesquisas(driver))),          
+             'checar_cabecalho_impugnacoes', None, None),          
             ([gerar_regex_geral(k) for k in ['arquivem-se os autos', ' remetam-se os autos ao aquivo', 'A pronúncia da prescrição intercorrente se trata', 'Se revê o novo sobrestamento', 'cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']],
              'movimentar', mov_arquivar, None),
             ([gerar_regex_geral(k) for k in ['bloqueio realizado, ora convertido']], 'gigs', '1/SILAS/pec bloqueio', None),
@@ -358,7 +358,56 @@ def fluxo_pz(driver):
                  time.sleep(1) # Pause after movement
              except Exception as mov_error:
                  logger.error(f'[FLUXO_PZ] Falha ao executar movimentação {func_movimento.__name__}: {mov_error}')
-                 return  # Sai da função sem log de sucesso        # Se não há ação primária mas existe ação secundária, trate a secundária como primária
+                 return  # Sai da função sem log de sucesso
+        elif acao_definida == 'checar_cabecalho':
+            # Nova regra: verificar cor do cabeçalho para "Ante a notícia de descumprimento"
+            try:
+                cabecalho = driver.find_element(By.CSS_SELECTOR, 'mat-card.resumo-processo')
+                cor_fundo = cabecalho.value_of_css_property('background-color')
+                print(f'[FLUXO_PZ] Cor do cabeçalho detectada: {cor_fundo}')
+                
+                # Verifica se é cinza: rgb(144, 164, 174)
+                if 'rgb(144, 164, 174)' in cor_fundo:
+                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando pesquisas')
+                    pesquisas(driver)
+                else:
+                    print('[FLUXO_PZ] Cabeçalho não é cinza - criando GIGS padrão')
+                    dias, responsavel, observacao = parse_gigs_param('1/SILVIA/Argos')
+                    criar_gigs(driver, dias, responsavel, observacao)
+                    # Executar ato_pesqliq como ação secundária
+                    ato_pesqliq(driver)
+                
+                time.sleep(1)
+            except Exception as cabecalho_error:
+                logger.error(f'[FLUXO_PZ] Erro ao verificar cor do cabeçalho: {cabecalho_error}')
+                # Fallback: criar GIGS padrão
+                print('[FLUXO_PZ] Fallback - criando GIGS padrão')
+                dias, responsavel, observacao = parse_gigs_param('1/SILVIA/Argos')
+                criar_gigs(driver, dias, responsavel, observacao)
+        elif acao_definida == 'checar_cabecalho_impugnacoes':
+            # Nova regra: verificar cor do cabeçalho para "impugnações apresentadas"
+            try:
+                cabecalho = driver.find_element(By.CSS_SELECTOR, 'mat-card.resumo-processo')
+                cor_fundo = cabecalho.value_of_css_property('background-color')
+                print(f'[FLUXO_PZ] Cor do cabeçalho detectada para impugnações: {cor_fundo}')
+                
+                # Verifica se é cinza: rgb(144, 164, 174)
+                if 'rgb(144, 164, 174)' in cor_fundo:
+                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando pesquisas')
+                    pesquisas(driver)
+                else:
+                    print('[FLUXO_PZ] Cabeçalho não é cinza - executando mov_exec + pesquisas')
+                    mov_exec(driver)
+                    pesquisas(driver)
+                
+                time.sleep(1)
+            except Exception as cabecalho_error:
+                logger.error(f'[FLUXO_PZ] Erro ao verificar cor do cabeçalho para impugnações: {cabecalho_error}')
+                # Fallback: executar mov_exec + pesquisas
+                print('[FLUXO_PZ] Fallback - executando mov_exec + pesquisas')
+                mov_exec(driver)
+                pesquisas(driver)
+        # Se não há ação primária mas existe ação secundária, trate a secundária como primária
         if acao_definida is None and acao_secundaria:
             print(f'[FLUXO_PZ] Executando ação: {acao_secundaria.__name__}')
             try:

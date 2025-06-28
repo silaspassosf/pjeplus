@@ -112,7 +112,31 @@ def navegacao(driver):
 def iniciar_fluxo(driver):
     """Função que decide qual fluxo será aplicado"""
     def fluxo_callback(driver):
-        try:            # Busca o cabeçalho do documento ativo
+        try:
+            # Passo 0: Clicar no ícone lupa (fa-search lupa-doc-nao-apreciado)
+            try:
+                print('[FLUXO] Passo 0: Tentando clicar no botão Apreciar petição (lupa)...')
+                # Seletor mais robusto: primeiro tenta o botão completo, depois o ícone
+                lupa_selectors = [
+                    'button[aria-label="Apreciar petição"]',  # Seletor do botão completo
+                    'i.fa.fa-search.fa-2x.lupa-doc-nao-apreciado'  # Seletor do ícone específico
+                ]
+                resultado = False
+                for selector in lupa_selectors:
+                    resultado = safe_click(driver, selector, timeout=5, log=True)
+                    if resultado:
+                        print(f'[FLUXO] Passo 0: Clique na lupa realizado com sucesso usando: {selector}')
+                        break
+                if resultado:
+                    # Aguarda breve momento para carregar detalhes após o clique
+                    sleep(1000)  # Usando a função sleep do Fix.py
+                else:
+                    print('[FLUXO][AVISO] Passo 0: Ícone lupa não encontrado ou não clicável com nenhum seletor')
+            except Exception as e:
+                print(f'[FLUXO][AVISO] Passo 0: Erro ao tentar clicar na lupa: {e}')
+                # Continua o fluxo mesmo se houver erro neste passo
+            
+            # Busca o cabeçalho do documento ativo
             try:
                 # Usando as novas funções do Fix.py
                 cabecalho_selector = '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title'
@@ -144,10 +168,9 @@ def iniciar_fluxo(driver):
         except Exception as e:
             print(f'[ERRO] Falha ao processar mandado: {str(e)}')
         finally:
-            if len(driver.window_handles) > 1:
-                driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-                print('[LIMPEZA] Retorno à lista concluído')# Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
+            # Removido fechamento de abas daqui para evitar conflito com gerenciamento de abas do fluxo_mandado
+            # O gerenciamento correto de abas é feito no finally do fluxo_callback dentro de fluxo_mandado()
+            pass# Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
     print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
     indexar_e_processar_lista(driver, fluxo_callback)
 
@@ -266,7 +289,8 @@ def extract_sisbajud_result_from_text(text, log=True):
         if log:
             print('[SISBAJUD][DEBUG] determinações normativas e legais marker not found in text.')
         return 'negativo', 'determinações normativas e legais marker not found, default negativo'
-    # Analisa as 20 linhas seguintes à ocorrência
+    # Busca por "Bloqueio de valores" após "determinações normativas e legais"
+    bloqueio_idx = -1
     for offset in range(1, 21):
         if det_idx + offset >= len(lines):
             break
@@ -275,26 +299,58 @@ def extract_sisbajud_result_from_text(text, log=True):
             continue
         if log:
             print(f'[SISBAJUD][DEBUG] Checking line after determinações normativas e legais: {repr(result_line)}')
-        if 'negativo' in result_line:
+        
+        # Busca pela seção "Bloqueio de valores"
+        if 'bloqueio de valores' in result_line:
+            bloqueio_idx = det_idx + offset
             if log:
-                print('[SISBAJUD][DEBUG] Found "negativo" after determinações normativas e legais marker.')
-            return 'negativo', 'linha contém "negativo"'
-        if 'positivo' in result_line:
-            if log:
-                print('[SISBAJUD][DEBUG] Found "positivo" after determinações normativas e legais marker.')
-            return 'positivo', 'linha contém "positivo"'
-        # Tenta extrair valor numérico (ex: R$ 0,00)
-        valor = result_line.replace('r$', '').replace(' ', '').replace('.', '').replace(',', '.').replace('-', '')
-        try:
-            value = float(''.join([c for c in valor if c.isdigit() or c == '.']))
-            if log:
-                print(f'[SISBAJUD][DEBUG] Found value after determinações normativas e legais: {value}')
-            if value == 0:
-                return 'negativo', 'valor numérico == 0'
-            else:
-                return 'positivo', 'valor numérico > 0'
-        except Exception:
+                print(f'[SISBAJUD][DEBUG] Found "Bloqueio de valores" at line {bloqueio_idx}')
+            break
+    
+    # Se não encontrou "Bloqueio de valores", não há SISBAJUD
+    if bloqueio_idx == -1:
+        if log:
+            print('[SISBAJUD][DEBUG] "Bloqueio de valores" not found after determinações normativas e legais')
+        return 'negativo', 'Bloqueio de valores não encontrado, sem SISBAJUD'
+    
+    # Analisa as linhas após "Bloqueio de valores" procurando por SISBAJUD
+    for offset in range(1, 15):
+        if bloqueio_idx + offset >= len(lines):
+            break
+        sisbajud_line = lines[bloqueio_idx + offset].strip().lower()
+        if not sisbajud_line:
             continue
+        if log:
+            print(f'[SISBAJUD][DEBUG] Checking line after Bloqueio de valores: {repr(sisbajud_line)}')
+        
+        # Busca por SISBAJUD e verifica se é seguido por Negativo ou Positivo
+        if 'sisbajud' in sisbajud_line:
+            if log:
+                print(f'[SISBAJUD][DEBUG] Found SISBAJUD marker at line')
+            
+            # Verifica as próximas linhas após SISBAJUD
+            for sib_offset in range(1, 5):
+                if bloqueio_idx + offset + sib_offset >= len(lines):
+                    break
+                resultado_line = lines[bloqueio_idx + offset + sib_offset].strip().lower()
+                if not resultado_line:
+                    continue
+                if log:
+                    print(f'[SISBAJUD][DEBUG] Checking SISBAJUD result line: {repr(resultado_line)}')
+                
+                if 'negativo' in resultado_line:
+                    if log:
+                        print('[SISBAJUD][DEBUG] Found "Negativo" in SISBAJUD section')
+                    return 'negativo', 'SISBAJUD Negativo na seção Bloqueio de valores'
+                elif 'positivo' in resultado_line:
+                    if log:
+                        print('[SISBAJUD][DEBUG] Found "Positivo" in SISBAJUD section')
+                    return 'positivo', 'SISBAJUD Positivo na seção Bloqueio de valores'
+            
+            # Se encontrou SISBAJUD mas não encontrou resultado, assume negativo
+            if log:
+                print('[SISBAJUD][DEBUG] Found SISBAJUD but no clear result, assuming negativo')
+            return 'negativo', 'SISBAJUD encontrado mas resultado inconclusivo'
     if log:
         print('[SISBAJUD][DEBUG] No rule matched after determinações normativas e legais marker, default negativo.')
     return 'negativo', 'nenhuma regra anterior satisfeita, default negativo'
@@ -310,6 +366,36 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             print(f'[ARGOS][REGRAS] Analisando regras para tipo: {tipo_documento}')
             print(f'[ARGOS][REGRAS] Resultado SISBAJUD: {resultado_sisbajud}')
             print(f'[ARGOS][REGRAS] Sigilo anexos: {sigilo_anexos}')
+        
+        # NOVA REGRA PRIORIDADE MÁXIMA: Despacho com palavra "ARGOS"
+        # Se primeiro documento lido for DESPACHO e contém "ARGOS", aplica regras específicas
+        if tipo_documento == 'despacho' and texto_documento and 'argos' in texto_documento.lower():
+            regra_aplicada = '[PRIORIDADE MÁXIMA] despacho+argos'
+            if debug:
+                print('[ARGOS][REGRAS] NOVA REGRA: Despacho com ARGOS detectado - aplicando regras específicas')
+            
+            if resultado_sisbajud == 'positivo':
+                regra_aplicada += ' | sisbajud positivo => ato_bloq'
+                if debug:
+                    print('[ARGOS][REGRAS] ARGOS: SISBAJUD positivo, executando ato_bloq')
+                ato_bloq(driver, debug=debug)
+                print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+                return  # Sai da função sem verificar outras regras
+            elif resultado_sisbajud == 'negativo':
+                # Verifica se há anexos sigilosos
+                tem_sigiloso = any(v == 'sim' for v in sigilo_anexos.values()) if sigilo_anexos else False
+                if tem_sigiloso:
+                    regra_aplicada += ' | sisbajud negativo, com sigiloso => ato_termoS'
+                    if debug:
+                        print('[ARGOS][REGRAS] ARGOS: SISBAJUD negativo com anexo sigiloso, executando ato_termoS')
+                    ato_termoS(driver, debug=debug)
+                else:
+                    regra_aplicada += ' | sisbajud negativo, sem sigiloso => ato_meios'
+                    if debug:
+                        print('[ARGOS][REGRAS] ARGOS: SISBAJUD negativo sem anexo sigiloso, executando ato_meios')
+                    ato_meios(driver, debug=debug)
+                print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+                return  # Sai da função sem verificar outras regras
         
         # Nova regra para detectar "devendo se manifestar" e repetir a análise no próximo documento
         if texto_documento and "devendo se manifestar" in texto_documento.lower():
@@ -430,7 +516,11 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             dados_processo = extrair_dados_processo(driver)
             if debug:
                 print(f'[ARGOS][REGRAS] Dados do processo extraídos: {dados_processo}')
-            if len(dados_processo.get('reclamadas', [])) == 1:
+            # No contexto trabalhista, "reclamadas" são os "réus" do processo
+            num_reclamadas = len(dados_processo.get('reu', []))
+            if debug:
+                print(f'[ARGOS][REGRAS] Número de reclamadas (réus) encontradas: {num_reclamadas}')
+            if num_reclamadas == 1:
                 regra_aplicada += ' | uma reclamada'
                 if debug:
                     print('[ARGOS][REGRAS] Uma única reclamada - seguindo regras do despacho')
@@ -446,7 +536,7 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             else:
                 regra_aplicada += ' | multiplas reclamadas'
                 if debug:
-                    print('[ARGOS][REGRAS] Mais de uma reclamada - verificando SISBAJUD')
+                    print(f'[ARGOS][REGRAS] Múltiplas reclamadas ({num_reclamadas}) - verificando SISBAJUD')
                 if resultado_sisbajud == 'negativo':
                     regra_aplicada += ' | sisbajud negativo => ato_meiosub'
                     ato_meiosub(driver, debug=debug)
@@ -722,25 +812,21 @@ def fechar_intimacao(driver, log=True):
                         print('[INTIMACAO] Modal de confirmação não encontrado, continuando mesmo assim')
                     return True
                 try:
-                    seletor_vencedor = 'div.mat-dialog-actions button[color="primary"] span.mat-button-wrapper'
-                    elementos = modal_confirm.find_elements(By.CSS_SELECTOR, seletor_vencedor.replace('div.mat-dialog-actions ', ''))
-                    if not elementos:
-                        elementos = driver.find_elements(By.CSS_SELECTOR, seletor_vencedor)
-                    sim_clicked = False
-                    if elementos and elementos[0].is_displayed() and elementos[0].is_enabled():
-                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elementos[0])
-                        sleep(200)
-                        elementos[0].click()
-                        sim_clicked = True
-                        if log:
-                            print('[INTIMACAO] ✅ Botão "Sim" clicado com sucesso (seletor otimizado)')
-                    else:
-                        if log:
-                            print('[INTIMACAO] ❌ Botão "Sim" não encontrado ou não disponível')
-                        raise Exception("Botão Sim não encontrado")
-                except Exception as e_sim:
+                    # Aguardar modal aparecer e usar ESPAÇO ao invés de clicar no botão
+                    sleep(500)  # Aguarda modal aparecer
                     if log:
-                        print(f'[INTIMACAO] ❌ Fallback ESC: {e_sim}')
+                        print('[INTIMACAO] Tentando confirmar com tecla ESPAÇO...')
+                    
+                    # Enviar ESPAÇO para confirmar
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.SPACE)
+                    sleep(300)  # Aguarda processamento
+                    
+                    if log:
+                        print('[INTIMACAO] ✅ Confirmação via ESPAÇO enviada com sucesso')
+                        
+                except Exception as e_space:
+                    if log:
+                        print(f'[INTIMACAO] ❌ Fallback ESC após falha do ESPAÇO: {e_space}')
                     try:
                         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
                         if log:
@@ -994,25 +1080,49 @@ def fluxo_mandado(driver):
             
             # Passo 0: Clicar no ícone lupa (fa-search lupa-doc-nao-apreciado)
             try:
-                print('[FLUXO] Passo 0: Tentando clicar no ícone lupa (fa-search)')
-                lupa_selector = 'i.fa.fa-search.fa-2x.lupa-doc-nao-apreciado'
-                resultado = safe_click(driver, lupa_selector, timeout=5, log=True)
+                print('[FLUXO] Passo 0: Tentando clicar no botão Apreciar petição (lupa)...')
+                # Seletor mais robusto: primeiro tenta o botão completo, depois o ícone
+                lupa_selectors = [
+                    'button[aria-label="Apreciar petição"]',  # Seletor do botão completo
+                    'i.fa.fa-search.fa-2x.lupa-doc-nao-apreciado'  # Seletor do ícone específico
+                ]
+                resultado = False
+                for selector in lupa_selectors:
+                    resultado = safe_click(driver, selector, timeout=5, log=True)
+                    if resultado:
+                        print(f'[FLUXO] Passo 0: Clique na lupa realizado com sucesso usando: {selector}')
+                        break
                 if resultado:
-                    print('[FLUXO] Passo 0: Clique na lupa realizado com sucesso')
                     # Aguarda breve momento para carregar detalhes após o clique
-                    time.sleep(1)
+                    sleep(1000)  # Usando a função sleep do Fix.py
                 else:
-                    print('[FLUXO][AVISO] Passo 0: Ícone lupa não encontrado ou não clicável')
+                    print('[FLUXO][AVISO] Passo 0: Ícone lupa não encontrado ou não clicável com nenhum seletor')
             except Exception as e:
                 print(f'[FLUXO][AVISO] Passo 0: Erro ao tentar clicar na lupa: {e}')
                 # Continua o fluxo mesmo se houver erro neste passo
-              # Identificar documento ativo
-            doc_ativo = driver.find_element(By.CSS_SELECTOR, 'li.tl-item-container.tl-item-ativo')
-            if not doc_ativo:
-                print('[FLUXO][ERRO] Documento ativo não encontrado')
+            
+            # Busca o cabeçalho do documento após o clique na lupa
+            try:
+                # Aguarda um pouco mais para a interface se estabilizar após o clique na lupa
+                sleep(2000)
+                
+                # Busca o cabeçalho usando as funções do Fix.py
+                cabecalho_selector = '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title'
+                cabecalho = wait_for_visible(driver, cabecalho_selector, timeout=10)
+                
+                if not cabecalho:
+                    print('[FLUXO][ERRO] Cabeçalho do documento não encontrado após clique na lupa')
+                    return
+                    
+                texto_doc = cabecalho.text
+                if not texto_doc:
+                    print('[FLUXO][ERRO] Cabeçalho do documento vazio')
+                    return
+                    
+                print(f'[FLUXO] Documento encontrado: {texto_doc}')
+            except Exception as e:
+                print(f'[FLUXO][ERRO] Erro ao buscar cabeçalho após clique na lupa: {e}')
                 return
-            texto_doc = doc_ativo.text
-            print(f'[FLUXO] Documento encontrado: {texto_doc}')
             
             # Decisão de fluxo baseada no texto do documento
             texto_lower = texto_doc.lower()
@@ -1094,11 +1204,43 @@ def fluxo_mandado(driver):
             print(f'[FLUXO][ERRO] Detalhes: {str(e)}')
             print('='*50)
         finally:
-            if len(driver.window_handles) > 1:
-                print('[FLUXO] Fechando aba de detalhes e voltando para lista')
+            # Gerenciamento inteligente de abas para suportar atos judiciais
+            num_abas = len(driver.window_handles)
+            print(f'[FLUXO][ABAS] Total de abas abertas: {num_abas}')
+            
+            if num_abas == 3:
+                # Cenário: Lista + Detalhes + Minuta do Ato
+                # Fecha apenas a minuta (última aba) e volta para detalhes, depois fecha detalhes e volta para lista
+                print('[FLUXO][ABAS] 3 abas detectadas - fechando minuta do ato e detalhes, voltando para lista')
+                
+                # Fecha a minuta (aba 2)
+                driver.switch_to.window(driver.window_handles[2])
+                driver.close()
+                
+                # Volta para detalhes (aba 1) e fecha
+                driver.switch_to.window(driver.window_handles[1])
+                driver.close()
+                
+                # Volta para lista (aba 0)
+                driver.switch_to.window(driver.window_handles[0])
+                print('[FLUXO][ABAS] Retorno à lista concluído após fechar minuta e detalhes')
+                    
+            elif num_abas == 2:
+                # Cenário: Lista + Detalhes (sem ato judicial)
+                print('[FLUXO][ABAS] 2 abas detectadas - fechando detalhes e voltando para lista')
                 driver.close()
                 driver.switch_to.window(driver.window_handles[0])
-                print('[FLUXO] Retorno para lista completado')
+                print('[FLUXO][ABAS] Retorno à lista concluído')
+            elif num_abas > 3:
+                # Cenário: Mais de 3 abas (inesperado, limpar todas menos a lista)
+                print(f'[FLUXO][ABAS] {num_abas} abas detectadas - limpando todas menos a lista')
+                for i in range(num_abas - 1, 0, -1):  # Fecha da última para a segunda
+                    driver.switch_to.window(driver.window_handles[i])
+                    driver.close()
+                driver.switch_to.window(driver.window_handles[0])
+                print('[FLUXO][ABAS] Limpeza completa, retorno à lista concluído')
+            else:
+                print('[FLUXO][ABAS] Apenas 1 aba (lista) - nada a fazer')
             print('='*50 + '\n')    # Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
     print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
     indexar_e_processar_lista(driver, fluxo_callback)
@@ -1765,7 +1907,7 @@ def main():
         return
 
     # Processa a lista de documentos internos
-    iniciar_fluxo(driver)
+    fluxo_mandado(driver)
 
     print("[INFO] Processamento concluído. Pressione ENTER para encerrar...")
     input()

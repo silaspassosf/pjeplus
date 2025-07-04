@@ -10401,3 +10401,125 @@ _onJSONObjectReady/<@chrome://remote/content/marionette/transport.sys.mjs:494:20
 2025-06-27 10:33:39,347 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002D4D2224190>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d929da77-fe1c-4519-8e5d-ea939d9678b7
 2025-06-27 10:33:43,372 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002D4D2122190>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d929da77-fe1c-4519-8e5d-ea939d9678b7
 2025-06-27 10:33:47,400 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-06-30 10:34:15,913 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-06-30 10:35:01,945 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-06-30 10:35:01,946 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-06-30 10:35:09,612 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-06-30 10:35:12,613 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-06-30 10:35:15,236 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-30 10:35:33,849 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-06-30 10:35:38,463 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-06-30 10:35:42,518 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000180CD63CCD0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/c47d1cd1-e2a3-4591-bfc5-8cd69015b840
+2025-06-30 10:35:46,598 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000180CD63C550>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/c47d1cd1-e2a3-4591-bfc5-8cd69015b840
+2025-06-30 10:35:50,662 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000180CD52ED70>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/c47d1cd1-e2a3-4591-bfc5-8cd69015b840
+2025-06-30 10:35:54,726 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-06-30 10:44:37,567 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-06-30 10:44:40,567 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-06-30 10:44:44,918 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-06-30 10:46:26,267 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-06-30 10:47:29,465 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-06-30 10:47:29,465 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-06-30 10:47:37,073 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-06-30 10:47:40,073 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-06-30 10:47:51,305 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-30 10:50:33,896 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-30 10:51:06,294 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-30 10:51:10,059 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-06-30 10:51:34,428 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-06-30 10:51:39,536 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-06-30 10:51:43,596 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000015795E88CD0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/9ecb3796-8a5d-42c0-9629-e3fe153793c4
+2025-06-30 10:51:47,642 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000015795E88550>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/9ecb3796-8a5d-42c0-9629-e3fe153793c4
+2025-06-30 10:51:51,677 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000015795DD1E00>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/9ecb3796-8a5d-42c0-9629-e3fe153793c4
+2025-06-30 10:51:55,746 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-01 11:14:05,963 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-01 11:15:50,783 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-07-01 11:15:50,783 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-07-01 11:15:59,171 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-01 11:16:02,172 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-01 11:17:03,401 [ERROR] [AutomacaoPJe] [FLUXO_PRAZO] ERRO no fluxo_pz: Message: Element <a class="tl-documento"> is not clickable at point (141,943) because another element <span class="fill-space"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:351:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:297:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:180:31
+
+2025-07-01 11:20:27,447 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-01 11:20:33,140 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-07-01 11:20:37,178 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000021C9DE38910>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/cb0f5413-7026-4d7d-8ee9-32802d8368be
+2025-07-01 11:20:41,224 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000021C9DE38CD0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/cb0f5413-7026-4d7d-8ee9-32802d8368be
+2025-07-01 11:20:45,302 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000021C9DD9CC30>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/cb0f5413-7026-4d7d-8ee9-32802d8368be
+2025-07-01 11:20:49,349 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-02 11:17:35,585 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-02 11:19:21,104 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-07-02 11:19:21,104 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-07-02 11:19:28,814 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-02 11:19:31,814 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-02 11:22:10,470 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-02 11:22:16,031 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-07-03 11:50:10,583 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-03 11:51:20,688 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha na execução do loop_prazo: Message: Element <i class="fa fa-tag icone texto-verde"> is not clickable at point (1763,79) because another element <div class="cdk-overlay-backdrop cdk-overlay-transparent-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:351:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:297:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:180:31
+
+2025-07-03 11:51:20,689 [ERROR] [__main__] [SEQUENCIA][ERRO] Erro crítico na execução da sequência: Message: Element <i class="fa fa-tag icone texto-verde"> is not clickable at point (1763,79) because another element <div class="cdk-overlay-backdrop cdk-overlay-transparent-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:351:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:297:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:180:31
+
+2025-07-03 11:51:24,431 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-03 11:51:24,432 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha na execução da sequência: Message: Element <i class="fa fa-tag icone texto-verde"> is not clickable at point (1763,79) because another element <div class="cdk-overlay-backdrop cdk-overlay-transparent-backdrop cdk-overlay-backdrop-showing"> obscures it
+Stacktrace:
+RemoteError@chrome://remote/content/shared/RemoteError.sys.mjs:8:8
+WebDriverError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:199:5
+ElementClickInterceptedError@chrome://remote/content/shared/webdriver/Errors.sys.mjs:351:5
+webdriverClickElement@chrome://remote/content/marionette/interaction.sys.mjs:175:11
+interaction.clickElement@chrome://remote/content/marionette/interaction.sys.mjs:134:11
+clickElement@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:297:29
+receiveMessage@chrome://remote/content/marionette/actors/MarionetteCommandsChild.sys.mjs:180:31
+
+2025-07-03 12:23:18,307 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-03 12:23:21,308 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-03 12:24:22,247 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:24:22,248 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:24:31,050 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:24:31,050 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:24:39,279 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:24:39,279 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:24:47,479 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:24:47,479 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:24:55,619 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:24:55,619 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:03,740 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:25:03,741 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:07,456 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-07-03 12:25:16,072 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:25:16,073 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:24,303 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:25:24,303 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:32,643 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:25:32,643 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:40,905 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:25:40,905 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:49,108 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:25:49,108 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:25:52,878 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Nenhum documento relevante encontrado.
+2025-07-03 12:26:01,128 [ERROR] [AutomacaoPJe] [FLUXO_PZ] extrair_documento retornou None ou texto vazio.
+2025-07-03 12:26:01,129 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.
+2025-07-03 12:26:02,133 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-03 12:26:11,508 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000179813ECB90>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/3e4142e5-db13-4bc5-b380-54cee9e9e6d3/window/handles
+2025-07-03 12:26:15,571 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000179813EC410>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/3e4142e5-db13-4bc5-b380-54cee9e9e6d3/window/handles
+2025-07-03 12:26:19,653 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001798136C9D0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/3e4142e5-db13-4bc5-b380-54cee9e9e6d3/window/handles

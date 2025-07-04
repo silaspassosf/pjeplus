@@ -69,27 +69,29 @@ def criar_driver_VT(headless=False):
     )
     return driver
 
-def login_VT(driver):
+def login_VT(driver, aguardar_url_painel=True):
     # Login manual: apenas navega para a tela de login e aguarda o usuário
     url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
     print(f'[LOGIN_VT] Navegando para tela de login: {url_login}')
     driver.get(url_login)
     painel_url = 'https://pje.trt2.jus.br/pjekz/gigs/meu-painel'
     print(f'[LOGIN_VT] Aguarde, faça o login manualmente e navegue até: {painel_url}')
-    while True:
-        try:
-            if driver.current_url.startswith(painel_url):
-                print('[LOGIN_VT] Painel detectado! Prosseguindo com automação...')
-                break
-        except Exception:
-            pass
-        import time
-        time.sleep(1)
+    if aguardar_url_painel:
+        while True:
+            try:
+                if driver.current_url.startswith(painel_url):
+                    print('[LOGIN_VT] Painel detectado! Prosseguindo com automação...')
+                    break
+            except Exception:
+                pass
+            import time
+            time.sleep(1)
+    # Se não aguardar, retorna imediatamente após abrir a tela de login
+    return True
 
 # ======= SELECIONE O DRIVER E LOGIN ATIVOS =======
-criar_driver = criar_driver_PC
-login_func = login_PC
-# Para ativar o perfil VT, descomente as linhas abaixo e comente as do perfil PC:
-# criar_driver = criar_driver_VT
-# login_func = login_VT
+# criar_driver = criar_driver_PC
+# login_func = login_PC
+criar_driver = criar_driver_VT
+login_func = login_VT
 # Para trocar de máquina, basta comentar/descomentar as linhas acima/abaixo.

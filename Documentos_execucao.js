@@ -85,18 +85,15 @@
         }
     }
     
-    // Função para ler a timeline completa
+    // Função para ler a timeline completa (com data e Decisão Sobrestamento)
     function lerTimelineCompleta() {
         console.log('[DOCS-EXEC] Lendo timeline...');
-        
         const seletoresTimeline = [
             'li.tl-item-container',
             '.tl-data .tl-item-container',
             '.timeline-item'
         ];
-        
         let itens = [];
-        
         for (const seletor of seletoresTimeline) {
             itens = document.querySelectorAll(seletor);
             if (itens.length > 0) {
@@ -104,64 +101,98 @@
                 break;
             }
         }
-        
         if (itens.length === 0) {
             console.log('[DOCS-EXEC] Nenhum item encontrado na timeline');
             return [];
         }
-        
         const documentos = [];
-        
-        // Função para extrair UID do nome completo
         function extrairUidDocumento(link) {
             try {
                 const nomeCompleto = link.textContent.trim();
-                // Buscar padrão " - [códigoUID]" no final do nome
                 const match = nomeCompleto.match(/\s-\s([a-zA-Z0-9]+)$/);
-                if (match && match[1]) {
-                    console.log(`[DOCS-EXEC] UID extraído: ${match[1]} do nome: ${nomeCompleto}`);
-                    return match[1];
-                }
-                
-                // Fallback: buscar qualquer código alfanumérico no final
+                if (match && match[1]) return match[1];
                 const fallbackMatch = nomeCompleto.match(/([a-zA-Z0-9]{6,})$/);
-                if (fallbackMatch && fallbackMatch[1]) {
-                    console.log(`[DOCS-EXEC] UID extraído (fallback): ${fallbackMatch[1]} do nome: ${nomeCompleto}`);
-                    return fallbackMatch[1];
+                if (fallbackMatch && fallbackMatch[1]) return fallbackMatch[1];
+                return null;
+            } catch (e) { return null; }
+        }
+        // Função para extrair data do item da timeline (padrão Lista_Exec)
+        function extrairDataItem(item) {
+            try {
+                // Estratégia 1: Buscar o elemento .tl-data que está ACIMA do documento atual
+                let dataElement = null;
+                dataElement = item.querySelector('.tl-data[name="dataItemTimeline"]');
+                if (!dataElement) {
+                    dataElement = item.querySelector('.tl-data');
                 }
-                
-                console.log(`[DOCS-EXEC] Nenhum UID encontrado no nome: ${nomeCompleto}`);
+                if (!dataElement) {
+                    let elementoAnterior = item.previousElementSibling;
+                    while (elementoAnterior) {
+                        dataElement = elementoAnterior.querySelector('.tl-data[name="dataItemTimeline"]');
+                        if (!dataElement) {
+                            dataElement = elementoAnterior.querySelector('.tl-data');
+                        }
+                        if (dataElement) break;
+                        elementoAnterior = elementoAnterior.previousElementSibling;
+                    }
+                }
+                if (dataElement) {
+                    const dataTexto = dataElement.textContent.trim();
+                    const dataConvertida = converterDataTextoParaNumerico(dataTexto);
+                    if (dataConvertida) return dataConvertida;
+                    const matchData = dataTexto.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                    if (matchData) return matchData[1];
+                }
+                const textoCompleto = item.textContent;
+                const matchDataFallback = textoCompleto.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                if (matchDataFallback) return matchDataFallback[1];
+                return '';
+            } catch (e) {
+                return '';
+            }
+        }
+        // Função auxiliar para converter texto de data (ex: "01 mar. 2019") para formato numérico (ex: "01/03/2019")
+        function converterDataTextoParaNumerico(dataTexto) {
+            try {
+                const meses = {
+                    'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04',
+                    'mai': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+                    'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+                };
+                const match = dataTexto.match(/(\d{1,2})\s+(\w{3})\.?\s+(\d{4})/);
+                if (match) {
+                    const dia = match[1].padStart(2, '0');
+                    const mesTexto = match[2].toLowerCase();
+                    const ano = match[3];
+                    const mesNumero = meses[mesTexto];
+                    if (mesNumero) {
+                        return `${dia}/${mesNumero}/${ano}`;
+                    }
+                }
                 return null;
             } catch (e) {
-                console.error('[DOCS-EXEC] Erro ao extrair UID:', e);
                 return null;
             }
         }
-        
         itens.forEach((item, index) => {
             try {
-                // Primeiro, verificar se há link de documento principal
                 const link = item.querySelector('a.tl-documento:not([target="_blank"])');
-                
+                let data = extrairDataItem(item); // <-- aqui
                 if (link) {
                     const textoDoc = link.textContent.trim().toLowerCase();
-                    console.log(`[DOCS-EXEC] Item ${index}: "${link.textContent.trim()}"`);
-                    
-                    // Verificar se é um dos documentos alvo
                     const documentosAlvo = [
                         { nome: 'Alvará', termos: ['alvará', 'alvara'] },
                         { nome: 'Certidão de pesquisa patrimonial', termos: ['certidão de pesquisa patrimonial', 'certidao de pesquisa patrimonial', 'pesquisa patrimonial'] },
                         { nome: 'Carta Ação', termos: ['carta ação', 'carta acao', 'carta de ação'] },
                         { nome: 'Serasa', termos: ['serasa'] },
-                        { nome: 'CNIB', termos: ['cnib'] }
+                        { nome: 'CNIB', termos: ['cnib'] },
+                        { nome: 'Decisão (Sobrestamento)', termos: ['decisão de sobrestamento', 'decisao de sobrestamento', 'decisão (sobrestamento)', 'decisao (sobrestamento)'] }
                     ];
-                    
                     for (const docTipo of documentosAlvo) {
                         const encontrado = docTipo.termos.some(termo => textoDoc.includes(termo));
                         if (encontrado) {
                             const uid = extrairUidDocumento(link);
                             const documentoId = uid || `doc-${index}`;
-                            
                             documentos.push({
                                 tipo: docTipo.nome,
                                 texto: link.textContent.trim(),
@@ -169,322 +200,152 @@
                                 elemento: item,
                                 link: link,
                                 index: index,
-                                tipoItem: 'documento'
+                                tipoItem: 'documento',
+                                data: data
                             });
-                            console.log(`[DOCS-EXEC] ✅ ${docTipo.nome}: ${link.textContent.trim()}`);
                             break;
                         }
                     }
                 }
-                
-                // Verificar se há botão de anexos (seguindo a lógica do m1.py)
                 const btnAnexos = item.querySelector('pje-timeline-anexos > div > div');
-                if (btnAnexos) {
-                    console.log(`[DOCS-EXEC] Item ${index}: encontrado botão de anexos`);
-                    
-                    // Se o documento principal contém "pesquisa patrimonial", anexos são relevantes
-                    if (link && link.textContent.toLowerCase().includes('pesquisa patrimonial')) {
-                        const uid = extrairUidDocumento(link);
-                        const anexoId = uid ? `anexos-${uid}` : `anexos-${index}`;
-                        
-                        documentos.push({
-                            tipo: 'Anexos da Pesquisa Patrimonial',
-                            texto: `Anexos: ${link.textContent.trim()}`,
-                            id: anexoId,
-                            elemento: item,
-                            link: btnAnexos,
-                            index: index,
-                            tipoItem: 'anexos',
-                            documentoPai: link.textContent.trim()
-                        });
-                        console.log(`[DOCS-EXEC] ✅ Anexos de Pesquisa Patrimonial: ${link.textContent.trim()}`);
-                    }
-                    // Verificar se os anexos contêm documentos relevantes (mesmo sem documento pai)
-                    else {
-                        // Para outros casos, podemos expandir a lógica aqui
-                        console.log(`[DOCS-EXEC] Item ${index}: anexos disponíveis mas não relacionados à pesquisa patrimonial`);
-                    }
+                if (btnAnexos && link && link.textContent.toLowerCase().includes('pesquisa patrimonial')) {
+                    const uid = extrairUidDocumento(link);
+                    const anexoId = uid ? `anexos-${uid}` : `anexos-${index}`;
+                    documentos.push({
+                        tipo: 'Anexos da Pesquisa Patrimonial',
+                        texto: `Anexos: ${link.textContent.trim()}`,
+                        id: anexoId,
+                        elemento: item,
+                        link: btnAnexos,
+                        index: index,
+                        tipoItem: 'anexos',
+                        documentoPai: link.textContent.trim(),
+                        data: data
+                    });
                 }
-                
-                // Se não tem documento principal nem anexos relevantes, informar
-                if (!link && !btnAnexos) {
-                    console.log(`[DOCS-EXEC] Item ${index}: sem documento ou anexos relevantes`);
-                }
-                
-            } catch (e) {
-                console.error(`[DOCS-EXEC] Erro ao processar item ${index}:`, e);
-            }
+            } catch (e) {}
         });
-        
         return documentos;
     }
-    
-    // Função para gerar e exibir relatório
-    function gerarRelatorio(documentos) {
-        // Remover relatório anterior
-        const relatorioExistente = document.getElementById('relatorioDocsExecucao');
-        if (relatorioExistente) {
-            relatorioExistente.remove();
+
+    // Função para gerar e exibir lista simples (Alvarás no topo, demais por data)
+    function gerarListaSimples(documentos) {
+        const listaExistente = document.getElementById('listaDocsExecucaoSimples');
+        if (listaExistente) listaExistente.remove();
+        // Ordenação: alvarás no topo, depois por data decrescente (mais recente primeiro)
+        const alvaras = documentos.filter(d => d.tipo === 'Alvará');
+        const outros = documentos.filter(d => d.tipo !== 'Alvará');
+        function parseData(dt) {
+            if (!dt) return 0;
+            const p = dt.split('/');
+            if (p.length < 3) return 0;
+            let y = p[2].length === 2 ? '20'+p[2] : p[2];
+            return parseInt(y+p[1].padStart(2,'0')+p[0].padStart(2,'0'));
         }
-        
+        outros.sort((a,b) => parseData(b.data)-parseData(a.data));
+        const docsOrdenados = [...alvaras, ...outros];
         const container = document.createElement('div');
-        container.id = 'relatorioDocsExecucao';
+        container.id = 'listaDocsExecucaoSimples';
         container.style.cssText = `
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            bottom: 20px;
+            right: 20px;
             z-index: 100000;
-            background: white;
+            background: #fff;
             border: 2px solid #007bff;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-            max-width: 90%;
-            max-height: 80%;
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            min-width: 340px;
+            max-width: 90vw;
+            max-height: 70vh;
             overflow-y: auto;
-            padding: 24px;
+            padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         `;
-        
-        // Cabeçalho
-        const cabecalho = document.createElement('div');
-        cabecalho.style.cssText = `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 15px;
-        `;
-        
-        const titulo = document.createElement('h3');
-        titulo.innerHTML = '📋 Documentos de Execução Encontrados';
-        titulo.style.cssText = 'margin: 0; color: #007bff; font-size: 18px;';
-        
         const btnFechar = document.createElement('button');
         btnFechar.innerHTML = '✕';
-        btnFechar.style.cssText = `
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.2s ease;
-        `;
-        btnFechar.addEventListener('click', () => container.remove());
-        
-        cabecalho.appendChild(titulo);
-        cabecalho.appendChild(btnFechar);
-        container.appendChild(cabecalho);
-        
-        if (documentos.length === 0) {
-            const mensagem = document.createElement('div');
-            mensagem.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #666;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                    <h4 style="margin: 0 0 8px 0; color: #333;">Nenhum documento encontrado</h4>
-                    <p style="margin: 0; font-style: italic;">Não foram encontrados documentos de execução na timeline.</p>
-                </div>
-            `;
-            container.appendChild(mensagem);
-        } else {
-            // Contador
-            const contador = document.createElement('div');
-            contador.innerHTML = `<strong>${documentos.length}</strong> documento(s) encontrado(s)`;
-            contador.style.cssText = `
-                background: #e7f3ff;
-                border: 1px solid #007bff;
-                border-radius: 6px;
-                padding: 8px 12px;
-                margin-bottom: 16px;
-                color: #0056b3;
-                font-weight: 500;
-            `;
-            container.appendChild(contador);
-            
-            // Lista de documentos
-            const lista = document.createElement('div');
-            
-            documentos.forEach((doc, index) => {
-                const item = document.createElement('div');
-                item.style.cssText = `
-                    border: 1px solid #dee2e6;
-                    border-radius: 8px;
-                    padding: 16px;
-                    margin-bottom: 12px;
-                    background: ${index % 2 === 0 ? '#f8f9fa' : 'white'};
-                    transition: all 0.2s ease;
-                    cursor: pointer;
-                `;
-                
-                item.addEventListener('mouseenter', function() {
-                    this.style.backgroundColor = '#e7f3ff';
-                    this.style.borderColor = '#007bff';
-                });
-                
-                item.addEventListener('mouseleave', function() {
-                    this.style.backgroundColor = index % 2 === 0 ? '#f8f9fa' : 'white';
-                    this.style.borderColor = '#dee2e6';
-                });
-                
-                item.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: bold; color: #007bff; margin-bottom: 4px;">
-                                ${doc.tipoItem === 'anexos' ? '�' : '�📄'} ${doc.tipo}
-                            </div>
-                            <div style="color: #333; margin-bottom: 8px;">
-                                ${doc.texto}
-                            </div>
-                            <div style="font-size: 12px; color: #666; font-family: monospace;">
-                                ID: ${doc.id} | Tipo: ${doc.tipoItem || 'documento'}
-                            </div>
-                            ${doc.documentoPai ? `<div style="font-size: 11px; color: #888; font-style: italic; margin-top: 4px;">Documento pai: ${doc.documentoPai}</div>` : ''}
-                        </div>
-                        <button class="btnSelecionar" data-index="${index}" style="
-                            background: #28a745;
-                            color: white;
-                            border: none;
-                            border-radius: 6px;
-                            padding: 8px 16px;
-                            cursor: pointer;
-                            font-size: 13px;
-                            font-weight: 500;
-                            transition: all 0.2s ease;
-                            margin-left: 16px;
-                        ">
-                            ${doc.tipoItem === 'anexos' ? '📎 Expandir' : '🎯 Localizar'}
-                        </button>
-                    </div>
-                `;
-                
-                lista.appendChild(item);
-            });
-            
-            container.appendChild(lista);
-            
-            // Eventos dos botões
-            container.addEventListener('click', function(e) {
-                if (e.target.classList.contains('btnSelecionar')) {
-                    const index = parseInt(e.target.getAttribute('data-index'));
-                    const documento = documentos[index];
-                    selecionarDocumentoTimeline(documento, e.target);
-                }
-            });
-        }
-        
+        btnFechar.style.cssText = `position: absolute; top: 8px; right: 12px; background: #dc3545; color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 15px; font-weight: bold; cursor: pointer; z-index: 2;`;
+        btnFechar.onclick = () => container.remove();
+        container.appendChild(btnFechar);
+        const tabela = document.createElement('table');
+        tabela.style.cssText = 'width: 100%; border-collapse: collapse; margin-top: 0;';
+        const tbody = document.createElement('tbody');
+        docsOrdenados.forEach((doc, idx) => {
+            const tr = document.createElement('tr');
+            tr.style.cssText = `cursor:pointer; border-bottom:1px solid #e0e0e0; transition:background 0.2s;`;
+            tr.addEventListener('mouseenter', () => tr.style.background = '#e7f3ff');
+            tr.addEventListener('mouseleave', () => tr.style.background = '');
+            tr.onclick = () => selecionarDocumentoTimeline(doc, tr);
+            // Descrição
+            const tdDesc = document.createElement('td');
+            tdDesc.textContent = doc.texto;
+            tdDesc.style.cssText = 'padding: 10px 8px; color: #222; font-size: 15px;';
+            tr.appendChild(tdDesc);
+            // Data
+            const tdData = document.createElement('td');
+            tdData.textContent = doc.data || '';
+            tdData.style.cssText = 'padding: 10px 8px; color: #555; font-size: 13px; text-align:center; min-width:80px;';
+            tr.appendChild(tdData);
+            // ID
+            const tdId = document.createElement('td');
+            tdId.textContent = doc.id;
+            tdId.style.cssText = 'padding: 10px 8px; color: #888; font-size: 13px; text-align:right; min-width:90px;';
+            tr.appendChild(tdId);
+            tbody.appendChild(tr);
+        });
+        tabela.appendChild(tbody);
+        container.appendChild(tabela);
         document.body.appendChild(container);
-        console.log('[DOCS-EXEC] Relatório exibido');
+        tornarListaMovelEPequena(container);
     }
-    
-    // Função para selecionar documento na timeline
-    function selecionarDocumentoTimeline(documento, botao) {
+
+    // Função para localizar documento na timeline (padrão Lista_Exec)
+    function selecionarDocumentoTimeline(documento, tr) {
         try {
-            console.log(`[DOCS-EXEC] Localizando: ${documento.texto}`);
-            
-            // Feedback no botão
-            const textoOriginal = botao.innerHTML;
-            botao.innerHTML = '⏳ Localizando...';
-            botao.style.backgroundColor = '#ffc107';
-            
-            // Rolar até o elemento
-            documento.elemento.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
-            
-            // Destacar elemento
+            // Remove destaque anterior
+            document.querySelectorAll('.doc-exec-destaque').forEach(el => el.classList.remove('doc-exec-destaque'));
+            documento.elemento.classList.add('doc-exec-destaque');
+            documento.elemento.scrollIntoView({behavior:'smooth', block:'center'});
+            // Piscar destaque
+            let piscar = 0;
+            const intervalo = setInterval(() => {
+                documento.elemento.style.opacity = piscar % 2 === 0 ? '0.7' : '1';
+                piscar++;
+                if (piscar > 6) {
+                    clearInterval(intervalo);
+                    documento.elemento.style.opacity = '1';
+                }
+            }, 300);
             setTimeout(() => {
-                const estiloOriginal = documento.elemento.style.cssText;
-                documento.elemento.style.cssText += `
-                    background: linear-gradient(45deg, #fff3cd, #ffeaa7) !important;
-                    border: 3px solid #007bff !important;
-                    border-radius: 8px !important;
-                    transform: scale(1.02) !important;
-                    transition: all 0.3s ease !important;
-                    box-shadow: 0 4px 15px rgba(0,123,255,0.3) !important;
-                `;
-                
-                // Se for anexos, clicar no botão de anexos
-                if (documento.tipoItem === 'anexos') {
-                    console.log(`[DOCS-EXEC] Expandindo anexos para: ${documento.documentoPai}`);
-                    setTimeout(() => {
-                        documento.link.click();
-                        console.log(`[DOCS-EXEC] ✅ Anexos expandidos`);
-                    }, 1000);
-                }
-                
-                // Piscar destaque
-                let piscar = 0;
-                const intervalo = setInterval(() => {
-                    documento.elemento.style.opacity = piscar % 2 === 0 ? '0.7' : '1';
-                    piscar++;
-                    if (piscar > 6) {
-                        clearInterval(intervalo);
-                        documento.elemento.style.opacity = '1';
-                    }
-                }, 300);
-                
-                // Remover destaque após 5 segundos
-                setTimeout(() => {
-                    documento.elemento.style.cssText = estiloOriginal;
-                }, 5000);
-                
-                // Restaurar botão
-                if (documento.tipoItem === 'anexos') {
-                    botao.innerHTML = '✅ Anexos Expandidos';
-                } else {
-                    botao.innerHTML = '✅ Localizado';
-                }
-                botao.style.backgroundColor = '#28a745';
-                
-                setTimeout(() => {
-                    botao.innerHTML = textoOriginal;
-                    botao.style.backgroundColor = '#28a745';
-                }, 3000);
-                
-            }, 1000);
-            
+                documento.elemento.classList.remove('doc-exec-destaque');
+            }, 4000);
         } catch (e) {
             console.error('[DOCS-EXEC] Erro ao localizar documento:', e);
-            botao.innerHTML = '❌ Erro';
-            botao.style.backgroundColor = '#dc3545';
-            setTimeout(() => {
-                botao.innerHTML = textoOriginal;
-                botao.style.backgroundColor = '#28a745';
-            }, 3000);
         }
     }
+    // Adiciona estilo para destaque
+    const style = document.createElement('style');
+    style.innerHTML = `.doc-exec-destaque { outline: 3px solid #007bff !important; background: #e7f3ff !important; transition: outline 0.2s, background 0.2s; }`;
+    document.head.appendChild(style);
     
     // Função principal de análise
     function executarAnaliseTimeline() {
         try {
             console.log('[DOCS-EXEC] Executando análise...');
-            
-            // Feedback visual no botão
             const botao = document.getElementById('btnDocsExecucao');
             const textoOriginal = botao.textContent;
             botao.textContent = '⏳ Analisando...';
             botao.style.backgroundColor = '#ffc107';
-            
-            // Ler timeline e gerar relatório
+            // Ler timeline e gerar lista simples
             const documentos = lerTimelineCompleta();
-            gerarRelatorio(documentos);
-            
-            // Restaurar botão
+            gerarListaSimples(documentos);
             setTimeout(() => {
                 botao.textContent = textoOriginal;
                 botao.style.backgroundColor = '#007bff';
-            }, 1500);
-            
+            }, 1200);
         } catch (e) {
             console.error('[DOCS-EXEC] Erro na análise:', e);
             alert('Erro durante a análise: ' + e.message);
-            
             const botao = document.getElementById('btnDocsExecucao');
             if (botao) {
                 botao.textContent = '❌ Erro';
@@ -520,4 +381,46 @@
         document.addEventListener('DOMContentLoaded', inicializar);
     }
     
+    // Torna a lista móvel e reduzida
+    function tornarListaMovelEPequena(container) {
+        // Reduz tamanho
+        container.style.transform = 'scale(0.6)';
+        container.style.transformOrigin = 'bottom right';
+        container.style.maxWidth = '600px';
+        container.style.fontSize = '12px';
+        // Drag and drop melhorado
+        let isDragging = false, startX, startY, startLeft, startTop;
+        container.style.cursor = 'grab';
+        let mouseMoveHandler, mouseUpHandler;
+        container.addEventListener('mousedown', function(e) {
+            if (e.target.tagName === 'BUTTON') return; // não arrasta ao clicar botão fechar
+            isDragging = true;
+            container.style.cursor = 'grabbing';
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = container.getBoundingClientRect();
+            startLeft = rect.left;
+            startTop = rect.top;
+            document.body.style.userSelect = 'none';
+            // Adiciona listeners apenas durante o drag
+            mouseMoveHandler = function(e) {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                container.style.left = (startLeft + dx) + 'px';
+                container.style.top = (startTop + dy) + 'px';
+                container.style.right = 'auto';
+                container.style.bottom = 'auto';
+            };
+            mouseUpHandler = function() {
+                isDragging = false;
+                container.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+            };
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        });
+    }
 })();

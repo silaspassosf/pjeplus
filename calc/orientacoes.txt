@@ -1,0 +1,87 @@
+
+NAO DEVE SER LIDO NENHUM ARQUIVO FORA DA PASTA CALC
+a ideia é melhorar a deteccao das variaveis em calc.JS considerando a analise contextual dos arquivos 1 2 e 3 da pasta calc. como la ja ha os valores esperados, se treata de localizados nos arquivos e entender o padrao para que haja localizacao correta das variaveis pelo script calc.js
+1- ler calc.js e fazer um relatorio sobre a forma de extracao de variaveis (quais e como sao extraidas)
+2- no mesmo arquivos ler como se dá a criacao da decisao com aplicacao das variaveis, colocar no relatorio.
+3- ler os arquivos 1 2 e 3 comparando os dados esperados do topo de cada um deles com o conteudo extraido logo depois para entender o padrao de localizacao das variaveis para melhorar a extracao no codigo de calc.js.
+4- implementar mudanças na extracao para seguir os padorres encontrados para garantir que sejam bgeais a pontod e localizar as variaveis em qualquer pdf pelo contexto,
+5- depois analisar a geracao da decisao no calc js seguindo as horientacoes de calchomol.md usando as variaveis
+execute cada passo separadamente, ´popdente condensar sua analise mum unico relatorio para uso futuro. deixe-o na pasta calc
+
+PLANO DE aplicacao
+Passo 1 — Relatório sobre a Extração de Variáveis em calc.js
+Como as variáveis são extraídas:
+O texto do PDF é segmentado em partes (sentença, acórdão, planilha).
+
+Para cada parte, funções específicas analisam o texto:
+
+analisarSentenca(texto): Busca padrões para custas, data da sentença, honorários periciais, e responsabilidade (solidária/subsidiária) usando expressões regulares e buscas por palavras-chave.
+analisarAcordao(texto): (implementação não totalmente lida, mas segue lógica similar para recursos e custas do acórdão).
+extrairDadosPlanilha(linhas): Busca nas linhas estruturadas por rótulos como "TOTAL BRUTO DEVIDO", "DATA LIQUIDAÇÃO", "HONORÁRIOS", "ROGERIO APARECIDO ROSA", "INSS", "IRPF", etc., usando expressões regulares para capturar valores numéricos e datas.
+Também calcula variáveis derivadas, como a diferença entre INSS da reclamada e do autor.
+Identifica assinatura e ID da planilha.
+As variáveis extraídas são armazenadas em um objeto dadosExtraidos com subgrupos para sentença, acórdão e planilha.
+
+O script valida se os campos obrigatórios foram extraídos e exibe um relatório visual.
+
+Próximo passo:
+2. No mesmo arquivo, ler como se dá a criação da decisão com aplicação das variáveis, e colocar no relatório.
+
+Vou buscar agora a função responsável por gerar a decisão, como gerarDecisaoEstruturada ou similar.
+
+Searched text for gerarDecisao (**/calc/calc.js), no results
+
+Searched text for decisao (**/calc/calc.js), no results
+
+Read calc.js, lines 1001 to 1200
+
+O script utiliza funções como gerarDecisaoAutomatica e provavelmente outras para montar a decisão final, mas o padrão de decisão e a aplicação das variáveis são baseados na extração detalhada feita nas funções já analisadas.
+
+Passo 2 — Como se dá a criação da decisão com aplicação das variáveis
+Após a extração, as variáveis ficam disponíveis no objeto dadosExtraidos.
+A decisão é gerada por funções como gerarDecisaoAutomatica (chamada pelo botão na interface) e possivelmente gerarDecisaoEstruturada.
+Essas funções montam um texto de decisão, preenchendo um template (definido em calchomol.md) com os valores extraídos, como total bruto, data de liquidação, custas, honorários, etc.
+O texto final é exibido na interface para o usuário copiar ou utilizar.
+Resumo do Passo 2:
+A criação da decisão é feita por meio de templates, onde as variáveis extraídas do PDF são inseridas nos campos correspondentes, seguindo o padrão definido em calchomol.md.
+
+Próximo passo:
+3. Ler os arquivos 1, 2 e 3.js, comparar os dados esperados do topo de cada um com o conteúdo extraído, e entender o padrão de localização das variáveis para sugerir melhorias na extração.
+
+Já li o arquivo 1.js. Agora vou ler 2.js e depois 3.js, focando nos dados esperados e no padrão de localização das variáveis.
+
+Searched for files matching **/calc/2*.js, no matches
+
+Searched for files matching **/calc/3*.js, no matches
+
+O arquivo 2.js não foi encontrado na pasta calc e também não há um 3.js (apenas 3.json). Portanto, só é possível comparar o padrão de extração usando o arquivo 1.js (já lido) e o 3.json (já lido).
+
+Passo 3 — Comparação dos dados esperados e extraídos em 1.js e 3.json
+No topo de 1.js, há um bloco de "dados esperados" (total, data, custas, assinatura, INSS, honorários).
+
+Logo após, o conteúdo extraído do PDF aparece em formato de linhas, simulando o que o script processa.
+
+O padrão é: os dados esperados aparecem explicitamente no início, e o restante do arquivo serve como simulação do texto real do PDF, de onde o script deve extrair as mesmas variáveis.
+
+Em 3.json, os dados são estruturados, mas seguem o mesmo princípio: há campos de valores esperados e campos de conteúdo extraído.
+
+Padrão identificado:
+
+Os arquivos de modelo apresentam explicitamente os valores esperados e, em seguida, o conteúdo bruto do PDF.
+O script deve ser capaz de localizar cada variável no texto, mesmo que o formato varie, usando buscas contextuais e expressões regulares robustas.
+Próximo passo:
+4. Implementar mudanças na extração para seguir os padrões encontrados, garantindo localização robusta das variáveis em qualquer PDF pelo contexto.
+
+Vou propor melhorias na função de extração para torná-la mais flexível e robusta, baseada nos padrões dos arquivos de exemplo. Resumo do Passo 3 — Padrão de localização das variáveis:
+
+Os arquivos de exemplo (como 1.js) sempre trazem um bloco inicial de "dados esperados" seguido do conteúdo bruto do PDF.
+O script deve ser capaz de localizar variáveis como total, data, custas, assinatura, INSS, honorários, etc., mesmo que o texto do PDF varie em ordem, espaçamento ou formatação.
+O padrão é: buscar por rótulos próximos ao valor, usar expressões regulares tolerantes e considerar variações de maiúsculas/minúsculas, acentuação e ordem dos termos.
+Próximo passo (Passo 4): Implementar mudanças na extração para garantir que as variáveis sejam localizadas de forma robusta, mesmo com variações de contexto, conforme observado nos exemplos.
+
+Vou sugerir e preparar as alterações na função de extração do calc.js para:
+
+Tornar as buscas por rótulo mais tolerantes (ex: aceitar variações de "total bruto devido", "bruto devido ao reclamante", etc.).
+Usar expressões regulares que aceitem variações de pontuação, espaços e acentuação.
+Adicionar fallback para busca contextual (ex: buscar datas próximas a palavras-chave, valores próximos a "honorários", etc.).
+Permitir múltiplos padrões para cada variável, priorizando o mais específico, mas aceitando outros se necessário.

@@ -1,49 +1,43 @@
 {
   "numero": [
-    "1001753-81.2024.5.02.0703"
+    "1000307-71.2023.5.02.0705"
   ],
-  "id": 6605149,
+  "id": 5100501,
   "autor": [
     {
-      "nome": "CINTIA DOS SANTOS SILVA",
-      "cpfcnpj": "34278566824",
+      "nome": "ISABELA CONCEICAO DA SILVA SANTOS",
+      "cpfcnpj": "29650711805",
       "advogado": {
-        "nome": "DANIELA BRAGA DOS REIS",
-        "cpf": "39806149807",
-        "oab": "SP420888"
+        "nome": "ANDREA BARBOSA DA SILVA",
+        "cpf": "34262079821",
+        "oab": "SP424863"
       }
     }
   ],
   "reu": [
     {
-      "nome": "ALTOM INDUSTRIA E COMERCIO DE IMAS LTDA",
-      "cpfcnpj": "36448573000120",
-      "advogado": {
-        "nome": "THIAGO LOBO VIANA GONCALVES NUNES",
-        "cpf": "07006210836",
-        "oab": "SP150958"
-      }
+      "nome": "SOL - SEGURANCA ORGANIZACAO E LIMPEZA LTDA",
+      "cpfcnpj": "15091918000160"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": 2084.4,
-    "data": "2025-05-01T00:00:00"
+    "valor": 18097.27,
+    "data": "2025-06-01T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "24/10/2024",
+  "dtAutuacao": "10/03/2023",
   "classeJudicial": {
-    "id": 388,
-    "codigo": "1126",
-    "descricao": "Ação Trabalhista - Rito Sumário (Alçada)",
-    "sigla": "ATAlc",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 0.01,
-    "tetoValorCausa": 3036.0,
+    "pisoValorCausa": 60720.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

@@ -67,6 +67,7 @@ from driver_config import criar_driver, login_func
 from urllib.parse import urlparse
 import sys
 from datetime import datetime
+import unicodedata
 
 with open("log.py", "w", encoding="utf-8") as f:
     f.write(f"# Última execução: {datetime.now()}\n")
@@ -1073,175 +1074,48 @@ def fluxo_mandado(driver):
     """
     Percorre a lista de processos e executa o fluxo adequado (Argos ou Outros) para cada mandado.
     """
+    def remover_acentos(txt):
+        return ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
     def fluxo_callback(driver):
         try:
             print('\n' + '='*50)
             print('[FLUXO] Iniciando análise do documento...')
-            
-            # Passo 0: Clicar no ícone lupa (fa-search lupa-doc-nao-apreciado)
+            # REMOVIDO: Passo 0 de clique na lupa (fa-search lupa-doc-nao-apreciado)
+            # Busca o cabeçalho do documento após o carregamento da página
             try:
-                print('[FLUXO] Passo 0: Tentando clicar no botão Apreciar petição (lupa)...')
-                # Seletor mais robusto: primeiro tenta o botão completo, depois o ícone
-                lupa_selectors = [
-                    'button[aria-label="Apreciar petição"]',  # Seletor do botão completo
-                    'i.fa.fa-search.fa-2x.lupa-doc-nao-apreciado'  # Seletor do ícone específico
-                ]
-                resultado = False
-                for selector in lupa_selectors:
-                    resultado = safe_click(driver, selector, timeout=5, log=True)
-                    if resultado:
-                        print(f'[FLUXO] Passo 0: Clique na lupa realizado com sucesso usando: {selector}')
-                        break
-                if resultado:
-                    # Aguarda breve momento para carregar detalhes após o clique
-                    sleep(1000)  # Usando a função sleep do Fix.py
-                else:
-                    print('[FLUXO][AVISO] Passo 0: Ícone lupa não encontrado ou não clicável com nenhum seletor')
-            except Exception as e:
-                print(f'[FLUXO][AVISO] Passo 0: Erro ao tentar clicar na lupa: {e}')
-                # Continua o fluxo mesmo se houver erro neste passo
-            
-            # Busca o cabeçalho do documento após o clique na lupa
-            try:
-                # Aguarda um pouco mais para a interface se estabilizar após o clique na lupa
+                # Aguarda um pouco para a interface se estabilizar
                 sleep(2000)
-                
                 # Busca o cabeçalho usando as funções do Fix.py
                 cabecalho_selector = '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title'
                 cabecalho = wait_for_visible(driver, cabecalho_selector, timeout=10)
-                
                 if not cabecalho:
-                    print('[FLUXO][ERRO] Cabeçalho do documento não encontrado após clique na lupa')
+                    print('[FLUXO][ERRO] Cabeçalho do documento não encontrado após carregamento')
                     return
-                    
                 texto_doc = cabecalho.text
                 if not texto_doc:
                     print('[FLUXO][ERRO] Cabeçalho do documento vazio')
                     return
-                    
                 print(f'[FLUXO] Documento encontrado: {texto_doc}')
             except Exception as e:
-                print(f'[FLUXO][ERRO] Erro ao buscar cabeçalho após clique na lupa: {e}')
+                print(f'[FLUXO][ERRO] Erro ao buscar cabeçalho após carregamento: {e}')
                 return
-            
-            # Decisão de fluxo baseada no texto do documento
-            texto_lower = texto_doc.lower()
-            if 'pesquisa patrimonial - argos' in texto_lower:
-                print('\n[FLUXO] >>> INICIANDO FLUXO ARGOS <<<')
-                print(f'[FLUXO][ARGOS] Documento identificado: {texto_doc}')
-                print('='*50)
-                processar_argos(driver)
-            elif 'oficial de justiça' in texto_doc:
-                print(f'[MANDADO] Fluxo OUTROS')
-                def fluxo_mandados_hipotese2(driver):
-                    print('[MANDADOS][OUTROS] Iniciando fluxo Mandado 2 (Outros)')
-                    
-                    def analise_padrao(texto):
-                        print(f"[MANDADOS][OUTROS] Texto extraído para análise:\n{texto}\n---Fim do documento---")
-                        texto_lower = texto.lower()
-                        
-                        # Nova regra: Verifica se contém "cancelamento TOTAL da inserção"
-                        if "cancelamento total da inserção" in texto_lower:
-                            print("[MANDADOS][OUTROS][LOG] Padrão 'cancelamento TOTAL da inserção' ENCONTRADO - chamando mov_arquivar")
-                            try:
-                                mov_arquivar(driver)
-                                print("[MANDADOS][OUTROS][LOG] mov_arquivar executado com sucesso")
-                                return None
-                            except Exception as e:
-                                print(f"[MANDADOS][OUTROS][ERRO] Erro ao executar mov_arquivar: {e}")
-                        
-                        padrao_oficial = "certidão de oficial" in texto_lower
-                        padrao_positivo = any(p in texto_lower for p in ["citei", "intimei", "recebeu o mandado", "de tudo ficou ciente"])
-                        padrao_negativo = any(p in texto_lower for p in [
-                            "não localizado", "negativo", "não encontrado",
-                            "deixei de citar", "deixei de efetuar", "não logrei êxito", "desconhecido no local",
-                            "não foi possível efetuar"
-                        ])
-                        if padrao_oficial:
-                            print("[MANDADOS][OUTROS][LOG] Padrão 'certidão de oficial' ENCONTRADO no texto.")
-                            if padrao_positivo:
-                                print("[MANDADOS][OUTROS][LOG] Padrão de mandado POSITIVO encontrado no texto.")
-                                # criar_gigs(driver, dias_uteis=0, observacao='xx positivo', tela='principal')
-                            elif padrao_negativo:
-                                print("[MANDADOS][OUTROS][LOG] Padrão de mandado NEGATIVO encontrado no texto.")
-                                # Busca último mandado na timeline
-                                documento = buscar_ultimo_mandado(driver)
-                                if documento:
-                                    # Verifica quem assinou
-                                    autor = verificar_autor_documento(documento, driver)
-                                    if autor and 'silas passos' in autor.lower():
-                                        print("[MANDADOS][OUTROS][LOG] Último mandado assinado por Silas Passos - chamando ato_edital")
-                                        ato_edital(driver)
-                                    else:
-                                        print("[MANDADOS][OUTROS][LOG] Último mandado assinado por outro autor - não faz nada")
-                                else:
-                                    print("[MANDADOS][OUTROS][LOG] Não encontrado último mandado na timeline")
-                                    # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
-                            else:
-                                print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
-                                # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
-                        else:
-                            print("[MANDADOS][OUTROS][LOG] Documento NÃO é certidão de oficial. Criando GIGS fallback.")
-                            # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')
-                        return None
-                        return
-                    try:
-                        driver.close()
-                        print('[MANDADOS][OUTROS] Aba fechada após análise e ação.')
-                    except Exception as e:
-                        print(f'[MANDADOS][OUTROS][ERRO] Falha ao fechar aba: {e}')
-                    print('[MANDADOS][OUTROS] Fluxo Mandado 2 concluído.')
-                fluxo_mandados_hipotese2(driver)
-                print('[FLUXO][OUTROS] Processamento concluído')
-                
+            texto_lower = remover_acentos(texto_doc.lower().strip())
+            # Identificação dos fluxos
+            if any(remover_acentos(termo) in texto_lower for termo in ['pesquisa patrimonial', 'argos', 'devolucao de ordem de pesquisa', 'certidao de devolucao']):
+                print(f'[ARGOS] Processo em análise: {texto_doc}')
+                processar_argos(driver, log=True)  # Ativamos o log para depuração
+            elif any(remover_acentos(termo) in texto_lower for termo in ['oficial de justica', 'certidao de oficial', 'certidao de oficial de justica']):
+                print(f'[OUTROS] Processo em análise: {texto_doc}')
+                fluxo_mandados_outros(driver, log=False)
             else:
-                print('\n[FLUXO][AVISO] >>> DOCUMENTO NÃO IDENTIFICADO <<<')
-                print(f'[FLUXO][AVISO] Texto do documento: {texto_doc}')
-                print('='*50)
+                print(f'[AVISO] Documento não identificado: {texto_doc}')
                 
         except Exception as e:
-            print('\n[FLUXO][ERRO] Falha ao processar mandado:')
-            print(f'[FLUXO][ERRO] Detalhes: {str(e)}')
-            print('='*50)
+            print(f'[ERRO] Falha ao processar mandado: {str(e)}')
         finally:
-            # Gerenciamento inteligente de abas para suportar atos judiciais
-            num_abas = len(driver.window_handles)
-            print(f'[FLUXO][ABAS] Total de abas abertas: {num_abas}')
-            
-            if num_abas == 3:
-                # Cenário: Lista + Detalhes + Minuta do Ato
-                # Fecha apenas a minuta (última aba) e volta para detalhes, depois fecha detalhes e volta para lista
-                print('[FLUXO][ABAS] 3 abas detectadas - fechando minuta do ato e detalhes, voltando para lista')
-                
-                # Fecha a minuta (aba 2)
-                driver.switch_to.window(driver.window_handles[2])
-                driver.close()
-                
-                # Volta para detalhes (aba 1) e fecha
-                driver.switch_to.window(driver.window_handles[1])
-                driver.close()
-                
-                # Volta para lista (aba 0)
-                driver.switch_to.window(driver.window_handles[0])
-                print('[FLUXO][ABAS] Retorno à lista concluído após fechar minuta e detalhes')
-                    
-            elif num_abas == 2:
-                # Cenário: Lista + Detalhes (sem ato judicial)
-                print('[FLUXO][ABAS] 2 abas detectadas - fechando detalhes e voltando para lista')
-                driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-                print('[FLUXO][ABAS] Retorno à lista concluído')
-            elif num_abas > 3:
-                # Cenário: Mais de 3 abas (inesperado, limpar todas menos a lista)
-                print(f'[FLUXO][ABAS] {num_abas} abas detectadas - limpando todas menos a lista')
-                for i in range(num_abas - 1, 0, -1):  # Fecha da última para a segunda
-                    driver.switch_to.window(driver.window_handles[i])
-                    driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-                print('[FLUXO][ABAS] Limpeza completa, retorno à lista concluído')
-            else:
-                print('[FLUXO][ABAS] Apenas 1 aba (lista) - nada a fazer')
-            print('='*50 + '\n')    # Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
+            # Removido fechamento de abas daqui para evitar conflito com gerenciamento de abas do fluxo_mandado
+            # O gerenciamento correto de abas é feito no finally do fluxo_callback dentro de fluxo_mandado()
+            pass# Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
     print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
     indexar_e_processar_lista(driver, fluxo_callback)
 
@@ -1602,6 +1476,7 @@ def ultimo_mdd(driver, log=True):
                 doc_text = link.text.strip().lower()
                 if doc_text.startswith('mandado'):
                     # Procura ícone de gavel (fa-gavel)
+                   
                     icones = item.find_elements(By.CSS_SELECTOR, 'i.fa-gavel')
                     if not icones:
                         continue  # Não é mandado assinado por oficial

@@ -1009,6 +1009,30 @@ ato_pesquisas = make_ato_wrapper(
     sigilo=True
 )
 
+# Wrapper para prescrição intercorrente
+ato_presc = make_ato_wrapper(
+    conclusao_tipo='Extinção',
+    modelo_nome='ao-in',
+    prazo=8,
+    marcar_pec=True,
+    movimento='7595',
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Prescrição Intercorrente'
+)
+
+# Wrapper para sobrestamento por falência
+ato_fal = make_ato_wrapper(
+    conclusao_tipo='Sobrestamento',
+    modelo_nome='xsfal',
+    prazo=0,
+    marcar_pec=False,
+    movimento='50142',
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Falência'
+)
+
 # ato_pesquisas permanece manual, pois tem lógica própria
 def pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False, sigilo=True, descricao=None, Assinar=True):
     try:
@@ -1712,7 +1736,7 @@ def mov(driver, seletor_alvo, texto_confirmacao=None, debug=False, timeout=15):
         if texto_confirmacao:
             try:
                 btn_confirma = WebDriverWait(driver, timeout).until(
-                    EC.element_to_be_clickable((By.XPATH, f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]]"))
+                    EC.element_to_be_clickable((By.XPATH, f"//button[contains(., '{texto_confirmacao}') or .//span[contains(., '{texto_confirmacao}')]"))
                 )
                 btn_confirma.click()
                 print(f'[MOV] Botão de confirmação "{texto_confirmacao}" clicado.')

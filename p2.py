@@ -194,7 +194,7 @@ def fluxo_pz(driver):
                 'Reitere-se a intimação para que o(a) reclamante apresente cálculos',
                 'remessa ao sobrestamento, com fluência',
             ]],
-             'gigs', '1/Guilherme/Sobrestamento', ato_sobrestamento),
+             'gigs', '1/Silas/Sobrestamento', ato_sobrestamento),
             ([gerar_regex_geral(k) for k in [
                 'é revel, não',
                 'concorda com homologação',

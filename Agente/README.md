@@ -1,46 +1,42 @@
 # Restricted Copilot
 
-A VS Code extension that provides AI assistance with strict context limitations and user control. Designed for environments where careful, controlled code analysis is required. **Now includes automatic compilation and error detection!**
+### 📏 Limited Context (FIXED: 300 LINES)
+- ✅ **Function analysis**: Analyzes only the current function
+- ✅ **Selection analysis**: Selection + 150 lines before/after (total: 300 lines max)
+- ✅ **No expansion**: Context never exceeds 300 lines
+- ✅ **Consistent behavior**: Same limits every timeCode extension with **FIXED BEHAVIOR** - always operates with restrictive, inquisitive, and limited context (300 lines). **No configuration needed!**
 
 ## 🎯 Purpose
 
-This extension addresses scenarios where standard AI assistants might be too broad or presumptuous:
-- **Sensitive codebases** requiring limited AI exposure
-- **Learning environments** where step-by-step analysis is preferred  
-- **Code reviews** needing focused, specific feedback
-- **Legacy systems** where broad suggestions could be harmful
-- **Development workflows** requiring automatic error detection and fixing
+This extension provides **consistent, controlled AI assistance** with fixed parameters:
+- **🔒 ALWAYS Restrictive** - No unsolicited suggestions
+- **❓ ALWAYS Inquisitive** - Always asks before changes  
+- **📏 ALWAYS Limited** - Maximum 300 lines of context
+- **🔧 ALWAYS Auto-compile** - Automatic error detection and fixing
 
-## ✨ Features
+## ✨ Fixed Features (No Configuration Required)
 
-### 🔒 Restrictive Mode (Default: Enabled)
-- **No unsolicited suggestions** - Only analyzes what you explicitly request
-- **Limited scope analysis** - Focuses only on selected functions or code blocks
-- **Prevents scope creep** - Won't suggest changes to unrelated code
+### 🔒 Restrictive Mode (ALWAYS ACTIVE)
+- ✅ **No unsolicited suggestions** - Only analyzes what you explicitly request
+- ✅ **Limited scope analysis** - Focuses only on selected functions or code blocks
+- ✅ **Prevents scope creep** - Won't suggest changes to unrelated code
 
-### ❓ Inquisitive Mode (Default: Enabled)  
-- **Always asks before changes** - Requires explicit permission for modifications
-- **Multiple options** - Presents choices instead of making assumptions
-- **Clear impact explanation** - Shows exactly what will be changed
+### ❓ Inquisitive Mode (ALWAYS ACTIVE)  
+- ✅ **Always asks before changes** - Requires explicit permission for modifications
+- ✅ **Multiple options** - Presents choices instead of making assumptions
+- ✅ **Clear impact explanation** - Shows exactly what will be changed
 
-### 🔧 **NEW: Auto-Compile & Fix**
-- **Automatic compilation** - Validates Python, JavaScript, TypeScript files
-- **Error detection** - Monitors logs and automatically focuses on error lines
-- **PowerShell integration** - Windows-optimized commands without && operators
-- **Smart navigation** - Jumps directly to problematic code
-- **Chat integration** - Seamless connection with @restricted for fixes
+### � Limited Context (FIXED: 50 LINES)
+- ✅ **Function analysis**: Analyzes only the current function
+- ✅ **Selection analysis**: Selection + 25 lines before/after (total: 50 lines max)
+- ✅ **No expansion**: Context never exceeds 50 lines
+- ✅ **Consistent behavior**: Same limits every time
 
-### 💬 Chat Participant (@restricted)
-- **@restricted** participant in GitHub Copilot Chat
-- **Filtered responses** - All AI responses pass through restrictive filter
-- **Context-aware** - Respects the limited context settings
-- **Integration with auto-compile** - Provides fixes for detected errors
-
-### 📏 Context Limitations
-- **Function analysis**: Analyzes only the current function (from declaration to closing brace)
-- **Selection analysis**: Analyzes selection + configurable context (default: 50 lines before/after)
-- **Maximum context**: Never exceeds 200 lines total
-- **Incremental expansion**: Can expand context in 50-line increments with permission
+### � Auto-Compile & Fix (ALWAYS ACTIVE)
+- ✅ **Automatic compilation** - Validates Python, JavaScript, TypeScript files
+- ✅ **Error detection** - Monitors logs and automatically focuses on error lines
+- ✅ **PowerShell integration** - Windows-optimized commands
+- ✅ **Smart navigation** - Jumps directly to problematic code
 
 ## 🚀 Usage
 
@@ -75,7 +71,7 @@ Access settings via: File → Preferences → Settings → Extensions → Restri
   - When enabled: Always asks before making changes
   - When disabled: Can apply approved changes immediately
 
-- **`restrictedCopilot.maxContextLines`** (number, default: `50`, range: 10-200)
+- **`restrictedCopilot.maxContextLines`** (number, default: `300`, range: 10-500)
   - Maximum lines of context around selections
   - Higher values provide more context but less restriction
 
@@ -95,7 +91,7 @@ Access settings via: File → Preferences → Settings → Extensions → Restri
 {
   "restrictedCopilot.restrictiveMode": true,
   "restrictedCopilot.inquisitiveMode": true,  
-  "restrictedCopilot.maxContextLines": 50
+  "restrictedCopilot.maxContextLines": 300
 }
 ```
 
@@ -107,6 +103,14 @@ Access settings via: File → Preferences → Settings → Extensions → Restri
   "restrictedCopilot.maxContextLines": 100
 }
 ```
+
+## 🚫 **PjePlus-Specific Guidelines (ALWAYS ENFORCED)** 
+- **❌ NO creating test files** - No test.py, spec.js, or similar test files
+- **❌ NO creating reports** - No report generation or documentation files  
+- **❌ NO file creation suggestions** - Focus only on existing code analysis
+- **✅ PowerShell testing only** - Use `py script.py` (no && operators)
+- **✅ Autocompile integration** - Built-in error detection and fixing
+- **✅ Existing code focus** - Analyze, optimize, and fix current files only
 
 ## 🤝 Integration with GitHub Copilot
 

@@ -119,8 +119,8 @@
 
     // Função principal para processar as linhas estruturadas e gerar decisão
     function processarLinhasEstruturadas(linhas, nomeArquivo) {
-        const variaveis = extrairVariaveisDasLinhas(linhas);
-        console.log('[CALC] Variáveis extraídas:', variaveis);
+        const variaveis = extrairVariaveisComPadroesAprimorados(linhas);
+        console.log('[CALC] Variáveis extraídas com padrões aprimorados:', variaveis);
         const decisao = gerarDecisaoEstruturada(variaveis);
         exibirDecisao(decisao);
     }

@@ -31,9 +31,9 @@ import time
 import re
 import logging
 import os
-from Fix import esperar_elemento, safe_click
-from Fix import criar_gigs, login_pc, aplicar_filtro_100
-from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, login_notebook, aplicar_filtro_100
+from Fix import esperar_elemento, safe_click, criar_gigs
+from Fix import login_pc, aplicar_filtro_100
+from Fix import extrair_documento, esperar_elemento, safe_click, indexar_e_processar_lista, login_notebook, aplicar_filtro_100
 from atos import pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_presc, ato_fal
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
@@ -159,269 +159,272 @@ def navegar_para_sobrestamento(driver):
         filtro_chip_sobrestamento(driver)
         print('[SOB] Filtro de sobrestamento aplicado.')
         
-        # 4. Criação manual de GIGS para todos os processos
-        print('[SOB] Criando GIGS para todos os processos...')
-        gigs_sucesso = False
+        # 4. GIGS será criado individualmente para cada processo durante o processamento
+        print('[SOB] Filtro aplicado. Iniciando processamento da lista de processos...')
         
-        try:
-            # Aguardar carregamento completo da página após filtro
-            print('[SOB] Aguardando carregamento completo após filtro...')
-            time.sleep(3)
-            
-            # Verificar se existem processos na lista
-            try:
-                processos = driver.find_elements(By.CSS_SELECTOR, 'tr.mat-row, .processo-item, .list-item')
-                if len(processos) == 0:
-                    print('[SOB][ERRO] Nenhum processo encontrado na lista após aplicar filtro.')
-                    print('[SOB][ERRO] GIGS não pode ser criado - não há processos para selecionar.')
-                    return False
-                else:
-                    print(f'[SOB] {len(processos)} processos encontrados na lista.')
-            except Exception as e:
-                print(f'[SOB][WARN] Não foi possível contar processos: {e}')
-            
-            # 1. SELECIONAR TODOS - com verificação robusta
-            print('[SOB] Procurando botão "Selecionar todos"...')
-            btn_selecionar_todos = None
-            
-            # Múltiplas tentativas para encontrar o botão selecionar todos
-            seletores_selecionar = [
-                'i.fas.fa-check-square',
-                'i.fa-check-square',
-                'button[title*="Selecionar"]',
-                'button[aria-label*="Selecionar"]',
-                '.selecionar-todos',
-                'input[type="checkbox"][title*="Selecionar"]'
-            ]
-            
-            for seletor in seletores_selecionar:
-                try:
-                    btn_selecionar_todos = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-                    )
-                    print(f'[SOB] Botão "Selecionar todos" encontrado com seletor: {seletor}')
-                    break
-                except Exception:
-                    continue
-            
-            if not btn_selecionar_todos:
-                print('[SOB][ERRO] Botão "Selecionar todos" não encontrado com nenhum seletor.')
-                return False
-            
-            driver.execute_script("arguments[0].scrollIntoView(true);", btn_selecionar_todos)
-            time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", btn_selecionar_todos)
-            print('[SOB] Clique no botão "Selecionar todos" realizado.')
-            time.sleep(2)
-            
-            # Verificar se algum processo foi selecionado
-            try:
-                processos_selecionados = driver.find_elements(By.CSS_SELECTOR, 'tr.mat-row.selected, .processo-item.selected, input[type="checkbox"]:checked')
-                if len(processos_selecionados) == 0:
-                    # Tentar outro método de seleção
-                    print('[SOB][WARN] Nenhum processo parece ter sido selecionado. Tentando método alternativo...')
-                    checkboxes = driver.find_elements(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                    for checkbox in checkboxes:
-                        if not checkbox.is_selected():
-                            driver.execute_script("arguments[0].click();", checkbox)
-                    time.sleep(1)
-                else:
-                    print(f'[SOB] {len(processos_selecionados)} processos selecionados.')
-            except Exception as e:
-                print(f'[SOB][WARN] Não foi possível verificar seleção: {e}')
-            
-            # 2. Procurar e clicar no ícone fa-tag (texto-verde)
-            print('[SOB] Procurando ícone de tag (GIGS)...')
-            btn_tag = None
-            
-            seletores_tag = [
-                'i.fa.fa-tag.icone.texto-verde',
-                'i.fa-tag.texto-verde',
-                'i.fas.fa-tag',
-                'i.fa.fa-tag',
-                'button[title*="tag"], button[title*="Tag"]',
-                'button[aria-label*="tag"], button[aria-label*="Tag"]',
-                '.btn-tag, .botao-tag'
-            ]
-            
-            for seletor in seletores_tag:
-                try:
-                    btn_tag = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-                    )
-                    print(f'[SOB] Ícone de tag encontrado com seletor: {seletor}')
-                    break
-                except Exception:
-                    continue
-            
-            if not btn_tag:
-                print('[SOB][ERRO] Ícone de tag não encontrado com nenhum seletor.')
-                return False
-            
-            driver.execute_script("arguments[0].scrollIntoView(true);", btn_tag)
-            time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", btn_tag)
-            print('[SOB] Clique no ícone de tag realizado.')
-            time.sleep(2)
-            
-            # 3. Procurar e clicar no botão Atividade
-            print('[SOB] Procurando botão "Atividade"...')
-            btn_atividade = None
-            
-            seletores_atividade = [
-                "//button[.//span[normalize-space(text())='Atividade'] and contains(@class,'mat-menu-item')]",
-                "//button[contains(text(),'Atividade')]",
-                "//mat-menu-item[contains(text(),'Atividade')]",
-                "//button[@title='Atividade']",
-                "//a[contains(text(),'Atividade')]"
-            ]
-            
-            for seletor in seletores_atividade:
-                try:
-                    btn_atividade = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, seletor))
-                    )
-                    print(f'[SOB] Botão "Atividade" encontrado.')
-                    break
-                except Exception:
-                    continue
-            
-            if not btn_atividade:
-                print('[SOB][ERRO] Botão "Atividade" não encontrado.')
-                # Tentar listar todos os botões disponíveis para diagnóstico
-                try:
-                    botoes = driver.find_elements(By.CSS_SELECTOR, 'button, mat-menu-item')
-                    print('[SOB] Botões disponíveis para diagnóstico:')
-                    for i, botao in enumerate(botoes[:10]):  # Listar apenas os primeiros 10
-                        try:
-                            texto = botao.text.strip()
-                            if texto:
-                                print(f'[SOB] Botão {i+1}: "{texto}"')
-                        except:
-                            pass
-                except:
-                    pass
-                return False
-            
-            driver.execute_script("arguments[0].scrollIntoView(true);", btn_atividade)
-            time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", btn_atividade)
-            print('[SOB] Clique no botão "Atividade" realizado.')
-            time.sleep(3)
-            
-            # 4. Procurar campo de observação e preencher
-            print('[SOB] Procurando campo de observação...')
-            campo_obs = None
-            
-            seletores_observacao = [
-                "textarea[formcontrolname='observacao']",
-                "textarea[name='observacao']",
-                "textarea[placeholder*='observa']",
-                "textarea[placeholder*='Observa']",
-                "input[formcontrolname='observacao']",
-                "input[name='observacao']",
-                ".campo-observacao textarea",
-                ".observacao textarea"
-            ]
-            
-            for seletor in seletores_observacao:
-                try:
-                    campo_obs = WebDriverWait(driver, 5).until(
-                        EC.visibility_of_element_located((By.CSS_SELECTOR, seletor))
-                    )
-                    print(f'[SOB] Campo de observação encontrado com seletor: {seletor}')
-                    break
-                except Exception:
-                    continue
-            
-            if not campo_obs:
-                print('[SOB][ERRO] Campo de observação não encontrado.')
-                return False
-            
-            campo_obs.click()
-            time.sleep(0.5)
-            campo_obs.clear()
-            campo_obs.send_keys('sob')
-            print('[SOB] Observação preenchida com "sob".')
-            time.sleep(1)
-            
-            # 5. Procurar e clicar no botão Salvar
-            print('[SOB] Procurando botão "Salvar"...')
-            btn_salvar = None
-            
-            seletores_salvar = [
-                "//button[.//span[normalize-space(text())='Salvar'] and contains(@class,'mat-raised-button') and contains(@class,'mat-primary')]",
-                "//button[contains(text(),'Salvar')]",
-                "//button[@title='Salvar']",
-                "//input[@value='Salvar']",
-                ".btn-salvar, .botao-salvar",
-                "button[type='submit']"
-            ]
-            
-            for seletor in seletores_salvar:
-                try:
-                    if seletor.startswith('//'):
-                        btn_salvar = WebDriverWait(driver, 5).until(
-                            EC.element_to_be_clickable((By.XPATH, seletor))
-                        )
-                    else:
-                        btn_salvar = WebDriverWait(driver, 5).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-                        )
-                    print(f'[SOB] Botão "Salvar" encontrado.')
-                    break
-                except Exception:
-                    continue
-            
-            if not btn_salvar:
-                print('[SOB][ERRO] Botão "Salvar" não encontrado.')
-                return False
-            
-            driver.execute_script("arguments[0].scrollIntoView(true);", btn_salvar)
-            time.sleep(0.5)
-            driver.execute_script("arguments[0].click();", btn_salvar)
-            print('[SOB] Clique no botão "Salvar" realizado.')
-            time.sleep(3)
-            
-            # Verificar se houve sucesso (procurar por mensagem de confirmação ou mudança na interface)
-            try:
-                # Procurar por mensagens de sucesso
-                mensagens_sucesso = driver.find_elements(By.CSS_SELECTOR, '.alert-success, .toast-success, .notification-success, .snack-bar-success')
-                if mensagens_sucesso:
-                    print('[SOB] Mensagem de sucesso detectada.')
-                    gigs_sucesso = True
-                else:
-                    # Se não encontrou mensagem, assumir sucesso se não há erros visíveis
-                    mensagens_erro = driver.find_elements(By.CSS_SELECTOR, '.alert-error, .toast-error, .notification-error, .snack-bar-error')
-                    if not mensagens_erro:
-                        print('[SOB] Nenhuma mensagem de erro detectada - assumindo sucesso.')
-                        gigs_sucesso = True
-                    else:
-                        print('[SOB][ERRO] Mensagem de erro detectada ao salvar GIGS.')
-                        for msg in mensagens_erro:
-                            try:
-                                print(f'[SOB][ERRO] Mensagem de erro: {msg.text}')
-                            except:
-                                pass
-            except Exception as e:
-                print(f'[SOB][WARN] Não foi possível verificar resultado do salvamento: {e}')
-                # Assumir sucesso se chegou até aqui sem exceções
-                gigs_sucesso = True
-            
-            if gigs_sucesso:
-                print('[SOB] GIGS criado com sucesso!')
-            
-        except Exception as gigs_error:
-            print(f'[SOB][ERRO] Falha ao criar GIGS manual: {gigs_error}')
-            import traceback
-            print(f'[SOB][ERRO] Detalhes do erro: {traceback.format_exc()}')
-            gigs_sucesso = False
-        
-        # CRÍTICO: Se GIGS não foi criado com sucesso, abortar execução
-        if not gigs_sucesso:
-            print('[SOB][ERRO CRÍTICO] GIGS não foi criado com sucesso.')
-            print('[SOB][ERRO CRÍTICO] ABORTANDO EXECUÇÃO conforme solicitado.')
-            return False
+        # # 4. Criação manual de GIGS para todos os processos - COMENTADO
+        # print('[SOB] Criando GIGS para todos os processos...')
+        # gigs_sucesso = False
+        # 
+        # try:
+        #     # Aguardar carregamento completo da página após filtro
+        #     print('[SOB] Aguardando carregamento completo após filtro...')
+        #     time.sleep(3)
+        #     
+        #     # Verificar se existem processos na lista
+        #     try:
+        #         processos = driver.find_elements(By.CSS_SELECTOR, 'tr.mat-row, .processo-item, .list-item')
+        #         if len(processos) == 0:
+        #             print('[SOB][ERRO] Nenhum processo encontrado na lista após aplicar filtro.')
+        #             print('[SOB][ERRO] GIGS não pode ser criado - não há processos para selecionar.')
+        #             return False
+        #         else:
+        #             print(f'[SOB] {len(processos)} processos encontrados na lista.')
+        #     except Exception as e:
+        #         print(f'[SOB][WARN] Não foi possível contar processos: {e}')
+        #     
+        #     # 1. SELECIONAR TODOS - com verificação robusta
+        #     print('[SOB] Procurando botão "Selecionar todos"...')
+        #     btn_selecionar_todos = None
+        #     
+        #     # Múltiplas tentativas para encontrar o botão selecionar todos
+        #     seletores_selecionar = [
+        #         'i.fas.fa-check-square',
+        #         'i.fa-check-square',
+        #         'button[title*="Selecionar"]',
+        #         'button[aria-label*="Selecionar"]',
+        #         '.selecionar-todos',
+        #         'input[type="checkbox"][title*="Selecionar"]'
+        #     ]
+        #     
+        #     for seletor in seletores_selecionar:
+        #         try:
+        #             btn_selecionar_todos = WebDriverWait(driver, 5).until(
+        #                 EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+        #             )
+        #             print(f'[SOB] Botão "Selecionar todos" encontrado com seletor: {seletor}')
+        #             break
+        #         except Exception:
+        #             continue
+        #     
+        #     if not btn_selecionar_todos:
+        #         print('[SOB][ERRO] Botão "Selecionar todos" não encontrado com nenhum seletor.')
+        #         return False
+        #     
+        #     driver.execute_script("arguments[0].scrollIntoView(true);", btn_selecionar_todos)
+        #     time.sleep(0.5)
+        #     driver.execute_script("arguments[0].click();", btn_selecionar_todos)
+        #     print('[SOB] Clique no botão "Selecionar todos" realizado.')
+        #     time.sleep(2)
+        #     
+        #     # Verificar se algum processo foi selecionado
+        #     try:
+        #         processos_selecionados = driver.find_elements(By.CSS_SELECTOR, 'tr.mat-row.selected, .processo-item.selected, input[type="checkbox"]:checked')
+        #         if len(processos_selecionados) == 0:
+        #             # Tentar outro método de seleção
+        #             print('[SOB][WARN] Nenhum processo parece ter sido selecionado. Tentando método alternativo...')
+        #             checkboxes = driver.find_elements(By.CSS_SELECTOR, 'input[type="checkbox"]')
+        #             for checkbox in checkboxes:
+        #                 if not checkbox.is_selected():
+        #                     driver.execute_script("arguments[0].click();", checkbox)
+        #             time.sleep(1)
+        #         else:
+        #             print(f'[SOB] {len(processos_selecionados)} processos selecionados.')
+        #     except Exception as e:
+        #         print(f'[SOB][WARN] Não foi possível verificar seleção: {e}')
+        #     
+        #     # 2. Procurar e clicar no ícone fa-tag (texto-verde)
+        #     print('[SOB] Procurando ícone de tag (GIGS)...')
+        #     btn_tag = None
+        #     
+        #     seletores_tag = [
+        #         'i.fa.fa-tag.icone.texto-verde',
+        #         'i.fa-tag.texto-verde',
+        #         'i.fas.fa-tag',
+        #         'i.fa.fa-tag',
+        #         'button[title*="tag"], button[title*="Tag"]',
+        #         'button[aria-label*="tag"], button[aria-label*="Tag"]',
+        #         '.btn-tag, .botao-tag'
+        #     ]
+        #     
+        #     for seletor in seletores_tag:
+        #         try:
+        #             btn_tag = WebDriverWait(driver, 5).until(
+        #                 EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+        #             )
+        #             print(f'[SOB] Ícone de tag encontrado com seletor: {seletor}')
+        #             break
+        #         except Exception:
+        #             continue
+        #     
+        #     if not btn_tag:
+        #         print('[SOB][ERRO] Ícone de tag não encontrado com nenhum seletor.')
+        #         return False
+        #     
+        #     driver.execute_script("arguments[0].scrollIntoView(true);", btn_tag)
+        #     time.sleep(0.5)
+        #     driver.execute_script("arguments[0].click();", btn_tag)
+        #     print('[SOB] Clique no ícone de tag realizado.')
+        #     time.sleep(2)
+        #     
+        #     # 3. Procurar e clicar no botão Atividade
+        #     print('[SOB] Procurando botão "Atividade"...')
+        #     btn_atividade = None
+        #     
+        #     seletores_atividade = [
+        #         "//button[.//span[normalize-space(text())='Atividade'] and contains(@class,'mat-menu-item')]",
+        #         "//button[contains(text(),'Atividade')]",
+        #         "//mat-menu-item[contains(text(),'Atividade')]",
+        #         "//button[@title='Atividade']",
+        #         "//a[contains(text(),'Atividade')]"
+        #     ]
+        #     
+        #     for seletor in seletores_atividade:
+        #         try:
+        #             btn_atividade = WebDriverWait(driver, 5).until(
+        #                 EC.element_to_be_clickable((By.XPATH, seletor))
+        #             )
+        #             print(f'[SOB] Botão "Atividade" encontrado.')
+        #             break
+        #         except Exception:
+        #             continue
+        #     
+        #     if not btn_atividade:
+        #         print('[SOB][ERRO] Botão "Atividade" não encontrado.')
+        #         # Tentar listar todos os botões disponíveis para diagnóstico
+        #         try:
+        #             botoes = driver.find_elements(By.CSS_SELECTOR, 'button, mat-menu-item')
+        #             print('[SOB] Botões disponíveis para diagnóstico:')
+        #             for i, botao in enumerate(botoes[:10]):  # Listar apenas os primeiros 10
+        #                 try:
+        #                     texto = botao.text.strip()
+        #                     if texto:
+        #                         print(f'[SOB] Botão {i+1}: "{texto}"')
+        #                 except:
+        #                     pass
+        #         except:
+        #             pass
+        #         return False
+        #     
+        #     driver.execute_script("arguments[0].scrollIntoView(true);", btn_atividade)
+        #     time.sleep(0.5)
+        #     driver.execute_script("arguments[0].click();", btn_atividade)
+        #     print('[SOB] Clique no botão "Atividade" realizado.')
+        #     time.sleep(3)
+        #     
+        #     # 4. Procurar campo de observação e preencher
+        #     print('[SOB] Procurando campo de observação...')
+        #     campo_obs = None
+        #     
+        #     seletores_observacao = [
+        #         "textarea[formcontrolname='observacao']",
+        #         "textarea[name='observacao']",
+        #         "textarea[placeholder*='observa']",
+        #         "textarea[placeholder*='Observa']",
+        #         "input[formcontrolname='observacao']",
+        #         "input[name='observacao']",
+        #         ".campo-observacao textarea",
+        #         ".observacao textarea"
+        #     ]
+        #     
+        #     for seletor in seletores_observacao:
+        #         try:
+        #             campo_obs = WebDriverWait(driver, 5).until(
+        #                 EC.visibility_of_element_located((By.CSS_SELECTOR, seletor))
+        #             )
+        #             print(f'[SOB] Campo de observação encontrado com seletor: {seletor}')
+        #             break
+        #         except Exception:
+        #             continue
+        #     
+        #     if not campo_obs:
+        #         print('[SOB][ERRO] Campo de observação não encontrado.')
+        #         return False
+        #     
+        #     campo_obs.click()
+        #     time.sleep(0.5)
+        #     campo_obs.clear()
+        #     campo_obs.send_keys('sob')
+        #     print('[SOB] Observação preenchida com "sob".')
+        #     time.sleep(1)
+        #     
+        #     # 5. Procurar e clicar no botão Salvar
+        #     print('[SOB] Procurando botão "Salvar"...')
+        #     btn_salvar = None
+        #     
+        #     seletores_salvar = [
+        #         "//button[.//span[normalize-space(text())='Salvar'] and contains(@class,'mat-raised-button') and contains(@class,'mat-primary')]",
+        #         "//button[contains(text(),'Salvar')]",
+        #         "//button[@title='Salvar']",
+        #         "//input[@value='Salvar']",
+        #         ".btn-salvar, .botao-salvar",
+        #         "button[type='submit']"
+        #     ]
+        #     
+        #     for seletor in seletores_salvar:
+        #         try:
+        #             if seletor.startswith('//'):
+        #                 btn_salvar = WebDriverWait(driver, 5).until(
+        #                     EC.element_to_be_clickable((By.XPATH, seletor))
+        #                 )
+        #             else:
+        #                 btn_salvar = WebDriverWait(driver, 5).until(
+        #                     EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+        #                 )
+        #             print(f'[SOB] Botão "Salvar" encontrado.')
+        #             break
+        #         except Exception:
+        #             continue
+        #     
+        #     if not btn_salvar:
+        #         print('[SOB][ERRO] Botão "Salvar" não encontrado.')
+        #         return False
+        #     
+        #     driver.execute_script("arguments[0].scrollIntoView(true);", btn_salvar)
+        #     time.sleep(0.5)
+        #     driver.execute_script("arguments[0].click();", btn_salvar)
+        #     print('[SOB] Clique no botão "Salvar" realizado.')
+        #     time.sleep(3)
+        #     
+        #     # Verificar se houve sucesso (procurar por mensagem de confirmação ou mudança na interface)
+        #     try:
+        #         # Procurar por mensagens de sucesso
+        #         mensagens_sucesso = driver.find_elements(By.CSS_SELECTOR, '.alert-success, .toast-success, .notification-success, .snack-bar-success')
+        #         if mensagens_sucesso:
+        #             print('[SOB] Mensagem de sucesso detectada.')
+        #             gigs_sucesso = True
+        #         else:
+        #             # Se não encontrou mensagem, assumir sucesso se não há erros visíveis
+        #             mensagens_erro = driver.find_elements(By.CSS_SELECTOR, '.alert-error, .toast-error, .notification-error, .snack-bar-error')
+        #             if not mensagens_erro:
+        #                 print('[SOB] Nenhuma mensagem de erro detectada - assumindo sucesso.')
+        #                 gigs_sucesso = True
+        #             else:
+        #                 print('[SOB][ERRO] Mensagem de erro detectada ao salvar GIGS.')
+        #                 for msg in mensagens_erro:
+        #                     try:
+        #                         print(f'[SOB][ERRO] Mensagem de erro: {msg.text}')
+        #                     except:
+        #                         pass
+        #     except Exception as e:
+        #         print(f'[SOB][WARN] Não foi possível verificar resultado do salvamento: {e}')
+        #         # Assumir sucesso se chegou até aqui sem exceções
+        #         gigs_sucesso = True
+        #     
+        #     if gigs_sucesso:
+        #         print('[SOB] GIGS criado com sucesso!')
+        #     
+        # except Exception as gigs_error:
+        #     print(f'[SOB][ERRO] Falha ao criar GIGS manual: {gigs_error}')
+        #     import traceback
+        #     print(f'[SOB][ERRO] Detalhes do erro: {traceback.format_exc()}')
+        #     gigs_sucesso = False
+        # 
+        # # CRÍTICO: Se GIGS não foi criado com sucesso, abortar execução
+        # if not gigs_sucesso:
+        #     print('[SOB][ERRO CRÍTICO] GIGS não foi criado com sucesso.')
+        #     print('[SOB][ERRO CRÍTICO] ABORTANDO EXECUÇÃO conforme solicitado.')
+        #     return False
         
         return True
     except Exception as e:
@@ -689,6 +692,30 @@ def fluxo_sob(driver):
     Processa sobrestamento em processos abertos.
     Seleciona apenas documentos do tipo decisão.
     """
+    # Verificar se estamos na URL de detalhe do processo e criar GIGS
+    try:
+        current_url = driver.current_url
+        if '/detalhe' in current_url:
+            print('[SOB] Processo aberto em URL de detalhe. Criando GIGS...')
+            from Fix import criar_gigs
+            criar_gigs(driver, 0, '', 'sob')
+            print('[SOB] GIGS criado: 0 dias, sem responsável, observação sob')
+            time.sleep(1)
+            
+            # Chamar função listaexec após criar GIGS
+            try:
+                print('[SOB] Iniciando análise de medidas executórias...')
+                from listaexec import listaexec
+                medidas = listaexec(driver, log=True)
+                print(f'[SOB] Análise de medidas executórias concluída. Total encontradas: {len(medidas)}')
+            except Exception as e_listaexec:
+                print(f'[SOB][ERRO] Falha na análise de medidas executórias: {e_listaexec}')
+            
+        else:
+            print(f'[SOB] URL atual não contém /detalhe: {current_url}')
+    except Exception as e:
+        print(f'[SOB][ERRO] Falha ao criar GIGS: {e}')
+    
     acao_secundaria = None
     texto = None
     itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')

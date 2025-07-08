@@ -640,7 +640,7 @@ def fechar_intimacao(driver, log=True):
             except Exception:
                 pass
             return True
-        # Busca linha com prazo 30
+        # Busca linha com prazo 30 - OTIMIZADO para verificação rápida
         try:
             rows_selector = 'tbody tr'
             first_row = wait(driver, rows_selector, timeout=5)
@@ -652,25 +652,91 @@ def fechar_intimacao(driver, log=True):
                 except Exception:
                     pass
                 return True
+            
             rows = driver.find_elements(By.CSS_SELECTOR, rows_selector)
             prazo_30_encontrado = False
             checkbox_selecionada = False
+            
             if log:
                 print(f'[INTIMACAO][OTIMIZADO] Encontradas {len(rows)} linhas de expedientes')
+            
+            # VERIFICAÇÃO RÁPIDA: Primeiro verifica se existe linha com prazo 30
             for i, row in enumerate(rows):
                 try:
                     prazo_cell = row.find_element(By.CSS_SELECTOR, 'td:nth-child(9)')
                     prazo_texto = prazo_cell.text.strip()
                     if log and i < 3:
                         print(f'[INTIMACAO][DEBUG] Linha {i+1}: prazo = "{prazo_texto}"')
+                    
                     if prazo_texto == '30':
                         prazo_30_encontrado = True
                         if log:
                             print(f'[INTIMACAO][OTIMIZADO] ✓ Linha com prazo 30 encontrada (linha {i+1})')
+                        break  # Sai do loop assim que encontrar
+                        
+                except Exception as e_row:
+                    if log:
+                        print(f'[INTIMACAO][DEBUG] Erro ao verificar linha {i+1}: {e_row}')
+                    continue
+            
+            # Se não encontrou linha com prazo 30, fecha imediatamente
+            if not prazo_30_encontrado:
+                if log:
+                    print('[INTIMACAO][OTIMIZADO] ❌ Nenhuma linha com prazo 30 encontrada')
+                    print('[INTIMACAO][OTIMIZADO] Fechando modal imediatamente e prosseguindo')
+                try:
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                    if log:
+                        print('[INTIMACAO][OTIMIZADO] ✅ Modal fechado com ESC - fluxo continua normalmente')
+                except Exception:
+                    pass
+                return True
+            
+            # Se encontrou linha com prazo 30, processa a seleção
+            for i, row in enumerate(rows):
+                try:
+                    prazo_cell = row.find_element(By.CSS_SELECTOR, 'td:nth-child(9)')
+                    prazo_texto = prazo_cell.text.strip()
+                    
+                    if prazo_texto == '30':
+                        if log:
+                            print(f'[INTIMACAO][OTIMIZADO] Processando linha com prazo 30 (linha {i+1})')
                         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
                         sleep(200)
+                        
+                        # PRIMEIRO: Verificar se existe checkbox clicável
+                        checkbox_exists = False
+                        try:
+                            checkbox_element = row.find_element(By.CSS_SELECTOR, 'td:last-child mat-checkbox')
+                            # Verificar se o checkbox está presente e é clicável
+                            if checkbox_element.is_displayed() and checkbox_element.is_enabled():
+                                checkbox_exists = True
+                                if log:
+                                    print('[INTIMACAO][OTIMIZADO] ✓ Checkbox clicável encontrada')
+                            else:
+                                if log:
+                                    print('[INTIMACAO][OTIMIZADO] ❌ Checkbox existe mas não é clicável')
+                        except Exception:
+                            if log:
+                                print('[INTIMACAO][OTIMIZADO] ❌ Checkbox não encontrada')
+                        
+                        # Se não tem checkbox clicável, fechar com ESC
+                        if not checkbox_exists:
+                            if log:
+                                print('[INTIMACAO][OTIMIZADO] ❌ Linha de 30 dias sem checkbox clicável')
+                                print('[INTIMACAO][OTIMIZADO] Fechando modal rapidamente com ESC')
+                            try:
+                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                                if log:
+                                    print('[INTIMACAO][OTIMIZADO] ✅ Modal fechado com ESC - checkbox não clicável')
+                            except Exception:
+                                pass
+                            return True
+                        
+                        # Se tem checkbox clicável, continua com o fluxo de seleção
                         checkbox_selecionada = False
-                        # Estratégia 1
+                        
+                        # Estratégia 1: Checkbox via safe_click
                         try:
                             checkbox_element = row.find_element(By.CSS_SELECTOR, 'td:last-child mat-checkbox')
                             aria_checked = checkbox_element.get_attribute('aria-checked')
@@ -697,7 +763,8 @@ def fechar_intimacao(driver, log=True):
                         except Exception as e_check1:
                             if log:
                                 print(f'[INTIMACAO][OTIMIZADO] Estratégia 1 falhou: {e_check1}')
-                        # Estratégia 2
+                        
+                        # Estratégia 2: Inner container se primeira falhou
                         if not checkbox_selecionada:
                             try:
                                 checkbox_container = row.find_element(By.CSS_SELECTOR, 'td:last-child mat-checkbox')
@@ -715,7 +782,8 @@ def fechar_intimacao(driver, log=True):
                             except Exception as e_check2:
                                 if log:
                                     print(f'[INTIMACAO][OTIMIZADO] Estratégia 2 falhou: {e_check2}')
-                        # Estratégia 3
+                        
+                        # Estratégia 3: Input direto se outras falharam
                         if not checkbox_selecionada:
                             try:
                                 checkbox_input = row.find_element(By.CSS_SELECTOR, 'td:last-child input[type="checkbox"]')
@@ -736,41 +804,30 @@ def fechar_intimacao(driver, log=True):
                             except Exception as e_check3:
                                 if log:
                                     print(f'[INTIMACAO][OTIMIZADO] Estratégia 3 falhou: {e_check3}')
+                        
                         if checkbox_selecionada:
                             if log:
                                 print('[INTIMACAO][OTIMIZADO] ✅ Checkbox da linha com prazo 30 selecionada com sucesso!')
                         else:
                             if log:
                                 print('[INTIMACAO][OTIMIZADO] ❌ Falha em todas as estratégias para selecionar checkbox')
-                        break
+                                print('[INTIMACAO][OTIMIZADO] Fechando modal e prosseguindo')
+                            try:
+                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                                if log:
+                                    print('[INTIMACAO][OTIMIZADO] ✅ Modal fechado com ESC após falha na checkbox')
+                            except Exception:
+                                pass
+                            return True
+                        break  # Sai do loop após processar a linha com prazo 30
+                        
                 except Exception as e_row:
                     if log:
                         print(f'[INTIMACAO][OTIMIZADO] Erro ao processar linha {i+1}: {e_row}')
                     continue
-            if not prazo_30_encontrado:
-                if log:
-                    print('[INTIMACAO][OTIMIZADO] ❌ Nenhuma linha com prazo 30 encontrada')
-                    print('[INTIMACAO][ALERTA] Ausência do checkbox de 30 dias, fechando modal e prosseguindo')
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    if log:
-                        print('[INTIMACAO][OTIMIZADO] Modal fechado com ESC após não encontrar prazo 30')
-                        print('[INTIMACAO][OTIMIZADO] Prosseguindo normalmente com o fluxo Argos')
-                except Exception:
-                    pass
-                return True
-            elif not checkbox_selecionada:
-                if log:
-                    print('[INTIMACAO][OTIMIZADO] ❌ Prazo 30 encontrado mas checkbox não foi selecionada')
-                    print('[INTIMACAO][ALERTA] Falha na seleção da checkbox, fechando modal e prosseguindo')
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    if log:
-                        print('[INTIMACAO][OTIMIZADO] Modal fechado com ESC após falha na checkbox')
-                        print('[INTIMACAO][OTIMIZADO] Prosseguindo normalmente com o fluxo Argos')
-                except Exception:
-                    pass
-                return True
+            
+            # Se chegou aqui, significa que a checkbox foi selecionada com sucesso
+            # Continua com o fluxo normal (botão Fechar Expedientes)
             # 4. Clica no botão Fechar Expedientes dentro do modal
             try:
                 modal_expedientes = driver.find_element(By.CSS_SELECTOR, 'mat-dialog-container pje-expedientes-dialogo')
@@ -919,54 +976,479 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                 tipo_anexo_encontrado = k
                 # Para anexos especiais: INSERIR sigilo (se ícone estiver azul, clicar para tornar vermelho)
                 btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
+                sigilo_foi_aplicado = False
+                
                 if btn_sigilo:
                     if "tl-nao-sigiloso" in btn_sigilo[0].get_attribute("class"):
                         safe_click(driver, btn_sigilo[0])
                         time.sleep(1)
                         sigilo_anexos[k] = "sim"
+                        sigilo_foi_aplicado = True
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Sigilo aplicado para: {texto_anexo}')
                     else:
                         sigilo_anexos[k] = "sim"
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Sigilo já estava aplicado para: {texto_anexo}')
                 else:
                     sigilo_anexos[k] = "nao"
-                # Clique de visibilidade: buscar o <button> correto pelo <i> filho
-                btns = anexo.find_elements(By.CSS_SELECTOR, "button")
-                btn_visibilidade = None
-                for btn in btns:
-                    spans = btn.find_elements(By.CSS_SELECTOR, "span.mat-button-wrapper")
-                    for span in spans:
-                        icons = span.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
-                        if icons:
-                            btn_visibilidade = btn
-                            break
-                    if btn_visibilidade:
-                        break
-                if btn_visibilidade:
                     if log:
-                        print(f'[ARGOS][ANEXOS] Clicando no botão de visibilidade correto para: {texto_anexo}')
-                    safe_click(driver, btn_visibilidade)
-                    time.sleep(1)
-                    # Aguarda e busca o modal de confirmação
-                    try:
-                        modal_visibilidade = WebDriverWait(driver, 5).until(
-                            EC.visibility_of_element_located((By.CSS_SELECTOR, "mat-dialog-container[role='dialog']"))
-                        )
-                        # Busca o botão Salvar
-                        btn_salvar = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button[color='primary'] .mat-button-wrapper")
-                        if not btn_salvar:
-                            if log:
-                                print(f"[ARGOS][ANEXOS][ERRO] Botão Salvar não encontrado no modal de visibilidade para: {texto_anexo}")
-                        if btn_salvar:
-                            safe_click(driver, btn_salvar[0])
-                            time.sleep(1)
-                        else:
-                            if log:
-                                print(f"[ARGOS][ANEXOS][ERRO] Botão Salvar não encontrado no modal de visibilidade para: {texto_anexo}")
-                    except Exception as e:
+                        print(f'[ARGOS][ANEXOS] Botão de sigilo não encontrado para: {texto_anexo}')
+                
+                # Clique de visibilidade: buscar o <button> correto pelo <i> filho - CORRIGIDO
+                try:
+                    if log:
+                        print(f'[ARGOS][ANEXOS] Processando visibilidade para: {texto_anexo}')
+                    
+                    # CORREÇÃO: Se sigilo foi aplicado agora, aguardar o ícone + aparecer
+                    if sigilo_foi_aplicado:
                         if log:
-                            print(f"[ARGOS][ANEXOS][ERRO] Erro ao tratar modal de visibilidade: {e}")
-                else:
+                            print(f'[ARGOS][ANEXOS] Aguardando ícone + aparecer após aplicação do sigilo...')
+                        
+                        # Aguarda o ícone + aparecer com timeout AUMENTADO
+                        btn_visibilidade = None
+                        for tentativa_espera in range(15):  # 15 tentativas x 0.8s = 12s timeout
+                            try:
+                                # VALIDAÇÃO DUPLA: Verifica se o ícone realmente é o correto
+                                icons = anexo.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
+                                if icons:
+                                    # Verifica se o ícone tem as classes corretas
+                                    icon_classes = icons[0].get_attribute("class")
+                                    if "fa-plus" in icon_classes and "tl-sigiloso" in icon_classes:
+                                        # Verifica se o botão pai está visível e clicável
+                                        btn_candidate = icons[0].find_element(By.XPATH, "./ancestor::button[1]")
+                                        if btn_candidate.is_displayed() and btn_candidate.is_enabled():
+                                            btn_visibilidade = btn_candidate
+                                            if log:
+                                                print(f'[ARGOS][ANEXOS] ✅ Ícone + VALIDADO após {tentativa_espera + 1} tentativas')
+                                                print(f'[ARGOS][ANEXOS] Classes do ícone: {icon_classes}')
+                                            break
+                                        else:
+                                            if log and tentativa_espera == 0:
+                                                print(f'[ARGOS][ANEXOS] Ícone + encontrado mas botão não clicável, aguardando...')
+                                    else:
+                                        if log and tentativa_espera == 0:
+                                            print(f'[ARGOS][ANEXOS] Ícone encontrado mas classes incorretas: {icon_classes}')
+                                
+                                sleep(800)  # Aguarda 0.8s antes da próxima tentativa (aumentado)
+                            except Exception as e_espera:
+                                if log and tentativa_espera < 3:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa {tentativa_espera + 1} falhou: {e_espera}')
+                                sleep(800)
+                        
+                        if not btn_visibilidade:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] Ícone + não apareceu ou não é válido após aplicação do sigilo')
+                            continue
+                    else:
+                        # Se sigilo já estava aplicado, busca diretamente pelo ícone + com validação
+                        btn_visibilidade = None
+                        icons = anexo.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
+                        if icons:
+                            # Validação extra mesmo quando sigilo já estava aplicado
+                            icon_classes = icons[0].get_attribute("class")
+                            if "fa-plus" in icon_classes and "tl-sigiloso" in icon_classes:
+                                btn_candidate = icons[0].find_element(By.XPATH, "./ancestor::button[1]")
+                                if btn_candidate.is_displayed() and btn_candidate.is_enabled():
+                                    btn_visibilidade = btn_candidate
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS] ✅ Ícone + encontrado diretamente (sigilo já aplicado)')
+                                else:
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][AVISO] Ícone + encontrado mas botão não clicável')
+                            else:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][AVISO] Ícone encontrado mas classes incorretas: {icon_classes}')
+                    
+                    if btn_visibilidade:
+                        # VALIDAÇÃO FINAL antes do clique
+                        try:
+                            # Verifica se o botão ainda contém o ícone + correto
+                            icon_inside = btn_visibilidade.find_element(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
+                            if not icon_inside:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][ERRO] Botão não contém o ícone + correto, pulando')
+                                continue
+                                
+                            # Verifica se não é um ícone de estrela (fa-star)
+                            star_icons = btn_visibilidade.find_elements(By.CSS_SELECTOR, "i.fa-star, i.far.fa-star")
+                            if star_icons:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][ERRO] Botão contém ícone de estrela, não é o botão correto!')
+                                continue
+                                
+                            if log:
+                                print(f'[ARGOS][ANEXOS] ✅ Botão validado - contém ícone + e não contém estrela')
+                        except Exception as e_validacao:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] Falha na validação final: {e_validacao}')
+                            continue
+                        
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Clicando no botão de visibilidade para: {texto_anexo}')
+                        
+                        # Scroll para o elemento e clique otimizado
+                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_visibilidade)
+                        sleep(500)  # Aumentado para garantir scroll completo
+                        
+                        # DEBUG APRIMORADO: Confirmar seletor antes do clique
+                        if log:
+                            try:
+                                # Confirma que o botão ainda contém o ícone + correto
+                                icon_final_check = btn_visibilidade.find_element(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
+                                icon_final_classes = icon_final_check.get_attribute("class")
+                                btn_outer_html = btn_visibilidade.get_attribute("outerHTML")[:100] + "..."
+                                
+                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ SELETOR CONFIRMADO:')
+                                print(f'[ARGOS][ANEXOS][DEBUG]   - Ícone classes: {icon_final_classes}')
+                                print(f'[ARGOS][ANEXOS][DEBUG]   - Botão HTML: {btn_outer_html}')
+                                print(f'[ARGOS][ANEXOS][DEBUG]   - Botão visível: {btn_visibilidade.is_displayed()}')
+                                print(f'[ARGOS][ANEXOS][DEBUG]   - Botão habilitado: {btn_visibilidade.is_enabled()}')
+                                
+                                # Verifica se não há ícones indevidos no botão
+                                star_check = btn_visibilidade.find_elements(By.CSS_SELECTOR, "i.fa-star, i.far.fa-star")
+                                if star_check:
+                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ SELETOR INCORRETO: Botão contém ícone estrela!')
+                                    continue
+                                else:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] ✅ Verificação estrela: Nenhum ícone estrela encontrado')
+                                    
+                            except Exception as e_debug:
+                                print(f'[ARGOS][ANEXOS][ERRO] Falha na verificação final do seletor: {e_debug}')
+                                continue
+                        
+                        # Clique com retry
+                        clique_sucesso = False
+                        elemento_clicado = None
+                        
+                        for tentativa in range(3):
+                            try:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa de clique {tentativa + 1}/3')
+                                
+                                if safe_click(driver, btn_visibilidade, timeout=3):
+                                    clique_sucesso = True
+                                    elemento_clicado = btn_visibilidade
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique bem-sucedido via safe_click')
+                                    break
+                                else:
+                                    # Fallback com JavaScript
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][DEBUG] safe_click falhou, tentando JavaScript...')
+                                    
+                                    driver.execute_script("arguments[0].click();", btn_visibilidade)
+                                    sleep(500)
+                                    clique_sucesso = True
+                                    elemento_clicado = btn_visibilidade
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique bem-sucedido via JavaScript')
+                                    break
+                            except Exception as e_click:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] ❌ Tentativa {tentativa + 1} falhou: {e_click}')
+                                sleep(500)
+                        
+                        if not clique_sucesso:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA CRÍTICA: Todas as tentativas de clique falharam')
+                                print(f'[ARGOS][ANEXOS][ERRO] Pulando anexo: {texto_anexo}')
+                            continue
+                        
+                        # DEBUG APRIMORADO: Confirmar que o clique foi no elemento correto
+                        if log and elemento_clicado:
+                            try:
+                                post_click_icon = elemento_clicado.find_element(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
+                                post_click_classes = post_click_icon.get_attribute("class")
+                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ PÓS-CLIQUE CONFIRMADO:')
+                                print(f'[ARGOS][ANEXOS][DEBUG]   - Elemento clicado mantém ícone +: SIM')
+                                print(f'[ARGOS][ANEXOS][DEBUG]   - Classes pós-clique: {post_click_classes}')
+                            except Exception as e_post:
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ PÓS-CLIQUE: Elemento clicado não contém mais o ícone +!')
+                                print(f'[ARGOS][ANEXOS][ERRO] Isso indica clique no elemento errado: {e_post}')
+                                continue
+                        
+                        # VALIDAÇÃO CRÍTICA APRIMORADA: Aguardar modal de visibilidade aparecer
+                        modal_apareceu = False
+                        modal_visibilidade = None
+                        
+                        if log:
+                            print(f'[ARGOS][ANEXOS][DEBUG] Aguardando modal de visibilidade aparecer...')
+                        
+                        for tentativa_modal in range(5):  # 5 tentativas x 1s = 5s timeout
+                            try:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa {tentativa_modal + 1}/5 de localizar modal...')
+                                
+                                modal_visibilidade = driver.find_element(By.CSS_SELECTOR, "pje-doc-visibilidade-sigilo")
+                                if modal_visibilidade.is_displayed():
+                                    modal_apareceu = True
+                                    
+                                    if log:
+                                        # DEBUG APRIMORADO: Validar conteúdo do modal
+                                        modal_html = modal_visibilidade.get_attribute("outerHTML")[:200] + "..."
+                                        modal_text = modal_visibilidade.text[:100] + "..." if modal_visibilidade.text else "Sem texto"
+                                        
+                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ MODAL CONFIRMADO após {tentativa_modal + 1} tentativas:')
+                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Seletor: pje-doc-visibilidade-sigilo')
+                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Modal visível: {modal_visibilidade.is_displayed()}')
+                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Modal HTML: {modal_html}')
+                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Modal texto: {modal_text}')
+                                        
+                                        # Verifica se é realmente o modal correto
+                                        checkboxes_no_modal = modal_visibilidade.find_elements(By.CSS_SELECTOR, "mat-checkbox")
+                                        btn_salvar_no_modal = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button[color='primary']")
+                                        
+                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Checkboxes encontrados: {len(checkboxes_no_modal)}')
+                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Botões Salvar encontrados: {len(btn_salvar_no_modal)}')
+                                        
+                                        if checkboxes_no_modal and btn_salvar_no_modal:
+                                            print(f'[ARGOS][ANEXOS][DEBUG] ✅ Modal VALIDADO: Contém checkboxes e botão Salvar')
+                                        else:
+                                            print(f'[ARGOS][ANEXOS][ERRO] ❌ Modal INVÁLIDO: Não contém elementos esperados')
+                                            modal_apareceu = False
+                                            continue
+                                    
+                                    break
+                                else:
+                                    if log and tentativa_modal == 0:
+                                        print(f'[ARGOS][ANEXOS][DEBUG] Modal encontrado mas não visível, aguardando...')
+                                    sleep(1000)
+                            except Exception as e_modal_search:
+                                if log and tentativa_modal < 2:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa {tentativa_modal + 1} falhou: {e_modal_search}')
+                                sleep(1000)
+                        
+                        # NOVA LÓGICA: Se modal não apareceu, tentar clique adicional no ícone + já validado
+                        if not modal_apareceu:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][DEBUG] ⚠️ Modal não apareceu, tentando CLIQUE ADICIONAL no ícone + já validado')
+                            
+                            # Verifica se o ícone + ainda está disponível e válido
+                            try:
+                                # Re-valida o ícone + no anexo
+                                icons_retry = anexo.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
+                                if icons_retry:
+                                    icon_retry = icons_retry[0]
+                                    icon_classes_retry = icon_retry.get_attribute("class")
+                                    
+                                    if "fa-plus" in icon_classes_retry and "tl-sigiloso" in icon_classes_retry:
+                                        btn_retry = icon_retry.find_element(By.XPATH, "./ancestor::button[1]")
+                                        if btn_retry.is_displayed() and btn_retry.is_enabled():
+                                            if log:
+                                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ Ícone + RE-VALIDADO, tentando clique adicional...')
+                                            
+                                            # Clique adicional no ícone + com retry
+                                            clique_adicional_sucesso = False
+                                            for tentativa_adicional in range(2):  # 2 tentativas adicionais
+                                                try:
+                                                    if log:
+                                                        print(f'[ARGOS][ANEXOS][DEBUG] Tentativa adicional {tentativa_adicional + 1}/2')
+                                                    
+                                                    # Scroll e clique
+                                                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_retry)
+                                                    sleep(300)
+                                                    
+                                                    if safe_click(driver, btn_retry, timeout=3):
+                                                        clique_adicional_sucesso = True
+                                                        if log:
+                                                            print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique adicional bem-sucedido')
+                                                        break
+                                                    else:
+                                                        # Fallback JavaScript
+                                                        driver.execute_script("arguments[0].click();", btn_retry)
+                                                        clique_adicional_sucesso = True
+                                                        if log:
+                                                            print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique adicional via JavaScript')
+                                                        break
+                                                except Exception as e_retry:
+                                                    if log:
+                                                        print(f'[ARGOS][ANEXOS][DEBUG] Tentativa adicional {tentativa_adicional + 1} falhou: {e_retry}')
+                                                    sleep(500)
+                                            
+                                            if clique_adicional_sucesso:
+                                                if log:
+                                                    print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique adicional realizado, aguardando modal novamente...')
+                                                
+                                                # Aguarda modal aparecer após clique adicional
+                                                for tentativa_modal_retry in range(3):  # 3 tentativas x 1s = 3s timeout
+                                                    try:
+                                                        if log:
+                                                            print(f'[ARGOS][ANEXOS][DEBUG] Pós-clique adicional - Tentativa {tentativa_modal_retry + 1}/3')
+                                                        
+                                                        modal_visibilidade = driver.find_element(By.CSS_SELECTOR, "pje-doc-visibilidade-sigilo")
+                                                        if modal_visibilidade.is_displayed():
+                                                            modal_apareceu = True
+                                                            if log:
+                                                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ MODAL APARECEU após clique adicional!')
+                                                            break
+                                                    except Exception:
+                                                        pass
+                                                    sleep(1000)
+                                            else:
+                                                if log:
+                                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ Clique adicional falhou')
+                                        else:
+                                            if log:
+                                                print(f'[ARGOS][ANEXOS][ERRO] ❌ Ícone + não está mais clicável')
+                                    else:
+                                        if log:
+                                            print(f'[ARGOS][ANEXOS][ERRO] ❌ Ícone + não tem mais as classes corretas')
+                                else:
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][ERRO] ❌ Ícone + não encontrado para re-tentativa')
+                            except Exception as e_retry_validation:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ Erro na re-validação do ícone +: {e_retry_validation}')
+                        
+                        # Se ainda não apareceu o modal após tentativa adicional, pular anexo
+                        if not modal_apareceu:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA CRÍTICA: Modal não apareceu mesmo após clique adicional!')
+                                print(f'[ARGOS][ANEXOS][ERRO] Anexo será pulado: {texto_anexo}')
+                                
+                                # DEBUG: Verificar o que realmente está na tela
+                                try:
+                                    modals_gerais = driver.find_elements(By.CSS_SELECTOR, "mat-dialog-container")
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Modais gerais na tela: {len(modals_gerais)}')
+                                    
+                                    for i, modal_geral in enumerate(modals_gerais):
+                                        if modal_geral.is_displayed():
+                                            modal_content = modal_geral.text[:150] + "..." if modal_geral.text else "Sem texto"
+                                            print(f'[ARGOS][ANEXOS][DEBUG] Modal {i+1}: {modal_content}')
+                                except Exception:
+                                    pass
+                            continue
+                        
+                        # ✅ MODAL CONFIRMADO - Prosseguindo com o processamento
+                        try:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ PROCESSANDO MODAL VALIDADO para: {texto_anexo}')
+                                print(f'[ARGOS][ANEXOS][DEBUG] Modal confirmado como correto, iniciando seleção de checkboxes...')
+                            
+                            # Aguarda modal carregar completamente
+                            sleep(800)
+                            
+                            # DEBUG: Estratégia otimizada para clique no botão "Selecionar Todos"
+                            btn_selecionar_todos = None
+                            
+                            # Busca pelo ícone específico de selecionar todos
+                            try:
+                                # Busca diretamente pelo ícone fa-check
+                                icone_selecionar_todos = modal_visibilidade.find_element(By.CSS_SELECTOR, "i.fa.fa-check")
+                                
+                                if log:
+                                    print(f'[ARGOS][ANEXOS] Ícone "Selecionar Todos" encontrado')
+                                
+                                # Clique no ícone Selecionar Todos
+                                driver.execute_script("arguments[0].click();", icone_selecionar_todos)
+                                sleep(500)
+                                
+                                if log:
+                                    print(f'[ARGOS][ANEXOS] ✅ Ícone "Selecionar Todos" clicado com sucesso')
+                                    
+                            except Exception as e_selecionar:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][AVISO] Botão "Selecionar Todos" não encontrado, tentando checkboxes individuais: {e_selecionar}')
+                                
+                                # Fallback: Selecionar checkboxes individualmente
+                                checkboxes = modal_visibilidade.find_elements(By.CSS_SELECTOR, "mat-checkbox")
+                                if checkboxes:
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS] Encontrados {len(checkboxes)} checkboxes no modal')
+                                    
+                                    for i, checkbox in enumerate(checkboxes):
+                                        try:
+                                            # Verifica se já está selecionado
+                                            if checkbox.get_attribute('aria-checked') != 'true':
+                                                # Clica no checkbox
+                                                driver.execute_script("arguments[0].click();", checkbox)
+                                                sleep(200)
+                                                if log:
+                                                    print(f'[ARGOS][ANEXOS] Checkbox {i+1} selecionado')
+                                        except Exception as e_check:
+                                            if log:
+                                                print(f'[ARGOS][ANEXOS] Erro ao selecionar checkbox {i+1}: {e_check}')
+                            
+                            # Busca e clica no botão Salvar
+                            btn_salvar = None
+                            try:
+                                # Busca pelo botão Salvar específico do modal (baseado no HTML fornecido)
+                                btn_salvar = modal_visibilidade.find_element(By.CSS_SELECTOR, "button[color='primary'].mat-focus-indicator.mat-button.mat-button-base.mat-primary")
+                                
+                                if log:
+                                    print(f'[ARGOS][ANEXOS] Botão Salvar encontrado')
+                                
+                                # Clique no botão Salvar
+                                driver.execute_script("arguments[0].click();", btn_salvar)
+                                sleep(1000)  # Aguarda processamento
+                                
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] ✅ SUCESSO COMPLETO: Visibilidade processada para: {texto_anexo}')
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Anexo foi processado corretamente do início ao fim')
+                                    
+                            except Exception as e_salvar:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA: Botão Salvar não encontrado: {e_salvar}')
+                                    print(f'[ARGOS][ANEXOS][ERRO] Anexo será considerado como não processado: {texto_anexo}')
+                                    
+                                # Fallback: Tenta seletor mais simples
+                                try:
+                                    btn_salvar = modal_visibilidade.find_element(By.CSS_SELECTOR, "button[color='primary']")
+                                    driver.execute_script("arguments[0].click();", btn_salvar)
+                                    sleep(1000)
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ SUCESSO: Botão Salvar clicado via fallback para: {texto_anexo}')
+                                except Exception as e_fallback:
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA CRÍTICA: Fallback também falhou: {e_fallback}')
+                                        print(f'[ARGOS][ANEXOS][ERRO] Anexo não foi processado: {texto_anexo}')
+                                    # Fechar modal com ESC
+                                    try:
+                                        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                                        if log:
+                                            print(f'[ARGOS][ANEXOS][DEBUG] Modal fechado com ESC após falha')
+                                    except Exception:
+                                        pass
+                                    # Continua para próximo anexo sem marcar como processado
+                                    continue
+                                
+                        except Exception as e_modal:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA CRÍTICA: Erro ao tratar modal de visibilidade: {e_modal}')
+                                print(f'[ARGOS][ANEXOS][ERRO] Anexo não será processado: {texto_anexo}')
+                            # Fechar modal com ESC em caso de erro
+                            try:
+                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][DEBUG] Modal fechado com ESC após erro')
+                            except:
+                                pass
+                            # Continua para próximo anexo sem marcar como processado
+                            continue
+                            
+                    else:
+                        if log:
+                            print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA: Botão de visibilidade não encontrado para: {texto_anexo}')
+                            print(f'[ARGOS][ANEXOS][ERRO] Anexo será pulado')
+                        # Continua para próximo anexo
+                        continue
+                            
+                except Exception as e_geral:
                     if log:
-                        print(f'[ARGOS][ANEXOS][ERRO] Botão de visibilidade não encontrado para: {texto_anexo}')
+                        print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA GERAL: Erro ao processar visibilidade: {e_geral}')
+                        print(f'[ARGOS][ANEXOS][ERRO] Anexo não processado: {texto_anexo}')
+                    # Fechar qualquer modal aberto
+                    try:
+                        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                        if log:
+                            print(f'[ARGOS][ANEXOS][DEBUG] Modal fechado com ESC após erro geral')
+                    except:
+                        pass
+                    # Continua para próximo anexo sem marcar como processado
+                    continue
+                    
+                # Marca que encontrou anexo especial processado com sucesso
                 any_sigilo = True
                 break
         # Se não é anexo especial, REMOVER sigilo (se ícone estiver vermelho, clicar para tornar azul)

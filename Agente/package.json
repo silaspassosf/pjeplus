@@ -1,7 +1,7 @@
 {
   "name": "restricted-copilot",
   "displayName": "Restricted Copilot",
-  "description": "VS Code extension that provides restricted and inquisitive AI assistance with limited context analysis",
+  "description": "VS Code extension with FIXED restrictive, inquisitive, and limited context (50 lines) - no configuration needed",
   "version": "0.0.1",
   "publisher": "pjeplus",
   "license": "MIT",
@@ -39,11 +39,7 @@
         "title": "🔧 Compile & Validate Current File",
         "category": "Restricted Copilot"
       },
-      {
-        "command": "restricted-copilot.toggleRestrictiveMode",
-        "title": "Toggle Restrictive Mode",
-        "category": "Restricted Copilot"
-      }
+
     ],
     "menus": {
       "editor/context": [
@@ -73,33 +69,10 @@
     "configuration": {
       "title": "Restricted Copilot",
       "properties": {
-        "restrictedCopilot.restrictiveMode": {
+        "restrictedCopilot.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable restrictive mode (no unsolicited suggestions)"
-        },
-        "restrictedCopilot.inquisitiveMode": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable inquisitive mode (ask before making changes)"
-        },
-        "restrictedCopilot.maxContextLines": {
-          "type": "number",
-          "default": 50,
-          "minimum": 10,
-          "maximum": 200,
-          "description": "Maximum lines of context to analyze around selection"
-        },
-        "restrictedCopilot.interceptCopilotChat": {
-          "type": "boolean",
-          "default": true,
-          "description": "Intercept and filter GitHub Copilot Chat responses based on restricted analysis"
-        },
-        "restrictedCopilot.chatFilterStrength": {
-          "type": "string",
-          "enum": ["strict", "moderate", "permissive"],
-          "default": "strict",
-          "description": "How strictly to filter Copilot Chat responses"
+          "description": "Enable/disable the extension (always uses: Restrictive + Inquisitive + Limited Context)"
         }
       }
     },
@@ -107,7 +80,7 @@
       {
         "id": "restrictedCopilot.participant",
         "fullName": "Restricted Copilot",
-        "name": "restricted",
+        "name": "x",
         "description": "AI assistant with restricted context analysis and inquisitive behavior",
         "isSticky": true
       }

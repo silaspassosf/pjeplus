@@ -49,7 +49,7 @@ export class RestrictedChatParticipant {
         return {
             restrictiveMode: config.get('restrictiveMode', true),
             inquisitiveMode: config.get('inquisitiveMode', true),
-            maxContextLines: config.get('maxContextLines', 50),
+            maxContextLines: config.get('maxContextLines', 300),
             interceptCopilotChat: config.get('interceptCopilotChat', true),
             chatFilterStrength: config.get('chatFilterStrength', 'strict') as 'strict' | 'moderate' | 'permissive'
         };
@@ -184,7 +184,7 @@ export class RestrictedChatParticipant {
         }
 
         if (functionEnd === -1) {
-            functionEnd = Math.min(functionStart + 50, lines.length - 1);
+            functionEnd = Math.min(functionStart + 300, lines.length - 1);
         }
 
         return new vscode.Range(

@@ -13,13 +13,14 @@ interface ChatResponse {
 }
 
 interface RestrictedCopilotConfig {
-    restrictiveMode: boolean;
-    inquisitiveMode: boolean;
-    maxContextLines: number;
-    interceptCopilotChat: boolean;
-    chatFilterStrength: 'strict' | 'moderate' | 'permissive';
-    autoFixErrors: boolean;
-    watchTerminal: boolean;
+    enabled: boolean;
+    // Valores fixos - não configuráveis
+    readonly restrictiveMode: true;
+    readonly inquisitiveMode: true;
+    readonly maxContextLines: 300;
+    readonly chatFilterStrength: 'strict';
+    readonly autoFixErrors: true;
+    readonly watchTerminal: true;
 }
 
 class RestrictedChatParticipant {
@@ -33,13 +34,14 @@ class RestrictedChatParticipant {
     private loadConfig(): RestrictedCopilotConfig {
         const config = vscode.workspace.getConfiguration('restrictedCopilot');
         return {
-            restrictiveMode: config.get('restrictiveMode', true),
-            inquisitiveMode: config.get('inquisitiveMode', true),
-            maxContextLines: config.get('maxContextLines', 50),
-            interceptCopilotChat: config.get('interceptCopilotChat', true),
-            chatFilterStrength: config.get('chatFilterStrength', 'strict') as 'strict' | 'moderate' | 'permissive',
-            autoFixErrors: config.get('autoFixErrors', true),
-            watchTerminal: config.get('watchTerminal', true)
+            enabled: config.get('enabled', true),
+            // Valores fixos - sempre ativos
+            restrictiveMode: true,
+            inquisitiveMode: true,
+            maxContextLines: 300,
+            chatFilterStrength: 'strict',
+            autoFixErrors: true,
+            watchTerminal: true
         };
     }
 
@@ -93,7 +95,7 @@ class RestrictedChatParticipant {
         
         if (!selection.isEmpty) {
             // User has selected text - analyze only selection + limited context
-            const maxLines = this.config.maxContextLines;
+            const maxLines = 300; // Valor fixo
             const startLine = Math.max(0, selection.start.line - maxLines);
             const endLine = Math.min(document.lineCount - 1, selection.end.line + maxLines);
             const range = new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length);
@@ -102,8 +104,8 @@ class RestrictedChatParticipant {
         
         // No selection - get context around cursor
         const line = selection.active.line;
-        const startLine = Math.max(0, line - this.config.maxContextLines / 2);
-        const endLine = Math.min(document.lineCount - 1, line + this.config.maxContextLines / 2);
+        const startLine = Math.max(0, line - 150); // Fixo: 150 linhas antes
+        const endLine = Math.min(document.lineCount - 1, line + 150); // Fixo: 150 linhas depois
         const range = new vscode.Range(startLine, 0, endLine, document.lineAt(endLine).text.length);
         
         return document.getText(range);
@@ -121,6 +123,44 @@ class RestrictedChatParticipant {
         const contextLines = context.split('\n').length;
         response += `📍 **Workspace PjePlus** | ${contextLines} linhas | \`${fileName.split('\\').pop()}\` (${language})\n\n`;
         
+        // Check if request violates PjePlus-specific restrictions
+        const pjePlusRestrictedPatterns = [
+            // 1. Não criar novos arquivos para teste
+            /criar.*arquivo.*test|test.*arquivo|novo.*test|arquivo.*teste/i,
+            /criar.*spec|novo.*spec|arquivo.*spec/i,
+            /test\.py|test\.js|spec\.js|spec\.py/i,
+            
+            // 2. Não criar relatórios
+            /criar.*relat[óo]rio|novo.*relat[óo]rio|gerar.*relat[óo]rio/i,
+            /report\.py|report\.js|relatorio\.py|relatorio\.js/i,
+            /criar.*documenta[çc][ãa]o|gerar.*documenta[çc][ãa]o/i,
+            
+            // 3. Não sugerir criação de arquivos em geral
+            /criar.*arquivo|novo.*arquivo|arquivo.*novo/i,
+            /touch |mkdir |new file|criar pasta/i
+        ];
+        
+        const violatesPjePlusRules = pjePlusRestrictedPatterns.some(pattern => pattern.test(request.prompt));
+        
+        if (violatesPjePlusRules) {
+            response += `🚫 **VIOLAÇÃO DE DIRETRIZES PJEPLUS**\n\n`;
+            response += `❌ **NÃO PERMITIDO NO PJEPLUS**:\n`;
+            response += `   • ❌ Criar novos arquivos de teste\n`;
+            response += `   • ❌ Criar relatórios ou documentação\n`;
+            response += `   • ❌ Sugerir criação de arquivos\n\n`;
+            response += `✅ **ALTERNATIVAS PERMITIDAS**:\n`;
+            response += `   • ✅ Analisar código existente\n`;
+            response += `   • ✅ Corrigir problemas no código atual\n`;
+            response += `   • ✅ Usar autocompile (PowerShell): \`py arquivo.py\`\n`;
+            response += `   • ✅ Otimizar funções específicas\n\n`;
+            
+            return {
+                content: response,
+                filtered: true,
+                restrictions: ["PjePlus guidelines violation - file creation blocked"]
+            };
+        }
+        
         // Check if request is asking for broad changes
         const broadRequestPatterns = [
             /refactor|reescrever|reestruturar|otimizar tudo/i,
@@ -135,7 +175,7 @@ class RestrictedChatParticipant {
             response += `❌ **ANÁLISE AMPLA BLOQUEADA**\n\n`;
             response += `🎯 **ESCOPO PERMITIDO**:\n`;
             response += `   • Função onde está o cursor\n`;
-            response += `   • Código selecionado + ${this.config.maxContextLines} linhas\n\n`;
+            response += `   • Código selecionado + 300 linhas (fixo)\n\n`;
             response += `💡 **REFORMULE SUA PERGUNTA**:\n`;
             response += `   ✅ "Há bugs nesta função?"\n`;
             response += `   ✅ "Como otimizar este loop?"\n`;
@@ -173,12 +213,27 @@ class RestrictedChatParticipant {
                 response += `   🛡️ Segurança\n`;
                 response += `   🏗️ Estrutura\n\n`;
             }
+            if (request.prompt.toLowerCase().includes('test') || request.prompt.toLowerCase().includes('teste')) {
+                response += `🧪 **Sobre testes** - Use APENAS:\n`;
+                response += `   ✅ PowerShell: \`py arquivo.py\`\n`;
+                response += `   ✅ Autocompile já implementado\n`;
+                response += `   ❌ NÃO criar novos arquivos de teste\n`;
+                response += `   ❌ NÃO usar && (use comandos separados)\n\n`;
+            }
         }
+        
+        // PjePlus Testing Guidelines
+        response += `🧪 **DIRETRIZES DE TESTE PJEPLUS**:\n`;
+        response += `   ✅ Use: \`py script.py\` (PowerShell)\n`;
+        response += `   ✅ Autocompile implementado\n`;
+        response += `   ❌ Não criar arquivos de teste\n`;
+        response += `   ❌ Não usar && (comandos separados)\n\n`;
         
         // Footer
         response += `---\n`;
         response += `🔒 **RESTRIÇÕES ATIVAS** | Modo: ${this.config.restrictiveMode ? 'Restritivo' : 'Permissivo'}\n`;
-        response += `📏 Contexto limitado a ${this.config.maxContextLines} linhas | ❓ Modo inquisitivo: ${this.config.inquisitiveMode ? 'ON' : 'OFF'}\n`;
+        response += `📏 Contexto limitado a 300 linhas | ❓ Modo inquisitivo: SEMPRE ATIVO\n`;
+        response += `🚫 **PJEPLUS**: Sem novos arquivos | Sem relatórios | PowerShell apenas\n`;
         
         return {
             content: response,
@@ -192,6 +247,19 @@ class RestrictedChatParticipant {
         
         const issues: string[] = [];
         const warnings: string[] = [];
+        
+        // Check for PjePlus-specific violations in code context
+        if (context.includes('&&')) {
+            issues.push("🚫 Operador && detectado - Use comandos PowerShell separados");
+        }
+        
+        if (context.match(/test_|_test\.py|teste_|_teste\.py/)) {
+            issues.push("🚫 Arquivo de teste detectado - Não permitido no PjePlus");
+        }
+        
+        if (context.match(/report|relatorio|documentation/i)) {
+            warnings.push("⚠️ Código relacionado a relatórios - Verificar se é necessário");
+        }
         
         // Check for debug statements
         if (context.includes('console.log') || context.includes('print(')) {

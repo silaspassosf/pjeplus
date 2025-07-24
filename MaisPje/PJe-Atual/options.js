@@ -7,21 +7,25 @@ var aaDespacho_temp = [];
 var aaMovimento_temp = [];
 var aaChecklist_temp = [];
 var aaVariados_temp = [
-	{id:"Atualizar Pagina",nm_botao:"Atualizar Pagina",descricao:"AA para ATUALIZAR a janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
-	{id:"Fechar Pagina",nm_botao:"Fechar Pagina",descricao:"AA para fechar a janela DETALHES DO PROCESSO",temporizador:"3",ativar:true},
-	{id:"Apreciar Peticoes",nm_botao:"Apreciar Peticoes",descricao:"AA para apreciar petições na janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
+	{id:"Atualizar Pagina",nm_botao:"Atualizar Pagina",descricao:"Ação Automatizada para ATUALIZAR a janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
+	{id:"Fechar Pagina",nm_botao:"Fechar Pagina",descricao:"Ação Automatizada para fechar a janela DETALHES DO PROCESSO",temporizador:"3",ativar:true},
+	{id:"Apreciar Peticoes",nm_botao:"Apreciar Peticoes",descricao:"Ação Automatizada para apreciar petições na janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
 	{id:"Atalho F2",nm_botao:"Atalho F2",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F2' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
 	{id:"Atalho F3",nm_botao:"Atalho F3",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F3' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
 	{id:"SISBAJUD F2",nm_botao:"SISBAJUD F2",descricao:"Funcionalidade SISBAJUD: ativa automaticamente uma minuta de bloqueio de valores sobre o polo passivo no convênio SISBAJUD. A janela do convênio precisa estar aberta e visível.",temporizador:"2",ativar:true},
 	{id:"Assinar Expedientes",nm_botao:"Assinar Expedientes",descricao:"Ação Automatizada que permite assinar os expedientes em lote.",temporizador:"0",ativar:true},
 	{id:"Assinar Documentos",nm_botao:"Assinar Documentos",descricao:"Ação Automatizada que permite assinar em lote documentos pendentes no Anexar Documento.",temporizador:"0",ativar:true},
 	{id:"Excluir BNDT",nm_botao:"Excluir BNDT",descricao:"Ação Automatizada que permite excluir todas as partes do BNDT.",temporizador:"0",ativar:true},
-	{id:"Enviar Email",nm_botao:"Enviar Email",descricao:"Ação Automatizada que permite enviar email personalizado em Lote.",temporizador:"0",ativar:true,objeto:{destinatario:"",titulo:"",corpo:"",assinatura:""}}
+	{id:"Enviar Email",nm_botao:"Enviar Email",descricao:"Ação Automatizada que permite enviar email personalizado em Lote.",temporizador:"0",ativar:true,objeto:{destinatario:"",titulo:"",corpo:"",assinatura:""}},
+	{id:"AUTOGIGS>Renovar Atividade GIGS",nm_botao:"AUTOGIGS>Renovar Atividade GIGS",descricao:"Ação Automatizada que renova uma atividade GIGS, excluindo uma anterior e cadastrando outra igual.",temporizador:"0",ativar:true},
+	{id:"DESPACHO>Trocar Magistrado Responsável",nm_botao:"DESPACHO>Trocar Magistrado Responsável",descricao:"Ação Automatizada que substitui o magistrado responsável pela minuta do DESPACHO, cancelando a atual minuta, salvando o conteúdo dela na memória e criando uma nova minuta com aquele conteúdo para o novo juiz configurado no módulo 8.",temporizador:"0",ativar:true},
+	{id:"MOVIMENTO>Renovar a Data da Tarefa",nm_botao:"MOVIMENTO>Renovar a Data da Tarefa",descricao:"Ação Automatizada que renova a data em que o processo chegou na tarefa atual, movendo o processo para a tarefa Análise e devolvendo-o para a antiga tarefa..",temporizador:"0",ativar:true},
+	{id:"RETIFICAR AUTUAÇÃO>Cadastrar Advogado",nm_botao:"RETIFICAR AUTUAÇÃO>Cadastrar Advogado",descricao:"Ação Automatizada para vincular um advogado específico à uma parte no processo.",temporizador:"0",ativar:true,objeto:{advogado:"",parte:""}}
 ];
 var listaModulo2_temp = [];
 var listaModulo8_temp = [];
 var listaModulo10_temp = [];
-var aaItemMenuDetalhes = ['Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Baixar processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições'];
+let aaItemMenuDetalhes = ['Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico'];
 var filtros_storage = [];
 var emailAutomatizado_temp;
 var mapeadosAADescendentes = false;
@@ -30,15 +34,21 @@ itensModulo1SemAtalhos.push(new ItemCheckboxMenu('gigsAbrirDetalhes', salvarOpco
 
 async function iniciar() {
 	opcoesHandler = await browser.storage.local.get(null);
-	Promise.all([opcoesHandler]).then(result => {
+	Promise.all([opcoesHandler]).then(async result => {
 		opcoes = result[0];
+
+		if (!opcoes.trt || !opcoes.grau_usuario || !opcoes.versaoPje) {
+			browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atenção', icone: 'ico_16_alerta.png'});
+		} else {
+			browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atalho Rápido', icone: 'ico_16.png'});
+		}
+
 		checarVariaveis();
 	});
 }
 
 async function checarVariaveis(restaurar=false) {
 	return new Promise(async resolve => {
-		console.log(JSON.stringify(opcoes.aaVariados))
 		opcoes.desativarAjusteJanelas = typeof(opcoes.desativarAjusteJanelas) == "undefined" ? true : opcoes.desativarAjusteJanelas;
 		opcoes.videoAtualizacao = typeof(opcoes.videoAtualizacao) == "undefined" ? true : opcoes.videoAtualizacao;
 		opcoes.tarefaResponsavel = typeof(opcoes.tarefaResponsavel) == "undefined" ? "" : opcoes.tarefaResponsavel;
@@ -60,9 +70,11 @@ async function checarVariaveis(restaurar=false) {
 		opcoes.gigsOcultarLembretes = typeof(opcoes.gigsOcultarLembretes) == "undefined" ? 0 : opcoes.gigsOcultarLembretes;
 		opcoes.gigsCriarMenu = typeof(opcoes.gigsCriarMenu) == "undefined" ? 0 : opcoes.gigsCriarMenu;
 		opcoes.gigsCriarMenuGuardarNumeroProcesso = typeof(opcoes.gigsCriarMenuGuardarNumeroProcesso) == "undefined" ? 0 : opcoes.gigsCriarMenuGuardarNumeroProcesso;
+		opcoes.gigsCriarMenuAbrirPainelCopiaECola = typeof(opcoes.gigsCriarMenuAbrirPainelCopiaECola) == "undefined" ? 0 : opcoes.gigsCriarMenuAbrirPainelCopiaECola;
 		opcoes.sanearAJG = typeof(opcoes.sanearAJG) == "undefined" ? 0 : opcoes.sanearAJG;
 		opcoes.gigsPesquisaDeDocumentos = typeof(opcoes.gigsPesquisaDeDocumentos) == "undefined" ? 0 : opcoes.gigsPesquisaDeDocumentos;
 		opcoes.mapeamentoDeIDs = typeof(opcoes.mapeamentoDeIDs) == "undefined" ? 0 : opcoes.mapeamentoDeIDs;
+		opcoes.guiaPersonalizadaDetalhes = typeof(opcoes.guiaPersonalizadaDetalhes) == "undefined" ? '' : opcoes.guiaPersonalizadaDetalhes;
 		opcoes.aaAnexar = typeof(opcoes.aaAnexar) == "undefined" ? [] : opcoes.aaAnexar;
 		opcoes.maisPje_velocidade_interacao = typeof(opcoes.maisPje_velocidade_interacao) == "undefined" ? 1 : opcoes.maisPje_velocidade_interacao;
 		opcoes.aaComunicacao = typeof(opcoes.aaComunicacao) == "undefined" ? [] : opcoes.aaComunicacao;
@@ -71,12 +83,15 @@ async function checarVariaveis(restaurar=false) {
 		opcoes.aaMovimento = typeof(opcoes.aaMovimento) == "undefined" ? [] : opcoes.aaMovimento;
 		opcoes.aaChecklist = typeof(opcoes.aaChecklist) == "undefined" ? [] : opcoes.aaChecklist;		
 		opcoes.aaLancarMovimentos = typeof(opcoes.aaLancarMovimentos) == "undefined" ? [] : opcoes.aaLancarMovimentos;
-		opcoes.aaVariados = typeof(opcoes.aaVariados) == "undefined" ? aaVariados_temp : opcoes.aaVariados;
+		opcoes.aaVariados = typeof(opcoes.aaVariados) == "undefined" ? aaVariados_temp : opcoes.aaVariados;		
 		opcoes.meuFiltro = typeof(opcoes.meuFiltro) == "undefined" ? [] : opcoes.meuFiltro;
 		opcoes.filtros_Favoritos = typeof(opcoes.filtros_Favoritos) == "undefined" ? [] : opcoes.filtros_Favoritos;
 		opcoes.modulo5_obterSaldoSIF = typeof(opcoes.modulo5_obterSaldoSIF) == "undefined" ? true : opcoes.modulo5_obterSaldoSIF;
 		opcoes.modulo5_conferirTeimosinhaEmLote = typeof(opcoes.modulo5_conferirTeimosinhaEmLote) == "undefined" ? true : opcoes.modulo5_conferirTeimosinhaEmLote;
 		opcoes.modulo5_juizDaMinuta = typeof(opcoes.modulo5_juizDaMinuta) == "undefined" ? true : opcoes.modulo5_juizDaMinuta;
+		opcoes.modulo5_processosSemAudienciaDesignada = typeof(opcoes.modulo5_processosSemAudienciaDesignada) == "undefined" ? true : opcoes.modulo5_processosSemAudienciaDesignada;
+		opcoes.modulo5_processosSemGigsCadastrado = typeof(opcoes.modulo5_processosSemGigsCadastrado) == "undefined" ? true : opcoes.modulo5_processosSemGigsCadastrado;
+		opcoes.modulo5_obterConcilia = typeof(opcoes.modulo5_obterConcilia) == "undefined" ? true : opcoes.modulo5_obterConcilia;
 		opcoes.emailAutomatizado = typeof(opcoes.emailAutomatizado) == "undefined" ? new EmailAutomatizado("Processo n. #{processo} (#{tipoDocumento} Id. #{idDocumento})", "Encaminho o(a) #{tipoDocumento} (Id. #{idDocumento}), expedido no processo #{processo}, para ciência ou cumprimento.\n\nO documento poderá ser acessado via internet mediante o seguinte link: #{autenticacao}\n\nAtenciosamente,", "#{servidor}\nDiretor de Secretaria\n#{OJServidor}") : opcoes.emailAutomatizado;
 		opcoes.gigsDetalhesLeft = typeof(opcoes.gigsDetalhesLeft) == "undefined" ? window.screen.availLeft : opcoes.gigsDetalhesLeft;
 		opcoes.gigsDetalhesTop = typeof(opcoes.gigsDetalhesTop) == "undefined" ? window.screen.availTop : opcoes.gigsDetalhesTop;
@@ -95,7 +110,7 @@ async function checarVariaveis(restaurar=false) {
 		opcoes.versao = typeof(opcoes.versao) == "undefined" ? "0" : opcoes.versao;
 		opcoes.versaoPje =  typeof(opcoes.versaoPje) == "undefined" ? "" : opcoes.versaoPje;
 		opcoes.trt = typeof(opcoes.trt) == "undefined" ? "pje.trt12.jus.br" : opcoes.trt; //por padrão reconhece como trt12
-		opcoes.num_trt = typeof(opcoes.num_trt) == "undefined" ? "12" : opcoes.num_trt; //por padrão reconhece como 12
+		opcoes.num_trt = extrairTRT(opcoes.trt);
 		opcoes.nm_usuario = typeof(opcoes.nm_usuario) == "undefined" ? "" : opcoes.nm_usuario;
 		opcoes.oj_usuario = typeof(opcoes.oj_usuario) == "undefined" ? "" : opcoes.oj_usuario;
 		opcoes.grau_usuario = typeof(opcoes.grau_usuario) == "undefined" ? "" : opcoes.grau_usuario;
@@ -118,7 +133,7 @@ async function checarVariaveis(restaurar=false) {
 		opcoes.sisbajud.teimosinha = typeof(opcoes.sisbajud.teimosinha) == "undefined" ? "nao" : opcoes.sisbajud.teimosinha;
 		opcoes.sisbajud.teimosinha = typeof(opcoes.sisbajud.teimosinha) == "sim" ? "60" : opcoes.sisbajud.teimosinha;
 		opcoes.sisbajud.contasalario = typeof(opcoes.sisbajud.contasalario) == "undefined" ? "não" : opcoes.sisbajud.contasalario;
-		opcoes.sisbajud.naorespostas = typeof(opcoes.sisbajud.naorespostas) == "undefined" ? "não" : opcoes.sisbajud.naorespostas;
+		opcoes.sisbajud.naorespostas = typeof(opcoes.sisbajud.naorespostas) == "undefined" ? "Cancelar" : opcoes.sisbajud.naorespostas;
 		opcoes.sisbajud.valor_desbloqueio = typeof(opcoes.sisbajud.valor_desbloqueio) == "undefined" ? "não" : opcoes.sisbajud.valor_desbloqueio;
 		opcoes.sisbajud.banco_preferido = typeof(opcoes.sisbajud.banco_preferido) == "undefined" ? "não" : opcoes.sisbajud.banco_preferido;
 		opcoes.sisbajud.agencia_preferida = typeof(opcoes.sisbajud.agencia_preferida) == "undefined" ? "não" : opcoes.sisbajud.agencia_preferida;
@@ -127,6 +142,7 @@ async function checarVariaveis(restaurar=false) {
 		opcoes.sisbajud.executarAAaoFinal = typeof(opcoes.sisbajud.executarAAaoFinal) == "undefined" ? "Nenhum" : opcoes.sisbajud.executarAAaoFinal;
 		opcoes.sisbajud.salvarEprotocolar = typeof(opcoes.sisbajud.salvarEprotocolar) == "undefined" ? "não" : opcoes.sisbajud.salvarEprotocolar;		
 		opcoes.sisbajud = {juiz: opcoes.sisbajud.juiz, vara: opcoes.sisbajud.vara, cnpjRaiz: opcoes.sisbajud.cnpjRaiz, teimosinha: opcoes.sisbajud.teimosinha, contasalario: opcoes.sisbajud.contasalario, naorespostas: opcoes.sisbajud.naorespostas, valor_desbloqueio: opcoes.sisbajud.valor_desbloqueio, banco_preferido: opcoes.sisbajud.banco_preferido, agencia_preferida: opcoes.sisbajud.agencia_preferida, preencherValor: opcoes.sisbajud.preencherValor, confirmar: opcoes.sisbajud.confirmar, executarAAaoFinal: opcoes.sisbajud.executarAAaoFinal, salvarEprotocolar: opcoes.sisbajud.salvarEprotocolar};
+		opcoes.sisbajud.naorespostas = opcoes.sisbajud.naorespostas == "" ? "Cancelar" : opcoes.sisbajud.naorespostas;
 		opcoes.serasajud = typeof(opcoes.serasajud) == "undefined" ? {juiz: "", foro: "", vara: "", prazo_atendimento: ""} : opcoes.serasajud;
 		opcoes.renajud = typeof(opcoes.renajud) == "undefined" ? {tipo_restricao: "", comarca: "", tribunal: "", orgao: "", juiz: "", juiz2: ""} : opcoes.renajud;
 		opcoes.zoom_editor = typeof(opcoes.zoom_editor) == "undefined" ? 1 : opcoes.zoom_editor;
@@ -166,18 +182,15 @@ async function checarVariaveis(restaurar=false) {
 		opcoes.extrasEditorOcultarAutotexto = typeof(opcoes.extrasEditorOcultarAutotexto) == "undefined" ? false : opcoes.extrasEditorOcultarAutotexto;
 		opcoes.extrasEditorInverterOrdem = typeof(opcoes.extrasEditorInverterOrdem) == "undefined" ? false : opcoes.extrasEditorInverterOrdem;
 		opcoes.modulo4PaginaInicial = typeof(opcoes.modulo4PaginaInicial) == "undefined" ? 'nenhum' : opcoes.modulo4PaginaInicial;
-		opcoes.configURLs = typeof(opcoes.configURLs) == "undefined" ? {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''} : opcoes.configURLs;
-		opcoes.configURLs.descricao = typeof(opcoes.configURLs.descricao) == "undefined" ? '' : opcoes.configURLs.descricao;
-		opcoes.configURLs.urlSiscondj = typeof(opcoes.configURLs.urlSiscondj) == "undefined" ? '' : opcoes.configURLs.urlSiscondj;
-		opcoes.configURLs.idSiscondj = typeof(opcoes.configURLs.idSiscondj) == "undefined" ? '' : opcoes.configURLs.idSiscondj;
-		opcoes.configURLs.urlSAOExecucao = typeof(opcoes.configURLs.urlSAOExecucao) == "undefined" ? '' : opcoes.configURLs.urlSAOExecucao;
+		opcoes.configURLs = typeof(opcoes.configURLs) == "undefined" ? await forcarObterURLs(opcoes.num_trt) : opcoes.configURLs;
 		opcoes.timeline = typeof(opcoes.timeline) == "undefined" ? ['',[]] : opcoes.timeline;
 		opcoes.extrasFecharJanelaExpediente = typeof(opcoes.extrasFecharJanelaExpediente) == "undefined" ? true : opcoes.extrasFecharJanelaExpediente;
 		opcoes.extrasSugerirTipoAoAnexar = typeof(opcoes.extrasSugerirTipoAoAnexar) == "undefined" ? true : opcoes.extrasSugerirTipoAoAnexar;
 		opcoes.extrasSugerirDescricaoAoAnexar = typeof(opcoes.extrasSugerirDescricaoAoAnexar) == "undefined" ? true : opcoes.extrasSugerirDescricaoAoAnexar;
 		opcoes.extrasProcurarExecucao = typeof(opcoes.extrasProcurarExecucao) == "undefined" ? 'SAO' : opcoes.extrasProcurarExecucao;
 		opcoes.saj = typeof(opcoes.saj) == "undefined" ? { vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "" } : opcoes.saj;		
-
+		opcoes.extrasPrazoEmLote = typeof(opcoes.extrasPrazoEmLote) == "undefined" ? ['0','2','5','8','10','15'] : opcoes.extrasPrazoEmLote;
+		
 		//verificar velocidade de interação
 		if (parseInt(opcoes.maisPje_velocidade_interacao) > 2.5) {
 			alert('Identificado erro na velocidade de interação!!!\n\nEla foi reajustada para 1 segundo!')
@@ -191,8 +204,6 @@ async function checarVariaveis(restaurar=false) {
 				opcoes.lista_monitores = await testarMonitores();
 			}
 		}
-		
-		if ((!opcoes.configURLs.urlSiscondj && !opcoes.configURLs.urlSAOExecucao)) { await abrirJanelaConfigURLs(true) }
 		
 		async function inserirFaseModulo2() {
 			return new Promise(resolve2 => {
@@ -221,8 +232,9 @@ async function checarVariaveis(restaurar=false) {
 			opcoes.modulo9.saj = true; 
 			await guardarModulo9();
 		}
-		
-		Promise.all(opcoes.lista_monitores).then(values => {
+
+		let guardarStorage = browser.storage.local.set({ 'lista_monitores': opcoes.lista_monitores });
+		Promise.all([guardarStorage]).then(values => {
 			// console.log("ENTROU")
 			if (opcoes.concordo) {
 				mostrarOpcoes(restaurar);
@@ -232,10 +244,39 @@ async function checarVariaveis(restaurar=false) {
 				window.close();
 			}
 			
-		});		
+		});
 		
 	});
 	
+}
+
+function configurarModoLGPD(modoLGPD) {
+	const botao = document.getElementById("modoLGPD");
+	const icone = botao.querySelector('i');
+	console.info(botao, icone)
+	if (modoLGPD) {
+		icone.className = 'icone lgpd-on t20';
+		botao.setAttribute('data-tooltip','Modo LGPD Ativado');		
+		botao.setAttribute('aria-pressed','true');		
+	} else {
+		icone.className = 'icone lgpd-off t20';
+		botao.setAttribute('data-tooltip','Modo LGPD Desativado');
+		botao.setAttribute('aria-pressed','false');		
+	}
+}
+
+function configurarModoNoite(modoNoite) {
+	const botao = document.getElementById("modoNoite");
+	const icone = botao.querySelector('i');
+	if (modoNoite) {
+		icone.style.backgroundImage = 'linear-gradient(to top, #3920d5, #3920d57d, gold, gold)';
+		botao.setAttribute('data-tooltip','Modo Noite Ativado');
+		botao.setAttribute('aria-pressed','true');		
+	} else {
+		icone.style.backgroundImage = 'unset';
+		botao.setAttribute('data-tooltip','Modo Noite Desativado');
+		botao.setAttribute('aria-pressed','false');		
+	}
 }
 
 async function mostrarOpcoes(restaurar=false) {
@@ -244,45 +285,19 @@ async function mostrarOpcoes(restaurar=false) {
 		limpatela();
 		document.getElementById("versao").innerText = "v. " + chrome.runtime.getManifest().version;
 		
-		if (opcoes.modoLGPD) {
-			document.getElementById("modoLGPD").className = 'icone lgpd-on t20';
-			document.getElementById("modoLGPD").parentElement.setAttribute('data-tooltip','Modo LGPD Ativado');		
-		} else {
-			document.getElementById("modoLGPD").className = 'icone lgpd-off t20';
-			document.getElementById("modoLGPD").parentElement.setAttribute('data-tooltip','Modo LGPD Desativado');
-		}
+		configurarModoLGPD(opcoes.modoLGPD);
 		
 		document.getElementById("modoLGPD").addEventListener('click', function() {
 			opcoes.modoLGPD = (opcoes.modoLGPD) ? false : true;
-			if (opcoes.modoLGPD) {
-				document.getElementById("modoLGPD").className = 'icone lgpd-on t20';
-				document.getElementById("modoLGPD").parentElement.setAttribute('data-tooltip','Modo LGPD Ativado');		
-			} else {
-				document.getElementById("modoLGPD").className = 'icone lgpd-off t20';
-				document.getElementById("modoLGPD").parentElement.setAttribute('data-tooltip','Modo LGPD Desativado');
-			}		
+			configurarModoLGPD(opcoes.modoLGPD);
 			salvarOpcoes();
 		});
 
-		
-
-		if (opcoes.modoNoite) {
-			document.getElementById("modoNoite").style.backgroundImage = 'linear-gradient(to top, #3920d5, #3920d57d, gold, gold)';
-			document.getElementById("modoNoite").parentElement.setAttribute('data-tooltip','Modo Noite Ativado');
-		} else {
-			document.getElementById("modoNoite").style.backgroundImage = 'unset';
-			document.getElementById("modoNoite").parentElement.setAttribute('data-tooltip','Modo Noite Desativado');
-		}
+		configurarModoNoite(opcoes.modoNoite);
 
 		document.getElementById("modoNoite").addEventListener('click', function() {
 			opcoes.modoNoite = (opcoes.modoNoite) ? false : true;
-			if (opcoes.modoNoite) {
-				document.getElementById("modoNoite").style.backgroundImage = 'linear-gradient(to top, #3920d5, #3920d57d, gold, gold)';
-				document.getElementById("modoNoite").parentElement.setAttribute('data-tooltip','Modo Noite Ativado');
-			} else {
-				document.getElementById("modoNoite").style.backgroundImage = 'unset';
-				document.getElementById("modoNoite").parentElement.setAttribute('data-tooltip','Modo Noite Desativado');
-			}		
+			configurarModoNoite(opcoes.modoNoite);	
 			salvarOpcoes();
 		});
 
@@ -554,6 +569,19 @@ async function mostrarOpcoes(restaurar=false) {
 		document.querySelector('#extrasSugerirTipoAoAnexar').checked = opcoes.extrasSugerirTipoAoAnexar;
 		document.querySelector('#extrasSugerirTipoAoAnexar').addEventListener('click', salvarOpcoes);
 
+		document.getElementById("elPzoEmLote0").value = opcoes.extrasPrazoEmLote[0];
+		document.getElementById("elPzoEmLote0").addEventListener('focusout', salvarOpcoes);
+		document.getElementById("elPzoEmLote1").value = opcoes.extrasPrazoEmLote[1];
+		document.getElementById("elPzoEmLote1").addEventListener('focusout', salvarOpcoes);
+		document.getElementById("elPzoEmLote2").value = opcoes.extrasPrazoEmLote[2];
+		document.getElementById("elPzoEmLote2").addEventListener('focusout', salvarOpcoes);
+		document.getElementById("elPzoEmLote3").value = opcoes.extrasPrazoEmLote[3];
+		document.getElementById("elPzoEmLote3").addEventListener('focusout', salvarOpcoes);
+		document.getElementById("elPzoEmLote4").value = opcoes.extrasPrazoEmLote[4];
+		document.getElementById("elPzoEmLote4").addEventListener('focusout', salvarOpcoes);
+		document.getElementById("elPzoEmLote5").value = opcoes.extrasPrazoEmLote[5];
+		document.getElementById("elPzoEmLote5").addEventListener('focusout', salvarOpcoes);
+
 		document.querySelector('#ProcurarExecucaoSAO').checked = (opcoes.extrasProcurarExecucao.includes('SAO')) ? true : false;
 		document.querySelector('#ProcurarExecucaoSAO').addEventListener('click', function() {
 			
@@ -664,7 +692,8 @@ async function salvarOpcoes() {
 		listaAtalhoDetalhes[26] = document.getElementById('c26').checked; //PDPJ
 		listaAtalhoDetalhes[27] = document.getElementById('c27').checked;
 		listaAtalhoDetalhes[28] = document.getElementById('c28').checked;
-		listaAtalhoDetalhes[29] = document.getElementById('c29').checked; //wiki vt
+		listaAtalhoDetalhes[29] = document.getElementById('c29').checked; //wiki vt		
+		listaAtalhoDetalhes[30] = document.getElementById('c30').checked; //Domicilio Eletronico
 		
 		aa_eliminarUndefined();
 		
@@ -680,6 +709,13 @@ async function salvarOpcoes() {
 		}
 
 		const valoresModulo1 = mergeItensMenu(itensModulo1SemAtalhos);
+
+		opcoes.extrasPrazoEmLote[0] = document.getElementById("elPzoEmLote0").value;
+		opcoes.extrasPrazoEmLote[1] = document.getElementById("elPzoEmLote1").value;
+		opcoes.extrasPrazoEmLote[2] = document.getElementById("elPzoEmLote2").value;
+		opcoes.extrasPrazoEmLote[3] = document.getElementById("elPzoEmLote3").value;
+		opcoes.extrasPrazoEmLote[4] = document.getElementById("elPzoEmLote4").value;
+		opcoes.extrasPrazoEmLote[5] = document.getElementById("elPzoEmLote5").value;
 		
 		await browser.storage.local.set({
 			versao: chrome.runtime.getManifest().version,
@@ -705,6 +741,9 @@ async function salvarOpcoes() {
 			modulo5_obterSaldoSIF: document.querySelector('#modulo5_filtros_favoritos_ObterSaldoSIf').checked,
 			modulo5_conferirTeimosinhaEmLote: document.querySelector('#modulo5_filtros_favoritos_conferirTeimosinhaEmLote').checked,
 			modulo5_juizDaMinuta: document.querySelector('#modulo5_filtros_favoritos_juizDaMinuta').checked,
+			modulo5_processosSemAudienciaDesignada: document.querySelector('#modulo5_filtros_favoritos_semAudienciaDesignada').checked,
+			modulo5_processosSemGigsCadastrado: document.querySelector('#modulo5_filtros_favoritos_semGIGS').checked,
+			modulo5_obterConcilia: document.querySelector('#modulo5_filtros_favoritos_conciliaJT').checked,			
 			maisPje_velocidade_interacao: opcoes.maisPje_velocidade_interacao,
 			aaAnexar : aaAnexar_temp,
 			aaComunicacao : aaComunicacao_temp,
@@ -736,6 +775,7 @@ async function salvarOpcoes() {
 			extrasSugerirTipoAoAnexar: document.querySelector('#extrasSugerirTipoAoAnexar').checked,
 			extrasSugerirDescricaoAoAnexar: document.querySelector('#extrasSugerirDescricaoAoAnexar').checked,
 			extrasProcurarExecucao: opcoes.extrasProcurarExecucao,
+			extrasPrazoEmLote: opcoes.extrasPrazoEmLote,
 			modulo4PaginaInicial: document.getElementById("modulo4PaginaInicial").value
 		});	
 		
@@ -784,11 +824,14 @@ async function zerarPosicoesKaizen() {
 function ajustarAAVariados() {
 	return new Promise(resolve => {
 		let listaDeIds = opcoes.aaVariados.map((item) => item.id);//pega os ids das AA que eu já tenho
+		
 		for (const [pos, obj] of aaVariados_temp.entries()) {
-			
 			if (listaDeIds.includes(obj.id)) {				
-				obj.temporizador = opcoes.aaVariados[listaDeIds.indexOf(obj.id)].temporizador;
-				obj.ativar = opcoes.aaVariados[listaDeIds.indexOf(obj.id)].ativar;
+				obj.temporizador = opcoes.aaVariados[listaDeIds.indexOf(obj.id)].temporizador;				
+				obj.ativar = opcoes.aaVariados[listaDeIds.indexOf(obj.id)].ativar;				
+				if (obj.objeto) {
+					obj.objeto = opcoes.aaVariados[listaDeIds.indexOf(obj.id)].objeto;
+				}
 			}
 
 		}
@@ -2159,7 +2202,7 @@ async function modulo9(convenio) {
 			let { value: resultpjecalc } = await Swal.fire({
 				title: 'pjeCalc',
 				html:
-			'Ao buscar cálculo ou criar novo cálculo, se existir processo na memória, ele será utilizado no preenchimento automático dos campos.<br><br>' +
+					'Ao buscar cálculo ou criar novo cálculo, se existir processo na memória, ele será utilizado no preenchimento automático dos campos.<br><br>' +					
 					'<input type="checkbox" id="swal2-checkbox"' + (opcoes.modulo9.pjecalc ? ' checked ' : '') + '>' +
 					'<span class="swal2-label"> Ativar</span>',
 				focusConfirm: false,
@@ -2777,7 +2820,7 @@ async function aa_comunicacao() {
 	},
 	{
 		title: 'Prazo',
-		html: 'Pode ser em número de dias úteis ou uma data.<br>Exemplo: 01/01/2021'
+		html: 'Pode ser em número de dias úteis ou uma data.<br>Exemplo: 01/01/2021<br><br><i style="color:cadetblue;">Para dias corridos, acrescente a expressão dc depois do prazo.<br><br>Por exemplo: <b>60dc</b> é igual a 60 dias corridos.</i>'
 	},
 	{
 		title: 'SubTipo de Expediente',
@@ -2840,7 +2883,10 @@ async function aa_comunicacao() {
 		if (result) {			
 			let tipo_prazo = "";
 			if (temp[2] != null) {
-				if (temp[2] == "0") {
+				if (temp[2].toLowerCase().includes('dc')) {
+					tipo_prazo = "Dias Corridos";
+					temp[2] = temp[2].replace('dc','');
+				} else if (temp[2] == "0") {
 					tipo_prazo = "Sem Prazo";
 				} else if (temp[2].search("/") > -1) {
 					tipo_prazo = "Data Certa";
@@ -2970,7 +3016,7 @@ async function aa_autogigs() {
 			input: 'select',
 			inputOptions: {			
 				'LOCAL': 'LOCAL',
-				'PRIVADO': 'PRIVADO',
+				'RESTRITA': 'RESTRITA',
 				'GLOBAL': 'GLOBAL',
 			}
 		},
@@ -3444,7 +3490,6 @@ async function importarAA() {
 }
 
 function montarBotoesDetalhes() {
-	console.info("opcoes", opcoes);
 	if (typeof(opcoes.atalhosDetalhes) != "undefined") {
 		document.getElementById('c24').checked = opcoes.atalhosDetalhes[24];
 		document.getElementById('c24').addEventListener('click', salvarOpcoes);
@@ -3506,6 +3551,8 @@ function montarBotoesDetalhes() {
 		document.getElementById('c23').addEventListener('click', salvarOpcoes);
 		document.getElementById('c29').checked = opcoes.atalhosDetalhes[29];
 		document.getElementById('c29').addEventListener('click', salvarOpcoes);
+		document.getElementById('c30').checked = opcoes.atalhosDetalhes[30];
+		document.getElementById('c30').addEventListener('click', salvarOpcoes);
 	}
 }
 
@@ -4355,6 +4402,12 @@ function montarFiltrosFavoritos(ancora) {
 	document.querySelector('#modulo5_filtros_favoritos_juizDaMinuta').addEventListener('click', salvarOpcoes);
 	document.querySelector('#modulo5_filtros_favoritos_conferirTeimosinhaEmLote').checked = opcoes.modulo5_conferirTeimosinhaEmLote;
 	document.querySelector('#modulo5_filtros_favoritos_conferirTeimosinhaEmLote').addEventListener('click', salvarOpcoes);
+	document.querySelector('#modulo5_filtros_favoritos_semAudienciaDesignada').checked = opcoes.modulo5_processosSemAudienciaDesignada;
+	document.querySelector('#modulo5_filtros_favoritos_semAudienciaDesignada').addEventListener('click', salvarOpcoes);
+	document.querySelector('#modulo5_filtros_favoritos_semGIGS').checked = opcoes.modulo5_processosSemGigsCadastrado;
+	document.querySelector('#modulo5_filtros_favoritos_semGIGS').addEventListener('click', salvarOpcoes);
+	document.querySelector('#modulo5_filtros_favoritos_conciliaJT').checked = opcoes.modulo5_obterConcilia;
+	document.querySelector('#modulo5_filtros_favoritos_conciliaJT').addEventListener('click', salvarOpcoes);	
 	
 	function montarBotao(pos, tabela, nome, camposFixos, camposDinamicos) {
 		if (!document.getElementById("maisPje_filtrofavorito_" + tabela + "_" + nome)) {
@@ -4897,7 +4950,7 @@ function criaBotao_aaVariados(id, nm_botao, descricao, temporizador, ativar=fals
 	if (objeto) {
 		tt += "\n";
 		for (const [key, value] of Object.entries(objeto)) {
-			tt += "\n" + key + ": " + value;
+			tt += "\n\u00bb" + key + ": " + value;
 		}
 	}
 
@@ -4962,11 +5015,6 @@ function listaAcoesAutomatizadas(vinculo) {
 	lista += '</optgroup>';
 	
 	lista += '<optgroup label="Movimento" style="background-color: lightgray;">';
-
-	lista += "<option style='background-color: #d3d3d35e;' value='Movimento|bt_atualizar_tarefa'";
-	lista += ("Movimento|Movimento|bt_atualizar_tarefa" == vinculo) ? " selected> >>>Movimento|Renovar a Data na Tarefa"	: " > >>>Movimento|Renovar a Data na Tarefa";
-	lista += " </option>";
-
 	teste = [].map.call(aaMovimento_temp,function(item) {
 		lista += "<option style='background-color: #d3d3d35e;' value='Movimento|" + item.nm_botao + "'";
 		lista += ("Movimento|" + item.nm_botao == vinculo) ? " selected> Movimento|" + item.nm_botao : " > Movimento|" + item.nm_botao;
@@ -5009,47 +5057,17 @@ function listaAcoesAutomatizadas(vinculo) {
 	});
 	lista += '</optgroup>';
 	
-	// //AA para Atualizar Página
-	// lista += '<optgroup label="Variados" style="background-color: coral;">';
-	// if (vinculo == 'Atualizar Pagina|Atualizar Pagina') {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Atualizar Pagina|Atualizar Pagina' selected>Atualizar Pagina|Atualizar Pagina</option>";
-	// } else {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Atualizar Pagina|Atualizar Pagina'>Atualizar Pagina|Atualizar Pagina</option>";
-	// }
-	
-	// //AA para Fechar a Janela Detalhes
-	// if (vinculo == 'Fechar Pagina|Fechar Pagina') {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Fechar Pagina|Fechar Pagina' selected>Fechar Pagina|Fechar Pagina</option>";
-	// } else {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Fechar Pagina|Fechar Pagina'>Fechar Pagina|Fechar Pagina</option>";
-	// }
-	
-	// //AA para Apreciar Petições
-	// if (vinculo == 'Variados|Apreciar Peticoes') {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Variados|Apreciar Peticoes' selected>Variados|Apreciar Peticoes</option>";
-	// } else {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Variados|Apreciar Peticoes'>Variados|Apreciar Peticoes</option>";
-	// }
-
-	// //AA para minutar ordem no SISBAJUD
-	// if (vinculo == 'Variados|SISBAJUD:F2') {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Variados|SISBAJUD:F2' selected>Variados|SISBAJUD:F2</option>";
-	// } else {
-	// 	lista += "<option style='background-color: #ff7f5021;' value='Variados|SISBAJUD:F2'>Variados|SISBAJUD:F2</option>";
-	// }
-	
+	//AA para VARIADOS
 	lista += '<optgroup label="Variados" style="background-color: coral;">';
 	teste = [].map.call(aaVariados_temp,function(item) {
-		console.log(item.nm_botao)
-		if (['Apreciar Peticoes','SISBAJUD F2','Excluir BNDT','Enviar Email'].includes(item.nm_botao)) {
-			lista += "<option style='background-color: #ff7f5021;' value='Variados|" + item.nm_botao + "'";
-			lista += ("Variados|" + item.nm_botao == vinculo) ? " selected> Variados|" + item.nm_botao : " > Variados|" + item.nm_botao;
-			lista += " </option>";
-		}
 		if (['Atualizar Pagina','Fechar Pagina'].includes(item.nm_botao)) {
 			console.log("   |____ " + item.nm_botao + "|" + item.nm_botao)
 			lista += "<option style='background-color: #ff7f5021;' value='" + item.nm_botao + "|" + item.nm_botao + "'";
 			lista += (item.nm_botao + "|" + item.nm_botao == vinculo) ? " selected> " + item.nm_botao + "|" + item.nm_botao : " > " + item.nm_botao + "|" + item.nm_botao;
+			lista += " </option>";
+		} else {
+			lista += "<option style='background-color: #ff7f5021;' value='Variados|" + item.nm_botao + "'";
+			lista += ("Variados|" + item.nm_botao == vinculo) ? " selected> Variados|" + item.nm_botao : " > Variados|" + item.nm_botao;
 			lista += " </option>";
 		}
 	});
@@ -5261,6 +5279,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			montarBotoesaaAnexar();
 		}
 	} else if (tipo == "comunicacao") {
+		aaComunicacao_temp[id].fluxo = (!aaComunicacao_temp[id].fluxo) ? 'nao' : aaComunicacao_temp[id].fluxo; //correção de bug que não abre a AA quando ela é anterior a existência do fluxo
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
@@ -5270,6 +5289,13 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			'<input id="swal-input2" class="swal2-input" value="' + aaComunicacao_temp[id].tipo + '">' +
 			'<span style="font-weight: bold;"> Tipo de Documento (na elaboração do ato) </span>' + 
 			'<input id="swal-input3" class="swal2-input" value="' + aaComunicacao_temp[id].subtipo + '">' +
+			'<span style="font-weight: bold;"> Tipo de Prazo </span>' + 
+			'<br><select id="swal-input99" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
+				'<option value="Sem Prazo"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('sem prazo') ? 'selected' : '')  + '> Sem Prazo </option>' + 
+				'<option value="Dias Úteis"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('dias úteis') ? 'selected' : '')  + '> Dias Úteis </option>' + 
+				'<option value="Data Certa"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('data certa') ? 'selected' : '')  + '> Data Certa </option>' + 
+				'<option value="Dias Corridos"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('dias corridos') ? 'selected' : '')  + '> Dias Corridos </option>' + 
+			'</select><br>' +
 			'<span style="font-weight: bold;"> Prazo </span>' + 
 			'<input id="swal-input4" class="swal2-input" value="' + aaComunicacao_temp[id].prazo + '">' +
 			'<span style="font-weight: bold;"> Descrição (Título) </span>' + 
@@ -5305,6 +5331,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					document.getElementById('swal-input1').value,
 					document.getElementById('swal-input2').value,
 					document.getElementById('swal-input3').value,
+					document.getElementById('swal-input99').value,
 					document.getElementById('swal-input4').value,
 					document.getElementById('swal-input5').value,
 					document.getElementById('swal-input6').value,
@@ -5320,16 +5347,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 
 		if (result) {
 			
-			let tipo_prazo = '';
-			if (result[3] == "0") {
-				tipo_prazo = "Sem Prazo";
-			} else if (result[3].search("/") > -1) {
-				tipo_prazo = "Data Certa";
-			} else {
-				tipo_prazo = "Dias Úteis";
-			}
-			
-			aaComunicacao_temp[id] = new AcaoAutomatizada_aaComunicacao(result[0], result[1], result[2], tipo_prazo, result[3], result[4], result[5], result[6], result[7], result[8], result[9], result[10], result[11], result[12]);
+			aaComunicacao_temp[id] = new AcaoAutomatizada_aaComunicacao(result[0], result[1], result[2], result[3], result[4], result[5], result[6], result[7], result[8], result[9], result[10], result[11], result[12]);
 			salvarOpcoes();
 			document.getElementById("botoes_comunicacao").textContent = '';
 			montarBotoesaaComunicacao();
@@ -5348,7 +5366,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					'<span style="font-weight: bold;"> Visibilidade do Lembrete </span>' + 
 					'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
 						'<option value="LOCAL"' + (aaAutogigs_temp[id].prazo.includes('LOCAL') ? 'selected' : '')  + '> LOCAL </option>' + 
-						'<option value="PRIVADO"' + (aaAutogigs_temp[id].prazo.includes('PRIVADO') ? 'selected' : '')  + '> PRIVADO </option>' + 
+						'<option value="RESTRITA"' + (aaAutogigs_temp[id].prazo.includes('RESTRITA') ? 'selected' : '')  + '> RESTRITA </option>' + 
 						'<option value="GLOBAL"' + (aaAutogigs_temp[id].prazo.includes('GLOBAL') ? 'selected' : '')  + '> GLOBAL </option>' + 
 					'</select><br>' +
 					'<span style="display: none;"> Responsável pelo GIGS </span>' + 
@@ -5569,7 +5587,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			html:
 			'<span style="font-weight: bold;"> Nome do Botão </span>' + 
 			'<input id="swal-input1" class="swal2-input" value="' + aaMovimento_temp[id].nm_botao + '">' +
-			'<span style="font-weight: bold;"> Nome do Nó de destino <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>Aceita as expressões:</p><p><b>[?]</b> : onde "?" deverá ser preenchido com o nome de um botão a ser clicado quando o processo chegar no destino</p><p><b>[parar]</b> : que impedirá o fechamento automático da tarefa, deixando essa ação para o usuário, quando o processo chegar ao seu destino</p><p><b>Sobrestamento[#,*,*,*,*,*,*,...]</b> : onde <b>#</b> deverá ser preenchido com o tipo de sobrestamento a ser escolhido e o <b>*</b>, que poderão ser vários, deverão ser preenchidos com a resposta dos campos que irão aparecendo. Por exemplo: a Reunião da execução exige o campo "número de processo", logo o "*" deverá ser preenchido com um número de processo.</p><p style="text-indent:2.8vw;">Também é possível utilizar no lugar do <b>*</b> as expressões abaixo:</p><p><b>[perguntar]</b> : abre uma caixa de pergunta para o usuário digitar o número do processo referência.</p><p><b>[corrigir data]</b> : abre uma caixa de pergunta para o usuário digitar a data final do sobrestamento.</p><p><b>[Atualizar1ano]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 12 meses</p><p><b>[Atualizar2anos]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 24 meses</p><p><b>[AtualizarDataEspecifica ?]</b> : Este comando atualizará o prazo do sobrestamento para a data <b>?</b>,onde <b>?</b> deverá ser preenchido com uma data fixa, no padrão dd/mm/aaaa, ou em meses, no padrão mm </p><p><b>[AtualizarDataPerguntar]</b> : Este comando atualizará o prazo do sobrestamento para a data preenchida no momento do lançamento</p><p style="text-align: left;font-style: italic;"><u>Exemplo 1:</u> Sobrestamento[parar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 2:</u> Sobrestamento[(14971),ADC (362),0000000-00.0000.0.00.0000]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 3:</u>Sobrestamento[Atualizar1ano]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 4:</u> Sobrestamento[AtualizarDataPerguntar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 5:</u> Sobrestamento[AtualizarDataEspecifica 01/01/2024]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 6:</u> Sobrestamento[(50127),perguntar,corrigir data]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 7:</u> Sobrestamento[AtualizarDataEspecifica 06]</p></i></span>' + 
+			'<span style="font-weight: bold;"> Nome do Nó de destino <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>Aceita as expressões:</p><p><b>[?]</b> : onde "?" deverá ser preenchido com o nome de um botão a ser clicado quando o processo chegar no destino</p><p><b>[parar]</b> : que impedirá o fechamento automático da tarefa, deixando essa ação para o usuário, quando o processo chegar ao seu destino</p><p><b>[cancelar conclusão]</b> : comando especial que cancela a conclusão de processos que estejam na tarefa Elaborar Despacho e que não possuam minuta preenchida.</p><p><b>Sobrestamento[#,*,*,*,*,*,*,...]</b> : onde <b>#</b> deverá ser preenchido com o tipo de sobrestamento a ser escolhido e o <b>*</b>, que poderão ser vários, deverão ser preenchidos com a resposta dos campos que irão aparecendo. Por exemplo: a Reunião da execução exige o campo "número de processo", logo o "*" deverá ser preenchido com um número de processo.</p><p style="text-indent:2.8vw;">Também é possível utilizar no lugar do <b>*</b> as expressões abaixo:</p><p><b>[perguntar]</b> : abre uma caixa de pergunta para o usuário digitar o número do processo referência.</p><p><b>[corrigir data]</b> : abre uma caixa de pergunta para o usuário digitar a data final do sobrestamento.</p><p><b>[Atualizar1ano]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 12 meses</p><p><b>[Atualizar2anos]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 24 meses</p><p><b>[AtualizarDataEspecifica ?]</b> : Este comando atualizará o prazo do sobrestamento para a data <b>?</b>,onde <b>?</b> deverá ser preenchido com uma data fixa, no padrão dd/mm/aaaa, ou em meses, no padrão mm </p><p><b>[AtualizarDataPerguntar]</b> : Este comando atualizará o prazo do sobrestamento para a data preenchida no momento do lançamento</p><p style="text-align: left;font-style: italic;"><u>Exemplo 1:</u> Sobrestamento[parar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 2:</u> Sobrestamento[(14971),ADC (362),0000000-00.0000.0.00.0000]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 3:</u>Sobrestamento[Atualizar1ano]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 4:</u> Sobrestamento[AtualizarDataPerguntar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 5:</u> Sobrestamento[AtualizarDataEspecifica 01/01/2024]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 6:</u> Sobrestamento[(50127),perguntar,corrigir data]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 7:</u> Sobrestamento[AtualizarDataEspecifica 06]</p></i></span>' + 
 			'<input id="swal-input2" class="swal2-input" value="' + aaMovimento_temp[id].destino + '">' +
 			'<span style="font-weight: bold;"> Lançar Chip (nome) </span>' + 
 			'<input id="swal-input3" class="swal2-input" value="' + aaMovimento_temp[id].chip + '">' +
@@ -5607,7 +5625,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Nome do Botão </span>' + 
+			'<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá "concluir" o Checklist de acordo com o seu nome, alterando o seu status para NENHUM, retirando o ALERTA e adicionando à descrição a expressão "Desativado em dia-de-hoje".<br>Atenção, que o nome do Checklist fica reduzido depois de lançado, <u>VOCÊ DEVE USAR O NOME REDUZIDO</u>.<br><br><p style="text-align: center;font-style: italic;">Ex: o tipo <b>SERASAJUD/SERASA</b> depois de lançado vira <b>Serasa</b></u></p></i></span>' + 
 			'<input id="swal-input1" class="swal2-input" value="' + aaChecklist_temp[id].nm_botao + '">' +
 			'<span style="font-weight: bold;"> Tipo </span>' + 
 			'<input id="swal-input2" class="swal2-input" value="' + aaChecklist_temp[id].tipo + '">' +
@@ -5677,7 +5695,9 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			// console.log(aaVariados_temp[id].nm_botao)
 			switch (aaVariados_temp[id].nm_botao) {					
 				case 'Atalho F2':
-					var1 = '<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
+					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
 					'<span style="font-weight: bold;"> Ativar </span>' + 
 					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
@@ -5686,7 +5706,9 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					'</select>';
 					break
 				case 'Atalho F3':
-					var1 = '<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
+					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
 					'<span style="font-weight: bold;"> Ativar </span>' + 
 					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
@@ -5694,8 +5716,27 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
 					'</select>';
 					break
+				case 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado':
+					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
+					'<span style="font-weight: bold;"> Nome ou CPF do Advogado outorgado <br>' + 
+					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* se usar o nome tenha certeza que a pesquisa do PJe resultará em apenas um resultado </i></span>' +
+					'<input id="swal-input2" class="swal2-input" value="' + aaVariados_temp[id].objeto.advogado + '" style="margin: 2px;">' +
+					'<span style="font-weight: bold;"> Nome ou CPF da PARTE outorgante <br>' + 
+					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* se usar o nome tenha certeza que a pesquisa do PJe resultará em apenas um resultado</i></span>' +
+					'<input id="swal-input3" class="swal2-input" value="' + aaVariados_temp[id].objeto.parte + '" style="margin: 2px;">' +
+					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>Temporizador</i></span>' +
+					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '" style="margin: 2px;">' +
+					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
+					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'</select>';
+					break
 				case 'Enviar Email':
-					var1 = '<span style="font-weight: bold;"> Configurações do Email <br>' + 
+					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
+					'<span style="font-weight: bold;"> Configurações do Email <br>' + 
 					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* é possível utilizar as variáveis do módulo 6</i></span>' +
 					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br><br>Destinatário</i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].objeto.destinatario + '" style="margin: 2px;">' +
@@ -5714,7 +5755,9 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					'</select>';
 					break
 				default:					
-					var1 = '<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
+				var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' + 
 					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
 					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
@@ -5741,6 +5784,13 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 						document.getElementById('swal-input3').value,
 						document.getElementById('swal-input4').value
 					]
+				} else if (aaVariados_temp[id].nm_botao == 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado') {
+					return [
+						document.getElementById('swal-input1').value, //temporizador
+						atv, //ativar
+						document.getElementById('swal-input2').value, //adv
+						document.getElementById('swal-input3').value //parte
+					]
 
 				} else {					
 					return [
@@ -5755,6 +5805,8 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 		if (result) {
 			if (aaVariados_temp[id].nm_botao == 'Enviar Email') {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1], objeto:{destinatario:result[2],titulo:result[3],corpo:result[4],assinatura:result[5]} };
+			} else if (aaVariados_temp[id].nm_botao == 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado') {
+				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1], objeto:{advogado:result[2],parte:result[3]} };
 			} else {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1]};
 			}
@@ -5788,77 +5840,92 @@ async function modalEditorVinculo(elemento_pai, tipo, id) {
 	const { value: result } = await Swal.fire({
 		title: ' EDITAR VÍNCULOS ',
 		html:
+		// '<style> .swal2-popup { width: 50vw; }	</style>' +
+		'<style> .swal2-popup { position: relative;	box-sizing: border-box;	flex-direction: column;	justify-content: center; width: 50%; max-width: 100%; padding: 1.25em; border: none; border-radius: 5px; background: #fff; font-family: inherit;font-size: 1rem; }	</style>' +
 		'<br><span><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><b>ATENÇÃO, a forma de utilizar os vínculos mudou.</b><br>A partir de agora ao final da ação eles serão executados na sequência abaixo, apenas eles, ignorando eventuais vínculos que as outras Ações Automatizadas venham a possuir. Isso facilitará o mapeamento de um tarefa complexa, permitindo tirar o máximo proveito das suas ações automatizadas.<br><br><b><u>Por Exemplo:</u></b> se você quiser juntar um documento, concluir um chip e, em seguida, movimentar o processo para uma tarefa. Basta escolher a Ação Automatiza de juntada no item 1, de conclusão do chip no item 2 e a de movimento no item 3. Eventuais vínculos existentes nas Ações Automatizadas dos itens 1, 2 e 3 serão ignorados, apenas elas serão executadas.</i></span><br><br>' +
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">1</span>' + 		
-		'<select id="swal-input1" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[0]) + 
-		'</select><span id="apagar-swal-input1"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">2</span>' + 
-		'<select id="swal-input2" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[1]) + 
-		'</select> <span id="apagar-swal-input2"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">3</span>' + 
-		'<select id="swal-input3" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[2]) + 
-		'</select> <span id="apagar-swal-input3"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">4</span>' + 
-		'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[3]) + 
-		'</select> <span id="apagar-swal-input4"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">5</span>' + 
-		'<select id="swal-input5" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[4]) + 
-		'</select> <span id="apagar-swal-input5"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">6</span>' + 
-		'<select id="swal-input6" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[5]) + 
-		'</select> <span id="apagar-swal-input6"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">7</span>' + 
-		'<select id="swal-input7" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[6]) + 
-		'</select> <span id="apagar-swal-input7"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">8</span>' + 
-		'<select id="swal-input8" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[7]) + 
-		'</select> <span id="apagar-swal-input8"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">9</span>' + 
-		'<select id="swal-input9" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[8]) + 
-		'</select> <span id="apagar-swal-input9"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
-		'<div style="display: block ruby;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">10</span>' + 
-		'<select id="swal-input10" class="swal2-select" style="background-color: white;width: 80%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-		listaAcoesAutomatizadas(lista_de_vinculos[9]) + 
-		'</select> <span id="apagar-swal-input10"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>',
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">1</span>' + 		
+		'<span  id="escolherAAVinculo1" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[0] ? lista_de_vinculos[0] : 'Nenhum') + 
+		'</span><span id="apagar-escolherAAVinculo1" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">2</span>' + 
+		'<span  id="escolherAAVinculo2" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[1] ? lista_de_vinculos[1] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo2" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">3</span>' + 
+		'<span  id="escolherAAVinculo3" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[2] ? lista_de_vinculos[2] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo3" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">4</span>' + 
+		'<span  id="escolherAAVinculo4" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[3] ? lista_de_vinculos[3] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo4" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">5</span>' + 
+		'<span  id="escolherAAVinculo5" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[4] ? lista_de_vinculos[4] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo5" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">6</span>' + 
+		'<span  id="escolherAAVinculo6" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[5] ? lista_de_vinculos[5] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo6" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">7</span>' + 
+		'<span  id="escolherAAVinculo7" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[6] ? lista_de_vinculos[6] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo7" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">8</span>' + 
+		'<span  id="escolherAAVinculo8" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[7] ? lista_de_vinculos[7] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo8" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">9</span>' + 
+		'<span  id="escolherAAVinculo9" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[8] ? lista_de_vinculos[8] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo9" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>' + 
+		
+		'<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;"><span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">10</span>' + 
+		'<span id="escolherAAVinculo10" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1.125em;">' + 
+		(lista_de_vinculos[9] ? lista_de_vinculos[9] : 'Nenhum') + 
+		'</span> <span id="apagar-escolherAAVinculo10" style="margin: 10px 0 0 10px;"><i class="icone trash-alt t20" style="background-color: lightgray;margin-left: 15px;vertical-align: middle;"></i></span></div>',
 		confirmButtonText: 'Salvar',
 		focusConfirm: false,
 		preConfirm: () => {
 			return [
-				document.getElementById('swal-input1').value,
-				document.getElementById('swal-input2').value,
-				document.getElementById('swal-input3').value,
-				document.getElementById('swal-input4').value,
-				document.getElementById('swal-input5').value,
-				document.getElementById('swal-input6').value,
-				document.getElementById('swal-input7').value,
-				document.getElementById('swal-input8').value,
-				document.getElementById('swal-input9').value,
-				document.getElementById('swal-input10').value
+				document.getElementById('escolherAAVinculo1').innerText,
+				document.getElementById('escolherAAVinculo2').innerText,
+				document.getElementById('escolherAAVinculo3').innerText,
+				document.getElementById('escolherAAVinculo4').innerText,
+				document.getElementById('escolherAAVinculo5').innerText,
+				document.getElementById('escolherAAVinculo6').innerText,
+				document.getElementById('escolherAAVinculo7').innerText,
+				document.getElementById('escolherAAVinculo8').innerText,
+				document.getElementById('escolherAAVinculo9').innerText,
+				document.getElementById('escolherAAVinculo10').innerText
 			]
 		}
 	});
+
+	
 
 	if (result) {
 		
 		
 		//excluir os Nenhum's
 		let temp = [];
-		let fim = false;
 		for (const [pos, opcao] of result.entries()) {
-			if (!fim) {
+			
+			if (opcao != "Nenhum") {
 				temp.push(opcao);
-				if (opcao == 'Nenhum') { fim = true }
 			}
+
 		}
+		temp.push("Nenhum");
+
 		
 		aaComVinculoEspecial.vinculo = temp;
 		
@@ -6573,9 +6640,36 @@ function gerarItensPopupNovidades(novidades) {
       const formattedDate = entry.date
   
       let changesHtml = '<div><ol>';
+	  let correcaoTemp = [];
+	  let melhoriaTemp = [];
       entry.changes.forEach((change, index) => {
-        changesHtml += `<li>${change}</li>`;
+		
+		if (change.includes('Melhoria:')) {
+			change = change.replace('Melhoria:','<span style="opacity: .6;padding: 2px 5px;font-style: normal;background-color: mediumseagreen;color: white;margin-right: 5px;border-radius: 5px;">MELHORIA</span>');
+			melhoriaTemp.push(change);
+		} else if (change.includes('Correção Técnica:')) {
+			change = change.replace('Correção Técnica:','<span style="opacity: .6;padding: 2px 5px;font-style: normal;background-color: gold;color: white;margin-right: 5px;border-radius: 5px;">CORREÇÃO TÉCNICA</span>');
+			correcaoTemp.push(change);
+		} else {
+			change = change.replace('Correção:','<span style="opacity: .6;padding: 2px 5px;font-style: normal;background-color: lightcoral;color: white;margin-right: 5px;border-radius: 5px;">CORREÇÃO</span>');
+			correcaoTemp.push(change);
+		}
+
+
+		
+		
+		// changesHtml += `<li>${change}</li>`;
       });
+
+	  correcaoTemp.forEach((change, index) => {
+		changesHtml += `<li>${change}</li>`;
+	  });
+	  changesHtml += '<BR>';
+	  melhoriaTemp.forEach((change, index) => {
+		changesHtml += `<li>${change}</li>`;
+	  });
+
+
       changesHtml += '</ol></div>';
   
       const item = {
@@ -6707,7 +6801,6 @@ async function recuperarConfig() {
 			if (result[0] != "") {
 				let padrao = /[\r\n]/gm;
 				let resultadoSemQuebrasDeLinha = result[0].replace(padrao,'');
-				console.log(resultadoSemQuebrasDeLinha);
 				opcoes = JSON.parse(resultadoSemQuebrasDeLinha);
 				await checarVariaveis(true);				
 			}		
@@ -6727,6 +6820,7 @@ function limpatela() {
 	document.getElementById("botoes_despacho").textContent = '';
 	document.getElementById("botoes_movimento").textContent = '';
 	document.getElementById("botoes_checklist").textContent = '';
+	if (document.getElementById("botoes_variados")) {document.getElementById("botoes_variados").textContent = '' }
 }
 
 function parEimpar(escolha) {
@@ -6759,143 +6853,107 @@ function parEimpar(escolha) {
 	);
 }
 
-async function abrirJanelaConfigURLs(param) {
+async function abrirJanelaConfigURLs(configBase) {
+	console.log('abrirJanelaConfigURLs(' + (configBase?'com parametro':'sem parametro') + ')')
+
+	if (configBase) { opcoes.configURLs = configBase }
 	
-	if (param) { await obterUrlTribunais(); return; }
+	console.log(opcoes.configURLs)
 	
-	browser.storage.local.get(['trt','grau_usuario','versaoPje'], function(result){
+	if (!opcoes.configURLs) { return }
+	
+	await browser.storage.local.get(['trt','grau_usuario','versaoPje'], async function(result){
 		opcoes.trt = result.trt;
 		opcoes.grau_usuario = result.grau_usuario;
-		opcoes.versaoPje = result.versaoPje;
-		
-	});
-	
-	let aforca = (!opcoes.configURLs.urlSiscondj && !opcoes.configURLs.urlSAOExecucao) ? true : false; // se ambos os campos estiverem vazios, haverá a busca no site do TRT12 
-	if (aforca) { await obterUrlTribunais(); return abrirJanelaConfigURLs(); }
-	
-	let urlSiscondj = opcoes.configURLs.urlSiscondj;
-	let urlSAOExecucao = opcoes.configURLs.urlSAOExecucao;
-	urlSAOExecucao = (urlSAOExecucao.includes(opcoes.trt)) ? urlSAOExecucao : 'https://' + opcoes.trt + urlSAOExecucao;
-	urlSAOExecucao = (urlSAOExecucao.includes('nenhum')) ? 'nenhum' : urlSAOExecucao;
-	urlSAOExecucao = (!opcoes.configURLs.urlSAOExecucao) ? 'nenhum' : urlSAOExecucao;
-	let TRTDescricao = (!opcoes.num_trt) ? 'não identificado' : 'Tribunal Regional do Trabalho da ' + opcoes.num_trt + 'a Região';
-	opcoes.grau_usuario = (!opcoes.grau_usuario) ? 'não identificado' : opcoes.grau_usuario;
-	opcoes.versaoPje = (!opcoes.versaoPje) ? 'não identificado' : opcoes.versaoPje;
-	
-	console.log("   |___ " + opcoes.trt);
-	console.log("   |___ " + opcoes.grau_usuario);
-	console.log("   |___ " + opcoes.versaoPje);
-	console.log("   |___ " + opcoes.configURLs.descricao);
-	console.log("   |___ " + opcoes.configURLs.urlSiscondj);
-	console.log("   |___ " + opcoes.configURLs.idSiscondj);
-	console.log("   |___ " + opcoes.configURLs.urlSAOExecucao);
-	
-	
-	let { value: result } = await Swal.fire({
-		title: 'CONFIGURAÇÕES BÁSICAS',
-		html:
-			'<span style="color:lightgray;">As configurações básicas da extensão maisPJe são obtidas automaticamente na tela de login do PJe, sendo desnecessário qualquer registro prévio.<br><br>SEMPRE desconecte do PJe ao instalar/atualizar a extensão.</span><br><br>' +
-			'<ul style="list-style: none;">' + 
-			'<li style="font-weight: normal;">URL padrão</span>' + 
-			'<li style="font-weight: normal;color:cadetblue;font-style: italic;">' + opcoes.trt + '</li>' +
-			'<li style="font-weight: normal;margin-top: 10px;">Instância</li>' + 
-			'<li style="font-weight: normal;' + (opcoes.grau_usuario.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + opcoes.grau_usuario + '</li>' +
-			'<li style="font-weight: normal;margin-top: 10px;">Versão do PJe</li>' + 
-			'<li style="font-weight: normal;' + (opcoes.versaoPje.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + opcoes.versaoPje + '</li>' + 
-			'</ul><br>' + 
-			'<span style="font-weight: bold;"> Descrição: </span>' + 
-			'<input id="swal-input3" class="swal2-input" value="' + TRTDescricao + '" style="margin: 1vh 0 1vh 0;background-color: #ededed;color: #b3b3b3;" disabled>' +
-			'<span style="font-weight: bold;"> Siscondj: </span>' + 
-			'<input id="swal-input1" class="swal2-input" value="' + urlSiscondj + '" style="margin: 1vh 0 1vh 0;">' +
-			'<span style="font-weight: bold;"> SAO Execução: </span>' + 
-			'<input id="swal-input2" class="swal2-input" value="' + urlSAOExecucao + '" style="margin: 1vh 0 1vh 0;">',
-			
-		focusConfirm: false,
-		confirmButtonText: 'Salvar',
-		width: 800,
-		preConfirm: () => {
-			return [
-				document.getElementById('swal-input1').value,
-				document.getElementById('swal-input2').value,
-				document.getElementById('swal-input3').value
-			]
-		}
-	});
+		opcoes.versaoPje = result.versaoPje;		
 
-	if (result) {
+		let urlSiscondj = opcoes.configURLs.urlSiscondj;
+		let urlSAOExecucao = opcoes.configURLs.urlSAOExecucao;
+		urlSAOExecucao = (urlSAOExecucao.includes(opcoes.trt)) ? urlSAOExecucao : 'https://' + opcoes.trt + urlSAOExecucao;
+		urlSAOExecucao = (urlSAOExecucao.includes('nenhum')) ? 'nenhum' : urlSAOExecucao;
+		urlSAOExecucao = (!opcoes.configURLs.urlSAOExecucao) ? 'nenhum' : urlSAOExecucao;
+		let TRTDescricao = (!opcoes.num_trt) ? 'não identificado' : 'Tribunal Regional do Trabalho da ' + opcoes.num_trt + 'a Região';
+		opcoes.grau_usuario = (!opcoes.grau_usuario) ? 'não identificado' : opcoes.grau_usuario;
+		opcoes.versaoPje = (!opcoes.versaoPje) ? 'não identificado' : opcoes.versaoPje;
 		
-		let var1 = result[2]
-		let var2 = result[0];
-		let var3 = var2.substring(8,var2.search('.trt'));
-		let var4 = (result[1].includes('?maisPje=true')) ? result[1] : result[1] + '?maisPje=true' ;
-		var4 = (!result[1] || result[1].includes('nenhum')) ? '' : var4;
+		console.log("   |___ " + opcoes.trt);
+		console.log("   |___ " + opcoes.grau_usuario);
+		console.log("   |___ " + opcoes.versaoPje);
+		console.log("   |___ " + opcoes.configURLs.descricao);
+		console.log("   |___ " + opcoes.configURLs.urlSiscondj);
+		console.log("   |___ " + opcoes.configURLs.idSiscondj);
+		console.log("   |___ " + opcoes.configURLs.urlSAOExecucao);
+		console.log("   |___ " + opcoes.configURLs?.powerbi);
 		
-		opcoes.configURLs = {
-			descricao: var1,
-			urlSiscondj: var2,
-			idSiscondj: var3,
-			urlSAOExecucao: var4
-		};
 		
-		let salvando = browser.storage.local.set({'configURLs': opcoes.configURLs});
-		
-		Promise.all([salvando]).then(values => {
-			let Toast = Swal.mixin({
-				toast: true,
-				position: 'bottom-end',
-				showConfirmButton: false,
-				timer: 1500,
-				timerProgressBar: true,
-				onOpen: (toast) => {
-				toast.addEventListener('mouseenter', Swal.stopTimer)
-				toast.addEventListener('mouseleave', Swal.resumeTimer)
-				}
-			})
-			Toast.fire({
-				icon: 'success',
-				title: 'Informações salvas com sucesso!'
-			})					
-		});
-	}
-	
-	async function obterUrlTribunais() {
-		console.log('maisPJe: obterUrlTribunais()')
-		let listaURLs = await obterConfigUrls();
-		let padraoInicial = /trt\d{1,2}/; //eliminar urls que possuem numero. por exemplo: https://pjehom2.trt12.jus.br
-		let padrao = /\d{1,2}/;
-		if (padraoInicial.test(opcoes.trt)) {
-			opcoes.num_trt = opcoes.trt.match(padraoInicial).join();
-			if (padrao.test(opcoes.num_trt)) {
-				opcoes.num_trt = opcoes.num_trt.match(padrao).join();
-			} else {
-				opcoes.num_trt = '';
+		let { value: result2 } = await Swal.fire({
+			title: 'CONFIGURAÇÕES BÁSICAS',
+			html:
+				'<span style="color:lightgray;">As configurações básicas da extensão maisPJe são obtidas automaticamente na tela de login do PJe, sendo desnecessário qualquer registro prévio.<br><br>SEMPRE desconecte do PJe ao instalar/atualizar a extensão.</span><br><br>' +
+				'<ul style="list-style: none;">' + 
+				'<li style="font-weight: normal;">URL padrão</span>' + 
+				'<li style="font-weight: normal;color:cadetblue;font-style: italic;">' + opcoes.trt + '</li>' +
+				'<li style="font-weight: normal;margin-top: 10px;">Instância</li>' + 
+				'<li style="font-weight: normal;' + (opcoes.grau_usuario.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + opcoes.grau_usuario + '</li>' +
+				'<li style="font-weight: normal;margin-top: 10px;">Versão do PJe</li>' + 
+				'<li style="font-weight: normal;' + (opcoes.versaoPje.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + opcoes.versaoPje + '</li>' + 
+				'</ul><br>' + 
+				'<span style="font-weight: bold;"> Descrição: </span>' + 
+				'<input id="swal-input3" class="swal2-input" value="' + TRTDescricao + '" style="margin: 1vh 0 1vh 0;background-color: #ededed;color: #b3b3b3;" disabled>' +
+				'<span style="font-weight: bold;"> Siscondj: </span>' + 
+				'<input id="swal-input1" class="swal2-input" value="' + urlSiscondj + '" style="margin: 1vh 0 1vh 0;">' +
+				'<span style="font-weight: bold;"> SAO Execução: </span>' + 
+				'<input id="swal-input2" class="swal2-input" value="' + urlSAOExecucao + '" style="margin: 1vh 0 1vh 0;">' +
+				'<span id="maisPje_configuracoes_basicas_restaurar_span" style="float: right;"><a id="maisPje_configuracoes_basicas_restaurar_a" style="font-size: .8em;color: cadetblue;font-style: italic;cursor: pointer;">Restaurar</a></span>',
+				
+			focusConfirm: false,
+			confirmButtonText: 'Salvar',
+			width: 800,
+			preConfirm: () => {
+				return [
+					document.getElementById('swal-input1').value,
+					document.getElementById('swal-input2').value,
+					document.getElementById('swal-input3').value
+				]
 			}
-		}
-		console.log("Número do TRT: " + opcoes.num_trt);
-		opcoes.configURLs.descricao = (!listaURLs) ? 'Erro ao obter URLs' : listaURLs[parseInt(opcoes.num_trt)].descricao;
-		opcoes.configURLs.urlSiscondj = (!listaURLs) ? 'https://siscondj.trt' + opcoes.num_trt + '.jus.br/siscondj/pages/movimentacao/conta/new' : listaURLs[parseInt(opcoes.num_trt)].urlSiscondj;
-		opcoes.configURLs.idSiscondj = (!listaURLs) ? 'siscondj' : listaURLs[parseInt(opcoes.num_trt)].idSiscondj;
-		opcoes.configURLs.urlSAOExecucao = (!listaURLs) ? 'nenhum' : listaURLs[parseInt(opcoes.num_trt)].urlSAOExecucao;
-		
-		let var1_urls = browser.storage.local.set({'configURLs': opcoes.configURLs});
-		Promise.all([var1_urls]).then(values => { return });
-	}
-
-	async function obterConfigUrls() {
-		return new Promise(async resolve => {
-			let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
-			return resolve(fetch(url)
-				.then(function (response) {
-					return response.json();
-				})
-				.then(data=>{
-					return data || null;
-				})
-				.catch(function (err) {
-					return null;
-				}));
 		});
-	}
+
+		if (result2) {
+			
+			let var1 = result2[2]
+			let var2 = result2[0];
+			let var3 = var2.substring(8,var2.search('.trt'));
+			let var4 = (result2[1].includes('?maisPje=true')) ? result2[1] : result2[1] + '?maisPje=true' ;
+			var4 = (!result2[1] || result2[1].includes('nenhum')) ? '' : var4;
+			
+			opcoes.configURLs = {
+				descricao: var1,
+				urlSiscondj: var2,
+				idSiscondj: var3,
+				urlSAOExecucao: var4
+			};
+			
+			let salvando = browser.storage.local.set({'configURLs': opcoes.configURLs});
+			
+			Promise.all([salvando]).then(values => {
+				let Toast = Swal.mixin({
+					toast: true,
+					position: 'bottom-end',
+					showConfirmButton: false,
+					timer: 1500,
+					timerProgressBar: true,
+					onOpen: (toast) => {
+					toast.addEventListener('mouseenter', Swal.stopTimer)
+					toast.addEventListener('mouseleave', Swal.resumeTimer)
+					}
+				})
+				Toast.fire({
+					icon: 'success',
+					title: 'Informações salvas com sucesso!'
+				})					
+			});
+		}
+	});
 }
 
 async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Escolha entre as opções') {
@@ -6979,6 +7037,53 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 	);
 }
 
+async function forcarObterURLs(trt) {
+    return new Promise(async resolve => {
+		console.log('forcarObterURLs()');
+		let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
+				
+		let configBase = await fetch(url).then(function (response) {  //configurações existentes do site
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+			console.log('FETCH: https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json')
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+			console.log('~~~~ obtendo dados do ' + trt + '~~~~')
+			return response.json();
+		})
+		.then(data=>{
+			return data[trt] || null;
+		})
+		.catch(function (err) {
+			alert('maisPJE: erro ao acessar https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json');
+			return null;
+		});							
+			
+
+		// console.log(JSON.stringify(configBase))		
+		//guarda as novas configurações no storage				
+		await guardarValoresNoStorage(configBase);
+		// opcoes.configURLs = configBase;
+		return resolve(configBase);
+		
+    });
+
+
+}
+
+async function guardarValoresNoStorage(valor1) {
+	return new Promise(resolve => {
+		console.log('guardarValoresNoStorage()');
+		let guardarStorage1 = browser.storage.local.set({ 'configURLs': valor1 });
+		Promise.all([guardarStorage1]).then(values => {
+			abrirJanelaConfigURLs(valor1);
+			return resolve(true);
+		});
+	});
+}
+
 document.addEventListener("DOMContentLoaded", iniciar);
 
 //verificar monitores
@@ -7015,26 +7120,37 @@ document.getElementById("assinatura_email").addEventListener('focusout', functio
 	salvarOpcoes();
 });
 
-document.body.addEventListener("click", function (event) {	
+document.body.addEventListener("click", async function (event) {	
 	// console.log(event.target.id);
-	if (event.target.id == "termoDeUso") {		
+
+	if (event.target.id.includes("escolherAAVinculo")) {		
+		let aa = await criarCaixaDeSelecaoComAAs('Escolha uma Ação Automatizada para VINCULAR');		
+		event.target.innerText = aa;		
+	}
+
+	if (event.target.id.includes('maisPje_configuracoes_basicas_restaurar_')) {
+		let limparStorage = browser.storage.local.remove('configURLs');
+		Promise.all([limparStorage]).then(async values => {
+			document.querySelector('.swal2-backdrop-show').click();
+			await forcarObterURLs(opcoes.num_trt);
+		});				
+	}
+
+	function onButtonClickById(id, callback) {
+		const button = event.target.closest(id);
+		if (button) {
+			callback();
+		}
+	}
+	  
+	onButtonClickById('a#termoDeUso', () => {		
 		browser.runtime.sendMessage({tipo: 'permissao'});
 		window.close();
-	}
+	});
 	
-	if (event.target.id == "baixarExtensao") {		
-		document.location.href = 'https://www.trt12.jus.br/repo/maispje/Downloads/maispje.xpi';
-	}
+	onButtonClickById('button#configURLs', () => abrirJanelaConfigURLs());
 	
-	if (event.target.id == "versoesAntigas") {		
-		window.open('https://www.trt12.jus.br/repo/maispje/Downloads/versoes', '_blank');
-	}
-	
-	if (event.target.id == "configURLs") {		
-		abrirJanelaConfigURLs();
-	}
-	
-	
+	onButtonClickById('#tutoriais', () => tutoriais());
 	if (event.target.className.includes("icone question-circle")) {
 		let msg = '';
 		switch (event.target.id) {
@@ -7173,9 +7289,6 @@ document.body.addEventListener("click", function (event) {
 			case 'config_1':
 				video = 'https://drive.google.com/file/d/1XhDpAjYn-zy9rRyFzwLGxwHXOH6mN93r/preview?t=1m18s';
 				break
-			case 'tutoriais':
-				tutoriais();
-				return;
 			default:
 				console.log("sem ajuda");
 		}
@@ -7230,9 +7343,9 @@ document.body.addEventListener("click", function (event) {
 		}
 	
 		//eventos dos vinculos: lixeira
-		if (id_elemento.includes('apagar-swal-input')) {
+		if (id_elemento.includes('apagar-escolherAAVinculo')) {
 			let seletor = id_elemento.replace('apagar-','');
-			document.getElementById(seletor).value = "Nenhum";
+			document.getElementById(seletor).innerText = "Nenhum";
 		}
 	}
 	
@@ -7291,10 +7404,11 @@ document.body.addEventListener("selectionchange", function (event) {
 	if (event.target.id == 'swal-input-importarAA1') { 
 		
 		let conteudo = document.querySelector('#swal-input-importarAA1').value;		
-		let novoConteudo = conteudo.replace(/(\n)/gm,'|')
-		let aas = novoConteudo.split('|');				
+		let novoConteudo = conteudo.match(/\{.+?\}/g);
+		console.log(novoConteudo.length)
+		console.log(Array.isArray(novoConteudo))
 		let x = 1;
-		for (const [pos, item] of aas.entries()) {
+		for (const [pos, item] of novoConteudo.entries()) {
 			if (item.length > 0) {
 				document.querySelector('#swal-input-importarAA' + x).value = item;
 				x++;
@@ -7386,6 +7500,276 @@ function EmailAutomatizado(titulo, corpo, assinatura) {
 	this.titulo = titulo;
 	this.corpo = corpo;
 	this.assinatura = assinatura;
+}
+
+async function criarCaixaDeSelecaoComAAs(label) {
+	return new Promise(
+		resolver => {
+			if (!document.getElementById('maisPje_caixa_de_selecao')) {
+										
+				// DESCRIÇÃO: REGRA DO TOOLTIP
+				if (!document.getElementById('maisPje_tooltip_fundo')) {
+					tooltip('fundo', true);
+				}
+				
+				let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+				
+				let elemento1 = document.createElement("div");
+				elemento1.id = 'maisPje_caixa_de_selecao';
+				elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; font-size: 1.30em; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; text-align: center; flex-direction: column;';
+				elemento1.onclick = function (e) {
+					if (e.target.id == "maisPje_caixa_de_selecao") {
+						elemento1.remove();
+					}
+				}; //se clicar fora fecha a janela					
+				
+				let container = document.createElement("div");
+				container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
+				
+				let bt_continuar = document.createElement("span");
+				bt_continuar.id = "maisPje_caixa_de_selecao_btContinuar";
+				bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
+				bt_continuar.innerText = "Salvar";
+				bt_continuar.onmouseenter = function () {
+					bt_continuar.style.backgroundColor  = '#5077a4';
+				};
+				bt_continuar.onmouseleave = function () {
+					bt_continuar.style.backgroundColor  = '#7a9ec8';
+				};
+				bt_continuar.onclick = function () {
+					resolver(selectAcaoAutomatizada.value);
+					document.getElementById('maisPje_caixa_de_selecao').remove();
+				};
+
+				let titulo = document.createElement("span");
+				titulo.style = "color: #333; opacity: .8; border-bottom: 1px solid lightgrey;";
+				titulo.innerText = label;
+				container.appendChild(titulo);
+
+				let filtro = document.createElement("div");
+				filtro.style = 'min-height: 3vh;font-size: 1.3em;';
+				filtro.appendChild(criarFiltro('ANEXAR DOCUMENTOS','icone paperclip t20'));
+				filtro.appendChild(criarFiltro('INTIMAÇÃO/EXPEDIENTE','icone envelope t20'));
+				filtro.appendChild(criarFiltro('AUTOGIGS','icone tag t20'));
+				filtro.appendChild(criarFiltro('DESPACHO','icone gavel t20'));
+				filtro.appendChild(criarFiltro('MOVIMENTOS','icone hand-paper t20'));
+				filtro.appendChild(criarFiltro('CHECKLIST','icone check-solid t20'));
+				filtro.appendChild(criarFiltro('RETIFICAR AUTUAÇÃO','icone pencil-alt t20'));
+				filtro.appendChild(criarFiltro('LANÇAR MOVIMENTOS','icone plus-square t20'));
+				filtro.appendChild(criarFiltro('CLICAR EM','icone mouse-pointer-solid t20'));
+				filtro.appendChild(criarFiltro('VARIADOS','icone tablets-solid t20'));
+				container.appendChild(filtro);
+
+				let filtroTexto = document.createElement("div");
+				filtroTexto.id = 'maisPje_caixa_de_selecao_filtroTexto';
+				filtroTexto.style = 'min-height: 2vh;font-size: small;color: #333;opacity: .8;';
+				container.appendChild(filtroTexto);
+				
+				let selectAcaoAutomatizada = document.createElement("select");
+				selectAcaoAutomatizada.style = 'cursor: pointer; padding: 10px; border: 0; background-color: white; color: rgb(81, 81, 81); min-height: 40px; font-size:1.125em;';
+				selectAcaoAutomatizada.size = '10';
+				//Nenhuma
+				let optionAA = document.createElement("option");
+				optionAA.value = 'Nenhum';
+				optionAA.innerText = 'Nenhum';
+				optionAA.onmouseenter  = function () { this.style.backgroundColor = 'tomato';this.style.color = 'white'; }
+				optionAA.onmouseleave  = function () { this.style.backgroundColor = 'revert';this.style.color = 'revert'; }
+				optionAA.onclick = function (){ bt_continuar.click() }
+				selectAcaoAutomatizada.appendChild(optionAA);
+				
+				//monta as acoes automatizadas de Anexar Documentos
+				let optionGR1 = document.createElement("optgroup");
+				optionGR1.label = 'ANEXAR DOCUMENTOS';
+				for (const [pos, item] of opcoes.aaAnexar.entries()) {
+					let optionAAA = document.createElement("option");
+					optionAAA.value = 'Anexar|' + item.nm_botao;
+					optionAAA.innerText = 'Anexar|' + item.nm_botao;
+					optionAAA.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAA.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAA.onclick = function (){ bt_continuar.click() }
+					optionGR1.appendChild(optionAAA);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR1)
+				
+				//monta as acoes automatizadas de Comunicação
+				let optionGR2 = document.createElement("optgroup");
+				optionGR2.label = 'INTIMAÇÃO/EXPEDIENTE';
+				for (const [pos, item] of opcoes.aaComunicacao.entries()) {
+					let optionAAC = document.createElement("option");
+					optionAAC.value = 'Comunicação|' + item.nm_botao;
+					optionAAC.innerText = 'Comunicação|' + item.nm_botao;
+					optionAAC.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAC.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAC.onclick = function (){ bt_continuar.click() }
+					optionGR2.appendChild(optionAAC);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR2)
+				
+				//monta as acoes automatizadas de Autogigs
+				let optionGR3 = document.createElement("optgroup");
+				optionGR3.label = 'AUTOGIGS';
+				//monta as acoes automatizadas de Autogigs
+				for (const [pos, item] of opcoes.aaAutogigs.entries()) {
+					let optionAAG = document.createElement("option");
+					optionAAG.style.backgroundColor = 'white';
+					optionAAG.value = 'AutoGigs|' + item.nm_botao;
+					optionAAG.innerText = 'AutoGigs|' + item.nm_botao;
+					optionAAG.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAG.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAG.onclick = function (){ bt_continuar.click() }
+					if (item.nm_botao.includes('[concluir]')) {
+						optionAAG.style.color = 'coral';
+					}
+					optionGR3.appendChild(optionAAG);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR3)
+				
+				//monta as acoes automatizadas de Despacho
+				let optionGR4 = document.createElement("optgroup");
+				optionGR4.label = 'DESPACHO';
+				for (const [pos, item] of opcoes.aaDespacho.entries()) {
+					let optionAAD = document.createElement("option");
+					optionAAD.value = 'Despacho|' + item.nm_botao;
+					optionAAD.innerText = 'Despacho|' + item.nm_botao;
+					optionAAD.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAD.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAD.onclick = function (){ bt_continuar.click() }
+					optionGR4.appendChild(optionAAD);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR4)
+				
+				//monta as acoes automatizadas de Movimento
+				let optionGR5 = document.createElement("optgroup");
+				optionGR5.label = 'MOVIMENTOS';
+				for (const [pos, item] of opcoes.aaMovimento.entries()) {
+					let optionAAM = document.createElement("option");
+					optionAAM.value = 'Movimento|' + item.nm_botao;
+					optionAAM.innerText = 'Movimento|' + item.nm_botao;
+					optionAAM.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAM.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAM.onclick = function (){ bt_continuar.click() }
+					optionGR5.appendChild(optionAAM);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR5)
+				
+				//monta as acoes automatizadas de Checklist
+				let optionGR6 = document.createElement("optgroup");
+				optionGR6.label = 'CHECKLIST';
+				for (const [pos, item] of opcoes.aaChecklist.entries()) {
+					let optionAAE = document.createElement("option");
+					optionAAE.value = 'Checklist|' + item.nm_botao;
+					optionAAE.innerText = 'Checklist|' + item.nm_botao;
+					optionAAE.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAE.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAE.onclick = function (){ bt_continuar.click() }
+					optionGR6.appendChild(optionAAE);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR6)
+								
+				//monta as acoes automatizadas de Retificar Autuação
+				let optionGR7 = document.createElement("optgroup");
+				optionGR7.label = 'RETIFICAR AUTUAÇÃO';
+				let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7','addAutor'],['botao_retificar_autuacao_8','addRéu'],['botao_retificar_autuacao_0','addUnião'],['botao_retificar_autuacao_10','addMPT'],['botao_retificar_autuacao_3','addLeiloeiro'],['botao_retificar_autuacao_4','addPerito'],['botao_retificar_autuacao_addTerceiroTerceiro','Terceiro>Terceiro'],['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],['botao_retificar_autuacao_Falencia','Falência/Rec.Judicial'],['botao_retificar_autuacao_assunto','Assunto'],['botao_retificar_autuacao_justicaGratuita','Justiça Gratuita']];
+
+				[].map.call(aaItemRetificarAutuacao,function(item) {
+					let optionIRA = document.createElement("option");
+					optionIRA.value = 'RetificarAutuação|' + item[0];
+					optionIRA.innerText = 'RetificarAutuação|' + item[1];					
+					optionIRA.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionIRA.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionIRA.onclick = function (){ bt_continuar.click() }
+					optionGR7.appendChild(optionIRA);
+				});
+				selectAcaoAutomatizada.appendChild(optionGR7)
+				
+				//monta as acoes automatizadas de Lançar Movimentos
+				let optionGR8 = document.createElement("optgroup");
+				optionGR8.label = 'LANÇAR MOVIMENTOS';
+				for (const [pos, item] of opcoes.aaLancarMovimentos.entries()) {
+					let optionILM = document.createElement("option");
+					optionILM.value = 'LançarMovimento|' + item.id;
+					optionILM.innerText = 'LançarMovimento|' + item.nm_botao;
+					optionILM.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionILM.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionILM.onclick = function (){ bt_continuar.click() }
+					optionGR8.appendChild(optionILM);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR8)
+				
+				let optionGR9 = document.createElement("optgroup");
+				optionGR9.label = 'CLICAR EM';
+				let aaItemMenuDetalhes = ['Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico'];
+				[].map.call(aaItemMenuDetalhes,function(item) {
+					let optionIMD = document.createElement("option");
+					optionIMD.value = 'Clicar em|' + item;
+					optionIMD.innerText = 'Clicar em|' + item;
+					optionIMD.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionIMD.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionIMD.onclick = function (){ bt_continuar.click() }
+					optionGR9.appendChild(optionIMD);
+				});
+				selectAcaoAutomatizada.appendChild(optionGR9);
+				
+				//monta as acoes automatizadas de VARIADOS
+				let optionGR10 = document.createElement("optgroup");
+				optionGR10.label = 'VARIADOS';
+				for (const [pos, item] of opcoes.aaVariados.entries()) {
+					if (['Atualizar Pagina','Fechar Pagina'].includes(item.nm_botao)) {
+						let optionVAR = document.createElement("option");
+						optionVAR.value = item.nm_botao + '|' + item.nm_botao;
+						optionVAR.innerText = item.nm_botao + '|' + item.nm_botao;
+						optionVAR.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+						optionVAR.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+						optionVAR.onclick = function (){ bt_continuar.click() }
+						optionGR10.appendChild(optionVAR);
+					} else {
+						let optionVAR = document.createElement("option");
+						optionVAR.value = 'Variados|' + item.nm_botao;
+						optionVAR.innerText = 'Variados|' + item.nm_botao;
+						optionVAR.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+						optionVAR.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+						optionVAR.onclick = function (){ bt_continuar.click() }
+						optionGR10.appendChild(optionVAR);
+					}
+				}
+				selectAcaoAutomatizada.appendChild(optionGR10)
+
+				container.appendChild(selectAcaoAutomatizada);				
+				container.appendChild(bt_continuar);
+				elemento1.appendChild(container);
+				document.body.appendChild(elemento1);
+					
+			} else {
+				resolver(null);
+			}
+		}
+	);
+
+	function criarFiltro(nome,icone) {
+		let filtro = document.createElement("span");
+		filtro.style = "cursor: pointer; margin-left: 1vw; color: #333; position: relative; top: 0.3vh; opacity: .3;";
+		filtro.onmouseenter  = function () { 
+			this.style.opacity = '.8';
+			document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = nome;
+		}
+		filtro.onmouseleave  = function () {
+			this.style.opacity = '.3';
+			document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = '';
+		}
+		filtro.onclick = function (){
+			for (const [pos, item] of document.querySelectorAll('select optgroup').entries()) {
+				if (item.label == nome) { 
+					item.style.display = 'revert';
+				} else {
+					item.style.display = 'none';
+				}
+			}
+		}
+		let i = document.createElement("i");
+		i.className = icone;
+		filtro.appendChild(i);
+		return filtro;
+	}
 }
 
 function sleep(ms) {

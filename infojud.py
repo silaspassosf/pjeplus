@@ -89,13 +89,48 @@ def Infojud(ni=None, driver=None, log=True, abrir_navegador=True, usar_perfil_re
                     print('[INFOJUD] LOGIN MANUAL: Faça o login manualmente se necessário.')
             return link
         
-        # Se driver for passado (PJE), abre em nova aba mas SEM automação de login
-        driver.execute_script(
-            f"window.open('{link}', '_blank', 'noopener,noreferrer,width=1024,height=768,left=100,top=100');")
-        time.sleep(2 + 1.5 * (0.5 + __import__('random').random()))
-        janelas = driver.window_handles
-        driver.switch_to.window(janelas[-1])
-        time.sleep(1.5 + 1.5 * __import__('random').random())
+        # Se driver for passado (PJE), abre em nova aba com validação de contexto
+        try:
+            # Valida contexto antes de abrir nova aba
+            current_handles = driver.window_handles
+            current_handle = driver.current_window_handle
+            if not current_handles or current_handle not in current_handles:
+                if log:
+                    print('[INFOJUD][ERRO] Contexto do browser inválido - não abrindo nova aba')
+                return link
+            
+            # Abre nova aba
+            driver.execute_script(
+                f"window.open('{link}', '_blank', 'noopener,noreferrer,width=1024,height=768,left=100,top=100');")
+            time.sleep(2 + 1.5 * (0.5 + __import__('random').random()))
+            
+            # Valida que nova aba foi criada
+            new_handles = driver.window_handles
+            if len(new_handles) <= len(current_handles):
+                if log:
+                    print('[INFOJUD][ERRO] Nova aba não foi criada - contexto pode estar perdido')
+                return link
+            
+            # Troca para nova aba com validação
+            try:
+                driver.switch_to.window(new_handles[-1])
+                # Valida que conseguiu trocar
+                if driver.current_window_handle != new_handles[-1]:
+                    if log:
+                        print('[INFOJUD][ERRO] Falha ao trocar para nova aba - contexto perdido')
+                    return link
+                    
+                time.sleep(1.5 + 1.5 * __import__('random').random())
+                
+            except Exception as switch_error:
+                if log:
+                    print(f'[INFOJUD][ERRO] Erro ao trocar para nova aba: {switch_error}')
+                return link
+            
+        except Exception as tab_error:
+            if log:
+                print(f'[INFOJUD][ERRO] Erro no gerenciamento de abas: {tab_error}')
+            return link
         
         if log:
             print(f"[INFOJUD] Consulta Infojud aberta em nova aba do PJE.")

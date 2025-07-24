@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang='pt-BR'>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            img { display: none;}
+            body {
+                font-family: Open Sans,Arial,Verdana,sans-serif;
+            }
+            
+            ul {
+                list-style-type: none;
+                gap: 5px;
+                display: grid;
+                grid-auto-flow: row;
+                grid-template-columns: repeat(4,auto);
+            }
+
+            dadosprocesso {				
+                display: grid;
+                outline: 2px solid lightgray;
+            }
+
+            poloAtivo {
+                display: grid;
+                outline: 2px solid #1eb159;
+            }
+
+            poloPassivo {
+                display: grid;
+                outline: 2px solid #f0845a;
+            }
+
+            poloOutros {
+                display: grid;
+                outline: 2px solid #f1b508;
+            }
+            
+            .negrito{
+                font-weight: bold;
+            }
+
+            .italico{
+                font-style: italic;
+            }
+
+            .recuado{					
+                padding-left: 30px;
+            }
+
+            .comum {
+                padding: 5px;					
+            }
+
+            .selecionavel {
+                cursor:pointer;
+                border: 2px solid white;							
+            }
+            
+            .selecionavel:hover {
+                background: #95959570;
+                display: inline;
+                position: relative;
+                color: #555;					
+            }
+            
+            .titulo {
+                font-size: 24px;
+                color: #373a3c;
+                text-align: center;
+            }
+
+            .dadosprocesso {
+                background: lightgray;
+                padding: 10px;
+                cursor: pointer;
+            }
+
+            .poloativo {
+                background: #1eb159;
+                padding: 10px;
+                cursor: pointer;
+            }
+
+            .polopassivo {
+                background: #f0845a;
+                padding: 10px;
+                cursor: pointer;
+            }
+
+            .polooutros {
+                background: #f1b508;
+                padding: 10px;
+                cursor: pointer;
+            }
+
+            .representante {
+                color: #777;
+                font-size: 85%;
+            }
+
+            .procurador {
+                color: #777;
+                font-size: 85%;
+                padding-left: 60px;
+            }
+
+            .ocultar {
+                display: none;
+            }
+
+            .exibir {
+                display: flex;
+            }
+
+            .opcao {
+                opacity: .6;
+            }
+
+            endereco {
+                padding: 5px 5px 0 60px;
+                font-size: 13px;
+                font-style: italic;
+                opacity: .6;
+                color: brown;
+            }
+
+            domicilio {
+                padding: 5px 5px 0 60px;
+                font-size: 13px;
+                font-style: italic;
+                opacity: .6;
+                font-weight: bold;
+                color: teal;
+            }
+
+            .carregando {
+                width: 10px;
+                aspect-ratio: 1;
+                border-radius: 50%;
+                animation: l5 1s infinite linear alternate;
+                margin: 10px auto;
+                color: white;
+                padding: 0;
+            }
+
+            @keyframes l5 {
+                0%  {box-shadow: 20px 0 #000, -20px 0 #0002;background: #000 }
+                33% {box-shadow: 20px 0 #000, -20px 0 #0002;background: #0002}
+                66% {box-shadow: 20px 0 #0002,-20px 0 #000; background: #0002}
+                100%{box-shadow: 20px 0 #0002,-20px 0 #000; background: #000 }
+            }
+
+        </style>
+        <title id='maisPje_blob_processoMemoria'> maisPJe - Processo Memória </title>
+	</head>
+
+	<body id='maisPje_blob_processoMemoria_body'>
+        <span class='titulo'>Processo memória - Dados</span><br><br>
+		<script src="popupPainelCopiaECola.js"></script>
+        <script src="../comum/mini-selenium.js"></script>
+        <script src="PJe-Atual/gigs-plugin.js"></script>
+	</body>
+</html>

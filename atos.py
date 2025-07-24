@@ -336,27 +336,35 @@ def ato_judicial(
 ):
     """
     Fluxo generalizado para qualquer ato judicial, seguindo a ordem:
-    1. Descrição (NOVO)
-    2. Sigilo
-    3. PEC
-    4. Prazo
-    5. Movimento
-    6. GIGS
-    7. Fechar aba
-    8. Função extra de sigilo (se necessário)
+    1. Modelo (fluxo_cls)
+    2. Descrição
+    3. Sigilo
+    4. PEC
+    5. Prazo
+    6. Movimento
+    7. Assinar
+    8. Função extra de sigilo (NOTA: não executada aqui, deve ser feita externamente)
+    
+    NOVO COMPORTAMENTO DE SIGILO:
+    - A função visibilidade_sigilosos não é mais executada automaticamente
+    - Deve ser executada externamente após fechar a aba e estar na URL /detalhe
+    - Use executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado)
+    
+    :return: (sucesso: bool, sigilo_ativado: bool)
     """
     try:
-        # 1. Preencher campo Descrição se fornecido
-        if descricao:
-            try:
-                # Seletor do campo de descrição conforme gigs-plugin.js para despacho
-                campo_desc = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="descricao"], input[name="descricao"], input[aria-label="Descrição"], input[data-placeholder="Descrição"]')
-                campo_desc.clear()
-                campo_desc.send_keys(descricao)
-                for ev in ['input', 'change', 'keyup']:
-                    driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_desc, ev)
-            except Exception as e:
-                print(f'[ATO][DESCRICAO][WARN] Não foi possível preencher o campo Descrição: {e}')
+        # LOGS INICIAIS DE DEBUG
+        print(f'[ATO][ENTRADA] ================== INÍCIO ato_judicial ==================')
+        print(f'[ATO][ENTRADA] conclusao_tipo: {conclusao_tipo!r}')
+        print(f'[ATO][ENTRADA] modelo_nome: {modelo_nome!r}')
+        print(f'[ATO][ENTRADA] prazo: {prazo!r}')
+        print(f'[ATO][ENTRADA] marcar_pec: {marcar_pec!r}')
+        print(f'[ATO][ENTRADA] movimento: {movimento!r}')
+        print(f'[ATO][ENTRADA] descricao: {descricao!r}')
+        print(f'[ATO][ENTRADA] sigilo: {sigilo!r}')
+        print(f'[ATO][ENTRADA] debug: {debug!r}')
+        print(f'[ATO][ENTRADA] =======================================================')
+        
         # 1. Executa fluxo_cls até o clique/foco no campo de modelo
         if debug: print(f'[ATO] Executando fluxo_cls para {conclusao_tipo}...')
         if not fluxo_cls(driver, conclusao_tipo):
@@ -414,76 +422,106 @@ def ato_judicial(
             return False
 
         # LOGS DETALHADOS DE FLUXO
-        print(f'[ATO][DEBUG] Iniciando etapas pós-Salvar: Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo')
-        # 1. Sigilo (apenas ativa se explicitamente solicitado)
-        sigilo_ativado = False
-        print('[ATO][DEBUG] Etapa: Sigilo')
-        try:
-            ativar_sigilo = str(sigilo).lower() in ("sim", "true", "1")
-            if ativar_sigilo:
-                # Busca todos os mat-slide-toggle e procura o que tem texto 'Sigilo' próximo
-                toggles = driver.find_elements(By.CSS_SELECTOR, 'mat-slide-toggle')
-                sigilo_toggle = None
-                sigilo_input = None
-                for toggle in toggles:
-                    try:
-                        # Verifica se o texto 'Sigilo' está no label, no próprio toggle ou em elementos próximos
-                        label_text = ''
-                        try:
-                            label = toggle.find_element(By.CSS_SELECTOR, 'label')
-                            label_text = label.text.strip().lower()
-                        except:
-                            pass
-                        # Também verifica texto do próprio toggle
-                        toggle_text = toggle.text.strip().lower()
-                        # Verifica irmãos próximos (ex: span, div)
-                        sibling_text = ''
-                        try:
-                            parent = toggle.find_element(By.XPATH, '..')
-                            siblings = parent.find_elements(By.XPATH, './*')
-                            for sib in siblings:
-                                if sib != toggle:
-                                    sibling_text += sib.text.strip().lower() + ' '
-                        except:
-                            pass
-                        if 'sigilo' in label_text or 'sigilo' in toggle_text or 'sigilo' in sibling_text:
-                            sigilo_toggle = toggle
-                            try:
-                                sigilo_input = toggle.find_element(By.CSS_SELECTOR, 'input[type="checkbox"], input.mat-slide-toggle-input')
-                            except:
-                                sigilo_input = None
-                            break
-                    except Exception as e:
-                        print(f'[ATO][SIGILO][DEBUG] Erro ao inspecionar toggle: {e}')
-                checked = False
-                if sigilo_input:
-                    checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected() or sigilo_input.get_attribute('checked') == 'true'
-                # Se não está ativado, tenta clicar
-                if not checked and sigilo_toggle:
-                    try:
-                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', sigilo_toggle)
-                        driver.execute_script('arguments[0].click();', sigilo_toggle)
-                        time.sleep(0.3)
-                        # Rebusca input para checar estado
-                        if sigilo_input:
-                            checked = sigilo_input.get_attribute('aria-checked') == 'true' or sigilo_input.is_selected() or sigilo_input.get_attribute('checked') == 'true'
-                        if checked:
-                            sigilo_ativado = True
-                            print('[ATO][SIGILO][DEBUG] Sigilo ativado por toggle associado ao texto Sigilo.')
-                        else:
-                            print('[ATO][SIGILO][ERRO] Não foi possível ativar o sigilo (toggle não marcou).')
-                    except Exception as e:
-                        print(f'[ATO][SIGILO][ERRO] Falha ao clicar no toggle de sigilo: {e}')
-                elif checked:
-                    sigilo_ativado = True
-                    print('[ATO][SIGILO][DEBUG] Sigilo já estava ativado.')
+        print(f'[ATO][DEBUG] Iniciando etapas pós-Salvar: Descrição → Sigilo → PEC → Prazo → Movimento → GIGS → Fechar aba → Função extra de sigilo')
+        
+        # 1. DESCRIÇÃO (MOVIDA PARA CÁ - APÓS SALVAR, ANTES DE SIGILO)
+        print('[ATO][DEBUG] ========== ETAPA 1: DESCRIÇÃO ==========')
+        print(f'[ATO][DESCRICAO][DEBUG] Parâmetro descricao recebido: {descricao!r}')
+        if descricao:
+            print(f'[ATO][DESCRICAO][DEBUG] Tentando preencher campo de descrição com: "{descricao}"')
+            try:
+                # Usa apenas o seletor que está funcionando
+                campo_desc = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Descrição"]')
+                print(f'[ATO][DESCRICAO][DEBUG] ✓ Campo de descrição encontrado')
+                
+                # Limpa campo
+                print(f'[ATO][DESCRICAO][DEBUG] Limpando campo de descrição...')
+                campo_desc.clear()
+                
+                # Digita descrição
+                print(f'[ATO][DESCRICAO][DEBUG] Digitando descrição: "{descricao}"')
+                campo_desc.send_keys(descricao)
+                
+                # Dispara eventos
+                print(f'[ATO][DESCRICAO][DEBUG] Disparando eventos JS...')
+                for ev in ['input', 'change', 'keyup']:
+                    driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_desc, ev)
+                    print(f'[ATO][DESCRICAO][DEBUG] ✓ Evento "{ev}" disparado')
+                
+                # Verifica se o valor foi preenchido
+                valor_atual = campo_desc.get_attribute('value')
+                print(f'[ATO][DESCRICAO][DEBUG] Valor atual no campo: "{valor_atual}"')
+                
+                if valor_atual == descricao:
+                    print(f'[ATO][DESCRICAO][OK] ✓ Descrição preenchida com sucesso!')
                 else:
-                    print('[ATO][SIGILO][ERRO] Não foi possível localizar toggle de sigilo associado ao texto Sigilo.')
+                    print(f'[ATO][DESCRICAO][WARN] ⚠ Valor no campo não confere (esperado: "{descricao}", atual: "{valor_atual}")')
+                            
+            except Exception as e:
+                print(f'[ATO][DESCRICAO][ERRO] ✗ Exceção ao tentar preencher descrição: {e}')
+                import traceback
+                traceback.print_exc()
+        else:
+            print('[ATO][DESCRICAO][DEBUG] Nenhuma descrição fornecida, pulando etapa.')
+        
+        print('[ATO][DEBUG] ==========================================')
+        
+        # 2. Sigilo (apenas ativa se explicitamente solicitado)
+        sigilo_ativado = False
+        print('[ATO][DEBUG] ========== ETAPA 2: SIGILO ==========')
+        print(f'[ATO][SIGILO][DEBUG] Parâmetro sigilo recebido: {sigilo!r}')
+        
+        try:
+            # Verifica se deve ativar sigilo
+            ativar_sigilo = str(sigilo).lower() in ("sim", "true", "1")
+            print(f'[ATO][SIGILO][DEBUG] Deve ativar sigilo? {ativar_sigilo}')
+            
+            if ativar_sigilo:
+                print(f'[ATO][SIGILO][DEBUG] Tentando ativar sigilo...')
+                
+                # Busca toggle de sigilo
+                toggles = driver.find_elements(By.CSS_SELECTOR, 'mat-slide-toggle')
+                
+                sigilo_toggle = None
+                for toggle in toggles:
+                    if 'sigilo' in toggle.text.lower():
+                        sigilo_toggle = toggle
+                        break
+                
+                if sigilo_toggle:
+                    # Verifica se já está ativado
+                    sigilo_input = sigilo_toggle.find_element(By.CSS_SELECTOR, 'input[type="checkbox"], input.mat-slide-toggle-input')
+                    checked = sigilo_input.get_attribute('aria-checked') == 'true'
+                    
+                    if not checked:
+                        # Clica no label do toggle
+                        label = sigilo_toggle.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
+                        driver.execute_script('arguments[0].click();', label)
+                        print(f'[ATO][SIGILO][DEBUG] ✓ Clique realizado no toggle de sigilo')
+                        time.sleep(0.5)
+                        
+                        # Verifica se foi ativado
+                        sigilo_input_pos = sigilo_toggle.find_element(By.CSS_SELECTOR, 'input[type="checkbox"], input.mat-slide-toggle-input')
+                        if sigilo_input_pos.get_attribute('aria-checked') == 'true':
+                            sigilo_ativado = True
+                            print('[ATO][SIGILO][OK] ✓ Sigilo ativado com sucesso!')
+                        else:
+                            print('[ATO][SIGILO][ERRO] ✗ Sigilo não foi ativado')
+                    else:
+                        sigilo_ativado = True
+                        print('[ATO][SIGILO][OK] ✓ Sigilo já estava ativado.')
+                else:
+                    print('[ATO][SIGILO][ERRO] ✗ Toggle de sigilo não encontrado')
             else:
                 print(f'[ATO][SIGILO][DEBUG] Sigilo não solicitado. Nenhuma ação.')
+                
         except Exception as e:
-            print(f'[ATO][ERRO] Não foi possível ajustar Sigilo: {e}')
-        # 2. PEC
+            print(f'[ATO][SIGILO][ERRO] ✗ Exceção durante etapa de sigilo: {e}')
+        
+        print(f'[ATO][SIGILO][RESULTADO] sigilo_ativado = {sigilo_ativado}')
+        print('[ATO][DEBUG] ==========================================')
+        
+        # 3. PEC
         print('[ATO][DEBUG] Etapa: PEC')
         if marcar_pec is not None:
             try:
@@ -569,7 +607,7 @@ def ato_judicial(
                     checkboxes = driver.find_elements(By.CSS_SELECTOR, 'mat-checkbox')
                     print(f'[ATO][PEC][DEBUG] Encontrados {len(checkboxes)} mat-checkbox na página')
                 except:
-                    pass        # 3. Prazo
+                    pass        # 4. Prazo
         print('[ATO][DEBUG] Etapa: Prazo')
         if prazo is not None:
             try:
@@ -591,7 +629,7 @@ def ato_judicial(
                 return False
         else:
             print('[ATO][PRAZO][DEBUG] Nenhum prazo informado, etapa ignorada.')
-               # 4. Movimento
+               # 5. Movimento
         print('[ATO][DEBUG] Etapa: Movimento')
         if movimento:
             try:
@@ -790,7 +828,7 @@ def ato_judicial(
                 except Exception as edebug:
                     print(f'[ATO][MOVIMENTO][DEPURACAO][ERRO] Falha ao depurar checkboxes/abas: {edebug}')
                 return False
-        # 5. Assinar
+        # 6. Assinar
         print('[ATO][DEBUG] Etapa: Assinar')
         if Assinar:
             try:
@@ -806,35 +844,96 @@ def ato_judicial(
         else:
             print('[ATO][ASSINAR] Assinatura não solicitada para este ato.')
 
-        # 6. Fechar aba
-        print('[ATO][DEBUG] Etapa: Fechar aba')
-        try:
-            if len(driver.window_handles) > 1:
-                driver.close()
-                driver.switch_to.window(driver.window_handles[0])
-                print('[ATO] Aba da minuta fechada e foco retornado para aba principal.')
-        except Exception as e:
-            print(f'[ATO][ERRO] Falha ao fechar aba da minuta: {e}')
+        # 7. Salvamento final obrigatório (para persistir sigilo e outras mudanças)
+        print('[ATO][DEBUG] Etapa: Salvamento final')
+        if sigilo_ativado or True:  # Sempre salva no final para garantir persistência
+            try:
+                print('[ATO][SAVE][DEBUG] Executando salvamento final para persistir todas as mudanças...')
+                btn_salvar_final = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salvar"]'))
+                )
+                btn_salvar_final.click()
+                print('[ATO][SAVE][OK] ✓ Salvamento final executado com sucesso!')
+                time.sleep(1.5)  # Aguarda salvamento ser processado
+            except Exception as save_err:
+                print(f'[ATO][SAVE][WARN] Falha no salvamento final (não crítico): {save_err}')
+                # Continua mesmo se não conseguir salvar
 
-        # 7. Função extra de sigilo (se ativado)
+        # 8. Fechar aba
+        # [REMOVIDO] O fechamento de aba deve ser feito apenas no fluxo de lista (ex: m1.py), nunca aqui.
+        
+        # 8. Função extra de sigilo (se ativado) - MOVIDA para ser executada após fechamento da aba
+        # Esta função agora deve ser chamada externamente após fechar a aba e estar na URL /detalhe
         print('[ATO][DEBUG] Etapa: Função extra de sigilo')
         if sigilo_ativado:
-            try:
-                from Fix import visibilidade_sigilosos
-                visibilidade_sigilosos(driver, log=debug)
-                print('[ATO] Fluxo extra de visibilidade sigilosa executado.')
-            except Exception as e:
-                print(f'[ATO][ERRO] Falha no fluxo extra de sigilo: {e}')
+            print('[ATO][SIGILO][INFO] Sigilo foi ativado. A função visibilidade_sigilosos deve ser executada após fechamento da aba na URL /detalhe.')
+            # NOTA: A função visibilidade_sigilosos não é mais executada aqui.
+            # Ela deve ser chamada externamente pelo fluxo principal (ex: m1.py) após:
+            # 1. Fechar a aba atual (que está em /minutar)
+            # 2. Voltar para a aba principal (que deve estar em /detalhe)
+            # 3. Executar: visibilidade_sigilosos(driver, log=debug)
+        else:
+            print('[ATO][SIGILO][INFO] Sigilo não foi ativado. Função visibilidade_sigilosos não necessária.')
 
         print(f'[ATO] Fluxo de ato judicial ({conclusao_tipo}, {modelo_nome}) finalizado com sucesso.')
-        return True
-
+        
+        # RETORNA: (sucesso, sigilo_ativado) para permitir execução posterior de visibilidade_sigilosos
+        return True, sigilo_ativado
     except Exception as e:
         print(f'[ATO][ERRO] Falha no fluxo do ato judicial ({conclusao_tipo}, {modelo_nome}): {e}')
         try:
             driver.save_screenshot(f'erro_ato_{conclusao_tipo}_{modelo_nome}.png')
         except Exception as screen_err:
             print(f'[ATO][WARN] Falha ao salvar screenshot do erro: {screen_err}')
+        # RETORNA: (falha, sigilo_nao_ativado)
+        return False, False
+
+def executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=False):
+    """
+    Executa a função visibilidade_sigilosos se sigilo foi ativado.
+    NOVO: Atualiza a página com F5 antes de executar as ações de visibilidade.
+    Deve ser chamada na aba /detalhe.
+    
+    :param driver: WebDriver
+    :param sigilo_ativado: Boolean indicando se sigilo foi ativado
+    :param debug: Boolean para logs detalhados
+    :return: True se executou com sucesso ou não era necessário, False se falhou
+    """
+    if not sigilo_ativado:
+        print('[VISIBILIDADE][INFO] Sigilo não foi ativado. Função visibilidade_sigilosos não necessária.')
+        return True
+    
+    try:
+        # Verifica se está na URL correta (/detalhe)
+        current_url = driver.current_url
+        if '/detalhe' not in current_url:
+            print(f'[VISIBILIDADE][WARN] URL atual não contém /detalhe: {current_url}')
+            print('[VISIBILIDADE][WARN] A função visibilidade_sigilosos deve ser executada na URL /detalhe')
+        
+        # NOVO: Atualiza a página com F5 como primeira ação
+        print('[VISIBILIDADE][INFO] Atualizando página com F5...')
+        from selenium.webdriver.common.keys import Keys
+        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.F5)
+        
+        # Aguarda a página recarregar
+        import time
+        time.sleep(3)
+        print('[VISIBILIDADE][INFO] Página atualizada. Executando visibilidade_sigilosos...')
+        
+        # Usa a função local do atos.py que já tem tab switching e F5
+        resultado = visibilidade_sigilosos(driver, log=debug)
+        
+        if resultado:
+            print('[VISIBILIDADE][OK] ✓ Função visibilidade_sigilosos executada com sucesso.')
+            return True
+        else:
+            print('[VISIBILIDADE][ERRO] ✗ Função visibilidade_sigilosos falhou.')
+            return False
+            
+    except Exception as e:
+        print(f'[VISIBILIDADE][ERRO] ✗ Exceção ao executar visibilidade_sigilosos: {e}')
+        import traceback
+        traceback.print_exc()
         return False
 
 def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, descricao=None, sigilo=None, perito=False, Assinar=False):
@@ -854,7 +953,12 @@ def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, m
             perito=perito_ if perito_ is not None else perito,
             Assinar=Assinar_ if Assinar_ is not None else Assinar
         )
-        return ato_judicial(**call_args)
+        sucesso, sigilo_ativado = ato_judicial(**call_args)
+        
+        # Para compatibilidade com código existente, retorna apenas sucesso
+        # mas armazena sigilo_ativado como atributo para acesso posterior
+        wrapper.ultimo_sigilo_ativado = sigilo_ativado
+        return sucesso
     return wrapper
 
 # Wrappers gerados automaticamente
@@ -966,7 +1070,7 @@ ato_pesqliq = make_ato_wrapper(
     conclusao_tipo='Homologação de Cálculos',
     modelo_nome='xsbacen',
     prazo=30,
-    marcar_pec=True,
+    marcar_pec=False,
     movimento=None,
     gigs=None,
     marcar_primeiro_destinatario=True,
@@ -1001,7 +1105,7 @@ ato_pesquisas = make_ato_wrapper(
     conclusao_tipo='BACEN',
     modelo_nome='xsbacen',
     prazo=30,
-    marcar_pec=True,
+    marcar_pec=False,
     movimento='bloqueio',
     gigs=None,
     marcar_primeiro_destinatario=True,
@@ -1033,6 +1137,15 @@ ato_fal = make_ato_wrapper(
     descricao='Falência'
 )
 
+ato_prev = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='xprev',
+    prazo=10,
+    marcar_pec=False,
+    marcar_primeiro_destinatario=True,
+    descricao='tentativa prevjud'
+)
+
 # ato_pesquisas permanece manual, pois tem lógica própria
 def pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False, sigilo=True, descricao=None, Assinar=True):
     try:
@@ -1047,7 +1160,7 @@ def pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_
         except Exception:
             print('[PESQUISAS] Botão "Iniciar a execução" não encontrado ou não clicável, seguindo fluxo normal.')
         # 2. Segue fluxo padrão do ato judicial
-        return ato_judicial(
+        sucesso, sigilo_ativado = ato_judicial(
             driver,
             conclusao_tipo='BACEN',
             modelo_nome='xsbacen',
@@ -1060,6 +1173,10 @@ def pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_
             sigilo=True,
             descricao='Pesquisas'
         )
+        
+        # Para compatibilidade, armazena sigilo_ativado como atributo
+        pesquisas.ultimo_sigilo_ativado = sigilo_ativado
+        return sucesso
     except Exception as e:
         print(f'[PESQUISAS][ERRO] Falha no fluxo do ato de pesquisas: {e}')
         try:
@@ -1100,7 +1217,6 @@ def comunicacao_judicial(
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
         from selectors_pje import BTN_TAREFA_PROCESSO
-        aba_origem = driver.current_url  # Armazena a URL atual
         abas_antes = set(driver.window_handles)
         btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
         if not btn_abrir_tarefa:
@@ -1193,7 +1309,7 @@ def comunicacao_judicial(
                     break
         # 2. Por texto visível (span ou button)
         if not btn_comunic:
-            btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'analise')]]")
+            btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'analise')]]")
             for btn in btns:
                 if btn.is_displayed() and btn.is_enabled():
                     btn_comunic = btn
@@ -1431,8 +1547,18 @@ def comunicacao_judicial(
             btn_pec_polo = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
             )
+            
+            # Primeiro clique no polo passivo
             btn_pec_polo.click()
-            log('[DEBUG] Clique em .fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo realizado.')
+            log('[DEBUG] Primeiro clique em .fa.fa-user.pec-polo-passivo-processo.pec-botao-intimar-polo-partes-processo realizado.')
+            
+            # Aguarda 2 segundos
+            time.sleep(2)
+            log('[DEBUG] Aguardando 2 segundos entre os cliques.')
+            
+            # Segundo clique no polo passivo
+            btn_pec_polo.click()
+            log('[DEBUG] Segundo clique em .fa.fa-user.pec-polo-passivo-processo.pec-botao-intimar-polo-partes-processo realizado.')
             
             # Maximizar a tela
             driver.maximize_window()
@@ -1443,7 +1569,7 @@ def comunicacao_judicial(
             log('[DEBUG] Zoom aplicado para 60%.')
             
         except Exception as e:
-            log(f'[ERRO] Não foi possível clicar em .fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo: {e}')
+            log(f'[ERRO] Não foi possível clicar em .fa.fa-user.pec-polo-passivo-processo.pec-botao-intimar-polo-partes-processo: {e}')
             return False
         
         # 4. Aguardar carregamento (pode ser necessário aguardar algum elemento específico, aqui aguarda 1s)
@@ -1467,48 +1593,42 @@ def comunicacao_judicial(
             return False
         time.sleep(1)
 
-        # Fechar aba de minutas
-        if '/minutas' in driver.current_url:
-            try:
-                driver.close()
-            except Exception as e:
-                log(f"[ERRO] Não foi possível fechar aba de minutas: {e}")
-            if aba_origem in driver.window_handles:
-                try:
-                    driver.switch_to.window(aba_origem)
-                except Exception as e:
-                    log(f"[ERRO] Não foi possível voltar para aba original: {e}")
-            else:
-                log('[ERRO] Aba original não está mais disponível após fechar minutas.')
-        # Visibilidade sigilosa
+        # Aguarda salvamento ser processado
+        time.sleep(2)
+        log('[DEBUG] Aguardando processamento do salvamento...')
+
+        # [REMOVIDO] Fechamento de aba deve ser feito apenas no fluxo de lista (ex: m1.py), nunca aqui.
+        # A limpeza de abas é responsabilidade do caller (m1.py)
+        
+        # Visibilidade sigilosa - MOVIDA para após salvamento completo
         if str(sigilo).lower() in ("sim", "true", "1"):
             try:
-                from Fix import visibilidade_sigilosos
+                log('[COMUNICACAO] Executando visibilidade_sigilosos após salvamento...')
+                # Usa a função local do atos.py que já tem tab switching e F5
                 visibilidade_sigilosos(driver, log=debug)
                 log('[COMUNICACAO] Visibilidade extra aplicada por sigilo positivo.')
             except Exception as e:
                 log(f"[COMUNICACAO][ERRO] Falha ao aplicar visibilidade extra: {e}")
         
-        # Chama Infojud para consulta IDPJ se for o caso
-        if 'idpj' in nome_comunicacao.lower():
-            try:
-                from infojud import Infojud
-                log('[COMUNICACAO] Chamando Infojud para consulta IDPJ...')
-                Infojud(driver=driver, log=True)
-                log('[COMUNICACAO] Infojud executado com sucesso.')
-            except Exception as e:
-                log(f"[COMUNICACAO][ERRO] Falha ao executar Infojud: {e}")
+        # [REMOVIDO] Chamada do Infojud movida para m1.py para evitar conflitos de contexto
+        # A execução do Infojud deve ser feita após todas as operações de PEC estarem completas
         
         log('Comunicação processual finalizada.')
        
         return True
     except Exception as e:
         log(f"[ERRO] Falha no fluxo de comunicação: {e}")
-        if 'aba_origem' in locals() and aba_origem in driver.window_handles:
-            try:
-                driver.switch_to.window(aba_origem)
-            except Exception as e:
-                log(f"[ERRO] Falha ao tentar voltar para aba original no erro principal: {e}")
+        # Tenta preservar contexto do browser em caso de erro
+        try:
+            current_handles = driver.window_handles
+            if current_handles:
+                # Usa primeira aba disponível se contexto ainda válido
+                driver.switch_to.window(current_handles[0])
+                log('[DEBUG] Contexto preservado usando primeira aba disponível após erro.')
+            else:
+                log('[ERRO] Contexto do browser completamente perdido.')
+        except Exception as recovery_error:
+            log(f"[ERRO] Contexto do browser perdido - impossível recuperar: {recovery_error}")
         return False
 
 def make_comunicacao_wrapper(
@@ -1555,7 +1675,7 @@ pec_decisao = make_comunicacao_wrapper(
     sigilo=False,
     modelo_nome='xs dec reg',
     subtipo='Intimação',  # Subtipo igual ao tipo_expediente
-    gigs_extra=(7, 'Guilherme - carta')
+    gigs_extra=(7, 'xs - carta')
 )
 pec_idpj = make_comunicacao_wrapper(
     tipo_expediente='Intimação',
@@ -1763,6 +1883,183 @@ def mov_exec(driver, debug=False):
 # BLOCO 4 - FLUXOS DE EXECUÇÃO E AUXILIARES
 # ====================================================
 
+def visibilidade_sigilosos(driver, polo='ativo', log=False):
+    """
+    Aplica visibilidade a documentos sigilosos anexados automaticamente.
+    NOVO: Automaticamente troca para aba /detalhe e atualiza a página com driver.refresh().
+    Sequência: Tab switch → refresh → Múltipla seleção → Primeira checkbox → Visibilidade → Salvar
+    
+    :param driver: A instância do WebDriver.
+    :param polo: 'ativo', 'passivo', 'ambos'. Define qual polo será selecionado.
+    :param log: Ativa logs detalhados.
+    :return: True se executou com sucesso, False caso contrário.
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    
+    if log:
+        print(f"[VISIBILIDADE] Iniciando atribuição de visibilidade para polo: '{polo}'")
+
+    try:
+        # NOVO: Troca para aba /detalhe se houver múltiplas abas
+        if len(driver.window_handles) > 1:
+            if log:
+                print("[VISIBILIDADE] Múltiplas abas detectadas. Trocando para primeira aba (/detalhe)...")
+            driver.switch_to.window(driver.window_handles[0])
+            
+            current_url = driver.current_url
+            if log:
+                print(f"[VISIBILIDADE] URL após trocar para primeira aba: {current_url}")
+                
+            if '/detalhe' in current_url:
+                if log:
+                    print("[VISIBILIDADE] ✓ Agora está na aba /detalhe correta")
+            else:
+                if log:
+                    print(f"[VISIBILIDADE] ⚠ URL não contém /detalhe: {current_url}")
+        else:
+            current_url = driver.current_url
+            if log:
+                print(f"[VISIBILIDADE] Apenas uma aba. URL atual: {current_url}")
+        
+        # NOVO: Atualiza a página com F5 - APENAS driver.refresh()
+        if log:
+            print("[VISIBILIDADE] Atualizando página com driver.refresh()...")
+        
+        try:
+            driver.refresh()
+            time.sleep(3)  # Aguarda a página recarregar
+            if log:
+                print("[VISIBILIDADE][F5] ✓ Página atualizada com driver.refresh()")
+        except Exception as refresh_err:
+            if log:
+                print(f"[VISIBILIDADE][F5][ERRO] Falha no refresh: {refresh_err}")
+            return False
+        
+        # Aguarda a página estar completamente carregada
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+            if log:
+                print("[VISIBILIDADE][F5] ✓ Página completamente carregada")
+        except:
+            if log:
+                print("[VISIBILIDADE][F5] ⚠ Timeout aguardando carregamento completo")
+        
+        if log:
+            print("[VISIBILIDADE] Iniciando sequência de visibilidade...")
+
+        # 1. Ativa múltipla seleção PRIMEIRO
+        if log:
+            print("[VISIBILIDADE] 1. Ativando múltipla seleção...")
+        try:
+            btn_multi = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]')
+            btn_multi.click()
+            time.sleep(0.5)
+            if log:
+                print("[VISIBILIDADE] ✓ Múltipla seleção ativada")
+        except Exception as e:
+            if log:
+                print(f'[VISIBILIDADE][ERRO] Falha ao ativar múltipla seleção: {e}')
+            return False
+            
+        # 2. Clica na primeira checkbox encontrada na timeline
+        if log:
+            print("[VISIBILIDADE] 2. Procurando primeira checkbox na timeline...")
+        try:
+            primeira_checkbox = driver.find_element(By.CSS_SELECTOR, 'ul.pje-timeline mat-card mat-checkbox label')
+            primeira_checkbox.click()
+            time.sleep(0.5)
+            if log:
+                print("[VISIBILIDADE] ✓ Primeira checkbox marcada")
+        except Exception as e:
+            if log:
+                print(f'[VISIBILIDADE][ERRO] Falha ao marcar primeira checkbox: {e}')
+            return False
+            
+        # 3. Clica no botão de visibilidade
+        if log:
+            print("[VISIBILIDADE] 3. Clicando no botão de visibilidade...")
+        try:
+            btn_visibilidade = driver.find_element(By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
+            btn_visibilidade.click()
+            time.sleep(1)
+            if log:
+                print("[VISIBILIDADE] ✓ Modal de visibilidade aberto")
+        except Exception as e:
+            if log:
+                print(f'[VISIBILIDADE][ERRO] Falha ao clicar no botão de visibilidade: {e}')
+            return False
+            
+        # 4. No modal, seleciona o polo desejado
+        if log:
+            print(f"[VISIBILIDADE] 4. Selecionando polo: {polo}")
+        try:
+            if polo == 'ativo':
+                icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo')
+                for icone in icones:
+                    linha = icone.find_element(By.XPATH, './../../..')
+                    label = linha.find_element(By.CSS_SELECTOR, 'label')
+                    label.click()
+            elif polo == 'passivo':
+                icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-passivo')
+                for icone in icones:
+                    linha = icone.find_element(By.XPATH, './../../..')
+                    label = linha.find_element(By.CSS_SELECTOR, 'label')
+                    label.click()
+            elif polo == 'ambos':
+                # Marca todos
+                btn_todos = driver.find_element(By.CSS_SELECTOR, 'th button')
+                btn_todos.click()
+            if log:
+                print(f"[VISIBILIDADE] ✓ Polo '{polo}' selecionado")
+        except Exception as e:
+            if log:
+                print(f'[VISIBILIDADE][ERRO] Falha ao selecionar polo: {e}')
+            return False
+            
+        # 5. Confirma no botão Salvar
+        if log:
+            print("[VISIBILIDADE] 5. Salvando configuração de visibilidade...")
+        try:
+            btn_salvar = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
+            )
+            btn_salvar.click()
+            time.sleep(1)
+            if log:
+                print("[VISIBILIDADE] ✓ Configuração salva")
+        except Exception as e:
+            if log:
+                print(f'[VISIBILIDADE][ERRO] Falha ao salvar configuração: {e}')
+            return False
+            
+        # 6. Oculta múltipla seleção
+        if log:
+            print("[VISIBILIDADE] 6. Ocultando múltipla seleção...")
+        try:
+            btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
+            btn_ocultar.click()
+            if log:
+                print("[VISIBILIDADE] ✓ Múltipla seleção ocultada")
+        except:
+            if log:
+                print("[VISIBILIDADE] ⚠ Não foi possível ocultar múltipla seleção")
+            pass
+            
+        if log:
+            print('[VISIBILIDADE] ✓ Visibilidade aplicada com sucesso!')
+        return True
+        
+    except Exception as e:
+        if log:
+            print(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}')
+        return False
+
+
 # Definição do fluxo principal
 def fluxo_principal(driver):
     # Navegação por clique no ícone .fa-tags
@@ -1937,6 +2234,302 @@ ato_pesquisas_wrapper = lambda driver, debug=False: pesquisas(
     marcar_primeiro_destinatario=True,
     debug=debug
 )
+
+def debug_editor_completo(driver, log=True):
+    """
+    Debug completo do editor para localizar seletores e estrutura do conteúdo.
+    Identifica especificamente o texto "link" marcado com fundo amarelo.
+    """
+    if log:
+        print("[DEBUG_EDITOR] Iniciando análise completa do editor...")
+    
+    try:
+        # 1. Verifica se o editor principal existe
+        editor_wrapper = driver.find_elements(By.CSS_SELECTOR, 'div.editor-wrapper')
+        if log:
+            print(f"[DEBUG_EDITOR] Editor wrappers encontrados: {len(editor_wrapper)}")
+        
+        # 2. Localiza área de conteúdo editável
+        area_conteudo = driver.find_elements(By.CSS_SELECTOR, '.area-conteudo.ck.ck-content.ck-editor__editable')
+        if log:
+            print(f"[DEBUG_EDITOR] Áreas de conteúdo editável: {len(area_conteudo)}")
+            
+        if area_conteudo:
+            conteudo_html = area_conteudo[0].get_attribute('innerHTML')
+            if log:
+                print(f"[DEBUG_EDITOR] HTML interno da área editável:")
+                print(f"[DEBUG_EDITOR] {conteudo_html[:500]}...")
+        
+        # 3. Busca especificamente por texto marcado (fundo amarelo)
+        elementos_marcados = driver.find_elements(By.CSS_SELECTOR, 'mark.marker-yellow')
+        if log:
+            print(f"[DEBUG_EDITOR] Elementos com marca amarela encontrados: {len(elementos_marcados)}")
+            
+        for i, elemento in enumerate(elementos_marcados):
+            texto = elemento.text
+            if log:
+                print(f"[DEBUG_EDITOR] Marca {i+1}: '{texto}'")
+                print(f"[DEBUG_EDITOR] HTML: {elemento.get_attribute('outerHTML')}")
+                print(f"[DEBUG_EDITOR] Visível: {elemento.is_displayed()}")
+        
+        # 4. Busca por "link" em diferentes contextos
+        seletores_link = [
+            'mark.marker-yellow',
+            'mark[class*="yellow"]',
+            '*[contains(text(), "link")]',
+            'p:contains("link")',
+            '.corpo:contains("link")'
+        ]
+        
+        for seletor in seletores_link:
+            try:
+                if 'contains' in seletor:
+                    # XPath para texto
+                    elementos = driver.find_elements(By.XPATH, f"//*[contains(text(), 'link')]")
+                else:
+                    # CSS Selector
+                    elementos = driver.find_elements(By.CSS_SELECTOR, seletor)
+                
+                if log:
+                    print(f"[DEBUG_EDITOR] Seletor '{seletor}': {len(elementos)} elementos")
+                    
+                for elem in elementos:
+                    if 'link' in elem.text.lower():
+                        if log:
+                            print(f"[DEBUG_EDITOR] ✓ Encontrado 'link' em: {elem.text}")
+                            print(f"[DEBUG_EDITOR] ✓ Seletor usado: {seletor}")
+                            print(f"[DEBUG_EDITOR] ✓ HTML: {elem.get_attribute('outerHTML')}")
+            except Exception as e:
+                if log:
+                    print(f"[DEBUG_EDITOR] ⚠ Erro no seletor '{seletor}': {e}")
+        
+        # 5. Análise DOM específica para o padrão identificado
+        if log:
+            print(f"[DEBUG_EDITOR] Analisando estrutura DOM específica...")
+            
+        # Baseado no HTML fornecido: <mark class="marker-yellow">"link"</mark>
+        try:
+            mark_elements = driver.find_elements(By.CSS_SELECTOR, 'mark.marker-yellow')
+            for mark in mark_elements:
+                texto_completo = mark.text
+                if log:
+                    print(f"[DEBUG_EDITOR] Mark encontrado: '{texto_completo}'")
+                    print(f"[DEBUG_EDITOR] Parent element: {mark.find_element(By.XPATH, '..').tag_name}")
+                    print(f"[DEBUG_EDITOR] Parent class: {mark.find_element(By.XPATH, '..').get_attribute('class')}")
+                    
+                # Verifica se contém "link"
+                if '"link"' in texto_completo or 'link' in texto_completo.lower():
+                    if log:
+                        print(f"[DEBUG_EDITOR] ✓ ELEMENTO ALVO IDENTIFICADO!")
+                        print(f"[DEBUG_EDITOR] ✓ Texto: '{texto_completo}'")
+                        print(f"[DEBUG_EDITOR] ✓ Seletor CSS: mark.marker-yellow")
+                        print(f"[DEBUG_EDITOR] ✓ XPath: //mark[@class='marker-yellow']")
+                    return mark  # Retorna o elemento encontrado
+        except Exception as e:
+            if log:
+                print(f"[DEBUG_EDITOR] ⚠ Erro na análise DOM específica: {e}")
+        
+        # 6. Teste de JavaScript para acessar conteúdo
+        if log:
+            print(f"[DEBUG_EDITOR] Testando acesso via JavaScript...")
+            
+        try:
+            # Executa JavaScript para encontrar elementos
+            js_result = driver.execute_script("""
+                // Busca por todos os elementos mark com classe marker-yellow
+                var marks = document.querySelectorAll('mark.marker-yellow');
+                var results = [];
+                
+                for (var i = 0; i < marks.length; i++) {
+                    var mark = marks[i];
+                    results.push({
+                        text: mark.textContent,
+                        innerHTML: mark.innerHTML,
+                        outerHTML: mark.outerHTML,
+                        className: mark.className,
+                        visible: mark.offsetParent !== null
+                    });
+                }
+                
+                return results;
+            """)
+            
+            if log:
+                print(f"[DEBUG_EDITOR] Resultado JavaScript: {js_result}")
+                
+            for result in js_result:
+                if 'link' in result['text'].lower():
+                    if log:
+                        print(f"[DEBUG_EDITOR] ✓ JS encontrou elemento alvo: {result}")
+                        
+        except Exception as e:
+            if log:
+                print(f"[DEBUG_EDITOR] ⚠ Erro no JavaScript: {e}")
+        
+        if log:
+            print(f"[DEBUG_EDITOR] Análise completa finalizada.")
+            
+        return None
+        
+    except Exception as e:
+        if log:
+            print(f"[DEBUG_EDITOR] ✗ Erro geral na análise: {e}")
+        return None
+
+def substituir_link_por_clipboard_debug(driver, debug=True):
+    """
+    Função específica para substituir "link" por conteúdo do clipboard
+    com debug detalhado baseado na análise do HTML fornecido.
+    """
+    if debug:
+        print("[SUBST_LINK] Iniciando substituição de 'link' por clipboard...")
+    
+    try:
+        # 1. Primeiro executa debug completo
+        if debug:
+            print("[SUBST_LINK] Executando debug completo do editor...")
+        elemento_alvo = debug_editor_completo(driver, log=debug)
+        
+        # 2. Busca específica pelo elemento mark.marker-yellow
+        if debug:
+            print("[SUBST_LINK] Buscando elemento mark.marker-yellow...")
+            
+        mark_elements = driver.find_elements(By.CSS_SELECTOR, 'mark.marker-yellow')
+        
+        if not mark_elements:
+            if debug:
+                print("[SUBST_LINK] ✗ Nenhum elemento mark.marker-yellow encontrado")
+            return False
+            
+        # 3. Identifica o elemento que contém "link"
+        elemento_link = None
+        for mark in mark_elements:
+            texto = mark.text
+            if debug:
+                print(f"[SUBST_LINK] Analisando mark: '{texto}'")
+                
+            if '"link"' in texto or 'link' in texto.lower():
+                elemento_link = mark
+                if debug:
+                    print(f"[SUBST_LINK] ✓ Elemento alvo encontrado: '{texto}'")
+                break
+        
+        if not elemento_link:
+            if debug:
+                print("[SUBST_LINK] ✗ Elemento contendo 'link' não encontrado")
+            return False
+        
+        # 4. Executa substituição via JavaScript com clipboard
+        if debug:
+            print("[SUBST_LINK] Executando substituição via JavaScript...")
+            
+        resultado = driver.execute_script("""
+            return new Promise((resolve) => {
+                // Função para substituir texto preservando formatação
+                function substituirTextoPreservandoFormatacao(elemento, textoAntigo, textoNovo) {
+                    // Percorre todos os nós filhos
+                    function percorrerNos(node) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            if (node.textContent.includes(textoAntigo)) {
+                                node.textContent = node.textContent.replace(textoAntigo, textoNovo);
+                                return true;
+                            }
+                        } else {
+                            for (let child of node.childNodes) {
+                                if (percorrerNos(child)) return true;
+                            }
+                        }
+                        return false;
+                    }
+                    
+                    return percorrerNos(elemento);
+                }
+                
+                // Tenta acessar clipboard
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    navigator.clipboard.readText()
+                        .then(clipboardText => {
+                            console.log('[SUBST_LINK] Clipboard lido:', clipboardText);
+                            
+                            // Encontra elemento mark.marker-yellow
+                            const marks = document.querySelectorAll('mark.marker-yellow');
+                            let substituido = false;
+                            
+                            for (const mark of marks) {
+                                if (mark.textContent.includes('link')) {
+                                    console.log('[SUBST_LINK] Substituindo em:', mark.textContent);
+                                    
+                                    // Preserva as aspas se existirem
+                                    let textoCompleto = mark.textContent;
+                                    let novoTexto;
+                                    
+                                    if (textoCompleto.includes('"link"')) {
+                                        novoTexto = textoCompleto.replace('"link"', '"' + clipboardText + '"');
+                                    } else {
+                                        novoTexto = textoCompleto.replace('link', clipboardText);
+                                    }
+                                    
+                                    // Substitui preservando formatação
+                                    if (substituirTextoPreservandoFormatacao(mark, textoCompleto, novoTexto)) {
+                                        console.log('[SUBST_LINK] ✓ Substituição realizada:', novoTexto);
+                                        
+                                        // Dispara eventos de mudança
+                                        const evento = new Event('input', { bubbles: true });
+                                        mark.dispatchEvent(evento);
+                                        
+                                        // Evento no editor principal
+                                        const editor = document.querySelector('.ck-editor__editable');
+                                        if (editor) {
+                                            editor.dispatchEvent(new Event('input', { bubbles: true }));
+                                        }
+                                        
+                                        substituido = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            resolve({
+                                sucesso: substituido,
+                                clipboardText: clipboardText,
+                                message: substituido ? 'Substituição realizada' : 'Elemento não encontrado'
+                            });
+                        })
+                        .catch(error => {
+                            console.error('[SUBST_LINK] Erro ao ler clipboard:', error);
+                            resolve({
+                                sucesso: false,
+                                error: error.message,
+                                message: 'Erro ao acessar clipboard'
+                            });
+                        });
+                } else {
+                    resolve({
+                        sucesso: false,
+                        message: 'Clipboard API não disponível'
+                    });
+                }
+            });
+        """)
+        
+        if debug:
+            print(f"[SUBST_LINK] Resultado da execução: {resultado}")
+            
+        if resultado and resultado.get('sucesso'):
+            if debug:
+                print(f"[SUBST_LINK] ✓ Substituição bem-sucedida!")
+                print(f"[SUBST_LINK] ✓ Texto do clipboard: '{resultado.get('clipboardText')}'")
+            return True
+        else:
+            if debug:
+                print(f"[SUBST_LINK] ✗ Falha na substituição: {resultado.get('message')}")
+            return False
+            
+    except Exception as e:
+        if debug:
+            print(f"[SUBST_LINK] ✗ Erro na substituição: {e}")
+        return False
+
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
     from selenium.webdriver.common.by import By
     # Lista fixa de nomes de peritos
@@ -2010,3 +2603,42 @@ def selecionar_subtipo(driver, subtipo, timeout=10):
             opcao.click()
             return True
     raise Exception(f'Subtipo "{subtipo}" não encontrado!')
+
+# ====================================================
+# EXEMPLO DE USO - SIGILO CORRIGIDO
+# ====================================================
+"""
+EXEMPLO DE USO COM O NOVO SISTEMA DE SIGILO:
+
+# No fluxo principal (ex: m1.py):
+from atos import ato_pesqliq, executar_visibilidade_sigilosos_se_necessario
+
+# Executa o ato
+sucesso = ato_pesqliq(driver, debug=True)
+
+if sucesso:
+    # NOVO: Troca para a primeira aba (deve ser /detalhe) sem fechar a atual
+    if len(driver.window_handles) > 1:
+        driver.switch_to.window(driver.window_handles[0])
+    
+    # Executa visibilidade se sigilo foi ativado (inclui F5 automático)
+    sigilo_ativado = getattr(ato_pesqliq, 'ultimo_sigilo_ativado', False)
+    executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+
+# OU, usando o ato_judicial diretamente:
+sucesso, sigilo_ativado = ato_judicial(
+    driver, 
+    conclusao_tipo='Homologação de Cálculos',
+    modelo_nome='xsbacen',
+    sigilo=True,
+    descricao='pesquisas para execucao'
+)
+
+if sucesso:
+    # NOVO: Troca para primeira aba sem fechar (deve ser /detalhe)
+    if len(driver.window_handles) > 1:
+        driver.switch_to.window(driver.window_handles[0])
+    
+    # Executa visibilidade (inclui F5 automático)
+    executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+"""

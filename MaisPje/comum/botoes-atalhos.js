@@ -146,14 +146,14 @@ function getAtalhosNovaAba() {
             icone: "icone user-tie t100 tamanho60",
             aria: "Consultar Advogados",
             cor_de_fundo: "orangered",
-            gerarSufixo: '/pjekz/pessoa-fisica?advogado'
+            gerarSufixo: '/pjekz/pessoa-fisica?pagina=1&tamanhoPagina=10&especializacao=1&situacao=1'
         }),
         consultarPeritos: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_consultar_peritos",
             icone: "icone user-md-solid t100 tamanho60",
             aria: "Consultar Peritos",
             cor_de_fundo: "orangered",
-            gerarSufixo: '/pjekz/pessoa-fisica?perito'
+            gerarSufixo: '/pjekz/pessoa-fisica?pagina=1&tamanhoPagina=10&tipoPerito=AJJT&especializacao=32&situacao=1'
         }),
         consultarPessoaFisica: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_consultar_pessoas",
@@ -261,15 +261,19 @@ function getAtalhosNovaAba() {
             icone: "icone gavel t100 tamanho60",
             aria: "Procurar Execução",
             cor_de_fundo: "orangered",
-            gerarSufixo: async (idProcesso, idDocumento, nrProcesso) => {
+            gerarSufixo: (nome,documento) => {
                 let gigsURL = preferencias.configURLs.urlSAOExecucao;
                 if (gigsURL == "") {
                     criarCaixaDeAlerta("DICA", 'Consulte o relatório do SAO e verifique se o seu TRT possui um relatório específico para este atividade. Caso exista encaminhe um email para fernando.marcon@trt12.jus.br que adicionaremos o atalho aqui.', 20);
                     return;
+                } else if (gigsURL.includes('?maisPje=true')) {  
+                    return gigsURL + `&cpfcnpj=${documento}&fase=Execução`;
+                } else {
+                    return gigsURL + `?maisPje=true&cpfcnpj=${documento}&fase=Execução`;
                 }
-                return gigsURL;
             },
             condicao_adicionar: () => false
+
         }),
         abrirSiscondj: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_abrir_siscondj",
@@ -303,12 +307,16 @@ function getAtalhosNovaAba() {
             aria: "Anexar Documentos",
             cor_de_fundo: "orangered",
             gerarSufixo: async (idProcesso, idDocumento, nrProcesso) => {
-                let dados = await obterIdProcessoViaApi(nrProcesso);
-                if (!dados[0].idProcesso) {
+                if (!idProcesso) {
+                    idProcesso = await obterIdProcessoViaApi(nrProcesso);
+                }
+
+                if (!idProcesso) {
                     criarCaixaDeAlerta('ALERTA', 'Não foi possível obter o ID do processo através do número encontrado (' + nrProcesso + ').', 15);
                     return;
                 }
-                return `/pjekz/processo/${dados[0].idProcesso}/documento/anexar`;
+                
+                return `/pjekz/processo/${idProcesso}/documento/anexar`;
             },
             condicao_adicionar: () => false
         }),
@@ -317,10 +325,7 @@ function getAtalhosNovaAba() {
             icone: "icone calculator t100 tamanho60",
             aria: "Pesquisa Textual",
             cor_de_fundo: "orangered",
-            gerarSufixo: async (parametro) => {
-               
-                return `/pjecalc/pages/principal.jsf${parametro}`;
-            },
+            gerarSufixo: async (parametro) => { return `/pjecalc/pages/principal.jsf${parametro}` },
             condicao_adicionar: () => false
         }),
         conferirAlvaras: new BotaoAtalhoNovaAba({
@@ -332,14 +337,17 @@ function getAtalhosNovaAba() {
                 let opcoes = await criarCaixaSelecao(['Caixa Econômica Federal','Banco do Brasil'],titulo='Escolha a Instituição Financeira');
                 let url;
                 if (opcoes == 'Caixa Econômica Federal') {
-                    janelaAlvarasSIF('AGUARDANDO_CONFERENCIA');
+                    janelaAlvarasSIF('SIF');
                     //https://pje.trt12.jus.br/pjekz/escaninho/situacao-alvara
                 } else {
-                    //https://siscondj.trt12.jus.br/siscondj/pages/mandado/acompanhamento/new
-                    url = getUrlBaseSiscondj();
-                    url += '/pages/mandado/acompanhamento/new?conferirAlvara';
-                    let win = window.open(decodeURI(url), '_blank');
-                    win.focus();
+
+                    let opcoes = await criarCaixaCheckBox(['Sim','Não'], [true,false], 'Você já efetuou o login no sistema SISCONDJ?',false,'Continuar');
+                    if (opcoes[0]) {
+                        janelaAlvarasSISCONDJ('SISCONDJ');
+                    } else {
+                        await criarCaixaDeAlerta('Atenção','Para utilizar a funcionalidade de CONFERIR ALVARÁS é obrigatório que vc já esteja logado no sistema SISCONDJ!\n Faça o login e execute novamente a função.',60);
+                    }
+                    
                 }
 
             },

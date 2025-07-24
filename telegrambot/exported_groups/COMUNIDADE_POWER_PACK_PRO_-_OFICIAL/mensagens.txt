@@ -1,0 +1,1569 @@
+[2025-07-13 06:54:21] AnônimoBucasRobot: 🔍 MENU DE CONSULTAS 🔍
+
+•🕵️ Bem-vindo ao nosso Menu de Consultas! Aqui, oferecemos consultas atualizadas de forma prática, rápida e acessível, sempre pensando no seu bolso 😉.
+
+🔧 Nossos servidores são otimizados para atender às necessidades de todos os nossos clientes. Tanto nossa API quanto nossos bots estão disponíveis 24 horas por dia, oferecendo velocidade máxima e prontos para atender aos usuários e clientes.
+
+[🟢] Bases Online: 42
+[2025-07-13 06:54:26] Doidoi: / cpf3 03931108341
+[2025-07-13 06:54:57] Doidoi: /cpf3 03931108341
+[2025-07-13 06:54:59] AnônimoBucasRobot: 🔍 CONSULTA DE CPF SUS 🔍
+
+• CPF: 03931108341
+• CNS: 704107199754074
+
+• NOME: MARIA PATRICIA AVELINO MATOS
+• NASCIMENTO: 1988-05-06
+• SEXO: F
+• RAÇA/COR: SEM INFORMAÇÃO
+• VIVO: true
+
+• MÃE: NILCA AVELINO MATOS
+• PAI: FRANCISCO JOSE MATOS
+
+🏡 ENDEREÇO
+
+• CEP: 60345822
+• LOGRADOURO: Rua Fernanda Saraiva
+• BAIRRO: Vila Velha
+• CIDADE: Fortaleza
+• ESTADO: Ceará
+• NÚMERO: 192
+
+• CONTATOS:
+
+• TELEFONE: 6133152425
+• EMAIL: SEM INFORMAÇÃO
+
+👤 USUÁRIO: Doidoi
+🤖 BY: @AnoninoBuscasOfcBot
+[2025-07-13 06:56:50] Doidoi: /cpf4 03931108341
+[2025-07-13 06:58:11] Josafar: /placa Ptx1h61
+[2025-07-13 06:58:12] AnônimoBucasRobot: ⚠️ PLACA NÃO ENCONTRADA.
+[2025-07-13 06:59:23] Josafar: /placa PTX1H61
+[2025-07-13 06:59:23] AnônimoBucasRobot: ⚠️ PLACA NÃO ENCONTRADA.
+[2025-07-13 07:01:46] Josafar: /placa2 ptx1h61
+[2025-07-13 07:01:47] AnônimoBucasRobot: Esse recurso está disponível apenas para usuários premium e grupos pro.
+[2025-07-13 07:02:23] Josafar: /placa ptx1h61
+[2025-07-13 07:02:23] AnônimoBucasRobot: ⚠️ PLACA NÃO ENCONTRADA.
+[2025-07-13 07:05:48] Josafar: /placa PTX-1H61
+[2025-07-13 07:05:49] AnônimoBucasRobot: ⚠️ PLACA INVALIDA!
+[2025-07-13 07:12:12] Doidoi: /nome FRANCISCO GABRIEL MATOS NASCIMENTO
+[2025-07-13 07:16:20] Doidoi: /nome JOSE EXPEDITO DO NASCIMENTO JUNIOR
+[2025-07-13 07:20:54] Doidoi: /nome MARIA JULIANA MATOS NASCIMENTO
+[2025-07-13 07:21:43] Doidoi: /cpf4 02743281359
+[2025-07-13 07:22:55] Murillo: Cria uma logo de uma loja chamado Godoy Cursos br bem profissional
+[2025-07-13 07:27:29] Fagner: /ask benefícios do chat gpt plus
+[2025-07-13 07:27:34] ChatGPT + Midjourney | GPT-4.1: Aqui estão alguns benefícios do ChatGPT Plus:
+
+1. Acesso prioritário  
+   Usuários do ChatGPT Plus têm acesso garantido, mesmo em horários de pico, o que significa que você pode utilizar o serviço quando precisar.
+
+2. Respostas mais rápidas  
+   O plano Plus geralmente oferece tempos de resposta mais rápidos, melhorando a eficiência nas interações.
+
+3. Aprimoramento na qualidade  
+   O ChatGPT Plus frequentemente tem acesso a versões atualizadas do modelo, resultando em respostas mais precisas e contextualmente relevantes.
+
+4. Mais recursos  
+   Usuários do plano Plus podem ter acesso a funcionalidades adicionais que não estão disponíveis no plano gratuito.
+
+5. Suporte a longo prazo  
+   Ser um assinante do ChatGPT Plus ajuda a garantir o desenvolvimento contínuo e melhorias no serviço.
+
+Esses benefícios tornam o ChatGPT Plus uma boa opção para quem busca uma experiência aprimorada e mais eficiente.
+[2025-07-13 07:28:41] Cleyton: /gen quero criar uma etiqueta para minha cocada artesanal com o nome taném da cocada cremosa
+Quero uma logo anima uma praia no fundo e a cocada n coco bem na frente
+[2025-07-13 07:28:57] Nai_Bot: [IMAGEM: photo_328370.jpg]
+[2025-07-13 07:29:47] Nai_Bot: [IMAGEM: photo_328372.jpg]
+[2025-07-13 07:29:57] Cleyton: /nai@NaiSD_Bot
+[2025-07-13 07:30:18] Nai_Bot: [IMAGEM: photo_328377.jpg]
+[2025-07-13 07:31:39] Leandro Henrique: /placa RYS 4D52
+[2025-07-13 07:31:39] AnônimoBucasRobot: ⚠️ PLACA INVALIDA!
+[2025-07-13 07:32:00] Kleber 2k: /placa RGZ7I96
+[2025-07-13 07:32:01] AnônimoBucasRobot: ⚠️ PLACA NÃO ENCONTRADA.
+[2025-07-13 07:37:30] Nai_Bot: This model requires early access!
+[2025-07-13 07:37:33] ChatGPT + Midjourney | GPT-4.1: Para vincular o ChatGPT Plus ao seu grupo do Telegram, você pode seguir estes passos:
+
+1. Criar um Bot no Telegram  
+   - Abra o Telegram e procure pelo @BotFather.
+   - Envie o comando /newbot e siga as instruções para criar um novo bot. Você receberá um token de autenticação.
+
+2. Configurar o ambiente  
+   - Em um servidor ou local de desenvolvimento, você precisa configurar um ambiente para rodar um código que interaja com a API do ChatGPT.
+
+3. Uso da API do ChatGPT  
+   - Você precisará de acesso à API do ChatGPT. Certifique-se de ter uma chave de API válida.
+   - Utilize uma linguagem de programação como Python, JavaScript, ou outra de sua preferência para fazer requisições à API.
+
+4. Desenvolver a lógica do bot  
+   - Implemente a lógica para que o bot capture mensagens enviadas ao grupo e as envie para a API do ChatGPT. Quando o ChatGPT retornar uma resposta, o bot deve enviá-la de volta ao grupo.
+
+5. Adicionar o Bot ao seu Grupo  
+   - Vá até o seu grupo no Telegram, toque no nome do grupo e selecione "Adicionar membro". Procure pelo bot que você criou e adicione-o.
+
+6. Testar o Bot  
+   - Envie mensagens no grupo para verificar se o bot está respondendo corretamente usando a inteligência do ChatGPT.
+
+Se você não tem experiência em programação, pode considerar utilizar plataformas que oferecem integração de bots com o ChatGPT de forma mais simples.
+[2025-07-13 07:40:21] Doidoi: /cpf4 08158944302
+[2025-07-13 07:40:35] Julio: /ask
+[2025-07-13 07:40:36] ChatGPT + Midjourney | GPT-4.1: Некорректный текст запроса!
+[2025-07-13 07:40:38] Nai_Bot: This model requires early access!
+[2025-07-13 07:59:52] Jonathas: /CPF 42751385893
+[2025-07-13 08:10:06] Nonato: /placa dre4g98
+[2025-07-13 08:10:07] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: DRE4G98
+
+• CHASSI: 93HES16505Z111534
+• NÚM. MOTOR: D17Z2-J09299
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: HONDA/CIVIC LX
+• COR: PRETA
+• COMBUSTÍVEL: GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 115
+• CILINDRADAS: 1668
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: DRE4G98
+• PLACA ANTIGA: DRE4698
+
+• ANO - FABRICAÇÃO: 2005
+• ANO - MODELO: 2005
+
+• LOCALIDADE:
+
+• MUNICÍPIO: SAO PAULO
+• UF: SP
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: WELLINGTON CL***** *********
+
+👤 USUÁRIO: Nonato
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 08:14:52] Isaias: /nome Tiago Pinto Lenz
+[2025-07-13 08:15:24] Isaias: /cpf 00651019010
+[2025-07-13 08:34:47] Rodrigo: 05424926444
+[2025-07-13 08:36:37] Rodrigo: /05424926444
+[2025-07-13 08:37:47] Arthur: /numero 8398890022
+[2025-07-13 08:39:29] Arthur: /numero 8398890022
+[2025-07-13 08:40:38] Rodrigo: /menu@AnoninoBuscasOfcBot
+[2025-07-13 08:40:38] AnônimoBucasRobot:  👋🏻 Olá Rodrigo, seja bem vindo ao Anônimo Buscas!
+
+• ID: 2104538101
+• Expiração: Não encontrado
+
+Para continuar selecione uma funcionalidade abaixo 👇🏻
+[2025-07-13 08:41:20] Rodrigo: /CPF05424926444
+[2025-07-13 08:42:19] Rodrigo: /start@AnoninoBuscasOfcBot
+[2025-07-13 08:42:19] AnônimoBucasRobot: 🔍 CONSULTA CPF 🔍
+    
+🕵️ Bases disponíveis: DATA, CREDILINK, SUS, DATABIT.
+    
+🔍 CPF DATA
+
+🔹 Comando: /cpf
+🔹 Exemplo de uso: /cpf 62761919149
+━━━━━━━━━━━━━━━━━━
+🔍 CPF CREDILINK
+
+🔹 Comando: /cpf2
+🔹 Exemplo de uso: /cpf2 62761919149
+━━━━━━━━━━━━━━━━━━
+🔍 CPF SUS
+
+🔹 Comando: /cpf3
+🔹 Exemplo de uso: /cpf3 62761919149
+━━━━━━━━━━━━━━━━━━
+🔍 CPF DATABIT
+
+🔹 Comando: /cpf4
+🔹 Exemplo de uso: /cpf4 62761919149
+━━━━━━━━━━━━━━━━━━
+[2025-07-13 08:44:28] Rodrigo: /CPF 05424926444
+[2025-07-13 08:46:40] Rodrigo: /cpf2 05424926444
+[2025-07-13 08:46:40] AnônimoBucasRobot: 🔍 CONSULTA DE CPF 🔍
+    
+👤 DADOS PESSOAIS
+• SAFRA: 05424926444
+• CPF: 05424926444
+
+• NOME: RODRIGO JOSE DA SILVA
+• NASCIMENTO: 04/09/1984
+• SEXO: M
+• MÃE: MARIA JOSE DA SILVA
+
+• PROFISSÃO: Vigilante
+• SITUAÇÃO RECEITA: REGULAR
+• RENDA: 653
+
+• ÓBITO: 0
+• DATA DE ÓBITO: 0
+
+🏡 ENDEREÇO
+• TIPO: RUA
+• LOGRADOURO: NOBRES
+• NÚMERO: 260
+• COMPLEMENTO: 
+• BAIRRO: BOM JESUS
+• CIDADE: SORRISO
+• UF: MT
+• CEP: 78890000
+
+• EMAIL: RODRIGOFOREVER84@GMAIL.COM
+
+• TELEFONES FIXO:
+
+SEM INFORMAÇÃO
+
+• CELULARES:
+
+82998246351
+82982327973
+
+• VEÍCULOS:
+
+SEM INFORMAÇÃO
+
+👤 USUÁRIO: Rodrigo
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 08:53:55] Riley: /login viki
+[2025-07-13 08:57:53] Riley: /menu@AnoninoBuscasOfcBot
+[2025-07-13 08:57:53] AnônimoBucasRobot: 🔍 CONSULTAS DE LOGIN 🔍
+    
+🕵️ Bases disponíveis: ALL.
+    
+━━━━━━━━━━━━━━━━━━
+🔍 LOGIN ALL
+    
+🔹 Comando: /login
+🔹 Exemplo de uso: /login saude.com
+━━━━━━━━━━━━━━━━━━
+[2025-07-13 08:58:38] Riley: /login viki.com
+[2025-07-13 09:00:46] Luke: /login Netflix
+[2025-07-13 09:01:52] Matheus: /placa axp7h22
+[2025-07-13 09:01:53] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: AXP7H22
+
+• CHASSI: 8AJBA3FSXJ0250474
+• NÚM. MOTOR: 1GD4382603
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: ALIENACAO FIDUCIARIA
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: TOYOTA/I/TOYOTA HILUX SWSRXA4FD
+• COR: BRANCA
+• COMBUSTÍVEL: DIESEL
+
+• TIPO VEÍCULO: UTILITARIO
+• ESPÉCIE: MISTO
+• CARROCERIA: JIPE
+• CAPACIDADE DE PASSAGEIROS: 007
+
+• POTÊNCIA: 177
+• CILINDRADAS: 2755
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: AXP7H22
+• PLACA ANTIGA: AXP7722
+
+• ANO - FABRICAÇÃO: 2018
+• ANO - MODELO: 2018
+
+• LOCALIDADE:
+
+• MUNICÍPIO: PEABIRU
+• UF: PR
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: CARLOS RO***** ****************
+
+👤 USUÁRIO: Matheus
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 09:02:27] Matheus: /placa axp7h22
+[2025-07-13 09:02:27] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: AXP7H22
+
+• CHASSI: 8AJBA3FSXJ0250474
+• NÚM. MOTOR: 1GD4382603
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: ALIENACAO FIDUCIARIA
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: TOYOTA/I/TOYOTA HILUX SWSRXA4FD
+• COR: BRANCA
+• COMBUSTÍVEL: DIESEL
+
+• TIPO VEÍCULO: UTILITARIO
+• ESPÉCIE: MISTO
+• CARROCERIA: JIPE
+• CAPACIDADE DE PASSAGEIROS: 007
+
+• POTÊNCIA: 177
+• CILINDRADAS: 2755
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: AXP7H22
+• PLACA ANTIGA: AXP7722
+
+• ANO - FABRICAÇÃO: 2018
+• ANO - MODELO: 2018
+
+• LOCALIDADE:
+
+• MUNICÍPIO: PEABIRU
+• UF: PR
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: CARLOS RO***** ****************
+
+👤 USUÁRIO: Matheus
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 09:06:33] Murillo: /gen@NaiSD_Bot
+[2025-07-13 09:06:36] Nai_Bot: Select dimensions:
+[2025-07-13 09:07:35] Riley: /login https://cloud.google.com/
+[2025-07-13 09:12:26] Mateus: /numero +55 86 9506-7706
+[2025-07-13 09:27:51] Evaldo: /placa hyq3544
+[2025-07-13 09:27:51] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: HYQ3544
+
+• CHASSI: 8AGSN19908R124589
+• NÚM. MOTOR: P75004042
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: ALIENACAO FIDUCIARIA
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: GM/I/GM CLASSIC SPIRIT
+• COR: PRETA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 72
+• CILINDRADAS: 1000
+
+• CHASSI REMARCADO: NAO
+
+• PLACA NOVA: HYQ3F44
+• PLACA ANTIGA: HYQ3544
+
+• ANO - FABRICAÇÃO: 2007
+• ANO - MODELO: 2008
+
+• LOCALIDADE:
+
+• MUNICÍPIO: FORTALEZA
+• UF: CE
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: DANIELE DE ************************
+
+👤 USUÁRIO: Evaldo
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 09:36:46] Leandro: /gen crie uma ilustração para coloring book, estilo bobbie goods de Um rei mau chamaos Herodes maltratatndo crianças
+[2025-07-13 09:38:12] Leandro: /gen crie uma ilustração para coloring book, estilo bobbie goods de Jesus sendo tentado pelo Diabo
+[2025-07-13 09:38:32] Nai_Bot: [IMAGEM: photo_328458.jpg]
+[2025-07-13 09:39:21] Leandro: /gen crie uma ilustração para coloring book, estilo bobbie goods de jesus conversando com um demonio. O rosto do demonio é de uma pessoa má
+[2025-07-13 09:39:35] Nai_Bot: [IMAGEM: photo_328467.jpg]
+[2025-07-13 09:45:18] Nai_Bot: [IMAGEM: photo_328479.jpg]
+[2025-07-13 09:46:11] Nai_Bot: [IMAGEM: photo_328481.jpg]
+[2025-07-13 09:46:25] Jober: /nome Pietro coradini de paula
+[2025-07-13 09:51:22] Arthur: /numero 8398890022
+[2025-07-13 09:52:21] Arthur: /celular 8398890022
+[2025-07-13 09:53:23] Snow: /celular 41999924902
+[2025-07-13 09:53:45] Arthur: /telefone 8398890022
+[2025-07-13 09:53:45] AnônimoBucasRobot: ⚠️ TELEFONE INVÁLIDO!
+[2025-07-13 09:57:56] Snow: /telefone 41999924902
+[2025-07-13 09:57:57] AnônimoBucasRobot: ⚠️ TELEFONE NÃO ENCONTRADO.
+[2025-07-13 09:59:28] Vinicius: /gen 
+Imagem promocional
+
+🎯 MISSÃO VENDEDORA: RODÍZIO NO LAGO SUL! 🥩🔥
+
+Atenção, time! A partir da próxima segunda-feira, entra no ar uma promoção exclusiva para os mais rápidos do gatilho:
+
+🚨 As 4 primeiras vendas realizadas a partir de segunda garantem ao corretor um voucher de R$500,00 para curtir um rodízio premium para 2 pessoas na renomada Lago Sul Churrascaria! 🍷🥩
+
+⏳ Promoção válida por 60 dias ou até batermos os 4 ganhadores.
+🎁 Válido apenas para vendas com contrato assinado e comissão confirmada.
+
+Essa é a sua chance de vender e ainda saborear uma experiência top com quem você quiser!
+Quem vender primeiro, leva.
+
+Vamos com tudo! 🚀
+[2025-07-13 09:59:47] Nai_Bot: [IMAGEM: photo_328497.jpg]
+[2025-07-13 10:10:04] Cl: /menu
+[2025-07-13 10:10:04] AnônimoBucasRobot: 🔍 CONSULTA WHATSAPP 🔍
+    
+🕵️ Bases disponíveis: WEB.
+    
+━━━━━━━━━━━━━━━━━━
+🔍 WHATSAPP WEB
+    
+🔹 Comando: /wpp
+🔹 Exemplo de uso: /wpp 11972553036
+━━━━━━━━━━━━━━━━━━
+[2025-07-13 10:10:39] AnônimoBucasRobot: Esse recurso está disponível apenas para usuários premium e grupos pro.
+[2025-07-13 10:11:03] Nai_Bot: [IMAGEM: photo_328511.jpg]
+[2025-07-13 10:12:44] Pedro: /telefone 79991034318
+[2025-07-13 10:13:54] Pedro: /cpf 06149358577
+[2025-07-13 10:15:32] Oliveira: /ask 33+65=65×5
+[2025-07-13 10:15:34] Nai_Bot: This model requires early access!
+[2025-07-13 10:15:35] ChatGPT + Midjourney | GPT-4.1: Let's check the equation:
+
+On the left side, 33 + 65 equals 98.
+
+On the right side, 65 × 5 equals 325.
+
+So, 98 ≠ 325. The equation is not correct. If you need assistance with a different problem, let me know!
+[2025-07-13 10:16:53] Oliveira: /ask qual o aplicativo que eu uso pra criar uma vpnssh
+[2025-07-13 10:16:55] Nai_Bot: This model requires early access!
+[2025-07-13 10:16:57] ChatGPT + Midjourney | GPT-4.1: Você pode usar alguns aplicativos populares para criar uma VPN SSH, como:
+
+1. OpenSSH: Ferramenta de linha de comando que permite configurar uma conexão SSH segura.
+2. Bitvise SSH Server: Um servidor SSH para Windows que oferece suporte à configuração de VPN.
+3. PuTTY: Embora seja mais conhecido como cliente SSH, pode ser configurado para criar túneis SSH.
+4. Tunnelblick: Para usuários de macOS, oferece uma interface gráfica para conectar-se a túneis VPN.
+5. Termux: Para Android, permite executar comandos SSH e configurar túneis.
+
+Certifique-se de seguir tutoriais específicos para a ferramenta escolhida para configurá-la corretamente. Se precisar de mais informações, avise!
+[2025-07-13 10:19:02] Deividfffg: / telefone 11954658086
+[2025-07-13 10:19:35] Donizeti: /
+[2025-07-13 10:20:49] Oliveira: /ask qual.o aplicativo Android que cria um painel sshvpn
+[2025-07-13 10:20:51] Nai_Bot: This model requires early access!
+[2025-07-13 10:20:54] ChatGPT + Midjourney | GPT-4.1: Um dos aplicativos mais populares para criar um painel SSH/VPN no Android é o SSH Tunnel. Ele permite que você configure conexões SSH e conecte-se a servidores de forma segura. 
+
+Outro aplicativo que você pode considerar é o ConnectBot, que é um cliente SSH e telnet que oferece opções para configuração de tunelamento. 
+
+Para uma solução mais robusta, você pode usar o V2RayNG, que é uma ferramenta poderosa para criar túneis e gerenciar conexões. 
+
+Sempre verifique as avaliações e siga tutoriais para uma configuração adequada. Se precisar de ajuda com algo específico, me avise!
+[2025-07-13 10:21:29] Cuidaaa: /start@AnoninoBuscasOfcBot
+[2025-07-13 10:21:29] AnônimoBucasRobot: 🔍 CONSULTA SCORE🔍
+    
+🕵️ Bases disponíveis: BIGDATA.
+    
+━━━━━━━━━━━━━━━━━━
+🔍 SCORE BIGDATA
+    
+🔹 Comando: /score
+🔹 Exemplo de uso: /score 62761919149
+━━━━━━━━━━━━━━━━━━
+[2025-07-13 10:21:44] Donizeti: /celular 359758643
+[2025-07-13 10:22:01] 🚀🤩😎: /placa htx4563
+[2025-07-13 10:22:02] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: HTX4563
+
+• CHASSI: 9C2JC30214R633513
+• NÚM. MOTOR: JC30E24633513
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: HONDA/HONDA/CG 125 TITAN KSE
+• COR: AZUL
+• COMBUSTÍVEL: GASOLINA
+
+• TIPO VEÍCULO: MOTOCICLETA
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 002
+
+• POTÊNCIA: SEM INFORMACAO
+• CILINDRADAS: 124
+
+• CHASSI REMARCADO: NAO
+
+• PLACA NOVA: HTX4F63
+• PLACA ANTIGA: HTX4563
+
+• ANO - FABRICAÇÃO: 2004
+• ANO - MODELO: 2004
+
+• LOCALIDADE:
+
+• MUNICÍPIO: AIUABA
+• UF: CE
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: ANTONIO EL***** **********
+
+👤 USUÁRIO: 🚀🤩😎
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 10:22:12] Cuidaaa: /start@chatsgpts_bot
+[2025-07-13 10:22:13] ChatGPT + Midjourney | GPT-4.1: Это бот для работы с актуальными моделями нейросетей в Telegram. Чтобы задать вопрос, просто напишите его.
+
+Команды
+/start - перезапуск
+/mode - выбрать нейросеть
+/profile - профиль пользователя
+/pay - купить подписку
+/reset - сброс контекста
+/img - генерация изображений
+/help - помощь
+/ask - задать вопрос (в группах)
+
+Подпишитесь на наш Telegram канал про технологии: @naebnet
+
+Пользовательское соглашение 
+Политика конфиденциальности
+Реквизиты
+[2025-07-13 10:24:32] Joabe: /ask Cite e explique o pressuposto o mapa não é o território da pnl.
+[2025-07-13 10:24:34] Nai_Bot: This model requires early access!
+[2025-07-13 10:24:36] Oliver: /ask@chatsgpts_bot
+[2025-07-13 10:24:37] ChatGPT + Midjourney | GPT-4.1: Некорректный текст запроса!
+[2025-07-13 10:24:38] ChatGPT + Midjourney | GPT-4.1: O pressuposto "o mapa não é o território" é um conceito fundamental na Programação Neurolinguística (PNL) que pode ser explicado da seguinte forma:
+
+Definição do conceito  
+Este pressuposto afirma que a nossa percepção do mundo é apenas uma representação, ou um "mapa", e não a realidade em si, que é o "território". Em outras palavras, cada pessoa interpreta e representa experiências de maneira única, moldada por suas crenças, experiências passadas e referências.
+
+Implicações  
+1. Percepção subjetiva: Ninguém enxerga a realidade de modo idêntico. Cada indivíduo filtra informações através de seus próprios olhos e experiências.
+  
+2. Flexibilidade mental: Reconhecer que o mapa não é o território encoraja a abertura para novas perspectivas e a compreensão de que há outras formas de ver uma situação.
+
+3. Mudança e desenvolvimento pessoal: Compreender que nossas interpretações estão sujeitas a ajustes nos permite modificar crenças e comportamentos, promovendo crescimento pessoal.
+
+4. Melhora na comunicação: Ao reconhecer que o outro pode ter um "mapa" diferente do seu, é possível melhorar a escuta e a comunicação, evitando conflitos e mal-entendidos.
+
+Esse pressuposto é essencial para a prática da PNL, pois atrai a atenção para a importância de trabalhar com as percepções das pessoas ao invés de tentar mudar a "realidade" em si.
+[2025-07-13 10:24:39] Nai_Bot: This model requires early access!
+[2025-07-13 10:26:47] Samuel: /placa hmh2235
+[2025-07-13 10:26:48] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: HMH2235
+
+• CHASSI: 9BD11930581050123
+• NÚM. MOTOR: J4*0356723*
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: FIAT/FIAT/DOBLO ELX
+• COR: BRANCA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 007
+
+• POTÊNCIA: 114
+• CILINDRADAS: 1800
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: HMH2C35
+• PLACA ANTIGA: HMH2235
+
+• ANO - FABRICAÇÃO: 2008
+• ANO - MODELO: 2008
+
+• LOCALIDADE:
+
+• MUNICÍPIO: BELO HORIZONTE
+• UF: MG
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CNPJ
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: SEM INFORMACAO
+
+👤 USUÁRIO: Samuel
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 10:27:40] Adão: /start
+[2025-07-13 10:27:41] AnônimoBucasRobot:  👋🏻 Olá Adão, seja bem vindo ao Anônimo Buscas!
+
+• ID: 1985543543
+• Expiração: Não encontrado
+
+Para continuar selecione uma funcionalidade abaixo 👇🏻
+[2025-07-13 10:27:41] ChatGPT + Midjourney | GPT-4.1: Это бот для работы с актуальными моделями нейросетей в Telegram. Чтобы задать вопрос, просто напишите его.
+
+Команды
+/start - перезапуск
+/mode - выбрать нейросеть
+/profile - профиль пользователя
+/pay - купить подписку
+/reset - сброс контекста
+/img - генерация изображений
+/help - помощь
+/ask - задать вопрос (в группах)
+
+Наш Telegram-канал про технологии: NN
+
+Пользовательское соглашение 
+Политика конфиденциальности
+Реквизиты
+[2025-07-13 10:29:18] Cuidaaa: /start@AnoninoBuscasOfcBot
+[2025-07-13 10:29:19] AnônimoBucasRobot:  👋🏻 Olá Cuidaaa, seja bem vindo ao Anônimo Buscas!
+
+• ID: 6572722411
+• Expiração: Não encontrado
+
+Para continuar selecione uma funcionalidade abaixo 👇🏻
+[2025-07-13 10:29:20] Doidoi: /nome MATEUS MARQUES GOLDIM
+[2025-07-13 10:29:21] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:29:49] Cuidaaa: /start@AnoninoBuscasOfcBot
+[2025-07-13 10:29:49] AnônimoBucasRobot: 🔍 CONSULTA SCORE🔍
+    
+🕵️ Bases disponíveis: BIGDATA.
+    
+━━━━━━━━━━━━━━━━━━
+🔍 SCORE BIGDATA
+    
+🔹 Comando: /score
+🔹 Exemplo de uso: /score 62761919149
+━━━━━━━━━━━━━━━━━━
+[2025-07-13 10:30:08] Doidoi: /nome MARIA SALOMEA DE NEGREIROS LIMA
+[2025-07-13 10:30:21] Cuidaaa: /score
+[2025-07-13 10:30:21] AnônimoBucasRobot: ⚠️ INFORME UM CPF
+[2025-07-13 10:30:24] Donizeti: /fone 35 97586643
+[2025-07-13 10:31:31] Doidoi: /nome MARIANA PROFIRIO
+[2025-07-13 10:32:04] Doidoi: /cpf4 07112748356
+[2025-07-13 10:34:46] Donizeti: /cpf13771984267
+[2025-07-13 10:35:28] Jv: /nome Maria Quitéria da Silva
+[2025-07-13 10:35:29] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:36:30] Jv: /nome Jeferson Vatzech de Moraes
+[2025-07-13 10:37:26] Carlos: /placa pct5735
+[2025-07-13 10:37:27] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: PCT5735
+
+• CHASSI: 9C2MC4400HR007560
+• NÚM. MOTOR: MC44E0H007558
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: ALIENACAO FIDUCIARIA
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: HONDA/HONDA/CB 250F TWISTER
+• COR: VERMELHA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: MOTOCICLETA
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 002
+
+• POTÊNCIA: SEM INFORMACAO
+• CILINDRADAS: 249
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: PCT5H35
+• PLACA ANTIGA: PCT5735
+
+• ANO - FABRICAÇÃO: 2017
+• ANO - MODELO: 2017
+
+• LOCALIDADE:
+
+• MUNICÍPIO: LAJEDO
+• UF: PE
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: JERFESON DE **********
+
+👤 USUÁRIO: Carlos
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 10:37:40] Alexandre: /nome João Evangelista de Miranda e Silva
+[2025-07-13 10:37:41] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:37:46] Digital: /placa pkf2233
+[2025-07-13 10:37:47] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: PKF2233
+
+• CHASSI: 9C2MD4100GR004354
+• NÚM. MOTOR: MD41E0G004355
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: HONDA/HONDA/XRE 190
+• COR: VERMELHA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: MOTOCICLETA
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 002
+
+• POTÊNCIA: SEM INFORMACAO
+• CILINDRADAS: 184
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: PKF2C33
+• PLACA ANTIGA: PKF2233
+
+• ANO - FABRICAÇÃO: 2016
+• ANO - MODELO: 2016
+
+• LOCALIDADE:
+
+• MUNICÍPIO: PORTO SEGURO
+• UF: BA
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: ANDREIA OL****** *********
+
+👤 USUÁRIO: Digital
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 10:38:21] Alexandre: /nome Kele Miranda
+[2025-07-13 10:38:21] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:40:55] Alexandre: /nome Bianca Caldas
+[2025-07-13 10:40:55] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:41:47] Alexandre: /nome Carla Bianca Caldas
+[2025-07-13 10:41:48] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:42:36] Oswaldo: /nai@NaiSD_Bot
+[2025-07-13 10:42:38] Nai_Bot: Select dimensions:
+[2025-07-13 10:43:15] Max: /nome adivan soares dos Santos
+[2025-07-13 10:44:01] Igor: /nome laudelina gonsalves barbosa
+[2025-07-13 10:44:02] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:44:33] Baratex02: /nome Tânia passarela Damiana
+[2025-07-13 10:45:22] Baratex02: /nome Tania passarela damiana
+[2025-07-13 10:45:23] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 10:47:23] Claudio: Cria uma imagem de um dinossauro após o impacto de um cometa em um ambiente sinistro com base na realidade.
+[2025-07-13 10:48:29] Claudio: /gen criar um dinossauro.
+[2025-07-13 10:48:45] Nai_Bot: [IMAGEM: photo_328615.jpg]
+[2025-07-13 10:56:41] Alexandre: /nome CARLA BIANCA CALDAS DUARTE DE OLIVEIRA
+[2025-07-13 10:57:17] Alexandre: /cpf 01142139174
+[2025-07-13 10:58:11] Ibrahimovic 🇮🇱: /placa EDR4059
+[2025-07-13 10:58:11] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: EDR4059
+
+• CHASSI: 9BFZK03A69B068543
+• NÚM. MOTOR: SMRA9068543
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: FORD/FORD/KA FLEX
+• COR: PRETA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 73
+• CILINDRADAS: 999
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: EDR4A59
+• PLACA ANTIGA: EDR4059
+
+• ANO - FABRICAÇÃO: 2008
+• ANO - MODELO: 2009
+
+• LOCALIDADE:
+
+• MUNICÍPIO: SAO PAULO
+• UF: SP
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CNPJ
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: SEM INFORMACAO
+
+👤 USUÁRIO: Ibrahimovic 🇮🇱
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 10:58:59] Fagner: /gen imagem realista de escritório de designer gráfico com paredes azul escuro e branco gelo
+[2025-07-13 10:59:04] Ibrahimovic 🇮🇱: Cadê o Renavam, que consultas bosta é essa
+[2025-07-13 10:59:06] Eduardo: [IMAGEM: photo_328650.jpg]
+[2025-07-13 10:59:18] Nai_Bot: [IMAGEM: photo_328656.jpg]
+[2025-07-13 10:59:32] Nai_Bot: [IMAGEM: photo_328658.jpg]
+[2025-07-13 11:00:01] Nai_Bot: [IMAGEM: photo_328660.jpg]
+[2025-07-13 11:03:27] Nai_Bot: [IMAGEM: photo_328666.jpg]
+[2025-07-13 11:13:15] Elivander: /ask@chatsgpts_bot
+[2025-07-13 11:13:16] ChatGPT + Midjourney | GPT-4.1: Некорректный текст запроса!
+[2025-07-13 11:13:18] Nai_Bot: This model requires early access!
+[2025-07-13 11:13:20] Wevany: /telefone 54997083100
+[2025-07-13 11:13:20] Albertino: /Create a 3D brand for the Cabedelo Verdade podcast program. The brand must contain one of the highlighted letters and also the program's slogan "Aqui a Verdade é prioridade" The predominant colors are the first R167 G1 B1, the second R239 G131 B33, two or more options
+[2025-07-13 11:14:03] Elivander: /ask crie uma imagem de uma família feliz em um dia ensolarado
+[2025-07-13 11:14:05] Nai_Bot: This model requires early access!
+[2025-07-13 11:14:07] ChatGPT + Midjourney | GPT-4.1: Desculpe, mas não posso criar imagens. Posso ajudar com descrições ou ideias sobre uma família feliz em um dia ensolarado, se você quiser!
+[2025-07-13 11:14:34] Elivander: Quero sim
+[2025-07-13 11:18:05] Fagner: /ask atua como especialista e cria linhas de comando para criar uma exetenção de navegador, com a finalidade se seguir pessoas e curtir uma foto
+[2025-07-13 11:18:07] Nai_Bot: This model requires early access!
+[2025-07-13 11:18:15] ChatGPT + Midjourney | GPT-4.1: Criar uma extensão de navegador para seguir pessoas e curtir fotos em uma rede social requer conhecimento em JavaScript, HTML e algumas práticas de desenvolvimento de extensões. Abaixo, forneço um guia básico com os passos e linhas de comando que você poderia usar, mantendo em mente que ações automatizadas podem violar os Termos de Serviço de muitas plataformas. 
+
+### Estrutura da Extensão
+
+1. Criar o Manifesto
+   Crie um arquivo manifest.json para descrever a extensão.
+
+      {
+     "manifest_version": 3,
+     "name": "Auto Follow and Like",
+     "version": "1.0",
+     "permissions": [
+       "activeTab"
+     ],
+     "background": {
+       "service_worker": "background.js"
+     },
+     "action": {
+       "default_popup": "popup.html",
+       "default_icon": "icons/icon.png"
+     },
+     "content_scripts": [
+       {
+         "matches": ["*://*.example.com/*"],
+         "js": ["content.js"]
+       }
+     ]
+   }
+   
+
+2. Criar o HTML do Popup
+   Crie um arquivo popup.html para a interface da extensão.
+
+      <!DOCTYPE html>
+   <html>
+   <head>
+       <title>Auto Follow and Like</title>
+   </head>
+   <body>
+       <h1>Auto Follow and Like</h1>
+       <button id="start">Iniciar</button>
+
+       <script src="popup.js"></script>
+   </body>
+   </html>
+   
+
+3. Escrever a Lógica no Script do Popup
+   Crie um arquivo popup.js para capturar eventos.
+
+      document.getElementById('start').addEventListener('click', () => {
+       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+           chrome.scripting.executeScript({
+               target: { tabId: tabs[0].id },
+               files: ['content.js']
+           });
+       });
+   });
+   
+
+4. Implementar a Lógica no Script de Conteúdo
+   Crie content.js onde a lógica do seguimento e curtidas será implementada.
+
+      // Exemplo de função para seguir usuários e curtir fotos
+   function autoFollowAndLike() {
+       const followButtons = document.querySelectorAll('.follow-button'); // Seletor dos botões de seguir
+       const likeButtons = document.querySelectorAll('.like-button'); // Seletor dos botões de curtir
+
+       followButtons.forEach(button => {
+           if (button.innerText === 'Seguir') {
+               button.click();
+           }
+       });
+
+       likeButtons.forEach(button => {
+           if (button.innerText === 'Curtir') {
+               button.click();
+           }
+       });
+   }
+
+   autoFollowAndLike();
+   
+
+### Instruções Finais
+
+- Crie uma pasta com todos esses arquivos.
+- Em seu navegador, acesse as configurações de extensões e ative o modo de desenvolvedor.
+- Carregue a pasta da extensão.
+- Teste a funcionalidade em uma página compatível.
+
+### Aviso
+
+Use esta extensão com cuidado e respeite as diretrizes da plataforma em que você está operando. Automação excessiva pode resultar em banimentos ou restrições na sua conta.
+[2025-07-13 11:19:55] Nicola: /telefone 84998520151
+[2025-07-13 11:19:56] AnônimoBucasRobot: ⚠️ TELEFONE NÃO ENCONTRADO.
+[2025-07-13 11:20:36] Nicola: /telefone 83998520151
+[2025-07-13 11:20:36] AnônimoBucasRobot: ⚠️ TELEFONE NÃO ENCONTRADO.
+[2025-07-13 11:20:44] Daniel: /cpf 18876803300
+[2025-07-13 11:21:21] Albertino: /ask Criar uma marca em 3d para o programa de podcast Cabedelo Verdade, a marca deve conter uma das letras em destaque e também o slogan do programa “aqui a verdade é prioridade” as cores predominantes a primeira R167 G1 B1 a segunda R239 G131 B33 duas ou mais opções.
+[2025-07-13 11:21:24] Nai_Bot: This model requires early access!
+[2025-07-13 11:21:25] ChatGPT + Midjourney | GPT-4.1: Aqui estão duas sugestões para a marca em 3D do podcast Cabedelo Verdade:
+
+Opção 1
+- A letra C em destaque, em 3D, usando a cor R167 G1 B1.
+- O restante da palavra "abedelo Verdade" em uma fonte clara e moderna, na cor R239 G131 B33.
+- O slogan "aqui a verdade é prioridade" em uma fonte mais discreta, abaixo do nome, em uma tonalidade que contrasta bem.
+
+Opção 2
+- A letra V de "Verdade" em destaque, em um efeito 3D chamativo, na cor R239 G131 B33.
+- O restante do nome do podcast em uma cor neutra para realçar a letra destacada.
+- O slogan "aqui a verdade é prioridade" disposto ao longo da parte inferior da marca, com uma fonte elegante e em R167 G1 B1.
+
+Essas opções proporcionam um visual forte e impactante para o programa!
+[2025-07-13 11:22:21] .: /telefone 21167164674
+[2025-07-13 11:22:22] AnônimoBucasRobot: ⚠️ TELEFONE NÃO ENCONTRADO.
+[2025-07-13 11:22:47] Albertino: /img@chatsgpts_bot
+[2025-07-13 11:22:47] ChatGPT + Midjourney | GPT-4.1: Генерация изображений с помощью Midjourney доступна в подписке по команде /pay
+[2025-07-13 11:23:06] .: /telefone 21967164674
+[2025-07-13 11:24:07] .: /CPF 08309205104
+[2025-07-13 11:24:26] Albertino: /gen Criar uma marca em 3d para o programa de podcast Cabedelo Verdade, a marca deve conter uma das letras em destaque e também o slogan do programa “aqui a verdade é prioridade” as cores predominantes a primeira R167 G1 B1 a segunda R239 G131 B33 duas ou mais opções.
+[2025-07-13 11:24:46] Nai_Bot: [IMAGEM: photo_328726.jpg]
+[2025-07-13 11:26:18] Albertino: outra opção
+[2025-07-13 11:27:13] Albertino: /gen Create a 3D brand for the Cabedelo Verdade podcast program. The brand must contain one of the highlighted letters and also the program's slogan "Aqui a Verdade é prioridade" The predominant colors are the first R167 G1 B1, the second R239 G131 B33, two or more options.
+[2025-07-13 11:27:25] Nai_Bot: [IMAGEM: photo_328732.jpg]
+[2025-07-13 11:28:52] Nai_Bot: [IMAGEM: photo_328736.jpg]
+[2025-07-13 11:29:21] Sabino: /cpf 86796313020
+[2025-07-13 11:34:50] Albertino: /gen Create a brand for the “CABEDELO VERDADE” podcast program, the brand must contain one of the highlighted letters and also the program's slogan "AQUI A VERDADE É PRIORIDADE" the predominant colors the first R167 G1 B1 the second R239 G131 B33
+[2025-07-13 11:35:04] Nai_Bot: [IMAGEM: photo_328744.jpg]
+[2025-07-13 11:36:13] Nai_Bot: [IMAGEM: photo_328746.jpg]
+[2025-07-13 11:37:48] Nai_Bot: [IMAGEM: photo_328748.jpg]
+[2025-07-13 11:44:22] 🙃: /telefone  11996162323
+[2025-07-13 11:54:30] Luiz: /placa baz9h62
+[2025-07-13 11:54:31] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: BAZ9H62
+
+• CHASSI: 9BWKB45U5HP085738
+• NÚM. MOTOR: CCRV47391
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: ALIENACAO FIDUCIARIA
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: VW/VW/NOVA SAVEIRO TL MBVS
+• COR: BRANCA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: CAMINHONETE
+• ESPÉCIE: CARGA
+• CARROCERIA: CARROCERIA ABERTA
+• CAPACIDADE DE PASSAGEIROS: 002
+
+• POTÊNCIA: 104
+• CILINDRADAS: 1598
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: BAZ9H62
+• PLACA ANTIGA: BAZ9762
+
+• ANO - FABRICAÇÃO: 2016
+• ANO - MODELO: 2017
+
+• LOCALIDADE:
+
+• MUNICÍPIO: ALMIRANTE TAMANDARE
+• UF: PR
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CNPJ
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: SEM INFORMACAO
+
+👤 USUÁRIO: Luiz
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 11:55:54] Eng Eduardo: /start@AnoninoBuscasOfcBot
+[2025-07-13 11:55:55] AnônimoBucasRobot: 🔍 CONSULTA TELEFONE 🔍
+    
+🕵️ Bases disponíveis: DATA, SERASA, FIXO
+
+━━━━━━━━━━━━━━━━━━
+🔍 TELEFONE DATA
+
+🔹 Comando: /telefone
+🔹 Exemplo de uso: /telefone 18996998981
+━━━━━━━━━━━━━━━━━━
+🔍 TELEFONE SERASA
+
+🔹 Comando: /telefone2
+🔹 Exemplo de uso: /telefone2 18996998981
+━━━━━━━━━━━━━━━━━━
+🔍 TELEFONE FIXO
+
+🔹 Comando: /telefonefixo
+🔹 Exemplo de uso: /telefonefixo 1335643333
+━━━━━━━━━━━━━━━━━━
+[2025-07-13 11:58:01] Baratex02: /nome Rafaela da Silva Teixeira
+[2025-07-13 11:58:51] Baratex02: /CPF 34813557856
+[2025-07-13 12:04:14] Kiro: /placa QUM3A77
+[2025-07-13 12:04:14] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: QUM3A77
+
+• CHASSI: 9BFZH54L9L8388519
+• NÚM. MOTOR: XNKGL8388519
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: FORD/FORD/KA SE 1.0 SD C
+• COR: BRANCA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 85
+• CILINDRADAS: 997
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: QUM3A77
+• PLACA ANTIGA: QUM3077
+
+• ANO - FABRICAÇÃO: 2019
+• ANO - MODELO: 2020
+
+• LOCALIDADE:
+
+• MUNICÍPIO: BELO HORIZONTE
+• UF: MG
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CNPJ
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: SEM INFORMACAO
+
+👤 USUÁRIO: Kiro
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 12:05:02] Kiro: /nome Luciano Almeida De Carvalho
+[2025-07-13 12:08:38] Kiro: /cpf 11845200705
+[2025-07-13 12:10:48] Beto: /placa MQZ3F68
+[2025-07-13 12:10:49] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: MQZ3F68
+
+• CHASSI: 9BGRZ48907G248109
+• NÚM. MOTOR: N60016952
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: GM/GM/CELTA 4P LIFE
+• COR: VERMELHA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 70
+• CILINDRADAS: 1000
+
+• CHASSI REMARCADO: NAO
+
+• PLACA NOVA: MQZ3F68
+• PLACA ANTIGA: MQZ3568
+
+• ANO - FABRICAÇÃO: 2007
+• ANO - MODELO: 2007
+
+• LOCALIDADE:
+
+• MUNICÍPIO: OSASCO
+• UF: SP
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: ANDREIA DE ***********
+
+👤 USUÁRIO: Beto
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 12:11:36] Emerson Evg Paracuri: /cpf 01281958271
+[2025-07-13 12:13:10] Beto: /placa MQZ3F68
+[2025-07-13 12:13:11] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: MQZ3F68
+
+• CHASSI: 9BGRZ48907G248109
+• NÚM. MOTOR: N60016952
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: GM/GM/CELTA 4P LIFE
+• COR: VERMELHA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 70
+• CILINDRADAS: 1000
+
+• CHASSI REMARCADO: NAO
+
+• PLACA NOVA: MQZ3F68
+• PLACA ANTIGA: MQZ3568
+
+• ANO - FABRICAÇÃO: 2007
+• ANO - MODELO: 2007
+
+• LOCALIDADE:
+
+• MUNICÍPIO: OSASCO
+• UF: SP
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: ANDREIA DE ***********
+
+👤 USUÁRIO: Beto
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 12:13:50] Iuri Musse: /placa PKJ4453
+[2025-07-13 12:13:51] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: PKJ4453
+
+• CHASSI: 9BFZH55L2J8467591
+• NÚM. MOTOR: XNKAJ8467591
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: ALIENACAO FIDUCIARIA
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: FORD/FORD/KA SEL 1.0 HA B
+• COR: VERMELHA
+• COMBUSTÍVEL: ALCOOL / GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: PASSAGEIRO
+• CARROCERIA: NAO APLICAVEL
+• CAPACIDADE DE PASSAGEIROS: 005
+
+• POTÊNCIA: 85
+• CILINDRADAS: 997
+
+• CHASSI REMARCADO: SIM
+
+• PLACA NOVA: PKJ4E53
+• PLACA ANTIGA: PKJ4453
+
+• ANO - FABRICAÇÃO: 2017
+• ANO - MODELO: 2018
+
+• LOCALIDADE:
+
+• MUNICÍPIO: SALVADOR
+• UF: BA
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: ALEXANDRE UZ*** ****************
+
+👤 USUÁRIO: Iuri Musse
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 12:14:12] Emerson Evg Paracuri: /nome 2 Emerson santa rosa de sousa
+[2025-07-13 12:14:13] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 12:14:45] Emerson Evg Paracuri: /nome2  Emerson santa rosa de sousa
+[2025-07-13 12:14:49] AnônimoBucasRobot: 🔍 CONSULTA DE NOME 🔍
+
+• RESULTADO 1:
+
+👤 DADOS PESSOAIS:
+• NOME: EMERSON SANTA ROSA DE SOUSA
+• CPF: 88845770206
+• NASCIMENTO: 27/11/1985
+• SEXO: M - MASCULINO
+
+👤 USUÁRIO: Emerson Evg Paracuri
+🤖 BY: @AnoninoBuscasOfcBot
+[2025-07-13 12:15:24] Emerson Evg Paracuri: /nome1 Emerson santa rosa de sousa
+[2025-07-13 12:16:14] ChatGPT + Midjourney | GPT-4.1: Это бот для работы с актуальными моделями нейросетей в Telegram. Чтобы задать вопрос, просто напишите его.
+
+Команды
+/start - перезапуск
+/mode - выбрать нейросеть
+/profile - профиль пользователя
+/pay - купить подписку
+/reset - сброс контекста
+/img - генерация изображений
+/help - помощь
+/ask - задать вопрос (в группах)
+
+Подпишитесь на наш Telegram канал про технологии: @naebnet
+
+Пользовательское соглашение 
+Политика конфиденциальности
+Реквизиты
+[2025-07-13 12:16:22] Gonçalves: /tel 85999717648
+[2025-07-13 12:16:22] AnônimoBucasRobot: ⚠️ TELEFONE NÃO ENCONTRADO.
+[2025-07-13 12:16:54] Gonçalves: /tel 8599717648
+[2025-07-13 12:16:54] AnônimoBucasRobot: ⚠️ TELEFONE INVÁLIDO!
+[2025-07-13 12:18:44] Michelly: /placa CMH1e02
+[2025-07-13 12:18:44] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: CMH1E02
+
+• CHASSI: 8AWZZZ377WA104648
+• NÚM. MOTOR: AFZ257413
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: VW/GOL MI
+• COR: PRATA
+• COMBUSTÍVEL: GASOLINA
+
+• TIPO VEÍCULO: AUTOMOVEL
+• ESPÉCIE: MISTO
+• CARROCERIA: SEM INFORMACAO
+• CAPACIDADE DE PASSAGEIROS: SEM INFORMACAO
+
+• POTÊNCIA: 55
+• CILINDRADAS: 1000
+
+• CHASSI REMARCADO: NAO
+
+• PLACA NOVA: CMH1E02
+• PLACA ANTIGA: CMH1402
+
+• ANO - FABRICAÇÃO: 1998
+• ANO - MODELO: 1998
+
+• LOCALIDADE:
+
+• MUNICÍPIO: SAO JOSE DO RIO PRETO
+• UF: SP
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: CELINA CA*****
+
+👤 USUÁRIO: Michelly
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 12:26:39] ALEX: /tel 11965712938
+[2025-07-13 12:26:59] Backupfull: /placa KBQ3426
+[2025-07-13 12:26:59] AnônimoBucasRobot: 🔍 CONSULTA DE PLACA 🔍
+            
+• PLACA: KBQ3426
+
+• CHASSI: CG1251052707
+• NÚM. MOTOR: SEM INFORMACAO
+• RENAVAM: CLIQUE PARA VER
+
+• SITUAÇÃO: REGULAR
+
+• RESTRIÇÃO 1: SEM RESTRICAO
+• RESTRIÇÃO 2: SEM RESTRICAO
+• RESTRIÇÃO 3: SEM RESTRICAO
+• RESTRIÇÃO 4: SEM RESTRICAO
+
+• MARCA/MODELO: HONDA/CG 125
+• COR: SEM INFORMACAO
+• COMBUSTÍVEL: SEM INFORMACAO
+
+• TIPO VEÍCULO: SEM INFORMACAO
+• ESPÉCIE: DESCONHECIDO
+• CARROCERIA: SEM INFORMACAO
+• CAPACIDADE DE PASSAGEIROS: SEM INFORMACAO
+
+• POTÊNCIA: SEM INFORMACAO
+• CILINDRADAS: SEM INFORMACAO
+
+• CHASSI REMARCADO: NAO
+
+• PLACA NOVA: KBQ3E26
+• PLACA ANTIGA: KBQ3426
+
+• ANO - FABRICAÇÃO: 1979
+• ANO - MODELO: SEM INFORMACAO
+
+• LOCALIDADE:
+
+• MUNICÍPIO: TRINDADE
+• UF: GO
+
+• FIPE:
+
+SEM INFORMAÇÃO
+
+👤 PROPRIETÁRIO:
+
+• TIPO DE DOCUMENTO: CPF
+• DOCUMENTO: CLIQUE PARA VER
+• NOME: DORVALINO FI*** ********
+
+👤 USUÁRIO: Backupfull
+🤖 BY: @AnoninoBuscasOfcBot
+✅ Canal: @annonimobotchannel
+[2025-07-13 12:27:57] Fred: /nome Maria Olívia Moreira leao
+[2025-07-13 12:27:57] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 12:28:37] Fred: /nome Maria Olívia Moreira leão
+[2025-07-13 12:28:37] AnônimoBucasRobot: ⚠️ NOME NÃO ENCONTRADO
+[2025-07-13 12:30:18] ALEX: /CPF 35606228831
+[2025-07-13 12:30:36] Corujao: /ask fale quais os melhores publico para meta ads de emagrecimento feminino e as melhores regioes para rodar anuncios desse seguimento que não tenha tanta objeções
+[2025-07-13 12:30:39] Nai_Bot: This model requires early access!
+[2025-07-13 12:30:44] ChatGPT + Midjourney | GPT-4.1: Aqui estão alguns dos melhores públicos e regiões para rodar anúncios de emagrecimento feminino no Meta Ads:
+
+Públicos Alvo
+
+1. Mulheres Adultas: Focar em mulheres entre 18 e 45 anos, que estão mais inclinadas a investir em saúde e bem-estar.
+
+2. Interesses Específicos: Direcionar para mulheres que têm interesse em fitness, nutrição, dietas, perda de peso e bem-estar.
+
+3. Comportamentos de Compra: Anúncios para mulheres que recentemente compraram produtos relacionados à saúde, suplementos ou fitness.
+
+4. Público Personalizado: Segmentar baseando-se em interações anteriores com a página ou com vídeos relacionados a emagrecimento.
+
+5. Lookalike Audience: Criar públicos semelhantes a clientes que já compraram produtos ou serviços anteriores.
+
+Regiões para Anúncios
+
+1. Capitais e Grandes Cidades: Cidades como São Paulo, Rio de Janeiro, Belo Horizonte e Curitiba costumam ter um público mais receptivo.
+
+2. Regiões com Alto Índice de Renda: Áreas onde há um maior poder aquisitivo, pois as pessoas têm mais disposição para investir em saúde e emagrecimento.
+
+3. Cidades do Interior em Crescimento: Locais onde o interesse por saúde e bem-estar está crescendo, como cidades com um número crescente de academias ou eventos de fitness.
+
+Dicas Adicionais
+
+- Evitar Estigmas: Abordar a temática de forma positiva e incentivadora, evitando termos que possam gerar objeções ou desconforto.
+
+- Testar Criativos: Utilize diferentes anúncios e formatos para entender qual ressoa melhor com seu público-alvo.
+
+- Análises de Resultados: Mensure a eficácia dos anúncios para ajustar estratégias conforme necessário.
+
+Assim, focando nesses públicos e regiões, você poderá maximizar a eficácia das suas campanhas de emagrecimento feminino.
+[2025-07-13 12:33:05] Ricardo: /CPF 42155017847
+[2025-07-13 12:33:14] Gohst: /telefone 4130141800
+[2025-07-13 12:33:14] AnônimoBucasRobot: ⚠️ TELEFONE INVÁLIDO!
+[2025-07-13 12:33:45] Gohst: /telefone 41996314218
+[2025-07-13 12:33:45] AnônimoBucasRobot: ⚠️ TELEFONE NÃO ENCONTRADO.
+[2025-07-13 12:34:02] Gonçalves: /cpf 90292740344
+[2025-07-13 12:36:11] Corujao: /ask mediante esse publico e regioes falados acima me de uma copy irresistivel para esse publico
+[2025-07-13 12:36:13] Nai_Bot: This model requires early access!
+[2025-07-13 12:36:17] ChatGPT + Midjourney | GPT-4.1: Aqui está uma sugestão de copy irresistível para o público feminino interessado em emagrecimento:
+
+---
+
+🌟 Transforme seu Corpo e Sua Vida! 🌟
+
+💖 Você sabia que a mudança que você tanto deseja pode começar hoje? Chegou a hora de investir em você mesma! 
+
+👉 Descubra o Método que já ajudou milhares de mulheres a emagrecer de forma saudável e duradoura. Não se trata de dietas malucas, mas sim de um estilo de vida que se encaixa na sua rotina!
+
+✅ Você vai aprender a:
+- Comer de forma equilibrada sem abrir mão do prazer.
+- Incorporar exercícios simples que cabem na sua agenda.
+- Reduzir medidas e ganhar autoconfiança de maneira gradual e sustentável.
+
+✨ Garantia de satisfação: Teste nosso programa e, se não amar, devolvemos seu investimento! Sem riscos, só resultados!
+
+🔮 Transforme seus sonhos em realidade. Clique no link e venha fazer parte dessa comunidade de mulheres poderosas que decidiram assumir o controle de suas vidas!
+
+🚀 Promoção Relâmpago: 50% de desconto nas primeiras inscrições! Não fique de fora!
+
+---
+
+Essa copy se propõe a ser positiva e motivadora, além de destacar benefícios e gerar um senso de urgência, o que pode ser muito eficiente para esse público.

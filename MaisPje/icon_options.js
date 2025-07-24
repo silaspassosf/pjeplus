@@ -54,7 +54,22 @@ function criarAtalhosPlugin() {
 		var li = document.createElement("li");
 		var a = document.createElement("a");
 
-		// REMOVEU LOGICA DE COR
+		//COR DOS ATALHOS
+		let listaDeCores = ['[azul]','[verde]','[vermelho]','[amarelo]'];
+		let listaDeCoresHexadecimal = ['[#2778c4]','[#33c427]','[#c42727]','[#c4ab27]'];
+		let padrao = /\[(.*?)\]/gm;
+		let cor = arr2[0];
+		
+		if (padrao.test(arr2[0])) {
+			cor = arr2[0].match(new RegExp(/\[(.*?)\]/gm)).join();	
+			arr2[0] = arr2[0].replace(cor,'');
+			let pos = listaDeCores.indexOf(cor);
+			cor = (pos > -1) ? listaDeCoresHexadecimal[pos] : cor;		
+			cor = cor.replace(/\[|\]/g,'');			
+			li.style.borderLeft = '3px solid ' + cor;
+			li.style.backgroundImage = 'linear-gradient(to right, ' + cor + '4f , #e0e0e0)'
+		}
+				
 		a.innerText = arr2[0];
 		a.href = arr2[1];
 		a.target = "_blank";
@@ -89,7 +104,11 @@ function ligarDesligar() {
 			document.querySelectorAll('nav[class="categorias"]')[2].style.display = "flex";
 			document.querySelectorAll('nav[class="categorias"]')[3].style.display = "flex";
 			document.getElementById('atalhosPlugin').style.setProperty('overflow-y', 'scroll');
-			browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atalho Rápido', icone: 'ico_16.png'});
+			if (!opcoes.trt || !opcoes.grau_usuario || !opcoes.versaoPje) {
+				browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atenção', icone: 'ico_16_alerta.png'});
+			} else {
+				browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atalho Rápido', icone: 'ico_16.png'});
+			}
 		});
 	}
 }

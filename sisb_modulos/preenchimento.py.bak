@@ -1,0 +1,454 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+sisb_modulos/preenchimento.py
+Preenchimento automático SISBAJUD baseado no gigs-plugin.js
+Implementação fiel às linhas 13745-14123 do gigs-plugin.js
+"""
+
+import time
+import re
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+
+def kaizen_preencher_campos(driver, processo_dados_extraidos, config, invertido=False):
+    """
+    Implementação fiel à função preenchercamposSisbajud do gigs-plugin.js
+    Reproduz a sequência exata de ações: Juiz -> Vara -> Processo -> Tipo Ação -> CPF Autor -> Nome Autor -> Teimosinha
+    """
+    print(f'[KAIZEN] Preencher campos SISBAJUD (invertido={invertido}) - Sequência completa')
+    
+    if not processo_dados_extraidos:
+        print('[KAIZEN][ERRO] Dados do processo não extraídos. Abortando preenchimento.')
+        return
+    
+    try:
+        # Verificar se estamos na página correta (cadastrar minuta)
+        current_url = driver.current_url
+        if not ('/minuta/cadastrar' in current_url or '/minuta/nova' in current_url or '/minuta/criar' in current_url):
+            print(f'[KAIZEN][AVISO] Não parece estar na página de cadastro de minuta (URL: {current_url}). Tentando prosseguir...')
+
+        # Ação 1: JUIZ SOLICITANTE
+        _preencher_juiz_solicitante(driver, processo_dados_extraidos, config)
+        time.sleep(0.5)
+        
+        # Ação 2: VARA/JUÍZO
+        _preencher_vara_juizo(driver, processo_dados_extraidos, config)
+        time.sleep(0.5)
+        
+        # Ação 3: NÚMERO DO PROCESSO
+        _preencher_numero_processo(driver, processo_dados_extraidos)
+        time.sleep(0.5)
+        
+        # Ação 4: TIPO DE AÇÃO
+        _preencher_tipo_acao(driver)
+        time.sleep(0.5)
+        
+        # Ação 5: CPF/CNPJ AUTOR
+        _preencher_cpf_autor(driver, processo_dados_extraidos, invertido)
+        time.sleep(0.5)
+        
+        # Ação 6: NOME AUTOR
+        _preencher_nome_autor(driver, processo_dados_extraidos, invertido)
+        time.sleep(0.5)
+        
+        # Ação 7: TEIMOSINHA (apenas se não for requisição de endereço)
+        req_endereco = _verificar_requisicao_endereco(driver)
+        if not req_endereco:
+            _preencher_teimosinha(driver, config)
+        else:
+            _preencher_endereco_opcoes(driver)
+            
+        print('[KAIZEN] Preenchimento de campos SISBAJUD concluído com sucesso.')
+        
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha no preenchimento de campos SISBAJUD: {e}')
+
+def _preencher_juiz_solicitante(driver, processo_dados_extraidos, config):
+    """Ação 1: Preencher Juiz Solicitante baseado no padrão gigs-plugin.js"""
+    print('[KAIZEN] Ação 1: JUIZ SOLICITANTE')
+    
+    try:
+        # Usar magistrado dos dados extraídos ou CONFIG como fallback
+        magistrado = ''
+        if processo_dados_extraidos:
+            magistrado = processo_dados_extraidos.get('magistrado', '')
+        
+        if not magistrado:
+            magistrado = config.get('juiz_default', 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA')
+            
+        script = f"""
+const selectors = [
+    'input[placeholder*="Juiz"]',
+    'input[placeholder*="Magistrado"]', 
+    'input[formcontrolname="juizSolicitante"]',
+    'input[name*="juiz"]',
+    'input[aria-label*="Juiz"]',
+    'input[id*="juiz"]'
+];
+let el = null;
+let successfulSelector = '';
+
+for (let selector of selectors) {{
+    try {{
+        el = document.querySelector(selector);
+        if (el && el.offsetParent !== null && !el.disabled && !el.readOnly) {{
+            successfulSelector = selector;
+            break;
+        }}
+        el = null;
+    }} catch (e) {{
+        console.warn('[KAIZEN] Error with selector: ' + selector, e);
+        el = null;
+    }}
+}}
+
+if (el) {{
+    el.focus();
+    el.value = '{magistrado}';
+    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+    el.blur();
+    console.log('[KAIZEN] Magistrado preenchido com: {magistrado} usando seletor: ' + successfulSelector);
+}} else {{
+    console.error('[KAIZEN] Campo "Juiz Solicitante" não encontrado ou não interativo.');
+}}
+"""
+        driver.execute_script(script)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao preencher juiz solicitante: {e}')
+
+def _preencher_vara_juizo(driver, processo_dados_extraidos, config):
+    """Ação 2: Preencher Vara/Juízo baseado no padrão gigs-plugin.js"""
+    print('[KAIZEN] Ação 2: VARA/JUÍZO')
+    
+    try:
+        # Usar juízo dos dados extraídos ou CONFIG como fallback
+        juizo = ''
+        if processo_dados_extraidos:
+            juizo = processo_dados_extraidos.get('juizo', '')
+        
+        if not juizo:
+            juizo = config.get('vara_default', '3006')
+            
+        script = f"""
+const selectors = [
+    'mat-select[name*="varaJuizoSelect"]',
+    'mat-select[formcontrolname="vara"]',
+    'mat-select[formcontrolname="juizo"]',
+    'select[name*="vara"]',
+    'select[name*="juizo"]',
+    'input[placeholder*="Vara"]',
+    'input[placeholder*="Juízo"]'
+];
+let el = null;
+let successfulSelector = '';
+
+for (let selector of selectors) {{
+    try {{
+        el = document.querySelector(selector);
+        if (el && el.offsetParent !== null && !el.disabled && !el.readOnly) {{
+            successfulSelector = selector;
+            break;
+        }}
+        el = null;
+    }} catch (e) {{
+        console.warn('[KAIZEN] Error with selector: ' + selector, e);
+        el = null;
+    }}
+}}
+
+if (el) {{
+    if (el.tagName.toLowerCase() === 'mat-select' || el.tagName.toLowerCase() === 'select') {{
+        // Para selects, tentar abrir e buscar opção
+        el.focus();
+        el.click();
+        
+        setTimeout(() => {{
+            let options = document.querySelectorAll('mat-option[role="option"], option');
+            for (let opt of options) {{
+                if (opt.innerText.includes('{juizo}') || opt.value === '{juizo}') {{
+                    opt.click();
+                    console.log('[KAIZEN] Vara/Juízo selecionado: {juizo} usando seletor: ' + successfulSelector);
+                    return;
+                }}
+            }}
+            console.warn('[KAIZEN] Opção {juizo} não encontrada no select');
+        }}, 500);
+    }} else {{
+        // Para inputs de texto
+        el.focus();
+        el.value = '{juizo}';
+        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+        el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+        el.blur();
+        console.log('[KAIZEN] Vara/Juízo preenchido: {juizo} usando seletor: ' + successfulSelector);
+    }}
+}} else {{
+    console.error('[KAIZEN] Campo "Vara/Juízo" não encontrado ou não interativo.');
+}}
+"""
+        driver.execute_script(script)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao preencher vara/juízo: {e}')
+
+def _preencher_numero_processo(driver, processo_dados_extraidos):
+    """Ação 3: Preencher Número do Processo baseado no padrão gigs-plugin.js"""
+    print('[KAIZEN] Ação 3: NÚMERO DO PROCESSO')
+    
+    try:
+        numero = processo_dados_extraidos.get('numero', '') if processo_dados_extraidos else ''
+        if numero:
+            # Limpar formatação mantendo apenas dígitos
+            numero_limpo = ''.join(filter(str.isdigit, numero))
+            script = f"""
+const selectors = [
+    'input[formcontrolname="numeroProcesso"]', 
+    'input[placeholder="Número do Processo"]',
+    'input[placeholder*="Número"]',
+    'input[placeholder*="Processo"]',
+    'input[name*="numeroProcesso"]',
+    'input[id*="numeroProcesso"]',
+    'input[aria-label*="Número do processo"]',
+    'input[id^="mat-input-"][placeholder*="Processo"]'
+];
+let el = null;
+let successfulSelector = '';
+
+for (let selector of selectors) {{
+    try {{
+        el = document.querySelector(selector);
+        if (el && el.offsetParent !== null && !el.disabled && !el.readOnly) {{
+            successfulSelector = selector;
+            break;
+        }}
+        el = null;
+    }} catch (e) {{
+        console.warn('[KAIZEN] Error with selector: ' + selector, e);
+        el = null;
+    }}
+}}
+
+if (el) {{
+    el.focus();
+    el.value = '';
+    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    el.value = '{numero_limpo}';
+    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+    el.blur();
+    console.log('[KAIZEN] Número do processo preenchido com: {numero_limpo} usando seletor: ' + successfulSelector);
+}} else {{
+    console.error('[KAIZEN] Campo "Número do Processo" não encontrado ou não interativo.');
+}}
+"""
+            driver.execute_script(script)
+        else:
+            print('[KAIZEN][INFO] Número do processo não disponível em processo_dados_extraidos.')
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao preencher número do processo: {e}')
+
+def _preencher_tipo_acao(driver):
+    """Ação 4: Preencher Tipo de Ação"""
+    print('[KAIZEN] Ação 4: TIPO DE AÇÃO')
+    try:
+        driver.execute_script("""
+            let el = document.querySelector('mat-select[name*="acao"]');
+            if (el) {
+                el.focus();
+                el.click();
+            }
+        """)
+        time.sleep(1)
+        driver.execute_script("""
+            let options = document.querySelectorAll('mat-option[role="option"]');
+            for (let opt of options) {
+                if (opt.innerText === 'Ação Trabalhista') {
+                    opt.click();
+                    break;
+                }
+            }
+        """)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao preencher tipo de ação: {e}')
+
+def _preencher_cpf_autor(driver, processo_dados_extraidos, invertido):
+    """Ação 5: Preencher CPF/CNPJ do Autor"""
+    print('[KAIZEN] Ação 5: CPF/CNPJ AUTOR')
+    try:
+        partes = processo_dados_extraidos.get('partes', {})
+        
+        if invertido:
+            # Para polo invertido, usar parte passiva como autor
+            cpf_cnpj = partes.get('passivas', [{}])[0].get('documento', '')
+        else:
+            # Usar parte ativa como autor
+            cpf_cnpj = partes.get('ativas', [{}])[0].get('documento', '')
+            
+        if cpf_cnpj:
+            # Limpar formatação do CPF/CNPJ
+            cpf_cnpj_limpo = cpf_cnpj.replace('.', '').replace('-', '').replace('/', '')
+            driver.execute_script(f"""
+                let el = document.querySelector('input[placeholder*="CPF"]');
+                if (el) {{
+                    el.focus();
+                    setTimeout(function() {{
+                        el.value = '{cpf_cnpj_limpo}';
+                        el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        el.blur();
+                    }}, 250);
+                }}
+            """)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao preencher CPF do autor: {e}')
+
+def _preencher_nome_autor(driver, processo_dados_extraidos, invertido):
+    """Ação 6: Preencher Nome do Autor"""
+    print('[KAIZEN] Ação 6: NOME AUTOR')
+    try:
+        partes = processo_dados_extraidos.get('partes', {})
+        
+        if invertido:
+            # Para polo invertido, usar parte passiva como autor
+            nome = partes.get('passivas', [{}])[0].get('nome', '')
+        else:
+            # Usar parte ativa como autor
+            nome = partes.get('ativas', [{}])[0].get('nome', '')
+            
+        if nome:
+            # Preencher o campo nome do autor
+            escolher_opcao_sisbajud_avancado(driver, 'input[placeholder*="Nome do Autor"]', nome)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao preencher nome do autor: {e}')
+
+def _verificar_requisicao_endereco(driver):
+    """Verifica se é requisição de endereço/informações"""
+    try:
+        return driver.execute_script("""
+            let radio = document.querySelector('mat-radio-button[class*="mat-radio-checked"]');
+            return radio && radio.innerText.includes('Requisição de informações');
+        """)
+    except Exception as e:
+        print(f'[KAIZEN] Erro ao verificar requisição de endereço: {e}')
+        return False
+
+def _preencher_teimosinha(driver, config):
+    """Ação 7: Configurar Teimosinha"""
+    print('[KAIZEN] Ação 7: TEIMOSINHA')
+    try:
+        teimosinha = config.get('teimosinha', '60').lower()
+        if teimosinha != 'nao':
+            driver.execute_script("""
+                let radios = document.querySelectorAll('mat-radio-button');
+                for (let radio of radios) {
+                    if (radio.innerText.includes('Repetir a ordem')) {
+                        radio.querySelector('label').click();
+                        break;
+                    }
+                }
+            """)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao configurar teimosinha: {e}')
+
+def _preencher_endereco_opcoes(driver):
+    """Ação 7.1 e 7.2: Configurar opções de endereço"""
+    print('[KAIZEN] Ação 7.1-7.2: CONFIGURAR ENDEREÇO')
+    try:
+        # Marcar opção "Endereços"
+        driver.execute_script("""
+            let checkboxes = document.querySelectorAll('span[class*="mat-checkbox-label"]');
+            for (let checkbox of checkboxes) {
+                if (checkbox.innerText === 'Endereços') {
+                    checkbox.parentElement.firstElementChild.firstElementChild.click();
+                    break;
+                }
+            }
+        """)
+        time.sleep(0.5)
+        
+        # Desmarcar "Incluir dados sobre contas"
+        driver.execute_script("""
+            let radios = document.querySelectorAll('mat-radio-button');
+            for (let radio of radios) {
+                if (radio.innerText.includes('Não')) {
+                    radio.querySelector('label').click();
+                    break;
+                }
+            }
+        """)
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao configurar opções de endereço: {e}')
+
+def escolher_opcao_sisbajud(driver, seletor, valor):
+    """Escolher opção em select ou mat-select"""
+    try:
+        # Espera até 5s pelo elemento
+        for _ in range(10):
+            try:
+                el = driver.find_element(By.CSS_SELECTOR, seletor)
+                break
+            except Exception:
+                time.sleep(0.5)
+        else:
+            print(f'[KAIZEN][ERRO] Opção "{valor}" não encontrada em {seletor} (elemento não existe)')
+            return False
+        
+        el.click()
+        time.sleep(0.5)
+        
+        opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option')
+        for opc in opcoes:
+            if valor.lower() in opc.text.lower():
+                opc.click()
+                print(f'[KAIZEN] Opção "{valor}" selecionada em {seletor}')
+                return True
+        
+        print(f'[KAIZEN][ERRO] Opção "{valor}" não encontrada em {seletor} (nenhuma opção corresponde)')
+        return False
+        
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha ao selecionar opção: {e}')
+        return False
+
+def escolher_opcao_sisbajud_avancado(driver, seletor, valor):
+    """
+    Implementação avançada baseada na função escolherOpcaoSISBAJUD do gigs-plugin.js
+    """
+    try:
+        driver.execute_script(f"""
+            async function escolherOpcaoSISBAJUD(seletor, valor) {{
+                await new Promise(resolve => setTimeout(resolve, 200));
+                let element = document.querySelector(seletor);
+                if (!element) return false;
+                
+                element.focus();
+                element.dispatchEvent(new KeyboardEvent('keydown', {{ keyCode: 40, which: 40 }}));
+                
+                // Aguardar opções aparecerem
+                let tentativas = 0;
+                while (tentativas < 5) {{
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    let opcoes = document.querySelectorAll('mat-option[role="option"], option');
+                    if (opcoes.length > 0) {{
+                        for (let opcao of opcoes) {{
+                            if (opcao.innerText.toLowerCase().includes(valor.toLowerCase())) {{
+                                opcao.click();
+                                return true;
+                            }}
+                        }}
+                        break;
+                    }}
+                    tentativas++;
+                    element.focus();
+                    element.dispatchEvent(new KeyboardEvent('keydown', {{ keyCode: 40, which: 40 }}));
+                }}
+                return false;
+            }}
+            escolherOpcaoSISBAJUD('{seletor}', '{valor}');
+        """)
+        return True
+    except Exception as e:
+        print(f'[KAIZEN][ERRO] Falha na seleção avançada: {e}')
+        return False

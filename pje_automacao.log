@@ -11,3 +11,67 @@
 2025-07-05 15:49:56,298 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000259F2F8BD90>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d07606b0-81a2-4efe-a64f-b25e694ca828
 2025-07-05 15:50:00,352 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00000259F2FE95B0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/d07606b0-81a2-4efe-a64f-b25e694ca828
 2025-07-05 15:50:04,416 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-08 11:56:48,596 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-08 11:58:09,458 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-07-08 11:58:09,458 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-07-08 11:58:15,573 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-08 11:58:18,573 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-08 12:01:40,735 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-08 12:01:43,962 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-07-08 12:01:47,992 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000023F97BA7C50>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/55b69f73-1982-4525-9c33-21d98046d1ce
+2025-07-08 12:01:52,020 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000023F97CA0050>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/55b69f73-1982-4525-9c33-21d98046d1ce
+2025-07-08 12:01:56,054 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000023F97BB22C0>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/55b69f73-1982-4525-9c33-21d98046d1ce
+2025-07-08 12:02:00,105 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-08 12:17:45,193 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-08 12:18:27,800 [ERROR] [AutomacaoPJe] [PROCESSAR_P2] Erro: Message: Process unexpectedly closed with status 0
+
+2025-07-08 12:18:49,463 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-08 12:18:52,463 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-08 12:19:10,290 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-09 10:45:31,208 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-09 10:47:11,366 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-07-09 10:47:11,367 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-07-09 10:47:17,656 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-09 10:47:20,656 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-09 10:51:32,435 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-09 10:51:35,502 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-07-09 10:51:39,545 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002375602C050>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/4b51c8ae-99d1-4ba7-934f-4cd651b0bd22
+2025-07-10 12:27:12,048 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-10 12:27:43,313 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha na execução do loop_prazo: Message: Tried to run command without establishing a connection
+
+2025-07-10 12:27:43,313 [ERROR] [__main__] [SEQUENCIA][ERRO] Erro crítico na execução da sequência: Message: Tried to run command without establishing a connection
+
+2025-07-10 12:27:45,501 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-10 12:27:45,501 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha na execução da sequência: Message: Tried to run command without establishing a connection
+
+2025-07-11 11:28:28,572 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-11 11:29:48,896 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-07-11 11:29:48,897 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-07-11 11:29:54,990 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-11 11:29:57,991 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-11 11:31:34,691 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-11 11:31:37,993 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-07-11 11:31:42,048 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016E74857D90>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/2fe4359d-0911-497c-81c5-40b7aa7fa37e
+2025-07-11 11:31:46,111 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016E74964190>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/2fe4359d-0911-497c-81c5-40b7aa7fa37e
+2025-07-11 11:31:50,169 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000016E74868E90>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/2fe4359d-0911-497c-81c5-40b7aa7fa37e
+2025-07-11 11:31:54,222 [INFO] [__main__] [SEQUENCIA] Driver fechado com sucesso.
+2025-07-13 11:16:57,902 [ERROR] [__main__] [SEQUENCIA][ERRO] Erro crítico na execução da sequência: Message: Process unexpectedly closed with status 0
+
+2025-07-13 11:16:57,905 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha na execução da sequência: Message: Process unexpectedly closed with status 0
+
+2025-07-13 11:27:59,742 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectionResetError(10054, 'Foi forçado o cancelamento de uma conexão existente pelo host remoto', None, 10054, None)': /session/2409a170-6fe4-4533-8568-3e9188443c62
+2025-07-13 11:28:52,484 [INFO] [__main__] [SEQUENCIA] Iniciando execução do loop_prazo...
+2025-07-13 11:31:04,644 [INFO] [__main__] [SEQUENCIA] loop_prazo concluído com sucesso.
+2025-07-13 11:31:04,645 [INFO] [__main__] [SEQUENCIA] Iniciando execução do p2...
+2025-07-13 11:31:11,601 [INFO] [AutomacaoPJe] [FILTRO] Filtro xs aplicado com sucesso.
+2025-07-13 11:31:14,602 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Iniciando processamento da lista de processos
+2025-07-13 11:32:57,752 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: cannot unpack non-iterable bool object
+2025-07-13 11:33:56,514 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: cannot unpack non-iterable bool object
+2025-07-13 11:35:56,860 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: cannot unpack non-iterable bool object
+2025-07-13 11:36:44,534 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: cannot unpack non-iterable bool object
+2025-07-13 11:38:12,838 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: cannot unpack non-iterable bool object
+2025-07-13 11:39:04,416 [ERROR] [AutomacaoPJe] [FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: cannot unpack non-iterable bool object
+2025-07-13 11:39:33,253 [INFO] [AutomacaoPJe] [FLUXO_PRAZO] Processamento da lista concluído
+2025-07-13 11:39:36,459 [INFO] [__main__] [SEQUENCIA] p2 concluído com sucesso.
+2025-07-13 11:39:40,495 [WARNING] [urllib3.connectionpool] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError('<urllib3.connection.HTTPConnection object at 0x0000024BD1CFBB10>: Failed to establish a new connection: [WinError 10061] Nenhuma conexão pôde ser feita porque a máquina de destino as recusou ativamente')': /session/f2207f32-0b37-4a96-8daa-8502764731e9
+2025-07-13 11:39:44,526 [ERROR] [__main__] [SEQUENCIA][ERRO] Falha ao fechar o driver.

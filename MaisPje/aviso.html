@@ -2,8 +2,7 @@
 <html>
 	<head>
 		<meta charset="utf-8">
-		<title>maisPje</title>
-		<link rel="stylesheet" href="https://pro.fontawesome.com/releases/v5.13.0/css/all.css">
+		<title>Termos de Uso - maisPje</title>
 		<style>
 			body {
 				font-family: "NunitoSans Regular", "Arial", sans-serif;
@@ -47,7 +46,31 @@
 				position: relative;
 				left: calc(50% - 70px);
 			}
-			
+
+			.icone {
+				display: inline-block;
+				font-style: normal;
+				font-variant: normal;
+				text-rendering: auto;
+				line-height: 1;
+				cursor: pointer;
+				shape-rendering: crispedges;				
+			}
+
+			.logo-plus {
+				background-color: #3d3f3f;
+				-webkit-mask: url(icons/svg/plus.svg) no-repeat center;
+				width: 30px !important;
+				height: 30px !important;
+			}
+
+			.logo-box-open {
+				background-color: #3d3f3f;
+				-webkit-mask: url(icons/svg/box-open.svg) no-repeat center;
+				width: 36px !important;
+				height: 36px !important;
+			}
+
 			.container {
 				position: relative;
 				padding-left: 35px;
@@ -135,8 +158,8 @@
 	<body>
 			<nav class="categorias">
 				<div class="logo">
-					<span style="padding: 0 5px 0 0;"><i class="fas fa-box-open"></i></span>
-					<span style="font-size: 30px; padding: 0 5px 0 0;"><i class="fas fa-plus fa-xs"></i></span>	
+					<span style="padding: 5px 5px 0 0;"><i class="icone logo-box-open"></i></span>
+					<span style="padding: 0 5px 0 0;"><i class="icone logo-plus"></i></span>	
 					<span><img src="icons/logo-pje.png" style="width: auto; height: 32px;padding-top: 10px;"></span>
 				</div>
 				<div>
@@ -194,6 +217,5 @@
 			</fieldset>
 			<span style="display: block;width: 100%;text-align: right;font-style: italic;font-size: .7rem;">Os direitos sobre a extensão foram cedidos ao Tribunal Regional do Trabalho da 12ª Região - TRT12.</span>
 			<script src="aviso.js"></script>
-			<script src="../js/sweetalert2.all.min.js"></script>
 	</body>
 </html>

@@ -13,6 +13,40 @@ var preferencias = [];
 var erro = false;
 var seletorDetalhesNumeroProcesso210 = '*[aria-label*="Abre o resumo do processo"],*[mattooltip="Abre o resumo do processo."]';
 var seletorDetalhesNumeroProcesso = seletorDetalhesNumeroProcesso210 + ',' + '*[aria-label*="Detalhes do Processo"],*[mattooltip="Detalhes do Processo"],button[name="numero-processo"], button[name="numero-processo"], pje-descricao-processo button, pje-descricao-processo a';
+var listaDeVariaveisParaEditorDeTexto = [
+	['[maisPje:exequente]',''],
+	['[maisPje:executado]',''],
+	['[maisPje:valorDivida]',''],
+	['[maisPje:dataDaDivida]',''],
+	['[maisPje:justiçagratuita]',''],
+	['[maisPje:justiçagratuitaData]',''],
+	['[maisPje:transitoJulgado]',''],
+	['[maisPje:custasArbitradas]',''],
+	['[maisPje:chaveDeAcesso:id]','Chave de Acesso'],
+	['[maisPje:chaveDeAcesso:chave]','Chave de Acesso'],
+	['[maisPje:petiçãoInicial:id]','Petição Inicial'],
+	['[maisPje:petiçãoInicial:chave]','Petição Inicial'],	
+	['[maisPje:últimaContestação:id]','Contestação'],
+	['[maisPje:últimaContestação:chave]','Contestação'],
+	['[maisPje:últimaManifestação:id]','Manifestação'],
+	['[maisPje:últimaManifestação:chave]','Manifestação'],
+	['[maisPje:últimaSentença:id]','Sentença'],
+	['[maisPje:últimaSentença:chave]','Sentença'],
+	['[maisPje:últimoAcórdão:id]','Acórdão'],
+	['[maisPje:últimoAcórdão:chave]','Acórdão'],
+	['[maisPje:últimoDespacho:id]','Despacho'],
+	['[maisPje:últimoDespacho:chave]','Despacho'],
+	['[maisPje:últimaDecisão:id]','Decisão'],
+	['[maisPje:últimaDecisão:chave]','Decisão'],
+	['[maisPje:últimaAta:id]','Ata da Audiência'],
+	['[maisPje:últimaAta:chave]','Ata da Audiência'],
+	['[maisPje:últimaCertidão:id]','Certidão'],
+	['[maisPje:últimaCertidão:chave]','Certidão'],
+	['[maisPje:últimoCálculo:id]','Planilha de Cálculos'],
+	['[maisPje:últimoCálculo:chave]','Planilha de Cálculos'],
+	['[maisPje:último:id]','*'],
+	['[maisPje:último:chave]','*']
+];
 
 browser.storage.local.get(null, async function(configuracoes){
 	preferencias = configuracoes;
@@ -41,7 +75,9 @@ async function executar() {
 	console.debug('*************preferencias.tempAAEspecial:' + preferencias.tempAAEspecial);
 	console.debug('*************preferencias.tempAR:' + preferencias.tempAR);
 	// console.debug('*************preferencias.trt:' + preferencias.trt);
-	
+
+	if (document.location.href.includes("moz-extension:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) { return }
+
 	if (document.location.href.includes("/administracao")) {
 		if (document.referrer.includes("login.seam")) {
 			mudarPerfil();
@@ -51,6 +87,10 @@ async function executar() {
 		}
 		
 	} else if (document.location.href.includes(".jus.br/pjekz/")) {
+		//a transição ocorre apenas depois de carregar a https://pje.trt12.jus.br/pjekz/ ... nesses casos tem que aguardar o carregamento da transição
+		if (document.location.href.slice(-7) == '/pjekz/') { 
+			await esperarTransicao(true,3000);
+		}
 		
 		if (document.querySelector('pje-cabecalho-perfil')) { monitor_Janela_Principal() }
 		
@@ -65,6 +105,7 @@ async function executar() {
 
 		if (document.location.href.includes("/tarefa") || document.location.href.includes("/movimentar")) {
 			if (preferencias.tempBt.length > 0) {
+			
 				posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 				if (preferencias.tempBt[0] == "acao_bt_aaDespacho") {	
 					fundo(true);
@@ -74,12 +115,14 @@ async function executar() {
 				}
 				
 				if (preferencias.tempBt[0] == "acao_bt_aaMovimento") {	
+		
 					fundo(true);
 					acao_bt_aaMovimento(preferencias.tempBt[1]);
 					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
 				}
 				
 			} else {
+			
 				posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 				addBotaoTarefas();
 				kaizen('TAREFAS');				
@@ -96,7 +139,12 @@ async function executar() {
 				}
 				
 				if (document.location.href.includes("/minutar") || document.location.href.includes("/assinar")) {
-					await addZoom_Editor(); //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS
+					if (preferencias.tempAR == 'trocarMagistradoResponsavelPelaMinuta') { 
+						await trocarMagistradoResponsavelPelaMinuta();
+					} else {
+						await addZoom_Editor(); //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS
+					}
+					
 				} else  if (document.location.href.includes("/comunicacoesprocessuais/")) {
 					inserirParte_BB_CEF();
 				} else  if (document.location.href.includes("/sobrestamento/aguardandofinal")) {
@@ -109,12 +157,18 @@ async function executar() {
 					filtroMagistrado();
 				}
 			}
-			
+		
+		//ENDEREÇO DA PÁGINA: GIGS
+		} else if (document.location.href.includes("/gigs/abrir-gigs/")) {
+			posicionarJanelaGigs(preferencias.desativarAjusteJanelas);
+			addBotaoGigs();
+
 		//ENDEREÇO DA PÁGINA: DETALHES
 		} else if (document.location.href.includes("/detalhe") && !document.location.href.includes("/calculo")) {
 			posicionarJanelaDetalhes(preferencias.desativarAjusteJanelas);			
 			addBotaoDetalhes();
 			kaizen('DETALHES');
+			guiaPersonalizadaDetalhes();
 			
 			if (preferencias.AALote.length == 0) { monitor_documento_JanelaDetalhes() }			
 			
@@ -122,7 +176,8 @@ async function executar() {
 			if (preferencias.gigsAbrirGigs && preferencias.AALote.length == 0) { // não executar quando vem de lote
 				await sleep(100);
 				console.log("Extensão maisPJE (" + agora() + "): abrirGigs()");
-				let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+				// let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+				let idProcesso = await obterIdProcessoDaUrl();
 				abrirGigs(idProcesso);
 			}
 			
@@ -190,8 +245,9 @@ async function executar() {
 		
 		} else if (document.location.href.includes("/conteudo") && document.location.href.includes("/documento/")) {
 
-			let id_div_documento_principal = document.location.href.substring(document.location.href.search("/documento/") + 11, document.location.href.search("/conteudo"));
-			await addBotoesDocumentoIsoladoCarregado(id_div_documento_principal);
+			let idDoDocumento = await obterIdDocumentoDaUrl(document.location.href)
+			console.log(idDoDocumento)
+			await addBotoesDocumentoIsoladoCarregado(idDoDocumento);
 
 		//ENDEREÇO DA PÁGINA: COMUNICAÇÕES E EXPEDIENTES		
 		} else if (document.location.href.includes("/comunicacoesprocessuais/")) {
@@ -213,38 +269,39 @@ async function executar() {
 			if (preferencias.tempBt.length > 0) {
 				if (preferencias.tempBt[0] == "acao_bt_retificarAutuacao") {
 					
-					console.log(preferencias.tempBt[1].toString())
 					let multiResultado = preferencias.tempBt[1].toString().split(/,|;/g); //separador , ou ; para os casos de mais de uma parte
 					let tipoRetificacao = parseInt(multiResultado[0]);
 					multiResultado.shift();
-
-					console.log(tipoRetificacao);
-					console.log(multiResultado);
-					console.log(multiResultado.length);
-									
-					if (multiResultado.length > 1) {
-						for (const [pos, item] of multiResultado.entries()) {
-							console.log('maisPje: retificando a autuação [' + tipoRetificacao + ',' + item + ']')
-							await acao_bt_retificarAutuacao(new Array(tipoRetificacao,item));
-						}
+					
+					console.log(tipoRetificacao)
+					if (tipoRetificacao == 999) { //Variados:RETIFICAR AUTUAÇÃO>Cadastrar Advogado
+						let obj = preferencias.tempBt[1][1];
+						await acao_bt_retificarAutuacao(preferencias.tempBt[1][1]);
 						browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
-						await criarCaixaDeAlerta('Atenção','Finalizada a retificação de autuação em lote.\n\nEsta janela será fechada.',5);
-						window.close();
+						// [999, preferencias.aaVariados[13].objeto]
 					} else {
-						await acao_bt_retificarAutuacao(preferencias.tempBt[1]);
-						browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+						// console.log(tipoRetificacao); //999
+						// console.log(multiResultado);  //array de objeto
+						// console.log(multiResultado.length);
+
+						if (multiResultado.length > 1) {
+							for (const [pos, item] of multiResultado.entries()) {
+								console.log('maisPje: retificando a autuação [' + tipoRetificacao + ',' + item + ']')
+								await acao_bt_retificarAutuacao(new Array(tipoRetificacao,item));
+							}
+							browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+							await criarCaixaDeAlerta('Atenção','Finalizada a retificação de autuação em lote.\n\nEsta janela será fechada.',5);
+							window.close();
+						} else {
+							await acao_bt_retificarAutuacao(preferencias.tempBt[1]);
+							browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+						}
 					}
 					
 				}
 			}
 		
-		} else if (document.location.href.includes("/pessoa-fisica?perito")) {
-			await clicarBotao('mat-select[name="especializacao"]');
-			await clicarBotao('mat-option[role="option"]','Perito');
-		} else if (document.location.href.includes("/pessoa-fisica?advogado")) {
-			await clicarBotao('mat-select[name="especializacao"]');
-			await clicarBotao('mat-option[role="option"]','Advogado');
-			
+		
 		//DETALHES DO PROCESSO: OBRIGAÇÕES DE PAGAR
 		} else if (document.location.href.includes("/obrigacao-pagar/")) {
 			let ancora = await esperarElemento('a[mattooltip="Incluir obrigação de pagar"]');
@@ -270,7 +327,7 @@ async function executar() {
 		} else if (document.location.href.includes("/configuracao/modelos-documentos")) {
 			incluirBotaoVariaveis();
 		} else { //JANELA PRINCIPAL DO PJE
-			console.log('document.location.href: ' + document.location.href)				
+			console.log('document.location.href: ' + document.location.href)
 		}
 	
 	//TAREFAS pje antigo
@@ -371,49 +428,10 @@ async function executar() {
 	//ENDEREÇO DA PÁGINA: PJECALC
 	} else if (document.location.href.includes("/pjecalc/")) {
 		if (!preferencias.modulo9.pjecalc) { return }
-
-		//cria o event listener do esc
-		document.body.addEventListener('keydown', async function(event) {
-			if (event.code === "Escape") {
-				//Cancela o fundo que bloqueia a página
-				fundo(false);
-				console.log('maisPJe: ESC pressionado...')
-				//limpa a memória da ação automatizada em lote
-				browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt,tempAR,AALote,tempAAEspecial,anexadoDoctoEmSigilo'}); //preferencias.anexadoDoctoEmSigilo
-				preferencias.tempBT = [];
-				preferencias.tempAR = '';
-				preferencias.tempAAEspecial = [];
-				preferencias.AALote = '';
-				preferencias.anexadoDoctoEmSigilo = -1;
-			}
-		});
 		
 		console.log("Extensão maisPJE (" + agora() + "): pjecalc");
-		
-		let estaOffLine = await esperarElemento('h1','503 Service Unavailable',1000);
-		let erroServidor = document.querySelector('div[class="conteudoErro"]') || document.querySelector('body[class*="neterror"]');
-		if (estaOffLine || erroServidor) { 
-			
-			let guardarStorage = browser.storage.local.set({'tempAR': ''});
-			Promise.all([guardarStorage]).then(values => { 
-				fundo(false);
-				return;
-			});			
-			
-		}
-		
+				
 		monitor_janela_PJeCalc();
-		
-		// if (preferencias.tempAR == 'atualizacaorapida') { await clicarBotao('a[title="Buscar Cálculo"]') }
-		if (document.location.href.includes("?maisPje=atualizacaorapidaRPVPrec")) {
-			browser.runtime.sendMessage({tipo: 'storage_guardar', chave: 'tempAR', valor: 'RPVPrec'});
-			await clicarBotao('a[title="Buscar Cálculo"]');
-		} else if (document.location.href.includes("?maisPje=atualizacaorapida")) {
-			browser.runtime.sendMessage({tipo: 'storage_guardar', chave: 'tempAR', valor: 'atualizacaorapida'});
-			await clicarBotao('a[title="Buscar Cálculo"]');
-		} else if (document.location.href.includes("?maisPje=abrirPJeCalc")) {
-			await clicarBotao('a[title="Buscar Cálculo"]');			
-		}
 		
 	//ENDEREÇO DA PÁGINA: PROTESTOJUD
 	} else if (document.location.href.includes("cenprotsc") && document.location.href.includes("titulo/cadastro")) {
@@ -487,8 +505,36 @@ async function executar() {
 		
 	//ENDEREÇO DA PÁGINA: RELATÓRIOS SAO	
 	} else if (document.location.href.includes("/sao/execucao/") || document.location.href.includes("/sao/acesso-negado") || document.location.href.includes("/sao/login")) {
-		if (document.location.href.includes("maisPje")) {			
+		let parametros = new URLSearchParams(document.location.href);
+		let ativar = document.location.href.includes('maisPje');
+		let a1 = parametros.get('cpfcnpj') || '';
+		let a2 = parametros.get('fase') || '';
+		if (ativar) {
 			
+			// let fase = parametros.get('fase') || '';
+			let ancora = await esperarElemento('pje-app-execucao'); //base do relatório SAO
+			if (ancora) {
+				fundo(true,'Pesquisando executado...');
+				let idParte = parametros.get('cpfcnpj') || '';
+				let cpfcnpj = await esperarElemento('input[data-placeholder="CPF/CNPJ"], input[data-placeholder="CPF ou CNPJ"]');
+				if (cpfcnpj && idParte) {
+					await preencherInput(cpfcnpj,idParte);
+				}
+
+				let fase = parametros.get('fase') || '';
+				let escolherFase = await esperarElemento('input[data-placeholder="FaseEsp"], input[data-placeholder="Fase Processual"]');
+				if (escolherFase && fase) {
+					await escolherOpcaoTeste2(escolherFase,fase);
+				}
+
+				let btPesquisar = await esperarElemento('i[class*="fa-search"]');
+				if (btPesquisar) {
+					await clicarBotao(btPesquisar.parentElement);
+				}
+				fundo(false);
+			}
+				
+				
 		} else {
 			if (document.location.href.includes("/sao/acesso-negado") || document.location.href.includes("/sao/login")) {
 				fundo(true);
@@ -596,6 +642,18 @@ async function executar() {
 				preferencias.tempAR = result.tempAR;						
 				if (preferencias.tempAR == 'consultar CNIB') {
 					await clicarBotao('button[id="btnSearch"]');
+					browser.storage.local.set({'tempAR': ''});
+				}		
+			});
+		}
+		if (document.location.href.includes("indisponibilidade.onr.org.br") && document.location.href.includes("ordem/cancelamento")) {
+			let var1 = browser.storage.local.get(['processo_memoria','tempAR'], async function(result){
+				// let numeroProcesso = await extrairNumeros(result.processo_memoria.numero.toString());
+				console.log("     |_____" + result.processo_memoria.numero + ' - ' + result.tempAR);
+				await preencherInput('input[id*="txtProcessNumber"]',result.processo_memoria.numero);
+				preferencias.tempAR = result.tempAR;						
+				if (preferencias.tempAR == 'cancelar CNIB') {
+					await clicarBotao('button[id="searchButton"]');
 					browser.storage.local.set({'tempAR': ''});
 				}		
 			});
@@ -708,6 +766,7 @@ async function executar() {
 		if (!preferencias.modulo9.onr) { return }
 		console.log('ONR - PENHORA ONLINE');
 		monitor_janela_onr();
+		
 	
 	//ENDEREÇO DA PÁGINA: SNIPER
 	} else if (document.location.href.includes("sniper.pdpj.jus.br") && !document.location.href.includes("blob:")) {
@@ -791,7 +850,7 @@ async function executar() {
 				}, 200);
 			}
 			
-			//consultar pagamento RPV e consultar listade RPVS expedidos
+			//consultar pagamento RPV e consultar lista de RPVS expedidos
 			if (document.location.href.includes("gprec/view/private/rpv/rpv") && document.location.href.includes("_lista.xhtml")) {
 				await preencherInput('input[id="inNrProc"]', result.processo_memoria.numero);
 				await clicarBotao('button[id="btnRpvPagListBuscar"], button[id="btnRpPesquisar"]');
@@ -981,7 +1040,11 @@ async function executar() {
 				let dtReceb = await criarCaixaDePergunta('data','Data de recebimento da requisição para início do prazo de pagamento:',''); 
 				let dtPagto = await criarCaixaDePergunta('data','Data Fim Prazo de Pagamento:','');
 
-				let listaDeBotoes = await esperarColecao('tbody[id="tblRequisicoes_data"] button[id*="tblRequisicoes:"][id*=":btnRpVtListaInformarPrazo"]');
+				let listaDeBotoes = await esperarColecao('tbody[id="tblRequisicoes_data"] button[id*="tblRequisicoes:"][id*=":btnRpVtListaInformarPrazo"]',1,1000);
+				if (!listaDeBotoes) { 
+					criarCaixaDeAlerta('Erro!','O botão para informar o prazo do pagamento não está aparecendo.',10);
+					return
+				}
 				for (const [pos, botao] of listaDeBotoes.entries()) {
 					let linha = botao.parentElement.parentElement;
 					linha.style.filter = 'contrast(0.5)';
@@ -1083,8 +1146,15 @@ async function executar() {
 			}
 			
 			async function acao4() {				
-				await esperarConferenciaAlvaraSif('Imprimir Extrato');
-				window.close();
+				// await esperarConferenciaAlvaraSif('Imprimir Extrato');
+				if (document.location.href.includes('maisPje_SIF_extratoEmLote')) {
+					alert('proximo')
+					// console.log(preferencias.tempAR.toString());
+					// document.location.href
+				} else {
+					// alert('fechar a janela')
+					// window.close();
+				}
 			}
 		
 		} else if (document.location.href.includes("/boleto/novo")) {
@@ -1102,7 +1172,7 @@ async function executar() {
 		} else {
 			if (!preferencias.modulo9.sif) { return }
 			
-			if (document.location.href.includes("?conferir")) {
+			if (document.location.href.includes("?maisPJeconferir")) {
 				fundo(true);
 				await esperarTransicaoSIF(60000,'PJE-SPINNER-DIALOG');
 				await escolherOpcaoTeste('mat-select[aria-label="Items per page:"], pje-paginador mat-select[aria-labelledby="mat-select-value-7"]','30');
@@ -1141,7 +1211,12 @@ async function executar() {
 	//ENDEREÇO DA PÁGINA: SISCONDJ
 	} else if (document.location.href.includes(preferencias.configURLs.idSiscondj)) {
 		
-		if (document.location.href.includes('?conferirAlvara')) {
+		if (!preferencias.modulo9.siscondj[0]) { return }
+		
+		console.log('SISCONDJ');
+		
+		//GERAR RELATORIO PARA CONFERIR/ASSINAR ALVARÁS
+		if (document.location.href.includes('?maisPJeGerarRelatorio')) {
 			let check = setInterval(async function() {
 				if (document.getElementById('statusAlvara_chosen')) {
 					clearInterval(check);
@@ -1153,10 +1228,8 @@ async function executar() {
 				}
 			}, 500);
 		}
-		
-		if (!preferencias.modulo9.siscondj[0]) { return }
-		console.log('SISCONDJ');
-		
+
+
 		let var1 = browser.storage.local.get('processo_memoria', function(result){			
 			
 			// CONSULTA DE CONTAS
@@ -1178,14 +1251,16 @@ async function executar() {
 			}
 		});
 		
+		
 		// inclui atalho para o pje
 		if (document.location.href.includes("/pages/mandado/pagamento/exibir")) {
 			
+			//CONFERENCIA AUTOMATICA PELO LOTE
 			if (preferencias.AALote == 'conferindoAlvara' && (document.location.href.includes("exibirPelaGrid") || document.location.href.includes("exibirAcionadoPelaGrid"))) {
-				
+				console.log('entrou 1')
 				let mensagemDeSucesso = await esperarElemento('div','Operação realizada com sucesso.',2000);				
 				if (!mensagemDeSucesso) { //mensagem de sucesso.. é que esse site sempre recarrega a página nos submits
-					
+					console.log('entrou 1.1')
 					let btFinalizar = await esperarElemento('div[class="botoes centro"] #bt_finalizar');
 					btFinalizar.scrollIntoView({behavior: 'smooth',block: 'start'});
 					btFinalizar.style.outline = '2px solid red';
@@ -1194,23 +1269,63 @@ async function executar() {
 						if (aviso) { 
 							let btSim = aviso.querySelectorAll('button')[1];
 							btSim.style.outline = '2px solid red';
-							await sleep(1000);
-							btSim.click();						
-							btSim.style.outline = 'revert';							
+							await sleep(1000);							
+							
+							let guardarStorage = browser.storage.local.set({'tempAR': 'alvaraConferido2'});														
+							Promise.all([guardarStorage]).then(values => { 
+								btSim.click();
+								btSim.style.outline = 'revert';								
+							});
+
 						}
 					});
 
 					await getContadorDePagina(preferencias.modulo9.siscondj[1]);					
 					btFinalizar.style.outline = 'revert';
 					btFinalizar.click();
+				} else {
+					console.log('entrou 1.2')
+					console.log(preferencias.tempAR);
+					if (preferencias.tempAR == 'alvaraConferido') { //conferindo alvaras em lote
+						window.close();
+					}
+					
+				}
 
-				} else { //segue pro próximo do AALote
-					console.log('3.2')
-					let guardarStorage = browser.storage.local.set({'AALote': ''});
-					Promise.all([guardarStorage]).then(values => { window.close() });
+			//CONFERENCIA AUTOMATICA SEM SER PELO LOTE
+			} else if (document.location.href.includes("?maisPJeconferir")) {
+				console.log('entrou 2')
+				let mensagemDeSucesso = await esperarElemento('div','Operação realizada com sucesso.',2000);				
+				if (!mensagemDeSucesso) { //mensagem de sucesso.. é que esse site sempre recarrega a página nos submits
+					console.log('entrou 2.1')
+					let btFinalizar = await esperarElemento('div[class="botoes centro"] #bt_finalizar');
+					btFinalizar.scrollIntoView({behavior: 'smooth',block: 'start'});
+					btFinalizar.style.outline = '2px solid red';
+					btFinalizar.addEventListener('click', async function(event) {
+						let aviso = await esperarElemento('div[aria-describedby="div_finalizar"]',null,2000);
+						if (aviso) { 
+							let btSim = aviso.querySelectorAll('button')[1];
+							btSim.style.outline = '2px solid red';
+							await sleep(1000);							
+							
+							let guardarStorage = browser.storage.local.set({'tempAR': 'alvaraConferido'});							
+							Promise.all([guardarStorage]).then(values => { 
+								btSim.click();
+								btSim.style.outline = 'revert';
+							});
+
+						}
+					});
+
+					await getContadorDePagina(preferencias.modulo9.siscondj[1]);					
+					btFinalizar.style.outline = 'revert';
+					btFinalizar.click();
+				} else {
+					console.log('entrou 2.2')
 				}
 
 			} else {
+				console.log('entrou 3')
 				let check = setInterval(function() {
 					let el = document.getElementById('table_processo');
 					if (el) {
@@ -1219,89 +1334,159 @@ async function executar() {
 						document.getElementById('maisPJe_atalhoConsultaPJe').title = 'Consultar Processo no PJe (Atalho: F2)'
 					}
 				}, 200);
+
+				if (document.location.href.includes("exibirPelaGrid") && document.referrer.includes("?maisPJeconferir")) {
+					console.log('entrou 3.1')
+					window.close();
+				}
 			}
 			
 		}
 
-		//conferir em Lote
+		//gerar relatório de alvarás
 		if (document.location.href.includes("/pages/mandado/acompanhamento/")) {
-			console.log('4')
-			let ancora = await esperarElemento('span','Exportar Todos para PDF');
-			let bt = criarElemento('span', 'width: auto; height: auto; background-color: rgb(204, 204, 204); border: 1px solid gray; border-radius: 3px; cursor: pointer; padding: 6px;position: absolute;', 'Conferir Em Lote');
-			bt.onclick = async function () {
-				siscondjConferirEmLote();
+			// console.log(preferencias.tempAR?.conferirSiscondj);
+			if (!preferencias.tempAR?.conferirSiscondj) { return }
+
+			fundo(true,'Conferindo Alvarás SISCONDJ...')
+
+			let ancora = await esperarElemento('.msgAlerta, .botaoPDF_all');
+			// console.log(ancora.id + " : " + ancora.className)
+			// console.log(preferencias.tempAR?.conferirSiscondj);
+
+			let listaTemporaria = preferencias.tempAR.lista;
+			await sleep(2000);
+			let linhas = document.querySelectorAll('table[id="acmp_alvara_form_tabelaAcompanhamento"] tbody tr');
+			// console.log('4.2: ' + linhas.length)
+			
+			if (linhas.length == 0) {
+				console.log('maisPJe: não existem alvarás para conferência..')
+				let guardarStorage = browser.storage.local.set({'tempAR': {"conferirSiscondj":0,"lista":[]}});
+				Promise.all([guardarStorage]).then(values => { 
+					setTimeout(function(){ window.close() }, 1000);
+				});
+				return;
 			}
-			ancora.parentElement.parentElement.parentElement.appendChild(bt);
 
-			if (document.location.href.includes("conferindoAlvaraEmLote")) { bt.click(); }
-		}
-
-	} else {
-		if (document.location.href.includes('blob:') && document.querySelector('#maisPje_blob_processoMemoria')) {
-			let largura = preferencias.gigsDetalhesWidth;
-			let altura = preferencias.gigsDetalhesHeight;
-			let posx = preferencias.gigsDetalhesLeft;
-			let posy = preferencias.gigsDetalhesTop;
-
-			posx = Math.floor(posx + largura);
-			largura = Math.floor(largura * 0.80);
-			posx = Math.floor(posx - largura);
-			browser.runtime.sendMessage({
-				tipo: 'posicionarJanela',
-				left: posx,
-				top: posy,
-				width: largura,
-				height: altura
-			});
-
-			// cria os event listeners
-			var listenerclick = async function(e) {
-				e.preventDefault();
-				
-				if (e.target?.className.includes('selecionavel')) {
-					let texto = e.target?.innerText;
-					if (texto) { 
-						texto = texto.replace(/(Nasc:.|Mãe:.)/gm,'');
-						copiarClipboard(texto) 
-						await criarCaixaDeAlerta("Ctrl + C",texto,1);
-					}
+			for (const [pos, linha] of linhas.entries()) {
+				let idLinha = linha.id;
+				let dadosDetalhados = await recuperarDadosDetalhadosSiscondj(idLinha);
+				for (const [pos2, linha2] of dadosDetalhados.entries()) {
+					let proc = linha.querySelector("#col_" + idLinha + "_0").innerText
+					let p = numeroProcessoFormatado(proc)
+					// console.log('p: ' + p)
+					let idProcessoApiPublica = await obterIdProcessoViaApiPublica(p);
+					// console.log(idProcessoApiPublica[0].id)
+					let idProcesso = idProcessoApiPublica[0].id;
+					// console.log(idProcesso)
+					if (!idProcesso) { 	idProcesso = await obterIdProcessoViaApi(p) }
+					exibir_mensagem("PESQUISANDO ALVARÁS:\n\n" + p + "\n\nObtendo dados");
 					
-				} else if (e.target?.className.includes('dadosprocesso') || e.target?.className.includes('poloativo') || e.target?.className.includes('polopassivo') || e.target?.className.includes('polooutros')) {
-					let ancora = e.target.parentElement
-					let ocultar = ancora.getAttribute('ocultar');
-					if (ocultar == "true") {
-						ancora.setAttribute('ocultar',false);
-						let i = 0;
-						let mapa = [].map.call(
-							ancora.childNodes, 
-							function(item) {
-								if (i > 0) {
-									item.classList.add('exibir')
-									item.classList.remove('ocultar')
-								}							
-								i++
-							}
-						);
-					} else {
-						ancora.setAttribute('ocultar',true);
-						let i = 0;
-						let mapa = [].map.call(
-							ancora.childNodes, 
-							function(item) {
-								if (i > 0) {
-									item.classList.add('ocultar')
-									item.classList.remove('exibir')
-								}							
-								i++
-							}
-						);
+					let tipo = await verificarTipoDeDeposito(linha2.detalhes);
+					// let nomeBeneficiario = await conferirStatusDoBeneficiarioNoProcesso(idProcesso,linha2.beneficiarios);
+					let nomeBeneficiario = linha2.beneficiarios;
+					let valor = linha2.valor;
+					valor = valor.replace('.','');
+					valor = valor.replace(',','.');
+
+					let emissor = linha.querySelector("#col_" + idLinha + "_8").innerText;
+					let info = {
+						"processo": proc,
+						"banco": "BANCO DO BRASIL",
+						"nomeBeneficiario": nomeBeneficiario,
+						"tipo": tipo.tipo,
+						"valor": valor,
+						"situacao": "",
+						"data": linha.querySelector("#col_" + idLinha + "_9").innerText,
+						"conta": linha.id,
+						"conteudoComprovante": tipo.comprovante,
+						"trt":preferencias.trt,
+						"identificador":idProcesso,
+						"emissor":emissor,
+						"processoFormatado":p,
+						"idPrestacaoContas":linha.querySelector("#col_" + idLinha + "_5").innerText,
+						"idDocumentoPje":0,
+						"idBanco":'001'
 					}
+					listaTemporaria.push(info);
 				}
+				
+				if (pos >= linhas.length-1) {					
+					let btProximaPagina = await esperarElemento('div[class="paginacao"] img[alt="Próxima"]',null,2000);
+					if (btProximaPagina) {
+						let guardarStorage = browser.storage.local.set({'tempAR': {"conferirSiscondj":2,"lista":listaTemporaria}});
+						Promise.all([guardarStorage]).then(values => { 
+							btProximaPagina.parentElement.click();
+						});
+					} else {
+						let guardarStorage = browser.storage.local.set({'tempAR': {"conferirSiscondj":3,"lista":listaTemporaria}});
+						Promise.all([guardarStorage]).then(values => { 
+							setTimeout(function(){ window.close() }, 1000);
+						});
+					}
+				}				
 			}
-			document.body.addEventListener('click', listenerclick);
-		}	
+		}
+	} else {
+		if (document.location.href.includes('moz-extension:') && document.location.href.includes('popupPainelCopiaECola')) {
+			await sleep(2000)
+			let itens = await esperarColecao('domicilio');
+			for (const [pos, item] of itens.entries()) {
+				
+				let domicilio = await obterDomicilioEletronico(item.getAttribute('maisPje'));
+
+				if (domicilio) {
+					item.innerText = 'Domicílio Eletrônico: SIM';
+				} else {
+					item.innerText = 'Domicílio Eletrônico: NÃO';
+				}
+				item.classList.remove('carregando');
+				item.classList.add('carregado');
+				item.style.display = 'flex';
+				
+			}
+			
+			let itens2 = await esperarColecao('endereco');
+			for (const [pos, item] of itens2.entries()) {
+				let param = item.getAttribute('maisPje').split('|');
+				console.log(param[0] + ' , ' + param[1])
+				item.innerText = 'Sem endereço cadastrado no processo';
+				if (parseInt(param[1]) >= 0) {
+					item.innerText = await obterEnderecoDaParte(param[0],param[1]);
+				}
+				item.classList.remove('carregando');				
+				item.classList.add('carregado');
+				item.style.display = 'flex';
+			}
+			
+		}
 	}
 
+	//função que existe para aguardar o carregamento das tarefas do Pje quando utilizarmos ações automatizadas de movimento
+	async function esperarTransicao(esperar=true, tempo=5000) {
+		return new Promise(async resolve => {
+			console.log('maisPje : esperarTransicao() : iniciando');
+			if (!esperar) { return resolve(true) }
+			let check,checkTimeOut;
+
+			//ATENÇÃO!! A troca de órgão Julgador dispara uma requisição [POST - pjedes.trt12.jus.br/pje-comum-api/api/processos/id/????/bloqueiotarefas] que interrompe o Javascript			
+			checkTimeOut = setTimeout(async function() {
+				clearInterval(check);
+				console.log('maisPje : esperarTransicao() : tempo esgotado!');
+				resolve(true);
+			}, tempo); //aguarda 5 segundos
+
+			check = setInterval(async function() {
+				if (document.location.href.includes('/tarefa')) {					
+					clearInterval(check);
+					clearTimeout(checkTimeOut);
+					console.log('maisPje : esperarTransicao() : transição finalizada!');
+					resolve(true);
+				}				
+			}, 10);
+		});
+	}
+	
 }
 
 //CHECAR E FAZER VALIDAÇÃO DE VARIÁVEIS
@@ -1333,6 +1518,7 @@ async function checarVariaveis() {
 	
 	preferencias.versao = typeof(preferencias.versao) == "undefined" ? "0" : preferencias.versao;
 	preferencias.trt = typeof(preferencias.trt) == "undefined" ? "erro" : preferencias.trt;
+	preferencias.num_trt = extrairTRT(preferencias.trt);
 	preferencias.nm_usuario = typeof(preferencias.nm_usuario) == "undefined" ? "" : preferencias.nm_usuario;
 	preferencias.oj_usuario = typeof(preferencias.oj_usuario) == "undefined" ? "" : preferencias.oj_usuario;
 	preferencias.grau_usuario = typeof(preferencias.grau_usuario) == "undefined" ? "" : preferencias.grau_usuario;
@@ -1352,7 +1538,10 @@ async function checarVariaveis() {
 	preferencias.gigsOcultarLembretes = typeof(preferencias.gigsOcultarLembretes) == "undefined" ? 0 : preferencias.gigsOcultarLembretes;
 	preferencias.gigsCriarMenu = typeof(preferencias.gigsCriarMenu) == "undefined" ? 0 : preferencias.gigsCriarMenu;
 	preferencias.gigsCriarMenuGuardarNumeroProcesso = typeof(preferencias.gigsCriarMenuGuardarNumeroProcesso) == "undefined" ? 0 : preferencias.gigsCriarMenuGuardarNumeroProcesso;
+	preferencias.gigsCriarMenuAbrirPainelCopiaECola = typeof(preferencias.gigsCriarMenuAbrirPainelCopiaECola) == "undefined" ? 0 : preferencias.gigsCriarMenuAbrirPainelCopiaECola;	
 	preferencias.gigsPesquisaDeDocumentos = typeof(preferencias.gigsPesquisaDeDocumentos) == "undefined" ? 0 : preferencias.gigsPesquisaDeDocumentos;
+	preferencias.gigsCriarMenuAbrirPainelCopiaECola = typeof(preferencias.gigsCriarMenuAbrirPainelCopiaECola) == "undefined" ? false : preferencias.gigsCriarMenuAbrirPainelCopiaECola;
+	preferencias.guiaPersonalizadaDetalhes = typeof(preferencias.guiaPersonalizadaDetalhes) == "undefined" ? '' : preferencias.guiaPersonalizadaDetalhes;
 	preferencias.maisPje_velocidade_interacao = typeof(preferencias.maisPje_velocidade_interacao) == "undefined" ? 1 : preferencias.maisPje_velocidade_interacao * 1000; //NA HORA DE USAR EU CONVERTO EM SEGUNDOS
 	preferencias.aaAnexar = typeof(preferencias.aaAnexar) == "undefined" ? [] : preferencias.aaAnexar;
 	preferencias.aaComunicacao = typeof(preferencias.aaComunicacao) == "undefined" ? [] : preferencias.aaComunicacao;
@@ -1364,8 +1553,11 @@ async function checarVariaveis() {
 	preferencias.aaVariados = typeof(preferencias.aaVariados) == "undefined" ? [] : preferencias.aaVariados;
 	preferencias.meuFiltro = typeof(preferencias.meuFiltro) == "undefined" ? [] : preferencias.meuFiltro;
 	preferencias.modulo5_juizDaMinuta = typeof(preferencias.modulo5_juizDaMinuta) == "undefined" ? true : preferencias.modulo5_juizDaMinuta;
+	preferencias.modulo5_processosSemAudienciaDesignada = typeof(preferencias.modulo5_processosSemAudienciaDesignada) == "undefined" ? true : preferencias.modulo5_processosSemAudienciaDesignada;	
 	preferencias.modulo5_obterSaldoSIF = typeof(preferencias.modulo5_obterSaldoSIF) == "undefined" ? true : preferencias.modulo5_obterSaldoSIF;
 	preferencias.modulo5_conferirTeimosinhaEmLote = typeof(preferencias.modulo5_conferirTeimosinhaEmLote) == "undefined" ? true : preferencias.modulo5_conferirTeimosinhaEmLote;
+	preferencias.modulo5_processosSemGigsCadastrado = typeof(preferencias.modulo5_processosSemGigsCadastrado) == "undefined" ? true : preferencias.modulo5_processosSemGigsCadastrado;	
+	preferencias.modulo5_obterConcilia = typeof(preferencias.modulo5_obterConcilia) == "undefined" ? true : preferencias.modulo5_obterConcilia;	
 	preferencias.emailAutomatizado = typeof(preferencias.emailAutomatizado) == "undefined" ? new EmailAutomatizado("Processo n. #{processo} (#{tipoDocumento} Id. #{idDocumento})", "Encaminho o(a) #{tipoDocumento} (Id. #{idDocumento}), expedido no processo #{processo}, para ciência ou cumprimento.\n\nO documento poderá ser acessado via internet mediante o seguinte link: #{autenticacao}\n\nAtenciosamente,", "#{servidor}\nDiretor de Secretaria\n#{OJServidor}") : preferencias.emailAutomatizado;
 	preferencias.gigsDetalhesLeft = typeof(preferencias.gigsDetalhesLeft) == "undefined" ? window.screen.availLeft : preferencias.gigsDetalhesLeft;
 	preferencias.gigsDetalhesTop = typeof(preferencias.gigsDetalhesTop) == "undefined" ? window.screen.availTop : preferencias.gigsDetalhesTop;
@@ -1394,7 +1586,7 @@ async function checarVariaveis() {
 	preferencias.sisbajud.cnpjRaiz = typeof(preferencias.sisbajud.cnpjRaiz) == "undefined" ? "não" : preferencias.sisbajud.cnpjRaiz;
 	preferencias.sisbajud.teimosinha = typeof(preferencias.sisbajud.teimosinha) == "undefined" ? "não" : preferencias.sisbajud.teimosinha;
 	preferencias.sisbajud.contasalario = typeof(preferencias.sisbajud.contasalario) == "undefined" ? "não" : preferencias.sisbajud.contasalario;
-	preferencias.sisbajud.naorespostas = typeof(preferencias.sisbajud.naorespostas) == "undefined" ? "não" : preferencias.sisbajud.naorespostas;
+	preferencias.sisbajud.naorespostas = typeof(preferencias.sisbajud.naorespostas) == "undefined" ? "Cancelar" : preferencias.sisbajud.naorespostas;
 	preferencias.sisbajud.valor_desbloqueio = typeof(preferencias.sisbajud.valor_desbloqueio) == "undefined" ? "não" : preferencias.sisbajud.valor_desbloqueio;
 	preferencias.sisbajud.banco_preferido = typeof(preferencias.sisbajud.banco_preferido) == "undefined" ? "não" : preferencias.sisbajud.banco_preferido;
 	preferencias.sisbajud.agencia_preferida = typeof(preferencias.sisbajud.agencia_preferida) == "undefined" ? "não" : preferencias.sisbajud.agencia_preferida;
@@ -1403,7 +1595,8 @@ async function checarVariaveis() {
 	preferencias.sisbajud.executarAAaoFinal = typeof(preferencias.sisbajud.executarAAaoFinal) == "undefined" ? "Nenhum" : preferencias.sisbajud.executarAAaoFinal;
 	preferencias.sisbajud.salvarEprotocolar = typeof(preferencias.sisbajud.salvarEprotocolar) == "undefined" ? "não" : preferencias.sisbajud.salvarEprotocolar;		
 	preferencias.sisbajud = {juiz: preferencias.sisbajud.juiz, vara: preferencias.sisbajud.vara, cnpjRaiz: preferencias.sisbajud.cnpjRaiz, teimosinha: preferencias.sisbajud.teimosinha, contasalario: preferencias.sisbajud.contasalario, naorespostas: preferencias.sisbajud.naorespostas, valor_desbloqueio: preferencias.sisbajud.valor_desbloqueio, banco_preferido: preferencias.sisbajud.banco_preferido, agencia_preferida: preferencias.sisbajud.agencia_preferida, preencherValor: preferencias.sisbajud.preencherValor, confirmar: preferencias.sisbajud.confirmar, executarAAaoFinal: preferencias.sisbajud.executarAAaoFinal, salvarEprotocolar: preferencias.sisbajud.salvarEprotocolar};
-	
+	preferencias.sisbajud.naorespostas = preferencias.sisbajud.naorespostas == "" ? "Cancelar" : preferencias.sisbajud.naorespostas;
+
 	preferencias.serasajud_juiz = typeof(preferencias.serasajud_juiz) == "undefined" ? "" : preferencias.serasajud_juiz;
 	preferencias.serasajud_foro = typeof(preferencias.serasajud_foro) == "undefined" ? "" : preferencias.serasajud_foro;
 	preferencias.serasajud_vara = typeof(preferencias.serasajud_vara) == "undefined" ? "" : preferencias.serasajud_vara;
@@ -1433,32 +1626,21 @@ async function checarVariaveis() {
 	preferencias.extrasEditorOcultarAutotexto = typeof(preferencias.extrasEditorOcultarAutotexto) == "undefined" ? false : preferencias.extrasEditorOcultarAutotexto;
 	preferencias.extrasEditorInverterOrdem = typeof(preferencias.extrasEditorInverterOrdem) == "undefined" ? false : preferencias.extrasEditorInverterOrdem;
 	preferencias.modulo4PaginaInicial = typeof(preferencias.modulo4PaginaInicial) == "undefined" ? 'nenhum' : preferencias.modulo4PaginaInicial;
-	preferencias.configURLs = typeof(preferencias.configURLs) == "undefined" ? {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''} : preferencias.configURLs;
-	preferencias.configURLs.descricao = typeof(preferencias.configURLs.descricao) == "undefined" ? 'ERRO' : preferencias.configURLs.descricao;
-	preferencias.configURLs.urlSiscondj = typeof(preferencias.configURLs.urlSiscondj) == "undefined" ? 'ERRO' : preferencias.configURLs.urlSiscondj;
-	preferencias.configURLs.idSiscondj = typeof(preferencias.configURLs.idSiscondj) == "undefined" ? 'ERRO' : preferencias.configURLs.idSiscondj;
-	preferencias.configURLs.urlSAOExecucao = typeof(preferencias.configURLs.urlSAOExecucao) == "undefined" ? 'ERRO' : preferencias.configURLs.urlSAOExecucao;
 	preferencias.anexadoDoctoEmSigilo = typeof(preferencias.anexadoDoctoEmSigilo) == "undefined" ? -1 : preferencias.anexadoDoctoEmSigilo;
 	preferencias.timeline = typeof(preferencias.timeline) == "undefined" ? ['',[]] : preferencias.timeline;
 	preferencias.extrasFecharJanelaExpediente = typeof(preferencias.extrasFecharJanelaExpediente) == "undefined" ? true : preferencias.extrasFecharJanelaExpediente;
 	preferencias.extrasSugerirTipoAoAnexar = typeof(preferencias.extrasSugerirTipoAoAnexar) == "undefined" ? true : preferencias.extrasSugerirTipoAoAnexar;
 	preferencias.extrasSugerirDescricaoAoAnexar = typeof(preferencias.extrasSugerirDescricaoAoAnexar) == "undefined" ? true : preferencias.extrasSugerirDescricaoAoAnexar;
 	preferencias.extrasProcurarExecucao = typeof(preferencias.extrasProcurarExecucao) == "undefined" ? 'SAO' : preferencias.extrasProcurarExecucao;
+	preferencias.extrasPrazoEmLote = typeof(preferencias.extrasPrazoEmLote) == "undefined" ? ['0','2','5','8','10','15'] : preferencias.extrasPrazoEmLote;
+
+	// console.log(preferencias.num_trt + ' : ' +  preferencias.grau_usuario)
+	preferencias.configURLs = typeof(preferencias.configURLs) == "undefined" ? await obterUrlsConciliaJT(preferencias.num_trt) : preferencias.configURLs;
 	
-	//CONCILIAJT
-	let padraoInicial = /trt\d{1,2}/; //eliminar urls que possuem numero. por exemplo: https://pjehom2.trt12.jus.br
-	let padrao = /\d{1,2}/;
-	if (padraoInicial.test(preferencias.trt)) {
-		preferencias.num_trt = preferencias.trt.match(padraoInicial).join();
-		if (padrao.test(preferencias.num_trt)) {
-			preferencias.num_trt = preferencias.num_trt.match(padrao).join();
-		} else {
-			preferencias.num_trt = '';
-		}
+	if (!document.location.href.includes('moz-extension')) {
+		preferencias.conciliajt = await buscaConfigConciliaJT(preferencias.num_trt, preferencias.grau_usuario);
 	}
 	
-	preferencias.conciliajt = await buscaConfigConciliaJT(preferencias.num_trt, preferencias.grau_usuario);
-
 	//base de desenvolvimento do CSJT - regularizar variáveis
 	if (document.location.href.includes('desenvolvimento.pje.csjt.jus.br')) { preferencias.num_trt = 99 }
 }
@@ -2009,6 +2191,17 @@ function posicionarJanelaDetalhes(desativado) {
 	}
 }
 
+async function guiaPersonalizadaDetalhes() {
+	//guia personalizada
+	if (preferencias.guiaPersonalizadaDetalhes) {
+		let numeroProcesso = await esperarElemento(seletorDetalhesNumeroProcesso);
+		// console.log(numeroProcesso.innerText);
+		let numeroDecomposto = await decomporNumeroProcesso(numeroProcesso.innerText);
+		// console.log(JSON.stringify(numeroDecomposto));
+		document.title = numeroDecomposto.reduzido;
+	}
+}
+
 //FUNÇÃO RESPONSÁVEL PELO POSICIONAMENTO DA JANELA GIGS DE ACORDO COM AS PREFERÊNCIAS DO USUÁRIO
 //ELA É ACIONADA DE DENTRO DA FUNÇÃO ABRIRGIGS()
 function posicionarJanelaGigs(desativado) {
@@ -2162,22 +2355,18 @@ async function abrirDetalhesProcesso() {
 //FUNÇÃO RESPONSÁVEL PELA ABERTURA DA JANELA TAREFAS DE ACORDO COM AS PREFERÊNCIAS DO USUÁRIO
 //ELA É ACIONADA DE DENTRO DA FUNÇÃO EXECUTAR()	
 async function abrirTarefasProcesso() {
-	await clicarBotao('button[aria-label*="Abrir a tarefa"]');
+	await clicarBotao('button[aria-label*="Abrir a tarefa"], button[aria-label*="Abre a tarefa"]');
 }
 
 //FUNÇÃO RESPONSÁVEL PELA ABERTURA DA JANELA GIGS DE ACORDO COM AS PREFERÊNCIAS DO USUÁRIO
 //ELA É ACIONADA DE DENTRO DA FUNÇÃO EXECUTAR()
 function abrirGigs(idProcesso) {
-	let prefixo = document.location.href.substring(0, document.location.href.search("/pjekz/"));
-	let gigsURL = 'https://' + preferencias.trt + '/pjekz/gigs/abrir-gigs/' + idProcesso;
-	console.log(preferencias.trt)
-	console.log(gigsURL)
-	let winGigs = window.open(gigsURL, '_blank');
+	const winGigs = apis.abrirGigs.abrir(preferencias.trt, {idProcesso});
 	posicionarJanelaGigs(preferencias.desativarAjusteJanelas);
 	//fecha a janela auxiliar quando a principal é fechada
-	window.onunload = function() {
+	window.addEventListener('pagehide', function() {
 		winGigs.close();
-	};
+	});
 }
 
 //FUNÇÃO RESPONSÁVEL POR MONITORAR O GIGS AS ALTERAÇÕES NO GIGS PRAZO/PREPARO NO CASO DE LANÇAMENTO NA JANELA DETALHES
@@ -2313,7 +2502,7 @@ async function mudarPerfil() {
 //ELA É ACIONADA DE DENTRO DA FUNÇÃO EXECUTAR()
 async function apreciarPeticoes() {
 	await esperarElemento('mat-card[style="background-color: khaki;"]');
-	await clicarBotao('button[aria-label="Apreciar todos."]');
+	await clicarBotao('button[aria-label="Apreciar todos."], #apreciarTodos');
 	await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button', 'Sim');	
 }
 
@@ -2407,7 +2596,7 @@ async function excluirBNDT() {
 		
 		//vamos lá.. ação automatizada em lote: se tiver vínculo/param resolver primeiro. 
 		//Depois que encerrar todos os vínculos é que iremos partir para verificar se é uma AA decorrente de Lote
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			console.log('1')
 			window.addEventListener("beforeunload", function (e) {			
 				console.log("JANELA ANEXAR fechou...");
@@ -2973,7 +3162,9 @@ async function procurarExecucao() {
 		});
 		
 	} else {
-		getAtalhosNovaAba().procurarExecucao.abrirAtalhoemNovaJanela();
+		let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
+		if (!lista_de_executados) { return }
+		getAtalhosNovaAba().procurarExecucao.abrirAtalhoemNovaJanela(lista_de_executados[0].cpfcnpj);
 	}
 }
 
@@ -2997,30 +3188,12 @@ async function abrirTarefaDoProcesso(idProcesso='') {
 		}
 	}
 	
-	//Obtem o idProcesso e o idTarefa da tarefa mais recente
-	let url1 = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/tarefas?maisRecente=true';	
-	let resposta1 = await fetch(url1);
-	let dados1 = await resposta1.json();	
-	let tarefaIdProcesso = dados1[0].idProcesso;
-	let tarefaIdTarefa = dados1[0].idTarefa;
-	
-	//Obtem o nome do recurso da tarefa obtida
-	let url2 = 'https://' + preferencias.trt + '/pje-comum-api/api/tarefas/' + tarefaIdTarefa;	
-	let resposta2 = await fetch(url2);
-	let dados2 = await resposta2.json();	
-	let tarefaNomeRecurso = dados2.nomeRecurso;
-	
-	//Obtem o restante da url da tarefa, de acordo com o recurso
-	let url3 = 'https://' + preferencias.trt + '/pje-seguranca/api/token/permissoes/recursos/' + tarefaNomeRecurso;	
-	let resposta3 = await fetch(url3);
-	let dados3 = await resposta3.text();	
-	let tarefaUrlCorreta = dados3;
-	
-	//substitui as variáveis para obter a url correta
-	let tarefa = 'https://' + preferencias.trt + '/pjekz' + tarefaUrlCorreta;
-	tarefa = tarefa.replace('{id}', tarefaIdProcesso);
-	tarefa = tarefa.replace('{idTarefa}', tarefaIdTarefa);
-	window.open(tarefa);
+	//Obtem o idTarefa da tarefa mais recente
+	const tarefaAtualProcesso = await apis.tarefasProcesso.executar(preferencias.trt , {idProcesso});	
+	const idTarefa = tarefaAtualProcesso[0].idTarefa;
+
+	// não precisa saber o sufixo da tarefa. O PJe complementa automaticamente se o id estiver correto.
+	apis.abrirTarefa.abrir(preferencias.trt, { idProcesso, idTarefa }, 'self');
 }
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES NA PÁGINA TAREFA
@@ -3501,9 +3674,13 @@ async function addBotaoDetalhes() {
 			}			
 			//Perícias
 			if (preferencias.atalhosDetalhes[18]) {
+
+				let idProcesso = await obterIdProcessoDaUrl();
+				let situacaoPericia = await obterSituacaoPericiaViaApi(idProcesso)
+				let t = (situacaoPericia) ? 'Perícias: ' + situacaoPericia : 'Perícias';
 				const botao18 = criarBotaoDetalhes({
 					id: "maisPJe_bt_detalhes_pericias",
-					tooltip: 'Perícias',
+					tooltip: t,
 					iconClass: "fas fa-user-md"
 				});
 				botao18.onclick = function () {acaoBotaoDetalhes("Perícias")}				
@@ -3597,22 +3774,42 @@ async function addBotaoDetalhes() {
 				botao29.appendChild(i29);
 				base.appendChild(botao29);
 			}
-			
-			//*************************FUNÇÃO LIA TESTE
-			if (preferencias.conciliajt.enabled || preferencias.conciliajt.ads_enabled) {
-				let check2 = setInterval(function() {
-					if (document.querySelector('span[class="texto-numero-processo"]')) {
-						clearInterval(check2);
-						let processoNumero = document.querySelector('span[class="texto-numero-processo"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
-						const botao25 = criarLinkPotencialConciliaJT(processoNumero);
-						botao25.style = "cursor: pointer; position: relative; vertical-align: -moz-middle-with-baseline; padding: 5px; top: 5px; z-index: 6; opacity: 0.87; font-size: 1.7rem; margin: 5px;";
-						base.appendChild(botao25);
-					}
-				}, 1000);
-			}
-			//*************************
-			
+			//Abre o Consulta Domicilio Eletronico
+			if (preferencias.atalhosDetalhes[30]) {
+				const botao30 = criarBotaoDetalhes({ 
+					id: "maisPJe_bt_detalhes_DomicilioEletronico",
+					tooltip: 'Consultar Domicílio Eletrônico' 
+				});
+				
+				const i30 = document.createElement("img");
+				i30.style = "max-width: 25px;max-height: 25px;position: absolute;top: 20%;filter: grayscale(1) brightness(0);";
+				i30.src = "assets/images/icone-domicilio-judicial-eletronico.png";
+				botao30.onclick = async function () { 
+					let msg = '\nQual o significado do status da notificação que aparece lá no painel do CNJ?\n\n';
+					msg += '1. Em curso: comunicação que ainda não foi aberta mas que está dentro do prazo¹ para ciência.\n';
+					msg += '2. Ciente: quando a comunicação é aberta na íntegra.\n';
+					msg += '3. Expirado: comunicação que não foi aberta no prazo¹ para ciência.\n';
+					msg += '4. Ciência automática²: quando a comunicação não é aberta dentro do prazo¹, o sistema registra a ciência tácita automaticamente.\n';
+					msg += '5. Cancelado: quando o tribunal envia o cancelamento de uma comunicação que estava em curso.\n\n';
+					msg += '¹ O prazo para ciência é de 3 dias úteis. Exceção: para pessoas jurídicas de direito público o prazo para ciência é de 10 dias corridos . (§§3º e 3º-A do art. 20 da Resolução CNJ 455/2022)\n\n';
+					msg += '² A ciência automática ocorre apenas para pessoas jurídicas de direito público. (3º-A do art. 20 da Resolução CNJ 455/2022)\n\n';
+					msg += '*** ATENÇÃO: se o campo "Total de processos" retornar maior do que 1, significa que o PJe não conseguiu entregar a notificação para o sistema do Domicílio Eletrônico/CNJ. Neste caso, sugere-se refazer a notificação.\n\n';
+					criarCaixaDeAlerta('DOMICÍLIO ELETRÔNICO - DÚVIDAS?',msg);
+						
+					let janelaMsg = await esperarElemento('#maisPje_caixa_de_alerta_mensagem');
+					janelaMsg.style.textAlign  = 'left';
 
+					let numeroProcesso = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+					numeroProcesso = numeroProcesso.replace(/\D/g,"");						
+					let url = 'https://paineisanalytics.cnj.jus.br/single/?appid=205de01d-6bb2-45c3-8be3-a61ea20b9957&sheet=fe35a4b1-ea16-453c-8d29-7bde4e013ec7&theme=horizon&lang=pt-BR&opt=ctxmenu,currsel&select=cpp_numero_processo,' + numeroProcesso;
+					let win = window.open(decodeURI(url), '_blank');
+					win.focus();
+				}
+				botao30.appendChild(i30);
+				botao30.style.minWidth = '25px';
+				base.appendChild(botao30);
+			}
+			
 			let spanFillSpace = ancora.querySelector('span[class="fill-space"]');
 			let alturaAjusteAVJT = '-6px';
 			//criar o fillspace
@@ -3627,7 +3824,17 @@ async function addBotaoDetalhes() {
 			spanFillSpace.parentElement.firstElementChild.style.setProperty("width","auto");
 			ancora.style.height = 'auto';
 
-			spanFillSpace.appendChild(base);	
+			spanFillSpace.appendChild(base);
+			
+			//*************************FUNÇÃO LIA TESTE
+			if (preferencias.conciliajt.enabled || preferencias.conciliajt.ads_enabled) {
+				let titulo = await esperarElemento('span[class="texto-numero-processo"]');
+				let processoNumero = await extrairNumeroProcesso(titulo.innerText);
+				const botao25 = await criarLinkPotencialConciliaJT(processoNumero);
+				botao25.style = "cursor: pointer; position: relative; vertical-align: -moz-middle-with-baseline; padding: 5px; top: 5px; z-index: 6; opacity: 0.87; font-size: 1.7rem; margin: 5px;";
+				if (botao25) { document.querySelector('#pjextension_bt_detalhes_base')?.appendChild(botao25) }
+			}
+			//*************************
 
 			//ajustar a altura ba barra de acordo com a extensão AVJT
 			let btAVJT = await esperarElemento('botao[id="menu-do-processo-expandido-configuracoes"]',null,2000);
@@ -3653,7 +3860,6 @@ async function addBotaoDetalhes() {
 		for (let item of changedItems) {
 			if (item == "tempBt") { //controla as AA e os vínculos (No caso aqui só nos interessa os vínculos
 				// console.log('*********************************' + item + ' : ' +changes[item].newValue[0] + '(' + changes[item].newValue[1] + ')')
-				
 				if (typeof changes[item].newValue[1] === 'object') { //for passada como objeto é uma ação automatizada nova (via código)
 					let limparStorage = browser.storage.local.set({'tempAAEspecial': []});
 					Promise.all([limparStorage]).then(values => {
@@ -3708,21 +3914,24 @@ async function addBotaoDetalhes() {
 	// se a janela DETALHES DO PROCESSO nasceu de um refresh(F5) ou de um vinculo Atualizar|Atualizar
 	// verificar se tem algum vínculo pendente de prosseguimento
 	// console.log(performance.navigation.type + ' : ' + preferencias.tempBt + ' : ' + preferencias.tempAAEspecial);
-	// if (performance.navigation.type == 1 && (preferencias.tempBt != 'undefined' || preferencias.tempAAEspecial != '')) {
-	// 	console.log("JANELA DETALHES atualizou...");		
+	if (performance.navigation.type == 1 && (preferencias.tempBt != 'undefined' || preferencias.tempAAEspecial != '')) {
+		console.log("JANELA DETALHES atualizou...");		
 		
 		//DESCRIÇÃO: Aplica visibilidade de sigilo às partes quando da juntada de documentos sigilosos
-	// 	if (preferencias.anexadoDoctoEmSigilo > 0) {			
-	// 		await aplicarVisibilidadeSigiloUltimoDocumentoJuntado();
-	// 		await documentoEmSigilo(-1);
-	// 	}
+		// if (preferencias.anexadoDoctoEmSigilo > 0) {			
+		// 	await aplicarVisibilidadeSigiloUltimoDocumentoJuntado();
+		// 	await documentoEmSigilo(-1);
+		// }
+		// console.log(preferencias.tempAAEspecial)
+		// console.log(preferencias.tempBt[1])
+		// browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
 		
-	// 	if (preferencias.tempBt != 'undefined' || preferencias.tempAAEspecial != '') {
-	// 		browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempBt[1]});
-	// 	} else {
-	// 		browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
-	// 	}
-	// }
+		if ((preferencias.tempBt != 'undefined' && preferencias.tempBt[1] != 'Atualizar Pagina|Atualizar Pagina') || (preferencias.tempAAEspecial != '' && preferencias.tempAAEspecial[0] != "Nenhum")) {
+			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempBt[1]});
+		} else {
+			browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+		}
+	}
 }
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES NA PÁGINA GIGS
@@ -3793,7 +4002,7 @@ async function addBotaoGigs() {
 			botao2.id = "extensaoPje_bt_gigs_2";
 			botao2.textContent = "Procurar Execuções";
 			botao2.style = "cursor: pointer; position: relative; margin-left: 10px;"
-			botao2.onclick = function () {procurarExecucao()};		
+			botao2.onclick = async function () { procurarExecucao()	};		
 			ancora2.appendChild(botao2);
 		}
 
@@ -3804,8 +4013,14 @@ async function addBotaoGigs() {
 		console.log('btSyncronizarPJeCalc')
 		let ancora3 =  await esperarElemento('div[id="checklist-exec"] div[class*="pad-container"]'); ;//o primeiro que aparece é o total da execução
 		if (ancora3) {
-
-			let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+			await sleep(preferencias.maisPje_velocidade_interacao);
+			let urlDaUltimaRequisicao = await obterUrlDoNetworkRequest('.jus.br/pje-gigs-api/api/execucao/processo/');
+			let idProcesso = await obterIdProcessoDaUrl(urlDaUltimaRequisicao);
+			
+			if (!idProcesso) { 
+				idProcesso = await obterIdProcessoDaUrl();
+			}
+			// document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
 			let result = await pjeApiObterValorExecucaoPJeCalc(idProcesso);
 
 			ancora3.style.display = 'grid'; //alinha os botões
@@ -3843,6 +4058,8 @@ async function addBotaoGigs() {
 				aviso = await esperarElemento('simple-snack-bar','Valor alterado com sucesso!')
 				await sleep(800);
 				aviso.querySelector('button').click(); //fecha o aviso
+
+				gigsCriarMenu();//clicar crachá
 			};
 
 			divSuporte.appendChild(botao3);
@@ -3894,20 +4111,12 @@ async function addBotaoGigs() {
 	}
 }
 
-async function pjeApiObterValorExecucaoPJeCalc(id){
+async function pjeApiObterValorExecucaoPJeCalc(idProcesso){
 	return new Promise(async resolve => {
-		let url = 'https://' + preferencias.trt + '/pje-comum-api/api/calculos/processo?pagina=1&tamanhoPagina=10&ordenacaoCrescente=true&idProcesso=' + id + '&mostrarCalculosHomologados=true&incluirCalculosHomologados=true';
-		// console.log(url);
-		let dados = await fetch(url).then(function (resposta) {
-			return resposta.json();
-		}).catch(function (err) {
-			alert("maisPje: Algo deu errado ao recuperar o valor.");
-        });
-		
-		if (!dados  || !dados.resultado || !dados.resultado[0]) {return resolve({id: '(PJeCalc)', valor: 0, data: '--/--/----'});}
-		
-		let data = '--/--/----';
-		let valor = 0;
+      const semValor = { id: '(PJeCalc)', valor: 0, data: '--/--/----' };		
+	  try {
+		const dados = await apis.calculosProcesso.executar(preferencias.trt, {idProcesso});
+		if (!dados  || !dados.resultado || !dados.resultado[0])  {return resolve(semValor);}
 		
 		let ultimoCalculo;
 		let dataUltimoCalculo = new Date(1900, 1, 1);
@@ -3925,7 +4134,12 @@ async function pjeApiObterValorExecucaoPJeCalc(id){
 		let valorFormatado = Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL', minimumFractionDigits: 2}).format(ultimoCalculo.total);
 		console.log(valorFormatado)
 
-		resolve({valor: valorFormatado, dia: dataUltimoCalculo.getDate(), mes: dataUltimoCalculo.getMonth(), ano: dataUltimoCalculo.getFullYear(), data: (dia + mes + ano)});		
+		resolve({id: '(PJeCalc)', valor: valorFormatado, dia: dataUltimoCalculo.getDate(), mes: dataUltimoCalculo.getMonth(), ano: dataUltimoCalculo.getFullYear(), data: (dia + mes + ano)});		
+	  } catch (err) {
+		// await criarCaixaDeAlerta('Atenção','Algo deu errado ao recuperar o valor da dívida no PJeCalc.',3);
+		console.error(err);
+		resolve(semValor);
+	  } 
 	});
 }
 
@@ -3945,7 +4159,6 @@ function criarBotaoMenuLateral(element, id, texto, tooltip, onClick, img = undef
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES NA PÁGINA PRINCIPAL
 async function addBotaoTelaPrincipal() {
-	const urls = await obterUrlsConciliaJT();
 	let check = setInterval(function() {
 		if(document.getElementsByClassName("menu-lateral")[0]) {
 			if (document.getElementById("maisPje_bt_principal_1")) {
@@ -3957,9 +4170,12 @@ async function addBotaoTelaPrincipal() {
 					tooltip('direita2');
 				}
 				// console.log("não tem botao");
-				let el = document.getElementsByClassName("menu-lateral")[0];
+				clearInterval(check);
 
-				const powerbi = urls[preferencias.num_trt]?.powerbi;
+				let el = document.getElementsByClassName("menu-lateral")[0];				
+				// console.log(JSON.stringify(preferencias.configURLs))
+				// console.log(preferencias.configURLs?.powerbi)
+				const powerbi = preferencias.configURLs?.powerbi;
 
 				if (powerbi) {
 					const abrirPowerBI = function () {  window.open(powerbi.url, '_blank'); };
@@ -3986,8 +4202,7 @@ async function addBotaoTelaPrincipal() {
 				const botao3 = criarBotaoMenuLateral("button", "maisPje_bt_principal_3", "Meu Filtro", 'Atalho: F2',
 					function () {filtrarPorMeuFiltro()});
 
-				el.appendChild(botao3);
-				clearInterval(check);
+				el.appendChild(botao3);				
 			}
 		}
 	}, 100);	
@@ -4254,93 +4469,37 @@ async function addBotaoPrazoEmLote() {
 			botao.style = "cursor: pointer; margin-left: 10px;"
 			botao.onmouseenter = function () {
 				if (!document.getElementById('maisPje_barra_bt_pzoLote')) {
+
 					let barra_bt_pzoLote_temp = document.createElement("div");
 					barra_bt_pzoLote_temp.id = "maisPje_barra_bt_pzoLote";
-					barra_bt_pzoLote_temp.style = "z-index: 100; height: auto; position: absolute; background-color: rgb(255, 255, 255); text-align: center; border-radius: 3px; display: flex; flex-direction: column; align-items: center;margin-top: 5px;margin-left: -3px;";
+					barra_bt_pzoLote_temp.style = "z-index: 100; height: auto; position: absolute; background-color: rgb(255, 255, 255); text-align: center; border-radius: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center;margin-top: 5px;margin-left: -3px; gap: 10px;";
 					barra_bt_pzoLote_temp.onmouseleave = function (e) {
 						barra_bt_pzoLote_temp.className = "maisPje-fade-out";
 						setTimeout(function(){				
 							document.getElementById('maisPje_barra_bt_pzoLote').remove();
 						}, 250);
 					};
-					
-					let bt0 = document.createElement("button");
-					bt0.id = "maisPje_bt_pzoLote_0";
-					bt0.textContent = "0 dias";
-					bt0.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt0.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray;";
-					bt0.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar("0");
+
+					let listaDePrazos = preferencias.extrasPrazoEmLote;
+
+					for (const [pos, prazo] of listaDePrazos.entries()) {
+						let elBotao = criarElemento('button', "cursor: pointer; position: relative; top: 20%;  z-index: 1; background-color: rgb(0, 120, 170); border: 1px solid rgb(102, 174, 204); outline: rgb(0, 111, 157) solid 1px; border-radius: 3px; color: white;min-width: 64px;line-height: 30px;padding: 0 10px;", prazo + ' dias');
+						elBotao.setAttribute('prazo',prazo);
+						elBotao.onclick = function () {
+							this.parentElement.remove();
+							executar(this.getAttribute('prazo'));
+						};
+						barra_bt_pzoLote_temp.appendChild(elBotao);
+					}
+
+					let btOutro = criarElemento('button', "cursor: pointer; position: relative; top: 20%;  z-index: 1; background-color: rgb(0, 120, 170); border: 1px solid rgb(102, 174, 204); outline: rgb(0, 111, 157) solid 1px; border-radius: 3px; color: white;min-width: 64px;line-height: 30px;padding: 0 10px;", 'outro');
+					btOutro.onclick = async function () {
+						this.parentElement.remove();
+						let pzOutro = await criarCaixaDePergunta('text', 'Digite o prazo em dias Úteis:\n');
+						executar(pzOutro);
 					};
-					barra_bt_pzoLote_temp.appendChild(bt0);
-					
-					let bt2 = document.createElement("button");
-					bt2.id = "maisPje_bt_pzoLote_2";
-					bt2.textContent = "2 dias";
-					bt2.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt2.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray !important;";
-					bt2.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar("2");
-					};
-					barra_bt_pzoLote_temp.appendChild(bt2);
-					
-					let bt5 = document.createElement("button");
-					bt5.id = "maisPje_bt_pzoLote_5";
-					bt5.textContent = "5 dias";
-					bt5.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt5.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray !important;";
-					bt5.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar("5");
-					};
-					barra_bt_pzoLote_temp.appendChild(bt5);
-					
-					let bt8 = document.createElement("button");
-					bt8.id = "maisPje_bt_pzoLote_8";
-					bt8.textContent = "8 dias";
-					bt8.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt8.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray !important;";
-					bt8.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar("8");
-					};
-					barra_bt_pzoLote_temp.appendChild(bt8);
-					
-					let bt10 = document.createElement("button");
-					bt10.id = "maisPje_bt_pzoLote_10";
-					bt10.textContent = "10 dias";
-					bt10.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt10.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray !important;";
-					bt10.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar("10");
-					};
-					barra_bt_pzoLote_temp.appendChild(bt10);
-					
-					let bt15 = document.createElement("button");
-					bt15.id = "maisPje_bt_pzoLote_15";
-					bt15.textContent = "15 dias";
-					bt15.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt15.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray !important;";
-					bt15.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar("15");
-					};
-					barra_bt_pzoLote_temp.appendChild(bt15);
-					
-					let bt_outro = document.createElement("button");
-					bt_outro.id = "maisPje_bt_pzoLote_outros";
-					bt_outro.textContent = "outro";
-					bt_outro.className = "mat-raised-button mat-primary ng-star-inserted";
-					bt_outro.style = "cursor: pointer; margin: 5px; min-width: 5vw; background-color: gray !important;";
-					bt_outro.onclick = function () {
-						document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						executar(prompt('Digite o prazo em dias Úteis:\n',''));
-					};
-					barra_bt_pzoLote_temp.appendChild(bt_outro);
-					
+					barra_bt_pzoLote_temp.appendChild(btOutro);
+
 					botao.appendChild(barra_bt_pzoLote_temp);
 				}
 			};			
@@ -4414,7 +4573,7 @@ async function addBotaoMarcarDesmarcarTodos() {
 	}
 	
 	function executar(opcao, ancora, valor) {
-		console.log(valor);
+		// console.log(valor);
 		if (!ancora) { return }
 		let el = ancora.querySelectorAll('table input[aria-label="Intimar parte"]');
 		if (!el) { return }
@@ -4422,7 +4581,7 @@ async function addBotaoMarcarDesmarcarTodos() {
 		let map = [].map.call(
 			el, 
 			function(elemento) {
-				console.log(elemento.checked);
+				// console.log(elemento.checked);
 				if (opcao === '1') { // Desmarcar Todos
 					if (elemento.checked) {
 						elemento.click();
@@ -4559,7 +4718,8 @@ function addBotaoTipoEmLote() {
 		
 		async function procuraPadrao(texto) {
 			return new Promise(async resolve => {
-				let padraoSISBAJUD = /\d{14}\_\d{8}/gm;
+				// let padraoSISBAJUD = /\d{14}\_\d{8}/gm;
+				let padraoSISBAJUD = /\S{8}/gm;
 				let padraoCCS = /\d{17}\-\d{12}\-/gm;
 				let padraoDossieMedico = /\DOSSIE\_\d{11,}/gm;
 				let padraoEmail = /(e.?mail)/gmi;
@@ -4568,7 +4728,10 @@ function addBotaoTipoEmLote() {
 				let padraoARISP = /[A-Za-z0-9]{32}/gm;
 				let padraoContaSIF = /\d{4}\.\d{3}\.\d{8}\-\d{1}/gm;
 				let padraoContaBB = /\d{4}\.\d{12,13}/gm;
-				
+				let padraoCNIB = /[A-Z0-9]{96}/gm;//5133D5E92C939700A9CE32A474C31B742AC4CC51E0ECBDDFDD6F0D19E0C87810F8E9FDE722C7FC7515D81927D760478D
+				let padraoRENAJUDAntigoCancelamento =/(restricoes.retirar)/gm;//restricoes-retirar.jsf
+
+
 				//OPÇÕES DE JUNTADA DE ENDEREÇO
 				let campoDescricaoTexto = document.querySelector('div[class="metadados"] input[aria-label="Descrição"]').value;
 				
@@ -4581,7 +4744,7 @@ function addBotaoTipoEmLote() {
 						return resolve({tipo:'Renajud (consulta)',descricao:'endereço RENAJUD',anterior:texto});
 					}
 					
-					if (padraoSISBAJUD.test(texto)) {
+					if (padraoSISBAJUD.test(texto) && texto.length == 8) {
 						return resolve({tipo:'Documento Diverso',descricao:'endereço SISBAJUD',anterior:texto});
 					}
 					
@@ -4609,8 +4772,19 @@ function addBotaoTipoEmLote() {
 						return resolve({tipo:'Renajud (consulta)',descricao:texto,anterior:texto});
 					}
 					
-					if (padraoSISBAJUD.test(texto)) {
-						return resolve({tipo:'Sisbajud (bloqueio)',descricao:texto,anterior:texto});
+					if (padraoSISBAJUD.test(texto) && texto.length == 8) {
+						if (campoDescricaoTexto.toLowerCase().includes('desbloqueio')) {
+							return resolve({tipo:'Sisbajud (desbloqueio)',descricao:texto,anterior:texto});
+						} else {
+							return resolve({tipo:'Sisbajud (bloqueio)',descricao:texto,anterior:texto});
+						}
+					}
+
+					if (padraoCNIB.test(texto)) {
+						return resolve({tipo:'Documento Diverso',descricao:'Resposta CNIB',anterior:texto});
+					}
+					if (padraoRENAJUDAntigoCancelamento.test(texto)) {
+						return resolve({tipo:'Documento Diverso',descricao:'Resposta RENAJUD Cancelamento',anterior:texto});
 					}
 					
 					if (texto.toLowerCase().includes('carta-ordem-endereco')) {
@@ -4719,7 +4893,7 @@ async function criarContainer(idContainer='',btFecharOn=false) {
 			let barra = document.querySelector('maisPjeContainerAA');
 			if (barra?.id == idContainer) { return }			
 			if (barra) { barra.remove() }				
-			let ancora = await esperarElemento('div[class*="painel-principal"]');
+			let ancora = await esperarElemento('.painel-principal'); //mudaram pra section na versão 2.14.4
 			ancora.lastElementChild.previousSibling.firstElementChild.style = "height: calc(100vh - 142px)";//corrige a altura da timeline
 			barra = document.createElement("maisPjeContainerAA");
 			barra.id = idContainer;
@@ -4847,6 +5021,7 @@ async function corrigirPosicaoElementos() {
 	}
 	
 }
+
 //*********************************************************************************************
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES DAS AÇÕES NA PÁGINA ANEXAR DOCUMENTOS
@@ -4928,6 +5103,7 @@ async function addBotaoTelaComunicacoes() {
 async function addBotaoAutoGigs() {
 	return new Promise(async resolve => {
 		await criarContainer('addBotaoAutoGigs',true);
+		await criarBotaoRenovarAtividadeGIGS();
 		await montarBotoes(
 			preferencias.aaAutogigs,
 			function() {
@@ -4943,12 +5119,80 @@ async function addBotaoAutoGigs() {
 		await sleep(500);
 		return resolve(true);
 	});
+
+	async function criarBotaoRenovarAtividadeGIGS() {
+		return new Promise(async resolve => {
+			ancora = await esperarElemento('maisPjeContainerAA');
+			let bt = document.createElement("button");
+			bt.id = 998;
+			bt.name = 'bt_renovarAtividadeGIGS';
+			bt.title = 'Renovar Atividade GIGS';
+			bt.className = "mat-raised-button mat-primary ng-star-inserted";
+			bt.style = "margin: 3px; z-index: 5; background-color: rgb(55, 71, 79);";
+			bt.onclick = async function() {
+				
+				listaDeAtividades = [];
+				listaDeAtividadesSelect = [];
+				let dados = await esperarColecao('div[id="tabela-atividades"] table tbody tr', 1 , 100);
+				if (dados) {
+					for (const [pos, item] of dados.entries()) {
+						console.log(item.innerText);
+						item.id = 'maisPje_atividade_' + pos;
+						let data = item.querySelector('time').innerText;
+						let responsavel = (item.querySelector('span[class*="texto-responsavel"]')) ? item.querySelector('span[class*="texto-responsavel"]').innerText : '';
+						responsavel = responsavel.replace('Responsável: ','');
+						let all = item.querySelector('span[class="descricao"]').innerText.split(/:(.+)/s);
+						let tipo = all[0];
+						let observacao = all[1];
+						let preparoOUprazo = item.querySelector('.atividade-sem-prazo') ? 'preparo' : 'prazo';
+						listaDeAtividadesSelect.push(data.trim() + ' - ' + tipo.trim() + ": " + observacao.trim());
+						listaDeAtividades.push({"id":'maisPje_atividade_' + pos,"preparoOUprazo":preparoOUprazo,"data":data.trim(),"responsavel":responsavel.trim(),"tipo":tipo.trim(),"observacao":observacao.trim()});
+					}
+
+					let t = 0;
+					if (listaDeAtividadesSelect.length > 1) {
+						t = await criarCaixaSelecao(listaDeAtividadesSelect, 'Escolha a Atividade que deseja Atualizar','Nenhum',false,-1,5,true); //select retornando a posição escolhida
+					}
+										
+					// console.log(listaDeAtividades[t].tipo)
+					// console.log(listaDeAtividades[t].data)
+					// console.log(listaDeAtividades[t].responsavel)
+					// console.log(listaDeAtividades[t].observacao)
+
+					fundo(true);
+					let elAtividadeEscolhida = await esperarElemento('#' + listaDeAtividades[t].id);
+					
+					//conclui a atividade selecionada -- o vínculo não pode ser nenhum, senão a AA em lote não funciona
+					let aa1 = {"nm_botao":"bt_renovarAtividadeGIGS[concluir]","tipo":"atividade","tipo_atividade":listaDeAtividades[t].tipo,"prazo":listaDeAtividades[t].data,"responsavel":listaDeAtividades[t].responsavel,"responsavel_processo":"","observacao":listaDeAtividades[t].observacao,"salvar":"sim","cor":"#","vinculo":"bt_renovarAtividadeGIGS","visibilidade":"nao"};
+					await acao_bt_aaAutogigs(aa1);					
+					await esperarDesaparecer(elAtividadeEscolhida);
+					//renova a atividade selecionada -- o vínculo não pode ser nenhum, senão a AA em lote não funciona
+					let preparoOUprazo_data = (listaDeAtividades[t].preparoOUprazo == 'prazo') ? listaDeAtividades[t].data : '0';
+					let aa2 = {"nm_botao":"bt_renovarAtividadeGIGS","tipo":"prazo","tipo_atividade":listaDeAtividades[t].tipo,"prazo":preparoOUprazo_data,"responsavel":listaDeAtividades[t].responsavel,"responsavel_processo":"","observacao":listaDeAtividades[t].observacao,"salvar":"Sim","cor":"#708090","vinculo":"Nenhum","visibilidade":"sim"};
+					await acao_bt_aaAutogigs(aa2);
+					fundo(true); //a função de cima fecha o fundo
+					//aguarda finalizar o novo cadastro de atividade
+					let telaDeCadastro = await esperarElemento('pje-gigs-cadastro-atividades')
+					await esperarDesaparecer(telaDeCadastro);
+
+					if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+
+				}
+			}
+			let i = document.createElement("i");
+			i.className = "fas fa-redo-alt fa-lg";
+			bt.appendChild(i);
+			ancora.appendChild(bt);
+			resolve(true);
+		});
+	}
 }
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES NA PÁGINA DETALHES - DESPACHO
 async function addBotaoDespacho() {
 	return new Promise(async resolve => {
 		await criarContainer('addBotaoDespacho',true);
+		await criarBotaoTrocarMagistradoResponsavel();
 		await montarBotoes(
 			preferencias.aaDespacho,
 			function() {
@@ -4967,6 +5211,29 @@ async function addBotaoDespacho() {
 		await sleep(500);
 		resolve(true);
 	});
+
+	async function criarBotaoTrocarMagistradoResponsavel() {
+		return new Promise(async resolve => {
+			ancora = await esperarElemento('maisPjeContainerAA');
+			let bt = document.createElement("button");
+			bt.id = 998;
+			bt.title = 'Trocar Magistrado Responsável';
+			bt.name = 'bt_trocarMagistradoResponsavelPelaMinuta';
+			bt.className = "mat-raised-button mat-primary ng-star-inserted";
+			bt.style = "margin: 3px; z-index: 5; background-color: rgb(55, 71, 79); display: none;";
+			bt.onclick = function() {
+				let var1 = browser.storage.local.set({'tempAR': 'trocarMagistradoResponsavelPelaMinuta'});
+				Promise.all([var1]).then(values => {
+					abrirTarefaDoProcesso();
+				});
+			}
+			let i = document.createElement("i");
+			i.className = "fa fa-sync fa-lg";
+			bt.appendChild(i);
+			ancora.appendChild(bt);
+			resolve(true);
+		});
+	}
 }
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES NA PÁGINA DETALHES - MOVIMENTOS
@@ -4977,7 +5244,7 @@ async function addBotaoMovimento() {
 		await criarBotaoAssinarExpediente();
 		//CRIA O BOTÃO DE ATUALIZAR TAREFA. 
 		//Ele joga o processo pAra análise e devolve para a tarefa que estava anteriormente. O objetivo é reiniciar a contagem do prazo "na tarefa desde"
-		await criarBotaoAtualizar();
+		await criarBotaoAtualizarTarefa();
 		await montarBotoes(
 			preferencias.aaMovimento,
 			function() {
@@ -4997,11 +5264,12 @@ async function addBotaoMovimento() {
 		resolve(true);
 	});
 	
-	async function criarBotaoAtualizar() {
+	async function criarBotaoAtualizarTarefa() {
 		return new Promise(async resolve => {
 			ancora = await esperarElemento('maisPjeContainerAA');
 			let bt = document.createElement("button");
 			bt.id = 998;
+			bt.title = 'Renovar data da Tarefa';
 			bt.name = 'bt_atualizar_tarefa';
 			bt.className = "mat-raised-button mat-primary ng-star-inserted";
 			bt.style = "margin: 3px; z-index: 5; background-color: rgb(55, 71, 79);";
@@ -5856,7 +6124,7 @@ async function addBotaoLancarMovimentos() {
 		let param = (!preferencias.tempAAEspecial || typeof(responsavelTemp) == "undefined") ? 'Nenhum' : preferencias.tempAAEspecial;
 		console.log('monitorFim(' + param + ')');
 		
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			
 			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: param});
 
@@ -5927,12 +6195,132 @@ async function addInformacoesSIF() {
 						let cor = conta.saldo.total == 0 ? "darkseagreen" : "darkgreen";
 						criaBotao(processo, conta.contaJudicial.unidade, conta.contaJudicial.produto, conta.contaJudicial.conta, conta.contaJudicial.dv, conta.saldo.total, cor);
 					}
+					//cria o botão Imprimir Todos
+					let el = document.querySelector('maisPjeContainerAA');
+					let bt = document.createElement("button");
+					bt.id = "botao_checklist_TODOS";
+					bt.name = "botao_checklist_TODOS";
+					bt.className = "mat-raised-button mat-primary ng-star-inserted";
+					bt.style = "margin: 3px; z-index: 3; background-color: #1e931e;background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 5px, transparent 5px, transparent 10px);color: #004200;text-shadow: #1e931e 1px 1px;";
+					bt.title = 'Imprimir Todos';
+					bt.setAttribute('referencia',processo);
+					bt.onclick = async function () {
+						let msg = 'Obtendo extratos SIF..';
+						fundo(true,msg)
+						let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+						let contas = document.querySelectorAll('maispjecontaineraa[id="addInformacoesSIF"] button[title="Consultar Extrato"]');
+						
+						let dados = await obterDadosProcessoViaApi(idProcesso);
+						let d = new Date(dados.autuadoEm);
+						let dataAutuacao = d.getFullYear() + '-' + ("0" + (d.getMonth() + 1)).slice(-2) + '-' + ("0" + d.getDate()).slice(-2);
+						let dataAutuacaoFormatada = ("0" + d.getDate()).slice(-2) + '-' + ("0" + (d.getMonth() + 1)).slice(-2) + '-' + d.getFullYear();
+						let conta,processo;						
+						let htmlExtratos = document.createElement('div');
+						htmlExtratos.className = 'pagebreak';
+						let cabecalho = document.createElement('div')
+						cabecalho.style = "display: grid;grid-template-columns: 1fr; width: 100%; grid-gap: 10px;margin-bottom:3vh;";
+						
+						let numProcessoFormatado =  numeroProcessoFormatado(this.getAttribute('referencia'));
+						cabecalho.appendChild(inserirLinha('Número do Processo: ' + numProcessoFormatado,'destaque'));
+						cabecalho.appendChild(inserirLinha('Instituição Financeira: 104-CAIXA ECONÔMICA FEDERAL','destaque'));
+						htmlExtratos.appendChild(cabecalho);
+
+						let apenasComSaldo = await criarCaixaSelecao(['apenas Contas com saldo','Todas as contas'],titulo='Gerar Extrato de:');
+						for (const [pos, item] of contas.entries()) {
+							if (apenasComSaldo == 'apenas Contas com saldo' && item.getAttribute('saldo') == '0') {
+								continue;
+							}
+							
+							conta = item.id.replace('botao_checklist_','');
+							processo = this.getAttribute('referencia');
+							let hoje = new Date();
+							let dtFim = hoje.getFullYear() + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + ("0" + hoje.getDate()).slice(-2);
+							let dtFimFormatada = ("0" + hoje.getDate()).slice(-2) + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + hoje.getFullYear();
+							// https://pje.trt12.jus.br/sif-financeiro-api/api/contas/00022525220115120059/104/3521042015203286/extrato/0/2011-06-28/2025-03-19?tipo=download
+							
+							msg += '\n\n' + numeroContaSIFFormatado(conta) + '...';
+							exibir_mensagem(msg);
+							
+							const extrato = await obterExtratoSIF(processo, conta, dataAutuacao, dtFim);
+
+							let containerUL = document.createElement('div')
+							containerUL.className = 'container';
+							//montar tela do extrato
+							let dadosExtrato = document.createElement('dadosExtrato')							
+							dadosExtrato.appendChild(inserirLinha('Conta:','destaque'));
+							dadosExtrato.appendChild(inserirLinha(numeroContaSIFFormatado(conta),'destaque'));
+							dadosExtrato.appendChild(inserirLinha(''));
+							dadosExtrato.appendChild(inserirLinha('Período:'));
+							dadosExtrato.appendChild(inserirLinha(dataAutuacaoFormatada + ' a ' + dtFimFormatada));
+							dadosExtrato.appendChild(inserirLinha(''));
+							containerUL.appendChild(dadosExtrato);
+							htmlExtratos.appendChild(containerUL);
+
+							//extrato
+							let dadosExtrato2 = document.createElement('dadosExtrato2');
+							for (const [pos2, item2] of extrato.entries()) {
+								if (!item2.textoLinhaExtrato[0]) { break }
+								let li = document.createElement('li');			
+								let dados = item2.textoLinhaExtrato[0].split(';');
+								if (dados[1]) {
+
+									// console.log(dados[1])
+									// console.log(dados[2])
+									// console.log(dados[3])
+									// console.log(dados[4])
+									// console.log(dados[5])
+									// console.log(dados[6])
+									// console.log(dados[7])
+
+									li.style = 'display: grid;grid-template-columns: 10vw 20vw auto 20vw 20vw;grid-gap: 5px;';
+									
+									let extrato_data = numeroDataFormatado(dados[1]);
+									extrato_data = (extrato_data == '00000000') ? '' : extrato_data; 									
+									li.appendChild(inserirLinha(extrato_data)); //12/02/2025
+									
+									let extrato_historico = dados[3].replace('Historico: ','');
+									li.appendChild(inserirLinha(extrato_historico)); // CRED TED
+
+									li.appendChild(inserirLinha('','pontos'));// .........
+
+									let extrato_valor = numeroValorFormatado(dados[4]);
+									let extrato_saldo;
+									if (dados[0].includes("SA")) {
+										li.appendChild(inserirLinha(extrato_valor)); //49.38    VALOR										
+										extrato_saldo = numeroValorFormatado(dados[5]);
+										li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[6]));										
+									} else {
+										li.appendChild(inserirLinha(extrato_valor + ' ' + dados[5])); //49.38    VALOR
+										extrato_saldo = numeroValorFormatado(dados[6]);
+										li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[7])); //40.06    SALDO c
+									}									
+
+								} else {
+									li.style = 'display: grid;grid-template-columns: 1fr;grid-gap: 5px;';
+									li.appendChild(inserirLinha(item2.textoLinhaExtrato[0]));									
+								} 
+								dadosExtrato2.appendChild(li);
+							}
+							
+							containerUL.appendChild(dadosExtrato2);
+							htmlExtratos.appendChild(containerUL);						
+
+						}
+
+						criarPaginaImpressaoExtratosDeConta(htmlExtratos, numProcessoFormatado);
+						fundo(false);
+					};
+					let span = document.createElement("span");
+					span.className = "mat-button-wrapper";
+					span.innerText = "Imprimir Todos (SIF)";
+					bt.appendChild(span);
+					el.appendChild(bt);
 				}
 			}
 			
 			resolve(true);
-		});
-	}
+		});	
+	}	
 	
 	async function montarBotoesContasBB() {
 		return new Promise(async resolve => {
@@ -6030,6 +6418,7 @@ async function addInformacoesSIF() {
 		bt.className = "mat-raised-button mat-primary ng-star-inserted";
 		bt.style = "margin: 3px; z-index: 3; background-color: " + cor + ";";
 		bt.title = 'Consultar Extrato';
+		bt.setAttribute('saldo',saldo);
 		bt.onclick = function () {
 			let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
 			getAtalhosNovaAba().consultarExtrato.abrirAtalhoemNovaJanela(idProcesso, idconta, processo);
@@ -6056,6 +6445,70 @@ async function addInformacoesSIF() {
 		if (document.querySelector('button[aria-label="Mostrar o GIGS"]')) {
 			document.querySelector('button[aria-label="Mostrar o GIGS"]').style = "top: " + altura + "px;";
 		}
+	}
+	
+	function criarPaginaImpressaoExtratosDeConta(html, numeroProcesso) {
+		prepararEAbrirArquivo(html.outerHTML);
+		function prepararEAbrirArquivo(tabela) {
+			let arquivoFinal = "";
+			let comecoArquivo =
+				`<html lang='pt-BR'><head><meta charset="utf-8"><style>
+					body {
+						font-family: Open Sans,Arial,Verdana,sans-serif;
+					}
+					.titulo {
+						font-size: x-small;
+						color: gray;
+						padding: 15px;
+						display: flex;
+						float: right;
+					}
+					dadosextrato {
+						display: grid;
+						grid-template-columns: 10% 80% auto;
+						grid-gap: 10px;
+					}
+
+					dadosextrato2 {
+						display: grid;
+						grid-template-columns: 1fr;
+						font-size: small;
+						margin-top: 1vh;
+					}
+
+					.container {
+						margin-bottom: 3vh;
+						page-break-after: always;
+					}
+					.destaque {
+						font-weight: bold;
+					}
+					.pontos {
+						border-bottom: 1px dotted black;
+						width: 100%;
+					}
+					.page-break { 
+						break-after: container; 
+					}
+				</style>` + '<title id="maisPje_blob_processoMemoria">' + numeroProcesso + ' - SIF - Extratos das contas judiciais</title></head><body onload="window.print(); window.close();">';
+			arquivoFinal += tabela + "</body></html>";
+			arquivoFinal =
+				comecoArquivo +
+				"<span class='titulo'>@maisPJe</span>" +
+				arquivoFinal;
+			
+			let novaJanela = URL.createObjectURL( new Blob([arquivoFinal], { type: "text/html" }));
+			window.open(novaJanela, "maisPJe:ExtratosUnificadosSIF.html");
+
+		}
+	}
+	
+	function inserirLinha(valor, classe='comum', title='') {
+		let span = document.createElement('span');
+		span.title = title;
+		span.className = classe;
+		span.innerText = valor;
+		return span;
 	}
 }
 
@@ -6146,8 +6599,12 @@ async function addBotaoAtualizacaoRapida() {
 				bt0.name = "botao_abrirPjeCalc";
 				bt0.className = "mat-raised-button mat-primary ng-star-inserted";
 				bt0.style = "margin: 3px; z-index: 5;";
-				bt0.onclick = function () {
-					getAtalhosNovaAba().abrirPJeCalc.abrirAtalhoemNovaJanela('?maisPje=abrirPJeCalc');
+				bt0.onclick = async function () {
+
+					let num = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+					let guardarStorage = browser.storage.local.set({'tempAR': {'tipo':'apenasAbrir','numeroProcesso':num}});
+					Promise.all([guardarStorage]).then(values => { getAtalhosNovaAba().abrirPJeCalc.abrirAtalhoemNovaJanela('?maisPje=apenasAbrir') });
+					
 				};
 				let span0 = document.createElement("span");
 				span0.className = "mat-button-wrapper";
@@ -6161,11 +6618,11 @@ async function addBotaoAtualizacaoRapida() {
 				bt1.className = "mat-raised-button mat-primary ng-star-inserted";
 				bt1.style = "margin: 3px; z-index: 5;";
 				bt1.onclick = async function () {
-					console.log(preferencias.processo_memoria.numero)
-					if (!preferencias.processo_memoria.numero) {
-						await gigsCriarMenu();
-					}
-					getAtalhosNovaAba().abrirPJeCalc.abrirAtalhoemNovaJanela('?maisPje=atualizacaorapida')
+
+					let num = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+					let guardarStorage = browser.storage.local.set({'tempAR': {'tipo':'atualizacaorapida','numeroProcesso':num}});
+					Promise.all([guardarStorage]).then(values => { getAtalhosNovaAba().abrirPJeCalc.abrirAtalhoemNovaJanela('?maisPje=atualizacaorapida') });
+
 				};
 				let span1 = document.createElement("span");
 				span1.className = "mat-button-wrapper";
@@ -6179,11 +6636,11 @@ async function addBotaoAtualizacaoRapida() {
 				bt2.className = "mat-raised-button mat-primary ng-star-inserted";
 				bt2.style = "margin: 3px; z-index: 5; background-color: darkred;";
 				bt2.onclick = async function () {
-					console.log(preferencias.processo_memoria.numero)
-					if (!preferencias.processo_memoria.numero) {
-						await gigsCriarMenu();
-					}
-					getAtalhosNovaAba().abrirPJeCalc.abrirAtalhoemNovaJanela('?maisPje=atualizacaorapidaRPVPrec')
+					
+					let num = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+					let guardarStorage = browser.storage.local.set({'tempAR': {'tipo':'RPVPrec','numeroProcesso':num}});
+					Promise.all([guardarStorage]).then(values => { getAtalhosNovaAba().abrirPJeCalc.abrirAtalhoemNovaJanela('?maisPje=atualizacaorapidaRPVPrec') });
+					
 				};
 				let span2 = document.createElement("span");
 				span2.className = "mat-button-wrapper";
@@ -6268,7 +6725,7 @@ async function fundo(ligar, mensagem, altura) {
 				
 				let msg = document.createElement("span");
 				msg.id = 'maisPJe_mensagem_fundo';
-				msg.style = 'position: absolute; font-size: .2em;align-self: center;margin-top: 15vh; color: white;';
+				msg.style = 'position: absolute; font-size: .2em;align-self: center;margin-top: 7vh; color: white;';
 				msg.innerText = mensagem + 'pressione "ESC" para interromper as ações!';
 				elemento1.appendChild(msg);
 
@@ -6446,6 +6903,7 @@ async function copiarDocumentoProcesso(id) {
 
 //FUNÇÃO RESPONSÁVEL PELAS AÇÕES DOS BOTÕES AÇÕES_AUTOMATIZADAS_ANEXAR
 async function acao_bt_aaAnexar(id) {
+	// teste_mutation_observer();
 	let aa;	
 	if (typeof id === 'object') {
 		await sleep(1000);
@@ -6525,7 +6983,7 @@ async function acao_bt_aaAnexar(id) {
 				let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
 				await inserirModeloNoDocumento(elementoModelo);
 				//TESTES
-				await substituirVariaveisEditorTexto();
+				// await substituirVariaveisEditorTexto();
 			}
 		}
 	}
@@ -6534,7 +6992,13 @@ async function acao_bt_aaAnexar(id) {
 	if (aa.nm_botao.toLowerCase().includes('[anexos]') || aa.nm_botao == "ID997_Anexar Depoimento") {
 		await clicarBotao('button[aria-label="Salvar"]', null, true);
 		await clicarBotao('pje-editor-lateral div[aria-posinset="2"]','Anexos');
-		await clicarBotao('label[class="upload-button"]');
+
+		//versões mais nova do navegador exigem para o <input type=file> que o usuária tenha interagido ao mesno uma vez com a página
+		// ver mais em https://developer.mozilla.org/en-US/docs/Glossary/Transient_activation
+		
+		if (navigator?.userActivation && !navigator?.userActivation?.isActive) { await criarCaixaDeAlerta("ATENÇÃO",'Por medidas de segurança o firefox exige ao menos uma interação do usuário com o sistema.\nClique aqui ou pressione qualquer tecla para prosseguir.') }
+		
+		await clicarBotao('pje-caixa-anexar-pdfs label[class="upload-button"]');
 		await esperarSalvamentoDoDocumento();
 		
 		if (aa.nm_botao == "ID997_Anexar Depoimento") {
@@ -6548,13 +7012,13 @@ async function acao_bt_aaAnexar(id) {
 	if (aa.assinar.toLowerCase() == "sim") {
 		let existeTexto = await verificarSeExisteTextoNoEditor();
 		if (existeTexto) {
+			monitorFim(aa.vinculo);
 			await clicarBotao('button[aria-label="Assinar documento e juntar ao processo"]', null, true);
-			if (preferencias.AALote.length > 0) { //vem do AA em Lote
-				await esperarElemento('PJE-RESPOSTA-ASSINATURA'); //confirma que o documento foi assinado
-			}
+			await esperarDesaparecer('PJE-DIALOGO-STATUS-PROGRESSO','Solicitando assinaturas'); //aviso de carregamento da assinatura
+			await sleep(5000)
+			fundo(false);			
 		}
-		fundo(false);
-		monitorFim(aa.vinculo);				
+						
 	} else {
 		await clicarBotao('button[aria-label="Salvar"]', null, true);
 		fundo(false);
@@ -6564,7 +7028,13 @@ async function acao_bt_aaAnexar(id) {
 	
 	async function aguardarEscolherPDF() {
 		return new Promise(async resolve => {
-			let btUpload = await esperarElemento('label[class="upload-button"]');
+			
+			//versões mais nova do navegador exigem para o <input type=file> que o usuária tenha interagido ao mesno uma vez com a página
+			// ver mais em https://developer.mozilla.org/en-US/docs/Glossary/Transient_activation
+			//tem que existir a função "userActivation" e o usuário não pode ter feito interação com o navegador
+			if (navigator?.userActivation && !navigator?.userActivation?.isActive) { await criarCaixaDeAlerta("ATENÇÃO",'Por medidas de segurança o firefox exige ao menos uma interação do usuário com o sistema.\nClique aqui ou pressione qualquer tecla para prosseguir.') }
+			
+			let btUpload = await esperarElemento('pje-caixa-anexar-pdfs label[class="upload-button"]');
 			await sleep(preferencias.maisPje_velocidade_interacao);
 			btUpload.click();
 			let el_pdf = await esperarElemento('span[class="nome-arquivo-pdf"]', null, 60000);
@@ -6624,17 +7094,13 @@ async function acao_bt_aaAnexar(id) {
 	}
 
 	async function verificarSeExisteTextoNoEditor() {
-		return new Promise(async resolve => {
+		return new Promise(async resolve => { 
+			if (document.querySelector('pdf-viewer')) { return resolve(true) } //documento em pdf
+			
 			await esperarElemento('pje-arvore-modelo-documento'); //esperar o carregamento da pagina
 			let areaConteudo = await esperarElemento('div[class*="area-conteudo"][contenteditable="true"]',null,500);
 			let resposta = false;
-			if (areaConteudo){
-				if (areaConteudo.innerText.length > 1) {			
-					resposta = true;				
-				}
-			} else if (document.querySelector('pdf-viewer')) { //documento em pdf
-				resposta = true;
-			}
+			if (areaConteudo?.innerText.length > 1) { resposta = true }
 			return resolve(resposta);
 		});
 	}
@@ -6642,7 +7108,7 @@ async function acao_bt_aaAnexar(id) {
 	function monitorFim(param) {
 		//vamos lá.. ação automatizada em lote: se tiver vínculo/param resolver primeiro. 
 		//Depois que encerrar todos os vínculos é que iremos partir para verificar se é uma AA decorrente de Lote
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			window.addEventListener("beforeunload", function (e) {			
 				console.log("JANELA ANEXAR fechou...");
 				console.log("     |___avisa a janela DETALHES para executar a AA: " + param);
@@ -6693,7 +7159,8 @@ async function acao_bt_aaComunicacao(id) {
 		aa = preferencias.aaComunicacao[id];
 	}
 	
-	exibir_mensagem("Executando a Ação Automatizada " + aa.nm_botao + "\nPróximo vínculo: " + (!preferencias.tempAAEspecial ? aa.vinculo : preferencias.tempAAEspecial))
+	let msg = "Executando a Ação Automatizada " + aa.nm_botao + "\nPróximo vínculo: " + (!preferencias.tempAAEspecial ? aa.vinculo : preferencias.tempAAEspecial);
+	exibir_mensagem(msg)
 	
 	console.log("***acao_bt_aaComunicacao***");
 	inserirParte_BB_CEF();
@@ -6713,6 +7180,8 @@ async function acao_bt_aaComunicacao(id) {
 	} else if (removeAcento(aa.tipo_prazo.toLowerCase()) == "sem prazo") {
 	} else if (removeAcento(aa.tipo_prazo.toLowerCase()) == "data certa") {
 		await preencherInput('input[aria-label="Prazo em data certa"]', aa.prazo);
+	} else if (removeAcento(aa.tipo_prazo.toLowerCase()) == "dias corridos") {
+		await preencherInput('input[aria-label="Prazo em dias úteis"]', aa.prazo); //no pje não tem diferença o aria-label dos inputs
 	}
 	
 	//clicar no botão de confeccionar
@@ -6749,7 +7218,7 @@ async function acao_bt_aaComunicacao(id) {
 			let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
 			await inserirModeloNoDocumento(elementoModelo);
 			//TESTES
-			await substituirVariaveisEditorTexto();
+			// await substituirVariaveisEditorTexto();
 		}
 		
 	}
@@ -6759,6 +7228,7 @@ async function acao_bt_aaComunicacao(id) {
 		await clicarBotao('button[aria-label="Salvar"]', null);
 		await sleep(1000);
 		await clicarBotao('button[aria-label="Finalizar minuta"]', null);
+		await sleep(1000);
 		await segueParaOsParametros()
 		fundo(false);
 		monitorFim(aa.vinculo);
@@ -6766,7 +7236,8 @@ async function acao_bt_aaComunicacao(id) {
 		fundo(false);
 		let btfinalizarminuta = await esperarElemento('button[aria-label="Finalizar minuta"]');
 		btfinalizarminuta.addEventListener('click', async function(event) {
-			await sleep(1000);
+			fundo(true);
+			await sleep(1000);			
 			await segueParaOsParametros();
 			fundo(false);
 			monitorFim(aa.vinculo);
@@ -6778,10 +7249,14 @@ async function acao_bt_aaComunicacao(id) {
 		let parametros = await obterParametros();
 		if (parametros.length > 0) {
 			fundo(true)
+
+			await esperarElemento('SIMPLE-SNACK-BAR', 'Ato elaborado com sucesso.');
+			await clicarBotao('SIMPLE-SNACK-BAR button');			
+
 			let condicao = 0;
 			if (parametros.includes('ativo')) {
 				console.debug('clicou no polo ativo')
-				
+				exibir_mensagem(msg + "\n\n Incluindo polo ativo...");
 				let menosDeDezAutores = await esperarElemento('pje-pec-partes-processo button[aria-label*="somente polo ativo"]');
 				
 				if (menosDeDezAutores) {
@@ -6800,6 +7275,7 @@ async function acao_bt_aaComunicacao(id) {
 			
 			if (parametros.includes('passivo')) {
 				console.debug('clicou no polo passivo')
+				exibir_mensagem(msg + "\n\n Incluindo polo passivo...");
 
 				let menosDeDezReus = await esperarElemento('pje-pec-partes-processo button[aria-label*="somente polo passivo"]');
 				
@@ -6819,6 +7295,7 @@ async function acao_bt_aaComunicacao(id) {
 			
 			if (parametros.includes('terceiros')) {
 				console.debug('clicou em terceiros')
+				exibir_mensagem(msg + "\n\n Incluindo Outros Participantes...");
 				await clicarBotao('pje-pec-partes-processo button[aria-label*="somente terceiros interessados"]', null, true);
 				condicao = 3;
 				await sleep(1000); //espera carregar todas as novas configurações do documento
@@ -6826,26 +7303,34 @@ async function acao_bt_aaComunicacao(id) {
 
 			if (parametros.includes('trt')) {
 				console.log("parametros.includes('trt')")
+				exibir_mensagem(document.getElementById('maisPJe_mensagem_fundo').innerText + "\n\n Incluindo Autoridade...");
 				if (parametros.includes(':')) {
 					// let trt = parametros.split(';');
 					let trt = Array.from(parametros.split(';')).find(i => i.includes('trt'));
 					let vara = trt.split(':')[1];
 					document.querySelector('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara').setAttribute('maisPjeNomeDestinatario',vara);
 					await clicarBotao('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara');
-					
-					let enderecoDesconhecido = await esperarElemento('pje-pec-tabela-destinatarios i[aria-label="Endereço desconhecido"]');
-					// console.log(enderecoDesconhecido);
-					if (enderecoDesconhecido) {
+
+					await esperarElemento('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara[maisPJe="true"]')
+					await esperarDesaparecer('PJE-DIALOGO-STATUS-PROGRESSO'); //espera carregar o expediente
+					await sleep(500);
+
+					await esperarElemento('pje-pec-tabela-destinatarios pje-pec-coluna-endereco i'); //espera carregar primeiro					
+					if (document.querySelector('pje-pec-tabela-destinatarios pje-pec-coluna-endereco i[aria-label="Endereço desconhecido"]')) {
 						await clicarBotao('pje-pec-tabela-destinatarios button[aria-label="Alterar endereço"]');
-						// await sleep(1000);
+						await sleep(500);
 						await clicarBotao('pje-pec-dialogo-endereco button[aria-label="Selecionar endereço"]');
-						// await sleep(1000);
+						await sleep(500);
 						await clicarBotao('pje-pec-dialogo-endereco a[mattooltip="Fechar"]');
-						// await sleep(1000);
+						await sleep(500);
 						await clicarBotao('pje-pec-coluna-confeccionar-ato button[aria-label="Confeccionar ato"]');
-						// await sleep(1000);
+						await sleep(500);
 						await clicarBotao('pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]');
-						// await sleep(1000);
+						await sleep(500);
+
+						//Ato elaborado com sucesso. Tipo de documento selecionado: Requisição de Pequeno Valor (RPV)
+						await esperarElemento('SIMPLE-SNACK-BAR', 'Ato elaborado com sucesso.');
+						await clicarBotao('SIMPLE-SNACK-BAR button');
 					}
 				} else {
 					await clicarBotao('#maisPje_bt_invisivel_outrosDestinatarios_TRT');
@@ -6853,17 +7338,29 @@ async function acao_bt_aaComunicacao(id) {
 				}
 				
 				condicao = 4;
-				await sleep(1000); //espera carregar todas as novas configurações do documento
+			}
+
+			if (parametros == 'assinar') { //apenas assinar.. sem escolher destinatário. Para os casos de Notificação Inicial que os réus são escolhidos automaticamente pelo PJe
+				condicao = 5;
 			}
 
 			let prontoParaAssinar = await esperarElemento('pje-pec-tabela-destinatarios i[aria-label="Ato confeccionado"]'); //aguarda o ato estar pronto para assinatura. ao menos um ato deve estar pronto para tentar a assinatura
 			if (prontoParaAssinar) {
+				exibir_mensagem(msg + "\n\n Salvando os expedientes...");
 				await sleep(1000); //ajuste fino
 				let btSalvar = await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Salva os expedientes"]'); //esperar a transição já que a função "esperarTransicao()" não funciona nesta tarefa
-				await clicarBotao(btSalvar, null, true);
+				await clicarBotao(btSalvar,null,true);				
+				
+				if (document.querySelector('pje-pec-tabela-destinatarios pje-pec-coluna-signatario mat-radio-button[class*="mat-radio-checked"]').id.includes('PapelAssinaturaMAGISTRADO')) { // signatário é magistrado
+					if (preferencias.modulo8?.length > 0) {//esperar a execução da seleção do magistrado do MODULO8, se for o caso
+						await esperarElemento('mat-select[placeholder*="Pessoas que assinam"][maispje="true"]');				
+					}
+				}
+
 				if (parametros.includes('assinar') && condicao > 0) {
 					console.debug('assinando')
-					let btAssinar = await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"]'); //esperar a transição já que a função "esperarTransicao()" não funciona nesta tarefa
+					exibir_mensagem(msg + "\n\n Assinando os expedientes...");
+					let btAssinar = await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]');
 					await clicarBotao(btAssinar, null, true);
 				}
 			}
@@ -6933,10 +7430,10 @@ async function acao_bt_aaComunicacao(id) {
 	
 	function monitorFim(param) {
 		// window.opener.focus(''); //devolve o foco para a janela detalhes
-
+		console.log(param)
 		//vamos lá.. ação automatizada em lote: se tiver vínculo/param resolver primeiro. 
 		//Depois que encerrar todos os vínculos é que iremos partir para verificar se é uma AA decorrente de Lote
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			window.addEventListener("beforeunload", function (e) {			
 				console.log("JANELA COMUNICAÇÃO fechou...");
 				console.log("     |___avisa a janela DETALHES para executar a AA: " + param);
@@ -6964,7 +7461,7 @@ async function acao_bt_aaAutogigs(id) {
 		aa = preferencias.aaAutogigs[id];
 	}
 
-	fundo(true);
+	await fundo(true);
 	console.log("***acao_bt_aaAutogigs***: " + (aa.nm_botao ? aa.nm_botao : ''));
 	exibir_mensagem("Executando a Ação Automatizada " + aa.nm_botao + "\nPróximo vínculo: " + (preferencias.tempAAEspecial.length < 1 ? aa.vinculo : preferencias.tempAAEspecial))
 	
@@ -7027,8 +7524,10 @@ async function acao_bt_aaAutogigs(id) {
 		} else {
 			await clicarBotao('button[aria-label="Incluir Chip Amarelo"]');
 			
-			if (aa.tipo_atividade.includes("[perguntar]")) {
-				let chips = aa.tipo_atividade.replace('[perguntar]','');
+			if (aa.tipo_atividade.includes("perguntar")) {
+				let chips = aa.tipo_atividade.replace('perguntar','');
+				chips = chips.replace('[','');
+				chips = chips.replace(']','');
 				let carregarInput = await esperarElemento('input[data-placeholder="Nome do chip"]');
 				if (carregarInput) {
 					await preencherInput('input[data-placeholder="Nome do chip"]', chips);
@@ -7129,8 +7628,9 @@ async function acao_bt_aaAutogigs(id) {
 		} else {
 			//inserir comentário
 			await clicarBotao('pje-gigs-comentarios-lista button', 'Novo Comentário')
+
 			let observacao = await getObservacao(aa.observacao);			
-			await preencherTextArea('textarea[name="descricao"], textarea[formcontrolname="descricao"]', aa.observacao);
+			await preencherTextArea('textarea[name="descricao"], textarea[formcontrolname="descricao"]', observacao);
 			
 			//preencher visibilidade === prazo			
 			let ancora = await esperarColecao('pje-gigs-comentarios-cadastro mat-radio-button', 3);
@@ -7243,6 +7743,8 @@ async function acao_bt_aaAutogigs(id) {
 	}
 	
 	async function lancarGigs() {
+		await fundo(true);
+
 		//o GIGS está aberto na janela detalhes?
 		if(!document.querySelector('pje-gigs-ficha-processo')) { await clicarBotao('button[aria-label="Mostrar o GIGS"]') }
 		
@@ -7414,8 +7916,8 @@ async function acao_bt_aaAutogigs(id) {
 					}
 					
 					//NÃO PRECISA CHAMAR POIS A FUNÇÃO ligar_mutation_observer VERIFICA SE A JANELA DE LANÇAMENTO DA ATIVIDADE É FECHADA
-					// fundo(false);
-					// monitorFim(aa.vinculo);	
+					fundo(false);
+					monitorFim(aa.vinculo);	
 					
 				} else {
 					fundo(false);
@@ -7425,6 +7927,8 @@ async function acao_bt_aaAutogigs(id) {
 			}
 			
 		}
+
+		await fundo(false);
 	}
 	
 	async function getObservacao(observacao) {
@@ -7653,7 +8157,7 @@ async function acao_bt_aaAutogigs(id) {
 		observer_AA_autogigs.disconnect();
 		
 		console.log("          |___monitor Fim: " + param);
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			
 			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: param});
 
@@ -7661,8 +8165,9 @@ async function acao_bt_aaAutogigs(id) {
 
 			if (preferencias.AALote.length > 0) { //vem do AA em Lote
 				let guardarStorage = browser.storage.local.set({'AALote': ''});
-				Promise.all([guardarStorage]).then(values => { window.close() });
+				Promise.all([guardarStorage]).then(async values => { await sleep(1000); window.close(); }); //o sleep serve para permitir que o navegador tenha tempo de guardar o storage
 			}
+			
 		}
 
 	}
@@ -7729,6 +8234,9 @@ async function acao_bt_aaDespacho(id) {
 		if (id == 999) {
 			console.log("id 999");
 			aa = {nm_botao:"",tipo:"",descricao:"",sigilo:"",modelo:"",juiz:"",responsavel:"",cor:"",vinculo:""};
+		} else if (id == 998) {
+			console.log("id 998");
+			aa = {"nm_botao":"Em branco","tipo":"Despacho","descricao":"","sigilo":"não","modelo":"","juiz":"","responsavel":"","assinar":"sim","cor":"","vinculo":"Nenhum","visibilidade":"sim"}			
 		} else {
 			aa = preferencias.aaDespacho[id];
 		}
@@ -7741,7 +8249,7 @@ async function acao_bt_aaDespacho(id) {
 	async function movimentar_destino() {
 		return new Promise(async resolve => {
 			console.log("movimentar_destino()");
-			let tarefa = await obter_tarefa();
+			let tarefa = await obterNomeTarefaViaApi();
 			tarefa = removeAcento(tarefa.toLowerCase()); //tira os acentos e deixa tudo minusculo
 			let destino = "conclusao ao magistrado";
 			console.log("Tarefa atual: " + tarefa + " >>> " + destino);
@@ -7793,15 +8301,6 @@ async function acao_bt_aaDespacho(id) {
 		});
 	}
 	
-	async function obter_tarefa() {
-		return new Promise(async resolve => {
-			let url = document.location.href;
-			let codigo_tarefa = url.substr(url.search('/tarefa/') + 8, 3);
-			let nome_tarefa = await obterNomeTarefaViaApi(codigo_tarefa);
-			return resolve(nome_tarefa);
-		});
-	}
-	
 	async function conclusao_do_processo() {
 		if (id == 999) { //apenas a conclusao (clique no martelo) ou sem juiz definido
 			filtroMagistrado();
@@ -7816,8 +8315,8 @@ async function acao_bt_aaDespacho(id) {
 			await filtroMagistrado();
 		}
 		
-		//espera por dois segundos pela regra de impedimento ou suspeição, bem como para recarregar os botões (eles mudam sempre que troca o juiz)
-		let impedimento_suspeição = await esperarElemento('i[mattooltip="Existe impedimento ou suspeição para este Magistrado"]', null, 2000);		
+		//espera por um segundos pela regra de impedimento ou suspeição, bem como para recarregar os botões (eles mudam sempre que troca o juiz)
+		let impedimento_suspeição = await esperarElemento('i[mattooltip="Existe impedimento ou suspeição para este Magistrado"]', null, 1000);		
 		
 		if (impedimento_suspeição) {
 			fundo(false);
@@ -7876,7 +8375,7 @@ async function acao_bt_aaDespacho(id) {
 				if (ehSentenca) {
 					ehSentenca.previousSibling.focus(); //se for sentença. insere o modelo no dispositivo				
 				} else {
-					foco.previousSibling.focus(); // feitoassim porque o TRT15 deixa o título do documento como documento editável
+					foco.previousSibling.focus(); // feito assim porque o TRT15 deixa o título do documento como documento editável
 				}
 				
 				await preencherInput('input[id="inputFiltro"]', aa.modelo, true);
@@ -7885,13 +8384,38 @@ async function acao_bt_aaDespacho(id) {
 					await criarCaixaDeAlerta('ATENÇÃO','O modelo ' + aa.modelo + ' não foi encontrado!',3);			
 				} else {
 					let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
-					await inserirModeloNoDocumento(elementoModelo);
-					//TESTES
-					await substituirVariaveisEditorTexto();
+					await inserirModeloNoDocumento(elementoModelo);					
+					// await substituirVariaveisEditorTexto();
 				}
 				
 			} else {
 				let bt_limpar = await esperarElemento('button[aria-label="Limpa o filtro aplicado pela busca"]');
+
+				//variavel que traz o despacho em html.. quando existe a função de troca de juiz responsavel pela minuta
+				if (preferencias.tempAR?.tipo == "minutaDEdespacho") {
+					await sleep(2000)
+					let editorDeTexto = await esperarElemento('div[aria-label*="Alt+F10 para acessar a barra de tarefas"]')
+					editorDeTexto.focus();
+					editorDeTexto.click();
+					document.execCommand('insertText',false,preferencias.tempAR.obj);
+					await clicarBotao('button[aria-label="Salvar"]', null, true);
+					await clicarBotao('button[aria-label="Enviar para assinatura"]');
+
+					window.addEventListener("beforeunload", function (e) {						
+						if (preferencias.AALote.length > 0) { //vem do AA em Lote
+							let guardarStorage = browser.storage.local.set({'AALote': ''});
+							Promise.all([guardarStorage]).then(values => { window.close() });
+						}
+					});
+
+					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
+					fundo(false);
+					return;
+				}
+
+				//não existe vínculo.. limpa preferencias.tempBt para utilizar das variáveis maisPje nos casos de modelo em branco
+				preferencias.tempBt = [];
+
 			}
 			
 			//salva as modificações
@@ -7900,11 +8424,6 @@ async function acao_bt_aaDespacho(id) {
 			
 			//preencher movimentos
 			const comandos = await extrairComandosComuns(aa.nm_botao);
-			// console.log('comandos: ' + JSON.stringify(comandos));
-			// console.log(comandos?.intimar)
-			// console.log(comandos?.prazo)
-			// console.log(comandos?.enviarPEC)
-			// console.log(comandos?.movimento)
 			if (comandos?.intimar) {
 				if (comandos.intimar.toLowerCase() == "sim") {
 					// ativa a guia Intimações se desativada
@@ -7939,6 +8458,12 @@ async function acao_bt_aaDespacho(id) {
 
 					//clica no botão GRAVAR
 					await clicarBotao('pje-intimacao-automatica button[aria-label*="Gravar"]', null, true);
+				} else {
+					//clica no botão Intimar
+					let btIntimar = await esperarElemento('pje-intimacao-automatica label[class="mat-slide-toggle-label"]');
+					if (btIntimar.parentElement.className.includes('mat-checked')) { //se está desativado
+						await clicarBotao(btIntimar);
+					}
 				}
 			}
 
@@ -7953,18 +8478,31 @@ async function acao_bt_aaDespacho(id) {
 
 				let movimentos = comandos.movimento.split(',');
 				for (const [i,mo] of movimentos.entries()) {
-					if (i == 0) { //tipo de movimento
-						let chk = await esperarElemento('pje-movimento mat-checkbox', mo);
+					if (i == 0) {
+						let listaDeMovimentoPrincipal = mo.split('-');
+						let chk = await esperarElemento('pje-movimento mat-checkbox', listaDeMovimentoPrincipal[0]);
 						if (!chk.className.includes('checked')) {
-							await clicarBotao('pje-movimento mat-checkbox label',mo);
-							await sleep(500);
+							//os movimentos principais podem ser separados por "-" caso dê para lançar mais de um ao mesmo tempo							
+							for (const item of listaDeMovimentoPrincipal) {
+								await clicarBotao('pje-lancador-de-movimentos pje-movimento mat-checkbox label',item);
+								await sleep(500);
+							}	
 						}
 					} else { //complementos do tipo
 						await sleep(500);
 						let complementosDoTipo = await esperarColecao('pje-complemento');
 						await sleep(500);
+						
+						//complemento combobox
 						let comboBox = complementosDoTipo[i-1].querySelector('mat-select');
-						await escolherOpcaoTeste2(comboBox,mo)
+						if (comboBox) {
+							await escolherOpcaoTeste2(comboBox,mo)
+						}						
+						// complemento input
+						let input = complementosDoTipo[i-1].querySelector('input');
+						if (input) {
+							await preencherInput(input,mo)
+						}
 						await sleep(500);
 					}
 				}
@@ -8031,7 +8569,7 @@ async function acao_bt_aaDespacho(id) {
 				let elementoModelo = await buscarModeloNaArvoreDeModelos(aa.modelo);
 				await inserirModeloNoDocumento(elementoModelo);
 				//TESTES
-				await substituirVariaveisEditorTexto();
+				// await substituirVariaveisEditorTexto();
 			} else {
 				//clica na opção de inserir modelo
 				await clicarBotao('div[role="tab"]','Modelos');
@@ -8102,7 +8640,7 @@ async function acao_bt_aaDespacho(id) {
 			
 			//MÉTODO ANTIGO PARA AVERIGUAR SE O MODELO FOI INSERIDO NO EDITOR. AGORA EXISTE UMA AVISO CONFIRMANDO
 			//***cria o observer
-			let observer = new MutationObserver(async function(mutationsDocumento) {
+			let observerAA = new MutationObserver(async function(mutationsDocumento) {
 				mutationsDocumento.forEach(async function(mutation) {
 					if (!mutation.addedNodes[0]) { return }
 					if (!mutation.addedNodes[0].tagName) { return }
@@ -8121,26 +8659,26 @@ async function acao_bt_aaDespacho(id) {
 						//Modelo de documento inserido com sucesso no editor
 						if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor')) {
 							mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso
-							observer.disconnect();
+							observerAA.disconnect(); //não posso desconectar aqui pq o usuário pode querer alterar o modelo depois
 							console.log("       |___Conteúdo inserido no editor. <aviso>");
 							return resolve(true);
 						}
 					}
 					
 					if (mutation.addedNodes[0].tagName == 'P' && mutation.addedNodes[0].className == 'corpo' && mutation.addedNodes[0].innerText.length > 1) {
-						observer.disconnect();
+						observerAA.disconnect();
 						console.log("       |___Conteúdo inserido no editor. <p class='corpo'>");
 						return resolve(true);
 					}
 					
 					if (mutation.addedNodes[0].tagName == 'OL' && mutation.addedNodes[0].parentElement.tagName == 'DIV' && mutation.addedNodes[0].parentElement.className.includes('area-conteudo') && mutation.addedNodes[0].innerText.length > 1) {
-						observer.disconnect();
+						observerAA.disconnect();
 						console.log("       |___Conteúdo inserido no editor. <ol>");
 						return resolve(true);
 					}
 				});
 			});
-			observer.observe(document.body, { childList: true, subtree: true });
+			observerAA.observe(document.body, { childList: true, subtree: true });
 			//********************
 			
 			console.log("       |___clicando sobre o modelo encontrado.");
@@ -8223,16 +8761,6 @@ async function acao_bt_aaDespacho(id) {
 				});
 			}, tempo); //aguarda 10 segundos
 		});
-		
-		async function extrairNumeroProcesso(texto) {
-			let padrao = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
-			let n = '';
-			if (padrao.test(texto)) {
-				n = texto.match(padrao).join();
-			}	
-			return n;
-		}
-		
 	}
 	
 	async function definirPrazoEmLote(prazoEmLote) {
@@ -8255,10 +8783,10 @@ async function acao_bt_aaDespacho(id) {
 
 	function monitorFim(param) {
 		// window.opener.focus(''); //devolve o foco para a janela detalhes
-
+		console.log(param)
 		//vamos lá.. ação automatizada em lote: se tiver vínculo/param resolver primeiro. 
 		//Depois que encerrar todos os vínculos é que iremos partir para verificar se é uma AA decorrente de Lote
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			window.addEventListener("beforeunload", function (e) {			
 				console.log("JANELA DESPACHO fechou...");
 				console.log("     |___avisa a janela DETALHES para executar a AA: " + param);
@@ -8291,10 +8819,29 @@ async function acao_bt_aaMovimento(id) {
 			
 		} else if (id == 998) {
 			// console.log("id 998");
-			aa = {"nm_botao":"","destino":"?","chip":"","responsavel":"","cor":"","vinculo":"Nenhum"}; //movimentar para análise e devolver para a tarefa de origem
-		} else if (id == 997) {
+			aa = {"nm_botao":"","destino":"?","chip":"","responsavel":"","cor":"","vinculo":["Atualizar Pagina|Atualizar Pagina","Nenhum"]}; //movimentar para análise e devolver para a tarefa de origem
+		} else if (id == 997) { //Assinar Expedientes
 			console.log("id 997");
-			aa = {"nm_botao":"Assinar Expedientes","destino":"Assinar expedientes e comunicações - servidor[Assinar selecionado(s)]","chip":"","responsavel":"","cor":"#ff0000","vinculo":["Atualizar Pagina|Atualizar Pagina","Nenhum"],"visibilidade":"nao"}; //movimentar para análise e devolver para a tarefa de origem
+			//conferir Signatário
+			let usuario = preferencias.nm_usuario.trim().toUpperCase();
+			
+			let elSignatario = await esperarElemento('pje-cabecalho-tarefa h1[class="titulo-tarefa"]');;
+			
+			//ESPERA O CARREGAMENTO DO SIGNATARIO
+			while(elSignatario?.innerText?.length < 53) {
+				// console.log(elSignatario.innerText.length)
+				await sleep(1000);
+			}
+
+			let signatario = elSignatario.innerText.match(/(-.*)/g)[1];
+			signatario = signatario.replace('- ','');;
+			console.log(usuario + ' == ' + signatario + ' : ' + (usuario == signatario));			
+			if (usuario == signatario) { //se o signatario for o usuário
+				aa = {"nm_botao":"Assinar Expedientes","destino":"Assinar expedientes e comunicações - servidor[Assinar selecionado(s)]","chip":"","responsavel":"","cor":"#ff0000","vinculo":["Atualizar Pagina|Atualizar Pagina","Nenhum"],"visibilidade":"nao"}; //movimentar para análise e devolver para a tarefa de origem
+			} else { //senão
+				aa = {"nm_botao":"Trocar Assinatura Expedientes","destino":"Assinar expedientes e comunicações - servidor[trocar signatário " + usuario + "]","chip":"","responsavel":"","cor":"#ff0000","vinculo":["Atualizar Pagina|Atualizar Pagina","Nenhum"],"visibilidade":"não"};
+			}
+			
 		} else {
 			aa = preferencias.aaMovimento[id];
 		}
@@ -8333,19 +8880,40 @@ async function acao_bt_aaMovimento(id) {
 				}
 				
 				if (aa.ultimoLance) {
-					if (!aa.ultimoLance.includes('parar')) {
-						await clicarUltimoLance(destino);
+					if (aa.ultimoLance != 'parar') {
+						if (aa.ultimoLance.includes('Cancelar conclusão')) {
+							//verificar se existe minuta preenchida
+							let teste = await verificarMinutaPreenchida();
+							if (!teste) {
+								await clicarUltimoLance(destino);
+							} else {
+								await criarCaixaDeAlerta("ALERTA",'Identificada minuta em elaboração. Ação automatizada CANCELADA!', 3);
+							}			
+						} else {
+							await clicarUltimoLance(destino);
+						}						
 					}
 				}
 				
-				console.log(aa.chip)
+				// console.log(aa.chip)
 				await chip_responsável();
 				fundo(false);
 				monitorFim(aa.vinculo);
 				
 			//INTERROMPER MOVIMENTOS QUANDO A TAREFA DO PROCESSO FOR ELABORAR OU ASSINAR
-			} else if (tarefa.includes('elaborar') || tarefa.includes('assinar')) { //exceção: cancelar a AA Movimento nas tarefas Elaborar despacho/decisão/sentença
-				console.log("      |___O PROCESSO SE ENCONTRA EM TAREFA DE ELABORAR OU ASSINAR... AA INTERROMPIDA!!");
+			} else if (tarefa.includes('elaborar') || tarefa.includes('assinar')) { 
+				//exceção: cancelar a AA Movimento nas tarefas Elaborar despacho/decisão/sentença
+				console.log("      |___O PROCESSO SE ENCONTRA EM TAREFA DE ELABORAR OU ASSINAR... Analisar se existe minuta preenchida!!");
+				
+				if (aa.ultimoLance.includes('Cancelar conclusão')) {
+					//verificar se existe minuta preenchida
+					let teste = await verificarMinutaPreenchida();
+					if (!teste) {
+						await clicarUltimoLance(destino);
+					} else {
+						await criarCaixaDeAlerta("ALERTA",'Identificada minuta em elaboração. Ação automatizada CANCELADA!', 3);
+					}			
+				}
 				fundo(false);
 				monitorFim(aa.vinculo);
 			
@@ -8387,11 +8955,10 @@ async function acao_bt_aaMovimento(id) {
 							return;
 						}
 						
-						await clicarBotao('button', destino, true);
-						
+						await clicarBotao('button', destino, true);						
 						
 						if (aa.ultimoLance) {
-							if (!aa.ultimoLance.includes('parar')) {
+							if (aa.ultimoLance != 'parar') {
 								await clicarUltimoLance(destino);
 							}
 						}
@@ -8540,11 +9107,12 @@ async function acao_bt_aaMovimento(id) {
 				});
 			}, tempo); //aguarda 5 segundos
 
-			check = setInterval(function() {
-				if (document.location.href.includes('/transicao')) {
+			check = setInterval(async function() {
+				if (document.location.href.includes('/transicao')) {					
 					clearInterval(check);
 					clearTimeout(checkTimeOut);
 					console.log('maisPje : esperarTransicao() : transição finalizada!');
+					await sleep(1000);
 					resolve(true);
 				}				
 			}, 10);
@@ -8553,14 +9121,7 @@ async function acao_bt_aaMovimento(id) {
 	
 	async function obter_tarefa() {
 		return new Promise(async resolve => {
-			let url = document.location.href;
-			let codigo_tarefa = url.substr(url.search('/tarefa/') + 8);
-			// console.debug(codigo_tarefa);
-			codigo_tarefa = extrairNumeros(codigo_tarefa);
-			// console.debug(codigo_tarefa);
-			// extrair numeros apenas
-			// codigo_tarefa = codigo_tarefa.replace('/transicao','');
-			let nome_tarefa = await obterNomeTarefaViaApi(codigo_tarefa);
+			let nome_tarefa = await obterNomeTarefaViaApi();
 			// console.debug(nome_tarefa);
 			if (!nome_tarefa) {
 				if (document.location.href.includes('nomeTarefa=Arquivo+provis')) {
@@ -8960,12 +9521,25 @@ async function acao_bt_aaMovimento(id) {
 			if (tipo.includes('sobrestamento')) {
 				
 				await esperarDesaparecer('PJE-DIALOGO-STATUS-PROGRESSO');
+				await sleep(1000);
 				await preencherFormularioSobrestamento();
 				fundo(false);
 				return resolve(true);
 				
 			} else if (tipo === 'redistribuir') {
 				//Redistribuir[Criação de unidade judiciária,Por competência exclusiva,São José,2ª VARA DO TRABALHO SÃO JOSÉ], onde as opções são separadas por vírgula na sequencia em que devem ser preenchidas
+				
+				//Redistribuir[Determinação judicial,Por dependência,,00,MESMA_JUR,MESMA_VT]
+				if (aa.ultimoLance.includes('MESMA_JUR') ||
+					aa.ultimoLance.includes('MESMA_VT')
+				) {
+					const idProcesso = await obterIdProcessoDaUrl(window.location.href);
+					const proc = await obterDadosProcessoViaApi(idProcesso);
+					const jur = proc.jurisdicao.descricao;
+					const vt = proc.orgaoJulgador.descricao;
+					aa.ultimoLance = aa.ultimoLance.replaceAll('MESMA_JUR',jur).replaceAll('MESMA_VT',vt);
+				}
+				
 				const comandos = await extrairComandosComuns(aa.ultimoLance);
 				preencherFormularioRedistribuicao(comandos)
 				
@@ -8998,17 +9572,47 @@ async function acao_bt_aaMovimento(id) {
 				await clicarBotao('button', aa.ultimoLance);
 				await esperarElemento('button[aria-label="Análise"]'); //esperar a transição já que a função "esperarTransicao()" não funciona nesta tarefa
 				return resolve(true);
-			} else if (aa.ultimoLance.includes('Enviar para assinatura') || aa.ultimoLance.includes('Cancelar conclusão')) {
+			} else if (aa.ultimoLance.includes('Cancelar conclusão')) {
+				await sleep(1000);
+				await clicarBotao('button[aria-label="' + aa.ultimoLance + '"]');
+				let questionamento = await esperarElemento('div[class="cdk-overlay-container"] mat-dialog-container','continuar?', 500);
+				if (questionamento) { await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button', 'Sim') }				
+				await esperarElemento('h1[class="titulo-tarefa"]','Análise'); //esperar a transição já que a função "esperarTransicao()" não funciona nesta tarefa
+				return resolve(true);
+			} else if (aa.ultimoLance.includes('Enviar para assinatura')) {
 				await sleep(1000);
 				await clicarBotao('button', 'Salvar', true);
 				await clicarBotao('button[aria-label="' + aa.ultimoLance + '"]');
-				let questionamento = await esperarElemento('div[class="cdk-overlay-container"] mat-dialog-container','deseja continuar', 500);
+				let questionamento = await esperarElemento('div[class="cdk-overlay-container"] mat-dialog-container','continuar?', 500);
 				if (questionamento) { await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button', 'Sim') }
 				let confirmar = await esperarElemento('SIMPLE-SNACK-BAR','Minuta Salva');
 				if (confirmar) { confirmar.querySelector('button').click() }
 				await esperarElemento('h1[class="titulo-tarefa"]','Assinar'); //esperar a transição já que a função "esperarTransicao()" não funciona nesta tarefa
 				return resolve(true);
 			
+			} else if (aa.ultimoLance.includes('Remeter em diligência ao 1o grau')) {
+				await clicarBotao('button[aria-label="Remeter em diligência ao 1o grau"]');
+				if (aa.ultimoLance.includes('parar')) {
+					console.log('parou')
+					fundo(false);
+					//não faz nada
+
+				} else if (aa.ultimoLance.includes('Enviar')) {
+					console.log('enviando')
+					let aviso = await esperarElemento('MAT-CARD[class*="card-notificacao"]');
+					if (aviso.innerText.includes('Processo validado!')) {
+						await clicarBotao('#enviar');
+						let aviso2 = await esperarElemento('pje-card-remessa-solicitada');
+						if (aviso2.innerText.includes('Você já pode fechar esta janela e continuar a usar o sistema!')) {
+							window.close();						
+						}
+						fundo(false);
+
+					} else if (aviso.innerText.includes('Não foi possível fazer a validação do processo no momento')) {
+						fundo(false);						
+					}
+				}
+
 			} else if (tipo.includes('assinar expedientes') && aa.ultimoLance.toLowerCase().includes('trocar signatário')) {
 				
 				let btRetornar = await esperarElemento('button', 'Retornar para editar expediente');
@@ -9050,7 +9654,52 @@ async function acao_bt_aaMovimento(id) {
 					await clicarBotao('button', aa.ultimoLance);
 					// window.close(); //não precisa, a janela fecha sozinha
 				});
+			} else if (tipo.includes('transito em julgado')) {
 				
+				let comandos = await extrairComandosComuns(aa.ultimoLance);
+
+				if (comandos.includes('corrigir data')) {
+					let verificador = await esperarElemento('pje-tarefa-transito-julgado form mat-icon[class*="fa-backspace"]');
+					await sleep(2000) //esperar carregar o resultado do campo input
+
+					//verifica se o campo já foi preenchido e já existe certidão lançada nos autos					
+					if (verificador.parentElement.parentElement.style.visibility == "hidden") { //se for false já existe uma data lançada
+						let dtTransito = await criarCaixaDePergunta('data','Data do Trânsito em Julgado:','');
+						await preencherInput('input[aria-label="Data em que ocorreu o trânsito em julgado"]',dtTransito);
+
+						let btLançarTJ = await esperarElemento('button[aria-label="Assinar certidão e lançar movimento"]');
+						if (btLançarTJ.classList.contains('mat-button-disabled')) {
+							await criarCaixaDeAlerta('ATENÇÃO','Não foi possível registrar o trânsito em julgado automaticamente.\nConclua o procedimento de forma manual.',10);
+							aa.ultimoLance = 'parar';
+							return resolve(true);
+
+						} else {
+							await clicarBotao(btLançarTJ);
+						}
+					}					
+				}
+
+				console.log(comandos.toString())
+				if (comandos.toString().toLowerCase().includes('iniciar liquidação')) {					
+					await clicarBotao('button', 'Iniciar liquidação', true);
+					await esperarTransicao();
+				} else if (comandos.toString().toLowerCase().includes('iniciar execução')) {
+					await clicarBotao('button', 'Iniciar execução', true);
+					await esperarTransicao();
+				} else if (comandos.toString().toLowerCase().includes('arquivar o processo')) {
+					await clicarBotao('button', 'Arquivar o processo', true);
+					await esperarTransicao();
+				} else if (comandos.toString().toLowerCase().includes('devolver processo para vara de origem')) {
+					await clicarBotao('button', 'Devolver processo para vara de origem', true);
+					await esperarTransicao();
+				} else if (comandos.toString().toLowerCase().includes('análise')) {
+					await clicarBotao('button', 'Análise', true);
+					await esperarTransicao();
+				}
+
+				return resolve(true);
+			
+			
 			} else {
 				console.log('sem tarefa mapeada')
 				await clicarBotao('button', aa.ultimoLance);
@@ -9135,6 +9784,27 @@ async function acao_bt_aaMovimento(id) {
 	async function extrairComandosComuns(texto) {		
 		return texto.split(',');
 	}
+
+	async function verificarMinutaPreenchida() {
+		return new Promise(async resolve => {
+			let editorContainer = await esperarColecao('div[class*="editor-container"] div[contenteditable="true"]');
+			console.log("editorContainer (qtde): " + editorContainer.length);
+			let conteudoEscrito = 0;
+			
+			for (const [pos, item] of editorContainer.entries()) {
+				console.log("Tamanho do texto: " + item.innerText.length);
+				conteudoEscrito = conteudoEscrito + item.innerText.length;
+			}
+			
+			console.log("conteudoEscrito: " + conteudoEscrito);
+			
+			if (conteudoEscrito > editorContainer.length) { //cada editorContainer responde 1 caracter				
+				return resolve(true);
+			} else {
+				return resolve(false);		
+			}
+		});
+	}
 	
 	async function monitorFim(param) {
 	// 	window.opener.focus(''); //devolve o foco para a janela detalhes
@@ -9182,82 +9852,92 @@ async function acao_bt_aaChecklist(id) {
 	} else {
 		aa = preferencias.aaChecklist[id];
 	}
-	
-	
+		
 	exibir_mensagem("Executando a Ação Automatizada " + aa.nm_botao + "\nPróximo vínculo: " + (!preferencias.tempAAEspecial ? aa.vinculo : preferencias.tempAAEspecial))
 	
 	console.log("***acao_bt_aaChecklist***");
 	
-	//INICIO DA AA
-	let nomeExecutados = await recuperaExecutados();
-	
-	if (nomeExecutados.length < 1) { //tentar mais uma vez depois de dois segundo
-		await sleep(2000);
-		nomeExecutados = await recuperaExecutados();
-	}
-	
-	//CASO NÃO EXISTA EXECUTADO LANÇADO NO Checklist
-	if (nomeExecutados.length < 1) {
-		await criarCaixaDeAlerta(titulo='ALERTA', mensagem='Não existe Executado cadastrado no Checklist.\n\nEste é um requisito indispensável para o lançamento deste tipo de Ação Automatizada.', 5);
+	if (aa.nm_botao.includes('[concluir]')) {
+		await concluirChecklist();
+		console.debug('***finalizada a conclusão dos CHECKLISTs')
 		fundo(false);
 		monitorFim(aa.vinculo);
-		return; 
-	}
-	
-	//ELABORA A LISTA DE EXECUTADOS PARA O USUARIO ESCOLHER
-	let executado = '1';
-	if (nomeExecutados.length > 1) {
-		let msg = "";
-		for (let i = 0; i < nomeExecutados.length; i++) {
-			msg = msg + (i + 1) + " - " + nomeExecutados[i] + "\n";
+		return;
+
+	} else {
+		//INICIO DA AA
+		let nomeExecutados = await recuperaExecutados();
+		
+		if (nomeExecutados.length < 1) { //tentar mais uma vez depois de dois segundo
+			await sleep(2000);
+			nomeExecutados = await recuperaExecutados();
 		}
-		msg = (0) + " - Todos\n" + msg + "\n";
-		msg = "Escolha o executado da ordem (Digite o número correspondente):|\nPara escolher mais de um executado, separe-os com vírgula. Por exemplo: 1,2|\n" + msg;
-		// executado = prompt(msg,'');
-		executado = await criarCaixaDePergunta('text', msg, '');
-	}
-	
-	//se cancelado
-	if (!executado) {
-		fundo(false);
-		monitorFim(aa.vinculo);
-		return; 
-	}
-	
-	let executadosEscolhidos = (executado.length > 1) ? executado.split(',') : executado;
-	
-	//se 1
-	if (executadosEscolhidos.length == 1) {
-		let posExecutado = parseInt(executadosEscolhidos[0])-1;
-		//todos
-		if (posExecutado == -1) {
-			for (const [pos] of nomeExecutados.entries()) {
-				await acao(pos);
+		
+		//CASO NÃO EXISTA EXECUTADO LANÇADO NO Checklist
+		if (nomeExecutados.length < 1) {
+			await criarCaixaDeAlerta(titulo='ALERTA', mensagem='Não existe Executado cadastrado no Checklist.\n\nEste é um requisito indispensável para o lançamento deste tipo de Ação Automatizada.', 5);
+			fundo(false);
+			monitorFim(aa.vinculo);
+			return; 
+		}
+		
+		//ELABORA A LISTA DE EXECUTADOS PARA O USUARIO ESCOLHER
+		let executado = '1';
+		if (nomeExecutados.length > 1) {
+			let msg = "";
+			for (let i = 0; i < nomeExecutados.length; i++) {
+				msg = msg + (i + 1) + " - " + nomeExecutados[i] + "\n";
+			}
+			msg = (0) + " - Todos\n" + msg + "\n";
+			msg = "Escolha o executado da ordem (Digite o número correspondente):|\nPara escolher mais de um executado, separe-os com vírgula. Por exemplo: 1,2|\n" + msg;
+			// executado = prompt(msg,'');
+			executado = await criarCaixaDePergunta('text', msg, '');
+		}
+		
+		//se cancelado
+		if (!executado) {
+			fundo(false);
+			monitorFim(aa.vinculo);
+			return; 
+		}
+		
+		let executadosEscolhidos = (executado.length > 1) ? executado.split(',') : executado;
+		
+		//se 1
+		if (executadosEscolhidos.length == 1) {
+			let posExecutado = parseInt(executadosEscolhidos[0])-1;
+			//todos
+			if (posExecutado == -1) {
+				for (const [pos] of nomeExecutados.entries()) {
+					await acao(pos);
+				}
+				fundo(false)
+				monitorFim(aa.vinculo);
+				return;
+			} else {
+				await acao(parseInt(executadosEscolhidos[0])-1);
+				fundo(false)
+				monitorFim(aa.vinculo);
+				return;
+			}
+		
+		//se 1,2
+		} else {
+			for (const [pos, item] of executadosEscolhidos.entries()) {
+				console.log(item);
+				await acao(parseInt(item)-1);
 			}
 			fundo(false)
 			monitorFim(aa.vinculo);
 			return;
-		} else {
-			await acao(parseInt(executadosEscolhidos[0])-1);
-			fundo(false)
-			monitorFim(aa.vinculo);
-			return;
 		}
-	
-	//se 1,2
-	} else {
-		for (const [pos, item] of executadosEscolhidos.entries()) {
-			console.log(item);
-			await acao(parseInt(item)-1);
-		}
-		fundo(false)
-		monitorFim(aa.vinculo);
-		return;
 	}
+	
 	
 	async function acao(pos) {
 		return new Promise(async resolve => {
 			await sleep(preferencias.maisPje_velocidade_interacao);
+			let nomeExecutados = await recuperaExecutados();
 			console.log(pos + "-" + nomeExecutados[pos] + ": " + preferencias.maisPje_velocidade_interacao);
 			let colecaoNovaAtividade = await esperarColecao('div[id="grupo-executados"] button');
 			clicarBotao(colecaoNovaAtividade[pos]); //Nova Atividade
@@ -9299,7 +9979,7 @@ async function acao_bt_aaChecklist(id) {
 
 		console.log("          |___monitor Fim: " + param);
 
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			
 			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: param});
 
@@ -9316,7 +9996,7 @@ async function acao_bt_aaChecklist(id) {
 	function recuperaExecutados() {
 		return new Promise(resolve => {
 			let executados = [];
-			let el = document.querySelectorAll('span[class="font-label-executado"]');
+			let el = document.querySelectorAll('div[id="grupo-executados"] span[class="font-label-executado"]');
 			if (!el) {
 				return resolve(null);
 			}
@@ -9397,7 +10077,7 @@ async function acao_bt_aaChecklist(id) {
 					let msg = "";
 					msg = "Corrigir Data:" + msg;
 					// texto = prompt(msg,'');
-					texto = await criarCaixaDePergunta('text', msg, '');
+					texto = await criarCaixaDePergunta('data', msg, '');
 					resolve( !texto ? new Date().toLocaleDateString() : texto );
 				} else {
 					resolve(new Date().toLocaleDateString());
@@ -9405,6 +10085,89 @@ async function acao_bt_aaChecklist(id) {
 			} else {
 				resolve(new Date().toLocaleDateString());
 			}
+		});
+	}
+
+	async function concluirChecklist() {
+		return new Promise(async resolve => {
+			let ancora = await esperarElemento('#grupo-executados');
+			let listaDeCheckList = ancora.querySelectorAll('.positivo-chip, .negativo-chip, .parcial-chip, .vazio-chip');
+			console.debug('CHECKLIST Total: ' + listaDeCheckList.length);			
+			let total = listaDeCheckList.length - 1;
+			let pos = 0
+			while(true) {
+				let listaTemp = ancora.querySelectorAll('.positivo-chip, .negativo-chip, .parcial-chip, .vazio-chip');
+
+				
+
+				console.log(pos + ' == ' + total + '   ::   ' + (pos == total))
+				console.debug('Testando o ' + listaTemp[pos].innerText.toLowerCase());
+				console.debug('   |___ ' + aa.tipo.toLowerCase() + ' includes ' + listaTemp[pos].innerText.trim().toLowerCase() + ' : ' + (aa.tipo.toLowerCase().includes(listaTemp[pos].innerText.trim().toLowerCase())));
+
+				if (!listaTemp[pos].classList.contains('vazio-chip') && aa.tipo.toLowerCase().includes(listaTemp[pos].innerText.trim().toLowerCase())) {
+					await clicarBotao(listaTemp[pos]);
+
+					let observacao = await esperarElemento('textarea[data-placeholder="Observação"]');
+					let textoObservacao = "Desativado em " + agora() + "\n\n" + observacao.value;				
+					await preencherTextArea('textarea[data-placeholder="Observação"]', textoObservacao); //observacao
+
+					await clicarBotao('label', 'Nenhum'); //status
+
+					let alerta = await esperarElemento('mat-checkbox[formcontrolname="alerta"]'); //Alerta
+					if (alerta.classList.contains("mat-checkbox-checked")) {
+						await clicarBotao(alerta.firstElementChild);
+					}
+
+					await clicarBotao('button[aria-label="Salva as alterações"]');
+					await sleep(800);
+				}
+
+				if (pos == total) { break }
+
+				pos++;
+			}
+			
+			return resolve(true);
+			
+			
+			
+			// let testouTodos = true;
+			// for (const [pos, item] of listaDeCheckList.entries()) {
+			// 	console.log(pos + ' == ' + (listaDeCheckList.length-1) + '   ::   ' + (pos == listaDeCheckList.length-1))
+			// 	console.debug('Testando o ' + item.innerText.toLowerCase());
+			// 	console.debug('   |___ ' + aa.tipo.toLowerCase() + ' includes ' + item.innerText.trim().toLowerCase() + ' : ' + (aa.tipo.toLowerCase().includes(item.innerText.trim().toLowerCase())));
+				
+			// 	//precisei fazer assim porque a cada salvamento recarrega todos os itens novamente
+			// 	testouTodos = ((listaDeCheckList.length-1) > pos) ? false : true;
+				
+			// 	if (aa.tipo.toLowerCase().includes(item.innerText.trim().toLowerCase())) {
+			// 		await clicarBotao(item);
+
+			// 		let observacao = await esperarElemento('textarea[data-placeholder="Observação"]');
+			// 		let textoObservacao = "Desativado em " + agora() + "\n\n" + observacao.value;				
+			// 		await preencherTextArea('textarea[data-placeholder="Observação"]', textoObservacao); //observacao
+
+			// 		await clicarBotao('label', 'Nenhum'); //status
+
+			// 		let alerta = await esperarElemento('mat-checkbox[formcontrolname="alerta"]'); //Alerta
+			// 		if (alerta.classList.contains("mat-checkbox-checked")) {
+			// 			await clicarBotao(alerta.firstElementChild);
+			// 		}
+
+			// 		await clicarBotao('button[aria-label="Salva as alterações"]');					
+			// 		await sleep(800);
+					
+			// 		break;
+			// 	}
+				
+			// }
+
+			// console.log('testou todos: ' + testouTodos)
+			// if (testouTodos) {
+			// 	return resolve(true);
+			// } else {
+			// 	await concluirChecklist();
+			// }
 		});
 	}
 	
@@ -9541,6 +10304,11 @@ async function acao_vinculo(v) {
 			}
 		}
 		
+	} else if (arr[0] == 'CalculosDoProcesso') {
+		await addBotaoAtualizacaoRapida();
+		await clicarBotao('button[id="' + arr[1] + '"], button[name="' + arr[1] +'"]');
+		document.querySelector('maisPjeContainerAA').remove();
+
 	} else if (arr[0] == 'RetificarAutuação') {
 		await addBotaoRetificarAutuacao();
 		await clicarBotao('button[id="' + arr[1] + '"], button[name="' + arr[1] +'"]');
@@ -9554,6 +10322,11 @@ async function acao_vinculo(v) {
 		
 	} else if (arr[0] == 'Clicar em') {
 		fundo(false);
+		if (arr[1] == 'Concluso ao Magistrado' || arr[1] == 'Movimentar Processo' || arr[1] == 'Guardar dados das partes' || arr[1] == 'Guardar dados das partes' || arr[1] == 'Consultar Domicílio Eletrônico') {
+			// 'Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Consultar Domicílio Eletrônico'
+			await clicarBotao('a[aria-label="' + arr[1] + '"]');
+			return;
+		}
 		await acaoBotaoDetalhes(arr[1]);
 		//AALOTE
 		if (arr[1] == 'Reprocessar chips do processo') {
@@ -9578,12 +10351,15 @@ async function acao_vinculo(v) {
 			
 		} else if (arr[1] == 'Download do processo completo') {
 			await esperarElemento('SIMPLE-SNACK-BAR', 'Download realizado com sucesso');
-			await clicarBotao('SIMPLE-SNACK-BAR button');
-			// await sleep(500);
+			await sleep(1000);
 			
 			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
 		}		
-		
+	} else if (arr[0] == 'Kaizen') {
+		await clicarBotao('menumaispje span[id="'+arr[1]+ '"] a');
+		fundo(false);
+		if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }		
+
 	} else if (arr[0] == 'Atualizar Pagina') {
 		if (preferencias.AALote != "") {  //Não atualiza a página se vier do AALote
 			browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) 
@@ -9596,11 +10372,7 @@ async function acao_vinculo(v) {
 			
 			let cont = parseInt(preferencias.aaVariados[0].temporizador);
 			if (cont <= 0) {
-				window.postMessage(parseInt(idProcesso), window.origin);
-				browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
-				//comando para prosseguir as AA em LOTE caso exista
-				if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
-				return;
+				window.location.reload();
 			}
 			
 			let divIco = document.createElement('div');
@@ -9622,17 +10394,11 @@ async function acao_vinculo(v) {
 				if (cont <= 0) { 
 					clearInterval(check);	
 					// browser.runtime.sendMessage({tipo: 'atualizarJanela'})
-					// window.location.reload();   //NÃO FUNCIONA DIREITO
-					window.postMessage(parseInt(idProcesso), window.origin);
-					document.querySelector('#maisPje_icoAtualizarPagina').remove();
-					browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
-					//comando para prosseguir as AA em LOTE caso exista
-					if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
-					return;
+					window.location.reload();   //NÃO FUNCIONA DIREITO					
 				}
 			}, 1000);
 		}
-		
+			
 	} else if (arr[0] == 'Fechar Pagina') {
 		if (preferencias.AALote != "") { 
 			browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'});
@@ -9681,7 +10447,8 @@ async function acao_vinculo(v) {
 		if (arr[1] == 'Apreciar Peticoes') {
 			console.log('maisPJe: Executando a Ação Automatizada Variados| Apreciar Petições pelo vínculo..' + preferencias.tempAAEspecial);
 			exibir_mensagem("Executando a Ação Automatizada Variados| Apreciar Petições\nPróximo vínculo: " + preferencias.tempAAEspecial);
-			await clicarBotao('button[aria-label="Apreciar todos."]',null, true);
+			await clicarBotao('button[aria-label="Apreciar todos."], #apreciarTodos');
+			await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button', 'Sim');	
 			fundo(false);
 			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
 
@@ -9716,11 +10483,13 @@ async function acao_vinculo(v) {
 			
 			let bndt = await verificarBNDT(idProcesso);
 			if (bndt) { 
-				let url = 'https://' + preferencias.trt + '/pjekz/processo/' + idProcesso + '/bndt?maisPje=excluir'
-				let winGigs = window.open(url, '_blank');
-				
+				apis.bndtProcesso.abrir(preferencias.trt, {idProcesso});				
 			}
 			fundo(false);
+			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
+			//comando para prosseguir as AA em LOTE caso exista
+			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+
 		} else if (arr[1] == 'Enviar Email') {
 
 			console.log("maisPJe: Executando a Ação Automatizada Variados|Enviar Email.." + preferencias.tempAAEspecial);
@@ -9738,9 +10507,73 @@ async function acao_vinculo(v) {
 			//comando para prosseguir as AA em LOTE caso exista
 			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
 			
-		}
+		} else if (arr[1] == 'Atualizar Timeline') {
+			if (preferencias.AALote != "") {  //Não atualiza a página se vier do AALote
+				browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) 
+			} else {
+				let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));			
+				console.log('**************************************************************************************************************');
+				console.log('*********************************************ATUALIZANDO A TIMELINE*********************************************');
+				console.log('****************************************' + document.location.href + '****************************************');
+				console.log('**************************************************************************************************************');
+				
+				window.postMessage(parseInt(idProcesso), window.origin);
+				browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
+				//comando para prosseguir as AA em LOTE caso exista
+				if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+				return;
+			}
+		} else if (arr[1] == 'AUTOGIGS>Renovar Atividade GIGS') {
+			await addBotaoAutoGigs();
+			await clicarBotao('button[name="bt_renovarAtividadeGIGS"]');
+			document.querySelector('maisPjeContainerAA').remove();
 
-		
+		} else if (arr[1] == 'DESPACHO>Trocar Magistrado Responsável') {
+			await addBotaoDespacho();
+			await clicarBotao('button[name="bt_trocarMagistradoResponsavelPelaMinuta"]');
+			document.querySelector('maisPjeContainerAA').remove();
+
+		} else if (arr[1] == 'MOVIMENTO>Renovar a Data da Tarefa') {
+			await addBotaoMovimento();
+			await clicarBotao('button[name="bt_atualizar_tarefa"]');
+			document.querySelector('maisPjeContainerAA').remove();
+		} else if (arr[1] == 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado') {
+
+			let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+			let cont = parseInt(preferencias.aaVariados[13].temporizador);
+			if (cont <= 0) {
+				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [999, preferencias.aaVariados[13].objeto]]}); //999: pesquisar partes
+				Promise.all([var1]).then(values => {
+					acaoBotaoDetalhes("Retificar autuação");
+				});
+			}
+			
+			let divIco = document.createElement('div');
+			divIco.style = "position: absolute;left: 50vw;top: 50vh;width: 120px;height: 120px;display: flex;align-items: center; animation: pulse 1s infinite !important; border-radius: 100px; z-index: 999999;";
+			divIco.id = "maisPje_icoAtualizarPagina";
+			let ico1 = document.createElement('span');
+			ico1.style = "position: absolute; width: 100%;height: 100%;background-color: #e9e8ea;z-index: 99998;border-radius: 100%;";
+			let ico2 = document.createElement('span');
+			ico2.id = "maisPje_icoAvisoAtualizarPagina"
+			ico2.style = "position: absolute; width: 70%; height: 70%; background-color: black; z-index: 99998; border-radius: 100%; margin-left: 15%;color: #00c0fe;text-align: center;align-items: center;display: grid;font-size: 3em;font-weight: bold;font-family: 'Orbitron', sans-serif;";
+			ico2.innerText = cont;
+			divIco.appendChild(ico1);
+			divIco.appendChild(ico2);
+			document.body.appendChild(divIco);
+			
+			let check = setInterval(function() { 
+				cont--;
+				ico2.innerText = cont;
+				if (cont <= 0) { 
+					clearInterval(check);	
+					let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [999, preferencias.aaVariados[13].objeto]]}); //999: pesquisar partes
+					Promise.all([var1]).then(values => {
+						document.querySelector('#maisPje_icoAtualizarPagina').remove();
+						acaoBotaoDetalhes("Retificar autuação");
+					});
+				}
+			}, 1000);
+		}		
 		
 	} else {
 		console.debug('default');
@@ -9752,97 +10585,159 @@ async function acao_vinculo(v) {
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR O BOTÃO INSERIR PGF NA TELA DE RETIFICAR AUTUAÇÃO
 async function acao_bt_retificarAutuacao(id) {
 	return new Promise(async resolve => {
-		console.log("***acao_bt_retificarAutuacao***");
-		
-		switch (id[0]) {
-			case 0:
-				await acao1(); //UNIÃO COMO TERCEIRO INTERESSADO
-				fundo(false);
-				break;
-			case 1:
-				await acao4(); //JUÍZO 100% DIGITAL			
-				fundo(false);
-				await monitorFim();
-				break;
-			case 2:
-				await acao5('autor', id[1]); //CADASTRAR ADVOGADO DO AUTOR
-				fundo(false);
-				break;
-			case 3:
-				await acao5('reu', id[1]); //CADASTRAR ADVOGADO DO REU
-				fundo(false);
-				break;
-			case 4:
-				await acao2(); //CADASTRAR LEILOEIRO
-				fundo(false);
-				break;
-			case 5:
-				await acao3(); //CADASTRAR PERITO
-				fundo(false);
-				break;
-			case 6:
-				await acao6(); //RECUPERAÇÃO JUDICIAL/FALÊNCIA
-				fundo(false);
-				await monitorFim();
-				break;
-			case 7:
-				await acao7('autor', id[1]); //CADASTRAR PARTE: AUTOR
-				fundo(false);
-				break;
-			case 8:
-				await acao7('reu', id[1]); //CADASTRAR PARTE: REU
-				fundo(false);
-				break;
-			case 9:
-				await acao8(id[1]); //CADASTRAR ASSUNTO 12468
-				fundo(false);
-				await monitorFim();
-				break;
-			case 10:
-				await acao7('terceiro', id[1]); //CADASTRAR TERCEIRO > TERCEIRO
-				fundo(false);
-				await monitorFim();
-				break;
-			case 11:
-				await acao9(); //CADASTRAR TERCEIRO MPT
-				fundo(false);
-				await monitorFim();
-				break;
-			case 12:
-				await acao10(); //PEDIDO DE TUTELA
-				fundo(false);
-				await monitorFim();
-				break;
-			case 13:
-				await acao11(); //JUSTIÇA GRATUITA
-				fundo(false);
-				await monitorFim();
-				window.close();			
-				break;
-			case 14:
-				await acao5('terceiro', id[1]); //CADASTRAR ADVOGADO DO TERCEIRO INTERESSADO
-				fundo(false);
-				await monitorFim();
-				window.close();	
-				break;
-			case 15:
-				await acao12(id[1]); //INSERIR PRIORIDADE
-				fundo(false);
-				await monitorFim();
-				window.close();	
-				break;
-			case 16:
-				await acao13(id[1]); //REMOVER PRIORIDADE
-				fundo(false);
-				await monitorFim();
-				window.close();	
-				break;
-			default:
-				console.log('PADRAO')
-				await clicarBotao('mat-step-header[aria-posinset="3"]'); //apenas leva às partes
-				fundo(false);
+		console.log("***acao_bt_retificarAutuacao***");		
+		if (!Array.isArray(id)) { //veio da AA Variados:RETIFICAR AUTUAÇÃO>Cadastrar Advogado
+			console.log("     |___inicio acao especial");
+			
+			await clicarBotao('mat-step-header[aria-posinset="3"]');
+			await sleep(500);
+
+			let polo;
+			let opcoes = await esperarColecao('pje-autuacao-grid-partes pje-data-table table',2);
+			for (const [pos1, tabela] of opcoes.entries()) {
+				if (tabela.innerText.toLowerCase().includes(id.parte.trim().toLowerCase())) {
+					polo = tabela.getAttribute('name');
+					break;
+				}
+			}
+
+			await clicarBotao('pje-autuacao-grid-partes[titulogrid="' + polo + '"] button[aria-label*="Adicionar procurador"]');
+			await escolherOpcao('mat-select[aria-label="Tipo de vínculo"]', "ADVOGADO", 5);
+
+			// testa o info para descobrir se é nome ou cpf
+			let padrao = /[A-Za-z]/gmi;
+			
+			if (padrao.test(id.advogado.trim())) {
+				await preencherInput('input[id="inputParteId"]', id.advogado.trim());
+			} else {
+				await preencherInput('input[id="inputCPFParteId"]', id.advogado.trim());
+			}
+			await sleep(500);
+			await clicarBotao('pje-filtros button[aria-label="Filtrar"]', null, true);
+			await sleep(500);
+			let lista_de_advogados = await esperarColecao('table[name="Advogados"] button[aria-label="Selecionar"]', 1);
+			if (lista_de_advogados.length == 1) {
+				await clicarBotao(lista_de_advogados[0]);
+				let nomeDaParte = id.parte.toUpperCase().trim();
+				if (!padrao.test(nomeDaParte)) { nomeDaParte = await obterNomeDaParte(nomeDaParte) }//eh cpf ou CNPJ
+				
+				await sleep(500);
+				let parte_a_vincular = await esperarElemento('pje-autuacao-partes-vinculadas mat-list-option',nomeDaParte);
+				await clicarBotao(parte_a_vincular);
+				
+				let erro = await clicarBotao('button','Inserir', true);
+				if (erro) { //endereço desconhecido
+					console.log("   |___Corrigindo erro de Endereço desconhecido!");
+					let opcao_marcada = await esperarElemento('i[class*="check"]');
+					if (opcao_marcada) {
+						opcao_marcada.parentElement.parentElement.click();
+					} else {
+						await clicarBotao('mat-expansion-panel-header','Endereços');
+						await clicarBotao('button','Endereço desconhecido');
+						await clicarBotao('button','Sim');
+					}
+					await clicarBotao('button','Inserir');									
+				}
+			}
+			resolve(true);
+			console.log("     |___fim acao");
+			
+			if (preferencias.AALote.length > 0) { //vem do AA em Lote
+				let guardarStorage = browser.storage.local.set({'AALote': ''});
+				Promise.all([guardarStorage]).then(values => { window.close() });
+			}
+
+		} else {
+			switch (id[0]) {
+				case 0:
+					await acao1(); //UNIÃO COMO TERCEIRO INTERESSADO
+					fundo(false);
+					break;
+				case 1:
+					await acao4(); //JUÍZO 100% DIGITAL			
+					fundo(false);
+					await monitorFim();
+					break;
+				case 2:
+					await acao5('autor', id[1]); //CADASTRAR ADVOGADO DO AUTOR
+					fundo(false);
+					break;
+				case 3:
+					await acao5('reu', id[1]); //CADASTRAR ADVOGADO DO REU
+					fundo(false);
+					break;
+				case 4:
+					await acao2(); //CADASTRAR LEILOEIRO
+					fundo(false);
+					break;
+				case 5:
+					await acao3(); //CADASTRAR PERITO
+					fundo(false);
+					break;
+				case 6:
+					await acao6(); //RECUPERAÇÃO JUDICIAL/FALÊNCIA
+					fundo(false);
+					await monitorFim();
+					break;
+				case 7:
+					await acao7('autor', id[1]); //CADASTRAR PARTE: AUTOR
+					fundo(false);
+					break;
+				case 8:
+					await acao7('reu', id[1]); //CADASTRAR PARTE: REU
+					fundo(false);
+					break;
+				case 9:
+					await acao8(id[1]); //CADASTRAR ASSUNTO 12468
+					fundo(false);
+					await monitorFim();
+					break;
+				case 10:
+					await acao7('terceiro', id[1]); //CADASTRAR TERCEIRO > TERCEIRO
+					fundo(false);
+					await monitorFim();
+					break;
+				case 11:
+					await acao9(); //CADASTRAR TERCEIRO MPT
+					fundo(false);
+					await monitorFim();
+					break;
+				case 12:
+					await acao10(); //PEDIDO DE TUTELA
+					fundo(false);
+					await monitorFim();
+					break;
+				case 13:
+					await acao11(); //JUSTIÇA GRATUITA
+					fundo(false);
+					await monitorFim();
+					window.close();			
+					break;
+				case 14:
+					await acao5('terceiro', id[1]); //CADASTRAR ADVOGADO DO TERCEIRO INTERESSADO
+					fundo(false);
+					await monitorFim();
+					window.close();	
+					break;
+				case 15:
+					await acao12(id[1]); //INSERIR PRIORIDADE
+					fundo(false);
+					await monitorFim();
+					window.close();	
+					break;
+				case 16:
+					await acao13(id[1]); //REMOVER PRIORIDADE
+					fundo(false);
+					await monitorFim();
+					window.close();	
+					break;
+				default:
+					console.log('PADRAO')
+					await clicarBotao('mat-step-header[aria-posinset="3"]'); //apenas leva às partes
+					fundo(false);
+			}
+			resolve(true);
 		}
-		resolve(true);
 
 	});
 	
@@ -10024,6 +10919,18 @@ async function acao_bt_retificarAutuacao(id) {
 						}
 						await clicarBotao('button','Inserir');
 					}
+				} else {
+					let listadePartesPergunta = [];
+					for (const [pos1, parte] of partes_a_vincular.entries()) {
+						listadePartesPergunta.push(parte.innerText);
+					}
+					let listaDePartes = await criarCaixaSelecao(listadePartesPergunta, 'Segure o Ctrl e escolha mais de uma opção ao mesmo tempo','Selecionar', true);
+
+					for (const [pos2, item] of listaDePartes.entries()) {
+						await clicarBotao('pje-autuacao-partes-vinculadas mat-list-option', item);
+					}
+					
+					await clicarBotao('button','Inserir');
 				}
 			}
 			resolve(true);
@@ -10236,7 +11143,7 @@ async function acao_bt_retificarAutuacao(id) {
 		
 		//vamos lá.. ação automatizada em lote: se tiver vínculo/param resolver primeiro. 
 		//Depois que encerrar todos os vínculos é que iremos partir para verificar se é uma AA decorrente de Lote
-		if (param && param != "nenhum") { //se tem vínculo continua
+		if (param != '' && (param != "nenhum" || param != "Nenhum")) { //se tem vínculo continua
 			window.addEventListener("beforeunload", function (e) {			
 				console.log("JANELA ANEXAR fechou...");
 				console.log("     |___avisa a janela DETALHES para executar a AA: " + param);
@@ -10254,9 +11161,9 @@ async function acao_bt_retificarAutuacao(id) {
 async function cadastrarPessoa(nome, documento, tipoDocumento, tipo_parte) {
 	console.log("MaisPJe: cadastrando Pessoa no processo");
 	console.log("     |___(" + tipo_parte + ") " + nome + " " + tipoDocumento + " n. " + documento);
-	if (tipoDocumento == "CPF") {
 		let tipoPessoa = await obterDadosPessoaPublica(documento);
 		console.log("     |___" + tipoPessoa);
+	if (tipoDocumento == "CPF") {
 		if (tipoPessoa == "vazio") {
 			await clicarBotao('div[role="tab"]','Pessoa física');
 			await sleep(preferencias.maisPje_velocidade_interacao + 500); //necessário para permitir o preenchimento do CPF
@@ -10284,7 +11191,7 @@ async function cadastrarPessoa(nome, documento, tipoDocumento, tipo_parte) {
 				console.log('     |___Erro ao cadastrar ' + nome);
 				return;
 			}
-			await clicarBotao('button','Inserir');
+			erro = await clicarBotao('button','Inserir', true);
 			if (erro) {
 				erro = false;
 				console.log("   |___Corrigindo erro de Endereço desconhecido!");
@@ -10298,42 +11205,10 @@ async function cadastrarPessoa(nome, documento, tipoDocumento, tipo_parte) {
 			}
 			return;
 		} else { //União, Estado, Municípios, autarquias, etc
-			await clicarBotao('div[role="tab"]','Pessoa jurídica de direito público');
-			await sleep(preferencias.maisPje_velocidade_interacao + 500);
-			if (tipoPessoa.includes('Federal')) {
-				await clicarBotao('label','Federal');
-			} else if (tipoPessoa.includes('Estadual')) {
-				await clicarBotao('label','Estadual');
-			} else if (tipoPessoa.includes('Municipal')) {
-				await clicarBotao('label','Municipal');
-			}
-			if (tipoPessoa.includes('Orgao')) {
-				await sleep(preferencias.maisPje_velocidade_interacao + 500);
-				await clicarBotao('label','Órgão');
-			} else if (tipoPessoa.includes('Autarquia')) {
-				await sleep(preferencias.maisPje_velocidade_interacao + 500);
-				await clicarBotao('label','Autarquias');
-			}
-			if (tipoPessoa.includes('MPT')) {
-				await clicarBotao('div[role="tab"]','Ministério público do trabalho');
-				await sleep(preferencias.maisPje_velocidade_interacao + 500);
-			}
-			await sleep(preferencias.maisPje_velocidade_interacao + 500); //espera se vai aparecer a caixa de pesquisa
-			if (document.querySelector('input[formcontrolname="cnpj"]')) {
-				await preencherInput('input[formcontrolname="cnpj"]', documento);
-				let bt_filtrar = await esperarColecao('button[aria-label="Filtrar"]', 1);
-				await clicarBotao(bt_filtrar[1]);
-			}
-			let bt = await esperarElemento('tr', nome);
-			await clicarBotao(bt.querySelector('button[aria-label="Selecionar"]'));
-			await sleep(preferencias.maisPje_velocidade_interacao + 500);
-			await clicarBotao('button','Inserir');
-			await sleep(preferencias.maisPje_velocidade_interacao + 500);
+			await cadastrarPessoaPublica(tipoPessoa, nome);
 			return;
 		}
 	} else {
-		let tipoPessoa = await obterDadosPessoaPublica(documento);
-		console.log("     |___" + tipoPessoa);
 		if (tipoPessoa == "vazio") {
 			await clicarBotao('div[role="tab"]','Pessoa jurídica de direito privado');
 			await sleep(preferencias.maisPje_velocidade_interacao + 500); //necessário para permitir o preenchimento do CNPJ
@@ -10361,7 +11236,7 @@ async function cadastrarPessoa(nome, documento, tipoDocumento, tipo_parte) {
 				console.log('     |___Erro ao cadastrar ' + nome);
 				return;
 			}
-			await clicarBotao('button','Inserir');
+			erro = await clicarBotao('button','Inserir', true);
 			if (erro) {
 				erro = false;
 				console.log("   |___Corrigindo erro de Endereço desconhecido!");
@@ -10375,6 +11250,13 @@ async function cadastrarPessoa(nome, documento, tipoDocumento, tipo_parte) {
 			}
 			return;
 		} else { //União, Estado, Municípios, autarquias, etc
+			await cadastrarPessoaPublica(tipoPessoa, documento);
+			return;
+		}
+	}
+}
+
+async function cadastrarPessoaPublica(tipoPessoa, nomeOuDocumento) {
 			await clicarBotao('div[role="tab"]','Pessoa jurídica de direito público');
 			await sleep(preferencias.maisPje_velocidade_interacao + 500);
 			if (tipoPessoa.includes('Federal')) {
@@ -10401,14 +11283,11 @@ async function cadastrarPessoa(nome, documento, tipoDocumento, tipo_parte) {
 				let bt_filtrar = await esperarColecao('button[aria-label="Filtrar"]', 1);
 				await clicarBotao(bt_filtrar[1]);
 			}
-			let bt = await esperarElemento('tr', documento);
+			let bt = await esperarElemento('tr', nomeOuDocumento);
 			await clicarBotao(bt.querySelector('button[aria-label="Selecionar"]'));
 			await sleep(preferencias.maisPje_velocidade_interacao + 500);
 			await clicarBotao('button','Inserir');
 			await sleep(preferencias.maisPje_velocidade_interacao + 500);
-			return;
-		}
-	}
 }
 
 //FUNÇÃO EXCLUSIVA DA BUSCA DA ARVORE DE Modelos
@@ -10428,27 +11307,48 @@ async function buscandoModeloNaArvore() {
 
 //OBTER O ID DA JURISDIÇÃO
 async function obterIdJurisdicao() {
-	let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/retificar"));
-	let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso;
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
+	const idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/retificar"));
+	const dados = await obterDadosProcessoViaApi(idProcesso);
 	return dados.jurisdicao.id;
 }
 
-//IDENTIFICAR SE O CNPJ PERTENCE À PESSOA JURÍDICAPÚBLICA
+//TODO: Fernando, o que precisa ser feito pra simplificar o obterDadosPessoaPublica? Não sei como testar esse.
+/**
+ * Exemplos do dsTipoPessoa
+ * "Ministério Público do Trabalho"
+ * Órgão Público do Poder Executivo Federal
+ * Autarquia Federal
+ * Autarquia Municipal
+ * 
+ * @param {string} cnpj 
+ * @returns {string} o tipo da pessoa pública
+ */
+async function obterDadosPessoaPublica2(cnpj) {
+	const pj = await apis.pessoasJuridicas.executar(preferencias.trt, {cnpj});// precisa passar as outras flags? situação ativa e orgaoPublico 1?
+	const tipo = removeAcento(pj?.dsTipoPessoa || 'vazio');
+	const MPT = 'Ministerio Publico do Trabalho';
+	if (tipo == MPT) {
+		return 'MPT';
+	} else {
+		return tipo;
+	}
+
+}
+//@Deprecated ver a função acima se pode subsitituir.
+//IDENTIFICAR SE O CNPJ PERTENCE À PESSOA JURÍDICA PÚBLICA
 async function obterDadosPessoaPublica(cpfcnpj) {
 	let idJurisdicao = await obterIdJurisdicao();
 	console.log(idJurisdicao);
 	const urls = [
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?esfera=F&tipoEntidade=O&idJurisdicao=' + idJurisdicao,
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?esfera=F&tipoEntidade=A&idJurisdicao=' + idJurisdicao,
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?esfera=E&tipoEntidade=O&idJurisdicao=' + idJurisdicao,
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?esfera=E&tipoEntidade=A&idJurisdicao=' + idJurisdicao,
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?esfera=M&tipoEntidade=O&idJurisdicao=' + idJurisdicao,
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?esfera=M&tipoEntidade=A&idJurisdicao=' + idJurisdicao,
-		'https://' + preferencias.trt + '/pje-comum-api/api/pessoas/juridicas?apenasMPT=true'
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'esfera':'F','tipoEntidade':'O', idJurisdicao}),
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'esfera':'F','tipoEntidade':'A', idJurisdicao}),
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'esfera':'E','tipoEntidade':'O', idJurisdicao}),
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'esfera':'E','tipoEntidade':'A', idJurisdicao}),
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'esfera':'M','tipoEntidade':'O', idJurisdicao}),
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'esfera':'M','tipoEntidade':'A', idJurisdicao}),
+		apis.pessoasJuridicas.montarUrl(preferencias.trt, {'apenasMPT' : true})
 	];
-	var tipo = "vazio";
+	let tipo = "vazio";
 	
 	for (const [pos, url] of urls.entries()) {
 		if (tipo == 'vazio') {
@@ -10506,7 +11406,9 @@ async function obterDadosPessoaPublica(cpfcnpj) {
 }
 
 //FUNÇÃO RESPONSÁVEL PELA CONSULTA RÁPIDA DE PROCESSO NO PJE
-async function consultaRapidaPJE(processo) {
+async function consultaRapidaPJE(processo, id=false) { //se tiver id consulta direto pelo Id
+	if (document.querySelector('#maisPje_caixa_de_selecao, #maisPje_caixa_de_pergunta')) { return }	
+
 	if(!processo){
 		let textoSelecionado = await obterTextoSelecionado();
 		console.log(textoSelecionado)
@@ -10521,6 +11423,13 @@ async function consultaRapidaPJE(processo) {
 	if(!preferencias.trt){
 		return;
 	}
+
+	if (id) { //consulta direto pelo id
+		console.log(processo)
+		apis.abrirDetalhesProcesso.abrir(preferencias.trt, { 'idProcesso': processo });		
+		fundo(false);
+		return;
+	}
 	
 	if (processo.includes('??')) { //pesquisando apenas o dígito verificador
 		let numeroVerdadeiro = await retornaProcessoComDigitoVerificador(processo);
@@ -10530,7 +11439,7 @@ async function consultaRapidaPJE(processo) {
 
 	let api = [];
 	let soNumeros = processo.replace(/[^0-9]+/g, '');
-	if (soNumeros === '') {
+	if (soNumeros === '') {		
 		if (processo.length < 7) { criarCaixaDeAlerta("Consulta Rápida de Processo",'Informe pelo menos 7 caracteres nas pesquisas por nome.'); fundo(false); return; }
 		exibir_mensagem("Pesquisando processos em nome da parte " + processo + "\n\n Essa consulta costuma demorar um pouco mais..");
 
@@ -10545,7 +11454,6 @@ async function consultaRapidaPJE(processo) {
 			api = await obterIdProcessoViaApiPublica(processo);
 			api = api.resultado;
 		}
-		
 	} else if (!new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g').test(processo)) { //se o número não estiver completo
 		let var1 = processo;
 		if (var1.length >= 20) {
@@ -10553,6 +11461,7 @@ async function consultaRapidaPJE(processo) {
 				var1 = var1.substring(0,7) + "-" + var1.substring(7,9) + "." + var1.substring(9,13) + "." + var1.substring(13,14) + "." + var1.substring(14,16) + "." + var1.substring(16,20);
 			}
 			processo = var1;
+			api = await obterIdProcessoViaApi(processo);
 		} else {
 			// a separação somente será feita se tiver digito verificador
 			if (var1.search('-') > 0) {
@@ -10571,12 +11480,15 @@ async function consultaRapidaPJE(processo) {
 					console.log('Ano: ' + a);
 				}
 				processo = n + '-' + d + a;
+				api = await idProcessoPorNumeroIncompleto(processo);
 			} else {
 				var1 = (var1.length < 7) ? ('0000000' + var1).slice(-7) : var1;
-				processo = var1;
+				processo = var1+'-';
+				// api = await obterIdProcessoViaApi(processo);
+				api = await idProcessoPorNumeroIncompleto(processo);
 			}		
 		}
-		api = await obterIdProcessoViaApi(processo);
+		
 	} else {
 		api = await obterIdProcessoViaApiPublica(processo);
 	}
@@ -10585,12 +11497,12 @@ async function consultaRapidaPJE(processo) {
 	if (typeof(api[0]) == "undefined") { criarCaixaDeAlerta("Consulta Rápida de Processo","Processo " + processo + " não encontrado.",3); fundo(false); return; }
 	if (api.length > 1) { criarCaixaDeSelecao(api) }
 	if (api.length == 1) {
-		let url = 'https://' + preferencias.trt + '/pjekz/processo/' + (api[0].id ? api[0].id : api[0].idProcesso) + '/detalhe'
-		window.open(url, '_blank');
+		const idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
+		apis.abrirDetalhesProcesso.abrir(preferencias.trt, { idProcesso });
 	}
 	fundo(false);
 	
-	
+	// ZZZ
 	function criarCaixaDeSelecao(dados) {
 		if (!document.getElementById('maisPje_caixa_de_selecao')) {
 			// DESCRIÇÃO: REGRA DO TOOLTIP
@@ -10698,13 +11610,10 @@ async function consultaRapidaPJE(processo) {
 					span.onmouseenter = function () {span.style.filter = 'saturate(3) brightness(.9)'};
 					span.onmouseleave = function () {span.style.filter = 'saturate(3) brightness(1)'};
 					span.onclick = function () {
-						let url = 'https://' + preferencias.trt + '/pjekz/processo/' + idP + '/detalhe'
-						window.open(url, '_blank');
+						
+						apis.abrirDetalhesProcesso.abrir(preferencias.trt, { 'idProcesso': idP });
 						document.getElementById('maisPje_caixa_de_selecao').remove();
 					};
-										
-					
-					
 					div.appendChild(span);
 				}
 			);
@@ -10732,10 +11641,10 @@ async function obterTextoSelecionado() {
 }
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR UM BOTÃO DE ACESSO AO PJE NA PÁGINA GOOGLE - PLANILHAS
-function addBotaoPlanilhasGoogle(){
-	if (document.getElementById("docs-toolbar")) {
+async function addBotaoPlanilhasGoogle(){
+	let ancora = await esperarElemento('#docs-toolbar')
+	if (ancora) {
 		if (!document.getElementById("pjextension_botao_buscarProcesso")) {
-			let el = document.getElementById("docs-toolbar");
 			let bt = document.createElement("a");
 			let ic = document.createElement("span");
 			bt.id = "pjextension_botao_buscarProcesso";
@@ -10764,16 +11673,15 @@ function addBotaoPlanilhasGoogle(){
 				if(window.location.href.includes('docs.google.com/spreadsheets')) {
 					
 					let numeroProcesso = identificarNumeroDoProcessoDaPlanilhaGoogle();
-					let dadosProcesso = await obterIdProcessoViaApi(numeroProcesso); 
-					let info = await obterDadosProcessoViaApi(dadosProcesso[0].idProcesso);
-					let url = `https://${preferencias.trt}/pjekz/pauta-audiencias?maisPje=true&numero=${info.numero}&rito=${info.classeJudicial.sigla}&fase=${info.labelFaseProcessual}`;
-					window.open(url, '_blank');
-					
+					let guardarStorage = browser.storage.local.set({'AALote': 'Kaizen|maisPje_menuKaizen_itemmenu_abrir_pauta'});
+					Promise.all([guardarStorage]).then(values => {					
+						consultaRapidaPJE(numeroProcesso);
+					});
 				}
 			};							
 			bt2.appendChild(ic2);
-			el.insertBefore(bt, el.firstChild);
-			el.insertBefore(bt2, bt.nextSibling);
+			ancora.insertBefore(bt, ancora.firstChild);
+			ancora.insertBefore(bt2, bt.nextSibling);
 		}
 	}
 
@@ -10995,9 +11903,9 @@ function kaizen(nome_janela) {
 			
 		});
 				
-		function bt_atalhos() {
+		async function bt_atalhos() {
 			let posicao_itemmenu = 1;
-
+			await sleep(1000); //comando para aghuardar o carregamento de eventuais elementos condicionantes
 			const atalhos = getAtalhosNovaAba();
 
 			Object.values(atalhos).forEach(atalho => {
@@ -11102,7 +12010,7 @@ async function addBotoesDocumentoCarregado(id) {
 			let barra_zoom = document.createElement("div");
 			barra_zoom.id = "extensaoPje_barra_botoes_" + id;
 			// barra_zoom.style = 'position: absolute; z-index: 100; width: 2.5vw; height: auto; top: 100%; left: 0px;';
-			barra_zoom.style = 'position: absolute; z-index: 100; width: 2.5vw; height: auto; top: 60vh; display: flex; flex-direction: column;';
+			barra_zoom.style = 'position: absolute; z-index: 100; width: 2.5vw; height: auto; top: 44vh; display: flex; flex-direction: column;';
 			ancora.appendChild(barra_zoom);
 			
 			
@@ -11175,6 +12083,37 @@ async function addBotoesDocumentoCarregado(id) {
 			i_miniatura.className = "fas fa-layer-group";
 			miniatura.appendChild(i_miniatura);
 			barra_zoom.appendChild(miniatura);
+
+			//cria o botão rotate
+			let btRodar = document.createElement('button');
+			btRodar.id = 'extensaoPje_rodarPDF';
+			btRodar.setAttribute('maisPje-tooltip-direita','Girar o documento');
+			btRodar.className = 'mat-icon-button';		
+			btRodar.style = 'font-size: 1.5em; color: orangered; opacity: 0.4; margin-top: 5px;';
+			if (!document.getElementById('obj' + id)) {
+				
+				btRodar.style.color = 'lightgrey';
+				btRodar.setAttribute('maisPje-tooltip-direita','rotacionar documento desativado (modelo de documento antigo)');
+				
+			} else {
+				
+				btRodar.onmouseenter = function () {this.style.opacity  = '1'};
+				btRodar.onmouseleave = function () {this.style.opacity  = '0.4'};
+				btRodar.onclick = function () { 
+				
+					let el_docto = document.getElementById('obj' + id); //antes era doc + id
+					let el_docto_conteudo = el_docto.contentDocument || el_docto.contentWindow.document;
+					if (!el_docto_conteudo) { return }					
+					let pagina = el_docto_conteudo.querySelector('html');
+					pagina.dispatchEvent(simularTecla('keydown',82, false, false, true));
+					 
+				};
+			}
+			let i_btRodar = document.createElement("i");
+			i_btRodar.className = "fas fa-undo";
+			i_btRodar.style.transform = 'rotatey(180deg)';
+			btRodar.appendChild(i_btRodar);
+			barra_zoom.appendChild(btRodar);
 			
 			//cria o botão zoom +
 			let zoomMais = document.createElement('button');
@@ -11303,34 +12242,7 @@ async function addBotoesDocumentoCarregado(id) {
 					//MODELO DE DOCUMENTO ATUAL
 					if (el_docto) {					
 						let el_docto_conteudo = el_docto.contentDocument || el_docto.contentWindow.document;
-						if (!el_docto_conteudo) { return }
-						
-						//cria o onkeydow listener para o documento do processo pois o listener tradicional "desaparece" no iframe
-						el_docto_conteudo.addEventListener('keydown', async function(event) {
-							if (event.code === "F1") {
-								event.preventDefault();
-								event.stopPropagation();
-								consultaRapidaPJE();	
-							} else if (event.code === "F2") {
-								event.preventDefault();
-								event.stopPropagation();
-								if (!preferencias.tempF2 || preferencias.tempF2 == "Nenhum") {
-									await clicarBotao('menumaispje span[id="maisPje_menuKaizen_itemmenu_preferencia_f2"] a', null, 1000);
-								} else {
-									acao_vinculo(preferencias.tempF2);
-								}
-							} else if (event.code === "F3") {
-								event.preventDefault();
-								event.stopPropagation();
-								if (!preferencias.tempF3 || preferencias.tempF3 == "Nenhum") {
-									await clicarBotao('menumaispje span[id="maisPje_menuKaizen_itemmenu_preferencia_f3"] a', null, 1000);
-								} else {
-									acao_vinculo(preferencias.tempF3);
-								}
-							
-							}
-						});
-						
+						if (!el_docto_conteudo) { return }						
 						
 						let qtdePaginas = el_docto_conteudo.querySelectorAll('div[class="page"]').length;
 						console.log("Extensão maisPJE (" + agora() + "): Mapeando Ids do Documento Id " + id + ": " + qtdePaginas + " página(s)");
@@ -11410,8 +12322,6 @@ async function addBotoesDocumentoCarregado(id) {
 				i_mapearIds.appendChild(span_mapearIds);
 				mapearIds.appendChild(i_mapearIds);
 				barra_zoom.appendChild(mapearIds);
-				
-
 
 				await sleep(2000); 
 				await clicarBotao('button[id="extensaoPje_mapearIds"]');
@@ -11477,7 +12387,6 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 	
 	async function addBotao() {
 		if (!document.getElementById('extensaoPje_barra_botoes_' + id)) {
-			
 			//DESCRIÇÃO: REGRA DO TOOLTIP
 			if (!document.getElementById('maisPje_tooltip_direita')) {
 				tooltip('direita');
@@ -11495,7 +12404,13 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 			
 
 			//PARAMETROS GERAIS
-			let el_docto_conteudo = await esperarElemento('pdf-viewer div[class*="pdfViewer"]');
+			let el_docto_conteudo;
+			if (document.querySelector('pdf-viewer')) { //modelo novo
+				el_docto_conteudo = await esperarElemento('pdf-viewer div[class*="pdfViewer"]');
+			} else { //modelo antigo
+				el_docto_conteudo = await esperarElemento('div[class="container-documento"]');
+				el_docto_conteudo = el_docto_conteudo.lastElementChild;		
+			}
 			if (!el_docto_conteudo) { return }
 			
 			//cria o botão zoom +
@@ -11508,7 +12423,8 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 			zoomMais.onmouseleave = function () {zoomMais.style.opacity  = '0.4'};
 			zoomMais.onmousedown = function () {
 				let tamanhoAtual = !el_docto_conteudo.style.scale ? 1 : el_docto_conteudo.style.scale;
-				el_docto_conteudo.style.scale = parseFloat(tamanhoAtual) + 0.05;				
+				el_docto_conteudo.style.transformOrigin = 'top left';
+				el_docto_conteudo.style.scale = parseFloat(tamanhoAtual) + 0.05;
 			};			
 			let i_zoomMais = document.createElement("i");
 			i_zoomMais.className = "fa fa-search-plus";
@@ -11525,6 +12441,7 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 			zoomMenos.onmouseleave = function () {zoomMenos.style.opacity  = '0.4'};
 			zoomMenos.onmousedown = function () {
 				let tamanhoAtual = !el_docto_conteudo.style.scale ? 1 : el_docto_conteudo.style.scale;
+				el_docto_conteudo.style.transformOrigin = 'top left';
 				el_docto_conteudo.style.scale = parseFloat(tamanhoAtual) - 0.05;
 			};
 			let i_zoomMenos = document.createElement("i");
@@ -11541,57 +12458,76 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 				mapearIds.style = 'font-size: 1.5em; color: orangered; opacity: 0.4; margin-top: 5px;';
 				mapearIds.onmouseenter = function () {mapearIds.style.opacity  = '1'};
 				mapearIds.onmouseleave = function () {mapearIds.style.opacity  = '0.4'};
-				mapearIds.onclick = function () {
-					//CONVERTER IDS EM LINKS					
-					let qtdePaginas = el_docto_conteudo.querySelectorAll('div[class="page"]').length;
-					console.log("Extensão maisPJE (" + agora() + "): Mapeando Ids do Documento: " + qtdePaginas + " página(s)");
-					console.log("    |___Modelo de Documento: padrão atual");
+				mapearIds.onclick = async function () {
 					
-					//CRIA O LISTENER DE CLIQUE PARA O DOCUMENTO (IFRAME)
-					document.body.addEventListener('click', function(event) {
-						listenerClickIdConvertido(event);
-					});
+					//MODELO DE DOCUMENTO ATUAL
+					if (document.querySelector('pdf-viewer')) {
+						el_docto_conteudo = await esperarElemento('pdf-viewer div[class*="pdfViewer"]');
+						let qtdePaginas = el_docto_conteudo.querySelectorAll('div[class="page"]').length;
+						console.log("Extensão maisPJE (" + agora() + "): Mapeando Ids do Documento Id " + id + ": " + qtdePaginas + " página(s)");
+						console.log("    |___Modelo de Documento: padrão atual");
 
-					//CONSULTA AS PAGINAS DO DOCUMENTO PARA CONVERSÃO. SE EXISTEM PÁGINAS PENDENTES DE CARREGAMENTO INICIA O MONITOR.
-					let elem = el_docto_conteudo.querySelectorAll('div[class="page"]');
-					for (let i = 0; i < qtdePaginas; i++) {
-						if (elem[i].getAttribute('data-loaded')) { //a página está carregada?
-							if (!elem[i].getAttribute('converterIdsEmLinks')) { //a página já foi convertida?
-								console.log("    |___Página " + (i+1) + " mapeada.")
-								converterIdsEmLinks(elem[i], id, false);
-							}
-						} else { //identificado que existe página que ainda não foi carregada
-							console.log("   |___Existem páginas com carregamento pendente. Iniciar monitoramento de documento em nova janela.");
-							iniciaMonitorDeCarregamentoDoDoctoIsolado(id, qtdePaginas);
-							break;
-						}
+						//CRIA O LISTENER DE CLIQUE PARA O DOCUMENTO (IFRAME)
+						document.body.addEventListener('click', function(event) {
+							listenerClickIdConvertido(event);
+						});
 						
-						//remove os links do sentença digital
-						let linksSentençaDigital = el_docto_conteudo.querySelectorAll('div[class="annotationLayer"] section');
-						if (linksSentençaDigital) {
-							let map = [].map.call(
-								linksSentençaDigital, 
-								function(item) {
-									item.remove();
+						let elem = el_docto_conteudo.querySelectorAll('div[class="page"]');
+						for (let i = 0; i < qtdePaginas; i++) {
+							if (elem[i].getAttribute('data-loaded')) { //a página está carregada?
+								if (!elem[i].getAttribute('converterIdsEmLinks')) { //a página já foi convertida?
+									console.log("    |___Página " + (i+1) + " mapeada.")
+									converterIdsEmLinks(elem[i], id, false);
 								}
-							);
-						}
+							} else { //identificado que existe página que ainda não foi carregada
+								console.log("   |___Existem páginas com carregamento pendente. Iniciar monitoramento de documento em nova janela.");
+								iniciaMonitorDeCarregamentoDoDoctoIsolado(id, qtdePaginas);
+								break;
+							}
+							
+							//remove os links do sentença digital
+							let linksSentençaDigital = el_docto_conteudo.querySelectorAll('div[class="annotationLayer"] section');
+							if (linksSentençaDigital) {
+								let map = [].map.call(
+									linksSentençaDigital, 
+									function(item) {
+										item.remove();
+									}
+								);
+							}
 
+							//informa ao ícone que a funcionalidade foi ativada
+							mapearIds.style.color = "green";
+							mapearIds.setAttribute('maisPje-tooltip-direita','Ids mapeados');
+						}									
+						
+						
+					//MODELO DE DOCUMENTO ANTIGO
+					} else {		
+						console.log("Extensão maisPJE (" + agora() + "): Mapeando Ids do Documento Id " + id);
+						console.log("    |___Modelo de Documento: padrão antigo");
+
+						//CRIA O LISTENER DE CLIQUE PARA O DOCUMENTO (IFRAME)
+						document.body.addEventListener('click', function(event) {
+							listenerClickIdConvertido(event);
+						});
+
+						converterIdsEmLinks(document.querySelector('mat-card-content[class*="conteudo-html"]'), id, true);
+						
 						//informa ao ícone que a funcionalidade foi ativada
 						mapearIds.style.color = "green";
 						mapearIds.setAttribute('maisPje-tooltip-direita','Ids mapeados');
 					}
-
+					
 					async function listenerClickIdConvertido(event) {
-						if (event.target.tagName == "A") {
-							console.log(event.target.id)
+						if (event.target.tagName == "BUTTON" || event.target.tagName == "A") {
 							if (!event.target.id) {
 								return
 							}
 							let codigoId = event.target.id;
 							if (codigoId.search("extensaoPje_documento_linkId_") > -1) {
 								codigoId = codigoId.replace("extensaoPje_documento_linkId_","")
-								let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/documento"));
+								let idProcesso = await obterIdProcessoDaUrl();								
 								abrirDocumentoPeloId(idProcesso, codigoId);
 							}
 						}
@@ -11708,7 +12644,8 @@ function converterIdsEmLinks(el, id_documento, antigo) {
 		let listaIdsPadrao1 = [];
 		let listaIdsPadrao2 = [];
 		//PRIMEIRO PADRÃO (ID.XXXXXXX ou ID:XXXXXXX ou ID XXXXXXX ou ID. XXXXXXX ou ID: XXXXXXX)
-		let padrao1 = /i{1}d{1}[.| |:]{1,}[A-Za-z0-9]{6,7}/gmi;
+		// let padrao1 = /i{1}d{1}[.| |:]{1,}[A-Za-z0-9]{6,7}/gmi; 
+		let padrao1 =/i{1}d{1}[.| |:|s|'s|nº]{1,}[A-Za-z0-9]{6,7}/gmi;
 		if (padrao1.test(txt)) {
 			let id1 = txt.match(padrao1).join().split(',');;
 			console.info('PADRÃO 1: ' + id1.length + ' encontrados: ' + id1);
@@ -11733,14 +12670,16 @@ function converterIdsEmLinks(el, id_documento, antigo) {
 				function(item) {
 					let i2 = item.match(new RegExp('[A-Za-z0-9]{6,7}','gmi')).join(); //pega apenas o id
 					let idFiltrado = i2.split(',').filter(filtro => filtro != 'mandado')
-					listaIdsPadrao2.push(idFiltrado);
+					listaIdsPadrao2.push(idFiltrado.toString());
 				}
 			);
 		}
 		
 		//MÉTODO PARA EXCLUIR OS IDs DUPLICADOS
 		listaIdsConcat = listaIdsPadrao1.concat(listaIdsPadrao2);
-		listaIds_Novo = listaIdsConcat.filter((id, i) => listaIdsConcat.indexOf(id) === i);
+		listaIds_Novo = [...new Set(listaIdsConcat)];
+		listaIdsConcat.forEach((element) => console.log(element));
+
 		console.info('Resultado após filtrar os Ids repetidos: ' + listaIds_Novo + ' : ' + listaIds_Novo.length);
 	}
 }
@@ -11828,7 +12767,9 @@ async function montarMensagemEmailWato(el) {
 			dados_audi = "Não há audiência marcada neste processo";
 		}
 
-		let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+		// let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+		let idProcesso = await obterIdProcessoDaUrl();
+		console.log(idProcesso)
 		let audi = await obterAudienciaMarcada(idProcesso);
 		let data_audi = '';
 		let tipo_audi = '';
@@ -11850,8 +12791,8 @@ async function montarMensagemEmailWato(el) {
 		idDocumento = el.innerText.match(padraoID).join();
 		tipoDocumento = cabecalho[0].substring(cabecalho[0].search(" - ")+3, cabecalho[0].length);
 		chave = el.innerText.match(new RegExp('\\d{29}','g'))[0];
-		autenticacao = 'https://' + preferencias.trt + '/pjekz/validacao/' + chave + ((preferencias.grau_usuario == "primeirograu") ? '?instancia=1' :  '?instancia=2');
-		
+		const grau_usuario = getGrauAsNumber(preferencias.grau_usuario)
+		autenticacao = apis.validacaoChave.montarUrl(preferencias.trt, {'chave': chave, 'instancia' : grau_usuario});
 		//CRIAR TITULO
 		let titulo = (!aaEnviarEmail) ? preferencias.emailAutomatizado.titulo : preferencias.aaVariados[9].objeto.titulo;
 		titulo = titulo.replace(new RegExp('#{processo}', 'g'), proc);
@@ -12157,7 +13098,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				"icone menuConvenio_add t100 tamanho70",
 				"Nova Minuta",
 				"orangered",
-				function () { 
+				async function () { 
 					switch(nome_convenio) {
 						case "SISBAJUD":
 							novaMinutaSisbajud();
@@ -12177,8 +13118,13 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 						case "SAJ":
 							novaMinutaSAJ();
 							break;
+						case "PREVJUD":
+							let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário'],'Escolha entre as opções','Nenhum',false,-1,5,true);
+							preenchercamposPREVJUD(false,opt);							
+							break;
 					}
-				}
+				},
+				"acionarMouseEmCima"
 			)
 			
 			//BOTÃO PREENCHER CAMPOS
@@ -12207,9 +13153,6 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							break;
 						case "CCS":
 							preenchercamposCCS();
-							break;
-						case "PREVJUD":
-							preenchercamposPREVJUD();
 							break;
 						case "PROTESTOJUD":
 							preenchercamposPROTESTOJUD();
@@ -12252,9 +13195,6 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 						case "SISBAJUD":
 							preenchercamposSisbajud(1);
 							break;
-						case "PREVJUD":
-							preenchercamposPREVJUD(1);
-							break;
 					}
 				},
 				"acionarMouseEmCima"
@@ -12290,6 +13230,10 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							break;
 						case "SAJ":
 							consultarMinutaSAJ();
+							break;
+						case "PREVJUD":
+							let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário'],'Escolha entre as opções','Nenhum',false,-1,5,true);
+							preenchercamposPREVJUD(true,opt);
 							break;
 					}
 				},
@@ -12363,10 +13307,19 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							excluirRestricaoRenajudNovo();
 							break;
 						case "CNIB":
-							excluirRestricaoCNIB();
+							if (document.location.href.includes("indisponibilidade.onr.org.br") && document.location.href.includes("ordem/cancelamento")) {
+								excluirRestricaoCNIB();
+							} else {
+								let guardarStorage = browser.storage.local.set({'tempAR': 'cancelar CNIB'});
+								Promise.all([guardarStorage]).then(async values => {
+									await clicarBotao('span[onclick*="/ordem/cancelamento/total"]');
+								});
+							}
 							break;
 					}
-				}
+				},
+				"acionarMouseEmCima"
+
 			)
 			
 			
@@ -12525,10 +13478,10 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 					});
 					break;
 				case "PREVJUD":
-					atalho_preencher_campos_invertido.style.setProperty("--p","1");
-					atalho_preencher_campos.style.setProperty("--p","2");
-					menuMaisPje_content.appendChild(atalho_preencher_campos_invertido);
-					menuMaisPje_content.appendChild(atalho_preencher_campos);
+					atalho_nova_minuta.style.setProperty("--p","1");
+					atalho_consultar_minuta.style.setProperty("--p","2");
+					menuMaisPje_content.appendChild(atalho_nova_minuta);
+					menuMaisPje_content.appendChild(atalho_consultar_minuta);
 					
 					browser.storage.local.get('menu_kaizen', function(result){
 						if (!result.menu_kaizen) { return }
@@ -12666,6 +13619,12 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				preenchercamposCCS();
 			}
 		}
+
+		if (nome_convenio == "CNIB") {
+			monitor_janela_cnib();
+		}
+
+		
 		
 		async function novaMinutaSisbajud() {
 			await clicarBotao('button[aria-label*="menu de navegação"]');
@@ -13014,17 +13973,41 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 					let dataFim = new Date();
 					dataFim.setDate(hoje.getDate() + numdias + 2); // Adiciona número de dias.. o +2 é pq a ordem sempre vai iniciar a contagem a partir de 2 dias, isso é do próprio SISBAJUD
 					
-					let ano = '' + dataFim.getFullYear();
-					let arrayMeses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-					let mes = arrayMeses[dataFim.getMonth()] + ' de ' + ano;
-					let dia = dataFim.getDate() + ' de ' + mes;
+					let ano = '' + dataFim.getFullYear();					
 
 					console.log("      |___ABRE CALENDARIO: " + preferencias.sisbajud.teimosinha.toLowerCase() + " dias");
 					await clicarBotao('button[aria-label="Open calendar"]');
 					await clicarBotao('mat-calendar button[aria-label="Choose month and year"]');
 					await clicarBotao('mat-calendar td[aria-label="' + ano + '"]'); //clica no ano
-					await clicarBotao('mat-calendar td[aria-label="' + mes + '"]'); //clica no mês
-					await clicarBotao('mat-calendar td[aria-label="' + dia + '"]'); //clica no dia
+
+					//encontra o mês livre..
+					let arrayMeses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+					let mesD = dataFim.getMonth(); //mes em numero
+					let diaD = dataFim.getDate(); //dia em numero
+					let mes; //mes por extenso
+					let elMes; //elemento que representa o mes
+					let elDia; //elemento que representa o dia
+					while(true) {
+						mes = arrayMeses[mesD] + ' de ' + ano;
+						console.log('***maisPJe.Sisbajud... tentando acionar o mês ' + mes);
+						elMes = await esperarElemento('mat-calendar td[aria-label="' + mes + '"]');
+						if (!elMes.hasAttribute('aria-disabled')) { break }
+						mesD--;
+						console.log('***maisPJe.Sisbajud... em razão da alteração do mês, o dia será alterado para 31');
+						diaD = 31; //se o mes estiver desabilitado, voltara ao mes anterior e o dia será o último do mes, ou seja 31
+					}
+					await clicarBotao(elMes); //clica no mês
+
+					//encontra o primeiro dia livre..
+					
+					while(true) {
+						console.log('***maisPJe.Sisbajud... tentando teimosinha do dia ' +  diaD + ' de ' + mes);
+						elDia = await esperarElemento('mat-calendar td[aria-label="' + diaD + ' de ' + mes + '"]',null,1000);
+						if (elDia && !elDia.hasAttribute('aria-disabled')) { break }
+						diaD--;
+					}
+					await clicarBotao(elDia); //clica no dia
+					
 					acao10();
 				}
 				
@@ -13208,7 +14191,8 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 						seletor.dispatchEvent(simularTecla('keydown',40)); //SETA PRA BAIXO
 						
 						//teste1 : o carregamento muito rápido da página por vezes não permite ao menu de opções abrir para selecionar a opção desejada
-						let teste = await esperarColecao('mat-option[role="option"], option', 5, 1000);			
+						let teste = await esperarColecao('mat-option[role="option"], option', 5, 1000);
+						
 						if (!teste) {
 							seletor.focus();
 							seletor.dispatchEvent(simularTecla('keydown',40)); //SETA PRA BAIXO
@@ -13226,7 +14210,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							}
 						}
 						
-						await clicarBotao('mat-option[role="option"], option', valor); //aciona a opção
+						await clicarBotao('mat-option[role="option"], option', valor.trim()); //aciona a opção
 						return resolve(true);
 					});
 				}
@@ -13425,7 +14409,8 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				if (document.getElementById('maisPje_renajud_span2')) { document.getElementById('maisPje_renajud_span2').remove(); }
 			
 				console.log("   |___PREENCHER CAMPOS");
-				let lista_de_executados = await criarCaixaDeSelecaoComReclamados();
+				// let lista_de_executados = await criarCaixaDeSelecaoComReclamados();
+				let lista_de_executados = await criarCaixaDeSelecaoComTodos();
 				fundo(true);
 				if (!lista_de_executados) { return }
 				acao1();
@@ -13578,7 +14563,8 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 			var config = { childList: true, characterData: true, subtree:true }
 			
 			console.log("   |___PREENCHER CAMPOS");
-			let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
+			// let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
+			let lista_de_executados = await criarCaixaDeSelecaoComTodos();
 			fundo(true);
 			if (!lista_de_executados) { return }			
 			console.log("      |___INSERÇÃO DOS RÉUS");
@@ -13739,7 +14725,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 		async function preenchercamposCnib() {
 			if (document.location.href.includes("indisponibilidade.onr.org.br") && document.location.href.includes("ordem/cadastro")) {
 				console.log("   |___PREENCHER CAMPOS");
-				let lista_de_executados = await criarCaixaDeSelecaoComReclamados();
+				let lista_de_executados = await criarCaixaDeSelecaoComReclamados();				
 				fundo(true);
 				if (!lista_de_executados) { return }
 				let contador = 0;
@@ -13968,38 +14954,37 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 			}
 		}
 		
-		async function preenchercamposPREVJUD(inverterPolo) {
-			console.log("   |___PREENCHER CAMPOS");
-			let lista_de_reclamantes;
-			if (inverterPolo) {
-				lista_de_reclamantes = await criarCaixaDeSelecaoComReclamantes(false);				
-			} else {
-				lista_de_reclamantes = await criarCaixaDeSelecaoComReclamados(false);
-			}
-			fundo(true);
-			if (!lista_de_reclamantes) { return }
-			
-			acao1();
-			
-			//INSERÇÃO DOS RÉUS
-			function acao1() {
-				let var1 = browser.storage.local.get('processo_memoria', async function(result){			
-					if (!result.processo_memoria.numero) {return}
-					console.log(     '|___' + result.processo_memoria.numero.toString());
-					fundo(true);
-					//preenche os campos, mas o usuário tem que clicar em solicitar
-					
-					let el1 = await esperarElemento('MAT-CARD','SOLICITAR DOSSIÊ');
-					await preencherInput('input[id="solicitacaoCpf"]', lista_de_reclamantes[0].cpfcnpj);
-					await preencherInput('input[id="solicitacaoProcesso"]', result.processo_memoria.numero);
-					
+		async function preenchercamposPREVJUD(pesquisar,menu) {
+			let var1 = browser.storage.local.get('processo_memoria', async function(result){
+				if (!result.processo_memoria) { return }
+
+				//medico: false
+				//previdenciario: true
+				if (menu) {
+					// console.log('1 ' + document.querySelector('breadcrumb')?.innerText)
+					if (document.querySelector('breadcrumb')?.innerText.includes('MÉDICO')) { document.querySelector('a[href="/dossie/previdenciario"]').click() }
+				} else {
+					// console.log('2 ' + document.querySelector('breadcrumb')?.innerText)
+					if (document.querySelector('breadcrumb')?.innerText.includes('PREVIDENCIÁRIO')) { document.querySelector('a[href="/dossie/medico"]').click() }								
+				}				
+
+				if (pesquisar) {
 					let el2 = await esperarElemento('MAT-CARD','PESQUISA');
 					await escolherOpcao('mat-select[id="pesquisaTipoChave"]', 'Processo', 2);
 					await preencherInput('input[id="pesquisaChaveTexto"]', result.processo_memoria.numero);
 					await clicarBotao('BUTTON','APLICAR');
 					fundo(false);
-				})
-			}
+				} else {
+					let lista_de_partes = await criarCaixaDeSelecaoComTodos();
+					if (!lista_de_partes) { return }
+					fundo(true);
+					let el1 = await esperarElemento('MAT-CARD','SOLICITAR DOSSIÊ');
+					await preencherInput('input[id="solicitacaoCpf"]', lista_de_partes[0].cpfcnpj);
+					await preencherInput('input[id="solicitacaoProcesso"]', result.processo_memoria.numero);
+					await clicarBotao('BUTTON','SOLICITAR');
+					fundo(false);
+				}
+			});
 		}
 		
 		async function preenchercamposPROTESTOJUD() {
@@ -14144,6 +15129,8 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				
 				let el = await esperarElemento('div[class="graph-search"] input[name="search"]');
 				await preencherInput('div[class="graph-search"] input[name="search"]', lista_de_executados[0].cpfcnpj);
+				await clicarBotao(el.parentElement.querySelector('span[type="submit"]')); //clica na lupa				
+
 				el.blur(); //tirar o foco para quando for pressionar p
 				await esperarElemento('div[class="graph-search"] ul[class="autocomplete-result"] li');
 				await clicarBotao('div[class="graph-search"] span[type="submit"]');
@@ -14418,21 +15405,16 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 			
 		}
 	
-		async function registrarPagamentoGPREC() {
-			let prefixo = document.location.href.substring(0, document.location.href.search("/gprec/"));
-			document.location.href = prefixo + '/gprec/view/private/rpv/rpv_pagamento_lista.xhtml';
-		}
-		
-		async function consultarRpvGprec() {
-			document.location.href = prefixo + '/gprec/view/private/rpv/rpv_lista.xhtml';
-		}
 	}
 }
 
 //MONITORES MUTATION OBSERVER
 
 async function monitor_janela_tarefa() {
+	if (document.querySelector('body[monitorMaisPje="true"]')) { return } //verifica se o monitor já existe
+	document.body.setAttribute('monitorMaisPje','true');
 	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_tarefa");
+
 	let elParaCorrigirOCabecalho, posicaoAnterior, posicaoAtual;
 	let verificacaoUnica = false; //garante que a verificação do cabeçalho ocorrerá apenas uma vez
 	let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
@@ -14452,10 +15434,20 @@ async function monitor_janela_tarefa() {
 			// console.log('***************' + posicaoAnterior + ' : ' + posicaoAtual)
 			if (verificacaoUnica) {
 				if (posicaoAtual < posicaoAnterior) {
-					console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')
-					corrigeCabecalho();
+					let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
+					if (!cabecalho) { return }
+					if (cabecalho.style.position == "relative") { return }
+					cabecalho.style.setProperty("position", "relative", "important");
+					cabecalho.style.setProperty("height", "auto", "important");
+					console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')					
 				}
-			}			
+			}
+			
+			if (mutation.target.tagName == "MAT-DIALOG-CONTAINER") {//erro ao iniciar a tarefa... FECHAR caixa de dialogo
+				if (mutation.target.innerText.includes('Erro ao iniciar tarefa')) {
+					await clicarBotao('MAT-DIALOG-CONTAINER button','OK');
+				}
+			}
 			
 			if (document.location.href.includes("/minutar") || document.location.href.includes("/assinar")) { //tela minutar ou assinar DESPACHO/DECISÃO/SENTENÇA
 				// console.log('mutation.target.tagName: ' + mutation.target.tagName + ' class=' + mutation.target.className);
@@ -14506,6 +15498,13 @@ async function monitor_janela_tarefa() {
 						}
 					}
 				}
+
+				//ATIVA A SUBSTITUIÇÃO DE VARIÁVEIS NO EDITOR
+				if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR' ||  mutation.target.tagName == 'SIMPLE-SNACK-BAR') {
+					if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor') || mutation.target.innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+						await substituirVariaveisEditorTexto();
+					}
+				}
 			}
 
 			if (mutation.addedNodes[0].tagName == "LI" && mutation.addedNodes[0].innerText.includes('BNDT')) {
@@ -14536,8 +15535,12 @@ async function monitor_documento_JanelaDetalhes() {
 				posicaoAtual = elParaCorrigirOCabecalho?.getBoundingClientRect().bottom;
 				// console.log('***************' + posicaoAnterior + ' : ' + posicaoAtual)
 				if (posicaoAtual < posicaoAnterior) {
+					let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
+					if (!cabecalho) { return }
+					if (cabecalho.style.position == "relative") { return }
+					cabecalho.style.setProperty("position", "relative", "important");
+					cabecalho.style.setProperty("height", "auto", "important");
 					console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')
-					corrigeCabecalho();
 				}
 				
 				
@@ -14562,15 +15565,44 @@ async function monitor_documento_JanelaDetalhes() {
 						await addBotoesDocumentoCarregado(id_div_documento_principal);
 						await addBotaoCopiarDocumento(id_div_documento_principal);
 						
+						//cria o onkeydow listener para o documento do processo pois o listener tradicional "desaparece" no iframe
+						let el_docto = document.querySelector('#' + mutation.target.getElementsByTagName('object')[0].id);
+						if (!el_docto) { return }
+						el_docto.addEventListener("load", function() { 
+							let el_docto_conteudo = el_docto.contentDocument || el_docto.contentWindow.document;
+							if (!el_docto_conteudo) { return }
+							el_docto_conteudo.addEventListener('keydown', async function(event) {
+								if (event.code === "F1") {
+									event.preventDefault();
+									event.stopPropagation();
+									consultaRapidaPJE();	
+								} else if (event.code === "F2") {
+									event.preventDefault();
+									event.stopPropagation();
+									if (!preferencias.tempF2 || preferencias.tempF2 == "Nenhum") {
+										await clicarBotao('menumaispje span[id="maisPje_menuKaizen_itemmenu_preferencia_f2"] a', null, 1000);
+									} else {
+										acao_vinculo(preferencias.tempF2);
+									}
+								} else if (event.code === "F3") {
+									event.preventDefault();
+									event.stopPropagation();
+									if (!preferencias.tempF3 || preferencias.tempF3 == "Nenhum") {
+										await clicarBotao('menumaispje span[id="maisPje_menuKaizen_itemmenu_preferencia_f3"] a', null, 1000);
+									} else {
+										acao_vinculo(preferencias.tempF3);
+									}
+								
+								}
+							});
+						});
+
+						
 					} else { //modelo antigo
-						if (!document.getElementsByTagName('pje-historico-scroll-titulo')[0]) { return }
-						if (!document.getElementsByTagName('pje-historico-scroll-titulo')[0].querySelector('button[aria-label="Certidão"]')) { return }
-						if (!document.getElementsByTagName('pje-historico-scroll-titulo')[0].querySelector('button[aria-label="Certidão"]').parentElement) { return }
-						let el = document.getElementsByTagName('pje-historico-scroll-titulo')[0].querySelector('button[aria-label="Certidão"]').parentElement;
-						let id_div_documento_principal = el.href.substring(el.href.search('documento/') + 10);
-						id_div_documento_principal = id_div_documento_principal.replace('/certidao','');
-						await addBotoesDocumentoCarregado(id_div_documento_principal);
-						await addBotaoCopiarDocumento(id_div_documento_principal);
+						let url = await obterUrlDoNetworkRequest('/documentos/id/');
+						let idDoDocumento = await obterIdDocumentoDaUrl(url);
+						await addBotoesDocumentoCarregado(idDoDocumento);
+						await addBotaoCopiarDocumento(idDoDocumento);
 					}
 				}
 				
@@ -14617,11 +15649,11 @@ async function monitor_documento_JanelaDetalhes() {
 						});
 					}
 				}
+
 		});
 	});		
 	let configDocumento = { childList: true, characterData: true, subtree:true }
 	observerDocumento.observe(document.body, configDocumento); //inicia o MutationObserver
-	
 	
 	async function mapearChecklistExecucao(executado) {
 		return new Promise(async resolve => {
@@ -14644,10 +15676,7 @@ async function monitor_documento_JanelaDetalhes() {
 								naTimeLine.parentElement.querySelector('a[class="tl-documento"]').click();
 								
 								//corrige cabeçalho da janela detalhes
-								let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
-								if (!cabecalho) { return }
-								cabecalho.style.setProperty("position", "relative", "important");
-								cabecalho.style.setProperty("height", "auto", "important");
+								document.querySelector('button[aria-label*="Abre a tarefa"]').focus();
 							}
 						}
 					}
@@ -14675,10 +15704,11 @@ async function monitor_documento_JanelaDetalhes() {
 									naTimeLine.parentElement.querySelector('a[class="tl-documento"]').click();
 
 									//corrige cabeçalho da janela detalhes
-									let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
-									if (!cabecalho) { return }
-									cabecalho.style.setProperty("position", "relative", "important");
-									cabecalho.style.setProperty("height", "auto", "important");
+									document.querySelector('button[aria-label*="Abre a tarefa"]').focus();
+									// let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
+									// if (!cabecalho) { return }
+									// cabecalho.style.setProperty("position", "relative", "important");
+									// cabecalho.style.setProperty("height", "auto", "important");
 								}
 							}
 						}
@@ -14729,18 +15759,21 @@ async function monitor_Janela_Principal() {
 					//PAINEL DE PERÍCIAS
 					if (mutation.target.tagName == 'PJE-DATA-TABLE') {				
 						let menuAtivo = mutation.target.getAttribute('nametabela');
-						
+						let ancora;
 						switch(menuAtivo) {
 							case "Tabela de Processos": //o GIGS processos de Gabinete também cai aqui
-								await montarFiltrosFavoritos();
+								ancora = await esperarElemento('pje-lista-processos-filtros');
+								await montarFiltrosFavoritos(ancora);
 								await inserirBotaoGuardarFiltroFavorito();
 								await inserirBotaoCopiarListaDeProcessos();
 							case "Tabela de Atividades":
-								await montarFiltrosFavoritos();
+								ancora = await esperarElemento('pje-gigs-relatorio-atividades-filtros');
+								await montarFiltrosFavoritos(ancora);
 								await inserirBotaoGuardarFiltroFavorito();
 								await inserirBotaoCopiarListaDeProcessos();
 							case "Tabela de Comentários":
-								await montarFiltrosFavoritos();
+								ancora = await esperarElemento('pje-gigs-relatorio-comentarios-filtros');
+								await montarFiltrosFavoritos(ancora);
 								await inserirBotaoGuardarFiltroFavorito();
 								await inserirBotaoCopiarListaDeProcessos();
 							case "Tabela de Perícias":
@@ -14785,7 +15818,8 @@ async function monitor_Janela_Principal() {
 						if (mutation.addedNodes[0].tagName == 'PJE-PAINEL-GLOBAL') {
 							console.log('Janela Principal - Painel Global');
 							if (mutation.addedNodes[0].innerText.includes('Exibir todos')) {
-								await montarFiltrosFavoritos();
+								let ancora = await esperarElemento('div[aria-label="Temas"]');
+								await montarFiltrosFavoritos(ancora);
 							}
 
 						}
@@ -14794,114 +15828,95 @@ async function monitor_Janela_Principal() {
 							// console.log('Janela Principal - Escaninho');					
 						// }
 						
-						if (mutation.addedNodes[0].tagName == 'PJE-ATA-AUDIENCIAS') {
-							console.log('Janela Principal - Verificar Atas de Audiência');
-						}
+						// if (mutation.addedNodes[0].tagName == 'PJE-ATA-AUDIENCIAS') {
+						// 	console.log('Janela Principal - Verificar Atas de Audiência');							
+						// }
 						
 						if (mutation.addedNodes[0].tagName == 'MAT-PROGRESS-SPINNER' && document.location.href.includes('/pauta-inteligente')) {
 							console.log('Janela Principal - Pauta Inteligente');
 							conciLIAnaPauta();
 						}
 						
-						// if (mutation.addedNodes[0].tagName == 'PJE-PAUTA-AUDIENCIAS') {
-							// console.log('Janela Principal - Pauta de Audiência');
-						// }
+						if (mutation.addedNodes[0].tagName == 'PJE-TIPO-AUDIENCIA') {							
+							let linha = mutation.addedNodes[0].parentElement.parentElement;
+							if (!linha) { return }
+							let numeroProcesso = await extrairNumeroProcesso(linha.innerText);
+							if (!numeroProcesso) { return }
+							console.log('maisPJe Concilia na pauta: verificando o processo número ' + numeroProcesso);
+							await conciLIAnaPauta(linha);
+						}
+
+						if (mutation.addedNodes[0].tagName == 'PJE-PAUTA-AUDIENCIAS') { //primeira tela
+							console.log('ADD: ' + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+							
+							let ancora = await esperarElemento('button[aria-label="Mês anterior"]');
+
+							if (!document.querySelector('#maisPJe_audiencia_btHoje')) {
+								console.log('criando botão HOJE')
+								let btHoje = criarElemento('button', "", "Hoje");
+								btHoje.id = 'maisPJe_audiencia_btHoje';
+								btHoje.style = 'padding: 0px 16px;min-width: 64px;line-height: 30px;';
+								btHoje.onclick = function() { clicarBotao('button[aria-label="Limpar Filtros"]') }
+								ancora.parentElement.insertBefore(btHoje,ancora);
+							}
+							
+
+						}
+
+						
 						
 						// if (mutation.addedNodes[0].tagName == 'PJE-DESIGNACAO-AUTOMATICA') {
 							// console.log('Janela Principal - Designação Automática de Responsável');
 						// }
 						
 						//TRIAGEM INICIAL
-						if (document.querySelector('span[aria-level="1"]')) {
+						if (document.querySelector('span[aria-level="1"],pje-lista-processos h1')) {
 							//TRIAGEM INICIAL
-							if (document.querySelector('span[aria-level="1"]').innerText.includes('Novos Processos')) {
-								if (!document.querySelector('span[aria-level="1"]').hasAttribute('maisPje')) {
+							if (document.querySelector('span[aria-level="1"],pje-lista-processos h1').innerText.includes('Novos Processos')) {
+								let ancora = document.querySelector('span[aria-level="1"],pje-lista-processos h1')
+								if (!document.querySelector('span[aria-level="1"],pje-lista-processos h1').hasAttribute('maisPje')) {
 									console.log('**************CONCILIAJT NA TRIAGEM INICIAL');
-									document.querySelector('span[aria-level="1"]').setAttribute('maisPje','true');
+									document.querySelector('span[aria-level="1"],pje-lista-processos h1').setAttribute('maisPje','true');
 									conciLIAnaTriagemInicial();
 									
 									//adiciona os listener de troca de página
+									console.log('1')
 									document.querySelectorAll('pje-paginador mat-select div[class*="mat-select-trigger"]')[0].addEventListener('click', async function(event) {
 										await aguardarCarregamentoTabela();
 										await sleep(1000);
 										conciLIAnaTriagemInicial();
 									});
-									
+									console.log('2')
 									document.querySelectorAll('pje-paginador mat-select div[class*="mat-select-trigger"]')[1].addEventListener('click', async function(event) {
 										await aguardarCarregamentoTabela();
 										await sleep(1000);
 										conciLIAnaTriagemInicial();
 									});
-									
+									console.log('3')
 									document.querySelector('button[aria-label="Primeiro"]').addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										conciLIAnaTriagemInicial();
+		await aguardarCarregamentoTabela();
+		await sleep(1000);
+		conciLIAnaTriagemInicial();
 									});
-									
+									console.log('4')
 									document.querySelector('button[aria-label="Anterior"]').addEventListener('click', async function(event) {
 										await aguardarCarregamentoTabela();
 										await sleep(1000);
 										conciLIAnaTriagemInicial();
 									});
-									
+									console.log('5')
 									document.querySelector('button[aria-label="Próximo"]').addEventListener('click', async function(event) {
 										await aguardarCarregamentoTabela();
 										await sleep(1000);
 										conciLIAnaTriagemInicial();
 									});
-									
+									console.log('6')
 									document.querySelector('button[aria-label="Último"]').addEventListener('click', async function(event) {
 										await aguardarCarregamentoTabela();
 										await sleep(1000);
 										conciLIAnaTriagemInicial();
 									});
-								}
-							
-							//AGUARDANDO AUDIÊNCIA
-							} else if (document.querySelector('span[aria-level="1"]').innerText.includes('Audiência')) {
-								if (!document.querySelector('span[aria-level="1"]').hasAttribute('maisPje')) {
-									console.log('**************função aguardando audiência - processos sem audiência designada');
-									document.querySelector('span[aria-level="1"]').setAttribute('maisPje','true');
-									processosSemAudienciaDesignada();
-									
-									//adiciona os listener de troca de página
-									document.querySelectorAll('pje-paginador mat-select div[class*="mat-select-trigger"]')[0].addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										processosSemAudienciaDesignada();
-									});
-									
-									document.querySelectorAll('pje-paginador mat-select div[class*="mat-select-trigger"]')[1].addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										processosSemAudienciaDesignada();
-									});
-									
-									document.querySelector('button[aria-label="Primeiro"]').addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										processosSemAudienciaDesignada();
-									});
-									
-									document.querySelector('button[aria-label="Anterior"]').addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										processosSemAudienciaDesignada();
-									});
-									
-									document.querySelector('button[aria-label="Próximo"]').addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										processosSemAudienciaDesignada();
-									});
-									
-									document.querySelector('button[aria-label="Último"]').addEventListener('click', async function(event) {
-										await aguardarCarregamentoTabela();
-										await sleep(1000);
-										processosSemAudienciaDesignada();
-									});
-								}
+								}							
 							}
 						}
 						
@@ -15010,7 +16025,10 @@ async function monitor_Janela_Principal() {
 								}
 							}
 						}
+
+						// if (document.querySelector('pje-pauta-audiencias') && document.querySelector('table[name*="Horários do"]') && preferencias.modulo10_juntadaMidia[0]) {
 					
+						
 					}
 					
 					// if (mutation.removedNodes[0]) {
@@ -15037,11 +16055,12 @@ async function monitor_Janela_Principal() {
 				if (!mutation.addedNodes[0]) { return }
 				if (!mutation.addedNodes[0].tagName) { return }
 				if (mutation.addedNodes[0].tagName == 'PJE-GIGS-ABRIR-TAREFA') {
-					let numeroProcesso = mutation.addedNodes[0].innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
+					let numeroProcesso = await extrairNumeroProcesso(mutation.addedNodes[0].innerText);
+					// let numeroProcesso = mutation.addedNodes[0].innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
 					if (!numeroProcesso) { return }
 					let idProcesso = await obterIdProcessoViaApi(numeroProcesso);
-					if (!idProcesso[0]) { return }
-					let prioridadeProcesso = await obterPrioridadeProcessoViaApi(idProcesso[0].idProcesso);
+					if (!idProcesso) { return }
+					let prioridadeProcesso = await obterPrioridadeProcessoViaApi(idProcesso);
 					
 					if (prioridadeProcesso.length > 0) {
 						inserirIconePrioridadeProcessual(mutation.addedNodes[0].parentElement, prioridadeProcesso.toString());
@@ -15084,26 +16103,6 @@ async function monitor_Janela_Principal() {
 			let var0 = browser.storage.local.set({'oj_usuario': preferencias.oj_usuario});
 			Promise.all([var0]).then(values => { return resolve(preferencias.oj_usuario) });
 		});
-	}
-
-	function aguardarCarregamentoTabela() {
-		return new Promise(resolve => {
-			let desapareceu = false;
-			let apareceu = false;
-			let check = setInterval(function() {
-				let barraIdentificadora = document.querySelector('tr mat-progress-bar');
-				if (barraIdentificadora) {
-					apareceu = true;
-				} else {
-					desapareceu = true;
-				}
-				
-				if (apareceu && desapareceu) {
-					clearInterval(check);	
-					return resolve(true);
-				}
-			}, 100);
-		});		
 	}
 }
 
@@ -15212,6 +16211,27 @@ async function monitor_janela_sisbajud() {
 			if (!mutation.addedNodes[0].tagName) { return }
 			// console.log(mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
 			
+			//aplica efeitos aos botoes
+				if (document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO')) {
+					if (mutation.addedNodes[0].tagName == "BUTTON" && (mutation.addedNodes[0].innerText.includes('Salvar') || mutation.addedNodes[0].innerText.includes('Protocolar'))) {
+						if (!mutation.addedNodes[0].hasAttribute('disabled')) {
+							if (!mutation.addedNodes[0].hasAttribute('maispje')) {
+								acionarSemCliqueGenerico(mutation.addedNodes[0],'#005efc','#ff3d00')
+							}
+						}
+					}
+
+					if (document.querySelector('button[title="Exportar PDF"]:not([disabled]):not([maisPje])')) {
+						let btExportarPDF = document.querySelector('button[title="Exportar PDF"]:not([disabled])');
+						if (!btExportarPDF.hasAttribute('maispje')) {
+							btExportarPDF.setAttribute('maisPje','true');
+							acionarSemCliqueGenerico(btExportarPDF,'#005efc','#ff3d00')
+						}
+					}
+
+				}
+
+
 			//aplicar estilos nas linhas de tabelas onmouseenter onmouseleave
 				if (document.querySelector('SISBAJUD-PESQUISA-TEIMOSINHA') && mutation.addedNodes[0].tagName == "TR" && mutation.target.tagName == "TBODY") {
 					mutation.addedNodes[0].onmouseenter = function () {
@@ -15434,23 +16454,16 @@ async function monitor_janela_sisbajud() {
 					if (document.querySelector('input[placeholder*="Vara"]')) {
 						vara_juizo();
 					}
+
+
 				}
 			}
-			
-			if (document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO div[class="uikit-actions"] button')) {
-				//atribui acionamento sem clique ao botão Salvar
-				let btSalvar = querySelectorByText('div[class="uikit-actions"] button','Salvar');
-				if (btSalvar) { acionarSemCliqueGenerico(btSalvar,'#005efc','#ff3d00') }
-
-				let btProtocolar = querySelectorByText('div[class="uikit-actions"] button','Protocolar');
-				if (btProtocolar) { acionarSemCliqueGenerico(btProtocolar,'#005efc','#ff3d00') }
-			}
-
 			
 		});
 	});		
 	let configDocumento = { childList: true, subtree:true }
 	observerDocumento.observe(targetDocumento, configDocumento); //inicia o MutationObserver
+
 	
 	//mutation do storage para disparar a inclusão de nova minuta de bloqueio
 	browser.storage.onChanged.addListener(logStorageChange);				
@@ -15480,8 +16493,9 @@ async function monitor_janela_sisbajud() {
 							let i = linha.querySelector('td[data-label*="sequencial"]').innerText;
 							let d = linha.querySelector('td[data-label*="dataProgramada"]').innerText;
 							let v = linha.querySelector('td[data-label*="valorBloqueado"]').innerText;
-							console.log(i + ' : ' + d + ' : ' + v)
-							resposta.push({id:i,data:d,valor:v});
+							let s = linha.querySelector('td[data-label*="dataFim"]').innerText; //status encerrada?
+							console.log(i + ' : ' + d + ' : ' + v + ' : ' + s)
+							resposta.push({id:i,data:d,valor:v,situacao:s});
 						}
 					}
 				
@@ -15555,6 +16569,8 @@ async function monitor_janela_sisbajud() {
 						);
 					}								
 					
+					console.log("      |___NÃO-RESPOSTAS (" + preferencias.sisbajud.naorespostas + ") e DESBLOQUEIO DE VALORES MÍNIMOS (" + preferencias.sisbajud.valor_desbloqueio + ")");
+
 					//ORDENS
 					if (document.querySelectorAll('mat-select[role="listbox"]')) {
 						let el2 = document.querySelectorAll('mat-select[role="listbox"]');
@@ -15570,6 +16586,14 @@ async function monitor_janela_sisbajud() {
 					//ADICIONAR LINK PARA O PJE
 					let ancora = await esperarColecao('span[class="sisbajud-label-valor"]', 5, 60000)				
 					consultaPJe(ancora);
+
+					//transforma o botão salvar em 
+					let btSalvar = querySelectorByText('Button','Salvar');
+					if (btSalvar) {
+						if (!btSalvar.hasAttribute('maispje')) {
+							acionarSemCliqueGenerico(btSalvar,'#005efc','#ff3d00')
+						}						
+					}
 				}
 			}
 		}, 100); //esperar o carregamento da página
@@ -16266,12 +17290,14 @@ async function monitor_janela_renajudNovo() {
 				selecao3.selected = true;
 				triggerEvent(orgao,'change');
 				
-				console.log(preferencias.renajud.juiz + " : " + preferencias.renajud.juiz2)
-				let magistrado = await esperarElemento('select[id="magistrado"]');
-				await escolherOpcao(magistrado, preferencias.renajud.juiz2,1);
-				let selecao4 = await esperarElemento('OPTION',preferencias.renajud.juiz2);
-				selecao4.selected = true;
-				triggerEvent(magistrado,'change');
+				if (!document.location.href.includes('veiculo/restricao/exclusao')) {
+					console.log(preferencias.renajud.juiz + " : " + preferencias.renajud.juiz2)
+					let magistrado = await esperarElemento('select[id="magistrado"]');
+					await escolherOpcao(magistrado, preferencias.renajud.juiz2,1);
+					let selecao4 = await esperarElemento('OPTION',preferencias.renajud.juiz2);
+					selecao4.selected = true;
+					triggerEvent(magistrado,'change');
+				}
 				
 				console.log(result.processo_memoria.numero)
 				await preencherInput('input[id="numeroProcesso"]', result.processo_memoria.numero);
@@ -16454,8 +17480,8 @@ async function monitor_janela_expedientes() {
 					let campo = mutation.addedNodes[0].querySelector('mat-select[placeholder*="Pessoas que assinam"]');
 					if (!campo.getAttribute('maisPJe')) { // verifica se campo tem a tag 'maisPje' que permite ao usuario mudar manualmente o juiz
 						// DESCRIÇÃO: seleciona o magistrado se houver configuração no módulo 8
-						if (preferencias.modulo8) {
-							if (preferencias.modulo8.length > 0) {
+						// if (preferencias.modulo8) {
+							if (preferencias.modulo8?.length > 0) {
 								let el = await esperarElemento('mat-radio-button[id*="PapelAssinaturaMAGISTRADO"]', null, 5000);
 								if (el) {
 									if (el.className.includes('mat-radio-checked')) {
@@ -16467,7 +17493,7 @@ async function monitor_janela_expedientes() {
 									}
 								}
 							}
-						}
+						// }
 					}
 				}
 				
@@ -16499,11 +17525,12 @@ async function monitor_janela_expedientes() {
 				}
 
 				//ATIVA A SUBSTITUIÇÃO DE VARIÁVEIS NO EDITOR
-				if (mutation.addedNodes[0].tagName.includes('SIMPLE-SNACK-BAR') && mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor')) {
-					
-					// mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso
-					await substituirVariaveisEditorTexto();					
+				if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR' ||  mutation.target.tagName == 'SIMPLE-SNACK-BAR') {
+					if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor') || mutation.target.innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+						await substituirVariaveisEditorTexto();
+					}
 				}
+				
 			}
 			
 			//fecha a janela automaticamente ao assinar o documento
@@ -16661,6 +17688,13 @@ async function monitor_janela_anexar() {
 					}
 				}
 			}
+
+			//ATIVA A SUBSTITUIÇÃO DE VARIÁVEIS NO EDITOR
+			if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR' ||  mutation.target.tagName == 'SIMPLE-SNACK-BAR') {
+				if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor') || mutation.target.innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+					await substituirVariaveisEditorTexto();
+				}
+			}
 			
 		});
 	});		
@@ -16670,14 +17704,18 @@ async function monitor_janela_anexar() {
 
 async function monitor_janela_PJeCalc() {
 	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_PJeCalc");
-	
-	let tempo_espera = 2000;
-	// console.log(preferencias.tempAR)
-	if (preferencias.tempAR.includes('RPVPrec')) { 
-		fundo(true,'maisPJe: atualização rápida para RPV / PRECATÓRIO..');
-	} else if (preferencias.tempAR.includes('atualizacaorapida')) { 
-		fundo(true,'maisPJe: atualização rápida..');
-	}
+
+	console.log('-+-+-+-+-+-+-+-+' + JSON.stringify(preferencias.tempAR))
+	await esperarElemento('body');
+
+	document.body.addEventListener('click', async function(event) {
+		let barraTitulo = document.querySelector('div[id="barraTitulo"]');
+		if (barraTitulo.innerText.includes('Cálculo > Buscar')) {
+			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria')) { return }
+			let btBuscar = await esperarElemento('input[value="Limpar"]',null,2000);	
+			if (btBuscar) { inserirBotaoBuscaMemoria(btBuscar) }
+		}		
+	});
 	
 	document.body.addEventListener('keydown', async function(event) {
 		if (event.code === "ESC") {	
@@ -16687,27 +17725,54 @@ async function monitor_janela_PJeCalc() {
 			});
 		}
 	});
+
+
+	let tempo_espera = 2000;
 	
-	let barraTitulo = await esperarElemento('div[id="barraTitulo"]');
+	if (!preferencias.tempAR) { console.log('saiu1');return } //só aciona se tiver preferências.tempAR
+	if (typeof preferencias.tempAR !== 'object') { console.log('saiu2');return } //só aciona se for um object
+	
+	// console.log(JSON.stringify(preferencias.tempAR))
+
+	if (preferencias.tempAR.tipo == 'apenasAbrir') { 
+		fundo(true,'maisPJe: buscando cálculo do processo..');		
+	} else if (preferencias.tempAR.tipo == 'RPVPrec') {  
+		fundo(true,'maisPJe: atualização rápida para RPV / PRECATÓRIO..');
+	} else if (preferencias.tempAR.tipo == 'atualizacaorapida') { 
+		fundo(true,'maisPJe: atualização rápida..');
+	}
+
+		
+	// let barraTitulo = await esperarElemento('div[id="barraTitulo"]');
 	// console.log(barraTitulo?.innerText)
-	
+	let barraTitulo = document.querySelector('div[id="barraTitulo"]');
+	// console.log(barraTitulo?.innerText)
+	if (barraTitulo?.innerText == "") { await clicarBotao('a[title="Buscar Cálculo"]') }
+
 	if (barraTitulo.innerText.includes('Cálculo > Buscar')) {
-		
-		let processo_memoria = await getLocalStorage('processo_memoria');
-		if (!processo_memoria.numero) {return}
-		
-		let numeroProcessoDecomposto = await decomporNumeroProcesso(processo_memoria.numero.toString());
-		await preencherInput('input[id*="numeroProcessoBusca"]',numeroProcessoDecomposto.numero);
-		await preencherInput('input[id*="digitoProcessoBusca"]',numeroProcessoDecomposto.digito);
-		await preencherInput('input[id*="anoProcessoBusca"]',numeroProcessoDecomposto.ano);
-		await preencherInput('input[id*="justicaBusca"]',numeroProcessoDecomposto.jurisdicao);
-		await preencherInput('input[id*="regiaoBusca"]',numeroProcessoDecomposto.regiao);
-		await preencherInput('input[id*="varaProcessoBusca"]',numeroProcessoDecomposto.vara);
+				
+		let numeroProcessoDecomposto = await decomporNumeroProcesso(preferencias.tempAR.numeroProcesso.toString());
+		await preencherInputSimples('input[id*="numeroProcessoBusca"]',numeroProcessoDecomposto.numero);
+		await preencherInputSimples('input[id*="digitoProcessoBusca"]',numeroProcessoDecomposto.digito);
+		await preencherInputSimples('input[id*="anoProcessoBusca"]',numeroProcessoDecomposto.ano);
+		await preencherInputSimples('input[id*="justicaBusca"]',numeroProcessoDecomposto.jurisdicao);
+		await preencherInputSimples('input[id*="regiaoBusca"]',numeroProcessoDecomposto.regiao);
+		await preencherInputSimples('input[id*="varaProcessoBusca"]',numeroProcessoDecomposto.vara);
+		let calculosDoSetor = await esperarElemento('input[id*="formulario:setor"]'); //checked="checked"
+		if (calculosDoSetor.hasAttribute('checked')) {
+			await clicarBotao('input[id*="formulario:setor"]');
+			await sleep(250);
+		}
 		await clicarBotao('input[id*="formulario:buscar"]');
 		
-		if (preferencias.tempAR.includes('RPVPrec') && !preferencias.tempAR.includes(':passo')) {
+		
+		if (preferencias.tempAR.tipo == 'apenasAbrir') { 
+			let var1 = browser.storage.local.set({'tempAR': ''});
+			Promise.all([var1]).then(async values => { fundo(false) });
+
+		} else if (preferencias.tempAR.tipo.includes('RPVPrec') && !preferencias.tempAR.tipo.includes(':passo')) {
 				
-			let guardarStorage = browser.storage.local.set({'tempAR':'RPVPrec:passo1'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'RPVPrec:passo1','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => { 
 				
 				let msgSemCalculo = await esperarElemento('span[class="box-msg-livre"]',null,1000);
@@ -16726,9 +17791,9 @@ async function monitor_janela_PJeCalc() {
 
 			});
 
-		} else if (preferencias.tempAR.includes('atualizacaorapida') && !preferencias.tempAR.includes(':passo')) {
-				
-			let guardarStorage = browser.storage.local.set({'tempAR':'atualizacaorapida:passo1'});
+		} else if (preferencias.tempAR.tipo.includes('atualizacaorapida') && !preferencias.tempAR.tipo.includes(':passo')) {
+			
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'atualizacaorapida:passo1','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => { 
 				
 				let msgSemCalculo = await esperarElemento('span[class="box-msg-livre"]',null,1000);
@@ -16740,34 +17805,48 @@ async function monitor_janela_PJeCalc() {
 					});
 					
 				} else {
-					let bt = await esperarElemento('a[class="linkSelecionar"][title="Abrir"]')
-					await ativarElemento(bt, tempo_espera);
-					await clicarBotao(bt) 
+
+					let btDuplicar = await esperarElemento('a[class="linkCopy"][title="Duplicar Cálculo"]');
+					let btAbrir = document.querySelector('a[class="linkSelecionar"][title="Abrir"]');
+					
+					if (!btAbrir) { //se não tem btAbrir só é possível duplicar
+						await ativarElemento(btDuplicar, tempo_espera);
+						await clicarBotao(btDuplicar);
+						
+						let btPopUpOK = await esperarElemento('#popup_container input[id="popup_ok"]');
+						await ativarElemento(btPopUpOK, tempo_espera);
+						await clicarBotao(btPopUpOK);
+						
+					} else {
+						await ativarElemento(btAbrir, tempo_espera);
+						await clicarBotao(btAbrir) 
+					}
+					
 				}
 
 			});
 		
 		}
 	
-	} else if (preferencias.tempAR.includes('RPVPrec') && preferencias.tempAR.includes(':passo')) {
+	} else if (preferencias.tempAR.tipo.includes('RPVPrec') && preferencias.tempAR.tipo.includes(':passo')) {
 
-		if (barraTitulo.innerText.includes('Cálculo > Dados do Cálculo') && preferencias.tempAR.includes(':passo1')) {
+		if (barraTitulo.innerText.includes('Cálculo > Dados do Cálculo') && preferencias.tempAR.tipo.includes(':passo1')) {
 			console.log('entrou2');
-			let guardarStorage = browser.storage.local.set({'tempAR':'RPVPrec:passo2'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'RPVPrec:passo2','numeroProcesso':preferencias.tempAR.numeroProcesso}});			
 			Promise.all([guardarStorage]).then(async values => {
 				let bt = await esperarElemento('#li_operacoes_liquidar a')
 				await ativarElemento(bt, tempo_espera);
 				await clicarBotao(bt);
 			});
 			
-		} else if (barraTitulo.innerText.includes('Operações > Liquidar') && preferencias.tempAR.includes(':passo2')) {
+		} else if (barraTitulo.innerText.includes('Operações > Liquidar') && preferencias.tempAR.tipo.includes(':passo2')) {
 			console.log('entrou3');
-			let guardarStorage = browser.storage.local.set({'tempAR':'RPVPrec:passo3'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'RPVPrec:passo3','numeroProcesso':preferencias.tempAR.numeroProcesso}});			
 			Promise.all([guardarStorage]).then(async values => {
 				
 				//antes de clicar no botão liquidar conferir se o PJeCalc está abrindo o cálculo do processo correto... isso é um bug do PJeCalc
 				let processoNumero = document.querySelector('span[id="formulario:panelDadosCalculo"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
-				if (processoNumero == preferencias.processo_memoria.numero.toString()) {
+				if (processoNumero == preferencias.tempAR.numeroProcesso.toString()) {
 					
 					//se quiser que o usuario escolha a data
 					let novadata = await criarCaixaDePergunta('data','Atualizar cálculo para:');
@@ -16798,8 +17877,7 @@ async function monitor_janela_PJeCalc() {
 					let var1 = browser.storage.local.set({'tempAR': ''});
 					Promise.all([var1]).then(async values => {
 						fundo(false);
-						await criarCaixaDeAlerta('ALERTA','Erro do PJeCalc.. Processo Incorreto. Refazer o procedimento',3);
-						
+						await criarCaixaDeAlerta('ALERTA','Erro do PJeCalc.. Processo Incorreto. Refazer o procedimento',3);						
 						await clicarBotao('li[id="li_operacoes_fechar"] a','Fechar');
 						window.close();
 					});
@@ -16808,9 +17886,9 @@ async function monitor_janela_PJeCalc() {
 				}
 			});
 			
-		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.includes(':passo3')) {
+		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.tipo.includes(':passo3')) {
 			console.log('entrou4');
-			let guardarStorage = browser.storage.local.set({'tempAR':'RPVPrec:passo4'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'RPVPrec:passo4','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => {
 				
 				let inputCheckRPVPrec = await esperarElemento('input[id="formulario:chkEnviarRelatorioPrecatorio"]')
@@ -16831,44 +17909,42 @@ async function monitor_janela_PJeCalc() {
 					
 			});
 			
-		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.includes(':passo4')) {
+		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.tipo.includes(':passo4')) {
 			console.log('entrou5');	
-			let guardarStorage = browser.storage.local.set({'tempAR':'RPVPrec:passo4'});
-			Promise.all([guardarStorage]).then(async values => {
-				
-				let avisoSucesso = await esperarElemento('div[class="sweet-alert showSweetAlert visible"]'); // o aviso de sucesso/fracasso dispara novo reload da página. por isso tem que verificar antes
+
+			let var1 = browser.storage.local.set({'tempAR': ''});
+			Promise.all([var1]).then(async values => {
+
+				let avisoSucesso = await esperarElemento('h2','Sucesso!'); // o aviso de sucesso/fracasso dispara novo reload da página. por isso tem que verificar antes
+				console.log(avisoSucesso);
 				if (avisoSucesso) {
-					
-					let var1 = browser.storage.local.set({'tempAR': ''});
-					Promise.all([var1]).then(async values => {
-						if (avisoSucesso?.innerText.toLowerCase().includes('sucesso')) { 
-							await clicarBotao('li[class*="header"]','Operações');
-							await sleep(tempo_espera);
-							await clicarBotao('a[class="menuImageClose"]');
-							browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Clicar em|Abrir cálculos do processo,Atualizar Pagina|Atualizar Pagina,Nenhum'});
-							window.close();
-						}
-						fundo(false);
-					});
-					
+					await clicarBotao('li[class*="header"]','Operações');
+					await sleep(tempo_espera);
+					await clicarBotao('a[class="menuImageClose"]');
+					browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Clicar em|Abrir cálculos do processo,Variados|Atualizar Timeline,Nenhum'});
+					window.close();					
+
+				} else {
+					fundo(false);
 				}
+				
 			});
 		}
 
-	} else if (preferencias.tempAR.includes('atualizacaorapida') && preferencias.tempAR.includes(':passo')) {
+	} else if (preferencias.tempAR.tipo.includes('atualizacaorapida') && preferencias.tempAR.tipo.includes(':passo')) {
 		
-		if (barraTitulo.innerText.includes('Cálculo > Dados do Cálculo') && preferencias.tempAR.includes(':passo1')) {
+		if (barraTitulo.innerText.includes('Cálculo > Dados do Cálculo') && preferencias.tempAR.tipo.includes(':passo1')) {
 			console.log('entrou2');
-			let guardarStorage = browser.storage.local.set({'tempAR':'atualizacaorapida:passo2'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'atualizacaorapida:passo2','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => {
 				let bt = await esperarElemento('li a','Liquidar Atualização')
 				await ativarElemento(bt, tempo_espera);
 				await clicarBotao(bt);
 			});
 			
-		} else if (barraTitulo.innerText.includes('Atualização > Liquidar Atualização') && preferencias.tempAR.includes(':passo2')) {
+		} else if (barraTitulo.innerText.includes('Atualização > Liquidar Atualização') && preferencias.tempAR.tipo.includes(':passo2')) {
 			console.log('entrou3');
-			let guardarStorage = browser.storage.local.set({'tempAR':'atualizacaorapida:passo3'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'atualizacaorapida:passo3','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => {
 				
 				let observacao = await esperarElemento('textarea[id="formulario:comentarios"]');			
@@ -16876,7 +17952,7 @@ async function monitor_janela_PJeCalc() {
 				
 				//antes de clicar no botão liquidar conferir se o PJeCalc está abrindo o cálculo do processo correto... isso é um bug do PJeCalc
 				let processoNumero = document.querySelector('span[id="formulario:panelDadosCalculo"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
-				if (processoNumero == preferencias.processo_memoria.numero.toString()) {
+				if (processoNumero == preferencias.tempAR.numeroProcesso.toString()) {
 					
 					let frameAtualizacao = barraTitulo.parentElement.parentElement;
 					let inputData = frameAtualizacao.querySelector('input[id="formulario:dataDeLiquidacaoInputDate"]');
@@ -16918,9 +17994,9 @@ async function monitor_janela_PJeCalc() {
 				}
 			});
 			
-		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.includes(':passo3')) {
+		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.tipo.includes(':passo3')) {
 			console.log('entrou4');
-			let guardarStorage = browser.storage.local.set({'tempAR':'atualizacaorapida:passo4'});
+			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'atualizacaorapida:passo4','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => {
 					
 				let consolidarDados = await esperarElemento('input[value="Consolidar Dados"]')
@@ -16938,27 +18014,25 @@ async function monitor_janela_PJeCalc() {
 					
 			});
 			
-		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.includes(':passo4')) {
+		} else if (barraTitulo.innerText.includes('Enviar para o PJe') && preferencias.tempAR.tipo.includes(':passo4')) {
 			console.log('entrou5');	
-			let guardarStorage = browser.storage.local.set({'tempAR':'atualizacaorapida:passo4'});
-			Promise.all([guardarStorage]).then(async values => {
-				
-				let avisoSucesso = await esperarElemento('div[class="sweet-alert showSweetAlert visible"]'); // o aviso de sucesso/fracasso dispara novo reload da página. por isso tem que verificar antes
+
+			let var1 = browser.storage.local.set({'tempAR': ''});
+			Promise.all([var1]).then(async values => {
+
+				let avisoSucesso = await esperarElemento('h2','Sucesso!'); // o aviso de sucesso/fracasso dispara novo reload da página. por isso tem que verificar antes
+				console.log(avisoSucesso);
 				if (avisoSucesso) {
-					
-					let var1 = browser.storage.local.set({'tempAR': ''});
-					Promise.all([var1]).then(async values => {
-						if (avisoSucesso?.innerText.toLowerCase().includes('sucesso')) { 
-							await clicarBotao('li[class*="header"]','Operações');
-							await sleep(tempo_espera);
-							await clicarBotao('a[class="menuImageClose"]');
-							browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Clicar em|Abrir cálculos do processo'});
-							window.close();
-						}
-						fundo(false);
-					});
-					
+					await clicarBotao('li[class*="header"]','Operações');
+					await sleep(tempo_espera);
+					await clicarBotao('a[class="menuImageClose"]');
+					browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Clicar em|Abrir cálculos do processo,Variados|Atualizar Timeline,Nenhum'});
+					window.close();					
+
+				} else {
+					fundo(false);
 				}
+				
 			});
 		}
 
@@ -17008,6 +18082,40 @@ async function monitor_janela_PJeCalc() {
 		});
 	}
 	
+	async function inserirBotaoBuscaMemoria(ancora) {
+		if (!ancora) { return }
+		let var1 = browser.storage.local.get('processo_memoria', async function(result){
+			if (!result.processo_memoria.numero) {return}					
+			console.log("      |___PROCESSO: " + result.processo_memoria.numero);
+			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria')) { return }		
+			let bt = document.createElement('input');
+			bt.id = 'maisPJe_PJECAL_botao_BuscaMemoria'
+			bt.className = "botao";
+			bt.style.width = "90px";
+			bt.style.height = "15px";
+			bt.style.backgroundImage = "linear-gradient(to bottom, orange, orangered)";
+			bt.value = "Buscar maisPje";
+			bt.title = "Busca o cálculo do processo que está na memória da extensão";
+			bt.onclick = async function () {
+				let numeroProcessoDecomposto = await decomporNumeroProcesso(result.processo_memoria.numero.toString());
+				await preencherInputSimples('input[id*="numeroProcessoBusca"]',numeroProcessoDecomposto.numero);
+				await preencherInputSimples('input[id*="digitoProcessoBusca"]',numeroProcessoDecomposto.digito);
+				await preencherInputSimples('input[id*="anoProcessoBusca"]',numeroProcessoDecomposto.ano);
+				await preencherInputSimples('input[id*="justicaBusca"]',numeroProcessoDecomposto.jurisdicao);
+				await preencherInputSimples('input[id*="regiaoBusca"]',numeroProcessoDecomposto.regiao);
+				await preencherInputSimples('input[id*="varaProcessoBusca"]',numeroProcessoDecomposto.vara);
+				
+				let calculosDoSetor = await esperarElemento('input[id*="formulario:setor"]'); //checked="checked"
+				if (calculosDoSetor.hasAttribute('checked')) {
+					await clicarBotao('input[id*="formulario:setor"]');
+					await sleep(250);
+				}
+
+				await clicarBotao('input[id*="formulario:buscar"]');				
+			}
+			insertAfter(ancora,bt);
+		});
+	}
 	
 }
 
@@ -17536,7 +18644,7 @@ async function monitor_janela_censec() {
 			console.log('*******' + linha.children.length)
 			linha.scrollIntoView({behavior: 'smooth',block: 'start'});
 			linha.style.backgroundColor = (linha.children.length > 5) ? '#c3d336' : 'unset';
-			await clicarBotao(linha.querySelector('a'));
+			await clicarBotao(linha.querySelector('spa-link-button button'));
 			await escolherOpcaoTeste('mat-select[aria-labelledby*="mat-paginator-page"]','100');
 			await esperarElemento('ngx-loading[maisPje="true"]');
 			await clicarBotao('button[id="maisPje_assistenteImpressao_bt_copiar"]');
@@ -17546,15 +18654,86 @@ async function monitor_janela_censec() {
 	}
 }
 
-async function monitor_janela_onr() {	
-	// teste_mutation_observer();
+async function monitor_janela_cnib() {
+	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_cnib");
+	let targetDocumento = document.body;
+	let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
+		mutationsDocumento.forEach(async function(mutation) {
+		if (!mutation.addedNodes[0]) { return }
+
+		if (mutation.addedNodes[0]) {
+			if (!mutation.addedNodes[0].tagName) { return }
+			if (mutation.addedNodes[0].tagName == 'TABLE' && mutation.addedNodes[0].id == 'tbParties') {
+				let pai = mutation.addedNodes[0].parentElement;
+				pai.style.setProperty('max-height','100%');
+				pai.style.setProperty('height','auto%');
+			}
+		}
+
+		});
+	});
+	let configDocumento = { childList: true, subtree:true }
+	observerDocumento.observe(targetDocumento, configDocumento); //inicia o MutationObserver
+
 }
 
-function corrigeCabecalho() {
-	let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
-	if (!cabecalho) { return }
-	cabecalho.style.setProperty("position", "relative", "important");
-	cabecalho.style.setProperty("height", "auto", "important");
+async function monitor_janela_onr(acao) {
+	
+	let janela = await esperarElemento('frame[name="contents"]');
+	let janelaBody;
+
+	//IFRAMEPRINCIPAL
+	if (janela) {
+		janelaBody = janela.contentDocument || janela.contentWindow.document;
+		if (!janelaBody) { return }
+	}
+
+	let cabecalho = janelaBody.getElementById('menupenhora');
+	//CABECALHO
+	if (cabecalho) {
+		let el_docto_conteudo_cabecalho = cabecalho.contentDocument || cabecalho.contentWindow.document;
+		if (!el_docto_conteudo_cabecalho) { return }
+		el_docto_conteudo_cabecalho.addEventListener('click', function(event) {
+			console.log('teta1');
+			console.log(event.target.tagName)
+			monitorarCorpo(janelaBody);
+		});
+	}			
+
+
+	async function monitorarCorpo(janelaBody) {
+
+		let check = setInterval(function() {
+			console.log('*')
+			//CORPO
+			let corpo = janelaBody.getElementById('mainpenhora');
+			if (corpo) {
+				let ifr = corpo.contentDocument || corpo.contentWindow.document;			
+				if (!ifr) { return }
+				
+					if (ifr.querySelector('#msgNumeroPenhora')) {
+						if (!ifr.querySelector('#msgNumeroPenhora').hasAttribute('maisPJe')) {
+							let var1 = browser.storage.local.get(['processo_memoria'], async function(result){
+								preferencias.processo_memoria = result.processo_memoria;						
+								
+								Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(ifr.querySelector('#msgNumeroPenhora'), preferencias.processo_memoria.numero);
+								ifr.querySelector('#msgNumeroPenhora').setAttribute('maisPJe','true');
+								
+								if (ifr.querySelector('#dplNomeAcaoPenhora')) {
+									ifr.querySelector('#dplNomeAcaoPenhora option[value="2"]').selected = true;
+								}
+
+							});						
+						}
+					}
+					
+					
+			}
+		}, 1000);
+	}
+
+	
+
 }
 	
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR A OPÇÃO DE ZOOM NO EDITOR DE TEXTOS
@@ -17882,17 +19061,8 @@ async function editarCalendarioGigs(consultaAPI) {
 }
 
 async function buscarFeriados(mes, ano) {
-	let url = 'https://' + preferencias.trt + '/pje-administracao-api/api/calendarioseventos/?pagina=1&ativo=true&tamanhoPagina=1000&ano=' + ano + '&mes=' + mes;
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
-	
-	if (!dados.resultado) {
-		return;
-	}
-	if (dados.resultado.length < 1) {
-		return;
-	}
-	editarCalendarioGigs(dados.resultado);
+	const { resultado } = await apis.calendarioEventos.executar(preferencias.trt, { mes, ano });
+  	editarCalendarioGigs(resultado || []);
 }
 
 //INSERE A BORRACHA NO CAMPO RESPONSÁVEL PELA ATIVIDADE
@@ -17941,7 +19111,7 @@ async function gigsAtribuirResponsavel(el) {
 				digito = processoNumero.substring(4, 5);
 			}
 			let idProcesso = await obterIdProcessoViaApi(processoNumero);
-			let fase = await obterDadosProcessoViaApi(idProcesso[0].idProcesso);
+			let fase = await obterDadosProcessoViaApi(idProcesso);
 			fase = fase.labelFaseProcessual;
 			let listaFiltro1, listaFiltro2, listaFiltro3;
 			
@@ -18031,41 +19201,12 @@ async function gigsAtribuirResponsavel(el) {
 }
 
 //FUNÇÃO RESPONSÁVEL POR ABRIR UM DETERMINADO DOCUMENTO DO PROCESSO
-async function abrirDocumentoPeloId(idProcesso, IdDocumento) {
-	let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?somenteDocumentosAssinados=false&buscarMovimentos=false&buscarDocumentos=true'; 
-	console.log(url);
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
-	for (i = 0; i <= dados.length-1; i++) {
-		let documento = dados[i];
-		// console.log("..." + documento.idUnicoDocumento);
-		if (documento.idUnicoDocumento == IdDocumento) {
+async function abrirDocumentoPeloId(idProcesso, idSetePosicoesDocumento) {
+	const {resultado} = await apis.documentosProcesso.executar(preferencias.trt, {idProcesso, idUnicoDocumento: idSetePosicoesDocumento});
+	const documento = resultado?.[0];
+	if (documento?.idUnicoDocumento == idSetePosicoesDocumento) {
 			// console.log("abrir documento Id " + documento.idUnicoDocumento);
 			getAtalhosNovaAba().abrirDocumento.abrirAtalhoemNovaJanela(idProcesso, documento.id);
-			break;
-		} else if (documento.anexos) {
-			// console.log("     |___Analisando Anexos");
-			let idAnexo = analisarAnexos(documento.anexos)
-			if (idAnexo != "0") {
-				// console.log("abrir documento Id " + idAnexo);
-				getAtalhosNovaAba().abrirDocumento.abrirAtalhoemNovaJanela(idProcesso, idAnexo);
-				break;
-			}
-		}
-		
-	}
-	
-	function analisarAnexos(arrayAnexos) {
-		let idAnexo = "0";
-		for (j = 0; j <= arrayAnexos.length-1; j++) {
-			let anexo = arrayAnexos[j];
-			// console.log("     |___..." + anexo.idUnicoDocumento);
-			if (anexo.idUnicoDocumento == IdDocumento) {				
-				idAnexo = anexo.id;
-				break;
-			}
-		}		
-		return idAnexo;
 	}
 }
 
@@ -18073,66 +19214,17 @@ async function abrirDocumentoPeloId(idProcesso, IdDocumento) {
 async function painelPericiaTarefaProcesso() {
 	fundo(true)
 	let listaNum = document.querySelector('table[name="Tabela de Perícias"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join().split(",");
-	let listaId = [];
-	let listaPerito = [];
 	let listaTarefa = [];
-	let listaLaudoEntregue = [];
 	
 	for (const [pos, processo] of listaNum.entries()) {
 		let data1 = await obterIdProcessoViaApiPublica(processo);
-		listaId.push(data1[0].id);
-		let data3 = await fetchTarefaProcessoJSON(data1[0].id);
+		let data3 = await obterNomeTarefaDoProcessoViaApi(data1[0].id);
 		listaTarefa.push(data3);
 	}
 	
 	montarInformações();
 	fundo(false);
-	
-	async function fetchListaPericiasJSON(idProcesso) {
-		let resposta = await fetch('https://' + preferencias.trt + '/pje-comum-api/api/pericias?situacao=D&situacao=L&situacao=P&situacao=S&idProcesso=' + idProcesso + '&ordenar=prazoEntrega&ascendente=true');
-		let dados = await resposta.json();
-		return dados.resultado;
-	}
-	
-	async function fetchTarefaProcessoJSON(idProcesso) {
-		let resposta = await fetch('https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/tarefas?maisRecente=true');
-		let dados = await resposta.json();
-		return dados[0].nomeTarefa;
-	}
-	
-	function fetchListaDocumentosJSON(idProcesso, idPerito) {
-		let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?somenteDocumentosAssinados=false&buscarMovimentos=false&buscarDocumentos=true';
-		return fetch(url,
-		{
-			method: "GET",
-			mode: "cors",
-			credentials: "include",
-			headers: {
-				"Content-Type": "application/json",
-				"X-Grau-Instancia": 1
-			}
-		})
-		.then(function (response) {
-			return response.json();
-		})
-		.then(function (data) {
-			let entregou = false;
-			for (const [pos, documento] of data.entries()) {
-				if (documento.idUsuario === idPerito) {
-					if (documento.idTipo === 822 || documento.titulo.includes('laudo')) { //laudo pericial
-						entregou = true;
-						break;
-					}
-				}
-			}
-			console.log(entregou);
-			return entregou;
-		})
-		.catch(function (err) {
-			return false;
-		});
-	}
-	
+
 	async function montarInformações() {
 		console.log("montar informações");
 		let el = document.querySelectorAll('a[aria-label*="Abrir tarefa do processo"]');
@@ -18142,7 +19234,6 @@ async function painelPericiaTarefaProcesso() {
 		for (const [pos, linha] of el.entries()) {
 			let numeroProcesso = linha.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
 			let posicao = listaNum.indexOf(numeroProcesso);
-			let idProcesso = listaId[posicao];
 			let div = document.createElement("div");
 			div.textContent = "Tarefa: ";
 			div.style = "font-weight: normal;font-size: 1em;background-color:#00800061;";
@@ -18182,25 +19273,41 @@ async function filtroMagistrado(processoNumero) {
 			if (!ultimo) {
 				return resolve("")
 			}
+
 			//encontra a regra
 			let magistrado = "";
-			for (const [pos, item] of preferencias.modulo8.entries()) {
-			// for (i = 0; i <= preferencias.modulo8.length; i++) {
-				let regra = item.split('|');
-				console.log(regra[ultimo] + " - " + regra[10] + " - " + regra[11] + " - " + regra[12] + "(" + preferencias.oj_usuario + ")");
-				if (regra[12] != "TODOS") {
-					let ojc = await obterOrgaoJulgadorCargo(processoNumero);
-					if (ojc.toLowerCase().includes(regra[12].toLowerCase())) { magistrado = regra[10] }
+			let orgaoJulgadorCargo;
 
-				} else if (regra[11] == "TODOS" || preferencias.oj_usuario.toUpperCase().includes(regra[11].toUpperCase())) {
-					if (regra[ultimo] === 'true') {
-						magistrado = regra[10];
-						break;
-					}
-				}
+			//usa o orgão julgador cargo da memoria pois a api sendo consultada da pagina do sisbajud da erro 400			
+			if (preferencias.processo_memoria.numero && processoNumero == preferencias.processo_memoria.numero) {
+				orgaoJulgadorCargo = preferencias.processo_memoria.orgaoJulgadorCargo
+				console.log(orgaoJulgadorCargo)
+			} else {
+				orgaoJulgadorCargo = await obterOrgaoJulgadorCargo(processoNumero);
 			}
+
+			for (const [pos, item] of preferencias.modulo8.entries()) {
+				let regra = item.split('|');
+				let nomeJuiz = regra[10];
+				let regraPorFinalDoProcesso = (/true/gi).test(regra[ultimo]);
+				let regraOJ = (regra[11] == preferencias.oj_usuario || regra[11] == 'TODOS' || !regra[11]);
+				let regraOJCargo = (orgaoJulgadorCargo.includes(regra[12]) || regra[12] == 'TODOS' || !regra[12]);
+
+				console.log("REGRA " + pos);
+				console.log("  |___Juiz: " + nomeJuiz);
+				console.log("  |___Digito " + ultimo + ': ' + regraPorFinalDoProcesso);
+				console.log("  |___OJ: " + regra[11] + " == " + preferencias.oj_usuario + " : " + regraOJ);
+				console.log("  |___OJC: " + regra[12] + " == " + orgaoJulgadorCargo + " : " + regraOJCargo);
+				console.log("      __________________________");
+				console.log("        " + (regraPorFinalDoProcesso && regraOJ && regraOJCargo))
+				if (regraPorFinalDoProcesso && regraOJ && regraOJCargo) {
+					magistrado = nomeJuiz;
+					break;
+				}
+				
+			}
+			console.log("Magistrado encontrado: " + magistrado);
 			
-			// console.log(numero + "/" + ano + " - " + ultimo + " - " + magistrado);
 			return resolve(magistrado);
 		} else { //caso contrário ela escolhe o magistrado no campo 
 			await esperarElemento('span[class="texto-numero-processo"]');
@@ -18218,24 +19325,32 @@ async function filtroMagistrado(processoNumero) {
 			if (!ultimo) {
 				return resolve(false);
 			}
+
 			//encontra a regra
 			let magistrado = "";
-			for (const [pos, item] of preferencias.modulo8.entries()) {
-			// for (i = 0; i <= preferencias.modulo8.length; i++) {
-				let regra = item.split('|');
-				console.log(regra[ultimo] + " - " + regra[10] + " - " + regra[11] + " - " + regra[12] + "(" + preferencias.oj_usuario + ")");
-				if (regra[12] != "TODOS") {
-					let ojc = await obterOrgaoJulgadorCargo(processoNumero);
-					if (ojc.toLowerCase().includes(regra[12].toLowerCase())) { magistrado = regra[10] }
+			let orgaoJulgadorCargo = await obterOrgaoJulgadorCargo(processoNumero);
 
-				} else if (regra[11] == "TODOS" || preferencias.oj_usuario.toUpperCase().includes(regra[11])) {
-					if (regra[ultimo] === 'true') {
-						magistrado = regra[10];
-						break;
-					}
+			for (const [pos, item] of preferencias.modulo8.entries()) {
+				let regra = item.split('|');
+				let nomeJuiz = regra[10];
+				let regraPorFinalDoProcesso = (/true/gi).test(regra[ultimo]);
+				let regraOJ = (regra[11] == preferencias.oj_usuario || regra[11] == 'TODOS' || !regra[11]);
+				let regraOJCargo = (orgaoJulgadorCargo.includes(regra[12]) || regra[12] == 'TODOS' || !regra[12]);
+
+				console.log("REGRA " + pos);
+				console.log("  |___Juiz: " + nomeJuiz);
+				console.log("  |___Digito " + ultimo + ': ' + regraPorFinalDoProcesso);
+				console.log("  |___OJ: " + regra[11] + " == " + preferencias.oj_usuario + " : " + regraOJ);
+				console.log("  |___OJC: " + regra[12] + " == " + orgaoJulgadorCargo + " : " + regraOJCargo);
+				console.log("      __________________________");
+				console.log("        " + (regraPorFinalDoProcesso && regraOJ && regraOJCargo))
+				if (regraPorFinalDoProcesso && regraOJ && regraOJCargo) {
+					magistrado = nomeJuiz;
+					break;
 				}
+				
 			}
-			// console.log(numero + "/" + ano + " - " + ultimo + " - " + magistrado);
+			console.log("Magistrado encontrado: " + magistrado);
 			
 			//escolhe o magistrado
 			await escolherOpcao('mat-select[placeholder="Magistrado"]', magistrado, 2);
@@ -18381,11 +19496,11 @@ function inserirParte_BB_CEF() {
 			let botao1 = document.createElement("button");
 			botao1.id = "maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara";
 			botao1.textContent = "maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara";		
-			botao1.onclick = function () {
+			botao1.onclick = async function () {
 				
 				let nm = this.getAttribute('maisPjeNomeDestinatario');
-				console.log(nm);
-				
+				// console.log(nm);
+				await sleep(2000);
 				document.querySelector('button[mattooltip="Adicionar outros destinatários"]').click();
 				acao_botao('vara',nm);
 			};
@@ -18618,11 +19733,18 @@ function inserirParte_BB_CEF() {
 			await clicarBotao(document.getElementById('tipoAUTORIDADE').firstElementChild);
 			await preencherInput('input[aria-label="Autoridade"]',nome.substring(0,3));
 			await preencherInput('input[aria-label="Autoridade"]',nome);
+			await sleep(1000);
 			await clicarBotao('div[class="cdk-overlay-pane"] mat-option');
-			await clicarBotao('button[aria-label="Acrescentar"]');
-			await sleep(500);
-			await clicarBotao('a[mattooltip="Fechar"]');
-			fundo(false);		
+			await sleep(1000);
+			await clicarBotao('pje-pec-dialogo-outros-destinatarios button[aria-label="Acrescentar"]');
+			await sleep(1000);
+			
+			let aviso = await esperarElemento('snack-bar-container simple-snack-bar', 'Adicionado com sucesso');
+			if (aviso) {
+				await clicarBotao(aviso.querySelector('button')); //fecha o aviso
+				await clicarBotao('a[mattooltip="Fechar"]');
+				document.querySelector('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara').setAttribute('maisPJe','true');
+			}
 		}
 	}
 }
@@ -19079,27 +20201,24 @@ async function guardarFiltrosFavoritos() {
 	}
 }
 
-async function montarFiltrosFavoritos() {
+async function montarFiltrosFavoritos(ancora) {
 	//campos fixos são aqueles representados pelos ícones relógio, caneta, etc.. 
 	//campos dinâmicos são aqueles representados pelos campos de formulário
 	let filtros_storage = [];
 	let tabela_atual = getTitulo();
 	var observer, monitor;
+
+	//cria a estrutura para receber os botões
+	if (!document.querySelector('maisPje-container-filtros')) {
+		let div = document.createElement('maisPje-container-filtros');
+		div.style = "margin: 0 0 15px 15px;display: inline-block;";
+		let br = document.createElement('br');
+		ancora.insertAdjacentElement("beforebegin",br);
+		br.insertAdjacentElement("beforebegin",div);
+	}
 	
 	browser.storage.local.get('filtros_Favoritos', function(result){
 		if (result.filtros_Favoritos) {
-			
-			//cria a estrutura para receber os botões caso seja o painel Global sem tabela
-			if (!document.querySelector('span[class="cabecalho-icones"]')) {
-				let ancora = document.querySelector('div[class="filtro"]');
-				ancora = ancora.parentElement;
-				let span = document.createElement('span');
-				span.id = 'maisPje_span_filtros_favoritos';
-				span.className = 'cabecalho-icones';
-				span.style = 'margin-right: 20px;';
-				span.setAttribute('role','toolbar');
-				ancora.insertBefore(span, ancora.children[1]);
-			}
 			
 			filtros_storage = result.filtros_Favoritos;
 			filtros_storage.map(({tabela,nome,camposFixos,camposDinamicos,qtde}) => {
@@ -19115,6 +20234,10 @@ async function montarFiltrosFavoritos() {
 			juizResponsavelPelaMinuta();
 		}
 
+		if (preferencias.modulo5_processosSemAudienciaDesignada) {
+			processosSemAudienciaDesignada();
+		}
+
 		if (preferencias.modulo5_obterSaldoSIF) {
 			obterSaldoSIF();
 		}
@@ -19122,6 +20245,14 @@ async function montarFiltrosFavoritos() {
 		if (preferencias.modulo5_conferirTeimosinhaEmLote) {
 			conferirTeimosinhaEmLote();
 		}
+
+		if (preferencias.modulo5_processosSemGigsCadastrado) {
+			processosSemGigsCadastrado();
+		}
+
+		if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
+
+		if (preferencias.modulo5_obterConcilia) { ObterConcilia() }
 		
 	});
 	
@@ -19133,10 +20264,11 @@ async function montarFiltrosFavoritos() {
 		}
 	}
 	
-	function montarBotao(tabela, nome, camposFixos, camposDinamicos,qtde) {
-		let ancora = document.querySelector('span[class="cabecalho-icones"]') || document.querySelector('span[id="maisPje_span_filtros_favoritos"]');
-		
+	async function montarBotao(tabela, nome, camposFixos, camposDinamicos,qtde) {
 		if (!document.getElementById("maisPje_filtrofavorito_" + nome)) {
+			
+			let container = document.querySelector('maisPje-container-filtros');
+			
 			//divisor
 			// let divisor = document.createElement("span");
 			// divisor.innerText = '|';
@@ -19145,13 +20277,13 @@ async function montarFiltrosFavoritos() {
 			//atalho
 			let botao = document.createElement("button");
 			botao.id = "maisPje_filtrofavorito_" + nome;
-			botao.style = "margin: 0 5px 0 5px;";
+			botao.style = "margin: 5px; padding: 5px 8px; background-color: #bbb;border: 1px solid white;outline: darkgray solid 1px;border-radius: 3px;color: #1e1e1e;";
 			botao.onclick = function () {acao(tabela, camposFixos, camposDinamicos,qtde)};
 			let botao_span = document.createElement("span");
 			botao_span.innerText = nome;
 			
 			botao.appendChild(botao_span);
-			ancora.appendChild(botao);
+			container.appendChild(botao);
 		}
 	}
 	
@@ -19464,7 +20596,6 @@ async function montarFiltrosFavoritos() {
 	async function capturarUltimoNetworkRequest() {
 		//436.677.599-91 cpf segundo grau
 		return new Promise(async resolve => {
-			let capture_network_request = [];
 			let capture_resource = performance.getEntriesByType("resource");
 			let startTimeUltimoNR = capture_resource[capture_resource.length - 1].startTime;
 			
@@ -19507,16 +20638,20 @@ async function inserirBotaoCopiarListaDeProcessos() {
 			botao.id = "maisPje_bt_copiar_lista";
 			botao.classList.add("mat-focus-indicator", "mat-tooltip-trigger", "mat-icon-button", "mat-button-base");
 			botao.setAttribute("maispje-tooltip-abaixo5", "maisPje: Copiar Lista de Processos");
-			botao.onclick = async function () {
+			botao.onclick = async function (e) {
+				
 				let tabela = await esperarElemento('pje-data-table tbody');
 				let textocopiado = tabela.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','gm')).join();
-				// let ta = document.createElement("textarea");
-				// ta.textContent = textocopiado;
-				// document.body.appendChild(ta);
-				// ta.select();
-				// document.execCommand("copy");
-				navigator.clipboard.writeText(textocopiado);
-				criarCaixaDeAlerta("ALERTA","Lista de Processos copiada com sucesso!\n\nUse o CTRL+V para colar.", 1);
+				
+				if (window.event.ctrlKey) { //segurando o ctrl vai direto para ação automatizada em lote
+					fundo(true);
+					exibir_mensagem('Exportando processos para Ações Automatizadas em Lote...');
+					acoesEmLote(textocopiado);
+				} else {
+					navigator.clipboard.writeText(textocopiado);
+					criarCaixaDeAlerta("ALERTA","Lista de Processos copiada com sucesso!\n\nUse o CTRL+V para colar.", 1);
+				}
+				
 			};
 			
 			let botao_span = document.createElement("span");
@@ -19542,25 +20677,28 @@ async function inserirBotaoCopiarListaDeProcessos() {
 
 //FUNÇÃO QUE RETORNA O ID DO PROCESSO PARA ABERTURA DE NOVAS PÁGINAS
 async function obterIdProcessoViaApi(numero) {
-	let urlBase = preferencias.trt;
-	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
-	
-	let url = 'https://' + urlBase + '/pje-comum-api/api/agrupamentotarefas/processos?numero=' + numero;
-	let grau_usuario = preferencias.grau_usuario == "segundograu" ? 2 : 1;
-	
-	return fetch(url,
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+	return apis.idProcessoPorNumero.executar(preferencias.trt, {numero},
         {
 			method: "GET",
 			mode: "cors",
 			credentials: "include",
             headers: {
 				"Content-Type": "application/json",
-                "X-Grau-Instancia": grau_usuario || 1
+                "X-Grau-Instancia": grau_usuario
             }
         })
-        .then(function (response) {
-			return response.json();
+        .then(data=>{
+            return data || '';
         })
+        .catch(function (err) {
+			return '';
+        });
+}
+
+async function idProcessoPorNumeroIncompleto(numero) {
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+	return apis.idProcessoPorNumeroIncompleto.executar(preferencias.trt, {numero}, { method: "GET", mode: "cors", credentials: "include", headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario}})
         .then(data=>{
             return data || '';
         })
@@ -19576,10 +20714,9 @@ async function obterIdProcessoViaApiPublica(numero) {
 	let urlBase = preferencias.trt;
 	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
 	
-	
-	let url = (soNumeros === '') ? 'https://' + urlBase + '/pje-administracao-api/api/consultaprocessosadm?pagina=1&nomeParte=' + numero + '&tamanhoPagina=1000' : 'https://' + urlBase + '/pje-consulta-api/api/processos/dadosbasicos/' + numero;
+	let url = (soNumeros === '') ? apis.consultaProcessosAdm.montarUrl(urlBase, {'nomeParte' : numero }) : apis.consultaProcessosBasicos.montarUrl(urlBase, {numero});
 
-	let grau_usuario = preferencias.grau_usuario == "segundograu" ? 2 : 1;
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
 	
 	return fetch(url,
         {
@@ -19603,32 +20740,67 @@ async function obterIdProcessoViaApiPublica(numero) {
 }
 
 //FUNÇÃO QUE RETORNA O ORGAO JULGADOR CARGO
-async function obterOrgaoJulgadorCargo(numero) {
+async function obterOrgaoJulgadorCargo(numeroProcesso) {
+	let urlBase = preferencias.trt;
+	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
+	const processo = await apis.processoPorNumero.executar(urlBase, {numeroProcesso});
+	return processo?.orgaoJulgadorCargo?.descricao;
+}
+
+//FUNÇÃO QUE RETORNA O NOME DA PARTE DE ACORDO COM O CPFouCNPJ
+async function obterNomeDaParte(cpfOUcnpj) {
 	let urlBase = preferencias.trt;
 	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
 	
-	let url = 'https://' + urlBase + '/pje-comum-api/api/agrupamentotarefas/processos?numero=' + numero;
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
-	console.log(dados);
-	let idProcesso = dados[0].idProcesso;
-	
-	if (idProcesso) {
-		let ojc = await obterDadosProcessoViaApi(idProcesso);
-		return ojc.orgaoJulgadorCargo.descricao;
-	} else {
-		console.log('maisPje: idProcesso inexistente!')
-		return 'erro';
+	let url;
+	//padrão CPF
+	let padraoCPF = /[0-9]{3}[\.]?[0-9]{3}[\.]?[0-9]{3}[-]?[0-9]{2}/gmi;
+	if (padraoCPF.test(cpfOUcnpj)) {
+		cpfOUcnpj = cpfOUcnpj.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+		url = apis.pessoasFisicas.montarUrl(urlBase, {'pagina': 1, 'tamanhoPatina': 10, 'cpf': cpfOUcnpj, 'situacao': 1});
 	}
+	
+	//padrão CNPJ
+	let padraoCNPJ = /[0-9]{2}[\.]?[0-9]{3}[\.]?[0-9]{3}[\/]?[0-9]{4}[-]?[0-9]{2}/gmi;
+	if (padraoCNPJ.test(cpfOUcnpj)) {
+		cpfOUcnpj = cpfOUcnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+		url = apis.pessoasJuridicas.montarUrl(urlBase, {'pagina': 1, 'tamanhoPatina': 10, 'cnpj': cpfOUcnpj, 'situacao': 1});
+	}
+	
+	let grau_usuario = getGrauAsNumber(preferencias.grau_usuario);	
+	return fetch(url,
+        {
+			method: "GET",
+			mode: "cors",
+			credentials: "include",
+            headers: {
+				"Content-Type": "application/json",
+                "X-Grau-Instancia": grau_usuario || 1
+            }
+        })
+        .then(function (response) {
+			return response.json();
+        })
+        .then(data=>{
+            return data.resultado[0].nome || '';
+        })
+        .catch(function (err) {
+			return '';
+        });
 }
 
 //FUNÇÃO QUE RETORNA O NOME DA TAREFA DE ACORDO COM O CODIGO
-async function obterNomeTarefaViaApi(codigo) {
+async function obterNomeTarefaViaApi(idTarefa = '') {
+	if (!idTarefa) {
+		const url = document.location.href;
+		const start = url.search('/tarefa/') + 8;
+		idTarefa = extrairNumeros(url.substring(start));
+	}
 	let urlBase = preferencias.trt;
 	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
 		
-	let url = 'https://' + urlBase + '/pje-comum-api/api/tarefas/' + codigo;
-	let grau_usuario = preferencias.grau_usuario == "segundograu" ? 2 : 1;
+	const url = apis.tarefaPorId.montarUrl(urlBase, {idTarefa});
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
 	
 	return fetch(url,
         {
@@ -19652,12 +20824,11 @@ async function obterNomeTarefaViaApi(codigo) {
 }
 
 //FUNÇÃO QUE RETORNA O NOME DA TAREFA DE ACORDO COM O ID DO PROCESSO
-async function obterTarefaIdProcessoViaApi(idProcesso) {
+async function obterNomeTarefaDoProcessoViaApi(idProcesso) {
 	let urlBase = preferencias.trt;
 	// if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
 	
-	let resposta = await fetch('https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/tarefas?maisRecente=true');
-	let dados = await resposta.json();
+	let dados = await apis.tarefasProcesso.executar(urlBase, {idProcesso});
 	return dados[0].nomeTarefa;
 }
 
@@ -19743,13 +20914,7 @@ async function obterPrioridadePJe() {
 
 //FUNÇÃO QUE RETORNA DADOS DO PROCESSO
 async function obterDadosProcessoViaApi(idProcesso) {
-	let urlBase = preferencias.trt;
-	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
-	
-	let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso;
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
-	return dados;
+	return apis.processoPorId.executar(preferencias.trt, {idProcesso});
 }
 
 //FUNÇÃO QUE RETORNA O JUIZ RESPONSÁVEL PELA MINUTA DE DESPACHO/DECISÃO/SENTENÇA
@@ -19759,10 +20924,7 @@ async function obterDadosJuizDaMinuta(idProcesso) {
 	let resposta = await fetch(url);
 	let dados = await resposta.json();
 	if (typeof dados.informacoesExtrasTarefa === 'undefined') {
-		//https://pje.trt12.jus.br/pje-comum-api/api/comunicacoesprocessuais/minutas/?idProcesso=573474&temporario=true&origemExpedientes=PEC_FLUXO&origemExpedientes=PEC_MENU&papeisSeguranca=MAGISTRADO
-		url = 'https://' + preferencias.trt + '/pje-comum-api/api/comunicacoesprocessuais/minutas/?idProcesso=' + idProcesso + '&temporario=true&origemExpedientes=PEC_FLUXO&origemExpedientes=PEC_MENU&papeisSeguranca=MAGISTRADO'
-		resposta = await fetch(url);
-		dados = await resposta.json();
+		dados = await apis.comunicacoesMinutas.executar(preferencias.trt, {idProcesso});
 		return dados[0].tipoDocumento.nomeTipoProcessoDocumento + ' - ' + dados[0].usuarioAssinatura.nome;
 	} else {
 		return dados.informacoesExtrasTarefa;		
@@ -19782,6 +20944,19 @@ async function obterContasSIF(numero) {
         })
         .then(data=>{
             return data || '';
+        })
+        .catch(function (err) {
+			return '';
+        });
+}
+
+//FUNÇÃO QUE RETORNA O EXTRATO DAS SIF EM JSON
+async function obterExtratoSIF(processo, conta, dataAutuacao, dataFim) {
+	let urlBase = preferencias.trt;
+	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
+	return apis.extratoContaSIF.executar(urlBase,{processo, conta, dataAutuacao, dataFim})
+        .then(data=>{
+			return data?.linhasExtrato || '';
         })
         .catch(function (err) {
 			return '';
@@ -19846,39 +21021,60 @@ async function tratarOrdemTeimosinha(numero) {
 
 // FUNÇÃO QUE RETORNA SE O PROCESSO POSSUI PARTE NO BNDT
 async function obterPartesNoBNDT(idProcesso) {
-	let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/debitostrabalhistas';
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
-	return dados;
+	return await apis.debitosTrabalhistas.executar(preferencias.trt, {idProcesso});
 }
 
 // FUNÇÃO QUE RETORNA OS DOCUMENTOS NÃO ASSINADOS DO PROCESSO
 async function obterInfoDocToNaoAssinado(idProcesso) {
 	return new Promise(async resolve => {
-		let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?somenteDocumentosAssinados=false&buscarMovimentos=false&buscarDocumentos=true';
-		let resposta = await fetch(url);
-		let dados = await resposta.json();
-		if (!dados) { return null }
-		
-		let existeDoctoNaoAssinado = false;
-		for (const [pos, documento] of dados.reverse().entries()) {
-			if (!documento.nomeSignatario) { //nem nome nem id.. pq alguns documentos do 2 grau tem nome mas não tem id
-				// console.log(documento.idUnicoDocumento)
-				existeDoctoNaoAssinado = true;
-				break;
-			}
-		}
-
-		return resolve(existeDoctoNaoAssinado);
+		let urlBase = preferencias.trt;
+		let grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+		if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
+		return resolve(apis.documentosMinuta.executar(urlBase, {idProcesso},{method: "GET",mode: "cors",credentials: "include",headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario || 1}})
+			.then(data=>{
+				if (data?.assinado) { return false }
+				return (data.assinado == false) ? true : false;
+			})
+			.catch(function (err) {
+				return false;
+			}));
 	});
 }
 
 //FUNÇÃO QUE RETORNA A DATA DA AUDIÊNCIA E OUTRAS INFORMAÇÕES
 async function obterAudienciaMarcada(idProcesso) {
-	let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/audiencias?status=M';
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
-	return dados[0];
+	const dados = await apis.audienciasProcesso.executar(preferencias.trt, {idProcesso});
+	return dados?.[0];
+}
+
+//https://pje.trt12.jus.br/pje-comum-api/api/pericias?idProcesso=349711
+//FUNÇÃO QUE RETORNA O NOME DA TAREFA DE ACORDO COM O CODIGO
+async function obterSituacaoPericiaViaApi(idProcesso) {
+	let urlBase = preferencias.trt;
+	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
+		
+	let url = 'https://' + urlBase + '/pje-comum-api/api/pericias?idProcesso=' + idProcesso;
+	let grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+	
+	return fetch(url,
+        {
+			method: "GET",
+			mode: "cors",
+			credentials: "include",
+            headers: {
+				"Content-Type": "application/json",
+                "X-Grau-Instancia": grau_usuario || 1
+            }
+        })
+        .then(function (response) {
+			return response.json();
+        })
+        .then(data=>{
+			return data.resultado[0].situacaoPericia || '';
+        })
+        .catch(function (err) {
+			return '';
+        });
 }
 
 //FUNÇÃO QUE ANALISA O MOTIVO DO SOBRESTAMENTO
@@ -19938,9 +21134,7 @@ async function analisarMotivosSobrestamento() {
 
 //FUNÇÃO QUE VERIFICA SE O USUARIO É SERVIDOR
 async function verificarSeServidor() {
-	let url = 'https://' + preferencias.trt + '/pje-seguranca/api/token/perfis';
-	let resposta = await fetch(url);
-	let dados = await resposta.json();
+	const dados = await apis.permissaoPerfis.executar(preferencias.trt);
 	let papeis = [];
 	let retorno = true;
 	if (dados.mensagem) { return true } //sem autenticação
@@ -19950,6 +21144,47 @@ async function verificarSeServidor() {
 		}
 	});
 	return retorno;
+}
+
+async function obterDomicilioEletronico(idParte) {
+	try {
+		const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+		const dados = await apis.domicilioEletronico.executar(preferencias.trt, {idParte}, { method: "GET", mode: "cors", credentials: "include", headers: { "Content-Type": "application/json", "X-Grau-Instancia": grau_usuario || 1 } });
+		return !!dados?.habilitada;
+	} catch (err) {	
+		return false;
+	}	
+}
+
+async function obterEnderecoDaParte(idParte, idEndereco='') {
+	return new Promise(async resolve => {
+		let urlBase = preferencias.trt;
+		if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
+		let url = 'https://' + urlBase + '/pje-comum-api/api/pessoas/' + idParte + '/enderecos?somenteValidos=true&ordenacaoColuna=id&ordenacaoAscendente=false&pagina=1&tamanhoPagina=1000';
+		let grau_usuario = preferencias.grau_usuario == "segundograu" ? 2 : 1;
+		let resposta = await fetch(url, { method: "GET", mode: "cors", credentials: "include", headers: { "Content-Type": "application/json", "X-Grau-Instancia": grau_usuario || 1 } });
+		let dados = await resposta.json();		
+		if (!dados.resultado) { return resolve('ERRO1'); }
+		
+		if (idEndereco) {
+			let resultado = 'ERRO2';
+			for (const [pos, item] of dados.resultado.entries()) {
+				if (item.id == parseInt(idEndereco)) {
+					resultado = item.logradouro.trim()
+					resultado += (item.numero) ? ', ' + item.numero : ', s/n';
+					resultado += (item.complemento) ? ', ' + item.complemento : '';
+					resultado += ', ' + item.bairro;
+					resultado += ', ' + item.municipio;
+					resultado += ', ' + item.estado.sigla;
+					resultado += ', ' + item.nroCep;
+					break;
+				}
+			}
+			return resolve(resultado);
+		} else {
+			return resolve(dados.resultado);
+		}
+	});
 }
 
 //FUNÇÃO QUE INSERE A FUNCIONALIDADE DE VERIFICAR IMPEDIMENTO E SUSPEIÇÃO NA PAUTA DO SEGUNDO GRAU
@@ -20543,16 +21778,6 @@ async function incluirPrazoRelator() {
 				return resolver(dia + '/' + mes + '/' + ano);
 			}
 		);
-		let parte1, parte2, parte3, separador;
-		let padraoSeparador = /\D{1,}/;	
-		
-		if (!padrao.test(texto)) { return null }	
-		separador = texto.match(padrao).join();
-		
-		return 
-		parte1 = valor.split(separador)[0];
-		parte2 = valor.split(separador)[1];
-		parte3 = valor.split(separador)[2];
 	}
 }
 
@@ -20650,6 +21875,7 @@ async function ativarModoNoite(ligar) {
 
 	function ligarMOModoNoite() {
 		return new Promise(async resolve => {
+			if (!document.body) { return null }
 			let observer = new MutationObserver(function(mutationsDocumento) {
 				mutationsDocumento.forEach(function(mutation) {
 					if (!mutation.addedNodes[0]) { return }
@@ -20696,11 +21922,13 @@ async function ativarModoNoite(ligar) {
 async function processosSemAudienciaDesignada() {
 	console.log('processosSemAudienciaDesignada()');
 	if (!document.getElementById('maisPje_processosSemAudienciaDesignada')) {
-		let ancora = await esperarElemento('span[class="cabecalho-icones"]');
+		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_processosSemAudienciaDesignada";
 		botao.innerText = "Processos sem audiência Designada";
-		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 0 5px 0 5px; z-index: 1;";
+		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
+		botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
 		botao.onclick = function () {
 			
 			console.log("Extensão maisPJE (" + agora() + "): filtrarProcessosSemAudienciaDesignada");
@@ -20780,15 +22008,102 @@ async function processosSemAudienciaDesignada() {
 }
 
 //BOTAO PARA ACHAR PROCESSOS SEM AUDIÊNCIA DESIGNADA NA TAREFA AGUARDANDO AUDIÊNCIA
+async function processosSemGigsCadastrado() {
+	console.log('processosSemGigsCadastrado()');
+	if (!document.getElementById('maisPje_processosSemGigsCadastrado')) {
+		let ancora = await esperarElemento('maisPje-container-filtros');
+		let botao = document.createElement("button");
+		botao.id = "maisPje_processosSemGigsCadastrado";
+		botao.innerText = "Processos sem Gigs Cadastrado";
+		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
+		botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
+		botao.onclick = function () {
+			
+			console.log("Extensão maisPJE (" + agora() + "): filtrarProcessosSemGigsCadastrado");
+			let ativar = document.querySelector('tbody').getAttribute('maisPje_processosSemGigsCadastrado_ativado');
+			if (!ativar || ativar == "false") {
+				ativarFiltro();
+			} else {
+				desativarFiltro();
+			}
+			
+			async function ativarFiltro() {
+				document.querySelector('tbody').setAttribute('maisPje_processosSemGigsCadastrado_ativado',true);
+				let el = document.querySelectorAll('tbody tr');
+				if (!el) {
+					return
+				}
+				
+				for (const [pos, linha] of el.entries()) {
+					//****demonstração ao usuário de que está passando na linha
+					linha.scrollIntoView({behavior: 'auto',block: 'center',inline: 'center'});
+					linha.style.setProperty('filter', 'brightness(0.5)');
+					linha.style.setProperty('outline', '2px dashed yellow');
+					await sleep(1);
+					//**********
+
+					let existe = linha.querySelector('div[class*="tipo-atividade-container"]');
+					if (existe) {
+						linha.style.display = 'none';
+						linha.style.setProperty('filter', 'revert');
+						linha.style.setProperty('outline', 'revert');
+					} else {
+						linha.style.setProperty('filter', 'revert');
+						linha.style.setProperty('outline', 'revert');
+						linha.style.setProperty('background-color', 'khaki');
+						linha.setAttribute('maisPje_processosSemGigsCadastrado_ativado',true);
+					}
+					
+				}
+				
+				// DESCRIÇÃO: Se o usuário clicar em qualquer item do cabeçalho o filtro será desativado
+				document.querySelector('thead').addEventListener('click', function(event) {
+					if (!event.target.className.includes('fa-check') && !event.target.className.includes('todas-marcadas')) {
+						desativarFiltro();
+					}
+				});
+				
+				// DESCRIÇÃO: Se o usuário mudar a página da tabela, o filtro é desativado			
+				document.querySelector('pje-paginador').addEventListener('click', function(event) {
+					desativarFiltro();
+				});
+			}
+			
+			function desativarFiltro() {
+				document.querySelector('tbody').setAttribute('maisPje_processosSemGigsCadastrado_ativado',false);
+				let el = document.querySelector('tbody').getElementsByTagName('tr');
+				if (!el) { return }
+				let cor = 'rgb(240, 240, 240)';
+				let map1 = [].map.call(
+					el, 
+					function(linha) {
+						linha.style.setProperty('display', '');
+						linha.style.setProperty('background-color', cor);
+						cor = (cor == "white") ? 'rgb(240, 240, 240)' : 'white';
+					}
+				);
+				return true;
+			}
+			
+			
+		};
+
+		ancora.appendChild(botao);
+	}
+	
+}
+
+//BOTAO PARA ACHAR PROCESSOS SEM AUDIÊNCIA DESIGNADA NA TAREFA AGUARDANDO AUDIÊNCIA
 async function juizResponsavelPelaMinuta() {
 	console.log('juizResponsavelPelaMinuta()');
 	if (!document.getElementById('maisPje_juizResponsavelPelaMinuta')) {
 		console.log('maisPJe: insere filtro juizResponsavelPelaMinuta()');
-		let ancora = await esperarElemento('span[class="cabecalho-icones"]');
+		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_juizResponsavelPelaMinuta";
 		botao.innerText = "Juiz Responsável pela Minuta";
-		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 0 5px 0 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
 		botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
 		botao.onclick = function () {
@@ -20824,8 +22139,9 @@ async function juizResponsavelPelaMinuta() {
 					div.id = "maisPje_juiz_responsavel_" + pos;
 					div.style="font-weight: normal; font-size: 1em;"
 
-					let dadosProcesso = await obterIdProcessoViaApi(processoNumero);		
-					div.innerText = await obterDadosJuizDaMinuta(dadosProcesso[0].idProcesso);
+					let idProcesso = await obterIdProcessoViaApi(processoNumero);
+					// console.log(dadosProcesso)
+					div.innerText = await obterDadosJuizDaMinuta(idProcesso);
 
 
 					if (div.innerText.includes('Embargos de Declaração') || div.innerText.includes('Sentença')) {
@@ -20865,38 +22181,17 @@ async function juizResponsavelPelaMinuta() {
 
 		ancora.appendChild(botao);
 	}
-	
-
-	function aguardarCarregamentoTabela() {
-		return new Promise(resolve => {
-			let desapareceu = false;
-			let apareceu = false;
-			let check = setInterval(function() {
-				let barraIdentificadora = document.querySelector('tr mat-progress-bar');
-				if (barraIdentificadora) {
-					apareceu = true;
-				} else {
-					desapareceu = true;
-				}
-				
-				if (apareceu && desapareceu) {
-					clearInterval(check);	
-					return resolve(true);
-				}
-			}, 100);
-		});		
-	}
 }
 
 //BOTAO PARA ACHAR PROCESSOS ARQUIVADOS COM SALDO SIF
 async function obterSaldoSIF() {
 	if (!document.getElementById('maisPje_obterSaldoSIF')) {
 		console.log('maisPJe: insere filtro obterSaldoSIF()');
-		let ancora = await esperarElemento('span[class="cabecalho-icones"]');
+		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_obterSaldoSIF";
 		botao.innerText = "Obter Saldo SIF";
-		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 0 5px 0 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
 		botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
 		botao.onclick = function () {
@@ -20905,8 +22200,6 @@ async function obterSaldoSIF() {
 			let ativar = document.querySelector('tbody').getAttribute('maisPje_obterSaldoSIF_ativado');
 			if (!ativar || ativar == "false") {
 				ativarFiltro();
-			} else {
-				desativarFiltro();
 			}
 			
 			async function ativarFiltro() {
@@ -21019,15 +22312,41 @@ async function obterSaldoSIF() {
 	}
 }
 
+
+//BOTAO PARA OBTER O INDICE CONCILIAJT
+async function ObterConcilia() {
+	if (!document.getElementById('maisPje_obterConcilia')) {
+		console.log('maisPJe: insere filtro ObterConcilia()');
+		let ancora = await esperarElemento('maisPje-container-filtros');
+		let botao = document.createElement("button");
+		botao.id = "maisPje_obterConcilia";
+		botao.innerText = "Obter ConciliaJT";
+		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
+		botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
+		botao.onclick = function () {
+			
+			console.log("Extensão maisPJE (" + agora() + "): filtrarObterConcilia");
+			let ativar = document.querySelector('tbody').getAttribute('maisPje_obterConcilia_ativado');
+			if (!ativar || ativar == "false") {
+				conciLIAnaTriagemInicial();
+			}
+
+		};
+
+		ancora.appendChild(botao);
+	}
+}
+
 //SISBAJUD CONFERIR TEIMOSINHA EM LOTE
 async function conferirTeimosinhaEmLote() {
 	if (!document.getElementById('maisPje_conferirTeimosinhaEmLote')) {
 		console.log('maisPJe: insere filtro conferirTeimosinhaEmLote()');
-		let ancora = await esperarElemento('span[class="cabecalho-icones"]');
+		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_conferirTeimosinhaEmLote";
 		botao.innerText = "Conferir SISBAJUD(Teimosinha)";
-		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 0 5px 0 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
 		botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
 		botao.onclick = async function () {
@@ -21040,7 +22359,12 @@ async function conferirTeimosinhaEmLote() {
 				console.log("Extensão maisPJE (" + agora() + "): conferirTeimosinhaEmLote");
 				let ativar = document.querySelector('tbody').getAttribute('maisPje_conferirTeimosinhaEmLote_ativado');
 				if (!ativar || ativar == "false") {
-					ativarFiltro();
+					let limparStorage = browser.storage.local.set({'processo_memoria': ''});
+					Promise.all([limparStorage]).then(values => {
+						console.debug('maisPJe: background: processo_memoria... excluido');
+						ativarFiltro();
+					});
+					
 				} else {
 					desativarFiltro();
 				}
@@ -21067,20 +22391,22 @@ async function conferirTeimosinhaEmLote() {
 				
 				for (const [pos, linha] of linhasTabela.entries()) {
 					
+					let processoNumero = await extrairNumeroProcesso(linha.innerText);
+					linha.setAttribute('maisPje_NumeroDoProcesso',processoNumero);
+
 					if (!linha.querySelector('maisPje_conferirTeimosinhaEmLote_' + pos)) {
 						const corFundoAntiga = linha.style.backgroundColor;
 						linha.style.backgroundColor = '#ff450091';
 						linha.style.outline = '2px dashed orangered';
 						linha.scrollIntoView({behavior: 'smooth',block: 'center'});
-
-						let processoNumero = linha.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
+						
 						let div = document.createElement("div");
 						div.id = "maisPje_conferirTeimosinhaEmLote_" + pos;
 						div.style="font-weight: normal; font-size: 1em; color:white;";						
 
 						let dados = await obterResultadoTeimosinha(processoNumero);						
 						// console.log(dados);
-						//os dados serão um array de {id:i,data:d,valor:v}
+						//os dados serão um array de {id:i,data:d,valor:v,situacao:s}
 						
 						let respostaConsulta = document.createElement('div');
 						respostaConsulta.style.display = 'grid';
@@ -21101,24 +22427,30 @@ async function conferirTeimosinhaEmLote() {
 							respostaConsulta.appendChild(titulo);
 							respostaConsulta.appendChild(document.createElement('br'));
 
-							for (const [pos2, linha2] of dados.entries()) {
-								// console.log('******' + linha2.id + '******' + linha2.data + '****' + linha2.valor);
-								let valor = Number(linha2.valor.replace(/([^\d.+-]+)/g,""));
+							let linha2 = dados[dados.length - 1]; //última linha
+							let valor = Number(linha2.valor.replace(/([^\d.+-]+)/g,""));
 
-								let novaLinha = document.createElement('span');
-								novaLinha.style = 'padding: 10px;background-color: white;color: black;border-radius: 5px;margin: 2px; cursor:pointer;';
-								novaLinha.setAttribute('maisPjeLink','https://sisbajud.cnj.jus.br/teimosinha/' + linha2.id + '/detalhes');
-								novaLinha.innerText = 'Programada até ' + linha2.data + ': ' + linha2.valor;
-								novaLinha.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
-								novaLinha.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
-								novaLinha.onclick = function () {
-									let win = window.open(this.getAttribute('maisPjeLink'), '_blank');
-        							win.focus();
-								};
+							let novaLinha = document.createElement('span');
+							novaLinha.style = 'padding: 10px;background-color: white;color: black;border-radius: 5px;margin: 2px; cursor:pointer;';
+							novaLinha.setAttribute('maisPjeLink','https://sisbajud.cnj.jus.br/teimosinha/' + linha2.id + '/detalhes');
+							novaLinha.innerText = 'Programada até ' + linha2.data + ': ' + linha2.valor + '   (' + linha2.situacao + ')';
+							novaLinha.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
+							novaLinha.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
+							novaLinha.onclick = async function () {
+								await consultaRapidaPJE(processoNumero); //é necessario abrir o processo para guardar os dados na memória
+								await sleep(1000);
+								window.focus();
+								let win2 = window.open(this.getAttribute('maisPjeLink'), '_blank');
+								win2.focus();
+							};
 
-								respostaConsulta.appendChild(novaLinha);
+							respostaConsulta.appendChild(novaLinha);
 
-								soma += valor;
+							soma += valor;
+
+							if (linha2.situacao.includes('Encerrada')) {
+								//destaca o div
+								div.style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 5px, transparent 5px, transparent 10px)';
 							}
 
 							if (soma <= 0) {
@@ -21156,82 +22488,6 @@ async function conferirTeimosinhaEmLote() {
 		ancora.appendChild(botao);
 	}
 	
-}
-
-// CONFERIR ALVARÁS SISCONDJ EM LOTE
-async function siscondjConferirEmLote() {
-	console.log('maisPje: conferirAlvaraEmLote()');
-	let verificador = false;
-	browser.storage.onChanged.addListener(logStorageChangeConferirALvara);
-
-	let listaDeAlvaras = await esperarColecao('#acmp_alvara_form_tabelaAcompanhamento tbody tr');
-	let listaTemp = [];
-
-	if (listaDeAlvaras.length == 0) { return }
-
-	for (const [pos, item] of listaDeAlvaras.entries()) {
-		listaTemp.push(item.id);
-	}
-
-	console.log('maisPje: conferirAlvaraEmLote(): início');
-	
-	for (const [pos, item] of listaTemp.entries()) {
-		await guardarStorage(item);
-		await verificandoVerificador();
-	}
-
-	//recarrega a pagina para pegar novos alvarás.. se tiver faz tudo de novo
-	location.assign(location.href + '?maisPje=conferindoAlvaraEmLote')
-
-	console.log('maisPje: conferirAlvaraEmLote(): fim');
-
-	function getUrlBaseSiscondj() {
-		const url = preferencias.configURLs.urlSiscondj;
-		if (url && url.includes("/pages")) {
-			return url.substring(0, url.search("/pages"));
-		}
-		return url;
-	}
-
-	function logStorageChangeConferirALvara(changes, area) {
-		let changedItems = Object.keys(changes);
-		for (let item of changedItems) {
-			if (item == "AALote") {
-				if (changes[item].newValue == 'conferindoAlvara') {
-					// console.info('conferindoAlvara: iniciou uma acao')
-					verificador = false;
-				} else {
-					// console.info('conferindoAlvara: finalizou uma acao')
-					verificador = true;
-				}
-				
-			}
-		}
-	}
-
-	async function verificandoVerificador() {
-		return new Promise(async resolve => {
-			let check = setInterval(function() {
-				if (verificador) {
-					clearInterval(check);
-					return resolve(true);
-				}
-			}, 1000);
-		});
-	}
-
-	async function guardarStorage(item) {
-		return new Promise(async resolve => {
-			console.log('maisPje: conferindo alvará do processo ...');
-			let guardarStorage1 = browser.storage.local.set({'AALote': 'conferindoAlvara'});
-			Promise.all([guardarStorage1]).then(values => {
-				let url = getUrlBaseSiscondj() + '/pages/mandado/pagamento/exibirAcionadoPelaGrid/' + item;
-				window.open(url, '_blank');				
-				return resolve(true);
-			});
-		});
-	}
-
 }
 
 //RELATÓRIOS
@@ -21758,11 +23014,11 @@ async function acoesEmLote(listaPronta) {
 		
 		fundo(true);
 		for (const [pos, numeroProcesso] of lista.entries()) {
-			let idProcesso = await obterIdProcessoViaApiPublica(numeroProcesso);
+			let idProcessoApiPublica = await obterIdProcessoViaApiPublica(numeroProcesso);
+			let idProcesso = idProcessoApiPublica[0].id;
 			if (!idProcesso) { 	idProcesso = await obterIdProcessoViaApi(numeroProcesso) }
-			listaDeProcessos.push({id:idProcesso[0]?.id,numero:numeroProcesso});
+			listaDeProcessos.push({id:idProcesso,numero:numeroProcesso});
 		}
-		fundo(false);
 		
 		if (listaDeProcessos.length == 0) { return }
 		
@@ -21777,7 +23033,7 @@ async function acoesEmLote(listaPronta) {
 		
 		let elemento1 = document.createElement("div");
 		elemento1.id = 'maisPje_caixa_de_selecao_AALote';
-		elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; text-align: center; flex-direction: column;';
+		elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; width: 50vw top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; text-align: center; flex-direction: column;';
 		elemento1.onclick = function (e) {
 			if (e.target.id == "maisPje_caixa_de_selecao_AALote") {
 				elemento1.remove();
@@ -21802,7 +23058,10 @@ async function acoesEmLote(listaPronta) {
 		}; //se clicar fora fecha a janela
 		
 		let container = document.createElement("div");
-		container.style="max-height: 90%; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12); overflow: auto;";
+		container.style="position: absolute;top: 10vh;width: 43vw;max-width: 43vw;min-width: 43vw;max-height: 90vh; display: inline-grid; background-color: white;padding: 20px 0 20px 20px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12); overflow: auto;";
+		let bloqueioContainer = document.createElement("maisPjebloqueioContainer"); //server para suavizar os eventos onmouseenter e onmouseleave dos processos da lista
+		bloqueioContainer.style="display: none;position: absolute;width: 43vw;max-height: 90vh;background-color: transparent;height: 90vh;z-index: 1000;";
+
 		
 		let cabecalho = document.createElement("div");
 		cabecalho.style = 'display: grid;grid-template-columns: 5% 90% 5%;';
@@ -21843,111 +23102,15 @@ async function acoesEmLote(listaPronta) {
 		cabecalho.appendChild(btAtivarFiltros);
 		container.appendChild(cabecalho);
 		
-		let selectAcaoAutomatizada = document.createElement("select");
-		selectAcaoAutomatizada.style = 'cursor: pointer; margin-top: 10px; padding: 10px; background-color: cornsilk; color: rgb(81, 81, 81); min-height: 40px;';
-		
-		//OPÇÃO NENHUM
-		let optionSelecione = document.createElement("option");
-		optionSelecione.innerText = 'Selecione uma Ação Automatizada';
-		optionSelecione.value = '';
-		selectAcaoAutomatizada.appendChild(optionSelecione);
-		
-		//monta as acoes automatizadas de Anexar Documentos
-		for (const [pos, item] of preferencias.aaAnexar.entries()) {
-			let optionAAA = document.createElement("option");
-			optionAAA.style.backgroundColor = 'white';			
-			optionAAA.value = 'Anexar|' + item.nm_botao;
-			optionAAA.innerText = 'Anexar|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionAAA);
-		}
-		//monta as acoes automatizadas de Comunicação
-		for (const [pos, item] of preferencias.aaComunicacao.entries()) {
-			let optionAAC = document.createElement("option");
-			optionAAC.style.backgroundColor = 'rgba(122, 158, 200, 0.44)';
-			optionAAC.value = 'Comunicação|' + item.nm_botao;
-			optionAAC.innerText = 'Comunicação|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionAAC);
-		}
-		//monta as acoes automatizadas de Autogigs
-		for (const [pos, item] of preferencias.aaAutogigs.entries()) {
-			let optionAAG = document.createElement("option");
-			optionAAG.style.backgroundColor = 'white';
-			optionAAG.value = 'AutoGigs|' + item.nm_botao;
-			optionAAG.innerText = 'AutoGigs|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionAAG);
-		}
-		//monta as acoes automatizadas de Despacho
-		for (const [pos, item] of preferencias.aaDespacho.entries()) {
-			let optionAAD = document.createElement("option");
-			optionAAD.style.backgroundColor = 'rgba(122, 158, 200, 0.44)';
-			optionAAD.value = 'Despacho|' + item.nm_botao;
-			optionAAD.innerText = 'Despacho|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionAAD);
-		}
+		let selectAcaoAutomatizada = document.createElement('span')
+		selectAcaoAutomatizada.id = 'escolherAAVinculo';
+		selectAcaoAutomatizada.style = "width: 41vw;max-width: 41vw;min-width: 41vw;cursor: pointer; margin-top: 10px; background-color: cornsilk; color: #a52a2a70;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 5vh;padding: 0 10px;display: flex;align-items: center;font-size: 1.125em;"
+		selectAcaoAutomatizada.innerText = "Escolha uma Ação Automatizada";
+		selectAcaoAutomatizada.onmouseenter = function () { this.style.outline = '2px solid #ff6c0042' }
+		selectAcaoAutomatizada.onmouseleave = function () { this.style.outline = 'revert' }
 
-		//AA de Movimento > atualizar data DESDE na tarefa		
-		let optionAAM = document.createElement("option");
-		optionAAM.style.backgroundColor = 'white';
-		optionAAM.value = 'Movimento|bt_atualizar_tarefa';
-		optionAAM.innerText = '>>>Movimento|Renovar a Data na Tarefa';
-		selectAcaoAutomatizada.appendChild(optionAAM);
-
-		//monta as acoes automatizadas de Movimento
-		for (const [pos, item] of preferencias.aaMovimento.entries()) {
-			optionAAM = document.createElement("option");
-			optionAAM.style.backgroundColor = 'white';
-			optionAAM.value = 'Movimento|' + item.nm_botao;
-			optionAAM.innerText = 'Movimento|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionAAM);
-		}
-		
-		//monta as acoes automatizadas de Checklist
-		for (const [pos, item] of preferencias.aaChecklist.entries()) {
-			let optionAACh = document.createElement("option");			
-			optionAACh.style.backgroundColor = 'rgba(122, 158, 200, 0.44)';
-			optionAACh.value = 'Checklist|' + item.nm_botao;
-			optionAACh.innerText = 'Checklist|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionAACh);
-		}
-				
-		let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7','addAutor'],['botao_retificar_autuacao_8','addRéu'],['botao_retificar_autuacao_0','addUnião'],['botao_retificar_autuacao_10','addMPT'],['botao_retificar_autuacao_3','addLeiloeiro'],['botao_retificar_autuacao_4','addPerito'],['botao_retificar_autuacao_addTerceiroTerceiro','Terceiro>Terceiro'],['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],['botao_retificar_autuacao_Falencia','Falência/Rec.Judicial'],['botao_retificar_autuacao_assunto','Assunto'],['botao_retificar_autuacao_justicaGratuita','Justiça Gratuita']];
-
-		[].map.call(aaItemRetificarAutuacao,function(item) {
-			let optionIRA = document.createElement("option");
-			optionIRA.style.backgroundColor = 'white';
-			optionIRA.value = 'RetificarAutuação|' + item[0];
-			optionIRA.innerText = 'RetificarAutuação|' + item[1];
-			selectAcaoAutomatizada.appendChild(optionIRA);
-		});
-
-		[].map.call(preferencias.aaLancarMovimentos,function(item) {
-			let optionILM = document.createElement("option");
-			optionILM.style.backgroundColor = 'rgba(122, 158, 200, 0.44)';
-			optionILM.value = 'LançarMovimento|' + item.id;
-			optionILM.innerText = 'LançarMovimento|' + item.nm_botao;
-			selectAcaoAutomatizada.appendChild(optionILM);
-		});
-
-		let aaItemMenuDetalhes = ['Reprocessar chips do processo','Download do processo completo'];
-			[].map.call(aaItemMenuDetalhes,function(item) {
-			let optionIMD = document.createElement("option");
-			optionIMD.style.backgroundColor = 'white';
-			optionIMD.value = 'Clicar em|' + item;
-			optionIMD.innerText = 'Clicar em|' + item;
-			selectAcaoAutomatizada.appendChild(optionIMD);
-		});
-		
-		let aaVariados = ['Atualizar Pagina|Atualizar Pagina','Fechar Pagina|Fechar Pagina','Variados|Apreciar Peticoes','Variados|SISBAJUD:F2','Variados|Assinar Expedientes','Variados|Assinar Documentos','Variados|Excluir BNDT'];
-			[].map.call(aaVariados,function(item) {
-			let optionVar = document.createElement("option");
-			optionVar.style.backgroundColor = '#f7936f';
-			optionVar.value = item;
-			optionVar.innerText = item;
-			selectAcaoAutomatizada.appendChild(optionVar);
-		});
-		
 		let bt_executar = document.createElement("span");
-		bt_executar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
+		bt_executar.style = "width: 41vw;max-width: 41vw;min-width: 41vw;height: 2.5vh;color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
 		bt_executar.id = "maisPje_bt_executar";
 		bt_executar.innerText = "Executar";
 		bt_executar.onmouseenter = function () {
@@ -21960,16 +23123,16 @@ async function acoesEmLote(listaPronta) {
 			if (this.innerText == "Executar") {
 				let guardarStorage = browser.storage.local.set({'erros': ''});
 				Promise.all([guardarStorage]).then(async values => {
-					if (selectAcaoAutomatizada.value == "RetificarAutuação|botao_retificar_autuacao_assunto") {
+					if (selectAcaoAutomatizada.innerText == "RetificarAutuação|botao_retificar_autuacao_assunto") {
 						preferencias.tempAR = prompt('Código Assunto:','');
-					} else if (selectAcaoAutomatizada.value == "LançarMovimento|botao_lancar_movimento_4") {
+					} else if (selectAcaoAutomatizada.innerText == "LançarMovimento|botao_lancar_movimento_4") {
 						preferencias.tempAR = await criarCaixaDePergunta('data','Data da Publicação:','');
-					} else if (selectAcaoAutomatizada.value == "LançarMovimento|botao_lancar_movimento_5") {						
+					} else if (selectAcaoAutomatizada.innerText == "LançarMovimento|botao_lancar_movimento_5") {						
 						preferencias.tempAR = await criarCaixaDePergunta('data','Data da Publicação:','');
 					}
 					let guardarStorage2 = browser.storage.local.set({'tempAR': preferencias.tempAR});
 					Promise.all([guardarStorage2]).then(values => {					
-						executarAAEmLote([listaDeProcessosTemp,selectAcaoAutomatizada.value]);
+						executarAAEmLote([listaDeProcessosTemp,selectAcaoAutomatizada.innerText]);
 					});	
 				});				
 			} else if (this.innerText.includes("Continuar"))  {
@@ -21984,7 +23147,7 @@ async function acoesEmLote(listaPronta) {
 		//filtros
 		let filtro = document.createElement("div");
 		filtro.id = 'maisPje_caixa_de_selecao_AALote_filtros';
-		filtro.style = "cursor: pointer;margin-top: 5px; display: none;";
+		filtro.style = "cursor: pointer; margin-top: 5px; display: inline; width: 41vw; max-width: 41vw; min-width: 41vw;padding: 0 10px;";
 
 		let btFiltroConhecimento = document.createElement("button");
 		btFiltroConhecimento.id = 'maisPje_caixa_de_selecao_AALote_filtros_conhecimento';
@@ -22034,6 +23197,9 @@ async function acoesEmLote(listaPronta) {
 		btFiltroExecMaisAntiga.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
 		btFiltroExecMaisAntiga.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
 		btFiltroExecMaisAntiga.onclick = async function () { 
+			//aguardar o carregamento de todos os processos da lista
+			await esperarColecao('span[id*="maisPje_AALote_"][title]',listaDeProcessos.length);
+
 			await filtrarPorFase('Conhecimento','maisPje_caixa_de_selecao_AALote_filtros_conhecimento');
 			await filtrarPorFase('Liquidação','maisPje_caixa_de_selecao_AALote_filtros_liquidacao');
 			await filtrarPorFase('Arquivado','maisPje_caixa_de_selecao_AALote_filtros_arquivado');
@@ -22092,12 +23258,50 @@ async function acoesEmLote(listaPronta) {
 		};
 		filtro.appendChild(btFiltroPorTarefa);
 
+		let btFiltroSobrestamentoTipo = document.createElement("button");
+		btFiltroSobrestamentoTipo.id = 'maisPje_caixa_de_selecao_AALote_filtros_sobrestamentoTipo';
+		btFiltroSobrestamentoTipo.setAttribute('ativo','true');
+		btFiltroSobrestamentoTipo.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: turquoise; filter: brightness(1); font-size: 14px; color: #199386; border: 1px solid #199386; border-radius: 25px;font-weight: bold;margin: 2px 10px;";
+		btFiltroSobrestamentoTipo.innerText = "por tipo de Sobrestamento";
+		btFiltroSobrestamentoTipo.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
+		btFiltroSobrestamentoTipo.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
+		btFiltroSobrestamentoTipo.onclick = async function () { 
+			let listaTipos = [];
+			let t = [];
+			
+			if (this.getAttribute('ativo') == 'false') {
+				this.style.opacity = '1';
+				this.setAttribute('ativo','true');
+				[].map.call(document.querySelectorAll('span[id*="maisPje_AALote_"]'),function(item) {
+					item.style.display = 'revert';
+				});
+
+				//atualiza o contador
+				let cont = document.querySelectorAll('span[id*="maisPje_AALote_"]:not([style*="display: none"])');
+				let el = document.querySelector('#maisPje_caixa_de_selecao_titulo');
+				el.innerText = "maisPje: Ações Automatizadas em lote (" + cont.length + ")";
+
+			} else {
+				this.style.opacity = '0.3';
+				this.setAttribute('ativo','false');
+
+				[].map.call(document.querySelectorAll('span[id*="maisPje_AALote_"]:not([style*="display: none"]'),function(item) {
+					if (!listaTipos.includes(item.getAttribute('motivoSobrestamento'))) {
+						listaTipos.push(item.getAttribute('motivoSobrestamento'));
+					}
+				});
+				let t = await criarCaixaSelecao(listaTipos, 'Escolha o tipo de Sobrestamento que deseja filtrar','Filtrar',true);
+				await filtrarPorTipoSobrestamento(t);
+
+			} 
+		};
+		filtro.appendChild(btFiltroSobrestamentoTipo);
+
 
 
 		filtro.style.display = 'none'; //esconde o filtro
 		//****filtros */
-		
-		
+				
 		container.appendChild(filtro);
 		container.appendChild(selectAcaoAutomatizada);
 		container.appendChild(bt_executar);
@@ -22107,46 +23311,46 @@ async function acoesEmLote(listaPronta) {
 			let span = document.createElement("span");
 			span.id = 'maisPje_AALote_' + processo.id;
 			span.setAttribute('idProcesso',processo.id);			
-			span.style = "cursor: pointer; position: relative; min-height: 2.2vh; margin-top: 5px; padding: 10px; color:rgb(81, 81, 81); border-radius: 3px;  display: grid; grid-template-columns: 1fr;}";
+			span.style = "width: 39vw;max-width: 39vw;min-width: 39vw;cursor: pointer; position: relative; height: fit-content; min-height: 23px; margin-top: 5px; padding: 10px; color:rgb(81, 81, 81); border-radius: 3px;  display: grid; grid-template-columns: 1fr;z-index:1;}";
 			span.innerText = processo.numero;
 			span.setAttribute('labelAnterior',processo.numero);
 			span.onmouseenter = async function () {
-				this.style.setProperty('grid-template-columns','2fr 2fr 2fr 1fr');
-				this.style.filter = 'brightness(.5)';
-				// this.setAttribute('labelAnterior',span.textContent);
+				this.style.setProperty('grid-template-columns','2fr 4fr 1fr 1fr');
+				this.style.filter = 'brightness(.5)';				
+				this.style.outline = 'rgb(255, 255, 255) solid 1px';
 				this.innerText = '';
-				let atalho1 = document.createElement("a");
-				atalho1.innerText = 'Excluir da Lista';
-				atalho1.onmouseenter = function () { this.style.color = 'white'; this.style.outline = '1px dashed silver'; }
-				atalho1.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.outline = 'unset'; }
+				
+				let atalho1 = document.createElement("span");
+				let atalho1_i = document.createElement("i");
+				atalho1_i.className = 'fas fa-trash-alt icone-padrao';
+				atalho1.title = 'Excluir da Lista';
+				atalho1.onmouseenter = function () { this.style.outline = '1px dashed silver'; }
+				atalho1.onmouseleave = function () { this.style.outline = 'unset'; }
 				atalho1.onclick = function () {
 					this.parentElement.remove();
 					listaDeProcessosTemp.splice(listaDeProcessosTemp.findIndex(e => e.id === processo.id), 1);					
 					let tituloTotal = document.getElementById('maisPje_caixa_de_selecao_titulo');
 					tituloTotal.innerText = titulo.innerText.replace(new RegExp(/\d{1,}/gm), listaDeProcessosTemp.length);
 				};
+				atalho1.appendChild(atalho1_i);
+
 				let atalho2 = document.createElement("a");
 				atalho2.style = 'padding-left:20px;padding-right:20px;';
-				atalho2.innerText = 'Abrir Detalhes';
+				atalho2.innerText = processo.numero;
+				atalho2.title = 'Abrir Detalhes';
 				atalho2.onmouseenter = function () { this.style.color = 'white'; this.style.outline = '1px dashed silver'; }
 				atalho2.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.outline = 'unset';  }
 				atalho2.onclick = function () {
 					this.parentElement.style.outline = '1px dashed black';
-					consultaRapidaPJE(processo.numero);
+					consultaRapidaPJE(processo.id,true);
 				};
-				let atalho3 = document.createElement("a");
-				atalho3.style = 'padding-right:20px;';
-				atalho3.innerText = 'Abrir Tarefa';				
-				let nomeTarefa = (span.hasAttribute('tarefaProcesso')) ? span.getAttribute('tarefaProcesso') : '';
-				atalho3.title = nomeTarefa;
 
-				atalho3.onmouseenter = async function () { 
-					this.style.color = 'white'; this.style.outline = '1px dashed silver'; 
-					if (nomeTarefa == "Aguardando final do sobrestamento") {
-						let motivo = await obterMotivoSobrestamentoViaApi(processo.id);
-						atalho3.title =  nomeTarefa + '(' + motivo + ')'
-					}				
-				}
+				let atalho3 = document.createElement("a");
+				atalho3.style = 'padding-right:20px;';			
+				let nomeTarefa = (span.hasAttribute('tarefaProcesso')) ? span.getAttribute('tarefaProcesso') : '';
+				atalho3.innerText = nomeTarefa;				
+				atalho3.title = 'Abrir Tarefa';
+				atalho3.onmouseenter = async function () { this.style.color = 'white'; this.style.outline = '1px dashed silver';}
 				atalho3.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.outline = 'unset';  }
 				atalho3.onclick = function () {
 					this.parentElement.style.outline = '1px dashed black';
@@ -22156,54 +23360,92 @@ async function acoesEmLote(listaPronta) {
 				let atalho4 = document.createElement("span");
 				let atalho4_i = document.createElement("i");
 				atalho4_i.className = 'fa fa-tag icone-padrao';
-				atalho4_i.style.color = span.getAttribute('gigsColor');
+				atalho4_i.style.color = span.getAttribute('gigsColor');				
 				atalho4.title = span.getAttribute('gigs');
 				atalho4.onmouseenter = function () { this.style.outline = '1px dashed silver'; }
 				atalho4.onmouseleave = function () { this.style.outline = 'unset'; }
 				atalho4.appendChild(atalho4_i);
 				
-				span.appendChild(atalho1);
+				// span.appendChild(descricao);				
 				span.appendChild(atalho2);
 				span.appendChild(atalho3);
 				span.appendChild(atalho4);
+				span.appendChild(atalho1);
+
+				//amplia o campo span em caso de informações úteis
+				if (span.getAttribute('motivoSobrestamento').length > 0) {
+					let ttip = document.createElement('span')
+					ttip.id = span.id + '_ttip';
+					ttip.style = 'z-index:999999;width: 38vw;max-width: 38vw;min-width: 38vw;grid-area: observacao; background-color: white;color: teal;opacity:.7;font-weight: lighter;border-radius: 5px;padding: 1vh;margin-top: 1vh;height: 5vh;font-size: smaller;height:auto;';
+					
+					let motivoSobrestamento = (span.hasAttribute('motivoSobrestamento')) ? span.getAttribute('motivoSobrestamento') : '';
+					motivoSobrestamento += (span.hasAttribute('motivoSobrestamentoDetalhes')) ? span.getAttribute('motivoSobrestamentoDetalhes') : '';
+					
+					ttip.innerText = motivoSobrestamento;
+					span.appendChild(ttip);
+					span.style.setProperty('grid-template-columns','unset');
+					let gt = `
+					". . . ." 
+					"observacao observacao observacao observacao"
+					`;
+					span.style.setProperty('grid-template-areas',gt);
+					span.style.height = span.offsetHeight + ttip.offsetHeight + 'px';
+				}
 			};
-			span.onmouseleave = function () {
-				this.style.filter = 'brightness(1)';
+			span.onmouseleave = async function () {
+				bloqueioContainer.style.display = 'block'; //ativa o bloqueio do container
+				this.style.filter = 'brightness(1)';				
+				this.style.outline = 'unset';
+				this.style.height = '23px';
 				this.style.setProperty('grid-template-columns','1fr');
 				this.innerText = this.getAttribute('labelAnterior');
 
 				if (this.getAttribute('doctoNaoAssinado') == "true") {
 					exibirDoctoNaoAssinado(this);
 				}
+
+				setTimeout(function() {	bloqueioContainer.style.display = 'none' },250)//desativa o bloqueio do container para suavizar a transição entre elementos
+				
 			};
 						
 			obterFaseIdProcessoViaApi(processo.id).then(resultado => {
 				switch(resultado) {
 					case 'CONHECIMENTO':
-						span.style.borderRight = '35px solid rgba(179, 229, 252)';
+						span.style.borderRight = '2vw solid rgba(179, 229, 252)';
 						span.style.backgroundColor = 'rgba(179, 229, 252, .3)';
 						span.title = 'Conhecimento';
 						break;
 					case 'LIQUIDACAO':
-						span.style.borderRight = '35px solid rgba(174, 213, 129)';
+						span.style.borderRight = '2vw solid rgba(174, 213, 129)';
 						span.style.backgroundColor = 'rgba(174, 213, 129, .3)';
 						span.title = 'Liquidação';
 						break;
 					case 'EXECUCAO':
-						span.style.borderRight = '35px solid rgba(138, 138, 138)';
+						span.style.borderRight = '2vw solid rgba(138, 138, 138)';
 						span.style.backgroundColor = 'rgba(138, 138, 138, .3)';
 						span.title = 'Execução';
 						break;
 					case 'ARQUIVADO':
-						span.style.borderRight = '35px solid rgba(186, 104, 200)';
+						span.style.borderRight = '2vw solid rgba(186, 104, 200)';
 						span.style.backgroundColor = 'rgba(186, 104, 200, .3)';
 						span.title = 'Arquivado';
 						break;
 				}				
 			});
 			
-			obterTarefaIdProcessoViaApi(processo.id).then(resultado => {
+			obterNomeTarefaDoProcessoViaApi(processo.id).then(async resultado => {
 				span.setAttribute('tarefaProcesso',resultado);
+				if (resultado == "Aguardando final do sobrestamento") {
+					let motivo = await obterMotivoSobrestamentoViaApi(processo.id);
+					span.setAttribute('motivoSobrestamento',motivo);
+
+					let temNumeroProcesso = await extrairNumeroProcesso(motivo);
+					if (temNumeroProcesso) {
+						let idNovo = await obterIdProcessoViaApi(temNumeroProcesso);
+						let tarefaNovo = await obterNomeTarefaDoProcessoViaApi(idNovo);
+						span.setAttribute('motivoSobrestamentoDetalhes','\n\u21AA O processo n. ' + temNumeroProcesso + ' está na tarefa ' + tarefaNovo);						
+					}
+				}
 			});
 
 			obterGIGSIdProcessoViaApi(processo.id).then(resultado => {
@@ -22240,13 +23482,12 @@ async function acoesEmLote(listaPronta) {
 				span.setAttribute('gigs',msg);												
 			});
 
-			obterInfoDocToNaoAssinado(processo.id).then(resultado => {
-				span.setAttribute('doctoNaoAssinado',resultado);
-				if (resultado) {
-					exibirDoctoNaoAssinado(span);
-					alertarSobreDocumentosNaoAssinados = true;
-				}
-			});
+			let doctoNaoAssinado = await existeDoctoNaoAssinado(processo.id);		
+			span.setAttribute('doctoNaoAssinado',doctoNaoAssinado);
+			if (doctoNaoAssinado) {				
+				exibirDoctoNaoAssinado(span);
+				alertarSobreDocumentosNaoAssinados = true;				
+			}
 			
 			if (cont >= listaDeProcessos.length-1) { 
 				elemento1.setAttribute('maisPJeTabelaFinalizada','true')				
@@ -22257,11 +23498,15 @@ async function acoesEmLote(listaPronta) {
 			listaDeProcessosTemp.push({ id: processo.id, numero: processo.numero });
 		}
 		
-		elemento1.appendChild(container);		
+		elemento1.appendChild(container);
+		elemento1.appendChild(bloqueioContainer);
 		document.body.appendChild(elemento1);
 
 		if (alertarSobreDocumentosNaoAssinados) {
+			fundo(false);
 			await criarCaixaDeAlerta('ATENÇÃO','Foram encontrados documentos NÃO ASSINADOS em alguns processos da lista.\n Eles estão identificados pelo ícone do cadeado.',8);
+		} else {
+			fundo(false);
 		}
 	}
 
@@ -22326,6 +23571,31 @@ async function acoesEmLote(listaPronta) {
 		});
 	}
 
+	async function filtrarPorTipoSobrestamento(tipo) {
+		return new Promise(resolve => {
+			let seletor = '';
+			
+			[].map.call(tipo,function(item) {
+				if (seletor.length > 0) { seletor +=', ' }
+				seletor += '[motivoSobrestamento="' + item + '"]';
+			});
+			
+			let lista = document.querySelectorAll('span[id*="maisPje_AALote_"]:not(' + seletor + ')');
+			
+			if (!lista) { return resolve(true)}
+			
+			[].map.call(lista,function(item) {
+				item.style.display = 'none';
+			});
+
+			let cont = document.querySelectorAll('span[id*="maisPje_AALote_"]:not([style*="display: none"])');
+			let el = document.querySelector('#maisPje_caixa_de_selecao_titulo');
+			el.innerText = "maisPje: Ações Automatizadas em lote (" + cont.length + ")";
+			return resolve(true)
+		});
+	}
+
+
 	async function getExecMaisAntiga() {
 		return new Promise(async resolve => {
 			// let lista = document.querySelectorAll('span[id*="maisPje_AALote_"]:not([title="' + fase + '"])');
@@ -22378,8 +23648,11 @@ async function acoesEmLote(listaPronta) {
 		
 		for (const [pos, processo] of listaDeProcessosParaAcaoAutomatizadaEmLote[0].entries()) {
 			// console.log(processo.numero + " (" + processo.id + ")");
-			await sleep(preferencias.maisPje_velocidade_interacao + 1000);
-			await lancarNovoProcesso(listaDeProcessosParaAcaoAutomatizadaEmLote[1], processo.id);
+			//verifica se está ativo na lista - por causa dos filtros
+			if (document.querySelector('#maisPje_AALote_' + processo.id)?.style.display != "none") {
+				await sleep(preferencias.maisPje_velocidade_interacao + 1000);			
+				await lancarNovoProcesso(listaDeProcessosParaAcaoAutomatizadaEmLote[1], processo.id);
+			}			
 		}
 		console.debug("      |___maisPJe: FIM de acoesEmLote");
 		
@@ -22426,10 +23699,9 @@ async function acoesEmLote(listaPronta) {
 			let guardarStorage2 = browser.storage.local.set({'tempAR': preferencias.tempAR}); //uso para levar o código do assunto da AA de Retificar Autuação
 			Promise.all([guardarStorage1,guardarStorage2]).then(async values => {
 				
-				let url = 'https://' + preferencias.trt + '/pjekz/processo/' + idProcesso + '/detalhe';
-				let winGigs = window.open(url, '_blank');
-				let aguardandoFimDaAA = await aguardandoFimAAEmLote();
-				winGigs.close();
+				const janelaDetalhes = apis.abrirDetalhesProcesso.abrir(preferencias.trt, { idProcesso });
+				await aguardandoFimAAEmLote();
+				janelaDetalhes.close();
 				let el = await esperarElemento('span[id*="maisPje_AALote_' + idProcesso + '"]');
 				
 				let var1 = browser.storage.local.get('erros', function(result){
@@ -22450,291 +23722,45 @@ async function acoesEmLote(listaPronta) {
 
 }
 
+//SIF
 //FUNÇÃO PARA CRIAR A JANELA COM NÚMERO DE PROCESSOS DE ACORDO COM UMA LISTA
 async function janelaAlvarasSIF(tipo) {
 	fundo(true,'PESQUISANDO ALVARÁS ' + tipo);
-	let listaTemporaria = await obterAlvarasTipo(tipo);
+	let listaTemporaria = await obterAlvarasTipo('AGUARDANDO_CONFERENCIA');
 	if (listaTemporaria.length < 1) { 
 		fundo(false);
 		criarCaixaDeAlerta("ALERTA",'Nenhum alvará encontrado na situação ' + tipo);
 		return;
 	}
-	let result = await mapTratarDados(listaTemporaria);
-	let html = await createTable(result);
-	prepararEAbrirArquivo('ALVARÁS ' + tipo + ' - Total: ' + listaTemporaria.length, html.outerHTML);
-	fundo(false);	
-	
-	async function createTable(children, titulo) {
-		exibir_mensagem("PESQUISANDO ALVARÁS: CRIANDO A TABELA");
-		let tabela = document.createElement('table');
-		
-		//cria o cabeçalho
-		let chaves_cabecalho = Object.keys(children[0]);
-		criarCabecalho();
-		
-		//cria o tbody
-		let tbody = tabela.createTBody();
-		// insere as linhas no tbody
-		
-		for(let i = 0; i < children.length; i++) {
-			let child = children[i];
-			let linha = tbody.insertRow();
-			let processo = child.processo || '';
-			let processoFormatado = numeroProcessoFormatado(processo);			
-			let banco = child.banco || '';
-			let beneficiario = child.beneficiario || '';
-			let conteudoComprovante = child.conteudoComprovante || '';
-			let tipo = child.tipo || '';
-			let valor = child.valor || '';
-			let situacao = child.situacao || '';
-			let data = child.data || '';
-			let conta = child.conta || '';
-			let identificador = await obterIdProcessoViaApi(processoFormatado);
-			
-			linha.insertCell().appendChild(document.createTextNode(banco)); //coluna 0
-			linha.insertCell().appendChild(document.createTextNode(beneficiario)); //coluna 1
-			
-			let tp = document.createElement('span');
-			tp.style = "font-size: 1em;padding: .5em;border-radius: .5em;font-weight: bold;";
-			if (tipo == 'TRANSFERENCIA_BENEFICIARIO') {
-				tp.innerText = 'TED'
-				tp.style.backgroundColor = 'gold';				
-			} else if (tipo == 'RECOLHIMENTO_DARF') {
-				tp.innerText = 'DARF'
-				tp.style.backgroundColor = 'cadetblue';
-			} else if (tipo == 'RECOLHIMENTO_GRU') {
-				tp.innerText = 'GRU'
-				tp.style.backgroundColor = 'darkorange';
-			} else if (tipo == 'RECOLHIMENTO_GPS') {
-				tp.innerText = 'GPS'
-				tp.style.backgroundColor = 'burlywood';
-			} else {
-				tp.innerText = 'OUTROS'
-				tp.style.backgroundColor = 'plum';
-			}
-			linha.insertCell().appendChild(tp); //coluna 2
-			linha.insertCell().appendChild(document.createTextNode(data)); //coluna 3
-			linha.insertCell().appendChild(document.createTextNode(valor)); //coluna 4	
-						
-			let a2 = document.createElement('a');
-			a2.id = 'maisPje_conferir_alvara_processo_conta_' + i
-			a2.href = 'https://' + preferencias.trt + '/sif/alvara/incluir/' + processo + '/104/' + conta + '?conferir';			
-			a2.setAttribute('onclick','this.parentElement.parentElement.style.backgroundColor = "skyblue";this.style.textDecoration = "line-through";');
-			a2.setAttribute('target', '_blank');
-			a2.innerText = conta;
-			
-			if (conteudoComprovante) {
-				let linkfr = document.createElement('div');
-				linkfr.style.display = 'none';
-				let fr = document.createElement('iframe');
-				fr.style = 'position: fixed; background-color: white; border: medium none;  width: 34vw; height: 90vh; transform: scale(0.8); top: 7vh;left: 5vw;outline: rgba(0, 0, 0, 0.5) solid 12vw;';
-				fr.srcdoc = conteudoComprovante;
-				linkfr.appendChild(fr);					
-				a2.appendChild(linkfr);
-				
-				a2.setAttribute('onmouseover','this.firstElementChild.style.display = "unset";');
-				a2.setAttribute('onmouseout','this.firstElementChild.style.display = "none";');
-			}
-			
-			linha.insertCell().appendChild(a2); //coluna 4
-			
-			let a1 = document.createElement('a');			
-			if (identificador[0]?.idProcesso) {
-				a1.id = identificador[0].idProcesso;
-				a1.href = 'https://' + preferencias.trt + '/pjekz/processo/' + identificador[0].idProcesso + '/detalhe';
-				a1.setAttribute('target', '_blank');
-			} else {
-				a1.id = 'numeroProcesso:' + processoFormatado;
-				a1.style.cursor = 'pointer';
-				linha.style.backgroundColor = '#f009';
-				linha.style.backgroundImage = 'repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 5px, transparent 5px, transparent 10px)';
-				linha.style.cursor = 'no-drop';
-				linha.setAttribute('title','Processo em outro Órgão Julgador');
-			}
-			a1.innerText = processoFormatado;
-			linha.insertCell().appendChild(a1); //coluna 5
-
-			let btExcluir = document.createElement('span');
-			btExcluir.style = "color: #ddd;cursor: pointer;font-weight: bold;font-size: 1.5em;";
-			btExcluir.id = 'btExcluir_' + i;
-			btExcluir.innerText = 'x';
-			btExcluir.setAttribute('onmouseenter','this.style.color = "coral";');
-			btExcluir.setAttribute('onmouseout','this.style.color = "#ddd";');
-			linha.insertCell().appendChild(btExcluir);
-			
-			linha.style.setProperty('line-height','3em');
-		}
-		return tabela;
-		
-		function criarCabecalho() {
-			let cabecalho = tabela.createTHead();
-			let linha_cabecalho = cabecalho.insertRow();
-			let celula_cabecalho0 = document.createElement('th');
-			celula_cabecalho0.style = "width: auto;";
-			celula_cabecalho0.appendChild(document.createTextNode('BANCO'));
-			
-			let celula_cabecalho1a = document.createElement('th');
-			celula_cabecalho1a.style = "width: auto;";
-			celula_cabecalho1a.appendChild(document.createTextNode('BENEFICIÁRIO'));
-			
-			let celula_cabecalho1b = document.createElement('th');
-			celula_cabecalho1b.style = "width: auto;";
-			celula_cabecalho1b.appendChild(document.createTextNode('TIPO'));
-						
-			let celula_cabecalho2 = document.createElement('th');
-			celula_cabecalho2.style = "width: auto;";
-			celula_cabecalho2.appendChild(document.createTextNode('DATA DA ORDEM'));
-			
-			let celula_cabecalho3 = document.createElement('th');
-			celula_cabecalho3.style = "width: auto;";
-			celula_cabecalho3.appendChild(document.createTextNode('VALOR'));
-			
-			let celula_cabecalho4 = document.createElement('th');
-			celula_cabecalho4.style = "width: auto;";
-			celula_cabecalho4.appendChild(document.createTextNode('CONTA JUDICIAL'));
-
-			let conferirEmLote = document.createElement("button");
-			conferirEmLote.id = 'maisPje_bt_conferirEmAALote';
-			conferirEmLote.style = "position: absolute; margin-left: 5px;width: 15px;height: 15px;cursor:pointer;";
-			conferirEmLote.title = "Conferir em Lote";	
-			celula_cabecalho4.appendChild(conferirEmLote);
-			
-			let celula_cabecalho5 = document.createElement('th');
-			celula_cabecalho5.style = "width: auto;";
-			celula_cabecalho5.appendChild(document.createTextNode('NÚMERO DO PROCESSO'));
-
-			let conferirEmLoteProcessos = document.createElement("button");
-			conferirEmLoteProcessos.id = 'maisPje_bt_ProcessoConferirEmAALote';
-			conferirEmLoteProcessos.style = "position: absolute; margin-left: 5px;width: 15px;height: 15px;cursor:pointer;";
-			conferirEmLoteProcessos.title = "Copiar processos";	
-			celula_cabecalho5.appendChild(conferirEmLoteProcessos);
-			
-			let celula_cabecalho6 = document.createElement('th');
-			celula_cabecalho6.style = "width: auto;";
-			celula_cabecalho6.appendChild(document.createTextNode(' '));
-
-			linha_cabecalho.appendChild(celula_cabecalho0);
-			linha_cabecalho.appendChild(celula_cabecalho1a);
-			linha_cabecalho.appendChild(celula_cabecalho1b);
-			linha_cabecalho.appendChild(celula_cabecalho2);
-			linha_cabecalho.appendChild(celula_cabecalho3);
-			linha_cabecalho.appendChild(celula_cabecalho4);
-			linha_cabecalho.appendChild(celula_cabecalho5);
-			linha_cabecalho.appendChild(celula_cabecalho6);
-		}
-	}
+	let result = await mapTratarDados(listaTemporaria);	
+	let guardarStorage = browser.storage.local.set({'tempAR': result});
+	Promise.all([guardarStorage]).then(values => {
+		browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSIF.html', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});					
+		fundo(false);
+	});	
 	
 	async function mapTratarDados(result) {
-		return result.map(({processo, banco, nomeBeneficiario, tipo,
-							   valor, situacao, dataSituacao, idConta, conteudoComprovante,
-								 ...rest}) => {
-			return {
-				"processo": processo,
-				"banco": banco,
-				"beneficiario": nomeBeneficiario,
-				"tipo": tipo,
-				"valor": convertValor(valor),
-				"situacao": situacao,
-				"data": simpleDate(dataSituacao),
-				"conta": idConta,
-				"conteudoComprovante": conteudoComprovante,
-				}
-		});
-
-	}
-		
-	function prepararEAbrirArquivo(titulo, tabela) {
-		let arquivoFinal = "";
-		let comecoArquivo =
-			`<html lang='pt-BR'><head><meta charset="utf-8"><style>img { display: none;}
-				body {
-					font-family: Open Sans,Arial,Verdana,sans-serif;
-				}
-				
-				table {
-					border-collapse: collapse;
-					border-spacing: 0;
-					width: 100%;
-					border: 1px solid #ddd;
-					font-size: 13px;
-				}
-				th {
-					background-color: #f0f0f0;
-					padding: 0 10px;
-					vertical-align: middle;
-					text-align: left;
-					border-bottom: 0 solid;
-					border-color: #d7d7d7;
-					min-width: -moz-fit-content;
-				}
-
-				td {
-					padding: 0 10px;
-					border-top: 2px solid rgba(0,0,0,.12);
-					text-align: left;
-					vertical-align: middle;
-				}
-
-				tr:nth-child(even) {
-					background-color: #f0f0f0;
-				}
-				
-				tr:hover {
-					background-color: #daa52075;
-					border: 2px solid goldenrod;
-				}
-				
-				.titulo {
-					font-size: 24px;
-					color: #373a3c;
-					text-align: center;
-				}
-				.subtitulo {
-					font-size: 14px;
-					color: #888;
-					text-align: center;
-				}
-				
-				a:link {
-					color: unset;
-					text-decoration: none;
-				}
-				
-				a:visited {
-					color: unset;
-					text-decoration: none;
-				}
-				
-				a:active  {
-					color: unset;
-					text-decoration: none;
-				}
-
-			</style>` + "<title> maisPJe - " + titulo + "</title></head><body id='maisPje_Janela_Conferencia_alvaras'>";
-
-		arquivoFinal += tabela + "</body></html>";
-		arquivoFinal =
-			comecoArquivo +
-			"<span class='titulo'>Relatório " +
-			titulo + " registros</span><br><br><span class='subtitulo'>" +
-			"Gerado em: " +
-			agora() +
-			"</span>" +
-			"<br><br>" +
-			"<span style='position: absolute;right: 0;top: 0;color: #e1b6b6;'>Pressione F2 para ajustar o temporizador da conferência automática de alvarás SIF &nbsp;</span>" +
-			"<br><br>" +
-			arquivoFinal;
-		
-		let novaJanela = URL.createObjectURL(
-			new Blob([arquivoFinal], { type: "text/html" })
-		);
-		
-		window.open(novaJanela, convertDate(new Date()) + " - Relatorio " + titulo + ".html");
-	}
-	
-	function convertDate(texto) {
-		let d = new Date(texto)
-		return [d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()].join('')
+		console.log(result);
+		let resposta = [];
+		for (const [pos, item] of result.entries()) {			
+			resposta.push({
+				"processo": item.processo,
+				"banco": item.banco,
+				"beneficiario": item.nomeBeneficiario,
+				"tipo": item.tipo,
+				"valor": convertValor(item.valor),
+				"situacao": item.situacao,
+				"data": simpleDate(item.dataSituacao),
+				"conta": item.idConta,
+				"conteudoComprovante": item.conteudoComprovante,
+				"trt":preferencias.trt,
+				"identificador":item.idProcesso,
+				"emissor":item.emissor,
+				"processoFormatado":item.processoFormatado
+			});
+		}
+		console.log(resposta);
+		return resposta;
 	}
 	
 	function convertValor(texto) {
@@ -22745,6 +23771,34 @@ async function janelaAlvarasSIF(tipo) {
 		return new Date(texto).toLocaleDateString();
 	}
 	
+	
+}
+
+//FUNÇÃO PARA VERIFICAR SE OS PROCESSOS POSSUEM DOCUMENTOS NÃO ASSINADOS (PARA O SIF)
+async function verificarDocumentosNaoAssinados() {
+	return new Promise(
+		async resolver => {
+	
+			console.log('maisPJe: verificarDocumentosNaoAssinados')
+			let msg = 'Verificando se existem documentos não assinados';
+			fundo(true, msg)
+			let lista = document.querySelectorAll('a[href*=".jus.br/pjekz/processo/"][href*="/detalhe"]');
+			for (const [pos, item] of lista.entries()) {
+				exibir_mensagem('Verificando se existem documentos não assinados - ' + pos)
+
+				let idProcesso = await obterIdProcessoDaUrl(item.href);
+				let doctoNaoAssinado = await existeDoctoNaoAssinado(idProcesso);		
+				if (doctoNaoAssinado) {
+					let i = document.createElement('i')
+					i.className = 'icone cadeado t12';
+					i.style = 'position: absolute; margin-top: 2px;';
+					item.parentElement.appendChild(i);
+				}
+			}
+			fundo(false);
+			return resolver(true);
+		}
+	);
 }
 
 //FUNÇÃO QUE RETORNA os alvarás pendentes de conferência
@@ -22784,12 +23838,24 @@ async function obterAlvarasTipo(tipo) {
 				if (dados.resultado.length < 1) { return resolver('') }
 				
 				let listaDeAlvaras = [];
-				exibir_mensagem("PESQUISANDO ALVARÁS: conferindo os beneficiários e sua relação com o processo");
-				for (const [pos, alvara] of dados.resultado.entries()) {
+				let total = dados.resultado.length;
+
+				for (const [pos, alvara] of dados.resultado.entries()) {					
 					if (alvara.situacao.includes(tipo)) {
+						let p = numeroProcessoFormatado(alvara.processo) //("\u2B1B").repeat(pos+1)
+						exibir_mensagem("PESQUISANDO ALVARÁS (" + (pos+1) + " de " + total + "):\n\n" + p + "\n\nObtendo os dados do alvará no SIF");
+						let dadosProcesso = await obterIdProcessoViaApiPublica(p);
+						// console.log('idprocesso1: ' + dadosProcesso)
+						if (!dadosProcesso) { 	dadosProcesso = await obterIdProcessoViaApi(p) }
+						// console.log('idprocesso2: ' + dadosProcesso)						
+						let idProcesso = dadosProcesso[0].id ? dadosProcesso[0].id : dadosProcesso[0].idProcesso;
+						alvara.idProcesso = idProcesso;
+						alvara.processoFormatado = p;
+						alvara.emissor = await obterEmissorDoAlvara(alvara.processo,alvara.banco,alvara.idConta);						
 						let status = '';
+
 						if (alvara.nomeBeneficiario) {
-							status = await conferirStatusDoBeneficiarioNoProcesso(alvara.processo,alvara.nomeBeneficiario);
+							status = await conferirStatusDoBeneficiarioNoProcesso(alvara.idProcesso,alvara.nomeBeneficiario);
 						} else {
 							if (alvara.tipo == 'TRANSFERENCIA_PROCESSO') {
 								let processodestino = '';
@@ -22797,9 +23863,10 @@ async function obterAlvarasTipo(tipo) {
 								if (padrao.test(alvara.conteudoComprovante)) {
 									processodestino = alvara.conteudoComprovante.match(padrao)[1];
 								}
-								status = 'PROCESSO N. ' + processodestino
+								status = 'PROCESSO N. ' + processodestino;
 							}
 						}
+						
 						alvara.nomeBeneficiario = status;
 						listaAlvaras.push(alvara);
 					}
@@ -22808,63 +23875,78 @@ async function obterAlvarasTipo(tipo) {
 			}
 		);
 	}
+}
 
-	async function conferirStatusDoBeneficiarioNoProcesso(processo,parte) {
-		processo = numeroProcessoFormatado(processo);
-		let dadosProcesso = await obterIdProcessoViaApi(processo);
-		if (typeof(dadosProcesso[0]) == "undefined") { return 'ERRO' }
-
-		let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + dadosProcesso[0].idProcesso + '/partes';
-		let resposta = await fetch(url,	{ headers: { "X-Grau-Instancia": 1	},	credentials: "include",	method: "GET",	mode: "cors" });
-		let dados = await resposta.json();
-		
-		// console.log('testando POLO ATIVO');
-		let status = await obterStatus(dados.ATIVO,parte);
-		
-		if (!status) { 
-			// console.log('testando POLO PASSIVO'); 
-			status = await obterStatus(dados.PASSIVO,parte);
-		}
-		
-		if (!status && dados.TERCEIROS) {
-			// console.log('testando POLO TERCEIROS');
-			status = await obterStatus(dados.TERCEIROS,parte);
-		}
-		
-		if (!status) {
-			status = ' (NÃO IDENTIFICADA)'
-		}
-
-		// console.log(parte + ' ' + status);
-		return parte + ' ' + status;
+async function conferirStatusDoBeneficiarioNoProcesso(idProcesso,parte) {
+	//https://pje.trt12.jus.br/pje-consulta-api/api/processos/961027   ---api publica.. mas dá erro fora da rede do trt
+	let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
+	let resposta = await fetch(url,	{ headers: { "X-Grau-Instancia": 1	},	credentials: "include",	method: "GET",	mode: "cors" });
+	let dados = await resposta.json();
+	let status = await obterStatus(dados.ATIVO,parte);
+	
+	if (!status) { 
+		status = await obterStatus(dados.PASSIVO,parte);
 	}
 
-	async function obterStatus(objeto, nome) {
-		return new Promise(
-			async resolver => {
-				let status = ''
-				for (const [pos, i1] of objeto.entries()) {
-					if (!status) {
-						// console.log('            |____' + i1.nome.trim());
-						if (i1.nome.trim() == nome.trim()) {
+	if (!status && dados.TERCEIROS) {
+		status = await obterStatus(dados.TERCEIROS,parte);
+	}
+	
+	if (!status) {
+		status = ' (NÃO IDENTIFICADA)'
+	}
+
+	// console.log(parte + ' ' + status);
+	return parte + ' ' + status;
+}
+
+async function obterStatus(objeto, nome) {
+	return new Promise(
+		async resolver => {
+			let status = ''
+			for (const [pos, i1] of objeto.entries()) {
+				if (!status) {
+					// console.log('            |____' + i1.nome.trim());
+					if (i1.nome.trim() == nome.trim()) {
+						status = '(' + i1.tipo.trim() + ')';
+					} else {
+						// console.log('            |____' + i1.nome.substring(0,39).trim() + " == " + nome.trim() + ' : ' + (i1.nome.substring(0,39).trim() == nome.trim()));
+						if (i1.nome.substring(0,39).trim() == nome.trim()) { // o SIF guarda o nome com no máximo 39 caracteres
 							status = '(' + i1.tipo.trim() + ')';
-						} else {
-							if (i1.representantes) {
-								for (const [pos, i2] of i1.representantes.entries()) {
-									// console.log('            |____' + i2.nome.trim());
-									if (i2.nome.trim() == nome.trim()) {
-										status = '(' + i2.tipo.trim() + ' DO ' + i1.tipo.trim() + ')';
-									}
+						} else if (i1.representantes) {
+							for (const [pos, i2] of i1.representantes.entries()) {
+								// console.log('            |____' + i2.nome.trim());
+								if (i2.nome.trim() == nome.trim()) {
+									status = '(' + i2.tipo.trim() + ' DO ' + i1.tipo.trim() + ')';
 								}
 							}
 						}
 					}
 				}
-
-				return resolver(status);
 			}
-		);
-	}
+
+			return resolver(status);
+		}
+	);
+}
+
+async function obterEmissorDoAlvara(numeroProcesso,banco,contajudicial) {
+	return new Promise(
+		async resolver => {
+
+			if (banco == 'CAIXA ECONÔMICA FEDERAL') {
+				let url1 = 'https://' + preferencias.trt + '/sif-financeiro-api/api/alvaras/lista/' + numeroProcesso + '/104/' + contajudicial + '?pagina=1&tamanhoPagina=5&ordenacaoCrescente=false&ordenacaoColuna=dtHrSituacao';
+				let resposta1 = await fetch(url1);
+				let dados1 = await resposta1.json();
+				
+				if (!dados1) { return resolver('') }
+				if (!dados1.resultado) { return resolver('') }
+				if (dados1.resultado.length <= 0) { return resolver('') }						
+				return resolver(dados1.resultado[0]?.nomeEmissor);
+			}			
+			
+		}
+	);
 }
 
 //FUNÇÃO QUE AGUARDA O CONDÃO DA CONFERENCIA DO ALVARÁ PARA IR PRO PRÓXIMO
@@ -22952,18 +24034,19 @@ async function esperarTransicaoSIF(tempoLimite=60000,classObj='cdk-overlay-backd
 	});
 }
 
+//FUNÇÃO UTILIZADA PARA CONFERÊNCIA EM LOTE DE ALVARÁS SIF E SISCONDJ
 async function conferirAlvaraEmLote() {
 	console.log('maisPje: conferirAlvaraEmLote()');
 	let verificador = false;
-	browser.storage.onChanged.addListener(logStorageChangeConferirALvara);
+	browser.storage.onChanged.addListener(logStorageChangeConferirALvaraEmLote);
 
-	let listaDeAlvaras = document.querySelectorAll('a[href*="?conferir"]');
+	let listaDeAlvaras = document.querySelectorAll('a[maispjelink*="?maisPJeconferir"]');
 	// console.log(listaDeAlvaras.length);
 
 	let listaTemp = [];
 	for (const [pos, item] of listaDeAlvaras.entries()) {
-		if (!listaTemp.includes(item.href)) {
-			listaTemp.push(item.href);
+		if (!listaTemp.includes(item.getAttribute('maispjelink'))) {
+			listaTemp.push(item.getAttribute('maispjelink'));
 		}
 	}
 
@@ -22972,7 +24055,14 @@ async function conferirAlvaraEmLote() {
 		await verificandoVerificador();
 	}
 
-	function logStorageChangeConferirALvara(changes, area) {
+	//fim da lista
+	browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+	browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
+	criarCaixaDeAlerta('AVISO', 'Conferência de alvará finalizada', temporizador=3);
+
+	// text-decoration: line-through;
+
+	function logStorageChangeConferirALvaraEmLote(changes, area) {
 		let changedItems = Object.keys(changes);
 		for (let item of changedItems) {
 			if (item == "AALote") {
@@ -23003,13 +24093,178 @@ async function conferirAlvaraEmLote() {
 		return new Promise(async resolve => {
 			console.log('maisPje: conferindo alvará do processo ...');
 			let guardarStorage1 = browser.storage.local.set({'AALote': 'conferindoAlvara'});
-			Promise.all([guardarStorage1]).then(values => {
-				document.querySelector('a[href="' + item + '"]').click();
+			Promise.all([guardarStorage1]).then(values => {				
+				document.querySelector('a[maispjelink="' + item + '"]').click();
 				return resolve(true);
 			});
 		});
 	}
 
+}
+
+//FUNÇÃO QUE RETORNA os alvarás pendentes de conferênciano SISCONDJ
+async function janelaAlvarasSISCONDJ(tipo) {
+	fundo(true,'PESQUISANDO ALVARÁS ' + tipo);
+	await obterAlvarasTipoSiscondj();
+	
+	async function iniciarCriacaoDaPagina(lista) {
+		// console.log('iniciarCriacaoDaPagina')	
+		if (lista.length < 1) { 
+			fundo(false);
+			criarCaixaDeAlerta("ALERTA",'Nenhum alvará encontrado na situação ' + tipo);
+			return;
+		}
+		// console.log(JSON.stringify(lista))
+		let result = await mapTratarDados(lista);
+		let guardarStorage = browser.storage.local.set({'tempAR': result});
+		Promise.all([guardarStorage]).then(values => {
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSISCONDJ.html', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});					
+			fundo(false);
+		});
+	}	
+
+	async function mapTratarDados(result) {
+		let resposta = [];
+		for (const [pos, item] of result.entries()) {			
+			
+			item.conteudoComprovante = item.conteudoComprovante.replace('content="application2" />','content="application2" /><style>body { font-family: "NunitoSans Regular", "Arial", sans-serif;font-size: 1em;color: #333; } div {border: 1px solid black;padding: 10px;border-radius: 7px;} div div {border: none; display: grid;grid-template-columns: 1fr 1fr; padding: 0;} label {font-weight: bold;margin: auto 0;} .pTitulo { font-size: x-large;font-weight: bold;}</style>');
+			exibir_mensagem("PESQUISANDO ALVARÁS:\n\n" + item.processoFormatado + "\n\nConferindo o beneficiário do alvará e sua relação com o processo");
+			let nomeBeneficiario = await conferirStatusDoBeneficiarioNoProcesso(item.identificador,item.nomeBeneficiario);
+
+			resposta.push({
+				"processo": item.processo,
+				"banco": item.banco,
+				"beneficiario": nomeBeneficiario,
+				"tipo": item.tipo,
+				"valor": convertValor(item.valor),
+				"situacao": item.situacao,
+				"data": simpleDate(item.data),
+				"conta": item.conta,
+				"conteudoComprovante": item.conteudoComprovante,
+				"trt": item.trt,
+				"identificador": item.identificador,
+				"emissor": item.emissor,
+				"processoFormatado": item.processoFormatado,
+				"idPrestacaoContas": item.idPrestacaoContas,
+				"idDocumentoPje": item.idDocumentoPje,
+				"idBanco": item.idBanco
+			});
+		}
+		return resposta;
+	}
+		
+	function convertValor(texto) {
+		return Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL', minimumFractionDigits: 2}).format(texto)
+	}
+	
+	function simpleDate(texto) {
+		let d = toISOFormat(texto)
+		return new Date(d).toLocaleDateString("pt-BR");
+	}
+
+	async function obterAlvarasTipoSiscondj() {
+		return new Promise(
+			async resolver => {
+				let guardarStorage = browser.storage.local.set({ 'tempAR': {"conferirSiscondj":1,"lista":[]} }); //1:inicio  2:meio  3:fim
+				Promise.all([guardarStorage]).then(values => { 
+					browser.storage.onChanged.addListener(logStorageChangeConferirALvaraSiscondj);
+					let url = getUrlBaseSiscondj();
+					url += '/pages/mandado/acompanhamento/new?maisPJeGerarRelatorio';
+					let win = window.open(decodeURI(url), '_blank');
+					win.focus();
+					return resolver(true);
+				});
+			}
+		);
+
+		//não esquecer de derrubar este eventlistener
+		function logStorageChangeConferirALvaraSiscondj(changes, area) {
+			let changedItems = Object.keys(changes);
+			for (let item of changedItems) {
+				if (item == "tempAR") {
+					if (changes[item].newValue?.conferirSiscondj == 3) {
+						preferencias.tempAR = changes[item].newValue;
+						iniciarCriacaoDaPagina(preferencias.tempAR.lista);					
+					} else if (changes[item].newValue?.conferirSiscondj == 0) { //nenhum alvará pendente
+						browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
+						criarCaixaDeAlerta("ALERTA","Não foi encontrado alvará para conferir.", 3);
+						fundo(false);
+					}
+				}
+			}
+		}
+	}	
+}
+
+//SISCONDJ: RECUPERAR DADOS DETALHADOS
+async function recuperarDadosDetalhadosSiscondj(alvara) {
+	return new Promise(
+		async resolver => {
+			
+			let url = getUrlBaseSiscondj();
+			url += '/pages/mandado/pagamento/exibirAcionadoPelaGrid/' + alvara;
+			// console.log(url)
+			let resposta = await fetch(url)
+			.then(resposta => { return resposta.text() })
+			.then(html => { 
+				let parser = new DOMParser();
+				let doc = parser.parseFromString(html, "text/html");				
+				let relatorio = doc.querySelector('table[id="dados_solicitacao"][class*="relatorio"]');			
+				let alvaras = [];
+				for (const [pos, linha] of relatorio.querySelectorAll('TR').entries()) {
+					if (linha.firstElementChild.tagName == 'TD') {
+						if (linha.childNodes.length >= 15) {
+							// console.log('0: ' + linha.childNodes[0].textContent.trim())
+							// console.log('1: ' + linha.childNodes[1].textContent.trim())
+							// console.log('2: ' + linha.childNodes[2].textContent.trim())
+							// console.log('3: ' + linha.childNodes[3].textContent.trim())
+							// console.log('4: ' + linha.childNodes[4].textContent.trim())
+							// console.log('5: ' + linha.childNodes[5].textContent.trim())
+							// console.log('6: ' + linha.childNodes[6].textContent.trim())
+							// console.log('7: ' + linha.childNodes[7].textContent.trim())
+							// console.log('8: ' + linha.childNodes[8].textContent.trim())
+							// console.log('9: ' + linha.childNodes[9].textContent.trim())
+							// console.log('10: ' + linha.childNodes[10].textContent.trim())
+							// console.log('11: ' + linha.childNodes[11].textContent.trim())
+							// console.log('12: ' + linha.childNodes[12].textContent.trim())
+							// console.log('13: ' + linha.childNodes[13].textContent.trim())
+							// console.log('14: ' + linha.childNodes[14].textContent.trim())
+							let d = linha.childNodes[13].querySelector('span[title="Visualizar"]');
+							alvaras.push({
+								"beneficiarios":linha.childNodes[7].textContent.trim(),
+								"valor":linha.childNodes[9].textContent.trim(),
+								"detalhes":'/pages/mandado/pagamento/solicitacao/exibir/' + d.id
+							})
+							
+						}
+					}
+				}
+				return resolver(alvaras);
+			})
+			
+		}
+	);
+}
+
+async function verificarTipoDeDeposito(param) {
+	return new Promise(
+		async resolver => {
+			
+			let url = getUrlBaseSiscondj();
+			url += param;
+			// console.log(url)
+			let resposta = await fetch(url)
+			.then(resposta => { return resposta.text() })
+			.then(html => { 
+				let parser = new DOMParser();
+				let doc = parser.parseFromString(html, "text/html");
+				let t = doc.querySelector('p[class*="pTitulo"]').innerText;
+				// console.log(doc)		
+				return resolver({"tipo":t,"comprovante":html});
+			})
+			
+		}
+	);
 }
 
 //FUNÇÃO QUE APLICA VISIBILIDADE DE SIGILO PARA O ÚLTIMO DOCUMENTO JUNTADO NO PROCESSO
@@ -23122,28 +24377,7 @@ function incluirBotaoVariaveis() {
 		if (!componente_negrito_editor) { return }	
 		
 		let ancora = document.querySelector('div[class*="ck-toolbar__items"]');
-		let opcoes = [		
-			'[maisPje:exequente]',
-			'[maisPje:executado]',
-			'[maisPje:valorDivida]',
-			'[maisPje:dataDaDivida]',
-			'[maisPje:justiçagratuita]',
-			'[maisPje:justiçagratuitaData]',
-			'[maisPje:transitoJulgado]',
-			'[maisPje:custasArbitradas]',
-			'[maisPje:idPetiçãoInicial]',
-			'[maisPje:idÚltimaContestação]',
-			'[maisPje:idÚltimaManifestação]',
-			'[maisPje:idÚltimaSentença]',
-			'[maisPje:idÚltimoAcórdão]',
-			'[maisPje:idÚltimoDespacho]',
-			'[maisPje:idÚltimaDecisão]',
-			'[maisPje:idÚltimaAta]',
-			'[maisPje:idÚltimaCertidão]',
-			'[maisPje:idÚltimoCálculo]',
-			'[maisPje:CódigoChaveDeAcesso]',
-			'[maisPje:CódigoPetiçãoInicial]'
-		];
+		let opcoes = listaDeVariaveisParaEditorDeTexto;
 
 		//criar estrutura da barra_zoom
 		let barra_zoom = document.createElement("div");
@@ -23162,8 +24396,8 @@ function incluirBotaoVariaveis() {
 		combobox.innerText
 		opcoes.forEach(function(item){
 		   let opt = document.createElement('option');
-		   opt.value = item;
-		   opt.innerText = item;
+		   opt.value = item[0];
+		   opt.innerText = item[0];
 		   combobox.appendChild(opt);
 		});
 
@@ -23195,126 +24429,86 @@ async function substituirVariaveisEditorTexto() {
 	return new Promise(async resolver => {
 		if (document.querySelector('pje-editor-documento')) {
 			fundo(true,'Substituindo variáveis maisPje');
-			if (!preferencias.processo_memoria) { return resolver(false) }
-
+			// if (!preferencias.processo_memoria) { return resolver(false) }
+			var idProcesso = await obterIdProcessoDaUrl();
 			let ancora = await esperarElemento('div[aria-label*="Alt+F10 para acessar a barra de tarefas"]')
-			if (!ancora) { return resolver(false) }
+			if (!ancora) { return resolver(false) }			
 			
-			let exequente = '';
-			let executado = '';
-
-			if (!preferencias.processo_memoria?.autor) {
-				exequente = '';
-			} else {
-				let posA = 1;
-				[].map.call(
-					preferencias.processo_memoria.autor, 
-					function(parte) {
-						exequente += posA + '. ' + parte.nome + ' (CPF/CNPJ ' + parte.cpfcnpj + ') ';
-						posA++;
-					}
-				);
-			}
-
-			if (!preferencias.processo_memoria?.reu) {
-				executado = '';
-			} else {
-				let posR = 1;
-				[].map.call(
-					preferencias.processo_memoria.reu, 
-					function(parte) {
-						executado += posR + '. ' + parte.nome + ' (CPF/CNPJ ' + parte.cpfcnpj + ') ';
-						posR++;			
-					}
-				);
-			}
-			let valor_da_divida = Intl.NumberFormat('pt-br', {style: 'currency', currency: 'BRL'}).format(preferencias.processo_memoria.divida.valor);
-			let data_da_divida = preferencias.processo_memoria?.divida.data;
-			let jg = preferencias.processo_memoria?.justicaGratuita[0];
-			let jg_data = preferencias.processo_memoria?.justicaGratuita[1];
-			let transito_julgado = preferencias.processo_memoria?.transito;
-			let custas_arbitradas = preferencias.processo_memoria?.custas;			
-
 			console.log('maisPje: substituirVariaveisEditorTexto(): ' + ancora);
 
-			if (ancora.textContent.includes('[maisPje:exequente]')) { await substituir('[maisPje:exequente]',exequente) }
-			if (ancora.textContent.includes('[maisPje:executado]')) { await substituir('[maisPje:executado]',executado) }
-			if (ancora.textContent.includes('[maisPje:valorDivida]')) { await substituir('[maisPje:valorDivida]',valor_da_divida) }
-			if (ancora.textContent.includes('[maisPje:dataDaDivida]')) { await substituir('[maisPje:dataDaDivida]',data_da_divida) }
-			if (ancora.textContent.includes('[maisPje:justiçagratuita]')) { await substituir('[maisPje:justiçagratuita]',jg) }
-			if (ancora.textContent.includes('[maisPje:justiçagratuitaData]')) { await substituir('[maisPje:justiçagratuitaData]',jg_data) }
-			if (ancora.textContent.includes('[maisPje:transitoJulgado]')) { await substituir('[maisPje:transitoJulgado]',transito_julgado) }
-			if (ancora.textContent.includes('[maisPje:custasArbitradas]')) { await substituir('[maisPje:custasArbitradas]',custas_arbitradas) }
+			if (ancora.textContent.includes('[maisPje:exequente]') || ancora.textContent.includes('[maisPje:executado]')) {
+				let partes = await ObterPartesDoProcesso(idProcesso);
+				if (ancora.textContent.includes('[maisPje:exequente]')) { await substituir('[maisPje:exequente]',partes.poloativo) }
+				if (ancora.textContent.includes('[maisPje:executado]')) { await substituir('[maisPje:executado]',partes.polopassivo) }
+			}
+			if (ancora.textContent.includes('[maisPje:valorDivida]') || ancora.textContent.includes('[maisPje:dataDaDivida]')) {
+				let divida = await ObterValorExecucao(idProcesso);
+				if (ancora.textContent.includes('[maisPje:valorDivida]')) { await substituir('[maisPje:valorDivida]',Intl.NumberFormat('pt-br', {style: 'currency', currency: 'BRL'}).format(divida.valor)) }
+				if (ancora.textContent.includes('[maisPje:dataDaDivida]')) { await substituir('[maisPje:dataDaDivida]',divida.data) }
+			}
+			if (ancora.textContent.includes('[maisPje:justiçagratuita]') || ancora.textContent.includes('[maisPje:justiçagratuitaData]')) {
+				let NAO_CONCEDIDA_AJ = 334;
+				let CONCEDIDA_AJ = 11024;
+				let movimento = await ObterMovimentosPelosCodigos(idProcesso,[NAO_CONCEDIDA_AJ,CONCEDIDA_AJ]);
+				if (movimento[0]) {
+					let titulo = movimento[0].titulo || movimento[0].textoFinalExterno;
+					let justica_gratuita = (titulo.includes('Não concedida')) ? "Não" : "Sim";
+					let dt = new Date(movimento[0].atualizadoEm);
+					let justica_gratuita_data = ("0" + dt.getDate()).slice(-2) + '/' + ("0" + (dt.getMonth()+1)).slice(-2) + '/' + dt.getFullYear();
+					if (ancora.textContent.includes('[maisPje:justiçagratuita]')) { await substituir('[maisPje:justiçagratuita]',justica_gratuita) }
+					if (ancora.textContent.includes('[maisPje:justiçagratuitaData]')) { await substituir('[maisPje:justiçagratuitaData]',justica_gratuita_data) }
+					
+				} else {
+					if (ancora.textContent.includes('[maisPje:justiçagratuita]')) { await substituir('[maisPje:justiçagratuita]','---') }
+					if (ancora.textContent.includes('[maisPje:justiçagratuitaData]')) { await substituir('[maisPje:justiçagratuitaData]','---') }
 
-
-			let idPeca;
-
-			if (ancora.textContent.includes('[maisPje:idPetiçãoInicial]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Petição Inicial');
-				await substituir('[maisPje:idPetiçãoInicial]',idPeca);				 
+				}
+								
+			}
+			if (ancora.textContent.includes('[maisPje:transitoJulgado]')) {
+				let TRANSITADO_EM_JULGADO = 848;
+				let movimento = await ObterMovimentosPelosCodigos(idProcesso,[TRANSITADO_EM_JULGADO]);
+				if (movimento[0]) {
+					let titulo = movimento[0].titulo || movimento[0].textoFinalExterno;
+					let transito_julgado = titulo.match(new RegExp('\\d{2}\\/\\d{2}\\/\\d{4}')).join();
+					await substituir('[maisPje:transitoJulgado]',transito_julgado);
+				} else {
+					await substituir('[maisPje:transitoJulgado]','---');
+				}
+				
+			}
+			if (ancora.textContent.includes('[maisPje:custasArbitradas]')) {
+				let ARBITRADAS_AS_CUSTAS_PROCESSUAIS_NO_VALOR = 50073;
+				let movimento = await ObterMovimentosPelosCodigos(idProcesso,[ARBITRADAS_AS_CUSTAS_PROCESSUAIS_NO_VALOR]);
+				if (movimento[0]) {
+					let titulo = movimento[0].titulo || movimento[0].textoFinalExterno;
+					let custas_arbitradas = parseFloat(titulo.replace(new RegExp('[^0-9\,]', 'g'), ""));
+					custas_arbitradas = Intl.NumberFormat('pt-br', {style: 'currency', currency: 'BRL'}).format(custas_arbitradas)
+					console.log(custas_arbitradas)
+					await substituir('[maisPje:custasArbitradas]',custas_arbitradas)
+				} else {
+					await substituir('[maisPje:custasArbitradas]','---')
+				}
+				
 			}
 
-			if (ancora.textContent.includes('[maisPje:idÚltimaContestação]')) {
-				idPeca = await obterPecaProcessualDaTimeline('Contestação');
-				await substituir('[maisPje:idÚltimaContestação]',idPeca);
-			}
+			let variavel;
+			let itensTimeline = undefined;
+			for (const [pos, item] of listaDeVariaveisParaEditorDeTexto.entries()) {
 
-			if (ancora.textContent.includes('[maisPje:idÚltimaManifestação]')) {
-				idPeca = await obterPecaProcessualDaTimeline('Manifestação');
-				await substituir('[maisPje:idÚltimaManifestação]',idPeca); 
-			}			
-
-			if (ancora.textContent.includes('[maisPje:idÚltimaSentença]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Sentença');
-				await substituir('[maisPje:idÚltimaSentença]',idPeca); 
-			}
-
-			if (ancora.textContent.includes('[maisPje:idÚltimoAcórdão]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Acórdão');
-				await substituir('[maisPje:idÚltimoAcórdão]',idPeca);
-			}
-
-			if (ancora.textContent.includes('[maisPje:idÚltimoDespacho]')) {
-				console.log('entrou')
-				idPeca = await obterPecaProcessualDaTimeline('Despacho');
-				await substituir('[maisPje:idÚltimoDespacho]',idPeca);
-			}
-
-			if (ancora.textContent.includes('[maisPje:idÚltimaDecisão]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Decisão');
-				await substituir('[maisPje:idÚltimaDecisão]',idPeca);
-			}
-
-			if (ancora.textContent.includes('[maisPje:idÚltimaAta]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Ata da Audiência');
-				await substituir('[maisPje:idÚltimaAta]',idPeca);
-			}
-
-			if (ancora.textContent.includes('[maisPje:idÚltimaCertidão]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Certidão');
-				await substituir('[maisPje:idÚltimaCertidão]',idPeca);
-			}
-
-			if (ancora.textContent.includes('[maisPje:idÚltimoCálculo]')) { 
-				idPeca = await obterPecaProcessualDaTimeline('Planilha de Cálculos');
-				await substituir('[maisPje:idÚltimoCálculo]',idPeca);
-			}
-
-			if (ancora.textContent.includes('[maisPje:CódigoChaveDeAcesso]')) {
-				idPeca = await obterPecaProcessualDaTimeline('Chave de Acesso',false);
-				if (idPeca) {
-					let codigo = await obterCodigoValidacaoDocumento(idPeca);
-					await substituir('[maisPje:CódigoChaveDeAcesso]',codigo); 
+				//a ideia aqui é obter todas as variáveis do proprio pje.. sem depender da memoria do kaizen
+				if (item[1] != '') { //variáveis obtidas na hora
+					if (ancora.textContent.includes(item[0])) { 
+						itensTimeline = itensTimeline ?? await apis.timelineProcesso.executar(preferencias.trt, {idProcesso});
+						// console.log(idProcesso)
+						// console.log(item)
+						// console.log(itensTimeline)
+						variavel = await obterPecaProcessualDaTimeline(idProcesso, item, itensTimeline);
+						await substituir(item[0],variavel);				 
+					}
 				}
 			}
 
-			if (ancora.textContent.includes('[maisPje:CódigoPetiçãoInicial]')) {
-				idPeca = await obterPecaProcessualDaTimeline('Petição Inicial',false);
-				if (idPeca) {
-					let codigo = await obterCodigoValidacaoDocumento(idPeca);
-					await substituir('[maisPje:CódigoPetiçãoInicial]',codigo); 
-				}
-			}
 			fundo(false);
 		}
 		return resolver(true);
@@ -23348,47 +24542,109 @@ async function substituirVariaveisEditorTexto() {
 		});
 	}
 
-	async function obterPecaProcessualDaTimeline(tipo,idUnico=true) {
+	async function ObterPartesDoProcesso(idProcesso) {
 		return new Promise(async resolve => {
 			let urlBase = preferencias.trt;
-			if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
-			
-			let idProcesso = preferencias.processo_memoria?.id;
-
+			if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }						
 			if (!idProcesso) { 
-				alert("maisPje: Algo deu errado ao recuperar os id " + tipo + " do processo [ERRO1].");
+				alert("maisPje: " + idProcesso + " não encontrado [ERRO1].");
 				return resolve('ERRO1');
 			}
 			
-			let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?somenteDocumentosAssinados=false&buscarMovimentos=false&buscarDocumentos=true';
+			let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
 			let resposta = await fetch(url);
 			let dados = await resposta.json();
-	
+
+			let poloAtivo = '';
+			for (const [pos, parte] of dados.ATIVO.entries()) {
+				if (dados.ATIVO.length > 1) { poloAtivo += (pos+1) + '. ' }
+				let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido";
+				poloAtivo += parte.nome.trim() + ' (CPF/CNPJ ' + cpfcnpj + ') ';
+			}
+
+			let poloPassivo = '';
+			for (const [pos, parte] of dados.PASSIVO.entries()) {
+				if (dados.PASSIVO.length > 1) { poloPassivo += (pos+1) + '. ' }
+				let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido"
+				poloPassivo += parte.nome.trim() + ' (CPF/CNPJ ' + cpfcnpj + ') ';
+			}
+
+			return resolve({"poloativo":poloAtivo,"polopassivo":poloPassivo});
+		});
+	}
+
+	async function ObterValorExecucao(idProcesso){
+		return new Promise(async resolve => {
+			let valorExecucaoGigs = await ObterValorExecucaoGigs(idProcesso);
+			
+			if (isNaN(valorExecucaoGigs.valor) || valorExecucaoGigs.valor < 1) {
+				const valorExecucaoPjeCalc = await pjeApiObterValorExecucaoPJeCalc(idProcesso);
+				resolve(valorExecucaoPjeCalc);
+			} else {
+				resolve(valorExecucaoGigs);
+			}		
+		});
+
+		async function ObterValorExecucaoGigs(idProcesso){
+			return new Promise(async resolve => {
+				const semValor = {id: '(GIGS)',valor: 0, data: '--/--/----'};
+		
+				try {
+					const dados = await apis.execucaoProcessoGigs.executar(preferencias.trt, { idProcesso });				
+					if (!dados) {return resolve(semValor);}
+					
+					let ultimoCalculo = dados.valor;
+					let dataUltimoCalculo = new Date(dados.data);		
+					let dia  =  (dataUltimoCalculo.getDate() + '').padStart(2,'0') + '/';
+					let mes = ((dataUltimoCalculo.getMonth()+1) + '').padStart(2,'0');
+					let ano = '/' + dataUltimoCalculo.getFullYear()				
+					
+					resolve({id: '(GIGS)',valor: ultimoCalculo, data: (dia + mes + ano)});
+				} catch (err) {
+					alert("maisPje: Algo deu errado ao recuperar o valor da dívida no GIGS. (cd-124)");
+					console.error(err);
+					resolve(semValor);
+				}	
+			});
+		}
+	}
+
+	async function obterPecaProcessualDaTimeline(idProcesso,tipo, itensTimeline=undefined) {
+		return new Promise(async resolve => {
+			if (!idProcesso) { 
+				alert("maisPje: " + idProcesso + " não encontrado [ERRO1].");
+				return resolve('ERRO1');
+			}
+			const dados = itensTimeline ?? await apis.timelineProcesso.executar(preferencias.trt, {idProcesso});
 			let resultado = '';
-			if (dados) { 
-				
-				for (const [pos, docto] of dados.entries()) {
-					// console.log('tipo documento: ' + docto.tipo)
-					if (tipo == 'Chave de Acesso') {
-						//Chave de Acesso && Certidão
-						if (docto.tipo == 'Chave de Acesso' || (docto.tipo == 'Certidão' && docto.titulo.includes('Chave de Acesso'))) {
-							resultado = (idUnico) ? docto.idUnicoDocumento : docto.id;
+			if (dados) {
+				let pesquisandoChave = tipo[0].includes(':chave]') ? true : false; //estou pesquisando chave de Acesso? Pq neste caso tenho que pegar o IdDoDocumento pra depois pegar a chave
+				const getResultado = async (doc) => 
+					pesquisandoChave 
+						? await obterCodigoValidacaoDocumento(idProcesso, doc.id) // este passa a chave
+						: doc.idUnicoDocumento; //este passa o Id
+				if (tipo[1] == '*') {
+					resultado = await getResultado(dados[0]);
+					return resolve(resultado)
+				} else if (!JSON.stringify(dados).includes(tipo[1])) {
+					return resolve(resultado) 
+				}
+				for (const docto of [...dados, ...dados.flatMap(d => d?.anexos || [])]) {
+					const isChaveAcesso = (tipo[1] == 'Chave de Acesso') && 
+						(docto.tipo.toLowerCase() == 'chave de acesso' || 
+							(docto.tipo.toLowerCase() == 'certidão' && docto.titulo.toLowerCase().includes('chave de acesso')));
+					const isPlanilhaCalculos = !isChaveAcesso && (tipo[1] == 'Planilha de Cálculos') &&
+						(['Planilha de Cálculos','Planilha de Atualização de Cálculos'].includes(docto.tipo));
+
+					if (isChaveAcesso ||
+						isPlanilhaCalculos ||
+						docto.tipo == tipo[1]) {
+						resultado = await getResultado(docto);
 							break;
-						}
-					} else if (docto.tipo == tipo) {
-						resultado = (idUnico) ? docto.idUnicoDocumento : docto.id;
-						break;
-					} else if (docto.anexos) {
-						for (const [pos, anexo] of docto.anexos.entries()) {
-							// console.log('   |___anexo > tipo documento: ' + anexo.tipo)
-							if (anexo.tipo == tipo) {
-								resultado = (idUnico) ? anexo.idUnicoDocumento : anexo.id;
-								break;
-							}
-						}
+
 					}
 				}
-
+				// console.log('----------- ' + resultado + ' --------------')
 				return resolve(resultado);
 			} else {
 				return resolve('ERRO2');
@@ -23397,23 +24653,10 @@ async function substituirVariaveisEditorTexto() {
 		});
 	}
 
-	async function obterCodigoValidacaoDocumento(idDocumento) {
+	async function obterCodigoValidacaoDocumento(idProcesso,idDocumento) {
 		return new Promise(async resolve => {
-			let urlBase = preferencias.trt;
-			if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
-			
-			let idProcesso = preferencias.processo_memoria?.id;
-
-			if (!idProcesso) { 
-				alert("maisPje: Algo deu errado ao recuperar os id " + tipo + " do processo [ERRO1].");
-				return resolve('ERRO1');
-			}
-
-			let grau_usuario = preferencias.grau_usuario == "segundograu" ? 2 : 1;
-			let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/documentos/id/' + idDocumento + '?incluirAssinatura=true&incluirAnexos=false&grau=' + grau_usuario;
-			let resposta = await fetch(url);
-			let dados = await resposta.json();
-	
+			const grau = getGrauAsNumber(preferencias.grau_usuario);
+			const dados = await apis.documentoProcessoPorId.executar(preferencias.trt, {idProcesso, idDocumento, grau});	
 			let resultado = '';
 			if (dados) { 
 
@@ -23423,6 +24666,197 @@ async function substituirVariaveisEditorTexto() {
 				
 				return resolve(resultado);
 			} else {
+				return resolve('ERRO3');
+			}
+			
+		});
+	}
+
+	async function ObterMovimentosPelosCodigos(idProcesso, codigosMovimentos) {
+		return apis.movimentosProcesso.executar(preferencias.trt, { idProcesso, codEventos: codigosMovimentos });
+	}
+}
+
+async function trocarMagistradoResponsavelPelaMinuta() {
+	return new Promise(async resolver => {
+		console.log('entrou')
+		let editor = await esperarElemento('pje-editor-documento')
+		if (editor) {
+			fundo(true,'maisPje: substituindo juiz pela nova regra do módulo 8');
+			let ancora = await esperarElemento('div[aria-label*="Alt+F10 para acessar a barra de tarefas"]')
+			if (!ancora) { return resolver(false) }
+			let btEstaNoAssinar = await esperarElemento('button[aria-label="Retornar minuta para elaboração"]',null,1000);
+			if (btEstaNoAssinar) { //BOTAO RETORNAR MINUTA PARA ELABORAÇÃO
+				await clicarBotao('button[aria-label="Retornar minuta para elaboração"]');
+				await esperarTransicao(true);
+			}
+			
+			//pegar o despacho
+			ancora = await esperarElemento('div[aria-label*="Alt+F10 para acessar a barra de tarefas"]')
+			await sleep(500);
+			let minutaDEdespacho = ancora.innerText;
+			await copiarClipboard(minutaDEdespacho);
+			await sleep(1000)
+
+			let var1 = browser.storage.local.set({'tempAR': {"tipo":"minutaDEdespacho","obj":minutaDEdespacho}});
+			let var2 = browser.storage.local.set({'tempBt': ['acao_bt_aaDespacho', 998]});
+			Promise.all([var1,var2]).then(async values => {				
+				await clicarBotao('button[aria-label="Cancelar conclusão"]');
+				await clicarBotao('div[class="cdk-overlay-pane"] button','Sim'); //sim				
+				await esperarTransicao(true);
+				window.location.reload();				
+			});
+		}
+		return resolver(true);
+	});
+
+	async function esperarTransicao(esperar=true, tempo=10000) {
+		return new Promise(async resolve => {
+			if (!esperar) { return resolve(true) }
+			
+			//condição de transição entre as tarefas
+			let check0 = setInterval(function() {
+				if (document.location.href.includes('/transicao')) {
+					clearInterval(check0);
+					console.log('maisPje : esperarTransicao() : transição finalizada!');
+					resolve(true);
+				}				
+			}, 10);
+			
+			let passoUm = false;
+			
+			//condições de transição entre elaborar despacho/decisão/sentença e assinar despacho/decisão/sentença
+			let erro = setInterval(async function() {
+				
+				//erro pendência de movimento
+				let aviso = document.querySelector('SIMPLE-SNACK-BAR');
+				if (aviso?.innerText?.includes('as movimentações processuais que serão lançadas quando a minuta for assinada')) {
+					clearInterval(erro);
+					clearInterval(check1);
+					clearInterval(check2);
+					console.log('maisPje : esperarTransicao() : Erro: Exigência de Movimento!');
+					let num = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+					let guardarStorage = browser.storage.local.set({'erros': num + ' : AA exige movimento para enviar para assinatura!'});
+					Promise.all([guardarStorage]).then(values => {
+						resolve(true);
+					});
+					
+					
+					resolve(true);
+				}
+				
+				//pendência no documento - marca-texto
+				let aviso2 = document.querySelector('div[class="cdk-overlay-container"] mat-dialog-container');
+				if (aviso2?.innerText?.includes('Deseja continuar mesmo assim?')) {
+					await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button','sim');					
+				}
+				
+			}, 100);			
+			
+			let check1 = setInterval(async function() {
+				if (document.location.href.includes('/assinar')) {
+					clearInterval(check1);
+					passoUm = true;					
+				}				
+			}, 200);
+			
+			let check2 = setInterval(async function() {
+				if (document.location.href.includes('/assinar') && passoUm) {
+					clearInterval(check2);
+					clearInterval(check0);
+					clearInterval(erro);
+					await clicarBotao('button[aria-label="Salvar"]',null, true);
+					console.log('maisPje : esperarTransicao() : transição finalizada!');
+					resolve(true);
+				}				
+			}, 500);
+			
+			setTimeout(async function() {
+				clearInterval(erro);
+				clearInterval(check0);
+				clearInterval(check1);
+				clearInterval(check2);
+				console.log('maisPje : esperarTransicao() : tempo esgotado!');
+				let num = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+				let guardarStorage = browser.storage.local.set({'erros': num + ' : PJe lento... tempo esgotado!'});
+				Promise.all([guardarStorage]).then(values => {
+					resolve(true);
+				});
+			}, tempo); //aguarda 10 segundos
+		});
+	}
+}
+
+//testes..
+async function remeterAoSegundoGrau(idProcesso) {
+	return new Promise(async resolver => {
+		let documentosNecessariosParaAnalise = await obterDocumentosNecessariosParaAnalise(idProcesso);
+		console.log('----------- ' + JSON.stringify(documentosNecessariosParaAnalise) + ' --------------')
+
+
+		for (const [pos, item] of documentosNecessariosParaAnalise.entries()) {
+			//{'idUnicoDocumento':docto.idUnicoDocumento,'titulo':docto.titulo,'tipo':docto.tipo,'tipoPolo':docto.tipoPolo,'depositorecursal':depositoRecursal,'custasProcessuais':custasProcessuais}
+			let depositoRecursal = (item.depositoRecursal) ? 'Sim' : 'Não';
+			let custasRecolhidas = (item.custasProcessuais) ? 'Sim' : 'Não';
+			await criarCaixaDeAlerta('teste',item.tipo + ' : ' + item.tipoPolo + '\n\nDeposito Recursal: ' + (depositoRecursal) + '\n\nCustas Recolhidas: ' + (custasRecolhidas));
+		}
+
+	});
+
+	async function obterDocumentosNecessariosParaAnalise(id) {
+		return new Promise(async resolve => {
+			let urlBase = preferencias.trt;
+			if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }						
+			if (!id) { 
+				alert("maisPje: " + id + " não encontrado [ERRO1].");
+				return resolve('ERRO1');
+			}
+			
+			let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + id + '/timeline?somenteDocumentosAssinados=false&buscarMovimentos=false&buscarDocumentos=true';
+			let resposta = await fetch(url);
+			let dados = await resposta.json();
+	
+			let resultado = [];
+			if (dados) {
+
+				for (const [pos, docto] of dados.entries()) {
+					console.log(docto.tipo.toLowerCase())
+					if (docto.tipo.toLowerCase() == "sentença") { //sai do looping
+						break;
+						
+					} else {
+							if (["recurso ordinário","contrarrazões","agravo de petição","contraminuta"].includes(docto.tipo.toLowerCase())) {
+								let depositoRecursal;
+								let custasProcessuais;
+								//se tiver anexos provavelmente tem guia de depósito recursal e custas
+								if (docto.anexos) {
+									for (const [pos2, anexo] of docto.anexos.entries()) {
+										
+										if (anexo.tipo.toLowerCase() == "comprovante de depósito recursal") {
+											depositoRecursal = {'idUnicoDocumento':anexo.idUnicoDocumento,'titulo':anexo.titulo,'tipo':anexo.tipo};
+										} else if (anexo.tipo.toLowerCase() == "guia de recolhimento da união") {
+											custasProcessuais = {'idUnicoDocumento':anexo.idUnicoDocumento,'titulo':anexo.titulo,'tipo':anexo.tipo};
+										} else if (anexo.tipo.toLowerCase() == "documento diverso") {
+											if (anexo.titulo.toLowerCase().includes('custas')) {
+												custasProcessuais = {'idUnicoDocumento':anexo.idUnicoDocumento,'titulo':anexo.titulo,'tipo':anexo.tipo};
+											}
+											if (anexo.titulo.toLowerCase().includes('recursal')) {
+												depositoRecursal = {'idUnicoDocumento':anexo.idUnicoDocumento,'titulo':anexo.titulo,'tipo':anexo.tipo};
+											}
+										}
+
+									}
+			
+								}
+
+								resultado.push({'idUnicoDocumento':docto.idUnicoDocumento,'titulo':docto.titulo,'tipo':docto.tipo,'tipoPolo':docto.tipoPolo,'depositoRecursal':depositoRecursal,'custasProcessuais':custasProcessuais});
+
+							}
+
+					}
+				}				
+				return resolve(resultado);
+			} else {
 				return resolve('ERRO2');
 			}
 			
@@ -23430,378 +24864,32 @@ async function substituirVariaveisEditorTexto() {
 	}
 }
 
-async function criarPainelComDadosDaMemoria() {
-
-	let html = await createTable();
-	prepararEAbrirArquivo(html.outerHTML);
-
-	function createTable() {		
-		let processo_memoria = preferencias.processo_memoria;
-
-
-		let tabela = document.createElement('div');
-		// tabela.style = 'display: flex;flex-direction: row;';
-
-		// let colunaEsq = document.createElement('div');
-		// colunaEsq.style = 'display: flex; flex-direction: column;min-width: 35%;';
-		// let colunaDir = document.createElement('div');
-
-		
-		
-		let containerUL = document.createElement('ul')
-		let liDadosProcesso = document.createElement('li')
-		let dadosProcesso = document.createElement('dadosProcesso')
-		dadosProcesso.setAttribute('ocultar',false)
-		dadosProcesso.appendChild(inserirLinha('DADOS DO PROCESSO','dadosprocesso'));
-		dadosProcesso.appendChild(inserirLinha('Número do Processo','comum negrito'));
-		dadosProcesso.appendChild(inserirLinha(processo_memoria.numero,'selecionavel recuado','Número do processo com formatação'));
-		dadosProcesso.appendChild(inserirLinha(processo_memoria.numero[0].replace(/\D/g,""),'selecionavel recuado opcao','Número do processo sem formatação'));
-
-		let valor_formatado_para_uso = Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL'}).format(processo_memoria.divida.valor);
-		let valor_formatado_para_exibir_sem_data = Intl.NumberFormat('pt-br', {style: 'currency', currency: 'BRL'}).format(processo_memoria.divida.valor);
-		let valor_formatado_para_exibir_com_data = valor_formatado_para_exibir_sem_data + " em " + processo_memoria.divida.data;
-		let extenso = porExtenso(valor_formatado_para_exibir_sem_data);
-		console.log(extenso)
-		let valor_formatado_comExtenso = valor_formatado_para_exibir_sem_data + ' (' + extenso + ')';
-		dadosProcesso.appendChild(inserirLinha('Total da Execução','comum negrito'));		
-		if (processo_memoria.divida.valor <= 0) {
-			dadosProcesso.appendChild(inserirLinha('não há registro','selecionavel recuado'));
-		} else {
-			dadosProcesso.appendChild(inserirLinha(valor_formatado_para_exibir_com_data,'selecionavel recuado','Valor da execução formatado com data da atualização'));					
-			dadosProcesso.appendChild(inserirLinha(valor_formatado_para_exibir_sem_data,'selecionavel recuado opcao','Valor da execução formatado'));
-			dadosProcesso.appendChild(inserirLinha(valor_formatado_para_uso,'selecionavel recuado opcao','Valor da execução sem formatação'));
-			dadosProcesso.appendChild(inserirLinha(valor_formatado_comExtenso,'selecionavel recuado opcao','Valor da execução formatado e por extenso'));
-		}
-		dadosProcesso.appendChild(inserirLinha('Justiça Gratuita','comum negrito'));
-		if (processo_memoria.justicaGratuita[1] == '---') {
-			dadosProcesso.appendChild(inserirLinha('não há registro','selecionavel recuado'));
-		} else {
-			dadosProcesso.appendChild(inserirLinha(processo_memoria.justicaGratuita[0] + ', decidido em: ' + processo_memoria.justicaGratuita[1],'selecionavel recuado'));
-		}
-		dadosProcesso.appendChild(inserirLinha('Transito em Julgado','comum negrito'));
-		if (processo_memoria.transito == '---') {
-			dadosProcesso.appendChild(inserirLinha('não há registro','selecionavel recuado'));
-		} else {
-			dadosProcesso.appendChild(inserirLinha(processo_memoria.transito,'selecionavel recuado'));
-		}
-		dadosProcesso.appendChild(inserirLinha('Custas arbitradas','comum negrito'));		
-		if (processo_memoria.custas == 'R$ ---') {
-			dadosProcesso.appendChild(inserirLinha('não há registro','selecionavel recuado'));
-		} else {
-			dadosProcesso.appendChild(inserirLinha(processo_memoria.custas,'selecionavel recuado'));
-		}
-		liDadosProcesso.appendChild(dadosProcesso)
-		containerUL.appendChild(liDadosProcesso)
-
-
-		
-		let liAtivo = document.createElement('li')		
-		// //MONTAGEM DO POLO ATIVO
-		let poloAtivo = document.createElement('poloAtivo')
-		poloAtivo.setAttribute('ocultar',false)
-		let i = 1;
-		poloAtivo.appendChild(inserirLinha('POLO ATIVO','poloativo'));
-		let map1 = [].map.call(
-			processo_memoria.autor, 
-			function(parte) {
-				//cria o submenu com os autores
-				poloAtivo.appendChild(inserirLinha(i + 'º Reclamante:','comum negrito'));
-				i++;
-				let nomeA = parte.nome;
-				let cpfA = (parte.cpfcnpj == "" ? "desconhecido" : parte.cpfcnpj);
-				let dtNasc = parte.dataNascimento.replace( /\-/g,'/');
-				dtNasc = new Date(dtNasc).toLocaleDateString();
-
-				poloAtivo.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
-				poloAtivo.appendChild(inserirLinha(cpfA,'selecionavel recuado  ','CPF/CNPJ'));//só cpf
-				poloAtivo.appendChild(inserirLinha(cpfA.replace(/\D/g,""),'selecionavel recuado opcao','apenas números do CPF/CNPJ'));//cpf só números
-				poloAtivo.appendChild(inserirLinha(nomeA + " (CPF/CNPJ " + cpfA + ")",'selecionavel recuado opcao','Nome completo com CPF/CNPJ'));//nome e CPF
-				poloAtivo.appendChild(inserirLinha('Nasc: ' + dtNasc,'selecionavel italico recuado opcao','Data de Nascimento'));//data nascimento
-				poloAtivo.appendChild(inserirLinha('Mãe: ' + parte.nomeGenitora,'selecionavel italico recuado opcao','Nome da Mãe'));//nome genitora
-
-				
-				//cria o submenu com os advogados do autor
-				if (!parte.representantes) { return }
-				poloAtivo.appendChild(inserirLinha('Advogados:','representante negrito recuado'));
-				let map1a = [].map.call(
-					parte.representantes, 
-					function(representante) {
-						let nomeAR = representante.nome;
-						let cpfAR = (representante.cpfcnpj == "" ? "desconhecido" : representante.cpfcnpj);
-						let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;
-						poloAtivo.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
-						poloAtivo.appendChild(inserirLinha(nomeAR + " (CPF/CNPJ " + cpfAR + ")",'selecionavel procurador opcao','Nome completo com CPF/CNPJ'));//nome e CPF
-						poloAtivo.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Nome completo'));//só nome
-						poloAtivo.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','CPF/CNPJ'));//só cpf
-						poloAtivo.appendChild(inserirLinha("OAB/" + oabAR,'selecionavel procurador opcao','OAB'));//só OAB											
-					}
-				);
-				
-			}
-		);
-		liAtivo.appendChild(poloAtivo)
-		containerUL.appendChild(liAtivo)
-
-		let liPassivo = document.createElement('li')
-
-		// //MONTAGEM DO POLO PASSIVO
-		let poloPassivo = document.createElement('poloPassivo')
-		poloPassivo.setAttribute('ocultar',false)
-		let i2 = 1;
-		poloPassivo.appendChild(inserirLinha('POLO PASSIVO','polopassivo'));
-		let map2 = [].map.call(
-			processo_memoria.reu, 
-			function(parte) {
-				//cria o submenu com os autores
-				poloPassivo.appendChild(inserirLinha(i2 + 'º Reclamado:','comum negrito'));
-				i2++;
-				let nomeA = parte.nome;
-				let cpfA = (parte.cpfcnpj == "" ? "desconhecido" : parte.cpfcnpj);
-
-				poloPassivo.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
-				poloPassivo.appendChild(inserirLinha(cpfA,'selecionavel recuado ','CPF/CNPJ'));//só cpf
-				poloPassivo.appendChild(inserirLinha(cpfA.replace(/\D/g,""),'selecionavel recuado opcao','apenas números do CPF/CNPJ'));//cpf só números
-				poloPassivo.appendChild(inserirLinha(nomeA + " (CPF/CNPJ " + cpfA + ")",'selecionavel recuado opcao','Nome completo com CPF/CNPJ'));//nome e CPF
-				
-
-				//cria o submenu com os advogados do autor
-				if (!parte.representantes) { return }
-				poloPassivo.appendChild(inserirLinha('Advogados:','representante negrito recuado'));
-				let map2a = [].map.call(
-					parte.representantes, 
-					function(representante) {
-						let nomeAR = representante.nome;
-						let cpfAR = (representante.cpfcnpj == "" ? "desconhecido" : representante.cpfcnpj);
-						let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;
-						poloPassivo.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
-						poloPassivo.appendChild(inserirLinha(nomeAR + " (CPF/CNPJ " + cpfAR + ")",'selecionavel procurador opcao','Nome completo com CPF/CNPJ'));//nome e CPF
-						poloPassivo.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Nome completo'));//só nome
-						poloPassivo.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','CPF/CNPJ'));//só cpf
-						poloPassivo.appendChild(inserirLinha("OAB/" + oabAR,'selecionavel procurador opcao','OAB'));//só OAB
-					}
-				);				
-			}
-		);
-		
-		liPassivo.appendChild(poloPassivo)
-		containerUL.appendChild(liPassivo)
-
-		if (processo_memoria.terceiro.length > 0) {
-			let liTerceiro = document.createElement('li')
-			// //MONTAGEM DOS TERCEIROS
-			console.log(processo_memoria.terceiro.length)
-			let poloOutros = document.createElement('poloOutros')
-			poloOutros.setAttribute('ocultar',false)
-			let i3 = 1;
-			if (!processo_memoria.terceiro) { return }
-			poloOutros.appendChild(inserirLinha('OUTROS INTERESSADOS','polooutros'));
-			let map3 = [].map.call(
-				processo_memoria.terceiro, 
-				function(parte) {
-					//cria o submenu com os autores
-					poloOutros.appendChild(inserirLinha(i3 + 'º Terceiro:','comum negrito'));
-					i3++;
-					let nomeA = parte.nome;
-					let cpfA = (parte.cpfcnpj == "" ? "desconhecido" : parte.cpfcnpj);
-
-					poloOutros.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
-					poloOutros.appendChild(inserirLinha(cpfA,'selecionavel recuado ','CPF/CNPJ'));//só cpf
-					poloOutros.appendChild(inserirLinha(cpfA.replace(/\D/g,""),'selecionavel recuado opcao','apenas números do CPF/CNPJ'));//cpf só números
-					poloOutros.appendChild(inserirLinha(nomeA + " (CPF/CNPJ " + cpfA + ")",'selecionavel recuado opcao','Nome completo com CPF/CNPJ'));//nome e CPF
-
-					//cria o submenu com os advogados do autor
-					if (!parte.representantes) { return }
-					poloOutros.appendChild(inserirLinha('Advogados:','representante negrito recuado'));
-					let map3a = [].map.call(
-						parte.representantes, 
-						function(representante) {
-							let nomeAR = representante.nome;
-							let cpfAR = (representante.cpfcnpj == "" ? "desconhecido" : representante.cpfcnpj);
-							let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;
-							poloOutros.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
-							poloOutros.appendChild(inserirLinha(nomeAR + " (CPF/CNPJ " + cpfAR + ")",'selecionavel  procurador opcao','Nome completo com CPF/CNPJ'));//nome e CPF
-							poloOutros.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Nome completo'));//só nome
-							poloOutros.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','CPF/CNPJ'));//só cpf
-							poloOutros.appendChild(inserirLinha("OAB/" + oabAR,'selecionavel procurador opcao','OAB'));//só OAB
-						}
-					);				
-				}
-			);
-			liTerceiro.appendChild(poloOutros)
-			containerUL.appendChild(liTerceiro)
-		}
-
-		tabela.appendChild(containerUL);
-
-		return tabela;	
-		
-		function inserirLinha(valor, classe='comum', title='') {
-			let span = document.createElement('span');
-			span.title = title;
-			span.className = classe;
-			span.innerText = valor;
-			return span;
-		}
-	}
-	
-	
-	function prepararEAbrirArquivo(tabela) {
-		let arquivoFinal = "";
-		let comecoArquivo =
-			`<html lang='pt-BR'><head><meta charset="utf-8"><style>img { display: none;}
-				body {
-					font-family: Open Sans,Arial,Verdana,sans-serif;
-				}
-				
-				ul {
-					list-style-type: none;
-					gap: 5px;
-					display: grid;
-					grid-auto-flow: row;
-					grid-template-columns: repeat(4,auto);
-				}
-
-				dadosprocesso {				
-					display: grid;
-					outline: 2px solid lightgray;
-				}
-
-				poloAtivo {
-					display: grid;
-					outline: 2px solid #1eb159;
-				}
-
-				poloPassivo {
-					display: grid;
-					outline: 2px solid #f0845a;
-				}
-
-				poloOutros {
-					display: grid;
-					outline: 2px solid #f1b508;
-				}
-				
-				.negrito{
-					font-weight: bold;
-				}
-
-				.italico{
-					font-style: italic;
-				}
-
-				.recuado{					
-					padding-left: 30px;
-				}
-
-				.comum {
-					padding: 5px;					
-				}
-
-				.selecionavel {
-					cursor:pointer;
-					border: 2px solid white;							
-				}
-				
-				.selecionavel:hover {
-					background: #95959570;
-					display: inline;
-					position: relative;
-					color: #555;					
-				}
-				
-				.titulo {
-					font-size: 24px;
-					color: #373a3c;
-					text-align: center;
-				}
-
-				.dadosprocesso {
-					background: lightgray;
-					padding: 10px;
-					cursor: pointer;
-				}
-
-				.poloativo {
-					background: #1eb159;
-					padding: 10px;
-					cursor: pointer;
-				}
-
-				.polopassivo {
-					background: #f0845a;
-					padding: 10px;
-					cursor: pointer;
-				}
-
-				.polooutros {
-					background: #f1b508;
-					padding: 10px;
-					cursor: pointer;
-				}
-
-				.representante {
-					color: #777;
-					font-size: 85%;
-				}
-
-				.procurador {
-					color: #777;
-					font-size: 85%;
-					padding-left: 60px;
-				}
-
-				.ocultar {
-					display: none;
-				}
-
-				.exibir {
-					display: flex;
-				}
-
-				.opcao {
-					opacity: .6;
-				}
-
-			</style>` + "<title id='maisPje_blob_processoMemoria'> maisPJe - Processo Memória </title></head><body>";
-
-		arquivoFinal += tabela + "</body></html>";
-		arquivoFinal =
-			comecoArquivo +
-			"<span class='titulo'>Processo memória - Dados</span><br><br>" +
-			arquivoFinal;
-		
-		let novaJanela = URL.createObjectURL(
-			new Blob([arquivoFinal], { type: "text/html" })
-		);
-		
-		window.open(novaJanela, "ProcessoMemoria.html");
-	}
-
-}
-
 //****************************************************
 //FUNÇÃO RESPONSÁVEL POR COPIAR E COLAR OS ITENS DO MENU
 //ESTÁ LIGADA COM O ARQUIVO "BACKGROUND.JS"
 browser.runtime.onMessage.addListener(request => {
+	
 	//Corrige o menuItemId
 	let texto = request.greeting;
+	if (!texto) { return }
 	
-	console.log(texto) 
+	//abrirPainelCopiaECola	
+	if (texto.includes('menufinalizado')) {
+		// 
+		if (preferencias.gigsCriarMenuAbrirPainelCopiaECola) {
+			window.onunload = function() {
+				browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});											
+			};
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});							
+		}
+		return;
+	}
 
 	//erro na justiça gratuita
 	if (texto.includes('(cd-mnjg)')) {
 		if (document.location.href.includes(".jus.br/pjekz/") && document.location.href.includes("/detalhe")) {
 			criarCaixaDeAlerta(titulo='ATENÇÃO', mensagem=texto, temporizador=30, tipoBotao=2)
 		}
-		return;
-	}
-
-	//ver tudo
-	if (texto == 'Painel Copia e Cola') {
-		browser.storage.local.get('processo_memoria', async function(result){
-			preferencias.processo_memoria = result.processo_memoria;
-			criarPainelComDadosDaMemoria();
-		});		
 		return;
 	}
 	
@@ -23865,12 +24953,12 @@ document.body.addEventListener('dblclick', function(event) {
 });
 
 //FUNÇÃO RESPONSÁVEL POR ESCUTAR EVENTOS DE CLIQUE
-document.body.addEventListener('click', function(event) {
+document.body.addEventListener('click', async function(event) {
 	if (!preferencias.extensaoAtiva) { return }
 	// console.log(document.referrer + " >>>> " + document.location.href);
+	// console.log(document.title)
 	// console.log(event.target.id + " : " + event.target.name + " : " + event.target.tagName + " : " + event.target.className + " : " + event.target.innerText);
-	
-	
+		
 	if (document.location.href.includes(".jus.br/pjekz/") || document.location.href.includes("/administracao") || document.location.href.includes(".jus.br/centralmandados/")) {
 		kaizen();
 		
@@ -24094,7 +25182,7 @@ document.body.addEventListener('click', function(event) {
 			}
 		}
 	
-	} else if (document.title.includes('maisPJe - ALVARÁS AGUARDANDO_CONFERENCIA')) {
+	} else if (document.location.href.includes('moz-extension:') && document.location.href.includes('popupConferirAlvara')) {
 		if (event.target.id == 'maisPje_bt_conferirEmAALote') {
 			conferirAlvaraEmLote();
 		}
@@ -24108,6 +25196,85 @@ document.body.addEventListener('click', function(event) {
 		if (event.target.id.includes('btExcluir_')) {
 			event.target.parentElement.parentElement.remove();
 		}
+
+		if (event.target.id.includes('maisPje_conferir_alvara_processo_conta_')) {
+			let win;
+
+			function logStorageChangeConferirALvara(changes, area) {
+				let changedItems = Object.keys(changes);
+				for (let item of changedItems) {
+					if (item == "tempAR") {
+						if (changes[item].newValue == 'alvaraConferido') {
+							let guardarStorage = browser.storage.local.set({'tempAR': ''});
+							Promise.all([guardarStorage]).then(values => { win.close() });
+						} else if (changes[item].newValue == 'alvaraConferido2') {
+							let guardarStorage1 = browser.storage.local.set({'tempAR': ''});
+							let guardarStorage2 = browser.storage.local.set({'AALote': ''});
+							Promise.all([guardarStorage1,guardarStorage2]).then(values => { win.close() });
+						}
+					}
+				}
+			}
+
+			browser.storage.onChanged.addListener(logStorageChangeConferirALvara);
+
+			if (event.target.hasAttribute('maisPJeLink')) {
+				let url = event.target.getAttribute('maisPJeLink');
+				win = window.open(decodeURI(url), '_blank');
+				win.focus();
+			}
+
+		}
+	} else if (document.location.href.includes('moz-extension:') && document.location.href.includes('popupPainelCopiaECola')) {
+		
+			console.log('teste1: ' + event.target?.tagName);
+			console.log('teste2: ' + event.target?.className);
+			console.log('teste3: ' + event.target?.innerText);
+
+		if (event.target?.className.includes('selecionavel')) {
+			let texto = event.target?.innerText;
+			if (texto) { 
+				texto = texto.replace(/(Nasc:.|Mãe:.)/gm,'');
+				copiarClipboard(texto) 
+				criarCaixaDeAlerta("Ctrl + C",texto,1);
+			}
+			
+		} else if (event.target?.className.includes('dadosprocesso') || event.target?.className.includes('poloativo') || event.target?.className.includes('polopassivo') || event.target?.className.includes('polooutros')) {
+			let ancora = event.target.parentElement
+			let ocultar = ancora.getAttribute('ocultar');
+			if (ocultar == "true") {
+				ancora.setAttribute('ocultar',false);
+				let i = 0;
+				let mapa = [].map.call(
+					ancora.childNodes, 
+					function(item) {
+						if (i > 0) {
+							item.classList.add('exibir')
+							item.classList.remove('ocultar')
+						}							
+						i++
+					}
+				);
+			} else {
+				ancora.setAttribute('ocultar',true);
+				let i = 0;
+				let mapa = [].map.call(
+					ancora.childNodes, 
+					function(item) {
+						if (i > 0) {
+							item.classList.add('ocultar')
+							item.classList.remove('exibir')
+						}							
+						i++
+					}
+				);
+			}
+		}
+	}
+
+	if (event.target.id.includes("escolherAAVinculo")) {
+		let aa = await criarCaixaDeSelecaoComAAs('Escolha uma Ação Automatizada para VINCULAR');		
+		event.target.innerText = aa;
 	}
 });
 
@@ -24213,17 +25380,32 @@ document.body.addEventListener('mousedown', function(event) {
 	if (!preferencias.extensaoAtiva) { return }
 	//DESCRIÇÃO: CONCILIAJT NA PAUTA DE AUDIÊNCIA
 	if (document.location.href.includes("/pauta-audiencias") || document.location.href.includes("/pauta-inteligente")) {
-		console.log('ativando conciLIAnaPauta')
-		setTimeout(function() { //pauta tradicional
-			if (document.querySelector('pje-data-table[nametabela="Horários do dia"]')) {
-				if (!document.querySelector('td[id="pjextension_coluna_lia"]')) {
-					conciLIAnaPauta();
-				}
-			}
-		},1000);
+		// console.log('ativando conciLIAnaPauta')
+		// setTimeout(function() { //pauta tradicional
+		// 	if (document.querySelector('pje-data-table[nametabela="Horários do dia"]')) {
+		// 		if (!document.querySelector('td[id="pjextension_coluna_lia"]')) {
+		// 			conciLIAnaPauta();
+		// 		}
+		// 	}
+		// },1000);
 		
 		//DESCRIÇÃO: SE VINDO DA JANELA DETALHES PREENCHER CONSIDERANDO OS DADOS DO PROCESSO
 		if (document.location.href.includes("maisPje")) {
+
+			setTimeout(function() {
+				if (!document.querySelector('#maisPJe_audiencia_btHoje')) {
+					if (document.querySelector('PJE-PAUTA-AUDIENCIAS') && document.querySelector('button[aria-label="Mês anterior"]')) {
+						let ancora = document.querySelector('button[aria-label="Mês anterior"]');
+						console.log('criando botão HOJE')
+						let btHoje = criarElemento('button', "", "Hoje");
+						btHoje.id = 'maisPJe_audiencia_btHoje';
+						btHoje.className = 'mat-focus-indicator mat-tooltip-trigger mat-raised-button mat-button-base';
+						btHoje.onclick = function() { clicarBotao('button[aria-label="Limpar Filtros"]') }
+						ancora.parentElement.insertBefore(btHoje,ancora);
+					}					
+				}
+			},500);
+
 			setTimeout(function() {
 				if (document.querySelector('form[name="frmDesignarAudiencia"]')) {
 					let parametros = new URLSearchParams(document.location.href);
@@ -24329,6 +25511,7 @@ document.body.addEventListener('mousedown', function(event) {
 
 ////FUNÇÃO RESPONSÁVEL POR ATRIBUIR TECLAS DE ATALHO AO PJE
 window.addEventListener('keydown', async function(event) {
+	
 	// event.preventDefault();
 	if (!preferencias.extensaoAtiva) { return }
 	//pagina para obter os event.codes : https://keycode.info/
@@ -24346,47 +25529,19 @@ window.addEventListener('keydown', async function(event) {
 		} else if (event.code === "F2") {
 			event.preventDefault();
 			event.stopPropagation();
-			
-			//TIPOS DE DOCUMENTOS : ANEXAR DOCUMENTOS
-			// let ancora = document.querySelectorAll('div[id="mat-autocomplete-0"] mat-option');
-			// let lista = '[';
-			// for (const [pos, item] of ancora.entries()) {
-			// 	lista += (pos == 0) ? '' : ',';
-			// 	lista += '"' + item.textContent.trim() + '"';
-			// }
-			// lista += ']';
-			// console.log(lista);
-				
-			// let pergunta = await versaoAtualMaiorQue('2.13.5 - TETA')
-			// return;
-			//testes
-			// window.postMessage(1114454, window.origin); //****funciona */
-			// return;
-			// await criarCaixaSelecao(['BCO DO BRASIL[2383]','CAIXA ECONOMICA FEDERAL[3521]'],titulo='Escolha a Instituição Financeira','Nenhum',1,100);return;
-			// await criarCaixaDePergunta('text','Digite o número do processo ou o nome da parte:\n', textoSelecionado.trim(), '', true);
-			// conferirTeimosinhaEmLote();return;
-			// document.querySelector('pje-cabecalhonaTimeLine').scrollIntoView({behavior: 'smooth',block: 'start'});
-			// console.log(preferencias.oj_usuario)
-			// acao_vinculo('Fechar Pagina|Fechar Pagina');
-			// acao_vinculo('Atualizar Pagina|Atualizar Pagina');
-			// return;
-			// await criarCaixaDeAlerta('ALERTA','Não foi possível obter o ID do processo através do número encontrado (0001245-45.2023.5.12.0059).',15)
-			// await criarMapaDosVinculos('Despacho|Teta','AutoGigs|Prazo:Incluir em pauta,Movimento|Cump. Providências,Atualizar Pagina|Atualizar Pagina,Atualizar Pagina|Atualizar Pagina,Atualizar Pagina|Atualizar Pagina,Atualizar Pagina|Atualizar Pagina,Atualizar Pagina|Atualizar Pagina,Atualizar Pagina|Atualizar Pagina,Nenhum',"Esta Ação automatizada foi criada para a juntada das respostas do SISBAJUD quando for positiva ou parcial.");			
+
 			// teste_mutation_observer();
+			// teste_apis();
 			// return;
-			// aplicarVisibilidadeSigiloUltimoDocumento();
-			// await verificarVersoesPjeTRTs();return;
-			
-			// await getContadorDePagina(5);
-			// console.log('saiu');
-			// return
 
 			if (document.location.href.search("docs.google.com/spreadsheets") > -1) {
+				
 				let numeroProcesso = identificarNumeroDoProcessoDaPlanilhaGoogle();
-					let dadosProcesso = await obterIdProcessoViaApi(numeroProcesso); 
-					let info = await obterDadosProcessoViaApi(dadosProcesso[0].idProcesso);
-					let url = `https://${preferencias.trt}/pjekz/pauta-audiencias?maisPje=true&numero=${info.numero}&rito=${info.classeJudicial.sigla}&fase=${info.labelFaseProcessual}`;
-					window.open(url, '_blank');
+				let guardarStorage = browser.storage.local.set({'AALote': 'Kaizen|maisPje_menuKaizen_itemmenu_abrir_pauta'});
+				Promise.all([guardarStorage]).then(values => {					
+					consultaRapidaPJE(numeroProcesso);
+				});
+
 			} else if (document.getElementById('maisPje_menuKaizen_itemmenu_guardar_senha')) {
 				
 				if (document.getElementById('maisPje_menuKaizen_itemmenu_guardar_senha').style.display == 'unset') { //ou seja, se já estiver visível o F2 funcionará como atalho para minutar um novo bloqueio
@@ -24402,22 +25557,36 @@ window.addEventListener('keydown', async function(event) {
 				}
 			} else if (document.location.href.includes("siscondj") && document.getElementById('maisPJe_atalhoConsultaPJe')) {
 				await clicarBotao('a[id="maisPJe_atalhoConsultaPJe"]', null, 1000);
-			} else if (document.location.href.includes("blob:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) {
+			} else if (document.location.href.includes("moz-extension:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) {
 				
-				browser.storage.local.get('modulo9', async function(result){
-					preferencias.modulo9 = result.modulo9;
-					let valor = await criarCaixaDePergunta('text','Digite a velocidade (em segundos) de conferência dos alvarás SIF:\n', preferencias.modulo9.sif[1]);
-					preferencias.modulo9.sif[1] = valor;
-					let guardarStorage = browser.storage.local.set({'modulo9': preferencias.modulo9}); //uso para levar o código do assunto da AA de Retificar Autuação
-					Promise.all([guardarStorage]).then(async values => {
-						browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n \n A velocidade de interação na conferência dos alvarás SIF ficou designada para ' + preferencias.modulo9.sif[1] + ' segundos...'});
-						
+				if (document.title.includes('SIF')) {
+					browser.storage.local.get('modulo9', async function(result){
+						preferencias.modulo9 = result.modulo9;
+						let valor = await criarCaixaDePergunta('text','Digite a velocidade (em segundos) de conferência dos alvarás SIF:\n', preferencias.modulo9.sif[1]);
+						preferencias.modulo9.sif[1] = valor;
+						let guardarStorage = browser.storage.local.set({'modulo9': preferencias.modulo9}); //uso para levar o código do assunto da AA de Retificar Autuação
+						Promise.all([guardarStorage]).then(async values => {
+							browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n \n A velocidade de interação na conferência dos alvarás SIF ficou designada para ' + preferencias.modulo9.sif[1] + ' segundos...'});
+						});
 					});
-				});
+				} else if (document.title.includes('SISCONDJ')) {
+					browser.storage.local.get('modulo9', async function(result){
+						preferencias.modulo9 = result.modulo9;
+						let valor = await criarCaixaDePergunta('text','Digite a velocidade (em segundos) de conferência dos alvarás SISCONDJ:\n', preferencias.modulo9.siscondj[1]);
+						preferencias.modulo9.siscondj[1] = valor;
+						let guardarStorage = browser.storage.local.set({'modulo9': preferencias.modulo9}); //uso para levar o código do assunto da AA de Retificar Autuação
+						Promise.all([guardarStorage]).then(async values => {
+							browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n \n A velocidade de interação na conferência dos alvarás SISCONDJ ficou designada para ' + preferencias.modulo9.siscondj[1] + ' segundos...'});
+						});
+					});
+				}
+				
 				
 				
 			} else if (document.location.href.includes("aj.sigeo.jt.jus.br") && document.getElementById('maisPje_menuKaizen_itemmenu_consultar_minuta')) {
 				await clicarBotao('span[id="maisPje_menuKaizen_itemmenu_consultar_minuta"] a', null, 1000);
+			} else if (document.location.href.includes("previdenciario.pdpj.jus.br")) {
+				await clicarBotao('#maisPje_menuKaizen_itemmenu_consultar_minuta a')
 			} else {
 				filtrarPorMeuFiltro();				
 			}
@@ -24433,6 +25602,25 @@ window.addEventListener('keydown', async function(event) {
 				} else {
 					acao_vinculo(preferencias.tempF3);
 				}
+			} else if (document.location.href.includes("moz-extension:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) {
+				browser.runtime.sendMessage({tipo: 'insertCSS', file: 'maisPje_icones.css'});
+				await verificarDocumentosNaoAssinados();
+
+				let ancora = await esperarElemento('span[class*="subtitulo"]');
+				let bt = criarElemento('span', 'color: black; margin-left: 15px;width: auto; height: auto; background-color: rgb(204, 204, 204); border: 1px solid gray; border-radius: 3px; cursor: pointer; padding: 6px;position: absolute; right: 0;', 'Excluir processos com documentos não assinado');
+				bt.onclick = async function () {
+					let lista = document.querySelectorAll('i[class*="cadeado"]');
+					for (const [pos, item] of lista.entries()) {												
+						item.parentElement.parentElement.lastElementChild.firstElementChild.click();					
+					}
+
+					//ajusta o total de documentos na tela
+					let qtde = document.querySelectorAll('tbody tr').length;
+					document.querySelector('span[class="titulo"]').innerText = 'Relatório de ALVARÁS SIF - Total: ' + qtde + ' registros'
+				}
+				ancora.appendChild(bt);
+
+
 			} else {
 				gerarRelatorioGerencialSecretaria();
 			}
@@ -24487,7 +25675,6 @@ window.addEventListener('keydown', async function(event) {
 					let winGigs = window.open(gigsURL, '_blank');
 				}
 			} else if (event.code === "Digit5" || event.code === "Numpad5") {
-				// substituirVariaveisEditorTexto();
 			}
 		}
 		
@@ -24515,6 +25702,13 @@ window.addEventListener('keydown', async function(event) {
 		if (document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]')) {
 			if (event.code === "KeyP") {
 				document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]').click();
+			}
+		}
+
+		if (document.querySelector('#maisPje_caixa_de_selecao')) {
+			if ('Digit1,Digit2,Digit3,Digit4,Digit5,Digit6,Digit7,Digit8,Digit9,Numpad1,Numpad2,Numpad3,Numpad4,Numpad5,Numpad6,Numpad7,Numpad8,Numpad9'.includes(event.code)) {
+				let soNumero = event.code.toString().replace(/\D/g, "");
+				await clicarBotao('#maisPje_selecao_select_' + soNumero);
 			}
 		}
 		
@@ -24614,6 +25808,215 @@ async function logStorageChangeGeral(changes, area) {
 	}
 }
 
+async function teste_apis() {
+	
+	let idProcesso = '933836';
+	let numeroProcesso = '0000009-57.2019.5.12.0059';
+	let idTarefa = '489'
+	let urlBase = preferencias.trt;
+	let grau_usuario = '1';
+	let tempo = 3000;
+
+	let api0 = await apis.permissaoPerfis.executar(preferencias.trt)
+	console.info('TESTANDO API >>> apis.permissaoPerfis >>> ' + (api0 ? 'OK' : 'ERRO'));
+	await sleep(tempo);
+
+	let api1 = await apis.abrirGigs.abrir(preferencias.trt, {idProcesso});
+	console.info('TESTANDO API >>> apis.abrirGigs >>> ' + (api1 ? 'OK' : 'ERRO'));
+	// console.info('TESTANDO API >>> ' + JSON.stringify(api1));
+	await sleep(tempo);
+
+	let api4 = apis.abrirTarefa.abrir(preferencias.trt, { idProcesso, idTarefa }, 'self');
+	console.info('TESTANDO API >>> apis.abrirTarefa >>> ' + (api4 ? 'OK' : 'ERRO'));
+	// console.info('TESTANDO API >>> ' + JSON.stringify(api4));
+	await sleep(tempo);
+
+	let api7 = apis.bndtProcesso.abrir(preferencias.trt, {idProcesso});
+	console.info('TESTANDO API >>> apis.bndtProcesso >>> ' + (api7 ? 'OK' : 'ERRO'));
+	// console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api7));
+	await sleep(tempo);
+
+	let api12 = await apis.abrirDetalhesProcesso.abrir(preferencias.trt, {idProcesso});
+	console.info('TESTANDO API >>> apis.abrirDetalhesProcesso >>> ' + (api12 ? 'OK' : 'ERRO'));
+	// console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api12));
+	await sleep(tempo);
+
+	let api13 = await apis.pautaAudiencias.abrir(preferencias.trt, {'numero':'00000010720245120059','rito':'ATSum','fase':'EXECUÇÃO'});
+	console.info('TESTANDO API >>> apis.pautaAudiencias >>> ' + (api13 ? 'OK' : 'ERRO'));
+	// console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api13));
+	await sleep(tempo);
+
+
+
+	let api2 = await apis.tarefasProcesso.executar(preferencias.trt , {idProcesso});
+	console.info('TESTANDO API >>> apis.tarefasProcesso >>> ' + (api2 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api2));
+	await sleep(tempo);
+
+	let api3 = apis.tarefaPorId.montarUrl(urlBase, {idTarefa});
+	console.info('TESTANDO API >>> apis.tarefaPorId >>> ' + (api3 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api3));
+	await sleep(tempo);
+
+	let api5 = await apis.calculosProcesso.executar(preferencias.trt, {idProcesso});
+	console.info('TESTANDO API >>> apis.calculosProcesso >>> ' + (api5 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api5));
+	await sleep(tempo);
+
+	let processo = '00000095720195120059';
+	let conta = '3521042015179610';
+	let dataAutuacao = '2019-01-10';
+	let dataFim = '2025-05-23';
+	let api6 = await apis.extratoContaSIF.executar(urlBase,{processo, conta, dataAutuacao, dataFim})
+	console.info('TESTANDO API >>> apis.extratoContaSIF >>> ' + (api6 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api6));
+	await sleep(tempo);
+
+	let api8 = await apis.processoPorId.executar(preferencias.trt, {idProcesso});
+	console.info('TESTANDO API >>> apis.processoPorId >>> ' + (api8 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api8));
+	await sleep(tempo);
+
+	let api9 = await apis.processoPorNumero.executar(urlBase, {numeroProcesso});
+	console.info('TESTANDO API >>> apis.processoPorNumero >>> ' + (api9 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api9));
+	await sleep(tempo);
+
+	let numero = '000000957-';
+	let api10 = await apis.idProcessoPorNumeroIncompleto.executar(preferencias.trt, {numero}, { method: "GET", mode: "cors", credentials: "include", headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario}})
+	console.info('TESTANDO API >>> apis.idProcessoPorNumeroIncompleto >>> ' + (api10 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api10));
+	await sleep(tempo);
+
+	////https://pje.trt12.jus.br/pje-comum-api/api/pessoas/juridicas?esfera=undefined&tipoEntidade=undefined&idJurisdicao=undefined&apenasMPT=undefined&cnpj=75.285.965%2F0001-77
+	let cnpj = '75.285.965/0001-77';	
+	let api11 = await apis.pessoasJuridicasCnpj.executar(preferencias.trt, {cnpj});
+	console.info('TESTANDO API >>> apis.pessoasJuridicasCnpj >>> ' + (api11 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api11));
+	await sleep(tempo);
+
+	let chave = '25012416415408700000070703005';
+	let api14 = await apis.validacaoChave.montarUrl(preferencias.trt, {'chave': chave, 'instancia' : grau_usuario});
+	console.info('TESTANDO API >>> apis.validacaoChave >>> ' + (api14 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + api14);
+	await sleep(tempo);
+
+	let api16 = await apis.calendarioEventos.executar(preferencias.trt, { mes:'12', ano:'2024' });
+	console.info('TESTANDO API >>> apis.calendarioEventos >>> ' + (api16 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api16));
+	await sleep(tempo);
+
+	let api17 = await apis.documentosProcesso.executar(preferencias.trt, {idProcesso: '883419', idUnicoDocumento: '91e3408'});
+	console.info('TESTANDO API >>> apis.documentosProcesso >>> ' + (api17 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api17));
+	await sleep(tempo);
+
+	let api18 = await apis.documentoProcessoPorId.executar(preferencias.trt, {idProcesso: '883419', idDocumento: '70879550', grau: '1'});
+	console.info('TESTANDO API >>> apis.documentoProcessoPorId >>> ' + (api18 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api18));
+	await sleep(tempo);
+
+	let api19 = await apis.timelineProcesso.executar(preferencias.trt, {idProcesso})
+	console.info('TESTANDO API >>> apis.timelineProcesso >>> ' + (api19 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api19));
+	await sleep(tempo);
+
+	let api23 = await apis.consultaProcessosAdm.montarUrl(urlBase, {'nomeParte' : 'RAILDO MOREIRA MUNIZ' })
+	console.info('TESTANDO API >>> apis.consultaProcessosAdm >>> ' + (api23 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api23));
+	await sleep(tempo);
+
+	let api24 = await apis.consultaProcessosBasicos.montarUrl(urlBase, {numero:'0001483-58.2022.5.12.0059'})
+	console.info('TESTANDO API >>> apis.consultaProcessosBasicos >>> ' + (api24 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api24));
+	await sleep(tempo);
+
+	let api25 = await apis.pessoasFisicas.montarUrl(urlBase, {'pagina': 1, 'tamanhoPatina': 10, 'cpf': '961.531.485-49', 'situacao': 1});
+	console.info('TESTANDO API >>> apis.pessoasFisicas >>> ' + (api25 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api25));
+	await sleep(tempo);
+
+	let api33 = await apis.execucaoProcessoGigs.executar(preferencias.trt, { idProcesso });
+	console.info('TESTANDO API >>> apis.execucaoProcessoGigs >>> ' + (api33 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api33));
+	await sleep(tempo);
+
+	let api34 = await apis.movimentosProcesso.executar(preferencias.trt, { idProcesso, codEventos: [334,11024] });
+	console.info('TESTANDO API >>> apis.movimentosProcesso >>> ' + (api34 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api34));
+	await sleep(tempo);
+
+	let api35 = await apis.audienciasProcesso.executar(preferencias.trt, {idProcesso: '1009836'});
+	console.info('TESTANDO API >>> apis.audienciasProcesso >>> ' + (api35 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api35));
+	await sleep(tempo);
+
+	let api36 = await apis.debitosTrabalhistas.executar(preferencias.trt, {idProcesso});
+	console.info('TESTANDO API >>> apis.debitosTrabalhistas >>> ' + (api36 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api36));
+	await sleep(tempo);
+
+	idProcesso = '1145281';
+	let api37 = await apis.documentosMinuta.executar(urlBase, {idProcesso},{method: "GET",mode: "cors",credentials: "include",headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario || 1}});
+	console.info('TESTANDO API >>> apis.documentosMinuta >>> ' + (api37 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api37));
+	await sleep(tempo);
+
+	let api38 = await apis.comunicacoesMinutas.executar(urlBase, {idProcesso},{method: "GET",mode: "cors",credentials: "include",headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario || 1}});
+	console.info('TESTANDO API >>> apis.comunicacoesMinutas >>> ' + (api38 ? 'OK' : 'ERRO'));
+	console.info('TESTANDO API >>>    |___ ' + JSON.stringify(api38));
+	await sleep(tempo);
+
+	// console.log('apis.periciasProcesso:');
+	// console.log('não utilizada');
+
+	// console.log('apis.peritosPesquisa:');
+	// console.log('não utilizada');
+
+	// console.log('apis.peritosEspecialidade:');
+	// console.log('não utilizada');
+
+	// console.log('apis.pessoasJuridicasCnpj:');
+	// console.log('não utilizada');
+
+	// console.log('apis.tarefasCodigo:');
+	// console.log('não utilizada');
+
+	// console.log('apis.sobrestamentosProcesso:');
+	// console.log('não utilizada');
+
+	// console.log('apis.atividadeProcesso:');
+	// console.log('não utilizada');
+
+	// console.log('apis.partesProcesso:');
+	// console.log('não utilizada');
+
+	// console.log('apis.obrigacoesPagar:');
+	// console.log('não utilizada');
+
+	// console.log('apis.prazoRelator:');
+	// console.log('não utilizada');
+
+	// console.log('apis.permissaoPerfis:');
+	// console.log('não utilizada');
+
+	// console.log('apis.domicilioEletronico:');
+	// console.log('não utilizada');
+
+	// console.log('apis.regrasImpedimento:');
+	// console.log('não utilizada');
+
+	// console.log('apis.listasContas:');
+	// console.log('não utilizada');
+
+	// console.log('apis.alvarasLista:');
+	// console.log('não utilizada');
+
+	// console.log('apis.prestacaoContas:');
+	// console.log('não utilizada');
+
+}
+
 async function teste_mutation_observer() {
 	console.log('teste_mutation_observer()');
 	let primeiraCamada = await ObterCamadaUm();
@@ -24646,13 +26049,14 @@ async function teste_mutation_observer() {
 					
 					if (mutation.removedNodes[0]) {
 						if (!mutation.removedNodes[0].tagName) { return }
-						console.log("***[DEL] tagName(" + mutation.removedNodes[0].tagName + ") id(" + mutation.removedNodes[0].id + ") className(" + mutation.removedNodes[0].className + ")");
+						console.log("---[DEL] tagName(" + mutation.removedNodes[0].tagName + ") id(" + mutation.removedNodes[0].id + ") className(" + mutation.removedNodes[0].className + ")");
+						console.log("---    |___" + mutation.removedNodes[0].innerText);
 					}
 					
 					if (mutation.addedNodes[0]) {
 						if (!mutation.addedNodes[0].tagName) { return }
-						console.log("***[ADD] tagName(" + mutation.addedNodes[0].tagName + ") id(" + mutation.addedNodes[0].id + ") className(" + mutation.addedNodes[0].className + ")");
-						
+						console.log("+++[ADD] tagName(" + mutation.addedNodes[0].tagName + ") id(" + mutation.addedNodes[0].id + ") className(" + mutation.addedNodes[0].className + ")");
+						console.log("+++    |___" + mutation.addedNodes[0].innerText);
 					}
 				});
 			});
@@ -24694,6 +26098,14 @@ function Deposito(processo, valor, data, depositante, banco) {
 //FUNÇÕES COMUNS
 
 //FUNÇÃO PARA SUBSTITUIR TEXTOS SELECIONADOS NA PÁGINA
+
+function criarTimeoutParaApi(resolve, timeout, semValor, api = '') {
+	return setTimeout(() => {
+		alert("maisPje: a API " + api + " demorou demais.");
+		resolve(semValor);
+	}, timeout);
+}
+
 function substituirTextoSelecionado(texto) {
 	return new Promise(resolver => {
 		texto = texto.toString();
@@ -24795,6 +26207,13 @@ async function extrairComandosComuns(texto) { //converte a string em objeto: ex:
 	}
 }
 
+function toISOFormat(dateTimeString) {
+	const [date, time] = dateTimeString.split(' ');
+	const [DD, MM, YYYY] = date.split('/');
+	const [HH, mm] = time.split(':');
+	return `${YYYY}-${MM}-${DD}T${HH}:${mm}`;
+}
+
 //DESCRIÇÃO: Esse trecho de código serve para quando houver seleção de item no MENU, este item seja copiado para o clipboard (memória), assim é possível utilizado em 
 //outros navegadores através do "CTRL + V".
 async function copiarClipboard(t) {
@@ -24814,194 +26233,296 @@ async function copiarClipboard(t) {
 	}
 }
 
-function decomporNumeroProcesso(numero) {
-	return new Promise(
-		resolver => {
-			let campos = numero.replace(/\.|\-/g,'.').split('.')
-			return resolver({
-				'numero':campos[0],
-				'digito':campos[1],
-				'ano':campos[2],
-				'jurisdicao':campos[3],
-				'regiao':campos[4],
-				'vara':campos[5],
-			});
-		}
-	);
-}
+// function decomporNumeroProcesso(numero) {
+// 	return new Promise(
+// 		resolver => {
+// 			let campos = numero.replace(/\.|\-/g,'.').split('.')
+// 			return resolver({
+// 				'numero':campos[0],
+// 				'digito':campos[1],
+// 				'ano':campos[2],
+// 				'jurisdicao':campos[3],
+// 				'regiao':campos[4],
+// 				'vara':campos[5],
+// 			});
+// 		}
+// 	);
+// }
 
 function numeroProcessoFormatado(texto) {
+	texto = extrairNumeros(texto);
 	return texto.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/,"$1-$2.$3.$4.$5.$6");
 }
 
-function extrairNumeros(texto) {
-	let padrao = /\d{1,}/;	
+function numeroContaSIFFormatado(texto) {
+	texto = extrairNumeros(texto);
+	return texto.replace(/(\d{4})(\d{3})(\d{8})(\d{1})/,"$1.$2.$3-$4");
+}
+
+function numeroDataFormatado(texto,separador='/') {
+	texto = extrairNumeros(texto);
+	if (texto.length == 8) { //ano 4 digitos 00123456
+		return texto.replace(/(\d{2})(\d{2})(\d{4})/,"$1" + separador + "$2" + separador + "$3");
+	} else if (texto.length == 6) { //ano 2 digitos
+		return texto.replace(/(\d{2})(\d{2})(\d{2})/,"$1" + separador + "$2" + separador + "$3");
+	} else {
+		return null;
+	}
+}
+
+function numeroValorFormatado(texto) {
+	let padrao =/(\d{1,}\.\d{2})/;	
 	if (padrao.test(texto)) {
-		return texto.match(padrao).join();
+		texto = texto.match(padrao).join();
+		return Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL', minimumFractionDigits: 2}).format(parseFloat(texto));
 	} else {
-		return texto;
-	}
+		return null;
+	} 
 }
 
-function porExtenso(valor){
-	console.debug('------------------------------------------------')
-	let listaDeExcecoes = {
-		"010":"dez",
-		"011":"onze",
-		"012":"doze",
-		"013":"treze",
-		"014":"catorze",
-		"015":"quinze",
-		"016":"dezesseis",
-		"017":"dezessete",
-		"018":"dezoito",
-		"019":"dezenove",
-		"020":"vinte",
-		"030":"trinta",
-		"040":"quarenta",
-		"050":"cinquenta",
-		"060":"sessenta",
-		"070":"setenta",
-		"080":"oitenta",
-		"090":"noventa",
-		"100":"cem",
-		"200":"duzentos",
-		"300":"trezentos",
-		"400":"quatrocentos",
-		"500":"quinhentos",
-		"600":"seiscentos",
-		"700":"setecentos",
-		"800":"oitocentos",
-		"900":"novecentos",
-	};
+// function extrairNumeros(texto) {
+// 	let padrao = /\d{1,}/;	
+// 	if (padrao.test(texto)) {
+// 		return texto.match(padrao).join();
+// 	} else {
+// 		return texto;
+// 	}
+// }
 
-	let arrayDeReferencia = {
-		"unidade":["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"],
-		"dezena":["","", "vinte e ", "trinta e ", " quarenta e ", " cinquenta e ", " sessenta e ", " setenta e ", " oitenta e ", " noventa e "],
-		"centena":["", "cento e ", "duzentos e ", "trezentos e ", "quatrocentos e ", "quinhentos e ", "seiscentos e ", "setecentos e ", "oitocentos e ", "novecentos e "]
-	};
+// function porExtenso(valor){
+// 	console.debug('------------------------------------------------')
+// 	let listaDeExcecoes = {
+// 		"010":"dez",
+// 		"011":"onze",
+// 		"012":"doze",
+// 		"013":"treze",
+// 		"014":"catorze",
+// 		"015":"quinze",
+// 		"016":"dezesseis",
+// 		"017":"dezessete",
+// 		"018":"dezoito",
+// 		"019":"dezenove",
+// 		"020":"vinte",
+// 		"030":"trinta",
+// 		"040":"quarenta",
+// 		"050":"cinquenta",
+// 		"060":"sessenta",
+// 		"070":"setenta",
+// 		"080":"oitenta",
+// 		"090":"noventa",
+// 		"100":"cem",
+// 		"200":"duzentos",
+// 		"300":"trezentos",
+// 		"400":"quatrocentos",
+// 		"500":"quinhentos",
+// 		"600":"seiscentos",
+// 		"700":"setecentos",
+// 		"800":"oitocentos",
+// 		"900":"novecentos",
+// 	};
+
+// 	let arrayDeReferencia = {
+// 		"unidade":["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"],
+// 		"dezena":["","", "vinte e ", "trinta e ", " quarenta e ", " cinquenta e ", " sessenta e ", " setenta e ", " oitenta e ", " noventa e "],
+// 		"centena":["", "cento e ", "duzentos e ", "trezentos e ", "quatrocentos e ", "quinhentos e ", "seiscentos e ", "setecentos e ", "oitocentos e ", "novecentos e "]
+// 	};
 	
-	let soNumero = valor.replace(/\D/g, "");	
-	soNumero = soNumero.padStart(14,"0"); //999 bilhão possui 14 zeros, incluindo os centavos	
-	let nCentavos = soNumero.slice(soNumero.length-2, soNumero.length);
-	let nReais = soNumero.slice(soNumero.length-5, soNumero.length-2);
-	let nMilhar = soNumero.slice(soNumero.length-8, soNumero.length-5);
-	let nMilhao = soNumero.slice(soNumero.length-11, soNumero.length-8);
-	let nBilhao = soNumero.slice(soNumero.length-14, soNumero.length-11);
+// 	let soNumero = valor.replace(/\D/g, "");	
+// 	soNumero = soNumero.padStart(14,"0"); //999 bilhão possui 14 zeros, incluindo os centavos	
+// 	let nCentavos = soNumero.slice(soNumero.length-2, soNumero.length);
+// 	let nReais = soNumero.slice(soNumero.length-5, soNumero.length-2);
+// 	let nMilhar = soNumero.slice(soNumero.length-8, soNumero.length-5);
+// 	let nMilhao = soNumero.slice(soNumero.length-11, soNumero.length-8);
+// 	let nBilhao = soNumero.slice(soNumero.length-14, soNumero.length-11);
 	
-	//regras do centavos	
-	let centavos = '';
-	nCentavos = nCentavos.padStart(3,"0"); //acrescena mais um zero nos centavos para não ficar criando exceções repetidas na listaDeExcecoes
-	if (nCentavos == '000') {
-		centavos = '';
-	} else if (nCentavos == '001') {
-		centavos = 'um centavo'
-	} else if (listaDeExcecoes.hasOwnProperty(nCentavos)) { //se está na lista de exceções
-		centavos = listaDeExcecoes[nCentavos] + ' centavos';
-	} else {
-		centavos = arrayDeReferencia.centena[parseInt(nCentavos[0])] + arrayDeReferencia.dezena[parseInt(nCentavos[1])] + arrayDeReferencia.unidade[parseInt(nCentavos[2])] + ' centavos';
-	}
+// 	//regras do centavos	
+// 	let centavos = '';
+// 	nCentavos = nCentavos.padStart(3,"0"); //acrescena mais um zero nos centavos para não ficar criando exceções repetidas na listaDeExcecoes
+// 	if (nCentavos == '000') {
+// 		centavos = '';
+// 	} else if (nCentavos == '001') {
+// 		centavos = 'um centavo'
+// 	} else if (listaDeExcecoes.hasOwnProperty(nCentavos)) { //se está na lista de exceções
+// 		centavos = listaDeExcecoes[nCentavos] + ' centavos';
+// 	} else {
+// 		centavos = arrayDeReferencia.centena[parseInt(nCentavos[0])] + arrayDeReferencia.dezena[parseInt(nCentavos[1])] + arrayDeReferencia.unidade[parseInt(nCentavos[2])] + ' centavos';
+// 	}
 	
-	//regras do reais
-	let reais = '';
-	if (nReais == '000') {
-		reais = '';
-	} else if (nReais == '001') {
-		reais = 'um real';
-	} else if (listaDeExcecoes.hasOwnProperty(nReais)) { //se está na lista de exceções
-		reais = listaDeExcecoes[nReais] + ' reais';
-	} else {
-		let x = '0' + nReais[1] + nReais[2]; //exceção da dezena
-		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nReais[1])] + arrayDeReferencia.unidade[parseInt(nReais[2])];
-		reais = arrayDeReferencia.centena[parseInt(nReais[0])] + x + ' reais';
-	}
+// 	//regras do reais
+// 	let reais = '';
+// 	if (nReais == '000') {
+// 		reais = '';
+// 	} else if (nReais == '001') {
+// 		reais = 'um real';
+// 	} else if (listaDeExcecoes.hasOwnProperty(nReais)) { //se está na lista de exceções
+// 		reais = listaDeExcecoes[nReais] + ' reais';
+// 	} else {
+// 		let x = '0' + nReais[1] + nReais[2]; //exceção da dezena
+// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nReais[1])] + arrayDeReferencia.unidade[parseInt(nReais[2])];
+// 		reais = arrayDeReferencia.centena[parseInt(nReais[0])] + x + ' reais';
+// 	}
 	
-	//regras do milhar	
-	let milhar = '';
-	if (nMilhar == '000') {
-		milhar = '';
-	} else if (listaDeExcecoes.hasOwnProperty(nMilhar)) { //se está na lista de exceções
-		milhar = listaDeExcecoes[nMilhar] + ' mil';
-	} else {
-		let x = '0' + nMilhar[1] + nMilhar[2]; //exceção da dezena
-		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhar[1])] + arrayDeReferencia.unidade[parseInt(nMilhar[2])];
-		milhar = arrayDeReferencia.centena[parseInt(nMilhar[0])] + x + ' mil';
-	}
+// 	//regras do milhar	
+// 	let milhar = '';
+// 	if (nMilhar == '000') {
+// 		milhar = '';
+// 	} else if (listaDeExcecoes.hasOwnProperty(nMilhar)) { //se está na lista de exceções
+// 		milhar = listaDeExcecoes[nMilhar] + ' mil';
+// 	} else {
+// 		let x = '0' + nMilhar[1] + nMilhar[2]; //exceção da dezena
+// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhar[1])] + arrayDeReferencia.unidade[parseInt(nMilhar[2])];
+// 		milhar = arrayDeReferencia.centena[parseInt(nMilhar[0])] + x + ' mil';
+// 	}
 	
-	//regras do milhao
-	let milhao = '';
-	if (nMilhao == '000') {
-		milhao = '';
-	} else if (nMilhao == '001') {
-		milhao = 'um milhão ';
-	} else if (listaDeExcecoes.hasOwnProperty(nMilhao)) { //se está na lista de exceções
-		milhao = listaDeExcecoes[nMilhao] + ' milhões ';
-	} else {
-		let x = '0' + nMilhao[1] + nMilhao[2]; //exceção da dezena
-		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhao[1])] + arrayDeReferencia.unidade[parseInt(nMilhao[2])];
-		milhao = arrayDeReferencia.centena[parseInt(nMilhao[0])] + x + ' milhões, ';
-	}
+// 	//regras do milhao
+// 	let milhao = '';
+// 	if (nMilhao == '000') {
+// 		milhao = '';
+// 	} else if (nMilhao == '001') {
+// 		milhao = 'um milhão ';
+// 	} else if (listaDeExcecoes.hasOwnProperty(nMilhao)) { //se está na lista de exceções
+// 		milhao = listaDeExcecoes[nMilhao] + ' milhões ';
+// 	} else {
+// 		let x = '0' + nMilhao[1] + nMilhao[2]; //exceção da dezena
+// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhao[1])] + arrayDeReferencia.unidade[parseInt(nMilhao[2])];
+// 		milhao = arrayDeReferencia.centena[parseInt(nMilhao[0])] + x + ' milhões, ';
+// 	}
 	
-	//regras do bilhao
-	let bilhao = '';
-	if (nBilhao == '000') {
-		bilhao = '';
-	} else if (nBilhao == '001') {
-		bilhao = 'um bilhão ';
-	} else if (listaDeExcecoes.hasOwnProperty(nBilhao)) { //se está na lista de exceções
-		bilhao = listaDeExcecoes[nBilhao] + ' bilhões ';
-	} else {
-		let x = '0' + nBilhao[1] + nBilhao[2]; //exceção da dezena
-		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nBilhao[1])] + arrayDeReferencia.unidade[parseInt(nBilhao[2])];
-		bilhao = arrayDeReferencia.centena[parseInt(nBilhao[0])] + x + ' bilhões, ';
-	}
+// 	//regras do bilhao
+// 	let bilhao = '';
+// 	if (nBilhao == '000') {
+// 		bilhao = '';
+// 	} else if (nBilhao == '001') {
+// 		bilhao = 'um bilhão ';
+// 	} else if (listaDeExcecoes.hasOwnProperty(nBilhao)) { //se está na lista de exceções
+// 		bilhao = listaDeExcecoes[nBilhao] + ' bilhões ';
+// 	} else {
+// 		let x = '0' + nBilhao[1] + nBilhao[2]; //exceção da dezena
+// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nBilhao[1])] + arrayDeReferencia.unidade[parseInt(nBilhao[2])];
+// 		bilhao = arrayDeReferencia.centena[parseInt(nBilhao[0])] + x + ' bilhões, ';
+// 	}
 	
-	//montando a frase
-	if (centavos) {
-		if (reais || milhar || milhao || bilhao) {
-			centavos = ' e ' + centavos;
+// 	//montando a frase
+// 	if (centavos) {
+// 		if (reais || milhar || milhao || bilhao) {
+// 			centavos = ' e ' + centavos;
+// 		}
+// 	}
+	
+// 	if (reais) {
+// 		if (milhar || milhao || bilhao) {
+// 			reais = (centavos ? ', ' : ' e ') + reais;
+// 		}
+// 	}
+	
+// 	if (milhar) {
+// 		if (!reais) {
+// 			milhar += ' reais';
+// 		}
+// 	}
+	
+// 	if (milhao) {
+// 		if (!reais && !milhar) {
+// 			milhao += ' de reais';
+// 		}
+// 	}
+	
+// 	if (bilhao) {
+// 		if (!reais && !milhar && !milhao) {
+// 			bilhao += ' de reais';
+// 		}
+// 	}
+	
+// 	console.debug('regras do bilhao: ' +  bilhao)
+// 	console.debug('regras do milhao: ' + milhao)
+// 	console.debug('regras do milhar: ' + milhar)
+// 	console.debug('regras dos reais: ' + reais)
+// 	console.debug('regras dos centavos: ' + centavos)
+	
+// 	let frase = bilhao + milhao + milhar + reais + centavos;
+// 	frase = frase.replace(/\s{2,}/gm,' '); //exclui os espaços duplicados
+// 	console.debug(valor + ": " + frase.trim());
+// 	return frase.trim();
+// }
+
+function obterIdProcessoDaUrl(url) {
+	return new Promise(resolve => {
+		
+		url = (!url) ? document.location.href : url;		
+		let padrao = /\/{1}\d{5,}\/{1}/;
+		let texto = url?.match(padrao)?.join();
+
+		if (url.includes('/processo/') && url.includes('/detalhe')) { //janela Detalhes
+			texto = url.match(padrao).join();
+		} else if (url.includes('/processo/') && url.includes('/tarefa/') && url.includes('/minutar')) { //janela tarefa Despachos
+			texto = url.match(padrao).join();
+		} else if (url.includes('/processo/') && url.includes('/tarefa/')  && url.includes('/comunicacoesprocessuais/minutas')) { //janela Tarefa Intimações
+			texto = url.match(padrao).join();
+		} else if (url.includes('/processo/') && url.includes('/comunicacoesprocessuais/minutas')) { //janela Detalhes Intimações
+			texto = url.match(padrao).join();
+		} else if (url.includes('/processo/') && url.includes('/documento/anexar')) { //janela Anexar Documentos
+			texto = url.match(padrao).join();
+		} else if (url.includes('/pje-gigs-api/api/execucao/processo/')) { //janela Principal > GIGS > execucao
+			padrao = /\/{1}\d{5,}/;
+			texto = url.match(padrao).join();
 		}
-	}
-	
-	if (reais) {
-		if (milhar || milhao || bilhao) {
-			reais = (centavos ? ', ' : ' e ') + reais;
-		}
-	}
-	
-	if (milhar) {
-		if (!reais) {
-			milhar += ' reais';
-		}
-	}
-	
-	if (milhao) {
-		if (!reais && !milhar) {
-			milhao += ' de reais';
-		}
-	}
-	
-	if (bilhao) {
-		if (!reais && !milhar && !milhao) {
-			bilhao += ' de reais';
-		}
-	}
-	
-	console.debug('regras do bilhao: ' +  bilhao)
-	console.debug('regras do milhao: ' + milhao)
-	console.debug('regras do milhar: ' + milhar)
-	console.debug('regras dos reais: ' + reais)
-	console.debug('regras dos centavos: ' + centavos)
-	
-	let frase = bilhao + milhao + milhar + reais + centavos;
-	frase = frase.replace(/\s{2,}/gm,' '); //exclui os espaços duplicados
-	console.debug(valor + ": " + frase.trim());
-	return frase.trim();
+		let idProcesso = extrairNumeros(texto);
+		return resolve(idProcesso);
+
+	});
 }
+
+function obterIdDocumentoDaUrl(url) {
+	return new Promise(resolve => {
+		
+		url = (!url) ? document.location.href : url;		
+		let padrao = /\/{1}\d{8,}\?{1}/;
+		let texto = url?.match(padrao)?.join();
+
+		if (url.includes('/pjekz/processo/') && url.includes('/documento/') && url.includes('/conteudo')) { //janela isolada do documento
+			padrao = /\/{1}\d{8,}\/{1}/;
+			texto = url.match(padrao).join();
+		}
+		
+		let idDocumento = extrairNumeros(texto);
+		return resolve(idDocumento);
+
+	});
+}
+
+async function obterUrlDoNetworkRequest(queContem) {	
+	return new Promise(async resolve => {
+		let capture_resource = performance.getEntriesByType("resource");
+		let startTimeUltimoNR = capture_resource[capture_resource.length - 1].startTime;
+		
+		//obtém a lista de NR's do ultimo segundo e confere se ela é um dos request's de filtro
+		let requestName = 'Nenhum';
+		for (let i = 0; i < capture_resource.length; i++) {			
+			if (capture_resource[i].startTime > (startTimeUltimoNR-1000))  {
+				// console.log(capture_resource[i].name)
+				if (capture_resource[i].name.includes(queContem)) {					
+					requestName = capture_resource[i].name;
+					console.log('    |____peguei')
+					break;
+				}
+			}				
+		}
+		return resolve(requestName);		
+	});
+}
+
+// async function extrairNumeroProcesso(texto) {
+// 	let padrao = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
+// 	let n = '';
+// 	if (padrao.test(texto)) {
+// 		n = texto.match(padrao).join();
+// 	}	
+// 	return n;
+// }
 
 function consultaPJe(el) {
-	console.log("      |___criado link para consulta no PJe");
 	if (document.getElementById('maisPJe_atalhoConsultaPJe')) { return }
+	console.log("      |___criado link para consulta no PJe");
 	if (!el || el.length == 0) { return }
 	
 	let map = [].map.call(
@@ -25065,6 +26586,41 @@ function consultaPJe(el) {
 	}
 }
 
+async function existeDoctoNaoAssinado(param) {
+	return new Promise(
+		async resolver => {
+			let idProcesso;
+			if (param.length > 15) { //eh o numero
+				let api = await obterIdProcessoViaApi(param);
+				if (!api) { return resolver(null) }
+				if (!api[0].idProcesso) { return resolver(null) }
+				idProcesso = api[0].idProcesso;
+			} else { //é o id
+				idProcesso = param;
+			}
+			
+			
+			let alertarSobreDocumentosNaoAssinados = false;
+			
+			//confere processos pendente no anexa documentos
+			await obterInfoDocToNaoAssinado(idProcesso).then(resultado => {
+				if (resultado) {
+					alertarSobreDocumentosNaoAssinados = true;
+				}
+			});
+
+			await obterNomeTarefaDoProcessoViaApi(idProcesso).then(resultado => {
+				//confere processos pendente no preparar comunicação/expedientes, despachos, decisão e sentença
+				if (resultado.includes('Assinar ')) {
+					alertarSobreDocumentosNaoAssinados = true;
+				}
+			});
+
+			return resolver(alertarSobreDocumentosNaoAssinados);
+		}
+	);
+}
+
 async function triggerEvent(el, type, keycode=null) {
 	if (type == 'click') {
 		el.click();
@@ -25115,6 +26671,12 @@ function simularTecla(tipo,keycode,ctrl=false,alt=false,shift=false) {
 
 function acionarSemCliqueGenerico(elemento,cor1,cor2,tempo='1') {
 	if (elemento) {
+		
+		//inserir css
+		let style = document.createElement("style");
+		style.textContent = '@keyframes trocarCorGeral { 0% { background: linear-gradient(var(--color1) 100%, var(--color2) 0); } 10% { background: linear-gradient(var(--color1) 90%, var(--color2) 0); } 20% { background: linear-gradient(var(--color1) 80%, var(--color2) 0); } 30% { background: linear-gradient(var(--color1) 70%, var(--color2) 0); } 40% { background: linear-gradient(var(--color1) 60%, var(--color2) 0); } 50% { background: linear-gradient(var(--color1) 50%, var(--color2) 0); } 60% { background: linear-gradient(var(--color1) 40%, var(--color2) 0); } 70% { background: linear-gradient(var(--color1) 30%, var(--color2) 0); } 80% { background: linear-gradient(var(--color1) 20%, var(--color2) 0); } 90% { background: linear-gradient(var(--color1) 10%, var(--color2) 0); } 100% { background: linear-gradient(var(--color1) 0%, var(--color2) 0); }}';
+		document.body.appendChild(style);
+
 		let temporizador = parseFloat(tempo);
 		let mouseEmCima = false;
 		let check99;
@@ -25386,6 +26948,95 @@ function criarCaixaDeSelecaoComReclamantes() {
 	);
 }
 
+function criarCaixaDeSelecaoComTodos() {
+	//excluir=false cria uma caixa de seleção de reclamados que vc escolhe apenas um dentre aqueles que aparecem
+	return new Promise(
+		resolver => {
+			if (!document.getElementById('maisPje_caixa_de_selecao')) {
+				browser.storage.local.get('processo_memoria', function(result){
+					preferencias.processo_memoria = result.processo_memoria;
+					
+					if (!preferencias.processo_memoria) { resolver(null); return; } //se vazio
+					
+					
+					let lista_de_partes_temp = [];
+					// DESCRIÇÃO: REGRA DO TOOLTIP
+					if (!document.getElementById('maisPje_tooltip_fundo')) {
+						tooltip('fundo', true);
+					}
+					
+					let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+					
+					let elemento1 = document.createElement("div");
+					elemento1.id = 'maisPje_caixa_de_selecao';
+					elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; font-size: 16px; text-align: center; flex-direction: column;';
+					
+					elemento1.onclick = function (e) {
+						if (e.target.id == "maisPje_caixa_de_selecao") {
+							elemento1.remove();
+						}
+					}; //se clicar fora fecha a janela
+					
+					let container = document.createElement("div");
+					container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);overflow-y: auto;";
+					
+					let titulo = document.createElement("span");
+					titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
+					titulo.innerText = "Lista de Partes";
+					titulo.innerText += " - clique para ESCOLHER";
+					container.appendChild(titulo);
+
+					for (const [pos, autor] of preferencias.processo_memoria.autor.entries()) {
+						let span = document.createElement("span");
+						span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_a_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
+						span.innerText = autor.nome + " (" + autor.cpfcnpj + ") - AUTOR";
+						span.onmouseenter = function () {
+							span.style.backgroundColor  = 'lightgrey';
+						};
+						span.onmouseleave = function () {
+							span.style.backgroundColor  = 'white';
+							span.style.color  = 'rgb(81, 81, 81)';
+						};
+						span.onclick = function () {
+							resolver([{cpfcnpj: autor.cpfcnpj, nome: autor.nome}]);
+							document.getElementById('maisPje_caixa_de_selecao').remove();
+						};
+
+						
+
+						container.appendChild(span);
+						lista_de_partes_temp.push({ cpfcnpj: autor.cpfcnpj, nome: autor.nome });
+					}
+					
+					for (const [pos, reu] of preferencias.processo_memoria.reu.entries()) {
+						let span = document.createElement("span");						
+						span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_r_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
+						span.innerText = reu.nome + " (" + reu.cpfcnpj + ") - RÉU";
+						span.onmouseenter = function () {
+							span.style.backgroundColor  = 'lightgrey';
+						};
+						span.onmouseleave = function () {
+							span.style.backgroundColor  = 'white';
+							span.style.color  = 'rgb(81, 81, 81)';
+						};
+						span.onclick = function () {
+							resolver([{cpfcnpj: reu.cpfcnpj, nome: reu.nome}]);
+							document.getElementById('maisPje_caixa_de_selecao').remove();
+						};
+						container.appendChild(span);
+						lista_de_partes_temp.push({ cpfcnpj: reu.cpfcnpj, nome: reu.nome });
+					}
+					
+					elemento1.appendChild(container);
+					document.body.appendChild(elemento1);
+				});
+			} else {
+				resolver(null);
+			}
+		}
+	);
+}
+
 async function criarCaixaDeSelecaoComAAs(label) {
 	return new Promise(
 		resolver => {
@@ -25410,177 +27061,8 @@ async function criarCaixaDeSelecaoComAAs(label) {
 				let container = document.createElement("div");
 				container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
 				
-				let titulo = document.createElement("span");
-				titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
-				titulo.innerText = label;
-				container.appendChild(titulo);
-				
-				let selectAcaoAutomatizada = document.createElement("select");
-				selectAcaoAutomatizada.style = 'cursor: pointer; margin-top: 10px; padding: 10px; background-color: white; color: rgb(81, 81, 81); min-height: 40px; font-size:1.125em;';
-								
-				//Nenhuma
-				let optionAA = document.createElement("option");
-				optionAA.value = 'Nenhum';
-				optionAA.style = 'background-color: coral;';
-				optionAA.innerText = 'Nenhum';
-				selectAcaoAutomatizada.appendChild(optionAA);
-				
-				//monta as acoes automatizadas de Anexar Documentos
-				let optionGR1 = document.createElement("optgroup");
-				optionGR1.label = 'ANEXAR DOCUMENTOS';
-				optionGR1.style = 'background-color: lightgray;';
-				for (const [pos, item] of preferencias.aaAnexar.entries()) {
-					let optionAAA = document.createElement("option");
-					optionAAA.value = 'Anexar|' + item.nm_botao;
-					optionAAA.innerText = 'Anexar|' + item.nm_botao;
-					optionAAA.style = 'background-color: #d3d3d35e;';
-					optionGR1.appendChild(optionAAA);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR1)
-				
-				//monta as acoes automatizadas de Comunicação
-				let optionGR2 = document.createElement("optgroup");
-				optionGR2.label = 'INTIMAÇÃO/EXPEDIENTE';
-				optionGR2.style = 'background-color: coral;';
-				for (const [pos, item] of preferencias.aaComunicacao.entries()) {
-					let optionAAC = document.createElement("option");
-					optionAAC.value = 'Comunicação|' + item.nm_botao;
-					optionAAC.innerText = 'Comunicação|' + item.nm_botao;
-					optionAAC.style = 'background-color: #ff7f5021;';
-					optionGR2.appendChild(optionAAC);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR2)
-				
-				//monta as acoes automatizadas de Autogigs
-				let optionGR3 = document.createElement("optgroup");
-				optionGR3.label = 'AUTOGIGS';
-				optionGR3.style = 'background-color: lightgray;';
-				for (const [pos, item] of preferencias.aaAutogigs.entries()) {
-					let optionAAG = document.createElement("option");
-					optionAAG.value = 'AutoGigs|' + item.nm_botao;
-					optionAAG.innerText = 'AutoGigs|' + item.nm_botao;
-					optionAAG.style = 'background-color: #d3d3d35e;';
-					if (item.nm_botao.includes('[concluir]')) {
-						optionAAG.style.color = 'coral';
-					}
-					optionGR3.appendChild(optionAAG);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR3)
-				
-				//monta as acoes automatizadas de Despacho
-				let optionGR4 = document.createElement("optgroup");
-				optionGR4.label = 'DESPACHO';
-				optionGR4.style = 'background-color: coral;';
-				for (const [pos, item] of preferencias.aaDespacho.entries()) {
-					let optionAAD = document.createElement("option");
-					optionAAD.value = 'Despacho|' + item.nm_botao;
-					optionAAD.innerText = 'Despacho|' + item.nm_botao;
-					optionAAD.style = 'background-color: #ff7f5021;';
-					optionGR4.appendChild(optionAAD);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR4)
-				
-				//monta as acoes automatizadas de Movimento
-				let optionGR5 = document.createElement("optgroup");
-				optionGR5.label = 'MOVIMENTOS';
-				optionGR5.style = 'background-color: lightgray;';
-
-				let optionAAM = document.createElement("option");
-				optionAAM.value = 'Movimento|bt_atualizar_tarefa';
-				optionAAM.innerText = '>>>Movimento|Renovar a Data na Tarefa';
-				optionAAM.style = 'background-color: #d3d3d35e;';
-				optionGR5.appendChild(optionAAM);
-
-				for (const [pos, item] of preferencias.aaMovimento.entries()) {
-					optionAAM = document.createElement("option");
-					optionAAM.value = 'Movimento|' + item.nm_botao;
-					optionAAM.innerText = 'Movimento|' + item.nm_botao;
-					optionAAM.style = 'background-color: #d3d3d35e;';
-					optionGR5.appendChild(optionAAM);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR5)
-				
-				//monta as acoes automatizadas de Checklist
-				let optionGR6 = document.createElement("optgroup");
-				optionGR6.label = 'CHECKLIST';
-				optionGR6.style = 'background-color: coral;';
-				for (const [pos, item] of preferencias.aaChecklist.entries()) {
-					let optionAAE = document.createElement("option");
-					optionAAE.value = 'Checklist|' + item.nm_botao;
-					optionAAE.innerText = 'Checklist|' + item.nm_botao;
-					optionAAE.style = 'background-color: #ff7f5021;';
-					optionGR6.appendChild(optionAAE);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR6)
-				
-				
-				//monta as acoes automatizadas de Retificar Autuação
-				let optionGR7 = document.createElement("optgroup");
-				optionGR7.label = 'RETIFICAR AUTUAÇÃO';
-				optionGR7.style = 'background-color: lightgray;';
-				let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7','addAutor'],['botao_retificar_autuacao_8','addRéu'],['botao_retificar_autuacao_0','addUnião'],['botao_retificar_autuacao_10','addMPT'],['botao_retificar_autuacao_3','addLeiloeiro'],['botao_retificar_autuacao_4','addPerito'],['botao_retificar_autuacao_addTerceiroTerceiro','Terceiro>Terceiro'],['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],['botao_retificar_autuacao_Falencia','Falência/Rec.Judicial'],['botao_retificar_autuacao_assunto','Assunto'],['botao_retificar_autuacao_justicaGratuita','Justiça Gratuita']];
-
-				[].map.call(aaItemRetificarAutuacao,function(item) {
-					let optionIRA = document.createElement("option");
-					optionIRA.value = 'RetificarAutuação|' + item[0];
-					optionIRA.innerText = 'RetificarAutuação|' + item[1];
-					optionIRA.style = 'background-color: #d3d3d35e;';
-					optionGR7.appendChild(optionIRA);
-				});
-				selectAcaoAutomatizada.appendChild(optionGR7)
-				
-				//monta as acoes automatizadas de Lançar Movimentos
-				let optionGR8 = document.createElement("optgroup");
-				optionGR8.label = 'LANÇAR MOVIMENTOS';
-				optionGR8.style = 'background-color: coral;';
-				for (const [pos, item] of preferencias.aaLancarMovimentos.entries()) {
-					let optionILM = document.createElement("option");
-					optionILM.value = 'LançarMovimento|' + item.id;
-					optionILM.innerText = 'LançarMovimento|' + item.nm_botao;
-					optionILM.style = 'background-color: #ff7f5021;';
-					optionGR8.appendChild(optionILM);
-				}
-				selectAcaoAutomatizada.appendChild(optionGR8)
-				
-				let optionGR9 = document.createElement("optgroup");
-				optionGR9.label = 'CLICAR EM';
-				optionGR9.style = 'background-color: lightgray;';
-				let aaItemMenuDetalhes = ['Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições'];
-				
-				[].map.call(aaItemMenuDetalhes,function(item) {
-					let optionIMD = document.createElement("option");
-					optionIMD.value = 'Clicar em|' + item;
-					optionIMD.innerText = 'Clicar em|' + item;
-					optionIMD.style = 'background-color: #d3d3d35e;';
-					optionGR9.appendChild(optionIMD);
-				});
-				selectAcaoAutomatizada.appendChild(optionGR9);
-				
-				//monta as acoes automatizadas de VARIADOS
-				let optionGR10 = document.createElement("optgroup");
-				optionGR10.label = 'VARIADOS';
-				optionGR10.style = 'background-color: coral;';
-				for (const [pos, item] of preferencias.aaVariados.entries()) {
-					if (['Assinar Expedientes','Assinar Documentos','Apreciar Peticoes','SISBAJUD F2','Excluir BNDT','Enviar Email'].includes(item.nm_botao)) {
-						let optionVAR = document.createElement("option");
-						optionVAR.value = 'Variados|' + item.nm_botao;
-						optionVAR.innerText = 'Variados|' + item.nm_botao;
-						optionVAR.style = 'background-color: #ff7f5021;';
-						optionGR10.appendChild(optionVAR);
-					}					
-					if (['Atualizar Pagina','Fechar Pagina'].includes(item.nm_botao)) {
-						let optionVAR = document.createElement("option");
-						optionVAR.value = item.nm_botao + '|' + item.nm_botao;
-						optionVAR.innerText = item.nm_botao + '|' + item.nm_botao;
-						optionVAR.style = 'background-color: #ff7f5021;';
-						optionGR10.appendChild(optionVAR);
-					}
-				}
-				selectAcaoAutomatizada.appendChild(optionGR10)
-
-				container.appendChild(selectAcaoAutomatizada);
-				
 				let bt_continuar = document.createElement("span");
+				bt_continuar.id = "maisPje_caixa_de_selecao_btContinuar";
 				bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
 				bt_continuar.innerText = "Salvar";
 				bt_continuar.onmouseenter = function () {
@@ -25593,6 +27075,218 @@ async function criarCaixaDeSelecaoComAAs(label) {
 					resolver(selectAcaoAutomatizada.value);
 					document.getElementById('maisPje_caixa_de_selecao').remove();
 				};
+
+				let titulo = document.createElement("span");
+				titulo.style = "color: #333; opacity: .8; border-bottom: 1px solid lightgrey;";
+				titulo.innerText = label;
+				container.appendChild(titulo);
+
+				let filtro = document.createElement("div");
+				filtro.style = 'min-height: 3vh;font-size: 1.3em;';
+				filtro.appendChild(criarFiltro('ANEXAR DOCUMENTOS','fa fa-paperclip'));
+				filtro.appendChild(criarFiltro('INTIMAÇÃO/EXPEDIENTE','fa fa-envelope'));
+				filtro.appendChild(criarFiltro('AUTOGIGS','fa fa-tag'));
+				filtro.appendChild(criarFiltro('DESPACHO','fas fa-gavel','rgb(232, 87, 30)'));
+				filtro.appendChild(criarFiltro('MOVIMENTOS','fas fa-hand-paper','rgb(232, 87, 30)'));
+				filtro.appendChild(criarFiltro('CHECKLIST','fas fa-check'));
+				filtro.appendChild(criarFiltro('CÁLCULOS DO PROCESSO','fa fa-calculator'));
+				filtro.appendChild(criarFiltro('RETIFICAR AUTUAÇÃO','fas fa-pencil-alt'));
+				filtro.appendChild(criarFiltro('LANÇAR MOVIMENTOS','far fa-plus-square'));
+				filtro.appendChild(criarFiltro('CLICAR EM','fas fa-mouse-pointer'));
+				filtro.appendChild(criarFiltro('VARIADOS','fas fa-tablets'));
+				container.appendChild(filtro);
+
+				let filtroTexto = document.createElement("div");
+				filtroTexto.id = 'maisPje_caixa_de_selecao_filtroTexto';
+				filtroTexto.style = 'min-height: 2vh;font-size: small;color: #333;opacity: .8;';
+				container.appendChild(filtroTexto);
+				
+				let selectAcaoAutomatizada = document.createElement("select");
+				selectAcaoAutomatizada.style = 'cursor: pointer; padding: 10px; border: 0; background-color: white; color: rgb(81, 81, 81); min-height: 40px; font-size:1.125em;';
+				selectAcaoAutomatizada.size = '10';
+				//Nenhuma
+				let optionAA = document.createElement("option");
+				optionAA.value = 'Nenhum';
+				optionAA.innerText = 'Nenhum';
+				optionAA.onmouseenter  = function () { this.style.backgroundColor = 'tomato';this.style.color = 'white'; }
+				optionAA.onmouseleave  = function () { this.style.backgroundColor = 'revert';this.style.color = 'revert'; }
+				optionAA.onclick = function (){ bt_continuar.click() }
+				selectAcaoAutomatizada.appendChild(optionAA);
+				
+				//monta as acoes automatizadas de Anexar Documentos
+				let optionGR1 = document.createElement("optgroup");
+				optionGR1.label = 'ANEXAR DOCUMENTOS';
+				for (const [pos, item] of preferencias.aaAnexar.entries()) {
+					let optionAAA = document.createElement("option");
+					optionAAA.value = 'Anexar|' + item.nm_botao;
+					optionAAA.innerText = 'Anexar|' + item.nm_botao;
+					optionAAA.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAA.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAA.onclick = function (){ bt_continuar.click() }
+					optionGR1.appendChild(optionAAA);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR1)
+				
+				//monta as acoes automatizadas de Comunicação
+				let optionGR2 = document.createElement("optgroup");
+				optionGR2.label = 'INTIMAÇÃO/EXPEDIENTE';
+				for (const [pos, item] of preferencias.aaComunicacao.entries()) {
+					let optionAAC = document.createElement("option");
+					optionAAC.value = 'Comunicação|' + item.nm_botao;
+					optionAAC.innerText = 'Comunicação|' + item.nm_botao;
+					optionAAC.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAC.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAC.onclick = function (){ bt_continuar.click() }
+					optionGR2.appendChild(optionAAC);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR2)
+				
+				//monta as acoes automatizadas de Autogigs
+				let optionGR3 = document.createElement("optgroup");
+				optionGR3.label = 'AUTOGIGS';
+				//monta as acoes automatizadas de Autogigs
+				for (const [pos, item] of preferencias.aaAutogigs.entries()) {
+					let optionAAG = document.createElement("option");
+					optionAAG.style.backgroundColor = 'white';
+					optionAAG.value = 'AutoGigs|' + item.nm_botao;
+					optionAAG.innerText = 'AutoGigs|' + item.nm_botao;
+					optionAAG.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAG.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAG.onclick = function (){ bt_continuar.click() }
+					if (item.nm_botao.includes('[concluir]')) {
+						optionAAG.style.color = 'coral';
+					}
+					optionGR3.appendChild(optionAAG);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR3)
+				
+				//monta as acoes automatizadas de Despacho
+				let optionGR4 = document.createElement("optgroup");
+				optionGR4.label = 'DESPACHO';
+				for (const [pos, item] of preferencias.aaDespacho.entries()) {
+					let optionAAD = document.createElement("option");
+					optionAAD.value = 'Despacho|' + item.nm_botao;
+					optionAAD.innerText = 'Despacho|' + item.nm_botao;
+					optionAAD.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAD.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAD.onclick = function (){ bt_continuar.click() }
+					optionGR4.appendChild(optionAAD);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR4)
+				
+				//monta as acoes automatizadas de Movimento
+				let optionGR5 = document.createElement("optgroup");
+				optionGR5.label = 'MOVIMENTOS';
+				for (const [pos, item] of preferencias.aaMovimento.entries()) {
+					let optionAAM = document.createElement("option");
+					optionAAM.value = 'Movimento|' + item.nm_botao;
+					optionAAM.innerText = 'Movimento|' + item.nm_botao;
+					optionAAM.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAM.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAM.onclick = function (){ bt_continuar.click() }
+					optionGR5.appendChild(optionAAM);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR5)
+				
+				//monta as acoes automatizadas de Checklist
+				let optionGR6 = document.createElement("optgroup");
+				optionGR6.label = 'CHECKLIST';
+				for (const [pos, item] of preferencias.aaChecklist.entries()) {
+					let optionAAE = document.createElement("option");
+					optionAAE.value = 'Checklist|' + item.nm_botao;
+					optionAAE.innerText = 'Checklist|' + item.nm_botao;
+					optionAAE.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionAAE.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionAAE.onclick = function (){ bt_continuar.click() }
+					optionGR6.appendChild(optionAAE);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR6)
+																
+				//monta as acoes automatizadas de Cálculos
+				let optionGR11 = document.createElement("optgroup");
+				optionGR11.label = 'CÁLCULOS DO PROCESSO';
+				let aaItemCalculosDoProcesso = [['botao_abrirPjeCalc','Abrir PJeCalc'],['botao_atualizacaoRapida','Atualização Rápida'],['atualizacaorapidaRPVPrec','Atualização Rápida GPREC']];
+				[].map.call(aaItemCalculosDoProcesso,function(item) {
+					let optionCDP = document.createElement("option");
+					optionCDP.value = 'CalculosDoProcesso|' + item[0];
+					optionCDP.innerText = 'CalculosDoProcesso|' + item[1];					
+					optionCDP.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionCDP.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionCDP.onclick = function (){ bt_continuar.click() }
+					optionGR11.appendChild(optionCDP);
+				});
+				selectAcaoAutomatizada.appendChild(optionGR11)
+
+				//monta as acoes automatizadas de Retificar Autuação
+				let optionGR7 = document.createElement("optgroup");
+				optionGR7.label = 'RETIFICAR AUTUAÇÃO';
+				let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7','addAutor'],['botao_retificar_autuacao_8','addRéu'],['botao_retificar_autuacao_0','addUnião'],['botao_retificar_autuacao_10','addMPT'],['botao_retificar_autuacao_3','addLeiloeiro'],['botao_retificar_autuacao_4','addPerito'],['botao_retificar_autuacao_addTerceiroTerceiro','Terceiro>Terceiro'],['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],['botao_retificar_autuacao_Falencia','Falência/Rec.Judicial'],['botao_retificar_autuacao_assunto','Assunto'],['botao_retificar_autuacao_justicaGratuita','Justiça Gratuita']];
+
+				[].map.call(aaItemRetificarAutuacao,function(item) {
+					let optionIRA = document.createElement("option");
+					optionIRA.value = 'RetificarAutuação|' + item[0];
+					optionIRA.innerText = 'RetificarAutuação|' + item[1];					
+					optionIRA.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionIRA.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionIRA.onclick = function (){ bt_continuar.click() }
+					optionGR7.appendChild(optionIRA);
+				});
+				selectAcaoAutomatizada.appendChild(optionGR7)
+				
+				//monta as acoes automatizadas de Lançar Movimentos
+				let optionGR8 = document.createElement("optgroup");
+				optionGR8.label = 'LANÇAR MOVIMENTOS';
+				for (const [pos, item] of preferencias.aaLancarMovimentos.entries()) {
+					let optionILM = document.createElement("option");
+					optionILM.value = 'LançarMovimento|' + item.id;
+					optionILM.innerText = 'LançarMovimento|' + item.nm_botao;
+					optionILM.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionILM.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionILM.onclick = function (){ bt_continuar.click() }
+					optionGR8.appendChild(optionILM);
+				}
+				selectAcaoAutomatizada.appendChild(optionGR8)
+				
+				let optionGR9 = document.createElement("optgroup");
+				optionGR9.label = 'CLICAR EM';
+				let aaItemMenuDetalhes = ['Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico'];
+				
+				[].map.call(aaItemMenuDetalhes,function(item) {
+					let optionIMD = document.createElement("option");
+					optionIMD.value = 'Clicar em|' + item;
+					optionIMD.innerText = 'Clicar em|' + item;
+					optionIMD.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+					optionIMD.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+					optionIMD.onclick = function (){ bt_continuar.click() }
+					optionGR9.appendChild(optionIMD);
+				});
+				selectAcaoAutomatizada.appendChild(optionGR9);
+				
+				//monta as acoes automatizadas de VARIADOS
+				let optionGR10 = document.createElement("optgroup");
+				optionGR10.label = 'VARIADOS';
+				for (const [pos, item] of preferencias.aaVariados.entries()) {
+					if (['Atualizar Pagina','Fechar Pagina'].includes(item.nm_botao)) {
+						let optionVAR = document.createElement("option");
+						optionVAR.value = item.nm_botao + '|' + item.nm_botao;
+						optionVAR.innerText = item.nm_botao + '|' + item.nm_botao;
+						optionVAR.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+						optionVAR.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+						optionVAR.onclick = function (){ bt_continuar.click() }
+						optionGR10.appendChild(optionVAR);
+					} else {
+						let optionVAR = document.createElement("option");
+						optionVAR.value = 'Variados|' + item.nm_botao;
+						optionVAR.innerText = 'Variados|' + item.nm_botao;
+						optionVAR.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+						optionVAR.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+						optionVAR.onclick = function (){ bt_continuar.click() }
+						optionGR10.appendChild(optionVAR);
+					}
+				}
+				selectAcaoAutomatizada.appendChild(optionGR10)
+
+				container.appendChild(selectAcaoAutomatizada);				
 				container.appendChild(bt_continuar);
 				elemento1.appendChild(container);
 				document.body.appendChild(elemento1);
@@ -25602,6 +27296,32 @@ async function criarCaixaDeSelecaoComAAs(label) {
 			}
 		}
 	);
+
+	function criarFiltro(nome,icone,color='#333') {
+		let filtro = document.createElement("span");
+		filtro.style = "cursor: pointer; margin-left: 1vw; color: " + color + "; position: relative; top: 0.3vh; opacity: .3;";
+		filtro.onmouseenter  = function () { 
+			this.style.opacity = '.8';
+			document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = nome;
+		}
+		filtro.onmouseleave  = function () {
+			this.style.opacity = '.3';
+			document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = '';
+		}
+		filtro.onclick = function (){
+			for (const [pos, item] of document.querySelectorAll('select optgroup').entries()) {
+				if (item.label == nome) { 
+					item.style.display = 'revert';
+				} else {
+					item.style.display = 'none';
+				}
+			}
+		}
+		let i = document.createElement("i");
+		i.className = icone;
+		filtro.appendChild(i);
+		return filtro;
+	}
 }
 
 function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', acionamentoAutomatico) {
@@ -25827,7 +27547,7 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 }
 
 
-async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opções',nomeBotaoContinuar='Nenhum',multiplaEscolha=false,opcaoFavorita=-1,opcaoFavoritaVelocidadeDeInteracao=5) {
+async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opções',nomeBotaoContinuar='Nenhum',multiplaEscolha=false,opcaoFavorita=-1,opcaoFavoritaVelocidadeDeInteracao=5,retornarPosicao=false) {
 	return new Promise(
 		resolver => {
 			if (!document.getElementById('maisPje_caixa_de_selecao')) {
@@ -25856,24 +27576,33 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				let span1 = document.createElement("span");
 				span1.innerText = titulo;
 				t.appendChild(span1);
+
+				if (multiplaEscolha) {
+					span1.appendChild(document.createElement('br'));
+					let subtitulo = document.createElement("span");
+					subtitulo.innerText = '(segure a tecla CTRL para selecionar mais de uma opção)';
+					subtitulo.style = "font-size: medium;font-weight: lighter;color: #c87a7a;";
+					span1.appendChild(subtitulo);
+				}
+
 				let span2 = document.createElement("span");
-				span2.style = 'color: white; border-radius: 25px;padding: 2px;';
+				span2.style = 'border-radius: 25px;padding: 2px;';
 				span2.id = 'maisPje_caixa_de_selecao_contadorDaOpcaoFavorita';
 				t.appendChild(span2);
 				container.appendChild(t);
 								
 				let containerSelect = document.createElement("select");
 				containerSelect.style = 'cursor: pointer; margin-top: 10px; padding: 10px; background-color: white; color: rgb(81, 81, 81); font-size:1.125em;overflow-y: auto;text-align: center;';
-				console.log(multiplaEscolha)
+				
 				if (multiplaEscolha) {
 					containerSelect.setAttribute('multiple','true');
 					containerSelect.style.minHeight = '80vh';
 				}
 
-
+				let check;
 				for (const [pos, opcao] of listaDeOpcoes.entries()) {
 					let option = document.createElement("option");
-					option.id = 'maisPje_selecao_select_' + opcao;
+					option.id = 'maisPje_selecao_select_' + (pos+1);
 					option.style = 'background-color: white;padding: 10px;border-radius: 5px;';
 					option.value = opcao;
 					option.innerText = opcao;
@@ -25886,9 +27615,18 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 						containerSelect.setAttribute('size',listaDeOpcoes.length);
 						
 						option.onclick = function () { 
-							resolver(this.innerText);
-							document.getElementById('maisPje_caixa_de_selecao').remove(); 
+							clearInterval(check);
+							let resposta;
+							if (retornarPosicao) {
+								resposta = pos;								
+							} else {
+								resposta = this.innerText;								
+							}
+							document.getElementById('maisPje_caixa_de_selecao').remove();
+							return resolver(resposta);													
 						};
+
+
 					}
 
 					containerSelect.appendChild(option);
@@ -25928,11 +27666,11 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 
 					opcoes[opcaoFavorita].style.animation = 'pulseLeveBlue 1s infinite';
 					let cont = opcaoFavoritaVelocidadeDeInteracao;
-					document.querySelector('#maisPje_caixa_de_selecao_contadorDaOpcaoFavorita').style.backgroundColor = 'rgba(0, 120, 170,.7)';
+					document.querySelector('#maisPje_caixa_de_selecao_contadorDaOpcaoFavorita').style.color = '#8b00006e';
 
 					document.querySelector('#maisPje_caixa_de_selecao_contadorDaOpcaoFavorita').innerText = cont;
 					
-					let check = setInterval(function() { 
+					check = setInterval(function() { 
 						cont--;						
 						document.querySelector('#maisPje_caixa_de_selecao_contadorDaOpcaoFavorita').innerText = cont;
 						
@@ -25940,7 +27678,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 							clearInterval(check);
 							window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 							opcoes[opcaoFavorita].click();
-							return resolver(true);
+							// return resolver(true);
 						}
 						
 					}, 1000);
@@ -25987,6 +27725,7 @@ async function criarCaixaDeAlerta(titulo='ALERTA', mensagem='Erro padrão', temp
 				
 				let t = document.createElement("span");
 				t.style = "font-family: Open Sans,Arial,Verdana,sans-serif; font-size: 1.5em; color: grey; border-bottom: 1px solid lightgrey;";
+				t.id = 'maisPje_caixa_de_alerta_titulo';
 				t.innerText = titulo;
 				container.appendChild(t);
 				
@@ -26001,6 +27740,7 @@ async function criarCaixaDeAlerta(titulo='ALERTA', mensagem='Erro padrão', temp
 				
 				let m = document.createElement("span");
 				m.style = "font-family: Open Sans,Arial,Verdana,sans-serif; font-size: 1.5em; color: chocolate; font-style: normal; font-weight: normal;text-align: center;margin: auto auto auto 20px;";
+				m.id = 'maisPje_caixa_de_alerta_mensagem';
 				m.innerText = mensagem;
 				div.appendChild(m);
 				
@@ -26083,8 +27823,9 @@ async function criarCaixaDeAlerta(titulo='ALERTA', mensagem='Erro padrão', temp
 				
 				//criar listener para tecla pressionada
 				let eventoOuvirTecla = function(evt) {
-					// console.log("---> " + evt.key)
-					if (evt.key === "Enter") {
+					console.log("---> " + evt.key)
+					// if (evt.key === "Enter") {
+					if (evt.key) {
 						document.getElementById('maisPje_caixa_de_alerta')?.remove();
 						window.removeEventListener("keydown", eventoOuvirTecla);
 						resolver(true);
@@ -26503,17 +28244,9 @@ async function assistenteDeImpressao() {
 						ancora = ancora.parentElement;
 					}
 					
-					// pagina.innerHTML = ancora.innerHTML;
 					addPaginaFromStorage(ancora.innerHTML, pagina)
-					// pagina.replaceChildren(...ancora); 
-					// // alternativa
-					// pagina.replaceChildren();
-					// pagina.insertAdjacentElement('beforebegin', ancora);
-					// // alternativa 2:
-					// pagina.insertAdjacentHTML('beforebegin', ancora.innerHTML);
+					// console.log(pagina.innerHTML)
 
-
-					
 					if (pagina.firstElementChild) {
 						pagina.firstElementChild.style.filter = "reverse"; //retira o efeito do copiar
 						pagina.firstElementChild.style.backgroundColor = "unset"; //retira o efeito do copiar
@@ -26521,7 +28254,6 @@ async function assistenteDeImpressao() {
 						pagina.style.filter = "reverse"; //retira o efeito do copiar
 						pagina.style.backgroundColor = "unset"; //retira o efeito do copiar						
 					}
-					
 					
 					let partePesquisada;
 					//ajuste de elementos na impressão
@@ -26532,14 +28264,8 @@ async function assistenteDeImpressao() {
 							await sleep(250);						
 							
 							partePesquisada = (document.querySelector(convenio.alvo2)) ? '' : document.querySelector('input[name="nome_registrado"]').value + ' (CPF n. ' + document.querySelector('input[name="cpf_registrado"]').value + ')';
-							
-							// if (pagina.querySelector('h1')) {
-							// 	pagina.innerHTML = '<h1 style="font-size: 22px;background-color: #425B4A;color: white;margin-top: 20px;">' + partePesquisada + '</h1>' + pagina.innerHTML;
-							// } else {
-							// 	pagina.innerHTML = '<h1 style="font-size: 22px;background-color: #425B4A;color: white;margin-top: 20px;">' + partePesquisada + '</h1>' + pagina.innerHTML;
-							// }
-							let cabecalhoImpressao = criarElemento('h1', "font-size: 22px;background-color: #425B4A;color: white;margin-top: 20px;", partePesquisada)
-							pagina.insertAdjacentElement('afterbegin', cabecalhoImpressao);
+							let cabecalhoImpressaocrcjud = criarElemento('h1', "font-size: 22px;background-color: #425B4A;color: white;margin-top: 20px;", partePesquisada)
+							pagina.insertAdjacentElement('afterbegin', cabecalhoImpressaocrcjud);
 
 						
 							if (pagina.querySelector('div[class="links"]')) { pagina.querySelector('div[class="links"]').remove() }
@@ -26715,10 +28441,40 @@ async function assistenteDeImpressao() {
 							
 							break;
 						case 'casan':
-							await sleep(250);						
+							await sleep(250);
+							
+							let ancoracasan = querySelectorByText('label','Digite um CPF ou CNPJ');
+							if (ancoracasan) {
+								let pp = ancoracasan.parentElement.querySelector('input').value;
+								partePesquisada = await getExecutado(pp);
+								// pagina.innerHTML = '<h1 style="font-size: 17px;background-color: #6c757d;color: white;margin-top: 20px;padding: 3px;">' + partePesquisada.nome + ' (CPF/CNPJ n. ' + partePesquisada.cpfcnpj + ')' + '</h1>' + pagina.innerHTML;
+								let cabecalhoImpressaocasan = criarCabecalhoNome(partePesquisada.nome, partePesquisada.cpfcnpj)
+								pagina.insertAdjacentElement('afterbegin', cabecalhoImpressaocasan);
+							}
+
+							if(!pagina.querySelector('table tbody tr')) { 
+								let semresultado = criarElemento('h1', 'font-size: 16px;', 'Nenhum resultado foi encontrado')
+								pagina.appendChild(semresultado);
+							}
+							
 							if(pagina.querySelector('table')) { pagina.querySelector('table').style.filter = 'unset' }
+							
 							break;
 						case 'celesc':
+
+							if (document.querySelector('#id_cpf_cnpj')) {
+								let pp = document.querySelector('#id_cpf_cnpj').value;
+								partePesquisada = await getExecutado(pp);
+								// pagina.innerHTML = '<h1 style="font-size: 17px;background-color: #6c757d;color: white;margin-top: 20px;padding: 3px;">' + partePesquisada.nome + ' (CPF/CNPJ n. ' + partePesquisada.cpfcnpj + ')' + '</h1>' + pagina.innerHTML;
+								const cabecalhoImpressao = criarCabecalhoNome(partePesquisada.nome, partePesquisada.cpfcnpj)
+								pagina.insertAdjacentElement('afterbegin', cabecalhoImpressao);
+							}
+
+							if(querySelectorByText('div[role="alert"]','Sua consulta não retornou registros!')) { 
+								let semresultado = criarElemento('h1', 'font-size: 16px;', 'Nenhum resultado foi encontrado')
+								pagina.appendChild(semresultado);
+							}
+
 							for (const [pos, el] of pagina.querySelectorAll('a[type="button"]').entries()) {
 								el.remove();
 							}
@@ -26850,6 +28606,21 @@ async function assistenteDeImpressao() {
 							}
 							
 							break;
+						// case 'cnib':
+						// 	await sleep(250);
+						// 	partePesquisada = document.querySelector('div[id="panelsStayOpen-headingOne"] label').innerText;
+						// 	let cabecalhoImpressaoCnib = criarElemento('h1', "font-size: 22px;background-color: #425B4A;color: white;margin-top: 20px;", partePesquisada)
+						// 	pagina.insertAdjacentElement('afterbegin', cabecalhoImpressaoCnib);
+
+						// 	console.log(pagina)
+
+						// 	for (const [pos, tr] of pagina.querySelectorAll('tr').entries()) {
+						// 		for (const [pos, td] of tr.querySelectorAll('td').entries()) {
+						// 			if (pos > 4) { td.remove() }
+						// 		}
+						// 	}
+
+						// 	break;
 						default:
 							break;
 					}
@@ -26900,7 +28671,7 @@ async function assistenteDeImpressao() {
 			// areaDeImpressao += '</head><body onload="window.print(); window.close();">';
 		} else {
 			areaDeImpressao += cssEstilos+'</head><body onload="window.print(); window.close();">';
-			areaDeImpressao += cssEstilos+'</head><body>';
+			// areaDeImpressao += cssEstilos+'</head><body>';
 		}
 		
 		let paginas = await esperarColecao('div[id*="maisPje_assistenteImpressao_pagina_"]');
@@ -27005,6 +28776,8 @@ async function assistenteDeImpressao() {
 					return resolver({nome:'celesc',alvo:'div[class="x_content"]',alvo2:null,alvo3:null,posx:'right:1vw;',posy:'top:34vh;'});
 				} else if (document.location.href.includes("renajud.pdpj.jus.br")) {
 					return resolver({nome:'renajud',alvo:'app-veiculo-pesquisa table, app-veiculo-pesquisa div[class*="alert"]',alvo2:'div[class="modal-body"]',alvo3:null,posx:'left:66vw;',posy:'top:0vh;'});
+				// } else if (document.location.href.includes("indisponibilidade.onr.org.br")) {
+				// 	return resolver({nome:'cnib',alvo:'table[id="tbParties"] tbody[id="tabela-partes"]',alvo2:null,alvo3:null,posx:'left:80vw;',posy:'top:15vh;'});
 				} else if (document.location.href.includes(preferencias.configURLs.idSiscondj)) {
 					return resolver({nome:'siscondj',alvo:'div[id="dados_pesquisados"]',alvo2:'object[id="data_pdf"]',alvo3:null,posx:'left:66vw;',posy:'top:0vh;'});
 				// } else if (document.location.href.includes("bcb.gov.br/saj")) {
@@ -27358,6 +29131,20 @@ async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto'
 	}
 }
 
+async function preencherInputSimples(seletor, valor) {
+	await sleep(preferencias.maisPje_velocidade_interacao);
+	let elemento;
+	if (seletor instanceof HTMLElement) {
+		elemento = seletor;
+	} else {
+		elemento = document.querySelector(seletor);
+		if (!elemento) {
+			elemento = await esperarElemento(seletor);
+		}	
+	}
+	Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(elemento, valor);
+	return true;
+}
 
 async function clicarBotao(seletor, texto, monitorar=false) {
 	await sleep(preferencias.maisPje_velocidade_interacao);
@@ -27451,6 +29238,12 @@ async function clicarBotao(seletor, texto, monitorar=false) {
 								observer_clicarBotao.disconnect();
 								resolve(true);
 							}
+
+							if (mutation.addedNodes[0].innerText.includes('Informe um endereço ou marque a opção endereço Desconhecido')) {
+								mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso de erro
+								observer_clicarBotao.disconnect();
+								resolve(false);
+							}
 							
 						}
 						
@@ -27524,8 +29317,7 @@ async function preencherCampoPeloTipo(campo, valor) {
     });
 }
 
-
-function criarCabecalhoNome(nome, cpfCnpj = '', tag = 'h1', estilo = "font-size: 17px;background-color: #6c757d;color: white;margin-top: 20px;padding: 3px;") {
+function criarCabecalhoNome(nome, cpfCnpj = '', tag = 'h1', estilo = "font-size: 12px;background-color: #6c757d;color: white;margin-top: 20px;padding: 3px;") {
     let textoCabecalho = nome;
     
     if (cpfCnpj) {
@@ -27561,6 +29353,7 @@ function gerarLinksDosIds(elemento, listaIds_Novo, backgroundColor='#d236c9') {
             listaIds_Novo.forEach(item => {				
                 let regexId = new RegExp(`\\b${item}\\b`, "g");
 				// console.info('   |__procurando Id: ' + item);
+				// console.info('       |__no texto: ' + textContent);
                 if (regexId.test(textContent)) {
 					houveTroca = true;
                     let parts = textContent.split(regexId);
@@ -27569,7 +29362,7 @@ function gerarLinksDosIds(elemento, listaIds_Novo, backgroundColor='#d236c9') {
                         parentNode.insertBefore(document.createTextNode(parts[i]), node);
                         parentNode.insertBefore(criarLink(item), node);						
                     }
-                    // parentNode.insertBefore(document.createTextNode(parts[parts.length - 1]), node);                    
+                    parentNode.insertBefore(document.createTextNode(parts[parts.length - 1]), node); //precisa desse comando para os modelos de documento antigos                
                 }
             });
 
@@ -27597,7 +29390,7 @@ function versaoAtualMaiorQue(aPartirDe) {
 
 		let resposta = (parseInt(versaoAtual) > parseInt(aPartirDe)) ? true : false;
 
-		console.debug(versaoAtual + ' > ' + aPartirDe + ' == ' + resposta);
+		// console.debug(versaoAtual + ' > ' + aPartirDe + ' == ' + resposta);
 		return resolve(resposta);
 	});
 }

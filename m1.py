@@ -156,10 +156,17 @@ def iniciar_fluxo(driver):
                 return
                 
             texto_lower = texto_doc.lower()
-              # Identificação dos fluxos
+            # Identificação dos fluxos
             if any(termo in texto_lower for termo in ['pesquisa patrimonial', 'argos', 'devolução de ordem de pesquisa', 'certidão de devolução']):
                 print(f'[ARGOS] Processo em análise: {texto_doc}')
                 processar_argos(driver, log=True)  # Ativamos o log para depuração
+                # VALIDAÇÃO PÓS ARGOS: Verifica se o contexto do driver ainda é válido
+                try:
+                    _ = driver.window_handles
+                except Exception as e:
+                    print(f'[FLUXO][PEC_IDPJ] Contexto do driver perdido após processar_argos: {e}')
+                    # Força exceção para interromper o fluxo normal e evitar erro na limpeza de abas
+                    raise Exception(f"Driver context lost after processar_argos: {e}")
             elif any(termo in texto_lower for termo in ['oficial de justiça', 'certidão de oficial']):
                 print(f'[OUTROS] Processo em análise: {texto_doc}')
                 fluxo_mandados_outros(driver, log=False)
@@ -169,9 +176,56 @@ def iniciar_fluxo(driver):
         except Exception as e:
             print(f'[ERRO] Falha ao processar mandado: {str(e)}')
         finally:
-            # Removido fechamento de abas daqui para evitar conflito com gerenciamento de abas do fluxo_mandado
-            # O gerenciamento correto de abas é feito no finally do fluxo_callback dentro de fluxo_mandado()
-            pass# Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
+            # Limpeza de abas com validação robusta de contexto
+            try:
+                # Primeira validação: verifica se o contexto ainda existe
+                try:
+                    current_handles = driver.window_handles
+                    current_handle = driver.current_window_handle
+                except Exception as context_error:
+                    print(f"[LIMPEZA][ERRO] Contexto do browser perdido - abortando limpeza: {context_error}")
+                    return
+                
+                # Se há múltiplas abas e não estamos na principal, fecha a atual
+                if len(current_handles) > 1:
+                    main_window = current_handles[0] if current_handles else None
+                    
+                    if main_window and current_handle != main_window:
+                        try:
+                            driver.close()
+                            print(f"[LIMPEZA] Aba secundária fechada: {current_handle[:8]}...")
+                            
+                            # Troca para aba principal com validação
+                            remaining_handles = driver.window_handles
+                            if main_window in remaining_handles:
+                                driver.switch_to.window(main_window)
+                                print(f"[LIMPEZA] Retornado para aba principal: {main_window[:8]}...")
+                            elif remaining_handles:
+                                driver.switch_to.window(remaining_handles[0])
+                                print(f"[LIMPEZA] Usando primeira aba disponível: {remaining_handles[0][:8]}...")
+                            else:
+                                print("[LIMPEZA][ERRO] Nenhuma aba restante após fechamento.")
+                                return
+                            
+                            # Validação final
+                            try:
+                                test_url = driver.current_url
+                                print(f"[LIMPEZA] Contexto validado: {test_url[:50]}...")
+                            except Exception as validation_error:
+                                print(f"[LIMPEZA][ERRO] Falha na validação final: {validation_error}")
+                                
+                        except Exception as close_error:
+                            print(f"[LIMPEZA][ERRO] Falha ao fechar/trocar aba: {close_error}")
+                    else:
+                        print("[LIMPEZA] Já na aba principal ou aba única - nenhuma ação necessária.")
+                else:
+                    print("[LIMPEZA] Aba única detectada - preservando contexto.")
+                    
+            except Exception as cleanup_error:
+                print(f"[LIMPEZA][ERRO CRÍTICO] Falha geral na limpeza: {cleanup_error}")
+                print("[LIMPEZA][AVISO] Contexto do browser pode estar comprometido.")
+            
+            print('[FLUXO] Processo concluído, retornando à lista')
     print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
     indexar_e_processar_lista(driver, fluxo_callback)
 
@@ -473,17 +527,65 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             if debug:
                 print('[ARGOS][REGRAS][PRIORIDADE] ✅ REGRA DE PRECEDÊNCIA: defiro a instauração + SISBAJUD positivo')
                 print('[ARGOS][REGRAS][PRIORIDADE] Esta regra prevalece sobre qualquer outra')
-            regra_aplicada += ' | lembrete_bloq + pec_idpj [PRECEDENCIA ABSOLUTA]'
+            regra_aplicada += ' | lembrete_bloq + gigs 0/xs_assinar + pec_idpj [PRECEDENCIA ABSOLUTA]'
             lembrete_bloq(driver, debug=debug)
+            criar_gigs(driver, tipo='0/xs_assinar', responsavel=None)
+            criar_gigs(driver, tipo='7/xs carta', responsavel=None)
             pec_idpj(driver, debug=debug)
+            
+            # Executa Infojud após pec_idpj para evitar conflitos de contexto
+            try:
+                from infojud import Infojud
+                if debug:
+                    print('[ARGOS][REGRAS][INFOJUD] Executando Infojud após pec_idpj...')
+                Infojud(driver=driver, log=debug)
+                if debug:
+                    print('[ARGOS][REGRAS][INFOJUD] Infojud executado com sucesso.')
+            except Exception as e:
+                if debug:
+                    print(f'[ARGOS][REGRAS][INFOJUD][ERRO] Falha ao executar Infojud: {e}')
+                # Não interrompe o fluxo se só o Infojud falhar
+            
+            # VALIDAÇÃO PÓS PEC_IDPJ: Verifica se o contexto do driver ainda é válido
+            try:
+                _ = driver.window_handles
+            except Exception as e:
+                if debug:
+                    print(f'[ARGOS][REGRAS][PEC_IDPJ] Contexto do driver perdido após pec_idpj: {e}')
+                # Força exceção para interromper o fluxo normal e evitar erro na limpeza de abas
+                raise Exception(f"Driver context lost after pec_idpj: {e}")
         # Outras regras de "defiro a instauração" (sem SISBAJUD positivo)
         elif 'defiro a instauração' in texto_documento.lower():
             regra_aplicada = 'decisao+defiro a instauracao'
             if debug:
                 print('[ARGOS][REGRAS] Documento identificado como decisão de instauração')
             if resultado_sisbajud == 'negativo':
-                regra_aplicada += ' | sisbajud negativo => pec_idpj'
+                regra_aplicada += ' | sisbajud negativo => gigs 0/xs_assinar + pec_idpj'
+                criar_gigs(driver, tipo='0/xs_assinar', responsavel=None)
+                criar_gigs(driver, tipo='7/xs carta', responsavel=None)
                 pec_idpj(driver, debug=debug)
+                
+                # Executa Infojud após pec_idpj para evitar conflitos de contexto
+                try:
+                    from infojud import Infojud
+                    if debug:
+                        print('[ARGOS][REGRAS][INFOJUD] Executando Infojud após pec_idpj...')
+                    Infojud(driver=driver, log=debug)
+                    if debug:
+                        print('[ARGOS][REGRAS][INFOJUD] Infojud executado com sucesso.')
+                except Exception as e:
+                    if debug:
+                        print(f'[ARGOS][REGRAS][INFOJUD][ERRO] Falha ao executar Infojud: {e}')
+                    # Não interrompe o fluxo se só o Infojud falhar
+                
+                # VALIDAÇÃO PÓS PEC_IDPJ: Verifica se o contexto do driver ainda é válido
+                try:
+                    _ = driver.window_handles
+                except Exception as e:
+                    if debug:
+                        print(f'[ARGOS][REGRAS][PEC_IDPJ] Contexto do driver perdido após pec_idpj: {e}')
+                    # Força exceção para interromper o fluxo normal e evitar erro na limpeza de abas
+                    raise Exception(f"Driver context lost after pec_idpj: {e}")
         # 1. Se é despacho com texto específico
         elif tipo_documento == 'despacho' and any(p in texto_documento.lower() for p in ['em que pese a ausência', 'argos']):
             regra_aplicada = 'despacho+argos'
@@ -548,6 +650,7 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             regra_aplicada = f'nao identificado: {tipo_documento}'
             if debug:
                 print(f'[ARGOS][REGRAS] Tipo de documento não identificado: {tipo_documento}')
+                    
         # Log sempre que chamado, para rastreabilidade
         print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
     except Exception as e:
@@ -572,6 +675,78 @@ def andamento_argos(driver, resultado_sisbajud, sigilo_anexos, log=True):
             
         # 2. Aplica regras específicas do Argos
         aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=log)
+        
+        # 3. FALLBACK: Se nenhuma regra foi aplicada, tenta checar próximo documento (igual ao p2.py)
+        try:
+            # Verifica se o log contém "nao identificado" indicando que nenhuma regra foi aplicada
+            # Esta é uma verificação simples - em implementação mais robusta, seria retornado um indicador da função aplicar_regras_argos
+            if log:
+                print('[ARGOS][FALLBACK] Verificando se é necessário buscar próximo documento...')
+            
+            # Busca itens da timeline para usar com checar_prox
+            itens = []
+            try:
+                timeline = driver.find_element(By.CSS_SELECTOR, 'mat-expansion-panel[id*="timeline"]')
+                itens = timeline.find_elements(By.CSS_SELECTOR, 'a[href*="/documento/"]')
+                if log:
+                    print(f'[ARGOS][FALLBACK] Encontrados {len(itens)} documentos na timeline')
+            except Exception as timeline_error:
+                if log:
+                    print(f'[ARGOS][FALLBACK] Erro ao buscar timeline: {timeline_error}')
+                itens = []
+            
+            if itens and len(itens) > 1:  # Só tenta se há múltiplos documentos
+                # Encontra o índice do documento atual
+                doc_idx = -1
+                current_url = driver.current_url
+                for i, item in enumerate(itens):
+                    if current_url in item.get_attribute('href'):
+                        doc_idx = i
+                        break
+                
+                if log:
+                    print(f'[ARGOS][FALLBACK] Documento atual no índice: {doc_idx}')
+                
+                # Chama checar_prox para encontrar o próximo documento
+                if doc_idx >= 0:
+                    doc_encontrado, doc_link, novo_idx = checar_prox(driver, itens, doc_idx, None, texto_documento)
+                    
+                    if doc_encontrado and doc_link:
+                        if log:
+                            print('[ARGOS][FALLBACK] Próximo documento encontrado - extraindo texto...')
+                        
+                        # Clica no próximo documento e extrai texto
+                        doc_link.click()
+                        time.sleep(2)
+                        
+                        try:
+                            novo_texto, _ = extrair_documento(driver)
+                            novo_tipo = "decisao" if "decisão" in doc_link.text.lower() else "despacho"
+                            
+                            if log:
+                                print(f'[ARGOS][FALLBACK] Novo documento extraído (tipo {novo_tipo})')
+                                print(f'[ARGOS][FALLBACK] Repetindo análise de regras para o novo documento')
+                            
+                            # Chamada recursiva para aplicar regras no novo documento
+                            aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, novo_tipo, novo_texto, debug=log)
+                            if log:
+                                print('[ARGOS][FALLBACK] Análise repetida em documento seguinte concluída')
+                        except Exception as e_extracao:
+                            if log:
+                                print(f'[ARGOS][FALLBACK][ERRO] Falha ao extrair texto do próximo documento: {e_extracao}')
+                    else:
+                        if log:
+                            print('[ARGOS][FALLBACK] Nenhum próximo documento relevante encontrado')
+                else:
+                    if log:
+                        print('[ARGOS][FALLBACK] Documento atual não encontrado na timeline')
+            else:
+                if log:
+                    print('[ARGOS][FALLBACK] Timeline vazia ou documento único - não executando checar_prox')
+                    
+        except Exception as checar_prox_error:
+            if log:
+                print(f'[ARGOS][FALLBACK][ERRO] Falha no fallback checar_prox: {checar_prox_error}')
             
         if log:
             print('[ARGOS][ANDAMENTO] Processamento do andamento concluído.')
@@ -962,14 +1137,14 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
         if log:
             print(f'[ARGOS][ANEXOS] ✅ Encontrados {len(anexos)} anexos para processamento')
     
-    sigilo_types = ["infojud", "doi", "irpf", "dimob", "ecac", "efinanceira", "e-financeira"]
+    sigilo_types = ["infojud", "doi", "irpf", "ir2022", "ir2023", "ir2024", "dimob", "ecac", "efinanceira", "e-financeira"]
     found_sigilo = {k: False for k in sigilo_types}
     sigilo_anexos = {k: "nao" for k in sigilo_types}
     any_sigilo = False
     for anexo in anexos:
         texto_anexo = anexo.text.strip().lower()
         tipo_anexo_encontrado = None
-        # Verifica se é um anexo especial (INFOJUD, DOI, IRPF, DIMOB)
+        # Verifica se é um anexo especial (INFOJUD, DOI, IRPF, IR2022, IR2023, IR2024, DIMOB)
         for k in sigilo_types:
             if k in texto_anexo:
                 found_sigilo[k] = True
@@ -1061,263 +1236,57 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                                     print(f'[ARGOS][ANEXOS][AVISO] Ícone encontrado mas classes incorretas: {icon_classes}')
                     
                     if btn_visibilidade:
-                        # VALIDAÇÃO FINAL antes do clique
-                        try:
-                            # Verifica se o botão ainda contém o ícone + correto
-                            icon_inside = btn_visibilidade.find_element(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
-                            if not icon_inside:
-                                if log:
-                                    print(f'[ARGOS][ANEXOS][ERRO] Botão não contém o ícone + correto, pulando')
-                                continue
-                                
-                            # Verifica se não é um ícone de estrela (fa-star)
-                            star_icons = btn_visibilidade.find_elements(By.CSS_SELECTOR, "i.fa-star, i.far.fa-star")
-                            if star_icons:
-                                if log:
-                                    print(f'[ARGOS][ANEXOS][ERRO] Botão contém ícone de estrela, não é o botão correto!')
-                                continue
-                                
-                            if log:
-                                print(f'[ARGOS][ANEXOS] ✅ Botão validado - contém ícone + e não contém estrela')
-                        except Exception as e_validacao:
-                            if log:
-                                print(f'[ARGOS][ANEXOS][ERRO] Falha na validação final: {e_validacao}')
-                            continue
-                        
                         if log:
                             print(f'[ARGOS][ANEXOS] Clicando no botão de visibilidade para: {texto_anexo}')
                         
-                        # Scroll para o elemento e clique otimizado
-                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_visibilidade)
-                        sleep(500)  # Aumentado para garantir scroll completo
-                        
-                        # DEBUG APRIMORADO: Confirmar seletor antes do clique
-                        if log:
-                            try:
-                                # Confirma que o botão ainda contém o ícone + correto
-                                icon_final_check = btn_visibilidade.find_element(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
-                                icon_final_classes = icon_final_check.get_attribute("class")
-                                btn_outer_html = btn_visibilidade.get_attribute("outerHTML")[:100] + "..."
-                                
-                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ SELETOR CONFIRMADO:')
-                                print(f'[ARGOS][ANEXOS][DEBUG]   - Ícone classes: {icon_final_classes}')
-                                print(f'[ARGOS][ANEXOS][DEBUG]   - Botão HTML: {btn_outer_html}')
-                                print(f'[ARGOS][ANEXOS][DEBUG]   - Botão visível: {btn_visibilidade.is_displayed()}')
-                                print(f'[ARGOS][ANEXOS][DEBUG]   - Botão habilitado: {btn_visibilidade.is_enabled()}')
-                                
-                                # Verifica se não há ícones indevidos no botão
-                                star_check = btn_visibilidade.find_elements(By.CSS_SELECTOR, "i.fa-star, i.far.fa-star")
-                                if star_check:
-                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ SELETOR INCORRETO: Botão contém ícone estrela!')
-                                    continue
-                                else:
-                                    print(f'[ARGOS][ANEXOS][DEBUG] ✅ Verificação estrela: Nenhum ícone estrela encontrado')
-                                    
-                            except Exception as e_debug:
-                                print(f'[ARGOS][ANEXOS][ERRO] Falha na verificação final do seletor: {e_debug}')
-                                continue
-                        
-                        # Clique com retry
-                        clique_sucesso = False
-                        elemento_clicado = None
-                        
-                        for tentativa in range(3):
-                            try:
-                                if log:
-                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa de clique {tentativa + 1}/3')
-                                
-                                if safe_click(driver, btn_visibilidade, timeout=3):
-                                    clique_sucesso = True
-                                    elemento_clicado = btn_visibilidade
-                                    if log:
-                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique bem-sucedido via safe_click')
-                                    break
-                                else:
-                                    # Fallback com JavaScript
-                                    if log:
-                                        print(f'[ARGOS][ANEXOS][DEBUG] safe_click falhou, tentando JavaScript...')
-                                    
-                                    driver.execute_script("arguments[0].click();", btn_visibilidade)
-                                    sleep(500)
-                                    clique_sucesso = True
-                                    elemento_clicado = btn_visibilidade
-                                    if log:
-                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique bem-sucedido via JavaScript')
-                                    break
-                            except Exception as e_click:
-                                if log:
-                                    print(f'[ARGOS][ANEXOS][DEBUG] ❌ Tentativa {tentativa + 1} falhou: {e_click}')
-                                sleep(500)
-                        
-                        if not clique_sucesso:
+                        # ✅ FLUXO SIMPLIFICADO: Clique direto via JavaScript no seletor específico
+                        try:
+                            # Scroll para garantir visibilidade
+                            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_visibilidade)
+                            sleep(300)
+                            
+                            # Clique direto via JavaScript no ícone +
+                            driver.execute_script("arguments[0].click();", btn_visibilidade)
+                            
                             if log:
-                                print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA CRÍTICA: Todas as tentativas de clique falharam')
+                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique realizado via JavaScript')
+                                
+                        except Exception as e_click:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ Falha no clique: {e_click}')
                                 print(f'[ARGOS][ANEXOS][ERRO] Pulando anexo: {texto_anexo}')
                             continue
                         
-                        # DEBUG APRIMORADO: Confirmar que o clique foi no elemento correto
-                        if log and elemento_clicado:
-                            try:
-                                post_click_icon = elemento_clicado.find_element(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
-                                post_click_classes = post_click_icon.get_attribute("class")
-                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ PÓS-CLIQUE CONFIRMADO:')
-                                print(f'[ARGOS][ANEXOS][DEBUG]   - Elemento clicado mantém ícone +: SIM')
-                                print(f'[ARGOS][ANEXOS][DEBUG]   - Classes pós-clique: {post_click_classes}')
-                            except Exception as e_post:
-                                print(f'[ARGOS][ANEXOS][ERRO] ❌ PÓS-CLIQUE: Elemento clicado não contém mais o ícone +!')
-                                print(f'[ARGOS][ANEXOS][ERRO] Isso indica clique no elemento errado: {e_post}')
-                                continue
-                        
-                        # VALIDAÇÃO CRÍTICA APRIMORADA: Aguardar modal de visibilidade aparecer
+                        # ✅ VERIFICAÇÃO ÚNICA DO MODAL: Checagem simples da presença
                         modal_apareceu = False
                         modal_visibilidade = None
                         
                         if log:
-                            print(f'[ARGOS][ANEXOS][DEBUG] Aguardando modal de visibilidade aparecer...')
+                            print(f'[ARGOS][ANEXOS][DEBUG] Verificando abertura do modal...')
                         
-                        for tentativa_modal in range(5):  # 5 tentativas x 1s = 5s timeout
-                            try:
-                                if log:
-                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa {tentativa_modal + 1}/5 de localizar modal...')
-                                
-                                modal_visibilidade = driver.find_element(By.CSS_SELECTOR, "pje-doc-visibilidade-sigilo")
-                                if modal_visibilidade.is_displayed():
-                                    modal_apareceu = True
-                                    
-                                    if log:
-                                        # DEBUG APRIMORADO: Validar conteúdo do modal
-                                        modal_html = modal_visibilidade.get_attribute("outerHTML")[:200] + "..."
-                                        modal_text = modal_visibilidade.text[:100] + "..." if modal_visibilidade.text else "Sem texto"
-                                        
-                                        print(f'[ARGOS][ANEXOS][DEBUG] ✅ MODAL CONFIRMADO após {tentativa_modal + 1} tentativas:')
-                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Seletor: pje-doc-visibilidade-sigilo')
-                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Modal visível: {modal_visibilidade.is_displayed()}')
-                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Modal HTML: {modal_html}')
-                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Modal texto: {modal_text}')
-                                        
-                                        # Verifica se é realmente o modal correto
-                                        checkboxes_no_modal = modal_visibilidade.find_elements(By.CSS_SELECTOR, "mat-checkbox")
-                                        btn_salvar_no_modal = modal_visibilidade.find_elements(By.CSS_SELECTOR, "button[color='primary']")
-                                        
-                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Checkboxes encontrados: {len(checkboxes_no_modal)}')
-                                        print(f'[ARGOS][ANEXOS][DEBUG]   - Botões Salvar encontrados: {len(btn_salvar_no_modal)}')
-                                        
-                                        if checkboxes_no_modal and btn_salvar_no_modal:
-                                            print(f'[ARGOS][ANEXOS][DEBUG] ✅ Modal VALIDADO: Contém checkboxes e botão Salvar')
-                                        else:
-                                            print(f'[ARGOS][ANEXOS][ERRO] ❌ Modal INVÁLIDO: Não contém elementos esperados')
-                                            modal_apareceu = False
-                                            continue
-                                    
-                                    break
-                                else:
-                                    if log and tentativa_modal == 0:
-                                        print(f'[ARGOS][ANEXOS][DEBUG] Modal encontrado mas não visível, aguardando...')
-                                    sleep(1000)
-                            except Exception as e_modal_search:
-                                if log and tentativa_modal < 2:
-                                    print(f'[ARGOS][ANEXOS][DEBUG] Tentativa {tentativa_modal + 1} falhou: {e_modal_search}')
-                                sleep(1000)
-                        
-                        # NOVA LÓGICA: Se modal não apareceu, tentar clique adicional no ícone + já validado
-                        if not modal_apareceu:
-                            if log:
-                                print(f'[ARGOS][ANEXOS][DEBUG] ⚠️ Modal não apareceu, tentando CLIQUE ADICIONAL no ícone + já validado')
+                        try:
+                            # Aguarda um momento para o modal aparecer
+                            sleep(1000)
                             
-                            # Verifica se o ícone + ainda está disponível e válido
-                            try:
-                                # Re-valida o ícone + no anexo
-                                icons_retry = anexo.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
-                                if icons_retry:
-                                    icon_retry = icons_retry[0]
-                                    icon_classes_retry = icon_retry.get_attribute("class")
-                                    
-                                    if "fa-plus" in icon_classes_retry and "tl-sigiloso" in icon_classes_retry:
-                                        btn_retry = icon_retry.find_element(By.XPATH, "./ancestor::button[1]")
-                                        if btn_retry.is_displayed() and btn_retry.is_enabled():
-                                            if log:
-                                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ Ícone + RE-VALIDADO, tentando clique adicional...')
-                                            
-                                            # Clique adicional no ícone + com retry
-                                            clique_adicional_sucesso = False
-                                            for tentativa_adicional in range(2):  # 2 tentativas adicionais
-                                                try:
-                                                    if log:
-                                                        print(f'[ARGOS][ANEXOS][DEBUG] Tentativa adicional {tentativa_adicional + 1}/2')
-                                                    
-                                                    # Scroll e clique
-                                                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_retry)
-                                                    sleep(300)
-                                                    
-                                                    if safe_click(driver, btn_retry, timeout=3):
-                                                        clique_adicional_sucesso = True
-                                                        if log:
-                                                            print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique adicional bem-sucedido')
-                                                        break
-                                                    else:
-                                                        # Fallback JavaScript
-                                                        driver.execute_script("arguments[0].click();", btn_retry)
-                                                        clique_adicional_sucesso = True
-                                                        if log:
-                                                            print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique adicional via JavaScript')
-                                                        break
-                                                except Exception as e_retry:
-                                                    if log:
-                                                        print(f'[ARGOS][ANEXOS][DEBUG] Tentativa adicional {tentativa_adicional + 1} falhou: {e_retry}')
-                                                    sleep(500)
-                                            
-                                            if clique_adicional_sucesso:
-                                                if log:
-                                                    print(f'[ARGOS][ANEXOS][DEBUG] ✅ Clique adicional realizado, aguardando modal novamente...')
-                                                
-                                                # Aguarda modal aparecer após clique adicional
-                                                for tentativa_modal_retry in range(3):  # 3 tentativas x 1s = 3s timeout
-                                                    try:
-                                                        if log:
-                                                            print(f'[ARGOS][ANEXOS][DEBUG] Pós-clique adicional - Tentativa {tentativa_modal_retry + 1}/3')
-                                                        
-                                                        modal_visibilidade = driver.find_element(By.CSS_SELECTOR, "pje-doc-visibilidade-sigilo")
-                                                        if modal_visibilidade.is_displayed():
-                                                            modal_apareceu = True
-                                                            if log:
-                                                                print(f'[ARGOS][ANEXOS][DEBUG] ✅ MODAL APARECEU após clique adicional!')
-                                                            break
-                                                    except Exception:
-                                                        pass
-                                                    sleep(1000)
-                                            else:
-                                                if log:
-                                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ Clique adicional falhou')
-                                        else:
-                                            if log:
-                                                print(f'[ARGOS][ANEXOS][ERRO] ❌ Ícone + não está mais clicável')
-                                    else:
-                                        if log:
-                                            print(f'[ARGOS][ANEXOS][ERRO] ❌ Ícone + não tem mais as classes corretas')
-                                else:
-                                    if log:
-                                        print(f'[ARGOS][ANEXOS][ERRO] ❌ Ícone + não encontrado para re-tentativa')
-                            except Exception as e_retry_validation:
+                            # Verifica se o modal está presente e visível
+                            modal_visibilidade = driver.find_element(By.CSS_SELECTOR, "pje-doc-visibilidade-sigilo")
+                            if modal_visibilidade.is_displayed():
+                                modal_apareceu = True
                                 if log:
-                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ Erro na re-validação do ícone +: {e_retry_validation}')
+                                    print(f'[ARGOS][ANEXOS][DEBUG] ✅ Modal confirmado')
+                            else:
+                                if log:
+                                    print(f'[ARGOS][ANEXOS][ERRO] ❌ Modal encontrado mas não visível')
+                                    
+                        except Exception as e_modal:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ Modal não encontrado: {e_modal}')
                         
-                        # Se ainda não apareceu o modal após tentativa adicional, pular anexo
+                        # ✅ INTERRUPÇÃO IMEDIATA: Se modal não identificado, parar execução
                         if not modal_apareceu:
                             if log:
-                                print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA CRÍTICA: Modal não apareceu mesmo após clique adicional!')
+                                print(f'[ARGOS][ANEXOS][ERRO] ❌ EXECUÇÃO INTERROMPIDA: Modal não identificado após clique')
                                 print(f'[ARGOS][ANEXOS][ERRO] Anexo será pulado: {texto_anexo}')
-                                
-                                # DEBUG: Verificar o que realmente está na tela
-                                try:
-                                    modals_gerais = driver.find_elements(By.CSS_SELECTOR, "mat-dialog-container")
-                                    print(f'[ARGOS][ANEXOS][DEBUG] Modais gerais na tela: {len(modals_gerais)}')
-                                    
-                                    for i, modal_geral in enumerate(modals_gerais):
-                                        if modal_geral.is_displayed():
-                                            modal_content = modal_geral.text[:150] + "..." if modal_geral.text else "Sem texto"
-                                            print(f'[ARGOS][ANEXOS][DEBUG] Modal {i+1}: {modal_content}')
-                                except Exception:
-                                    pass
                             continue
                         
                         # ✅ MODAL CONFIRMADO - Prosseguindo com o processamento
@@ -1426,14 +1395,14 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                                 pass
                             # Continua para próximo anexo sem marcar como processado
                             continue
-                            
+                        
                     else:
                         if log:
                             print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA: Botão de visibilidade não encontrado para: {texto_anexo}')
                             print(f'[ARGOS][ANEXOS][ERRO] Anexo será pulado')
                         # Continua para próximo anexo
                         continue
-                            
+                        
                 except Exception as e_geral:
                     if log:
                         print(f'[ARGOS][ANEXOS][ERRO] ❌ FALHA GERAL: Erro ao processar visibilidade: {e_geral}')
@@ -1447,7 +1416,7 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                         pass
                     # Continua para próximo anexo sem marcar como processado
                     continue
-                    
+                
                 # Marca que encontrou anexo especial processado com sucesso
                 any_sigilo = True
                 break
@@ -1595,9 +1564,31 @@ def fluxo_mandado(driver):
         except Exception as e:
             print(f'[ERRO] Falha ao processar mandado: {str(e)}')
         finally:
-            # Removido fechamento de abas daqui para evitar conflito com gerenciamento de abas do fluxo_mandado
-            # O gerenciamento correto de abas é feito no finally do fluxo_callback dentro de fluxo_mandado()
-            pass# Aplica o filtro de mandados devolvidos ANTES de iniciar o processamento
+            # Fechar a aba após o processamento do fluxo (reproduzindo padrão de p2.py)
+            all_windows = driver.window_handles
+            main_window = all_windows[0]
+            current_window = driver.current_window_handle
+
+            if current_window != main_window and len(all_windows) > 1:
+                driver.close()
+                # Troca para uma aba válida após fechar
+                try:
+                    if main_window in driver.window_handles:
+                        driver.switch_to.window(main_window)
+                    elif driver.window_handles:
+                        driver.switch_to.window(driver.window_handles[0])
+                    else:
+                        print("[LIMPEZA][ERRO] Nenhuma aba restante para alternar.")
+                except Exception as e:
+                    print(f"[LIMPEZA][ERRO] Falha ao alternar para aba válida após fechar: {e}")
+                # Testa se a aba está realmente acessível
+                from selenium.common.exceptions import NoSuchWindowException
+                try:
+                    _ = driver.current_url
+                except NoSuchWindowException:
+                    print("[LIMPEZA][ERRO] Tentou acessar uma aba já fechada.")
+            
+            print('[FLUXO] Processo concluído, retornando à lista')
     print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
     indexar_e_processar_lista(driver, fluxo_callback)
 

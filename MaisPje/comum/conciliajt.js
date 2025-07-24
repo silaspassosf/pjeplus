@@ -165,51 +165,98 @@ function encontrarPotencial(nrProcesso) {
  * @param {string} processoNumero 
  * @returns {HTMLAnchorElement} com o link 
  */
-function criarLinkPotencialConciliaJT(processoNumero, fontSize = ' ') {
-	const a = document.createElement("a");
-	if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) {
-		a.style.display = 'none';
-		a.setAttribute('aria-hidden', 'true');
-		return a;
-	}
+async function criarLinkPotencialConciliaJT(processoNumero, fontSize = ' ') {
+	return new Promise(resolve => {
+		const a = document.createElement("a");
+		if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) {
+			a.style.display = 'none';
+			a.setAttribute('aria-hidden', 'true');
+			return a;
+		}
 
-	const info = encontrarPotencial(processoNumero);
-    a.id = "maispje_item_container_lia";
-    a.className = "mat-tooltip-trigger link ng-star-inserted";
-    a.setAttribute('aria-label', info.dica);
-    a.setAttribute('mattooltip', info.dica);
-    a.setAttribute('maisPje-tooltip-menuAbaixo', info.dica);
-    a.setAttribute('maisPje-tooltip-abaixo', info.dica);
-    if (info.abrir_link && preferencias.conciliajt.ads_enabled) {
-        a.onclick = function () {
-            window.open(preferencias.conciliajt.ads_url, '_blank', 'dependent=yes');
-        };
-    } else {
-		a.setAttribute('role', 'presentation');
-	}
-    const i = document.createElement("i");
-    i.className = info.icone;
-    i.style = fontSize + info.cor;
-    i.setAttribute('aria-hidden', 'true');
-    a.appendChild(i);
-    return a;
+		const info = encontrarPotencial(processoNumero);
+		a.id = "maispje_item_container_lia";
+		a.className = "mat-tooltip-trigger link ng-star-inserted";
+		a.setAttribute('aria-label', info.dica);
+		a.setAttribute('mattooltip', info.dica);
+		a.setAttribute('maisPje-tooltip-menuAbaixo', info.dica);
+		a.setAttribute('maisPje-tooltip-abaixo', info.dica);
+		if (info.abrir_link && preferencias.conciliajt.ads_enabled) {
+			a.onclick = function () {
+				window.open(preferencias.conciliajt.ads_url, '_blank', 'dependent=yes');
+			};
+		} else {
+			a.setAttribute('role', 'presentation');
+		}
+		const i = document.createElement("i");
+		i.className = info.icone;
+		i.style = fontSize + info.cor;
+		i.setAttribute('aria-hidden', 'true');
+		a.appendChild(i);
+		return resolve(a);
+	});
 }
 
-async function obterUrlsConciliaJT() {
-    return new Promise(async resolve => {
-        let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
+async function obterUrlsConciliaJT(trt) {
+    return new Promise(resolve => {
+		//CONTROLA A CONSULTA DO ACESSO AO PROJETO CONCILIA PARA APENAS 1 VEZ POR DIA
+		browser.storage.local.get(['verificadorDiario','configURLs'], async function(result) {
+			let hoje = new Date().getDate();
+			let verificador = false;
+			let configBase = result.configURLs; //configurações existentes do storage
+			
+			if (!result.verificadorDiario) {
+				verificador = true;
+			} else {
+				let diaVerificador = result.verificadorDiario;
+				if (diaVerificador != hoje) {
+					verificador = true;
+				}
+			}
 
-        return resolve(fetch(url)
-            .then(function (response) {
-                return response.json();
-            })
-            .then(data=>{
-                return data || null;
-            })
-            .catch(function (err) {
-                return null;
-            }));
+			if (verificador) {
+				
+				let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
+				
+				configBase = await fetch(url).then(function (response) {  //configurações existentes do site
+					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+					console.log('FETCH: https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json')
+					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+					return response.json();
+				})
+				.then(data=>{
+					console.log(data[trt])
+					return data[trt] || null;
+				})
+				.catch(function (err) {
+					alert('maisPJE: erro ao acessar https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json');
+					return null;
+				});
+
+				// console.log(JSON.stringify(configBase))
+				//guarda as novas configurações no storage				
+				await guardarValoresNoStorage(configBase,hoje);
+			}
+
+			return resolve(configBase);
+			
+		});
+		
     });
+}
+
+async function guardarValoresNoStorage(valor1, valor2) {
+	return new Promise(resolve => {
+		let guardarStorage1 = browser.storage.local.set({ 'configURLs': valor1 });
+		let guardarStorage2 = browser.storage.local.set({ 'verificadorDiario': valor2 });
+		Promise.all([guardarStorage1,guardarStorage2]).then(values => {
+			return resolve(true)
+		});
+	});
 }
 
 /**
@@ -219,14 +266,14 @@ async function obterUrlsConciliaJT() {
  * @returns {Promise<ConciliaJTConfig>} configuração do ConciliaJT para o TRT e grau informados.
  */
 async function buscaConfigConciliaJT(num_trt, grauPJe) {
-	let dados = await obterUrlsConciliaJT();
+	let dados = await obterUrlsConciliaJT(num_trt);
 	// if (!num_trt || !grauPJe) { dados = null } // nao funcionava com o TST, pois 0 eh false no js
 	const configPadrao  = {'ads_url':'','ads_enabled':false,'enabled':false,'url':''}; //TODO: pra que me importam as URLs se nao tem nada habilitado?
 
 	/**
 	 * @type ConciliaJTConfig
 	 */
-    const configConcilia =  dados?.[num_trt]?.conciliajt?.[grauPJe] ?? configPadrao;
+    const configConcilia =  dados?.conciliajt?.[grauPJe] ?? configPadrao;
 	const url = configConcilia?.url || '';
 	if (url && !url.endsWith('/')) {
 		configConcilia.url += '/';
@@ -234,106 +281,105 @@ async function buscaConfigConciliaJT(num_trt, grauPJe) {
     return configConcilia;
 }
 
-async function conciLIAnaPauta() {
-	console.log('conciLIAnaPauta')
-	if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
-	console.log('1')
-	let el = document.querySelectorAll('td[id="pjextension_coluna_lia"]') || document.querySelectorAll('maisPJe-conciliaJT');
-	if (el) {
-		let limpar = [].map.call(
-			el, 
-			function(elemento) {
-				elemento.remove();
-			}
-		);
-	}
-
-	console.log('2')
-	let tabela = document.querySelector('pje-data-table[nametabela="Horários do dia"]') || document.querySelector('pje-inteligente-semanal table[role="grid"]');
-	
-	if (!tabela) {
-		return
-	}
-
-	console.log('3')
-	
-	if (tabela.tagName == "PJE-DATA-TABLE") { //PAUTA TRADICIONAL
+async function conciLIAnaPauta(linha) {
+	return new Promise(async resolve => {
+		console.log('conciLIAnaPauta')
+		if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
 		
-		let tbody = tabela.getElementsByTagName('tbody')[0];
-		let tr = tbody.getElementsByTagName('tr');
-		if (!tr) {
-			return
-		}
-		if (preferencias.conciliajt.enabled || preferencias.conciliajt.ads_enabled) { //FIXME: Preciso desse if se já tem outro no inicio do metodo? Se chegou aqui, eh pq essa condicao eh sempre true!
-			
-			//INSERE O ICONE DO CONCILIAJT NO CABEÇALHO DA TABELA (APENAS NA PAUTA TRADICIONAL)
-			if (!document.getElementById('pjextension_coluna_lia_cabecalho') && document.querySelector('table[name="Horários do dia"]')) {
-				let tabela = document.querySelector('table[name="Horários do dia"]').firstElementChild.firstElementChild;
-				let th = document.createElement("th");
-				th.className = "th-class centralizado ng-star-inserted";
-				th.setAttribute('scope','col');
-				let a0 = document.createElement("a");
-				a0.id = "pjextension_coluna_lia_cabecalho";
-				a0.setAttribute('title', 'Avaliação Concilia JT');
-				let i0 = document.createElement("i");
-				i0.className = "fas fa-handshake";
-				i0.style = "font-size: 1.7rem;";
-				a0.appendChild(i0);
-				th.appendChild(a0);
-				tabela.appendChild(th);
-			}
-			
-			let map = [].map.call(
-				tr, 
+		let el = document.querySelectorAll('td[id="pjextension_coluna_lia"]') || document.querySelectorAll('maisPJe-conciliaJT');
+		if (el) {
+			let limpar = [].map.call(
+				el, 
 				function(elemento) {
-					if (elemento.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g'))) {
-						let processoNumero = elemento.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
-						
-						let td = document.createElement("td");
-						td.id = "pjextension_coluna_lia";
-						td.className = "centralizado td-class ng-star-inserted";
-						const a = criarLinkPotencialConciliaJT(processoNumero, "font-size: 2rem; ");
-						td.appendChild(a);
-						elemento.appendChild(td);
-					}
+					elemento.remove();
 				}
 			);
 		}
-		
-	} else { //PAUTA INTELIGENTE
 
-		// if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
+		console.log('2')
+		let tabela = document.querySelector('pje-data-table[nametabela="Horários do dia"]') || document.querySelector('pje-inteligente-semanal table[role="grid"]');
+		
+		if (!tabela) { return resolve(false) }
 
-		//DESCRIÇÃO: REGRA DO TOOLTIP
-		if (!document.getElementById('maisPje-tooltip-menuAbaixo')) {
-			tooltip('menuAbaixo');
-		}
+		console.log('3')
 		
-		let carregamento = await esperarElemento('div[class*="container-loading"] mat-progress-spinner')
-		await esperarDesaparecer(carregamento)
-		
-		let linhasTabela = await esperarColecao('table tbody td mat-card div[class*="opcoes-card"]');
-		
-		if (!linhasTabela) {
-			return
-		}
-		
-		for (const [pos, linha] of linhasTabela.entries()) {
-			// console.log('pos: ' + pos + '   -   ' + linha.parentElement.innerText)
-			if (linha.parentElement.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g'))) {
-					let processoNumero = linha.parentElement.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
-					let el_concilia = document.createElement("maisPJe-conciliaJT");
-					el_concilia.id = 'maisPJe_container_lia'
-					el_concilia.style = 'margin-left: 10px;font-size: 1.6em;';
-					
-					const a = criarLinkPotencialConciliaJT(processoNumero, "font-size: 1.75rem; ");
-					el_concilia.appendChild(a);
-					linha.appendChild(el_concilia);
-				}
+		if (tabela.tagName == "PJE-DATA-TABLE") { //PAUTA TRADICIONAL
 			
+			
+			if (!linha) { return resolve(false) }		
+			let tbody = tabela.getElementsByTagName('tbody')[0];
+			let tr = tbody.getElementsByTagName('tr');
+			if (!tr) {
+				return resolve(false)
+			}
+			if (preferencias.conciliajt.enabled || preferencias.conciliajt.ads_enabled) { //FIXME: Preciso desse if se já tem outro no inicio do metodo? Se chegou aqui, eh pq essa condicao eh sempre true!
+							
+				//INSERE O ICONE DO CONCILIAJT NO CABEÇALHO DA TABELA (APENAS NA PAUTA TRADICIONAL)
+				if (!document.getElementById('pjextension_coluna_lia_cabecalho') && document.querySelector('table[name="Horários do dia"]')) {
+					let tabela = document.querySelector('table[name="Horários do dia"]').firstElementChild.firstElementChild;
+					let th = document.createElement("th");
+					th.className = "th-class centralizado ng-star-inserted";
+					th.setAttribute('scope','col');
+					let a0 = document.createElement("a");
+					a0.id = "pjextension_coluna_lia_cabecalho";
+					a0.setAttribute('title', 'Avaliação Concilia JT');
+					let i0 = document.createElement("i");
+					i0.className = "fas fa-handshake";
+					i0.style = "font-size: 1.7rem;";
+					a0.appendChild(i0);
+					th.appendChild(a0);
+					tabela.appendChild(th);
+				}
+				
+				let numeroProcesso = await extrairNumeroProcesso(linha.innerText);
+				if (!numeroProcesso) { return resolve(false) }
+
+				let td = document.createElement("td");
+				td.id = "pjextension_coluna_lia";
+				td.className = "centralizado td-class ng-star-inserted";
+				const a = await criarLinkPotencialConciliaJT(numeroProcesso, "font-size: 2rem; ");
+				td.appendChild(a);
+				linha.appendChild(td);
+			}
+
+			return resolve(true);
+			
+		} else { //PAUTA INTELIGENTE
+
+			// if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
+
+			//DESCRIÇÃO: REGRA DO TOOLTIP
+			if (!document.getElementById('maisPje-tooltip-menuAbaixo')) {
+				tooltip('menuAbaixo');
+			}
+			
+			let carregamento = await esperarElemento('div[class*="container-loading"] mat-progress-spinner')
+			await esperarDesaparecer(carregamento)
+			
+			let linhasTabela = await esperarColecao('table tbody td mat-card div[class*="opcoes-card"]');
+			
+			if (!linhasTabela) { return resolve(false) }
+			
+			for (const [pos, linha] of linhasTabela.entries()) {
+				// console.log('pos: ' + pos + '   -   ' + linha.parentElement.innerText)
+				if (linha.parentElement.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g'))) {
+						let processoNumero = linha.parentElement.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
+						let el_concilia = document.createElement("maisPJe-conciliaJT");
+						el_concilia.id = 'maisPJe_container_lia'
+						el_concilia.style = 'margin-left: 10px;font-size: 1.6em;';
+						
+						const a = await criarLinkPotencialConciliaJT(processoNumero, "font-size: 1.75rem; ");
+						el_concilia.appendChild(a);
+						linha.appendChild(el_concilia);
+					}
+				
+			}
+
+			return resolve(true);
+
 		}
-		
-	}
+	
+	});
 }
 
 async function conciLIAnaTriagemInicial() {
@@ -347,7 +393,8 @@ async function conciLIAnaTriagemInicial() {
 			}
 		);
 	}	
-	let tabela = await esperarElemento('pje-data-table[nametabela="Tabela de Processos"]');
+	// let tabela = await esperarElemento('pje-data-table[nametabela="Tabela de Processos"]');
+	let tabela = await esperarElemento('pje-data-table[nametabela="Tabela de Atividades"],pje-data-table[nametabela="Tabela de Processos"]');
 	
 	if (!tabela) {
 		return
@@ -355,27 +402,24 @@ async function conciLIAnaTriagemInicial() {
 	
 	await esperarElemento('span[class="total-registros"]');
 	
-	if (preferencias.conciliajt.enabled || preferencias.conciliajt.ads_enabled) {
-		//DESCRIÇÃO: REGRA DO TOOLTIP
-		if (!document.getElementById('maisPje_tooltip_abaixo')) {
-			tooltip('abaixo');
-		}
-		
-		let linhasTabela = await esperarColecao('table tbody tr');
-		if (!linhasTabela) {
-			return
-		}
-		for (const [key, linha] of linhasTabela.entries()) {
-			
-			const processoNumero = linha.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();			
+	//DESCRIÇÃO: REGRA DO TOOLTIP
+	if (!document.getElementById('maisPje_tooltip_abaixo')) { tooltip('abaixo') }
+	
+	// const linhasTabela = await esperarColecao('table tbody tr');
+	const linhasTabela = await esperarColecao('table[name="Tabela de Atividades"] tbody tr, table[name="Tabela de Processos"] tbody tr');
+	
+	if (!linhasTabela) {
+		return
+	}
+	for (const [key, linha] of linhasTabela.entries()) {		
+		const ancora = linha.querySelector('div[class*="container-icones-processuais"]');
+		if (!ancora.querySelector('#maisPje_coluna_lia')) {
 			let div = document.createElement("div");
 			div.id = "maisPje_coluna_lia";
 			div.style = "margin-left: 10px;";
-			const a = criarLinkPotencialConciliaJT(processoNumero, " font-size: 1.75rem; ");
-			div.appendChild(a);
-			let ancora = linha.querySelector('div[class*="container-icones-processuais"]');
 			ancora.appendChild(div);
-			
+			const processoNumero = linha.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();			
+			criarLinkPotencialConciliaJT(processoNumero, " font-size: 1.75rem; ").then((a) => div.replaceChildren(a));
 		}
 	}
 }

@@ -448,6 +448,11 @@
 	-webkit-mask: url(icons/svg/route.svg) no-repeat center;
 }
 
+.cadeado {
+	background-color: lightseagreen;
+	-webkit-mask: url(icons/svg/cadeado.svg) no-repeat center;
+}
+
 .novidades-list {
 	vertical-align: middle;
 	background-color: red;
@@ -514,6 +519,24 @@
 	vertical-align: baseline;
 	background-color: black;
 	-webkit-mask: url(icons/svg/tag.svg) no-repeat center;
+}
+
+.check-solid {
+	vertical-align: baseline;
+	background-color: black;
+	-webkit-mask: url(icons/svg/check-solid.svg) no-repeat center;
+}
+
+.mouse-pointer-solid {
+	vertical-align: baseline;
+	background-color: black;
+	-webkit-mask: url(icons/svg/mouse-pointer-solid.svg) no-repeat center;
+}
+
+.tablets-solid {
+	vertical-align: baseline;
+	background-color: black;
+	-webkit-mask: url(icons/svg/tablets-solid.svg) no-repeat center;
 }
 
 .street-view {

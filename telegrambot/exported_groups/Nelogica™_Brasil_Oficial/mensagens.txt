@@ -1,0 +1,734 @@
+[2023-08-22 14:54:00] Ivan: BTG
+Proft pro
+[2023-08-22 15:03:15] Vitor: ???
+[2023-08-22 15:05:37] ZIUL FREITAS: [IMAGEM: photo_882612.jpg]
+[2023-08-22 15:06:07] ZIUL FREITAS: A plataforma correta seria a protif one, pela corretora ativa.
+[2023-08-22 15:06:47] Nelogica: [IMAGEM: photo_882614.jpg]
+[2023-08-22 15:07:18] Nelogica: Boa tarde Ziul!
+
+Ao realizar uma contratação externamente pode levar até 48 horas para que a mesma seja adicionada em seu cadastro, você pode conferir as suas licenças ativas através do site https://www.nelogica.com.br/conta realizando o login e clicando em "Assinaturas".
+[2023-08-22 15:07:46] ZIUL FREITAS: Obg pela atenção.
+[2023-08-22 15:11:39] Vitor: Obrigado
+[2023-08-22 15:16:24] Rodrigo ARTHUR: Estou como seguinte problema...
+Crio uma nova aba para TESTE ou algum estudo específico.... Com isso ele está em branco...(até aí OK)
+Porém quando crio um novo gráfico (para usar nessa nova aba TESTE, ele puxa os estudos da aba do mesmo ativo, no caso WINV.
+Com isso preciso sempre entrar nas opções de visualização e retirar a marcação, para que ela seja somente exibida na aba original que eu estava estudando...
+Tem alguma opção que eu desmarque ou configure para ele não puxar os estudos da outra aba com o mesmo ativo?
+[2023-08-22 15:18:57] Flavio: [IMAGEM: photo_882619.jpg]
+[2023-08-22 15:19:18] Flavio: [IMAGEM: photo_882620.jpg]
+[2023-08-22 15:20:49] Nelogica: [IMAGEM: photo_882621.jpg]
+[2023-08-22 15:21:12] Nelogica: Boa tarde Flavio!
+
+Esta situação precisa ser verificada de forma mais pontual.
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que possamos coletar maiores detalhes e lhe auxiliar a respeito.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-22 15:23:33] Rodrigo ARTHUR: Genial
+Profit Pro
+
+Está selecionado tanto APLICAR SOMENTE AO LAYOUT SELECIONADO,  como também QUALQUER INTERVALO
+
+Mas sempre que abro um novo grafico, em uma nova aba, ele puxa os estudos da outra aba em que eu estou usando com o mesmo ativo....
+[2023-08-22 15:26:41] Nelogica: [IMAGEM: photo_882624.jpg]
+[2023-08-22 15:26:41] Nelogica: [IMAGEM: photo_882625.jpg]
+[2023-08-22 15:32:28] Rodrigo ARTHUR: Mas a opção APLICAR SOMENTE AO LAYOUT SELECIONADO está selecionada...
+e mesmo assim aparece o estudo na outra nova aba...
+[2023-08-22 15:34:15] Nelogica: Os layouts são os mesmos em todos os gráficos. Rodrigo. Logo, se você está usando  o mesmo layout em dois gráficos, os estudos serão replicados.
+
+Esta função só serve como indicamos na imagem acima: Selecionamos a opção apenas no layout selecionado (Layout 1), e os estudos não replicaram no layout 2.
+
+Recomendamos a leitura deste artigo, para que possa compreender o funcionamento dos layouts: https://ajuda.nelogica.com.br/hc/pt-br/articles/4416119065499-Estudos-por-layout
+[2023-08-22 15:35:57] Rodrigo ARTHUR: Tenho uma aba de estudo e operações para o WINV23 (com o nome de OPERAÇÕES).... (e está ativo a opção APLICAR SOMENTE AO LAYOUT SELECIONADO)...
+
+Eu crio uma nova aba (+), e dou o nome de TESTE....
+Quando abro um novo gráfico com o ativo WINV23, e quero usar a aba TESTE, ele puxa os estudos da aba OPERAÇÕES...
+[2023-08-22 15:36:25] Nelogica: Nos envie um print de tela de como é demonstrado para você.
+[2023-08-22 15:49:42] Edilei: Edilei = Profit Pro = Banco Safra 
+Como faço para mudar meu e-mail no cadastro da Nelogica?
+[2023-08-22 15:50:08] Nelogica: Boa tarde Edilei!
+
+Este é o procedimento para realizar a alteração/atualização do e-mail em seu cadastro:
+
+- Acesse o site https://nelogica.com.br e clique em Entrar. 
+- Entre com seu e-mail e senha (mesma de acesso à plataforma). 
+- Clique na opção "Dados cadastrais", para que você consiga atualizar o seu e-mail de cadastro.
+
+Caso você possua alguma dificuldade no recebimento de e-mails, recomendamos a conferir a caixa de spam e lixo eletrônico.
+[2023-08-22 19:01:42] Nelogica: Boa noite Eclesiele! Poderia por favor informar corretora e licença para fins de registro? Com relação a dúvida: segue os passos para realizar download do Profit:
+1 ) Acessar www.nelogica.com.br
+2 ) Clicar em 'Entrar' e informar e-mail e senha
+3 ) Clicar em 'Assinaturas'
+4 ) Localizar sua licença e clicar em 'Download'
+[2023-08-22 19:12:42] Nelogica: Boa noite Wellinton! Tudo bem por aí? Poderia por favor informar corretora e licença para fins de registro? Com relação a dúvida: no momento conseguimos adicionar custos apenas na plataforma desktop Windows. Isso pode ser feito através do Menu Negociação > Configurações > Custos.
+[2023-08-22 19:14:09] Nelogica: Boa noite! Tudo bem? Poderia por gentileza nos fornecer uma imagem de sua tela evidenciando o que não está sendo exibido? Pedimos a gentileza de gerar uma imagem da tela cheia, combinado? Agradecemos!
+[2023-08-22 20:04:16] Rafaela: Boa noite! Quinta fará um mês que enviei um vídeo de um travamento do profitpro numa operação de daytrade...ainda não recebi uma posição sobre...opero pela BTG..
+[2023-08-22 20:08:50] Lucas: ❤️ o histórico ajuda mto
+[2023-08-22 20:27:53] IVANIA: Boa noite....já há uma semana que contratei a profit pro,já fiz operações por lá.Porem todos os dias me chega e-mails pedindo pra ativar minha plataforma.Algiem me explica.OBRIGADOOOOO
+[2023-08-22 20:38:29] Nelogica: Boa noite Rafaela! Lamentamos por isso. Poderia nos chamar via Chat? Pelo Tele nós não possuímos acesso ao cadastro do cliente, mas via Chat a gente localiza o caso e lhe passa um feedback... combinado? Estamos disponíveis 24/7 através do seguinte link: https://ajuda.nelogica.com.br/hc/pt-br. Basta clicar em Ajuda, realizar uma busca e, escolher a opção "Chat em tempo real". Ficaremos lhe aguardando!
+[2023-08-22 20:43:34] Nelogica: Boa noite Daniel! Tudo bem? Esse caso não conseguimos resolver via Tele e vamos precisar que você nos chame via Chat. Estamos disponíveis 24/7 através do seguinte link: https://ajuda.nelogica.com.br/hc/pt-br. Basta clicar em Ajuda, realizar uma busca e, escolher a opção "Chat em tempo real". Ficaremos lhe aguardando!
+[2023-08-22 20:49:12] IVANIA: Obrigado
+[2023-08-22 21:48:46] Joao: Boa noite nelogica, como faço pra baixar a plataforma profit ,já tenho em outro Pc. Mas não consigo encontrar um jeito. Obrigado
+[2023-08-22 21:50:06] Nelogica: Boa noite João! Tudo bem? Poderia por favor informar corretora e licença para fins de registro? Com relação a dúvida: segue procedimento:
+
+1 ) Acessar www.nelogica.com.br
+2 ) Clicar em 'Entrar' e informar e-mail e senha
+3 ) Clicar em 'Assinaturas'
+4 ) Localizar sua licença e clicar em 'Download'
+[2023-08-22 22:09:39] Roberto: Boa noite , Roberto profit pro : COMO EU CONTRATO AUTOMAÇÃO DE ESTRATÉGIA?
+[2023-08-22 22:09:49] H.silva: Boa Noite Nelogica meu profit pro esta desde o início do pregão sem conexão com o servidor de negociação...pode me auxiliar com isso ?
+[2023-08-22 22:39:13] Nelogica: Boa noite Henrique! Tudo bem? Poderia por favor informar corretora e licença para fins de registro? Com relação a dúvida: poderia também nos fornecer uma imagem do Menu Ajuda > Diagnóstico de Sistema?
+[2023-08-22 23:27:04] Andre Luiz: Boa noite Nelogica! Existe alguma funcionalidade para operar em diversas mesas ao mesmo tempo? É possível gerenciar dessa forma em alguma versão da proft? Grato.
+[2023-08-23 00:25:40] Demétrio: Demétrio - Clear - Profipro
+
+Eu opero com 2 janelas separadas, sendo elas:
+
+1° - 5 minutos e 1 minuto na mesma janela, só que com 2 abas
+
+2° - 10 minutos e 1 minuto na mesma janela, só que com 2 abas também
+
+O meu problema é: Quando traço linhas no 1 minuto quero que as linhas apareçam na janela do 1 e 5 minutos daquela janela e não na janela do 1 e do 10 minutos também. 
+
+É possível fazer os estudos somente naquela janela pra não replicar o estudo no MESMO TEMPO GRÁFICO da outra janela?
+
+Eu sei que consigo separar os estudos por tempo GRÁFICO, mas não consigo separar por janelas
+[2023-08-23 01:12:54] Esmeraldo: Boa noite!
+
+Ontem fiz uma Operacao e depois vi o resultado no relativo de performance. Agora quando fui consultar o resultado na genial e na nelogica está sem nenhuma informação o relatório de performance. Houve algum problema na plataforma ontem ?
+[2023-08-23 01:22:49] Nelogica: Boa noite, Andre.
+Por gentileza, para fins de registro, poderia confirmar a corretora e também o produto Nelogica que você utiliza? (Pro, Plus, XpTrader, etc).
+Somente seria possível se todas as licenças das mesas estivessem abertas ao mesmo tempo, ou seja, para cada licença, uma instalação diferente.
+[2023-08-23 01:27:05] Nelogica: [IMAGEM: photo_882675.jpg]
+[2023-08-23 01:27:39] Nelogica: Boa noite, Esmeraldo.
+Por gentileza, para fins de registro, poderia confirmar a corretora e também o produto Nelogica que você utiliza? (Pro, Plus, XpTrader, etc).
+Esta situação precisa ser verificada de forma mais pontual.
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que possamos coletar maiores detalhes e lhe auxiliar a respeito.
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 01:31:40] Demétrio: Mas eu não quefo excluir do Layout. Quero que fique no layout. Não quero que fique no mesmo tempo gráfico em janelas diferentes
+[2023-08-23 01:35:39] Nelogica: Não teria outra forma, somente se você usasse layouts diferentes nas duas janelas, assim poderia excluir de um layout, fazendo assim, com que o outro permanecesse os estudos nas duas abas.
+[2023-08-23 07:39:10] Jazzizta: Bom dia Nelogica!
+Me envia o link para suportar, por favor!
+Obrigado
+[2023-08-23 08:01:57] Jorge: Nelogica Bom dia. Profit pro genial. O profit one disponibiliza gráfico renko? E é possível programar estratégias nele? Estou falando de coisas simples, como regras de coloração. Nada a ver com automação.
+[2023-08-23 08:02:25] Nelogica: Bom dia!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 08:03:43] Nelogica: Bom dia Jorge!
+
+Sim, o Profit One dispõe do gráfico Renko e Editor de estratégias.
+[2023-08-23 08:06:13] Jorge: Obrigado.
+[2023-08-23 08:06:56] Jorge: Posso configurar ordens OCO no one tbm? E o one possui integração dde?
+[2023-08-23 08:12:08] Nelogica: Sim, Jorge.
+
+Neste link temos o comparativo entre as licenças do Profit: https://www.nelogica.com.br/produtos
+[2023-08-23 08:13:20] Andre Luiz: Eu uso a proft pro pela toro, mas tbm faço trade pela mesa proprietaria no momento uso a plus
+[2023-08-23 08:15:10] @_cunhae: Bom dia,
+
+Corretora: genial, cm capital
+
+Adquiri a automação em uma conta e gostaria de usá-la em outra, como fazer
+[2023-08-23 08:16:44] Nelogica: Bom dia Emerson!
+
+Recomendamos que entre em contato com o nosso time de relacionamento para solicitar a migração do seu opcional. 
+Este atendimento ocorre de segunda a sexta, das 09 - 18 horas.
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+[2023-08-23 08:18:25] @_cunhae: A automação é vinculado pela corretora ou direto na Nelogica?, pergunto isso porque se for pela Nelogica então eu poderia usar na duas contas né, agora se for pela corretora aí realmente teria que ser individual.
+[2023-08-23 08:18:50] Nestor Marques - Franca-sp: Bom dia pessoal! 
+
+Alguém sabe se é possível ter duas planilhas DDE distintas capturando dados real time no profit?
+[2023-08-23 08:19:05] Nelogica: O opcional é vinculado por licença. Se desejar utilizar em outra licença. é necessário realizar a migração.
+[2023-08-23 08:20:11] @_cunhae: A licença é vinculada ao meu cadastro (cpf) então quando eu compro o opcional eu poderia usar onde quisesse, em duas contas por exemplo.
+[2023-08-23 08:20:23] Nelogica: Bom dia Nestor!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Devido a limitação da tecnologia (RTD/DDE), o usuário apenas conseguirá fazer uma exportação em tempo real por vez.
+[2023-08-23 08:33:31] Leandro: Nelogica Bom dia. Poderia me dizer qual a configuração mínima para rodar o novo profit?
+[2023-08-23 08:35:22] Nelogica: Bom dia Leandro!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Os requisitos Mínimos são: 
+ 
+Sistema Operacional: Windows 10 e Windows 11 
+Processador: Intel® i5 3.1Ghz - AMD FX série 6000 ou Ryzen 3/5 com frequência similar 
+Memória: 8 GB RAM 
+Monitor de 21” com resolução de 1920×1080 
+Conexão com a internet de 15Mbps
+
+Temos um artigo a respeito: https://ajuda.nelogica.com.br/hc/pt-br/articles/360044737391-Requisitos-para-instala%C3%A7%C3%A3o-do-Profit-em-seu-computador
+[2023-08-23 08:50:20] Nestor Marques - Franca-sp: Inter
+[2023-08-23 09:09:49] EDUARDO: Bom dia. Meu profit atualizou e desconfigurou tudo, isso tem acontecido com frequência. Dessa vez desconfifurou relógio, cross order e o ativo. Por favor, como resolvo isso? 
+Profit pro pela BTG
+[2023-08-23 09:11:37] Nelogica: Bom dia Eduardo!
+
+Qual a versão utilizada em sua plataforma?
+[2023-08-23 09:12:14] EDUARDO: Beta
+[2023-08-23 09:12:32] Nelogica: Qual a versão utilizada, a numeração dela?
+[2023-08-23 09:12:44] EDUARDO: Onde vejo?
+[2023-08-23 09:13:34] Nelogica: [IMAGEM: photo_882705.jpg]
+[2023-08-23 09:14:30] EDUARDO: 5.5.3.10964
+[2023-08-23 09:14:45] EDUARDO: 64bits
+[2023-08-23 09:14:54] Felipe: Bom dia Nelogica. Quando eu entrava na operação, ele mostrava o valor financeiro conforme o preço ia se movimentando. De repente ele parou de mostrar.
+[2023-08-23 09:15:32] Nelogica: Certo, pedimos que nos contate via chat para validarmos este comportamento.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+[2023-08-23 09:15:32] Adriano: Nelogica bom dia, como consigo mudar a barra de estudos de lugar
+[2023-08-23 09:16:49] Nelogica: [IMAGEM: photo_882711.jpg]
+[2023-08-23 09:17:19] Nelogica: [IMAGEM: photo_882712.jpg]
+[2023-08-23 09:17:23] Felipe: Clear. Profit pro
+[2023-08-23 09:17:39] Felipe: Obrigado
+[2023-08-23 09:20:00] Roberto: BOM DIA , ROBERTO PROFIT PRO COMO CONFIGURAR ESTRATÉGIA DE AUTOMAÇÃO Nelogica
+[2023-08-23 09:22:13] Nelogica: Bom dia Roberto!
+
+Por gentileza, nos informe a sua corretora para fins de registro.
+
+Neste artigo temos mais informações a respeito da ferramenta: https://ajuda.nelogica.com.br/hc/pt-br/articles/8865257831195-Como-utilizar-a-Automa%C3%A7%C3%A3o-de-Estrat%C3%A9gias
+[2023-08-23 09:30:31] Breno: Bom dia, tem como colocar alarme nas médias?
+[2023-08-23 09:37:10] Nelogica: [IMAGEM: photo_882718.jpg]
+[2023-08-23 09:45:19] Nelogica: [IMAGEM: photo_882720.jpg]
+[2023-08-23 09:50:39] aaa: Tem como eu especificar um horário para o robô do acompanhamento de opções começa a apregoar as ordens ?
+[2023-08-23 09:53:40] Nelogica: Bom dia Edipo!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Qual robô você possui contratado?
+[2023-08-23 09:57:27] aaa: O robo do orofit pro mesmo
+[2023-08-23 09:58:01] Nelogica: Caso se refira a automação de estratégias, temos informações a respeito neste link: https://ajuda.nelogica.com.br/hc/pt-br/articles/8865257831195-Como-utilizar-a-Automa%C3%A7%C3%A3o-de-Estrat%C3%A9gias
+[2023-08-23 09:59:51] Nelogica: [IMAGEM: photo_882725.jpg]
+[2023-08-23 10:04:15] Fluxo De Mercado: Contratei o PROFIT ultra mas o Motion Tracker está sem dados
+[2023-08-23 10:04:21] Fluxo De Mercado: Clear
+[2023-08-23 10:05:28] Nelogica: Bom dia!
+
+Esta situação precisa ser verificada de forma mais pontual.
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que possamos coletar maiores detalhes e lhe auxiliar a respeito.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 10:05:40] Fluxo De Mercado: Clear
+[2023-08-23 10:08:21] Decio: Bom dia 
+Profit para Mac 100% bugada
+[2023-08-23 10:09:41] Nelogica: Bom dia Decio!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+O que ocorre em sua plataforma?
+[2023-08-23 10:09:45] Decio: Corretora Genial
+[2023-08-23 10:12:04] EDUARDO: Cara, eu tô a mais de uma hora no chat e a pessoa não consegue resolver meu problema.  Eu uso o profit a mais ou menos 5 anos e tô vendo que a nelogica não tá acompanhando o tempo. Desculpe o desabafo! Pra piorar, antes a gente ligava e resolvia tudo rapidamente agora é uma dificuldade terrível. Não pode mais ligar e nada se resolve com agilidade. Triste isso!
+[2023-08-23 10:12:23] Decio: A versão 1.0.22
+[2023-08-23 10:13:49] Nelogica: Decio, o que ocorre em sua plataforma? Nos informe detalhes a respeito do comportamento, para que possamos verificar.
+[2023-08-23 10:21:53] Decio: Tudo travado e lento
+O gráfico fica tentando atualizar e nada 
+Estou no gráfico de 5M o tempo da vela mostra 7h39
+Quando aparece o gráfico eu espero um pouco tento abrir uma ordem ele diz que não pode abrir a ordem e abre depois sozinha uns 30 segundos depois 
+Em resumo tudo extremamente bugado 
+Sei que é a plataforma pq fecho a plataforma e abro outra e tudo roda tranquilo então não acredito ser problema no meu Mac
+[2023-08-23 10:22:34] Nelogica: Neste caso, pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que possamos coletar maiores detalhes e lhe auxiliar a respeito.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 10:24:02] Vitor: Bom dia, profit pro btg.
+No meu gráfico utilizo o contador de candles, e pelo que tenho percebido depois do pregão, o contador sempre mostra um candle a mais quando comparo ao gráfico de professores. Acredito que esse candle a mais pode ser o after market, como faço pra ocultar esse último candle?
+[2023-08-23 10:28:51] Renato: Nelogica quais sãoa s configurações da maquina para rodar o profit pro? preciso adquirir uma vps
+[2023-08-23 10:30:43] Nelogica: [IMAGEM: photo_882740.jpg]
+[2023-08-23 10:30:49] Lindemberg Teles: Bom dia! 
+@NelogicaCS poderia auxiliar como colocar ordem OCO no Win entrando com 1 ct , alvo de 1ct e stop de 3 pts? Corretora Genial. Profit pro.
+[2023-08-23 10:31:01] Nelogica: Bom dia Renato!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Os requisitos Mínimos são: 
+ 
+Sistema Operacional: Windows 10 e Windows 11 
+Processador: Intel® i5 3.1Ghz - AMD FX série 6000 ou Ryzen 3/5 com frequência similar 
+Memória: 8 GB RAM 
+Monitor de 21” com resolução de 1920×1080 
+Conexão com a internet de 15Mbps
+
+Temos um artigo a respeito: https://ajuda.nelogica.com.br/hc/pt-br/articles/360044737391-Requisitos-para-instala%C3%A7%C3%A3o-do-Profit-em-seu-computador
+[2023-08-23 10:31:22] Decio: Desculpa estou comunicando aqui pq por e-mail ou chat não está resolvendo vou fechar a plataforma e operar em outra 
+Espero que vcs resolvam
+Gosto muito da plataforma da nelogica mas como uso Mac 
+Fico triste por vcs não a devida atenção 
+Se vcs conseguirem corrigir isso me avisa
+[2023-08-23 10:31:22] Renato: Genial Investimentos
+[2023-08-23 10:33:27] Vitor: Muito obrigado, resolveu a questão
+[2023-08-23 10:34:31] Nelogica: Bom dia Lindemberg!
+
+Nós não temos como lhe auxiliar a criar uma estratégia, pois isto influencia em seu operacional.
+
+Compartilhamos com você estes materiais a respeito da Ordem Oco, para que você compreenda o funcionamento:
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/4405588022811-Ordens-OCO-Estrat%C3%A9gia-em-Financeiro
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/8767935888539-Ordens-OCO-Manuais-Saiba-como-criar-ordens-OCO-pelo-gr%C3%A1fico
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/360050268791-Ordens-OCO-Swing-Trade
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/11198949048987-Ordens-OCO-Estrat%C3%A9gia-em-Percentual-
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/360041299231-Ordens-OCO-Editor-de-Estrat%C3%A9gias-de-Negocia%C3%A7%C3%A3o
+[2023-08-23 10:36:30] Nelogica: Este comportamento não foi reproduzido em nossos testes, Decio. Desta forma, se faz necessária uma análise mais pontual na sua máquina e configurações utilizadas.
+Por segurança, este contato é realizado apenas via chat.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 10:44:11] André: Bom dia Nelogica! Tudo bugado, o mini está travado na máxima de hj enquanto o cheio está na mínima, não aceita ordem de stop. Help...
+[2023-08-23 10:45:09] Nelogica: Bom dia André!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Recomendamos que atualize a sua plataforma para a versão Beta mais recente: Menu Ajuda > Procurar atualizações > Beta > Reiniciar agora
+Após atualizar, verifique se o comportamento persiste.
+[2023-08-23 10:45:23] André: Genial, Pro
+[2023-08-23 10:45:29] Decio: Ok
+Já tenho um chamado aberto narrando a mesma situação onde foi solicitado que eu gravasse até um vídeo e até agora não tive retorno rsrs
+Vou desinstalar a plataforma do meu Mac e quando me derem retorno no meu chamado de quase 1 mês eu instalo novamente.
+Grato pela atenção
+[2023-08-23 10:47:44] Álisson: Estou com duas ordens a mercado penduradas sem resposta!!!!!
+[2023-08-23 10:47:49] Álisson: O que faço?
+[2023-08-23 10:49:22] Renata e Leo: Alguém com problemas de conexão com a BTG?
+[2023-08-23 10:49:23] Al: dando problema de novo
+[2023-08-23 10:49:33] Álisson: Porra cara!!!!! Não tem como operar com a mão pesada nesse negócio
+[2023-08-23 10:49:47] Álisson: Eu
+[2023-08-23 10:49:51] Wagner: Sim... Ordens não entram e não baixam.
+[2023-08-23 10:49:53] Lennon: eu
+[2023-08-23 10:49:56] Marcelo: eu
+[2023-08-23 10:49:58] Fabio: É geral ou só na BTG?
+[2023-08-23 10:50:04] Renata e Leo: 😞
+[2023-08-23 10:50:15] Renan: BTG esta dando erro
+[2023-08-23 10:50:21] Álisson: É pior…. Não consigo entrar no homebroker pra cancelar
+[2023-08-23 10:50:38] Lennon: Ainda bem que abri as ordens com stop
+[2023-08-23 10:51:01] Renan: A minha esta com stop gain bateu e nao zerou
+[2023-08-23 10:52:28] Cesar: Nelogica bom dia. Corretora CM profitone, como faço para retirar do gráfico o ponto de cobertura e exibir os trades realizados? Obg
+[2023-08-23 10:52:53] Emilio: Bom dia..Estou com ordens lancadas no Profit...pela Empiricus...e o sistema travou..nao saiu ..qdo pedi para cancelar  ordens...como faço?
+[2023-08-23 10:52:54] Álisson: E eu vendido no contra no índice……. Quer dizer: a execução não entrou até agora
+[2023-08-23 10:53:09] Pedro Henrique: Nao consigo cancelar ordem. Btg profit pro
+[2023-08-23 10:53:12] Álisson: Todo mundo ferrado
+[2023-08-23 10:53:28] Emilio: Que legal
+[2023-08-23 10:53:31] Henrique: O eu tb travou. Ta osso aqui
+[2023-08-23 10:53:48] Bruno Brandão: aqui tb
+[2023-08-23 10:54:01] Lennon: Tentei cancelar pelo hb e não consegui
+[2023-08-23 10:54:02] Bruno Brandão: n consigo mandar ordem alguma
+[2023-08-23 10:54:06] Bruno Brandão: Nelogica
+[2023-08-23 10:54:14] Lennon: está travado tudo
+[2023-08-23 10:54:22] Lennon: Nelogica ?
+[2023-08-23 10:54:53] Emilio: Quem mandou as ordens...
+Nao consegue  sair....quem quer entrar ela nao deixa....lancar..
+[2023-08-23 10:55:05] Nelogica: Bom dia Álisson!
+
+Nos contate via chat, para analisarmos suas operações.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 10:55:17] Faf: Tambem to nessa, ordem OCO, nao consigo modificar nem zerar. BTG tambem, profit pro
+[2023-08-23 10:55:28] Emilio: Problemas ou com o Btg ou nelot
+[2023-08-23 10:55:43] Nelson Luiz Mateus -: 🤦🏻‍♂️
+[2023-08-23 10:56:30] Nelogica: Bom dia Renata!
+
+Nos contate via chat, para analisarmos suas operações.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 10:57:40] Nelogica: Bom dia Renan!
+
+Nos contate via chat, para analisarmos suas operações.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 10:58:00] Bruno Brandão: 👆🏻
+[2023-08-23 11:00:49] Nelogica: *** ATENÇÃO CLIENTE BTG ***
+
+Foram constatadas dificuldades de gerenciamento de ordens na corretora. Acesse o home broker/pit site da corretora para gerenciar as suas ordens/posições e obter mais informações sobre o ocorrido.
+
+Para demais assuntos, a equipe de Suporte está disponível 24 horas, e estaremos sempre prontos para oferecer a melhor experiência no mercado financeiro!
+[2023-08-23 11:01:42] Nícolas Felipe: Bom dia Nelogica 
+Profit Pro - BTG
+[2023-08-23 11:02:24] Ronaldo: Uso a Toro ate agora não tenho o q reclamar 100%
+[2023-08-23 11:02:30] Glauber: Profit BTG hoje está insuportável.
+[2023-08-23 11:02:31] Nícolas Felipe: Travamento geral, não consegui cancelar ordens, estava posicionado, e com ordens abertas. Executou, o mercado despencou, e eu não consegui cancelar as ordens. Com quem eu falo a respeito do prejuízo?
+[2023-08-23 11:02:51] Glauber: Não consigo cancelar as ordens desde as 10:15 da manhã.
+[2023-08-23 11:03:19] Nícolas Felipe: Nelogica
+[2023-08-23 11:03:44] Jardel Pereira: A principio se for constatado erro geral, eles estornam em alguns dias o prejuizo, ja aconteceu comigo isso na BTG 2 x ano passado, aí troquei de corretora por causa desses erros
+[2023-08-23 11:04:31] Glauber: Eu alertei outras vezes aqui no grupo. Toda vez que acontecer isso, gravem a tela.  (  tentativa do cancelamento das ordens , abertura involuntária de contrato e etc) , é a única prova que você como operar tem para contestar os prejuízos futuramente.
+[2023-08-23 11:04:36] Nícolas Felipe: Estou aguardando resposta deles aqui. Mas pelo visto já estão cientes do problema, resta saber se vão assumir responsabilidade.
+[2023-08-23 11:05:25] Warlley: eu tambem troquei de corretora por conta disto, aconselho a todos quando for executar a operação gravar a tela, para quem utiliza windows 10 so apertar os botoes win+alt+R que começa a gravar
+[2023-08-23 11:05:47] Jardel Pereira: eu acredito que sim, fica tranquilo, como é erro geral eles assumem, agora quando é erro especifico fica bem complicado
+[2023-08-23 11:06:00] Guilherme: Bom dia, como deixo a visualização das ordens aberta apenas em um gráfico?
+[2023-08-23 11:06:28] Emilio: Isso  mesmo..fiquem tranquilo...pane geral...problemas com a Nelogic
+[2023-08-23 11:06:32] Nícolas Felipe: Estou aguardando um posicionamento. Existe algum canal de comunicação direta ?
+[2023-08-23 11:06:49] Jardel Pereira: gravem suas telas, tirem print, para poder provar que não estão conseguindo cancelar as ordens, por segurança
+[2023-08-23 11:06:55] Emilio: *** ATENÇÃO CLIENTE BTG ***
+
+Foram constatadas dificuldades de gerenciamento de ordens na corretora. Acesse o home broker/pit site da corretora para gerenciar as suas ordens/posições e obter mais informações sobre o ocorrido.
+
+Para demais assuntos, a equipe de Suporte está disponível 24 horas, e estaremos sempre prontos para oferecer a melhor experiência no mercado financeiro!
+[2023-08-23 11:08:23] Glauber: Já me reembolsaran em outras duas ocasiões.  Mas precisa enviar os vídeos e todas as provas que você como operador conseguiu reunir.
+[2023-08-23 11:08:53] Nícolas Felipe: Tenho prints. Não cheguei a gravar a tela. Mas as fotos são da plataforma e do HB da corretora, que não consegui alterar e nem cancelar as ordens
+[2023-08-23 11:09:05] Percio Luiz Finger: No chartrading não aparece minhas ordens sendo executadas
+[2023-08-23 11:10:14] Nícolas Felipe: Nelogica Nelogica @NelogicaCS
+[2023-08-23 11:10:33] Nelogica: Acesse o home broker/pit site da corretora para gerenciar as suas ordens/posições e obter mais informações sobre o ocorrido.
+[2023-08-23 11:11:10] Glauber: A coisa deve estar feia . Estou com 3 chats abertos, esperando resposta e até agora nada.
+[2023-08-23 11:11:38] Nícolas Felipe: Já fiz isso. Depois de muito custo consegui zerar tudo com um prejuízo de quase 600,00. Quero saber agora se vocês vão assumir a responsabilidade. Afinal, vocês mesmos já assumiram que o erro foi na plataforma.
+[2023-08-23 11:11:39] Emilio: Se vcs prestarem atenção...o Saldo da Conta ..tbem  esta bagunçado...deu pane na corretora
+[2023-08-23 11:12:14] Nícolas Felipe: Tenho os prints dos erros tanto na plataforma, como no HB.
+[2023-08-23 11:12:27] Emilio: Guarda eles...
+[2023-08-23 11:13:04] Nelogica: [IMAGEM: photo_882820.jpg]
+[2023-08-23 11:13:41] Carlos: Por isso tudo que parei de operar com a BTG faz tempo, gostava muito mas devido a isso tudo não dá mais.
+[2023-08-23 11:15:11] Jardel Pereira: Eu tb, em 2021 aconteceu 1x comigo, em 2022 2x, ai fui pra outra corretora e até o momento nunca mais tive essa dor de cabeça
+[2023-08-23 11:16:17] Fabio: q corretora ta usando?
+[2023-08-23 11:16:28] Evandro: Bom dia Nelogica. O backtest no Renko não considera o tamanho do pavio do box nos stops. Por exemplo, tenho uma operação  hipótetica que o alvo é 8 pontos e stop é 6 pontos. Se faço uma operação de compra no 11R e ela volta 10 pontos, ainda não fechou o box pra baixo, certo? Se depois subir 10 pontos o backtest entende que deu gain. Porque ele não considerou essa volta de 10 pontos pois ele não enxerga o pavio do box. Ou seja, pra ele a mínima do box é a base do box, e não a mínima do pavio.
+[2023-08-23 11:16:40] Guilherme: Muito obg, corretora BTG e plataforma ProfitPro
+[2023-08-23 11:16:43] Carlos: Então, depois dessas duas ano passado decidi parar lá.
+[2023-08-23 11:17:39] Jardel Pereira: Ativa, há um ano já, nenhuma instabilidade até o momento pra mim
+[2023-08-23 11:17:40] Nelogica: Bom dia Evandro!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Pedimos que nos contate via chat para que possamos analisar.
+Acesse o Suporte Automação e Estratégias. 
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+[2023-08-23 11:18:30] Nícolas Felipe: E aí Nelogica, e quanto ao meu problema? Nelogica
+[2023-08-23 11:18:35] Nelogica: [IMAGEM: photo_882830.jpg]
+[2023-08-23 11:18:55] Nelogica: Como lhe orientamos acima Nicolas, recomendamos que entre em contato diretamente com a corretora.
+[2023-08-23 11:19:23] Nícolas Felipe: Estou em contato com eles também.
+[2023-08-23 11:19:53] Nelogica: [IMAGEM: photo_882833.jpg]
+[2023-08-23 11:20:53] Glauber: Acabei de receber um email para enviar os dados para analise.
+[2023-08-23 11:23:00] Emilio: Qual operadora  vc esta hj?
+[2023-08-23 11:24:32] Jp: Bom dia
+[2023-08-23 11:24:55] Jp: Como retira uma ordem que não quer ser canelada
+[2023-08-23 11:26:47] Joao: Nem no HOME BROKER deu pra cancelar....TOP
+[2023-08-23 11:26:51] André Luiz: Nelogica ola boa tarde, teve aguama atualização recente na qual , pode ser o motivo de dar bug na minha automação??
+[2023-08-23 11:28:08] Jardel Pereira: A corretora que uso hj é a Ativa, condições de gratuidade operando pelo menos um mini por mes
+[2023-08-23 11:29:16] Emilio: Blza
+[2023-08-23 11:29:28] Nelogica: Bom dia André!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Pedimos que nos contate via chat para que possamos analisar.
+Acesse o Suporte Automação e Estratégias. 
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+[2023-08-23 11:29:28] Julio Santos: Bom dia , Sabe dizer se ativa tem luz tbm
+[2023-08-23 11:29:33] Julio Santos: Tem pix tbm
+[2023-08-23 11:30:28] Jardel Pereira: Nao, o deposito é por TED até o momento
+[2023-08-23 11:33:40] Jp: Ficou uma ordem oco não que canela como fasso
+[2023-08-23 11:34:26] Maurício: Profit travando toda hora os indicadores de fluxo, como resolver?
+[2023-08-23 11:35:59] Nelogica: Bom dia!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Nos contate via chat, para analisarmos suas operações.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2023-08-23 11:36:38] Nelogica: Bom dia Maurício!
+
+Por gentileza, nos informe a sua corretora e a sua plataforma utilizada para fins de registro.
+
+Este tipo de comportamento precisa ser analisado através do nosso chat individualmente, pois precisamos analisar as configurações utilizadas, aparelho utilizado, estabilidade da rede, etc. 
+Neste caso, por gentileza encaminhe sua mensagem no Chat em nossa central de ajuda para que possamos coletar mais detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+[2023-08-23 11:39:27] None: Com todo mundo operando nesse horário, fica complicado parar as operações para assistir essas lives. Como sugestão, acho que poderiam marcar para após 16:00. Nesse horário, o mercado ainda está muito movimentando, o que dificulta para os telespectadores.
+[2023-08-23 11:39:31] José: Bom dia.
+Profit pro. Toro
+Estou com a plataforma instalada já há algum tempo,  mas operei pouco nesse mês. 
+Não estou conseguindo carregar a plataforma. Não abre
+[2023-08-23 11:40:28] Nelogica: Bom dia Daniele!
+
+Agradecemos o seu feedback, ele será repassado ao time responsável.
+[2023-08-23 11:41:03] Nelogica: Bom dia José!
+
+Encerre o uso da plataforma em seu gerenciador de tarefas, e tente executar novamente, por gentileza.
+[2023-08-23 11:41:20] José: Vou tentar
+[2023-08-23 11:41:53] Renato: BTG ainda está com problemas?
+[2023-08-23 11:43:14] Bruno Brandão: Nelogica quem operar com Profit BTG já pode operar?
+Resolveram o problema?
+[2023-08-23 11:43:21] Bruno Brandão: @NelogicaCS
+[2023-08-23 11:43:38] José: Ok
+[2023-08-23 11:43:39] José: Bom dia José!
+
+Encerre o uso da plataforma em seu gerenciador de tarefas, e tente executar novamente, por gentileza.
+[2023-08-23 11:43:52] José: Não abre
+[2023-08-23 11:44:05] Nelogica: Bom dia Renato!
+
+Recomendamos que contate a corretora BTG para obter mais informações a respeito do ocorrido.
+[2023-08-23 11:44:10] Nelogica: Bom dia Bruno!
+
+Recomendamos que contate a corretora BTG para obter mais informações a respeito do ocorrido.
+[2023-08-23 11:44:18] Nelogica: Neste caso, por gentileza encaminhe sua mensagem no Chat em nossa central de ajuda para que possamos coletar mais detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Ajuda", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+[2025-07-10 13:55:13] Nelogica: Boa tarde, João! Tudo bem?
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-10 14:14:44] Luciano Correia: Nelogica pode me passar as corretoras que disponibilizam o Black Arrow
+[2025-07-10 14:34:21] Nelogica: Olá, Luciano
+
+ Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://blackarrowtrading.zendesk.com/hc/pt-br
+E-mail: support@blackarrowtrading.com
+[2025-07-10 15:11:48] Rodrigo Silva: Tem como abreviar o nome das corretoras no tt e no book?
+[2025-07-10 15:24:06] Nelogica: Boa tarde, Rodrigo! Tudo bem?
+
+Atualmente não. Seria possível somente alterar o tamanho da fonte ou colocar a exibição como código (número que representa a corretora) em vez do nome em si das corretoras.
+
+Contudo você pode encaminhar sua sugestão através do menu Ajuda > Comunidade > Portal de Sugestões - TraderVoice.
+[2025-07-10 15:59:44] Paulinho: Olá
+[2025-07-10 15:59:54] Paulinho: Boa tarde
+[2025-07-10 16:00:47] Paulinho: Estou com dificuldade na configuração
+[2025-07-10 16:09:02] Paula: Não estou conseguindo reinstalar o Profit no meu celular
+[2025-07-10 16:09:13] Paula: Alguém já passou por isso?
+[2025-07-10 16:20:49] Nelogica: Olá, Paulinho!
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-10 16:22:20] Nelogica: Olá, Paula!
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-10 16:22:32] kadu Pereira: muito obgd
+[2025-07-10 16:25:40] Paula: Ok
+[2025-07-10 17:03:45] Paulinho: Ok muito obrigado!
+[2025-07-10 17:25:02] Leandro: Boa tarde! Tenho conta na Toro e gostaria de saber se vcs tem o conhecimento de quais as corretoras eu consigo um Profitchart grátis operando com apenas 1 contrato por mês.
+[2025-07-10 18:01:11] Nelogica: Boa tarde, Leandro! Tudo bem?
+
+Seria necessário realizar o contato com as corretoras para verificar regras de isenção.
+[2025-07-10 18:25:03] Marco Aurélio: Acho que a Clear
+[2025-07-10 18:40:26] Rafael Nacer: Boa noite, Rafael da warren, qual plano de automatização de estratégia pra operar ações … o basic consegue? Pq só aparece mini contratos e contratos cheios nos planos
+[2025-07-10 18:51:21] Nelogica: Boa noite Rafael,
+
+É possível sim, em nosso artigo pode conferir o limite de exposição pelos planos disponíveis, onde Bovespa seja para Ações:
+https://ajuda.nelogica.com.br/hc/pt-br/articles/8864900151451-Como-contratar-o-m%C3%B3dulo-Automa%C3%A7%C3%A3o-de-Estrat%C3%A9gias
+[2025-07-10 19:42:39] 📊 Fabinho 🚀: Alguém que tem conta na GENIAL, podia me ajudar! Ou sabe se tem alguma página semelhante a essa aqui
+[2025-07-10 19:43:03] 📊 Fabinho 🚀: Página top essa da Neologica! Parabéns aos envolvidos.
+[2025-07-10 20:14:13] Jefferson: Boa noite.  Infelizmente ainda estou no copy trade do André Machado e a partir dessa semana já não consigo visualizar o histórico das operações.  Já abri chamado e até hoje sem retorno.
+[2025-07-10 20:29:42] Nelogica: Boa noite Jefferson,
+
+Por gentileza, contate o nosso canal de atendimento e pode informar que está aguardando um retorno para que nossa Equipe verifique os detalhes e uma devida atualização.
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-10 23:05:18] Francinaldo: Boa noite! Opero pela Genial.
+Como separar as marcações do mesmo Ativo em mais de um gráfico na mesma tela?
+[2025-07-11 04:34:27] Nelogica: Bom dia, Francinaldo! Os estudos são sincronizados por ativo, ou seja, serão aplicados em todos os gráficos dele. Para separar essas marcações de análises, indicadores e regras de coloração diferentes a um mesmo grupo de ativos e periodicidades, é necessário criar layouts separados no gráfico. Mais informações no material de apoio: https://ajuda.nelogica.com.br/hc/pt-br/articles/4416119065499-Estudos-por-layout
+[2025-07-11 05:35:42] FLAVIO: bom dia por favor pode passar o link de acesso para o copyinvest
+[2025-07-11 05:40:43] Nelogica: Olá, Flavio! Bom dia, tudo bem?
+
+Segue o link de acesso ao portal do Copy: https://copyinvest.nelogica.com.br/
+
+Seguimos à disposição!
+[2025-07-11 05:41:05] FLAVIO: brigaduuu
+[2025-07-11 06:34:55] FLAVIO: bom dia novamente nao estou conseguindo acessar meu copy, tem como mi ajudar por aqui obrigado
+[2025-07-11 07:59:31] Nelogica: Olá,  Flavio!
+
+Neste caso por se tratar de um comportamento individual, por gentileza, contate o nosso canal de atendimento para que possamos coletar maiores informações e analisar.
+ 
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 08:01:44] Brunno: Bom dia nelogica. Hoje uma semana completa com a plataforma travando e não deram nenhum retorno, nenhuma atualização, nada! Meus parabéns!!!
+[2025-07-11 08:55:02] Nelogica: Olá, Brunno! Bom dia!
+
+Compreendemos sua posição, Brunno. Nosso canal aqui no Telegram é destinado a dúvidas gerais, por isso não conseguimos fornecer atualizações sobre chamados abertos.
+
+Para acompanhar o andamento do seu chamado, pedimos que entre em contato pelo nosso chat em tempo real, onde conseguimos verificar e priorizar esse tipo de demanda.
+
+Para acessar o Chat em tempo real, clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 08:58:53] Guilherme: Bom dia. Como configuro o ProfitPro para visualizar o preço ou valor do ativo Dolpro na escala durante o leilão?
+[2025-07-11 09:04:43] Felipe: Bom dia Nelogica. Sabe como eu faço pra configurar o book de ofertas pra aparecer somente ordens de 50 contratos pra cima ? WIN
+[2025-07-11 09:15:21] Nelogica: Bom dia, Guilherme! Tudo bem?
+
+Para isso acesse o menu Negociação > Configurações > Gráfico > Visibilidade > Deixe marcada a opção "Exibir valor do ativo na escala de preço" > Dê ok para salvar.
+[2025-07-11 09:19:55] Nelogica: Bom dia, Felipe! Tudo bem?
+
+Para isso estando no Livro de Ofertas acesse as Propriedades do Livro > Aba "Filtros" > Nesta tela você poderá criar filtros por preço ou por ofertas (quantidade de lotes) > Após criar clique em Ok para salvar. 
+
+Mais informações no artigo abaixo:
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/360049025732-Livro-de-ofertas
+[2025-07-11 09:21:30] Felipe: Obrigado
+[2025-07-11 10:01:39] Edson_SJBVISTA: bom dia
+como eu movo os indicadores de volume, rsi, etc.  para o lado direito da tela?
+[2025-07-11 10:04:48] Nelogica: [IMAGEM: photo_942722.jpg]
+[2025-07-11 10:30:24] Edson_SJBVISTA: ok, muito obrigado!!!!!
+[2025-07-11 10:48:13] Rogerio: Bom dia 
+Quando aparece BMF desativado 
+Eu ativo no profit ou na corretora??
+[2025-07-11 10:49:39] Nelogica: Bom dia, Rogerio! Tudo bem?
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 11:52:44] Marcelo Fz: bom dia, nelogica. marcelo - genial - profitpro. eu gostaria de saber se posso fechar algumas abas onde tenho papeis comprados, uma vez que fica muito cheio. se eu fechar nao fecho a operação, ok?
+[2025-07-11 11:54:29] Maurício: @ Bom dia Nelógica.
+Qual procedimento para cancelar ordem que ficou de um dia para outro aberta no SIMULADOR?
+Quando habilito negociação day trader ela não aparece e quando desabilito ela aparece, se fecho a ordem aparece no outro com operação contrário.
+[2025-07-11 12:08:36] Jonathas: Nelogica Boa tarde 
+
+Estou tentando importar um arquivo, mas aparece a mensagem " nenhuma estratégia foi importada". Porém outras pessoas estão usando o mesmo arquivo normalmente. O que pode ser ?
+[2025-07-11 12:19:50] Nelogica: Bom dia, Marcelo! Tudo bem?
+
+Ao fechar apenas aba do gráfico do ativo a posição segue em andamento normalmente sim.
+
+Para encerramento da operação é necessário o envio de uma ordem.
+[2025-07-11 12:20:13] Nelogica: Olá, Mauricio! Tudo bem?
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 12:20:37] Nelogica: Boa tarde, Jonathas! Tudo bem?
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 12:34:58] Maurício: Obrigado
+[2025-07-11 12:51:43] Guilherme: Boa tarde. Como configuro o ProfitPro para visualizar o preço na escala durante o período do leilão?
+[2025-07-11 14:23:19] Nelogica: Boa tarde, Guilherme! Tudo bem?
+
+Para isso acesse o menu Negociação > Configurações > Gráfico > Visibilidade > Deixe marcada a opção "Exibir valor do ativo na escala de preço" > Dê ok para salvar.
+[2025-07-11 14:25:35] Willians: boa tarde
+[2025-07-11 14:25:51] Willians: preciso de um suporte
+[2025-07-11 14:30:40] Nelogica: Olá, Willians! Tudo bem?
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 16:31:27] Guilherme: Qual a função em código ntsl para prencher cor entre duas médias plotadas?
+[2025-07-11 17:31:15] Nelogica: Olá, Guilherme!
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-11 19:07:20] Valdinei: olá, como faço para configurar para as velas  sempre ficar na área visível do gráfico, sempre que mudo de abas tenho que ajustar o gráfico
+[2025-07-11 19:15:16] Nelogica: [IMAGEM: photo_942741.jpg]
+[2025-07-12 01:57:58] Fabio: Oi Bom dia nelogica,  no meu grafico de ações esta aparecendo uma linha vertical na cor azul pontilhada em todo final de pregão nas ações como faz pra tirar essas linhas desde ja obrigado.
+[2025-07-12 02:00:39] Nelogica: Bom dia, Fabio.
+
+Essas linhas foram lançadas nas últimas versões, elas mostram em destaque o período de after market.
+
+Você pode desabilitar através das configurações de aparência e nas propriedades da escala de tempo.
+
+Segue nosso artigo com o passo a passo https://ajuda.nelogica.com.br/hc/pt-br/articles/38707498858523-Exibir-Extended-Hours-veja-em-destaque-as-opera%C3%A7%C3%B5es-no-AfterMarket
+[2025-07-12 12:05:06] Marcus: Bom dia. Que insanidade hein. A galera querer operar em duas corretoras na mesma tela do profit ao mesmo tempo. Aí nelogica, desenrola esse BO aí kkkk
+[2025-07-12 12:19:01] Wallace: 🅱om Dia
+Eu gostaria de saber por favor como faço para ter uma ideia ou sugestão dentro do profichart pro ferramentas de análise Macro para operar Míni Dólar?
+Se puder me ajudar agradeço muito..
+Tenha um ótimo sábado!
+[2025-07-12 12:33:59] Nelogica: Olá, Marcus! Boa tarde!
+
+É possível acessar licenças de corretoras diferentes simultaneamente, porém, para isto é necessário ter duas instalações do Profit em seu computador. Assim, será possível acessar cada licença através de uma instalação.
+
+Para mais detalhes sobre o procedimento para instalar duas plataformas, acesse o artigo:
+https://ajuda.nelogica.com.br/hc/pt-br/articles/360044667951-Instala%C3%A7%C3%A3o-de-duas-ou-mais-plataformas
+[2025-07-12 13:31:21] Nelogica: [IMAGEM: photo_942748.jpg]
+[2025-07-12 14:56:15] Lilian: Boa tarde,estou com problemas para fazer replay não aparece o gráfico na tela do mês passado
+[2025-07-12 15:10:59] Nelogica: Olá, Lilian!
+
+Pedimos que encaminhe sua mensagem em um de nossos canais de atendimento individual para que seja possível coletar maiores detalhes e lhe auxiliar a respeito.
+ 
+Para acessar o Chat em tempo real clique no link abaixo e em seguida na opção "Chat", digite sua mensagem para que seja exibida a opção "Chat em tempo real".
+
+Chat: https://ajuda.nelogica.com.br/hc/pt-br
+E-mail: suporte@nelogica.com.br
+[2025-07-12 21:47:31] Jaci: Alô! Nelogica, favor! Como faço para excluir linhas tracejada no gráfico no sentido vertical, apare quando dou zoom in. Obrigado
+[2025-07-12 22:03:31] Nelogica: [IMAGEM: photo_942752.jpg]
+[2025-07-13 00:06:24] Gerardo: oi, boa moite Nelogica 
+No ProfitOne dá pra usar robô?
+[2025-07-13 03:52:22] Nelogica: Olá, Gerardo.
+
+Sim é possível, basta contratar o módulo de automação de estratégias.
+https://www.nelogica.com.br/automacao-de-estrategias?id=modulo-automacoes
+
+No entanto, apenas a partir do Profit Pro há o módulo de automação de estratégias em simulação.
+[2025-07-13 07:27:45] Pablo: Bom dia...Pablo...Genial...profit mobile...como faço pra saber o valor da abertura e do fechamento de um candle no profit mobile?
+[2025-07-13 08:03:08] Nelogica: Bom dia, Pablo.
+
+Para saber o valor da abertura e do fechamento de um toque no gráfico(Na posição do candle).
+
+Os valores serão exibidos na parte superior do gráfico.
+[2025-07-13 11:54:20] Sérgio Massaru: ProfitPro / Necton
+
+Bom dia Nelogica!
+
+No Módulo de Opções do Profit Mobile eu não consigo agrupar opções, por exemplo em trava de alta e depois apregoar para desmontar esta trava sem ter que apregoar perna a perna?
+[2025-07-13 12:46:16] Nelogica: Boa tarde, Sérgio! Tudo bom?
+
+Se você deseja desmontar uma estratégia em Opções, o processo pode ser feito acessando a aba Operações no menu de Opções do Profit Mobile.
+
+Neste local, você pode clicar no ícone de 3 pontos de uma operação estruturada para gerenciar a mesma, cancelando as ordens por exemplo.
+
+Recomendamos o acesso ao nosso artigo sobre o tema, se desejar:
+
+https://ajuda.nelogica.com.br/hc/pt-br/articles/35871983624987-Como-gerenciar-suas-opera%C3%A7%C3%B5es-estruturadas-em-Op%C3%A7%C3%B5es
+[2025-07-13 13:14:03] Sérgio Massaru: Obrigado, mas na página da documentação não diz sobre boleta avançada ou boleta de uma estrutura onde tem dois ou mais pernas. A página diz da operação sem citar se é operação de uma estrutura.

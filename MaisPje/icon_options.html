@@ -30,7 +30,7 @@
 			
 			.categorias li {
 				text-align: center;
-				width: 160px;
+				width: 180px;
 			}
 			
 			.logo {
@@ -100,7 +100,7 @@
 			.switch {
 				position: relative;
 				display: inline-block;
-				width: 320px;
+				width: 360px;
 				height: 20px;
 				margin-left: 5px;
 			}
@@ -144,7 +144,7 @@
 			}
 
 			input:checked + .slider:before {
-				transform: translateX(300px);
+				transform: translateX(340px);
 			}
 
 			.slider.round {
@@ -177,7 +177,7 @@
 				</label>
 				<span id="menu" title="Configurações"><i id="opcoes" class="icone cog2 t25 spin" style="vertical-align: middle;"></i></span>
 			</nav>
-			<div style="display:grid;grid-template-columns: 1fr 1fr; height: 380px; width: 350px;">
+			<div style="display:grid;grid-template-columns: 1fr 1fr; height: 380px; width: 400px;">
 				<div style="padding:5px;">
 					<nav class="categorias" style="height: 300px;">
 						<ul>
@@ -189,24 +189,7 @@
 							<li style="text-align: left;">
 								<input type="checkbox" name="gigsAbrirTarefas" id="gigsAbrirTarefas">
 								<label for="gigsAbrirTarefas">Abrir TAREFAS</label>
-							</li>
-							<li style="text-align: left;">
-								Apreciar petições:
-								<ul style="margin-top: 0;">
-									<li style="text-align: left;">
-										<input type="checkbox" name="gigsApreciarPeticoes" id="gigsApreciarPeticoes">
-										<label for="gigsApreciarPeticoes">ao abrir detalhes</label>
-									</li>
-									<li style="text-align: left;">
-										<input type="checkbox" name="gigsApreciarPeticoes2" id="gigsApreciarPeticoes2">
-										<label for="gigsApreciarPeticoes2">na AA Despacho</label>
-									</li>
-									<li style="text-align: left;">
-										<input type="checkbox" name="gigsApreciarPeticoes3" id="gigsApreciarPeticoes3">
-										<label for="gigsApreciarPeticoes3">na AA Movimentações</label>
-									</li>
-								</ul>
-							</li>
+							</li>														
 							<li style="text-align: left;">
 								<input type="checkbox" name="gigsOcultarChips" id="gigsOcultarChips">
 								<label for="gigsOcultarChips">Ocultar Chips</label>
@@ -219,9 +202,13 @@
 								<input type="checkbox" name="gigsCriarMenu" id="gigsCriarMenu">
 								<label for="gigsCriarMenu">Guardar dados processo</label>
 							</li>
-							<li style="text-align: left; display:none;">
+							<li style="text-align: left;margin-left:10px;padding:3px 0 0 3px;background-color:rgb(231, 231, 231);border-top-left-radius: 5px;border-top-right-radius: 5px;">
 								<input type="checkbox" name="gigsCriarMenuGuardarNumeroProcesso" id="gigsCriarMenuGuardarNumeroProcesso">
-								<label for="gigsCriarMenuGuardarNumeroProcesso">Número do processo > CTRL+V</label>
+								<label for="gigsCriarMenuGuardarNumeroProcesso">copiar n. processo</label>
+							</li>
+							<li style="text-align: left;margin-left:10px;padding:0 0 3px 3px;background-color:rgb(231, 231, 231);border-bottom-left-radius: 5px;border-bottom-right-radius: 5px;">
+								<input type="checkbox" name="gigsCriarMenuAbrirPainelCopiaECola" id="gigsCriarMenuAbrirPainelCopiaECola">
+								<label for="gigsCriarMenuAbrirPainelCopiaECola">Abrir Painel Copia e Cola</label>
 							</li>
 							<li style="text-align: left;">
 								<input type="checkbox" name="sanearAJG" id="sanearAJG">
@@ -235,8 +222,25 @@
 								<input type="checkbox" name="mapeamentoDeIDs" id="mapeamentoDeIDs">
 								<label for="mapeamentoDeIDs">Mapear Ids</label>
 							</li>
-						</ul>
-						
+							<li style="text-align: left;">
+								<input type="checkbox" name="guiaPersonalizadaDetalhes" id="guiaPersonalizadaDetalhes">
+								<label for="guiaPersonalizadaDetalhes">Guia Personalizada</label>
+							</li>							
+							<li style="padding-top: 10px;"><b>APRECIAR PETIÇÕES</b></li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsApreciarPeticoes" id="gigsApreciarPeticoes">
+								<label for="gigsApreciarPeticoes">ao abrir detalhes</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsApreciarPeticoes2" id="gigsApreciarPeticoes2">
+								<label for="gigsApreciarPeticoes2">na AA Despacho</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsApreciarPeticoes3" id="gigsApreciarPeticoes3">
+								<label for="gigsApreciarPeticoes3">na AA Movimentações</label>
+							</li>
+
+						</ul>						
 					</nav>
 					<nav class="categorias" style="height: 80px;border: none;">
 						<ul>

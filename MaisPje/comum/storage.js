@@ -11,9 +11,11 @@ async function getLocalStorage(key) {
 }
 
 function addPaginaFromStorage(pagina, container) {
-	const documentoTratado = new DOMParser().parseFromString(pagina, 'text/html');
-	Array.from(documentoTratado.body.children).forEach((node, index, array) => {
-		container.appendChild(node);
-		// console.log('length:', array.length, 'index: ', index, 'node: ', node);    
-	})
+	return new Promise(async resolver => {
+		const documentoTratado = new DOMParser().parseFromString(pagina, 'text/html');
+		for (const [pos, node] of Object.entries(documentoTratado.body.children)) {
+			container.appendChild(node);
+		}
+		return resolver(true)
+	});
 }

@@ -125,6 +125,25 @@ pje-parte-processo .partes-representante {
 	font-family: "Redacted Script", serif;
 }
 
+.post-it-conteudo {
+	font-family: "Redacted Script", serif !important;
+}
+
+.rodape-post-it {
+	font-family: "Redacted Script", serif !important;
+}
+
+.post-it-titulo {
+	font-family: "Redacted Script", serif !important;
+}
+
+.nome-com-quebra {
+	font-family: "Redacted Script", serif !important;
+}
+
+pje-dialogo-post-it [aria-label="Informações de Edição"] {
+	font-family: "Redacted Script", serif !important;
+}
 
 /* *****TAREFA DO PROCESSO***** */
 
@@ -288,6 +307,12 @@ pje-listagem-dia .sobrescrito  {
 	font-family: "Redacted Script", serif;
 }
 
+/* *****ALVARÁS***** */
 pje-novo-alvara pje-dado-processo mat-card-content {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****CÁLCULOS***** */
+.texto-preto {
 	font-family: "Redacted Script", serif;
 }

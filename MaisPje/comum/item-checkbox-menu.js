@@ -32,9 +32,12 @@ function getItensModulo1SemAtalhos(salvarOpcoes) {
         new ItemCheckboxMenu('gigsOcultarLembretes', salvarOpcoes),
         new ItemCheckboxMenu('gigsCriarMenu', salvarOpcoes),
         new ItemCheckboxMenu('gigsCriarMenuGuardarNumeroProcesso', salvarOpcoes),
+        new ItemCheckboxMenu('gigsCriarMenuAbrirPainelCopiaECola', salvarOpcoes),
         new ItemCheckboxMenu('sanearAJG', salvarOpcoes),
         new ItemCheckboxMenu('gigsPesquisaDeDocumentos', salvarOpcoes),
         new ItemCheckboxMenu('mapeamentoDeIDs', salvarOpcoes),
+        new ItemCheckboxMenu('gigsCriarMenuAbrirPainelCopiaECola', salvarOpcoes),
+        new ItemCheckboxMenu('guiaPersonalizadaDetalhes', salvarOpcoes),        
     ]
     return itensMenu    
 }

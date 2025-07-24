@@ -33,7 +33,7 @@ import os
 from Fix import esperar_elemento, safe_click
 from Fix import criar_gigs, login_pc, aplicar_filtro_100
 from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, login_notebook, aplicar_filtro_100
-from atos import pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2
+from atos import pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_termoS, ato_termoE
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
 from Fix import driver_pc, login_pc
@@ -66,6 +66,173 @@ def parse_gigs_param(param):
         return dias, responsavel, observacao
     # fallback: dias=0, responsavel='', observacao=param
     return 0, '', param
+
+def checar_anexos_tendo_em_vista():
+    """
+    Verifica se existem documentos sigilosos em pesquisa patrimonial
+    e chama a função apropriada baseada no resultado.
+    """
+    global driver
+    sigiloso = checar_anexos(driver)
+    
+    if sigiloso == 'nao':
+        # Não há documentos sigilosos, chama ato_meios
+        ato_meios()
+    elif sigiloso == 'sim':
+        # Há documentos sigilosos, chama ato_termoE
+        ato_termoE()
+    else:
+        # Caso de erro ou não encontrado
+        print(f"checar_anexos retornou valor inesperado: {sigiloso}")
+        print("Não foi possível determinar se há documentos sigilosos")
+
+def checar_anexos_instauracao():
+    """
+    Verifica se existem documentos sigilosos em pesquisa patrimonial
+    e chama a função apropriada baseada no resultado.
+    """
+    global driver
+    sigiloso = checar_anexos(driver)
+    
+    if sigiloso == 'nao':
+        # Não há documentos sigilosos, chama ato_meios
+        ato_meios()
+    elif sigiloso == 'sim':
+        # Há documentos sigilosos, chama ato_termoS
+        ato_termoS()
+    else:
+        # Caso de erro ou não encontrado
+        print(f"checar_anexos retornou valor inesperado: {sigiloso}")
+        print("Não foi possível determinar se há documentos sigilosos")
+
+def checar_anexos(driver, log=True):
+    """
+    Função que seleciona 'pesquisa patrimonial' na timeline, abre seus anexos,
+    verifica se há documentos sigilosos e retorna 'sim' ou 'nao'.
+    
+    Args:
+        driver: WebDriver do Selenium
+        log: Boolean para ativar logs detalhados
+        
+    Returns:
+        str: 'sim' se houver anexos sigilosos, 'nao' caso contrário
+    """
+    if log:
+        print('[CHECAR_ANEXOS] Iniciando verificação de anexos sigilosos...')
+    
+    try:
+        # 1. Seleciona "pesquisa patrimonial" na timeline
+        if log:
+            print('[CHECAR_ANEXOS] 1. Buscando documento "pesquisa patrimonial" na timeline...')
+        
+        # Busca itens da timeline
+        itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        documento_encontrado = None
+        
+        for item in itens_timeline:
+            try:
+                # Busca link do documento
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                texto_documento = link.text.lower()
+                
+                # Verifica se é pesquisa patrimonial (apenas este termo)
+                if 'pesquisa patrimonial' in texto_documento:
+                    documento_encontrado = item
+                    if log:
+                        print(f'[CHECAR_ANEXOS] ✓ Documento encontrado: {link.text}')
+                    break  # Para na primeira ocorrência
+            except Exception:
+                continue
+        
+        if not documento_encontrado:
+            if log:
+                print('[CHECAR_ANEXOS] ❌ Documento "pesquisa patrimonial" não encontrado na timeline')
+            return 'nao'
+        
+        # 2. Abre os anexos do documento
+        if log:
+            print('[CHECAR_ANEXOS] 2. Abrindo anexos do documento...')
+        
+        btn_anexos = documento_encontrado.find_elements(By.CSS_SELECTOR, "pje-timeline-anexos > div > div")
+        if not btn_anexos:
+            if log:
+                print('[CHECAR_ANEXOS] ❌ Botão de anexos não encontrado')
+            return 'nao'
+        
+        safe_click(driver, btn_anexos[0])
+        time.sleep(2)
+        
+        # 3. Verifica se há documentos sigilosos nos anexos
+        if log:
+            print('[CHECAR_ANEXOS] 3. Verificando anexos sigilosos...')
+        
+        anexos = driver.find_elements(By.CSS_SELECTOR, ".tl-item-anexo")
+        
+        if not anexos:
+            if log:
+                print('[CHECAR_ANEXOS] ❌ Nenhum anexo encontrado')
+            return 'nao'
+        
+        if log:
+            print(f'[CHECAR_ANEXOS] ✓ Encontrados {len(anexos)} anexos')
+        
+        # Tipos de anexos que devem ser considerados sigilosos
+        tipos_sigilosos = ["infojud", "doi", "irpf", "ir2022", "ir2023", "ir2024", "dimob", "ecac", "efinanceira", "e-financeira"]
+        
+        tem_sigiloso = False
+        
+        for anexo in anexos:
+            try:
+                texto_anexo = anexo.text.strip().lower()
+                if log:
+                    print(f'[CHECAR_ANEXOS] Verificando anexo: {texto_anexo}')
+                
+                # Verifica se é um tipo de anexo sigiloso
+                for tipo in tipos_sigilosos:
+                    if tipo in texto_anexo:
+                        if log:
+                            print(f'[CHECAR_ANEXOS] ✓ Anexo sigiloso encontrado: {tipo} em "{texto_anexo}"')
+                        
+                        # Verifica se já tem sigilo aplicado (ícone vermelho)
+                        btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
+                        if btn_sigilo:
+                            if "tl-nao-sigiloso" in btn_sigilo[0].get_attribute("class"):
+                                # Ícone azul - não tem sigilo
+                                if log:
+                                    print(f'[CHECAR_ANEXOS] Anexo sem sigilo aplicado: {texto_anexo}')
+                            else:
+                                # Ícone vermelho - já tem sigilo
+                                tem_sigiloso = True
+                                if log:
+                                    print(f'[CHECAR_ANEXOS] ✓ Anexo com sigilo já aplicado: {texto_anexo}')
+                        else:
+                            # Considera sigiloso por tipo, mesmo sem ícone
+                            tem_sigiloso = True
+                            if log:
+                                print(f'[CHECAR_ANEXOS] ✓ Anexo considerado sigiloso por tipo: {texto_anexo}')
+                        
+                        break  # Para no primeiro tipo encontrado
+                        
+            except Exception as e:
+                if log:
+                    print(f'[CHECAR_ANEXOS] Erro ao verificar anexo: {e}')
+                continue
+        
+        # 4. Retorna resultado
+        resultado = 'sim' if tem_sigiloso else 'nao'
+        if log:
+            print(f'[CHECAR_ANEXOS] ✓ Resultado final: {resultado}')
+            if tem_sigiloso:
+                print('[CHECAR_ANEXOS] Documentos sigilosos encontrados nos anexos')
+            else:
+                print('[CHECAR_ANEXOS] Nenhum documento sigiloso encontrado nos anexos')
+        
+        return resultado
+        
+    except Exception as e:
+        if log:
+            print(f'[CHECAR_ANEXOS] ❌ Erro durante verificação: {e}')
+        return 'nao'
 
 def checar_prox(driver, itens, doc_idx, regras, texto_normalizado):
     """
@@ -193,6 +360,7 @@ def fluxo_pz(driver):
                 'oito dias para apresentacao',
                 'Reitere-se a intimação para que o(a) reclamante apresente cálculos',
                 'remessa ao sobrestamento, com fluência',
+                'sob pena de sobrestamento e fluência do prazo prescricional',
             ]],
              'gigs', '1/Silas/Sobrestamento', ato_sobrestamento),
             ([gerar_regex_geral(k) for k in [
@@ -203,6 +371,12 @@ def fluxo_pz(driver):
                 'no prazo de oito dias, impugnar',                
                 'concordância quanto à imediata homologação da conta',
                 'conclusos para homologação de cálculos',
+                'ciência do laudo técnico apresentado',
+                'homologação imediata',
+                'aceita a imediata homologação',
+                'aceita a imediata homologacao',
+                'informar se aceita a imediata homologação',
+                'informar se aceita a imediata homologacao',
             ]],
              'gigs', '1/Silvia/Homologação', None),
             ([gerar_regex_geral('exequente, ora embargado')],
@@ -211,7 +385,7 @@ def fluxo_pz(driver):
              'gigs', '1/SILAS/pec', None),
             ([gerar_regex_geral('Ante a notícia de descumprimento')],
              'checar_cabecalho', None, None),
-            ([gerar_regex_geral(k) for k in ['impugnações apresentadas', 'impugnacoes apresentadas', 'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro', 'comprovar a quitação', 'comprovar o pagamento', 'a reclamada para pagamento da parcela pendente', 'intime-se a reclamada para pagamento das']],
+            ([gerar_regex_geral(k) for k in ['impugnações apresentadas', 'impugnacoes apresentadas', 'homologo estes', 'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro', 'comprovar a quitação', 'comprovar o pagamento', 'a reclamada para pagamento da parcela pendente', 'intime-se a reclamada para pagamento das']],
              'checar_cabecalho_impugnacoes', None, None),          
             ([gerar_regex_geral(k) for k in ['arquivem-se os autos', ' remetam-se os autos ao aquivo', 'A pronúncia da prescrição intercorrente se trata', 'Se revê o novo sobrestamento', 'cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']],
              'movimentar', mov_arquivar, None),
@@ -226,6 +400,12 @@ def fluxo_pz(driver):
              'gigs', '1/SILAS/sob6', ato_180),
             ([gerar_regex_geral(k) for k in ['RECLAMANTE para apresentar cálculos de liquidação']],
              None, None, ato_calc2),
+            ([gerar_regex_geral('deverá realizar tentativas')],
+             None, None, ato_prev),
+            ([gerar_regex_geral('defiro a instauração')],
+             'checar_anexos_instauracao', None, None),
+            ([gerar_regex_geral('tendo em vista que')],
+             'checar_anexos_tendo_em_vista', None, None),
         ]
         # ...restante do código...
         if 'bloqueio de valores realizado, ora' in texto:

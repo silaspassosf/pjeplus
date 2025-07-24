@@ -1,8 +1,13 @@
 /* corrige o cabeçalho */
-/* .mat-drawer-container[fullscreen] { */
-	/* position: relative !important; */
-	/* position: absolute !important; */
-/* } */
+/* .mat-drawer-container[fullscreen] {
+	position: relative !important;
+	position: absolute !important;
+} */
+
+/* corrige bug coluna descrição gigs */
+.col-descricao {
+	grid-template-columns: 1fr !important;
+}
 
 menuMaisPje{
 	position: fixed;

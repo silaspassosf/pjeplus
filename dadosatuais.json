@@ -1,43 +1,53 @@
 {
   "numero": [
-    "1000307-71.2023.5.02.0705"
+    "1000663-38.2024.5.02.0703"
   ],
-  "id": 5100501,
+  "id": 6109668,
   "autor": [
     {
-      "nome": "ISABELA CONCEICAO DA SILVA SANTOS",
-      "cpfcnpj": "29650711805",
+      "nome": "VICTOR DA SILVA ANDRADE REGO",
+      "cpfcnpj": "54451131839",
       "advogado": {
-        "nome": "ANDREA BARBOSA DA SILVA",
-        "cpf": "34262079821",
-        "oab": "SP424863"
+        "nome": "VANESSA OLIVEIRA DA CRUZ",
+        "cpf": "32449329838",
+        "oab": "SP381363"
       }
     }
   ],
   "reu": [
     {
-      "nome": "SOL - SEGURANCA ORGANIZACAO E LIMPEZA LTDA",
-      "cpfcnpj": "15091918000160"
+      "nome": "FORCE RA TELECOM LTDA",
+      "cpfcnpj": "41248264000146"
+    },
+    {
+      "nome": "CLARO S.A.",
+      "cpfcnpj": "40432544000147",
+      "advogado": {
+        "nome": "LUCIANA MOREIRA AGUIAR DE TOLEDO",
+        "cpf": "25773343894",
+        "oab": "SP163048"
+      }
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": 18097.27,
+    "valor": 22687.95,
     "data": "2025-06-01T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "10/03/2023",
+  "dtAutuacao": "26/04/2024",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 60720.01,
+    "pisoValorCausa": 3036.01,
+    "tetoValorCausa": 60720.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

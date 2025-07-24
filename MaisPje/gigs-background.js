@@ -28,6 +28,7 @@ browser.runtime.onInstalled.addListener(function(details) {
 			},
 			impressoraVirtual: [],
 			tempAAEspecial: [],
+			AALote:[],
 			aaLancarMovimentos:[
 				{id:"botao_lancar_movimento_0",nm_botao:"para Contadoria:atualização"},
 				{id:"botao_lancar_movimento_1",nm_botao:"para Contadoria:liquidação"},
@@ -40,9 +41,11 @@ browser.runtime.onInstalled.addListener(function(details) {
 				{id:"botao_lancar_movimento_6",nm_botao:"Recebido: para Prosseguir"},
 				{id:"botao_lancar_movimento_7",nm_botao:"Leilão:designado"},
 				{id:"botao_lancar_movimento_9",nm_botao:"da Contadoria para Vara:prosseguimento"}
-			],
-			configURLs : {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''},
+			],			
 			sisbajud: {juiz: '', vara: '', cnpjRaiz: '', teimosinha: '', contasalario: '', naorespostas: '', valor_desbloqueio: '', banco_preferido: '', agencia_preferida: '', preencherValor: '', confirmar: '', executarAAaoFinal: '', salvarEprotocolar: ''},
+			// configURLs : {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''},
+			conciliajt: {'primeirograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'},'segundograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'}},
+			verificadorDiario: -1
 		}, function() {
 			requestTermoDeUso();
 		});
@@ -88,15 +91,18 @@ browser.runtime.onInstalled.addListener(function(details) {
 			anexadoDoctoEmSigilo: -1,
 			impressoraVirtual: [],
 			tempAAEspecial: [],
-			configURLs : {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''}
+			AALote:[],
+			// configURLs : {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''},
+			conciliajt: {'primeirograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'},'segundograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'}},
+			verificadorDiario: -1
 		}, function() {
 			requestTermoDeUso();
 			// browser.runtime.openOptionsPage();
 		});		
 	}
 });
+var idJanelaPainelCopiaECola;
 
-var janelatAtiva;
 function notify(message) {
     switch (message.tipo) {
         case 'abrirConfiguracoes':
@@ -135,6 +141,9 @@ function notify(message) {
 		case 'criarJanela':
 			criarJanela(message.url, message.posx, message.posy, message.width, message.height);
 			break
+		case 'fecharJanela':
+			fecharJanela(message.url);
+			break
 		case 'insertCSS':
 			insertCSS(message.file);
 			break
@@ -151,6 +160,7 @@ function notify(message) {
 }
 
 function requestTermoDeUso() {	
+	browser.storage.local.set({'extensaoAtiva': false, 'concordo' : false });
 	mudarIcone('+PJe: Desligado', 'ico_16_off.png');
 	browser.tabs.create({
 		url: browser.runtime.getURL("aviso.html"),
@@ -159,7 +169,7 @@ function requestTermoDeUso() {
 }
 
 function abrirOpcoes(url) {	
-	console.log(url)
+	// console.log(url)
 	browser.tabs.create({
 		url: browser.runtime.getURL(url),
 		active: true
@@ -255,7 +265,6 @@ async function storage_vinculo(param) {
 }
 
 function storage_guardar(chave,valor) {
-	console.log(chave);
 	let guardarStorage;
 	switch (chave) {
         case 'grau_usuario':
@@ -263,7 +272,9 @@ function storage_guardar(chave,valor) {
             break;
 		case 'tempAR':
 			guardarStorage = browser.storage.local.set({'tempAR': valor});
-			break;		
+			break;
+		default:
+			guardarStorage = browser.storage.local.set({chave: valor});
 	}
 
 	if (!guardarStorage) { 
@@ -286,15 +297,19 @@ function posicionarJanela(id, pai, left, top, width, height) {
     browser.windows.update(id, updateInfo)
 }
 
-function criarJanela(url, posx, posy, largura, altura) {
+async function criarJanela(url, posx, posy, largura, altura) {
 	browser.windows.create({
 		url: url,
-		type: "panel",
+		type: "normal",
 		left: posx,
 		top: posy,
 		width: largura,
-		height: altura		
+		height: altura
 	});
+}
+
+async function fecharJanela() {
+	if (idJanelaPainelCopiaECola) { browser.tabs.remove(idJanelaPainelCopiaECola.id) }
 }
 
 function Alerta(mensagem, imagem, id='maisPjeNotificacao', tempo=5000) {
@@ -534,6 +549,16 @@ async function montarMenu(processo_memoria) {
 	
 	let permitirCtrlC = await getLocalStorage('gigsCriarMenuGuardarNumeroProcesso');
 	if (permitirCtrlC) { navigator.clipboard.writeText(processo_memoria.numero[0]) } //guarda o processo no ctrl + C 
+
+	devolverMensagem('menufinalizado');
+	// let abrirCopiaECola = await getLocalStorage('gigsCriarMenuAbrirPainelCopiaECola');
+	// if (abrirCopiaECola) { 
+	// 	let largura = await getLocalStorage('gigsGigsWidth');
+	// 	let altura = await getLocalStorage('gigsGigsHeight');
+	// 	let posx = await getLocalStorage('gigsGigsLeft');
+	// 	let posy = await getLocalStorage('gigsGigsTop');
+	// 	criarJanela('popupPainelCopiaECola.html',posx,posy,largura,altura);
+	// }
 }
 
 function mudarIcone(msg, ico) {
@@ -572,7 +597,9 @@ browser.menus.onClicked.addListener((info, tab) => {
 		Promise.all([var1,var2,var3,var4,var5]).then(values => {
 			Alerta('Limpar mem\u00f3ria...  conclu\u00eddo!!', 2)
 			browser.menus.removeAll();
-		});		
+		});
+	} else if (info.menuItemId == 'Painel Copia e Cola') {
+		criarJanela('popupPainelCopiaECola.html')
 	} else {
 		browser.tabs.sendMessage(tab.id,{greeting: info.menuItemId});
 	}	
@@ -580,22 +607,22 @@ browser.menus.onClicked.addListener((info, tab) => {
 
 browser.runtime.onMessage.addListener(notify);
 
-// browser.tabs.onCreated.addListener(IdentificadorDeJanelaOuAba);
-
+browser.tabs.onCreated.addListener(IdentificadorDeJanelaOuAba);
 // browser.tabs.onActivated.addListener(IdentificadorDeJanelaOuAba);
 
-// async function IdentificadorDeJanelaOuAba(tab) {
-// 	await sleep(2000); //espera carregar alguns dados da janela para obter a url senão ela vem vazia
-// 	console.info('JANELA ATIVA: ' + janelatAtiva?.url);
-// 	let urlInfo = await browser.tabs.get(tab.id);
-// 	console.info('           |____tabid: ' + tab.id);
-// 	console.info('           |____windowid: ' + tab.windowId);
-// 	console.info('           |____url2: ' + urlInfo.url);
+async function IdentificadorDeJanelaOuAba(tab) {
+	await sleep(2000); //espera carregar alguns dados da janela para obter a url senão ela vem vazia
+	// console.info('JANELA DETALHES: ' + ultimaJanelaDetalhesDoProcesso?.url);
+	let urlInfo = await browser.tabs.get(tab.id);
+	if (!urlInfo?.url) { return }
+	// console.info('           |____tabid: ' + tab.id);
+	// console.info('           |____windowid: ' + tab.windowId);
+	// console.info('           |____url2: ' + urlInfo.url);
 	
-// 	if (urlInfo.url.includes(".jus.br/pjekz/") && urlInfo.url.includes("/detalhe")) {
-// 		janelatAtiva = {windowId: tab.windowId, id: tab.id, url: urlInfo.url}
-// 	}	
-// }
+	if (urlInfo.url.includes("popupPainelCopiaECola.html")) {
+		idJanelaPainelCopiaECola = {windowId: tab.windowId, id: tab.id, url: urlInfo.url}
+	}	
+}
 
 
 async function pjeApiObterPartesDoProcesso(trt, id, processo){
@@ -603,7 +630,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 	let url = 'https://' + trt + '/pje-comum-api/api/processos/id/' + id + '/partes';
 	let resposta = await fetch(url);
 	let dados = await resposta.json();
-	
+
 	let poloAtivo = [];
 	let map1 = [].map.call(
 		dados.ATIVO, 
@@ -613,7 +640,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 				let map1a = [].map.call(
 					parte.representantes, 
 					function(representante) {
-						listaAdvAutor.push(new Pessoa(representante.nome.trim(), representante.documento ? representante.documento : "", representante.numeroOab, 'ativo', []));
+						listaAdvAutor.push(new Pessoa(representante.idPessoa, representante.nome.trim(), representante.documento ? representante.documento : "", representante.numeroOab, 'ativo', []));
 					}
 				);
 			}
@@ -624,7 +651,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 				dataNascimento = (!parte.pessoaFisica.dataNascimento) ? 'nao informado' : parte.pessoaFisica.dataNascimento.trim();
 				nomeGenitora = (!parte.pessoaFisica.nomeGenitora) ? 'nao informado' : parte.pessoaFisica.nomeGenitora.trim();
 			}
-			poloAtivo.push(new Pessoa(parte.nome.trim(), parte.documento ? parte.documento : "", "", 'ativo', listaAdvAutor, dataNascimento, nomeGenitora));
+			poloAtivo.push(new Pessoa(parte.idPessoa, parte.nome.trim(), parte.documento ? parte.documento : "", "", 'ativo', listaAdvAutor, dataNascimento, nomeGenitora));
 		}
 	);
 	
@@ -637,11 +664,13 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 				let map2a = [].map.call(
 					parte.representantes, 
 					function(representante) {
-						listaAdvReu.push(new Pessoa(representante.nome.trim(), representante.documento ? representante.documento : "", representante.numeroOab, 'passivo', []));
+						listaAdvReu.push(new Pessoa(representante.idPessoa, representante.nome.trim(), representante.documento ? representante.documento : "", representante.numeroOab, 'passivo', []));
 					}
 				);
 			}
-			poloPassivo.push(new Pessoa(parte.nome.trim(), parte.documento ? parte.documento : "", "", 'passivo', listaAdvReu));
+
+			let endereco = (!parte.endereco) ? -1 : parte.endereco.id;
+			poloPassivo.push(new Pessoa(parte.idPessoa, parte.nome.trim(), parte.documento ? parte.documento : "", "", 'passivo', listaAdvReu, '', '', endereco));
 		}
 	);
 	
@@ -650,7 +679,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 		let map3 = [].map.call(
 			dados.TERCEIROS, 
 			function(parte) {
-				poloTerceiro.push(new Pessoa(parte.nome.trim(), parte.documento ? parte.documento : "", "", 'terceiro'));
+				poloTerceiro.push(new Pessoa(parte.idPessoa, parte.nome.trim(), parte.documento ? parte.documento : "", "", 'terceiro'));
 			}
 		);
 	}
@@ -658,6 +687,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 	// console.info('tempoParaCadaApi', tempoParaCadaApi)
 	// const tempoParaCadaApi = 1000 + 1000;
 	const processoApi = await obterProcessoViaApi(trt, id, tempoParaCadaApi);
+	const orgaoJulgadorCargo = processoApi?.orgaoJulgadorCargo?.descricao;
 	const dtAutuacao = await obterDtAutuacaoDoProcessoViaApi(processoApi);
 	const divida = await pjeApiObterValorExecucao(trt, id, tempoParaCadaApi);
 	// const movimentos = await pjeApiObterMovimentos(trt, id);
@@ -667,7 +697,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 	const transito = transitoEvalorCustas[0];
 	// let valorCustas = (isNaN(parseFloat(transitoEvalorCustas[1]))) ? '---' : parseFloat(transitoEvalorCustas[1]);
 	const valorCustas = 'R$ ' + transitoEvalorCustas[1];
-	const processoMemoria = new Processo(processo, id, poloAtivo, poloPassivo, poloTerceiro, divida, justicaGratuita, transito, valorCustas, dtAutuacao);
+	const processoMemoria = new Processo(processo, id, poloAtivo, poloPassivo, poloTerceiro, divida, justicaGratuita, transito, valorCustas, dtAutuacao, orgaoJulgadorCargo);
 	const var1 = browser.storage.local.set({'processo_memoria': processoMemoria});
 	Promise.all([var1]).then(values => { montarMenu(processoMemoria) });
 }
@@ -714,7 +744,7 @@ async function pjeApiObterValorExecucaoPJeCalc(trt, id, timeout){
 		let ano = '/' + dataUltimoCalculo.getFullYear();
 		resolve({id: '(PJeCalc)',valor: ultimoCalculo.total, data: (dia + mes + ano)});
 	  } catch (err) {
-		alert("maisPje: Algo deu errado ao recuperar o valor da dívida no PJeCalc.");
+		// alert("maisPje: Algo deu errado ao recuperar o valor da dívida no PJeCalc. (cd-123)");
 		console.error(err);
 		resolve(semValor);
 	  }
@@ -741,7 +771,7 @@ async function pjeApiObterValorExecucaoGigs(trt, id, timeout){
 		
 		resolve({id: '(GIGS)',valor: ultimoCalculo, data: (dia + mes + ano)});
 	  } catch (err) {
-		alert("maisPje: Algo deu errado ao recuperar o valor da dívida no GIGS.");
+		alert("maisPje: Algo deu errado ao recuperar o valor da dívida no GIGS. (cd-124)");
 		console.error(err);
 		resolve(semValor);
 	  }	
@@ -875,14 +905,14 @@ async function pjeApiObterMovimentosPelosCodigos(trt, id, codigosMovimentos) {
 		// clearTimeout(timeoutId);
 		// console.info(resposta)
 		if (!resposta.ok) {
-			alert("maisPje: Algo deu errado ao recuperar os movimentos.");
+			alert("maisPje: Algo deu errado ao recuperar os movimentos. (cd-125)");
 			return semValor;
 		}
 		const movimentos = await resposta.json();
 		// console.info(movimentos)
 		return movimentos;
 	} catch (err) {
-		alert("maisPje: Algo deu errado ao recuperar os movimentos.");
+		alert("maisPje: Algo deu errado ao recuperar os movimentos. (cd-126)");
 		return semValor;
 	}
 }
@@ -895,13 +925,13 @@ async function pjeApiObterMovimentos(trt, id, timeout) {
 		const resposta = await fetch(url);
 		// clearTimeout(timeoutId);
 		if (!resposta.ok) {
-			alert("maisPje: Algo deu errado ao recuperar os movimentos.");
+			alert("maisPje: Algo deu errado ao recuperar os movimentos. (cd-127)");
 			return semValor;
 		}
 		const movimentos = await resposta.json();
 		return movimentos;
 	} catch (err) {
-		alert("maisPje: Algo deu errado ao recuperar os movimentos.");
+		alert("maisPje: Algo deu errado ao recuperar os movimentos. (cd-128)");
 		return semValor;
 	}
 }
@@ -924,7 +954,7 @@ async function obterProcessoViaApi(trt, idProcesso, timeout) {
 			const processo = await resposta.json();
 			return resolve(processo);
 		} catch (err) {
-			alert("maisPje: Algo deu errado ao recuperar os dados do processo.");
+			alert("maisPje: Algo deu errado ao recuperar os dados do processo. (cd-129)");
 			// console.error(err);
 			resolve(semValor);
 		}	
@@ -981,7 +1011,7 @@ async function obterDataTransitoEmJulgadoDosMovimentos(trt, id) {
 	});
 }
 
-function Processo(numero, id, autor, reu, terceiro, divida, justicaGratuita, transito, custas, dtAutuacao) {
+function Processo(numero, id, autor, reu, terceiro, divida, justicaGratuita, transito, custas, dtAutuacao, orgaoJulgadorCargo) {
   this.numero = numero;
   this.id = id;
   this.autor = autor;
@@ -992,14 +1022,17 @@ function Processo(numero, id, autor, reu, terceiro, divida, justicaGratuita, tra
   this.transito = transito;
   this.custas = custas;
   this.dtAutuacao = dtAutuacao;
+  this.orgaoJulgadorCargo = orgaoJulgadorCargo;
 }
 
-function Pessoa(nome, cpfcnpj, oab, polo, representantes, dataNascimento, nomeGenitora) {
+function Pessoa(id, nome, cpfcnpj, oab, polo, representantes, dataNascimento, nomeGenitora, endereco='') {
   this.nome = nome;
+  this.id = id;
   this.cpfcnpj = cpfcnpj;
   this.oab = oab;
   this.polo = polo;
   this.representantes = representantes;
   this.dataNascimento = dataNascimento;
   this.nomeGenitora = nomeGenitora;
+  this.endereco = endereco;
 }

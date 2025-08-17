@@ -1,0 +1,46 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Debug Visual - M1",
+            "type": "shell",
+            "command": "python",
+            "args": ["exemplo_debug_visual.py"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Abrir Relatório Debug",
+            "type": "shell",
+            "command": "code",
+            "args": ["relatorio_debug_visual.html"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared"
+            },
+            "dependsOrder": "sequence"
+        },
+        {
+            "label": "Debug Completo (Executar + Abrir Relatório)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Debug Visual - M1",
+                "Abrir Relatório Debug"
+            ]
+        }
+    ]
+}

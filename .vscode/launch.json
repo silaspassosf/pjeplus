@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Visual - Python",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/exemplo_debug_visual.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "args": []
+        },
+        {
+            "name": "Debug M1 com Visual",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/m1.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DEBUG_VISUAL": "true",
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ]
+}

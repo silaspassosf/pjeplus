@@ -93,33 +93,43 @@ echo.
 echo === STATUS ATUAL ===
 git status --short
 echo.
-echo === EXECUTANDO PUSH INTELIGENTE ===
-echo ⏳ Verificando se ha mudancas para commitar...
+echo === EXECUTANDO COMMIT E PUSH ===
+echo ⏳ Tentando fazer commit...
 
 REM Tenta fazer commit diretamente - se não há mudanças, Git vai avisar
 git commit -m "%MSG%"
 if %errorlevel% equ 0 (
-    echo ✅ Commit realizado com sucesso!
+    echo.
+    echo ✅ COMMIT REALIZADO COM SUCESSO!
+    echo 📝 Mensagem: %MSG%
+    echo.
     
-    echo ⏳ Tentando push incremental primeiro...
-    git push 2>push_error.log
+    echo ⏳ Iniciando push para repositório remoto...
+    git push
     if %errorlevel% equ 0 (
-        echo ✅ Push incremental bem-sucedido!
-        del push_error.log 2>nul
-    ) else (
-        echo ⚠️ Push incremental falhou, verificando erro...
-        type push_error.log
         echo.
-        echo ⏳ Tentando push forcado com lease (mais seguro)...
+        echo 🎉 PUSH BEM-SUCEDIDO! Alterações enviadas para o GitHub.
+    ) else (
+        echo.
+        echo ⚠️ Push normal falhou. Tentando métodos alternativos...
+        echo.
+        echo ⏳ Tentando push com force-with-lease (mais seguro)...
         git push --force-with-lease
-        if %errorlevel% neq 0 (
-            echo ⚠️ Push com lease falhou, usando force completo...
+        if %errorlevel% equ 0 (
+            echo ✅ Push com lease bem-sucedido!
+        ) else (
+            echo ⚠️ Push com lease falhou. Tentando force completo...
             git push --force
+            if %errorlevel% equ 0 (
+                echo ✅ Push forçado bem-sucedido!
+            ) else (
+                echo ❌ ERRO: Todos os tipos de push falharam. Verifique a conexão.
+            )
         )
-        del push_error.log 2>nul
     )
 ) else (
-    echo ℹ️ Nenhuma mudanca para commitar ou erro no commit.
+    echo.
+    echo ℹ️ Nenhuma mudança para commitar (repositório já atualizado).
 )
 endlocal
 echo.
@@ -133,5 +143,20 @@ if "%MODE%"=="RAPIDO" (
 )
 echo ===========================
 echo.
-echo Pressione qualquer tecla para fechar...
-pause >nul
+echo 📋 Resultado final:
+git status --porcelain | find /c /v "" > temp_count.txt
+set /p file_count=<temp_count.txt
+del temp_count.txt 2>nul
+if %file_count% gtr 0 (
+    echo ⚠️ Ainda há %file_count% arquivo(s) não commitado(s)
+    echo Listando arquivos pendentes:
+    git status --short
+) else (
+    echo ✅ Todos os arquivos foram commitados com sucesso!
+)
+echo.
+echo 🔄 Status do repositório:
+git log --oneline -1
+echo.
+echo ⏸️ TELA FICARÁ ABERTA - Pressione qualquer tecla para fechar...
+pause

@@ -2,6 +2,8 @@
 REM Limpeza completa de arquivos grandes do histórico Git
 REM Execute este script UMA VEZ para limpar o repositório permanentemente
 
+set FILTER_BRANCH_SQUELCH_WARNING=1
+
 echo ================================================
 echo    LIMPEZA COMPLETA DE ARQUIVOS GRANDES
 echo ================================================
@@ -12,33 +14,42 @@ echo.
 pause
 
 echo === PASSO 1: REMOVENDO ARQUIVOS ESPECÍFICOS DO HISTÓRICO ===
-git filter-branch --force --index-filter "git rm --cached --ignore-unmatch 'telegrambot/exported_groups/DeboniTips_FREE.rar'" --prune-empty --tag-name-filter cat -- --all
-git filter-branch --force --index-filter "git rm --cached --ignore-unmatch 'MaisPje/Docker Desktop Installer.exe'" --prune-empty --tag-name-filter cat -- --all
+git filter-branch --force --index-filter "git rm --cached --ignore-unmatch \"telegrambot/exported_groups/DeboniTips_FREE.rar\"" --prune-empty --tag-name-filter cat -- --all
+if errorlevel 1 echo Erro na primeira limpeza, continuando...
 
-echo === PASSO 2: REMOVENDO TODOS OS ARQUIVOS GRANDES (>50MB) ===
-REM Lista e remove arquivos grandes
-git rev-list --objects --all | git cat-file --batch-check="%(objecttype) %(objectname) %(objectsize) %(rest)" | sed -n "s/^blob //p" | sort --numeric-sort --key=2 | tail -20 > large_files.txt
-echo Arquivos grandes encontrados:
-type large_files.txt
+git filter-branch --force --index-filter "git rm --cached --ignore-unmatch \"MaisPje/Docker Desktop Installer.exe\"" --prune-empty --tag-name-filter cat -- --all
+if errorlevel 1 echo Erro na segunda limpeza, continuando...
 
-REM Remove os maiores arquivos automaticamente
-for /f "tokens=3*" %%a in ('type large_files.txt ^| findstr /r "[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]"') do (
-    echo Removendo: %%b
-    git filter-branch --force --index-filter "git rm --cached --ignore-unmatch '%%b'" --prune-empty --tag-name-filter cat -- --all
-)
+echo === PASSO 2: REMOVENDO ARQUIVOS COM PADRÕES ESPECÍFICOS ===
+REM Remove arquivos .rar grandes
+git filter-branch --force --index-filter "git rm --cached --ignore-unmatch \"*.rar\"" --prune-empty --tag-name-filter cat -- --all
+if errorlevel 1 echo Erro removendo .rar, continuando...
+
+REM Remove executáveis grandes  
+git filter-branch --force --index-filter "git rm --cached --ignore-unmatch \"*.exe\"" --prune-empty --tag-name-filter cat -- --all
+if errorlevel 1 echo Erro removendo .exe, continuando...
 
 echo === PASSO 3: LIMPEZA COMPLETA ===
 REM Remove referências antigas
-for /f %%i in ('git for-each-ref --format="%%^(refname^)" refs/original') do git update-ref -d %%i
+git for-each-ref --format="delete %%(refname)" refs/original | git update-ref --stdin
+if errorlevel 1 echo Erro removendo refs originais, continuando...
 
 REM Limpa reflog
 git reflog expire --expire=now --all
+git reflog expire --expire-unreachable=now --all
 
-REM Garbage collection agressivo
-git gc --prune=now --aggressive
+REM Garbage collection OTIMIZADO (sem --aggressive para evitar lentidão)
+echo AVISO: Usando GC otimizado sem --aggressive (evita compressão lenta)
+git gc --prune=now
+echo GC otimizado concluído em tempo muito menor!
 
 echo === PASSO 4: CRIANDO .gitignore PARA ARQUIVOS GRANDES ===
-echo # Arquivos grandes - evitar no futuro > .gitignore
+if not exist .gitignore (
+    echo # Arquivos grandes - evitar no futuro > .gitignore
+) else (
+    echo. >> .gitignore
+    echo # Arquivos grandes - evitar no futuro >> .gitignore
+)
 echo *.exe >> .gitignore
 echo *.rar >> .gitignore
 echo *.zip >> .gitignore
@@ -54,13 +65,12 @@ echo === PASSO 5: VERIFICAÇÃO FINAL ===
 echo Tamanho do repositório após limpeza:
 git count-objects -vH
 
-echo Arquivos grandes restantes (se houver):
-git ls-tree -r -t -l --full-name HEAD | sort -k 4 -n | tail -10
+echo Arquivos no último commit:
+git ls-tree -r -l HEAD | findstr /v "^100644 blob 0"
 
 echo.
 echo === LIMPEZA CONCLUÍDA ===
-echo Agora execute: git push --force
+echo Agora execute: git push --force origin main
 echo ATENÇÃO: Este push irá sobrescrever o histórico remoto!
 echo.
-del large_files.txt 2>nul
 pause

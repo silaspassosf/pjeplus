@@ -1,0 +1,42 @@
+# ========================================
+# .gitignore otimizado PjePlus
+# ========================================
+
+# Arquivos grandes (>10MB)
+*.exe
+*.rar
+*.zip
+*.7z
+*.iso
+*.msi
+*.dmg
+
+# Temporários Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Temporários VS Code
+.vscode/settings.json
+*.code-workspace
+
+# Logs e temporários
+*.log
+*.tmp
+temp.*
+~*.*
+.DS_Store
+Thumbs.db
+
+# Diretórios específicos
+telegrambot/exported_groups/*.rar
+MaisPje/*.exe
+node_modules/
+build/temp/
+
+# Arquivos de configuração sensíveis
+*.env
+cookies_*.json
+dadosatuais.json

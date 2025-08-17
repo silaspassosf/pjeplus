@@ -18,6 +18,8 @@
 # ====================================================
 
 # 0. Importações
+import json
+import sys
 import time
 import os
 import re
@@ -62,7 +64,7 @@ from atos import (
     mov_arquivar,
     ato_meiosub
 )
-from p2 import checar_prox
+from p2b import checar_prox
 from driver_config import criar_driver, login_func
 from urllib.parse import urlparse
 import sys
@@ -73,6 +75,137 @@ with open("log.py", "w", encoding="utf-8") as f:
     f.write(f"# Última execução: {datetime.now()}\n")
     f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
     f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
+
+# ====================================================
+# CONTROLE DE SESSÃO E PROGRESSO
+# ====================================================
+
+def carregar_progresso():
+    """Carrega o estado de progresso do arquivo JSON"""
+    try:
+        if os.path.exists("progresso_m1.json"):
+            with open("progresso_m1.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[PROGRESSO][AVISO] Erro ao carregar progresso: {e}")
+    return {"processos_executados": [], "session_active": True, "last_update": None}
+
+def salvar_progresso(progresso):
+    """Salva o estado de progresso no arquivo JSON"""
+    try:
+        progresso["last_update"] = datetime.now().isoformat()
+        with open("progresso_m1.json", "w", encoding="utf-8") as f:
+            json.dump(progresso, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[PROGRESSO][ERRO] Falha ao salvar progresso: {e}")
+
+def extrair_numero_processo(driver):
+    """Extrai o número do processo da URL ou elemento da página"""
+    try:
+        # Método 1: da URL
+        url = driver.current_url
+        if "processo/" in url:
+            import re
+            match = re.search(r"processo/(\d+)", url)
+            if match:
+                return match.group(1)
+        
+        # Método 2: de elementos da página
+        try:
+            numero_elem = driver.find_element(By.CSS_SELECTOR, '[data-testid="numero-processo"], .numero-processo, .processo-numero')
+            if numero_elem and numero_elem.text:
+                return re.sub(r'[^\d]', '', numero_elem.text)
+        except:
+            pass
+            
+        return None
+    except Exception as e:
+        print(f"[PROGRESSO][ERRO] Falha ao extrair número do processo: {e}")
+        return None
+
+def verificar_acesso_negado(driver):
+    """Verifica se estamos na página de acesso negado"""
+    try:
+        url_atual = driver.current_url
+        return "acesso-negado" in url_atual.lower()
+    except Exception as e:
+        print(f"[PROGRESSO][ERRO] Falha ao verificar acesso negado: {e}")
+        return False
+
+def processo_ja_executado(numero_processo, progresso):
+    """Verifica se o processo já foi executado"""
+    if not numero_processo:
+        return False
+    return numero_processo in progresso.get("processos_executados", [])
+
+def marcar_processo_executado(numero_processo, progresso):
+    """Marca processo como executado"""
+    # Função desativada para não registrar processos como executados nesta execução
+    pass
+
+def recuperar_sessao(driver):
+    """Tenta recuperar sessão após acesso negado"""
+    try:
+        print("[RECOVERY][SESSÃO] Detectado acesso negado, tentando recuperar sessão...")
+        
+        # Navega para página de login
+        login_url = "https://pje.trt2.jus.br/pjekz/login"
+        driver.get(login_url)
+        time.sleep(3)
+        
+        # Chama função de login existente
+        if login_func(driver):
+            print("[RECOVERY][SESSÃO] ✅ Login realizado com sucesso")
+            
+            # Navega de volta para a lista
+            url_lista = os.getenv('URL_PJE_ESCANINHO', 'https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos')
+            driver.get(url_lista)
+            time.sleep(3)
+            
+            # Reaplica filtro de mandados devolvidos
+            try:
+                icone_selector = 'i.fa-reply-all.icone-clicavel'
+                resultado = safe_click(driver, icone_selector, timeout=10, log=True)
+                if resultado:
+                    print("[RECOVERY][SESSÃO] ✅ Filtro de mandados devolvidos reaplicado")
+                    time.sleep(2)
+                    return True
+                else:
+                    print("[RECOVERY][SESSÃO] ❌ Falha ao reaplicar filtro")
+            except Exception as filter_error:
+                print(f"[RECOVERY][SESSÃO][ERRO] Falha no filtro: {filter_error}")
+        else:
+            print("[RECOVERY][SESSÃO] ❌ Falha no login")
+            
+        return False
+    except Exception as e:
+        print(f"[RECOVERY][SESSÃO][ERRO] Falha na recuperação: {e}")
+        return False
+
+def resetar_progresso():
+    """Reseta o arquivo de progresso - útil para reiniciar do zero"""
+    try:
+        if os.path.exists("progresso_m1.json"):
+            os.remove("progresso_m1.json")
+            print("[PROGRESSO][RESET] ✅ Arquivo de progresso removido")
+        else:
+            print("[PROGRESSO][RESET] ❌ Arquivo de progresso não existe")
+    except Exception as e:
+        print(f"[PROGRESSO][RESET][ERRO] Falha ao resetar: {e}")
+
+def listar_processos_executados():
+    """Lista processos já executados"""
+    progresso = carregar_progresso()
+    executados = progresso.get("processos_executados", [])
+    if executados:
+        print(f"[PROGRESSO][LIST] {len(executados)} processos já executados:")
+        for i, proc in enumerate(executados, 1):
+            print(f"  {i:3d}. {proc}")
+    else:
+        print("[PROGRESSO][LIST] Nenhum processo executado ainda")
+    return executados
+
+# ====================================================
 
 # 1. Funções de Login e Setup
 def setup_driver():
@@ -91,9 +224,10 @@ def navegacao(driver):
     try:
         url_lista = os.getenv('URL_PJE_ESCANINHO', 'https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos')
         print(f'[NAV] Iniciando navegação para: {url_lista}')
+        
         if not navegar_para_tela(driver, url=url_lista, delay=2):
             raise Exception('Falha na navegação para a tela de documentos internos')
-
+        
         print('[NAV] Clicando no ícone reply-all (mandados devolvidos)...')
         # Usando as novas funções do Fix.py
         icone_selector = 'i.fa-reply-all.icone-clicavel'
@@ -106,36 +240,31 @@ def navegacao(driver):
         
         sleep(2000)  # Nova função sleep que usa milissegundos
         return resultado
+        
     except Exception as e:
-        print(f'[NAV][ERRO] Falha na navegação: {str(e)}')
+        print(f'[NAV][ERRO] Falha na navegação: {e}')
         return False
 
 def iniciar_fluxo(driver):
-    """Função que decide qual fluxo será aplicado"""
+    """Função que decide qual fluxo será aplicado com controle de sessão"""
+    # Carrega progresso
+    progresso = carregar_progresso()
+    print(f"[PROGRESSO][SESSÃO] Carregado progresso com {len(progresso.get('processos_executados', []))} processos já executados")
+    
     def fluxo_callback(driver):
         try:
-            # Passo 0: Clicar no ícone lupa (fa-search lupa-doc-nao-apreciado)
-            try:
-                print('[FLUXO] Passo 0: Tentando clicar no botão Apreciar petição (lupa)...')
-                # Seletor mais robusto: primeiro tenta o botão completo, depois o ícone
-                lupa_selectors = [
-                    'button[aria-label="Apreciar petição"]',  # Seletor do botão completo
-                    'i.fa.fa-search.fa-2x.lupa-doc-nao-apreciado'  # Seletor do ícone específico
-                ]
-                resultado = False
-                for selector in lupa_selectors:
-                    resultado = safe_click(driver, selector, timeout=5, log=True)
-                    if resultado:
-                        print(f'[FLUXO] Passo 0: Clique na lupa realizado com sucesso usando: {selector}')
-                        break
-                if resultado:
-                    # Aguarda breve momento para carregar detalhes após o clique
-                    sleep(1000)  # Usando a função sleep do Fix.py
+            # VERIFICAÇÃO DE SESSÃO: Antes de qualquer processamento
+            if verificar_acesso_negado(driver):
+                print("[PROCESSAR][ALERTA] Não estamos na página da lista! URL:", driver.current_url)
+                if recuperar_sessao(driver):
+                    print("[RECOVERY][SESSÃO] ✅ Sessão recuperada com sucesso, continuando processamento...")
                 else:
-                    print('[FLUXO][AVISO] Passo 0: Ícone lupa não encontrado ou não clicável com nenhum seletor')
-            except Exception as e:
-                print(f'[FLUXO][AVISO] Passo 0: Erro ao tentar clicar na lupa: {e}')
-                # Continua o fluxo mesmo se houver erro neste passo
+                    print("[RECOVERY][SESSÃO] ❌ Falha na recuperação da sessão, abortando processo atual")
+                    return
+            
+            # VERIFICAÇÃO DE PROGRESSO: Extrai número do processo, mas não pula execução
+            numero_processo = extrair_numero_processo(driver)
+            # Removido o skip para permitir novas ações nos processos
             
             # Busca o cabeçalho do documento ativo
             try:
@@ -224,6 +353,10 @@ def iniciar_fluxo(driver):
             except Exception as cleanup_error:
                 print(f"[LIMPEZA][ERRO CRÍTICO] Falha geral na limpeza: {cleanup_error}")
                 print("[LIMPEZA][AVISO] Contexto do browser pode estar comprometido.")
+            
+            # MARCAÇÃO DE PROGRESSO: Marca processo como executado se chegou até aqui
+            if numero_processo:
+                marcar_processo_executado(numero_processo, progresso)
             
             print('[FLUXO] Processo concluído, retornando à lista')
     print('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
@@ -410,9 +543,157 @@ def extract_sisbajud_result_from_text(text, log=True):
         print('[SISBAJUD][DEBUG] No rule matched after determinações normativas e legais marker, default negativo.')
     return 'negativo', 'nenhuma regra anterior satisfeita, default negativo'
 
+# ...existing code...
+
+def andamento_argos(driver, resultado_sisbajud, sigilo_anexos, log=True):
+    """
+    Processa o andamento do Argos com base no resultado do SISBAJUD, sigilo dos anexos e tipo de documento.
+    1. Busca documento relevante (decisão ou despacho)
+    2. Aplica regras específicas do Argos
+    """
+    try:
+        if log:
+            print('[ARGOS][ANDAMENTO] Iniciando processamento do andamento...')
+            
+        # 1. Busca documento relevante
+        max_tentativas = 3
+        tentativa = 0
+        regra_aplicada = False
+        
+        while tentativa < max_tentativas and not regra_aplicada:
+            tentativa += 1
+            if log:
+                print(f'[ARGOS][ANDAMENTO] Tentativa {tentativa}/{max_tentativas} para buscar documento relevante...')
+                
+            try:
+                # Corrigindo o erro de desempacotamento
+                resultado_documento = buscar_documento_argos(driver, log=log)
+                
+                # Verifica se o resultado é válido
+                if not resultado_documento:
+                    if log:
+                        print(f'[ARGOS][ANDAMENTO][ERRO] Nenhum documento encontrado na tentativa {tentativa}')
+                    continue
+                
+                # Tenta desempacotar o resultado (flexível para diferentes formatos de retorno)
+                try:
+                    if isinstance(resultado_documento, tuple):
+                        if len(resultado_documento) >= 2:
+                            texto_documento, tipo_documento = resultado_documento[0], resultado_documento[1]
+                        elif len(resultado_documento) == 1:
+                            texto_documento, tipo_documento = resultado_documento[0], 'documento'
+                        else:
+                            if log:
+                                print(f'[ARGOS][ANDAMENTO][ERRO] Tupla vazia retornada')
+                            continue
+                    elif isinstance(resultado_documento, str):
+                        # Se retornou apenas uma string, assume como texto do documento
+                        texto_documento, tipo_documento = resultado_documento, 'documento'
+                    else:
+                        if log:
+                            print(f'[ARGOS][ANDAMENTO][ERRO] Tipo de resultado inesperado: {type(resultado_documento)} com valor {resultado_documento}')
+                        continue
+                except Exception as e_unpack:
+                    if log:
+                        print(f'[ARGOS][ANDAMENTO][ERRO] Erro ao desempacotar resultado: {e_unpack}')
+                    continue
+                    
+                if log:
+                    print(f'[ARGOS][DOCUMENTO] Tipo encontrado: {tipo_documento}')
+                    
+                # 2. Aplica regras específicas do Argos
+                regra_foi_aplicada = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=log)
+                
+                if regra_foi_aplicada:
+                    regra_aplicada = True
+                    if log:
+                        print('[ARGOS][ANDAMENTO] Regra aplicada com sucesso, processo concluído.')
+                else:
+                    if log:
+                        print('[ARGOS][ANDAMENTO] Nenhuma regra aplicada, tentando próximo documento...')
+                    # Continua no loop para tentar próximo documento
+                
+            except ValueError as ve:
+                if log:
+                    print(f'[ARGOS][ANDAMENTO][ERRO] Erro ao processar documento (tentativa {tentativa}): {ve}')
+                
+                # Se não for a última tentativa, tenta o próximo documento
+                if tentativa < max_tentativas:
+                    if log:
+                        print('[ARGOS][ANDAMENTO] Tentando próximo documento...')
+                    
+                    try:
+                        # Buscando itens da timeline para usar com checar_prox
+                        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+                        if itens:
+                            # Determinando o índice atual do documento
+                            doc_idx = 0
+                            for idx, item in enumerate(itens):
+                                try:
+                                    link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento.ativo')
+                                    if link:
+                                        doc_idx = idx
+                                        break
+                                except Exception:
+                                    continue
+                            
+                            # Chamando checar_prox para encontrar o próximo documento
+                            doc_encontrado, doc_link, novo_idx = checar_prox(driver, itens, doc_idx, None, "")
+                            
+                            if doc_encontrado and doc_link:
+                                if log:
+                                    print(f'[ARGOS][ANDAMENTO] Próximo documento encontrado no índice {novo_idx}, abrindo...')
+                                
+                                # Clicando no próximo documento
+                                driver.execute_script('arguments[0].scrollIntoView({block: "center"});', doc_link)
+                                sleep(500)
+                                click_resultado = safe_click(driver, doc_link, log=log)
+                                
+                                if not click_resultado:
+                                    if log:
+                                        print('[ARGOS][ANDAMENTO] Falha no clique seguro, tentando via JavaScript')
+                                    try:
+                                        driver.execute_script('arguments[0].click();', doc_link)
+                                    except Exception as e:
+                                        if log:
+                                            print(f'[ARGOS][ANDAMENTO][ERRO] Falha ao clicar no próximo documento: {e}')
+                                
+                                # Aguardando carregamento
+                                sleep(1500)
+                            else:
+                                if log:
+                                    print('[ARGOS][ANDAMENTO] Nenhum próximo documento encontrado, interrompendo tentativas.')
+                                break
+                        else:
+                            if log:
+                                print('[ARGOS][ANDAMENTO] Nenhum item encontrado na timeline, interrompendo tentativas.')
+                            break
+                    except Exception as e_proximo:
+                        if log:
+                            print(f'[ARGOS][ANDAMENTO][ERRO] Falha ao buscar próximo documento: {e_proximo}')
+                        break
+                else:
+                    if log:
+                        print('[ARGOS][ANDAMENTO] Máximo de tentativas atingido, encerrando busca.')
+            except Exception as e:
+                if log:
+                    print(f'[ARGOS][ANDAMENTO][ERRO] Erro não tratado ao processar documento: {e}')
+                break
+        
+        if not regra_aplicada and log:
+            print('[ARGOS][ANDAMENTO] Nenhuma regra aplicável após todas as tentativas, prosseguindo.')
+            
+    except Exception as e:
+        if log:
+            print(f'[ARGOS][ANDAMENTO][ERRO] Falha no processamento do andamento: {e}')
+            raise
+
+# ...existing code...
+
 def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """
     Aplica as regras específicas do Argos com base no resultado do SISBAJUD, sigilo dos anexos e tipo de documento.
+    Retorna True se uma regra foi aplicada, False caso contrário.
     """
     try:
         regra_aplicada = None
@@ -422,8 +703,21 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             print(f'[ARGOS][REGRAS] Resultado SISBAJUD: {resultado_sisbajud}')
             print(f'[ARGOS][REGRAS] Sigilo anexos: {sigilo_anexos}')
         
+        # REGRA: Despacho com "Realize-se a pesquisa INFOJUD"
+        if tipo_documento == 'despacho' and texto_documento and 'realize-se a pesquisa infojud' in texto_documento.lower():
+            if any(v == 'sim' for v in sigilo_anexos.values()):
+                if debug:
+                    print('[ARGOS][REGRAS] Despacho com pesquisa INFOJUD e anexo sigiloso - chamando ato_termoS')
+                ato_termoS(driver, debug=debug)
+            else:
+                if debug:
+                    print('[ARGOS][REGRAS] Despacho com pesquisa INFOJUD e sem anexo sigiloso - chamando ato_meios')
+                ato_meios(driver, debug=debug)
+            regra_aplicada = 'despacho+infojud'
+            print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {texto_documento}')
+            return True
+        
         # NOVA REGRA PRIORIDADE MÁXIMA: Despacho com palavra "ARGOS"
-        # Se primeiro documento lido for DESPACHO e contém "ARGOS", aplica regras específicas
         if tipo_documento == 'despacho' and texto_documento and 'argos' in texto_documento.lower():
             regra_aplicada = '[PRIORIDADE MÁXIMA] despacho+argos'
             if debug:
@@ -435,9 +729,8 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                     print('[ARGOS][REGRAS] ARGOS: SISBAJUD positivo, executando ato_bloq')
                 ato_bloq(driver, debug=debug)
                 print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
-                return  # Sai da função sem verificar outras regras
+                return True
             elif resultado_sisbajud == 'negativo':
-                # Verifica se há anexos sigilosos
                 tem_sigiloso = any(v == 'sim' for v in sigilo_anexos.values()) if sigilo_anexos else False
                 if tem_sigiloso:
                     regra_aplicada += ' | sisbajud negativo, com sigiloso => ato_termoS'
@@ -450,9 +743,9 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                         print('[ARGOS][REGRAS] ARGOS: SISBAJUD negativo sem anexo sigiloso, executando ato_meios')
                     ato_meios(driver, debug=debug)
                 print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
-                return  # Sai da função sem verificar outras regras
+                return True
         
-        # Nova regra para detectar "devendo se manifestar" e repetir a análise no próximo documento
+        # Nova regra para detectar "devendo se manifestar"
         if texto_documento and "devendo se manifestar" in texto_documento.lower():
             if debug:
                 print('[ARGOS][REGRAS] Texto "devendo se manifestar" detectado, buscando próximo documento...')
@@ -501,18 +794,25 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                     # Aguardando carregamento
                     sleep(1500)
                     
-                    # Extraindo texto do novo documento
+                    # Extraindo texto do novo documento com tratamento de erro
                     try:
-                        novo_texto, _ = extrair_documento(driver)
-                        novo_tipo = "decisao" if "decisão" in doc_link.text.lower() else "despacho"
-                        
-                        if debug:
-                            print(f'[ARGOS][REGRAS] Novo documento extraído (tipo {novo_tipo})')
-                            print(f'[ARGOS][REGRAS] Repetindo análise de regras para o novo documento')
-                          # Chamada recursiva para aplicar regras no novo documento
-                        aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, novo_tipo, novo_texto, debug)
-                        regra_aplicada += ' | análise repetida em documento seguinte'
-                        return  # Retornamos após aplicar as regras no próximo documento
+                        resultado_extracao = extrair_documento(driver)
+                        if len(resultado_extracao) >= 2:
+                            novo_texto = resultado_extracao[0]
+                            novo_tipo = "decisao" if "decisão" in doc_link.text.lower() else "despacho"
+                            
+                            if debug:
+                                print(f'[ARGOS][REGRAS] Novo documento extraído (tipo {novo_tipo})')
+                                print(f'[ARGOS][REGRAS] Repetindo análise de regras para o novo documento')
+                            
+                            # Chamada recursiva para aplicar regras no novo documento
+                            resultado_recursivo = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, novo_tipo, novo_texto, debug=debug)
+                            regra_aplicada += ' | análise repetida em documento seguinte'
+                            print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+                            return resultado_recursivo
+                        else:
+                            if debug:
+                                print(f'[ARGOS][REGRAS][ERRO] Resultado inesperado da extrair_documento: {len(resultado_extracao)} valores')
                     except Exception as e_extracao:
                         if debug:
                             print(f'[ARGOS][REGRAS][ERRO] Falha ao extrair texto do próximo documento: {e_extracao}')
@@ -521,7 +821,6 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                         print('[ARGOS][REGRAS] Nenhum próximo documento encontrado, continuando com a análise atual')
         
         # PRIORIDADE ABSOLUTA: Regra "defiro a instauração" com SISBAJUD positivo
-        # Esta regra tem precedência sobre qualquer outra, mesmo se outros termos estiverem presentes
         if 'defiro a instauração' in texto_documento.lower() and resultado_sisbajud == 'positivo':
             regra_aplicada = '[PRIORIDADE] decisao+defiro a instauracao+sisbajud positivo'
             if debug:
@@ -529,11 +828,10 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 print('[ARGOS][REGRAS][PRIORIDADE] Esta regra prevalece sobre qualquer outra')
             regra_aplicada += ' | lembrete_bloq + gigs 0/xs_assinar + pec_idpj [PRECEDENCIA ABSOLUTA]'
             lembrete_bloq(driver, debug=debug)
-            criar_gigs(driver, tipo='0/xs_assinar', responsavel=None)
-            criar_gigs(driver, tipo='7/xs carta', responsavel=None)
+            criar_gigs(driver, 7, '', 'xs carta')
             pec_idpj(driver, debug=debug)
             
-            # Executa Infojud após pec_idpj para evitar conflitos de contexto
+            # Executa Infojud após pec_idpj
             try:
                 from infojud import Infojud
                 if debug:
@@ -544,16 +842,17 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             except Exception as e:
                 if debug:
                     print(f'[ARGOS][REGRAS][INFOJUD][ERRO] Falha ao executar Infojud: {e}')
-                # Não interrompe o fluxo se só o Infojud falhar
             
-            # VALIDAÇÃO PÓS PEC_IDPJ: Verifica se o contexto do driver ainda é válido
+            # VALIDAÇÃO PÓS PEC_IDPJ
             try:
                 _ = driver.window_handles
             except Exception as e:
                 if debug:
                     print(f'[ARGOS][REGRAS][PEC_IDPJ] Contexto do driver perdido após pec_idpj: {e}')
-                # Força exceção para interromper o fluxo normal e evitar erro na limpeza de abas
                 raise Exception(f"Driver context lost after pec_idpj: {e}")
+            print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+            return True
+        
         # Outras regras de "defiro a instauração" (sem SISBAJUD positivo)
         elif 'defiro a instauração' in texto_documento.lower():
             regra_aplicada = 'decisao+defiro a instauracao'
@@ -561,11 +860,10 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 print('[ARGOS][REGRAS] Documento identificado como decisão de instauração')
             if resultado_sisbajud == 'negativo':
                 regra_aplicada += ' | sisbajud negativo => gigs 0/xs_assinar + pec_idpj'
-                criar_gigs(driver, tipo='0/xs_assinar', responsavel=None)
-                criar_gigs(driver, tipo='7/xs carta', responsavel=None)
+                criar_gigs(driver, 7, '', 'xs carta')
                 pec_idpj(driver, debug=debug)
                 
-                # Executa Infojud após pec_idpj para evitar conflitos de contexto
+                # Executa Infojud após pec_idpj
                 try:
                     from infojud import Infojud
                     if debug:
@@ -576,16 +874,17 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 except Exception as e:
                     if debug:
                         print(f'[ARGOS][REGRAS][INFOJUD][ERRO] Falha ao executar Infojud: {e}')
-                    # Não interrompe o fluxo se só o Infojud falhar
                 
-                # VALIDAÇÃO PÓS PEC_IDPJ: Verifica se o contexto do driver ainda é válido
+                # VALIDAÇÃO PÓS PEC_IDPJ
                 try:
                     _ = driver.window_handles
                 except Exception as e:
                     if debug:
                         print(f'[ARGOS][REGRAS][PEC_IDPJ] Contexto do driver perdido após pec_idpj: {e}')
-                    # Força exceção para interromper o fluxo normal e evitar erro na limpeza de abas
                     raise Exception(f"Driver context lost after pec_idpj: {e}")
+                print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+                return True
+        
         # 1. Se é despacho com texto específico
         elif tipo_documento == 'despacho' and any(p in texto_documento.lower() for p in ['em que pese a ausência', 'argos']):
             regra_aplicada = 'despacho+argos'
@@ -595,6 +894,7 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 regra_aplicada += ' | sisbajud negativo, nenhum anexo sigiloso => ato_meios'
                 if debug:
                     print('[ARGOS][REGRAS] SISBAJUD negativo e nenhum anexo sigiloso - chamando ato_meios')
+                ato_meios(driver, debug=debug)
             elif resultado_sisbajud == 'negativo' and any(v == 'sim' for v in sigilo_anexos.values()):
                 regra_aplicada += ' | sisbajud negativo, anexo sigiloso => ato_termoS'
                 if debug:
@@ -605,6 +905,9 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 if debug:
                     print('[ARGOS][REGRAS] SISBAJUD positivo - chamando ato_bloq')
                 ato_bloq(driver, debug=debug)
+            print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+            return True
+        
         elif tipo_documento == 'decisao' and 'tendo em vista que' in texto_documento.lower():
             regra_aplicada = 'decisao+tendo em vista que'
             if debug:
@@ -616,13 +919,15 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 if debug:
                     print('[ARGOS][REGRAS] Importação direta de urlparse falhou, tentando via urllib.parse')
                 from urllib.parse import urlparse
+            
             dados_processo = extrair_dados_processo(driver)
             if debug:
                 print(f'[ARGOS][REGRAS] Dados do processo extraídos: {dados_processo}')
-            # No contexto trabalhista, "reclamadas" são os "réus" do processo
+            
             num_reclamadas = len(dados_processo.get('reu', []))
             if debug:
                 print(f'[ARGOS][REGRAS] Número de reclamadas (réus) encontradas: {num_reclamadas}')
+            
             if num_reclamadas == 1:
                 regra_aplicada += ' | uma reclamada'
                 if debug:
@@ -643,9 +948,13 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                 if resultado_sisbajud == 'negativo':
                     regra_aplicada += ' | sisbajud negativo => ato_meiosub'
                     ato_meiosub(driver, debug=debug)
+                    print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+                    return True
                 else:
                     regra_aplicada += ' | sisbajud positivo => ato_bloq'
                     ato_bloq(driver, debug=debug)
+                    print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+                    return True
         else:
             regra_aplicada = f'nao identificado: {tipo_documento}'
             if debug:
@@ -653,108 +962,12 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                     
         # Log sempre que chamado, para rastreabilidade
         print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+        return False  # Nenhuma regra específica foi aplicada
     except Exception as e:
         if debug:
             print(f'[ARGOS][REGRAS][ERRO] Falha ao aplicar regras: {e}')
-        raise
-
-def andamento_argos(driver, resultado_sisbajud, sigilo_anexos, log=True):
-    """
-    Processa o andamento do Argos com base no resultado do SISBAJUD, sigilo dos anexos e tipo de documento.
-    1. Busca documento relevante (decisão ou despacho)
-    2. Aplica regras específicas do Argos
-    """
-    try:
-        if log:
-            print('[ARGOS][ANDAMENTO] Iniciando processamento do andamento...')
-            
-        # 1. Busca documento relevante
-        texto_documento, tipo_documento = buscar_documento_argos(driver, log=log)
-        if log:
-            print(f'[ARGOS][DOCUMENTO] Tipo encontrado: {tipo_documento}')
-            
-        # 2. Aplica regras específicas do Argos
-        aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=log)
-        
-        # 3. FALLBACK: Se nenhuma regra foi aplicada, tenta checar próximo documento (igual ao p2.py)
-        try:
-            # Verifica se o log contém "nao identificado" indicando que nenhuma regra foi aplicada
-            # Esta é uma verificação simples - em implementação mais robusta, seria retornado um indicador da função aplicar_regras_argos
-            if log:
-                print('[ARGOS][FALLBACK] Verificando se é necessário buscar próximo documento...')
-            
-            # Busca itens da timeline para usar com checar_prox
-            itens = []
-            try:
-                timeline = driver.find_element(By.CSS_SELECTOR, 'mat-expansion-panel[id*="timeline"]')
-                itens = timeline.find_elements(By.CSS_SELECTOR, 'a[href*="/documento/"]')
-                if log:
-                    print(f'[ARGOS][FALLBACK] Encontrados {len(itens)} documentos na timeline')
-            except Exception as timeline_error:
-                if log:
-                    print(f'[ARGOS][FALLBACK] Erro ao buscar timeline: {timeline_error}')
-                itens = []
-            
-            if itens and len(itens) > 1:  # Só tenta se há múltiplos documentos
-                # Encontra o índice do documento atual
-                doc_idx = -1
-                current_url = driver.current_url
-                for i, item in enumerate(itens):
-                    if current_url in item.get_attribute('href'):
-                        doc_idx = i
-                        break
-                
-                if log:
-                    print(f'[ARGOS][FALLBACK] Documento atual no índice: {doc_idx}')
-                
-                # Chama checar_prox para encontrar o próximo documento
-                if doc_idx >= 0:
-                    doc_encontrado, doc_link, novo_idx = checar_prox(driver, itens, doc_idx, None, texto_documento)
-                    
-                    if doc_encontrado and doc_link:
-                        if log:
-                            print('[ARGOS][FALLBACK] Próximo documento encontrado - extraindo texto...')
-                        
-                        # Clica no próximo documento e extrai texto
-                        doc_link.click()
-                        time.sleep(2)
-                        
-                        try:
-                            novo_texto, _ = extrair_documento(driver)
-                            novo_tipo = "decisao" if "decisão" in doc_link.text.lower() else "despacho"
-                            
-                            if log:
-                                print(f'[ARGOS][FALLBACK] Novo documento extraído (tipo {novo_tipo})')
-                                print(f'[ARGOS][FALLBACK] Repetindo análise de regras para o novo documento')
-                            
-                            # Chamada recursiva para aplicar regras no novo documento
-                            aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, novo_tipo, novo_texto, debug=log)
-                            if log:
-                                print('[ARGOS][FALLBACK] Análise repetida em documento seguinte concluída')
-                        except Exception as e_extracao:
-                            if log:
-                                print(f'[ARGOS][FALLBACK][ERRO] Falha ao extrair texto do próximo documento: {e_extracao}')
-                    else:
-                        if log:
-                            print('[ARGOS][FALLBACK] Nenhum próximo documento relevante encontrado')
-                else:
-                    if log:
-                        print('[ARGOS][FALLBACK] Documento atual não encontrado na timeline')
-            else:
-                if log:
-                    print('[ARGOS][FALLBACK] Timeline vazia ou documento único - não executando checar_prox')
-                    
-        except Exception as checar_prox_error:
-            if log:
-                print(f'[ARGOS][FALLBACK][ERRO] Falha no fallback checar_prox: {checar_prox_error}')
-            
-        if log:
-            print('[ARGOS][ANDAMENTO] Processamento do andamento concluído.')
-            
-    except Exception as e:
-        if log:
-            print(f'[ARGOS][ANDAMENTO][ERRO] Falha no processamento do andamento: {e}')
-            raise
+        return False
+# ...existing code...
 
 def fechar_intimacao(driver, log=True):
     """
@@ -763,336 +976,284 @@ def fechar_intimacao(driver, log=True):
     try:
         if log:
             print('[INTIMACAO] Iniciando processo de fechar intimação...')
+        
+        # 1. Abrir menu principal
         menu_selector = '#botao-menu'
         menu_clicked = safe_click(driver, menu_selector, timeout=10, log=log)
-        if menu_clicked:
-            if log:
-                print('[INTIMACAO] Menu principal aberto')
-        else:
+        if not menu_clicked:
             if log:
                 print('[INTIMACAO] Falha ao abrir menu principal')
             try:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                if log:
-                    print('[INTIMACAO] Enviado ESC após falha de clique em Expedientes')
             except Exception:
                 pass
             return True
-        sleep(300)
+        
+        if log:
+            print('[INTIMACAO] Menu principal aberto')
+        
+        # 2. Clicar no botão Expedientes
         btn_exp_selector = 'button[aria-label="Expedientes"]:not([disabled])'
         btn_exp_clicked = safe_click(driver, btn_exp_selector, timeout=5, log=log)
-        if btn_exp_clicked:
-            if log:
-                print('[INTIMACAO] Botão Expedientes clicado')
-        else:
+        if not btn_exp_clicked:
             if log:
                 print('[INTIMACAO] Falha ao clicar no botão Expedientes')
             try:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                if log:
-                    print('[INTIMACAO] Modal fechado com ESC após falha no botão Expedientes')
             except Exception:
                 pass
             return True
-        sleep(300)
-        # Espera o modal de expedientes aparecer
-        try:
-            modal_selector = 'mat-dialog-container pje-expedientes-dialogo'
-            modal = wait_for_visible(driver, modal_selector, timeout=5)
-            if not modal:
-                if log:
-                    print('[INTIMACAO] Modal de expedientes não encontrado, continuando mesmo assim')
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                except Exception:
-                    pass
-                return True
-        except Exception as e:
+        
+        if log:
+            print('[INTIMACAO] Botão Expedientes clicado')
+        
+        # 3. Esperar o modal de expedientes aparecer
+        modal_selector = 'mat-dialog-container pje-expedientes-dialogo'
+        modal = wait_for_visible(driver, modal_selector, timeout=5)
+        if not modal:
             if log:
-                print(f'[INTIMACAO][ERRO] Falha ao verificar modal: {e}')
+                print('[INTIMACAO] Modal de expedientes não encontrado, continuando mesmo assim')
             try:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             except Exception:
                 pass
             return True
-        # Busca linha com prazo 30 - OTIMIZADO para verificação rápida
+        
+        # 4. Procurar diretamente pela linha com prazo 30 e checkbox disponível
         try:
-            rows_selector = 'tbody tr'
-            first_row = wait(driver, rows_selector, timeout=5)
-            if not first_row:
-                if log:
-                    print('[INTIMACAO] Falha ao encontrar linhas de expedientes')
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                except Exception:
-                    pass
-                return True
-            
-            rows = driver.find_elements(By.CSS_SELECTOR, rows_selector)
-            prazo_30_encontrado = False
-            checkbox_selecionada = False
-            
+            # Estratégia otimizada: Encontrar todas as linhas e verificar em uma única passagem
+            rows = driver.find_elements(By.CSS_SELECTOR, 'tbody tr')
             if log:
-                print(f'[INTIMACAO][OTIMIZADO] Encontradas {len(rows)} linhas de expedientes')
+                print(f'[INTIMACAO] Encontradas {len(rows)} linhas de expedientes')
             
-            # VERIFICAÇÃO RÁPIDA: Primeiro verifica se existe linha com prazo 30
+            linha_com_prazo_30 = None
+            checkbox_disponivel = False
+            
+            # Percorrer as linhas procurando pela com prazo 30 e checkbox disponível
             for i, row in enumerate(rows):
                 try:
-                    prazo_cell = row.find_element(By.CSS_SELECTOR, 'td:nth-child(9)')
-                    prazo_texto = prazo_cell.text.strip()
-                    if log and i < 3:
-                        print(f'[INTIMACAO][DEBUG] Linha {i+1}: prazo = "{prazo_texto}"')
+                    # Obter todas as células da linha
+                    cells = row.find_elements(By.TAG_NAME, 'td')
                     
-                    if prazo_texto == '30':
-                        prazo_30_encontrado = True
-                        if log:
-                            print(f'[INTIMACAO][OTIMIZADO] ✓ Linha com prazo 30 encontrada (linha {i+1})')
-                        break  # Sai do loop assim que encontrar
-                        
-                except Exception as e_row:
-                    if log:
-                        print(f'[INTIMACAO][DEBUG] Erro ao verificar linha {i+1}: {e_row}')
-                    continue
-            
-            # Se não encontrou linha com prazo 30, fecha imediatamente
-            if not prazo_30_encontrado:
-                if log:
-                    print('[INTIMACAO][OTIMIZADO] ❌ Nenhuma linha com prazo 30 encontrada')
-                    print('[INTIMACAO][OTIMIZADO] Fechando modal imediatamente e prosseguindo')
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    if log:
-                        print('[INTIMACAO][OTIMIZADO] ✅ Modal fechado com ESC - fluxo continua normalmente')
-                except Exception:
-                    pass
-                return True
-            
-            # Se encontrou linha com prazo 30, processa a seleção
-            for i, row in enumerate(rows):
-                try:
-                    prazo_cell = row.find_element(By.CSS_SELECTOR, 'td:nth-child(9)')
+                    # Verificar se há células suficientes (pelo menos 9 colunas)
+                    if len(cells) < 9:
+                        continue
+                    
+                    # Verificar se a 9ª coluna (índice 8) contém "30"
+                    prazo_cell = cells[8]  # 9ª coluna (índice 8) - coluna "Prazo"
                     prazo_texto = prazo_cell.text.strip()
+                    
+                    if log and i < 5:  # Log as primeiras 5 linhas para debug
+                        print(f'[INTIMACAO] Linha {i+1}: prazo = "{prazo_texto}"')
                     
                     if prazo_texto == '30':
                         if log:
-                            print(f'[INTIMACAO][OTIMIZADO] Processando linha com prazo 30 (linha {i+1})')
-                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
-                        sleep(200)
+                            print(f'[INTIMACAO] Linha com prazo 30 encontrada (linha {i+1})')
                         
-                        # PRIMEIRO: Verificar se existe checkbox clicável
-                        checkbox_exists = False
-                        try:
-                            checkbox_element = row.find_element(By.CSS_SELECTOR, 'td:last-child mat-checkbox')
-                            # Verificar se o checkbox está presente e é clicável
-                            if checkbox_element.is_displayed() and checkbox_element.is_enabled():
-                                checkbox_exists = True
+                        # Verificar se há checkbox disponível na última coluna (índice 10 - coluna "Fechado")
+                        if len(cells) >= 11:
+                            checkbox_cell = cells[10]  # 11ª coluna (índice 10) - coluna "Fechado"
+                            
+                            # Procurar pelo checkbox que NÃO está escondido
+                            # Primeiro verifica se existe div visível com mat-checkbox
+                            checkbox_divs_visiveis = checkbox_cell.find_elements(By.CSS_SELECTOR, 'div:not([hidden]) mat-checkbox')
+                            
+                            if checkbox_divs_visiveis:
+                                # Checkbox está disponível (não escondido)
+                                linha_com_prazo_30 = row
+                                checkbox_disponivel = True
                                 if log:
-                                    print('[INTIMACAO][OTIMIZADO] ✓ Checkbox clicável encontrada')
+                                    print('[INTIMACAO] Checkbox disponível encontrado (não escondido)')
+                                    print(f'[INTIMACAO] HTML da célula do checkbox: {checkbox_cell.get_attribute("innerHTML")[:200]}...')
+                                break
                             else:
-                                if log:
-                                    print('[INTIMACAO][OTIMIZADO] ❌ Checkbox existe mas não é clicável')
-                        except Exception:
-                            if log:
-                                print('[INTIMACAO][OTIMIZADO] ❌ Checkbox não encontrada')
-                        
-                        # Se não tem checkbox clicável, fechar com ESC
-                        if not checkbox_exists:
-                            if log:
-                                print('[INTIMACAO][OTIMIZADO] ❌ Linha de 30 dias sem checkbox clicável')
-                                print('[INTIMACAO][OTIMIZADO] Fechando modal rapidamente com ESC')
-                            try:
-                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                                if log:
-                                    print('[INTIMACAO][OTIMIZADO] ✅ Modal fechado com ESC - checkbox não clicável')
-                            except Exception:
-                                pass
-                            return True
-                        
-                        # Se tem checkbox clicável, continua com o fluxo de seleção
-                        checkbox_selecionada = False
-                        
-                        # Estratégia 1: Checkbox via safe_click
-                        try:
-                            checkbox_element = row.find_element(By.CSS_SELECTOR, 'td:last-child mat-checkbox')
-                            aria_checked = checkbox_element.get_attribute('aria-checked')
-                            if aria_checked == 'true':
-                                if log:
-                                    print('[INTIMACAO][OTIMIZADO] ✓ Checkbox já estava selecionada')
-                                checkbox_selecionada = True
-                            else:
-                                checkbox_selecionada = safe_click(driver, checkbox_element, timeout=3, log=log)
-                                if checkbox_selecionada:
+                                # Verificar se existe div escondida (expediente já fechado)
+                                checkbox_divs_escondidos = checkbox_cell.find_elements(By.CSS_SELECTOR, 'div[hidden] mat-checkbox')
+                                if checkbox_divs_escondidos:
                                     if log:
-                                        print('[INTIMACAO][OTIMIZADO] ✅ Checkbox selecionada com safe_click')
-                                else:
-                                    driver.execute_script("arguments[0].click();", checkbox_element)
-                                    sleep(200)
-                                    aria_checked_after = checkbox_element.get_attribute('aria-checked')
-                                    if aria_checked_after == 'true':
-                                        checkbox_selecionada = True
-                                        if log:
-                                            print('[INTIMACAO][OTIMIZADO] ✅ Checkbox selecionada via JavaScript')
-                                    else:
-                                        if log:
-                                            print('[INTIMACAO][OTIMIZADO] ❌ Checkbox não foi selecionada')
-                        except Exception as e_check1:
-                            if log:
-                                print(f'[INTIMACAO][OTIMIZADO] Estratégia 1 falhou: {e_check1}')
-                        
-                        # Estratégia 2: Inner container se primeira falhou
-                        if not checkbox_selecionada:
-                            try:
-                                checkbox_container = row.find_element(By.CSS_SELECTOR, 'td:last-child mat-checkbox')
-                                inner_container = checkbox_container.find_element(By.CSS_SELECTOR, '.mat-checkbox-inner-container')
-                                driver.execute_script("arguments[0].click();", inner_container)
-                                sleep(200)
-                                aria_checked_after = checkbox_container.get_attribute('aria-checked')
-                                if aria_checked_after == 'true':
-                                    checkbox_selecionada = True
-                                    if log:
-                                        print('[INTIMACAO][OTIMIZADO] ✅ Checkbox selecionada via inner container')
+                                        print('[INTIMACAO] Checkbox escondido (expediente já fechado)')
                                 else:
                                     if log:
-                                        print('[INTIMACAO][OTIMIZADO] ❌ Inner container não selecionou')
-                            except Exception as e_check2:
-                                if log:
-                                    print(f'[INTIMACAO][OTIMIZADO] Estratégia 2 falhou: {e_check2}')
-                        
-                        # Estratégia 3: Input direto se outras falharam
-                        if not checkbox_selecionada:
-                            try:
-                                checkbox_input = row.find_element(By.CSS_SELECTOR, 'td:last-child input[type="checkbox"]')
-                                if not checkbox_input.is_selected():
-                                    driver.execute_script("arguments[0].click();", checkbox_input)
-                                    sleep(200)
-                                    if checkbox_input.is_selected():
-                                        checkbox_selecionada = True
-                                        if log:
-                                            print('[INTIMACAO][OTIMIZADO] ✅ Checkbox selecionada via input direto')
-                                    else:
-                                        if log:
-                                            print('[INTIMACAO][OTIMIZADO] ❌ Input direto não funcionou')
-                                else:
-                                    checkbox_selecionada = True
-                                    if log:
-                                        print('[INTIMACAO][OTIMIZADO] ✓ Input já estava selecionado')
-                            except Exception as e_check3:
-                                if log:
-                                    print(f'[INTIMACAO][OTIMIZADO] Estratégia 3 falhou: {e_check3}')
-                        
-                        if checkbox_selecionada:
-                            if log:
-                                print('[INTIMACAO][OTIMIZADO] ✅ Checkbox da linha com prazo 30 selecionada com sucesso!')
+                                        print('[INTIMACAO] Estrutura de checkbox não encontrada')
+                                break
                         else:
                             if log:
-                                print('[INTIMACAO][OTIMIZADO] ❌ Falha em todas as estratégias para selecionar checkbox')
-                                print('[INTIMACAO][OTIMIZADO] Fechando modal e prosseguindo')
-                            try:
-                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                                if log:
-                                    print('[INTIMACAO][OTIMIZADO] ✅ Modal fechado com ESC após falha na checkbox')
-                            except Exception:
-                                pass
-                            return True
-                        break  # Sai do loop após processar a linha com prazo 30
-                        
-                except Exception as e_row:
+                                print('[INTIMACAO] Linha não tem coluna de checkbox suficiente')
+                            break
+                except Exception as e:
                     if log:
-                        print(f'[INTIMACAO][OTIMIZADO] Erro ao processar linha {i+1}: {e_row}')
+                        print(f'[INTIMACAO] Erro ao verificar linha {i+1}: {str(e)}')
                     continue
             
-            # Se chegou aqui, significa que a checkbox foi selecionada com sucesso
-            # Continua com o fluxo normal (botão Fechar Expedientes)
-            # 4. Clica no botão Fechar Expedientes dentro do modal
+            # Se não encontrou linha com prazo 30 ou checkbox não está disponível
+            if not linha_com_prazo_30 or not checkbox_disponivel:
+                if log:
+                    print('[INTIMACAO] Nenhuma linha com prazo 30 e checkbox disponível encontrada')
+                    print('[INTIMACAO] Fechando modal e prosseguindo')
+                try:
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                    if log:
+                        print('[INTIMACAO] Modal fechado com ESC')
+                except Exception:
+                    pass
+                return True
+            
+            # 5. Selecionar o checkbox
+            checkbox_selecionada = False
             try:
-                modal_expedientes = driver.find_element(By.CSS_SELECTOR, 'mat-dialog-container pje-expedientes-dialogo')
+                # Tentar encontrar o checkbox visível na última coluna
+                checkbox_element = linha_com_prazo_30.find_element(By.CSS_SELECTOR, 'td:last-child div:not([hidden]) mat-checkbox')
+                
+                if log:
+                    print(f'[INTIMACAO] Checkbox encontrado: {checkbox_element.get_attribute("class")}')
+                
+                # Verificar se o checkbox está visível e habilitado
+                if checkbox_element.is_displayed():
+                    if log:
+                        print('[INTIMACAO] Checkbox está visível, tentando clicar...')
+                    
+                    # Primeira tentativa: clique direto no mat-checkbox
+                    checkbox_selecionada = safe_click(driver, checkbox_element, timeout=3, log=log)
+                    
+                    if not checkbox_selecionada:
+                        if log:
+                            print('[INTIMACAO] Clique direto falhou, tentando no input interno...')
+                        
+                        # Segunda tentativa: clicar no input interno
+                        try:
+                            input_checkbox = checkbox_element.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                            checkbox_selecionada = safe_click(driver, input_checkbox, timeout=3, log=log)
+                        except Exception as e_input:
+                            if log:
+                                print(f'[INTIMACAO] Input interno não encontrado: {e_input}')
+                    
+                    if not checkbox_selecionada:
+                        if log:
+                            print('[INTIMACAO] Cliques normais falharam, tentando JavaScript...')
+                        
+                        # Terceira tentativa: JavaScript no mat-checkbox
+                        try:
+                            driver.execute_script("arguments[0].click();", checkbox_element)
+                            sleep(500)
+                            
+                            # Verificar se foi marcado
+                            input_checkbox = checkbox_element.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                            if input_checkbox.is_selected():
+                                checkbox_selecionada = True
+                                if log:
+                                    print('[INTIMACAO] Checkbox selecionado via JavaScript')
+                            else:
+                                # Tentar JavaScript no input
+                                driver.execute_script("arguments[0].click();", input_checkbox)
+                                sleep(500)
+                                if input_checkbox.is_selected():
+                                    checkbox_selecionada = True
+                                    if log:
+                                        print('[INTIMACAO] Checkbox selecionado via JavaScript no input')
+                        except Exception as e_js:
+                            if log:
+                                print(f'[INTIMACAO] JavaScript também falhou: {e_js}')
+                                
+                else:
+                    if log:
+                        print('[INTIMACAO] Checkbox não está visível')
+                        
+            except Exception as e:
+                if log:
+                    print(f'[INTIMACAO] Erro ao selecionar checkbox: {str(e)}')
+                    print('[INTIMACAO] Tentando seletor alternativo...')
+                
+                # Tentativa alternativa: qualquer checkbox na linha
+                try:
+                    checkbox_alt = linha_com_prazo_30.find_element(By.CSS_SELECTOR, 'mat-checkbox')
+                    checkbox_selecionada = safe_click(driver, checkbox_alt, timeout=3, log=log)
+                    if log:
+                        print(f'[INTIMACAO] Tentativa alternativa: {"sucesso" if checkbox_selecionada else "falhou"}')
+                except Exception as e_alt:
+                    if log:
+                        print(f'[INTIMACAO] Seletor alternativo também falhou: {e_alt}')
+            
+            if not checkbox_selecionada:
+                if log:
+                    print('[INTIMACAO] Falha ao selecionar checkbox')
+                    print('[INTIMACAO] Fechando modal e prosseguindo')
+                try:
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                except Exception:
+                    pass
+                return True
+            
+            if log:
+                print('[INTIMACAO] Checkbox selecionado com sucesso')
+            
+            # 6. Clicar no botão Fechar Expedientes
+            try:
+                modal_expedientes = driver.find_element(By.CSS_SELECTOR, modal_selector)
                 btn_fechar_clicked = False
-                if log:
-                    print(f'[INTIMACAO][OTIMIZADO] Usando seletor vencedor: aria-label')
                 botoes = modal_expedientes.find_elements(By.CSS_SELECTOR, 'button[aria-label="Fechar Expedientes"]')
-                if log:
-                    print(f'[INTIMACAO][OTIMIZADO] Encontrados {len(botoes)} botões com aria-label="Fechar Expedientes"')
                 for btn in botoes:
                     if btn.is_displayed() and btn.is_enabled():
                         btn_fechar_clicked = safe_click(driver, btn, timeout=5, log=log)
                         if btn_fechar_clicked:
-                            if log:
-                                print(f'[INTIMACAO][OTIMIZADO] ✅ Botão Fechar Expedientes clicado com sucesso!')
                             break
-            except Exception as e_modal:
-                if log:
-                    print(f'[INTIMACAO][OTIMIZADO] ❌ ERRO ao buscar modal: {e_modal}')
-                btn_fechar_clicked = False
-            if not btn_fechar_clicked:
-                if log:
-                    print('[INTIMACAO] Falha ao clicar no botão Fechar Expedientes')
-                try:
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                
+                if not btn_fechar_clicked:
                     if log:
-                        print('[INTIMACAO] Modal fechado com ESC após falha no botão Fechar')
-                except Exception:
-                    pass
-                return True
-            if log:
-                print('[INTIMACAO] Botão Fechar Expedientes clicado')
-            sleep(500)
-            # 5. Modal de confirmação
-            try:
+                        print('[INTIMACAO] Falha ao clicar no botão Fechar Expedientes')
+                    try:
+                        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                    except Exception:
+                        pass
+                    return True
+                
+                if log:
+                    print('[INTIMACAO] Botão Fechar Expedientes clicado')
+                
+                sleep(500)
+                
+                # 7. Modal de confirmação
                 modal_confirm_selector = 'mat-dialog-container[role="dialog"]'
                 modal_confirm = wait_for_visible(driver, modal_confirm_selector, timeout=5)
                 if not modal_confirm:
                     if log:
                         print('[INTIMACAO] Modal de confirmação não encontrado, continuando mesmo assim')
                     return True
-                try:
-                    # Aguardar modal aparecer e usar ESPAÇO ao invés de clicar no botão
-                    sleep(500)  # Aguarda modal aparecer
-                    if log:
-                        print('[INTIMACAO] Tentando confirmar com tecla ESPAÇO...')
-                    
-                    # Enviar ESPAÇO para confirmar
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.SPACE)
-                    sleep(300)  # Aguarda processamento
-                    
-                    if log:
-                        print('[INTIMACAO] ✅ Confirmação via ESPAÇO enviada com sucesso')
-                        
-                except Exception as e_space:
-                    if log:
-                        print(f'[INTIMACAO] ❌ Fallback ESC após falha do ESPAÇO: {e_space}')
-                    try:
-                        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                        if log:
-                            print('[INTIMACAO] ✅ Modal fechado com ESC')
-                    except Exception as e_esc:
-                        if log:
-                            print(f'[INTIMACAO] ❌ Erro ao enviar ESC: {e_esc}')
+                
+                sleep(500)
+                if log:
+                    print('[INTIMACAO] Tentando confirmar com tecla ESPAÇO...')
+                
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.SPACE)
+                sleep(300)
+                
+                if log:
+                    print('[INTIMACAO] Confirmação via ESPAÇO enviada com sucesso')
+                
                 return True
+                
             except Exception as e:
                 if log:
-                    print(f'[INTIMACAO][ERRO] Falha no modal de confirmação: {e}')
+                    print(f'[INTIMACAO] Erro ao fechar expedientes: {str(e)}')
                 try:
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
                 except Exception:
                     pass
                 return True
+                
         except Exception as e:
             if log:
-                print(f'[INTIMACAO][ERRO] Falha ao processar expedientes: {e}')
+                print(f'[INTIMACAO] Erro ao processar expedientes: {str(e)}')
             try:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                if log:
-                    print('[INTIMACAO] Modal fechado com ESC após erro')
             except Exception:
                 pass
             return True
+            
     except Exception as e:
         if log:
-            print(f'[INTIMACAO][ERRO] Falha geral: {str(e)}')
+            print(f'[INTIMACAO] Erro geral: {str(e)}')
         try:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            if log:
-                print('[INTIMACAO] Modal fechado com ESC após erro')
         except Exception:
             pass
         return True
@@ -1137,75 +1298,84 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
         if log:
             print(f'[ARGOS][ANEXOS] ✅ Encontrados {len(anexos)} anexos para processamento')
     
-    sigilo_types = ["infojud", "doi", "irpf", "ir2022", "ir2023", "ir2024", "dimob", "ecac", "efinanceira", "e-financeira"]
+    import re
+    sigilo_types = ["infojud", "doi", "irpf", "ir2022", "ir2023", "ir2024", "dimob", "ecac", "efinanceira", "e-financeira", "DEC9"]
     found_sigilo = {k: False for k in sigilo_types}
     sigilo_anexos = {k: "nao" for k in sigilo_types}
     any_sigilo = False
     for anexo in anexos:
         texto_anexo = anexo.text.strip().lower()
         tipo_anexo_encontrado = None
-        # Verifica se é um anexo especial (INFOJUD, DOI, IRPF, IR2022, IR2023, IR2024, DIMOB)
+        # Verifica se é um anexo especial (INFOJUD, DOI, IRPF, IR2022, IR2023, IR2024, DIMOB, DEC{9 numeros})
         for k in sigilo_types:
-            if k in texto_anexo:
+            if k == "DEC9":
+                # Detecta padrão DEC seguido de 9 dígitos, sem espaços
+                if re.search(r"dec\d{9}", texto_anexo):
+                    found_sigilo[k] = True
+                    tipo_anexo_encontrado = k
+                    break
+            elif k in texto_anexo:
                 found_sigilo[k] = True
                 tipo_anexo_encontrado = k
-                # Para anexos especiais: INSERIR sigilo (se ícone estiver azul, clicar para tornar vermelho)
+                # Para anexos especiais: Lógica inteligente de sigilo
                 btn_sigilo = anexo.find_elements(By.CSS_SELECTOR, "i.fa-wpexplorer")
                 sigilo_foi_aplicado = False
+                ja_tem_sigilo = False
                 
                 if btn_sigilo:
-                    if "tl-nao-sigiloso" in btn_sigilo[0].get_attribute("class"):
+                    classes_sigilo = btn_sigilo[0].get_attribute("class")
+                    if "tl-nao-sigiloso" in classes_sigilo:
+                        # Ícone azul - não tem sigilo, precisa aplicar
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Ícone azul detectado, aplicando sigilo para: {texto_anexo}')
                         safe_click(driver, btn_sigilo[0])
                         time.sleep(1)
                         sigilo_anexos[k] = "sim"
                         sigilo_foi_aplicado = True
                         if log:
-                            print(f'[ARGOS][ANEXOS] Sigilo aplicado para: {texto_anexo}')
-                    else:
+                            print(f'[ARGOS][ANEXOS] ✅ Sigilo aplicado para: {texto_anexo}')
+                    elif "tl-sigiloso" in classes_sigilo:
+                        # Ícone vermelho - já tem sigilo
+                        ja_tem_sigilo = True
                         sigilo_anexos[k] = "sim"
                         if log:
-                            print(f'[ARGOS][ANEXOS] Sigilo já estava aplicado para: {texto_anexo}')
+                            print(f'[ARGOS][ANEXOS] ✅ Sigilo já existia (ícone vermelho) para: {texto_anexo}')
+                    else:
+                        # Estado indefinido
+                        sigilo_anexos[k] = "indefinido"
+                        if log:
+                            print(f'[ARGOS][ANEXOS] ⚠️ Estado de sigilo indefinido para: {texto_anexo} (classes: {classes_sigilo})')
                 else:
                     sigilo_anexos[k] = "nao"
                     if log:
-                        print(f'[ARGOS][ANEXOS] Botão de sigilo não encontrado para: {texto_anexo}')
+                        print(f'[ARGOS][ANEXOS] ❌ Botão de sigilo não encontrado para: {texto_anexo}')
                 
                 # Clique de visibilidade: buscar o <button> correto pelo <i> filho - CORRIGIDO
                 try:
                     if log:
                         print(f'[ARGOS][ANEXOS] Processando visibilidade para: {texto_anexo}')
                     
-                    # CORREÇÃO: Se sigilo foi aplicado agora, aguardar o ícone + aparecer
+                    # LÓGICA CORRIGIDA: Diferencia entre sigilo recém-aplicado e sigilo já existente
                     if sigilo_foi_aplicado:
+                        # Sigilo foi aplicado agora - aguardar ícone + aparecer
                         if log:
                             print(f'[ARGOS][ANEXOS] Aguardando ícone + aparecer após aplicação do sigilo...')
                         
-                        # Aguarda o ícone + aparecer com timeout AUMENTADO
+                        # Aguarda o ícone + aparecer com timeout
                         btn_visibilidade = None
                         for tentativa_espera in range(15):  # 15 tentativas x 0.8s = 12s timeout
                             try:
-                                # VALIDAÇÃO DUPLA: Verifica se o ícone realmente é o correto
                                 icons = anexo.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
                                 if icons:
-                                    # Verifica se o ícone tem as classes corretas
                                     icon_classes = icons[0].get_attribute("class")
                                     if "fa-plus" in icon_classes and "tl-sigiloso" in icon_classes:
-                                        # Verifica se o botão pai está visível e clicável
                                         btn_candidate = icons[0].find_element(By.XPATH, "./ancestor::button[1]")
                                         if btn_candidate.is_displayed() and btn_candidate.is_enabled():
                                             btn_visibilidade = btn_candidate
                                             if log:
-                                                print(f'[ARGOS][ANEXOS] ✅ Ícone + VALIDADO após {tentativa_espera + 1} tentativas')
-                                                print(f'[ARGOS][ANEXOS] Classes do ícone: {icon_classes}')
+                                                print(f'[ARGOS][ANEXOS] ✅ Ícone + validado após {tentativa_espera + 1} tentativas')
                                             break
-                                        else:
-                                            if log and tentativa_espera == 0:
-                                                print(f'[ARGOS][ANEXOS] Ícone + encontrado mas botão não clicável, aguardando...')
-                                    else:
-                                        if log and tentativa_espera == 0:
-                                            print(f'[ARGOS][ANEXOS] Ícone encontrado mas classes incorretas: {icon_classes}')
-                                
-                                sleep(800)  # Aguarda 0.8s antes da próxima tentativa (aumentado)
+                                sleep(800)  # Aguarda 0.8s antes da próxima tentativa
                             except Exception as e_espera:
                                 if log and tentativa_espera < 3:
                                     print(f'[ARGOS][ANEXOS][DEBUG] Tentativa {tentativa_espera + 1} falhou: {e_espera}')
@@ -1213,27 +1383,39 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                         
                         if not btn_visibilidade:
                             if log:
-                                print(f'[ARGOS][ANEXOS][ERRO] Ícone + não apareceu ou não é válido após aplicação do sigilo')
+                                print(f'[ARGOS][ANEXOS][ERRO] Ícone + não apareceu após aplicação do sigilo para: {texto_anexo}')
                             continue
-                    else:
-                        # Se sigilo já estava aplicado, busca diretamente pelo ícone + com validação
+                            
+                    elif ja_tem_sigilo:
+                        # Sigilo já existia - buscar diretamente pelo ícone +
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Sigilo já existia, buscando ícone + diretamente...')
+                        
                         btn_visibilidade = None
                         icons = anexo.find_elements(By.CSS_SELECTOR, "i.fas.fa-plus.tl-sigiloso")
                         if icons:
-                            # Validação extra mesmo quando sigilo já estava aplicado
                             icon_classes = icons[0].get_attribute("class")
                             if "fa-plus" in icon_classes and "tl-sigiloso" in icon_classes:
                                 btn_candidate = icons[0].find_element(By.XPATH, "./ancestor::button[1]")
                                 if btn_candidate.is_displayed() and btn_candidate.is_enabled():
                                     btn_visibilidade = btn_candidate
                                     if log:
-                                        print(f'[ARGOS][ANEXOS] ✅ Ícone + encontrado diretamente (sigilo já aplicado)')
+                                        print(f'[ARGOS][ANEXOS] ✅ Ícone + encontrado diretamente (sigilo pré-existente)')
                                 else:
                                     if log:
                                         print(f'[ARGOS][ANEXOS][AVISO] Ícone + encontrado mas botão não clicável')
                             else:
                                 if log:
                                     print(f'[ARGOS][ANEXOS][AVISO] Ícone encontrado mas classes incorretas: {icon_classes}')
+                        else:
+                            if log:
+                                print(f'[ARGOS][ANEXOS][ERRO] Ícone + não encontrado mesmo com sigilo pré-existente')
+                            continue
+                    else:
+                        # Sem sigilo aplicado ou pré-existente - pular processamento de visibilidade
+                        if log:
+                            print(f'[ARGOS][ANEXOS] Sem sigilo para: {texto_anexo}, pulando processamento de visibilidade')
+                        continue
                     
                     if btn_visibilidade:
                         if log:
@@ -1708,7 +1890,30 @@ def processar_argos(driver, log=False):
 
         # 4. Buscar documento relevante (nova lógica antes da planilha)
         print('[ARGOS] Buscando documento relevante...')
-        documento_texto, documento_tipo = buscar_documento_argos(driver, log=True)  # Forçando log=True para depuração
+        resultado_documento = buscar_documento_argos(driver, log=True)  # Forçando log=True para depuração
+        
+        # Verifica se o resultado é válido antes de desempacotar (flexível)
+        if not resultado_documento:
+            print(f'[ARGOS][ERRO] Nenhum resultado retornado de buscar_documento_argos')
+            return False
+            
+        try:
+            if isinstance(resultado_documento, tuple):
+                if len(resultado_documento) >= 2:
+                    documento_texto, documento_tipo = resultado_documento[0], resultado_documento[1]
+                elif len(resultado_documento) == 1:
+                    documento_texto, documento_tipo = resultado_documento[0], 'documento'
+                else:
+                    print(f'[ARGOS][ERRO] Tupla vazia retornada')
+                    return False
+            elif isinstance(resultado_documento, str):
+                documento_texto, documento_tipo = resultado_documento, 'documento'
+            else:
+                print(f'[ARGOS][ERRO] Tipo de resultado inesperado: {type(resultado_documento)}')
+                return False
+        except Exception as e_unpack:
+            print(f'[ARGOS][ERRO] Erro ao processar resultado: {e_unpack}')
+            return False
         
         if documento_texto and documento_tipo:
             print(f'[ARGOS] Documento encontrado: tipo={documento_tipo}')
@@ -1817,7 +2022,7 @@ def buscar_documento_argos(driver, log=True):
                 
                 sleep(1500)  # Esperamos mais tempo para carregar o documento
                 print(f'[ARGOS][DOC] Extraindo texto do documento...')
-                texto, _ = extrair_documento(driver)
+                texto = extrair_documento(driver)
                 
                 if log:
                     print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (antes da planilha):\n---\n{texto}\n---')
@@ -1833,19 +2038,34 @@ def buscar_documento_argos(driver, log=True):
                     return texto, 'despacho'
         
         # FALLBACK: Se não encontrou planilha ou documentos antes dela, usa a lógica original
+        # LIMITADO A 3 DOCUMENTOS MÁXIMO
         if log:
             print('[ARGOS][DEBUG] Usando lógica fallback: procurando primeiro despacho/decisão na timeline...')
         
+        documentos_processados = 0
+        max_documentos_fallback = 3
+        
         for idx, item in enumerate(itens):
+            # Limite de 3 documentos para evitar loops infinitos
+            if documentos_processados >= max_documentos_fallback:
+                if log:
+                    print(f'[ARGOS][DEBUG] Limite de {max_documentos_fallback} documentos atingido no fallback, encerrando busca.')
+                break
+                
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = link.text.lower()
                 if log:
                     print(f'[ARGOS][DEBUG] Item {idx}: texto do link = {doc_text}')
+                    
+                documentos_processados += 1
+                
                 # Verifica se é despacho ou decisão
                 if re.search(r'despacho|decisão|sentença|conclusão', doc_text):
                     if log:
-                        print(f'[ARGOS][DEBUG] Item {idx}: documento relevante encontrado (fallback), clicando para ativar.')                    # Clica para ativar o documento usando safe_click (fallback)
+                        print(f'[ARGOS][DEBUG] Item {idx}: documento relevante encontrado (fallback), clicando para ativar.')
+                    
+                    # Clica para ativar o documento usando safe_click (fallback)
                     print(f'[ARGOS][DOC][FALLBACK] Tentando abrir documento: {doc_text}')
                     # Primeiro rolamos para o elemento
                     driver.execute_script('arguments[0].scrollIntoView({block: "center"});', link)
@@ -1861,20 +2081,28 @@ def buscar_documento_argos(driver, log=True):
                             print(f'[ARGOS][DOC][FALLBACK] Clique via JavaScript executado com sucesso')
                         except Exception as e:
                             print(f'[ARGOS][DOC][FALLBACK][ERRO] Falha no clique alternativo: {e}')
+                            continue  # Tenta próximo documento se falha no clique
                     
                     sleep(1500)  # Esperamos mais tempo para carregar o documento
                     print(f'[ARGOS][DOC][FALLBACK] Extraindo texto do documento...')
-                    texto, _ = extrair_documento(driver)
-                    if log:
-                        print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (fallback):\n---\n{texto}\n---')
-                    if 'decisão' in doc_text or 'sentença' in doc_text:
+                    
+                    try:
+                        texto = extrair_documento(driver)
                         if log:
-                            print(f'[ARGOS][DEBUG] Item {idx}: documento é decisão/sentença (fallback).')
-                        return texto, 'decisao'
-                    else:
+                            print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (fallback):\n---\n{texto}\n---')
+                        
+                        if 'decisão' in doc_text or 'sentença' in doc_text:
+                            if log:
+                                print(f'[ARGOS][DEBUG] Item {idx}: documento é decisão/sentença (fallback).')
+                            return texto, 'decisao'
+                        else:
+                            if log:
+                                print(f'[ARGOS][DEBUG] Item {idx}: documento é despacho (fallback).')
+                            return texto, 'despacho'
+                    except Exception as e:
                         if log:
-                            print(f'[ARGOS][DEBUG] Item {idx}: documento é despacho (fallback).')
-                        return texto, 'despacho'
+                            print(f'[ARGOS][DEBUG] Item {idx}: erro ao extrair texto do documento: {e}')
+                        continue  # Tenta próximo documento se falha na extração
                 else:
                     if log:
                         print(f'[ARGOS][DEBUG] Item {idx}: não é despacho/decisão/sentença/conclusão.')
@@ -1884,7 +2112,7 @@ def buscar_documento_argos(driver, log=True):
                 continue
         
         if log:
-            print('[ARGOS] Nenhum documento relevante encontrado após varrer os itens.')
+            print(f'[ARGOS] Nenhum documento relevante encontrado após varrer {max_documentos_fallback} itens máximo.')
         return None, None
     except Exception as e:
         if log:
@@ -1898,7 +2126,7 @@ def buscar_documento_argos(driver, log=True):
                         print('[ARGOS][DEBUG] Fallback: clicando em documento visível.')
                     safe_click(driver, elem)
                     time.sleep(1)
-                    texto, _ = extrair_documento(driver)
+                    texto = extrair_documento(driver)
                     if texto:
                         return texto, 'fallback'
         except Exception as e_fb:
@@ -2106,7 +2334,7 @@ def fluxo_mandados_outros(driver, log=True):
                         safe_click(driver, link_ant)
                         time.sleep(1)
                         
-                        texto_mandado_ant, _ = extrair_documento(driver)
+                        texto_mandado_ant = extrair_documento(driver)
                         if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
                             if log:
                                 print("[MANDADOS][OUTROS][LOG] Mandado anterior contém 'penhora' - chamando ato_meios")
@@ -2143,7 +2371,7 @@ def fluxo_mandados_outros(driver, log=True):
                 print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
             # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')        return None
     
-    texto, resultado = extrair_documento(driver, regras_analise=analise_padrao)
+    texto = extrair_documento(driver, regras_analise=analise_padrao)
     if not texto:
         if log:
             print("[MANDADOS][OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
@@ -2233,12 +2461,26 @@ def testar_regra_argos_planilha():
 
 def main():
     """
-    Função principal que coordena todo o fluxo do programa.
+    Função principal que coordena todo o fluxo do programa com controle de sessão.
     1. Setup inicial (driver e limpeza)
     2. Login humanizado
     3. Navegação para a lista de documentos internos
-    4. Execução do fluxo automatizado sobre a lista
+    4. Execução do fluxo automatizado sobre a lista com recuperação de sessão
     """
+    # Verifica argumentos da linha de comando para funções utilitárias
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--reset":
+            resetar_progresso()
+            return
+        elif sys.argv[1] == "--list":
+            listar_processos_executados()
+            return
+        elif sys.argv[1] == "--status":
+            progresso = carregar_progresso()
+            print(f"[PROGRESSO][STATUS] {len(progresso.get('processos_executados', []))} processos executados")
+            print(f"[PROGRESSO][STATUS] Última atualização: {progresso.get('last_update', 'N/A')}")
+            return
+    
     # Setup inicial
     driver = setup_driver()
     if not driver:
@@ -2254,8 +2496,8 @@ def main():
         driver.quit()
         return
 
-    # Processa a lista de documentos internos
-    fluxo_mandado(driver)
+    # Processa a lista de documentos internos com controle de sessão
+    iniciar_fluxo(driver)
 
     print("[INFO] Processamento concluído. Pressione ENTER para encerrar...")
     input()

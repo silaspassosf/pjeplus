@@ -1,11 +1,19 @@
-[
-  {
-    "name": "JSESSIONID",
-    "value": "777E0F52948724C632ACF2BDE3287CED",
-    "path": "/",
-    "domain": "sisbajud.cnj.jus.br",
-    "secure": true,
-    "httpOnly": true,
-    "sameSite": "None"
-  }
-]
+{
+  "timestamp": 1754804344.2732852,
+  "url_captura": "https://sisbajud.cnj.jus.br/minuta",
+  "cookies_criticos": [
+    "JSESSIONID"
+  ],
+  "total_cookies": 1,
+  "cookies": [
+    {
+      "name": "JSESSIONID",
+      "value": "B48FE10B1FFB1863E0C80FCF8D6193C4",
+      "path": "/",
+      "domain": "sisbajud.cnj.jus.br",
+      "secure": true,
+      "httpOnly": true,
+      "sameSite": "None"
+    }
+  ]
+}

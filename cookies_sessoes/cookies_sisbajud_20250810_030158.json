@@ -1,0 +1,20 @@
+{
+  "timestamp": "2025-08-10T03:01:58.089828",
+  "url_base": "https://sisbajud.cnj.jus.br/minuta",
+  "tipo": "sisbajud",
+  "dominios": [
+    "sisbajud.cnj.jus.br",
+    "sso.cloud.pje.jus.br"
+  ],
+  "cookies": [
+    {
+      "name": "JSESSIONID",
+      "value": "386E6A391DE046DFF326BA74AE789954",
+      "path": "/",
+      "domain": "sisbajud.cnj.jus.br",
+      "secure": true,
+      "httpOnly": true,
+      "sameSite": "None"
+    }
+  ]
+}

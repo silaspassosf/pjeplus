@@ -1,3 +1,4 @@
+from atos import pec_decisao
 import sys
 import os
 from datetime import datetime
@@ -315,8 +316,8 @@ def fluxo_pz(driver):
             return
         
         # Log do texto extraído (início apenas)
-        log_texto = texto[:200] + '...' if len(texto) > 200 else texto
-        print(f'[FLUXO_PZ] Texto extraído: {log_texto}')
+    log_texto = texto[:200] + '...' if len(texto) > 200 else texto
+    print(f'[FLUXO_PZ] Texto extraído: {log_texto}')
 
         # 4. Define as regras com parâmetros e ações sequenciais
         def remover_acentos(txt):
@@ -346,6 +347,7 @@ def fluxo_pz(driver):
         regras = [
             ([gerar_regex_geral(k) for k in [
                 '05 dias para a apresentação',
+                'suspensão da execução, com fluência',
                 '05 dias para oferta',
                 'concede-se 05 dias para oferta',
                 'cinco dias para apresentação',
@@ -362,7 +364,7 @@ def fluxo_pz(driver):
                 'remessa ao sobrestamento, com fluência',
                 'sob pena de sobrestamento e fluência do prazo prescricional',
             ]],
-             'gigs', '1/Silas/Sobrestamento', ato_sobrestamento),
+             'gigs', '1/Silas/Sob 24', ato_sobrestamento),
             ([gerar_regex_geral(k) for k in [
                 'é revel, não',
                 'concorda com homologação',
@@ -406,9 +408,11 @@ def fluxo_pz(driver):
              'checar_anexos_instauracao', None, None),
             ([gerar_regex_geral('tendo em vista que')],
              'checar_anexos_tendo_em_vista', None, None),
+            ([gerar_regex_geral('não está amparada')],
+             None, None, ato_meios),
         ]
         # ...restante do código...
-        if 'bloqueio de valores realizado, ora' in texto:
+        if 'bloqueio de valores realizado, ora' in texto or 'para os fins do art. 884' in texto:
             try:
                 # 0. Extrair dados do processo
                 from Fix import extrair_dados_processo

@@ -1,53 +1,48 @@
 {
   "numero": [
-    "1000663-38.2024.5.02.0703"
+    "1001070-44.2024.5.02.0703"
   ],
-  "id": 6109668,
+  "id": 6279188,
   "autor": [
     {
-      "nome": "VICTOR DA SILVA ANDRADE REGO",
-      "cpfcnpj": "54451131839",
+      "nome": "LAURA VITORIA RODRIGUES",
+      "cpfcnpj": "34130184857",
       "advogado": {
-        "nome": "VANESSA OLIVEIRA DA CRUZ",
-        "cpf": "32449329838",
-        "oab": "SP381363"
+        "nome": "PAULO VICTOR GOMES IBIAPINO",
+        "cpf": "41093756810",
+        "oab": "SP423642"
       }
     }
   ],
   "reu": [
     {
-      "nome": "FORCE RA TELECOM LTDA",
-      "cpfcnpj": "41248264000146"
-    },
-    {
-      "nome": "CLARO S.A.",
-      "cpfcnpj": "40432544000147",
+      "nome": "VH CLINICA DE ESTETICA LTDA",
+      "cpfcnpj": "41350084000170",
       "advogado": {
-        "nome": "LUCIANA MOREIRA AGUIAR DE TOLEDO",
-        "cpf": "25773343894",
-        "oab": "SP163048"
+        "nome": "André Marques de Sá",
+        "cpf": "25618085801",
+        "oab": "SP206885"
       }
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": 22687.95,
-    "data": "2025-06-01T00:00:00"
+    "valor": 3910.36,
+    "data": "2025-05-26T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "26/04/2024",
+  "dtAutuacao": "02/07/2024",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3036.01,
-    "tetoValorCausa": 60720.0,
+    "pisoValorCausa": 60720.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

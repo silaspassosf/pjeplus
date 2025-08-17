@@ -176,6 +176,47 @@ def criar_driver_notebook(headless=False):
     print("[DRIVER_NOTEBOOK] Driver Notebook criado com sucesso")
     return driver
 
+def criar_driver_firefox_alvara(headless=False):
+    """
+    Cria driver Firefox usando perfil específico já logado no sistema Alvará Eletrônico.
+    
+    Args:
+        headless: Se True, executa em modo headless
+    
+    Returns:
+        WebDriver: Instância do driver Firefox configurado
+    """
+    from selenium import webdriver
+    from selenium.webdriver.firefox.options import Options
+    from selenium.webdriver.firefox.service import Service
+    
+    options = Options()
+    if headless:
+        options.add_argument('-headless')
+    
+    # Configurações específicas para o perfil do Silas com sistema Alvará Eletrônico logado
+    # IMPORTANTE: Usar Firefox normal (não Developer Edition) onde está o login ativo
+    # options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"  # Developer Edition
+    options.binary_location = r"C:\Program Files\Mozilla Firefox\firefox.exe"  # Firefox Normal
+    options.profile = r"C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\x4fkuw2q.silas-1723037723659"
+    
+    # Configurações adicionais para melhor performance
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    # Remove opções específicas do Chrome que não existem no Firefox
+    # options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    # options.add_experimental_option('useAutomationExtension', False)
+    
+    service = Service(executable_path=r'd:\PjePlus\geckodriver.exe')
+    
+    try:
+        driver = webdriver.Firefox(options=options, service=service)
+        driver.implicitly_wait(10)
+        print("[DRIVER_FIREFOX_ALVARA] Driver Firefox com perfil Alvará Eletrônico criado com sucesso")
+        return driver
+    except Exception as e:
+        print(f"[DRIVER_FIREFOX_ALVARA] Erro ao criar driver: {e}")
+        raise
+
 # ===============================================
 # CONFIGURAÇÃO ATIVA
 # ===============================================

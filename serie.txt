@@ -1,0 +1,28 @@
+html completo:
+es, deve ser extraído o conteudo das séries que srão processadas (atendem ao filtro)
+2- Extração - com base no Html:
+gerar texto com:
+Id da série:(id) Valor Bloqueado na série: (valor)
+Se houver mais de uma série para processar, registrar uma por linha somar os valores bloqueados e colocar uma linha abaixo das séries: Total bloqueado = (soma)
+Registrar valor a bloquear mas nao registrar em texto.
+3-Definição de fluxo:
+I-Negativo: Total bloqueado somado = 0:
+Ações:
+a- fechar driver sisbajud
+voltar para driver geral no processo que chamou a função
+b- executar wrapper negativo de anexos.py
+c- executar ato_meios de atos.py
+II-Desbloqueio: Total bloqueado menor que R$100,00, exceto se valor a bloquear for menor que 1000.
+Ações:
+0-Processar cada série em que houver valor bloqueado (se for 0,00 ignora a série)
+a- fechar driver sisbajud
+voltar para driver geral no processo que chamou a função
+b- executar wrapper negativo de anexos.py (import)
+c- executar ato_meios de atos.py (import)
+III-Positivo: bloqueio maior que 100,00 ou menor, se o total a bloquear é menor que 1000
+Ações:
+0-Processar cada série em que houver valor bloqueado (se for 0,00 ignora a série)
+a- fechar driver sisbajud
+voltar para driver geral no processo que chamou a função
+b- executar wrapper positivo de anexos.py (import)
+c- executar ato_parcial de atos.py (import)

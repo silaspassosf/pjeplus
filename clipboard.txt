@@ -1,0 +1,174 @@
+    Id Pje: f3fbbe9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=BH096098304BR
+    Destinatário: ASSOCIACAO AGUAS MARINHA
+    Data do envio: 28/10/2019
+    Data da entrega: 05/11/2019
+    Status: Objeto devolvido ao remetente
+==================================================
+PROCESSO: 1000580-03.2016.5.02.0703
+TIPO: ecarta
+TIMESTAMP: 2025-08-08 19:15:17
+==================================================
+    Id Pje: ad6c2e4
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ771936859BR
+    Destinatário: ANTONIO MARQUES VARELA
+    Data do envio: 15/07/2025
+    Data da entrega: 18/07/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 77581cb
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ771936845BR
+    Destinatário: GAFISA/TINER CAMPO BELO I - EMPREENDIMENTO IMOBILIARIO SPE LTDA.
+    Data do envio: 15/07/2025
+    Data da entrega: 21/07/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1000965-67.2024.5.02.0703
+TIPO: ecarta
+TIMESTAMP: 2025-08-08 19:16:19
+==================================================
+    Id Pje: cf83d3a
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ771936964BR
+    Destinatário: THAIS CRISTINA MARTYR
+    Data do envio: 15/07/2025
+    Data da entrega: 18/07/2025
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1001125-68.2019.5.02.0703
+TIPO: ecarta
+TIMESTAMP: 2025-08-08 19:17:28
+==================================================
+    Id Pje: ef0d359
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ807207491BR
+    Destinatário: JEAN GONCALVES DO AMARAL
+    Data do envio: 30/07/2025
+    Data da entrega: 04/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1000986-48.2021.5.02.0703
+TIPO: ecarta
+TIMESTAMP: 2025-08-08 19:21:26
+==================================================
+    Id Pje: 09dca67
+    Rastreamento: Indisponível
+    Destinatário: ANA LUCIA VIEIRA DE ARAUJO
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+--------------------------------------------------
+
+    Id Pje: 69fb109
+    Rastreamento: Indisponível
+    Destinatário: ANA LUCIA VIEIRA DE ARAUJO
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+==================================================
+
+
+==================================================
+PROCESSO: ERRO_'str' object has no 
+TIPO: link_ato_sentença
+TIMESTAMP: 2025-08-09 16:04:56
+==================================================
+https://pje.trt2.jus.br/pjekz/processo/4920722/detalhe#documento
+==================================================
+
+
+==================================================
+PROCESSO: ERRO_'str' object has no 
+TIPO: link_ato_sentença_validacao
+TIMESTAMP: 2025-08-09 19:40:16
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080712594703000000413697707?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 6326641
+TIPO: link_ato_sentença_validacao
+TIMESTAMP: 2025-08-09 20:11:57
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080919404739000000414041823?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001169-14.2024.5.02.0703
+TIPO: link_ato_sentença_validacao
+TIMESTAMP: 2025-08-09 20:20:10
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080712594703000000413697707?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001169-14.2024.5.02.0703
+TIPO: link_ato_sentença_validacao
+TIMESTAMP: 2025-08-09 20:25:45
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080712594703000000413697707?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001272-55.2023.5.02.0703
+TIPO: ecarta
+TIMESTAMP: 2025-08-09 20:35:06
+==================================================
+    Id Pje: d665b77
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ809620290BR" target="_blank">YQ809620290BR</a>
+    Destinatário: WAIMEA PARTICIPACOES LTDA
+    Data do envio: 01/08/2025
+    Data da entrega: 08/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001272-55.2023.5.02.0703
+==================================================
+    Id Pje: d665b77
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ809620290BR" target="_blank">YQ809620290BR</a>
+    Destinatário: WAIMEA PARTICIPACOES LTDA
+    Data do envio: 01/08/2025
+    Data da entrega: 08/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001272-55.2023.5.02.0703
+==================================================
+    Id Pje: d665b77
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ809620290BR" target="_blank">YQ809620290BR</a>
+    Destinatário: WAIMEA PARTICIPACOES LTDA
+    Data do envio: 01/08/2025
+    Data da entrega: 08/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001194-37.2018.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080819002418900000414003206?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001194-37.2018.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080819002418900000414003206?instancia=1
+==================================================
+

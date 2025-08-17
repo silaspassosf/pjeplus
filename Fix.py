@@ -30,6 +30,7 @@ import pyperclip
 import undetected_chromedriver as uc
 import requests
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 
 # Fix.py
 # Utilitário Selenium inspirado na lógica da extensão MaisPje para preenchimento robusto de campos em formulários do PJe TRT2
@@ -57,6 +58,38 @@ import logging
 
 # Configuração de logs
 # logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelvelname)s - %(message)s')  # Desativado DEBUG, agora só WARNING ou superior
+# Flag simples para ativar logs detalhados quando necessário (sem novos arquivos)
+DEBUG = os.getenv('PJEPLUS_DEBUG', '0') in ('1', 'true', 'TRUE', 'on', 'ON')
+
+# Modo auditoria de seletores (gera arquivo NDJSON com eventos) - opcional
+AUDIT = os.getenv('PJEPLUS_AUDIT', '0') in ('1', 'true', 'TRUE', 'on', 'ON')
+AUDIT_FILE = os.getenv('PJEPLUS_AUDIT_FILE', 'selectors_audit.ndjson')
+
+def _audit(event, selector, status, extra=None):
+    """Registra evento de auditoria (wait/click) se AUDIT estiver ativo."""
+    if not AUDIT:
+        return
+    try:
+        rec = {
+            'ts': datetime.datetime.now().isoformat(),
+            'event': event,
+            'selector': str(selector)[:500],
+            'status': status,
+        }
+        if extra:
+            rec.update(extra)
+        with open(AUDIT_FILE, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + '\n')
+    except Exception:
+        pass
+
+# Helpers de log locais (sem arquivos novos)
+def _log_info(msg):
+    if DEBUG:
+        print(msg)
+
+def _log_error(msg):
+    print(msg)
 
 # =========================
 # 2. FUNÇÕES DE SETUP E INICIALIZAÇÃO
@@ -576,16 +609,19 @@ def filtro_fase(driver):
 def wait(driver, selector, timeout=10, by=By.CSS_SELECTOR):
     # Espera até que um elemento esteja visível na página.
     try:
+        _t0 = time.time()
         element = WebDriverWait(driver, timeout).until(
             EC.visibility_of_element_located((by, selector))
         )
+        _audit('wait', selector, 'ok', {'by': str(by), 'ms': int((time.time()-_t0)*1000)})
         return element
     except TimeoutException:
-        print(f'[WAIT][ERRO] Elemento não encontrado: {selector}')
+        _audit('wait', selector, 'fail', {'by': str(by)})
+        _log_error(f'[WAIT][ERRO] Elemento não encontrado: {selector}')
         return None
 
 # Função de clique seguro
-def safe_click(driver, selector_or_element, timeout=10, by=None, log=True):
+def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
     # Clicks safely. Accepts selector (string) or element.
     try:
         from selenium.webdriver.common.by import By
@@ -601,8 +637,9 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=True):
                 # Try clicking the KZ icon directly
                 element = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
                 driver.execute_script("arguments[0].click();", element)
-                if log:
-                    print('[CLICK] Clicked KZ details icon (img.mat-tooltip-trigger)')
+                if DEBUG:
+                    _log_info('[CLICK] Clicked KZ details icon (img.mat-tooltip-trigger)')
+                _audit('click', 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]', 'ok')
                 return True
             except Exception:
                 element = None
@@ -611,24 +648,26 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=True):
                 img = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
                 button = img.find_element(By.XPATH, './ancestor::button[1]')
                 driver.execute_script("arguments[0].click();", button)
-                if log:
-                    print('[CLICK] Clicked parent button of KZ details icon')
+                if DEBUG:
+                    _log_info('[CLICK] Clicked parent button of KZ details icon')
+                _audit('click', 'button(parentOf: img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"])', 'ok')
                 return True
             except Exception:
                 pass
         if element and element.is_displayed():
             driver.execute_script("arguments[0].scrollIntoView(true);", element)
             driver.execute_script("arguments[0].click();", element)
-            if log:
-                print(f'[CLICK] Clicked: {element.text if hasattr(element, "text") else selector_or_element}')
+            if DEBUG:
+                _log_info(f'[CLICK] Clicked: {element.text if hasattr(element, "text") else selector_or_element}')
+            _audit('click', selector_or_element, 'ok')
             return True
         return False
     except Exception as e:
-        if log:
-            print(f'[CLICK][ERROR] Failed to click: {e}')
+        _log_error(f'[CLICK][ERROR] Failed to click: {e}')
+        _audit('click', selector_or_element, 'fail', {'error': str(e)[:300]})
         return False
 
-def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=True):
+def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=False):
     # Versão 3.1 - Busca robusta com logs detalhados e timeout reduzido
     def buscar_input_associado(elemento):
         try:
@@ -645,8 +684,8 @@ def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=True):
     try:
         # Fase 1: Busca direta por inputs editáveis
         for texto in textos:
-            if log:
-                print(f'[ROBUSTO][FASE1] Buscando input com texto/atributo: {texto}')
+            if DEBUG:
+                _log_info(f'[ROBUSTO][FASE1] Buscando input com texto/atributo: {texto}')
             try:
                 elementos = driver.find_elements(By.CSS_SELECTOR, 
                     f'input[placeholder*="{texto}"], '
@@ -655,56 +694,55 @@ def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=True):
                 )
                 for el in elementos:
                     if el.is_displayed() and el.is_enabled():
-                        if log:
-                            print(f'[ROBUSTO][ENCONTRADO] Input direto: {el}')
+                        if DEBUG:
+                            _log_info(f'[ROBUSTO][ENCONTRADO] Input direto: {el}')
                         return el
             except Exception as e:
-                if log:
-                    print(f'[ROBUSTO][ERRO] Fase1: {e}')
+                if DEBUG:
+                    _log_info(f'[ROBUSTO][ERRO] Fase1: {e}')
                 continue
         # Fase 2: Busca hierárquica se não encontrar diretamente
         for texto in textos:
-            if log:
-                print(f'[ROBUSTO][FASE2] Buscando por texto visível: {texto}')
+            if DEBUG:
+                _log_info(f'[ROBUSTO][FASE2] Buscando por texto visível: {texto}')
             try:
                 elementos = driver.find_elements(By.XPATH, 
                     f'//*[contains(text(), "{texto}")]'
                 )
                 for el in elementos:
-                    if log:
-                        print(f'[ROBUSTO][FASE2] Elemento com texto encontrado: {el}')
+                    if DEBUG:
+                        _log_info(f'[ROBUSTO][FASE2] Elemento com texto encontrado: {el}')
                     input_assoc = buscar_input_associado(el)
                     if input_assoc:
-                        if log:
-                            print(f'[ROBUSTO][ENCONTRADO] Input associado: {input_assoc}')
+                        if DEBUG:
+                            _log_info(f'[ROBUSTO][ENCONTRADO] Input associado: {input_assoc}')
                         return input_assoc
             except Exception as e:
-                if log:
-                    print(f'[ROBUSTO][ERRO] Fase2: {e}')
+                if DEBUG:
+                    _log_info(f'[ROBUSTO][ERRO] Fase2: {e}')
                 continue
         # Fase 3: Busca por ícone/fa
         for texto in textos:
-            if log:
-                print(f'[ROBUSTO][FASE3] Buscando ícone/fa: {texto}')
+            if DEBUG:
+                _log_info(f'[ROBUSTO][FASE3] Buscando ícone/fa: {texto}')
             try:
                 elementos = driver.find_elements(By.CSS_SELECTOR, f'i[mattooltip*="{texto}"], i[aria-label*="{texto}"], i.fa-reply-all')
                 for el in elementos:
                     if el.is_displayed():
-                        if log:
-                            print(f'[ROBUSTO][ENCONTRADO] Ícone/fa: {el}')
+                        if DEBUG:
+                            _log_info(f'[ROBUSTO][ENCONTRADO] Ícone/fa: {el}')
                         return el
             except Exception as e:
-                if log:
-                    print(f'[ROBUSTO][ERRO] Fase3: {e}')
+                if DEBUG:
+                    _log_info(f'[ROBUSTO][ERRO] Fase3: {e}')
                 continue
-        if log:
-            print('[ROBUSTO][FIM] Nenhum elemento encontrado com os critérios fornecidos.')
+        if DEBUG:
+            _log_info('[ROBUSTO][FIM] Nenhum elemento encontrado com os critérios fornecidos.')
         return None
     except Exception as e:
-        if log:
-            print(f'[ROBUSTO][ERRO GERAL] {e}')
+        _log_error(f'[ROBUSTO][ERRO GERAL] {e}')
         return None
-def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR, log=True):
+def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR, log=False):
     # Versão aprimorada - Espera até que um elemento esteja presente (e opcionalmente contenha texto), com logs detalhados.
     import time as _time
     try:
@@ -712,8 +750,8 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
             raise ValueError(f"Seletor deve ser string, recebido: {type(seletor)}")
         if texto and not isinstance(texto, str):
             raise ValueError(f"Text must be a string, got: {type(texto)}")
-        if log:
-            print(f"[ESPERAR] Aguardando elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto})")
+        if DEBUG:
+            _log_info(f"[ESPERAR] Aguardando elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto})")
         t0 = _time.time()
         el = WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((by, seletor))
@@ -723,12 +761,11 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
                 lambda d: texto in el.text
             )
         t1 = _time.time()
-        if log:
-            print(f"[ESPERAR][OK] Elemento encontrado: '{seletor}' em {t1-t0:.2f}s" + (f" (texto='{texto}')" if texto else ""))
+        if DEBUG:
+            _log_info(f"[ESPERAR][OK] Elemento encontrado: '{seletor}' em {t1-t0:.2f}s" + (f" (texto='{texto}')" if texto else ""))
         return el
     except Exception as e:
-        if log:
-            print(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto}) -> {e}")
+        _log_error(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto}) -> {e}")
         return None
 
 # =========================
@@ -736,18 +773,17 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
 # =========================
 
 # Função para extrair documento
-def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
+def extrair_documento(driver, regras_analise=None, timeout=15, log=False):
     # Extrai texto do documento aberto, aplica regras se houver.
-    # Retorna: tupla (texto_final, resultado_analise) ou (None, None) em caso de erro.
+    # Retorna texto_final (str) ou None em caso de erro.
     texto_completo = None
     texto_final = None
-    resultado_analise = None
     try:
         # Espera o botão HTML
         btn_html = wait(driver, '.fa-file-code', timeout)
         if not btn_html:
-            if log: print('[EXTRAI][ERRO] Botão HTML não encontrado.')
-            return None, None
+            _log_error('[EXTRAI][ERRO] Botão HTML não encontrado.')
+            return None
 
         # Clica no botão HTML
         safe_click(driver, btn_html)
@@ -756,29 +792,32 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
         # Extrai o texto do preview
         preview = wait(driver, '#previewModeloDocumento', timeout)
         if not preview:
-            if log: print('[EXTRAI][ERRO] Preview do documento não encontrado.')
+            _log_error('[EXTRAI][ERRO] Preview do documento não encontrado.')
             try:
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             except Exception:
                 pass
-            return None, None
+            return None
 
         texto_completo = preview.text
 
         # Fecha o modal ANTES de processar o texto
         try:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            if log: print('[EXTRAI] Modal HTML fechado.')
+            if DEBUG:
+                _log_info('[EXTRAI] Modal HTML fechado.')
             time.sleep(0.5)
             # Pressiona TAB para tentar restaurar cabeçalho da aba detalhes
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.TAB)
-            if log: print('[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.')
+            if DEBUG:
+                _log_info('[WORKAROUND] Pressionada tecla TAB após fechar modal de documento.')
         except Exception as e_esc:
-            if log: print(f'[EXTRAI][WARN] Falha ao fechar modal com ESC: {e_esc}')
+            if DEBUG:
+                _log_info(f'[EXTRAI][WARN] Falha ao fechar modal com ESC: {e_esc}')
 
         if not texto_completo:
-            if log: print('[EXTRAI][ERRO] Texto do preview vazio.')
-            return None, None        # Extrai o texto abaixo de "Servidor Responsável" se encontrar, senão usa documento completo
+            _log_error('[EXTRAI][ERRO] Texto do preview vazio.')
+            return None
         marcador = "Servidor Responsável"
         try:
             indice_marcador = texto_completo.rindex(marcador)
@@ -787,26 +826,26 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
                 texto_final = texto_completo[indice_newline:].strip()
             else:
                 texto_final = texto_completo.strip()
-            if log: print(f'[EXTRAI] Conteúdo extraído abaixo de "{marcador}".')
+            if DEBUG:
+                _log_info(f'[EXTRAI] Conteúdo extraído abaixo de "{marcador}".')
         except ValueError:
-            # Se não encontrar o marcador, usa o documento INTEIRO para análise
             texto_final = texto_completo.strip()
-            if log: print(f'[EXTRAI] Marcador "{marcador}" não encontrado. Usando texto completo do documento.')
-            texto_final = texto_completo.strip()
+            if DEBUG:
+                _log_info(f'[EXTRAI] Marcador "{marcador}" não encontrado. Usando texto completo do documento.')
 
         # Aplica regras de análise se houver
         if regras_analise and callable(regras_analise):
-            if log: print('[EXTRAI] Aplicando regras de análise.')
+            if DEBUG:
+                _log_info('[EXTRAI] Aplicando regras de análise.')
             try:
                 print('[DEBUG][REGRAS] Iniciando análise de regras...')
-                resultado_analise = regras_analise(texto_final)
+                _ = regras_analise(texto_final)
                 print('[DEBUG][REGRAS] Análise de regras concluída.')
             except Exception as e_analise:
                 print(f'[EXTRAI][ERRO] Falha ao analisar regras: {e_analise}')
-                return texto_final, None
 
         if log: print('[EXTRAI] Extração concluída.')
-        return texto_final, resultado_analise
+        return texto_final
 
     except Exception as e:
         if log: print(f'[EXTRAI][ERRO] Falha geral ao extrair documento: {e}')
@@ -815,7 +854,7 @@ def extrair_documento(driver, regras_analise=None, timeout=15, log=True):
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
         except Exception:
             pass
-        return None, None
+        return None
 
 def extrair_pdf(driver, log=True):
     import time
@@ -1096,13 +1135,16 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
     # Cria GIGS sempre usando o padrão dias/responsavel/observacao.
     import datetime
     t0 = time.time()
+    
     try:
         if log:
             print(f"[GIGS] Iniciando criação de GIGS: {dias_uteis}/{responsavel}/{observacao}")
+        
         # Garante sempre o padrão dias/responsavel/observacao
         if not responsavel or responsavel.strip() == '-':
             responsavel = ''
         obs = observacao
+        
         # 1. Clica no botão 'Nova Atividade'
         btn_nova_atividade = WebDriverWait(driver, timeout).until(
             EC.element_to_be_clickable((By.ID, 'nova-atividade'))
@@ -1110,12 +1152,14 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
         btn_nova_atividade.click()
         if log:
             print('[GIGS] Botão Nova Atividade clicado.')
+        
         # 2. Aguarda o modal abrir (<form>)
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'form'))
         )
         if log:
             print('[GIGS] Modal de GIGS aberto.')
+        
         # 3. Preenche campos
         if dias_uteis != 0:
             campo_dias = WebDriverWait(driver, timeout).until(
@@ -1127,6 +1171,7 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
                 time.sleep(0.05)
             if log:
                 print(f'[GIGS] Dias úteis preenchido: {dias_uteis}')
+        
         # --- Preenchimento do responsável ---
         if responsavel:
             try:
@@ -1137,7 +1182,6 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
                 campo_resp.clear()
                 campo_resp.send_keys(responsavel)
                 time.sleep(0.2)
-                from selenium.webdriver.common.keys import Keys
                 campo_resp.send_keys(Keys.ARROW_DOWN)
                 campo_resp.send_keys(Keys.ENTER)
                 if log:
@@ -1145,6 +1189,7 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
             except Exception as e:
                 if log:
                     print(f'[GIGS][AVISO] Campo responsável não encontrado ou não preenchido: {e}')
+        
         # --- Preenchimento da observação ---
         try:
             campo_obs = WebDriverWait(driver, timeout).until(
@@ -1159,6 +1204,7 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
         except Exception as e:
             if log:
                 print(f'[GIGS][AVISO] Campo observação não encontrado ou não preenchido: {e}')
+
         # 4. Clica em Salvar
         btn_salvar = None
         botoes = driver.find_elements(By.CSS_SELECTOR, 'button.mat-raised-button')
@@ -1166,13 +1212,17 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
             if btn.is_displayed() and ('Salvar' in btn.text or btn.get_attribute('type') == 'submit'):
                 btn_salvar = btn
                 break
+        
         if not btn_salvar:
             if log:
                 print('[GIGS][ERRO] Botão Salvar não encontrado!')
             return False
+        
         btn_salvar.click()
         if log:
-            print('[GIGS] Botão Salvar clicado.')        # Aguarda mensagem de sucesso no snackbar
+            print('[GIGS] Botão Salvar clicado.')
+        
+        # 5. Aguarda confirmação de sucesso
         try:
             success_snackbar = WebDriverWait(driver, timeout).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'snack-bar-container.success simple-snack-bar span'))
@@ -1180,7 +1230,7 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
             if 'salva com sucesso' in success_snackbar.text.lower():
                 if log:
                     print('[GIGS] Mensagem de sucesso confirmada.')
-                time.sleep(1)  # Aguarda 1s após confirmação antes de prosseguir
+                time.sleep(1)
                 if log:
                     print('[GIGS] GIGS criado com sucesso!')
                 return True
@@ -1190,10 +1240,175 @@ def criar_gigs(driver, dias_uteis, responsavel, observacao, timeout=10, log=True
         except Exception as e:
             if log:
                 print(f'[GIGS][AVISO] Não foi possível confirmar mensagem de sucesso: {e}')
+        
         return True
+        
     except Exception as e:
         if log:
             print(f'[GIGS][ERRO] Falha ao criar GIGS: {e}')
+        return False
+
+def gigs_minuta(driver, dias_uteis, responsavel, observacao, timeout=10, log=True):
+    t0 = time.time()
+    try:
+        if log:
+            print(f"[GIGS_MINUTA] Iniciando criação de GIGS Minuta: {dias_uteis}/{responsavel}/{observacao}")
+
+        # Garante sempre o padrão dias/responsavel/observacao
+        if not responsavel or responsavel.strip() == '-':
+            responsavel = ''
+        obs = observacao
+
+        # a - Confirma URL '/minutar'
+        if '/minutar' not in driver.current_url:
+            if log:
+                print('[GIGS_MINUTA][ERRO] URL atual não é /minutar:', driver.current_url)
+            return False
+
+        # b - Clique no botão menu lateral
+        try:
+            btn_menu = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.ID, 'botao-menu'))
+            )
+            btn_menu.click()
+            if log:
+                print('[GIGS_MINUTA] Botão menu clicado.')
+        except Exception as e:
+            if log:
+                print(f'[GIGS_MINUTA][ERRO] Botão menu não encontrado ou não clicável: {e}')
+            return False
+
+        # c - Clique no botão "Abrir o Gigs"
+        try:
+            btn_gigs_icon = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.icone-descricao .fa-tag'))
+            )
+            btn_gigs = btn_gigs_icon.find_element(By.XPATH, 'ancestor::button')
+            btn_gigs.click()
+            if log:
+                print('[GIGS_MINUTA] Botão Abrir o Gigs clicado.')
+        except Exception as e:
+            if log:
+                print(f'[GIGS_MINUTA][ERRO] Botão Abrir o Gigs não encontrado ou não clicável: {e}')
+            return False
+
+        # 2 - Aguarda o modal GIGS abrir
+        try:
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-card[aria-label="Gigs"], #lista-atividades'))
+            )
+            if log:
+                print('[GIGS_MINUTA] Modal de GIGS aberto.')
+        except Exception as e:
+            if log:
+                print(f'[GIGS_MINUTA][ERRO] Modal de GIGS não detectado: {e}')
+            return False
+
+        # 2a - Clique em Nova Atividade
+        try:
+            btn_nova_atividade = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.ID, 'nova-atividade'))
+            )
+            btn_nova_atividade.click()
+            if log:
+                print('[GIGS_MINUTA] Botão Nova Atividade clicado.')
+
+            WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'form'))
+            )
+            if log:
+                print('[GIGS_MINUTA] Modal de Nova Atividade aberto.')
+        except Exception as e:
+            if log:
+                print(f'[GIGS_MINUTA][ERRO] Falha ao abrir modal de Nova Atividade: {e}')
+            return False
+
+        # 3 - Preenche campos no modal de atividade
+        if dias_uteis != 0:
+            try:
+                campo_dias = WebDriverWait(driver, timeout).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="dias"]'))
+                )
+                campo_dias.clear()
+                for c in str(dias_uteis):
+                    campo_dias.send_keys(c)
+                    time.sleep(0.05)
+                if log:
+                    print(f'[GIGS_MINUTA] Dias úteis preenchido: {dias_uteis}')
+            except Exception as e:
+                if log:
+                    print(f'[GIGS_MINUTA][AVISO] Campo dias não encontrado ou não preenchido: {e}')
+
+        if responsavel:
+            try:
+                campo_resp = WebDriverWait(driver, timeout).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]'))
+                )
+                campo_resp.clear()
+                campo_resp.send_keys(responsavel)
+                time.sleep(0.2)
+                campo_resp.send_keys(Keys.ARROW_DOWN)
+                campo_resp.send_keys(Keys.ENTER)
+                if log:
+                    print(f'[GIGS_MINUTA] Responsável preenchido: {responsavel}')
+            except Exception as e:
+                if log:
+                    print(f'[GIGS_MINUTA][AVISO] Campo responsável não encontrado ou não preenchido: {e}')
+
+        try:
+            campo_obs = WebDriverWait(driver, timeout).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
+            )
+            campo_obs.clear()
+            for c in obs:
+                campo_obs.send_keys(c)
+                time.sleep(0.03)
+            if log:
+                print(f'[GIGS_MINUTA] Observação preenchida: {obs}')
+        except Exception as e:
+            if log:
+                print(f'[GIGS_MINUTA][AVISO] Campo observação não encontrado ou não preenchido: {e}')
+
+        # 4 - Clica em Salvar
+        btn_salvar = None
+        botoes = driver.find_elements(By.CSS_SELECTOR, 'button.mat-raised-button')
+        for btn in botoes:
+            if btn.is_displayed() and ('Salvar' in btn.text or btn.get_attribute('type') == 'submit'):
+                btn_salvar = btn
+                break
+
+        if not btn_salvar:
+            if log:
+                print('[GIGS_MINUTA][ERRO] Botão Salvar não encontrado!')
+            return False
+
+        btn_salvar.click()
+        if log:
+            print('[GIGS_MINUTA] Botão Salvar clicado.')
+
+        try:
+            success_snackbar = WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'snack-bar-container.success simple-snack-bar span'))
+            )
+            if 'salva com sucesso' in success_snackbar.text.lower():
+                if log:
+                    print('[GIGS_MINUTA] Mensagem de sucesso confirmada.')
+                time.sleep(1)
+                if log:
+                    print('[GIGS_MINUTA] GIGS Minuta criado com sucesso!')
+                return True
+            else:
+                if log:
+                    print('[GIGS_MINUTA][AVISO] Snackbar encontrado mas sem mensagem de sucesso.')
+        except Exception as e:
+            if log:
+                print(f'[GIGS_MINUTA][AVISO] Não foi possível confirmar mensagem de sucesso: {e}')
+
+        return True
+
+    except Exception as e:
+        if log:
+            print(f'[GIGS_MINUTA][ERRO] Falha ao criar GIGS Minuta: {e}')
         return False
 
 # =========================
@@ -1664,17 +1879,8 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
             processos_com_erro += 1
             continue
             
-        # Limpar abas extras antes de processar cada item
-        limpeza_status = forcar_fechamento_abas_extras(driver, aba_lista_original)
-        if limpeza_status == "FATAL":
-            print(f'[PROCESSAR][FATAL] Contexto do navegador foi descartado durante limpeza de abas.')
-            print(f'[PROCESSAR][FATAL] Interrompendo processamento.')
-            interrompido_por_fatal = True
-            break  # Para o loop imediatamente
-        elif not limpeza_status:
-            print(f'[PROCESSAR][ERRO] Não foi possível limpar abas antes do processo {proc_id}. Abortando processamento.')
-            processos_com_erro += 1
-            continue
+        # SKIP: Não limpar abas extras antes do callback - permite que carta() abra aba programaticamente
+        # A limpeza será feita após o callback se necessário
             
         # Verificar se ainda estamos na aba da lista
         try:
@@ -1783,6 +1989,17 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
         except Exception as e:
             print(f'[PROCESSAR][ERRO] Falha inesperada ao executar callback: {e}')
             processos_com_erro += 1
+            
+        # Limpar abas extras APÓS o callback para permitir que funções como carta() abram abas programaticamente
+        limpeza_status = forcar_fechamento_abas_extras(driver, aba_lista_original)
+        if limpeza_status == "FATAL":
+            print(f'[PROCESSAR][FATAL] Contexto do navegador foi descartado durante limpeza pós-callback.')
+            print(f'[PROCESSAR][FATAL] Interrompendo processamento.')
+            interrompido_por_fatal = True
+            break
+        elif not limpeza_status:
+            print(f'[PROCESSAR][ALERTA] Não foi possível limpar abas após processar {proc_id}')
+            # Continua mesmo assim - não é erro fatal
               # Relatório final
     relatorio_final(processos, processos_processados, processos_com_erro, interrompido_por_fatal)
     return processos_processados > 0

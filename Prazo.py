@@ -2,7 +2,7 @@
 from driver_config import criar_driver, login_func
 import logging
 from loop import loop_prazo
-from p2 import processar_p2
+from p2b import processar_p2
 
 # Configuração do logging
 logging.basicConfig(
@@ -20,9 +20,13 @@ def executar_sequencia():
     """Executa loop.py seguido de p2.py usando o mesmo driver."""
     driver = None
     try:
-        # Criar e configurar o driver uma única vez
-        driver = criar_driver()
-        login_func(driver)  # Faz login inicial
+        # Criar e configurar o driver para login automático
+        driver = criar_driver(headless=False)
+        logger.info("[LOGIN] Executando login automático...")
+        login_ok = login_func(driver)
+        if not login_ok:
+            logger.error("[LOGIN] Falha no login automático.")
+            raise Exception("Falha no login automático")
         
         # Fase 1: Executar loop_prazo
         logger.info("[SEQUENCIA] Iniciando execução do loop_prazo...")

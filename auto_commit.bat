@@ -6,6 +6,8 @@ echo ========================================
 echo       AUTO COMMIT OTIMIZADO PjePlus
 echo ========================================
 echo.
+echo 💡 A tela permanecerá aberta para voce acompanhar o progresso
+echo.
 echo MODO DE OPERACAO:
 echo [R] RAPIDO - Commit direto sem limpeza historico (30s)
 echo [C] COMPLETO - Inclui limpeza de arquivos grandes (demorado)
@@ -16,6 +18,10 @@ if errorlevel 1 set "MODE=RAPIDO" & goto :rapido
 
 :rapido
 echo === MODO RAPIDO SELECIONADO ===
+echo ⚡ Executando commit rapido sem limpeza de historico...
+setlocal
+set MSG=Commit rápido: atualizacao automatica (%DATE% %TIME%)
+echo.
 goto :commit_direto
 
 :completo
@@ -74,50 +80,58 @@ git ls-tree -r -t -l --full-name HEAD | sort -k 4 -n | tail -10
 
 echo.
 echo === ADICIONANDO ARQUIVOS DE FORMA INTELIGENTE ===
-echo Verificando mudancas reais...
+echo ⏳ Verificando mudancas reais...
 
 REM Adiciona apenas arquivos modificados/novos, não tudo
 git add -u
-echo Arquivos modificados adicionados.
+echo ✅ Arquivos modificados adicionados.
 
 REM Adiciona novos arquivos específicos importantes (evita arquivos grandes automaticamente)
 git add *.py *.md *.json *.bat *.txt *.js *.html *.css 2>nul
-echo Arquivos importantes adicionados.
+echo ✅ Arquivos importantes adicionados.
+echo.
+echo === STATUS ATUAL ===
+git status --short
 echo.
 echo === EXECUTANDO PUSH INTELIGENTE ===
-echo Verificando se ha mudancas para commitar...
-git diff-index --quiet HEAD --
-if %errorlevel% neq 0 (
-    echo Mudancas detectadas, fazendo commit...
-    git commit -m "%MSG%"
+echo ⏳ Verificando se ha mudancas para commitar...
+
+REM Tenta fazer commit diretamente - se não há mudanças, Git vai avisar
+git commit -m "%MSG%"
+if %errorlevel% equ 0 (
+    echo ✅ Commit realizado com sucesso!
     
-    echo Tentando push incremental primeiro...
+    echo ⏳ Tentando push incremental primeiro...
     git push 2>push_error.log
     if %errorlevel% equ 0 (
-        echo Push incremental bem-sucedido!
+        echo ✅ Push incremental bem-sucedido!
         del push_error.log 2>nul
     ) else (
-        echo Push incremental falhou, verificando erro...
+        echo ⚠️ Push incremental falhou, verificando erro...
         type push_error.log
         echo.
-        echo Tentando push forcado com lease (mais seguro)...
+        echo ⏳ Tentando push forcado com lease (mais seguro)...
         git push --force-with-lease
         if %errorlevel% neq 0 (
-            echo Push com lease falhou, usando force completo...
+            echo ⚠️ Push com lease falhou, usando force completo...
             git push --force
         )
         del push_error.log 2>nul
     )
 ) else (
-    echo Nenhuma mudanca detectada, pulando commit e push.
+    echo ℹ️ Nenhuma mudanca para commitar ou erro no commit.
 )
 endlocal
 echo.
 echo === %MODE% CONCLUÍDO ===
 if "%MODE%"=="RAPIDO" (
     echo ⚡ Commit rápido executado sem compressão pesada
+    echo ✅ Operação concluída em poucos segundos
 ) else (
     echo 🔧 Commit completo com limpeza de histórico
+    echo ✅ Histórico otimizado e push realizado
 )
 echo ===========================
-pause
+echo.
+echo Pressione qualquer tecla para fechar...
+pause >nul

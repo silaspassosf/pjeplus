@@ -1054,8 +1054,22 @@ def fechar_intimacao(driver, log=True):
                         if len(cells) >= 11:
                             checkbox_cell = cells[10]  # 11ª coluna (índice 10) - coluna "Fechado"
                             
+                            # Primeiro verifica se já está fechado (texto "Sim" visível)
+                            texto_fechado_divs = checkbox_cell.find_elements(By.CSS_SELECTOR, 'div:not([hidden])')
+                            texto_fechado = ""
+                            for div in texto_fechado_divs:
+                                texto = div.text.strip()
+                                if texto:
+                                    texto_fechado = texto
+                                    break
+                            
+                            if texto_fechado.lower() == "sim":
+                                if log:
+                                    print('[INTIMACAO] Expediente já está fechado (texto "Sim" encontrado)')
+                                # Não quebra o loop, continua procurando por linhas não fechadas
+                                continue
+                            
                             # Procurar pelo checkbox que NÃO está escondido
-                            # Primeiro verifica se existe div visível com mat-checkbox
                             checkbox_divs_visiveis = checkbox_cell.find_elements(By.CSS_SELECTOR, 'div:not([hidden]) mat-checkbox')
                             
                             if checkbox_divs_visiveis:
@@ -1075,7 +1089,8 @@ def fechar_intimacao(driver, log=True):
                                 else:
                                     if log:
                                         print('[INTIMACAO] Estrutura de checkbox não encontrada')
-                                break
+                                # Continua procurando outras linhas
+                                continue
                         else:
                             if log:
                                 print('[INTIMACAO] Linha não tem coluna de checkbox suficiente')
@@ -1088,7 +1103,10 @@ def fechar_intimacao(driver, log=True):
             # Se não encontrou linha com prazo 30 ou checkbox não está disponível
             if not linha_com_prazo_30 or not checkbox_disponivel:
                 if log:
-                    print('[INTIMACAO] Nenhuma linha com prazo 30 e checkbox disponível encontrada')
+                    if linha_com_prazo_30 is None:
+                        print('[INTIMACAO] Nenhuma linha com prazo 30 encontrada')
+                    else:
+                        print('[INTIMACAO] Todas as linhas com prazo 30 já estão fechadas')
                     print('[INTIMACAO] Fechando modal e prosseguindo')
                 try:
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
@@ -2038,32 +2056,25 @@ def buscar_documento_argos(driver, log=True):
                     return texto, 'despacho'
         
         # FALLBACK: Se não encontrou planilha ou documentos antes dela, usa a lógica original
-        # LIMITADO A 3 DOCUMENTOS MÁXIMO
+        # LIMITADO A 4 DESPACHOS/DECISÕES MÁXIMO (não conta outros tipos de documento)
         if log:
             print('[ARGOS][DEBUG] Usando lógica fallback: procurando primeiro despacho/decisão na timeline...')
         
-        documentos_processados = 0
-        max_documentos_fallback = 3
+        despachos_decisoes_processados = 0
+        max_despachos_decisoes = 4
         
         for idx, item in enumerate(itens):
-            # Limite de 3 documentos para evitar loops infinitos
-            if documentos_processados >= max_documentos_fallback:
-                if log:
-                    print(f'[ARGOS][DEBUG] Limite de {max_documentos_fallback} documentos atingido no fallback, encerrando busca.')
-                break
-                
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = link.text.lower()
                 if log:
                     print(f'[ARGOS][DEBUG] Item {idx}: texto do link = {doc_text}')
-                    
-                documentos_processados += 1
                 
-                # Verifica se é despacho ou decisão
+                # Verifica se é despacho ou decisão PRIMEIRO
                 if re.search(r'despacho|decisão|sentença|conclusão', doc_text):
+                    despachos_decisoes_processados += 1
                     if log:
-                        print(f'[ARGOS][DEBUG] Item {idx}: documento relevante encontrado (fallback), clicando para ativar.')
+                        print(f'[ARGOS][DEBUG] Item {idx}: é despacho/decisão ({despachos_decisoes_processados}/{max_despachos_decisoes}), clicando para ativar.')
                     
                     # Clica para ativar o documento usando safe_click (fallback)
                     print(f'[ARGOS][DOC][FALLBACK] Tentando abrir documento: {doc_text}')
@@ -2081,6 +2092,8 @@ def buscar_documento_argos(driver, log=True):
                             print(f'[ARGOS][DOC][FALLBACK] Clique via JavaScript executado com sucesso')
                         except Exception as e:
                             print(f'[ARGOS][DOC][FALLBACK][ERRO] Falha no clique alternativo: {e}')
+                            # Não incrementa o contador se falhou no clique
+                            despachos_decisoes_processados -= 1
                             continue  # Tenta próximo documento se falha no clique
                     
                     sleep(1500)  # Esperamos mais tempo para carregar o documento
@@ -2102,7 +2115,15 @@ def buscar_documento_argos(driver, log=True):
                     except Exception as e:
                         if log:
                             print(f'[ARGOS][DEBUG] Item {idx}: erro ao extrair texto do documento: {e}')
+                        # Não incrementa o contador se falhou na extração
+                        despachos_decisoes_processados -= 1
                         continue  # Tenta próximo documento se falha na extração
+                        
+                    # Limite de 4 despachos/decisões APÓS encontrar um válido
+                    if despachos_decisoes_processados >= max_despachos_decisoes:
+                        if log:
+                            print(f'[ARGOS][DEBUG] Limite de {max_despachos_decisoes} despachos/decisões atingido no fallback, encerrando busca.')
+                        break
                 else:
                     if log:
                         print(f'[ARGOS][DEBUG] Item {idx}: não é despacho/decisão/sentença/conclusão.')
@@ -2112,7 +2133,7 @@ def buscar_documento_argos(driver, log=True):
                 continue
         
         if log:
-            print(f'[ARGOS] Nenhum documento relevante encontrado após varrer {max_documentos_fallback} itens máximo.')
+            print(f'[ARGOS] Nenhum documento relevante encontrado após varrer {despachos_decisoes_processados} despachos/decisões (máximo {max_despachos_decisoes}).')
         return None, None
     except Exception as e:
         if log:

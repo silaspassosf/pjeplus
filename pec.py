@@ -108,9 +108,11 @@ def determinar_acao_por_observacao(observacao):
     """
     import re
     observacao_lower = observacao.lower().strip()
+    if "xs pz carta" in observacao_lower:
+        return "xs_pz_carta"
     
     # Verifica padrão "sob {numero}" (ex: sob 123, sob 456, etc.)
-    if re.search(r'\bsob\s+\d+', observacao_lower):
+    elif re.search(r'\bsob\s+\d+', observacao_lower):
         return "mov_sob"
     elif "sob chip" in observacao_lower:
         return "def_chip"
@@ -241,7 +243,23 @@ def executar_acao(driver, acao, numero_processo, observacao):
     print(f"[AÇÃO] Executando ação '{acao}' para processo {numero_processo}")
     
     try:
-        if acao == "carta":
+        if acao == "xs_pz_carta":
+            print("[AÇÃO] Detectado 'xs pz carta' - executando fluxo completo")
+            
+            # 1. Executa função carta do carta.py
+            from carta import carta
+            resultado_carta = carta(driver, log=True)
+            
+            if not resultado_carta:
+                print("[AÇÃO] ❌ Falha ao executar carta")
+                return False
+            
+            print("[AÇÃO] ✅ Carta executada com sucesso")
+            
+            # 2. Executa análise de documentos (integrada ao fluxo)
+            return analisar_documentos_pos_carta(driver, numero_processo, observacao)
+            
+        if acao == "xs carta":
             # Executa função carta do carta.py
             from carta import carta
             resultado = carta(driver, log=True)
@@ -319,10 +337,143 @@ def executar_acao(driver, acao, numero_processo, observacao):
         print(f"[AÇÃO] Erro ao executar ação '{acao}': {e}")
         return False
         return False
+
+def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=False):
     """
-    Executa a ação determinada no processo aberto.
+    Analisa documentos após execução de carta para observação "xs pz carta".
+    Busca até 4 documentos (sentença, decisão ou despacho) e aplica regras específicas.
     """
+    from selenium.webdriver.common.by import By
+    from Fix import extrair_documento, criar_gigs
     import time
+    
+    def log_msg(msg):
+        if debug:
+            print(f"[XS_PZ_CARTA] {msg}")
+    
+    log_msg(f"Iniciando análise de documentos para processo {numero_processo}")
+    
+    try:
+        # Buscar itens da timeline
+        itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        if not itens:
+            log_msg("❌ Nenhum item encontrado na timeline")
+            return False
+        
+        log_msg(f"Encontrados {len(itens)} itens na timeline")
+        
+        # Contador de documentos processados
+        documentos_processados = 0
+        max_documentos = 4
+        
+        # Procurar documentos relevantes (sentença, decisão ou despacho)
+        for item in itens:
+            if documentos_processados >= max_documentos:
+                log_msg(f"Limite de {max_documentos} documentos atingido")
+                break
+                
+            try:
+                # Verificar se é um documento relevante
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                if not link:
+                    continue
+                
+                doc_text = link.text.lower()
+                log_msg(f"Verificando documento: {doc_text}")
+                
+                # Verificar se é sentença, decisão ou despacho
+                if not any(termo in doc_text for termo in ['sentença', 'decisão', 'despacho']):
+                    continue
+                
+                log_msg(f"Documento relevante encontrado: {doc_text}")
+                
+                # Clicar no documento para abrir
+                try:
+                    # Rolar até o elemento para garantir visibilidade
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", link)
+                    time.sleep(0.5)
+                    
+                    # Clicar no documento
+                    link.click()
+                    time.sleep(2)
+                    
+                    log_msg("Documento aberto com sucesso")
+                    
+                    # Extrair conteúdo do documento
+                    resultado_extracao = extrair_documento(driver, timeout=10, log=debug)
+                    if not resultado_extracao or not resultado_extracao[0]:
+                        log_msg("❌ Falha ao extrair conteúdo do documento")
+                        continue
+                    
+                    texto_documento = resultado_extracao[0].lower()
+                    log_msg(f"Conteúdo extraído: {texto_documento[:100]}...")
+                    
+                    # Aplicar regras conforme conteúdo
+                    regra_aplicada = False
+                    
+                    # Regra a: "defiro a instauração" -> ato_idpj
+                    if "defiro a instauração" in texto_documento:
+                        log_msg("Regra aplicada: 'defiro a instauração' -> ato_idpj")
+                        from atos import ato_idpj
+                        resultado_idpj = ato_idpj(driver, debug=debug)
+                        
+                        if resultado_idpj:
+                            log_msg("✅ ato_idpj executado com sucesso")
+                            regra_aplicada = True
+                        else:
+                            log_msg("❌ Falha ao executar ato_idpj")
+                    
+                    # Regra b: "bloqueio realizado" ou "844" -> criar GIGS 1/Bruna/Liberação
+                    elif "bloqueio realizado" in texto_documento or "844" in texto_documento:
+                        log_msg("Regra aplicada: 'bloqueio realizado' ou '844' -> criar GIGS")
+                        resultado_gigs = criar_gigs(
+                            driver=driver,
+                            dias_uteis=1,
+                            responsavel="Bruna",
+                            observacao="Liberação",
+                            timeout=10,
+                            log=debug
+                        )
+                        
+                        if resultado_gigs:
+                            log_msg("✅ GIGS criado com sucesso")
+                            regra_aplicada = True
+                        else:
+                            log_msg("❌ Falha ao criar GIGS")
+                    
+                    # Regra c: "instaurado em face" -> ato_meios
+                    elif "instaurado em face" in texto_documento:
+                        log_msg("Regra aplicada: 'instaurado em face' -> ato_meios")
+                        from atos import ato_meios
+                        resultado_meios = ato_meios(driver, debug=debug)
+                        
+                        if resultado_meios:
+                            log_msg("✅ ato_meios executado com sucesso")
+                            regra_aplicada = True
+                        else:
+                            log_msg("❌ Falha ao executar ato_meios")
+                    
+                    if regra_aplicada:
+                        documentos_processados += 1
+                        log_msg(f"Documento processado com sucesso ({documentos_processados}/{max_documentos})")
+                    else:
+                        log_msg("⚠️ Nenhuma regra aplicável para este documento")
+                    
+                except Exception as e:
+                    log_msg(f"❌ Erro ao processar documento: {e}")
+                    continue
+                    
+            except Exception as e:
+                log_msg(f"❌ Erro ao analisar item da timeline: {e}")
+                continue
+        
+        log_msg(f"Análise concluída. {documentos_processados} documentos processados.")
+        return documentos_processados > 0
+        
+    except Exception as e:
+        log_msg(f"❌ Erro geral na análise de documentos: {e}")
+        return False
+
 def navegar_para_atividades(driver):
     """
     Navega para a tela de atividades do GIGS através da URL direta.
@@ -1007,13 +1158,32 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                 traceback.print_exc()
                 return False
         
+        def executar_mov_sob_retorno_feito():
+            """Executa mov_sob com 4 meses para retorno do feito principal"""
+            log_msg("✅ Regra: 'retorno do feito principal' - executando mov_sob com 4 meses")
+            try:
+                from atos import mov_sob
+                resultado = mov_sob(driver, numero_processo, "sob 4", debug=True, timeout=timeout)
+                if resultado:
+                    log_msg("✅ mov_sob com 4 meses executado com sucesso")
+                    return True
+                else:
+                    log_msg("❌ Falha na execução do mov_sob com 4 meses")
+                    return False
+            except Exception as e:
+                log_msg(f"❌ Erro ao executar mov_sob: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
+
         # Estrutura de regras baseada no p2.py - mais clara e organizadas
         regras_def_sob = [
             # [lista_de_termos, função_de_ação, descrição]
+            (['retorno do feito principal'], executar_mov_sob_retorno_feito, 'Retorno do feito principal'),
             (['precatório', 'RPV', 'pequeno valor'], executar_mov_sob_precatorio, 'Precatório/RPV/Pequeno valor'),
             (['juízo universal'], executar_juizo_universal, 'Juízo universal'),
             (['prazo prescricional'], executar_def_presc, 'Prazo prescricional'),
-            (['atos principais'], executar_ato_prov, 'Autos principais'),
+            (['autos principais', 'processo principal'], executar_ato_prov, 'Autos principais'),
             (['andamento da penhora no rosto'], executar_ato_x90, 'Andamento da penhora no rosto'),
         ]
         

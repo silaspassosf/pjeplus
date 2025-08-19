@@ -1411,6 +1411,137 @@ def gigs_minuta(driver, dias_uteis, responsavel, observacao, timeout=10, log=Tru
             print(f'[GIGS_MINUTA][ERRO] Falha ao criar GIGS Minuta: {e}')
         return False
 
+def criar_comentario(driver, observacao, timeout=10, log=True):
+    """
+    Cria um novo comentário no processo atual clicando no botão "Novo Comentário".
+    
+    Args:
+        driver: WebDriver do Selenium
+        observacao: Texto do comentário a ser criado
+        timeout: Timeout para aguardar elementos
+        log: Se deve exibir logs detalhados
+        
+    Returns:
+        bool: True se o comentário foi criado com sucesso, False caso contrário
+    """
+    try:
+        if log:
+            print(f'[COMENTARIO] Criando novo comentário: "{observacao}"')
+        
+        # 1. Clicar no botão "Novo Comentário"
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        
+        try:
+            # Usar o ID do botão como seletor principal
+            btn_novo_comentario = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.ID, "novo-comentario"))
+            )
+            
+            if log:
+                print('[COMENTARIO] Botão "Novo Comentário" encontrado')
+                
+            # Clicar no botão
+            btn_novo_comentario.click()
+            
+            if log:
+                print('[COMENTARIO] Botão "Novo Comentário" clicado')
+                
+        except Exception as e:
+            if log:
+                print(f'[COMENTARIO][ERRO] Botão "Novo Comentário" não encontrado: {e}')
+            return False
+        
+        # 2. Aguardar o modal de comentário abrir
+        try:
+            # Aguardar o campo de comentário ficar disponível no modal
+            campo_comentario = WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="comentario"], textarea.mat-input-element'))
+            )
+            
+            if log:
+                print('[COMENTARIO] Modal de comentário aberto')
+                
+        except:
+            try:
+                # Tentativa alternativa - qualquer textarea no modal
+                campo_comentario = WebDriverWait(driver, timeout).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '.mat-dialog-content textarea'))
+                )
+                
+                if log:
+                    print('[COMENTARIO] Campo de comentário encontrado com seletor alternativo')
+                    
+            except Exception as e:
+                if log:
+                    print(f'[COMENTARIO][ERRO] Campo de comentário não encontrado no modal: {e}')
+                return False
+        
+        # 3. Preencher o comentário
+        if log:
+            print('[COMENTARIO] Preenchendo campo de comentário...')
+        
+        # Limpar e preencher o campo
+        campo_comentario.clear()
+        campo_comentario.send_keys(observacao)
+        
+        if log:
+            print(f'[COMENTARIO] Comentário preenchido: "{observacao}"')
+        
+        # 4. Clicar no botão de enviar comentário no modal
+        try:
+            # Procurar botão de enviar no modal
+            btn_enviar = WebDriverWait(driver, timeout).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, '.mat-dialog-actions button[type="submit"], .mat-dialog-actions button.mat-raised-button'))
+            )
+            
+            if log:
+                print('[COMENTARIO] Botão de envio encontrado')
+                
+            # Clicar no botão
+            btn_enviar.click()
+            
+            if log:
+                print('[COMENTARIO] Botão de envio clicado')
+                
+        except Exception as e:
+            if log:
+                print(f'[COMENTARIO][ERRO] Botão de envio não encontrado: {e}')
+            return False
+        
+        # 5. Aguardar confirmação de envio e fechamento do modal
+        try:
+            # Aguardar o modal fechar (indicando envio concluído)
+            WebDriverWait(driver, timeout).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, '.mat-dialog-content'))
+            )
+            
+            if log:
+                print('[COMENTARIO] ✅ Comentário enviado com sucesso! Modal fechado.')
+            return True
+            
+        except:
+            # Verificar se apareceu mensagem de sucesso
+            try:
+                msg_sucesso = WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '.success-message, .mat-snack-bar-success'))
+                )
+                
+                if msg_sucesso and log:
+                    print('[COMENTARIO] ✅ Comentário enviado com sucesso!')
+                return True
+                
+            except:
+                # Se não houver confirmação explícita, considerar sucesso se não houve erro
+                if log:
+                    print('[COMENTARIO] ✅ Comentário enviado (sem confirmação explícita)')
+                return True
+        
+    except Exception as e:
+        if log:
+            print(f'[COMENTARIO][ERRO] Falha ao criar comentário: {e}')
+        return False
 # =========================
 # 7. FUNÇÕES DE TRATAMENTO DE DOCUMENTOS ESPECÍFICOS
 # =========================

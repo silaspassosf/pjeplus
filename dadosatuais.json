@@ -1,39 +1,38 @@
 {
   "numero": [
-    "1001070-44.2024.5.02.0703"
+    "1000699-22.2020.5.02.0703"
   ],
-  "id": 6279188,
+  "id": 3583425,
   "autor": [
     {
-      "nome": "LAURA VITORIA RODRIGUES",
-      "cpfcnpj": "34130184857",
+      "nome": "EDILZA DIAS FERNANDES",
+      "cpfcnpj": "08276407498",
       "advogado": {
-        "nome": "PAULO VICTOR GOMES IBIAPINO",
-        "cpf": "41093756810",
-        "oab": "SP423642"
+        "nome": "DANIEL FRANCO PEDREIRA",
+        "cpf": "29984676870",
+        "oab": "SP266927"
       }
     }
   ],
   "reu": [
     {
-      "nome": "VH CLINICA DE ESTETICA LTDA",
-      "cpfcnpj": "41350084000170",
-      "advogado": {
-        "nome": "André Marques de Sá",
-        "cpf": "25618085801",
-        "oab": "SP206885"
-      }
+      "nome": "TANIA RIBEIRO DE BARROS BAZAR",
+      "cpfcnpj": "11700318000100"
+    },
+    {
+      "nome": "TANIA RIBEIRO DE BARROS",
+      "cpfcnpj": "08676507880"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": 3910.36,
-    "data": "2025-05-26T00:00:00"
+    "valor": 12081.43,
+    "data": "2022-02-25T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "02/07/2024",
+  "dtAutuacao": "07/07/2020",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

@@ -30,13 +30,10 @@ import time
 import re
 import logging
 import os
-from Fix import esperar_elemento, safe_click
-from Fix import criar_gigs, login_pc, aplicar_filtro_100
-from Fix import extrair_documento, esperar_elemento, safe_click, criar_gigs, indexar_e_processar_lista, login_notebook, aplicar_filtro_100
-from atos import pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_termoS, ato_termoE
+from Fix import esperar_elemento, safe_click, criar_gigs, login_pc, aplicar_filtro_100, extrair_documento, indexar_e_processar_lista, login_notebook, driver_pc
+from atos import ato_pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_termoS, ato_termoE
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
-from Fix import driver_pc, login_pc
 from driver_config import criar_driver, login_func
 
 # Configuração do logging (CORRIGIDA)
@@ -348,6 +345,9 @@ def fluxo_pz(driver):
             return re.compile(rf"{regex}", re.IGNORECASE)
 
         regras = [
+            # REGRA DE BLOQUEIO - DEVE VIR ANTES PARA TER PRIORIDADE
+            ([gerar_regex_geral(k) for k in ['sob pena de bloqueio']],
+             'checar_cabecalho_impugnacoes', None, None),
             ([gerar_regex_geral(k) for k in [
                 '05 dias para a apresentação',
                 'suspensão da execução, com fluência',
@@ -600,7 +600,7 @@ def fluxo_pz(driver):
                 # Verifica se é cinza: rgb(144, 164, 174)
                 if 'rgb(144, 164, 174)' in cor_fundo:
                     print('[FLUXO_PZ] Cabeçalho cinza detectado - executando pesquisas')
-                    pesquisas(driver)
+                    ato_pesquisas(driver)
                     minuta_salva = True  # FLAG: minuta foi salva
                 else:
                     print('[FLUXO_PZ] Cabeçalho não é cinza - criando GIGS padrão')
@@ -630,13 +630,42 @@ def fluxo_pz(driver):
                 
                 # Verifica se é cinza: rgb(144, 164, 174)
                 if 'rgb(144, 164, 174)' in cor_fundo:
-                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando pesquisas')
-                    pesquisas(driver)
+                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando criar_gigs + pesquisas')
+                    
+                    # 1. Criar gigs antes das pesquisas
+                    print('[FLUXO_PZ] Etapa 1: Criando gigs (1/Silvia/Argos)')
+                    criar_gigs(driver, "1", "Silvia", "Argos")
+                    
+                    # 2. Executar pesquisas
+                    print('[FLUXO_PZ] Etapa 2: Executando pesquisas')
+                    ato_pesquisas(driver)
                     minuta_salva = True  # FLAG: minuta foi salva
                 else:
-                    print('[FLUXO_PZ] Cabeçalho não é cinza - executando mov_exec + pesquisas')
+                    print('[FLUXO_PZ] Cabeçalho não é cinza - executando criar_gigs + mov_exec + pesquisas')
+                    
+                    # 1. Criar gigs antes de tudo
+                    print('[FLUXO_PZ] Etapa 1: Criando gigs (1/Silvia/Argos)')
+                    criar_gigs(driver, "1", "Silvia", "Argos")
+                    
+                    # 2. Executar movimento
+                    print('[FLUXO_PZ] Etapa 2: Executando mov_exec')
                     mov_exec(driver)
-                    pesquisas(driver)
+                    
+                    # 3. Fechar aba atual para voltar ao processo
+                    print('[FLUXO_PZ] Etapa 3: Fechando aba atual para voltar ao processo')
+                    try:
+                        driver.close()  # Fecha aba atual
+                        if len(driver.window_handles) > 0:
+                            driver.switch_to.window(driver.window_handles[-1])  # Volta para última aba
+                            print('[FLUXO_PZ] ✅ Voltou para aba do processo')
+                        else:
+                            print('[FLUXO_PZ] ⚠️ Nenhuma aba disponível após fechamento')
+                    except Exception as close_error:
+                        print(f'[FLUXO_PZ] ⚠️ Erro ao fechar aba: {close_error}')
+                    
+                    # 4. Executar pesquisas na aba do processo
+                    print('[FLUXO_PZ] Etapa 4: Executando pesquisas')
+                    ato_pesquisas(driver)
                     minuta_salva = True  # FLAG: minuta foi salva
                 
                 time.sleep(1)
@@ -645,10 +674,32 @@ def fluxo_pz(driver):
                 if minuta_salva:
                     logger.info('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
                     break
-                # Fallback: executar mov_exec + pesquisas
-                print('[FLUXO_PZ] Fallback - executando mov_exec + pesquisas')
+                # Fallback: executar criar_gigs + mov_exec + pesquisas
+                print('[FLUXO_PZ] Fallback - executando criar_gigs + mov_exec + pesquisas')
+                
+                # 1. Criar gigs antes de tudo
+                print('[FLUXO_PZ] Fallback Etapa 1: Criando gigs (1/Silvia/Argos)')
+                criar_gigs(driver, "1", "Silvia", "Argos")
+                
+                # 2. Executar movimento
+                print('[FLUXO_PZ] Fallback Etapa 2: Executando mov_exec')
                 mov_exec(driver)
-                pesquisas(driver)
+                
+                # 3. Fechar aba atual para voltar ao processo
+                print('[FLUXO_PZ] Fallback Etapa 3: Fechando aba atual para voltar ao processo')
+                try:
+                    driver.close()  # Fecha aba atual
+                    if len(driver.window_handles) > 0:
+                        driver.switch_to.window(driver.window_handles[-1])  # Volta para última aba
+                        print('[FLUXO_PZ] ✅ Voltou para aba do processo (fallback)')
+                    else:
+                        print('[FLUXO_PZ] ⚠️ Nenhuma aba disponível após fechamento (fallback)')
+                except Exception as close_error:
+                    print(f'[FLUXO_PZ] ⚠️ Erro ao fechar aba (fallback): {close_error}')
+                
+                # 4. Executar pesquisas na aba do processo
+                print('[FLUXO_PZ] Fallback Etapa 4: Executando pesquisas')
+                ato_pesquisas(driver)
                 minuta_salva = True  # FLAG: minuta foi salva
         
         # Se não há ação primária mas existe ação secundária, trate a secundária como primária

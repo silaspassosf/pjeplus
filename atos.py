@@ -141,6 +141,14 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
             except Exception:
                 print('[CLS] ⚠ Não foi possível capturar nome da tarefa do botão')
         
+        # VERIFICAÇÃO: Se tarefa contém "elaborar" ou "assinar", pula execução
+        if tarefa_do_botao:
+            tarefa_lower = tarefa_do_botao.lower()
+            if 'elaborar' in tarefa_lower or 'assinar' in tarefa_lower:
+                print(f'[CLS][SKIP] ⏭️ Tarefa "{tarefa_do_botao}" contém "elaborar" ou "assinar"')
+                print('[CLS][SKIP] ⏭️ Pulando execução do fluxo CLS e prosseguindo...')
+                return True  # Retorna True para não bloquear o fluxo principal
+        
         # Executa o clique e registra o resultado
         click_resultado = safe_click(driver, btn_abrir_tarefa)
         if click_resultado and tarefa_do_botao:
@@ -1297,17 +1305,52 @@ ato_meiosub = make_ato_wrapper(
     sigilo=False
 )
 
-ato_pesquisas = make_ato_wrapper(
-    conclusao_tipo='BACEN',
-    modelo_nome='xsbacen',
-    prazo=30,
-    marcar_pec=False,
-    movimento='bloqueio',
-    gigs=None,
-    marcar_primeiro_destinatario=True,
-    descricao='Pesquisas para execução',
-    sigilo=True
-)
+# Wrapper customizado para pesquisas com lógica especial de "Iniciar a execução"
+def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
+    """
+    Wrapper para ato de pesquisas com lógica especial.
+    Verifica e clica em 'Iniciar a execução' antes de executar o ato judicial.
+    """
+    try:
+        # 1. Lógica especial: Se existir botão 'Iniciar a execução', clicar antes de seguir
+        try:
+            from selenium.webdriver.common.by import By
+            from Fix import safe_click
+            btn_iniciar = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Iniciar a execução'], button[mattooltip*='Iniciar a execução']")
+            if btn_iniciar and btn_iniciar.is_displayed() and btn_iniciar.is_enabled():
+                safe_click(driver, btn_iniciar)
+                print('[ATO_PESQUISAS] Clique em "Iniciar a execução" realizado.')
+                import time
+                time.sleep(1)
+        except Exception:
+            print('[ATO_PESQUISAS] Botão "Iniciar a execução" não encontrado ou não clicável, seguindo fluxo normal.')
+        
+        # 2. Segue fluxo padrão do ato judicial com parâmetros fixos
+        sucesso, sigilo_ativado = ato_judicial(
+            driver,
+            conclusao_tipo='BACEN',
+            modelo_nome='xsbacen',
+            prazo=30,
+            marcar_pec=False,
+            movimento='bloqueio',
+            gigs=gigs,
+            marcar_primeiro_destinatario=True,
+            debug=debug,
+            sigilo=True,
+            descricao='Pesquisas para execução'
+        )
+        
+        # Para compatibilidade, armazena sigilo_ativado como atributo
+        ato_pesquisas.ultimo_sigilo_ativado = sigilo_ativado
+        return sucesso
+        
+    except Exception as e:
+        print(f'[ATO_PESQUISAS][ERRO] Falha no fluxo do ato de pesquisas: {e}')
+        try:
+            driver.save_screenshot('erro_ato_pesquisas.png')
+        except Exception:
+            pass
+        return False
 
 # Wrapper para prescrição intercorrente
 ato_presc = make_ato_wrapper(
@@ -1354,45 +1397,6 @@ ato_prev = make_ato_wrapper(
     marcar_primeiro_destinatario=True,
     descricao='tentativa prevjud'
 )
-
-# ato_pesquisas permanece manual, pois tem lógica própria
-def pesquisas(driver, conclusao_tipo=None, modelo_nome=None, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, debug=False, sigilo=True, descricao=None, Assinar=True):
-    try:
-        # 1. Se existir botão 'Iniciar a execução', clicar antes de seguir
-        try:
-            btn_iniciar = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Iniciar a execução'], button[mattooltip*='Iniciar a execução']")
-            if btn_iniciar and btn_iniciar.is_displayed() and btn_iniciar.is_enabled():
-                safe_click(driver, btn_iniciar)
-                print('[PESQUISAS] Clique em "Iniciar a execução" realizado.')
-                import time
-                time.sleep(1)
-        except Exception:
-            print('[PESQUISAS] Botão "Iniciar a execução" não encontrado ou não clicável, seguindo fluxo normal.')
-        # 2. Segue fluxo padrão do ato judicial
-        sucesso, sigilo_ativado = ato_judicial(
-            driver,
-            conclusao_tipo='BACEN',
-            modelo_nome='xsbacen',
-            prazo=30,
-            marcar_pec=True,
-            movimento='bloqueio',
-            gigs=gigs,
-            marcar_primeiro_destinatario=True,
-            debug=debug,
-            sigilo=True,
-            descricao='Pesquisas'
-        )
-        
-        # Para compatibilidade, armazena sigilo_ativado como atributo
-        pesquisas.ultimo_sigilo_ativado = sigilo_ativado
-        return sucesso
-    except Exception as e:
-        print(f'[PESQUISAS][ERRO] Falha no fluxo do ato de pesquisas: {e}')
-        try:
-            driver.save_screenshot('erro_ato_pesquisas.png')
-        except Exception:
-            pass
-        return False
 
 # ====================================================
 # BLOCO 2 - COMUNICAÇÕES PROCESSUAIS (Wrappers + Regra Geral)
@@ -3029,18 +3033,6 @@ def main():
         logger.error(f'Erro no fluxo principal: {str(e)}')
         driver.save_screenshot('screenshot_erro_fluxo.png')
         raise
-
-ato_pesquisas_wrapper = lambda driver, debug=False: pesquisas(
-    driver,
-    conclusao_tipo='BACEN',
-    modelo_nome='xsbacen',
-    descricao='Pesquisas',
-    marcar_pec=True,
-    sigilo=True,
-    prazo=30,
-    marcar_primeiro_destinatario=True,
-    debug=debug
-)
 
 def debug_editor_completo(driver, log=True):
     """

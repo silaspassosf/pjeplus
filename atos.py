@@ -218,20 +218,20 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
                 elif 'cumprimento de providências' in tarefa_nome:
                     print('[CLS][INFO] Detectada tarefa "Cumprimento de Providências". Clicando em "Análise" antes de conclusão.')
                     try:
-                        # Primeiro tenta pelo mesmo seletor usado para conclusão ao magistrado
+                        # Tenta pelo seletor CSS mais direto
                         btn_analise = WebDriverWait(driver, 10).until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Análise']"))
                         )
                         btn_analise.click()
                         print('[CLS][INFO] Clique em "Análise" realizado com sucesso (aria-label exato).')
                     except Exception as e1:
-                        # Fallback: busca por texto visível
+                        # Fallback: busca por texto visível, corrigindo o XPath
                         try:
-                            btns = driver.find_elements(By.XPATH, "//button[contains(normalize-space(text()), 'Análise') or .//span[contains(normalize-space(text()), 'Análise')]]")
+                            btns = driver.find_elements(By.XPATH, "//button[.//div[contains(normalize-space(text()), 'Análise')]]")
                             btn_analise = next((b for b in btns if b.is_displayed() and b.is_enabled()), None)
                             if btn_analise:
                                 btn_analise.click()
-                                print('[CLS][INFO] Clique em "Análise" realizado com sucesso (texto visível).')
+                                print('[CLS][INFO] Clique em "Análise" realizado com sucesso (texto visível/fallback).')
                             else:
                                 raise Exception('Nenhum botão "Análise" disponível.')
                         except Exception as e2:
@@ -1417,7 +1417,8 @@ def comunicacao_judicial(
     coleta_conteudo=None,  # NOVO: parâmetro para coleta de conteúdo parametrizável
     inserir_conteudo=None,  # NOVO: função opcional para inserção no editor
     cliques_polo_passivo=1,  # NOVO: número de cliques no polo passivo (padrão 1)
-    debug=False
+    debug=False,
+    terceiro=False
 ):
     """
     Fluxo generalizado para qualquer comunicação processual.
@@ -1601,8 +1602,8 @@ def comunicacao_judicial(
                 log('[INFO] Botão Comunicações e expedientes não encontrado. Tentando clicar em "Análise" e tentar novamente...')
                 try:
                     btn_analise = None
-                    # Busca botão Análise por texto
-                    btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ANÁLISE', 'análise'), 'análise')]")
+                    # Busca botão Análise por texto (XPath corrigido)
+                    btns = driver.find_elements(By.XPATH, "//button[.//div[contains(normalize-space(text()), 'Análise')]]")
                     for btn in btns:
                         if btn.is_displayed() and btn.is_enabled():
                             btn_analise = btn
@@ -1879,20 +1880,29 @@ def comunicacao_judicial(
                 
                 # Aguarda para estabilizar a UI
                 time.sleep(1.5)
-                
                 # Agora finaliza a minuta
                 log('[DEBUG] Procurando botão "Finalizar minuta"...')
                 btn_finalizar = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Finalizar minuta"]'))
                 )
-                
                 # Usa clique JavaScript para maior confiabilidade
                 log('[DEBUG] Clicando em "Finalizar minuta" via JS')
                 driver.execute_script("arguments[0].click();", btn_finalizar)
-                
                 # Aguarda confirmação extra
                 time.sleep(2)
                 log('[DEBUG] Minuta finalizada com sucesso.')
+                # LOG EXTRA: Diagnóstico de acesso negado após salvar/finalizar
+                try:
+                    url_atual = driver.current_url
+                    log(f'[DIAGNOSTICO] URL após finalizar minuta: {url_atual}')
+                    if 'acesso-negado' in url_atual.lower() or 'login.jsp' in url_atual.lower():
+                        log('[DIAGNOSTICO] Atenção: Redirecionado para acesso negado após finalizar minuta.')
+                        # Salva HTML para análise
+                        with open('debug_acesso_negado_minuta.html', 'w', encoding='utf-8') as f:
+                            f.write(driver.page_source)
+                        log('[DIAGNOSTICO] HTML da página de acesso negado salvo em debug_acesso_negado_minuta.html')
+                except Exception as logerr:
+                    log(f'[DIAGNOSTICO][ERRO] Falha ao registrar diagnóstico pós-minuta: {logerr}')
             except Exception as e:
                 log(f'[ERRO] Falha ao salvar/finalizar minuta: {e}')
             # 10. (Opcional) Clique em "fa-pen" para assinar
@@ -1904,25 +1914,32 @@ def comunicacao_judicial(
             btn_pec_polo = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
             )
-            
             # Cliques no polo passivo conforme configurado (padrão 1, pec_idpj usa 2)
             for i in range(cliques_polo_passivo):
                 btn_pec_polo.click()
                 log(f'[DEBUG] Clique {i+1} de {cliques_polo_passivo} em .fa.fa-user.pec-polo-passivo-processo.pec-botao-intimar-polo-partes-processo realizado.')
-                
                 # Aguarda entre cliques se houver mais de um
                 if i < cliques_polo_passivo - 1:
                     time.sleep(2)
                     log('[DEBUG] Aguardando 2 segundos entre os cliques.')
-            
+            # Regra especial: se terceiro=True, clicar no botão de terceiros interessados
+            if terceiro:
+                try:
+                    btn_terceiro = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR,
+                            'button[name="btnIntimarSomenteTerceirosInteressados"] .fa.fa-user.pec-polo-outros-partes-processo.pec-botao-intimar-polo-partes-processo'))
+                    )
+                    btn_terceiro.click()
+                    log('[DEBUG] Clique especial em "Intimar somente terceiros interessados" realizado.')
+                except Exception as e:
+                    log(f'[ERRO] Não foi possível clicar no botão de terceiros interessados: {e}')
+                    return False
             # Maximizar a tela
             driver.maximize_window()
             log('[DEBUG] Tela maximizada.')
-            
             # Aplicar zoom de 60%
             driver.execute_script("document.body.style.zoom='0.6'")
             log('[DEBUG] Zoom aplicado para 60%.')
-            
         except Exception as e:
             log(f'[ERRO] Não foi possível clicar em .fa.fa-user.pec-polo-passivo-processo.pec-botao-intimar-polo-partes-processo: {e}')
             return False
@@ -2011,7 +2028,7 @@ def make_comunicacao_wrapper(
     inserir_conteudo=None,  # NOVO: função opcional de inserção no editor
     cliques_polo_passivo=1  # NOVO: número de cliques no polo passivo
 ):
-    def wrapper(driver, debug=False, coleta_conteudo_=None, inserir_conteudo_=None):
+    def wrapper(driver, debug=False, coleta_conteudo_=None, inserir_conteudo_=None, terceiro=False):
         return comunicacao_judicial(
             driver=driver,
             tipo_expediente=tipo_expediente,
@@ -2026,7 +2043,8 @@ def make_comunicacao_wrapper(
             coleta_conteudo=coleta_conteudo_ if coleta_conteudo_ is not None else coleta_conteudo,
             inserir_conteudo=inserir_conteudo_ if inserir_conteudo_ is not None else inserir_conteudo,
             cliques_polo_passivo=cliques_polo_passivo,
-            debug=debug
+            debug=debug,
+            terceiro=terceiro
         )
     return wrapper
 
@@ -3465,86 +3483,65 @@ def def_chip(driver, numero_processo, observacao, debug=False, timeout=10):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
     
+    chips_removidos = 0
     def log_msg(msg):
         if debug:
             print(f"[DEF_CHIP] {msg}")
-    
-    log_msg(f"Iniciando remoção de chips para processo {numero_processo}")
-    log_msg(f"Observação que disparou: {observacao}")
-    
-    chips_removidos = 0
-    
     try:
-        # Lista de textos de chips para remover
         chips_para_remover = [
             "Prazo vencido",
             "Prazo vencido pós sentença",
             "SISBAJUD",
         ]
-        
-        for chip_texto in chips_para_remover:
+        # Busca todos chips visíveis de uma vez
+        chips_xpath = "//mat-chip"
+        chip_elements = driver.find_elements(By.XPATH, chips_xpath)
+        chips_encontrados = []
+        for chip_element in chip_elements:
             try:
-                log_msg(f"Procurando chip: {chip_texto}")
-                
-                # Procura o chip específico usando o texto
-                chip_xpath = f"//mat-chip[.//span[contains(text(), '{chip_texto}')]]"
-                
-                # Aguarda o chip aparecer (com timeout menor para não travar)
-                try:
-                    chip_element = WebDriverWait(driver, 3).until(
-                        EC.presence_of_element_located((By.XPATH, chip_xpath))
-                    )
-                    log_msg(f"✅ Chip '{chip_texto}' encontrado")
-                except:
-                    log_msg(f"⏭️ Chip '{chip_texto}' não encontrado, pulando...")
-                    continue
-                
-                # Procura o botão de remover dentro do chip
+                chip_text = chip_element.text.strip()
+                # Checa se o chip tem algum dos textos alvo
+                if any(rem_text in chip_text for rem_text in chips_para_remover):
+                    chips_encontrados.append(chip_element)
+            except Exception as e:
+                log_msg(f"Erro ao ler chip: {e}")
+                continue
+        if not chips_encontrados:
+            log_msg("⚠️ Nenhum chip para remover encontrado")
+            return False
+        for chip_element in chips_encontrados:
+            try:
+                chip_text = chip_element.text.strip()
+                log_msg(f"Removendo chip: {chip_text}")
                 botao_remover = chip_element.find_element(
-                    By.CSS_SELECTOR, 
+                    By.CSS_SELECTOR,
                     "button[mattooltip*='Remover Chip'], button.etq-botao-excluir"
                 )
-                
-                log_msg(f"Clicando no botão de remover do chip '{chip_texto}'")
                 botao_remover.click()
-                
-                # Aguarda o modal de confirmação aparecer
                 time.sleep(1)
-                
-                # Procura o botão "Sim" para confirmar
                 try:
                     botao_sim = WebDriverWait(driver, 5).until(
                         EC.element_to_be_clickable((
-                            By.XPATH, 
+                            By.XPATH,
                             "//button[.//span[contains(text(), 'Sim')]]"
                         ))
                     )
-                    
-                    log_msg(f"Confirmando remoção do chip '{chip_texto}'")
+                    log_msg(f"Confirmando remoção do chip '{chip_text}'")
                     botao_sim.click()
-                    
-                    # Aguarda a remoção ser processada
                     time.sleep(2)
-                    
                     chips_removidos += 1
-                    log_msg(f"✅ Chip '{chip_texto}' removido com sucesso")
-                    
+                    log_msg(f"✅ Chip '{chip_text}' removido com sucesso")
                 except Exception as e:
-                    log_msg(f"❌ Erro ao confirmar remoção do chip '{chip_texto}': {e}")
+                    log_msg(f"❌ Erro ao confirmar remoção do chip '{chip_text}': {e}")
                     continue
-                    
             except Exception as e:
-                log_msg(f"❌ Erro ao processar chip '{chip_texto}': {e}")
+                log_msg(f"❌ Erro ao processar chip: {e}")
                 continue
-        
-        # Resultado final
         if chips_removidos > 0:
             log_msg(f"✅ Total de chips removidos: {chips_removidos}")
             return True
-        else:
-            log_msg("⚠️ Nenhum chip foi removido")
-            return False
-            
+        log_msg("⚠️ Nenhum chip foi removido")
+        return False
     except Exception as e:
         log_msg(f"❌ Erro geral na remoção de chips: {e}")
-        return False
+    return False

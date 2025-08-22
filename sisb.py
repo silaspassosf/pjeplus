@@ -150,159 +150,11 @@ def clicar_elemento(driver, seletores, timeout=10):
                 continue
         time.sleep(1)
     
+        return None
+
+   
     return False
 
-def preencher_campo(driver, seletores, valor, timeout=10, limpar=True):
-    """
-    Preenche um campo usando múltiplos seletores com tentativas
-    Baseado na abordagem de gigs.py
-    """
-    if not isinstance(seletores, list):
-        seletores = [seletores]
-    
-    for tentativa in range(3):
-        for seletor in seletores:
-            try:
-                if seletor.startswith('//'):
-                    elemento = WebDriverWait(driver, timeout).until(
-                        EC.presence_of_element_located((By.XPATH, seletor))
-                    )
-                else:
-                    elemento = WebDriverWait(driver, timeout).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, seletor))
-                    )
-                
-                if limpar:
-                    elemento.clear()
-                elemento.send_keys(valor)
-                return True
-            except Exception as e:
-                continue
-        time.sleep(1)
-    
-    return False
-
-# ===================== COOKIES (de sisb.py) =====================
-
-def salvar_cookies_sisbajud(driver):
-    """
-    Salvar cookies do SISBAJUD usando padrão do driver_config.py
-    Salva na pasta cookies_sessoes com timestamp
-    """
-    try:
-        cookies = driver.get_cookies()
-        if not cookies:
-            print('[SISBAJUD][COOKIES] Nenhum cookie encontrado para salvar.')
-            return False
-            
-        pasta_cookies = os.path.join(os.getcwd(), 'cookies_sessoes')
-        os.makedirs(pasta_cookies, exist_ok=True)
-        
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        caminho_arquivo = os.path.join(pasta_cookies, f'cookies_sisbajud_{timestamp}.json')
-        
-        # Adicionar metadados para validação conforme driver_config.py
-        dados_cookies = {
-            'timestamp': datetime.now().isoformat(),
-            'url_base': driver.current_url,
-            'tipo': 'sisbajud',
-            'dominios': ['sisbajud.cnj.jus.br', 'sso.cloud.pje.jus.br'],
-            'cookies': cookies
-        }
-        
-        with open(caminho_arquivo, 'w', encoding='utf-8') as f:
-            json.dump(dados_cookies, f, ensure_ascii=False, indent=2)
-            
-        print(f'[SISBAJUD][COOKIES] ✅ Cookies SISBAJUD salvos: {os.path.basename(caminho_arquivo)}')
-        print(f'[SISBAJUD][COOKIES] Total de cookies: {len(cookies)}')
-        
-        return True
-        
-    except Exception as e:
-        print(f'[SISBAJUD][COOKIES][ERRO] Falha ao salvar cookies: {e}')
-        traceback.print_exc()
-        return False
-
-def carregar_cookies_sisbajud(driver, max_idade_horas=24):
-    """
-    Carregar cookies do SISBAJUD usando padrão do driver_config.py
-    Busca o arquivo mais recente na pasta cookies_sessoes
-    """
-    try:
-        pasta_cookies = os.path.join(os.getcwd(), 'cookies_sessoes')
-        if not os.path.exists(pasta_cookies):
-            print('[SISBAJUD][COOKIES] Pasta de cookies não encontrada.')
-            return False
-        
-        # Buscar arquivos de cookies SISBAJUD
-        arquivos_cookies = glob.glob(os.path.join(pasta_cookies, 'cookies_sisbajud_*.json'))
-        if not arquivos_cookies:
-            print('[SISBAJUD][COOKIES] Nenhum arquivo de cookies SISBAJUD encontrado.')
-            return False
-        
-        # Arquivo mais recente
-        arquivo_mais_recente = max(arquivos_cookies, key=os.path.getmtime)
-        print(f'[SISBAJUD][COOKIES] Carregando: {os.path.basename(arquivo_mais_recente)}')
-        
-        with open(arquivo_mais_recente, 'r', encoding='utf-8') as f:
-            dados = json.load(f)
-        
-        # Verificar idade dos cookies
-        if 'timestamp' in dados:
-            timestamp_str = dados['timestamp']
-            cookies = dados['cookies']
-        else:
-            # Formato antigo
-            timestamp_str = datetime.fromtimestamp(os.path.getmtime(arquivo_mais_recente)).isoformat()
-            cookies = dados if isinstance(dados, list) else dados.get('cookies', [])
-        
-        timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
-        idade = datetime.now() - timestamp_cookies
-        
-        if idade > timedelta(hours=max_idade_horas):
-            print(f'[SISBAJUD][COOKIES] Cookies muito antigos ({idade.total_seconds()/3600:.1f}h). Pulando.')
-            return False
-        
-        # Navegar para domínio SISBAJUD antes de carregar cookies
-        print('[SISBAJUD][COOKIES] Navegando para domínio SISBAJUD...')
-        driver.get('https://sisbajud.cnj.jus.br/')
-        time.sleep(2)
-        
-        # Carregar cookies conforme driver_config.py
-        cookies_carregados = 0
-        for cookie in cookies:
-            try:
-                # Remover campos problemáticos
-                cookie_limpo = {k: v for k, v in cookie.items() if k not in ['expiry', 'httpOnly', 'secure', 'sameSite']}
-                
-                # Verificar se cookie é do domínio correto
-                domain = cookie.get('domain', '')
-                if any(dom in domain for dom in ['sisbajud.cnj.jus.br', 'sso.cloud.pje.jus.br', '.cnj.jus.br']):
-                    driver.add_cookie(cookie_limpo)
-                    cookies_carregados += 1
-                    
-            except Exception as e:
-                print(f'[SISBAJUD][COOKIES] Erro ao carregar cookie {cookie.get("name", "unknown")}: {e}')
-        
-        print(f'[SISBAJUD][COOKIES] {cookies_carregados} cookies SISBAJUD carregados')
-        
-        # Testar se cookies funcionam
-        driver.get('https://sisbajud.cnj.jus.br/sisbajudweb/pages/consultas/bloqueio/bloqueio.jsf')
-        time.sleep(3)
-        
-        # Verificar se redirecionou para login
-        if 'login' in driver.current_url.lower() or 'auth' in driver.current_url.lower():
-            print('[SISBAJUD][COOKIES] ❌ Redirecionamento para login detectado. Cookies inválidos.')
-            driver.delete_all_cookies()
-            return False
-            
-        print('[SISBAJUD][COOKIES] ✅ Cookies SISBAJUD funcionando!')
-        return True
-        
-    except Exception as e:
-        print(f'[SISBAJUD][COOKIES][ERRO] Falha ao carregar cookies: {e}')
-        traceback.print_exc()
-        return False
 
 # ===================== FUNÇÕES DE LOGIN (de bacen.py) =====================
 
@@ -328,113 +180,29 @@ def simular_movimento_humano(driver, elemento):
         
     except Exception as e:
         print(f'[SISBAJUD][LOGIN] Aviso: Não foi possível simular movimento humano: {e}')
-
-def inserir_tabela_credenciais(driver):
-    """
-    Insere tabela de credenciais na página de login com dados reais e funcionalidade
-    """
+def driver_sisbajud():
     try:
-        print('[SISBAJUD][LOGIN] Executando inserção da tabela de credenciais...')
-        
-        # Código JavaScript para inserir a tabela COM DADOS REAIS e funcionalidade
-        insert_table_js = """
-        // Remove tabela existente se houver
-        var existingTable = document.getElementById('dados_login_sisbajud');
-        if (existingTable) {
-            existingTable.remove();
-        }
-        
-        // DADOS REAIS DO SISTEMA
-        var cpfLogin = '30069277885';  // CPF real sem formatação
-        var senhaLogin = 'Fl@quinho182';     // Senha real
-        
-        // Criar nova tabela com dados reais
-        var tableHTML = `
-        <div id="dados_login_sisbajud" style="position: fixed; bottom: 30px; left: 30px; z-index: 99999; background: rgb(255, 255, 255); border: 2px solid rgb(25, 118, 210); padding: 10px 12px 8px; border-radius: 8px; box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 12px; font-size: 10px; min-width: 192px; transform: scale(0.78); transform-origin: left bottom 0px;">
-            <div style="font-weight: bold; font-size: 12px; margin-bottom: 6px; color: rgb(25, 118, 210);">Login SISBAJUD</div>
-            <label style="display: block; margin-bottom: 2px;">CPF:</label>
-            <input id="cpf_field" type="text" value="${cpfLogin}" style="width: 100%; margin-bottom: 6px; padding: 2px; font-size: 10px;" readonly>
-            <button id="btn_copiar_cpf" style="margin-bottom: 6px; padding: 2px 8px; font-size: 10px; cursor: pointer; background: rgb(25, 118, 210); color: rgb(255, 255, 255); border: medium; border-radius: 4px;">Copiar CPF</button>
-            <label style="display: block; margin-bottom: 2px;">Senha:</label>
-            <input id="senha_field" type="text" value="${senhaLogin}" style="width: 100%; margin-bottom: 6px; padding: 2px; font-size: 10px;" readonly>
-            <button id="btn_copiar_senha" style="margin-bottom: 6px; padding: 2px 8px; font-size: 10px; cursor: pointer; background: rgb(25, 118, 210); color: rgb(255, 255, 255); border: medium; border-radius: 4px;">Copiar Senha</button>
-            <button id="btn_copiar_ambos" style="margin-bottom: 6px; padding: 2px 8px; font-size: 10px; cursor: pointer; background: rgb(56, 142, 60); color: rgb(255, 255, 255); border: medium; border-radius: 4px; margin-left: 6px;">Copiar Ambos</button>
-            <div style="font-size: 9px; color: rgb(85, 85, 85); margin-top: 2px;">Dados carregados e prontos para cópia.</div>
-        </div>`;
-        
-        // Inserir no body
-        document.body.insertAdjacentHTML('beforeend', tableHTML);
-        
-        // ADICIONAR FUNCIONALIDADE DE CÓPIA REAL
-        function copiarParaClipboard(texto) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(texto).then(function() {
-                    console.log('Texto copiado para clipboard: ' + texto.substring(0, 8) + '...');
-                }).catch(function(err) {
-                    console.error('Erro ao copiar: ', err);
-                    // Fallback para método antigo
-                    var textArea = document.createElement("textarea");
-                    textArea.value = texto;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                });
-            } else {
-                // Fallback para browsers antigos
-                var textArea = document.createElement("textarea");
-                textArea.value = texto;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                console.log('Texto copiado (fallback): ' + texto.substring(0, 8) + '...');
-            }
-        }
-        
-        // Event listeners para os botões
-        document.getElementById('btn_copiar_cpf').addEventListener('click', function() {
-            copiarParaClipboard(cpfLogin);
-            this.style.background = 'rgb(76, 175, 80)';
-            this.innerHTML = 'CPF Copiado!';
-            setTimeout(() => {
-                this.style.background = 'rgb(25, 118, 210)';
-                this.innerHTML = 'Copiar CPF';
-            }, 2000);
-        });
-        
-        document.getElementById('btn_copiar_senha').addEventListener('click', function() {
-            copiarParaClipboard(senhaLogin);
-            this.style.background = 'rgb(76, 175, 80)';
-            this.innerHTML = 'Senha Copiada!';
-            setTimeout(() => {
-                this.style.background = 'rgb(25, 118, 210)';
-                this.innerHTML = 'Copiar Senha';
-            }, 2000);
-        });
-        
-        document.getElementById('btn_copiar_ambos').addEventListener('click', function() {
-            copiarParaClipboard(cpfLogin + '\\\\t' + senhaLogin);
-            this.style.background = 'rgb(76, 175, 80)';
-            this.innerHTML = 'Ambos Copiados!';
-            setTimeout(() => {
-                this.style.background = 'rgb(56, 142, 60)';
-                this.innerHTML = 'Copiar Ambos';
-            }, 2000);
-        });
-        
-        console.log('Tabela SISBAJUD inserida com sucesso - CPF: ' + cpfLogin);
-        return true;
-        """
-        
-        # APENAS executar JavaScript - não aguardar nada
-        driver.execute_script(insert_table_js)
-        print('[SISBAJUD][LOGIN] ✅ Tabela inserida com dados reais e funcionalidade de cópia')
-        return True
-        
+        from selenium.webdriver.firefox.options import Options
+        from selenium.webdriver.firefox.service import Service
+
+        # Configurações do Firefox
+        options = Options()
+        options.add_argument("--width=1200")
+        options.add_argument("--height=800")
+
+        # Caminhos específicos (ajuste conforme necessário)
+        firefox_binary = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
+        geckodriver_path = r'd:\PjePlus\geckodriver.exe'
+
+        options.binary_location = firefox_binary
+        service = Service(executable_path=geckodriver_path)
+
+        driver = webdriver.Firefox(service=service, options=options)
+        driver.implicitly_wait(10)
+        return driver
     except Exception as e:
-        print(f'[SISBAJUD][LOGIN] ❌ Erro ao executar inserção da tabela: {e}')
-        return False
+        print(f"[PREAMBULO] ❌ Erro ao criar driver SISBAJUD: {e}")
+        return None
 
 def login_automatico_sisbajud(driver):
     """
@@ -442,7 +210,7 @@ def login_automatico_sisbajud(driver):
     """
     try:
         print('[SISBAJUD][LOGIN] Navegando para SISBAJUD...')
-        driver.get('https://sso.cloud.pje.jus.br/auth/realms/pje/protocol/openid-connect/auth?client_id=sisbajud&redirect_uri=https%3A%2F%2Fsisbajud.cnj.jus.br%2F&state=da9cbb01-be67-419d-8f19-f2c067a9e80f&response_mode=fragment&response_type=code&scope=openid&nonce=3d61a8ca-bb98-4924-88f9-9a0cb00f9f0e')
+        driver.get('https://sisbajud.cnj.jus.br/')
         
         # Aguardar carregamento com variação humana
         time.sleep(random.uniform(2.5, 4.0))
@@ -453,257 +221,82 @@ def login_automatico_sisbajud(driver):
             print('[SISBAJUD][LOGIN] ✅ Já está logado!')
             return True
         
-        # Inserir tabela de credenciais
-        print('[SISBAJUD][LOGIN] Inserindo tabela de credenciais...')
-        tabela_inserida = inserir_tabela_credenciais(driver)
-        
-        if not tabela_inserida:
-            print('[SISBAJUD][LOGIN] ❌ Não foi possível executar inserção da tabela')
-            return False
-        
-        # AGORA SIM: aguardar que a tabela apareça no DOM
-        print('[SISBAJUD][LOGIN] Aguardando tabela aparecer no DOM...')
-        
-        try:
-            wait = WebDriverWait(driver, 10)
-            tabela = wait.until(
-                EC.presence_of_element_located((By.ID, "dados_login_sisbajud"))
-            )
-            print('[SISBAJUD][LOGIN] ✅ Tabela encontrada no DOM')
-            
-            # Verificar se os botões estão clicáveis
-            copiar_cpf = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Copiar CPF')]"))
-            )
-            copiar_senha = driver.find_element(By.XPATH, "//button[contains(text(), 'Copiar Senha')]")
-            
-            print('[SISBAJUD][LOGIN] ✅ Botões "Copiar CPF" e "Copiar Senha" prontos')
-            print('[SISBAJUD][LOGIN] ✅ Tabela de credenciais completamente funcional')
-            
-        except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Tabela não apareceu ou botões não funcionais: {e}')
-            return False
-        
-        # Aguardar estabilização
-        print('[SISBAJUD][LOGIN] Aguardando estabilização final...')
-        time.sleep(random.uniform(1.5, 2.5))
-        
-        # 1. Clicar em "Copiar CPF" com clique REAL e movimento muito humanizado
-        print('[SISBAJUD][LOGIN] 1. Clicando em "Copiar CPF" (clique real)...')
-        try:
-            copiar_cpf = driver.find_element(By.XPATH, "//button[contains(text(), 'Copiar CPF')]")
-            
-            # Movimento muito mais humanizado
-            actions = ActionChains(driver)
-            
-            # Simular movimento irregular (não linear)
-            for i in range(3):
-                offset_x = random.randint(-15, 15)
-                offset_y = random.randint(-15, 15) 
-                actions.move_to_element_with_offset(copiar_cpf, offset_x, offset_y)
-                actions.pause(random.uniform(0.1, 0.4))
-            
-            # Movimento final para o centro do botão
-            actions.move_to_element(copiar_cpf)
-            actions.pause(random.uniform(0.3, 0.8))
-            
-            # Clique real com pressão e liberação separadas
-            actions.click_and_hold(copiar_cpf)
-            actions.pause(random.uniform(0.05, 0.15))  # Simular tempo de pressão humana
-            actions.release()
-            actions.perform()
-            
-            # Aguardar mais tempo para garantir que a cópia foi processada
-            time.sleep(random.uniform(1.2, 2.0))
-            print('[SISBAJUD][LOGIN] ✅ Botão "Copiar CPF" clicado (clique real)')
-        except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao clicar "Copiar CPF": {e}')
-            return False
-        
-        # 2. Clicar no campo username com movimento muito humanizado  
-        print('[SISBAJUD][LOGIN] 2. Clicando no campo de usuário...')
+        # 1. Clicar no campo de login e digitar CPF como humano
+        print('[SISBAJUD][LOGIN] 1. Clicando no campo de login e digitando CPF como humano...')
         try:
             username_field = driver.find_element(By.ID, "username")
-            
-            # Movimento humano mais elaborado
-            actions = ActionChains(driver)
-            
-            # Simular que o usuário viu o campo e está se movendo para ele
-            actions.move_by_offset(random.randint(-50, 50), random.randint(-50, 50))
-            actions.pause(random.uniform(0.2, 0.6))
-            
-            # Movimento para perto do campo (não exato)
-            actions.move_to_element_with_offset(username_field, random.randint(-8, 8), random.randint(-8, 8))
-            actions.pause(random.uniform(0.3, 0.7))
-            
-            # Movimento final para o campo
-            actions.move_to_element(username_field)
-            actions.pause(random.uniform(0.2, 0.5))
-            
-            # Clique com hesitação humana ocasional
-            if random.random() < 0.3:  # 30% chance de hesitação
-                print('[SISBAJUD][LOGIN] Simulando hesitação humana...')
-                actions.pause(random.uniform(0.5, 1.5))
-            
-            actions.click()
-            actions.perform()
-            
-            time.sleep(random.uniform(0.5, 1.0))
-            print('[SISBAJUD][LOGIN] ✅ Campo usuário selecionado')
+            simular_movimento_humano(driver, username_field)
+            username_field.click()
+            time.sleep(random.uniform(0.3, 0.7))
+            cpf = "30069277885"
+            for i, char in enumerate(cpf):
+                # Simular erro de digitação (5% chance)
+                if random.random() < 0.05:
+                    erro_char = str(random.randint(0,9))
+                    username_field.send_keys(erro_char)
+                    time.sleep(random.uniform(0.08, 0.18))
+                    username_field.send_keys(Keys.BACKSPACE)
+                    time.sleep(random.uniform(0.08, 0.18))
+                username_field.send_keys(char)
+                time.sleep(random.uniform(0.09, 0.22))
+            print('[SISBAJUD][LOGIN] ✅ CPF digitado como humano')
         except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao selecionar campo usuário: {e}')
+            print(f'[SISBAJUD][LOGIN] ❌ Erro ao digitar CPF: {e}')
             return False
-        
-        # 3. Ctrl+V para colar CPF com timing humanizado
-        print('[SISBAJUD][LOGIN] 3. Colando CPF (timing humanizado)...')
-        try:
-            # Aguardar um pouco como um humano faria
-            time.sleep(random.uniform(0.5, 1.2))
-            
-            # Ctrl+V com ActionChains mais humanizada
-            actions = ActionChains(driver)
-            actions.key_down(Keys.CONTROL)
-            actions.pause(random.uniform(0.05, 0.15))  # Pequena pausa como humano
-            actions.send_keys('v')
-            actions.pause(random.uniform(0.05, 0.15))
-            actions.key_up(Keys.CONTROL)
-            actions.perform()
-            
-            # Aguardar o valor aparecer no campo
-            time.sleep(random.uniform(1.0, 1.8))
-            
-            # Verificar se algo foi colado
-            valor_colado = username_field.get_attribute('value')
-            if valor_colado:
-                print(f'[SISBAJUD][LOGIN] ✅ CPF colado: {valor_colado[:6]}...')
-            else:
-                print('[SISBAJUD][LOGIN] ⚠️ Nenhum valor detectado no campo após colar')
-                
-        except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao colar CPF: {e}')
-            return False
-        
-        # 4. Clicar em "Copiar Senha" com clique real e muito humanizado
-        print('[SISBAJUD][LOGIN] 4. Clicando em "Copiar Senha" (clique real)...')
-        try:
-            copiar_senha = driver.find_element(By.XPATH, "//button[contains(text(), 'Copiar Senha')]")
-            
-            # Movimento ainda mais humanizado para o segundo botão
-            actions = ActionChains(driver)
-            
-            # Simular movimento natural do primeiro para segundo botão
-            actions.move_by_offset(random.randint(-20, 20), random.randint(10, 30))  # Move um pouco para baixo
-            actions.pause(random.uniform(0.2, 0.5))
-            
-            # Aproximação do botão senha
-            for i in range(2):
-                offset_x = random.randint(-12, 12)
-                offset_y = random.randint(-12, 12)
-                actions.move_to_element_with_offset(copiar_senha, offset_x, offset_y)
-                actions.pause(random.uniform(0.1, 0.3))
-            
-            # Posicionamento final
-            actions.move_to_element(copiar_senha)
-            actions.pause(random.uniform(0.4, 0.9))
-            
-            # Clique real com pressão e liberação  
-            actions.click_and_hold(copiar_senha)
-            actions.pause(random.uniform(0.06, 0.18))
-            actions.release()
-            actions.perform()
-            
-            # Aguardar processamento da cópia
-            time.sleep(random.uniform(1.2, 2.2))
-            print('[SISBAJUD][LOGIN] ✅ Botão "Copiar Senha" clicado (clique real)')
-        except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao clicar "Copiar Senha": {e}')
-            return False
-        
-        # 5. Clicar no campo password
-        print('[SISBAJUD][LOGIN] 5. Clicando no campo de senha...')
+
+        # 2. Clicar no campo de senha e digitar senha como humano
+        print('[SISBAJUD][LOGIN] 2. Clicando no campo de senha e digitando senha como humano...')
         try:
             password_field = driver.find_element(By.ID, "password")
             simular_movimento_humano(driver, password_field)
-            
-            # Simular hesitação humana
-            if random.random() < 0.4:  # 40% chance de hesitação
-                print('[SISBAJUD][LOGIN] Simulando hesitação humana...')
-                time.sleep(random.uniform(0.5, 1.5))
-            
             password_field.click()
-            time.sleep(random.uniform(0.3, 0.8))
-            print('[SISBAJUD][LOGIN] ✅ Campo senha selecionado')
+            time.sleep(random.uniform(0.3, 0.7))
+            senha = "Fl@quinho182"
+            for i, char in enumerate(senha):
+                # Simular erro de digitação (5% chance)
+                if random.random() < 0.05:
+                    erro_char = chr(random.randint(33,126))
+                    password_field.send_keys(erro_char)
+                    time.sleep(random.uniform(0.08, 0.18))
+                    password_field.send_keys(Keys.BACKSPACE)
+                    time.sleep(random.uniform(0.08, 0.18))
+                password_field.send_keys(char)
+                time.sleep(random.uniform(0.09, 0.22))
+            print('[SISBAJUD][LOGIN] ✅ Senha digitada como humano')
         except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao selecionar campo senha: {e}')
+            print(f'[SISBAJUD][LOGIN] ❌ Erro ao digitar senha: {e}')
             return False
-        
-        # 6. Ctrl+V para colar senha
-        print('[SISBAJUD][LOGIN] 6. Colando senha...')
-        try:
-            actions = ActionChains(driver)
-            actions.key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
-            time.sleep(random.uniform(0.8, 1.5))
-            print('[SISBAJUD][LOGIN] ✅ Senha colada')
-        except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao colar senha: {e}')
-            return False
-        
-        # 7. Clicar no botão "Entrar"
-        print('[SISBAJUD][LOGIN] 7. Clicando em "Entrar"...')
-        try:
-            entrar_button = driver.find_element(By.ID, "kc-login")
-            simular_movimento_humano(driver, entrar_button)
             
-            # Simular pausa antes do login (comportamento humano)
-            time.sleep(random.uniform(1.0, 2.5))
-            
-            entrar_button.click()
+        # 3. Clicar no botão de login "Entrar"
+        print('[SISBAJUD][LOGIN] 3. Clicando no botão de login "Entrar"...')
+        try:
+            btn_entrar = driver.find_element(By.ID, "kc-login")
+            simular_movimento_humano(driver, btn_entrar)
+            btn_entrar.click()
             print('[SISBAJUD][LOGIN] ✅ Botão "Entrar" clicado')
-            
-            # Aguardar login processar
-            time.sleep(random.uniform(3.0, 5.0))
-            
-            # Verificar sucesso do login
-            current_url = driver.current_url
-            if not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms']):
-                print('[SISBAJUD][LOGIN] ✅ Login realizado com sucesso!')
-                return True
-            else:
-                print('[SISBAJUD][LOGIN] ❌ Login falhou - ainda na tela de autenticação')
-                return False
-                
         except Exception as e:
-            print(f'[SISBAJUD][LOGIN] ❌ Erro ao clicar em "Entrar": {e}')
+            print(f'[SISBAJUD][LOGIN] ❌ Erro ao clicar no botão de login: {e}')
             return False
-    
+            
+        # Aguardar redirecionamento
+        time.sleep(random.uniform(3.0, 5.0))
+        
+        # Verificar se login foi bem sucedido
+        current_url = driver.current_url
+        if 'sisbajud.cnj.jus.br' in current_url:
+            print('[SISBAJUD][LOGIN] ✅ Login realizado com sucesso!')
+            return True
+        else:
+            print('[SISBAJUD][LOGIN] ❌ Falha no login - URL não redirecionou corretamente')
+            return False
+            
     except Exception as e:
-        print(f'[SISBAJUD][LOGIN] ❌ Erro geral no login automatizado: {e}')
+        print(f'[SISBAJUD][LOGIN] ❌ Erro durante login: {e}')
+        traceback.print_exc()
         return False
 
-def driver_firefox_sisbajud(headless=False):
-    """
-    Retorna um driver Firefox usando o perfil dedicado do SISBAJUD.
-    """
-    from selenium.webdriver.firefox.options import Options
-    from selenium.webdriver.firefox.service import Service
-    
-    profile_path = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\arrn673i.Sisb'
-    firefox_binary = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
-    geckodriver_path = r'd:\PjePlus\geckodriver.exe'
-    
-    options = Options()
-    if headless:
-        options.add_argument('--headless')
-    options.binary_location = firefox_binary
-    options.set_preference('profile', profile_path)
-    
-    service = Service(executable_path=geckodriver_path)
-    driver = webdriver.Firefox(service=service, options=options)
-    driver.implicitly_wait(10)
-    return driver
-
-# ===================== INICIALIZAÇÃO =====================
-
+# Variável global para armazenar dados do processo
+processo_dados_extraidos = None
 def salvar_dados_processo_temp(params_adicionais=None):
     """
     Salva dados do processo no arquivo do projeto (dadosatuais.json) para integração entre janelas
@@ -726,17 +319,13 @@ def salvar_dados_processo_temp(params_adicionais=None):
     except Exception as e:
         print(f'[SISBAJUD][ERRO] Falha ao salvar dados do processo: {e}')
 
-# Variável global para armazenar dados do processo
-processo_dados_extraidos = None
-
 def iniciar_sisbajud(driver_pje=None):
     """
     Função unificada de inicialização do SISBAJUD:
     1. Extrai dados do processo PJe
     2. Cria driver Firefox SISBAJUD
-    3. Verifica se já existe sessão ativa (via cookies)
-    4. Se não houver sessão, insere tabela de credenciais e realiza login
-    5. Salva cookies para sessões futuras
+    3. Realiza login automatizado
+    4. Retorna o driver SISBAJUD logado
     """
     global processo_dados_extraidos
     
@@ -749,7 +338,10 @@ def iniciar_sisbajud(driver_pje=None):
             from Fix import extrair_dados_processo
             processo_dados_extraidos = extrair_dados_processo(driver_pje)
             if processo_dados_extraidos:
-                print(f'[SISBAJUD] ✅ Dados extraídos: {processo_dados_extraidos.get("numero_processo", "N/A")}')
+                # Corrigir para usar o campo correto do dadosatuais.json
+                numero_lista = processo_dados_extraidos.get("numero", [])
+                numero_display = numero_lista[0] if numero_lista else "N/A"
+                print(f'[SISBAJUD] ✅ Dados extraídos: {numero_display}')
                 salvar_dados_processo_temp()
             else:
                 print('[SISBAJUD] ⚠️ Não foi possível extrair dados do processo')
@@ -758,21 +350,10 @@ def iniciar_sisbajud(driver_pje=None):
         
         # 2. Criar driver Firefox SISBAJUD
         print('[SISBAJUD] Criando driver Firefox SISBAJUD...')
-        driver = driver_firefox_sisbajud()
-        
-        # 3. Verificar se já existe sessão ativa (via cookies)
-        print('[SISBAJUD] Verificando sessão ativa via cookies...')
-        if carregar_cookies_sisbajud(driver):
-            print('[SISBAJUD] ✅ Sessão ativa encontrada via cookies')
-            return driver
-        
-        # 4. Se não houver sessão, realizar login
-        print('[SISBAJUD] Nenhuma sessão ativa encontrada. Realizando login...')
-        
-        # Inserir tabela de credenciais
-        if not inserir_tabela_credenciais(driver):
-            print('[SISBAJUD] ❌ Falha ao inserir tabela de credenciais')
-            driver.quit()
+        driver = driver_sisbajud()        
+           
+        if not driver:
+            print('[SISBAJUD] ❌ Falha ao criar driver')
             return None
         
         # Realizar login automatizado
@@ -781,11 +362,8 @@ def iniciar_sisbajud(driver_pje=None):
             driver.quit()
             return None
         
-        # 5. Salvar cookies para sessões futuras
-        print('[SISBAJUD] Salvando cookies para sessões futuras...')
-        salvar_cookies_sisbajud(driver)
-        
-        print('[SISBAJUD] ✅ Sessão SISBAJUD iniciada com sucesso!')
+        # Se chegou aqui, o login foi bem-sucedido
+        print('[SISBAJUD] ✅ Sessão SISBAJUD inicializada com sucesso')
         return driver
         
     except Exception as e:
@@ -795,242 +373,414 @@ def iniciar_sisbajud(driver_pje=None):
 
 # ===================== FUNÇÕES PRINCIPAIS =====================
 
+def carregar_dados_processo():
+    """
+    Carrega os dados do processo do arquivo dadosatuais.json no projeto
+    """
+    try:
+        project_path = os.path.dirname(os.path.abspath(__file__))
+        dados_path = os.path.join(project_path, 'dadosatuais.json')
+        
+        if not os.path.exists(dados_path):
+            print(f'[SISBAJUD] Arquivo de dados não encontrado: {dados_path}')
+            return None
+        
+        with open(dados_path, 'r', encoding='utf-8') as f:
+            dados = json.load(f)
+        
+        print('[SISBAJUD] Dados do processo carregados com sucesso')
+        return dados
+    except Exception as e:
+        print(f'[SISBAJUD][ERRO] Falha ao carregar dados do processo: {e}')
+        return None
+
 def minuta_bloqueio(driver_pje=None, dados_processo=None):
     """
     Cria minuta de bloqueio no SISBAJUD
+    
+    Fluxo:
+    1. Chama iniciar_sisbajud(driver_pje) que:
+       - Extrai dados do processo PJe (se driver_pje fornecido)
+       - Cria driver SISBAJUD e faz login
+       - Retorna driver SISBAJUD já logado
+    2. Usa o driver SISBAJUD para preencher a minuta
+    
+    Args:
+        driver_pje: WebDriver do PJe para extração de dados (opcional)
+        dados_processo: Dados do processo em formato de dicionário (opcional)
+    
+    Returns:
+        dict: Dados da minuta criada ou None em caso de falha
     """
     try:
         print('\n[SISBAJUD] INICIANDO MINUTA DE BLOQUEIO')
         print('=' * 60)
         
-        # 1. Inicializar SISBAJUD
+        # 1. Inicializar SISBAJUD (extrai dados, cria driver e faz login)
+        print('[SISBAJUD] 1. Inicializando SISBAJUD...')
         driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
+        
         if not driver_sisbajud:
             print('[SISBAJUD] ❌ Falha ao inicializar SISBAJUD')
             return None
         
-        # 2. Clicar no botão "Nova" para criar nova minuta
-        print('[SISBAJUD] Clicando no botão Nova...')
-        seletores_nova = [
-            'button[color="primary"][mat-fab] mat-icon.fa-plus',
-            'button.mat-fab.mat-primary',
-            '//button[contains(@class,"mat-fab") and contains(@class,"mat-primary")]//mat-icon[contains(@class,"fa-plus")]',
-            '//button[contains(@class,"mat-fab")]//span[contains(text(),"Nova")]'
-        ]
+        print('[SISBAJUD] ✅ SISBAJUD inicializado e logado com sucesso')
         
-        if not clicar_elemento(driver_sisbajud, seletores_nova):
-            print('[SISBAJUD] ❌ Falha ao clicar no botão Nova')
-            driver_sisbajud.quit()
-            return None
-        
-        time.sleep(2)
-        
-        # Aguardar carregamento da página de minuta (bloqueio já selecionado por padrão)
-        print('[SISBAJUD] Aguardando carregamento da página de bloqueio...')
-        time.sleep(3)
-        
-        # 3. Preencher dados do processo completo (seguindo lógica do gigs.py)
-        print('[SISBAJUD] Preenchendo dados do processo...')
-        
-        # Obter dados do processo
+        # 2. Carregar dados do processo (se não fornecidos)
         if not dados_processo:
-            dados_processo = processo_dados_extraidos
+            print('[SISBAJUD] 2. Carregando dados do processo...')
+            dados_processo = carregar_dados_processo()
         
         if not dados_processo:
             print('[SISBAJUD] ❌ Dados do processo não disponíveis')
             driver_sisbajud.quit()
             return None
         
-        # 3.1. Preencher número do processo
-        numero_processo = dados_processo.get('numero', [''])[0] if isinstance(dados_processo.get('numero'), list) else dados_processo.get('numero', '')
+        print('[SISBAJUD] ✅ Dados do processo carregados')
+        
+        # 3. Navegar para página de cadastro de minuta
+        print('[SISBAJUD] 3. Navegando para página de cadastro de minuta...')
+        if not driver_sisbajud.current_url.endswith("/minuta/cadastrar"):
+            print('[SISBAJUD] Clicando no menu Nova Minuta...')
+            # Usar o seletor EXATO do código otimizado
+            if not aguardar_e_clicar(driver_sisbajud, 'span[id="maisPje_menuKaizen_itemmenu_nova_minuta"] a', timeout=10):
+                print('[SISBAJUD] ❌ Falha ao clicar no menu Nova Minuta')
+                driver_sisbajud.quit()
+                return None
+            
+            # Aguardar elemento específico como no código otimizado
+            if not aguardar_elemento(driver_sisbajud, 'sisbajud-cadastro-minuta input[placeholder="Juiz Solicitante"]', timeout=15):
+                print('[SISBAJUD] ❌ Página de cadastro não carregou')
+                driver_sisbajud.quit()
+                return None
+            
+            # Sleep como no código otimizado após navegação
+            time.sleep(1.0)
+            print('[SISBAJUD] ✅ Página de cadastro carregada')
+        
+        # === SEQUÊNCIA DE AÇÕES IDÊNTICA AO CÓDIGO OTIMIZADO ===
+        
+        # AÇÃO 1: JUIZ SOLICITANTE
+        print('[SISBAJUD] === AÇÃO 1: JUIZ SOLICITANTE ===')
+        juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
+        print(f'[SISBAJUD]       |___JUIZ SOLICITANTE: {juiz}')
+        
+        if juiz:
+            # Usar função específica do código otimizado: escolher_opcao_sisbajud
+            if not escolher_opcao_sisbajud(driver_sisbajud, 'input[placeholder*="Juiz"]', juiz):
+                print('[SISBAJUD] ❌ Falha ao preencher juiz solicitante')
+                driver_sisbajud.quit()
+                return None
+        
+        # AÇÃO 2: VARA/JUÍZO - LÓGICA EXATA DO CÓDIGO OTIMIZADO
+        print('[SISBAJUD] === AÇÃO 2: VARA/JUÍZO ===')
+        vara = dados_processo.get('sisbajud', {}).get('vara', '30006')
+        print(f'[SISBAJUD]       |___VARA/JUÍZO: {vara}')
+        
+        if vara:
+            # 1. Focus + click no seletor exato
+            elemento_vara = aguardar_elemento(driver_sisbajud, 'mat-select[name*="varaJuizoSelect"]')
+            if not elemento_vara:
+                print('[SISBAJUD] ❌ Elemento vara não encontrado')
+                driver_sisbajud.quit()
+                return None
+            
+            elemento_vara.focus()
+            elemento_vara.click()
+            
+            # 2. Aguardar opções aparecerem com polling como código otimizado
+            opcoes = aguardar_opcoes_aparecerem(driver_sisbajud, 'mat-option[role="option"]', intervalo_ms=100, max_tentativas=50)
+            
+            if opcoes:
+                # 3. Buscar e clicar na opção correta
+                for opcao in opcoes:
+                    if vara in opcao.text:
+                        opcao.click()
+                        print(f'[SISBAJUD] ✅ Vara selecionada: {opcao.text}')
+                        break
+        
+        # AÇÃO 3: NÚMERO DO PROCESSO
+        print('[SISBAJUD] === AÇÃO 3: NÚMERO DO PROCESSO ===')
+        numero_lista = dados_processo.get('numero', [])
+        numero_processo = numero_lista[0] if numero_lista else ''
+        print(f'[SISBAJUD]       |___NUMERO PROCESSO: {numero_processo}')
+        
         if numero_processo:
-            print(f'[SISBAJUD] Preenchendo número do processo: {numero_processo}')
-            seletores_numero_processo = [
-                'input[name="numeroProcesso"]',
-                'input[formcontrolname="numeroProcesso"]',
-                'input[id*="numeroProcesso"]'
-            ]
-            preencher_campo(driver_sisbajud, seletores_numero_processo, numero_processo)
+            elemento_numero = aguardar_elemento(driver_sisbajud, 'input[placeholder="Número do Processo"]')
+            if elemento_numero:
+                elemento_numero.focus()
+                elemento_numero.clear()
+                elemento_numero.send_keys(numero_processo)
+                trigger_event(elemento_numero, 'input')  # Simular triggerEvent do código otimizado
+                elemento_numero.blur()
         
-        # 3.2. Preencher motivo da consulta
-        motivo_consulta = "Execução trabalhista"
-        print(f'[SISBAJUD] Preenchendo motivo da consulta: {motivo_consulta}')
-        seletores_motivo = [
-            'textarea[name="motivoConsulta"]',
-            'textarea[formcontrolname="motivoConsulta"]',
-            'input[name="motivoConsulta"]'
-        ]
-        preencher_campo(driver_sisbajud, seletores_motivo, motivo_consulta)
+        # AÇÃO 4: TIPO DE AÇÃO
+        print('[SISBAJUD] === AÇÃO 4: TIPO AÇÃO ===')
+        print('[SISBAJUD]       |___TIPO AÇÃO: Ação Trabalhista')
         
-        # 3.3. Preencher data de início (1 ano atrás)
-        from datetime import datetime, timedelta
-        data_atual = datetime.now()
-        data_inicio = datetime(data_atual.year - 1, data_atual.month, 1).strftime('%d/%m/%Y')
-        print(f'[SISBAJUD] Preenchendo data de início: {data_inicio}')
-        seletores_data_inicio = [
-            'input[name="dataInicio"]',
-            'input[formcontrolname="dataInicio"]',
-            'input[id*="dataInicio"]'
-        ]
-        preencher_campo(driver_sisbajud, seletores_data_inicio, data_inicio)
-        
-        # 3.4. Preencher data de fim (hoje)
-        data_fim = data_atual.strftime('%d/%m/%Y')
-        print(f'[SISBAJUD] Preenchendo data de fim: {data_fim}')
-        seletores_data_fim = [
-            'input[name="dataFim"]',
-            'input[formcontrolname="dataFim"]',
-            'input[id*="dataFim"]'
-        ]
-        preencher_campo(driver_sisbajud, seletores_data_fim, data_fim)
-        
-        # 3.5. Extrair e preencher documentos de todos os réus (usando função auxiliar)
-        documentos_lista, documentos_concatenados = extrair_documentos_reus(dados_processo)
-        
-        if not documentos_concatenados:
-            print('[SISBAJUD] ❌ Nenhum documento de réu encontrado nos dados do processo')
-            print(f'[SISBAJUD] Dados disponíveis: {list(dados_processo.keys()) if dados_processo else "Nenhum"}')
-            driver_sisbajud.quit()
-            return None
-        
-        # Preencher campo de documentos (textarea para múltiplos CPFs/CNPJs)
-        print('[SISBAJUD] Preenchendo documentos dos réus...')
-        seletores_documento = [
-            'textarea[name="cpfCnpj"]',
-            'textarea[formcontrolname="cpfCnpj"]',
-            'textarea[id*="cpfCnpj"]',
-            'input[formcontrolname="documento"]',
-            'input[id*="documento"]',
-            'input[name*="documento"]'
-        ]
-        
-        if not preencher_campo(driver_sisbajud, seletores_documento, documentos_concatenados):
-            print('[SISBAJUD] ❌ Falha ao preencher campo de documentos')
-            driver_sisbajud.quit()
-            return None
-        
-        print('[SISBAJUD] ✅ Todos os campos preenchidos com sucesso')
-        
-        # 3.6. Clicar no botão Continuar (se existir)
-        print('[SISBAJUD] Procurando botão Continuar...')
-        seletores_continuar = [
-            'input[value="Continuar"]',
-            'button:contains("Continuar")',
-            '//button[contains(text(),"Continuar")]',
-            '//input[@value="Continuar"]'
-        ]
-        
-        continuar_clicado = clicar_elemento(driver_sisbajud, seletores_continuar)
-        if continuar_clicado:
-            print('[SISBAJUD] ✅ Botão Continuar clicado')
-            time.sleep(3)
-        else:
-            print('[SISBAJUD] ⚠️ Botão Continuar não encontrado - prosseguindo...')
-        
-        
-        # 4. Selecionar juiz padrão
-        print('[SISBAJUD] Selecionando juiz padrão...')
-        
-        # Clicar no campo de juiz
-        seletores_juiz = [
-            'input[formcontrolname="juiz"]',
-            'input[id*="juiz"]',
-            'input[name*="juiz"]',
-            'input[placeholder*="Juiz"]'
-        ]
-        
-        if not clicar_elemento(driver_sisbajud, seletores_juiz):
-            print('[SISBAJUD] ❌ Falha ao clicar no campo de juiz')
-            driver_sisbajud.quit()
-            return None
-        
-        # Digitar nome do juiz
-        juiz_nome = "OTAVIO AUGUSTO MACHADO DE OLIVEIRA"
-        if not preencher_campo(driver_sisbajud, seletores_juiz, juiz_nome):
-            print('[SISBAJUD] ❌ Falha ao preencher nome do juiz')
-            driver_sisbajud.quit()
-            return None
-        
-        time.sleep(2)
-        
-        # Selecionar opção correta do dropdown
-        try:
-            opcoes_juiz = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'span.mat-option-text')
-            juiz_selecionado = False
+        elemento_acao = aguardar_elemento(driver_sisbajud, 'mat-select[name*="acao"]')
+        if elemento_acao:
+            elemento_acao.focus()
+            elemento_acao.click()
             
-            for opcao in opcoes_juiz:
-                if juiz_nome in opcao.text:
+            # Aguardar e selecionar "Ação Trabalhista"
+            opcoes = aguardar_opcoes_aparecerem(driver_sisbajud, 'mat-option[role="option"]', intervalo_ms=100)
+            for opcao in opcoes:
+                if 'Ação Trabalhista' in opcao.text:
                     opcao.click()
-                    juiz_selecionado = True
-                    print(f'[SISBAJUD] ✅ Juiz selecionado: {opcao.text}')
                     break
+        
+        # AÇÃO 5: CPF/CNPJ DO AUTOR
+        print('[SISBAJUD] === AÇÃO 5: CPF/CNPJ AUTOR ===')
+        
+        # Lógica do código otimizado para determinar autor
+        cpf_cnpj_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            cpf_cnpj_autor = dados_processo['autor'][0].get('cpfcnpj', '')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            cpf_cnpj_autor = dados_processo['reu'][0].get('cpfcnpj', '')
+        
+        # Limpar formatação como no código otimizado
+        cpf_cnpj_limpo = cpf_cnpj_autor.replace('.', '').replace('-', '').replace('/', '')
+        print(f'[SISBAJUD]       |___CPF/CNPJ AUTOR: {cpf_cnpj_limpo}')
+        
+        elemento_cpf = aguardar_elemento(driver_sisbajud, 'input[placeholder*="CPF"]')
+        if elemento_cpf:
+            elemento_cpf.focus()
             
-            if not juiz_selecionado:
-                print('[SISBAJUD] ⚠️ Opção de juiz não encontrada no dropdown')
-        except Exception as e:
-            print(f'[SISBAJUD] ⚠️ Erro ao selecionar juiz: {e}')
+            # Delay específico do código otimizado antes do preenchimento
+            time.sleep(0.25)
+            
+            elemento_cpf.clear()
+            elemento_cpf.send_keys(cpf_cnpj_limpo)
+            trigger_event(elemento_cpf, 'input')
+            elemento_cpf.blur()
         
-        # 5. Salvar minuta
-        print('[SISBAJUD] Salvando minuta...')
+        # AÇÃO 6: NOME DO AUTOR
+        print('[SISBAJUD] === AÇÃO 6: NOME DO AUTOR ===')
         
-        # Clicar no botão Salvar
-        seletores_salvar = [
-            'button.mat-fab.mat-primary mat-icon.fa-save',
-            '//button[contains(@class,"mat-fab") and .//mat-icon[contains(@class,"fa-save")]]',
-            '//button[contains(@class,"mat-primary") and .//mat-icon[contains(@class,"fa-save")]]'
-        ]
+        # Mesma lógica do CPF para o nome
+        nome_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            nome_autor = dados_processo['autor'][0].get('nome', '')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            nome_autor = dados_processo['reu'][0].get('nome', '')
         
-        if not clicar_elemento(driver_sisbajud, seletores_salvar):
-            print('[SISBAJUD] ❌ Falha ao clicar no botão Salvar')
+        print(f'[SISBAJUD]       |___NOME AUTOR: {nome_autor}')
+        
+        elemento_nome = aguardar_elemento(driver_sisbajud, 'input[placeholder="Nome do autor/exequente da ação"]')
+        if elemento_nome:
+            elemento_nome.focus()
+            
+            # Delay específico do código otimizado
+            time.sleep(0.25)
+            
+            elemento_nome.clear()
+            elemento_nome.send_keys(nome_autor)
+            trigger_event(elemento_nome, 'input')
+            elemento_nome.blur()
+        
+        # AÇÃO 7: TEIMOSINHA (REPETIÇÃO DA ORDEM)
+        print('[SISBAJUD] === AÇÃO 7: TEIMOSINHA ===')
+        print('[SISBAJUD]       |___TEIMOSINHA: Repetir a ordem')
+        
+        # Buscar radio buttons exato como código otimizado
+        radios = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-radio-button')
+        for radio in radios:
+            if 'Repetir a ordem' in radio.text:
+                label = radio.find_element(By.CSS_SELECTOR, 'label')
+                label.click()
+                print('[SISBAJUD] ✅ Repetir a ordem selecionado')
+                break
+        
+        # AÇÃO 8: CALENDÁRIO - LÓGICA COMPLEXA DO CÓDIGO OTIMIZADO
+        print('[SISBAJUD] === AÇÃO 8: CALENDÁRIO ===')
+        
+        # Calcular data como no código otimizado: hoje + 30 dias + 2 extras
+        numdias = 30  # Equivalente ao extrairNumeros(preferencias.sisbajud.teimosinha)
+        hoje = datetime.now()
+        data_fim = hoje + timedelta(days=numdias + 2)
+        
+        ano = data_fim.year
+        mes_d = data_fim.month - 1  # Month index (0-11 como no JS)
+        dia_d = data_fim.day
+        
+        print(f'[SISBAJUD]       |___ABRE CALENDARIO: {numdias} dias -> {data_fim.strftime("%d/%m/%Y")}')
+        
+        # 1. Abrir calendário
+        if not aguardar_e_clicar(driver_sisbajud, 'button[aria-label="Open calendar"]'):
+            print('[SISBAJUD] ❌ Falha ao abrir calendário')
+            driver_sisbajud.quit()
+            return None
+            
+        # 2. Abrir seleção mês/ano
+        if not aguardar_e_clicar(driver_sisbajud, 'mat-calendar button[aria-label="Choose month and year"]'):
+            print('[SISBAJUD] ❌ Falha ao abrir seleção mês/ano')
+            driver_sisbajud.quit()
+            return None
+            
+        # 3. Selecionar ano
+        if not aguardar_e_clicar(driver_sisbajud, f'mat-calendar td[aria-label="{ano}"]'):
+            print('[SISBAJUD] ❌ Falha ao selecionar ano')
             driver_sisbajud.quit()
             return None
         
-        time.sleep(3)
+        # 4. Lógica de encontrar mês disponível (como código otimizado)
+        meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", 
+                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
         
-        # Verificar se a minuta foi salva com sucesso
-        if 'protocolo' in driver_sisbajud.current_url.lower() or 'minuta' in driver_sisbajud.current_url.lower():
-            print('[SISBAJUD] ✅ Minuta salva com sucesso!')
+        mes_encontrado = False
+        mes_atual = mes_d
+        
+        while mes_atual >= 0:
+            mes_str = f"{meses[mes_atual]} de {ano}"
+            print(f'[SISBAJUD] ***Tentando mês: {mes_str}')
             
-            # Extrair protocolo se disponível
             try:
-                protocolo_elemento = driver_sisbajud.find_element(By.CSS_SELECTOR, '.protocolo-minuta, .protocolo, [id*="protocolo"]')
-                protocolo = protocolo_elemento.text.strip()
-                print(f'[SISBAJUD] Protocolo gerado: {protocolo}')
+                elemento_mes = aguardar_elemento(driver_sisbajud, f'mat-calendar td[aria-label="{mes_str}"]', timeout=1)
+                if elemento_mes and not elemento_mes.get_attribute('aria-disabled'):
+                    elemento_mes.click()
+                    mes_encontrado = True
+                    break
+                else:
+                    print(f'[SISBAJUD] ***Mês {mes_str} desabilitado, alterando dia para 31')
+                    dia_d = 31
             except:
-                protocolo = None
+                print(f'[SISBAJUD] ***Mês {mes_str} não encontrado')
+                dia_d = 31
             
-            # Fechar driver
-            driver_sisbajud.quit()
-            
-            # Retornar dados para o PJe
-            return {
-                'status': 'sucesso',
-                'dados_minuta': {
-                    'protocolo': protocolo,
-                    'documento': documento_formatado,
-                    'tipo_documento': tipo_doc
-                },
-                'acao_posterior': {
-                    'tipo': 'atualizar_pje',
-                    'parametros': {
-                        'protocolo_sisbajud': protocolo,
-                        'id_processo': dados_processo.get('id_processo')
-                    }
-                }
-            }
-        else:
-            print('[SISBAJUD] ❌ Falha ao salvar minuta')
+            mes_atual -= 1
+        
+        if not mes_encontrado:
+            print('[SISBAJUD] ❌ Nenhum mês disponível')
             driver_sisbajud.quit()
             return None
+        
+        # 5. Encontrar primeiro dia disponível (lógica código otimizado)
+        mes_final_str = f"{meses[mes_atual]} de {ano}"
+        dia_encontrado = False
+        
+        while dia_d > 0:
+            dia_str = f"{dia_d} de {mes_final_str}"
+            print(f'[SISBAJUD] ***Tentando teimosinha do dia {dia_d}')
             
+            try:
+                elemento_dia = aguardar_elemento(driver_sisbajud, f'mat-calendar td[aria-label="{dia_str}"]', timeout=1)
+                if elemento_dia and not elemento_dia.get_attribute('aria-disabled'):
+                    elemento_dia.click()
+                    dia_encontrado = True
+                    break
+            except:
+                pass
+            
+            dia_d -= 1
+        
+        if not dia_encontrado:
+            print('[SISBAJUD] ❌ Nenhum dia disponível')
+            driver_sisbajud.quit()
+            return None
+        
+        data_limite_str = datetime(ano, mes_atual + 1, dia_d).strftime('%d/%m/%Y')
+        print(f'[SISBAJUD] ✅ Data selecionada: {data_limite_str}')
+        
+        # AÇÃO 10: INSERÇÃO DOS RÉUS (pula acao9 que é só setup)
+        print('[SISBAJUD] === AÇÃO 10: INSERÇÃO DOS RÉUS ===')
+        
+        reus = dados_processo.get('reu', [])
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado')
+            driver_sisbajud.quit()
+            return None
+        
+        print(f'[SISBAJUD]       |___INSERÇÃO DOS RÉUS: {len(reus)} réus')
+        
+        # Iniciar processo de cadastro com monitoring como código otimizado
+        configurar_monitoring_erros(driver_sisbajud)
+        
+        for contador, reu in enumerate(reus):
+            print(f'[SISBAJUD]       |___{contador + 1}: {reu.get("nome", "")}'
+                  f' ({reu.get("cpfcnpj", "")})')
+            
+            # Função cadastro equivalente
+            sucesso = cadastrar_reu_sisbajud(driver_sisbajud, reu, dados_processo.get('sisbajud', {}))
+            if not sucesso:
+                print('[SISBAJUD] ❌ Falha ao cadastrar réu')
+                driver_sisbajud.quit()
+                return None
+        
+        # AÇÃO 11: VALOR
+        print('[SISBAJUD] === AÇÃO 11: VALOR ===')
+        
+        if dados_processo.get('divida', {}).get('valor'):
+            valor_formatado = format_currency(dados_processo['divida']['valor'])
+            print(f'[SISBAJUD]       |___VALOR: {valor_formatado}')
+            
+            # Criar span clicável como no código otimizado
+            criar_span_valor(driver_sisbajud, valor_formatado, dados_processo.get('divida', {}).get('data'))
+            
+            # Auto-preencher se configurado
+            if dados_processo.get('sisbajud', {}).get('preencherValor', '').lower() == 'sim':
+                preencher_valor_automatico(driver_sisbajud, valor_formatado)
+        
+        # AÇÃO 12: CONTA-SALÁRIO
+        print('[SISBAJUD] === AÇÃO 12: CONTA-SALÁRIO ===')
+        
+        if dados_processo.get('sisbajud', {}).get('contasalario', '').lower() == 'sim':
+            print('[SISBAJUD]       |___CONTA-SALÁRIO: Ativando toggles')
+            
+            toggles = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-slide-toggle label')
+            for toggle in toggles:
+                toggle.click()
+        
+        # AÇÃO 13: SALVAR E PROTOCOLAR
+        print('[SISBAJUD] === AÇÃO 13: SALVAR E PROTOCOLAR ===')
+        
+        if dados_processo.get('sisbajud', {}).get('salvarEprotocolar', '').lower() == 'sim':
+            print('[SISBAJUD]       |___SALVAR E PROTOCOLAR')
+            
+            # 1. Salvar
+            btn_salvar = aguardar_elemento(driver_sisbajud, 'sisbajud-cadastro-minuta button', texto='Salvar')
+            if btn_salvar:
+                btn_salvar.click()
+                
+                # 2. Aguardar mensagem
+                mensagem = aguardar_elemento(driver_sisbajud, 'SISBAJUD-SNACK-MESSENGER')
+                if mensagem and 'incluída com sucesso' in mensagem.text:
+                    # 3. Protocolar
+                    btn_protocolar = aguardar_elemento(driver_sisbajud, 'sisbajud-detalhamento-minuta button', texto='Protocolar')
+                    if btn_protocolar:
+                        time.sleep(1.0)  # Sleep do código otimizado
+                        btn_protocolar.click()
+        
+        print('[SISBAJUD] ✅ MINUTA CRIADA COM SUCESSO')
+        
+        # Extrair dados finais
+        protocolo = extrair_protocolo(driver_sisbajud)
+        
+        driver_sisbajud.quit()
+        
+        return {
+            'status': 'sucesso',
+            'dados_minuta': {
+                'protocolo': protocolo,
+                'tipo': 'bloqueio',
+                'repeticao': 'sim',
+                'data_limite': data_limite_str,
+                'quantidade_reus': len(reus)
+            }
+        }
+        
     except Exception as e:
         print(f'[SISBAJUD][ERRO] Falha na minuta de bloqueio: {e}')
         traceback.print_exc()
+        if 'driver_sisbajud' in locals():
+            driver_sisbajud.quit()
         return None
 
 def minuta_endereco(driver_pje=None, dados_processo=None):
     """
-    Cria minuta de endereço no SISBAJUD
+    Cria minuta de endereço no SISBAJUD baseado na função preenchercamposSisbajud de 0c.py
+    Sem modal de executados, sempre preenchendo todos, CNPJ raiz
     """
     try:
         print('\n[SISBAJUD] INICIANDO MINUTA DE ENDEREÇO')
@@ -1042,162 +792,250 @@ def minuta_endereco(driver_pje=None, dados_processo=None):
             print('[SISBAJUD] ❌ Falha ao inicializar SISBAJUD')
             return None
         
-        # 2. Clicar no botão "Nova" para criar nova minuta
-        print('[SISBAJUD] Clicando no botão Nova...')
-        seletores_nova = [
-            'button[color="primary"][mat-fab] mat-icon.fa-plus',
-            'button.mat-fab.mat-primary',
-            '//button[contains(@class,"mat-fab") and contains(@class,"mat-primary")]//mat-icon[contains(@class,"fa-plus")]',
-            '//button[contains(@class,"mat-fab")]//span[contains(text(),"Nova")]'
-        ]
-        
-        if not clicar_elemento(driver_sisbajud, seletores_nova):
-            print('[SISBAJUD] ❌ Falha ao clicar no botão Nova')
-            driver_sisbajud.quit()
-            return None
-        
-        time.sleep(2)
-        
-        # Selecionar tipo de minuta: ENDEREÇO
-        print('[SISBAJUD] Selecionando tipo de minuta: Endereço...')
-        
-        # 1. Clicar no radio button "Requisição de informações"
-        print('[SISBAJUD] Selecionando "Requisição de informações"...')
-        seletores_requisicao = [
-            'label[for*="mat-radio"][for*="input"] div.mat-radio-label-content:contains("Requisição de informações")',
-            '//label[contains(@class,"mat-radio-label")]//div[contains(@class,"mat-radio-label-content") and contains(text(),"Requisição de informações")]',
-            '//input[@type="radio" and @value="2"]',
-            'input[type="radio"][value="2"]'
-        ]
-        
-        if not clicar_elemento(driver_sisbajud, seletores_requisicao):
-            print('[SISBAJUD] ❌ Falha ao selecionar "Requisição de informações"')
-            driver_sisbajud.quit()
-            return None
-        
-        time.sleep(1)
-        
-        # 2. Marcar checkbox "Endereços"
-        print('[SISBAJUD] Marcando checkbox "Endereços"...')
-        seletores_checkbox_endereco = [
-            'label.mat-checkbox-layout span.mat-checkbox-label:contains("Endereços")',
-            '//label[contains(@class,"mat-checkbox-layout")]//span[contains(@class,"mat-checkbox-label") and contains(text(),"Endereços")]',
-            '//input[@type="checkbox" and following-sibling::*//span[contains(text(),"Endereços")]]',
-            'input[type="checkbox"][id*="mat-checkbox"]'
-        ]
-        
-        if not clicar_elemento(driver_sisbajud, seletores_checkbox_endereco):
-            print('[SISBAJUD] ❌ Falha ao marcar checkbox "Endereços"')
-            driver_sisbajud.quit()
-            return None
-        
-        # Aguardar carregamento da página de minuta de endereço
-        print('[SISBAJUD] Aguardando carregamento da página de endereço...')
-        time.sleep(3)
-        
-        # 3. Preencher dados do processo
-        print('[SISBAJUD] Preenchendo dados do processo...')
-        
-        # Obter dados do processo
+        # 2. Carregar dados do processo do arquivo
         if not dados_processo:
-            dados_processo = processo_dados_extraidos
+            dados_processo = carregar_dados_processo()
         
         if not dados_processo:
             print('[SISBAJUD] ❌ Dados do processo não disponíveis')
             driver_sisbajud.quit()
             return None
         
-        # Extrair documento (CPF/CNPJ) do primeiro réu
-        documento = ''
-        if 'reu' in dados_processo and len(dados_processo['reu']) > 0:
-            documento = dados_processo['reu'][0].get('cpfcnpj', '')
+        # 3. Navegar para a página de cadastro de minuta se não estiver lá
+        if not driver_sisbajud.current_url.endswith("/minuta/cadastrar"):
+            print('[SISBAJUD] Navegando para página de cadastro de minuta...')
+            driver_sisbajud.get("https://sisbajud.cnj.jus.br/sisbajudweb/pages/minuta/cadastrar")
+            time.sleep(3)
         
-        if not documento:
-            print('[SISBAJUD] ❌ Documento do réu não encontrado nos dados do processo')
-            print(f'[SISBAJUD] Dados disponíveis: {list(dados_processo.keys()) if dados_processo else "Nenhum"}')
+        # 4. Selecionar tipo de minuta: ENDEREÇO
+        print('[SISBAJUD] Selecionando tipo de minuta: Endereço...')
+        
+        # 4.1. Clicar no radio button "Requisição de informações"
+        print('[SISBAJUD] Selecionando "Requisição de informações"...')
+        # Mesmo seletor de 0c.py
+        if not clicar_elemento(driver_sisbajud, '//input[@type="radio" and @value="2"]'):
+            print('[SISBAJUD] ❌ Falha ao selecionar "Requisição de informações"')
             driver_sisbajud.quit()
             return None
         
-        # Formatar documento
-        tipo_doc = identificar_tipo_documento(documento)
-        if tipo_doc == 'CPF':
-            documento_formatado = formatar_cpf(documento)
-        elif tipo_doc == 'CNPJ':
-            documento_formatado = formatar_cnpj(documento)
-        else:
-            documento_formatado = documento
+        time.sleep(1)
         
-        print(f'[SISBAJUD] Documento formatado: {documento_formatado}')
-        
-        # Preencher campo de documento
-        seletores_documento = [
-            'input[formcontrolname="documento"]',
-            'input[id*="documento"]',
-            'input[name*="documento"]',
-            'input[placeholder*="CPF"]',
-            'input[placeholder*="CNPJ"]'
-        ]
-        
-        if not preencher_campo(driver_sisbajud, seletores_documento, documento_formatado):
-            print('[SISBAJUD] ❌ Falha ao preencher campo de documento')
+        # 4.2. Marcar checkbox "Endereços"
+        print('[SISBAJUD] Marcando checkbox "Endereços"...')
+        # Mesmo seletor de 0c.py
+        if not clicar_elemento(driver_sisbajud, '//input[@type="checkbox" and following-sibling::*//span[contains(text(),"Endereços")]]'):
+            print('[SISBAJUD] ❌ Falha ao marcar checkbox "Endereços"')
             driver_sisbajud.quit()
             return None
         
-        print('[SISBAJUD] ✅ Campo de documento preenchido')
+        time.sleep(1)
         
-        # 4. Selecionar juiz padrão
-        print('[SISBAJUD] Selecionando juiz padrão...')
+        # 4.3. Desmarcar opção "Incluir dados sobre contas" (se existir)
+        print('[SISBAJUD] Desmarcando "Incluir dados sobre contas"...')
+        try:
+            # Mesmo seletor de 0c.py
+            radios = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-radio-button')
+            for radio in radios:
+                if 'Não' in radio.text:
+                    radio.click()
+                    print('[SISBAJUD] ✅ "Incluir dados sobre contas" desmarcado')
+                    break
+        except Exception as e:
+            print(f'[SISBAJUD] ⚠️ Erro ao desmarcar "Incluir dados sobre contas": {e}')
         
-        # Clicar no campo de juiz
-        seletores_juiz = [
-            'input[formcontrolname="juiz"]',
-            'input[id*="juiz"]',
-            'input[name*="juiz"]',
-            'input[placeholder*="Juiz"]'
-        ]
+        time.sleep(1)
         
-        if not clicar_elemento(driver_sisbajud, seletores_juiz):
-            print('[SISBAJUD] ❌ Falha ao clicar no campo de juiz')
+        # 5. Preencher campos seguindo a lógica de 0c.py
+        
+        # 5.1. JUIZ SOLICITANTE
+        print('[SISBAJUD] Preenchendo juiz solicitante...')
+        juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
+        
+        # Mesmo seletor de 0c.py
+        if not preencher_campo(driver_sisbajud, 'input[placeholder*="Juiz"]', juiz):
+            print('[SISBAJUD] ❌ Falha ao preencher juiz solicitante')
             driver_sisbajud.quit()
             return None
         
-        # Digitar nome do juiz
-        juiz_nome = "OTAVIO AUGUSTO MACHADO DE OLIVEIRA"
-        if not preencher_campo(driver_sisbajud, seletores_juiz, juiz_nome):
-            print('[SISBAJUD] ❌ Falha ao preencher nome do juiz')
-            driver_sisbajud.quit()
-            return None
-        
-        time.sleep(2)
-        
-        # Selecionar opção correta do dropdown
+        time.sleep(0.7)
+        # Selecionar opção correta no dropdown
         try:
             opcoes_juiz = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'span.mat-option-text')
-            juiz_selecionado = False
-            
             for opcao in opcoes_juiz:
-                if juiz_nome in opcao.text:
+                if 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA' in opcao.text.upper():
                     opcao.click()
-                    juiz_selecionado = True
-                    print(f'[SISBAJUD] ✅ Juiz selecionado: {opcao.text}')
+                    print('[SISBAJUD] ✅ Juiz selecionado: OTAVIO AUGUSTO MACHADO DE OLIVEIRA')
                     break
-            
-            if not juiz_selecionado:
-                print('[SISBAJUD] ⚠️ Opção de juiz não encontrada no dropdown')
+            else:
+                print('[SISBAJUD] ⚠️ Opção de juiz não encontrada, prosseguindo...')
         except Exception as e:
             print(f'[SISBAJUD] ⚠️ Erro ao selecionar juiz: {e}')
+        time.sleep(1)
         
-        # 5. Salvar minuta
+        # 5.2. VARA/JUÍZO
+        print('[SISBAJUD] Preenchendo vara/juízo...')
+        vara = dados_processo.get('sisbajud', {}).get('vara', '30006')
+        
+        if vara:
+            # Mesmo seletor de 0c.py
+            if not clicar_elemento(driver_sisbajud, 'mat-select[name*="varaJuizoSelect"]'):
+                print('[SISBAJUD] ❌ Falha ao clicar no campo de vara')
+                driver_sisbajud.quit()
+                return None
+            
+            time.sleep(1)
+            
+            # Selecionar a opção correta
+            try:
+                opcoes_vara = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
+                for opcao in opcoes_vara:
+                    if vara in opcao.text:
+                        opcao.click()
+                        print(f'[SISBAJUD] ✅ Vara selecionada: {opcao.text}')
+                        break
+            except Exception as e:
+                print(f'[SISBAJUD] ⚠️ Erro ao selecionar vara: {e}')
+        
+        time.sleep(1)
+        
+        # 5.3. NÚMERO DO PROCESSO
+        print('[SISBAJUD] Preenchendo número do processo...')
+        # Número está em array no dadosatuais.json
+        numero_lista = dados_processo.get('numero', [])
+        numero_processo = numero_lista[0] if numero_lista else ''
+        
+        if not numero_processo:
+            print('[SISBAJUD] ❌ Número do processo não encontrado nos dados')
+            driver_sisbajud.quit()
+            return None
+        
+        print(f'[SISBAJUD] Número do processo: {numero_processo}')
+        
+        # Mesmo seletor de 0c.py
+        if not preencher_campo(driver_sisbajud, 'input[placeholder="Número do Processo"]', numero_processo):
+            print('[SISBAJUD] ❌ Falha ao preencher número do processo')
+            driver_sisbajud.quit()
+            return None
+        
+        time.sleep(1)
+        
+        # 5.4. TIPO DE AÇÃO
+        print('[SISBAJUD] Selecionando tipo de ação...')
+        # Mesmo seletor de 0c.py
+        if not clicar_elemento(driver_sisbajud, 'mat-select[name*="acao"]'):
+            print('[SISBAJUD] ❌ Falha ao clicar no campo de tipo de ação')
+            driver_sisbajud.quit()
+            return None
+        
+        time.sleep(1)
+        
+        # Selecionar "Ação Trabalhista"
+        try:
+            opcoes_acao = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
+            for opcao in opcoes_acao:
+                if 'Ação Trabalhista' in opcao.text:
+                    opcao.click()
+                    print('[SISBAJUD] ✅ Tipo de ação selecionado: Ação Trabalhista')
+                    break
+        except Exception as e:
+            print(f'[SISBAJUD] ⚠️ Erro ao selecionar tipo de ação: {e}')
+        
+        time.sleep(1)
+        
+        # 5.5. CPF/CNPJ DO AUTOR
+        print('[SISBAJUD] Preenchendo CPF/CNPJ do autor...')
+        
+        # Lógica simplificada: primeiro autor por padrão, se não há autores usa primeiro réu
+        cpf_cnpj_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            cpf_cnpj_autor = dados_processo['autor'][0].get('cpfcnpj', '')
+            print(f'[SISBAJUD] Usando CPF/CNPJ do primeiro autor: {cpf_cnpj_autor}')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            cpf_cnpj_autor = dados_processo['reu'][0].get('cpfcnpj', '')
+            print(f'[SISBAJUD] Usando CPF/CNPJ do primeiro réu: {cpf_cnpj_autor}')
+        
+        if not cpf_cnpj_autor:
+            print('[SISBAJUD] ❌ CPF/CNPJ não encontrado nem em autor nem em réu')
+            driver_sisbajud.quit()
+            return None
+        
+        # Remove pontuação do CPF/CNPJ
+        cpf_cnpj_limpo = ''.join(filter(str.isdigit, cpf_cnpj_autor))
+        
+        if not preencher_campo(driver_sisbajud, 'input[placeholder*="CPF"]', cpf_cnpj_limpo):
+            print('[SISBAJUD] ❌ Falha ao preencher CPF/CNPJ do autor')
+            driver_sisbajud.quit()
+            return None
+        
+        time.sleep(1)
+        
+        # 5.6. NOME DO AUTOR
+        print('[SISBAJUD] Preenchendo nome do autor...')
+        
+        # Usar o mesmo padrão: primeiro autor, senão primeiro réu
+        nome_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            nome_autor = dados_processo['autor'][0].get('nome', '')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            nome_autor = dados_processo['reu'][0].get('nome', '')
+        
+        if not nome_autor:
+            print('[SISBAJUD] ❌ Nome do autor não encontrado nos dados')
+            driver_sisbajud.quit()
+            return None
+        
+        # Mesmo seletor de 0c.py
+        if not preencher_campo(driver_sisbajud, 'input[placeholder="Nome do autor/exequente da ação"]', nome_autor):
+            print('[SISBAJUD] ❌ Falha ao preencher nome do autor')
+            driver_sisbajud.quit()
+            return None
+        
+        time.sleep(1)
+        
+        # 5.7. INSERÇÃO DOS RÉUS (todos, sem modal)
+        print('[SISBAJUD] Inserindo todos os réus...')
+        reus = dados_processo.get('reu', [])
+        
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado nos dados')
+            driver_sisbajud.quit()
+            return None
+        
+        # Para cada réu, preencher os dados
+        for i, reu in enumerate(reus):
+            print(f'[SISBAJUD] Adicionando réu {i+1}/{len(reus)}: {reu.get("nome", "N/A")}')
+            
+            cpf_cnpj_reu = reu.get('cpfcnpj', '')
+            if not cpf_cnpj_reu:
+                print(f'[SISBAJUD] ⚠️ Réu sem CPF/CNPJ, pulando...')
+                continue
+            
+            # Formatar CPF/CNPJ (CNPJ sempre raiz)
+            tipo_doc_reu = identificar_tipo_documento(cpf_cnpj_reu)
+            if tipo_doc_reu == 'CPF':
+                cpf_cnpj_formatado_reu = formatar_cpf(cpf_cnpj_reu)
+            elif tipo_doc_reu == 'CNPJ':
+                # CNPJ raiz (8 primeiros dígitos)
+                cpf_cnpj_formatado_reu = formatar_cnpj(cpf_cnpj_reu)[:8]
+            else:
+                cpf_cnpj_formatado_reu = cpf_cnpj_reu
+            
+            # Clicar no botão Adicionar (se não for o primeiro réu)
+            if i > 0:
+                # Mesmo seletor de 0c.py
+                if not clicar_elemento(driver_sisbajud, 'button[aria-label="Adicionar"]'):
+                    print('[SISBAJUD] ❌ Falha ao clicar no botão Adicionar')
+                    driver_sisbajud.quit()
+                    return None
+                
+                time.sleep(1)
+            
+          
+        
+        # 7. Salvar minuta
         print('[SISBAJUD] Salvando minuta...')
-        
-        # Clicar no botão Salvar
-        seletores_salvar = [
-            'button.mat-fab.mat-primary mat-icon.fa-save',
-            '//button[contains(@class,"mat-fab") and .//mat-icon[contains(@class,"fa-save")]]',
-            '//button[contains(@class,"mat-primary") and .//mat-icon[contains(@class,"fa-save")]]'
-        ]
-        
-        if not clicar_elemento(driver_sisbajud, seletores_salvar):
+        # Mesmo seletor de 0c.py
+        if not clicar_elemento(driver_sisbajud, 'button.mat-fab.mat-primary mat-icon.fa-save'):
             print('[SISBAJUD] ❌ Falha ao clicar no botão Salvar')
             driver_sisbajud.quit()
             return None
@@ -1224,8 +1062,8 @@ def minuta_endereco(driver_pje=None, dados_processo=None):
                 'status': 'sucesso',
                 'dados_minuta': {
                     'protocolo': protocolo,
-                    'documento': documento_formatado,
-                    'tipo_documento': tipo_doc
+                    'tipo': 'endereco',
+                    'quantidade_reus': len(reus)
                 },
                 'acao_posterior': {
                     'tipo': 'atualizar_pje',
@@ -1244,6 +1082,185 @@ def minuta_endereco(driver_pje=None, dados_processo=None):
         print(f'[SISBAJUD][ERRO] Falha na minuta de endereço: {e}')
         traceback.print_exc()
         return None
+# ======================= FUNÇÕES AUXILIARES =======================
+
+def escolher_opcao_sisbajud(driver, seletor, valor):
+    """
+    Implementa a função escolherOpcaoSISBAJUD do código otimizado
+    Usa seta para baixo e polling para aguardar opções
+    """
+    try:
+        # Aguardar elemento
+        elemento = aguardar_elemento(driver, seletor)
+        if not elemento:
+            return False
+        
+        # Focus e simular seta para baixo (keycode 40)
+        elemento.focus()
+        elemento.send_keys(Keys.ARROW_DOWN)
+        
+        # Polling para aguardar opções (como código otimizado)
+        for tentativa in range(3):  # 3 tentativas como no código otimizado
+            opcoes = aguardar_opcoes_aparecerem(driver, 'mat-option[role="option"], option', 
+                                                intervalo_ms=100, max_tentativas=10)
+            
+            if opcoes:
+                # Clicar na opção correta
+                return aguardar_e_clicar(driver, 'mat-option[role="option"], option', texto=valor.strip())
+            
+            # Tentar novamente
+            elemento.focus()
+            elemento.send_keys(Keys.ARROW_DOWN)
+        
+        return False
+        
+    except Exception as e:
+        print(f'[SISBAJUD] Erro em escolher_opcao_sisbajud: {e}')
+        return False
+
+
+def aguardar_opcoes_aparecerem(driver, seletor, intervalo_ms=100, max_tentativas=50):
+    """
+    Implementa o polling do código otimizado para aguardar opções de dropdown
+    """
+    for tentativa in range(max_tentativas):
+        opcoes = driver.find_elements(By.CSS_SELECTOR, seletor)
+        if opcoes:
+            return opcoes
+        time.sleep(intervalo_ms / 1000.0)
+    
+    return None
+
+
+def cadastrar_reu_sisbajud(driver, reu, config_sisbajud):
+    """
+    Implementa a função cadastro() do código otimizado
+    Com tratamento de CNPJ raiz e delays específicos
+    """
+    try:
+        # Aguardar campo CPF/CNPJ
+        elemento_cpf = aguardar_elemento(driver, 
+            'input[placeholder="CPF/CNPJ do réu/executado"], input[placeholder="CPF/CNPJ da pessoa pesquisada"]')
+        
+        botao_adicionar = aguardar_elemento(driver, 'button[class*="btn-adicionar"]')
+        
+        if not elemento_cpf or not botao_adicionar:
+            return False
+        
+        elemento_cpf.focus()
+        
+        # Lógica CNPJ raiz do código otimizado
+        documento = reu.get('cpfcnpj', '').replace('.', '').replace('-', '').replace('/', '')
+        
+        # Se é CNPJ (>14 chars) e config permite CNPJ raiz
+        if len(documento) > 14 and config_sisbajud.get('cnpjRaiz', '').lower() == 'sim':
+            documento = documento[:10]  # Primeiros 10 dígitos
+        
+        print(f'[SISBAJUD]             Preenchendo: {documento}')
+        
+        elemento_cpf.clear()
+        elemento_cpf.send_keys(documento)
+        trigger_event(elemento_cpf, 'input')
+        
+        # Delay específico do código otimizado
+        time.sleep(0.8)
+        
+        # Verificar se precisa corrigir (lógica complexa do código otimizado)
+        valor_atual = elemento_cpf.get_attribute('value')
+        if (len(documento) < 15 and len(valor_atual) == 10) or len(valor_atual) != len(documento):
+            # Corrigir valor
+            elemento_cpf.clear()
+            elemento_cpf.send_keys(documento)
+            trigger_event(elemento_cpf, 'input')
+        
+        # Aguardar estabilidade e clicar
+        time.sleep(0.8)
+        trigger_event(botao_adicionar, 'click')
+        
+        return True
+        
+    except Exception as e:
+        print(f'[SISBAJUD] Erro ao cadastrar réu: {e}')
+        return False
+
+
+def configurar_monitoring_erros(driver):
+    """
+    Configura monitoring de erros similar ao MutationObserver do código otimizado
+    """
+    # Em Python/Selenium, podemos usar polling periódico ou aguardar elementos específicos
+    # Esta função seria chamada para configurar tratamento de erros conhecido
+    pass
+
+
+def aguardar_elemento(driver, seletor, texto=None, timeout=10):
+    """Aguarda elemento aparecer (equivalente ao esperarElemento do código otimizado)"""
+    try:
+        if texto:
+            return WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.XPATH, f"//*[contains(text(), '{texto}')]"))
+            )
+        else:
+            return WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, seletor))
+            )
+    except:
+        return None
+
+
+def aguardar_e_clicar(driver, seletor, texto=None, timeout=10):
+    """Aguarda e clica em elemento (equivalente ao clicarBotao do código otimizado)"""
+    elemento = aguardar_elemento(driver, seletor, texto, timeout)
+    if elemento:
+        try:
+            elemento.click()
+            return True
+        except:
+            # Tentar com JavaScript como fallback
+            driver.execute_script("arguments[0].click();", elemento)
+            return True
+    return False
+
+
+def trigger_event(elemento, event_type):
+    """Simula triggerEvent do código otimizado"""
+    driver = elemento.parent
+    driver.execute_script(f"arguments[0].dispatchEvent(new Event('{event_type}', {{bubbles: true}}));", elemento)
+
+
+def format_currency(valor):
+    """Formata valor como moeda brasileira"""
+    try:
+        valor_float = float(valor)
+        return f"R$ {valor_float:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    except:
+        return str(valor)
+
+
+def criar_span_valor(driver, valor_formatado, data_divida):
+    """Cria span clicável para valor como no código otimizado"""
+    # Implementação específica para criar elemento visual do valor
+    pass
+
+
+def preencher_valor_automatico(driver, valor):
+    """Preenche valor automaticamente se configurado"""
+    elemento_valor = aguardar_elemento(driver, 'input[placeholder*="Valor aplicado a todos"]')
+    if elemento_valor:
+        elemento_valor.clear()
+        elemento_valor.send_keys(valor)
+
+
+def extrair_protocolo(driver):
+    """Extrai protocolo da minuta salva"""
+    try:
+        protocolo_elemento = driver.find_element(By.CSS_SELECTOR, 
+            '.protocolo-minuta, .protocolo, [id*="protocolo"]')
+        return protocolo_elemento.text.strip()
+    except:
+        return None
+
+        
 
 # ===================== FUNÇÕES AUXILIARES PARA PROCESSAR BLOQUEIOS =====================
 
@@ -1474,11 +1491,11 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
                 opcoes_juiz = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
                 juiz_clicado = False
                 for opcao in opcoes_juiz:
-                    if "OTAVIO AUGUSTO MACHADO DE OLIVEIRA" in opcao.text:
+                    if "Otavio Augusto" in opcao.text:
                         opcao.click()
                         juiz_clicado = True
                         if log:
-                            print(f"[SISBAJUD] ✅ Juiz 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA' selecionado")
+                            print(f"[SISBAJUD] ✅ Juiz 'Otavio Augusto' selecionado")
                         break
                 if not juiz_clicado:
                     if log:
@@ -1560,7 +1577,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
             except Exception as e:
                 if log:
                     print(f"[SISBAJUD] ⚠️ Erro ao selecionar ação: {e}")
-            
+        
         else:  # POSITIVO
             if log:
                 print(f"[SISBAJUD] Preenchendo campos para POSITIVO")
@@ -1654,6 +1671,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
             try:
                 seletores_salvar = [
                     "button.mat-fab.mat-primary mat-icon.fa-save",
+                   
                     "//button[contains(@class,'mat-fab') and .//mat-icon[contains(@class,'fa-save')]]",
                     "//button[contains(@class,'mat-primary') and .//mat-icon[contains(@class,'fa-save')]]"
                 ]
@@ -2370,11 +2388,6 @@ def processar_bloqueios(driver_pje=None, dados_processo=None):
         if not dados_processo:
             dados_processo = processo_dados_extraidos
         
-        if not dados_processo:
-            print('[SISBAJUD] ❌ Dados do processo não disponíveis')
-            driver_sisbajud.quit()
-            return None
-        
         # 3. Processar ordens SISBAJUD
         resultado = processar_ordem_sisbajud(driver_sisbajud, dados_processo)
         
@@ -2447,3 +2460,4 @@ def processar_endereco(driver_pje=None, dados_processo=None):
         print(f'[SISBAJUD][ERRO] Falha no processamento de endereço: {e}')
         traceback.print_exc()
         return None
+

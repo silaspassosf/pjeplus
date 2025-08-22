@@ -1,6 +1,136 @@
+import os
+import json
+import time
+import re
+from datetime import datetime
+from selenium.webdriver.common.by import By
+
+# ===== FUNÇÕES DE PROGRESSO PARA PEC =====
+def carregar_progresso_pec():
+    """Carrega o estado de progresso do arquivo JSON específico para PEC"""
+    try:
+        if os.path.exists("progresso_pec.json"):
+            with open("progresso_pec.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[PROGRESSO_PEC][AVISO] Erro ao carregar progresso: {e}")
+    return {"processos_executados": [], "session_active": True, "last_update": None}
+
+def salvar_progresso_pec(progresso):
+    """Salva o estado de progresso no arquivo JSON específico para PEC"""
+    try:
+        progresso["last_update"] = datetime.now().isoformat()
+        with open("progresso_pec.json", "w", encoding="utf-8") as f:
+            json.dump(progresso, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[PROGRESSO_PEC][ERRO] Falha ao salvar progresso: {e}")
+
+def extrair_numero_processo_pec(driver):
+    """Extrai o número do processo da URL ou elemento da página (adaptado para PEC)"""
+    try:
+        url = driver.current_url
+        if "processo/" in url:
+            match = re.search(r"processo/(\d+)", url)
+            if match:
+                return match.group(1)
+        try:
+            candidatos = driver.find_elements(By.CSS_SELECTOR, 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho')
+            for elemento in candidatos:
+                texto = elemento.text.strip()
+                match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
+                if match:
+                    return re.sub(r'[^\d]', '', match.group(1))
+        except:
+            pass
+        return None
+    except Exception as e:
+        print(f"[PROGRESSO_PEC][ERRO] Falha ao extrair número do processo: {e}")
+        return None
+
+def verificar_acesso_negado_pec(driver):
+    """Verifica se estamos na página de acesso negado no sistema PEC"""
+    try:
+        url_atual = driver.current_url
+        return "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower()
+    except Exception as e:
+        print(f"[PROGRESSO_PEC][ERRO] Falha ao verificar acesso negado: {e}")
+        return False
+
+def processo_ja_executado_pec(numero_processo, progresso):
+    """Verifica se o processo já foi executado no fluxo PEC"""
+    if not numero_processo:
+        return False
+    return numero_processo in progresso.get("processos_executados", [])
+
+def marcar_processo_executado_pec(numero_processo, progresso):
+    """Marca processo como executado no fluxo PEC"""
+    if numero_processo and numero_processo not in progresso.get("processos_executados", []):
+        progresso.setdefault("processos_executados", []).append(numero_processo)
+        salvar_progresso_pec(progresso)
+        print(f"[PROGRESSO_PEC] Processo {numero_processo} marcado como executado")
+
+def recuperar_sessao_pec(driver):
+    """Tenta recuperar sessão após acesso negado no sistema PEC"""
+    try:
+        print("[RECOVERY_PEC][SESSÃO] Detectado acesso negado, tentando recuperar sessão...")
+        login_url = "https://alvaraeletronico.trt2.jus.br/portaltrtsp/login.jsp"
+        driver.get(login_url)
+        time.sleep(3)
+        if fazer_login_siscon_manual(driver, debug=True):
+            print("[RECOVERY_PEC][SESSÃO] ✅ Login realizado com sucesso")
+            url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
+            driver.get(url_atividades)
+            time.sleep(5)
+            try:
+                from Fix import aplicar_filtro_100
+                if aplicar_filtro_100(driver):
+                    print("[RECOVERY_PEC][SESSÃO] ✅ Filtro de 100 itens reaplicado")
+                    time.sleep(2)
+                coluna_observacao = driver.find_element(By.XPATH, '//div[@role="column" and @class="th-elemento-class ng-star-inserted" and contains(text(), "Observação")]')
+                coluna_observacao.click()
+                print("[RECOVERY_PEC][SESSÃO] ✅ Lista reorganizada por observação")
+                time.sleep(3)
+                return True
+            except Exception as filter_error:
+                print(f"[RECOVERY_PEC][SESSÃO][ERRO] Falha ao reaplicar filtros: {filter_error}")
+        else:
+            print("[RECOVERY_PEC][SESSÃO] ❌ Falha no login")
+        return False
+    except Exception as e:
+        print(f"[RECOVERY_PEC][SESSÃO][ERRO] Falha na recuperação: {e}")
+        return False
+
+def resetar_progresso_pec():
+    """Reseta o arquivo de progresso específico para PEC"""
+    try:
+        if os.path.exists("progresso_pec.json"):
+            os.remove("progresso_pec.json")
+            print("[PROGRESSO_PEC][RESET] ✅ Arquivo de progresso removido")
+        else:
+            print("[PROGRESSO_PEC][RESET] ❌ Arquivo de progresso não existe")
+    except Exception as e:
+        print(f"[PROGRESSO_PEC][RESET][ERRO] Falha ao resetar: {e}")
+
+def listar_processos_executados_pec():
+    """Lista processos já executados no fluxo PEC"""
+    progresso = carregar_progresso_pec()
+    executados = progresso.get("processos_executados", [])
+    if executados:
+        print(f"[PROGRESSO_PEC][LIST] {len(executados)} processos já executados:")
+        for i, proc in enumerate(executados, 1):
+            print(f"  {i:3d}. {proc}")
+    else:
+        print("[PROGRESSO_PEC][LIST] Nenhum processo executado ainda")
+    return executados
 import time
 import re
 import unicodedata
+from atos import (
+    pec_decisao, 
+    pec_editalidpj, 
+    pec_cpgeral,
+    pec_bloqueio)
+
 
 # Flag para controlar se já foi feito login no Siscon
 _siscon_login_feito = False
@@ -108,10 +238,21 @@ def determinar_acao_por_observacao(observacao):
     """
     import re
     observacao_lower = observacao.lower().strip()
-    if "xs pz carta" in observacao_lower:
+    # Regras mínimas para todas ações PEC
+    if "pec cp" in observacao_lower:
+        return "pec_cpgeral"
+    elif "pec edital" in observacao_lower:
+        return "pec_editaldec"
+    elif "pec dec" in observacao_lower:
+        return "pec_decisao"
+    elif "pec idpj" in observacao_lower:
+        return "pec_editalidpj"
+    elif "xs carta" in observacao_lower:
+        return "xs_carta"
+    elif "pec bloq" in observacao_lower or "pec bloq".replace(" ","") in observacao_lower:
+        return "pec_bloqueio"
+    elif "xs pz carta" in observacao_lower:
         return "xs_pz_carta"
-    
-    # Verifica padrão "sob {numero}" (ex: sob 123, sob 456, etc.)
     elif re.search(r'\bsob\s+\d+', observacao_lower):
         return "mov_sob"
     elif "sob chip" in observacao_lower:
@@ -122,9 +263,9 @@ def determinar_acao_por_observacao(observacao):
         return "pec_cpgeral"
     elif "xs pec edital" in observacao_lower:
         return "pec_editaldec"
-    elif "pec dec" in observacao_lower:
+    elif "xs pec dec" in observacao_lower:
         return "pec_decisao"
-    elif "pec idpj" in observacao_lower:
+    elif "xs pec idpj" in observacao_lower:
         return "pec_editalidpj"
     elif "pz idpj" in observacao_lower:
         return "ato_idpj"
@@ -136,6 +277,8 @@ def determinar_acao_por_observacao(observacao):
         return "ato_bloq"
     elif "meios" in observacao_lower:
         return "ato_meios"
+    elif "pec aud" in observacao_lower:
+        return "pec_editalaud"
     else:
         return "PULAR"
 
@@ -259,7 +402,7 @@ def executar_acao(driver, acao, numero_processo, observacao):
             # 2. Executa análise de documentos (integrada ao fluxo)
             return analisar_documentos_pos_carta(driver, numero_processo, observacao)
             
-        if acao == "xs carta":
+        if acao == "xs_carta":
             # Executa função carta do carta.py
             from carta import carta
             resultado = carta(driver, log=True)
@@ -285,7 +428,7 @@ def executar_acao(driver, acao, numero_processo, observacao):
         elif acao == "pec_cpgeral":
             # Executa pec_cpgeral do atos.py
             from atos import pec_cpgeral
-            resultado = pec_cpgeral(driver, debug=True)
+            resultado = pec_cpgeral(driver, terceiro=True, debug=True)
             return bool(resultado)
             
         elif acao == "pec_editaldec":
@@ -316,6 +459,12 @@ def executar_acao(driver, acao, numero_processo, observacao):
             # Executa pec_bloqueio do atos.py  
             from atos import pec_bloqueio
             resultado = pec_bloqueio(driver, debug=True)
+            return bool(resultado)
+        
+        elif acao == "pec_editalaud":
+            # Executa pec_editalaud do atos.py  
+            from atos import pec_editalaud
+            resultado = pec_editalaud(driver, debug=True)
             return bool(resultado)
             
         elif acao == "ato_bloq":
@@ -513,270 +662,149 @@ def executar_fluxo_novo():
     from driver_config import criar_driver, login_func
     import time
     
-    print("[FLUXO_NOVO] Iniciando novo fluxo...")
-    
-    # 1. Criar driver e executar login
+    # Importa configurações do driver_config.py
+    from driver_config import criar_driver, login_func
+    print("[FLUXO_NOVO] Iniciando novo fluxo com controle de progresso...")
+    progresso = carregar_progresso_pec()
     try:
         driver = criar_driver(headless=False)
         if not driver:
             print('[FLUXO_NOVO] ❌ Falha ao criar driver')
             return False
-            
         print("[FLUXO_NOVO] ✅ Driver criado com sucesso")
-        
-        # Executar login
         if not login_func(driver):
             print('[FLUXO_NOVO] ❌ Falha no login')
             driver.quit()
             return False
-            
         print("[FLUXO_NOVO] ✅ Login realizado com sucesso")
-        
     except Exception as e:
         print(f"[FLUXO_NOVO] ❌ Erro ao criar driver/login: {e}")
         return False
-    
-    # 2. Navegar para atividades
     try:
         if not navegar_para_atividades(driver):
             print("[FLUXO_NOVO] ❌ Falha ao navegar para atividades")
             driver.quit()
             return False
-            
-        # Aguarda carregar completamente
         time.sleep(5)
-        
     except Exception as e:
         print(f"[FLUXO_NOVO] ❌ Erro ao navegar para atividades: {e}")
         driver.quit()
         return False
-    
-    # 3. e 4. Pular filtros (não clicar fa-pen, não filtrar xs)
     print("[FLUXO_NOVO] ✅ Pulando filtros conforme solicitado")
-    
-    # 5. e 6. Usar indexar_e_processar_lista do Fix.py
     try:
         from Fix import aplicar_filtro_100, indexar_e_processar_lista
-        
-        # Aplicar apenas filtro de 100 itens por página
         print("[FLUXO_NOVO] Aplicando filtro de 100 itens por página...")
         if aplicar_filtro_100(driver):
             print("[FLUXO_NOVO] ✅ Filtro de 100 itens aplicado")
             time.sleep(2)
         else:
             print("[FLUXO_NOVO] ⚠️ Falha ao aplicar filtro de 100 itens, continuando...")
-        
-        # Reorganizar lista clicando na coluna "Observação"
         print("[FLUXO_NOVO] Clicando na coluna 'Observação' para reorganizar a lista...")
         try:
             from selenium.webdriver.common.by import By
             from selenium.webdriver.support.ui import WebDriverWait
             from selenium.webdriver.support import expected_conditions as EC
-            
-            # Procurar e clicar na coluna "Observação"
             coluna_observacao = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//div[@role="column" and @class="th-elemento-class ng-star-inserted" and contains(text(), "Observação")]'))
             )
             coluna_observacao.click()
             print("[FLUXO_NOVO] ✅ Coluna 'Observação' clicada - lista reorganizada")
-            time.sleep(3)  # Aguarda reorganização da lista
-            
+            time.sleep(3)
         except Exception as e:
             print(f"[FLUXO_NOVO] ⚠️ Erro ao clicar na coluna 'Observação': {e}")
             print("[FLUXO_NOVO] Continuando sem reorganizar...")
-        
-        # Callback personalizado para processar cada processo no PEC
-        def callback_pec(driver):
-            """Callback personalizado para processar cada processo no PEC"""
+        def callback_pec_progresso(driver):
             try:
-                # Os dados do processo já foram coletados durante a indexação
-                # Não precisamos chamar indexar_processo_atual_gigs aqui pois estamos na aba do processo
-                
-                # Para obter os dados do processo atual, vamos usar o número do processo da URL
-                url_atual = driver.current_url
-                numero_processo = None
-                
-                # Extrair número do processo da URL
-                import re
-                match_url = re.search(r'processo/(\d+)', url_atual)
-                if match_url:
-                    numero_processo = match_url.group(1)
-                    print(f"[CALLBACK_PEC] Processo extraído da URL: {numero_processo}")
-                else:
-                    print("[CALLBACK_PEC] ❌ Não foi possível extrair número do processo da URL")
-                    return False
-                
-                # Como não temos a observação na aba do processo, vamos determinar a ação baseada
-                # em outros critérios ou usar uma ação padrão
-                observacao = "processo_pec"  # Observação padrão para processos PEC
-                print(f"[CALLBACK_PEC] Processo: {numero_processo} | Observação: {observacao}")
-                
-                # Determinar ação baseada na observação
-                acao = determinar_acao_por_observacao(observacao)
-                print(f"[CALLBACK_PEC] Ação determinada: {acao}")
-                
-                if acao == "PULAR":
-                    print(f"[CALLBACK_PEC] ⏭️ Pulando processo (ação não definida)")
-                    return
-                
-                # Capturar aba atual antes de executar a ação
-                aba_processo = driver.current_window_handle
-                print(f"[CALLBACK_PEC] Aba do processo capturada: {aba_processo[:8]}...")
-                
-                # Executar a ação (função completa sua própria manipulação de abas)
-                print(f"[CALLBACK_PEC] Executando ação '{acao}' - aguardando conclusão...")
-                sucesso_acao = executar_acao(driver, acao, numero_processo, observacao)
-                
-                # Aguardar extra para garantir que a função terminou completamente
-                import time
-                time.sleep(2)
-                
-                # Verificar se ainda estamos na aba do processo ou se a função mudou de aba
-                aba_atual = driver.current_window_handle
-                if aba_atual != aba_processo:
-                    print(f"[CALLBACK_PEC] Função mudou de aba. Aba atual: {aba_atual[:8]}...")
-                    # Se mudou, voltar para a aba do processo
+                if verificar_acesso_negado_pec(driver):
+                    print("[CALLBACK_PEC] ⚠️ Acesso negado detectado! Reiniciando driver e login...")
+                    # Reinicia driver e login
                     try:
-                        driver.switch_to.window(aba_processo)
-                        print(f"[CALLBACK_PEC] Voltou para aba do processo")
-                        time.sleep(1)
+                        driver.quit()
+                    except Exception:
+                        pass
+                    novo_driver = criar_driver(headless=False)
+                    if not novo_driver:
+                        print('[CALLBACK_PEC] ❌ Falha ao reiniciar driver')
+                        return False
+                    if not login_func(novo_driver):
+                        print('[CALLBACK_PEC] ❌ Falha ao relogar')
+                        novo_driver.quit()
+                        return False
+                    print('[CALLBACK_PEC] ✅ Driver e login reiniciados com sucesso')
+                    # Navega para atividades
+                    if not navegar_para_atividades(novo_driver):
+                        print('[CALLBACK_PEC] ❌ Falha ao navegar para atividades após reinicio')
+                        novo_driver.quit()
+                        return False
+                    time.sleep(5)
+                    # Reaplica filtro de 100 itens
+                    from Fix import aplicar_filtro_100
+                    if aplicar_filtro_100(novo_driver):
+                        print('[CALLBACK_PEC] ✅ Filtro de 100 itens reaplicado')
+                        time.sleep(2)
+                    # Reorganiza lista por observação
+                    try:
+                        from selenium.webdriver.common.by import By
+                        from selenium.webdriver.support.ui import WebDriverWait
+                        from selenium.webdriver.support import expected_conditions as EC
+                        coluna_observacao = WebDriverWait(novo_driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, '//div[@role="column" and @class="th-elemento-class ng-star-inserted" and contains(text(), "Observação")]'))
+                        )
+                        coluna_observacao.click()
+                        print('[CALLBACK_PEC] ✅ Lista reorganizada por observação')
+                        time.sleep(3)
                     except Exception as e:
-                        print(f"[CALLBACK_PEC] ⚠️ Erro ao voltar para aba do processo: {e}")
-                
-                if sucesso_acao:
-                    print(f"[CALLBACK_PEC] ✅ Ação '{acao}' executada com sucesso")
-                else:
-                    print(f"[CALLBACK_PEC] ❌ Falha na execução da ação '{acao}'")
-                
-                print(f"[CALLBACK_PEC] Processamento do callback concluído")
-                
-            except Exception as e:
-                print(f"[CALLBACK_PEC] ❌ Erro no processamento: {e}")
-        
-        # Usar indexar_e_processar_lista do Fix.py com callback - igual ao p2.py
-        print("[FLUXO_NOVO] Iniciando processamento com indexar_e_processar_lista...")
-        
-        def callback_processo_pec(driver_processo):
-            """
-            Callback para executar fluxo PEC no processo aberto.
-            Replica exatamente o padrão do p2.py e m1.py - chama função diretamente.
-            """
-            try:
-                # CRÍTICO: Salvar aba da lista GIGS antes de executar qualquer função
-                todas_abas_inicio = driver_processo.window_handles
-                aba_lista_gigs = todas_abas_inicio[0] if len(todas_abas_inicio) > 1 else None
-                
-                print(f"[CALLBACK_PEC] Contexto Fix.py detectado - Abas: {len(todas_abas_inicio)} | Aba GIGS: {aba_lista_gigs}")
-                
-                # Extrair dados do processo (número e observação) - igual ao que o m1.py faz
-                processo_atual = indexar_processo_atual_gigs(driver_processo)
+                        print(f'[CALLBACK_PEC] ⚠️ Erro ao reorganizar lista: {e}')
+                    # Retorna None para pular o processo atual e continuar a lista
+                    return None
+                numero_processo = extrair_numero_processo_pec(driver)
+                if not numero_processo:
+                    print("[CALLBACK_PEC] ❌ Não foi possível extrair número do processo")
+                    return False
+                if processo_ja_executado_pec(numero_processo, progresso):
+                    print(f"[CALLBACK_PEC] ⏭️ Processo {numero_processo} já executado, pulando...")
+                    return True
+                processo_atual = indexar_processo_atual_gigs(driver)
                 if not processo_atual:
                     print("[CALLBACK_PEC] ❌ Falha ao extrair dados do processo atual")
-                    return
-                
-                numero_processo, observacao = processo_atual
+                    return False
+                _, observacao = processo_atual
                 print(f"[CALLBACK_PEC] Processo: {numero_processo} | Observação: {observacao}")
-                
-                # Determinar ação baseada na observação - igual ao m1.py que analisa texto
                 acao = determinar_acao_por_observacao(observacao)
                 print(f"[CALLBACK_PEC] Ação determinada: {acao}")
-                
                 if acao == "PULAR":
-                    print("[CALLBACK_PEC] ⏭️ Pulando processo (ação não definida)")
-                    return
-                
-                # Executar a ação diretamente - EXATAMENTE como p2.py e m1.py fazem
-                if acao == "carta":
-                    from carta import carta
-                    print(f"[CALLBACK_PEC] Executando carta()")
-                    carta(driver_processo)
-                elif acao == "pec_cpgeral":
-                    from atos import pec_cpgeral
-                    print(f"[CALLBACK_PEC] Executando pec_cpgeral()")
-                    pec_cpgeral(driver_processo, debug=True)
-                elif acao == "pec_editaldec":
-                    from atos import pec_editaldec
-                    print(f"[CALLBACK_PEC] Executando pec_editaldec()")
-                    pec_editaldec(driver_processo, debug=True)
-                elif acao == "pec_editalidpj":
-                    from atos import pec_editalidpj
-                    print(f"[CALLBACK_PEC] Executando pec_editalidpj()")
-                    pec_editalidpj(driver_processo, debug=True)
-                elif acao == "pec_bloqueio":
-                    from atos import pec_bloqueio
-                    print(f"[CALLBACK_PEC] Executando pec_bloqueio()")
-                    pec_bloqueio(driver_processo, debug=True)
-                elif acao == "ato_bloq":
-                    from atos import ato_bloq
-                    print(f"[CALLBACK_PEC] Executando ato_bloq()")
-                    ato_bloq(driver_processo, debug=True)
-                elif acao == "ato_idpj":
-                    from atos import ato_idpj
-                    print(f"[CALLBACK_PEC] Executando ato_idpj()")
-                    ato_idpj(driver_processo, debug=True)
-                elif acao == "def_sob":
-                    print(f"[CALLBACK_PEC] Executando def_sob()")
-                    def_sob(driver_processo, numero_processo, observacao, debug=True)
-                elif acao == "mov_sob":
-                    from atos import mov_sob
-                    print(f"[CALLBACK_PEC] Executando mov_sob()")
-                    mov_sob(driver_processo, numero_processo, observacao, debug=True)
-                elif acao == "def_chip":
-                    from atos import def_chip
-                    print(f"[CALLBACK_PEC] Executando def_chip()")
-                    def_chip(driver_processo, numero_processo, observacao, debug=True)
-                elif acao == "saldo":
-                    print(f"[CALLBACK_PEC] Executando saldo()")
-                    saldo(driver_processo, numero_processo, observacao, debug=True)
+                    print(f"[CALLBACK_PEC] ⏭️ Pulando processo (ação não definida)")
+                    marcar_processo_executado_pec(numero_processo, progresso)
+                    return True
+                sucesso_acao = executar_acao(driver, acao, numero_processo, observacao)
+                time.sleep(2)
+                if sucesso_acao:
+                    marcar_processo_executado_pec(numero_processo, progresso)
+                    print(f"[CALLBACK_PEC] ✅ Ação '{acao}' executada e processo marcado como concluído")
                 else:
-                    print(f"[CALLBACK_PEC] ❌ Ação '{acao}' não implementada")
-                
-                # CRÍTICO: Garantir retorno à aba GIGS após qualquer função
-                if aba_lista_gigs:
-                    try:
-                        todas_abas_final = driver_processo.window_handles
-                        if aba_lista_gigs in todas_abas_final:
-                            driver_processo.switch_to.window(aba_lista_gigs)
-                            print(f"[CALLBACK_PEC] ✅ Retornado à aba GIGS: {aba_lista_gigs}")
-                        else:
-                            print(f"[CALLBACK_PEC] ⚠️ Aba GIGS perdida, usando primeira disponível")
-                            if todas_abas_final:
-                                driver_processo.switch_to.window(todas_abas_final[0])
-                    except Exception as e:
-                        print(f"[CALLBACK_PEC] ❌ Erro ao retornar à aba GIGS: {e}")
-                    
-                print(f"[CALLBACK_PEC] ✅ Processamento concluído")
-                
-            except Exception as callback_error:
-                print(f'[CALLBACK_PEC] ERRO no processamento PEC: {callback_error}')
-                raise  # Re-raise para que o indexar_e_processar_lista saiba que houve erro
-                
-            time.sleep(1)  # Pausa para evitar race condition/travamento entre processamentos
-        
-        # Chama indexar_e_processar_lista com o callback definido - igual ao p2.py
-        from Fix import indexar_e_processar_lista
-        sucesso = indexar_e_processar_lista(driver, callback_processo_pec)
-        
+                    print(f"[CALLBACK_PEC] ❌ Falha na execução da ação '{acao}'")
+                    marcar_processo_executado_pec(numero_processo, progresso)
+                print(f"[CALLBACK_PEC] Processamento do callback concluído")
+            except Exception as e:
+                print(f"[CALLBACK_PEC] ❌ Erro no processamento: {e}")
+            time.sleep(1)
+        print("[FLUXO_NOVO] Iniciando processamento com indexar_e_processar_lista...")
+        sucesso = indexar_e_processar_lista(driver, callback_pec_progresso)
         if sucesso:
             print("[FLUXO_NOVO] ✅ Processamento concluído com sucesso!")
         else:
             print("[FLUXO_NOVO] ⚠️ Processamento concluído com alguns problemas")
-        
     except Exception as e:
         print(f"[FLUXO_NOVO] ❌ Erro durante o processamento: {e}")
         driver.quit()
         return False
-    
     finally:
-        # Manter driver aberto para inspeção
         input("[FLUXO_NOVO] Pressione Enter para fechar o driver...")
         try:
             driver.quit()
         except:
             pass
-    
     return True
-
 def aplicar_filtro_xs(driver):
     """
     Aplica filtro 'xs' na tela de atividades do GIGS.
@@ -823,29 +851,12 @@ def main():
 def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
     """
     Função def_sob: analisa última decisão e executa ação baseada no conteúdo.
-    
-    Fluxo:
-    1. Seleciona última decisão (igual ao p2.py)
-    2. Extrai conteúdo usando extrair_documento
-    3. Aplica regras baseadas no conteúdo:
-       - "juízo universal" -> ato_fal de atos.py
-       - "prazo prescricional" -> def_presc (placeholder)
-    
-    Args:
-        driver: WebDriver do Selenium
-        numero_processo: Número do processo
-        observacao: Observação que disparou a ação
-        debug: Se True, exibe logs detalhados
-        timeout: Timeout para aguardar elementos
-    
-    Returns:
-        bool: True se executado com sucesso
     """
     import re
     import time
     import unicodedata
     from selenium.webdriver.common.by import By
-    from Fix import extrair_documento
+    from Fix import extrair_documento, extrair_pdf
     
     def log_msg(msg):
         if debug:
@@ -855,7 +866,7 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
     log_msg(f"Observação: {observacao}")
     
     try:
-        # ===== ETAPA 1: SELECIONAR ÚLTIMA DECISÃO (igual ao p2.py) =====
+        # ===== ETAPA 1: SELECIONAR ÚLTIMA DECISÃO =====
         log_msg("1. Selecionando última decisão...")
         
         # Procura itens da timeline
@@ -866,10 +877,9 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
         
         doc_encontrado = None
         doc_link = None
-        doc_idx = 0
         
         # Procura documento relevante (decisão, despacho ou sentença)
-        for idx, item in enumerate(itens[doc_idx:], doc_idx):
+        for item in itens:
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = link.text.lower()
@@ -878,21 +888,20 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                 if not re.search(r'despacho|decisão|sentença|conclusão', doc_text):
                     continue
                 
-                # Verifica se foi assinado por magistrado (opcional - adapte conforme necessário)
+                # Verifica se foi assinado por magistrado
                 mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
                 if mag_icons:  # Se há ícone de magistrado, usa esse documento
                     doc_encontrado = item
                     doc_link = link
-                    doc_idx = idx
                     break
                     
             except Exception as e:
-                log_msg(f"⚠️ Erro ao processar item {idx}: {e}")
+                log_msg(f"⚠️ Erro ao processar item: {e}")
                 continue
         
         # Se não encontrou com magistrado, usa o primeiro documento relevante
         if not doc_encontrado:
-            for idx, item in enumerate(itens):
+            for item in itens:
                 try:
                     link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                     doc_text = link.text.lower()
@@ -912,53 +921,63 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
         log_msg(f"✅ Documento encontrado: {doc_link.text}")
         
         # ===== EXTRAIR DATA DA DECISÃO =====
-        data_decisao = None
         data_decisao_str = None
         try:
-            # Procura elemento com classe tl-item-hora no item encontrado
             hora_element = doc_encontrado.find_element(By.CSS_SELECTOR, '.tl-item-hora')
             if hora_element:
-                # Extrai data do atributo title (ex: "08/08/2023 08:05")
                 title_attr = hora_element.get_attribute('title')
                 if title_attr:
-                    # Extrair apenas a data (antes do espaço)
                     data_parte = title_attr.split(' ')[0]  # "08/08/2023"
                     data_decisao_str = data_parte
                     log_msg(f"✅ Data da decisão extraída: {data_decisao_str}")
-                else:
-                    log_msg("⚠️ Atributo title não encontrado no elemento tl-item-hora")
-            else:
-                log_msg("⚠️ Elemento tl-item-hora não encontrado no documento selecionado")
         except Exception as e:
             log_msg(f"⚠️ Erro ao extrair data da decisão: {e}")
         
         # Clica no documento
         doc_link.click()
-        time.sleep(2)  # Aguarda carregar
-        
-        # ===== ETAPA 2: EXTRAIR CONTEÚDO (igual ao p2.py) =====
+        time.sleep(3)  # Aguarda carregar mais tempo
+
+        # ===== ETAPA 2: EXTRAIR CONTEÚDO =====
         log_msg("2. Extraindo conteúdo do documento...")
-        
-        texto_tuple = None
+
         texto = None
-        
+
+        # Tentativa 1: Usar extrair_documento
         try:
-            texto_tuple = extrair_documento(driver, regras_analise=None, timeout=timeout, log=debug)
-            if texto_tuple and texto_tuple[0]:
-                texto = texto_tuple[0].lower()
-                log_msg("✅ Conteúdo extraído com sucesso")
+            texto = extrair_documento(driver, regras_analise=None, timeout=timeout, log=debug)
+            if texto:
+                texto = texto.lower()
+                log_msg("✅ Conteúdo extraído com sucesso usando extrair_documento")
             else:
-                log_msg("❌ extrair_documento retornou None ou texto vazio")
-                return False
-                
+                log_msg("❌ extrair_documento retornou None")
         except Exception as e:
-            log_msg(f"❌ Erro ao extrair documento: {e}")
+            log_msg(f"❌ Erro ao extrair documento com extrair_documento: {e}")
+
+        # Se extrair_documento falhou, tentar extrair_pdf
+        if not texto or len(texto.strip()) < 10:
+            log_msg("⚠️ Tentando alternativa com extrair_pdf...")
+            try:
+                texto_pdf = extrair_pdf(driver, log=debug)
+                if texto_pdf:
+                    texto = texto_pdf.lower()
+                    log_msg("✅ Conteúdo extraído com sucesso usando extrair_pdf")
+                else:
+                    log_msg("❌ extrair_pdf retornou None")
+            except Exception as e:
+                log_msg(f"❌ Erro ao extrair documento com extrair_pdf: {e}")
+
+        # Se ainda não temos texto, salvar HTML para diagnóstico e retornar falha
+        if not texto or len(texto.strip()) < 10:
+            log_msg("❌ Texto extraído muito curto ou vazio. Salvando HTML para diagnóstico.")
+            try:
+                preview_html = driver.page_source
+                with open(f'debug_sob_preview_{numero_processo}.html', 'w', encoding='utf-8') as f:
+                    f.write(preview_html)
+                log_msg(f"[DIAGNOSTICO] HTML do preview salvo em debug_sob_preview_{numero_processo}.html")
+            except Exception as ehtml:
+                log_msg(f"[DIAGNOSTICO][ERRO] Falha ao salvar HTML do preview: {ehtml}")
             return False
-        
-        if not texto:
-            log_msg("❌ Não foi possível extrair o texto do documento")
-            return False
-        
+
         # Log do texto extraído (início apenas)
         log_texto = texto[:200] + '...' if len(texto) > 200 else texto
         log_msg(f"Texto extraído: {log_texto}")
@@ -1613,17 +1632,15 @@ def def_presc(driver, numero_processo, texto_decisao, data_decisao_str=None, deb
                     log_msg("❌ Falha na execução do mov_fimsob")
                     return False
 
-                # Após mov_fimsob, ele fecha sua própria aba e Selenium volta para a aba da lista (primeira)
-                # Agora, alternar para a aba do detalhe do processo (segunda aba), que permanece aberta
-                try:
-                    abas = driver.window_handles
-                    if len(abas) >= 2:
-                        log_msg(f"🔄 Alternando para a aba de detalhes do processo (aba 2 de {len(abas)}) após fechamento da aba mov_fimsob")
-                        driver.switch_to.window(abas[1])
-                    else:
-                        log_msg(f"⚠️ Menos de 2 abas abertas após mov_fimsob. Abas: {len(abas)}")
-                except Exception as nav_err:
-                    log_msg(f"⚠️ Erro ao alternar para aba de detalhes do processo: {nav_err}")
+                # Após mov_fimsob, identificar se uma nova aba foi aberta e trocar para ela para prosseguir o CLS
+                abas_apos = driver.window_handles
+                novas_abas = [a for a in abas_apos if a not in [driver.current_window_handle]]
+                if len(abas_apos) > 1:
+                    # Tenta trocar para a última aba aberta (normalmente a tarefa do processo)
+                    driver.switch_to.window(abas_apos[-1])
+                    log_msg(f"[CORRIGIDO] Troca para a nova aba da tarefa após mov_fimsob. Abas: {abas_apos}")
+                else:
+                    log_msg(f"[CORRIGIDO] Apenas uma aba detectada após mov_fimsob. Prosseguindo na atual.")
 
                 resultado_presc = ato_presc(driver, debug=debug)
                 if resultado_presc:

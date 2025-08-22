@@ -1,47 +1,48 @@
 {
   "numero": [
-    "1000699-22.2020.5.02.0703"
+    "1000886-88.2024.5.02.0703"
   ],
-  "id": 3583425,
+  "id": 6203803,
   "autor": [
     {
-      "nome": "EDILZA DIAS FERNANDES",
-      "cpfcnpj": "08276407498",
+      "nome": "JOYCE APARECIDA DE SOUSA",
+      "cpfcnpj": "43369419807",
       "advogado": {
-        "nome": "DANIEL FRANCO PEDREIRA",
-        "cpf": "29984676870",
-        "oab": "SP266927"
+        "nome": "ROSANGELA LABRE DA SILVEIRA",
+        "cpf": "11875990852",
+        "oab": "SP291514"
       }
     }
   ],
   "reu": [
     {
-      "nome": "TANIA RIBEIRO DE BARROS BAZAR",
-      "cpfcnpj": "11700318000100"
+      "nome": "GALVAO PASTELARIA LTDA",
+      "cpfcnpj": "17276428000164"
     },
     {
-      "nome": "TANIA RIBEIRO DE BARROS",
-      "cpfcnpj": "08676507880"
+      "nome": "LEONARDO TULIO VIVIANI PERNETTI",
+      "cpfcnpj": "26888134806"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": 12081.43,
-    "data": "2022-02-25T00:00:00"
+    "valor": 6401.72,
+    "data": "2025-06-16T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "07/07/2020",
+  "dtAutuacao": "04/06/2024",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 60720.01,
+    "pisoValorCausa": 3036.01,
+    "tetoValorCausa": 60720.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

@@ -1062,19 +1062,22 @@ def extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
     
     # 3. Divida
     try:
-        url_divida = f"https://{trt_host}/pje-comum-api/api/calculos/processo?pagina=1&tamanhoPagina=10&ordenacaoCrescente=true&idProcesso={id_processo}&mostrarCalculosHomologados=true&incluirCalculosHomologados=true"
+        url_divida = f"https://{trt_host}/pje-comum-api/api/calculos/processo?pagina=1&tamanhoPagina=10&ordenacaoCrescente=false&idProcesso={id_processo}"
         resp = sess.get(url_divida, timeout=10)
         if resp.ok:
             j = resp.json()
             if j and j.get("resultado"):
-                ultimo = j["resultado"][-1]
+                # Pega o PRIMEIRO elemento (mais recente)
+                mais_recente = j["resultado"][0]
                 processo_memoria["divida"] = {
-                    "valor": ultimo.get("total", 0),
-                    "data": ultimo.get("dataLiquidacao", "")
+                    "valor": mais_recente.get("total", 0),
+                    "data": mais_recente.get("dataLiquidacao", "")
                 }
     except Exception as e:
         if debug:
             print('[extrair.py] Erro ao buscar divida:', e)
+
+
       # Salva JSON
     with open(caminho_json, 'w', encoding='utf-8') as f:
         json.dump(processo_memoria, f, ensure_ascii=False, indent=2)

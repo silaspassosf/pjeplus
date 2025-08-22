@@ -51,7 +51,8 @@ def extrair_numero_processo_da_pagina(driver, debug=True):
 def carta_wrapper(
     driver,
     numero_processo=None,
-    debug=True
+    debug=True,
+    ecarta_html=None
 ):
     """
     Wrapper específico para juntada de e-carta.
@@ -66,6 +67,10 @@ def carta_wrapper(
     """
     from editor_insert import obter_ultimo_conteudo_clipboard, inserir_no_editor_apos_marcador
     conteudo = obter_ultimo_conteudo_clipboard(numero_processo, debug=debug)
+    # Se ecarta_html for fornecido, pode ser usado para formatar ou inserir no editor
+    if ecarta_html is not None:
+        from anexos import formatar_conteudo_ecarta
+        conteudo = formatar_conteudo_ecarta(ecarta_html)
     def inserir_fn(driver, numero_processo=None, debug=True):
         return inserir_no_editor_apos_marcador(driver, conteudo or '', marcador='--', modo='replace', debug=debug)
     return wrapper_juntada_geral(
@@ -111,6 +116,45 @@ def wrapper_juntada_geral(
     """
     if debug:
         print('[WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...')
+
+    # Passos para abrir tela de juntada
+    try:
+        # 1. Clicar no menu lateral
+        menu_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-bars.icone-botao-menu')))
+        menu_btn.click()
+        if debug:
+            print('[JUNTADA][DEBUG] Menu lateral clicado.')
+        time.sleep(1)
+
+        # 2. Clicar em "Anexar Documentos"
+        anexar_btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//button[@aria-label="Anexar Documentos"]')))
+        anexar_btn.click()
+        if debug:
+            print('[JUNTADA][DEBUG] Botão "Anexar Documentos" clicado.')
+        time.sleep(1)
+
+        # 3. Mudar para nova aba e aguardar URL /anexar
+        original_window = driver.current_window_handle
+        all_windows = driver.window_handles
+        if len(all_windows) > 1:
+            nova_aba = all_windows[-1]
+            driver.switch_to.window(nova_aba)
+            if debug:
+                print(f'[JUNTADA][DEBUG] Mudou para nova aba: {nova_aba}')
+        else:
+            if debug:
+                print('[JUNTADA][ERRO] Nova aba de anexar não detectada.')
+        # Aguarda URL
+        WebDriverWait(driver, 10).until(lambda d: '/anexar' in d.current_url)
+        if debug:
+            print(f'[JUNTADA][DEBUG] URL de anexar detectada: {driver.current_url}')
+        time.sleep(2)
+    except Exception as e:
+        if debug:
+            print(f'[JUNTADA][ERRO] Falha ao abrir tela de juntada: {e}')
+
     # 0. Coleta de conteúdo (opcional)
     if coleta_conteudo:
         try:

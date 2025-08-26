@@ -100,6 +100,77 @@ def recuperar_sessao_pec(driver):
         print(f"[RECOVERY_PEC][SESSÃO][ERRO] Falha na recuperação: {e}")
         return False
 
+
+def reiniciar_driver_e_logar_pje(driver, log=True):
+    """
+    Reinicia o driver do PJe usando as fábricas em `driver_config` e executa o login
+    Retorna o novo driver se bem-sucedido, ou None em caso de falha.
+    """
+    try:
+        if log:
+            print('[RECOVERY][RESTART] Reiniciando driver e efetuando novo login...')
+        try:
+            # Tentar fechar o driver anterior de forma segura
+            try:
+                driver.quit()
+            except Exception:
+                pass
+
+            # Importar factories e função de login
+            from driver_config import criar_driver, login_func
+
+            # Criar novo driver
+            novo_driver = criar_driver()
+            if not novo_driver:
+                if log:
+                    print('[RECOVERY][RESTART] Falha ao criar novo driver')
+                return None
+
+            # Executar login (pode ser automático ou manual conforme configuração)
+            ok = False
+            try:
+                ok = login_func(novo_driver)
+            except Exception as e:
+                if log:
+                    print(f'[RECOVERY][RESTART] Erro ao executar login_func: {e}')
+                ok = False
+
+            if not ok:
+                if log:
+                    print('[RECOVERY][RESTART] Login falhou no novo driver')
+                try:
+                    novo_driver.quit()
+                except Exception:
+                    pass
+                return None
+
+            # Navegar para a lista de atividades para retomar o processamento
+            try:
+                url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
+                novo_driver.get(url_atividades)
+                time.sleep(4)
+                # Tentar reaplicar filtro de 100 itens se disponível
+                try:
+                    from Fix import aplicar_filtro_100
+                    aplicar_filtro_100(novo_driver)
+                    time.sleep(1)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+
+            if log:
+                print('[RECOVERY][RESTART] Novo driver pronto e logado')
+            return novo_driver
+
+        except Exception as e:
+            if log:
+                print(f'[RECOVERY][RESTART] Falha durante reinício do driver: {e}')
+            return None
+    except Exception as e:
+        print(f'[RECOVERY][RESTART][ERRO] Exceção inesperada: {e}')
+        return None
+
 def resetar_progresso_pec():
     """Reseta o arquivo de progresso específico para PEC"""
     try:
@@ -659,7 +730,7 @@ def executar_fluxo_novo():
     6- ao indexar numero do processo - atividade (observação)
     """
     # Importa configurações do driver_config.py
-    from driver_config import criar_driver, login_func
+    from driver_config import criar_driver, login_func, login_manual
     import time
     
     # Importa configurações do driver_config.py
@@ -673,9 +744,17 @@ def executar_fluxo_novo():
             return False
         print("[FLUXO_NOVO] ✅ Driver criado com sucesso")
         if not login_func(driver):
-            print('[FLUXO_NOVO] ❌ Falha no login')
-            driver.quit()
-            return False
+            print('[FLUXO_NOVO] ❌ Falha no login automático. Tentando fallback para login manual...')
+            try:
+                if login_manual(driver):
+                    print('[FLUXO_NOVO] ✅ Login manual realizado com sucesso. Continuando execução.')
+                else:
+                    print('[FLUXO_NOVO] ❌ Login manual não realizado. Mantendo driver aberto para inspeção.')
+                    return False
+            except Exception as e:
+                print(f"[FLUXO_NOVO][ERRO] Falha ao tentar login manual: {e}")
+                print('[FLUXO_NOVO] Mantendo driver aberto para inspeção.')
+                return False
         print("[FLUXO_NOVO] ✅ Login realizado com sucesso")
     except Exception as e:
         print(f"[FLUXO_NOVO] ❌ Erro ao criar driver/login: {e}")

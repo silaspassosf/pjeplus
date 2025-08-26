@@ -17,7 +17,7 @@ echo.
 
 REM === CONFIGURAÇÃO AUTOMÁTICA ===
 set "REPO_URL=https://github.com/silaspassosf/pjeplus.git"
-set "PASTA_DEFAULT=C:\PjePlus"
+set "PASTA_DEFAULT=C:\Users\s164283\Desktop\Pjeplus"
 set "PASTA_PROJETO=%PASTA_DEFAULT%"
 
 REM Detecta localização atual

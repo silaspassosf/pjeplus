@@ -1679,6 +1679,65 @@ def reindexar_linha(driver, proc_id):
             continue
     return None
 
+
+def reiniciar_driver_e_logar_pje(driver, log=True):
+    """
+    Reinicia o driver do PJe usando as fábricas em `driver_config` e executa o login
+    Retorna o novo driver se bem-sucedido, ou None em caso de falha.
+    """
+    try:
+        if log:
+            print('[RECOVERY][RESTART] Tentando reiniciar driver e efetuar novo login...')
+        try:
+            try:
+                driver.quit()
+            except Exception:
+                pass
+
+            from driver_config import criar_driver, login_func
+
+            novo_driver = criar_driver()
+            if not novo_driver:
+                if log:
+                    print('[RECOVERY][RESTART] Falha ao criar novo driver')
+                return None
+
+            ok = False
+            try:
+                ok = login_func(novo_driver)
+            except Exception as e:
+                if log:
+                    print(f'[RECOVERY][RESTART] Erro ao executar login_func: {e}')
+                ok = False
+
+            if not ok:
+                if log:
+                    print('[RECOVERY][RESTART] Login falhou no novo driver')
+                try:
+                    novo_driver.quit()
+                except Exception:
+                    pass
+                return None
+
+            try:
+                url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
+                novo_driver.get(url_atividades)
+                time.sleep(4)
+            except Exception:
+                pass
+
+            if log:
+                print('[RECOVERY][RESTART] Novo driver criado e logado com sucesso')
+            return novo_driver
+
+        except Exception as e:
+            if log:
+                print(f'[RECOVERY][RESTART] Falha durante reinício do driver: {e}')
+            return None
+    except Exception as e:
+        print(f'[RECOVERY][RESTART][ERRO] Exceção inesperada: {e}')
+        return None
+
 def abrir_detalhes_processo(driver, linha):
     try:
         btn = linha.find_element(By.CSS_SELECTOR, '[mattooltip*="Detalhes do Processo"]')
@@ -2019,6 +2078,23 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
         # Verificar se ainda estamos na aba da lista
         try:
             atual_url = driver.current_url
+            # Se estamos em acesso-negado, reiniciar driver e tentar retomar
+            if 'acesso-negado' in atual_url.lower() or 'login.jsp' in atual_url.lower():
+                print(f'[PROCESSAR][ALERTA] Acesso negado detectado (URL: {atual_url[:80]}). Tentando reiniciar driver e refazer login...')
+                novo_driver = reiniciar_driver_e_logar_pje(driver, log=True)
+                if novo_driver:
+                    driver = novo_driver
+                    # atualizar aba_lista_original se necessário
+                    try:
+                        aba_lista_original = driver.window_handles[0]
+                    except Exception:
+                        pass
+                    print('[PROCESSAR] ✅ Driver reiniciado e logado. Re-tentando o processo atual.')
+                else:
+                    print('[PROCESSAR][ERRO] Falha ao reiniciar driver após acesso negado')
+                    processos_com_erro += 1
+                    continue
+
             if "escaninho" not in atual_url and "documentos" not in atual_url:
                 print(f'[PROCESSAR][ALERTA] Não estamos na página da lista! URL: {atual_url[:50]}...')
                 # Tentar navegar de volta se possível

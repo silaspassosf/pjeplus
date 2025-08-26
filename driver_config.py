@@ -65,8 +65,34 @@ def login_automatico(driver):
         btn_certificado = driver.find_element(By.CSS_SELECTOR, ".botao-certificado-titulo")
         btn_certificado.click()
         print("[LOGIN_AUTOMATICO] Botão .botao-certificado-titulo clicado com sucesso.")
+        # Seleciona caminhos do AutoHotkey conforme a configuração ativa (PC x NOTEBOOK)
+        try:
+            # Prefer explicit active variables if defined
+            ahk_exe = globals().get('AHK_EXE_ACTIVE')
+            ahk_script = globals().get('AHK_SCRIPT_ACTIVE')
+            if not ahk_exe or not ahk_script:
+                # Fallback para seleção baseada no driver ativo
+                if globals().get('criar_driver') == globals().get('criar_driver_notebook'):
+                    ahk_exe = globals().get('AHK_EXE_NOTEBOOK')
+                    ahk_script = globals().get('AHK_SCRIPT_NOTEBOOK')
+                else:
+                    ahk_exe = globals().get('AHK_EXE_PC')
+                    ahk_script = globals().get('AHK_SCRIPT_PC')
+        except Exception:
+            ahk_exe = globals().get('AHK_EXE_PC')
+            ahk_script = globals().get('AHK_SCRIPT_PC')
+
+        # Valida existência dos caminhos antes de chamar
+        import os
+        if not ahk_exe or not os.path.exists(ahk_exe):
+            print(f"[LOGIN_AUTOMATICO][ERRO] Executável AutoHotkey não encontrado: {ahk_exe}")
+            return False
+        if not ahk_script or not os.path.exists(ahk_script):
+            print(f"[LOGIN_AUTOMATICO][ERRO] Script AutoHotkey não encontrado: {ahk_script}")
+            return False
+
         # Chama o AutoHotkey para digitar a senha
-        subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
+        subprocess.Popen([ahk_exe, ahk_script])
         print("[LOGIN_AUTOMATICO] Script AutoHotkey chamado para digitar a senha.")
         # Aguarda sair da tela de login
         for _ in range(60):
@@ -103,8 +129,31 @@ def login_automatico_direto(driver):
         btn_certificado.click()
         print("[LOGIN_AUTOMATICO_DIRETO] Botão .botao-certificado-titulo clicado com sucesso.")
         
+        # Seleciona caminhos do AutoHotkey conforme a configuração ativa (PC x NOTEBOOK)
+        try:
+            ahk_exe = globals().get('AHK_EXE_ACTIVE')
+            ahk_script = globals().get('AHK_SCRIPT_ACTIVE')
+            if not ahk_exe or not ahk_script:
+                if globals().get('criar_driver') == globals().get('criar_driver_notebook'):
+                    ahk_exe = globals().get('AHK_EXE_NOTEBOOK')
+                    ahk_script = globals().get('AHK_SCRIPT_NOTEBOOK')
+                else:
+                    ahk_exe = globals().get('AHK_EXE_PC')
+                    ahk_script = globals().get('AHK_SCRIPT_PC')
+        except Exception:
+            ahk_exe = globals().get('AHK_EXE_PC')
+            ahk_script = globals().get('AHK_SCRIPT_PC')
+
+        import os
+        if not ahk_exe or not os.path.exists(ahk_exe):
+            print(f"[LOGIN_AUTOMATICO_DIRETO][ERRO] Executável AutoHotkey não encontrado: {ahk_exe}")
+            return False
+        if not ahk_script or not os.path.exists(ahk_script):
+            print(f"[LOGIN_AUTOMATICO_DIRETO][ERRO] Script AutoHotkey não encontrado: {ahk_script}")
+            return False
+
         # Chama o AutoHotkey para digitar a senha
-        subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
+        subprocess.Popen([ahk_exe, ahk_script])
         print("[LOGIN_AUTOMATICO_DIRETO] Script AutoHotkey chamado para digitar a senha.")
         
         # Aguarda sair da tela de login
@@ -160,8 +209,12 @@ def criar_driver_VT(headless=False):
     print("[DRIVER_VT] Driver VT criado com sucesso")
     return driver
 
+
+
 def criar_driver_notebook(headless=False):
-    """Driver Notebook - Perfil Robot"""
+    """Cria um WebDriver Firefox configurado para a máquina "notebook".
+    Garante que o geckodriver usado é o do perfil notebook (GECKODRIVER_PATH_NOTEBOOK).
+    """
     from selenium import webdriver
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
@@ -169,53 +222,69 @@ def criar_driver_notebook(headless=False):
     if headless:
         options.add_argument('-headless')
     options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
-    options.profile = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
+    # Use a clean temporary profile for the notebook driver to avoid loading user
+    # extensions which can cause erratic behaviour and slow startup.
+    # If you need to use the real user profile, set USE_USER_PROFILE_NOTEBOOK = True
+    USE_USER_PROFILE_NOTEBOOK = False
+    if USE_USER_PROFILE_NOTEBOOK:
+        options.profile = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
     service = Service(executable_path=r'C:\Users\s164283\Desktop\pjeplus\geckodriver.exe')
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
-    print("[DRIVER_NOTEBOOK] Driver Notebook criado com sucesso")
+    print("[DRIVER_NOTEBOOK] Driver NOTEBOOK criado com sucesso")
     return driver
+    # ...existing code...
 
-def criar_driver_firefox_alvara(headless=False):
-    """
-    Cria driver Firefox usando perfil específico já logado no sistema Alvará Eletrônico.
-    
-    Args:
-        headless: Se True, executa em modo headless
-    
-    Returns:
-        WebDriver: Instância do driver Firefox configurado
-    """
+
+# ===============================================
+# BLOCO 2b: CONFIGURAÇÕES DE DRIVER - SISBAJUD
+# Opcional: duas opções (PC, Notebook). Reaproveitam os mesmos caminhos de geckodriver
+# usados nos drivers comuns; apenas o perfil pode diferir.
+# Ajuste SISB_PROFILE_NOTEBOOK se necessário.
+# ===============================================
+
+# Perfil padrão para SISBAJUD (PC). Ajuste se desejar outro perfil.
+SISB_PROFILE_PC = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2y17wq63.default'
+# Perfil notebook para SISBAJUD — informe o caminho se diferente do padrão
+SISB_PROFILE_NOTEBOOK = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\o2g0j0ns.Sisb'
+
+def criar_driver_sisb_pc(headless=False):
+    """Driver SISBAJUD - PC (usa os mesmos caminhos do driver PC, com perfil SISBAJUD)"""
     from selenium import webdriver
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
-    
+    options = Options()
+    if headless:
+        options.add_argument('--headless')
+    # mesmo binário do Developer Edition usado pelas outras funções
+    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    options.profile = SISB_PROFILE_PC
+    service = Service(executable_path=r'd:\PjePlus\geckodriver.exe')
+    driver = webdriver.Firefox(service=service, options=options)
+    driver.implicitly_wait(10)
+    print("[DRIVER_SISB_PC] Driver SISBAJUD PC criado com sucesso")
+    return driver
+
+def criar_driver_sisb_notebook(headless=False):
+    """Driver SISBAJUD - Notebook (usa caminhos notebook; perfil a ser informado)"""
+    from selenium import webdriver
+    from selenium.webdriver.firefox.options import Options
+    from selenium.webdriver.firefox.service import Service
     options = Options()
     if headless:
         options.add_argument('-headless')
-    
-    # Configurações específicas para o perfil do Silas com sistema Alvará Eletrônico logado
-    # IMPORTANTE: Usar Firefox normal (não Developer Edition) onde está o login ativo
-    # options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"  # Developer Edition
-    options.binary_location = r"C:\Program Files\Mozilla Firefox\firefox.exe"  # Firefox Normal
-    options.profile = r"C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\x4fkuw2q.silas-1723037723659"
-    
-    # Configurações adicionais para melhor performance
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    # Remove opções específicas do Chrome que não existem no Firefox
-    # options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    # options.add_experimental_option('useAutomationExtension', False)
-    
-    service = Service(executable_path=r'd:\PjePlus\geckodriver.exe')
-    
-    try:
-        driver = webdriver.Firefox(options=options, service=service)
-        driver.implicitly_wait(10)
-        print("[DRIVER_FIREFOX_ALVARA] Driver Firefox com perfil Alvará Eletrônico criado com sucesso")
-        return driver
-    except Exception as e:
-        print(f"[DRIVER_FIREFOX_ALVARA] Erro ao criar driver: {e}")
-        raise
+    options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+    options.profile = SISB_PROFILE_NOTEBOOK
+    service = Service(executable_path=r'C:\Users\s164283\Desktop\pjeplus\geckodriver.exe')
+    driver = webdriver.Firefox(options=options, service=service)
+    driver.implicitly_wait(10)
+    print("[DRIVER_SISB_NOTEBOOK] Driver SISBAJUD NOTEBOOK criado com sucesso")
+    return driver
+
+# Qual opção de SISBAJUD está ativa (ajuste para Notebook se preferir)
+criar_driver_sisb = criar_driver_sisb_pc
+
+
 
 # ===============================================
 # CONFIGURAÇÃO ATIVA
@@ -223,12 +292,42 @@ def criar_driver_firefox_alvara(headless=False):
 
 # BLOCO 1: ESCOLHA DO LOGIN (descomente apenas uma linha)
 # login_func = login_manual        # ← Login manual
-login_func = login_automatico    # ← ATIVO: Login automático via AutoHotkey
+login_func = login_automatico    # ← ATIVO: Login automático (usará AutoHotkey config abaixo)
 
 # BLOCO 2: ESCOLHA DO DRIVER (descomente apenas uma linha)
-criar_driver = criar_driver_PC       # ← ATIVO: Driver PC
+criar_driver = criar_driver_notebook    # ← ATIVO: Driver Notebook
+# criar_driver = criar_driver_PC       # ← Driver PC
 # criar_driver = criar_driver_VT       # ← Driver VT
-# criar_driver = criar_driver_notebook # ← Driver Notebook
+
+# Sincroniza automaticamente a fábrica SISBAJUD com a opção ativa de driver
+# Se o driver ativo for o notebook, usa o driver SISBAJUD notebook; caso contrário usa o PC
+try:
+    if criar_driver == criar_driver_notebook:
+        criar_driver_sisb = criar_driver_sisb_notebook
+    else:
+        criar_driver_sisb = criar_driver_sisb_pc
+except NameError:
+    # Em caso de import/ordem diferente, mantém a configuração explícita definida anteriormente
+    pass
+
+# =========================
+# CONFIGURAÇÃO AUTOHOTKEY
+# Caminhos separados para PC e NOTEBOOK (preencha com seus caminhos locais)
+# AHK_EXE_PC / AHK_SCRIPT_PC : usados quando o driver ativo NÃO for notebook
+# AHK_EXE_NOTEBOOK / AHK_SCRIPT_NOTEBOOK : usados quando o driver ativo for notebook
+# AHK_EXE_ACTIVE / AHK_SCRIPT_ACTIVE : se definidos, forçam uso explícito independentemente do criar_driver
+# =========================
+AHK_EXE_PC = r'C:\Program Files\AutoHotkey\AutoHotkey.exe'
+AHK_SCRIPT_PC = r'D:\PjePlus\Login.ahk'
+
+# Ajuste estes valores para o notebook quando necessário. Deixe como string vazia se não tiver.
+AHK_EXE_NOTEBOOK = r'C:\Users\s164283\Downloads\AHK\AutoHotkey64.exe'
+AHK_SCRIPT_NOTEBOOK = r'C:\Users\s164283\Desktop\pjeplus\login.ahk'
+
+# Se quiser forçar um par ativo, defina AHK_EXE_ACTIVE e AHK_SCRIPT_ACTIVE como caminhos completos.
+# Caso contrário, a seleção automática usará criar_driver para decidir entre PC/NOTEBOOK.
+AHK_EXE_ACTIVE = None
+AHK_SCRIPT_ACTIVE = None
 
 # ===============================================
 # SISTEMA INTELIGENTE DE COOKIES DE SESSÃO

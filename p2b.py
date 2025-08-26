@@ -903,10 +903,20 @@ def main():
     if not driver:
         print('[ERRO] Falha ao iniciar o driver.')
         return
+    # Tenta login automático e em caso de falha tenta login manual antes de encerrar
     if not login_func(driver):
-        print('[ERRO] Falha no login. Encerrando script.')
-        finalizar_driver(driver)
-        return
+        print('[P2B] Falha no login automático. Tentando fallback para login manual...')
+        try:
+            from driver_config import login_manual
+            if login_manual(driver):
+                print('[P2B] ✅ Login manual realizado com sucesso. Continuando execução.')
+            else:
+                print('[P2B] ❌ Login manual não realizado. Mantendo driver aberto para inspeção.')
+                return
+        except Exception as e:
+            print(f"[P2B][ERRO] Falha ao tentar login manual: {e}")
+            print('[P2B] Mantendo driver aberto para inspeção.')
+            return
     print('[P2] Login realizado com sucesso.')
     executar_fluxo(driver)
 

@@ -1,38 +1,52 @@
 {
   "numero": [
-    "1000886-88.2024.5.02.0703"
+    "1001148-38.2024.5.02.0703"
   ],
-  "id": 6203803,
+  "id": 6316773,
   "autor": [
     {
-      "nome": "JOYCE APARECIDA DE SOUSA",
-      "cpfcnpj": "43369419807",
+      "nome": "ARITHANA KARLA SOUZA DE AGUIAR LIMA",
+      "cpfcnpj": "29756706805",
       "advogado": {
-        "nome": "ROSANGELA LABRE DA SILVEIRA",
-        "cpf": "11875990852",
-        "oab": "SP291514"
+        "nome": "MATEUS DO NASCIMENTO RIBEIRO",
+        "cpf": "45713965899",
+        "oab": "SP467262"
       }
     }
   ],
   "reu": [
     {
-      "nome": "GALVAO PASTELARIA LTDA",
-      "cpfcnpj": "17276428000164"
+      "nome": "BRANCO BRANCO SERVICOS PERSONALIZADOS LTDA",
+      "cpfcnpj": "04972901000104",
+      "advogado": {
+        "nome": "FERNANDO ANDRADE VIEIRA",
+        "cpf": "33352970831",
+        "oab": "SP320825"
+      }
     },
     {
-      "nome": "LEONARDO TULIO VIVIANI PERNETTI",
-      "cpfcnpj": "26888134806"
+      "nome": "GRUPO CASAS BAHIA S.A.",
+      "cpfcnpj": "",
+      "advogado": {
+        "nome": "DANIEL BATTIPAGLIA SGAI",
+        "cpf": "21880828855",
+        "oab": "SP214918"
+      }
     }
   ],
-  "terceiro": [],
+  "terceiro": [
+    {
+      "nome": "REGIANE SOUZA ROCHA SILVA"
+    }
+  ],
   "divida": {
-    "valor": 6401.72,
-    "data": "2025-06-16T00:00:00"
+    "valor": 9086.4,
+    "data": "2025-06-01T00:00:00"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "04/06/2024",
+  "dtAutuacao": "16/07/2024",
   "classeJudicial": {
     "id": 387,
     "codigo": "1125",

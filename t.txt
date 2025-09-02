@@ -1,0 +1,561 @@
+// ==UserScript==
+// @name         Documentos Execução - OTIMIZADO v3.3
+// @namespace    http://tampermonkey.net/
+// @version      3.3
+// @description  Gera lista de documentos da timeline e depois extrai Serasa/APJUR e CNIB de certidões de devolução, exibindo relatório ARGOS otimizado v3.3.
+// @author       PjePlus
+// @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    console.log('[DOCS-EXEC] v3.3 iniciado');
+
+    let dadosArgos = { serasa: [], cnib: [] };
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function aguardarElemento(seletor, timeout = 5000) {
+        return new Promise(resolve => {
+            const el = document.querySelector(seletor);
+            if (el) return resolve(el);
+            const obs = new MutationObserver(() => {
+                const el2 = document.querySelector(seletor);
+                if (el2) { obs.disconnect(); resolve(el2); }
+            });
+            obs.observe(document.body, { childList: true, subtree: true });
+            setTimeout(() => { obs.disconnect(); resolve(null); }, timeout);
+        });
+    }
+
+    // ------------------------------------------------------------
+    // Parte 1: leitura da timeline e geração da lista
+    // ------------------------------------------------------------
+    function lerTimelineCompleta() {
+        const seletores = ['li.tl-item-container', '.tl-data .tl-item-container', '.timeline-item'];
+        let itens = [];
+        for (const sel of seletores) {
+            itens = document.querySelectorAll(sel);
+            if (itens.length) break;
+        }
+        const documentos = [];
+        function extrairUid(link) {
+            const m = link.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
+            return m?.[1] || null;
+        }
+        function extrairData(item) {
+            const dEl = item.querySelector('.tl-data[name="dataItemTimeline"]') || item.querySelector('.tl-data');
+            const txt = dEl?.textContent.trim() || '';
+            const m = txt.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+            return m?.[1] || '';
+        }
+        itens.forEach((item, i) => {
+            const link = item.querySelector('a.tl-documento:not([target])');
+            if (!link) return;
+            const texto = link.textContent.trim();
+            const id = extrairUid(link) || `doc${i}`;
+            const tipos = [
+                ['Alvará', ['alvará','alvara']],
+                ['Certidão pesquisa patrimonial', ['pesquisa patrimonial']],
+                ['Certidão devolução pesquisa', ['devolução de ordem']],
+                ['Carta Ação', ['carta ação']],
+                ['Serasa', ['serasa']],
+                ['CNIB', ['cnib']],
+                ['Comprovante restrição', ['comprovante de restrição','renajud']],
+                ['Decisão (Sobrestamento)', ['sobrestamento']]
+            ];
+            for (const [tipo, arr] of tipos) {
+                if (arr.some(t => texto.toLowerCase().includes(t))) {
+                    documentos.push({ tipo, texto, id, elemento: item, link, data: extrairData(item) });
+                    break;
+                }
+            }
+            if (texto.toLowerCase().includes('pesquisa patrimonial')) {
+                const btn = item.querySelector('pje-timeline-anexos > div > div');
+                if (btn) documentos.push({
+                    tipo: 'Anexos pesquisa patrimonial',
+                    texto: `Anexos: ${texto}`,
+                    id: `anexos${id}`,
+                    elemento: item,
+                    link: btn,
+                    data: extrairData(item)
+                });
+            }
+        });
+        return documentos;
+    }
+
+    function gerarListaSimples(docs) {
+        document.getElementById('listaDocsExecucaoSimples')?.remove();
+        // Não listar certidões de expedição de ordem
+        docs = docs.filter(d => {
+            try {
+                const tipo = (d.tipo||'').toString().toLowerCase();
+                const texto = (d.texto||'').toString().toLowerCase();
+                if (/expedi[cç][aã]o/.test(tipo) && /ordem/.test(tipo)) return false;
+                if (/expedi[cç][aã]o/.test(texto) && /ordem/.test(texto)) return false;
+            } catch (e) {}
+            return true;
+        });
+
+        const alv = docs.filter(d => d.tipo==='Alvará');
+        const out = docs.filter(d => d.tipo!=='Alvará');
+        out.sort((a, b) => {
+            const da = a.data.split('/').reverse().join('');
+            const db = b.data.split('/').reverse().join('');
+            return db.localeCompare(da);
+        });
+        const ord = [...alv, ...out];
+        const c = document.createElement('div');
+        c.id = 'listaDocsExecucaoSimples';
+        c.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:100000;background:#fff;border:2px solid #007bff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.18);min-width:300px;max-height:60vh;overflow:auto;font-family:sans-serif;';
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'position:absolute;top:8px;right:8px;background:#dc3545;color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;';
+        closeBtn.onclick = () => c.remove();
+        c.appendChild(closeBtn);
+        const tbl = document.createElement('table');
+        tbl.style.width = '100%';
+        ord.forEach(d => {
+            const tr = document.createElement('tr');
+            tr.style.cssText = 'cursor:pointer;border-bottom:1px solid #eee;';
+            tr.onclick = () => {
+                d.elemento.scrollIntoView({ behavior:'smooth', block:'center' });
+                d.elemento.classList.add('doc-exec-destaque');
+                setTimeout(() => d.elemento.classList.remove('doc-exec-destaque'), 3000);
+            };
+            ['texto','data','id'].forEach((k, idx) => {
+                const td = document.createElement('td');
+                td.textContent = d[k]||'';
+                td.style.padding = '6px';
+                td.style.fontSize = '14px';
+                td.style.textAlign = idx===0?'left':idx===1?'center':'right';
+                tr.appendChild(td);
+            });
+            tbl.appendChild(tr);
+        });
+        c.appendChild(tbl);
+        document.body.appendChild(c);
+    }
+
+    // Destaque CSS
+    const style = document.createElement('style');
+    style.textContent = `.doc-exec-destaque { outline:3px solid #007bff; background:#e7f3ff !important; }`;
+    document.head.appendChild(style);
+
+    // ------------------------------------------------------------
+    // Parte 2: Funções otimizadas v3.3 de Serasa/CNIB
+    // ------------------------------------------------------------
+    async function extrairPDFv33(botao, tipo) {
+        botao.click();
+        const modal = await aguardarElemento('main[mat-dialog-content]');
+        await sleep(800);
+        let txt = modal?.querySelector('pre')?.textContent || '';
+        txt = txt.replace(/\r?\n|\s{2,}/g, ' ');
+        let v = null;
+        if (tipo === 'serasa') {
+            const mAll = [...txt.matchAll(/APJUR\s*([0-9\s\/]+)/gi)].map(m=>m[1].replace(/\s+/g,''));
+            if (mAll.length) v = 'APJUR ' + mAll.join('');
+            else {
+                const mOf = txt.match(/Of[ií]cio:\s*(\d+)/i);
+                if (mOf) v = 'Ofício ' + mOf[1];
+            }
+        } else {
+            const m = txt.match(/([0-9\.]+-[0-9A-Za-z]{2}-[0-9]{3,})\s+CONCLUÍDO/i);
+            if (m) v = m[1].replace(/-14-/i,'-IA-');
+        }
+        document.querySelector('button[mat-dialog-close]')?.click();
+        await sleep(500);
+        return v;
+    }
+
+    async function processarCertidoesv33() {
+        // dadosArgos agora guarda entradas detalhadas com referência ao anexo
+        dadosArgos = { serasa: [], cnib: [] };
+
+        // Selecionar certidões relevantes: devolução de ordem de pesquisa e certidão de oficial de justiça
+        const possiveis = Array.from(document.querySelectorAll('a.tl-documento'))
+            .filter(a => /certid[aã]o de devolu[cç][aã]o de ordem de pesquisa patrimonial|certid[aã]o de oficial de justiça/i.test(a.textContent));
+
+        for (const link of possiveis) {
+            // Somente considerar ocorrências que tenham anexos
+            const item = link.closest('li.tl-item-container, .timeline-item');
+            if (!item) continue;
+            const btnAnexos = item.querySelector('pje-timeline-anexos > div > div, pje-timeline-anexos div[name="mostrarOuOcultarAnexos"]');
+            if (!btnAnexos) continue; // pular se não houver anexos
+
+            // Abrir anexos para examinar
+            try { btnAnexos.click(); } catch(e) {}
+            await sleep(600);
+
+            const anexos = Array.from(item.querySelectorAll('a.tl-documento[id^="anexo_"]'))
+                .filter(a => /serasa|serasajud|cnib|indisp/i.test(a.textContent));
+
+            for (const anexo of anexos) {
+                const txt = anexo.textContent.toLowerCase();
+                // Abrir anexo para extrair texto (mantemos comportamento existente)
+                try { anexo.click(); } catch(e) {}
+                await sleep(600);
+                const b = await aguardarElemento('button[mattooltip="Extrair texto do PDF"]', 2000);
+                if (!b) continue;
+                if (/serasa|serasajud/.test(txt)) {
+                    const r = await extrairPDFv33(b, 'serasa');
+                    if (r) dadosArgos.serasa.push({ valor: r, anexoId: anexo.id || null, texto: anexo.textContent.trim() });
+                } else {
+                    const r = await extrairPDFv33(b, 'cnib');
+                    if (r) dadosArgos.cnib.push({ valor: r, anexoId: anexo.id || null, texto: anexo.textContent.trim() });
+                }
+                // Fechar modal se permanecer aberto
+                try { document.querySelector('button[mat-dialog-close]')?.click(); } catch(e) {}
+                await sleep(300);
+            }
+        }
+
+        exibirOverlay();
+    }
+
+    // ------------------------------------------------------------
+    // Parte 3: Overlay ARGOS de v3.0
+    // ------------------------------------------------------------
+    function exibirOverlay() {
+        const o = document.createElement('div');
+        o.id = 'overlayArgos';
+        o.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:#fff;padding:16px;border:2px solid #007bff;z-index:100000;font-family:sans-serif;max-width:600px;max-height:60vh;overflow:auto;';
+
+        const title = document.createElement('h3'); title.textContent = 'ARGOS - Resultados'; title.style.marginTop = '0';
+        o.appendChild(title);
+
+        const makeSection = (label, items) => {
+            const sec = document.createElement('div');
+            const h = document.createElement('strong'); h.textContent = `${label} (${items.length})`;
+            sec.appendChild(h);
+            const ul = document.createElement('ul');
+            ul.style.paddingLeft = '18px';
+            items.forEach(it => {
+                const li = document.createElement('li');
+                const a = document.createElement('a');
+                a.href = '#';
+                a.textContent = it.valor + (it.texto ? ` — ${it.texto}` : '');
+                a.style.cursor = 'pointer';
+                a.onclick = (ev) => {
+                    ev.preventDefault();
+                    // Tentar abrir o anexo correspondente
+                    if (it.anexoId) {
+                        const an = document.getElementById(it.anexoId) || document.querySelector(`#${CSS.escape(it.anexoId)}`);
+                        if (an) { try { an.click(); } catch(e) { an.scrollIntoView({behavior:'smooth'}); } }
+                    } else {
+                        // fallback: buscar por texto parcial
+                        const found = Array.from(document.querySelectorAll('a.tl-documento')).find(x => (x.textContent||'').includes(it.texto || ''));
+                        if (found) try { found.click(); } catch(e) { found.scrollIntoView({behavior:'smooth'}); }
+                    }
+                };
+                li.appendChild(a);
+                ul.appendChild(li);
+            });
+            sec.appendChild(ul);
+            return sec;
+        };
+
+        const ser = dadosArgos.serasa || [];
+        const cni = dadosArgos.cnib || [];
+        o.appendChild(makeSection('Serasa', ser));
+        o.appendChild(makeSection('CNIB', cni));
+
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'Fechar';
+        closeBtn.style.cssText = 'display:block;margin:10px auto 0;background:#dc3545;color:#fff;padding:8px 12px;border:none;border-radius:4px;cursor:pointer;';
+        closeBtn.onclick = () => document.body.removeChild(o);
+        o.appendChild(closeBtn);
+
+        document.body.appendChild(o);
+    }
+
+    // ------------------------------------------------------------
+    // Parte 4: Fluxo principal e botão 📋 Check
+    // ------------------------------------------------------------
+    async function executar() {
+        const docs = lerTimelineCompleta();
+        gerarListaSimples(docs);
+        await processarCertidoesv33();
+    }
+
+    const btn = document.createElement('button');
+    btn.id = 'btnDocsExecucao';
+    btn.textContent = '📋 Check';
+    btn.style.cssText = 'position:fixed;bottom:80px;right:20px;background:#007bff;color:#fff;padding:10px;border:none;border-radius:5px;cursor:pointer;z-index:99999';
+    btn.onclick = executar;
+    document.body.appendChild(btn);
+
+})();
+
+// MaisPJe Automação - Versão Compacta para Console
+// Cole este código diretamente no console do navegador na página do PJe
+
+(function(){
+    console.log('🚀 Carregando MaisPJe Automação...');
+    
+    // Remove instância anterior
+    const old = document.getElementById('maisPjeBox');
+    if (old) old.remove();
+    
+    // Registra funções globais
+    if (!window.fluxoDespacho) {
+        window.fluxoDespacho = function(config) {
+            console.log('[DESPACHO] Iniciando:', config.nm_botao);
+            try {
+                const btnAnalise = document.querySelector('button[title*="Análise"], button[aria-label*="Análise"]');
+                if (btnAnalise) {
+                    btnAnalise.click();
+                    console.log('[DESPACHO] Análise clicado');
+                }
+                setTimeout(() => {
+                    const btnConclusao = document.querySelector('button[title*="Conclusão"], button[aria-label*="Conclusão"]');
+                    if (btnConclusao) {
+                        btnConclusao.click();
+                        console.log('[DESPACHO] Conclusão clicado');
+                    }
+                    setTimeout(() => {
+                        if (config.modelo) {
+                            const campoFiltro = document.querySelector('input[aria-label="Filtro"]');
+                            if (campoFiltro) {
+                                campoFiltro.click();
+                                campoFiltro.value = config.modelo;
+                                campoFiltro.dispatchEvent(new Event('input', {bubbles: true}));
+                                console.log('[DESPACHO] Modelo preenchido:', config.modelo);
+                            }
+                        }
+                    }, 1000);
+                }, 1000);
+            } catch (e) {
+                console.error('[DESPACHO] Erro:', e);
+                alert('Erro no fluxo Despacho: ' + e.message);
+            }
+        };
+        
+        window.fluxoGigs = function(config) {
+            console.log('[GIGS] Iniciando:', config.nm_botao);
+            try {
+                if (!document.querySelector('pje-gigs-ficha-processo')) {
+                    const btnMostrar = document.querySelector('button[aria-label="Mostrar o GIGS"]');
+                    if (btnMostrar) btnMostrar.click();
+                }
+                setTimeout(() => {
+                    if (config.tipo === 'chip') {
+                        const chips = document.querySelectorAll(`button[mattooltip*="${config.tipo_atividade || config.nm_botao}"], button[title*="${config.tipo_atividade || config.nm_botao}"]`);
+                        if (chips.length > 0) {
+                            chips[0].click();
+                            console.log('[GIGS] Chip aplicado');
+                        }
+                    } else if (config.tipo === 'comentario') {
+                        const btnComentario = document.querySelector('button[aria-label*="comentário"], button[title*="comentário"]');
+                        if (btnComentario) {
+                            btnComentario.click();
+                            setTimeout(() => {
+                                const campoObs = document.querySelector('textarea[formcontrolname="observacao"]');
+                                if (campoObs) {
+                                    campoObs.value = config.observacao || '';
+                                    campoObs.dispatchEvent(new Event('input', {bubbles: true}));
+                                }
+                            }, 500);
+                        }
+                    } else {
+                        const btnNova = Array.from(document.querySelectorAll('button')).find(btn => 
+                            btn.textContent.includes('Nova atividade') || 
+                            (btn.getAttribute('aria-label') && btn.getAttribute('aria-label').includes('Nova'))
+                        );
+                        if (btnNova) {
+                            btnNova.click();
+                            setTimeout(() => {
+                                if (config.tipo_atividade) {
+                                    const campoTipo = document.querySelector('input[formcontrolname="tipoAtividade"]');
+                                    if (campoTipo) {
+                                        campoTipo.value = config.tipo_atividade;
+                                        campoTipo.dispatchEvent(new Event('input', {bubbles: true}));
+                                    }
+                                }
+                                if (config.observacao) {
+                                    const campoObs = document.querySelector('textarea[formcontrolname="observacao"]');
+                                    if (campoObs) {
+                                        campoObs.value = config.observacao;
+                                        campoObs.dispatchEvent(new Event('input', {bubbles: true}));
+                                    }
+                                }
+                                if (config.responsavel) {
+                                    const campoResp = document.querySelector('input[aria-label*="Responsável pela atividade"]');
+                                    if (campoResp) {
+                                        campoResp.value = config.responsavel;
+                                        campoResp.dispatchEvent(new Event('input', {bubbles: true}));
+                                    }
+                                }
+                                if (config.prazo) {
+                                    const campoPrazo = document.querySelector('input[formcontrolname="prazo"]');
+                                    if (campoPrazo) {
+                                        campoPrazo.value = config.prazo;
+                                        campoPrazo.dispatchEvent(new Event('input', {bubbles: true}));
+                                    }
+                                }
+                            }, 1000);
+                        }
+                    }
+                }, 1000);
+            } catch (e) {
+                console.error('[GIGS] Erro:', e);
+                alert('Erro no fluxo GIGS: ' + e.message);
+            }
+        };
+        
+        window.fluxoAnexar = function(config) {
+            console.log('[ANEXAR] Iniciando:', config.nm_botao);
+            try {
+                setTimeout(() => {
+                    let btnAnexar = document.querySelector('#pjextension_bt_detalhes_4') || 
+                                   document.querySelector('button[aria-label*="anexar"], button[title*="anexar"]') ||
+                                   Array.from(document.querySelectorAll('button')).find(btn => btn.querySelector('i.fa-paperclip'));
+                    
+                    if (btnAnexar) {
+                        if (btnAnexar.tagName !== 'BUTTON') btnAnexar = btnAnexar.closest('button');
+                        btnAnexar.click();
+                        setTimeout(() => {
+                            if (config.modelo && config.modelo.toLowerCase() === 'pdf') {
+                                const switchPdf = document.querySelector('input[role="switch"]');
+                                if (switchPdf && !switchPdf.checked) switchPdf.click();
+                            }
+                            setTimeout(() => {
+                                const campoTipo = document.querySelector('input[aria-label="Tipo de Documento"]');
+                                if (campoTipo) {
+                                    campoTipo.value = config.tipo || 'Certidão';
+                                    campoTipo.dispatchEvent(new Event('input', {bubbles: true}));
+                                    campoTipo.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true}));
+                                }
+                                if (config.descricao) {
+                                    setTimeout(() => {
+                                        const campoDesc = document.querySelector('input[aria-label="Descrição"]');
+                                        if (campoDesc) {
+                                            campoDesc.value = config.descricao;
+                                            campoDesc.dispatchEvent(new Event('input', {bubbles: true}));
+                                        }
+                                    }, 500);
+                                }
+                            }, 1000);
+                        }, 1000);
+                    }
+                }, 500);
+            } catch (e) {
+                console.error('[ANEXAR] Erro:', e);
+                alert('Erro no fluxo Anexar: ' + e.message);
+            }
+        };
+    }
+    
+    // Dados simplificados
+    const dados = {
+        aaDespacho: [
+            {nm_botao: 'Genérico', modelo: 'xsgen', cor: '#0080ff'},
+            {nm_botao: 'Meios', modelo: 'xsmeios', cor: '#008000'},
+            {nm_botao: 'EmpreTermo', modelo: 'xempresatermo', cor: '#ff8040'},
+            {nm_botao: 'SócioTermo', modelo: 'xsociotermo', cor: '#ff8040'},
+            {nm_botao: 'Homol', modelo: 'homol. cálculos', cor: '#228b22'},
+            {nm_botao: 'Parcial', modelo: 'XSPARCIAL', cor: '#ff8040'},
+            {nm_botao: 'IDPJ', modelo: 'IDPJsemdef', cor: '#0080ff'},
+            {nm_botao: 'Edital', modelo: 'xsedit', cor: '#0000a0'}
+        ],
+        aaAutogigs: [
+            {nm_botao: 'Pesq', tipo: 'prazo', tipo_atividade: 'Pesquisas Patrimoniais', observacao: 'Aguardar pesquisas', prazo: '30', cor: '#008000'},
+            {nm_botao: 'IDPJ', tipo: 'prazo', tipo_atividade: 'IDPJ', observacao: 'Aguardar IDPJ', prazo: '15', cor: '#ff8040'},
+            {nm_botao: 'Lib', tipo: 'prazo', tipo_atividade: 'Liberação', observacao: 'Processo liberado', prazo: '0', cor: '#708090'},
+            {nm_botao: 'pec', tipo: 'comentario', observacao: 'PEC processada', cor: '#ff0000'},
+            {nm_botao: 'arq1', tipo: 'prazo', tipo_atividade: 'Arquivo', observacao: 'Processo arquivado', prazo: '0', cor: '#804040'}
+        ],
+        aaAnexar: [
+            {nm_botao: 'CP', tipo: 'Carta Precatória', descricao: 'Carta Precatória', cor: '#c0c0c0'},
+            {nm_botao: 'DEVCP', tipo: 'Certidão', descricao: 'Devolução de CP', cor: '#0080ff'},
+            {nm_botao: 'SBJNEG', tipo: 'Certidão', descricao: 'SBJ Negativo', cor: '#ff8000'},
+            {nm_botao: 'PDF TRANSF', tipo: 'PDF', descricao: 'PDF Transferência', modelo: 'pdf', cor: '#1fe059'},
+            {nm_botao: 'Calc', tipo: 'Cálculo', descricao: 'Cálculo', cor: '#008000'},
+            {nm_botao: 'Infojud', tipo: 'Certidão', descricao: 'Infojud', cor: '#ff0000'}
+        ]
+    };
+    
+    // Interface compacta
+    const box = document.createElement('div');
+    box.id = 'maisPjeBox';
+    Object.assign(box.style, {
+        position: 'fixed', top: '20px', right: '20px', zIndex: '99999',
+        background: '#fff', border: '2px solid #0080ff', borderRadius: '10px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.2)', padding: '16px 12px',
+        minWidth: '400px', fontFamily: 'Arial, sans-serif', maxHeight: '80vh', overflowY: 'auto'
+    });
+    
+    const titulo = document.createElement('div');
+    titulo.textContent = 'MaisPJe Automação';
+    Object.assign(titulo.style, {
+        fontWeight: 'bold', fontSize: '16px', marginBottom: '12px',
+        color: '#0080ff', textAlign: 'center'
+    });
+    box.appendChild(titulo);
+    
+    const botoesArea = document.createElement('div');
+    Object.assign(botoesArea.style, {
+        display: 'flex', flexDirection: 'column', gap: '8px'
+    });
+    box.appendChild(botoesArea);
+    
+    const voltar = document.createElement('button');
+    voltar.textContent = '← Voltar';
+    voltar.style.display = 'none';
+    voltar.onclick = () => exibirGrupos();
+    box.appendChild(voltar);
+    
+    const fechar = document.createElement('span');
+    fechar.textContent = '×';
+    fechar.title = 'Fechar';
+    Object.assign(fechar.style, {
+        position: 'absolute', top: '8px', right: '12px', cursor: 'pointer',
+        fontSize: '18px', color: '#0080ff', fontWeight: 'bold'
+    });
+    fechar.onclick = () => box.remove();
+    box.appendChild(fechar);
+    
+    function exibirGrupos() {
+        botoesArea.innerHTML = '';
+        voltar.style.display = 'none';
+        ['Despacho', 'AutoGigs', 'Anexar'].forEach((nome, i) => {
+            const btn = document.createElement('button');
+            btn.textContent = nome;
+            Object.assign(btn.style, {
+                background: '#0080ff', color: '#fff', border: 'none',
+                borderRadius: '6px', padding: '10px', cursor: 'pointer',
+                fontSize: '14px', marginBottom: '4px'
+            });
+            btn.onclick = () => exibirBotoes(['aaDespacho', 'aaAutogigs', 'aaAnexar'][i]);
+            botoesArea.appendChild(btn);
+        });
+    }
+    
+    function exibirBotoes(chave) {
+        botoesArea.innerHTML = '';
+        voltar.style.display = 'block';
+        
+        dados[chave].forEach(config => {
+            const btn = document.createElement('button');
+            btn.textContent = config.nm_botao;
+            Object.assign(btn.style, {
+                background: config.cor, color: '#fff', border: 'none',
+                borderRadius: '4px', padding: '6px 10px', margin: '2px',
+                cursor: 'pointer', fontSize: '12px', display: 'inline-block'
+            });
+            btn.onclick = () => {
+                if (chave === 'aaDespacho') window.fluxoDespacho(config);
+                else if (chave === 'aaAutogigs') window.fluxoGigs(config);
+                else if (chave === 'aaAnexar') window.fluxoAnexar(config);
+            };
+            botoesArea.appendChild(btn);
+        });
+    }
+    
+    document.body.appendChild(box);
+    exibirGrupos();
+    
+    console.log('✅ MaisPJe Automação carregado! Interface no canto superior direito.');
+})();

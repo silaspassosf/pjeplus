@@ -719,43 +719,46 @@ def navegar_para_atividades(driver):
         print(f"[NAVEGAR] Erro ao navegar para atividades: {e}")
         return False
 
-def executar_fluxo_novo():
+def executar_fluxo_novo(driver=None):
     """
     Executa o novo fluxo conforme especificações:
-    1- criar driver e executar login conforme definido em driver_config.py
+    1- usar driver fornecido ou criar novo e executar login conforme definido em driver_config.py
     2- iniciar fluxo logo após login navegando até atividades
     3- não clicar no ícone "Atividades sem prazo" 
     4- não filtrar com xs
     5- indexar lista com a função definida de fix.py
     6- ao indexar numero do processo - atividade (observação)
     """
-    # Importa configurações do driver_config.py
-    from driver_config import criar_driver, login_func, login_manual
     import time
     
-    # Importa configurações do driver_config.py
-    from driver_config import criar_driver, login_func
     print("[FLUXO_NOVO] Iniciando novo fluxo com controle de progresso...")
     progresso = carregar_progresso_pec()
+    driver_criado_aqui = False
+    
     try:
-        driver = criar_driver(headless=False)
-        if not driver:
-            print('[FLUXO_NOVO] ❌ Falha ao criar driver')
-            return False
-        print("[FLUXO_NOVO] ✅ Driver criado com sucesso")
-        if not login_func(driver):
-            print('[FLUXO_NOVO] ❌ Falha no login automático. Tentando fallback para login manual...')
-            try:
-                if login_manual(driver):
-                    print('[FLUXO_NOVO] ✅ Login manual realizado com sucesso. Continuando execução.')
-                else:
-                    print('[FLUXO_NOVO] ❌ Login manual não realizado. Mantendo driver aberto para inspeção.')
-                    return False
-            except Exception as e:
-                print(f"[FLUXO_NOVO][ERRO] Falha ao tentar login manual: {e}")
-                print('[FLUXO_NOVO] Mantendo driver aberto para inspeção.')
+        # Se não recebeu driver, cria um novo
+        if driver is None:
+            from driver_config import criar_driver, login_func, login_manual
+            driver = criar_driver(headless=False)
+            driver_criado_aqui = True
+            if not driver:
+                print('[FLUXO_NOVO] ❌ Falha ao criar driver')
                 return False
-        print("[FLUXO_NOVO] ✅ Login realizado com sucesso")
+            print("[FLUXO_NOVO] ✅ Driver criado com sucesso")
+            if not login_func(driver):
+                print('[FLUXO_NOVO] ❌ Falha no login automático. Tentando fallback para login manual...')
+                try:
+                    if login_manual(driver):
+                        print('[FLUXO_NOVO] ✅ Login manual realizado com sucesso. Continuando execução.')
+                    else:
+                        print('[FLUXO_NOVO] ❌ Login manual também falhou')
+                        return False
+                except Exception as e:
+                    print(f'[FLUXO_NOVO] ❌ Erro no login manual: {e}')
+                    return False
+        else:
+            print("[FLUXO_NOVO] ✅ Usando driver fornecido externamente")
+            print("[FLUXO_NOVO] ✅ Login realizado com sucesso")
     except Exception as e:
         print(f"[FLUXO_NOVO] ❌ Erro ao criar driver/login: {e}")
         return False
@@ -875,14 +878,19 @@ def executar_fluxo_novo():
             print("[FLUXO_NOVO] ⚠️ Processamento concluído com alguns problemas")
     except Exception as e:
         print(f"[FLUXO_NOVO] ❌ Erro durante o processamento: {e}")
-        driver.quit()
+        if driver_criado_aqui and driver:
+            driver.quit()
         return False
     finally:
-        input("[FLUXO_NOVO] Pressione Enter para fechar o driver...")
-        try:
-            driver.quit()
-        except:
-            pass
+        # Só fecha o driver se foi criado aqui
+        if driver_criado_aqui and driver:
+            input("[FLUXO_NOVO] Pressione Enter para fechar o driver...")
+            try:
+                driver.quit()
+            except:
+                pass
+        else:
+            print("[FLUXO_NOVO] ✅ Driver externo mantido ativo")
     return True
 def aplicar_filtro_xs(driver):
     """
@@ -921,11 +929,11 @@ def aplicar_filtro_xs(driver):
         return False
 
 # Função principal para manter compatibilidade
-def main():
+def main(driver=None):
     """
     Função principal - executa o novo fluxo
     """
-    return executar_fluxo_novo()
+    return executar_fluxo_novo(driver)
 
 def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
     """

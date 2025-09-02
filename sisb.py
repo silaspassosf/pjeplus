@@ -14,7 +14,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException, WebDriverException
 from selenium.webdriver.common.action_chains import ActionChains
 import traceback
 import random
@@ -30,161 +30,153 @@ def formatar_moeda_brasileira(valor):
     """
     Formatar valor monetário conforme padrão brasileiro do gigs-plugin.js
     Intl.NumberFormat('pt-br', {style: 'currency', currency: 'BRL'})
-    Exemplo: 3777.29 -> "R$ 3.777,29" 
+    Exemplo: 3777.29 -> "R$ 3.777,29"
     """
     try:
         if isinstance(valor, str):
-            # Remover formatação existente
+            # Remover formatação existente: 'R$', espaços, pontos de milhar e usar ponto decimal
             valor_limpo = valor.replace('R$', '').replace(' ', '').replace('.', '').replace(',', '.')
             valor = float(valor_limpo)
-        
+
         # Formatação brasileira exata: R$ 1.234,56
         valor_formatado = f"R$ {valor:,.2f}".replace(',', 'TEMP').replace('.', ',').replace('TEMP', '.')
         return valor_formatado
-    except:
+    except Exception:
         return str(valor)
-
-def formatar_cpf(cpf):
+def aplicar_acao_por_fluxo(driver, tipo_fluxo, ordem_sequencial=None, log=True):
     """
-    Formatar CPF no padrão brasileiro: 000.000.000-00
-    CORREÇÃO: CPF 18545097808 deve virar 185.450.978-08, NÃO 18.545.097
-    """
-    try:
-        # Extrair APENAS dígitos
-        cpf_numerico = ''.join(filter(str.isdigit, str(cpf)))
-        
-        if len(cpf_numerico) == 11:
-            # Formatação CORRETA: 185.450.978-08
-            return f"{cpf_numerico[:3]}.{cpf_numerico[3:6]}.{cpf_numerico[6:9]}-{cpf_numerico[9:11]}"
-        else:
-            # Se não tiver 11 dígitos, retorna apenas os números
-            return cpf_numerico  
-    except:
-        return str(cpf)
-
-def formatar_cnpj(cnpj):
-    """
-    Formatar CNPJ no padrão brasileiro: 00.000.000/0000-00
+    Wrapper reutilizável para selecionar a ação correta na página /desdobrar.
+    Prioriza 'transferir' para POSITIVO e 'desbloquear' para DESBLOQUEIO.
+    Retorna True se a ação foi selecionada e confirmada visualmente no mat-select.
     """
     try:
-        # Limpar apenas números
-        cnpj_numerico = ''.join(filter(str.isdigit, str(cnpj)))
-        
-        if len(cnpj_numerico) == 14:
-            return f"{cnpj_numerico[:2]}.{cnpj_numerico[2:5]}.{cnpj_numerico[5:8]}/{cnpj_numerico[8:12]}-{cnpj_numerico[12:14]}"
-        else:
-            return cnpj_numerico  # Retorna original se não tiver 14 dígitos
-    except:
-        return str(cnpj)
+        if log:
+            print(f"[SISBAJUD] ℹ️ Aplicando ação para fluxo {tipo_fluxo} (ordem {ordem_sequencial})")
 
-def identificar_tipo_documento(documento):
-    """
-    Identificar se documento é CPF (11 dígitos) ou CNPJ (14 dígitos)
-    """
-    numerico = ''.join(filter(str.isdigit, str(documento)))
-    if len(numerico) == 11:
-        return 'CPF'
-    elif len(numerico) == 14:
-        return 'CNPJ'
-    else:
-        return 'INDEFINIDO'
-
-def extrair_documentos_reus(dados_processo):
-    """
-    Extrair documentos (CPF/CNPJ) de todos os réus do processo
-    Retorna lista de documentos e string concatenada com quebras de linha
-    """
-    documentos = []
-    if 'reu' in dados_processo and len(dados_processo['reu']) > 0:
-        for reu in dados_processo['reu']:
-            cpfcnpj = reu.get('cpfcnpj', '')
-            if cpfcnpj:
-                documentos.append(cpfcnpj)
-                print(f'[SISBAJUD] Réu encontrado: {reu.get("nome", "N/A")} ({cpfcnpj})')
-    
-    if not documentos:
-        return None, None
-    
-    # Concatenar todos os documentos com quebra de linha (como no gigs.py)
-    documentos_concatenados = '\n'.join(documentos)
-    print(f'[SISBAJUD] Documentos para processamento:\n{documentos_concatenados}')
-    
-    return documentos, documentos_concatenados
-
-# ===================== FUNÇÕES AUXILIARES OTIMIZADAS =====================
-
-def aguardar_elemento(driver, seletor, texto=None, timeout=10):
-    """Aguarda elemento aparecer (equivalente ao esperarElemento do gigs.js)"""
-    try:
-        if texto:
-            return WebDriverWait(driver, timeout).until(
-                EC.presence_of_element_located((By.XPATH, f"//*[contains(text(), '{texto}')]"))
-            )
-        else:
-            return WebDriverWait(driver, timeout).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, seletor))
-            )
-    except:
-        return None
-
-def aguardar_e_clicar(driver, seletor, texto=None, timeout=10):
-    """Aguarda e clica em elemento (equivalente ao clicarBotao do gigs.js)"""
-    elemento = aguardar_elemento(driver, seletor, texto, timeout)
-    if elemento:
+        # tentar abrir dropdown(s) de ação e selecionar
+        dropdown = None
         try:
-            elemento.click()
-            return True
-        except:
-            # Tentar com JavaScript como fallback
-            driver.execute_script("arguments[0].click();", elemento)
-            return True
-    return False
+            # tentar encontrar qualquer mat-select plausível
+            selects = driver.find_elements(By.CSS_SELECTOR, "mat-select[formcontrolname='acao'], mat-select[name*='acao'], sisbajud-inclusao-desdobramento mat-select, mat-select")
+        except Exception:
+            selects = []
 
-def escolher_opcao_sisbajud(driver, seletor, valor):
-    """
-    Implementa a função escolherOpcaoSISBAJUD do código otimizado
-    Usa seta para baixo e polling para aguardar opções
-    """
-    try:
-        # Aguardar elemento
-        elemento = aguardar_elemento(driver, seletor)
-        if not elemento:
+        if not selects:
+            if log:
+                print('[SISBAJUD] ⚠️ Nenhum mat-select encontrado para ações')
             return False
-        
-        # Focus e simular seta para baixo (keycode 40)
-        elemento.focus()
-        elemento.send_keys(Keys.ARROW_DOWN)
-        
-        # Polling para aguardar opções (como código otimizado)
-        for tentativa in range(3):  # 3 tentativas como no código otimizado
-            opcoes = aguardar_opcoes_aparecerem(driver, 'mat-option[role="option"], option', 
-                                                intervalo_ms=100, max_tentativas=10)
-            
-            if opcoes:
-                # Clicar na opção correta
-                return aguardar_e_clicar(driver, 'mat-option[role="option"], option', texto=valor.strip())
-            
-            # Tentar novamente
-            elemento.focus()
-            elemento.send_keys(Keys.ARROW_DOWN)
-        
-        return False
-        
-    except Exception as e:
-        print(f'[SISBAJUD] Erro em escolher_opcao_sisbajud: {e}')
+
+        # iterar em cada select visível/habilitado e tentar selecionar opção desejada
+        for idx in range(len(selects)):
+            try:
+                # re-obter elemento para evitar stale
+                try:
+                    sel = driver.find_elements(By.CSS_SELECTOR, "mat-select[formcontrolname='acao'], mat-select[name*='acao'], sisbajud-inclusao-desdobramento mat-select, mat-select")[idx]
+                except Exception:
+                    continue
+
+                # abrir
+                opened = False
+                try:
+                    trigger = None
+                    try:
+                        trigger = sel.find_element(By.CSS_SELECTOR, '.mat-select-trigger')
+                    except Exception:
+                        trigger = None
+                    if trigger:
+                        try:
+                            trigger.click()
+                            opened = True
+                        except Exception:
+                            try:
+                                driver.execute_script('arguments[0].click();', trigger)
+                                opened = True
+                            except Exception:
+                                opened = False
+                    if not opened:
+                        try:
+                            sel.click()
+                            opened = True
+                        except Exception:
+                            try:
+                                driver.execute_script('arguments[0].click();', sel)
+                                opened = True
+                            except Exception:
+                                opened = False
+                except StaleElementReferenceException:
+                    time.sleep(0.2)
+                    continue
+
+                if not opened:
+                    if log:
+                        print(f"[SISBAJUD] ⚠️ Falha ao abrir dropdown de ação #{idx+1}")
+                    continue
+
+                # usar a função local de seleção por overlay (re-query e confirma)
+                ok = False
+                try:
+                    ok = _selecionar_opcao_acao(driver, sel, tipo_fluxo, log=log)
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] ⚠️ Erro ao selecionar opção no dropdown #{idx+1}: {e}")
+
+                if ok:
+                    return True
+
+                # se não ok, tentar fechar overlay e tentar próximo select
+                try:
+                    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                except Exception:
+                    pass
+                try:
+                    driver.find_element(By.TAG_NAME, 'body').click()
+                except Exception:
+                    pass
+                time.sleep(0.2)
+
+            except Exception as e:
+                if log:
+                    print(f"[SISBAJUD] ⚠️ Erro iterando selects de ação: {e}")
+                continue
+
+        # fallback: se POSITIVO, tentar DESBLOQUEIO
+        if tipo_fluxo == 'POSITIVO':
+            if log:
+                print('[SISBAJUD] ℹ️ Fallback POSITIVO -> tentar DESBLOQUEIO')
+            for tentativa in range(2):
+                try:
+                    # tentar abrir novamente o primeiro select
+                    sel = None
+                    try:
+                        sel = driver.find_element(By.CSS_SELECTOR, "mat-select[formcontrolname='acao'], mat-select[name*='acao'], mat-select")
+                    except Exception:
+                        sel = None
+
+                    if not sel:
+                        break
+
+                    try:
+                        sel.click()
+                    except Exception:
+                        try:
+                            driver.execute_script('arguments[0].click();', sel)
+                        except Exception:
+                            pass
+
+                    ok2 = _selecionar_opcao_acao(driver, sel, 'DESBLOQUEIO', log=log)
+                    if ok2:
+                        return True
+                except Exception:
+                    time.sleep(0.2)
+
+        if log:
+            print('[SISBAJUD] ❌ Não foi possível aplicar ação por fluxo')
         return False
 
-def aguardar_opcoes_aparecerem(driver, seletor, intervalo_ms=100, max_tentativas=50):
-    """
-    Implementa o polling do código otimizado para aguardar opções de dropdown
-    """
-    for tentativa in range(max_tentativas):
-        opcoes = driver.find_elements(By.CSS_SELECTOR, seletor)
-        if opcoes:
-            return opcoes
-        time.sleep(intervalo_ms / 1000.0)
-    
-    return None
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Erro aplicar_acao_por_fluxo: {e}")
+        return False
 
 def cadastrar_reu_sisbajud(driver, reu, config_sisbajud):
     """
@@ -193,10 +185,20 @@ def cadastrar_reu_sisbajud(driver, reu, config_sisbajud):
     """
     try:
         # Aguardar campo CPF/CNPJ
-        elemento_cpf = aguardar_elemento(driver, 
-            'input[placeholder="CPF/CNPJ do réu/executado"], input[placeholder="CPF/CNPJ da pessoa pesquisada"]')
+        try:
+            elemento_cpf = WebDriverWait(driver, 8).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[placeholder="CPF/CNPJ do réu/executado"], input[placeholder="CPF/CNPJ da pessoa pesquisada"]'))
+            )
+        except Exception as e:
+            print(f'[SISBAJUD] ❌ Campo CPF/CNPJ não encontrado: {e}')
+            return False
         
-        botao_adicionar = aguardar_elemento(driver, 'button[class*="btn-adicionar"]')
+        try:
+            botao_adicionar = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'button[class*="btn-adicionar"]'))
+            )
+        except:
+            botao_adicionar = None
         
         if not elemento_cpf or not botao_adicionar:
             return False
@@ -250,6 +252,107 @@ def trigger_event(elemento, event_type):
     driver = elemento.parent
     driver.execute_script(f"arguments[0].dispatchEvent(new Event('{event_type}', {{bubbles: true}}));", elemento)
 
+
+def aguardar_elemento(driver, seletor, texto=None, timeout=10):
+    """Aguarda elemento aparecer (equivalente ao esperarElemento do gigs.js)"""
+    try:
+        if texto:
+            return WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.XPATH, f"//*[contains(text(), '{texto}')]"))
+            )
+        else:
+            return WebDriverWait(driver, timeout).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, seletor))
+            )
+    except Exception:
+        return None
+
+
+def aguardar_e_clicar(driver, seletor, texto=None, timeout=10):
+    """Aguarda e clica em elemento (equivalente ao clicarBotao do gigs.js)"""
+    elemento = aguardar_elemento(driver, seletor, texto, timeout)
+    if elemento:
+        try:
+            elemento.click()
+            return True
+        except Exception:
+            try:
+                driver.execute_script("arguments[0].click();", elemento)
+                return True
+            except Exception:
+                return False
+    return False
+
+
+def aguardar_opcoes_aparecerem(driver, seletor_opcoes, intervalo_ms=100, max_tentativas=50):
+    """Polling simples para aguardar opções de overlay aparecerem e retornar a lista de elementos."""
+    tentativas = 0
+    while tentativas < max_tentativas:
+        try:
+            opcoes = driver.find_elements(By.CSS_SELECTOR, seletor_opcoes)
+            if opcoes:
+                return opcoes
+        except Exception:
+            pass
+        tentativas += 1
+        time.sleep(intervalo_ms / 1000.0)
+    return []
+
+
+def escolher_opcao_sisbajud(driver, seletor, valor):
+    """Seleciona uma opção de autocomplete/select baseado em texto parcial - robusto para SISBAJUD."""
+    try:
+        # encontrar o campo e clicar
+        for _ in range(8):
+            try:
+                campo = driver.find_element(By.CSS_SELECTOR, seletor)
+                break
+            except Exception:
+                time.sleep(0.25)
+        else:
+            return False
+
+        try:
+            campo.click()
+        except Exception:
+            try:
+                driver.execute_script('arguments[0].click();', campo)
+            except Exception:
+                pass
+
+        time.sleep(0.4)
+
+        # polling por opções
+        opcoes = []
+        for tentativa in range(40):
+            try:
+                opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option, span.mat-option-text')
+                if opcoes:
+                    break
+            except Exception:
+                pass
+            time.sleep(0.1)
+
+        # procurar correspondência
+        for opc in opcoes:
+            try:
+                if valor.lower() in opc.text.lower():
+                    try:
+                        opc.click()
+                        return True
+                    except Exception:
+                        try:
+                            driver.execute_script('arguments[0].click();', opc)
+                            return True
+                        except Exception:
+                            continue
+            except Exception:
+                continue
+
+        return False
+    except Exception:
+        return False
+
 def criar_span_valor(driver, valor_formatado, data_divida):
     """Cria span clicável para valor como no gigs.js"""
     # Implementação específica para criar elemento visual do valor
@@ -257,7 +360,10 @@ def criar_span_valor(driver, valor_formatado, data_divida):
 
 def preencher_valor_automatico(driver, valor):
     """Preenche valor automaticamente se configurado"""
-    elemento_valor = aguardar_elemento(driver, 'input[placeholder*="Valor aplicado a todos"]')
+    try:
+        elemento_valor = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="Valor aplicado a todos"]')))
+    except:
+        elemento_valor = None
     if elemento_valor:
         elemento_valor.clear()
         elemento_valor.send_keys(valor)
@@ -427,6 +533,12 @@ def login_automatico_sisbajud(driver):
         current_url = driver.current_url
         if 'sisbajud.cnj.jus.br' in current_url:
             print('[SISBAJUD][LOGIN] ✅ Login realizado com sucesso!')
+            # Maximizar a janela imediatamente após o login para garantir visibilidade dos elementos
+            try:
+                driver.maximize_window()
+                print('[SISBAJUD][LOGIN] ✅ Janela maximizada após login automático')
+            except Exception:
+                pass
             return True
         else:
             print('[SISBAJUD][LOGIN] ❌ Falha no login - URL não redirecionou corretamente')
@@ -453,6 +565,18 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
             try:
                 if target_indicator in driver.current_url.lower():
                     print('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou).')
+                    # Tentar salvar cookies via driver_config helper para persistência
+                    try:
+                        from driver_config import salvar_cookies_sessao, SALVAR_COOKIES_AUTOMATICO
+                        if SALVAR_COOKIES_AUTOMATICO:
+                            try:
+                                salvar_cookies_sessao(driver, info_extra='login_manual_sisbajud')
+                                print('[SISBAJUD][LOGIN_MANUAL] Cookies salvos após login manual SISBAJUD')
+                            except Exception as e:
+                                print(f"[SISBAJUD][LOGIN_MANUAL] Falha ao salvar cookies: {e}")
+                    except Exception:
+                        # driver_config pode não estar disponível neste contexto
+                        pass
                     return True
             except Exception:
                 pass
@@ -522,35 +646,96 @@ def iniciar_sisbajud(driver_pje=None):
         
         # 2. Criar driver Firefox SISBAJUD
         print('[SISBAJUD] Criando driver Firefox SISBAJUD...')
-        driver = driver_sisbajud()       
+        driver = driver_sisbajud()
+        # Tentativa: recarregar cookies específicos do SISBAJUD (implementado em bacen.py)
+        cookie_restored = False
+        try:
+            from bacen import carregar_cookies_sisbajud
+            try:
+                if carregar_cookies_sisbajud(driver):
+                    print('[SISBAJUD] ✅ Cookies SISBAJUD carregados com sucesso; pulando etapa de login.')
+                    cookie_restored = True
+            except Exception:
+                # falha ao carregar cookies SISBAJUD - continuar para o fluxo de login
+                cookie_restored = False
+        except Exception:
+            # módulo bacen pode não existir em todos os contextos; ignorar
+            cookie_restored = False
         
         if not driver:
             print('[SISBAJUD] ❌ Falha ao criar driver')
             return None
         
-        # Realizar login: preferir manual para driver SISBAJUD notebook (se configurado)
+        # Realizar login: priorizar cookies SISBAJUD, depois tentar login automático SISBAJUD
         try:
-            from driver_config import criar_driver_sisb, criar_driver_sisb_notebook
-            prefer_manual = (criar_driver_sisb == criar_driver_sisb_notebook)
+            from driver_config import criar_driver_sisb, criar_driver_sisb_notebook, salvar_cookies_sessao, SALVAR_COOKIES_AUTOMATICO
         except Exception:
-            prefer_manual = False
+            criar_driver_sisb = None
+            criar_driver_sisb_notebook = None
+            salvar_cookies_sessao = None
+            SALVAR_COOKIES_AUTOMATICO = False
 
+        try:
+            from bacen import carregar_cookies_sisbajud
+        except Exception:
+            carregar_cookies_sisbajud = None
+
+        # Se os cookies SISBAJUD foram restaurados anteriormente, já temos sessão válida
         login_ok = False
-        if prefer_manual:
-            print('[SISBAJUD] Preferindo login MANUAL para driver SISBAJUD notebook...')
+        if cookie_restored:
+            login_ok = True
+
+        # Tentar carregar cookies específicos do SISBAJUD (formato do módulo bacen)
+        if not login_ok and carregar_cookies_sisbajud:
             try:
+                if carregar_cookies_sisbajud(driver):
+                    print('[SISBAJUD] ✅ Cookies SISBAJUD (bacen) carregados com sucesso; pulando etapa de login.')
+                    login_ok = True
+            except Exception:
+                pass
+
+        # Se ainda não temos sessão, tentar login automático SISBAJUD (função local)
+        if not login_ok:
+            try:
+                print('[SISBAJUD] Tentando login automático SISBAJUD (função interna)...')
+                if login_automatico_sisbajud(driver):
+                    login_ok = True
+                    # Salvar cookies gerados pelo login automático, se configurado
+                    try:
+                        if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sessao:
+                            salvar_cookies_sessao(driver, info_extra='login_automatico_sisbajud')
+                    except Exception:
+                        pass
+                else:
+                    print('[SISBAJUD] Login automático SISBAJUD falhou, seguindo para login manual...')
+            except Exception as e:
+                print(f'[SISBAJUD] Erro no login automático SISBAJUD: {e}')
+
+        # Se ainda não logado, fallback para login manual SISBAJUD
+        if not login_ok:
+            try:
+                print('[SISBAJUD] Aguardando login MANUAL SISBAJUD...')
                 if login_manual_sisbajud(driver):
                     login_ok = True
+                    # Salvar cookies após login manual SISBAJUD (se permitido)
+                    try:
+                        if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sessao:
+                            salvar_cookies_sessao(driver, info_extra='login_manual_sisbajud')
+                            print('[SISBAJUD] ✅ Cookies SISBAJUD salvos após login manual')
+                    except Exception as e:
+                        print(f'[SISBAJUD] ⚠️ Falha ao salvar cookies SISBAJUD: {e}')
                 else:
-                    print('[SISBAJUD] Login manual falhou ou expirou, tentando login automático como fallback...')
+                    print('[SISBAJUD] ❌ Login manual SISBAJUD falhou ou expirou')
             except Exception as e:
-                print(f'[SISBAJUD] Erro durante login manual: {e}. Tentando login automático...')
+                print(f'[SISBAJUD] Erro durante login manual SISBAJUD: {e}')
 
         if not login_ok:
-            if not login_automatico_sisbajud(driver):
-                print('[SISBAJUD] ❌ Falha no login automatizado')
+            print('[SISBAJUD] ❌ Não foi possível autenticar no SISBAJUD')
+            try:
                 driver.quit()
-                return None
+            except Exception:
+                pass
+            return None
 
         # Se chegou aqui, o login foi bem-sucedido — agora AGUARDAR explicitamente pela URL /minuta
         minuta_indicator = 'sisbajud.cnj.jus.br/minuta'
@@ -572,8 +757,14 @@ def iniciar_sisbajud(driver_pje=None):
             print('[SISBAJUD] ⚠️ Timeout aguardando a URL https://sisbajud.cnj.jus.br/minuta após login')
             return None
 
-        # Após detectar a URL específica, olhar rapidamente se a página está pronta
+        # Após detectar a URL específica, maximizar a janela e olhar rapidamente se a página está pronta
         try:
+            try:
+                driver.maximize_window()
+                print('[SISBAJUD] ✅ Janela maximizadda após detectar /minuta')
+            except Exception as e:
+                print(f'[SISBAJUD] ⚠️ Não foi possível maximizar a janela: {e}')
+
             ready = aguardar_sisbajud_ready(driver, timeout=10)
         except Exception as e:
             print(f"[SISBAJUD] Erro ao aguardar prontidão da página: {e}")
@@ -618,20 +809,22 @@ def carregar_dados_processo():
         print(f'[SISBAJUD][ERRO] Falha ao carregar dados do processo: {e}')
         return None
 
-def minuta_bloqueio(driver_pje=None, dados_processo=None):
+def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None):
     """
     Cria minuta de bloqueio no SISBAJUD
     
     Fluxo:
-    1. Chama iniciar_sisbajud(driver_pje) que:
+    1. Se driver_sisbajud não fornecido, chama iniciar_sisbajud(driver_pje) que:
        - Extrai dados do processo PJe (se driver_pje fornecido)
        - Cria driver SISBAJUD e faz login
        - Retorna driver SISBAJUD já logado
-    2. Usa o driver SISBAJUD para preencher a minuta
+    2. Se driver_sisbajud fornecido, usa diretamente
+    3. Usa o driver SISBAJUD para preencher a minuta
     
     Args:
         driver_pje: WebDriver do PJe para extração de dados (opcional)
         dados_processo: Dados do processo em formato de dicionário (opcional)
+        driver_sisbajud: WebDriver do SISBAJUD já logado (opcional)
     
     Returns:
         dict: Dados da minuta criada ou None em caso de falha
@@ -640,9 +833,12 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         print('\n[SISBAJUD] INICIANDO MINUTA DE BLOQUEIO')
         print('=' * 60)
         
-        # 1. Inicializar SISBAJUD (extrai dados, cria driver e faz login)
+        # 1. Inicializar SISBAJUD (extrai dados, cria driver e faz login) ou usar driver fornecido
         print('[SISBAJUD] 1. Inicializando SISBAJUD...')
-        driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
+        if driver_sisbajud:
+            print('[SISBAJUD] Usando driver SISBAJUD fornecido')
+        else:
+            driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
         
         if not driver_sisbajud:
             print('[SISBAJUD] ❌ Falha ao inicializar SISBAJUD')
@@ -665,22 +861,46 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         # 3. Navegar para página de cadastro de minuta
         print('[SISBAJUD] 3. Navegando para página de cadastro de minuta...')
         if not driver_sisbajud.current_url.endswith("/minuta/cadastrar"):
-            print('[SISBAJUD] Clicando no menu Nova Minuta...')
-            # Usar o seletor EXATO do código otimizado
-            if not aguardar_e_clicar(driver_sisbajud, 'span[id="maisPje_menuKaizen_itemmenu_nova_minuta"] a', timeout=10):
-                print('[SISBAJUD] ❌ Falha ao clicar no menu Nova Minuta')
-                driver_sisbajud.quit()
-                return None
-            
-            # Aguardar elemento específico como no código otimizado
-            if not aguardar_elemento(driver_sisbajud, 'sisbajud-cadastro-minuta input[placeholder="Juiz Solicitante"]', timeout=15):
-                print('[SISBAJUD] ❌ Página de cadastro não carregou')
-                driver_sisbajud.quit()
-                return None
-            
-            # Sleep como no código otimizado após navegação
-            time.sleep(1.0)
-            print('[SISBAJUD] ✅ Página de cadastro carregada')
+            print('[SISBAJUD] Clicando no menu Nova Minuta (sem espera longa)...')
+            # tentar encontrar e clicar imediatamente, sem aguardar
+            element = None
+            try:
+                element = driver_sisbajud.find_element(By.CSS_SELECTOR, 'span[id="maisPje_menuKaizen_itemmenu_nova_minuta"] a')
+            except Exception:
+                element = None
+
+            if element:
+                try:
+                    element.click()
+                    print('[SISBAJUD] ✅ Clique realizado no menu Nova Minuta')
+                except Exception:
+                    try:
+                        driver_sisbajud.execute_script("arguments[0].click();", element)
+                        print('[SISBAJUD] ✅ JS click realizado no menu Nova Minuta')
+                    except Exception:
+                        element = None
+
+            # fallback: tentar disparar clique via querySelector (JS)
+            if not element:
+                try:
+                    driver_sisbajud.execute_script("var el=document.querySelector('span[id=\"maisPje_menuKaizen_itemmenu_nova_minuta\"] a'); if(el){el.click();}")
+                    print('[SISBAJUD] ✅ Tentativa de JS click via querySelector executada')
+                except Exception:
+                    pass
+
+            # se ainda não estivermos na página de cadastro, navegar diretamente (sem esperar)
+            time.sleep(0.5)
+            if not driver_sisbajud.current_url.endswith("/minuta/cadastrar"):
+                try:
+                    driver_sisbajud.get("https://sisbajud.cnj.jus.br/sisbajudweb/pages/minuta/cadastrar")
+                    print('[SISBAJUD] Navegando diretamente para /minuta/cadastrar')
+                except Exception as e:
+                    print(f'[SISBAJUD] ❌ Falha ao navegar diretamente para /minuta/cadastrar: {e}')
+                    driver_sisbajud.quit()
+                    return None
+
+            # dar um pequeno delay para estabilizar elementos, sem esperar longos timeouts
+            time.sleep(0.8)
         
         # === SEQUÊNCIA DE AÇÕES IDÊNTICA AO CÓDIGO OTIMIZADO ===
         
@@ -691,7 +911,34 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         
         if juiz:
             # Usar função específica do código otimizado: escolher_opcao_sisbajud
-            if not escolher_opcao_sisbajud(driver_sisbajud, 'input[placeholder*="Juiz"]', juiz):
+            try:
+                seletor = 'input[placeholder*="Juiz"]'
+                valor = juiz
+                for _ in range(10):
+                    try:
+                        el = driver_sisbajud.find_element(By.CSS_SELECTOR, seletor)
+                        break
+                    except Exception:
+                        time.sleep(0.5)
+                else:
+                    print(f'[SISBAJUD][ERRO] Opção "{valor}" não encontrada em {seletor} (elemento não existe)')
+                    success = False
+                el.click()
+                time.sleep(0.5)
+                opcoes = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option')
+                for opc in opcoes:
+                    if valor.lower() in opc.text.lower():
+                        opc.click()
+                        print(f'[SISBAJUD] Opção "{valor}" selecionada em {seletor}')
+                        success = True
+                        break
+                else:
+                    print(f'[SISBAJUD][ERRO] Opção "{valor}" não encontrada em {seletor} (nenhuma opção corresponde)')
+                    success = False
+            except Exception as e:
+                print(f'[SISBAJUD][ERRO] Falha ao selecionar opção: {e}')
+                success = False
+            if not success:
                 print('[SISBAJUD] ❌ Falha ao preencher juiz solicitante')
                 driver_sisbajud.quit()
                 return None
@@ -703,7 +950,10 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         
         if vara:
             # 1. Focus + click no seletor exato
-            elemento_vara = aguardar_elemento(driver_sisbajud, 'mat-select[name*="varaJuizoSelect"]')
+            try:
+                elemento_vara = WebDriverWait(driver_sisbajud, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-select[name*="varaJuizoSelect"]')))
+            except:
+                elemento_vara = None
             if not elemento_vara:
                 print('[SISBAJUD] ❌ Elemento vara não encontrado')
                 driver_sisbajud.quit()
@@ -713,7 +963,12 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
             elemento_vara.click()
             
             # 2. Aguardar opções aparecerem com polling como código otimizado
-            opcoes = aguardar_opcoes_aparecerem(driver_sisbajud, 'mat-option[role="option"]', intervalo_ms=100, max_tentativas=50)
+            opcoes = []
+            for tentativa in range(50):
+                opcoes = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
+                if opcoes:
+                    break
+                time.sleep(0.1)
             
             if opcoes:
                 # 3. Buscar e clicar na opção correta
@@ -730,7 +985,10 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         print(f'[SISBAJUD]       |___NUMERO PROCESSO: {numero_processo}')
         
         if numero_processo:
-            elemento_numero = aguardar_elemento(driver_sisbajud, 'input[placeholder="Número do Processo"]')
+            try:
+                elemento_numero = WebDriverWait(driver_sisbajud, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Número do Processo"]')))
+            except:
+                elemento_numero = None
             if elemento_numero:
                 elemento_numero.focus()
                 elemento_numero.clear()
@@ -742,13 +1000,21 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         print('[SISBAJUD] === AÇÃO 4: TIPO AÇÃO ===')
         print('[SISBAJUD]       |___TIPO AÇÃO: Ação Trabalhista')
         
-        elemento_acao = aguardar_elemento(driver_sisbajud, 'mat-select[name*="acao"]')
+        try:
+            elemento_acao = WebDriverWait(driver_sisbajud, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-select[name*="acao"]')))
+        except:
+            elemento_acao = None
         if elemento_acao:
             elemento_acao.focus()
             elemento_acao.click()
             
             # Aguardar e selecionar "Ação Trabalhista"
-            opcoes = aguardar_opcoes_aparecerem(driver_sisbajud, 'mat-option[role="option"]', intervalo_ms=100)
+            opcoes = []
+            for tentativa in range(50):
+                opcoes = driver_sisbajud.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
+                if opcoes:
+                    break
+                time.sleep(0.1)
             for opcao in opcoes:
                 if 'Ação Trabalhista' in opcao.text:
                     opcao.click()
@@ -769,6 +1035,10 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         print(f'[SISBAJUD]       |___CPF/CNPJ AUTOR: {cpf_cnpj_limpo}')
         
         elemento_cpf = aguardar_elemento(driver_sisbajud, 'input[placeholder*="CPF"]')
+        try:
+            elemento_cpf = WebDriverWait(driver_sisbajud, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="CPF"]')))
+        except:
+            elemento_cpf = None
         if elemento_cpf:
             elemento_cpf.focus()
             
@@ -792,7 +1062,10 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None):
         
         print(f'[SISBAJUD]       |___NOME AUTOR: {nome_autor}')
         
-        elemento_nome = aguardar_elemento(driver_sisbajud, 'input[placeholder="Nome do autor/exequente da ação"]')
+        try:
+            elemento_nome = WebDriverWait(driver_sisbajud, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Nome do autor/exequente da ação"]')))
+        except:
+            elemento_nome = None
         if elemento_nome:
             elemento_nome.focus()
             
@@ -1257,19 +1530,39 @@ def minuta_endereco(driver_pje=None, dados_processo=None):
                 continue
             
             # Formatar CPF/CNPJ (CNPJ raiz)
-            tipo_doc_reu = identificar_tipo_documento(cpf_cnpj_reu)
+            numerico = ''.join(filter(str.isdigit, str(cpf_cnpj_reu)))
+            if len(numerico) == 11:
+                tipo_doc_reu = 'CPF'
+            elif len(numerico) == 14:
+                tipo_doc_reu = 'CNPJ'
+            else:
+                tipo_doc_reu = 'INDEFINIDO'
             if tipo_doc_reu == 'CPF':
-                cpf_cnpj_formatado_reu = formatar_cpf(cpf_cnpj_reu)
+                cpf_numerico = ''.join(filter(str.isdigit, str(cpf_cnpj_reu)))
+                if len(cpf_numerico) == 11:
+                    cpf_cnpj_formatado_reu = f"{cpf_numerico[:3]}.{cpf_numerico[3:6]}.{cpf_numerico[6:9]}-{cpf_numerico[9:11]}"
+                else:
+                    cpf_cnpj_formatado_reu = cpf_numerico
             elif tipo_doc_reu == 'CNPJ':
                 # CNPJ raiz (8 primeiros dígitos)
-                cpf_cnpj_formatado_reu = formatar_cnpj(cpf_cnpj_reu)[:8]
+                cnpj_numerico = ''.join(filter(str.isdigit, str(cpf_cnpj_reu)))
+                if len(cnpj_numerico) == 14:
+                    cpf_cnpj_formatado_reu = f"{cnpj_numerico[:2]}.{cnpj_numerico[2:5]}.{cnpj_numerico[5:8]}/{cnpj_numerico[8:12]}-{cnpj_numerico[12:14]}"[:8]
+                else:
+                    cpf_cnpj_formatado_reu = cnpj_numerico[:8]
             else:
                 cpf_cnpj_formatado_reu = cpf_cnpj_reu
             
             # Clicar no botão Adicionar (se não for o primeiro réu)
             if i > 0:
                 # Usando função auxiliar otimizada
-                if not aguardar_e_clicar(driver_sisbajud, 'button[aria-label="Adicionar"]'):
+                try:
+                    element = WebDriverWait(driver_sisbajud, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Adicionar"]')))
+                    element.click()
+                    success = True
+                except:
+                    success = False
+                if not success:
                     print('[SISBAJUD] ❌ Falha ao clicar no botão Adicionar')
                     driver_sisbajud.quit()
                     return None
@@ -1277,7 +1570,10 @@ def minuta_endereco(driver_pje=None, dados_processo=None):
                 time.sleep(1)
             
             # Preencher CPF/CNPJ do réu usando função auxiliar otimizada
-            elemento_cpf_reu = aguardar_elemento(driver_sisbajud, 'input[placeholder*="CPF/CNPJ"]')
+            try:
+                elemento_cpf_reu = WebDriverWait(driver_sisbajud, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="CPF/CNPJ"]')))
+            except:
+                elemento_cpf_reu = None
             if elemento_cpf_reu:
                 elemento_cpf_reu.focus()
                 elemento_cpf_reu.clear()
@@ -1294,7 +1590,13 @@ def minuta_endereco(driver_pje=None, dados_processo=None):
         # 7. Salvar minuta
         print('[SISBAJUD] Salvando minuta...')
         # Usando função auxiliar otimizada
-        if not aguardar_e_clicar(driver_sisbajud, 'button.mat-fab.mat-primary mat-icon.fa-save'):
+        try:
+            element = WebDriverWait(driver_sisbajud, 10).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.mat-fab.mat-primary mat-icon.fa-save')))
+            element.click()
+            success = True
+        except:
+            success = False
+        if not success:
             print('[SISBAJUD] ❌ Falha ao clicar no botão Salvar')
             driver_sisbajud.quit()
             return None
@@ -1363,6 +1665,15 @@ def _extrair_ordens_da_serie(driver, log=True):
                 sequencial = int(cols[0].text.strip())
                 data_txt = cols[2].text.strip()
                 protocolo = cols[5].text.strip()
+                # Ignorar ordens que já foram respondidas com minuta
+                try:
+                    all_text = ' '.join([c.text for c in cols]).strip()
+                    if 'Respondida com minuta' in all_text:
+                        if log:
+                            print(f"[SISBAJUD] Ignorando ordem {sequencial}: Respondida com minuta")
+                        continue
+                except Exception:
+                    pass
                 valor_txt = cols[4].text.strip()
 
                 # Converter data
@@ -1570,14 +1881,9 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
         if log:
             print(f"[SISBAJUD] ✅ Página de desdobramento carregada")
 
-        # Reduzir zoom para 40% após abrir cada ordem
-        try:
-            driver.execute_script("document.body.style.zoom='0.4'")
-            if log:
-                print("[SISBAJUD] ✅ Zoom da página ajustado para 40%")
-        except Exception as e:
-            if log:
-                print(f"[SISBAJUD] ⚠️ Não foi possível ajustar o zoom: {e}")
+        # Zoom intentionally disabled: do NOT change page zoom (can break selectors).
+        if log:
+            print('[SISBAJUD] ℹ️ Zoom adjustment skipped (disabled by configuration)')
         
         # Preencher campos conforme tipo de fluxo
         if tipo_fluxo == "DESBLOQUEIO":
@@ -1592,297 +1898,581 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
                 juiz_input.clear()
                 juiz_input.send_keys("OTAVIO AUGUSTO")
                 time.sleep(1)
-                # Clicar na opção correta do dropdown
-                opcoes_juiz = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
-                juiz_clicado = False
-                for opcao in opcoes_juiz:
-                    if "Otavio Augusto" in opcao.text:
-                        opcao.click()
-                        juiz_clicado = True
-                        if log:
-                            print(f"[SISBAJUD] ✅ Juiz 'Otavio Augusto' selecionado")
-                        break
-                if not juiz_clicado:
-                    if log:
-                        print(f"[SISBAJUD] ⚠️ Opção de juiz não encontrada no dropdown")
-                # Clicar fora para fechar o dropdown do juiz
+                # Clicar na opção correta do dropdown usando span.mat-option-text
+                opcao_juiz = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA')]"))
+                )
+                opcao_juiz.click()
+
+                if log:
+                    print(f"[SISBAJUD] ✅ Juiz selecionado: OTAVIO AUGUSTO MACHADO DE OLIVEIRA")
+
+                # Clicar fora para fechar dropdown
                 try:
                     driver.find_element(By.TAG_NAME, "body").click()
-                    time.sleep(0.5)
                 except Exception:
                     pass
+                time.sleep(0.5)
             except Exception as e:
                 if log:
                     print(f"[SISBAJUD] ⚠️ Erro ao selecionar juiz: {e}")
             
-            # IMPLEMENTAÇÃO 1: Preenchimento de CPF/CNPJ na criação de minuta
+            # Seleção da ação
             try:
                 if log:
-                    print("[SISBAJUD] Preenchendo CPF/CNPJ na criação de minuta")
-                
-                # Localizar campo CPF/CNPJ
-                campo_cpf_cnpj = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "input[formcontrolname='documento']"))
-                )
-                
-                # Limpar campo
-                campo_cpf_cnpj.clear()
-                
-                # Preencher com valor completo (14 dígitos para CNPJ, 11 para CPF)
-                # Exemplo: "12345678901234" (CNPJ) ou "12345678901" (CPF)
-                documento_completo = "12345678901234"  # Substituir pelo valor real obtido
-                campo_cpf_cnpj.send_keys(documento_completo)
-                
-                if log:
-                    print(f"[SISBAJUD] ✅ CPF/CNPJ preenchido com {len(documento_completo)} dígitos")
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] ⚠️ Erro ao preencher CPF/CNPJ: {e}")
-            
-            # IMPLEMENTAÇÃO 2: Seleção da caixa de ações na ordem de bloqueio
-            try:
-                if log:
-                    print("[SISBAJUD] Selecionando ação na ordem de bloqueio")
-                
+                    print("[SISBAJUD] Selecionando ação para DESBLOQUEIO")
+
                 # Localizar dropdown de ações
-                dropdown_acao = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "mat-select[formcontrolname='acao']"))
+                dropdown_acao = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "mat-select[formcontrolname='acao'], mat-select[name*='acao']"))
                 )
-                
-                # Clicar para abrir dropdown
+
+                # Clicar no dropdown
                 dropdown_acao.click()
                 time.sleep(0.5)
-                
-                # Aguardar opções aparecerem
-                opcoes_acao = WebDriverWait(driver, 5).until(
-                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option"))
+
+                # Procurar e clicar na opção "Desbloquear valor"
+                opcao_desbloquear = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH, "//mat-option[contains(text(), 'Desbloquear valor')]"))
                 )
-                
-                # Selecionar opção desejada conforme o fluxo
-                opcao_desejada = "Desbloquear valor" if tipo_fluxo == "DESBLOQUEIO" else "Transferir valor"
-                
-                opcao_encontrada = False
-                for opcao in opcoes_acao:
-                    if opcao_desejada in opcao.text:
-                        # Rolar até a opção para garantir visibilidade
-                        driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
-                        time.sleep(0.3)
-                        
-                        # Clicar na opção
-                        opcao.click()
-                        opcao_encontrada = True
-                        
-                        if log:
-                            print(f"[SISBAJUD] ✅ Ação '{opcao_desejada}' selecionada")
-                        break
-                
-                if not opcao_encontrada:
-                    if log:
-                        print(f"[SISBAJUD] ⚠️ Opção '{opcao_desejada}' não encontrada")
+                opcao_desbloquear.click()
+
+                if log:
+                    print("[SISBAJUD] ✅ Ação selecionada: Desbloquear valor")
+
             except Exception as e:
                 if log:
                     print(f"[SISBAJUD] ⚠️ Erro ao selecionar ação: {e}")
+            
+            # Clicar em Salvar
+            if log:
+                print(f"[SISBAJUD] Clicando em Salvar")
+            salvar_clicado = False
+            for tentativa in range(3):
+                try:
+                    seletores_salvar = [
+                        "button.mat-fab.mat-primary mat-icon.fa-save",
+                        "//button[contains(@class,'mat-fab') and .//mat-icon[contains(@class,'fa-save')]]",
+                        "//button[contains(@class,'mat-primary') and .//mat-icon[contains(@class,'fa-save')]]"
+                    ]
+                    for seletor in seletores_salvar:
+                        try:
+                            if seletor.startswith("//"):
+                                btn_salvar = driver.find_element(By.XPATH, seletor)
+                            else:
+                                btn_salvar = driver.find_element(By.CSS_SELECTOR, seletor)
+                            btn_salvar.click()
+                            salvar_clicado = True
+                            break
+                        except:
+                            continue
+                    if salvar_clicado:
+                        break
+                    time.sleep(1)
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] Tentativa {tentativa+1}: Erro ao clicar em Salvar: {e}")
+                    time.sleep(1)
+            if not salvar_clicado:
+                if log:
+                    print(f"[SISBAJUD] ❌ Não foi possível clicar em Salvar")
+                return False
         
         else:  # POSITIVO
             if log:
                 print(f"[SISBAJUD] Preenchendo campos para POSITIVO")
-            
-            # Implementação para fluxo positivo
+
+            # Selecionar Juiz (robusto: clicar no span.mat-option-text correspondente)
             try:
                 juiz_input = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, "input[placeholder*='Juiz']"))
                 )
                 juiz_input.clear()
-                juiz_input.send_keys("OTAVIO AUGUSTO\n")
-                if log:
-                    print(f"[SISBAJUD] ✅ Juiz selecionado")
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] ⚠️ Erro ao selecionar juiz: {e}")
-            
-            # IMPLEMENTAÇÃO 1: Preenchimento de CPF/CNPJ na criação de minuta
-            try:
-                if log:
-                    print("[SISBAJUD] Preenchendo CPF/CNPJ na criação de minuta")
-                
-                # Localizar campo CPF/CNPJ
-                campo_cpf_cnpj = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "input[formcontrolname='documento']"))
-                )
-                
-                # Limpar campo
-                campo_cpf_cnpj.clear()
-                
-                # Preencher com valor completo (14 dígitos para CNPJ, 11 para CPF)
-                # Exemplo: "12345678901234" (CNPJ) ou "12345678901" (CPF)
-                documento_completo = "12345678901234"  # Substituir pelo valor real obtido
-                campo_cpf_cnpj.send_keys(documento_completo)
-                
-                if log:
-                    print(f"[SISBAJUD] ✅ CPF/CNPJ preenchido com {len(documento_completo)} dígitos")
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] ⚠️ Erro ao preencher CPF/CNPJ: {e}")
-            
-            # IMPLEMENTAÇÃO 2: Seleção da caixa de ações na ordem de bloqueio
-            try:
-                if log:
-                    print("[SISBAJUD] Selecionando ação na ordem de bloqueio")
-                
-                # Localizar dropdown de ações
-                dropdown_acao = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "mat-select[formcontrolname='acao']"))
-                )
-                
-                # Clicar para abrir dropdown
-                dropdown_acao.click()
-                time.sleep(0.5)
-                
-                # Aguardar opções aparecerem
-                opcoes_acao = WebDriverWait(driver, 5).until(
-                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option"))
-                )
-                
-                # Selecionar opção desejada conforme o fluxo
-                opcao_desejada = "Desbloquear valor" if tipo_fluxo == "DESBLOQUEIO" else "Transferir valor"
-                
-                opcao_encontrada = False
-                for opcao in opcoes_acao:
-                    if opcao_desejada in opcao.text:
-                        # Rolar até a opção para garantir visibilidade
-                        driver.execute_script("arguments[0].scrollIntoView(true);", opcao)
-                        time.sleep(0.3)
-                        
-                        # Clicar na opção
-                        opcao.click()
-                        opcao_encontrada = True
-                        
-                        if log:
-                            print(f"[SISBAJUD] ✅ Ação '{opcao_desejada}' selecionada")
-                        break
-                
-                if not opcao_encontrada:
-                    if log:
-                        print(f"[SISBAJUD] ⚠️ Opção '{opcao_desejada}' não encontrada")
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] ⚠️ Erro ao selecionar ação: {e}")
-        
-        # Clicar em Salvar
-        if log:
-            print(f"[SISBAJUD] Clicando em Salvar")
-        salvar_clicado = False
-        for tentativa in range(3):
-            try:
-                seletores_salvar = [
-                    "button.mat-fab.mat-primary mat-icon.fa-save",
-                   
-                    "//button[contains(@class,'mat-fab') and .//mat-icon[contains(@class,'fa-save')]]",
-                    "//button[contains(@class,'mat-primary') and .//mat-icon[contains(@class,'fa-save')]]"
-                ]
-                for seletor in seletores_salvar:
-                    try:
-                        if seletor.startswith("//"):
-                            btn_salvar = driver.find_element(By.XPATH, seletor)
-                        else:
-                            btn_salvar = driver.find_element(By.CSS_SELECTOR, seletor)
-                        btn_salvar.click()
-                        salvar_clicado = True
-                        break
-                    except:
-                        continue
-                if salvar_clicado:
-                    break
-                time.sleep(1)
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] Tentativa {tentativa+1}: Erro ao clicar em Salvar: {e}")
-                time.sleep(1)
-        if not salvar_clicado:
-            if log:
-                print(f"[SISBAJUD] ❌ Não foi possível clicar em Salvar")
-            return False
+                juiz_input.send_keys("OTAVIO AUGUSTO")
+                time.sleep(0.8)
 
-        # Após salvar, preencher dados de transferência no fluxo POSITIVO
-        if tipo_fluxo == "POSITIVO":
-            try:
-                if log:
-                    print("[SISBAJUD] Preenchendo dados de transferência (depósito)")
-                
-                # IMPLEMENTAÇÃO 3: Preenchimento completo do modal de dados de depósito
-                # Tipo de crédito: Geral
-                tipo_credito_select = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="tipoCredito"]'))
-                )
-                tipo_credito_select.click()
-                time.sleep(1)
-                opcoes_tipo = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
-                for opcao in opcoes_tipo:
-                    if "Geral" in opcao.text:
-                        opcao.click()
-                        if log:
-                            print("[SISBAJUD] ✅ Tipo de crédito 'Geral' selecionado")
-                        break
-                
-                # Banco: 0001 Banco do Brasil
-                banco_input = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="instituicaoFinanceiraPorCategoria"]'))
-                )
-                banco_input.click()
-                time.sleep(1)
-                opcoes_banco = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
-                for opcao in opcoes_banco:
-                    if "0001 Banco do Brasil" in opcao.text:
-                        opcao.click()
-                        if log:
-                            print("[SISBAJUD] ✅ Banco '0001 Banco do Brasil' selecionado")
-                        break
-                
-                # Agência: 5905
-                agencia_input = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="agencia"]'))
-                )
-                agencia_input.clear()
-                agencia_input.send_keys("5905")
-                if log:
-                    print("[SISBAJUD] ✅ Agência '5905' preenchida")
-                
-                # Clicar em Salvar após preencher dados de depósito
-                if log:
-                    print("[SISBAJUD] Clicando em Salvar após preencher dados de depósito")
-                
-                btn_salvar_deposito = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button.mat-fab.mat-primary mat-icon.fa-save"))
-                )
-                btn_salvar_deposito.click()
-                
-                if log:
-                    print("[SISBAJUD] ✅ Dados de depósito salvos com sucesso")
-                    
+                # Buscar opções do dropdown e clicar no span correto
+                juiz_clicado = False
+                try:
+                    opcoes_juiz = driver.find_elements(By.CSS_SELECTOR, 'span.mat-option-text')
+                except Exception:
+                    opcoes_juiz = []
+
+                alvo_completo = 'OTAVIO AUGUSTO MACHADO DE OLIVEIRA'
+                alvo_parcial = 'OTAVIO AUGUSTO'
+                for opcao in opcoes_juiz:
+                    try:
+                        texto = (opcao.text or '').strip().upper()
+                        if alvo_completo in texto or alvo_parcial in texto:
+                            try:
+                                opcao.click()
+                            except Exception:
+                                try:
+                                    driver.execute_script('arguments[0].click();', opcao)
+                                except Exception:
+                                    pass
+                            juiz_clicado = True
+                            if log:
+                                print(f"[SISBAJUD] ✅ Juiz selecionado: '{opcao.text.strip()}' (POSITIVO)")
+                            break
+                    except StaleElementReferenceException:
+                        # elemento obsoleto, tentar próxima opção
+                        continue
+                    except Exception:
+                        continue
+
+                if not juiz_clicado:
+                    # tentar reabrir o filtro e buscar novamente rapidamente
+                    try:
+                        juiz_input.clear()
+                        juiz_input.send_keys('OTAVIO AUGUSTO')
+                        time.sleep(0.6)
+                        opcoes_juiz = driver.find_elements(By.CSS_SELECTOR, 'span.mat-option-text')
+                        for opcao in opcoes_juiz:
+                            try:
+                                texto = (opcao.text or '').strip().upper()
+                                if 'OTAVIO' in texto:
+                                    try:
+                                        opcao.click()
+                                    except Exception:
+                                        try:
+                                            driver.execute_script('arguments[0].click();', opcao)
+                                        except Exception:
+                                            pass
+                                    juiz_clicado = True
+                                    if log:
+                                        print(f"[SISBAJUD] ⚠️ Fallback: juiz selecionado por 'OTAVIO' -> '{opcao.text.strip()}'")
+                                    break
+                            except Exception:
+                                continue
+                    except Exception:
+                        pass
+
+                # Fechar dropdown do juiz (ESC + body click) como garantia
+                try:
+                    from selenium.webdriver.common.keys import Keys
+                    from selenium.webdriver.common.action_chains import ActionChains
+                    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                except Exception:
+                    pass
+                try:
+                    driver.find_element(By.TAG_NAME, 'body').click()
+                except Exception:
+                    pass
+                time.sleep(0.4)
             except Exception as e:
                 if log:
-                    print(f"[SISBAJUD] ⚠️ Erro ao preencher dados de transferência: {e}")
-        
-        # Aguardar botão Protocolar aparecer
-        protocolar_apareceu = False
-        for _ in range(10):
+                    print(f"[SISBAJUD] ⚠️ Erro ao selecionar juiz (POSITIVO): {e}")
+
+            # Selecionar ação apropriada para POSITIVO (ex.: Transferir valor)
             try:
-                driver.find_element(By.XPATH, "//button[contains(@class,'mat-fab') and @title='Protocolar']")
-                protocolar_apareceu = True
-                break
-            except:
-                time.sleep(1)
-        
-        if not protocolar_apareceu:
+                if log:
+                    print("[SISBAJUD] Selecionando ação para POSITIVO")
+
+                # tentar localizar mat-selects de ação rapidamente
+                try:
+                    selects = WebDriverWait(driver, 3).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-select[formcontrolname='acao']"))
+                    )
+                except Exception:
+                    # fallback para qualquer mat-select visível (sem esperar muito)
+                    try:
+                        selects = driver.find_elements(By.CSS_SELECTOR, "mat-select")
+                    except Exception:
+                        selects = []
+
+                if not selects:
+                    if log:
+                        print('[SISBAJUD] ⚠️ Nenhum mat-select encontrado para ações (POSITIVO)')
+                else:
+                    total_selects = len(selects)
+                    if log:
+                        print(f"[SISBAJUD] ℹ️ Encontrados {total_selects} mat-select(s) para ação (POSITIVO)")
+
+                    # prioridade de seleção: tentar transferir antes de desbloquear
+                    prioridade = ["transferir valor", "transferir", "transferência", "transferir saldo", "desbloquear valor", "desbloquear"]
+
+                    selecionados = 0
+                    # iterar todos os selects e tentar selecionar ação em cada um
+                    for idx in range(total_selects):
+                        start_time = time.time()
+                        try:
+                            # re-obter elemento para evitar stale
+                            try:
+                                sel = driver.find_elements(By.CSS_SELECTOR, "mat-select[formcontrolname='acao'], mat-select[name*='acao'], sisbajud-inclusao-desdobramento mat-select, mat-select")[idx]
+                            except Exception:
+                                sel = selects[idx]
+
+                            sel_outer = ''
+                            try:
+                                sel_outer = (sel.get_attribute('outerHTML') or '')[:160]
+                            except Exception:
+                                sel_outer = f'<mat-select idx={idx}>'
+
+                            # abrir dropdown com fallbacks rápidos e contar tentativas (mais agressivo)
+                            opened = False
+                            open_attempts = 0
+                            open_method = None
+                            t_open_start = time.time()
+                            # reduzir tentativas para 2 e diminuir sleeps para acelerar
+                            while not opened and open_attempts < 2:
+                                open_attempts += 1
+                                try:
+                                    trigger = sel.find_element(By.CSS_SELECTOR, '.mat-select-trigger')
+                                    try:
+                                        trigger.click()
+                                        opened = True
+                                        open_method = 'trigger.click'
+                                    except Exception:
+                                        try:
+                                            driver.execute_script('arguments[0].click();', trigger)
+                                            opened = True
+                                            open_method = 'trigger.jsclick'
+                                        except Exception:
+                                            opened = False
+                                except Exception:
+                                    try:
+                                        sel.click()
+                                        opened = True
+                                        open_method = 'sel.click'
+                                    except Exception:
+                                        try:
+                                            driver.execute_script('arguments[0].click();', sel)
+                                            opened = True
+                                            open_method = 'sel.jsclick'
+                                        except Exception:
+                                            opened = False
+                                if not opened:
+                                    time.sleep(0.06)
+                            t_open_end = time.time()
+                            open_time = t_open_end - t_open_start
+
+                            if not opened:
+                                if log:
+                                    print(f"[SISBAJUD] ⚠️ Falha ao abrir dropdown de ação #{idx+1} (tentativas={open_attempts}) - snippet: {sel_outer}")
+                                continue
+
+                            # aguardar painel e coletar opções (re-query) com timing para debug
+                            t_panel_start = time.time()
+                            try:
+                                # reduzir timeout para detectar rapidamente que painel não abriu
+                                WebDriverWait(driver, 0.8).until(EC.visibility_of_element_located((By.CSS_SELECTOR, '.mat-select-panel')))
+                                panel_wait = time.time() - t_panel_start
+                                panel_visible = True
+                            except Exception:
+                                panel_wait = time.time() - t_panel_start
+                                panel_visible = False
+
+                            t_find_start = time.time()
+                            try:
+                                # tentar coletar opções mesmo se painel não reportou visibilidade
+                                opcoes_acao = driver.find_elements(By.CSS_SELECTOR, 'div.mat-select-panel mat-option, mat-option[role="option"], mat-option')
+                                find_time = time.time() - t_find_start
+                            except Exception:
+                                opcoes_acao = []
+                                find_time = time.time() - t_find_start
+
+                            if log:
+                                print(f"[SISBAJUD] ℹ️ open_time={open_time:.2f}s panel_visible={panel_visible} panel_wait={panel_wait:.2f}s options_found={len(opcoes_acao)} find_time={find_time:.2f}s (dropdown #{idx+1})")
+
+                            escolhido = None
+                            escolhido_text = ''
+                            try:
+                                textos = [((o.text or '').strip(), o) for o in opcoes_acao]
+                                lower_texts = [(t[0].lower(), t[1]) for t in textos]
+                                for chave in prioridade:
+                                    for txt, el in lower_texts:
+                                        if chave in txt:
+                                            escolhido = el
+                                            escolhido_text = txt
+                                            break
+                                    if escolhido:
+                                        break
+                            except Exception:
+                                escolhido = None
+
+                            if not escolhido and opcoes_acao:
+                                escolhido = opcoes_acao[0]
+                                escolhido_text = (escolhido.text or '').strip()
+
+                            if escolhido:
+                                try:
+                                    driver.execute_script('arguments[0].scrollIntoView(true);', escolhido)
+                                except Exception:
+                                    pass
+                                time.sleep(0.06)
+
+                                click_attempts = 0
+                                clicked = False
+                                click_method = None
+                                while not clicked and click_attempts < 3:
+                                    click_attempts += 1
+                                    try:
+                                        escolhido.click()
+                                        clicked = True
+                                        click_method = 'escolhido.click'
+                                    except Exception:
+                                        try:
+                                            filho = escolhido.find_element(By.CSS_SELECTOR, 'span.mat-option-text')
+                                            filho.click()
+                                            clicked = True
+                                            click_method = 'filho.click'
+                                        except Exception:
+                                            try:
+                                                driver.execute_script('arguments[0].click();', escolhido)
+                                                clicked = True
+                                                click_method = 'escolhido.jsclick'
+                                            except Exception:
+                                                clicked = False
+                                    if not clicked:
+                                        time.sleep(0.08)
+
+                                # medir tempos detalhados: após o clique, tempo até o painel sumir e breve espera adicional
+                                t_after_click = time.time()
+                                try:
+                                    WebDriverWait(driver, 2).until(EC.invisibility_of_element_located((By.CSS_SELECTOR, '.mat-select-panel')))
+                                    invis_wait = time.time() - t_after_click
+                                except Exception:
+                                    # se a espera falhar, medir o tempo gasto e prosseguir
+                                    time.sleep(0.12)
+                                    invis_wait = time.time() - t_after_click
+
+                                # curto delay para a UI reagir
+                                t_after_sleep = time.time()
+                                time.sleep(0.06)
+                                post_sleep = time.time() - t_after_sleep
+
+                                # inspecionar se um modal de depósito ou snackbar apareceu logo após a seleção
+                                dialog_present = False
+                                dialog_snippet = ''
+                                try:
+                                    dialogs = driver.find_elements(By.CSS_SELECTOR, 'sisbajud-dialog-dados-deposito-judicial, div[role="dialog"], div.cdk-overlay-pane')
+                                    if dialogs:
+                                        dialog_present = True
+                                        try:
+                                            dialog_snippet = (dialogs[0].get_attribute('outerHTML') or '')[:240]
+                                        except Exception:
+                                            dialog_snippet = str(type(dialogs[0]))
+                                except Exception:
+                                    dialog_present = False
+
+                                elapsed = time.time() - start_time
+                                if log:
+                                    try:
+                                        snippet = escolhido.get_attribute('outerHTML')[:180]
+                                    except Exception:
+                                        snippet = escolhido_text
+                                    print(f"[SISBAJUD] ✅ Ação selecionada no dropdown #{idx+1}: '{(escolhido_text or (escolhido.text or '').strip())}' -- click_attempts={click_attempts} click_method={click_method} open_attempts={open_attempts} open_method={open_method} total_elapsed={elapsed:.2f}s open_time={open_time:.2f}s panel_wait={panel_wait:.2f}s find_time={find_time:.2f}s invis_wait={invis_wait:.2f}s post_sleep={post_sleep:.2f}s dialog_present={dialog_present} url={driver.current_url} snippet: {snippet}")
+
+                                selecionados += 1
+                            else:
+                                if log:
+                                    print(f"[SISBAJUD] ⚠️ Nenhuma opção encontrada no dropdown #{idx+1} - painel_options={len(opcoes_acao)} snippet: {sel_outer}")
+
+                            # pequeno atraso entre selects
+                            time.sleep(0.08)
+                        except Exception as e:
+                            if log:
+                                elapsed = time.time() - start_time
+                                print(f"[SISBAJUD] ⚠️ Erro ao processar dropdown #{idx+1} after {elapsed:.2f}s: {e}")
+                            continue
+
+                    if log:
+                        print(f"[SISBAJUD] ℹ️ Ações selecionadas: {selecionados}/{total_selects} mat-select(s)")
+
+                    # fim for selects
+            except Exception as e:
+                if log:
+                    print(f"[SISBAJUD] ⚠️ Erro ao selecionar ação (POSITIVO): {e}")
+
+            # Clicar em Salvar
             if log:
-                print(f"[SISBAJUD] ❌ Botão Protocolar não apareceu após salvar")
-            return False
+                print(f"[SISBAJUD] Clicando em Salvar")
+            salvar_clicado = False
+            for tentativa in range(3):
+                try:
+                    seletores_salvar = [
+                        "button.mat-fab.mat-primary mat-icon.fa-save",
+                        "//button[contains(@class,'mat-fab') and .//mat-icon[contains(@class,'fa-save')]]",
+                        "//button[contains(@class,'mat-primary') and .//mat-icon[contains(@class,'fa-save')]]"
+                    ]
+                    for seletor in seletores_salvar:
+                        try:
+                            if seletor.startswith("//"):
+                                btn_salvar = driver.find_element(By.XPATH, seletor)
+                            else:
+                                btn_salvar = driver.find_element(By.CSS_SELECTOR, seletor)
+                            btn_salvar.click()
+                            salvar_clicado = True
+                            break
+                        except:
+                            continue
+                    if salvar_clicado:
+                        break
+                    time.sleep(1)
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] Tentativa {tentativa+1}: Erro ao clicar em Salvar: {e}")
+                    time.sleep(1)
+            if not salvar_clicado:
+                if log:
+                    print(f"[SISBAJUD] ❌ Não foi possível clicar em Salvar")
+                return False
         
-        if log:
-            print(f"[SISBAJUD] ✅ Ordem {ordem['sequencial']} processada com sucesso")
-        
-        return True
-        
+            # Após salvar, preencher dados de transferência no fluxo POSITIVO
+            if tipo_fluxo == "POSITIVO":
+                try:
+                    if log:
+                        print("[SISBAJUD] Preenchendo dados de transferência (depósito)")
+                    # Tipo de crédito: Geral (mat-select)
+                    tipo_credito_select = WebDriverWait(driver, 6).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="tipoCredito"]'))
+                    )
+                    try:
+                        tipo_credito_select.click()
+                    except Exception:
+                        driver.execute_script('arguments[0].click();', tipo_credito_select)
+                    time.sleep(0.8)
+                    opcoes_tipo = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
+                    for opcao in opcoes_tipo:
+                        try:
+                            if "Geral" in (opcao.text or ''):
+                                opcao.click()
+                                if log:
+                                    print("[SISBAJUD] ✅ Tipo de crédito 'Geral' selecionado")
+                                break
+                        except Exception:
+                            continue
+
+                    # Banco: 0001 Banco do Brasil (input com autocomplete)
+                    banco_input = WebDriverWait(driver, 6).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="instituicaoFinanceiraPorCategoria"]'))
+                    )
+                    try:
+                        banco_input.click()
+                    except Exception:
+                        driver.execute_script('arguments[0].click();', banco_input)
+                    time.sleep(0.8)
+                    opcoes_banco = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
+                    escolhido_banco = None
+                    for opcao in opcoes_banco:
+                        try:
+                            txt = (opcao.text or '').strip()
+                            # tentar casar formatos comuns: '00001 - BCO DO BRASIL' ou contendo 'Banco do Brasil'
+                            if '00001' in txt or 'BANCO DO BRASIL' in txt.upper() or 'BCO DO BRASIL' in txt.upper():
+                                escolhido_banco = opcao
+                                break
+                        except Exception:
+                            continue
+
+                    if escolhido_banco:
+                        try:
+                            # clicar diretamente no span de opção
+                            escolhido_banco.click()
+                            if log:
+                                print(f"[SISBAJUD] ✅ Banco selecionado: '{(escolhido_banco.text or '').strip()}'")
+                        except Exception:
+                            try:
+                                driver.execute_script('arguments[0].click();', escolhido_banco)
+                                if log:
+                                    print(f"[SISBAJUD] ✅ Banco (JS click) selecionado: '{(escolhido_banco.text or '').strip()}'")
+                            except Exception:
+                                if log:
+                                    print("[SISBAJUD] ⚠️ Falha ao clicar na opção de banco selecionada")
+                    else:
+                        if log:
+                            print("[SISBAJUD] ⚠️ Opção de banco desejada não encontrada nas opções exibidas")
+
+                    # Agência: 5905
+                    agencia_input = WebDriverWait(driver, 6).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="agencia"]'))
+                    )
+                    agencia_input.clear()
+                    agencia_input.send_keys("5905")
+                    if log:
+                        print("[SISBAJUD] ✅ Agência '5905' preenchida")
+
+                    # Confirmar/Enviar o modal de dados de depósito (botão 'Confirmar')
+                    try:
+                        btn_confirm = WebDriverWait(driver, 6).until(
+                            EC.element_to_be_clickable((By.XPATH, "//sisbajud-dialog-dados-deposito-judicial//button//span[normalize-space(text())='Confirmar']/ancestor::button"))
+                        )
+                        try:
+                            btn_confirm.click()
+                        except Exception:
+                            driver.execute_script('arguments[0].click();', btn_confirm)
+                        if log:
+                            print("[SISBAJUD] ✅ Confirmado modal de dados de depósito (Confirmar clicado)")
+
+                        # aguardar fechamento do modal
+                        try:
+                            WebDriverWait(driver, 6).until(
+                                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'sisbajud-dialog-dados-deposito-judicial'))
+                            )
+                            if log:
+                                print("[SISBAJUD] ✅ Modal de depósito fechado")
+                        except Exception:
+                            if log:
+                                print("[SISBAJUD] ⚠️ Modal de depósito não fechou imediatamente; prosseguindo")
+                        # Após fechar modal: primeiro clicar no snackbar 'OK' se aparecer (confirma operação).
+                        try:
+                            ok_btn = WebDriverWait(driver, 3).until(
+                                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class,'snack-messenger-close-button') and .//span[normalize-space(text())='OK']]"))
+                            )
+                            try:
+                                ok_btn.click()
+                            except Exception:
+                                try:
+                                    driver.execute_script('arguments[0].click();', ok_btn)
+                                except Exception:
+                                    pass
+                            if log:
+                                print("[SISBAJUD] ✅ Snackbar 'OK' clicado após confirmação de depósito")
+                            # pequeno delay para let the UI settle
+                            time.sleep(0.4)
+                        except Exception:
+                            # snackbar not present - continue
+                            pass
+
+                        # após (possível) snackbar OK, aguardar botão 'Protocolar' e então clicar no chevron 'voltar' para sair de /desdobrar
+                        try:
+                            # Aguarda aparecimento do botão Protocolar como sinal de que a ordem foi processada
+                            WebDriverWait(driver, 6).until(
+                                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class,'mat-fab') and @title='Protocolar']"))
+                            )
+                            if log:
+                                print("[SISBAJUD] ✅ Botão 'Protocolar' detectado - ordem provavelmente processada")
+
+                            # Clicar no botão chevron-left (voltar) para retornar a /detalhes
+                            try:
+                                chevron = WebDriverWait(driver, 4).until(
+                                    EC.element_to_be_clickable((By.XPATH, "//button[.//mat-icon[contains(@class,'fa-chevron-left')]]"))
+                                )
+                                try:
+                                    chevron.click()
+                                except Exception:
+                                    driver.execute_script('arguments[0].click();', chevron)
+                                if log:
+                                    print("[SISBAJUD] ✅ Clique no chevron 'voltar' executado")
+                                # aguardar retorno para /detalhes
+                                for _ in range(6):
+                                    if "/detalhes" in driver.current_url:
+                                        break
+                                    time.sleep(0.5)
+                            except Exception:
+                                if log:
+                                    print("[SISBAJUD] ⚠️ Não foi possível clicar no chevron 'voltar' automaticamente")
+                        except Exception:
+                            if log:
+                                print("[SISBAJUD] ⚠️ Botão 'Protocolar' não encontrado após confirmar depósito; prosseguindo")
+                    except Exception as e:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Não foi possível confirmar modal de depósito: {e}")
+
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] ⚠️ Erro ao preencher dados de transferência: {e}")
+
     except Exception as e:
         if log:
             print(f"[SISBAJUD] ❌ Erro ao processar ordem {ordem['sequencial']}: {e}")

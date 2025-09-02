@@ -1,45 +1,48 @@
 import time
-from driver_config import criar_driver, login_automatico, exibir_configuracao_ativa
-from sisb import iniciar_sisbajud, processar_ordem_sisbajud
+from driver_config import criar_driver_sisb, exibir_configuracao_ativa
 
-# 1. Mostrar configuração ativa e criar driver usando a opção ativa em driver_config
+# Importações diretas de sisb.py (sem usar as funções de alto nível)
+from sisb import driver_sisbajud, login_automatico_sisbajud, processar_ordem_sisbajud
+
+# 1. Mostrar configuração ativa
 exibir_configuracao_ativa()
-driver = criar_driver()
-# Verifica se o login automático foi bem-sucedido antes de prosseguir
-if not login_automatico(driver):
-    print('[TESTE] ❌ Falha no login automático — abortando execução para evitar criação prematura do SISBAJUD')
+
+# 2. Criar driver SISBAJUD diretamente
+print("[TESTE] Criando driver SISBAJUD...")
+driver_sisbajud = driver_sisbajud()
+if not driver_sisbajud:
+    print('[TESTE] ❌ Falha ao criar driver SISBAJUD')
+    raise SystemExit(1)
+
+# 3. Fazer login automático no SISBAJUD
+print("[TESTE] Fazendo login automático no SISBAJUD...")
+if not login_automatico_sisbajud(driver_sisbajud):
+    print('[TESTE] ❌ Falha no login SISBAJUD')
     try:
-        driver.quit()
+        driver_sisbajud.quit()
     except Exception:
         pass
     raise SystemExit(1)
 
-# 2. Navegar para a URL específica do processo
-url_processo = "https://pje.trt2.jus.br/pjekz/processo/6203803/detalhe"
-print(f"[TESTE] Navegando para: {url_processo}")
-driver.get(url_processo)
-time.sleep(3)  # Aguarda carregamento
+print("[TESTE] ✅ Login SISBAJUD realizado com sucesso")
 
-# 3. Executar iniciar_sisbajud
-print("[TESTE] Executando iniciar_sisbajud...")
-try:
-    driver_sisbajud = iniciar_sisbajud(driver)
-    print("[TESTE] ✅ SISBAJUD inicializado")
-except Exception as e:
-    print(f"[TESTE] ❌ Erro ao inicializar SISBAJUD: {e}")
+# 4. Preparar dados do processo correto para SISBAJUD
+dados_processo = {
+    'numero': '1000996-92.2021.5.02.0703',
+    'numero_processo': '1000996-92.2021.5.02.0703'
+}
 
-# 4. Executar _processar_ordem
-print("[TESTE] Executando fluxo orquestrado processar_ordem_sisbajud (autônomo)...")
+# 5. Executar processar_ordem_sisbajud diretamente
+print("[TESTE] Executando processar_ordem_sisbajud com processo 1000996-92.2021.5.02.0703...")
 try:
-    # Não passar dados: a função usará o global `processo_dados_extraidos` ou carregará de arquivo
-    resultado = processar_ordem_sisbajud(driver_sisbajud, None, log=True)
+    resultado = processar_ordem_sisbajud(driver_sisbajud, dados_processo, log=True)
     print(f"[TESTE] Resultado: {resultado}")
-    print("[TESTE] ✅ processar_ordem_sisbajud executada")
+    print("[TESTE] ✅ processar_ordem_sisbajud executada com sucesso")
 except Exception as e:
     print(f"[TESTE] ❌ Erro durante execução de processar_ordem_sisbajud: {e}")
 
 # Manter driver aberto por alguns segundos para verificação
 time.sleep(5)
 
-# Nota: processar_ordem_sisbajud irá fechar o driver SISBAJUD ao final do processamento.
+# Nota: processar_ordem_sisbajud irá fechar o driver SISBAJUD ao final do processamento
 print("[TESTE] Script finalizado")

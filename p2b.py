@@ -23,6 +23,7 @@ with open("log.py", "w", encoding="utf-8") as f:
 # use a busca de termos para ir diretamente à região correta e edirtar apenas o necessário, para ser mais eficiente
 
 from Fix import login_pc, driver_notebook, aplicar_filtro_100, indexar_e_processar_lista, extrair_dados_processo, finalizar_driver
+import json
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -46,6 +47,129 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger('AutomacaoPJe')
+
+# ===================== CONTROLE DE SESSÃO E PROGRESSO (espelhado de m1.py) =====================
+
+def carregar_progresso():
+    """Carrega o estado de progresso do arquivo JSON específico para p2b"""
+    try:
+        if os.path.exists("progresso_p2b.json"):
+            with open("progresso_p2b.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"[PROGRESSO_P2B][AVISO] Erro ao carregar progresso: {e}")
+    return {"processos_executados": [], "session_active": True, "last_update": None}
+
+def salvar_progresso(progresso):
+    """Salva o estado de progresso no arquivo JSON específico para p2b"""
+    try:
+        progresso["last_update"] = datetime.now().isoformat()
+        with open("progresso_p2b.json", "w", encoding="utf-8") as f:
+            json.dump(progresso, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[PROGRESSO_P2B][ERRO] Falha ao salvar progresso: {e}")
+
+def extrair_numero_processo(driver):
+    """Extrai o número do processo da URL ou elemento da página"""
+    try:
+        # Tenta extrair da URL
+        url = driver.current_url
+        if "processo/" in url:
+            import re
+            match = re.search(r"processo/(\d+)", url)
+            if match:
+                return match.group(1)
+
+        # Tenta extrair de elementos da página
+        try:
+            numero_elem = driver.find_element(By.CSS_SELECTOR, '[data-testid="numero-processo"], .numero-processo, .processo-numero')
+            if numero_elem and numero_elem.text:
+                return re.sub(r'[^\d]', '', numero_elem.text)
+        except Exception:
+            pass
+
+        return None
+    except Exception as e:
+        print(f"[PROGRESSO_P2B][ERRO] Falha ao extrair número do processo: {e}")
+        return None
+
+def verificar_acesso_negado(driver):
+    """Verifica se estamos na página de acesso negado"""
+    try:
+        url_atual = driver.current_url
+        return "acesso-negado" in url_atual.lower()
+    except Exception as e:
+        print(f"[PROGRESSO_P2B][ERRO] Falha ao verificar acesso negado: {e}")
+        return False
+
+def processo_ja_executado(numero_processo, progresso):
+    """Verifica se o processo já foi executado"""
+    if not numero_processo:
+        return False
+    return numero_processo in progresso.get("processos_executados", [])
+
+def marcar_processo_executado(numero_processo, progresso):
+    """Marca processo como executado (mantido inativo como em m1.py)"""
+    # Função desativada para não registrar processos como executados nesta execução
+    pass
+
+def recuperar_sessao(driver):
+    """Tenta recuperar sessão após acesso negado (comportamento similar ao m1.py)"""
+    try:
+        print("[RECOVERY_P2B][SESSÃO] Detectado acesso negado, tentando recuperar sessão...")
+        # Navega para página de login padrão (usa variável de ambiente se existir)
+        login_url = os.getenv('URL_PJE_LOGIN', 'https://pje.trt2.jus.br/pjekz/login')
+        driver.get(login_url)
+        time.sleep(3)
+
+        # Chama função de login existente
+        if login_func(driver):
+            print("[RECOVERY_P2B][SESSÃO] ✅ Login realizado com sucesso")
+            # Navega de volta para a lista padrão
+            url_lista = os.getenv('URL_PJE_ESCANINHO', 'https://pje.trt2.jus.br/pjekz/escaninho/documentos-internos')
+            driver.get(url_lista)
+            time.sleep(3)
+            try:
+                icone_selector = 'i.fa-reply-all.icone-clicavel'
+                resultado = safe_click(driver, icone_selector, timeout=10, log=True)
+                if resultado:
+                    print("[RECOVERY_P2B][SESSÃO] ✅ Filtro de mandados devolvidos reaplicado")
+                    time.sleep(2)
+                    return True
+                else:
+                    print("[RECOVERY_P2B][SESSÃO] ❌ Falha ao reaplicar filtro")
+            except Exception as filter_error:
+                print(f"[RECOVERY_P2B][SESSÃO][ERRO] Falha no filtro: {filter_error}")
+        else:
+            print("[RECOVERY_P2B][SESSÃO] ❌ Falha no login")
+        return False
+    except Exception as e:
+        print(f"[RECOVERY_P2B][SESSÃO][ERRO] Falha na recuperação: {e}")
+        return False
+
+def resetar_progresso():
+    """Reseta o arquivo de progresso - útil para reiniciar do zero"""
+    try:
+        if os.path.exists("progresso_p2b.json"):
+            os.remove("progresso_p2b.json")
+            print("[PROGRESSO_P2B][RESET] ✅ Arquivo de progresso removido")
+        else:
+            print("[PROGRESSO_P2B][RESET] ❌ Arquivo de progresso não existe")
+    except Exception as e:
+        print(f"[PROGRESSO_P2B][RESET][ERRO] Falha ao resetar: {e}")
+
+def listar_processos_executados():
+    """Lista processos já executados"""
+    progresso = carregar_progresso()
+    executados = progresso.get("processos_executados", [])
+    if executados:
+        print(f"[PROGRESSO_P2B][LIST] {len(executados)} processos já executados:")
+        for i, proc in enumerate(executados, 1):
+            print(f"  {i:3d}. {proc}")
+    else:
+        print("[PROGRESSO_P2B][LIST] Nenhum processo executado ainda")
+    return executados
+
 
 def parse_gigs_param(param):
     """
@@ -381,7 +505,7 @@ def fluxo_pz(driver):
                 'aceita a imediata homologação',
                 'aceita a imediata homologacao',
                 'informar se aceita a imediata homologação',
-                'informar se aceita a imediata homologacao',
+                'apresentar impugnação, querendo',
             ]],
              'gigs', '1/Silvia/Homologação', None),
             ([gerar_regex_geral('exequente, ora embargado')],
@@ -892,11 +1016,7 @@ def executar_fluxo(driver):
             logger.error(f'[FLUXO_PRAZO] Erro ao processar lista: {e}')
     except Exception as e:
         logger.error(f'[EXECUCAO] {e}')
-    finally:
-        try:
-            finalizar_driver(driver)
-        except Exception as e:
-            logger.error(f'[EXECUCAO] Falha ao fechar o driver: {e}')
+        raise  # Re-raise para que a função chamadora possa lidar com o erro
 
 def main():
     driver = criar_driver(headless=False)

@@ -2776,19 +2776,10 @@ def main():
 
     # Login process (agora usando login_pc do Fix.py)
     if not login_func(driver):
-        # Não fechar o driver imediatamente em caso de falha no login automático.
-        # Tentamos um fallback para login manual antes de abortar a execução.
-        print('[LOGIN] Login automático falhou. Tentando fallback para login manual...')
-        try:
-            if login_manual(driver):
-                print('[LOGIN] Login manual realizado com sucesso. Continuando execução.')
-            else:
-                print('[LOGIN] Login manual não realizado. Mantendo driver aberto para inspeção.')
-                return
-        except Exception as e:
-            print(f'[LOGIN][ERRO] Falha ao tentar login manual de fallback: {e}')
-            print('[LOGIN] Mantendo driver aberto para inspeção.')
-            return
+        # REMOVIDO: Fallback para login_manual que causava loops infinitos
+        print('[LOGIN] Login automático falhou. Encerrando execução.')
+        driver.quit()
+        return
 
     # Navegação para a lista de documentos internos
     if not navegacao(driver):

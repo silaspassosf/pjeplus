@@ -345,3 +345,151 @@ PROCESSO: 1000065-21.2023.5.02.0703
 https://pje.trt2.jus.br/pjekz/validacao/25022113404524800000388155500?instancia=1
 ==================================================
 
+
+==================================================
+PROCESSO: 1001324-33.2021.5.02.0473
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25082216540599600000416058467?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001169-14.2024.5.02.0703
+==================================================
+    Id Pje: 3208eab
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ818120218BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ818120218BR</a>
+    Destinatário: LEONARDO DA SILVA ALCARAS
+    Data do envio: 11/08/2025
+    Data da entrega: 20/08/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 6233c9c
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ818125688BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ818125688BR</a>
+    Destinatário: LOVE CHURRAS ITU LTDA
+    Data do envio: 11/08/2025
+    Data da entrega: 20/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1000373-96.2019.5.02.0703
+==================================================
+    Id Pje: bdbefae
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ820803414BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ820803414BR</a>
+    Destinatário: RODRIGO DA COSTA CORREA
+    Data do envio: 14/08/2025
+    Data da entrega: 21/08/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 7712a96
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ820803428BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ820803428BR</a>
+    Destinatário: COAST SERVICE SERVICOS TERCEIRIZADOS LTDA
+    Data do envio: 14/08/2025
+    Data da entrega: 19/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001667-13.2024.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25080511422728900000413221238?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001722-63.2024.5.02.0088
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25072810501012700000411891095?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001022-22.2023.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25082517390390600000416338524?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000580-03.2016.5.02.0703
+==================================================
+    Id Pje: ebe009c
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ824386855BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ824386855BR</a>
+    Destinatário: GAFISA/TINER CAMPO BELO I - EMPREENDIMENTO IMOBILIARIO SPE LTDA.
+    Data do envio: 20/08/2025
+    Data da entrega: 26/08/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 8a40395
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ824386841BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ824386841BR</a>
+    Destinatário: ANTONIO MARQUES VARELA
+    Data do envio: 20/08/2025
+    Data da entrega: 28/08/2025
+    Status: Objeto devolvido ao remetente
+--------------------------------------------------
+
+    Id Pje: b54daa8
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ824393065BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ824393065BR</a>
+    Destinatário: GAFISA/TINER CAMPO BELO I - EMPREENDIMENTO IMOBILIARIO SPE LTDA.
+    Data do envio: 20/08/2025
+    Data da entrega: 26/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001480-39.2023.5.02.0703
+==================================================
+    Id Pje: 22a5dcc
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ818119719BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ818119719BR</a>
+    Destinatário: ALEMAO PIZZARIA E RESTAURANTE LTDA
+    Data do envio: 11/08/2025
+    Data da entrega: 15/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001052-91.2022.5.02.0703
+==================================================
+    Id Pje: 66b2cef
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825941633BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825941633BR</a>
+    Destinatário: MARCO ANTONIO VIDAL NEVES
+    Data do envio: 22/08/2025
+    Data da entrega: 01/09/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: eecca10
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825941647BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825941647BR</a>
+    Destinatário: MARCO ANTONIO VIDAL NEVES
+    Data do envio: 22/08/2025
+    Data da entrega: 28/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001655-67.2022.5.02.0703
+==================================================
+    Id Pje: 2ce94d9
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825365065BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825365065BR</a>
+    Destinatário: SERGIO KUBA
+    Data do envio: 21/08/2025
+    Data da entrega: 26/08/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 0be8a96
+    Rastreamento: <a href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825365074BR" target="_blank">https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ825365074BR</a>
+    Destinatário: SERGIO KUBA
+    Data do envio: 21/08/2025
+    Data da entrega: 28/08/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+

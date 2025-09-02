@@ -173,6 +173,120 @@ def login_automatico_direto(driver):
         print(f"[LOGIN_AUTOMATICO_DIRETO] Falha no processo de login: {e}")
         return False
 
+def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguardar_url_final=True):
+    """Login automático por CPF/senha (typing) — reproduz ações similares ao login_automatico_sisbajud.
+
+    Parâmetros:
+        driver: WebDriver
+        url_login: URL inicial para navegar ao formulário de login (se None, usa PJe padrão)
+        cpf: CPF a ser digitado no campo 'username'
+        senha: senha a ser digitada no campo 'password'
+        aguardar_url_final: se True espera até detectar redirecionamento pós-login
+
+    Retorna True se o login for detectado com sucesso, False caso contrário.
+    """
+    try:
+        # tentar aplicar cookies previamente salvos
+        if verificar_e_aplicar_cookies(driver):
+            if SALVAR_COOKIES_AUTOMATICO:
+                try:
+                    salvar_cookies_sessao(driver, info_extra='cookies_reutilizados_login_cpf')
+                except Exception:
+                    pass
+            return True
+
+        from selenium.webdriver.common.by import By
+        import time
+
+        if not url_login:
+            # URL padrão (PJe primeiro grau) — pode ser sobrescrita ao chamar
+            url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
+
+        print(f"[LOGIN_CPF] Navegando para: {url_login}")
+        driver.get(url_login)
+        time.sleep(1.2)
+
+        # Se já estamos logados (URL não contém 'login'/'auth'), retorna True
+        try:
+            cur = driver.current_url.lower()
+            if not any(k in cur for k in ['login', 'auth', 'realms']):
+                print('[LOGIN_CPF] ✅ Já autenticado (URL indica sessão ativa)')
+                return True
+        except Exception:
+            pass
+
+        # Clicar no botão SSO PDPJ antes de preencher credenciais
+        try:
+            btn_sso = driver.find_element(By.ID, 'btnSsoPdpj')
+            btn_sso.click()
+            print('[LOGIN_CPF] ✅ Botão SSO PDPJ clicado')
+            time.sleep(1.0)  # Aguardar carregamento do formulário
+        except Exception as e:
+            print(f"[LOGIN_CPF] ❌ Falha ao clicar no botão SSO PDPJ: {e}")
+            return False
+
+        # Digitar CPF no campo username
+        try:
+            username_field = driver.find_element(By.ID, 'username')
+            username_field.clear()
+            for ch in str(cpf):
+                username_field.send_keys(ch)
+                time.sleep(0.07)
+            print('[LOGIN_CPF] ✅ CPF digitado')
+        except Exception as e:
+            print(f"[LOGIN_CPF] ❌ Não foi possível preencher CPF: {e}")
+            return False
+
+        # Digitar senha no campo password
+        try:
+            password_field = driver.find_element(By.ID, 'password')
+            password_field.clear()
+            for ch in str(senha):
+                password_field.send_keys(ch)
+                time.sleep(0.07)
+            print('[LOGIN_CPF] ✅ Senha digitada')
+        except Exception as e:
+            print(f"[LOGIN_CPF] ❌ Não foi possível preencher senha: {e}")
+            return False
+
+        # Clicar no botão de login (id comum do Keycloak)
+        try:
+            btn = driver.find_element(By.ID, 'kc-login')
+            btn.click()
+            print('[LOGIN_CPF] ✅ Botão de login clicado')
+        except Exception as e:
+            print(f"[LOGIN_CPF] ❌ Falha ao clicar no botão de login: {e}")
+            return False
+
+        # Aguardar redirecionamento/URL final
+        if aguardar_url_final:
+            timeout = 40
+            inicio = time.time()
+            while time.time() - inicio < timeout:
+                try:
+                    cur = driver.current_url.lower()
+                    if 'pjekz' in cur or 'sisbajud' in cur or not any(k in cur for k in ['login', 'auth', 'realms']):
+                        print('[LOGIN_CPF] ✅ Login detectado por mudança de URL')
+                        # salvar cookies quando configurado
+                        try:
+                            if SALVAR_COOKIES_AUTOMATICO:
+                                salvar_cookies_sessao(driver, info_extra='login_cpf')
+                        except Exception:
+                            pass
+                        return True
+                except Exception:
+                    pass
+                time.sleep(0.5)
+            print('[LOGIN_CPF] ⚠️ Timeout aguardando redirecionamento pós-login')
+            return False
+
+        # Se não aguardamos, consideramos sucesso imediato
+        return True
+
+    except Exception as e:
+        print(f"[LOGIN_CPF] Erro durante login_cpf: {e}")
+        return False
+
 # ===============================================
 # BLOCO 2: CONFIGURAÇÕES DE DRIVER
 # ===============================================
@@ -292,7 +406,8 @@ criar_driver_sisb = criar_driver_sisb_pc
 
 # BLOCO 1: ESCOLHA DO LOGIN (descomente apenas uma linha)
 # login_func = login_manual        # ← Login manual
-login_func = login_automatico    # ← ATIVO: Login automático (usará AutoHotkey config abaixo)
+login_func = login_cpf    # ← ATIVO: Login por CPF/senha (typing)
+# login_func = login_automatico    # ← Opcional: Login automático (AutoHotkey)
 
 # BLOCO 2: ESCOLHA DO DRIVER (descomente apenas uma linha)
 criar_driver = criar_driver_notebook    # ← ATIVO: Driver Notebook
@@ -401,18 +516,18 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
             # Formato antigo - usa timestamp do arquivo
             timestamp_str = datetime.fromtimestamp(os.path.getmtime(arquivo_mais_recente)).isoformat()
             cookies = dados
-        
+
         # Verifica idade dos cookies
         timestamp_cookies = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00').replace('+00:00', ''))
         idade = datetime.now() - timestamp_cookies
-        
+
         if idade > timedelta(hours=max_idade_horas):
             print(f'[COOKIES] Cookies muito antigos ({idade.total_seconds()/3600:.1f}h). Pulando.')
             return False
-        
+
         # Navega para o domínio antes de carregar cookies
         driver.get('https://pje.trt2.jus.br/primeirograu/')
-        
+
         # Carrega cookies
         cookies_carregados = 0
         for cookie in cookies:
@@ -423,32 +538,27 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
                 cookies_carregados += 1
             except Exception as e:
                 print(f'[COOKIES] Erro ao carregar cookie {cookie.get("name", "unknown")}: {e}')
-        
+
         print(f'[COOKIES] {cookies_carregados} cookies carregados de {os.path.basename(arquivo_mais_recente)}')
-        
+
         # Testa se os cookies funcionam navegando para uma página protegida
         driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
-        
+
         # Aguarda um pouco para a página carregar
         import time
         time.sleep(3)
-        
+
         # Verifica se recebeu a URL de acesso negado
         if 'acesso-negado' in driver.current_url.lower():
-            print('[COOKIES] URL de acesso negado detectada. Apagando cookies e iniciando login automático direto...')
+            print('[COOKIES] URL de acesso negado detectada. Apagando cookies carregados; não dispararemos login automático aqui.')
             # Apaga todos os cookies do navegador
             try:
                 driver.delete_all_cookies()
                 print('[COOKIES] Cookies apagados do navegador.')
             except Exception as e:
                 print(f'[COOKIES] Erro ao apagar cookies: {e}')
-            
-            # Chama login automático DIRETO (sem tentar cookies novamente)
-            try:
-                return login_automatico_direto(driver)
-            except Exception as e:
-                print(f'[COOKIES][ERRO] Falha no login automático direto após acesso negado: {e}')
-                return False
+            # Não iniciar login automático aqui; retornar False para que o chamador decida o fallback
+            return False
         
         # Verifica se está logado (não é redirecionado para login)
         if 'login' in driver.current_url.lower():
@@ -483,7 +593,21 @@ def verificar_e_aplicar_cookies(driver):
 # ===============================================
 # CONFIGURAÇÕES DE COOKIES
 # ===============================================
-USAR_COOKIES_AUTOMATICO = True      # ← Carregar cookies automaticamente ao iniciar driver
+# Por padrão, habilitamos uso e salvamento de cookies para drivers "normais"
+# (PC e VT). Para o driver "notebook" preferimos comportamento manual e não
+# recarregar cookies automaticamente, para evitar sessões conflitantes.
+try:
+    # Por padrão, permitir que o driver ativo utilize cookies salvos.
+    # Isto faz com que o carregamento automático de cookies seja aplicado
+    # também quando o driver ativo for o 'notebook'.
+    USAR_COOKIES_AUTOMATICO = True
+except NameError:
+    # Se a seleção do driver ainda não foi definida no momento da importação,
+    # habilitar cookies por padrão.
+    USAR_COOKIES_AUTOMATICO = True
+
+# Sempre permitimos salvar cookies após o usuário fazer login manualmente,
+# para que sessões possam ser reutilizadas por drivers normais.
 SALVAR_COOKIES_AUTOMATICO = True    # ← Salvar cookies após login manual/automático
 
 # ===============================================
@@ -504,3 +628,49 @@ def exibir_configuracao_ativa():
     print(f"[CONFIG] Login: {login_nome}")
     print(f"[CONFIG] Driver: {driver_nome}")
     return login_nome, driver_nome
+
+
+# --- Wrapper: criar_driver ativo que aplica carregamento automático de cookies ---
+# Substitui a referência direta à fábrica por uma função que cria o driver
+# e tenta aplicar cookies salvos (se configurado). Isso garante que callers
+# que usam `criar_driver()` já obtenham um driver com sessão reaproveitável.
+try:
+    # Preserve original factory (pode ser uma função atribuída acima)
+    criar_driver_factory = criar_driver
+except NameError:
+    criar_driver_factory = None
+
+def criar_driver(headless=False):
+    """Cria o driver usando a fábrica ativa e aplica cookies salvos quando permitido.
+
+    Retorna o WebDriver ou None em caso de falha.
+    """
+    if criar_driver_factory is None:
+        print('[DRIVER_CONFIG] ❌ Fábrica de driver não definida')
+        return None
+
+    try:
+        driver = criar_driver_factory(headless=headless)
+    except Exception as e:
+        print(f'[DRIVER_CONFIG] ❌ Erro ao criar driver via fábrica: {e}')
+        return None
+
+    # Aplicar cookies automaticamente se permitido
+    try:
+        if USAR_COOKIES_AUTOMATICO:
+            try:
+                sucesso = carregar_cookies_sessao(driver)
+                if sucesso:
+                    print('[DRIVER_CONFIG] ✅ Cookies aplicados ao driver inicial')
+                    # opcional: re-salvar para atualizar metadados
+                    if SALVAR_COOKIES_AUTOMATICO:
+                        salvar_cookies_sessao(driver, info_extra='cookies_reutilizados')
+                else:
+                    print('[DRIVER_CONFIG] ⚠️ Cookies não aplicados (inválidos ou inexistentes)')
+            except Exception as e:
+                print(f'[DRIVER_CONFIG] ⚠️ Falha ao aplicar cookies: {e}')
+    except Exception:
+        pass
+
+    return driver
+

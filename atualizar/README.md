@@ -18,6 +18,15 @@
 atualizador_unificado.bat
 ```
 
+### Continuação Após Backup
+```bash
+# Na pasta raiz do projeto
+proximos_passos.bat
+
+# Ou diretamente
+atualizar\continuar_atualizacao.bat
+```
+
 ### 📋 Modos Disponíveis
 
 | Modo | Tempo | Descrição |
@@ -27,6 +36,13 @@ atualizador_unificado.bat
 | **[3] CONFLITOS** �️ | 1-3min | Apenas resolução de conflitos existentes |
 | **[4] SETUP** 📦 | 5-10min | Primeira instalação completa |
 | **[5] RESET** 🛡️ | 1-2min | Reset forçado (perde mudanças locais) |
+
+### 🔄 Scripts de Continuação
+
+| Script | Uso | Descrição |
+|--------|-----|-----------|
+| **proximos_passos.bat** | Pasta raiz | Continua atualização após backup criado |
+| **continuar_atualizacao.bat** | Pasta atualizar | Script de continuação detalhado |
 
 ## 🧠 Resolução Inteligente de Conflitos
 
@@ -95,6 +111,12 @@ backups/
 ```bash
 # Quando tudo deu errado
 [5] RESET
+```
+
+### 🔄 **Continuação de Processo**
+```bash
+# Quando o backup já foi criado e você precisa continuar
+proximos_passos.bat
 ```
 
 ## ✨ Otimizações Implementadas

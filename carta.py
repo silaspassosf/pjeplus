@@ -613,9 +613,77 @@ def carta(driver, log=True, limite_intimacoes=None):
         print(f"[CARTA] ✅ Data da intimação correlacionada: {data_da_intimacao}")
         print(f"[CARTA] {len(dados_mais_recentes)} intimações da mesma data serão formatadas")
     
-    # 7. Formatar como blocos simples
+    # 7. Formatar como blocos simples E HTML para juntada
     blocos_formatados = []
     
+    # NOVA FUNCIONALIDADE: Gerar HTML correto para juntada com método bookmarklet
+    def gerar_html_carta_para_juntada(dados):
+        """
+        Gera HTML correto para juntada no editor PJe usando método bookmarklet
+        Retorna HTML formatado que será aceito pelo editor quando colado via Ctrl+V
+        """
+        blocos_html = []
+        
+        for i, item in enumerate(dados, 1):
+            # Criar parágrafo com classe corpo (estrutura PJe)
+            html_bloco = '<p class="corpo" style="font-size: 12pt; line-height: normal; margin-left: 0px !important; text-align: justify !important; text-indent: 4.5cm;">'
+            html_bloco += '&nbsp; &nbsp; '  # Indentação padrão PJe
+            
+            # ID PJE
+            id_pje = item.get('ID_PJE', '')
+            if id_pje:
+                html_bloco += f'IID: {id_pje}<br>'
+            
+            # Rastreamento (com link clicável se for URL)
+            rastreamento = item.get('RASTREAMENTO', '')
+            if rastreamento:
+                if rastreamento.startswith('http'):
+                    rastreamento_limpo = rastreamento.strip()
+                    # Extrair código do rastreamento para exibição
+                    codigo_match = re.search(r'codigo=([A-Z0-9]+)', rastreamento_limpo)
+                    codigo_display = codigo_match.group(1) if codigo_match else rastreamento_limpo
+                    html_bloco += f'OBJETO: <a target="_blank" rel="noopener noreferrer" href="{rastreamento_limpo}">{codigo_display}</a><br>'
+                else:
+                    html_bloco += f'OBJETO: {rastreamento}<br>'
+            
+            # Destinatário
+            destinatario = item.get('DESTINATARIO', '')
+            if destinatario:
+                html_bloco += f'DESTINATÁRIO: {destinatario}<br>'
+            
+            # Data do envio
+            data_envio = item.get('DATA_ENVIO', '')
+            if data_envio:
+                html_bloco += f'DATA DO ENVIO: {data_envio}<br>'
+            
+            # Data da entrega
+            data_entrega = item.get('DATA_ENTREGA', '')
+            if data_entrega:
+                html_bloco += f'DATA DE ENTREGA: {data_entrega}<br>'
+            
+            # Status/Resultado
+            status = item.get('STATUS', '')
+            if status:
+                html_bloco += f'RESULTADO: {status}<br>'
+            
+            # Informação sobre devolução (padrão para cartas entregues)
+            if 'entregue' in status.lower():
+                html_bloco += 'DEVOLVIDA? ( ) - Desmarcado significa ENTREGA CONFIRMADA.'
+            
+            html_bloco += '</p>'
+            blocos_html.append(html_bloco)
+        
+        # Unir todos os blocos HTML
+        return '\n'.join(blocos_html)
+    
+    # Gerar tanto o texto simples quanto o HTML
+    html_para_juntada = gerar_html_carta_para_juntada(dados_mais_recentes)
+    
+    if log:
+        print(f"[CARTA] ✅ HTML para juntada gerado: {len(html_para_juntada)} caracteres")
+        print(f"[CARTA] Preview HTML: {html_para_juntada[:100]}...")
+    
+    # Manter formatação de texto simples para compatibilidade
     for i, item in enumerate(dados_mais_recentes, 1):
         bloco = []
         bloco.append(f"    Id Pje: {item.get('ID_PJE', '')}")
@@ -624,12 +692,9 @@ def carta(driver, log=True, limite_intimacoes=None):
         rastreamento = item.get('RASTREAMENTO', '')
         if rastreamento:
             if rastreamento.startswith('http'):
-                codigo_match = re.search(r'codigo=([A-Z]{2}\\d{9}BR)', rastreamento)
-                if codigo_match:
-                    codigo = codigo_match.group(1)
-                    bloco.append(f'    Rastreamento: <a href="{rastreamento}" target="_blank">{codigo}</a>')
-                else:
-                    bloco.append(f'    Rastreamento: <a href="{rastreamento}" target="_blank">{rastreamento}</a>')
+                # Garantir que não há espaços e retornar apenas o link simples
+                rastreamento_limpo = rastreamento.strip()
+                bloco.append(f'    Rastreamento: {rastreamento_limpo}')
             else:
                 bloco.append(f"    Rastreamento: {rastreamento}")
         else:
@@ -714,12 +779,9 @@ def carta(driver, log=True, limite_intimacoes=None):
             
             if rastreamento:
                 if rastreamento.startswith('http'):
-                    codigo_match = re.search(r'codigo=([A-Z]{{2}}\\d{{9}}BR)', rastreamento)
-                    if codigo_match:
-                        codigo = codigo_match.group(1)
-                        conteudo_html += f'            <div>Rastreamento: <a href="{rastreamento}" target="_blank">{codigo}</a></div>\n'
-                    else:
-                        conteudo_html += f'            <div>Rastreamento: <a href="{rastreamento}" target="_blank">{rastreamento}</a></div>\n'
+                    # Garantir que não há espaços e usar apenas o link simples no HTML também
+                    rastreamento_limpo = rastreamento.strip()
+                    conteudo_html += f'            <div>Rastreamento: <a href="{rastreamento_limpo}" target="_blank">{rastreamento_limpo}</a></div>\n'
                 else:
                     conteudo_html += f'            <div>Rastreamento: {rastreamento}</div>\n'
             else:
@@ -762,11 +824,12 @@ def carta(driver, log=True, limite_intimacoes=None):
     # 11. Chamar wrapper de anexos para juntada automática
     try:
         if log:
-            print("[CARTA] Iniciando juntada automática via anexos.py...")
+            print("[CARTA] Iniciando juntada automática via anexos.py com HTML formatado...")
         
         from anexos import carta_wrapper
         
-        resultado_juntada = carta_wrapper(driver, debug=log, ecarta_html=conteudo_final)
+        # Usar o HTML gerado para juntada (ao invés do texto simples)
+        resultado_juntada = carta_wrapper(driver, debug=log, ecarta_html=html_para_juntada)
         
         if resultado_juntada and log:
             print("[CARTA] ✅ Juntada automática concluída com sucesso!")
@@ -778,3 +841,43 @@ def carta(driver, log=True, limite_intimacoes=None):
             print(f"[CARTA] ⚠️ Erro na juntada automática: {e}")
     
     return conteudo_final
+
+def teste_juntada_carta_html(driver, log=True):
+    """
+    Função de teste para juntada de dados e-Carta com link clicável no formato HTML correto.
+    Usa dados fixos para teste da funcionalidade de juntada.
+    """
+    try:
+        if log:
+            print("[CARTA][TESTE] Iniciando teste de juntada com dados HTML...")
+        
+        # Dados de teste no formato HTML CORRETO (estrutura real do PJe)
+        dados_html_teste = '''<p class="corpo" style="font-size: 12pt; line-height: normal; margin-left: 0px !important; text-align: justify !important; text-indent: 4.5cm;">&nbsp; &nbsp; IID: 62a83b4<br>DESTINATÁRIO: ANGELA APARECIDA FARIA<br>DATA DO ENVIO: 28/08/2025<br>DATA DE ENTREGA: 01/09/2025<br>RESULTADO: Objeto entregue ao destinatário<br>OBJETO: <a target="_blank" rel="noopener noreferrer" href="https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ829742261BR">YQ829742261BR</a><br>DEVOLVIDA? ( ) - Desmarcado significa ENTREGA CONFIRMADA.</p>'''
+        
+        if log:
+            print(f"[CARTA][TESTE] Dados HTML preparados: {len(dados_html_teste)} caracteres")
+            print(f"[CARTA][TESTE] Preview: {dados_html_teste[:100]}...")
+        
+        # Tentar fazer a juntada usando anexos.py
+        from anexos import carta_wrapper
+        
+        if log:
+            print("[CARTA][TESTE] Chamando carta_wrapper com dados HTML...")
+        
+        # Chamar carta_wrapper com os dados HTML de teste
+        resultado_juntada = carta_wrapper(driver, debug=log, ecarta_html=dados_html_teste)
+        
+        if resultado_juntada:
+            if log:
+                print("[CARTA][TESTE] ✅ Juntada de teste concluída com sucesso!")
+                print("[CARTA][TESTE] ✅ Link clicável deve estar funcionando no editor")
+            return True
+        else:
+            if log:
+                print("[CARTA][TESTE] ❌ Juntada de teste falhou")
+            return False
+            
+    except Exception as e:
+        if log:
+            print(f"[CARTA][TESTE] ❌ Erro durante teste de juntada: {e}")
+        return False

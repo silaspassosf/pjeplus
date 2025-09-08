@@ -182,10 +182,10 @@ call :criar_backup "reset"
 
 cd /d "%PASTA_PROJETO%"
 git fetch origin main
-git reset --hard origin/main
-git clean -fd
+REM git reset --hard origin/main
+REM git clean -fd
 
-echo ✅ RESET CONCLUÍDO!
+echo ✅ RESET DESABILITADO (protege alterações locais)!
 goto :fim_sucesso
 
 REM ========================================================

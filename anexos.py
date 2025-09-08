@@ -65,14 +65,23 @@ def carta_wrapper(
       sigilo: nao
       substituir_link: True
     """
-    from editor_insert import obter_ultimo_conteudo_clipboard, inserir_no_editor_apos_marcador
+    from editor_insert import inserir_html_no_editor_apos_marcador
+    from editor_insert import obter_ultimo_conteudo_clipboard
     conteudo = obter_ultimo_conteudo_clipboard(numero_processo, debug=debug)
-    # Se ecarta_html for fornecido, pode ser usado para formatar ou inserir no editor
+    
+    # Se ecarta_html for fornecido, usar ele diretamente (já é HTML formatado)
     if ecarta_html is not None:
-        from anexos import formatar_conteudo_ecarta
-        conteudo = formatar_conteudo_ecarta(ecarta_html)
+        conteudo = ecarta_html
+        
     def inserir_fn(driver, numero_processo=None, debug=True):
-        return inserir_no_editor_apos_marcador(driver, conteudo or '', marcador='--', modo='replace', debug=debug)
+        # Usar inserção HTML para preservar formatação - FUNÇÃO LIMPA
+        print(f"[CARTA] Inserindo conteúdo HTML: {len(conteudo or '')} caracteres")
+        return inserir_html_no_editor_apos_marcador(
+            driver=driver, 
+            marcador='--',
+            html_content=conteudo or '',
+            debug=True
+        )
     return wrapper_juntada_geral(
         driver=driver,
         tipo='Certidão',
@@ -85,6 +94,302 @@ def carta_wrapper(
         substituir_link=False,
         debug=debug
     )
+# ====================================================
+def sisb_wrapper(
+    driver,
+    numero_processo=None,
+    debug=True,
+    tipo='Certidão',
+    descricao='Consulta SISBAJUD',
+    modelo='xteim',
+    assinar='nao',
+    sigilo='sim'
+):
+    """
+    Wrapper específico para juntada de relatório SISBAJUD.
+    Busca o conteúdo do relatório armazenado em relatorio_sisbajud.txt e insere no editor.
+    Parâmetros customizáveis conforme necessidade do processo.
+    """
+    import os
+    
+    def obter_conteudo_relatorio_sisbajud(debug=True):
+        """Obtém o conteúdo do relatório SISBAJUD armazenado localmente"""
+        try:
+            # Buscar arquivo relatorio_sisbajud.txt no diretório do projeto
+            relatorio_path = os.path.join(os.path.dirname(__file__), 'relatorio_sisbajud.txt')
+            
+            if os.path.exists(relatorio_path):
+                with open(relatorio_path, 'r', encoding='utf-8') as f:
+                    conteudo = f.read().strip()
+                
+                if debug:
+                    print(f'[SISB_WRAPPER] ✅ Relatório carregado: {len(conteudo)} caracteres')
+                    print(f'[SISB_WRAPPER] Prévia: {conteudo[:200]}...')
+                
+                return conteudo
+            else:
+                if debug:
+                    print(f'[SISB_WRAPPER] ❌ Arquivo não encontrado: {relatorio_path}')
+                return None
+                
+        except Exception as e:
+            if debug:
+                print(f'[SISB_WRAPPER] ❌ Erro ao carregar relatório: {e}')
+            return None
+    
+    def inserir_fn(driver, numero_processo=None, debug=True):
+        """Função de inserção do conteúdo SISBAJUD no editor como texto simples"""
+        from editor_insert import inserir_html_no_editor_apos_marcador
+        import re
+        
+        # Obter conteúdo do relatório
+        conteudo = obter_conteudo_relatorio_sisbajud(debug=debug)
+        
+        if not conteudo:
+            if debug:
+                print('[SISB_WRAPPER] ❌ Conteúdo do relatório não disponível')
+            return False
+        
+        # Converter HTML para texto simples limpo
+        texto_simples = re.sub(r'<[^>]+>', '', conteudo)  # Remove tags HTML
+        texto_simples = re.sub(r'\s+', ' ', texto_simples)  # Normaliza espaços
+        texto_simples = texto_simples.replace('Protocolo:', '\nProtocolo:')
+        texto_simples = texto_simples.replace('Dados da Teimosinha', '\nDados da Teimosinha')
+        texto_simples = texto_simples.replace('Número do processo:', '\nNúmero do processo:')
+        texto_simples = texto_simples.replace('Número do protocolo:', '\nNúmero do protocolo:')
+        texto_simples = texto_simples.replace('Repetição programada?', '\nRepetição programada?')
+        texto_simples = texto_simples.replace('Limite da repetição:', '\nLimite da repetição:')
+        texto_simples = texto_simples.replace('Valor do bloqueio:', '\nValor do bloqueio:')
+        texto_simples = texto_simples.replace('Partes alvo do bloqueio:', '\nPartes alvo do bloqueio:')
+        texto_simples = texto_simples.replace('Notas:', '\nNotas:')
+        
+        if debug:
+            print('[SISB_WRAPPER] Texto convertido para inserção:')
+            print(texto_simples[:200] + '...')
+        
+        # Inserir texto simples no editor após marcador '--'
+        return inserir_html_no_editor_apos_marcador(
+            driver, 
+            texto_simples,  # Usar texto simples ao invés de HTML
+            marcador='--', 
+            modo='replace', 
+            debug=debug
+        )
+    
+    if debug:
+        print(f'[SISB_WRAPPER] Iniciando juntada SISBAJUD com modelo: {modelo}')
+    
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo=tipo,
+        descricao=descricao,
+        modelo=modelo,
+        assinar=assinar,
+        sigilo=sigilo,
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )
+
+# ====================================================
+# SISBAJUD WRAPPERS
+# ====================================================
+
+def wrapper_bloqneg(
+    driver,
+    numero_processo=None,
+    debug=True,
+    tipo='Certidão',
+    descricao='Consulta sisbajud NEGATIVA',
+    modelo='xjsisbneg',
+    assinar='nao',
+    sigilo='nao'
+):
+    """
+    Wrapper específico para juntada de relatório SISBAJUD NEGATIVO/DESBLOQUEIO.
+    Busca o conteúdo do relatório armazenado em relatorio_sisbajud.txt e insere no editor.
+    Parâmetros customizáveis conforme necessidade do processo.
+    """
+    import os
+    
+    def obter_conteudo_relatorio_sisbajud(debug=True):
+        """Obtém o conteúdo do relatório SISBAJUD armazenado localmente"""
+        try:
+            # Buscar arquivo relatorio_sisbajud.txt no diretório do projeto
+            relatorio_path = os.path.join(os.path.dirname(__file__), 'relatorio_sisbajud.txt')
+            
+            if os.path.exists(relatorio_path):
+                with open(relatorio_path, 'r', encoding='utf-8') as f:
+                    conteudo = f.read().strip()
+                
+                if debug:
+                    print(f'[WRAPPER_BLOQNEG] ✅ Relatório carregado: {len(conteudo)} caracteres')
+                    print(f'[WRAPPER_BLOQNEG] Prévia: {conteudo[:200]}...')
+                
+                return conteudo
+            else:
+                if debug:
+                    print(f'[WRAPPER_BLOQNEG] ❌ Arquivo não encontrado: {relatorio_path}')
+                return None
+                
+        except Exception as e:
+            if debug:
+                print(f'[WRAPPER_BLOQNEG] ❌ Erro ao carregar relatório: {e}')
+            return None
+    
+    def inserir_fn(driver, numero_processo=None, debug=True):
+        """Função de inserção do conteúdo SISBAJUD no editor como texto simples"""
+        from editor_insert import inserir_html_no_editor_apos_marcador
+        import re
+        
+        # Obter conteúdo do relatório
+        conteudo = obter_conteudo_relatorio_sisbajud(debug=debug)
+        
+        if not conteudo:
+            if debug:
+                print('[WRAPPER_BLOQNEG] ❌ Conteúdo do relatório não disponível')
+            return False
+        
+        # Converter HTML para texto simples limpo
+        texto_simples = re.sub(r'<[^>]+>', '', conteudo)  # Remove tags HTML
+        texto_simples = re.sub(r'\s+', ' ', texto_simples)  # Normaliza espaços
+        texto_simples = texto_simples.replace('Protocolo:', '\nProtocolo:')
+        texto_simples = texto_simples.replace('Dados da Teimosinha', '\nDados da Teimosinha')
+        texto_simples = texto_simples.replace('Número do processo:', '\nNúmero do processo:')
+        texto_simples = texto_simples.replace('Número do protocolo:', '\nNúmero do protocolo:')
+        texto_simples = texto_simples.replace('Repetição programada?', '\nRepetição programada?')
+        texto_simples = texto_simples.replace('Limite da repetição:', '\nLimite da repetição:')
+        texto_simples = texto_simples.replace('Valor do bloqueio:', '\nValor do bloqueio:')
+        texto_simples = texto_simples.replace('Partes alvo do bloqueio:', '\nPartes alvo do bloqueio:')
+        texto_simples = texto_simples.replace('Notas:', '\nNotas:')
+        
+        if debug:
+            print('[WRAPPER_BLOQNEG] Texto convertido para inserção:')
+            print(texto_simples[:200] + '...')
+        
+        # Inserir texto simples no editor após marcador '--'
+        return inserir_html_no_editor_apos_marcador(
+            driver, 
+            texto_simples,  # Usar texto simples ao invés de HTML
+            marcador='--', 
+            modo='replace', 
+            debug=debug
+        )
+    
+    if debug:
+        print(f'[WRAPPER_BLOQNEG] Iniciando juntada SISBAJUD NEGATIVA com modelo: {modelo}')
+    
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo=tipo,
+        descricao=descricao,
+        modelo=modelo,
+        assinar=assinar,
+        sigilo=sigilo,
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )
+
+def wrapper_parcial(
+    driver,
+    numero_processo=None,
+    debug=True,
+    tipo='Certidão',
+    descricao='Consulta sisbajud POSITIVA',
+    modelo='xjsisbp',
+    assinar='nao',
+    sigilo='nao'
+):
+    """
+    Wrapper específico para juntada de relatório SISBAJUD POSITIVO (parcial).
+    Busca o conteúdo do relatório armazenado em relatorio_sisbajud.txt e insere no editor.
+    Parâmetros customizáveis conforme necessidade do processo.
+    """
+    import os
+    
+    def obter_conteudo_relatorio_sisbajud(debug=True):
+        """Obtém o conteúdo do relatório SISBAJUD armazenado localmente"""
+        try:
+            # Buscar arquivo relatorio_sisbajud.txt no diretório do projeto
+            relatorio_path = os.path.join(os.path.dirname(__file__), 'relatorio_sisbajud.txt')
+            
+            if os.path.exists(relatorio_path):
+                with open(relatorio_path, 'r', encoding='utf-8') as f:
+                    conteudo = f.read().strip()
+                
+                if debug:
+                    print(f'[WRAPPER_PARCIAL] ✅ Relatório carregado: {len(conteudo)} caracteres')
+                    print(f'[WRAPPER_PARCIAL] Prévia: {conteudo[:200]}...')
+                
+                return conteudo
+            else:
+                if debug:
+                    print(f'[WRAPPER_PARCIAL] ❌ Arquivo não encontrado: {relatorio_path}')
+                return None
+                
+        except Exception as e:
+            if debug:
+                print(f'[WRAPPER_PARCIAL] ❌ Erro ao carregar relatório: {e}')
+            return None
+    
+    def inserir_fn(driver, numero_processo=None, debug=True):
+        """Função de inserção do conteúdo SISBAJUD no editor como texto simples"""
+        from editor_insert import inserir_html_no_editor_apos_marcador
+        import re
+        
+        # Obter conteúdo do relatório
+        conteudo = obter_conteudo_relatorio_sisbajud(debug=debug)
+        
+        if not conteudo:
+            if debug:
+                print('[WRAPPER_PARCIAL] ❌ Conteúdo do relatório não disponível')
+            return False
+        
+        # Converter HTML para texto simples limpo
+        texto_simples = re.sub(r'<[^>]+>', '', conteudo)  # Remove tags HTML
+        texto_simples = re.sub(r'\s+', ' ', texto_simples)  # Normaliza espaços
+        texto_simples = texto_simples.replace('Protocolo:', '\nProtocolo:')
+        texto_simples = texto_simples.replace('Dados da Teimosinha', '\nDados da Teimosinha')
+        texto_simples = texto_simples.replace('Número do processo:', '\nNúmero do processo:')
+        texto_simples = texto_simples.replace('Número do protocolo:', '\nNúmero do protocolo:')
+        texto_simples = texto_simples.replace('Repetição programada?', '\nRepetição programada?')
+        texto_simples = texto_simples.replace('Limite da repetição:', '\nLimite da repetição:')
+        texto_simples = texto_simples.replace('Valor do bloqueio:', '\nValor do bloqueio:')
+        texto_simples = texto_simples.replace('Partes alvo do bloqueio:', '\nPartes alvo do bloqueio:')
+        texto_simples = texto_simples.replace('Notas:', '\nNotas:')
+        
+        if debug:
+            print('[WRAPPER_PARCIAL] Texto convertido para inserção:')
+            print(texto_simples[:200] + '...')
+        
+        # Inserir texto simples no editor após marcador '--'
+        return inserir_html_no_editor_apos_marcador(
+            driver, 
+            texto_simples,  # Usar texto simples ao invés de HTML
+            marcador='--', 
+            modo='replace', 
+            debug=debug
+        )
+    
+    if debug:
+        print(f'[WRAPPER_PARCIAL] Iniciando juntada SISBAJUD POSITIVA com modelo: {modelo}')
+    
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo=tipo,
+        descricao=descricao,
+        modelo=modelo,
+        assinar=assinar,
+        sigilo=sigilo,
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )
+
 # ====================================================
 # UTILITÁRIOS DE FORMATAÇÃO
 # ====================================================
@@ -412,13 +717,37 @@ def executar_juntada(self, configuracao, substituir_link=False):
                     numero_processo_atual = None
                 ok = False
                 try:
+                    print(f"[JUNTADA][INSERIR][DEBUG] Tentando chamar inserir_fn com driver, numero_processo e debug")
+                    print(f"[JUNTADA][INSERIR][DEBUG] Função: {inserir_fn}")
+                    print(f"[JUNTADA][INSERIR][DEBUG] Driver: {driver}")
+                    print(f"[JUNTADA][INSERIR][DEBUG] Numero processo: {numero_processo_atual}")
                     ok = inserir_fn(driver=driver, numero_processo=numero_processo_atual, debug=True)
-                except TypeError:
+                except TypeError as te:
+                    print(f"[JUNTADA][INSERIR][DEBUG] TypeError, tentando apenas driver e numero_processo: {te}")
                     try:
                         ok = inserir_fn(driver, numero_processo_atual)
-                    except Exception:
+                    except Exception as e2:
+                        print(f"[JUNTADA][INSERIR][DEBUG] Erro na segunda tentativa: {e2}")
+                        print(f"[JUNTADA][INSERIR][DEBUG] Tentando apenas driver: {e2}")
+                        ok = inserir_fn(driver)
+                except Exception as e:
+                    print(f"[JUNTADA][INSERIR][DEBUG] Erro na primeira tentativa: {e}")
+                    print(f"[JUNTADA][INSERIR][DEBUG] Tentando apenas driver e numero_processo")
+                    try:
+                        ok = inserir_fn(driver, numero_processo_atual)
+                    except Exception as e2:
+                        print(f"[JUNTADA][INSERIR][DEBUG] Erro na segunda tentativa: {e2}")
+                        print(f"[JUNTADA][INSERIR][DEBUG] Tentando apenas driver")
                         ok = inserir_fn(driver)
                 print(f"[JUNTADA][INSERIR] Resultado da inserção: {'✓' if ok else '✗'}")
+                
+                # 4.6. VERIFICAR SE INSERÇÃO FOI BEM-SUCEDIDA ANTES DE SALVAR
+                if not ok:
+                    print('[JUNTADA][ERRO] Inserção de conteúdo falhou! Cancelando juntada.')
+                    return False
+                else:
+                    print('[JUNTADA][INFO] Inserção bem-sucedida, prosseguindo com salvamento.')
+                    
             elif substituir_link:
                 # Compat: caminho antigo de substituição
                 print('[JUNTADA][DEBUG] Aguardando modelo carregar para substituir link...')
@@ -434,7 +763,23 @@ def executar_juntada(self, configuracao, substituir_link=False):
         # 5. ÚNICO SALVAMENTO - após modelo inserido e substituição (se aplicável)
         print('[JUNTADA] Salvando documento final...')
         if not self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento'):
+            print('[JUNTADA][ERRO] Falha no salvamento principal!')
             return False
+
+        # 5.1. AGUARDAR SALVAMENTO SER PROCESSADO
+        print('[JUNTADA] Aguardando processamento do salvamento...')
+        time.sleep(2)
+        
+        # 5.2. VERIFICAR SE SALVAMENTO FOI EFETIVO
+        try:
+            # Verificar se botão Salvar ainda está disponível (indica que precisa salvar novamente)
+            salvar_btn = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
+            if salvar_btn.is_enabled():
+                print('[JUNTADA][WARN] Documento ainda não salvo, tentando novamente...')
+                driver.execute_script("arguments[0].click();", salvar_btn)
+                time.sleep(2)
+        except:
+            print('[JUNTADA][INFO] Botão Salvar não disponível - documento já salvo')
 
         # 6. Assinar se necessário (padrão GIGS)
         if configuracao.get('assinar', 'nao').lower() == 'sim':

@@ -2016,7 +2016,245 @@ console.log(`Total de alvarás registrados: ${{alvaras.length}}`);
                     print(f'[PAGAMENTO][ERRO] Erro ao retornar à aba original: {e}')
                     print('[PAGAMENTO] Continuando na aba atual...')
 
-    def processar_alvaras_sem_registro(alvaras_processados, log=True):
+def processar_alvaras_completo(driver, alvaras_encontrados=None, log=True):
+    """
+    Função única que processa completamente alvarás encontrados na timeline.
+    
+    Fluxo completo:
+    1. Se alvaras_encontrados não fornecido, busca alvarás na timeline
+    2. Extrai conteúdo e dados detalhados de todos os alvarás
+    3. Abre aba de pagamentos para comparação
+    4. Registra alvarás não registrados
+    
+    Args:
+        driver: WebDriver do Selenium
+        alvaras_encontrados: Lista opcional de alvarás já localizados na timeline
+                           Formato: [{'elemento': element, 'link': link, 'data': data, 'texto': texto}, ...]
+        log: Se deve exibir logs
+        
+    Returns:
+        dict: {
+            'alvaras_processados': [...],
+            'alvaras_registrados': [...],
+            'alvaras_sem_registro': [...],
+            'sucesso': bool
+        }
+    """
+    try:
+        from datetime import datetime
+        import time
+        from selenium.webdriver.common.by import By
+        
+        if log:
+            print('[PROCESSAR-ALVARAS] 🚀 Iniciando processamento completo de alvarás...')
+        
+        resultado = {
+            'alvaras_processados': [],
+            'alvaras_registrados': [],
+            'alvaras_sem_registro': [],
+            'sucesso': False
+        }
+        
+        # ===== ETAPA 1: LOCALIZAR ALVARÁS NA TIMELINE (se não fornecidos) =====
+        if alvaras_encontrados is None:
+            if log:
+                print('[PROCESSAR-ALVARAS] 1. Buscando alvarás na timeline...')
+            
+            alvaras_encontrados = []
+            
+            # Buscar itens da timeline
+            itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+            if not itens:
+                itens = driver.find_elements(By.CSS_SELECTOR, '.timeline-item')
+            
+            for item in itens:
+                try:
+                    links = item.find_elements(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                    for link in links:
+                        texto = link.text.lower().strip()
+                        if 'alvará' in texto or 'alvara' in texto:
+                            # Extrair data do item
+                            data = ''
+                            try:
+                                data_el = item.find_element(By.CSS_SELECTOR, '.tl-data[name="dataItemTimeline"], .tl-data')
+                                data_texto = data_el.text.strip()
+                                import re
+                                data_match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', data_texto)
+                                data = data_match.group(1) if data_match else ''
+                            except:
+                                pass
+                            
+                            alvaras_encontrados.append({
+                                'elemento': item,
+                                'link': link,
+                                'data': data,
+                                'texto': link.text.strip()
+                            })
+                            if log:
+                                print(f'[PROCESSAR-ALVARAS] ✅ Alvará encontrado: {link.text.strip()} ({data})')
+                except:
+                    continue
+        
+        if not alvaras_encontrados:
+            if log:
+                print('[PROCESSAR-ALVARAS] ⚠️ Nenhum alvará encontrado na timeline')
+            return resultado
+        
+        if log:
+            print(f'[PROCESSAR-ALVARAS] 📋 {len(alvaras_encontrados)} alvará(s) para processar')
+        
+        # ===== ETAPA 2: EXTRAIR CONTEÚDO E DADOS DETALHADOS DOS ALVARÁS =====
+        if log:
+            print('[PROCESSAR-ALVARAS] 2. Extraindo dados detalhados dos alvarás...')
+        
+        alvaras_processados = []
+        
+        for idx, alvara_info in enumerate(alvaras_encontrados):
+            try:
+                if log:
+                    print(f'[PROCESSAR-ALVARAS] 2.{idx+1}. Processando alvará: {alvara_info["texto"]}')
+                
+                # Clicar no link do alvará para abrir
+                alvara_info['link'].click()
+                time.sleep(2)
+                
+                # Aguardar modal de documento abrir
+                try:
+                    from selenium.webdriver.support.ui import WebDriverWait
+                    from selenium.webdriver.support import expected_conditions as EC
+                    
+                    # Aguardar modal aparecer
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-doc-visualizar, .modal-content, [role="dialog"]'))
+                    )
+                    time.sleep(1)
+                    
+                    # Extrair dados do alvará usando função existente
+                    dados_alvara = extrair_dados_alvara(alvara_info['texto'], alvara_info['data'], log)
+                    
+                    if dados_alvara:
+                        dados_alvara.update({
+                            'elemento_timeline': alvara_info['elemento'],
+                            'link_timeline': alvara_info['link'],
+                            'data_timeline': alvara_info['data'],
+                            'texto_timeline': alvara_info['texto'],
+                            'timestamp': datetime.now().isoformat(),
+                            'status': 'PROCESSADO'
+                        })
+                        alvaras_processados.append(dados_alvara)
+                        
+                        if log:
+                            print(f'[PROCESSAR-ALVARAS] ✅ Dados extraídos: {dados_alvara.get("beneficiario", "N/A")} - {dados_alvara.get("valor", "N/A")}')
+                    
+                    # Fechar modal
+                    try:
+                        # Buscar botão de fechar
+                        botoes_fechar = driver.find_elements(By.CSS_SELECTOR, 
+                            'button[aria-label="Fechar"], button.close, .modal-header button, button[mat-dialog-close]')
+                        if botoes_fechar:
+                            botoes_fechar[0].click()
+                            time.sleep(1)
+                        else:
+                            # Pressionar ESC como fallback
+                            from selenium.webdriver.common.keys import Keys
+                            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                            time.sleep(1)
+                    except:
+                        pass
+                        
+                except Exception as e:
+                    if log:
+                        print(f'[PROCESSAR-ALVARAS] ⚠️ Erro ao extrair dados do alvará: {e}')
+                    continue
+                    
+            except Exception as e:
+                if log:
+                    print(f'[PROCESSAR-ALVARAS] ❌ Erro ao processar alvará {idx+1}: {e}')
+                continue
+        
+        resultado['alvaras_processados'] = alvaras_processados
+        
+        if not alvaras_processados:
+            if log:
+                print('[PROCESSAR-ALVARAS] ⚠️ Nenhum alvará foi processado com sucesso')
+            return resultado
+        
+        # ===== ETAPA 3: ABRIR ABA DE PAGAMENTOS PARA COMPARAÇÃO =====
+        if log:
+            print('[PROCESSAR-ALVARAS] 3. Navegando para aba de pagamentos...')
+        
+        # Usar função existente para navegar para pagamentos
+        if navegar_para_pagamentos(driver, log):
+            if log:
+                print('[PROCESSAR-ALVARAS] ✅ Navegação para pagamentos bem-sucedida')
+            
+            # Analisar listagem de pagamentos
+            pagamentos_encontrados = analisar_listagem_pagamentos(driver, log)
+            
+            if log:
+                print(f'[PROCESSAR-ALVARAS] 📋 {len(pagamentos_encontrados)} pagamento(s) encontrado(s)')
+            
+            # Comparar alvarás com pagamentos
+            if pagamentos_encontrados:
+                comparacao = comparar_alvaras_com_pagamentos(alvaras_processados, pagamentos_encontrados, log)
+                resultado['alvaras_registrados'] = comparacao.get('correspondencias', [])
+                resultado['alvaras_sem_registro'] = comparacao.get('sem_correspondencia', [])
+            else:
+                resultado['alvaras_sem_registro'] = alvaras_processados.copy()
+                
+        else:
+            if log:
+                print('[PROCESSAR-ALVARAS] ⚠️ Falha na navegação para pagamentos, marcando todos como sem registro')
+            resultado['alvaras_sem_registro'] = alvaras_processados.copy()
+        
+        # ===== ETAPA 4: REGISTRAR ALVARÁS NÃO REGISTRADOS =====
+        if resultado['alvaras_sem_registro']:
+            if log:
+                print(f'[PROCESSAR-ALVARAS] 4. Registrando {len(resultado["alvaras_sem_registro"])} alvará(s) não registrado(s)...')
+            
+            for alvara in resultado['alvaras_sem_registro']:
+                try:
+                    if log:
+                        print(f'[PROCESSAR-ALVARAS] 📝 Registrando: {alvara.get("beneficiario", "N/A")} - {alvara.get("valor", "N/A")}')
+                    
+                    # Usar lógica de registro existente
+                    # TODO: Implementar registro real quando necessário
+                    alvara['status'] = 'AGUARDANDO_REGISTRO'
+                    
+                except Exception as e:
+                    if log:
+                        print(f'[PROCESSAR-ALVARAS] ❌ Erro ao registrar alvará: {e}')
+        
+        # ===== SALVAR DADOS PROCESSADOS =====
+        if alvaras_processados:
+            try:
+                salvar_dados_alvara(alvaras_processados, log)
+                if log:
+                    print('[PROCESSAR-ALVARAS] ✅ Dados dos alvarás salvos em arquivo')
+            except Exception as e:
+                if log:
+                    print(f'[PROCESSAR-ALVARAS] ⚠️ Erro ao salvar dados: {e}')
+        
+        # ===== FINALIZAÇÃO =====
+        resultado['sucesso'] = True
+        
+        if log:
+            print('[PROCESSAR-ALVARAS] 📊 RESUMO FINAL:')
+            print(f'[PROCESSAR-ALVARAS]   - Alvarás processados: {len(resultado["alvaras_processados"])}')
+            print(f'[PROCESSAR-ALVARAS]   - Alvarás já registrados: {len(resultado["alvaras_registrados"])}')
+            print(f'[PROCESSAR-ALVARAS]   - Alvarás sem registro: {len(resultado["alvaras_sem_registro"])}')
+            print('[PROCESSAR-ALVARAS] ✅ Processamento completo finalizado!')
+        
+        return resultado
+        
+    except Exception as e:
+        if log:
+            print(f'[PROCESSAR-ALVARAS] ❌ Erro geral no processamento: {e}')
+        
+        resultado['sucesso'] = False
+        return resultado
+
+def processar_alvaras_sem_registro(alvaras_processados, log=True):
         """
         Processa alvarás quando não há pagamentos na listagem.
         

@@ -1,62 +1,51 @@
 {
   "numero": [
-    "1001148-38.2024.5.02.0703"
+    "1001353-67.2024.5.02.0703"
   ],
-  "id": 6316773,
+  "id": 6413516,
   "autor": [
     {
-      "nome": "ARITHANA KARLA SOUZA DE AGUIAR LIMA",
-      "cpfcnpj": "29756706805",
+      "nome": "GABRIEL CESAR GONZAGA SAMPAIO",
+      "cpfcnpj": "24067981864",
       "advogado": {
-        "nome": "MATEUS DO NASCIMENTO RIBEIRO",
-        "cpf": "45713965899",
-        "oab": "SP467262"
+        "nome": "KATIANE COSTA GONZAGA",
+        "cpf": "29753425864",
+        "oab": ""
       }
     }
   ],
   "reu": [
     {
-      "nome": "BRANCO BRANCO SERVICOS PERSONALIZADOS LTDA",
-      "cpfcnpj": "04972901000104",
-      "advogado": {
-        "nome": "FERNANDO ANDRADE VIEIRA",
-        "cpf": "33352970831",
-        "oab": "SP320825"
-      }
+      "nome": "24.026.787 RAPHAEL CHAVES MESQUITA",
+      "cpfcnpj": "24026787000129"
     },
     {
-      "nome": "GRUPO CASAS BAHIA S.A.",
-      "cpfcnpj": "",
-      "advogado": {
-        "nome": "DANIEL BATTIPAGLIA SGAI",
-        "cpf": "21880828855",
-        "oab": "SP214918"
-      }
+      "nome": "RAPHAEL CHAVES MESQUITA",
+      "cpfcnpj": "38202198895"
     }
   ],
   "terceiro": [
     {
-      "nome": "REGIANE SOUZA ROCHA SILVA"
+      "nome": "MINISTÉRIO PÚBLICO DO TRABALHO"
     }
   ],
   "divida": {
-    "valor": 9086.4,
-    "data": "2025-06-01T00:00:00"
+    "valor": "R$ 22.621,62",
+    "data": "01/08/2025"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "16/07/2024",
+  "dtAutuacao": "19/08/2024",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3036.01,
-    "tetoValorCausa": 60720.0,
+    "pisoValorCausa": 60720.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

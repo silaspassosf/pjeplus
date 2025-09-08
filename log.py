@@ -1,3 +1,3 @@
-# Última execução: 2025-09-02 12:55:38.330911
-# Script: C:\Users\s164283\Desktop\Pjeplus\p2b.py
+# Última execução: 2025-09-07 20:55:51.379234
+# Script: D:\PjePlus\p2b.py
 # Argumentos: 

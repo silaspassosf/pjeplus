@@ -31,11 +31,322 @@ import time
 import re
 import logging
 import os
-from Fix import esperar_elemento, safe_click, criar_gigs, login_pc, aplicar_filtro_100, extrair_documento, indexar_e_processar_lista, login_notebook, driver_pc
-from atos import ato_pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_termoS, ato_termoE
+from Fix import esperar_elemento, safe_click, criar_gigs, login_pc, aplicar_filtro_100, extrair_documento, extrair_direto, indexar_e_processar_lista, login_notebook, driver_pc
+from atos import ato_pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_termoS, ato_termoE, executar_visibilidade_sigilosos_se_necessario, pec_excluiargos
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
 from driver_config import criar_driver, login_func
+
+# Função de compatibilidade para callbacks que esperam função sem retorno
+def ato_pesquisas_callback(driver):
+    """Wrapper para manter compatibilidade com callbacks antigos"""
+    sucesso, sigilo_ativado = ato_pesquisas(driver)
+    if sucesso and sigilo_ativado:
+        executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+    return sucesso
+
+def ato_pesqliq_callback(driver):
+    """Wrapper para manter compatibilidade com callbacks antigos"""
+    sucesso, sigilo_ativado = ato_pesqliq(driver)
+    if sucesso and sigilo_ativado:
+        executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+    return sucesso
+
+def prescreve(driver):
+    """
+    Função para tratar prescrição.
+    REGRA DE ALTA PRIORIDADE: Trecho "A pronúncia da"
+    
+    Fluxo:
+    0. Executa Bndt (placeholder)
+    1. Checagem de timeline (baseada no script JS)
+    2. Ações em ORDEM:
+       - Alvará → função pagamento
+       - Serasa/CNIB em anexo → pec_exclusao
+       - Serasa fora de anexos + nenhum Serasa em anexos → criar_gigs
+    """
+    try:
+        print('[PRESCREVE] 🚨 PRESCRIÇÃO DETECTADA - Iniciando fluxo')
+        
+        # 0. Executa Bndt (placeholder)
+        print('[PRESCREVE] 0. Executando Bndt...')
+        bndt_resultado = bndt_placeholder(driver)
+        if not bndt_resultado:
+            print('[PRESCREVE] ⚠️ Falha no Bndt, continuando fluxo')
+        
+        # 1. Checagem de timeline
+        print('[PRESCREVE] 1. Analisando timeline...')
+        documentos = analisar_timeline_prescreve_js_puro(driver)
+        
+        if not documentos:
+            print('[PRESCREVE] ❌ Nenhum documento relevante encontrado na timeline')
+            return False
+        
+        # 2. Executar ações em ORDEM SEQUENCIAL
+        print('[PRESCREVE] 2. Executando ações sequenciais...')
+        
+        # Ação 1: Localizar Alvarás e chamar função pagamento
+        alvaras = [d for d in documentos if d.get('tipo', '').lower() == 'alvará']
+        if alvaras:
+            print(f'[PRESCREVE] 📋 {len(alvaras)} Alvará(s) encontrado(s) - executando função pagamento')
+            try:
+                # Importar e usar a função unificada de processamento de alvarás
+                from processar_alvaras import processar_alvaras_completo
+                
+                resultado_pagamentos = processar_alvaras_completo(
+                    driver=driver, 
+                    alvaras_encontrados=alvaras, 
+                    log=True
+                )
+                
+                if resultado_pagamentos.get('sucesso'):
+                    print('[PRESCREVE] ✅ Processamento de alvarás concluído com sucesso')
+                    print(f'[PRESCREVE] 📊 Resumo: {len(resultado_pagamentos.get("alvaras_processados", []))} processados, '
+                          f'{len(resultado_pagamentos.get("alvaras_registrados", []))} já registrados, '
+                          f'{len(resultado_pagamentos.get("alvaras_sem_registro", []))} sem registro')
+                else:
+                    print('[PRESCREVE] ⚠️ Houve problemas no processamento de alvarás')
+                    
+            except Exception as e:
+                print(f'[PRESCREVE] ❌ Erro no processamento de alvarás: {e}')
+        
+        # Ação 2: Localizar Serasa/CNIB em anexos e chamar pec_excluiargos
+        anexos_serasa_cnib = [d for d in documentos if d.get('isAnexo', False) and d.get('tipo', '').lower() in ['serasa', 'cnib']]
+        if anexos_serasa_cnib:
+            print(f'[PRESCREVE] 📋 {len(anexos_serasa_cnib)} anexo(s) Serasa/CNIB encontrado(s) - executando pec_excluiargos')
+            for anexo in anexos_serasa_cnib:
+                try:
+                    resultado = pec_excluiargos(driver)
+                    if resultado:
+                        print(f'[PRESCREVE] ✅ pec_excluiargos executado para anexo: {anexo.get("tipo", "N/A")} ID: {anexo.get("id", "N/A")}')
+                    else:
+                        print(f'[PRESCREVE] ⚠️ Falha no pec_excluiargos para anexo: {anexo.get("tipo", "N/A")}')
+                except Exception as e:
+                    print(f'[PRESCREVE] ❌ Erro ao executar pec_excluiargos: {e}')
+        
+        # Ação 3: Serasa fora de anexos + nenhum Serasa em anexos = criar_gigs
+        serasa_timeline = [d for d in documentos if not d.get('isAnexo', False) and 'serasa' in d.get('tipo', '').lower()]
+        tem_serasa_anexo = any(d.get('isAnexo', False) and 'serasa' in d.get('tipo', '').lower() for d in documentos)
+        
+        if serasa_timeline and not tem_serasa_anexo:
+            print(f'[PRESCREVE] 📋 {len(serasa_timeline)} Serasa fora de anexos + nenhum Serasa em anexos - criando GIGS')
+            try:
+                resultado = criar_gigs(driver, "1", "Bianca", "Serasa")
+                if resultado:
+                    print('[PRESCREVE] ✅ GIGS criado: 1/Bianca/Serasa')
+                else:
+                    print('[PRESCREVE] ⚠️ Falha ao criar GIGS')
+            except Exception as e:
+                print(f'[PRESCREVE] ❌ Erro ao criar GIGS: {e}')
+        
+        print('[PRESCREVE] ✅ Fluxo de prescrição concluído')
+        return True
+        
+    except Exception as e:
+        print(f'[PRESCREVE] ❌ Erro geral na função prescreve: {e}')
+        return False
+
+def bndt_placeholder(driver):
+    """Placeholder para função Bndt"""
+    print('[PRESCREVE][BNDT] 📋 Placeholder - implementar lógica Bndt')
+    return True
+
+def funcao_pagamento_placeholder(driver, alvara_info):
+    """Placeholder para função de pagamento de Alvará"""
+    print(f'[PRESCREVE][PAGAMENTO] 📋 Placeholder - implementar pagamento para Alvará: {alvara_info.get("texto", "N/A")}')
+    return True
+
+def analisar_timeline_prescreve_js_puro(driver):
+    """
+    Análise da timeline usando JavaScript PURO - replicando o script fornecido.
+    Executa em SEGUNDOS como o userscript original.
+    """
+    try:
+        print('[PRESCREVE][TIMELINE] Executando análise via JavaScript PURO...')
+        
+        # JavaScript DIRETO baseado no script fornecido
+        js_script = """
+        function lerTimelineCompleta() {
+            const seletores = ['li.tl-item-container', '.tl-data .tl-item-container', '.timeline-item'];
+            let itens = [];
+            for (const sel of seletores) {
+                itens = document.querySelectorAll(sel);
+                if (itens.length) break;
+            }
+            const documentos = [];
+
+            function extrairUid(link) {
+                const m = link.textContent.trim().match(/\\s-\\s([A-Za-z0-9]+)$/);
+                return m ? m[1] : null;
+            }
+            
+            function extrairData(item) {
+                const dEl = item.querySelector('.tl-data[name="dataItemTimeline"]') || item.querySelector('.tl-data');
+                const txt = dEl?.textContent.trim() || '';
+                const m = txt.match(/(\\d{1,2}\\/\\d{1,2}\\/\\d{4})/);
+                return m ? m[1] : '';
+            }
+
+            for (let i = 0; i < itens.length; i++) {
+                const item = itens[i];
+                const link = item.querySelector('a.tl-documento:not([target])');
+                if (!link) continue;
+
+                const texto = link.textContent.trim();
+                const low = texto.toLowerCase();
+                const id = extrairUid(link) || `doc${i}`;
+                let tipoEncontrado = null;
+
+                if (low.includes('devolução de ordem')) {
+                    tipoEncontrado = 'Certidão devolução pesquisa';
+                } else if (low.includes('certidão de oficial') || low.includes('oficial de justiça')) {
+                    tipoEncontrado = 'Certidão de oficial de justiça';
+                } else if (low.includes('alvará') || low.includes('alvara')) {
+                    tipoEncontrado = 'Alvará';
+                } else if (low.includes('sobrestamento')) {
+                    tipoEncontrado = 'Decisão (Sobrestamento)';
+                } else if (low.includes('serasa') || low.includes('apjur') || low.includes('carta ação') || low.includes('carta acao')) {
+                    tipoEncontrado = 'SerasaAntigo';
+                }
+                if (!tipoEncontrado) continue;
+
+                // Registrar documento principal
+                documentos.push({
+                    tipo: tipoEncontrado,
+                    texto: texto,
+                    id: id,
+                    data: extrairData(item),
+                    isAnexo: false
+                });
+
+                // Para certidões: buscar anexos Serasa/CNIB
+                const isCertAlvo = (
+                    tipoEncontrado === 'Certidão devolução pesquisa' ||
+                    tipoEncontrado === 'Certidão de oficial de justiça'
+                );
+                if (isCertAlvo) {
+                    const anexosRoot = item.querySelector('pje-timeline-anexos');
+                    const toggle = item.querySelector('pje-timeline-anexos div[name="mostrarOuOcultarAnexos"]');
+                    let anexoLinks = anexosRoot ? anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]') : [];
+                    
+                    // Expandir anexos se necessário (sem sleep - síncrono)
+                    if ((!anexoLinks || anexoLinks.length === 0) && toggle) {
+                        try { 
+                            toggle.dispatchEvent(new MouseEvent('click', { bubbles: true })); 
+                            // Buscar novamente imediatamente
+                            anexoLinks = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
+                        } catch(e) {}
+                    }
+                    
+                    if (anexoLinks && anexoLinks.length) {
+                        Array.from(anexoLinks).forEach(anexo => {
+                            const t = (anexo.textContent || '').toLowerCase();
+                            const parentData = extrairData(item);
+                            if (/serasa|serasajud/.test(t)) {
+                                documentos.push({
+                                    tipo: 'Serasa',
+                                    texto: anexo.textContent.trim(),
+                                    id: anexo.id || `serasa_${id}`,
+                                    data: parentData,
+                                    isAnexo: true,
+                                    parentId: id
+                                });
+                            } else if (/cnib|indisp/.test(t)) {
+                                documentos.push({
+                                    tipo: 'CNIB',
+                                    texto: anexo.textContent.trim(),
+                                    id: anexo.id || `cnib_${id}`,
+                                    data: parentData,
+                                    isAnexo: true,
+                                    parentId: id
+                                });
+                            }
+                        });
+                    }
+                }
+            }
+            return documentos;
+        }
+
+        // Aplicar FILTROS do script original
+        function aplicarFiltros(docs) {
+            return docs.filter(d => {
+                try {
+                    const tipo = (d.tipo||'').toString().toLowerCase();
+                    const texto = (d.texto||'').toString().toLowerCase();
+                    
+                    // Filtro de expedição de ordem
+                    if (/expedi[cç][aã]o/.test(tipo) && /ordem/.test(tipo)) return false;
+                    if (/expedi[cç][aã]o/.test(texto) && /ordem/.test(texto)) return false;
+                    
+                    // Filtro específico para alvarás (CRÍTICO!)
+                    if (tipo === 'alvará' || texto.includes('alvar')) {
+                        if (/(expedi[cç][aã]o|expedid[ao]s?|devolvid[ao]s?)/.test(texto)) return false;
+                    }
+                } catch (e) {}
+                return true;
+            });
+        }
+
+        try {
+            const docs = lerTimelineCompleta();
+            const docsFiltrados = aplicarFiltros(docs);
+            return JSON.stringify(docsFiltrados);
+        } catch (e) {
+            return JSON.stringify({error: e.message});
+        }
+        """
+        
+        # Executar JavaScript e capturar resultado
+        import time
+        start_time = time.time()
+        
+        resultado_json = driver.execute_script(js_script)
+        
+        elapsed = time.time() - start_time
+        print(f'[PRESCREVE][TIMELINE] ✅ JavaScript executado em {elapsed:.2f}s')
+        
+        # Processar resultado
+        import json
+        try:
+            documentos_data = json.loads(resultado_json)
+            
+            if isinstance(documentos_data, dict) and 'error' in documentos_data:
+                print(f'[PRESCREVE][TIMELINE] ❌ Erro no JavaScript: {documentos_data["error"]}')
+                return []
+            
+            # Converter para formato esperado pelo Python
+            documentos = []
+            for doc in documentos_data:
+                documentos.append({
+                    'tipo': doc.get('tipo', ''),
+                    'texto': doc.get('texto', ''),
+                    'id': doc.get('id', ''),
+                    'data': doc.get('data', ''),
+                    'isAnexo': doc.get('isAnexo', False),
+                    'parentId': doc.get('parentId', None)
+                })
+            
+            print(f'[PRESCREVE][TIMELINE] ✅ {len(documentos)} documentos encontrados via JavaScript')
+            
+            # Log resumido
+            tipos_count = {}
+            for doc in documentos:
+                tipos_count[doc['tipo']] = tipos_count.get(doc['tipo'], 0) + 1
+            
+            for tipo, count in tipos_count.items():
+                print(f'[PRESCREVE][TIMELINE]   - {tipo}: {count}')
+            
+            return documentos
+            
+        except json.JSONDecodeError as e:
+            print(f'[PRESCREVE][TIMELINE] ❌ Erro ao decodificar JSON: {e}')
+            print(f'[PRESCREVE][TIMELINE] Resultado recebido: {resultado_json[:200]}...')
+            return []
+        
+    except Exception as e:
+        print(f'[PRESCREVE][TIMELINE] ❌ Erro na análise JavaScript: {e}')
+        return []
 
 # Configuração do logging (CORRIGIDA)
 logging.basicConfig(
@@ -48,10 +359,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger('AutomacaoPJe')
 
-# ===================== CONTROLE DE SESSÃO E PROGRESSO (espelhado de m1.py) =====================
-
-def carregar_progresso():
-    """Carrega o estado de progresso do arquivo JSON específico para p2b"""
+# ===== FUNÇÕES DE PROGRESSO PARA P2B =====
+def carregar_progresso_p2b():
+    """Carrega o estado de progresso do arquivo JSON específico para P2B"""
     try:
         if os.path.exists("progresso_p2b.json"):
             with open("progresso_p2b.json", "r", encoding="utf-8") as f:
@@ -60,8 +370,8 @@ def carregar_progresso():
         print(f"[PROGRESSO_P2B][AVISO] Erro ao carregar progresso: {e}")
     return {"processos_executados": [], "session_active": True, "last_update": None}
 
-def salvar_progresso(progresso):
-    """Salva o estado de progresso no arquivo JSON específico para p2b"""
+def salvar_progresso_p2b(progresso):
+    """Salva o estado de progresso no arquivo JSON específico para P2B"""
     try:
         progresso["last_update"] = datetime.now().isoformat()
         with open("progresso_p2b.json", "w", encoding="utf-8") as f:
@@ -69,38 +379,57 @@ def salvar_progresso(progresso):
     except Exception as e:
         print(f"[PROGRESSO_P2B][ERRO] Falha ao salvar progresso: {e}")
 
-def extrair_numero_processo(driver):
-    """Extrai o número do processo da URL ou elemento da página"""
+def extrair_numero_processo_p2b(driver):
+    """Extrai o número do processo da URL ou elemento da página (adaptado para P2B)"""
     try:
-        # Tenta extrair da URL
         url = driver.current_url
+        
+        # Primeiro tenta extrair o ID da URL
         if "processo/" in url:
-            import re
             match = re.search(r"processo/(\d+)", url)
             if match:
-                return match.group(1)
-
-        # Tenta extrair de elementos da página
+                id_processo = match.group(1)
+                return id_processo
+        
+        # Depois tenta extrair o número formatado dos elementos
         try:
-            numero_elem = driver.find_element(By.CSS_SELECTOR, '[data-testid="numero-processo"], .numero-processo, .processo-numero')
-            if numero_elem and numero_elem.text:
-                return re.sub(r'[^\d]', '', numero_elem.text)
+            candidatos = driver.find_elements(By.CSS_SELECTOR, 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho')
+            for elemento in candidatos:
+                texto = elemento.text.strip()
+                if texto:
+                    match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
+                    if match:
+                        numero_formatado = re.sub(r'[^\d]', '', match.group(1))
+                        return numero_formatado
         except Exception:
             pass
-
+        
         return None
     except Exception as e:
         print(f"[PROGRESSO_P2B][ERRO] Falha ao extrair número do processo: {e}")
         return None
 
-def verificar_acesso_negado(driver):
-    """Verifica se estamos na página de acesso negado"""
+def verificar_acesso_negado_p2b(driver):
+    """Verifica se estamos na página de acesso negado no sistema P2B"""
     try:
         url_atual = driver.current_url
-        return "acesso-negado" in url_atual.lower()
+        return "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower()
     except Exception as e:
         print(f"[PROGRESSO_P2B][ERRO] Falha ao verificar acesso negado: {e}")
         return False
+
+def processo_ja_executado_p2b(numero_processo, progresso):
+    """Verifica se o processo já foi executado no fluxo P2B"""
+    if not numero_processo:
+        return False
+    return numero_processo in progresso.get("processos_executados", [])
+
+def marcar_processo_executado_p2b(numero_processo, progresso):
+    """Marca processo como executado no fluxo P2B"""
+    if numero_processo and numero_processo not in progresso.get("processos_executados", []):
+        progresso.setdefault("processos_executados", []).append(numero_processo)
+        salvar_progresso_p2b(progresso)
+        print(f"[PROGRESSO_P2B] Processo {numero_processo} marcado como executado")
 
 def processo_ja_executado(numero_processo, progresso):
     """Verifica se o processo já foi executado"""
@@ -160,7 +489,7 @@ def resetar_progresso():
 
 def listar_processos_executados():
     """Lista processos já executados"""
-    progresso = carregar_progresso()
+    progresso = carregar_progresso_p2b()
     executados = progresso.get("processos_executados", [])
     if executados:
         print(f"[PROGRESSO_P2B][LIST] {len(executados)} processos já executados:")
@@ -169,6 +498,67 @@ def listar_processos_executados():
     else:
         print("[PROGRESSO_P2B][LIST] Nenhum processo executado ainda")
     return executados
+
+def reset_progresso_p2b():
+    """Limpa o progresso de execução do P2B"""
+    try:
+        if os.path.exists("progresso_p2b.json"):
+            os.remove("progresso_p2b.json")
+            print("[PROGRESSO_P2B][RESET] Progresso limpo com sucesso")
+        else:
+            print("[PROGRESSO_P2B][RESET] Arquivo de progresso não existe")
+    except Exception as e:
+        print(f"[PROGRESSO_P2B][RESET][ERRO] Falha ao limpar progresso: {e}")
+
+def reaplicar_filtros_p2b(driver):
+    """Reaplica os filtros específicos do P2B após recovery do driver"""
+    try:
+        print("[RECOVERY_P2B][FILTROS] Reaplicando filtros específicos do P2B...")
+        
+        # 1. Navegar para atividades
+        url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
+        driver.get(url_atividades)
+        time.sleep(3)
+        
+        # 2. Aplicar filtro de 100 itens por página
+        from Fix import aplicar_filtro_100
+        if not aplicar_filtro_100(driver):
+            print("[RECOVERY_P2B][FILTROS] ❌ Falha ao aplicar filtro de 100 itens")
+            return False
+        time.sleep(2)
+        
+        # 3. Remover chip "Vencidas"
+        try:
+            chip_remove_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[ngclass="chips-icone-fechar"][mattooltip="Remover filtro"]'))
+            )
+            safe_click(driver, chip_remove_button)
+        except Exception as e:
+            print(f"[RECOVERY_P2B][FILTROS] Chip 'Vencidas' não encontrado ou já removido: {e}")
+        
+        # 4. Clicar no ícone fa-pen
+        btn_fa_pen = esperar_elemento(driver, 'i.fa-pen', timeout=15)
+        if not btn_fa_pen:
+            print("[RECOVERY_P2B][FILTROS] ❌ Botão fa-pen não encontrado")
+            return False
+        safe_click(driver, btn_fa_pen)
+        
+        # 5. Aplicar filtro "xs"
+        campo_descricao = esperar_elemento(driver, 'input[aria-label*="Descrição"]', timeout=15)
+        if not campo_descricao:
+            print("[RECOVERY_P2B][FILTROS] ❌ Campo descrição não encontrado")
+            return False
+        campo_descricao.clear()
+        campo_descricao.send_keys('xs')
+        campo_descricao.send_keys(Keys.ENTER)
+        time.sleep(3)
+        
+        print("[RECOVERY_P2B][FILTROS] ✅ Filtros P2B reaplicados com sucesso")
+        return True
+        
+    except Exception as e:
+        print(f"[RECOVERY_P2B][FILTROS][ERRO] Falha ao reaplicar filtros: {e}")
+        return False
 
 
 def parse_gigs_param(param):
@@ -420,22 +810,40 @@ def fluxo_pz(driver):
         doc_link.click()
         time.sleep(2) # Wait for panel/URL to load
         
-        # 2. Extrair texto usando a função de Fix.py
+        # 2. Extrair texto usando a função DIRETA de Fix.py (primeira opção)
         import datetime
-        texto_tuple = None # Initialize tuple variable
+        texto = None
+        
+        # Tentar primeiro com extrair_direto (nova função otimizada)
         try:
-            texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=True) # timeout reduzido
-            if texto_tuple and texto_tuple[0]:
-                texto = texto_tuple.lower()
+            logger.info('[FLUXO_PZ] Tentando extração DIRETA com extrair_direto...')
+            resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=False)
+            
+            if resultado_direto and resultado_direto.get('sucesso') and resultado_direto.get('conteudo_bruto'):
+                texto = resultado_direto['conteudo_bruto'].lower()
+                logger.info(f'[FLUXO_PZ] ✅ Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
             else:
-                logger.error('[FLUXO_PZ] extrair_documento retornou None ou texto vazio.')
-                texto = None
-        except Exception as e_extrair:
-            logger.error(f'[FLUXO_PZ] Erro ao chamar/processar extrair_documento: {e_extrair}')
-            texto = None
+                logger.warning('[FLUXO_PZ] extrair_direto não conseguiu extrair texto válido')
+                
+        except Exception as e_direto:
+            logger.error(f'[FLUXO_PZ] Erro na extração DIRETA: {e_direto}')
+        
+        # Fallback: usar extrair_documento original se a extração direta falhou
+        if not texto:
+            logger.info('[FLUXO_PZ] Usando fallback: extrair_documento original...')
+            texto_tuple = None
+            try:
+                texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=True)
+                if texto_tuple and texto_tuple[0]:
+                    texto = texto_tuple[0].lower()
+                    logger.info('[FLUXO_PZ] ✅ Fallback extrair_documento funcionou')
+                else:
+                    logger.error('[FLUXO_PZ] extrair_documento retornou None ou texto vazio.')
+            except Exception as e_extrair:
+                logger.error(f'[FLUXO_PZ] Erro ao chamar/processar extrair_documento: {e_extrair}')
         
         if not texto:
-            logger.error('[FLUXO_PZ] Não foi possível extrair o texto do documento via extrair_documento.')
+            logger.error('[FLUXO_PZ] ❌ Não foi possível extrair o texto do documento com nenhum método.')
             return
         
         # Log do texto extraído (início apenas)
@@ -469,6 +877,10 @@ def fluxo_pz(driver):
             return re.compile(rf"{regex}", re.IGNORECASE)
 
         regras = [
+            # REGRA DE PRESCRIÇÃO - MÁXIMA PRIORIDADE
+            ([gerar_regex_geral(k) for k in ['A pronúncia da']],
+             None, None, prescreve),
+            
             # REGRA DE BLOQUEIO - DEVE VIR ANTES PARA TER PRIORIDADE
             ([gerar_regex_geral(k) for k in ['sob pena de bloqueio']],
              'checar_cabecalho_impugnacoes', None, None),
@@ -522,8 +934,8 @@ def fluxo_pz(driver):
             ([gerar_regex_geral(k) for k in ['sobre o preenchimento dos pressupostos legais para concessão do parcelamento']],
              'gigs', '1/Bruna/Liberação', None),
             ([gerar_regex_geral(k) for k in ['comprovar o recolhimento', 'comprovar os recolhimentos']],
-             'gigs', '1/Silvia/Argos', ato_pesqliq),
-            ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital']],
+             'gigs', '1/Silvia/Argos', ato_pesqliq_callback),
+            ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se o cumprimento do mandado expedido']],
              'checar_prox', None, None),
             ([gerar_regex_geral(k) for k in ['Defiro a penhora no rosto dos autos']],
              'gigs', '1/SILAS/sob6', ato_180),
@@ -645,7 +1057,19 @@ def fluxo_pz(driver):
                     break
                 raise
 # ...existing code...
-        # 5. Iterate through rules and keywords to find the first match
+        # 5. VERIFICAÇÃO DE PREVALÊNCIA: prescreve tem prioridade absoluta
+        regex_prescreve = gerar_regex_geral('A pronúncia da')
+        if regex_prescreve.search(texto_normalizado):
+            print('[FLUXO_PZ] ✅ PREVALÊNCIA: Prescrição detectada - executando com prioridade máxima')
+            try:
+                prescreve(driver)
+                print('[FLUXO_PZ] ✅ Prescrição executada - ENCERRANDO fluxo (prevalência)')
+                return  # SAIR imediatamente
+            except Exception as prescreve_error:
+                print(f'[FLUXO_PZ] ❌ Erro na execução de prescreve: {prescreve_error}')
+                # Continua com regras normais se prescreve falhar
+        
+        # 6. Iterate through rules and keywords to find the first match
         acao_definida = None
         parametros_acao = None
         termo_encontrado = None
@@ -724,15 +1148,27 @@ def fluxo_pz(driver):
                 # Verifica se é cinza: rgb(144, 164, 174)
                 if 'rgb(144, 164, 174)' in cor_fundo:
                     print('[FLUXO_PZ] Cabeçalho cinza detectado - executando pesquisas')
-                    ato_pesquisas(driver)
-                    minuta_salva = True  # FLAG: minuta foi salva
+                    sucesso, sigilo_ativado = ato_pesquisas(driver)
+                    if sucesso:
+                        minuta_salva = True  # FLAG: minuta foi salva
+                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
+                        if sigilo_ativado:
+                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+                    else:
+                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas')
                 else:
                     print('[FLUXO_PZ] Cabeçalho não é cinza - criando GIGS padrão')
                     dias, responsavel, observacao = parse_gigs_param('1/SILVIA/Argos')
                     criar_gigs(driver, dias, responsavel, observacao)
                     # Executar ato_pesqliq como ação secundária
-                    ato_pesqliq(driver)
-                    minuta_salva = True  # FLAG: minuta foi salva
+                    sucesso, sigilo_ativado = ato_pesqliq(driver)
+                    if sucesso:
+                        minuta_salva = True  # FLAG: minuta foi salva
+                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
+                        if sigilo_ativado:
+                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+                    else:
+                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesqliq')
                 
                 time.sleep(1)
             except Exception as cabecalho_error:
@@ -762,8 +1198,14 @@ def fluxo_pz(driver):
                     
                     # 2. Executar pesquisas
                     print('[FLUXO_PZ] Etapa 2: Executando pesquisas')
-                    ato_pesquisas(driver)
-                    minuta_salva = True  # FLAG: minuta foi salva
+                    sucesso, sigilo_ativado = ato_pesquisas(driver)
+                    if sucesso:
+                        minuta_salva = True  # FLAG: minuta foi salva
+                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
+                        if sigilo_ativado:
+                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+                    else:
+                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas')
                 else:
                     print('[FLUXO_PZ] Cabeçalho não é cinza - executando criar_gigs + mov_exec + pesquisas')
                     
@@ -789,8 +1231,14 @@ def fluxo_pz(driver):
                     
                     # 4. Executar pesquisas na aba do processo
                     print('[FLUXO_PZ] Etapa 4: Executando pesquisas')
-                    ato_pesquisas(driver)
-                    minuta_salva = True  # FLAG: minuta foi salva
+                    sucesso, sigilo_ativado = ato_pesquisas(driver)
+                    if sucesso:
+                        minuta_salva = True  # FLAG: minuta foi salva
+                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
+                        if sigilo_ativado:
+                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+                    else:
+                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas')
                 
                 time.sleep(1)
             except Exception as cabecalho_error:
@@ -823,8 +1271,14 @@ def fluxo_pz(driver):
                 
                 # 4. Executar pesquisas na aba do processo
                 print('[FLUXO_PZ] Fallback Etapa 4: Executando pesquisas')
-                ato_pesquisas(driver)
-                minuta_salva = True  # FLAG: minuta foi salva
+                sucesso, sigilo_ativado = ato_pesquisas(driver)
+                if sucesso:
+                    minuta_salva = True  # FLAG: minuta foi salva
+                    # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
+                    if sigilo_ativado:
+                        executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
+                else:
+                    print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas (fallback)')
         
         # Se não há ação primária mas existe ação secundária, trate a secundária como primária
         if acao_definida is None and acao_secundaria:
@@ -832,6 +1286,12 @@ def fluxo_pz(driver):
             try:
                 acao_secundaria(driver)
                 minuta_salva = True  # FLAG: minuta foi salva
+                
+                # NOVA LÓGICA: se acao_secundaria for prescreve, PARAR EXECUÇÃO (predominância)
+                if acao_secundaria.__name__ == 'prescreve':
+                    print('[FLUXO_PZ] ✅ Prescrição executada - PARANDO execução (predominância)')
+                    return  # SAIR da função imediatamente
+                
                 time.sleep(1)
             except Exception as sec_error:
                 logger.error(f'[FLUXO_PZ] Falha ao executar ação {acao_secundaria.__name__}: {sec_error}')
@@ -848,6 +1308,12 @@ def fluxo_pz(driver):
                 doc_link = prox_doc_link
                 doc_idx = prox_doc_idx
                 continue  # repete o while para o próximo documento
+                
+        # NOVA LÓGICA: se prescreve foi executado, PARAR tudo (predominância total)
+        if acao_secundaria and acao_secundaria.__name__ == 'prescreve':
+            print('[FLUXO_PZ] ✅ Prescrição executada - ENCERRANDO fluxo (predominância total)')
+            break  # sair do while True
+            
         break  # se não encontrou ou acabou a timeline, encerra
     # Fim do while True    
     
@@ -880,26 +1346,153 @@ def fluxo_pz(driver):
 def fluxo_prazo(driver):
     """
     Executa o fluxo de prazo: Itera processos, chama fluxo_pz para cada um.
+    Otimizado para verificar progresso na lista antes de abrir processos.
     """
-    from Fix import indexar_e_processar_lista # Keep this import
+    from Fix import indexar_processos # Import da função de indexação
 
     print('[FLUXO_PRAZO] Iniciando processamento da lista de processos')
+    
+    # Carrega o progresso uma vez
+    progresso = carregar_progresso_p2b()
+    
+    # Indexa todos os processos da lista primeiro
+    try:
+        processos = indexar_processos(driver)
+        if not processos:
+            print('[FLUXO_PRAZO][ALERTA] Nenhum processo encontrado na lista')
+            return
+        print(f'[FLUXO_PRAZO] {len(processos)} processos encontrados na lista')
+    except Exception as e:
+        print(f'[FLUXO_PRAZO][ERRO] Falha ao indexar processos: {e}')
+        return
+    
+    # Filtra processos já executados ANTES de abrir qualquer um
+    processos_para_executar = []
+    processos_pulados = 0
+    
+    for proc_id, linha in processos:
+        if proc_id == '[sem número]':
+            processos_para_executar.append((proc_id, linha))
+            continue
+            
+        # Usa o número formatado diretamente para comparação (sem conversão)
+        if processo_ja_executado_p2b(proc_id, progresso):
+            print(f"[PROGRESSO_P2B] Processo {proc_id} já foi executado, pulando...")
+            processos_pulados += 1
+        else:
+            processos_para_executar.append((proc_id, linha))
+            print(f"[PROGRESSO_P2B] Processo {proc_id} será processado")
+    
+    print(f'[FLUXO_PRAZO] {processos_pulados} processos pulados (já executados)')
+    print(f'[FLUXO_PRAZO] {len(processos_para_executar)} processos serão processados')
+    
+    if not processos_para_executar:
+        print('[FLUXO_PRAZO] Todos os processos já foram executados!')
+        return
 
-    def callback_processo(driver_processo):
-        """
-        Callback para executar fluxo_pz no processo aberto.
-        fluxo_pz handles analysis, actions (primary & secondary), and tab closing.
-        """
-        try:
-            fluxo_pz(driver_processo) # Call the main function for the process tab
-        except Exception as callback_error:
-            logger.error(f'[FLUXO_PRAZO] ERRO no fluxo_pz: {callback_error}')
-            raise  # Re-raise para que o indexar_e_processar_lista saiba que houve erro
+    # Processa apenas os processos filtrados usando uma abordagem customizada
+    def processar_lista_filtrada():
+        """Processa apenas os processos que não foram executados ainda"""
+        aba_lista_original = driver.current_window_handle
+        processos_processados = 0
+        processos_com_erro = 0
         
-        time.sleep(1)  # Pausa para evitar race condition/travamento entre processamentos
-
-    # Chama indexar_e_processar_lista com o callback definido
-    indexar_e_processar_lista(driver, callback_processo) # Use the correct processing function
+        for idx, (proc_id, linha) in enumerate(processos_para_executar):
+            print(f'[PROCESSAR] Iniciando processo {idx+1}/{len(processos_para_executar)}: {proc_id}', flush=True)
+            
+            try:
+                # Tenta usar a linha existente primeiro
+                linha_atual = linha
+                
+                # Se a linha ficou stale, reindexar
+                try:
+                    linha_atual.is_displayed()
+                except:
+                    from Fix import reindexar_linha
+                    linha_atual = reindexar_linha(driver, proc_id)
+                    if not linha_atual:
+                        print(f'[PROCESSAR][ERRO] Não foi possível reindexar linha para {proc_id}')
+                        processos_com_erro += 1
+                        continue
+                
+                # Abre detalhes do processo
+                from Fix import abrir_detalhes_processo
+                if not abrir_detalhes_processo(driver, linha_atual):
+                    print(f'[PROCESSAR][ERRO] Botão de detalhes não encontrado para {proc_id}')
+                    processos_com_erro += 1
+                    continue
+                
+                # Aguarda nova aba carregar
+                time.sleep(2)
+                from Fix import trocar_para_nova_aba
+                nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
+                if not nova_aba:
+                    print(f'[PROCESSAR][ERRO] Nova aba não carregou para {proc_id}')
+                    processos_com_erro += 1
+                    continue
+                
+                print(f'[PROCESSAR] Nova aba carregada: {driver.title[:50]}... | URL: {driver.current_url[:50]}...')
+                
+                # Executa callback com o número do processo conhecido
+                try:
+                    def callback_com_numero(driver_proc):
+                        """Callback que conhece o número do processo"""
+                        try:
+                            print(f"[PROGRESSO_P2B] Processando: {proc_id}")
+                            
+                            fluxo_pz(driver_proc) # Call the main function for the process tab
+                            
+                            # Marca processo como executado usando o número da lista
+                            if proc_id != '[sem número]':
+                                progresso_atual = carregar_progresso_p2b()
+                                marcar_processo_executado_p2b(proc_id, progresso_atual)
+                                print(f"[PROGRESSO_P2B] Processo {proc_id} concluído com sucesso")
+                            else:
+                                print("[PROGRESSO_P2B] Processo sem número identificado foi executado")
+                                
+                        except Exception as callback_error:
+                            logger.error(f'[FLUXO_PRAZO] ERRO no fluxo_pz: {callback_error}')
+                            # Mesmo com erro, marca como executado para evitar loop infinito
+                            if proc_id != '[sem número]':
+                                progresso_atual = carregar_progresso_p2b()
+                                marcar_processo_executado_p2b(proc_id, progresso_atual)
+                                print(f"[PROGRESSO_P2B] Processo {proc_id} marcado como executado (com erro)")
+                            raise
+                    
+                    callback_com_numero(driver)
+                    processos_processados += 1
+                    print(f'[PROCESSAR] Callback executado com sucesso para {proc_id}')
+                except Exception as e:
+                    print(f'[PROCESSAR][ERRO] Callback falhou para {proc_id}: {e}')
+                    processos_com_erro += 1
+                
+                # Volta para aba da lista
+                try:
+                    if aba_lista_original in driver.window_handles:
+                        driver.switch_to.window(aba_lista_original)
+                        # Fecha outras abas
+                        for handle in driver.window_handles:
+                            if handle != aba_lista_original:
+                                try:
+                                    driver.switch_to.window(handle)
+                                    driver.close()
+                                except:
+                                    pass
+                        driver.switch_to.window(aba_lista_original)
+                    else:
+                        print(f'[PROCESSAR][ERRO] Aba da lista não está mais disponível')
+                except Exception as e:
+                    print(f'[PROCESSAR][ERRO] Falha ao voltar para lista: {e}')
+                
+            except Exception as e:
+                print(f'[PROCESSAR][ERRO] Falha geral no processo {proc_id}: {e}')
+                processos_com_erro += 1
+                continue
+        
+        print(f'[FLUXO_PRAZO] Processamento concluído: {processos_processados} sucesso, {processos_com_erro} erros')
+    
+    # Executa o processamento customizado
+    processar_lista_filtrada()
 
     print('[FLUXO_PRAZO] Processamento da lista concluído')
 

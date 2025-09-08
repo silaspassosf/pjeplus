@@ -1270,7 +1270,7 @@ ato_x90 = make_ato_wrapper(
     descricao='Aguarda reserva'
 )
 
-ato_pesqliq = make_ato_wrapper(
+ato_pesqliq_original = make_ato_wrapper(
     conclusao_tipo='Homologação de Cálculos',
     modelo_nome='xsbacen',
     prazo=30,
@@ -1281,6 +1281,44 @@ ato_pesqliq = make_ato_wrapper(
     descricao='pesquisas para execucao',
     sigilo=True
 )
+
+# Wrapper customizado para ato_pesqliq com aplicação de visibilidade
+def ato_pesqliq(driver, debug=False, gigs=None, **kwargs):
+    """
+    Wrapper para ato de pesquisa em liquidação.
+    IMPORTANTE: Retorna (sucesso, sigilo_ativado) para aplicação de visibilidade posterior.
+    """
+    try:
+        # 1. Executa o ato judicial com parâmetros padrão
+        sucesso, sigilo_ativado = ato_judicial(
+            driver,
+            conclusao_tipo='Homologação de Cálculos',
+            modelo_nome='xsbacen',
+            prazo=30,
+            marcar_pec=False,
+            movimento=None,
+            gigs=gigs,
+            marcar_primeiro_destinatario=True,
+            debug=debug,
+            sigilo=True,
+            descricao='pesquisas para execucao'
+        )
+        
+        # Para compatibilidade, armazena sigilo_ativado como atributo
+        ato_pesqliq.ultimo_sigilo_ativado = sigilo_ativado
+        
+        # CORREÇÃO: Retorna tupla (sucesso, sigilo_ativado) para visibilidade externa
+        if debug:
+            print(f'[ATO_PESQLIQ] Retornando: sucesso={sucesso}, sigilo_ativado={sigilo_ativado}')
+        return sucesso, sigilo_ativado
+        
+    except Exception as e:
+        print(f'[ATO_PESQLIQ][ERRO] Falha no fluxo do ato de pesquisa em liquidação: {e}')
+        try:
+            driver.save_screenshot('erro_ato_pesqliq.png')
+        except:
+            pass
+        return False, False  # CORREÇÃO: Retorna tupla mesmo em erro
 
 # NOVO WRAPPER: ato_calc2
 ato_calc2 = make_ato_wrapper(
@@ -1310,6 +1348,7 @@ def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
     """
     Wrapper para ato de pesquisas com lógica especial.
     Verifica e clica em 'Iniciar a execução' antes de executar o ato judicial.
+    IMPORTANTE: Retorna (sucesso, sigilo_ativado) para aplicação de visibilidade posterior.
     """
     try:
         # 1. Lógica especial: Se existir botão 'Iniciar a execução', clicar antes de seguir
@@ -1342,7 +1381,11 @@ def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
         
         # Para compatibilidade, armazena sigilo_ativado como atributo
         ato_pesquisas.ultimo_sigilo_ativado = sigilo_ativado
-        return sucesso
+        
+        # CORREÇÃO: Retorna tupla (sucesso, sigilo_ativado) para visibilidade externa
+        if debug:
+            print(f'[ATO_PESQUISAS] Retornando: sucesso={sucesso}, sigilo_ativado={sigilo_ativado}')
+        return sucesso, sigilo_ativado
         
     except Exception as e:
         print(f'[ATO_PESQUISAS][ERRO] Falha no fluxo do ato de pesquisas: {e}')
@@ -1350,7 +1393,7 @@ def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
             driver.save_screenshot('erro_ato_pesquisas.png')
         except Exception:
             pass
-        return False
+        return False, False  # CORREÇÃO: Retorna tupla mesmo em erro
 
 # Wrapper para prescrição intercorrente
 ato_presc = make_ato_wrapper(
@@ -3545,3 +3588,244 @@ def def_chip(driver, numero_processo, observacao, debug=False, timeout=10):
     except Exception as e:
         log_msg(f"❌ Erro geral na remoção de chips: {e}")
     return False
+
+# ===== FUNÇÃO DE VISIBILIDADE PARA DOCUMENTOS SIGILOSOS =====
+
+def aplicar_visibilidade_ultimo_documento_sigiloso(driver, polo_target="ativo", log=True):
+    """
+    Aplica visibilidade de sigilo para o último documento sigiloso juntado no processo.
+    Para ser chamada após cumprir atos judiciais e fechar a tela de minuta.
+    
+    Args:
+        driver: WebDriver do Selenium
+        polo_target: "ativo", "passivo" ou "todos" para definir quem pode ver o documento
+        log: Se deve imprimir logs do processo
+    
+    Returns:
+        bool: True se sucesso, False se falha
+    """
+    import re
+    from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.common.exceptions import TimeoutException, NoSuchElementException
+    
+    try:
+        if log:
+            print(f'[ATOS][VISIBILIDADE] Iniciando aplicação de visibilidade para polo: {polo_target}')
+        
+        # Aguarda timeline carregar
+        time.sleep(2)
+        
+        # 1. Busca o primeiro documento sigiloso na timeline
+        try:
+            wait = WebDriverWait(driver, 10)
+            primeiro_sigiloso = wait.until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'ul[class*="pje-timeline"] a[class*="tl-documento"][class*="is-sigiloso"]'))
+            )
+            if log:
+                print('[ATOS][VISIBILIDADE] ✅ Primeiro documento sigiloso encontrado')
+        except TimeoutException:
+            if log:
+                print('[ATOS][VISIBILIDADE] ❌ Nenhum documento sigiloso encontrado na timeline')
+            return False
+        
+        # 2. Extrai ID do documento
+        try:
+            aria_label = primeiro_sigiloso.get_attribute('aria-label')
+            id_match = re.search(r'i{1}d{1}[.| |:]{1,}[A-Za-z0-9]{6,7}', aria_label, re.IGNORECASE)
+            if id_match:
+                id_documento = id_match.group().replace('Id: ', '').replace('id: ', '').replace('ID: ', '')
+                if log:
+                    print(f'[ATOS][VISIBILIDADE] ✅ ID do documento extraído: {id_documento}')
+            else:
+                if log:
+                    print('[ATOS][VISIBILIDADE] ❌ Não foi possível extrair ID do documento')
+                return False
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ❌ Erro ao extrair ID: {e}')
+            return False
+        
+        # 3. Clica no botão "Exibir múltipla seleção"
+        try:
+            btn_multipla_selecao = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_multipla_selecao)
+            time.sleep(1)
+            if log:
+                print('[ATOS][VISIBILIDADE] ✅ Múltipla seleção ativada')
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ❌ Erro ao ativar múltipla seleção: {e}')
+            return False
+        
+        # 4. Seleciona o documento específico
+        try:
+            checkbox_documento = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox label'))
+            )
+            driver.execute_script("arguments[0].click();", checkbox_documento)
+            time.sleep(1)
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ✅ Documento {id_documento} selecionado')
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ❌ Erro ao selecionar documento: {e}')
+            return False
+        
+        # 5. Clica no botão "Visibilidade para Sigilo"
+        try:
+            btn_visibilidade = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'div[class="div-todas-atividades-em-lote"] button[mattooltip="Visibilidade para Sigilo"]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_visibilidade)
+            time.sleep(2)
+            if log:
+                print('[ATOS][VISIBILIDADE] ✅ Modal de visibilidade aberto')
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ❌ Erro ao abrir modal de visibilidade: {e}')
+            return False
+        
+        # 6. Configura paginação para 100 itens
+        try:
+            paginador = wait.until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'div[class="cdk-overlay-container"] pje-doc-visibilidade-sigilo pje-paginador'))
+            )
+            selects_paginacao = paginador.find_elements(By.CSS_SELECTOR, 'div[class*="mat-select-trigger"]')
+            if len(selects_paginacao) > 1:
+                driver.execute_script("arguments[0].click();", selects_paginacao[1])
+                time.sleep(0.5)
+                opcao_100 = wait.until(EC.element_to_be_clickable((By.XPATH, "//mat-option//span[contains(text(), '100')]")))
+                driver.execute_script("arguments[0].click();", opcao_100)
+                time.sleep(1)
+                if log:
+                    print('[ATOS][VISIBILIDADE] ✅ Paginação configurada para 100 itens')
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ⚠️ Aviso ao configurar paginação: {e}')
+        
+        # 7. Seleção baseada no polo target
+        try:
+            if polo_target.lower() == "todos":
+                # Seleciona todos via botão do cabeçalho
+                btn_selecionar_todos = wait.until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'th button'))
+                )
+                driver.execute_script("arguments[0].click();", btn_selecionar_todos)
+                if log:
+                    print('[ATOS][VISIBILIDADE] ✅ Todos os polos selecionados')
+                    
+            elif polo_target.lower() == "ativo":
+                # Seleciona apenas polo ativo
+                _selecionar_polo_ativo_atos(driver, wait, log)
+                
+            elif polo_target.lower() == "passivo":
+                # Seleciona apenas polo passivo
+                _selecionar_polo_passivo_atos(driver, wait, log)
+                
+            else:
+                if log:
+                    print(f'[ATOS][VISIBILIDADE] ❌ Polo target inválido: {polo_target}')
+                return False
+                
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ❌ Erro na seleção de polo: {e}')
+            return False
+        
+        # 8. Salva as configurações
+        try:
+            btn_salvar = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Salvar')]"))
+            )
+            driver.execute_script("arguments[0].click();", btn_salvar)
+            time.sleep(2)
+            if log:
+                print('[ATOS][VISIBILIDADE] ✅ Configurações salvas')
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ❌ Erro ao salvar: {e}')
+            return False
+        
+        # 9. Oculta múltipla seleção
+        try:
+            btn_ocultar = wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_ocultar)
+            time.sleep(1)
+            if log:
+                print('[ATOS][VISIBILIDADE] ✅ Múltipla seleção ocultada')
+        except Exception as e:
+            if log:
+                print(f'[ATOS][VISIBILIDADE] ⚠️ Aviso ao ocultar múltipla seleção: {e}')
+        
+        if log:
+            print('[ATOS][VISIBILIDADE] ✅ Visibilidade aplicada com sucesso!')
+        return True
+        
+    except Exception as e:
+        if log:
+            print(f'[ATOS][VISIBILIDADE] ❌ Erro geral: {e}')
+        return False
+
+
+def _selecionar_polo_ativo_atos(driver, wait, log=True):
+    """Função auxiliar para selecionar apenas polo ativo"""
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    try:
+        icones_polo_ativo = wait.until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i[class*="icone-polo-ativo"]'))
+        )
+        
+        for icone in icones_polo_ativo:
+            try:
+                linha = icone.find_element(By.XPATH, "./ancestor::tr[1]")
+                checkbox = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox label')
+                driver.execute_script("arguments[0].click();", checkbox)
+                time.sleep(0.2)
+            except Exception as e:
+                if log:
+                    print(f'[ATOS][VISIBILIDADE][POLO_ATIVO] Erro ao selecionar item: {e}')
+                continue
+        
+        if log:
+            print(f'[ATOS][VISIBILIDADE] ✅ {len(icones_polo_ativo)} itens do polo ativo selecionados')
+            
+    except Exception as e:
+        if log:
+            print(f'[ATOS][VISIBILIDADE][POLO_ATIVO] ❌ Erro: {e}')
+        raise
+
+
+def _selecionar_polo_passivo_atos(driver, wait, log=True):
+    """Função auxiliar para selecionar apenas polo passivo"""
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    try:
+        icones_polo_passivo = wait.until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i[class*="icone-polo-passivo"]'))
+        )
+        
+        for icone in icones_polo_passivo:
+            try:
+                linha = icone.find_element(By.XPATH, "./ancestor::tr[1]")
+                checkbox = linha.find_element(By.CSS_SELECTOR, 'mat-checkbox label')
+                driver.execute_script("arguments[0].click();", checkbox)
+                time.sleep(0.2)
+            except Exception as e:
+                if log:
+                    print(f'[ATOS][VISIBILIDADE][POLO_PASSIVO] Erro ao selecionar item: {e}')
+                continue
+        
+        if log:
+            print(f'[ATOS][VISIBILIDADE] ✅ {len(icones_polo_passivo)} itens do polo passivo selecionados')
+            
+    except Exception as e:
+        if log:
+            print(f'[ATOS][VISIBILIDADE][POLO_PASSIVO] ❌ Erro: {e}')
+        raise

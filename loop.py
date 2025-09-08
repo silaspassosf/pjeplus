@@ -98,33 +98,29 @@ def ciclo1(driver, opcao_destino='Análise'):
         return "no_more_processes"
     # Aguarda a lista de processos ser atualizada após o filtro
     time.sleep(5)
-    # 2. Clicar no ícone "marcar-todas" e garantir seleção antes de prosseguir
-    max_tentativas = 3
-    for tentativa in range(max_tentativas):
-        try:
-            btn_marcar_todas = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-check.icone.marcar-todas'))
-            )
-            driver.execute_script("arguments[0].scrollIntoView(true);", btn_marcar_todas)
-            btn_marcar_todas.click()
-            time.sleep(1)
-        except Exception as e:
-            print(f"[LOOP_PRAZO][ERRO] Falha ao clicar em marcar-todas (tentativa {tentativa+1}): {e}")
-            if tentativa == max_tentativas - 1:
-                return False
-        try:
-            btn_suitcase = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-suitcase.icone'))
-            )
-            driver.execute_script("arguments[0].scrollIntoView(true);", btn_suitcase)
-            btn_suitcase.click()
-            break  # Sucesso, segue fluxo
-        except Exception as e:
-            print(f"[LOOP_PRAZO][ERRO] Falha ao localizar/clicar em fa-suitcase (tentativa {tentativa+1}): {e}")
-            if tentativa == max_tentativas - 1:
-                print("[LOOP_PRAZO] Suitcase não encontrado, prosseguindo para ciclo2.")
-                return "go_to_ciclo2"  # Prossegue para ciclo2
-            time.sleep(1.5)  # Espera antes de tentar novamente
+    # 2. Tentar marcar-todas e suitcase UMA VEZ - se não encontrar vai para fase 2
+    try:
+        btn_marcar_todas = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-check.icone.marcar-todas'))
+        )
+        driver.execute_script("arguments[0].scrollIntoView(true);", btn_marcar_todas)
+        btn_marcar_todas.click()
+        time.sleep(1)
+    except Exception as e:
+        print(f"[LOOP_PRAZO] Marcar-todas não encontrado: {e}")
+        print("[LOOP_PRAZO] ✅ TRATANDO COMO CUMPRIDO. Prosseguindo para fase 2.")
+        return "marcar_todas_not_found_but_continue"
+    
+    try:
+        btn_suitcase = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-suitcase.icone'))
+        )
+        driver.execute_script("arguments[0].scrollIntoView(true);", btn_suitcase)
+        btn_suitcase.click()
+    except Exception as e:
+        print(f"[LOOP_PRAZO] Suitcase não encontrado: {e}")
+        print("[LOOP_PRAZO] ✅ TRATANDO COMO CUMPRIDO. Prosseguindo para fase 2.")
+        return "suitcase_not_found_but_continue"
 
     # 5. Aguardar mudança de URL para movimentacao-lote e garantir que está na tela correta
     try:
@@ -556,17 +552,22 @@ def loop_prazo(driver):
         elif resultado_ciclo is False:
             print("[LOOP_PRAZO][ERRO CRÍTICO] Ciclo1 encontrou um erro. PARANDO EXECUÇÃO COMPLETA.")
             return False  # [CORRIGIDO] Para a execução completamente
-        elif resultado_ciclo == "go_to_ciclo2":
-            print("[LOOP_PRAZO] Suitcase não encontrado no ciclo1, prosseguindo para Fase 2.")
+        elif resultado_ciclo == "go_to_ciclo2" or resultado_ciclo == "suitcase_not_found_but_continue" or resultado_ciclo == "marcar_todas_not_found_but_continue":
+            if resultado_ciclo == "go_to_ciclo2":
+                print("[LOOP_PRAZO] Suitcase não encontrado no ciclo1, prosseguindo para Fase 2.")
+            elif resultado_ciclo == "suitcase_not_found_but_continue":
+                print("[LOOP_PRAZO] ✅ Fase 1 CUMPRIDA (suitcase não encontrado mas tratado como sucesso). Prosseguindo normalmente para Fase 2.")
+            else:
+                print("[LOOP_PRAZO] ✅ Fase 1 CUMPRIDA (marcar-todas não encontrado mas tratado como sucesso). Prosseguindo normalmente para Fase 2.")
             break
         
         print("[LOOP_PRAZO] Ciclo1 concluído com sucesso. Verificando se há mais processos para tratar...")
         time.sleep(2)
     
-    # [CORRIGIDO] Só executa Fase 2 se Fase 1 foi bem-sucedida
+    # [CORRIGIDO] Fase 2 SEMPRE executa, independente do resultado da Fase 1
+    # Se Fase 1 falhou por erro crítico (não por suitcase não encontrada), ainda assim continua
     if resultado_ciclo is False:
-        print("[LOOP_PRAZO][ERRO CRÍTICO] Fase 1 falhou. Não executando Fase 2.")
-        return False
+        print("[LOOP_PRAZO][AVISO] Fase 1 teve erro crítico, mas continuando para Fase 2 conforme solicitado.")
     
     # Fase 2: Executar ciclo2 para processar os processos do painel 8
     print("\n[LOOP_PRAZO] Fase 2: Iniciando processamento de processos do painel global 8...")

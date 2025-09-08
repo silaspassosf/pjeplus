@@ -8,6 +8,19 @@ Selecione um de cada bloco no final do arquivo.
 """
 
 # ===============================================
+# CONFIGURAÇÃO GLOBAL DO GECKODRIVER
+# ===============================================
+import os
+GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
+
+# Verifica se o geckodriver existe
+if not os.path.exists(GECKODRIVER_PATH):
+    print(f'[DRIVER_CONFIG] ⚠️ AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
+    print('[DRIVER_CONFIG] Baixe o geckodriver de: https://github.com/mozilla/geckodriver/releases')
+else:
+    print(f'[DRIVER_CONFIG] ✅ Geckodriver encontrado: {GECKODRIVER_PATH}')
+
+# ===============================================
 # BLOCO 1: CONFIGURAÇÕES DE LOGIN
 # ===============================================
 
@@ -292,19 +305,37 @@ def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguar
 # ===============================================
 
 def criar_driver_PC(headless=False):
-    """Driver PC - Perfil personalizado Selenium"""
+    """Driver PC - Firefox Developer Edition com configurações otimizadas para PC"""
     from selenium import webdriver
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
     options = Options()
     if headless:
-        options.add_argument('--headless')
+        options.add_argument('-headless')
+    
+    # Configurações otimizadas para Firefox PC
+    options.set_preference("dom.webdriver.enabled", False)
+    options.set_preference('useAutomationExtension', False)
+    options.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0")
+    
+    # Configurações de performance
+    options.set_preference("browser.cache.disk.enable", True)
+    options.set_preference("browser.cache.memory.enable", True)
+    options.set_preference("browser.cache.offline.enable", True)
+    options.set_preference("network.http.use-cache", True)
+    
+    # Desabilitar notificações e popups
+    options.set_preference("dom.webnotifications.enabled", False)
+    options.set_preference("media.volume_scale", "0.0")
+    
+    # Firefox Developer Edition (como solicitado)
     options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    options.set_preference('profile', r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium")
-    service = Service(executable_path=r"d:\PjePlus\geckodriver.exe")
-    driver = webdriver.Firefox(service=service, options=options)
+    
+    # Usar geckodriver da pasta do projeto
+    service = Service(executable_path=GECKODRIVER_PATH)
+    driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
-    print("[DRIVER_PC] Driver PC criado com sucesso")
+    print("[DRIVER_PC] Driver PC (Firefox Developer Edition) criado com sucesso")
     return driver
 
 def criar_driver_VT(headless=False):
@@ -316,8 +347,8 @@ def criar_driver_VT(headless=False):
     if headless:
         options.add_argument('-headless')
     options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
-    options.profile = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2y17wq63.default'
-    service = Service(executable_path=r'C:\Users\s164283\Desktop\pjeplus\geckodriver.exe')
+    options.profile = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
+    service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
     print("[DRIVER_VT] Driver VT criado com sucesso")
@@ -327,7 +358,7 @@ def criar_driver_VT(headless=False):
 
 def criar_driver_notebook(headless=False):
     """Cria um WebDriver Firefox configurado para a máquina "notebook".
-    Garante que o geckodriver usado é o do perfil notebook (GECKODRIVER_PATH_NOTEBOOK).
+    Garante que o geckodriver usado é o da pasta do projeto (GECKODRIVER_PATH).
     """
     from selenium import webdriver
     from selenium.webdriver.firefox.options import Options
@@ -342,7 +373,7 @@ def criar_driver_notebook(headless=False):
     USE_USER_PROFILE_NOTEBOOK = False
     if USE_USER_PROFILE_NOTEBOOK:
         options.profile = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
-    service = Service(executable_path=r'C:\Users\s164283\Desktop\pjeplus\geckodriver.exe')
+    service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
     print("[DRIVER_NOTEBOOK] Driver NOTEBOOK criado com sucesso")
@@ -357,27 +388,73 @@ def criar_driver_notebook(headless=False):
 # Ajuste SISB_PROFILE_NOTEBOOK se necessário.
 # ===============================================
 
-# Perfil padrão para SISBAJUD (PC). Ajuste se desejar outro perfil.
-SISB_PROFILE_PC = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2y17wq63.default'
+# Perfil padrão para SISBAJUD (PC). Caminho correto do perfil Sisb do Developer Edition
+SISB_PROFILE_PC = r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
 # Perfil notebook para SISBAJUD — informe o caminho se diferente do padrão
-SISB_PROFILE_NOTEBOOK = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\o2g0j0ns.Sisb'
+SISB_PROFILE_NOTEBOOK = r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
 
 def criar_driver_sisb_pc(headless=False):
-    """Driver SISBAJUD - PC (usa os mesmos caminhos do driver PC, com perfil SISBAJUD)"""
+    """Driver SISBAJUD - PC (Firefox Developer Edition com configurações robustas)"""
     from selenium import webdriver
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
+    from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+    
     options = Options()
     if headless:
         options.add_argument('--headless')
-    # mesmo binário do Developer Edition usado pelas outras funções
+    
+    # Firefox Developer Edition
     options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    options.profile = SISB_PROFILE_PC
-    service = Service(executable_path=r'd:\PjePlus\geckodriver.exe')
-    driver = webdriver.Firefox(service=service, options=options)
-    driver.implicitly_wait(10)
-    print("[DRIVER_SISB_PC] Driver SISBAJUD PC criado com sucesso")
-    return driver
+    
+    # Configurações mais robustas para evitar crash
+    options.set_preference("browser.startup.homepage", "about:blank")
+    options.set_preference("startup.homepage_welcome_url", "about:blank")
+    options.set_preference("startup.homepage_welcome_url.additional", "about:blank")
+    options.set_preference("browser.startup.page", 0)
+    options.set_preference("browser.cache.disk.enable", False)
+    options.set_preference("browser.cache.memory.enable", False)
+    options.set_preference("browser.cache.offline.enable", False)
+    options.set_preference("network.http.use-cache", False)
+    options.set_preference("browser.safebrowsing.enabled", False)
+    options.set_preference("browser.safebrowsing.malware.enabled", False)
+    options.set_preference("datareporting.healthreport.uploadEnabled", False)
+    options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
+    options.set_preference("toolkit.telemetry.enabled", False)
+    
+    # Tentar usar perfil específico com tratamento de erro
+    try:
+        if os.path.exists(SISB_PROFILE_PC):
+            profile = FirefoxProfile(SISB_PROFILE_PC)
+            options.profile = profile
+            print(f"[DRIVER_SISB_PC] Usando perfil: {SISB_PROFILE_PC}")
+        else:
+            print(f"[DRIVER_SISB_PC] Perfil não encontrado: {SISB_PROFILE_PC}, usando perfil temporário")
+    except Exception as e:
+        print(f"[DRIVER_SISB_PC] Erro ao carregar perfil: {e}, usando perfil temporário")
+    
+    service = Service(executable_path=GECKODRIVER_PATH)
+    
+    try:
+        driver = webdriver.Firefox(service=service, options=options)
+        driver.implicitly_wait(10)
+        print("[DRIVER_SISB_PC] Driver SISBAJUD PC (Developer Edition) criado com sucesso")
+        return driver
+    except Exception as e:
+        print(f"[DRIVER_SISB_PC] Erro ao criar driver: {e}")
+        # Fallback: tentar sem perfil específico
+        try:
+            options_fallback = Options()
+            if headless:
+                options_fallback.add_argument('--headless')
+            options_fallback.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+            driver = webdriver.Firefox(service=service, options=options_fallback)
+            driver.implicitly_wait(10)
+            print("[DRIVER_SISB_PC] Driver SISBAJUD PC (Developer Edition - fallback) criado com sucesso")
+            return driver
+        except Exception as e2:
+            print(f"[DRIVER_SISB_PC] Falha total ao criar driver: {e2}")
+            return None
 
 def criar_driver_sisb_notebook(headless=False):
     """Driver SISBAJUD - Notebook (usa caminhos notebook; perfil a ser informado)"""
@@ -389,7 +466,7 @@ def criar_driver_sisb_notebook(headless=False):
         options.add_argument('-headless')
     options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
     options.profile = SISB_PROFILE_NOTEBOOK
-    service = Service(executable_path=r'C:\Users\s164283\Desktop\pjeplus\geckodriver.exe')
+    service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
     print("[DRIVER_SISB_NOTEBOOK] Driver SISBAJUD NOTEBOOK criado com sucesso")
@@ -397,8 +474,6 @@ def criar_driver_sisb_notebook(headless=False):
 
 # Qual opção de SISBAJUD está ativa (ajuste para Notebook se preferir)
 criar_driver_sisb = criar_driver_sisb_pc
-
-
 
 # ===============================================
 # CONFIGURAÇÃO ATIVA
@@ -410,9 +485,9 @@ login_func = login_cpf    # ← ATIVO: Login por CPF/senha (typing)
 # login_func = login_automatico    # ← Opcional: Login automático (AutoHotkey)
 
 # BLOCO 2: ESCOLHA DO DRIVER (descomente apenas uma linha)
-criar_driver = criar_driver_notebook    # ← ATIVO: Driver Notebook
-# criar_driver = criar_driver_PC       # ← Driver PC
-# criar_driver = criar_driver_VT       # ← Driver VT
+# criar_driver = criar_driver_notebook    # ← Driver Notebook
+criar_driver = criar_driver_PC          # ← ATIVO: Driver PC (Firefox)
+# criar_driver = criar_driver_VT          # ← Driver VT
 
 # Sincroniza automaticamente a fábrica SISBAJUD com a opção ativa de driver
 # Se o driver ativo for o notebook, usa o driver SISBAJUD notebook; caso contrário usa o PC
@@ -584,7 +659,51 @@ def verificar_e_aplicar_cookies(driver):
     sucesso = carregar_cookies_sessao(driver)
     
     if sucesso:
-        print('[COOKIES] ✅ Login realizado via cookies! Pularemos a tela de login.')
+        # Verificar se após aplicar cookies não caiu em acesso negado
+        try:
+            current_url = driver.current_url
+            if 'acesso-negado' in current_url:
+                print('[COOKIES] ⚠️ Acesso negado detectado após aplicar cookies - forçando login CPF...')
+                # Forçar login CPF quando detectar acesso negado
+                from selenium.webdriver.common.by import By
+                import time
+                
+                url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
+                print(f"[COOKIES][LOGIN_FORCE] Navegando para: {url_login}")
+                driver.get(url_login)
+                time.sleep(1.2)
+                
+                # Login CPF direto
+                try:
+                    username_field = driver.find_element(By.NAME, 'username')
+                    password_field = driver.find_element(By.NAME, 'password')
+                    submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
+                    
+                    username_field.clear()
+                    username_field.send_keys('35305203813')
+                    time.sleep(0.3)
+                    
+                    password_field.clear()
+                    password_field.send_keys('SpF59866')
+                    time.sleep(0.3)
+                    
+                    submit_button.click()
+                    time.sleep(3)
+                    
+                    # Salvar novos cookies após login bem-sucedido
+                    if SALVAR_COOKIES_AUTOMATICO:
+                        salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
+                    
+                    print('[COOKIES] ✅ Login forçado realizado após acesso negado!')
+                    return True
+                    
+                except Exception as e:
+                    print(f'[COOKIES][ERRO] Falha no login forçado: {e}')
+                    return False
+            else:
+                print('[COOKIES] ✅ Login realizado via cookies! Pularemos a tela de login.')
+        except Exception as e:
+            print(f'[COOKIES][WARN] Erro ao verificar URL atual: {e}')
     else:
         print('[COOKIES] ❌ Cookies inválidos ou inexistentes. Login manual necessário.')
     
@@ -655,22 +774,9 @@ def criar_driver(headless=False):
         print(f'[DRIVER_CONFIG] ❌ Erro ao criar driver via fábrica: {e}')
         return None
 
-    # Aplicar cookies automaticamente se permitido
-    try:
-        if USAR_COOKIES_AUTOMATICO:
-            try:
-                sucesso = carregar_cookies_sessao(driver)
-                if sucesso:
-                    print('[DRIVER_CONFIG] ✅ Cookies aplicados ao driver inicial')
-                    # opcional: re-salvar para atualizar metadados
-                    if SALVAR_COOKIES_AUTOMATICO:
-                        salvar_cookies_sessao(driver, info_extra='cookies_reutilizados')
-                else:
-                    print('[DRIVER_CONFIG] ⚠️ Cookies não aplicados (inválidos ou inexistentes)')
-            except Exception as e:
-                print(f'[DRIVER_CONFIG] ⚠️ Falha ao aplicar cookies: {e}')
-    except Exception:
-        pass
+    # NÃO aplicar cookies aqui para evitar loop duplo
+    # O login_cpf() já faz a aplicação de cookies via verificar_e_aplicar_cookies()
+    print('[DRIVER_CONFIG] ✅ Driver criado (cookies serão aplicados no login)')
 
     return driver
 

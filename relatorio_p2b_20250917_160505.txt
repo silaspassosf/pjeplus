@@ -1,0 +1,61 @@
+================================================================================
+RELATÓRIO DE ANÁLISE - P2B.PY
+================================================================================
+
+📊 MÉTRICAS GERAIS
+----------------------------------------
+Arquivo: 1749 linhas
+Seletores encontrados: 11
+Funções definidas: 42
+Uso de Selenium: 10 padrões
+Problemas identificados: 0
+
+🎯 SELETORES PRINCIPAIS
+----------------------------------------
+ 1. a.tl-documento:not([target=
+ 2. mat-card.resumo-processo
+ 3. h1, h2, h3, .processo-numero, [data-testid*=
+ 4. li.tl-item-container
+ 5. pje-timeline-anexos > div > div
+ 6. .tl-item-anexo
+ 7. i.fa-wpexplorer
+ 8. div.tl-icon[aria-label*=
+ 9. i.fa-reply-all.icone-clicavel
+10. pje-timeline, .timeline, [class*=
+    ... e mais 1 seletores
+
+🔧 FUNÇÕES DEFINIDAS
+----------------------------------------
+ 1. ato_pesquisas_callback
+ 2. ato_pesqliq_callback
+ 3. prescreve
+ 4. funcao_pagamento_placeholder
+ 5. analisar_timeline_prescreve_js_puro
+ 6. carregar_progresso_p2b
+ 7. salvar_progresso_p2b
+ 8. extrair_numero_processo_p2b
+ 9. verificar_acesso_negado_p2b
+10. processo_ja_executado_p2b
+    ... e mais 32 funções
+
+🌐 USO DO SELENIUM
+----------------------------------------
+  • find_elements
+  • webdriver.
+  • get(
+  • find_element
+  • from selenium
+  • click()
+  • send_keys
+  • By.
+  • WebDriverWait
+  • expected_conditions
+
+💡 RECOMENDAÇÕES
+----------------------------------------
+🟢 Código otimizado (BAIXA)
+   Nenhuma otimização crítica identificada
+
+================================================================================
+Relatório gerado em: 2025-09-17 16:05:05
+================================================================================

@@ -5,7 +5,9 @@
             "label": "Debug Visual - M1",
             "type": "shell",
             "command": "python",
-            "args": ["exemplo_debug_visual.py"],
+            "args": [
+                "exemplo_debug_visual.py"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
@@ -21,18 +23,61 @@
             "problemMatcher": []
         },
         {
-            "label": "Abrir Relatório Debug",
+            "label": "Verificar Sintaxe Python",
             "type": "shell",
-            "command": "code",
-            "args": ["relatorio_debug_visual.html"],
+            "command": "python",
+            "args": [
+                "-m",
+                "py_compile",
+                "${file}"
+            ],
             "group": "build",
             "presentation": {
                 "echo": true,
                 "reveal": "silent",
                 "focus": false,
-                "panel": "shared"
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
             },
-            "dependsOrder": "sequence"
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                {
+                    "owner": "python",
+                    "source": "py_compile",
+                    "fileLocation": "absolute",
+                    "pattern": {
+                        "regexp": "File \"(.*)\", line (\\d+)",
+                        "file": 1,
+                        "line": 2
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Verificar Sintaxe - Arquivo Atual",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "-m",
+                "py_compile",
+                "${file}"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": "$python"
         },
         {
             "label": "Debug Completo (Executar + Abrir Relatório)",

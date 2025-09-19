@@ -1,0 +1,1 @@
+# Processadores especializados para diferentes tipos de análise

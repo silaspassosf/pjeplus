@@ -1,0 +1,55 @@
+================================================================================
+RELATÓRIO DE ANÁLISE - LOOP.PY
+================================================================================
+
+📊 MÉTRICAS GERAIS
+----------------------------------------
+Arquivo: 727 linhas
+Seletores encontrados: 13
+Funções definidas: 6
+Uso de Selenium: 9 padrões
+Problemas identificados: 0
+
+🎯 SELETORES PRINCIPAIS
+----------------------------------------
+ 1. body
+ 2. .//span[contains(@class,
+ 3. mat-select[formcontrolname=
+ 4. i.fa.fa-check.icone.marcar-todas
+ 5. i.fas.fa-suitcase.icone
+ 6. div.mat-select-arrow-wrapper
+ 7. .cdk-overlay-pane
+ 8. //button[.//span[contains(text(),
+ 9. div.mat-select-panel
+10. tr.cdk-drag
+    ... e mais 3 seletores
+
+🔧 FUNÇÕES DEFINIDAS
+----------------------------------------
+ 1. selecionar_destino
+ 2. ciclo1
+ 3. ciclo2
+ 4. selecionar_processos_nao_livres
+ 5. loop_prazo
+ 6. main
+
+🌐 USO DO SELENIUM
+----------------------------------------
+  • find_element
+  • send_keys
+  • get(
+  • webdriver.
+  • WebDriverWait
+  • By.
+  • click()
+  • from selenium
+  • expected_conditions
+
+💡 RECOMENDAÇÕES
+----------------------------------------
+🟢 Código otimizado (BAIXA)
+   Nenhuma otimização crítica identificada
+
+================================================================================
+Relatório gerado em: 2025-09-17 16:04:59
+================================================================================

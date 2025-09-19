@@ -6,8 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import time
-# Importação das configurações do driver
-from driver_config import criar_driver, login_func
+# Importação das configurações do driveraaarefrom driver_config import criar_driver, login_func
 
 def selecionar_destino(driver, opcao_destino, max_tentativas=3):
     """

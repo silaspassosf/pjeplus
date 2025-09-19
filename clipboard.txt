@@ -645,3 +645,218 @@ PROCESSO: 1001193-81.2020.5.02.0703
     Status: Objeto entregue ao destinatário
 ==================================================
 
+
+==================================================
+PROCESSO: 1001022-22.2023.5.02.0703
+==================================================
+    Id Pje: 7578fdf
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ831026897BR
+    Destinatário: CAROLINA PITTA DE OLIVEIRA
+    Data do envio: 29/08/2025
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1000694-39.2016.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25090115120362800000417562427?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000690-31.2018.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25090412422267400000418192374?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001125-68.2019.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25082912523170400000417218341?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001301-76.2021.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25090415243417900000418245567?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000814-82.2016.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25090922051875900000419080358?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000986-48.2021.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091020031807400000419306676?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001671-50.2024.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091020540941400000419311914?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000220-35.2024.5.02.0009
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091020262390600000419309176?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000196-25.2025.5.02.0703
+==================================================
+    Id Pje: 8846bf6
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372927BR
+    Destinatário: YASMIN PEREIRA TEIXEIRA
+    Data do envio: 08/09/2025
+    Data da entrega: 12/09/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: c93beda
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372935BR
+    Destinatário: YASMIN PEREIRA TEIXEIRA
+    Data do envio: 08/09/2025
+    Data da entrega: 15/09/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: c43a5cb
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372944BR
+    Destinatário: ANTONIO CARLOS DO COUTO
+    Data do envio: 08/09/2025
+    Data da entrega: 11/09/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1000398-28.2023.5.02.0717
+==================================================
+    Id Pje: 85ceb2d
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372895BR
+    Destinatário: RICARDO DOS SANTOS
+    Data do envio: 08/09/2025
+    Data da entrega: 16/09/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 9128753
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372887BR
+    Destinatário: RICARDO DOS SANTOS
+    Data do envio: 08/09/2025
+    Data da entrega: 12/09/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 641c6f6
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372860BR
+    Destinatário: LUIZ ANTONIO CACAO RIBEIRO
+    Data do envio: 08/09/2025
+    Data da entrega: 11/09/2025
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 882f5b5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ838372873BR
+    Destinatário: LUIZ ANTONIO CACAO RIBEIRO
+    Data do envio: 08/09/2025
+    Data da entrega: 16/09/2025
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001736-51.2023.5.02.0001
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25091519595733700000420042688?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001008-82.2016.5.02.0703
+==================================================
+    Id Pje: 6ad2fbd
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ839186603BR
+    Destinatário: ROBERTO MARIA
+    Data do envio: 09/09/2025
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente desconhecido no local
+--------------------------------------------------
+
+    Id Pje: c5b180e
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ839186594BR
+    Destinatário: ROBERTO MARIA
+    Data do envio: 09/09/2025
+    Data da entrega: 15/09/2025
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1000079-68.2024.5.02.0703
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/25082514440497400000416266453?instancia=1
+==================================================
+

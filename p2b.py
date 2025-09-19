@@ -31,8 +31,8 @@ import time
 import re
 import logging
 import os
-from Fix import esperar_elemento, safe_click, criar_gigs, login_pc, aplicar_filtro_100, extrair_documento, extrair_direto, indexar_e_processar_lista, login_notebook, driver_pc
-from atos import ato_pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_termoS, ato_termoE, executar_visibilidade_sigilosos_se_necessario, pec_excluiargos
+from Fix import esperar_elemento, safe_click, criar_gigs, login_pc, aplicar_filtro_100, extrair_documento, extrair_direto, indexar_e_processar_lista, login_notebook, driver_pc, bndt, BNDT_apagar
+from atos import ato_pesquisas, ato_sobrestamento, ato_180, mov_arquivar, mov_exec, ato_pesqliq, ato_calc2, ato_prev, ato_meios, ato_meiosocio, ato_termoS, ato_termoE, executar_visibilidade_sigilosos_se_necessario, pec_excluiargos
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 from selenium.webdriver.common.keys import Keys
 from driver_config import criar_driver, login_func
@@ -52,6 +52,168 @@ def ato_pesqliq_callback(driver):
         executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
     return sucesso
 
+def fluxo_reorganizado_pesquisas(driver):
+    """
+    Fluxo reorganizado para pesquisas seguindo a ordem especificada:
+    1. GIGS Silvia/Argos (já feito antes desta chamada)
+    2. Criar GIGS 2/XS assinar decisão - sem responsável
+    3. Executar pec_decsig em aba gerada automaticamente
+    4. Executar visibilidade da pec_decsig ao voltar para detalhes
+    5. Só aí começar o fluxo próprio (mov_exec + ato_pesquisas ou apenas ato_pesquisas)
+    """
+    from atos import pec_decsig
+    
+    print('[FLUXO_REORGANIZADO] 🚀 Iniciando fluxo reorganizado de pesquisas')
+    
+    try:
+        # 1. Criar GIGS 1/Silvia/Argos (primeiro passo obrigatório)
+        print('[FLUXO_REORGANIZADO] 1. Criando GIGS 1/Silvia/Argos')
+        criar_gigs(driver, "1", "Silvia", "Argos")
+        
+        # 2. Criar GIGS 2/XS assinar decisão - sem responsável
+        print('[FLUXO_REORGANIZADO] 2. Criando GIGS 2/XS assinar decisão')
+        criar_gigs(driver, "2", "", "XS assinar decisão")
+        
+        # 3. Executar pec_decsig em aba gerada automaticamente
+        print('[FLUXO_REORGANIZADO] 3. Executando pec_decsig')
+        try:
+            resultado_pec = pec_decsig(driver, debug=True)
+            if resultado_pec:
+                print('[FLUXO_REORGANIZADO] ✅ pec_decsig executado com sucesso')
+            else:
+                print('[FLUXO_REORGANIZADO] ❌ pec_decsig falhou - resultado falso')
+                print('[FLUXO_REORGANIZADO] Abortando fluxo devido a falha no pec_decsig')
+                return False
+        except Exception as pec_error:
+            print(f'[FLUXO_REORGANIZADO] ❌ pec_decsig falhou com erro: {pec_error}')
+            print('[FLUXO_REORGANIZADO] Abortando fluxo devido a falha no pec_decsig')
+            return False
+        
+        # 4. Executar visibilidade da pec_decsig ao voltar para detalhes
+        print('[FLUXO_REORGANIZADO] 4. Executando visibilidade da pec_decsig')
+        try:
+            executar_visibilidade_sigilosos_se_necessario(driver, True, debug=True)
+            print('[FLUXO_REORGANIZADO] ✅ Visibilidade executada')
+        except Exception as vis_error:
+            print(f'[FLUXO_REORGANIZADO] ⚠️ Visibilidade falhou: {vis_error}')
+            print('[FLUXO_REORGANIZADO] Continuando mesmo com falha na visibilidade')
+        
+        # 5. Só aí começar o fluxo próprio
+        print('[FLUXO_REORGANIZADO] 5. Iniciando fluxo próprio')
+        
+        # Verificar se estamos em liquidação ou execução baseado na URL/título
+        current_url = driver.current_url.lower()
+        if 'liquidacao' in current_url or 'liquidação' in current_url:
+            print('[FLUXO_REORGANIZADO] 5a. Detectado: Liquidação - executando mov_exec + ato_pesquisas')
+            # Em liquidação: faz mov_exec + ato_pesquisas
+            try:
+                mov_exec(driver)
+                sucesso, sigilo_ativado = ato_pesquisas(driver)
+            except Exception as fluxo_error:
+                print(f'[FLUXO_REORGANIZADO] ❌ Falha no fluxo de liquidação: {fluxo_error}')
+                return False
+        else:
+            print('[FLUXO_REORGANIZADO] 5b. Detectado: Execução - executando ato_pesquisas')
+            # Em execução: chama ato_pesquisas
+            try:
+                sucesso, sigilo_ativado = ato_pesquisas(driver)
+            except Exception as fluxo_error:
+                print(f'[FLUXO_REORGANIZADO] ❌ Falha no fluxo de execução: {fluxo_error}')
+                return False
+        
+        if sucesso:
+            print('[FLUXO_REORGANIZADO] ✅ Fluxo reorganizado concluído com sucesso')
+            return True
+        else:
+            print('[FLUXO_REORGANIZADO] ⚠️ Fluxo reorganizado concluído com avisos')
+            return False
+            
+    except Exception as e:
+        print(f'[FLUXO_REORGANIZADO] ❌ Erro no fluxo reorganizado: {e}')
+        return False
+
+def fluxo_reorganizado_pesqliq(driver):
+    """
+    Fluxo reorganizado para pesqliq seguindo a ordem especificada:
+    1. GIGS Silvia/Argos (já feito antes desta chamada)
+    2. Criar GIGS 2/XS assinar decisão - sem responsável
+    3. Executar pec_decsig em aba gerada automaticamente
+    4. Executar visibilidade da pec_decsig ao voltar para detalhes
+    5. Só aí começar o fluxo próprio (mov_exec + ato_pesqliq ou apenas ato_pesqliq)
+    """
+    from atos import pec_decsig
+    
+    print('[FLUXO_REORGANIZADO] 🚀 Iniciando fluxo reorganizado de pesqliq')
+    
+    try:
+        # 2. Criar GIGS 2/XS assinar decisão - sem responsável
+        print('[FLUXO_REORGANIZADO] 2. Criando GIGS 2/XS assinar decisão')
+        criar_gigs(driver, "2", "", "XS assinar decisão")
+        
+        # 3. Executar pec_decsig em aba gerada automaticamente
+        print('[FLUXO_REORGANIZADO] 3. Executando pec_decsig')
+        print('[FLUXO_REORGANIZADO] 📋 Detalhes do pec_decsig:')
+        print('[FLUXO_REORGANIZADO]    - Tipo expediente: Intimação')
+        print('[FLUXO_REORGANIZADO]    - Prazo: 30 dias')
+        print('[FLUXO_REORGANIZADO]    - Nome comunicação: intimação de decisão')
+        print('[FLUXO_REORGANIZADO]    - Sigilo: True')
+        print('[FLUXO_REORGANIZADO]    - Modelo: xdecsig')
+        print('[FLUXO_REORGANIZADO]    - Navegação direta: True')
+
+        try:
+            resultado_pec = pec_decsig(driver, debug=True)
+            print(f'[FLUXO_REORGANIZADO] ✅ pec_decsig executado com sucesso - Resultado: {resultado_pec}')
+        except Exception as pec_error:
+            print(f'[FLUXO_REORGANIZADO] ❌ pec_decsig falhou: {pec_error}')
+            print(f'[FLUXO_REORGANIZADO] 📊 Tipo do erro: {type(pec_error).__name__}')
+            import traceback
+            print(f'[FLUXO_REORGANIZADO] 🔍 Traceback: {traceback.format_exc()}')
+            print('[FLUXO_REORGANIZADO] Abortando fluxo devido a falha no pec_decsig')
+            return False
+        
+        # 4. Executar visibilidade da pec_decsig ao voltar para detalhes
+        print('[FLUXO_REORGANIZADO] 4. Executando visibilidade da pec_decsig')
+        try:
+            executar_visibilidade_sigilosos_se_necessario(driver, True, debug=True)
+            print('[FLUXO_REORGANIZADO] ✅ Visibilidade executada')
+        except Exception as vis_error:
+            print(f'[FLUXO_REORGANIZADO] ⚠️ Visibilidade falhou: {vis_error}')
+            print('[FLUXO_REORGANIZADO] Continuando mesmo com falha na visibilidade')
+        
+        # 5. Só aí começar o fluxo próprio
+        print('[FLUXO_REORGANIZADO] 5. Iniciando fluxo próprio')
+        
+        # Verificar se estamos em liquidação ou execução baseado na URL/título
+        current_url = driver.current_url.lower()
+        if 'liquidacao' in current_url or 'liquidação' in current_url:
+            print('[FLUXO_REORGANIZADO] 5a. Detectado: Liquidação - executando mov_exec + ato_pesqliq')
+            # Em liquidação: faz mov_exec + ato_pesqliq
+            try:
+                mov_exec(driver)
+                sucesso, sigilo_ativado = ato_pesqliq(driver)
+            except Exception as fluxo_error:
+                print(f'[FLUXO_REORGANIZADO] ❌ Falha no fluxo de liquidação: {fluxo_error}')
+                return False
+        else:
+            print('[FLUXO_REORGANIZADO] 5b. Detectado: Execução - executando ato_pesqliq')
+            # Em execução: chama ato_pesqliq
+            try:
+                sucesso, sigilo_ativado = ato_pesqliq(driver)
+            except Exception as fluxo_error:
+                print(f'[FLUXO_REORGANIZADO] ❌ Falha no fluxo de execução: {fluxo_error}')
+                return False
+        
+        if sucesso:
+            print('[FLUXO_REORGANIZADO] ✅ Fluxo reorganizado concluído com sucesso')
+            return True
+        else:
+            print('[FLUXO_REORGANIZADO] ⚠️ Fluxo reorganizado concluído com avisos')
+            return False
+            
+    except Exception as e:
+        print(f'[FLUXO_REORGANIZADO] ❌ Erro no fluxo reorganizado: {e}')
+        return False
+
 def prescreve(driver):
     """
     Função para tratar prescrição.
@@ -68,11 +230,34 @@ def prescreve(driver):
     try:
         print('[PRESCREVE] 🚨 PRESCRIÇÃO DETECTADA - Iniciando fluxo')
         
-        # 0. Executa Bndt (placeholder)
-        print('[PRESCREVE] 0. Executando Bndt...')
-        bndt_resultado = bndt_placeholder(driver)
+        # 0. Executa Bndt EXCLUSÃO
+        print('[PRESCREVE] 0. Executando Bndt EXCLUSÃO...')
+        bndt_resultado = bndt(driver, 'EXCLUSAO', log=True)
         if not bndt_resultado:
             print('[PRESCREVE] ⚠️ Falha no Bndt, continuando fluxo')
+        else:
+            print('[PRESCREVE] ✅ Bndt EXCLUSÃO executado com sucesso')
+        
+        # 0.1 Aguardar estabilização após BNDT
+        print('[PRESCREVE] 0.1 Aguardando estabilização após BNDT...')
+        try:
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            from selenium.webdriver.common.by import By
+            import time
+            
+            # Aguardar estabilização (BNDT já fechou e retornou para /detalhe)
+            time.sleep(5)
+            
+            # Verificar se timeline está presente/carregada
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-timeline, .timeline, [class*="timeline"]'))
+            )
+            print('[PRESCREVE] ✅ Timeline detectada - página estabilizada')
+            
+        except Exception as e:
+            print(f'[PRESCREVE] ⚠️ Erro na verificação da timeline: {e}')
+            print('[PRESCREVE] Prosseguindo mesmo assim...')
         
         # 1. Checagem de timeline
         print('[PRESCREVE] 1. Analisando timeline...')
@@ -110,19 +295,18 @@ def prescreve(driver):
             except Exception as e:
                 print(f'[PRESCREVE] ❌ Erro no processamento de alvarás: {e}')
         
-        # Ação 2: Localizar Serasa/CNIB em anexos e chamar pec_excluiargos
+        # Ação 2: Localizar Serasa/CNIB em anexos e chamar pec_excluiargos (APENAS UMA VEZ)
         anexos_serasa_cnib = [d for d in documentos if d.get('isAnexo', False) and d.get('tipo', '').lower() in ['serasa', 'cnib']]
         if anexos_serasa_cnib:
-            print(f'[PRESCREVE] 📋 {len(anexos_serasa_cnib)} anexo(s) Serasa/CNIB encontrado(s) - executando pec_excluiargos')
-            for anexo in anexos_serasa_cnib:
-                try:
-                    resultado = pec_excluiargos(driver)
-                    if resultado:
-                        print(f'[PRESCREVE] ✅ pec_excluiargos executado para anexo: {anexo.get("tipo", "N/A")} ID: {anexo.get("id", "N/A")}')
-                    else:
-                        print(f'[PRESCREVE] ⚠️ Falha no pec_excluiargos para anexo: {anexo.get("tipo", "N/A")}')
-                except Exception as e:
-                    print(f'[PRESCREVE] ❌ Erro ao executar pec_excluiargos: {e}')
+            print(f'[PRESCREVE] 📋 {len(anexos_serasa_cnib)} anexo(s) Serasa/CNIB encontrado(s) - executando pec_excluiargos (UMA VEZ)')
+            try:
+                resultado = pec_excluiargos(driver)
+                if resultado:
+                    print(f'[PRESCREVE] ✅ pec_excluiargos executado com sucesso para {len(anexos_serasa_cnib)} anexo(s)')
+                else:
+                    print(f'[PRESCREVE] ⚠️ Falha no pec_excluiargos')
+            except Exception as e:
+                print(f'[PRESCREVE] ❌ Erro ao executar pec_excluiargos: {e}')
         
         # Ação 3: Serasa fora de anexos + nenhum Serasa em anexos = criar_gigs
         serasa_timeline = [d for d in documentos if not d.get('isAnexo', False) and 'serasa' in d.get('tipo', '').lower()]
@@ -145,11 +329,6 @@ def prescreve(driver):
     except Exception as e:
         print(f'[PRESCREVE] ❌ Erro geral na função prescreve: {e}')
         return False
-
-def bndt_placeholder(driver):
-    """Placeholder para função Bndt"""
-    print('[PRESCREVE][BNDT] 📋 Placeholder - implementar lógica Bndt')
-    return True
 
 def funcao_pagamento_placeholder(driver, alvara_info):
     """Placeholder para função de pagamento de Alvará"""
@@ -216,7 +395,9 @@ def analisar_timeline_prescreve_js_puro(driver):
                     texto: texto,
                     id: id,
                     data: extrairData(item),
-                    isAnexo: false
+                    isAnexo: false,
+                    linkHref: link.href || '',
+                    linkId: link.id || ''
                 });
 
                 // Para certidões: buscar anexos Serasa/CNIB
@@ -324,7 +505,9 @@ def analisar_timeline_prescreve_js_puro(driver):
                     'id': doc.get('id', ''),
                     'data': doc.get('data', ''),
                     'isAnexo': doc.get('isAnexo', False),
-                    'parentId': doc.get('parentId', None)
+                    'parentId': doc.get('parentId', None),
+                    'linkHref': doc.get('linkHref', ''),
+                    'linkId': doc.get('linkId', '')
                 })
             
             print(f'[PRESCREVE][TIMELINE] ✅ {len(documentos)} documentos encontrados via JavaScript')
@@ -934,8 +1117,10 @@ def fluxo_pz(driver):
             ([gerar_regex_geral(k) for k in ['sobre o preenchimento dos pressupostos legais para concessão do parcelamento']],
              'gigs', '1/Bruna/Liberação', None),
             ([gerar_regex_geral(k) for k in ['comprovar o recolhimento', 'comprovar os recolhimentos']],
-             'gigs', '1/Silvia/Argos', ato_pesqliq_callback),
-            ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se o cumprimento do mandado expedido']],
+             'gigs', '1/Silvia/Argos', fluxo_reorganizado_pesqliq),
+            ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se o cumprimento do mandado expedido', 'inoportuna petição']],
+             'checar_prox', None, None),
+            ([gerar_regex_geral('Ante a informação supra, comunique-se por Edital')],
              'checar_prox', None, None),
             ([gerar_regex_geral(k) for k in ['Defiro a penhora no rosto dos autos']],
              'gigs', '1/SILAS/sob6', ato_180),
@@ -948,8 +1133,13 @@ def fluxo_pz(driver):
             ([gerar_regex_geral(k) for k in ['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro']],
              
              'checar_anexos_tendo_em_vista', None, None),
+            ([gerar_regex_geral(k) for k in ['Resolução 303 do CNJ e do PROVIMENTO GP Nº 01']],
+             'gigs', '1/Bruna/RPV', None),
             ([gerar_regex_geral('não está amparada')],
              None, None, ato_meios),
+            # NOVA REGRA: Providencie a Secretaria da Vara retificação da autuação no sistema
+            ([gerar_regex_geral('Providencie a Secretaria da Vara retificação da autuação no sistema')],
+             'bndt_apagar', 'INCLUSAO', ato_meiosocio),
         ]
         
 
@@ -1138,6 +1328,20 @@ def fluxo_pz(driver):
                      logger.info('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
                      break
                  return  # Sai da função sem log de sucesso
+        elif acao_definida == 'bndt_apagar':
+            print(f'[FLUXO_PZ] Executando BNDT_apagar com operação: {parametros_acao}')
+            try:
+                BNDT_apagar(driver, tipo_operacao=parametros_acao)
+                if acao_secundaria:
+                    print(f'[FLUXO_PZ] Executando ação secundária: {acao_secundaria.__name__}')
+                    acao_secundaria(driver)
+                minuta_salva = True  # FLAG: minuta foi salva
+                time.sleep(1)
+            except Exception as bndt_error:
+                logger.error(f'[FLUXO_PZ] Falha ao executar BNDT_apagar ou secundária: {bndt_error}')
+                if minuta_salva:
+                    logger.info('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
+                    break
         elif acao_definida == 'checar_cabecalho':
             # Nova regra: verificar cor do cabeçalho para "Ante a notícia de descumprimento"
             try:
@@ -1147,28 +1351,19 @@ def fluxo_pz(driver):
                 
                 # Verifica se é cinza: rgb(144, 164, 174)
                 if 'rgb(144, 164, 174)' in cor_fundo:
-                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando pesquisas')
-                    sucesso, sigilo_ativado = ato_pesquisas(driver)
+                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando fluxo reorganizado')
+                    sucesso = fluxo_reorganizado_pesquisas(driver)
                     if sucesso:
                         minuta_salva = True  # FLAG: minuta foi salva
-                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
-                        if sigilo_ativado:
-                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
                     else:
-                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas')
+                        print('[FLUXO_PZ] ⚠️ Falha no fluxo reorganizado')
                 else:
-                    print('[FLUXO_PZ] Cabeçalho não é cinza - criando GIGS padrão')
-                    dias, responsavel, observacao = parse_gigs_param('1/SILVIA/Argos')
-                    criar_gigs(driver, dias, responsavel, observacao)
-                    # Executar ato_pesqliq como ação secundária
-                    sucesso, sigilo_ativado = ato_pesqliq(driver)
+                    print('[FLUXO_PZ] Cabeçalho não é cinza - executando fluxo reorganizado')
+                    sucesso = fluxo_reorganizado_pesqliq(driver)
                     if sucesso:
                         minuta_salva = True  # FLAG: minuta foi salva
-                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
-                        if sigilo_ativado:
-                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
                     else:
-                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesqliq')
+                        print('[FLUXO_PZ] ⚠️ Falha no fluxo reorganizado')
                 
                 time.sleep(1)
             except Exception as cabecalho_error:
@@ -1190,55 +1385,19 @@ def fluxo_pz(driver):
                 
                 # Verifica se é cinza: rgb(144, 164, 174)
                 if 'rgb(144, 164, 174)' in cor_fundo:
-                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando criar_gigs + pesquisas')
-                    
-                    # 1. Criar gigs antes das pesquisas
-                    print('[FLUXO_PZ] Etapa 1: Criando gigs (1/Silvia/Argos)')
-                    criar_gigs(driver, "1", "Silvia", "Argos")
-                    
-                    # 2. Executar pesquisas
-                    print('[FLUXO_PZ] Etapa 2: Executando pesquisas')
-                    sucesso, sigilo_ativado = ato_pesquisas(driver)
+                    print('[FLUXO_PZ] Cabeçalho cinza detectado - executando fluxo reorganizado')
+                    sucesso = fluxo_reorganizado_pesquisas(driver)
                     if sucesso:
                         minuta_salva = True  # FLAG: minuta foi salva
-                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
-                        if sigilo_ativado:
-                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
                     else:
-                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas')
+                        print('[FLUXO_PZ] ⚠️ Falha no fluxo reorganizado')
                 else:
-                    print('[FLUXO_PZ] Cabeçalho não é cinza - executando criar_gigs + mov_exec + pesquisas')
-                    
-                    # 1. Criar gigs antes de tudo
-                    print('[FLUXO_PZ] Etapa 1: Criando gigs (1/Silvia/Argos)')
-                    criar_gigs(driver, "1", "Silvia", "Argos")
-                    
-                    # 2. Executar movimento
-                    print('[FLUXO_PZ] Etapa 2: Executando mov_exec')
-                    mov_exec(driver)
-                    
-                    # 3. Fechar aba atual para voltar ao processo
-                    print('[FLUXO_PZ] Etapa 3: Fechando aba atual para voltar ao processo')
-                    try:
-                        driver.close()  # Fecha aba atual
-                        if len(driver.window_handles) > 0:
-                            driver.switch_to.window(driver.window_handles[-1])  # Volta para última aba
-                            print('[FLUXO_PZ] ✅ Voltou para aba do processo')
-                        else:
-                            print('[FLUXO_PZ] ⚠️ Nenhuma aba disponível após fechamento')
-                    except Exception as close_error:
-                        print(f'[FLUXO_PZ] ⚠️ Erro ao fechar aba: {close_error}')
-                    
-                    # 4. Executar pesquisas na aba do processo
-                    print('[FLUXO_PZ] Etapa 4: Executando pesquisas')
-                    sucesso, sigilo_ativado = ato_pesquisas(driver)
+                    print('[FLUXO_PZ] Cabeçalho não é cinza - executando fluxo reorganizado')
+                    sucesso = fluxo_reorganizado_pesquisas(driver)
                     if sucesso:
                         minuta_salva = True  # FLAG: minuta foi salva
-                        # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
-                        if sigilo_ativado:
-                            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
                     else:
-                        print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas')
+                        print('[FLUXO_PZ] ⚠️ Falha no fluxo reorganizado')
                 
                 time.sleep(1)
             except Exception as cabecalho_error:
@@ -1246,39 +1405,13 @@ def fluxo_pz(driver):
                 if minuta_salva:
                     logger.info('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
                     break
-                # Fallback: executar criar_gigs + mov_exec + pesquisas
-                print('[FLUXO_PZ] Fallback - executando criar_gigs + mov_exec + pesquisas')
-                
-                # 1. Criar gigs antes de tudo
-                print('[FLUXO_PZ] Fallback Etapa 1: Criando gigs (1/Silvia/Argos)')
-                criar_gigs(driver, "1", "Silvia", "Argos")
-                
-                # 2. Executar movimento
-                print('[FLUXO_PZ] Fallback Etapa 2: Executando mov_exec')
-                mov_exec(driver)
-                
-                # 3. Fechar aba atual para voltar ao processo
-                print('[FLUXO_PZ] Fallback Etapa 3: Fechando aba atual para voltar ao processo')
-                try:
-                    driver.close()  # Fecha aba atual
-                    if len(driver.window_handles) > 0:
-                        driver.switch_to.window(driver.window_handles[-1])  # Volta para última aba
-                        print('[FLUXO_PZ] ✅ Voltou para aba do processo (fallback)')
-                    else:
-                        print('[FLUXO_PZ] ⚠️ Nenhuma aba disponível após fechamento (fallback)')
-                except Exception as close_error:
-                    print(f'[FLUXO_PZ] ⚠️ Erro ao fechar aba (fallback): {close_error}')
-                
-                # 4. Executar pesquisas na aba do processo
-                print('[FLUXO_PZ] Fallback Etapa 4: Executando pesquisas')
-                sucesso, sigilo_ativado = ato_pesquisas(driver)
+                # Fallback: executar fluxo reorganizado
+                print('[FLUXO_PZ] Fallback - executando fluxo reorganizado')
+                sucesso = fluxo_reorganizado_pesquisas(driver)
                 if sucesso:
                     minuta_salva = True  # FLAG: minuta foi salva
-                    # Aplicar visibilidade se necessário (após fechar minuta e voltar para detalhes)
-                    if sigilo_ativado:
-                        executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
                 else:
-                    print('[FLUXO_PZ] ⚠️ Falha ao executar ato_pesquisas (fallback)')
+                    print('[FLUXO_PZ] ⚠️ Falha no fluxo reorganizado (fallback)')
         
         # Se não há ação primária mas existe ação secundária, trate a secundária como primária
         if acao_definida is None and acao_secundaria:

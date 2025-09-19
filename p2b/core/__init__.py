@@ -1,0 +1,1 @@
+# Core components do sistema P2B

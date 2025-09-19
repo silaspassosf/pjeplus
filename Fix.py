@@ -259,6 +259,9 @@ def limpar_temp_selenium():
 PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
 FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
 
+# Botão para abrir tarefa do processo
+BTN_TAREFA_PROCESSO = 'button[mattooltip="Abre a tarefa do processo"]'
+
 # Função para configurar e iniciar o navegador
 def configurar_navegador():
     # Configura e retorna uma instância do Firefox com as configurações necessárias.
@@ -3304,13 +3307,21 @@ def esperar_url_conter(driver, substring, timeout=10):
     except Exception as e:
         print(f'[URL][ERRO] Erro ao esperar URL: {e}')
         return False
-def BNDT_apagar(driver):
+def BNDT_apagar(driver, tipo_operacao='EXCLUSAO'):
     """
-    Executa a rotina de exclusão BNDT conforme instruções:
+    Executa a rotina de BNDT (Exclusão ou Inclusão) conforme instruções:
     - Sempre parte da tela /detalhes
     - Navega para BNDT em nova aba
-    - Seleciona Exclusão, Selecionar todos, Gravar
-    - Confirma exclusão se dialog de decisão não encontrada aparecer
+    - Seleciona a operação (Exclusão/Inclusão), Selecionar todos, Gravar
+    - Confirma operação se dialog aparecer
+    - Fecha aba BNDT e retorna para /detalhes
+
+    Args:
+        driver: WebDriver do Selenium
+        tipo_operacao: 'EXCLUSAO' ou 'INCLUSAO'
+
+    Returns:
+        bool: True se operação bem-sucedida
     """
     # 1. Garante que está em /detalhes
     if '/detalhes' not in driver.current_url:
@@ -3338,11 +3349,21 @@ def BNDT_apagar(driver):
     WebDriverWait(driver, 10).until(lambda d: '/BNDT' in d.current_url)
     time.sleep(1)
 
-    # 5. Seleciona opção Exclusão
-    radio_exclusao = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, "//span[contains(@class,'mat-radio-label-content')][.//text()[contains(.,'Exclusão')]]"))
-    )
-    radio_exclusao.click()
+    # 5. Seleciona opção baseada no tipo_operacao
+    if tipo_operacao.upper() == 'EXCLUSAO':
+        radio_opcao = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class,'mat-radio-label-content')][.//text()[contains(.,'Exclusão')]]"))
+        )
+        print('[BNDT] Selecionando opção: Exclusão')
+    elif tipo_operacao.upper() == 'INCLUSAO':
+        radio_opcao = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class,'mat-radio-label-content')][.//text()[contains(.,'Inclusão')]]"))
+        )
+        print('[BNDT] Selecionando opção: Inclusão')
+    else:
+        raise Exception(f"Tipo de operação inválido: {tipo_operacao}. Use 'EXCLUSAO' ou 'INCLUSAO'")
+
+    radio_opcao.click()
     time.sleep(0.5)
 
     # 6. Clica em Selecionar todos
@@ -3359,7 +3380,7 @@ def BNDT_apagar(driver):
     btn_gravar.click()
     time.sleep(1)
 
-    # 8. Se aparecer dialog de decisão não encontrada, confirma exclusão
+    # 8. Se aparecer dialog de decisão não encontrada, confirma operação
     try:
         dialog = WebDriverWait(driver, 3).until(
             EC.visibility_of_element_located((By.XPATH, "//mat-dialog-container[contains(@class,'mat-dialog-container')]//h2[contains(text(),'Decisão não encontrada')]/../../.."))
@@ -3380,8 +3401,28 @@ def BNDT_apagar(driver):
     except Exception:
         pass  # Botão pode não aparecer, segue normal
 
-    # Foco permanece na aba BNDT
-    return True
+    # 10. Fecha aba BNDT e volta para /detalhes
+    print('[BNDT] Fechando aba BNDT e retornando para /detalhes...')
+    try:
+        # Fecha a aba atual (BNDT)
+        driver.close()
+        time.sleep(0.5)
+
+        # Volta para a aba anterior (deve ser /detalhes)
+        if main_window in driver.window_handles:
+            driver.switch_to.window(main_window)
+
+            # Confirma que voltou para /detalhes
+            WebDriverWait(driver, 10).until(lambda d: '/detalhes' in d.current_url)
+            print('[BNDT] ✅ Retornou com sucesso para /detalhes')
+            return True
+        else:
+            print('[BNDT] ❌ Aba principal não encontrada após fechar BNDT')
+            return False
+
+    except Exception as e:
+        print(f'[BNDT] ❌ Erro ao fechar aba BNDT e retornar: {e}')
+        return False
 def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
     print(f'Filtrando fase processual: {", ".join(fases_alvo).title()}...')
     try:
@@ -3940,6 +3981,348 @@ def extrair_direto(driver, timeout=10, debug=False, formatar=True):
     except Exception as e:
         log_debug(f"❌ Erro geral na extração: {e}")
         return resultado
+
+def bndt(driver, tipo_operacao='INCLUSAO', executado=None, log=True):
+    """
+    Função para acessar e operar a página BNDT (Base Nacional de Dados do Trabalho)
+    
+    Args:
+        driver: WebDriver do Selenium
+        tipo_operacao: 'INCLUSAO', 'ALTERACAO' ou 'EXCLUSAO'
+        executado: Dados do executado (necessário apenas para INCLUSAO)
+        log: Se deve exibir logs
+        
+    Returns:
+        bool: True se operação foi bem-sucedida, False caso contrário
+    """
+    try:
+        if log:
+            print(f'[BNDT] 🚀 Iniciando operação BNDT: {tipo_operacao}')
+        
+        # ===== ETAPA 1: EXTRAIR ID DO PROCESSO DA URL ATUAL =====
+        url_atual = driver.current_url
+        
+        # Buscar ID na URL /detalhe
+        match_id = re.search(r'/processo/(\d+)/detalhe', url_atual)
+        if not match_id:
+            if log:
+                print('[BNDT] ❌ Não foi possível extrair ID do processo da URL atual')
+            return False
+        
+        processo_id = match_id.group(1)
+        if log:
+            print(f'[BNDT] ✅ ID do processo extraído: {processo_id}')
+        
+        # ===== ETAPA 2: NAVEGAR PARA BNDT EM NOVA ABA =====
+        url_bndt = f'https://pje.trt2.jus.br/pjekz/processo/{processo_id}/bndt'
+        
+        if log:
+            print(f'[BNDT] 🌐 Abrindo BNDT em nova aba: {url_bndt}')
+        
+        # Salvar referência da aba original (detalhe)
+        aba_original = driver.current_window_handle
+        
+        # Abrir BNDT em nova aba
+        driver.execute_script(f"window.open('{url_bndt}', '_blank');")
+        
+        # Aguardar nova aba aparecer
+        time.sleep(2)
+        
+        # Trocar para a nova aba (última aba)
+        driver.switch_to.window(driver.window_handles[-1])
+        
+        # Aguardar página carregar na nova aba
+        time.sleep(3)
+        
+        # Verificar se chegou na URL correta
+        if '/bndt' not in driver.current_url:
+            if log:
+                print('[BNDT] ❌ Não foi possível acessar a página BNDT')
+            return False
+        
+        if log:
+            print('[BNDT] ✅ Página BNDT carregada com sucesso')
+        
+        # ===== ETAPA 3: SELECIONAR TIPO DE DETERMINAÇÃO =====
+        if log:
+            print(f'[BNDT] 📋 Selecionando tipo de determinação: {tipo_operacao}')
+        
+        # Aguardar carregamento dos radio buttons
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-radio-group[id="selecao-tipo-determinacao"]'))
+            )
+        except TimeoutException:
+            if log:
+                print('[BNDT] ❌ Timeout aguardando radio buttons')
+            return False
+        
+        # Mapear tipo de operação para valor do radio
+        valor_radio = tipo_operacao.upper()
+        
+        # Selecionar radio button correspondente
+        try:
+            radio_selector = f'input[type="radio"][value="{valor_radio}"]'
+            radio_element = driver.find_element(By.CSS_SELECTOR, radio_selector)
+            
+            # Clicar no radio button usando JavaScript para garantir que funciona
+            driver.execute_script("arguments[0].click();", radio_element)
+            
+            if log:
+                print(f'[BNDT] ✅ Radio button {valor_radio} selecionado')
+                
+        except NoSuchElementException:
+            if log:
+                print(f'[BNDT] ❌ Radio button {valor_radio} não encontrado')
+            return False
+        
+        # ===== ETAPA 4: OPERAÇÕES ESPECÍFICAS POR TIPO =====
+        
+        if tipo_operacao.upper() == 'INCLUSAO':
+            if log:
+                print('[BNDT] 📝 Processando INCLUSÃO - aguardando parâmetros do executado...')
+            
+            if not executado:
+                if log:
+                    print('[BNDT] ⚠️ Parâmetro executado não fornecido para INCLUSÃO')
+                # Continue mesmo assim, pode ser preenchido manualmente
+            else:
+                if log:
+                    print(f'[BNDT] 📊 Dados do executado recebidos: {executado}')
+                # TODO: Implementar preenchimento dos dados do executado se necessário
+        
+        elif tipo_operacao.upper() == 'EXCLUSAO':
+            if log:
+                print('[BNDT] 🗑️ Processando EXCLUSÃO - verificando partes disponíveis...')
+            
+            # Primeiro verificar se há partes para selecionar
+            try:
+                time.sleep(2)  # Aguardar carregamento
+                
+                # Verificar se existe a mensagem "Não existem partes a serem selecionadas"
+                mensagem_vazia = None
+                try:
+                    mensagem_vazia = driver.find_element(By.XPATH, 
+                        "//div[contains(@class, 'mensagem') and contains(text(), 'Não existem partes a serem selecionadas')]")
+                except (NoSuchElementException, Exception):
+                    pass
+                
+                if mensagem_vazia:
+                    if log:
+                        print('[BNDT] ℹ️ Não existem partes a serem selecionadas - situação já regularizada')
+                        print('[BNDT] ✅ EXCLUSÃO dispensada - não há ações pendentes no BNDT')
+                    
+                    # ===== FECHAR ABA DIRETAMENTE (SEM GRAVAR/CONFIRMAR) =====
+                    time.sleep(2)
+                    
+                    if log:
+                        print('[BNDT] 🔄 Fechando aba BNDT (sem partes para excluir)...')
+                    
+                    try:
+                        # Fechar aba atual
+                        driver.close()
+                        
+                        # Voltar para aba principal (se houver outras abas)
+                        if len(driver.window_handles) > 0:
+                            driver.switch_to.window(driver.window_handles[0])
+                        
+                        if log:
+                            print('[BNDT] ✅ Aba BNDT fechada com sucesso')
+                            print(f'[BNDT] ✅ Operação BNDT {tipo_operacao} finalizada com sucesso!')
+                        
+                        return True
+                        
+                    except Exception as e:
+                        if log:
+                            print(f'[BNDT] ⚠️ Erro ao fechar aba: {e}')
+                        return True  # Ainda considera sucesso pois não havia ações pendentes
+                    
+                else:
+                    # Há partes disponíveis, tentar selecionar "Selecionar todos"
+                    if log:
+                        print('[BNDT] 📋 Partes encontradas - selecionando "Selecionar todos"')
+                    
+                    # Buscar checkbox "Selecionar todos"
+                    checkbox_selectors = [
+                        'input[type="checkbox"][id*="mat-checkbox"]',
+                        'label.mat-checkbox-layout',
+                        'span.mat-checkbox-label:contains("Selecionar todos")',
+                        '.mat-checkbox-input'
+                    ]
+                    
+                    checkbox_clicado = False
+                    for selector in checkbox_selectors:
+                        try:
+                            if 'contains' in selector:
+                                # Usar XPath para texto
+                                checkbox_element = driver.find_element(By.XPATH, 
+                                    "//span[contains(@class, 'mat-checkbox-label') and contains(text(), 'Selecionar todos')]")
+                            else:
+                                checkbox_element = driver.find_element(By.CSS_SELECTOR, selector)
+                            
+                            # Tentar clicar
+                            driver.execute_script("arguments[0].click();", checkbox_element)
+                            checkbox_clicado = True
+                            
+                            if log:
+                                print('[BNDT] ✅ Checkbox "Selecionar todos" marcado')
+                            break
+                            
+                        except (NoSuchElementException, Exception):
+                            continue
+                    
+                    if not checkbox_clicado:
+                        if log:
+                            print('[BNDT] ⚠️ Não foi possível encontrar/clicar no checkbox "Selecionar todos"')
+                
+            except Exception as e:
+                if log:
+                    print(f'[BNDT] ❌ Erro ao processar EXCLUSÃO: {e}')
+        
+        elif tipo_operacao.upper() == 'ALTERACAO':
+            if log:
+                print('[BNDT] ✏️ Processando ALTERAÇÃO')
+            # Para alteração, apenas selecionar o radio - sem ações adicionais
+        
+        # ===== ETAPA 5: FINALIZAR - CLICAR EM GRAVAR =====
+        time.sleep(2)  # Aguardar um pouco antes de finalizar
+        
+        if log:
+            print('[BNDT] 💾 Clicando no botão Gravar...')
+        
+        try:
+            # Buscar botão Gravar
+            gravar_selectors = [
+                'button[mat-raised-button][color="primary"]',
+                'button:contains("Gravar")',
+                'button .mat-button-wrapper:contains("Gravar")',
+                'button[class*="mat-raised-button"][class*="mat-primary"]'
+            ]
+            
+            botao_gravado = False
+            for selector in gravar_selectors:
+                try:
+                    if 'contains' in selector:
+                        # Usar XPath para texto
+                        botao_gravar = driver.find_element(By.XPATH, 
+                            "//button[contains(@class, 'mat-raised-button') and .//span[contains(text(), 'Gravar')]]")
+                    else:
+                        botao_gravar = driver.find_element(By.CSS_SELECTOR, selector)
+                    
+                    # Scroll para o botão se necessário
+                    driver.execute_script("arguments[0].scrollIntoView(true);", botao_gravar)
+                    time.sleep(0.5)
+                    
+                    # Clicar no botão
+                    driver.execute_script("arguments[0].click();", botao_gravar)
+                    botao_gravado = True
+                    
+                    if log:
+                        print('[BNDT] ✅ Botão Gravar clicado com sucesso')
+                    break
+                    
+                except (NoSuchElementException, Exception):
+                    continue
+            
+            if not botao_gravado:
+                if log:
+                    print('[BNDT] ❌ Não foi possível encontrar/clicar no botão Gravar')
+                return False
+            
+            # ===== ETAPA 6: CONFIRMAÇÃO "SIM" =====
+            # Aguardar processamento e modal de confirmação aparecer
+            time.sleep(3)
+            
+            if log:
+                print('[BNDT] 🔍 Aguardando modal de confirmação...')
+            
+            try:
+                # Aguardar botão "Sim" aparecer
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'button[mat-button][color="primary"]'))
+                )
+                
+                # Buscar botão "Sim" 
+                botao_sim_selectors = [
+                    'button[mat-button][color="primary"] span.mat-button-wrapper:contains("Sim")',
+                    'button[mat-button][color="primary"]:contains("Sim")',
+                    'button.mat-button.mat-primary span:contains("Sim")',
+                    'button[color="primary"] .mat-button-wrapper',
+                    'button.mat-focus-indicator.mat-button.mat-button-base.mat-primary span.mat-button-wrapper'
+                ]
+                
+                botao_sim_clicado = False
+                for selector in botao_sim_selectors:
+                    try:
+                        if 'contains' in selector:
+                            # Usar XPath para texto
+                            botao_sim = driver.find_element(By.XPATH, 
+                                "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary')]//span[contains(@class, 'mat-button-wrapper') and contains(text(), 'Sim')]")
+                        else:
+                            botao_sim = driver.find_element(By.CSS_SELECTOR, selector)
+                        
+                        # Scroll para o botão se necessário
+                        driver.execute_script("arguments[0].scrollIntoView(true);", botao_sim)
+                        time.sleep(0.5)
+                        
+                        # Clicar no botão "Sim"
+                        driver.execute_script("arguments[0].click();", botao_sim)
+                        botao_sim_clicado = True
+                        
+                        if log:
+                            print('[BNDT] ✅ Botão "Sim" clicado com sucesso')
+                        break
+                        
+                    except (NoSuchElementException, Exception):
+                        continue
+                
+                if not botao_sim_clicado:
+                    if log:
+                        print('[BNDT] ❌ Não foi possível encontrar/clicar no botão "Sim"')
+                    return False
+                
+            except Exception as e:
+                if log:
+                    print(f'[BNDT] ❌ Erro ao aguardar/clicar confirmação "Sim": {e}')
+                return False
+            
+            # ===== ETAPA 7: FECHAR ABA =====
+            # Aguardar 2 segundos e fechar aba
+            time.sleep(2)
+            
+            if log:
+                print('[BNDT] 🔄 Fechando aba BNDT...')
+            
+            try:
+                # Fechar aba atual
+                driver.close()
+                
+                # Voltar para aba original (detalhe)
+                if len(driver.window_handles) > 0:
+                    driver.switch_to.window(aba_original)
+                
+                if log:
+                    print('[BNDT] ✅ Aba BNDT fechada com sucesso')
+                
+            except Exception as e:
+                if log:
+                    print(f'[BNDT] ⚠️ Erro ao fechar aba: {e}')
+                # Não retornar False aqui pois a operação principal foi bem-sucedida
+            
+            if log:
+                print(f'[BNDT] ✅ Operação BNDT {tipo_operacao} finalizada com sucesso!')
+            
+            return True
+            
+        except Exception as e:
+            if log:
+                print(f'[BNDT] ❌ Erro ao clicar no botão Gravar: {e}')
+            return False
+        
+    except Exception as e:
+        if log:
+            print(f'[BNDT] ❌ Erro geral na operação BNDT: {e}')
+        return False
 
 
 

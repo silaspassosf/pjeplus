@@ -18,7 +18,7 @@ if not os.path.exists(GECKODRIVER_PATH):
     print(f'[DRIVER_CONFIG] ⚠️ AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
     print('[DRIVER_CONFIG] Baixe o geckodriver de: https://github.com/mozilla/geckodriver/releases')
 else:
-    print(f'[DRIVER_CONFIG] ✅ Geckodriver encontrado: {GECKODRIVER_PATH}')
+   print(f'[DRIVER_CONFIG] ✅ Geckodriver encontrado: {GECKODRIVER_PATH}')
 
 # ===============================================
 # BLOCO 1: CONFIGURAÇÕES DE LOGIN
@@ -407,11 +407,11 @@ def criar_driver_sisb_pc(headless=False):
     # Firefox Developer Edition
     options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
     
-    # Configurações mais robustas para evitar crash
+    # Configurações mais robustas para evitar crash e URLs erradas
     options.set_preference("browser.startup.homepage", "about:blank")
-    options.set_preference("startup.homepage_welcome_url", "about:blank")
-    options.set_preference("startup.homepage_welcome_url.additional", "about:blank")
     options.set_preference("browser.startup.page", 0)
+    options.set_preference("browser.newtabpage.enabled", False)
+    options.set_preference("browser.newtab.preload", False)
     options.set_preference("browser.cache.disk.enable", False)
     options.set_preference("browser.cache.memory.enable", False)
     options.set_preference("browser.cache.offline.enable", False)
@@ -421,6 +421,10 @@ def criar_driver_sisb_pc(headless=False):
     options.set_preference("datareporting.healthreport.uploadEnabled", False)
     options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
     options.set_preference("toolkit.telemetry.enabled", False)
+    # Configurações específicas para evitar problemas de compositor visual
+    options.set_preference("dom.webgpu.enabled", False)
+    options.set_preference("webgl.disabled", False)
+    options.set_preference("layers.acceleration.disabled", False)
     
     # Tentar usar perfil específico com tratamento de erro
     try:
@@ -560,7 +564,7 @@ def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
         print(f'[COOKIES][ERRO] Falha ao salvar cookies: {e}')
         return False
 
-def carregar_cookies_sessao(driver, max_idade_horas=24):
+def carregar_cookies_sessao(driver, max_idade_horas=3):
     """
     Carrega cookies de sessão mais recentes e válidos automaticamente.
     Retorna True se cookies foram carregados com sucesso, False caso contrário.

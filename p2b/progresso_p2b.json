@@ -1,0 +1,11 @@
+{
+  "processos_executados": [],
+  "session_active": true,
+  "last_update": null,
+  "statistics": {
+    "total_processos": 0,
+    "sucessos": 0,
+    "falhas": 0,
+    "ultima_execucao": null
+  }
+}

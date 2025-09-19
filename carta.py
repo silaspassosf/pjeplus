@@ -7,10 +7,13 @@ import time
 import re
 import pyperclip
 
-def carta(driver, log=True, limite_intimacoes=None):
+def carta(driver, log=True, limite_intimacoes=None, debug=False, **kwargs):
     """
     Função principal para processar intimações de carta no PJe
     """
+    # Compatibilidade: mapear debug -> log se chamado com debug=True
+    if debug:
+        log = True
     # 1. Tentar clicar no ícone de copiar número do processo antes de extrair do clipboard
     process_number = None
     clipboard_content = None

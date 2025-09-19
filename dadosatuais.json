@@ -1,42 +1,60 @@
 {
   "numero": [
-    "1001353-67.2024.5.02.0703"
+    "1000597-92.2023.5.02.0703"
   ],
-  "id": 6413516,
+  "id": 5220987,
   "autor": [
     {
-      "nome": "GABRIEL CESAR GONZAGA SAMPAIO",
-      "cpfcnpj": "24067981864",
+      "nome": "FRANCISCO PEREIRA DA SILVA",
+      "cpfcnpj": "38653061878",
       "advogado": {
-        "nome": "KATIANE COSTA GONZAGA",
-        "cpf": "29753425864",
-        "oab": ""
+        "nome": "OSMIR DE MELLO STRASBURG NETO",
+        "cpf": "34574443820",
+        "oab": "SP351275"
       }
     }
   ],
   "reu": [
     {
-      "nome": "24.026.787 RAPHAEL CHAVES MESQUITA",
-      "cpfcnpj": "24026787000129"
+      "nome": "COMERCIO DE CARNES BOI DO VALO MEAT LTDA",
+      "cpfcnpj": "28999032000161",
+      "advogado": {
+        "nome": "ANDREW VIEGAS DO AMARAL FAVACHO",
+        "cpf": "41478003863",
+        "oab": "SP369427"
+      }
     },
     {
-      "nome": "RAPHAEL CHAVES MESQUITA",
-      "cpfcnpj": "38202198895"
-    }
-  ],
-  "terceiro": [
+      "nome": "ACOUGUE, ROTISSERIE, CASA DO NORTE, LANCHONETE JBA ALIMENTOS LTDA - EPP",
+      "cpfcnpj": "26888416000181",
+      "advogado": {
+        "nome": "ANDREW VIEGAS DO AMARAL FAVACHO",
+        "cpf": "41478003863",
+        "oab": "SP369427"
+      }
+    },
     {
-      "nome": "MINISTÉRIO PÚBLICO DO TRABALHO"
+      "nome": "CASA DE CARNES BLUE BOI LTDA",
+      "cpfcnpj": "40579784000179"
+    },
+    {
+      "nome": "JOAO FERNANDO MACHADO",
+      "cpfcnpj": "15559664898"
+    },
+    {
+      "nome": "LUSMAR LUIZ DA SILVA",
+      "cpfcnpj": "51598868349"
     }
   ],
+  "terceiro": [],
   "divida": {
-    "valor": "R$ 22.621,62",
-    "data": "01/08/2025"
+    "valor": "R$ 149.665,79",
+    "data": "01/11/2024"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "19/08/2024",
+  "dtAutuacao": "28/04/2023",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

@@ -1,0 +1,26 @@
+// Atalhos de teclado personalizados para o projeto PJePlus
+// Place your key bindings in this file to overwrite the defaults
+[
+    {
+        "key": "ctrl+shift+s",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Verificar Sintaxe - Arquivo Atual",
+        "when": "editorLangId == python"
+    },
+    {
+        "key": "ctrl+shift+p",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Verificar Sintaxe Python",
+        "when": "editorLangId == python"
+    },
+    {
+        "key": "ctrl+shift+t",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Debug Visual - M1"
+    },
+    {
+        "key": "ctrl+shift+r",
+        "command": "workbench.action.tasks.runTask",
+        "args": "Abrir Relatório Debug"
+    }
+]

@@ -8,14 +8,21 @@ from datetime import datetime
 from driver_config import criar_driver, login_func
 
 # Configuração do logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
-    handlers=[
-        logging.FileHandler('pje_sequencial.log'),
-        logging.StreamHandler()
-    ]
-)
+# Configure explicit handlers so we can force UTF-8 on the console stream
+import io
+
+file_handler = logging.FileHandler('pje_sequencial.log', encoding='utf-8')
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] [%(name)s] %(message)s'))
+
+# Wrap stdout in a UTF-8 TextIOWrapper so emojis and other unicode characters
+# don't cause a UnicodeEncodeError on Windows consoles using cp1252.
+console_stream = io.TextIOWrapper(getattr(sys, 'stdout').buffer, encoding='utf-8', errors='replace')
+stream_handler = logging.StreamHandler(stream=console_stream)
+stream_handler.setLevel(logging.INFO)
+stream_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] [%(name)s] %(message)s'))
+
+logging.basicConfig(level=logging.INFO, handlers=[file_handler, stream_handler])
 
 logger = logging.getLogger(__name__)
 

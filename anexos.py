@@ -138,7 +138,7 @@ def sisb_wrapper(
             return None
     
     def inserir_fn(driver, numero_processo=None, debug=True):
-        """Função de inserção do conteúdo SISBAJUD no editor como texto simples"""
+        """Função de inserção do conteúdo SISBAJUD no editor com formatação HTML do PJe"""
         from editor_insert import inserir_html_no_editor_apos_marcador
         import re
         
@@ -150,27 +150,16 @@ def sisb_wrapper(
                 print('[SISB_WRAPPER] ❌ Conteúdo do relatório não disponível')
             return False
         
-        # Converter HTML para texto simples limpo
-        texto_simples = re.sub(r'<[^>]+>', '', conteudo)  # Remove tags HTML
-        texto_simples = re.sub(r'\s+', ' ', texto_simples)  # Normaliza espaços
-        texto_simples = texto_simples.replace('Protocolo:', '\nProtocolo:')
-        texto_simples = texto_simples.replace('Dados da Teimosinha', '\nDados da Teimosinha')
-        texto_simples = texto_simples.replace('Número do processo:', '\nNúmero do processo:')
-        texto_simples = texto_simples.replace('Número do protocolo:', '\nNúmero do protocolo:')
-        texto_simples = texto_simples.replace('Repetição programada?', '\nRepetição programada?')
-        texto_simples = texto_simples.replace('Limite da repetição:', '\nLimite da repetição:')
-        texto_simples = texto_simples.replace('Valor do bloqueio:', '\nValor do bloqueio:')
-        texto_simples = texto_simples.replace('Partes alvo do bloqueio:', '\nPartes alvo do bloqueio:')
-        texto_simples = texto_simples.replace('Notas:', '\nNotas:')
-        
+        # MANTER O HTML FORMATADO - não converter para texto simples
+        # O conteúdo já vem com a formatação HTML adequada do PJe
         if debug:
-            print('[SISB_WRAPPER] Texto convertido para inserção:')
-            print(texto_simples[:200] + '...')
+            print('[SISB_WRAPPER] HTML formatado para inserção:')
+            print(conteudo[:200] + '...')
         
-        # Inserir texto simples no editor após marcador '--'
+        # Inserir HTML formatado no editor após marcador '--'
         return inserir_html_no_editor_apos_marcador(
             driver, 
-            texto_simples,  # Usar texto simples ao invés de HTML
+            conteudo,  # Usar HTML formatado completo
             marcador='--', 
             modo='replace', 
             debug=debug
@@ -239,7 +228,7 @@ def wrapper_bloqneg(
             return None
     
     def inserir_fn(driver, numero_processo=None, debug=True):
-        """Função de inserção do conteúdo SISBAJUD no editor como texto simples"""
+        """Função de inserção do conteúdo SISBAJUD no editor com formatação HTML do PJe"""
         from editor_insert import inserir_html_no_editor_apos_marcador
         import re
         
@@ -251,27 +240,16 @@ def wrapper_bloqneg(
                 print('[WRAPPER_BLOQNEG] ❌ Conteúdo do relatório não disponível')
             return False
         
-        # Converter HTML para texto simples limpo
-        texto_simples = re.sub(r'<[^>]+>', '', conteudo)  # Remove tags HTML
-        texto_simples = re.sub(r'\s+', ' ', texto_simples)  # Normaliza espaços
-        texto_simples = texto_simples.replace('Protocolo:', '\nProtocolo:')
-        texto_simples = texto_simples.replace('Dados da Teimosinha', '\nDados da Teimosinha')
-        texto_simples = texto_simples.replace('Número do processo:', '\nNúmero do processo:')
-        texto_simples = texto_simples.replace('Número do protocolo:', '\nNúmero do protocolo:')
-        texto_simples = texto_simples.replace('Repetição programada?', '\nRepetição programada?')
-        texto_simples = texto_simples.replace('Limite da repetição:', '\nLimite da repetição:')
-        texto_simples = texto_simples.replace('Valor do bloqueio:', '\nValor do bloqueio:')
-        texto_simples = texto_simples.replace('Partes alvo do bloqueio:', '\nPartes alvo do bloqueio:')
-        texto_simples = texto_simples.replace('Notas:', '\nNotas:')
-        
+        # MANTER O HTML FORMATADO - não converter para texto simples
+        # O conteúdo já vem com a formatação HTML adequada do PJe
         if debug:
-            print('[WRAPPER_BLOQNEG] Texto convertido para inserção:')
-            print(texto_simples[:200] + '...')
+            print('[WRAPPER_BLOQNEG] HTML formatado para inserção:')
+            print(conteudo[:200] + '...')
         
-        # Inserir texto simples no editor após marcador '--'
+        # Inserir HTML formatado no editor após marcador '--'
         return inserir_html_no_editor_apos_marcador(
             driver, 
-            texto_simples,  # Usar texto simples ao invés de HTML
+            conteudo,  # Usar HTML formatado completo
             marcador='--', 
             modo='replace', 
             debug=debug
@@ -336,7 +314,7 @@ def wrapper_parcial(
             return None
     
     def inserir_fn(driver, numero_processo=None, debug=True):
-        """Função de inserção do conteúdo SISBAJUD no editor como texto simples"""
+        """Função de inserção do conteúdo SISBAJUD no editor com formatação HTML do PJe"""
         from editor_insert import inserir_html_no_editor_apos_marcador
         import re
         
@@ -348,27 +326,16 @@ def wrapper_parcial(
                 print('[WRAPPER_PARCIAL] ❌ Conteúdo do relatório não disponível')
             return False
         
-        # Converter HTML para texto simples limpo
-        texto_simples = re.sub(r'<[^>]+>', '', conteudo)  # Remove tags HTML
-        texto_simples = re.sub(r'\s+', ' ', texto_simples)  # Normaliza espaços
-        texto_simples = texto_simples.replace('Protocolo:', '\nProtocolo:')
-        texto_simples = texto_simples.replace('Dados da Teimosinha', '\nDados da Teimosinha')
-        texto_simples = texto_simples.replace('Número do processo:', '\nNúmero do processo:')
-        texto_simples = texto_simples.replace('Número do protocolo:', '\nNúmero do protocolo:')
-        texto_simples = texto_simples.replace('Repetição programada?', '\nRepetição programada?')
-        texto_simples = texto_simples.replace('Limite da repetição:', '\nLimite da repetição:')
-        texto_simples = texto_simples.replace('Valor do bloqueio:', '\nValor do bloqueio:')
-        texto_simples = texto_simples.replace('Partes alvo do bloqueio:', '\nPartes alvo do bloqueio:')
-        texto_simples = texto_simples.replace('Notas:', '\nNotas:')
-        
+        # MANTER O HTML FORMATADO - não converter para texto simples
+        # O conteúdo já vem com a formatação HTML adequada do PJe
         if debug:
-            print('[WRAPPER_PARCIAL] Texto convertido para inserção:')
-            print(texto_simples[:200] + '...')
+            print('[WRAPPER_PARCIAL] HTML formatado para inserção:')
+            print(conteudo[:200] + '...')
         
-        # Inserir texto simples no editor após marcador '--'
+        # Inserir HTML formatado no editor após marcador '--'
         return inserir_html_no_editor_apos_marcador(
             driver, 
-            texto_simples,  # Usar texto simples ao invés de HTML
+            conteudo,  # Usar HTML formatado completo
             marcador='--', 
             modo='replace', 
             debug=debug

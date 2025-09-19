@@ -37,7 +37,9 @@ def selecionar_opcao_select(driver, seletor, texto_opcao, timeout=10):
 import os
 import logging
 import time
-from selectors_pje import BTN_TAREFA_PROCESSO
+# NOTE: Removed dependency on selectors_pje.BTN_TAREFA_PROCESSO per request.
+# The comunicacao_judicial flow will no longer try to click the external
+# 'Abrir tarefa do processo' button; it will proceed using the current browser context.
 from selenium.webdriver.common.by import By
 from driver_config import criar_driver, login_func
 
@@ -120,7 +122,9 @@ def fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False):
         # 2. Clica no botão 'Abrir tarefa do processo' e captura informação da tarefa
         from Fix import esperar_elemento, safe_click
         abas_antes = set(driver.window_handles)
-        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
+        # Inline known selector to avoid importing selectors_pje
+        BTN_TAREFA_PROCESSO_SEL = 'button[mattooltip="Abre a tarefa do processo"]'
+        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO_SEL, timeout=15)
         if not btn_abrir_tarefa:
             logger.error('[CLS] Botão "Abrir tarefa do processo" não encontrado!')
             return False
@@ -1153,6 +1157,17 @@ ato_meios = make_ato_wrapper(
     Assinar=True
 )
 
+ato_meiosocio = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='meiosocio',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    Assinar=False
+)
+
 ato_crda = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='a reclda',
@@ -1460,6 +1475,7 @@ def comunicacao_judicial(
     coleta_conteudo=None,  # NOVO: parâmetro para coleta de conteúdo parametrizável
     inserir_conteudo=None,  # NOVO: função opcional para inserção no editor
     cliques_polo_passivo=1,  # NOVO: número de cliques no polo passivo (padrão 1)
+    destinatarios='extraido',  # NOVO: tipo de destinatários ('extraido', 'autor', 'primeiro_reu')
     debug=False,
     terceiro=False
 ):
@@ -1488,7 +1504,17 @@ def comunicacao_judicial(
                 if '/detalhe' not in current_url:
                     log(f'[COLETA][WARN] URL atual não contém /detalhe: {current_url}')
                     log('[COLETA][WARN] Coleta deve ser executada na aba /detalhe')
-                    
+                # Extrair ID do processo da URL
+                processo_id = None
+                if '/processo/' in current_url and '/detalhe' in current_url:
+                    try:
+                        parts = current_url.split('/processo/')[1].split('/detalhe')[0]
+                        processo_id = parts.strip('/')
+                    except Exception:
+                        pass
+                if not processo_id:
+                    log('[COLETA][WARN] ID do processo não encontrado na URL')
+                    processo_id = "PROCESSO_DESCONHECIDO"
                 # Importa a função do módulo de coleta
                 from coleta_atos import executar_coleta_parametrizavel
                 
@@ -1502,20 +1528,9 @@ def comunicacao_judicial(
                 tipo_coleta = config_coleta.get('tipo', '')
                 parametros = config_coleta.get('parametros', None)
                 
-                # Tenta extrair número do processo da URL atual
-                try:
-                    from anexos import extrair_numero_processo_da_url
-                    numero_processo = extrair_numero_processo_da_url(driver)  # Passa o driver, não a URL
-                    if not numero_processo:
-                        log('[COLETA][WARN] Número do processo não encontrado na URL')
-                        numero_processo = "PROCESSO_DESCONHECIDO"
-                except Exception as e:
-                    log(f'[COLETA][ERRO] Erro na extração do número do processo: {e}')
-                    numero_processo = "PROCESSO_DESCONHECIDO"
-                
                 # Executa a coleta
                 sucesso_coleta = executar_coleta_parametrizavel(
-                    driver, numero_processo, tipo_coleta, parametros, debug
+                    driver, processo_id, tipo_coleta, parametros, debug
                 )
                 
                 if sucesso_coleta:
@@ -1531,199 +1546,132 @@ def comunicacao_judicial(
         log('==========================================')
         log('Iniciando fluxo principal de comunicação processual...')
 
-        # 1. FLUXO INICIAL ROBUSTO: abrir tarefa do processo e capturar informação da tarefa
-        from Fix import esperar_elemento, safe_click
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-        from selectors_pje import BTN_TAREFA_PROCESSO
-        abas_antes = set(driver.window_handles)
-        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
-        if not btn_abrir_tarefa:
-            log('[ERRO CRÍTICO] Botão "Abrir tarefa do processo" não encontrado!')
-            raise Exception('Botão tarefa do processo não encontrado')
-        
-        # Captura o texto da tarefa diretamente do botão antes do clique
-        tarefa_do_botao = None
-        try:
-            # Busca span interno do botão que contém o nome da tarefa
-            span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
-            if span_tarefa:
-                tarefa_do_botao = span_tarefa.text.strip()
-                log(f'✓ Tarefa identificada do botão: "{tarefa_do_botao}"')
-        except Exception:
-            # Fallback: usa o texto completo do botão
+        # 1. FLUXO INICIAL SIMPLIFICADO:
+        # Extrair ID do processo da URL para navegação
+        current_url = driver.current_url
+        processo_id = None
+        if '/processo/' in current_url and '/detalhe' in current_url:
             try:
-                tarefa_do_botao = btn_abrir_tarefa.text.strip()
-                log(f'✓ Tarefa identificada (texto completo): "{tarefa_do_botao}"')
+                parts = current_url.split('/processo/')[1].split('/detalhe')[0]
+                processo_id = parts.strip('/')
             except Exception:
-                log('⚠ Não foi possível capturar nome da tarefa do botão')
-        
-        # Executa o clique e registra o resultado
-        click_resultado = safe_click(driver, btn_abrir_tarefa)
-        if click_resultado and tarefa_do_botao:
-            log(f'✓ TAREFA ABERTA: "{tarefa_do_botao}"')
-            log(f'✓ Clique bem-sucedido no botão da tarefa')
-        elif click_resultado:
-            log('✓ Clique bem-sucedido, mas nome da tarefa não capturado')
-        else:
-            log('✗ Falha no clique do botão da tarefa')
-            raise Exception('Falha no clique do botão da tarefa')
-        
-        log('Botão "Abrir tarefa do processo" clicado.')
-        # Troca para nova aba, se aberta, e espera carregamento completo
-        nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
-        if nova_aba:
-            driver.switch_to.window(nova_aba)
-            log('Foco trocado para nova aba da tarefa do processo.')
-            # Espera carregamento completo da nova aba (aguarda body presente e pelo menos um botão visível)
-            try:
-                WebDriverWait(driver, 20).until(lambda d: d.find_element(By.TAG_NAME, 'body'))
-                WebDriverWait(driver, 20).until(lambda d: len(d.find_elements(By.TAG_NAME, 'button')) > 0)
-                log('Nova aba carregada completamente.')
-            except Exception as e:
-                log(f'[WARN] Timeout esperando carregamento completo da nova aba: {e}')
-        else:
-            log('[WARN] Nenhuma nova aba detectada após clique. Prosseguindo na aba atual.')
-        # NOVO: Limpa qualquer overlay/modal que possa estar interferindo
-        def limpar_overlays():
-            try:
-                overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
-                if overlays:
-                    from selenium.webdriver.common.keys import Keys
-                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    time.sleep(0.3)
-                    # Re-fetch elements to avoid stale reference
-                    try:
-                        fresh_overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-container')
-                        for overlay in fresh_overlays:
-                            try:
-                                if overlay.is_displayed():
-                                    driver.execute_script('arguments[0].click();', overlay)
-                                    time.sleep(0.2)
-                            except:
-                                pass
-                    except:
-                        pass
-            except Exception as clean_err:
-                logger.error(f'[CLS] Erro na limpeza de overlays: {clean_err}')
-        limpar_overlays()
-        
-        # 2. LÓGICA CONDICIONAL: Verificar se já está na página correta ou precisa navegar
-        # Se a tarefa identificada contém "expedientes e comunicações", já está na página correta
-        if tarefa_do_botao and 'expedientes e comunicações' in tarefa_do_botao.lower():
-            log('[DEBUG] ✓ Tarefa "Preparar expedientes e comunicações" identificada - já na página correta!')
-            log('[DEBUG] Pulando busca pelo botão de Comunicações e expedientes...')
-        else:
-            # Fluxo original: buscar e clicar no botão de Comunicações e expedientes
-            log('[DEBUG] Buscando botão de Comunicações e expedientes...')
-            btn_comunic = None
-            # 1. Por aria-label que contenha "Comunica"
-            btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
-            for btn in btns:
-                aria = btn.get_attribute('aria-label')
-                if aria and 'comunica' in aria.lower():
-                    if btn.is_displayed() and btn.is_enabled():
-                        btn_comunic = btn
-                        break
-            # 2. Por texto visível (span ou button)
-            if not btn_comunic:
-                btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'analise')]]")
-                for btn in btns:
-                    if btn.is_displayed() and btn.is_enabled():
-                        btn_comunic = btn
-                        break
-            if not btn_comunic:
-                # Tenta clicar em "Análise" e tenta de novo
-                log('[INFO] Botão Comunicações e expedientes não encontrado. Tentando clicar em "Análise" e tentar novamente...')
-                try:
-                    btn_analise = None
-                    # Busca botão Análise por texto (XPath corrigido)
-                    btns = driver.find_elements(By.XPATH, "//button[.//div[contains(normalize-space(text()), 'Análise')]]")
-                    for btn in btns:
-                        if btn.is_displayed() and btn.is_enabled():
-                            btn_analise = btn
-                            break
-                    if not btn_analise:
-                        # Busca por aria-label/mattooltip
-                        btns = driver.find_elements(By.CSS_SELECTOR, '*[aria-label*="Análise"]')
-                        for btn in btns:
-                            if btn.is_displayed() and btn.is_enabled():
-                                btn_analise = btn
-                                break
-                        btns = driver.find_elements(By.CSS_SELECTOR, '*[mattooltip*="Análise"]')
-                        for btn in btns:
-                            if btn.is_displayed() and btn.is_enabled():
-                                btn_analise = btn
-                                break
-                    if btn_analise:
-                        safe_click(driver, btn_analise)
-                        log('Botão "Análise" clicado para habilitar botões.')
-                        time.sleep(1.2)
-                    else:
-                        log('[WARN] Botão "Análise" não encontrado para workaround.')
-                except Exception as e:
-                    log(f'[WARN] Erro ao tentar clicar em "Análise": {e}')
-                # Tenta novamente buscar o botão de comunicações de forma similar à busca anterior
-                # (redefinimos a lógica de busca em vez de chamar uma função inexistente)
-                btn_comunic = None
-                # 1. Por aria-label que contenha "Comunica"
-                btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
-                for btn in btns:
-                    aria = btn.get_attribute('aria-label')
-                    if aria and 'comunica' in aria.lower():
-                        if btn.is_displayed() and btn.is_enabled():
-                            btn_comunic = btn
-                            break
-                # 2. Por texto visível (span ou button)
-                if not btn_comunic:
-                    btns = driver.find_elements(By.XPATH, "//button[.//span[contains(translate(., 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'comunicacoes')]]")
-                    for btn in btns:
-                        if btn.is_displayed() and btn.is_enabled():
-                            btn_comunic = btn
-                            break
-            if not btn_comunic:
-                log('[ERRO] Botão de Comunicações e expedientes (fa-envelope) não encontrado mesmo após workaround!')
-                raise Exception('Botão Comunicações e expedientes não encontrado')
-            safe_click(driver, btn_comunic)
-            log('Botão de Comunicações e expedientes clicado.')
-          ###4.Criar comunicação####
-        # Aguarda a tela de minutas carregar
+                pass
+        if not processo_id:
+            log('[FLUXO][WARN] ID do processo não encontrado na URL para navegação')
+            processo_id = "PROCESSO_DESCONHECIDO"
+
+        # Importações necessárias para o fluxo
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
-        try:
-            WebDriverWait(driver, 20).until(lambda d: '/minutas' in d.current_url or 'Tipo de Expediente' in d.page_source)
-            log('[DEBUG] Tela de minutas carregada.')
 
+        # 1. Navegar para nova aba:
+        url_minutas = f"https://pje.trt2.jus.br/pjekz/processo/{processo_id}/comunicacoesprocessuais/minutas"
+        log(f'[FLUXO] Abrindo nova aba com URL: {url_minutas}')
+
+        # Abrir nova aba diretamente com a URL (simplificado)
+        driver.execute_script(f"window.open('{url_minutas}', '_blank');")
+
+        # Mudar foco para a nova aba
+        new_tab_handle = driver.window_handles[-1]
+        driver.switch_to.window(new_tab_handle)
+
+        # Confirmar a URL
+        WebDriverWait(driver, 10).until(
+            lambda d: '/minutas' in d.current_url
+        )
+        log(f'[FLUXO] ✓ Nova aba aberta e URL confirmada: {driver.current_url}')
+
+
+        ###2.Criar comunicação####
+        log('[DEBUG] 🚀 EXECUTANDO PREENCHIMENTO DA MINUTA')
+        
+        try:
             # 1. Selecionar o tipo de expediente
             try:
+                # If the creation form is not visible yet (we might be on the minutas list), try to open the creation dialog
+                try:
+                    elems = driver.find_elements(By.CSS_SELECTOR, 'mat-select[placeholder="Tipo de Expediente"]')
+                    if not elems or len(elems) == 0:
+                        log('[DIAG] Tipo de Expediente não visível: tentando abrir formulário de nova minuta (fallback)')
+                        # Try common buttons that open the new minuta form
+                        candidates = []
+                        candidates += driver.find_elements(By.XPATH, "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova')]")
+                        candidates += driver.find_elements(By.XPATH, "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'novo')]")
+                        candidates += driver.find_elements(By.XPATH, "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'minuta')]")
+                        candidates += driver.find_elements(By.XPATH, "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'confeccionar')]")
+                        opened = False
+                        for c in candidates:
+                            try:
+                                if c.is_displayed() and c.is_enabled():
+                                    driver.execute_script('arguments[0].click();', c)
+                                    log('[DIAG] Clique em candidato para abrir formulário de minuta executado')
+                                    time.sleep(0.8)
+                                    opened = True
+                                    break
+                            except Exception:
+                                pass
+                        if not opened:
+                            log('[DIAG] Nenhum botão padrão para abrir formulário de nova minuta encontrado (continuando; o wait abaixo pode ainda achar o formulário)')
+                except Exception:
+                    pass
+
                 selecionar_opcao_select(driver, 'mat-select[placeholder="Tipo de Expediente"]', tipo_expediente)
                 log(f'[DEBUG] Tipo de expediente selecionado: {tipo_expediente}')
             except Exception as e:
                 log(f'[ERRO] Falha ao selecionar tipo de expediente: {e}')
-            # 2. Selecionar o tipo de prazo
+            # 2. Selecionar o tipo de prazo (OTIMIZADO BASEADO EM GIGS.PY)
             try:
-                # Busca todos os mat-radio-button e clica via JS no que corresponde ao tipo_prazo
-                radios = driver.find_elements(By.CSS_SELECTOR, 'mat-radio-button')
-                found = False
-                for radio in radios:
-                    label = radio.get_attribute('innerText') or radio.text
-                    if label and tipo_prazo.lower() in label.lower():
-                        driver.execute_script("arguments[0].click();", radio)
-                        found = True
-                        log(f'[DEBUG] Tipo de prazo selecionado via JS: {tipo_prazo}')
-                        break
-                if not found:
-                    log(f'[WARN] Nenhum mat-radio-button corresponde ao tipo_prazo: {tipo_prazo}')
+                # Implementação baseada em gigs.py: busca elemento por texto específico
+                tipo_prazo_sem_acento = tipo_prazo.lower().replace('ú', 'u').replace('é', 'e').replace('ç', 'c').replace('ã', 'a')
+                
+                # Usar JavaScript para encontrar radio button por texto (como em gigs.py)
+                radio_encontrado = driver.execute_script("""
+                    // Função equivalente ao querySelectorByText do gigs.py
+                    function encontrarRadioPorTexto(tagname, texto) {
+                        function removeAcento(text) {
+                            return text.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+                        }
+                        return Array.from(document.querySelectorAll(tagname)).find(el => 
+                            removeAcento(el.textContent.trim().toLowerCase()).includes(removeAcento(texto.toLowerCase()))
+                        );
+                    }
+                    
+                    // Buscar radio button que contenha o texto do tipo de prazo
+                    const radio = encontrarRadioPorTexto('mat-radio-button', arguments[0]);
+                    if (radio) {
+                        // Retornar o input interno (como em gigs.py: ancora.querySelector('input'))
+                        return radio.querySelector('input[type="radio"]') || radio;
+                    }
+                    return null;
+                """, tipo_prazo_sem_acento)
+                
+                if radio_encontrado:
+                    # Aguardar elemento estar interativo
+                    WebDriverWait(driver, 5).until(
+                        lambda d: radio_encontrado.is_enabled() and radio_encontrado.is_displayed()
+                    )
+                    
+                    # Clicar usando JavaScript (como em gigs.py)
+                    driver.execute_script("arguments[0].click();", radio_encontrado)
+                    log(f'[DEBUG] Tipo de prazo selecionado (GIGS-style): {tipo_prazo}')
+                else:
+                    log(f'[WARN] Radio button não encontrado para tipo_prazo: {tipo_prazo}')
+                    
             except Exception as e:
-                log(f'[WARN] Falha ao selecionar tipo de prazo (JS): {e}')
+                log(f'[WARN] Falha ao selecionar tipo de prazo (GIGS-style): {e}')
+                
+                # Fallback para método antigo se necessário
+                try:
+                    radios = driver.find_elements(By.CSS_SELECTOR, 'mat-radio-button input[type="radio"]')
+                    for radio in radios:
+                        parent = radio.find_element(By.XPATH, '..')
+                        label = parent.get_attribute('innerText') or parent.text
+                        if label and tipo_prazo.lower() in label.lower():
+                            driver.execute_script("arguments[0].click();", radio)
+                            log(f'[DEBUG] Tipo de prazo selecionado (fallback): {tipo_prazo}')
+                            break
+                except Exception as fallback_e:
+                    log(f'[ERROR] Fallback também falhou: {fallback_e}')
 
             # 3. Preencher o prazo
             try:
@@ -1952,19 +1900,318 @@ def comunicacao_judicial(
             # Exemplo: driver.find_element(By.CSS_SELECTOR, 'button .fa-pen').click()
         except Exception as e:
             log(f'[ERRO] Falha no fluxo de preenchimento de minuta: {e}')
-              # 3. De volta à tela de minutas, clicar em .pec-polo-passivo-partes-processo
+              # 3. Seleção de destinatários baseada no parâmetro destinatarios
         try:
-            btn_pec_polo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
-            )
-            # Cliques no polo passivo conforme configurado (padrão 1, pec_idpj usa 2)
-            for i in range(cliques_polo_passivo):
+            if isinstance(destinatarios, list) and len(destinatarios) > 0:
+                # NOVO: Lista de destinatários extraídos - implementar seleção específica
+                log(f'[DESTINATARIOS] Lista recebida: {len(destinatarios)} destinatário(s)')
+
+                # Verificar se há CNPJ na lista
+                tem_cnpj = any(dest.get('tipo') == 'cnpj' for dest in destinatarios)
+                log(f'[DESTINATARIOS] Tem CNPJ na lista: {tem_cnpj}')
+
+                # 1. Primeiro, clicar no polo passivo
+                log('[DESTINATARIOS] 1. Clicando no polo passivo')
+                btn_pec_polo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
+                )
                 btn_pec_polo.click()
-                log(f'[DEBUG] Clique {i+1} de {cliques_polo_passivo} em .fa.fa-user.pec-polo-passivo-processo.pec-botao-intimar-polo-partes-processo realizado.')
-                # Aguarda entre cliques se houver mais de um
-                if i < cliques_polo_passivo - 1:
+                time.sleep(2)
+
+                # 2. Para cada destinatário, encontrar e clicar na seta correspondente
+                for i, dest in enumerate(destinatarios):
+                    nome_dest = dest.get('nome', '').strip()
+                    documento_dest = dest.get('documento', '').strip()
+                    tipo_dest = dest.get('tipo', 'cpf')
+
+                    log(f'[DESTINATARIOS] 2.{i+1}. Processando destinatário: {nome_dest} ({tipo_dest}: {documento_dest})')
+
+                    # Procurar pela seta (fa-arrow-circle-down) do destinatário específico
+                    # Primeiro, vamos expandir todas as partes do polo passivo se necessário
+                    try:
+                        # Aguardar a tabela de destinatários carregar
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, '.pec-partes-polo'))
+                        )
+
+                        # Encontrar todos os botões de seta na tabela
+                        setas = driver.find_elements(By.CSS_SELECTOR, 'button[mattooltip*="Clique para acrescentar esta parte"] .fa-arrow-circle-down')
+
+                        if not setas:
+                            log(f'[DESTINATARIOS][ERRO] Nenhuma seta encontrada para destinatário {nome_dest}')
+                            continue
+
+                        # Procurar pela seta correspondente ao destinatário
+                        seta_encontrada = None
+                        for seta in setas:
+                            try:
+                                # Pegar o elemento pai da seta para encontrar o nome
+                                li_element = seta.find_element(By.XPATH, 'ancestor::li[@class="partes-corpo"]')
+                                nome_element = li_element.find_element(By.CSS_SELECTOR, '.nome-parte')
+
+                                if nome_element and nome_dest.lower() in nome_element.text.lower():
+                                    seta_encontrada = seta
+                                    log(f'[DESTINATARIOS] Seta encontrada para: {nome_element.text.strip()}')
+                                    break
+                            except Exception:
+                                continue
+
+                        if not seta_encontrada:
+                            log(f'[DESTINATARIOS][ERRO] Seta não encontrada para destinatário: {nome_dest}')
+                            continue
+
+                        # Aplicar regras especiais baseadas no tipo de documento
+                        if tem_cnpj:
+                            # REGRA ESPECIAL: Se há CNPJ, fazer 1 clique no destinatário + 2 cliques no primeiro CPF acima
+                            log(f'[DESTINATARIOS] Regra CNPJ: 1 clique em {nome_dest}')
+
+                            # 1 clique no destinatário atual
+                            seta_encontrada.click()
+                            time.sleep(1)
+
+                            # Procurar pelo primeiro CPF acima na lista
+                            log(f'[DESTINATARIOS] Procurando primeiro CPF acima de {nome_dest}')
+                            primeiro_cpf_acima = None
+
+                            # Pegar todas as linhas de partes
+                            linhas_partes = driver.find_elements(By.CSS_SELECTOR, 'li.partes-corpo')
+
+                            for idx, linha in enumerate(linhas_partes):
+                                try:
+                                    nome_linha = linha.find_element(By.CSS_SELECTOR, '.nome-parte').text.strip()
+                                    if nome_dest.lower() in nome_linha.lower():
+                                        # Encontrou o destinatário atual, procurar CPF acima
+                                        for idx_anterior in range(idx - 1, -1, -1):
+                                            linha_anterior = linhas_partes[idx_anterior]
+                                            nome_anterior = linha_anterior.find_element(By.CSS_SELECTOR, '.nome-parte').text.strip()
+
+                                            # Verificar se tem CPF (11 dígitos) no nome
+                                            import re
+                                            cpf_match = re.search(r'\d{11}', nome_anterior.replace('.', '').replace('-', ''))
+                                            if cpf_match:
+                                                primeiro_cpf_acima = linha_anterior.find_element(By.CSS_SELECTOR, 'button[mattooltip*="Clique para acrescentar esta parte"] .fa-arrow-circle-down')
+                                                log(f'[DESTINATARIOS] Primeiro CPF acima encontrado: {nome_anterior}')
+                                                break
+                                        break
+                                except Exception:
+                                    continue
+
+                            if primeiro_cpf_acima:
+                                log(f'[DESTINATARIOS] Fazendo 2 cliques no primeiro CPF acima')
+                                for click_count in range(2):
+                                    primeiro_cpf_acima.click()
+                                    time.sleep(1)
+                                    log(f'[DESTINATARIOS] Clique {click_count + 1} no CPF acima realizado')
+                            else:
+                                log(f'[DESTINATARIOS][AVISO] Primeiro CPF acima não encontrado para {nome_dest}')
+
+                        else:
+                            # REGRA NORMAL: Só CPFs - fazer 2 cliques em cada destinatário
+                            log(f'[DESTINATARIOS] Regra CPF: 2 cliques em {nome_dest}')
+                            for click_count in range(2):
+                                seta_encontrada.click()
+                                time.sleep(1)
+                                log(f'[DESTINATARIOS] Clique {click_count + 1} em {nome_dest} realizado')
+
+                        time.sleep(2)  # Aguardar entre destinatários
+
+                    except Exception as e:
+                        log(f'[DESTINATARIOS][ERRO] Falha ao processar destinatário {nome_dest}: {e}')
+                        continue
+
+            elif destinatarios == 'extraido':
+                # 1. EXTRAIDO: Clica no polo passivo (padrão)
+                log('[DESTINATARIOS] Tipo: EXTRAIDO - Clicando no polo passivo')
+                btn_pec_polo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
+                )
+                # Cliques no polo passivo conforme configurado (padrão 1, pec_idpj usa 2)
+                for i in range(cliques_polo_passivo):
+                    btn_pec_polo.click()
+                    log(f'[DEBUG] Clique {i+1} de {cliques_polo_passivo} em polo passivo realizado.')
+                    # Aguarda entre cliques se houver mais de um
+                    if i < cliques_polo_passivo - 1:
+                        time.sleep(2)
+                        log('[DEBUG] Aguardando 2 segundos entre os cliques.')
+
+            elif destinatarios == 'autor':
+                # 2. AUTOR: Clica no polo ativo
+                log('[DESTINATARIOS] Tipo: AUTOR - Clicando no polo ativo')
+                btn_polo_ativo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloAtivo"]'))
+                )
+                btn_polo_ativo.click()
+                log('[DEBUG] Clique no polo ativo realizado.')
+
+            elif destinatarios == 'primeiro_reu':
+                # 3. PRIMEIRO REU: Sequência complexa
+                log('[DESTINATARIOS] Tipo: PRIMEIRO_REU - Iniciando sequência complexa')
+
+                # 3a. Clica no polo passivo
+                log('[DESTINATARIOS] 3a. Clicando no polo passivo')
+                btn_pec_polo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
+                )
+                btn_pec_polo.click()
+                time.sleep(1)
+
+                # 3b. Clica na primeira seta (fa-arrow-circle-down)
+                log('[DESTINATARIOS] 3b. Clicando na primeira seta para adicionar parte')
+                primeira_seta = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[mattooltip*="Clique para acrescentar esta parte"] .fa-arrow-circle-down'))
+                )
+                primeira_seta.click()
+                time.sleep(1)
+
+                # 3c. Clica no botão "Alterar endereço"
+                log('[DESTINATARIOS] 3c. Clicando em "Alterar endereço"')
+                btn_alterar_endereco = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Alterar endereço"]'))
+                )
+                btn_alterar_endereco.click()
+                time.sleep(1)
+
+                # 3d. Digita "tribunal" no campo logradouro e pressiona Enter
+                log('[DESTINATARIOS] 3d. Digitando "tribunal" no campo logradouro')
+                campo_logradouro = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[data-placeholder="Logradouro"]'))
+                )
+                campo_logradouro.clear()
+                campo_logradouro.send_keys('tribunal')
+                campo_logradouro.send_keys(Keys.ENTER)
+                time.sleep(2)
+
+                # 3e. Verifica se apareceram resultados e clica na seta do tribunal
+                try:
+                    log('[DESTINATARIOS] 3e. Verificando se há resultados de endereços')
+                    # Procura pela tabela de endereços
+                    tabela_enderecos = WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'table[name="Endereços do destinatário no sistema"]'))
+                    )
+
+                    # Procura por linhas que contenham "TRIBUNAL" (case insensitive)
+                    linhas_tribunal = driver.find_elements(By.XPATH, "//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]")
+
+                    if linhas_tribunal:
+                        log('[DESTINATARIOS] 3ei. Encontrado endereço do tribunal, clicando na seta')
+                        # Encontra o botão da seta na mesma linha
+                        linha_tribunal = linhas_tribunal[0].find_element(By.XPATH, './ancestor::tr')
+                        seta_tribunal = linha_tribunal.find_element(By.CSS_SELECTOR, 'button[aria-label="Selecionar endereço"]')
+                        seta_tribunal.click()
+                        log('[DESTINATARIOS] ✓ Endereço do tribunal selecionado')
+                        
+                        # 3f. Após selecionar tribunal, clicar no botão fechar para fechar endereços
+                        log('[DESTINATARIOS] 3f. Clicando no botão fechar para fechar endereços')
+                        btn_fechar = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
+                        )
+                        btn_fechar.click()
+                        log('[DESTINATARIOS] ✓ Janela de endereços fechada')
+                        
+                    else:
+                        log('[DESTINATARIOS] 3eii. Nenhum endereço do tribunal encontrado - incluindo tribunal via CEP')
+                        
+                        # 3f. Digitar CEP "01302906" no campo inputCep
+                        log('[DESTINATARIOS] 3f. Digitando CEP 01302906 no campo inputCep')
+                        campo_cep = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'input#inputCep'))
+                        )
+                        campo_cep.clear()
+                        # Digitar caractere por caractere
+                        for char in '01302906':
+                            campo_cep.send_keys(char)
+                            time.sleep(0.1)  # Pequena pausa entre caracteres
+                        time.sleep(1)  # Aguardar carregamento das opções
+                        
+                        # 3g. Clicar na opção específica do tribunal
+                        log('[DESTINATARIOS] 3g. Clicando na opção do tribunal TRT2 São Paulo')
+                        opcao_tribunal = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), '01302-906') and contains(text(), 'TRIBUNAL REGIONAL DO TRABALHO CONSOLACAO SAO PAULO SÃO PAULO')]"))
+                        )
+                        opcao_tribunal.click()
+                        log('[DESTINATARIOS] ✓ Opção do tribunal selecionada')
+                        
+                        # 3h. Clicar no botão Salvar (aria-label="Salva as alterações")
+                        log('[DESTINATARIOS] 3h. Clicando no botão Salvar das alterações')
+                        btn_salvar_alteracoes = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salva as alterações"]'))
+                        )
+                        btn_salvar_alteracoes.click()
+                        log('[DESTINATARIOS] ✓ Alterações salvas')
+                        
+                        # 3i. Clicar no botão fechar para fechar endereços
+                        log('[DESTINATARIOS] 3i. Clicando no botão fechar para fechar endereços')
+                        btn_fechar = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
+                        )
+                        btn_fechar.click()
+                        log('[DESTINATARIOS] ✓ Janela de endereços fechada')
+
+                except Exception as endereco_err:
+                    log(f'[DESTINATARIOS] 3e. Erro ao buscar/incluir endereços do tribunal: {endereco_err}')
+                    log('[DESTINATARIOS] Continuando sem seleção de endereço específico')
+
+                # 3j. SALVAR NOVO ENDEREÇO: após fechar a janela de endereços, confeccionar o ato,
+                # salvar o modal de elaboração do ato e finalizar a minuta antes do salvamento final
+                try:
+                    log('[DESTINATARIOS] 3j. Salvando novo endereço: confeccionar ato -> salvar modal -> finalizar minuta')
+
+                    # 3j.1 Clicar em 'Confeccionar ato' (botão com aria-label)
+                    try:
+                        btn_confeccionar_ato = WebDriverWait(driver, 8).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Confeccionar ato"]'))
+                        )
+                        try:
+                            driver.execute_script('arguments[0].click();', btn_confeccionar_ato)
+                        except Exception:
+                            btn_confeccionar_ato.click()
+                        log('[DESTINATARIOS] ✓ Botão "Confeccionar ato" clicado')
+                        time.sleep(0.8)
+                    except Exception as e:
+                        log(f'[DESTINATARIOS][WARN] Não foi possível clicar em "Confeccionar ato": {e}')
+
+                    # 3j.2 Clicar em 'Salvar' no modal de elaboração do ato (aria-label="Salvar")
+                    try:
+                        btn_salvar_modal = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salvar"]'))
+                        )
+                        try:
+                            driver.execute_script('arguments[0].click();', btn_salvar_modal)
+                        except Exception:
+                            btn_salvar_modal.click()
+                        log('[DESTINATARIOS] ✓ Botão "Salvar" no modal de elaboração clicado')
+                        time.sleep(0.6)
+                    except Exception as e:
+                        log(f'[DESTINATARIOS][WARN] Falha ao clicar em Salvar no modal de elaboração: {e}')
+
+                    # 3j.3 Clicar em 'Finalizar minuta' (botão flutuante com aria-label)
+                    try:
+                        btn_finalizar_minuta_local = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Finalizar minuta"]'))
+                        )
+                        try:
+                            driver.execute_script('arguments[0].click();', btn_finalizar_minuta_local)
+                        except Exception:
+                            btn_finalizar_minuta_local.click()
+                        log('[DESTINATARIOS] ✓ Botão "Finalizar minuta" clicado (local)')
+                    except Exception as e:
+                        log(f'[DESTINATARIOS][WARN] Falha ao clicar em Finalizar minuta local: {e}')
+
+                    # 3j.4 Pequena espera antes do salvamento final
                     time.sleep(2)
-                    log('[DEBUG] Aguardando 2 segundos entre os cliques.')
+
+                except Exception as e:
+                    log(f'[DESTINATARIOS][WARN] Erro na sequência de salvar novo endereço: {e}')
+
+            else:
+                log(f'[DESTINATARIOS] ⚠ Tipo de destinatário desconhecido: {destinatarios}. Usando padrão EXTRAIDO.')
+                # Fallback para extraido
+                btn_pec_polo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, '.fa.fa-user.pec-polo-passivo-partes-processo.pec-botao-intimar-polo-partes-processo'))
+                )
+                btn_pec_polo.click()
+                log('[DEBUG] Fallback: Clique no polo passivo realizado.')
+
             # Regra especial: se terceiro=True, clicar no botão de terceiros interessados
             if terceiro:
                 try:
@@ -1992,19 +2239,57 @@ def comunicacao_judicial(
           # 5. Clicar em <span class="mat-button-wrapper">Salvar</span>
         try:
             btn_salvar_final = None
+            # Estratégia 1: span mat-button-wrapper com texto 'Salvar' (case-sensitive exact)
             spans = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and normalize-space(text())='Salvar']")
             for span in spans:
-                btn = span.find_element(By.XPATH, './ancestor::button[1]')
-                if btn.is_displayed() and btn.is_enabled():
-                    btn_salvar_final = btn
-                    break
+                try:
+                    btn = span.find_element(By.XPATH, './ancestor::button[1]')
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn_salvar_final = btn
+                        break
+                except Exception:
+                    continue
+
+            # Estratégia 2: botão com aria-label contendo 'salvar' (case-insensitive)
             if not btn_salvar_final:
-                log('[ERRO] Botão Salvar final não encontrado!')
+                try:
+                    btns = driver.find_elements(By.CSS_SELECTOR, "button[aria-label]")
+                    for b in btns:
+                        aria = b.get_attribute('aria-label') or ''
+                        if 'salvar' in aria.lower() and b.is_displayed() and b.is_enabled():
+                            btn_salvar_final = b
+                            break
+                except Exception:
+                    pass
+
+            # Estratégia 3: botão cujo texto contenha 'Salvar' (várias estruturas possíveis)
+            if not btn_salvar_final:
+                try:
+                    cand = driver.find_elements(By.XPATH, "//button[.//span and contains(translate(normalize-space(.), 'ÁÀÂÃÉÈÊÍÏÔÕÖÚÇÑ', 'AAAAEEEIIOOOOUCN'), 'SALVAR')]")
+                    for b in cand:
+                        if b.is_displayed() and b.is_enabled():
+                            btn_salvar_final = b
+                            break
+                except Exception:
+                    pass
+
+            if not btn_salvar_final:
+                log('[ERRO] Botão Salvar final não encontrado por nenhum seletor!')
                 return False
-            btn_salvar_final.click()
-            log('[DEBUG] Clique no botão Salvar final realizado.')
+
+            # Tentativa de clique: primeiro clique padrão, depois JS como fallback
+            try:
+                btn_salvar_final.click()
+                log('[DEBUG] Clique no botão Salvar final realizado (click()).')
+            except Exception:
+                try:
+                    driver.execute_script('arguments[0].click();', btn_salvar_final)
+                    log('[DEBUG] Clique no botão Salvar final realizado via JS.')
+                except Exception as e:
+                    log(f'[ERRO] Não foi possível clicar no botão Salvar final (inclusive JS): {e}')
+                    return False
         except Exception as e:
-            log(f'[ERRO] Não foi possível clicar no botão Salvar final: {e}')
+            log(f'[ERRO] Erro inesperado tentando localizar/clicar em Salvar final: {e}')
             return False
         time.sleep(1)
 
@@ -2069,9 +2354,10 @@ def make_comunicacao_wrapper(
     gigs_extra=None,
     coleta_conteudo=None,  # NOVO: parâmetro para coleta
     inserir_conteudo=None,  # NOVO: função opcional de inserção no editor
-    cliques_polo_passivo=1  # NOVO: número de cliques no polo passivo
+    cliques_polo_passivo=1,  # NOVO: número de cliques no polo passivo
+    destinatarios='extraido'  # NOVO: tipo de destinatários
 ):
-    def wrapper(driver, debug=False, coleta_conteudo_=None, inserir_conteudo_=None, terceiro=False):
+    def wrapper(driver, debug=False, coleta_conteudo_=None, inserir_conteudo_=None, terceiro=False, destinatarios=None):
         return comunicacao_judicial(
             driver=driver,
             tipo_expediente=tipo_expediente,
@@ -2086,6 +2372,7 @@ def make_comunicacao_wrapper(
             coleta_conteudo=coleta_conteudo_ if coleta_conteudo_ is not None else coleta_conteudo,
             inserir_conteudo=inserir_conteudo_ if inserir_conteudo_ is not None else inserir_conteudo,
             cliques_polo_passivo=cliques_polo_passivo,
+            destinatarios=destinatarios if destinatarios is not None else destinatarios,
             debug=debug,
             terceiro=terceiro
         )
@@ -2143,6 +2430,17 @@ pec_editaldec = make_comunicacao_wrapper(
     coleta_conteudo="link_ato",  # NOVO: Coleta automática de link da timeline
     inserir_conteudo='link_ato'  # NOVO: Insere link coletado no marcador '--'
 )
+# RESTORE: pec_decsig wrapper expected by p2b.fluxo_reorganizado
+pec_decsig = make_comunicacao_wrapper(
+    tipo_expediente='Intimação',
+    prazo=30,
+    nome_comunicacao='intimação de decisão',
+    sigilo=True,
+    modelo_nome='xdecsig',
+    subtipo='Intimação',
+    gigs_extra=None,
+ 
+)
 pec_cpgeral = make_comunicacao_wrapper(
     tipo_expediente='Mandado',
     prazo=1,
@@ -2159,7 +2457,8 @@ pec_excluiargos = make_comunicacao_wrapper(
     sigilo=False,
     modelo_nome='asa/cnib',
     subtipo='Mandado',  # Subtipo igual ao tipo_expediente
-    gigs_extra=None
+    gigs_extra=None,
+    cliques_polo_passivo=0  # Não é necessário clicar no polo passivo
 )
 pec_mddgeral = make_comunicacao_wrapper(
     tipo_expediente='Mandado',
@@ -2206,55 +2505,16 @@ def mov(driver, seletor_alvo, texto_confirmacao=None, debug=False, timeout=15):
     from selenium.webdriver.common.by import By
     try:
         print(f'[MOV][DEBUG] Iniciando fluxo de movimento para seletor: {seletor_alvo}')
-        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
-        if not btn_abrir_tarefa:
-            print('[MOV][ERRO] Botão "Abrir tarefa do processo" não encontrado!')
-
-            return False
-        
-        # Captura o texto da tarefa diretamente do botão antes do clique
+        # Simplified flow: do not click external 'Abrir tarefa do processo'.
+        # Operate in the current context and try to find task info if available.
         tarefa_do_botao = None
         try:
-            # Busca span interno do botão que contém o nome da tarefa
-            span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
-            if span_tarefa:
-                tarefa_do_botao = span_tarefa.text.strip()
-                print(f'[MOV] ✓ Tarefa identificada do botão: "{tarefa_do_botao}"')
+            spans = driver.find_elements(By.CSS_SELECTOR, '.texto-tarefa-processo')
+            if spans:
+                tarefa_do_botao = spans[0].text.strip()
+                print(f'[MOV] ✓ (Info) Tarefa identificada na página: "{tarefa_do_botao}"')
         except Exception:
-            # Fallback: usa o texto completo do botão
-            try:
-                tarefa_do_botao = btn_abrir_tarefa.text.strip()
-                print(f'[MOV] ✓ Tarefa identificada (texto completo): "{tarefa_do_botao}"')
-            except Exception:
-                print('[MOV] ⚠ Não foi possível capturar nome da tarefa do botão')
-        
-        abas_antes = set(driver.window_handles)
-        # Executa o clique e registra o resultado
-        click_resultado = safe_click(driver, btn_abrir_tarefa)
-        if click_resultado and tarefa_do_botao:
-            print(f'[MOV] ✓ TAREFA ABERTA: "{tarefa_do_botao}"')
-            print(f'[MOV] ✓ Clique bem-sucedido no botão da tarefa')
-        elif click_resultado:
-            print('[MOV] ✓ Clique bem-sucedido, mas nome da tarefa não capturado')
-        else:
-            print('[MOV] ✗ Falha no clique do botão da tarefa')
-            return False
-        
-        print('[MOV] Botão "Abrir tarefa do processo" clicado.')
-        # Troca para nova aba, se aberta
-        nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
-        if nova_aba:
-            driver.switch_to.window(nova_aba)
-            print('[MOV] Foco trocado para nova aba da tarefa do processo.')
-        else:
-            print('[MOV][WARN] Nenhuma nova aba detectada após clique. Prosseguindo na aba atual.')
+            pass
         # Procura botão alvo
         try:
             btn_alvo = WebDriverWait(driver, timeout).until(
@@ -2342,7 +2602,8 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    from selectors_pje import BTN_TAREFA_PROCESSO
+    # NOTE: Removed dependency on selectors_pje.BTN_TAREFA_PROCESSO. We no longer
+    # click the external 'Abrir tarefa do processo' button; operate in current context.
     
     def log_msg(msg):
         if debug:
@@ -2361,53 +2622,18 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         prazo_meses = numero_match.group(1)
         log_msg(f"✅ Prazo extraído: {prazo_meses} meses")
         
-        # ===== ETAPA 1: ABRIR TAREFA DO PROCESSO (igual ao mov padrão) =====
-        log_msg("1. Abrindo tarefa do processo...")
-        
-        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
-        if not btn_abrir_tarefa:
-            log_msg("❌ Botão 'Abrir tarefa do processo' não encontrado!")
-            return False
-        
-        # Captura o texto da tarefa antes do clique
+        # ===== ETAPA 1: Simplicidade - não clicamos no botão externo =====
+        log_msg("1. (Info) Não abrimos botão externo. Operando na aba atual.")
         tarefa_do_botao = None
         try:
-            span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
-            if span_tarefa:
-                tarefa_do_botao = span_tarefa.text.strip()
-                log_msg(f"✅ Tarefa identificada: '{tarefa_do_botao}'")
+            spans = driver.find_elements(By.CSS_SELECTOR, '.texto-tarefa-processo')
+            if spans:
+                tarefa_do_botao = spans[0].text.strip()
+                log_msg(f"✅ (Info) Tarefa identificada na página: '{tarefa_do_botao}'")
         except Exception:
-            try:
-                tarefa_do_botao = btn_abrir_tarefa.text.strip()
-                log_msg(f"✅ Tarefa identificada (texto completo): '{tarefa_do_botao}'")
-            except Exception:
-                log_msg("⚠️ Não foi possível capturar nome da tarefa")
+            log_msg("(Warn) Não foi possível identificar texto da tarefa na página")
         
-        # Clica na tarefa e troca para nova aba
-        abas_antes = set(driver.window_handles)
-        click_resultado = safe_click(driver, btn_abrir_tarefa)
-        
-        if not click_resultado:
-            log_msg("❌ Falha no clique do botão da tarefa")
-            return False
-        
-        log_msg("✅ Botão 'Abrir tarefa do processo' clicado")
-        
-        # Aguarda nova aba e troca para ela
-        nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
-        
-        if nova_aba:
-            driver.switch_to.window(nova_aba)
-            log_msg("✅ Foco trocado para nova aba da tarefa")
-        else:
-            log_msg("⚠️ Nenhuma nova aba detectada, prosseguindo na aba atual")
+        # (Info) Não esperamos por nova aba: prosseguindo na aba atual
         
         # ===== ETAPA 2: EXECUTAR DEF_CHIP =====
         log_msg("2. Executando def_chip para remover chips de prazo vencido...")
@@ -2608,7 +2834,7 @@ def mov_fimsob(driver, debug=False, timeout=15):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    from selectors_pje import BTN_TAREFA_PROCESSO
+    # selectors_pje import removed; we operate without clicking external task button
     
     def log_msg(msg):
         if debug:
@@ -2617,58 +2843,17 @@ def mov_fimsob(driver, debug=False, timeout=15):
     log_msg("Iniciando movimento para encerrar sobrestamento")
     
     try:
-        # ===== ETAPA 1: ABRIR TAREFA DO PROCESSO =====
-        log_msg("1. Abrindo tarefa do processo...")
-        
-        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
-        if not btn_abrir_tarefa:
-            log_msg("❌ Botão 'Abrir tarefa do processo' não encontrado!")
-            return False
-        
-        # Captura o texto da tarefa antes do clique
+        # ===== ETAPA 1: Verificação simplificada (não clicamos em botão externo) =====
+        log_msg("1. (Info) Não abrimos botão externo. Operando na aba atual.")
         try:
-            span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
-            tarefa_do_botao = span_tarefa.text.strip() if span_tarefa else btn_abrir_tarefa.text.strip()
-            log_msg(f"✅ Tarefa identificada: '{tarefa_do_botao}'")
-        except Exception:
-            log_msg("⚠️ Não foi possível capturar nome da tarefa")
-        
-        # Clica na tarefa e aguarda nova aba
-        abas_antes = set(driver.window_handles)
-        click_resultado = safe_click(driver, btn_abrir_tarefa)
-        
-        if not click_resultado:
-            log_msg("❌ Falha no clique do botão da tarefa")
-            return False
-        
-        log_msg("✅ Botão 'Abrir tarefa do processo' clicado")
-        
-        # ===== ETAPA 2: MUDAR PARA ABA /AGUARDANDOFINAL =====
-        log_msg("2. Mudando para aba /aguardandofinal...")
-        
-        # Aguarda nova aba e troca para ela
-        nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
-        
-        if nova_aba:
-            driver.switch_to.window(nova_aba)
-            log_msg("✅ Foco trocado para nova aba da tarefa")
-            
-            # Verifica se está na URL correta
+            # Se já estivermos na URL /aguardandofinal, tudo bem.
             url_atual = driver.current_url
             if '/aguardandofinal' in url_atual:
-                log_msg("✅ Confirmado: aba /aguardandofinal")
+                log_msg("✅ Já na URL /aguardandofinal")
             else:
-                log_msg(f"⚠️ URL atual: {url_atual} (esperado: /aguardandofinal)")
-        else:
-            log_msg("❌ Nenhuma nova aba detectada")
-            return False
+                log_msg(f"(Info) URL atual: {url_atual}")
+        except Exception:
+            log_msg("(Warn) Não foi possível ler URL atual")
         
         # ===== ETAPA 3: CLICAR EM "ENCERRAR SOBRESTAMENTO" =====
         log_msg("3. Clicando no botão 'Encerrar sobrestamento'...")
@@ -2778,19 +2963,29 @@ def visibilidade_sigilosos(driver, polo='ativo', log=False):
         # NOVO: Troca para aba /detalhe se houver múltiplas abas
         if len(driver.window_handles) > 1:
             if log:
-                print("[VISIBILIDADE] Múltiplas abas detectadas. Trocando para primeira aba (/detalhe)...")
-            driver.switch_to.window(driver.window_handles[0])
+                print("[VISIBILIDADE] Múltiplas abas detectadas. Procurando aba /detalhe...")
             
-            current_url = driver.current_url
-            if log:
-                print(f"[VISIBILIDADE] URL após trocar para primeira aba: {current_url}")
-                
-            if '/detalhe' in current_url:
+            # Procura especificamente pela aba que contém /detalhe
+            detalhe_tab_found = False
+            for i, handle in enumerate(driver.window_handles):
+                driver.switch_to.window(handle)
+                current_url = driver.current_url
+                if '/detalhe' in current_url:
+                    if log:
+                        print(f"[VISIBILIDADE] ✓ Encontrada aba /detalhe (índice {i}): {current_url}")
+                    detalhe_tab_found = True
+                    break
+            
+            if not detalhe_tab_found:
+                # Fallback: volta para a primeira aba se não encontrou /detalhe
+                driver.switch_to.window(driver.window_handles[0])
+                current_url = driver.current_url
                 if log:
-                    print("[VISIBILIDADE] ✓ Agora está na aba /detalhe correta")
+                    print(f"[VISIBILIDADE] ⚠ Nenhuma aba /detalhe encontrada. Usando primeira aba: {current_url}")
             else:
+                current_url = driver.current_url
                 if log:
-                    print(f"[VISIBILIDADE] ⚠ URL não contém /detalhe: {current_url}")
+                    print(f"[VISIBILIDADE] URL da aba /detalhe: {current_url}")
         else:
             current_url = driver.current_url
             if log:

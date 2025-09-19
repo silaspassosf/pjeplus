@@ -1,0 +1,1 @@
+# Utilitários e helpers compartilhados

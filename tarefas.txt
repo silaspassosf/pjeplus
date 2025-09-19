@@ -1,11 +1,9 @@
-- sisbjaud minuta e bloqueio
 - sobrestamento - ver exwecucao e projtar automacao
 a - provisorio mudar so o prazo
 b- melhorar o da prescricao
 c- falencia mudar com limie de 8 meses desp/prazo
 d- melhorar a funcao do chip
 -prazo vencido - idpj, prescricao, checar prox no despacho de determinacao de edital
--inistir na funcao que le conteudo sem extrair.
 -rever a implementacao da conferencia final usando a logica do script temper+o modulo pronto de checar pagamentos.
 e- pec.py - acompanhar execucao.
 f- limpar a extensao, rever botoes.

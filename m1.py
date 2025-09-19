@@ -32,6 +32,7 @@ from Fix import (    navegar_para_tela,
     extrair_pdf,
     analise_outros,
     extrair_documento,
+    extrair_direto,
     criar_gigs,
     esperar_elemento,
     safe_click,
@@ -64,7 +65,15 @@ from atos import (
     mov_arquivar,
     ato_meiosub
 )
-from p2b import checar_prox
+# from p2b import checar_prox  # Conflito resolvido com importação específica
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+import importlib.util
+spec = importlib.util.spec_from_file_location("p2b_module", os.path.join(os.path.dirname(__file__), "p2b.py"))
+p2b_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(p2b_module)
+checar_prox = p2b_module.checar_prox
 from driver_config import criar_driver, login_func, login_manual
 from urllib.parse import urlparse
 import sys
@@ -688,13 +697,120 @@ def andamento_argos(driver, resultado_sisbajud, sigilo_anexos, log=True):
             print(f'[ARGOS][ANDAMENTO][ERRO] Falha no processamento do andamento: {e}')
             raise
 
+def extrair_destinatarios_decisao(texto_documento, debug=False):
+    """
+    Extrai TODOS os destinatários da decisão baseado no padrão "no polo passivo da presente demanda".
+    Os destinatários vêm antes desse trecho, seguindo os padrões "nome, cpf: ..." ou "nome, cnpj: ...".
+    
+    Args:
+        texto_documento (str): Texto completo da decisão
+        debug (bool): Se True, mostra logs de debug
+        
+    Returns:
+        list: Lista de dicionários com dados dos destinatários extraídos ou lista vazia se nenhum encontrado
+    """
+    try:
+        if not texto_documento:
+            if debug:
+                print('[DESTINATARIOS][DEBUG] Texto do documento vazio')
+            return []
+            
+        # Converter para minúsculas para busca case-insensitive
+        texto_lower = texto_documento.lower()
+        
+        # Procurar pelo marcador "no polo passivo da presente demanda"
+        marcador = "no polo passivo da presente demanda"
+        pos_marcador = texto_lower.find(marcador)
+        
+        if pos_marcador == -1:
+            if debug:
+                print('[DESTINATARIOS][DEBUG] Marcador "no polo passivo da presente demanda" não encontrado')
+            return []
+            
+        if debug:
+            print(f'[DESTINATARIOS][DEBUG] Marcador encontrado na posição {pos_marcador}')
+        
+        # Extrair o texto antes do marcador (últimos 1000 caracteres para análise)
+        texto_antes = texto_documento[:pos_marcador].strip()
+        if len(texto_antes) > 1000:
+            texto_antes = texto_antes[-1000:]  # Pegar os últimos 1000 caracteres
+        
+        if debug:
+            print(f'[DESTINATARIOS][DEBUG] Texto antes do marcador: {texto_antes[-300:]}...')
+        
+        destinatarios = []
+        
+        # Padrões para extrair nome e CPF/CNPJ - usando findall para múltiplos
+        padroes = [
+            # Padrão: nome, cpf: XXX.XXX.XXX-XX
+            r'([A-Za-zÀ-ÿ\s]+),\s*cpf\s*:\s*(\d{3}\.\d{3}\.\d{3}-\d{2})',
+            # Padrão: nome, cnpj: XX.XXX.XXX/XXXX-XX
+            r'([A-Za-zÀ-ÿ\s]+),\s*cnpj\s*:\s*(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2})',
+            # Padrão alternativo sem formatação: nome, cpf: XXXXXXXXXXX
+            r'([A-Za-zÀ-ÿ\s]+),\s*cpf\s*:\s*(\d{11})',
+            # Padrão alternativo sem formatação: nome, cnpj: XXXXXXXXXXXXXX
+            r'([A-Za-zÀ-ÿ\s]+),\s*cnpj\s*:\s*(\d{14})'
+        ]
+        
+        for padrao in padroes:
+            matches = re.findall(padrao, texto_antes, re.IGNORECASE | re.UNICODE)
+            for match in matches:
+                nome = match[0].strip()
+                documento = match[1].strip()
+                
+                # Limpar o nome (remover espaços extras, capitalizar)
+                nome = re.sub(r'\s+', ' ', nome).title()
+                
+                # Determinar se é CPF ou CNPJ
+                tipo_documento = 'cpf' if len(re.sub(r'[^\d]', '', documento)) == 11 else 'cnpj'
+                
+                destinatario = {
+                    'nome': nome,
+                    'documento': documento,
+                    'tipo': tipo_documento
+                }
+                
+                # Evitar duplicatas
+                if destinatario not in destinatarios:
+                    destinatarios.append(destinatario)
+        
+        if debug:
+            if destinatarios:
+                print(f'[DESTINATARIOS][DEBUG] {len(destinatarios)} destinatário(s) extraído(s):')
+                for i, dest in enumerate(destinatarios, 1):
+                    print(f'  {i}. {dest}')
+            else:
+                print('[DESTINATARIOS][DEBUG] Nenhum destinatário encontrado no texto')
+        
+        return destinatarios
+        
+    except Exception as e:
+        if debug:
+            print(f'[DESTINATARIOS][ERRO] Falha ao extrair destinatários: {e}')
+        return []
+
 # ...existing code...
 
-def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
+def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False, profundidade_recursao=0):
     """
     Aplica as regras específicas do Argos com base no resultado do SISBAJUD, sigilo dos anexos e tipo de documento.
     Retorna True se uma regra foi aplicada, False caso contrário.
+    
+    Args:
+        profundidade_recursao: Controla a profundidade da recursão para evitar loops infinitos
     """
+    # Proteção contra recursão infinita
+    if profundidade_recursao > 3:
+        if debug:
+            print(f'[ARGOS][REGRAS][AVISO] Profundidade de recursão máxima atingida ({profundidade_recursao}), interrompendo análise')
+        return False
+    
+    if debug:
+        print(f'[ARGOS][REGRAS][DEBUG] Iniciando aplicar_regras_argos com profundidade {profundidade_recursao}')
+        print(f'[ARGOS][REGRAS][DEBUG] Tipo documento: {tipo_documento}')
+        print(f'[ARGOS][REGRAS][DEBUG] SISBAJUD: {resultado_sisbajud}')
+        print(f'[ARGOS][REGRAS][DEBUG] Texto documento (primeiros 100 chars): {texto_documento[:100] if texto_documento else "None"}')
+    
     try:
         regra_aplicada = None
         trecho_relevante = texto_documento if texto_documento else ''
@@ -806,7 +922,7 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                                 print(f'[ARGOS][REGRAS] Repetindo análise de regras para o novo documento')
                             
                             # Chamada recursiva para aplicar regras no novo documento
-                            resultado_recursivo = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, novo_tipo, novo_texto, debug=debug)
+                            resultado_recursivo = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, novo_tipo, novo_texto, debug=debug, profundidade_recursao=profundidade_recursao + 1)
                             regra_aplicada += ' | análise repetida em documento seguinte'
                             print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
                             return resultado_recursivo
@@ -821,15 +937,39 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                         print('[ARGOS][REGRAS] Nenhum próximo documento encontrado, continuando com a análise atual')
         
         # PRIORIDADE ABSOLUTA: Regra "defiro a instauração" com SISBAJUD positivo
+        if debug:
+            print(f'[ARGOS][REGRAS][DEBUG] Verificando regra "defiro a instauração"')
         if 'defiro a instauração' in texto_documento.lower() and resultado_sisbajud == 'positivo':
+            if debug:
+                print(f'[ARGOS][REGRAS][DEBUG] Regra "defiro a instauração" ativada')
             regra_aplicada = '[PRIORIDADE] decisao+defiro a instauracao+sisbajud positivo'
             if debug:
                 print('[ARGOS][REGRAS][PRIORIDADE] ✅ REGRA DE PRECEDÊNCIA: defiro a instauração + SISBAJUD positivo')
                 print('[ARGOS][REGRAS][PRIORIDADE] Esta regra prevalece sobre qualquer outra')
-            regra_aplicada += ' | lembrete_bloq + gigs 0/xs_assinar + pec_idpj [PRECEDENCIA ABSOLUTA]'
+            
+            # NOVO: Extrair destinatários do texto da decisão
+            destinatarios_dados = extrair_destinatarios_decisao(texto_documento, debug)
+            # destinatarios_dados = None  # Temporariamente None para evitar erro
+            
+            if debug:
+                print(f'[ARGOS][REGRAS][DEBUG] Chamando lembrete_bloq')
             lembrete_bloq(driver, debug=debug)
+            if debug:
+                print(f'[ARGOS][REGRAS][DEBUG] Chamando criar_gigs')
             criar_gigs(driver, 7, '', 'xs carta')
-            pec_idpj(driver, debug=debug)
+            
+            # Chamar pec_idpj com destinatários extraídos
+            if debug:
+                print(f'[ARGOS][REGRAS][DEBUG] Chamando pec_idpj')
+            if destinatarios_dados and len(destinatarios_dados) > 0:
+                # Se temos dados de destinatários extraídos, passar a lista completa
+                pec_idpj(driver, destinatarios=destinatarios_dados, debug=debug)
+                if debug:
+                    print(f'[DESTINATARIOS][INFO] {len(destinatarios_dados)} destinatário(s) extraído(s) da decisão:')
+                    for i, dest in enumerate(destinatarios_dados, 1):
+                        print(f'  {i}. {dest["nome"]} - {dest["tipo"].upper()}: {dest["documento"]}')
+            else:
+                pec_idpj(driver, debug=debug)  # Fallback para comportamento anterior
             
             # Executa Infojud após pec_idpj
             try:
@@ -858,10 +998,25 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
             regra_aplicada = 'decisao+defiro a instauracao'
             if debug:
                 print('[ARGOS][REGRAS] Documento identificado como decisão de instauração')
+            
+            # Extrair destinatários do texto da decisão
+            destinatarios_dados = extrair_destinatarios_decisao(texto_documento, debug)
+            
             if resultado_sisbajud == 'negativo':
                 regra_aplicada += ' | sisbajud negativo => gigs 0/xs_assinar + pec_idpj'
                 criar_gigs(driver, 7, '', 'xs carta')
-                pec_idpj(driver, debug=debug)
+                
+                # Usar destinatários extraídos se disponíveis
+                if destinatarios_dados and len(destinatarios_dados) > 0:
+                    pec_idpj(driver, destinatarios=destinatarios_dados, debug=debug)
+                else:
+                    pec_idpj(driver, debug=debug)
+                
+                # Log dos destinatários extraídos
+                if debug and destinatarios_dados and len(destinatarios_dados) > 0:
+                    print(f'[DESTINATARIOS][INFO] {len(destinatarios_dados)} destinatário(s) extraído(s) da decisão:')
+                    for i, dest in enumerate(destinatarios_dados, 1):
+                        print(f'  {i}. {dest["nome"]} - {dest["tipo"].upper()}: {dest["documento"]}')
                 
                 # Executa Infojud após pec_idpj
                 try:
@@ -962,10 +1117,14 @@ def aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documen
                     
         # Log sempre que chamado, para rastreabilidade
         print(f'[ARGOS][REGRAS][LOG] Regra aplicada: {regra_aplicada}\nTrecho considerado: {trecho_relevante}')
+        if debug:
+            print(f'[ARGOS][REGRAS][DEBUG] Finalizando aplicar_regras_argos com profundidade {profundidade_recursao}')
         return False  # Nenhuma regra específica foi aplicada
     except Exception as e:
         if debug:
             print(f'[ARGOS][REGRAS][ERRO] Falha ao aplicar regras: {e}')
+            import traceback
+            print(f'[ARGOS][REGRAS][ERRO] Traceback completo:\n{traceback.format_exc()}')
         return False
 # ...existing code...
 
@@ -1507,65 +1666,57 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
                         try:
                             if log:
                                 print(f'[ARGOS][ANEXOS][DEBUG] ✅ PROCESSANDO MODAL VALIDADO para: {texto_anexo}')
-                                print(f'[ARGOS][ANEXOS][DEBUG] Modal confirmado como correto, iniciando seleção de checkboxes...')
+                                print(f'[ARGOS][ANEXOS][DEBUG] Modal confirmado como correto, iniciando processo de marcação...')
 
                             # Aguarda modal carregar completamente
                             sleep(800)
 
-                            # DEBUG: Estratégia otimizada para clique no botão "Selecionar Todos"
-                            btn_selecionar_todos = None
-
-                            # Busca pelo ícone específico de selecionar todos
+                            # STEP 1: Clicar no ícone "Marcar todas"
                             try:
-                                # Busca diretamente pelo ícone fa-check
-                                icone_selecionar_todos = modal_visibilidade.find_element(By.CSS_SELECTOR, "i.fa.fa-check")
+                                # Buscar pelo ícone específico de "Marcar todas"
+                                icone_marcar_todas = modal_visibilidade.find_element(
+                                    By.CSS_SELECTOR, 
+                                    "i.fa.fa-check.botao-icone-titulo-coluna.todas-marcadas"
+                                )
 
                                 if log:
-                                    print(f'[ARGOS][ANEXOS] Ícone "Selecionar Todos" encontrado')
+                                    print(f'[ARGOS][ANEXOS] ✅ Ícone "Marcar todas" encontrado')
 
-                                # Clique no ícone Selecionar Todos
-                                driver.execute_script("arguments[0].click();", icone_selecionar_todos)
+                                # Clique no ícone para marcar todas
+                                driver.execute_script("arguments[0].click();", icone_marcar_todas)
                                 sleep(500)
 
                                 if log:
-                                    print(f'[ARGOS][ANEXOS] ✅ Ícone "Selecionar Todos" clicado com sucesso')
+                                    print(f'[ARGOS][ANEXOS] ✅ Ícone "Marcar todas" clicado com sucesso')
 
-                            except Exception as e_selecionar:
+                            except Exception as e_marcar:
                                 if log:
-                                    print(f'[ARGOS][ANEXOS][AVISO] Botão "Selecionar Todos" não encontrado, tentando checkboxes individuais: {e_selecionar}')
-
-                                # Fallback: Selecionar checkboxes individualmente
-                                checkboxes = modal_visibilidade.find_elements(By.CSS_SELECTOR, "mat-checkbox")
-                                if checkboxes:
+                                    print(f'[ARGOS][ANEXOS][ERRO] Erro ao clicar no ícone "Marcar todas": {e_marcar}')
+                                    print(f'[ARGOS][ANEXOS][ERRO] Tentando seletor alternativo...')
+                                
+                                # Seletor alternativo mais genérico
+                                try:
+                                    icone_marcar_alt = modal_visibilidade.find_element(
+                                        By.CSS_SELECTOR, 
+                                        "i[aria-label='Marcar todas']"
+                                    )
+                                    driver.execute_script("arguments[0].click();", icone_marcar_alt)
+                                    sleep(500)
                                     if log:
-                                        print(f'[ARGOS][ANEXOS] Encontrados {len(checkboxes)} checkboxes no modal')
-
-                                    for i, checkbox in enumerate(checkboxes):
-                                        try:
-                                            # Verifica se já está selecionado
-                                            if checkbox.get_attribute('aria-checked') != 'true':
-                                                safe_click(driver, checkbox)
-                                                sleep(200)
-                                                if log:
-                                                    print(f'[ARGOS][ANEXOS] ✅ Checkbox {i+1} selecionado')
-                                            else:
-                                                if log:
-                                                    print(f'[ARGOS][ANEXOS] Checkbox {i+1} já estava selecionado')
-
-                                        except Exception as e_checkbox:
-                                            if log:
-                                                print(f'[ARGOS][ANEXOS][ERRO] Erro ao selecionar checkbox {i+1}: {e_checkbox}')
-                                            continue
-                                else:
+                                        print(f'[ARGOS][ANEXOS] ✅ Ícone "Marcar todas" clicado (seletor alternativo)')
+                                except Exception as e_alt:
                                     if log:
-                                        print(f'[ARGOS][ANEXOS][ERRO] Nenhum checkbox encontrado no modal')
+                                        print(f'[ARGOS][ANEXOS][ERRO] Não foi possível encontrar o ícone "Marcar todas": {e_alt}')
 
-                            # STEP 4: Buscar botão "Salvar" e clicar
+                            # STEP 2: Buscar botão "Salvar" e clicar
                             try:
                                 sleep(500)  # Pausa antes de buscar o botão Salvar
 
-                                # Busca botão Salvar no modal validado
-                                btn_salvar = modal_visibilidade.find_element(By.XPATH, ".//button[contains(., 'Salvar')]")
+                                # Busca botão Salvar pelo seletor específico fornecido
+                                btn_salvar = modal_visibilidade.find_element(
+                                    By.CSS_SELECTOR, 
+                                    "button[mat-button][color='primary'].mat-focus-indicator.mat-button.mat-button-base.mat-primary"
+                                )
 
                                 if btn_salvar and btn_salvar.is_displayed() and btn_salvar.is_enabled():
                                     if log:
@@ -1583,7 +1734,18 @@ def tratar_anexos_argos(driver, documentos_sequenciais, log=True):
 
                             except Exception as e_salvar:
                                 if log:
-                                    print(f'[ARGOS][ANEXOS][ERRO] Erro ao clicar no botão "Salvar": {e_salvar}')
+                                    print(f'[ARGOS][ANEXOS][ERRO] Erro ao buscar botão "Salvar" com seletor específico: {e_salvar}')
+                                
+                                # Fallback: buscar por texto
+                                try:
+                                    btn_salvar_alt = modal_visibilidade.find_element(By.XPATH, ".//button[contains(., 'Salvar')]")
+                                    safe_click(driver, btn_salvar_alt)
+                                    sleep(1000)
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS] ✅ Botão "Salvar" clicado (seletor alternativo)')
+                                except Exception as e_salvar_alt:
+                                    if log:
+                                        print(f'[ARGOS][ANEXOS][ERRO] Erro ao clicar no botão "Salvar": {e_salvar_alt}')
 
                         except Exception as e_modal_processing:
                             if log:
@@ -2054,7 +2216,31 @@ def buscar_documento_argos(driver, log=True):
                 
                 sleep(1500)  # Esperamos mais tempo para carregar o documento
                 print(f'[ARGOS][DOC] Extraindo texto do documento...')
-                texto = extrair_documento(driver)
+                
+                # Tentar extrair_direto primeiro, com fallback para extrair_pdf
+                texto = None
+                try:
+                    resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=False)
+                    if resultado_direto and resultado_direto.get('sucesso') and resultado_direto.get('conteudo_bruto'):
+                        texto = resultado_direto['conteudo_bruto']
+                        print(f'[ARGOS][DOC] ✅ Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
+                    else:
+                        print('[ARGOS][DOC] ⚠️ extrair_direto não conseguiu extrair texto válido, tentando extrair_pdf...')
+                        texto = extrair_pdf(driver, log=False)
+                        if texto:
+                            print('[ARGOS][DOC] ✅ Extração via extrair_pdf bem-sucedida')
+                        else:
+                            print('[ARGOS][DOC] ❌ Ambos os métodos de extração falharam')
+                except Exception as e:
+                    print(f'[ARGOS][DOC] ❌ Erro na extração DIRETA: {e}, tentando extrair_pdf...')
+                    try:
+                        texto = extrair_pdf(driver, log=False)
+                        if texto:
+                            print('[ARGOS][DOC] ✅ Extração via extrair_pdf bem-sucedida (fallback)')
+                        else:
+                            print('[ARGOS][DOC] ❌ Método de fallback também falhou')
+                    except Exception as e2:
+                        print(f'[ARGOS][DOC] ❌ Erro no método de fallback: {e2}')
                 
                 if log:
                     print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (antes da planilha):\n---\n{texto}\n---')
@@ -2114,7 +2300,31 @@ def buscar_documento_argos(driver, log=True):
                     print(f'[ARGOS][DOC][FALLBACK] Extraindo texto do documento...')
                     
                     try:
-                        texto = extrair_documento(driver)
+                        # Tentar extrair_direto primeiro, com fallback para extrair_pdf
+                        texto = None
+                        try:
+                            resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=False)
+                            if resultado_direto and resultado_direto.get('sucesso') and resultado_direto.get('conteudo_bruto'):
+                                texto = resultado_direto['conteudo_bruto']
+                                print(f'[ARGOS][DOC][FALLBACK] ✅ Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
+                            else:
+                                print('[ARGOS][DOC][FALLBACK] ⚠️ extrair_direto não conseguiu extrair texto válido, tentando extrair_pdf...')
+                                texto = extrair_pdf(driver, log=False)
+                                if texto:
+                                    print('[ARGOS][DOC][FALLBACK] ✅ Extração via extrair_pdf bem-sucedida')
+                                else:
+                                    print('[ARGOS][DOC][FALLBACK] ❌ Ambos os métodos de extração falharam')
+                        except Exception as e:
+                            print(f'[ARGOS][DOC][FALLBACK] ❌ Erro na extração DIRETA: {e}, tentando extrair_pdf...')
+                            try:
+                                texto = extrair_pdf(driver, log=False)
+                                if texto:
+                                    print('[ARGOS][DOC][FALLBACK] ✅ Extração via extrair_pdf bem-sucedida (fallback)')
+                                else:
+                                    print('[ARGOS][DOC][FALLBACK] ❌ Método de fallback também falhou')
+                            except Exception as e2:
+                                print(f'[ARGOS][DOC][FALLBACK] ❌ Erro no método de fallback: {e2}')
+                        
                         if log:
                             print(f'[ARGOS][DEBUG] TEXTO EXTRAÍDO DO DOCUMENTO (fallback):\n---\n{texto}\n---')
                         
@@ -2369,7 +2579,35 @@ def fluxo_mandados_outros(driver, log=True):
                         safe_click(driver, link_ant)
                         time.sleep(1)
                         
-                        texto_mandado_ant = extrair_documento(driver)
+                        # Tentar extrair_direto primeiro, com fallback para extrair_pdf
+                        texto_mandado_ant = None
+                        try:
+                            resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=False)
+                            if resultado_direto and resultado_direto.get('sucesso') and resultado_direto.get('conteudo_bruto'):
+                                texto_mandado_ant = resultado_direto['conteudo_bruto']
+                                if log:
+                                    print(f'[MANDADOS][OUTROS] ✅ Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
+                            else:
+                                if log:
+                                    print('[MANDADOS][OUTROS] ⚠️ extrair_direto não conseguiu extrair texto válido, tentando extrair_pdf...')
+                                texto_mandado_ant = extrair_pdf(driver, log=False)
+                                if texto_mandado_ant and log:
+                                    print('[MANDADOS][OUTROS] ✅ Extração via extrair_pdf bem-sucedida')
+                                elif log:
+                                    print('[MANDADOS][OUTROS] ❌ Ambos os métodos de extração falharam')
+                        except Exception as e:
+                            if log:
+                                print(f'[MANDADOS][OUTROS] ❌ Erro na extração DIRETA: {e}, tentando extrair_pdf...')
+                            try:
+                                texto_mandado_ant = extrair_pdf(driver, log=False)
+                                if texto_mandado_ant and log:
+                                    print('[MANDADOS][OUTROS] ✅ Extração via extrair_pdf bem-sucedida (fallback)')
+                                elif log:
+                                    print('[MANDADOS][OUTROS] ❌ Método de fallback também falhou')
+                            except Exception as e2:
+                                if log:
+                                    print(f'[MANDADOS][OUTROS] ❌ Erro no método de fallback: {e2}')
+                        
                         if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
                             if log:
                                 print("[MANDADOS][OUTROS][LOG] Mandado anterior contém 'penhora' - chamando ato_meios")
@@ -2406,7 +2644,39 @@ def fluxo_mandados_outros(driver, log=True):
                 print("[MANDADOS][OUTROS][LOG] Mandado sem padrão reconhecido. Criando GIGS fallback.")
             # criar_gigs(driver, dias_uteis=0, observacao='pz mdd', tela='principal')        return None
     
-    texto = extrair_documento(driver, regras_analise=analise_padrao)
+    # Tentar extrair_direto primeiro, com fallback para extrair_pdf
+    texto = None
+    try:
+        resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=False)
+        if resultado_direto and resultado_direto.get('sucesso') and resultado_direto.get('conteudo_bruto'):
+            texto = resultado_direto['conteudo_bruto']
+            if log:
+                print(f'[MANDADOS][OUTROS] ✅ Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
+        else:
+            if log:
+                print('[MANDADOS][OUTROS] ⚠️ extrair_direto não conseguiu extrair texto válido, tentando extrair_pdf...')
+            texto = extrair_pdf(driver, log=False)
+            if texto and log:
+                print('[MANDADOS][OUTROS] ✅ Extração via extrair_pdf bem-sucedida')
+            elif log:
+                print('[MANDADOS][OUTROS] ❌ Ambos os métodos de extração falharam')
+    except Exception as e:
+        if log:
+            print(f'[MANDADOS][OUTROS] ❌ Erro na extração DIRETA: {e}, tentando extrair_pdf...')
+        try:
+            texto = extrair_pdf(driver, log=False)
+            if texto and log:
+                print('[MANDADOS][OUTROS] ✅ Extração via extrair_pdf bem-sucedida (fallback)')
+            elif log:
+                print('[MANDADOS][OUTROS] ❌ Método de fallback também falhou')
+        except Exception as e2:
+            if log:
+                print(f'[MANDADOS][OUTROS] ❌ Erro no método de fallback: {e2}')
+    
+    # Aplicar análise se conseguiu extrair texto
+    if texto:
+        analise_padrao(texto)
+    
     if not texto:
         if log:
             print("[MANDADOS][OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
@@ -2515,6 +2785,22 @@ def main():
             print(f"[PROGRESSO][STATUS] {len(progresso.get('processos_executados', []))} processos executados")
             print(f"[PROGRESSO][STATUS] Última atualização: {progresso.get('last_update', 'N/A')}")
             return
+        elif sys.argv[1] == "--monitor":
+            # Integração mínima com monitor.py: usa a função existente analisar_script
+            try:
+                print('[M1] Iniciando análise estática via monitor.py...')
+                from monitor import analisar_script
+                resultado = analisar_script('m1.py')
+                print('[M1] Análise concluída. Resumo:')
+                if isinstance(resultado, dict):
+                    print(f"  - Linhas: {resultado.get('metricas', {}).get('total_lines')}")
+                    print(f"  - Seletores encontrados: {resultado.get('metricas', {}).get('selectors_count')}")
+                    print(f"  - Funções: {resultado.get('metricas', {}).get('functions_count')}")
+                    print(f"  - Recomendações: {len(resultado.get('recommendations', []))}")
+                return
+            except Exception as e:
+                print(f"[M1][MONITOR][ERRO] Falha ao executar monitor: {e}")
+                return
     
     # Setup inicial
     driver = setup_driver()

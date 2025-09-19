@@ -5,6 +5,178 @@ import re
 from datetime import datetime
 from selenium.webdriver.common.by import By
 
+# ===== VARIÁVEL GLOBAL PARA DRIVER SISBAJUD ÚNICO =====
+driver_sisbajud_global = None
+
+def verificar_driver_sisbajud_ativo(driver):
+    """
+    Verifica se o driver SISBAJUD ainda está ativo e funcional
+    """
+    if driver is None:
+        return False
+
+    try:
+        # Tentar executar um comando simples para verificar se o driver responde
+        driver.current_url
+        return True
+    except Exception:
+        print("[SISBAJUD] ⚠️ Driver SISBAJUD não responde, será recriado")
+        try:
+            driver.quit()
+        except:
+            pass
+        return False
+
+def monitor_pec_execution(func):
+    """
+    Decorator para monitorar execução de funções PEC
+    """
+    def wrapper(*args, **kwargs):
+        # Importar monitor dinamicamente para evitar dependências circulares
+        try:
+            from monitor import get_monitor
+            monitor = get_monitor()
+        except ImportError:
+            monitor = None
+
+        if not monitor:
+            # Se não conseguir importar monitor, executar função normalmente
+            return func(*args, **kwargs)
+
+        # Iniciar monitoramento
+        start_time = time.time()
+        function_name = func.__name__
+
+        # Dados de monitoramento
+        execution_data = {
+            'function_calls': [],
+            'selectors_used': [],
+            'execution_time': 0,
+            'errors': [],
+            'success': True
+        }
+
+        try:
+            # Executar função
+            result = func(*args, **kwargs)
+
+            # Calcular tempo de execução
+            execution_data['execution_time'] = time.time() - start_time
+
+            # Analisar resultado para sucesso
+            if hasattr(result, 'get') and result.get('status') == 'erro':
+                execution_data['success'] = False
+                execution_data['errors'].append({
+                    'type': 'function_error',
+                    'message': result.get('erro', 'Erro desconhecido')
+                })
+
+            # Monitorar execução
+            monitor.monitor_execution(function_name, execution_data)
+
+            # Análise específica de PEC se for uma função relevante
+            if 'pec' in function_name.lower() or 'processar' in function_name.lower():
+                pec_analysis_data = {
+                    'function_calls': execution_data['function_calls'],
+                    'selectors_used': execution_data['selectors_used'],
+                    'execution_time': execution_data['execution_time'],
+                    'errors': execution_data['errors']
+                }
+                pec_analysis = monitor.analyze_pec_execution(pec_analysis_data)
+
+                # Exibir recomendações se houver
+                if pec_analysis.get('recommendations'):
+                    print(f"\n💡 RECOMENDAÇÕES PARA {function_name.upper()}:")
+                    for rec in pec_analysis['recommendations'][:3]:  # Top 3 recomendações
+                        print(f"  • {rec['description']}")
+                        print(f"    Sugestão: {rec['implementation_steps'][0] if rec['implementation_steps'] else 'Analisar código'}")
+
+            return result
+
+        except Exception as e:
+            execution_data['execution_time'] = time.time() - start_time
+            execution_data['success'] = False
+            execution_data['errors'].append({
+                'type': 'exception',
+                'message': str(e)
+            })
+
+            # Monitorar execução com erro
+            monitor.monitor_execution(function_name, execution_data)
+
+            # Relançar exceção
+            raise e
+
+    return wrapper
+
+def obter_driver_sisbajud_unico(driver_pje=None):
+    """
+    Obtém ou cria o driver SISBAJUD único para reutilização
+    """
+    global driver_sisbajud_global
+
+    # Verificar se o driver atual ainda está ativo
+    if driver_sisbajud_global and verificar_driver_sisbajud_ativo(driver_sisbajud_global):
+        print(f"[SISBAJUD] ✅ Usando driver SISBAJUD global existente e ativo")
+        return driver_sisbajud_global
+
+    print("[SISBAJUD] 🔄 Criando novo driver SISBAJUD...")
+    try:
+        from sisb import iniciar_sisbajud
+        driver_sisbajud_global = iniciar_sisbajud(driver_pje=driver_pje, auto_nova_minuta=False)
+        if driver_sisbajud_global:
+            print("[SISBAJUD] ✅ Novo driver SISBAJUD criado com sucesso")
+        else:
+            print("[SISBAJUD] ❌ Falha ao criar driver SISBAJUD")
+            return None
+    except Exception as e:
+        print(f"[SISBAJUD] ❌ Erro ao criar driver SISBAJUD: {e}")
+        return None
+
+    return driver_sisbajud_global
+
+    return driver_sisbajud_global
+
+def fechar_driver_sisbajud_global():
+    """
+    Fecha o driver SISBAJUD global se existir
+    """
+    global driver_sisbajud_global
+    if driver_sisbajud_global:
+        try:
+            driver_sisbajud_global.quit()
+            print("[SISBAJUD] ✅ Driver SISBAJUD global fechado")
+        except Exception as e:
+            print(f"[SISBAJUD] ⚠️ Erro ao fechar driver SISBAJUD global: {e}")
+        finally:
+            driver_sisbajud_global = None
+
+# Compatibilidade: função simples para navegar até a tela de atividades do PEC
+def navegar_para_atividades(driver, timeout=10):
+    """Navega para a tela de atividades GIGS/PEC e tenta garantir que a lista esteja carregada.
+
+    Retorna True se a navegação foi bem-sucedida, False caso contrário.
+    """
+    try:
+        url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
+        driver.get(url_atividades)
+        time.sleep(3)
+
+        # Tentar aplicar filtro de 100 itens se a função estiver disponível
+        try:
+            from Fix import aplicar_filtro_100
+            aplicar_filtro_100(driver)
+            time.sleep(1)
+        except Exception:
+            # Não é crítico - só tentamos aplicar o filtro quando possível
+            pass
+
+        print('[PEC] ✅ Navegação para atividades concluída')
+        return True
+    except Exception as e:
+        print(f"[PEC][ERRO] Falha ao navegar para atividades: {e}")
+        return False
+
 # ===== FUNÇÕES DE PROGRESSO PARA PEC =====
 def carregar_progresso_pec():
     """Carrega o estado de progresso do arquivo JSON específico para PEC com recuperação automática"""
@@ -408,11 +580,24 @@ def testar_sistema_progresso_pec():
 import time
 import re
 import unicodedata
-from atos import (
-    pec_decisao, 
-    pec_editalidpj, 
-    pec_cpgeral,
-    pec_bloqueio)
+# from atos import (
+#     pec_decisao,
+#     pec_editalidpj,
+#     pec_cpgeral,
+#     pec_bloqueio)
+
+# Funções temporárias para teste
+def pec_decisao(driver, debug=False):
+    print("[TEST] pec_decisao executado")
+
+def pec_editalidpj(driver, debug=False):
+    print("[TEST] pec_editalidpj executado")
+
+def pec_cpgeral(driver, debug=False):
+    print("[TEST] pec_cpgeral executado")
+
+def pec_bloqueio(driver, debug=False):
+    print("[TEST] pec_bloqueio executado")
 
 
 # Flag para controlar se já foi feito login no Siscon
@@ -502,84 +687,214 @@ def fazer_login_siscon_manual(driver, debug=False):
         print(f"\n❌ Erro: {e}")
         return False
 
-def determinar_acao_por_observacao(observacao):
+def processar_observacao_com_regras(observacao, driver, numero_processo, debug=True):
     """
-    Determina a ação a ser executada baseada na observação extraída.
-    
-    Regras - retorna diretamente o nome da função do atos.py:
-    - Sobrestamento vencido -> def_sob
-    - exclusão -> pec_excluirargos
-    - xs pec cp -> pec_cpgeral  
-    - xs pec edital -> pec_editaldec
-    - pec dec -> pec_decisao
-    - pec idpj -> pec_editalidpj
-    - pz idpj -> ato_idpj
-    - xs carta -> carta
-    - xs bloq -> pec_bloqueio
-    - xs parcial -> ato_bloq
-    - sob {numero} -> mov_sob
-    - sob chip -> def_chip
-    - teimosinha/t2 -> minuta_bloqueio_sisbajud
-    - xs resultado -> processar_ordem_sisbajud
+    Sistema de regras baseado em regex para observações PEC
+    Similar ao sistema elegante do p2b.py
     """
     import re
-    observacao_lower = observacao.lower().strip()
+    import unicodedata
+    from importlib import import_module
     
-    # Nova regra: EXCLUSÃO -> pec_excluiargos
-    if "exclusão" in observacao_lower or "exclusao" in observacao_lower:
-        return "pec_excluiargos"
+    def normalizar_texto(txt):
+        """Remove acentos e converte para lowercase"""
+        return ''.join(c for c in unicodedata.normalize('NFD', txt.lower()) 
+                      if unicodedata.category(c) != 'Mn')
     
-    # Nova regra: TEIMOSINHA ou T2 -> fluxo SISBAJUD completo
-    if "teimosinha" in observacao_lower or "t2" in observacao_lower:
-        return "minuta_bloqueio_sisbajud"
+    def gerar_regex_flexivel(termo):
+        """Gera regex flexível que aceita variações e pontuação"""
+        termo_norm = normalizar_texto(termo)
+        palavras = termo_norm.split()
+        partes = [re.escape(p) for p in palavras]
+        regex = r''
+        for i, parte in enumerate(partes):
+            regex += parte
+            if i < len(partes) - 1:
+                regex += r'[\s\.,;:!\-–—]*'
+        return re.compile(rf"{regex}", re.IGNORECASE)
     
-    # Nova regra: xs resultado -> processar_ordem_sisbajud
-    if "xs resultado" in observacao_lower:
-        return "processar_ordem_sisbajud"
+    # ESTRUTURA DECLARATIVA DE REGRAS - FÁCIL MANUTENÇÃO
+    regras_pec = [
+        # (padrões_regex, módulo, função, debug_msg)
+        
+        # Prioridade alta - regras específicas primeiro
+        ([gerar_regex_flexivel(k) for k in ['exclusão', 'exclusao','excluir convenios']], 
+         'atos', 'pec_excluiargos', 'Executando exclusão de argos'),
+        
+        ([gerar_regex_flexivel(k) for k in ['teimosinha', 't2']], 
+         'sisb', 'minuta_bloqueio', 'Executando minuta SISBAJUD'),
+        
+        ([gerar_regex_flexivel('xs resultado')], 
+         'sisb', 'processar_ordem_sisbajud', 'Executando processamento SISBAJUD'),
+        
+        # Regras PEC
+        ([gerar_regex_flexivel(k) for k in ['pec cp', 'xs pec cp']], 
+         'atos', 'pec_cpgeral', 'Executando PEC CP geral'),
+        
+        ([gerar_regex_flexivel(k) for k in ['pec edital', 'xs pec edital']], 
+         'atos', 'pec_editaldec', 'Executando PEC edital decisório'),
+        
+        ([gerar_regex_flexivel(k) for k in ['pec dec', 'xs pec dec']], 
+         'atos', 'pec_decisao', 'Executando PEC decisão'),
+        
+        ([gerar_regex_flexivel(k) for k in ['pec idpj', 'xs pec idpj']], 
+         'atos', 'pec_editalidpj', 'Executando PEC edital IDPJ'),
+        
+        ([gerar_regex_flexivel(k) for k in ['pec bloq', 'xs bloq']], 
+         'atos', 'pec_bloqueio', 'Executando PEC bloqueio'),
+        
+        ([gerar_regex_flexivel('pec aud')], 
+         'atos', 'pec_editalaud', 'Executando PEC edital audiência'),
+        
+        # Regras de atos
+        ([gerar_regex_flexivel('pz idpj')], 
+         'atos', 'ato_idpj', 'Executando ato IDPJ'),
+        
+        ([gerar_regex_flexivel('xs parcial')], 
+         'atos', 'ato_bloq', 'Executando ato bloqueio'),
+        
+        ([gerar_regex_flexivel('meios')], 
+         'atos', 'ato_meios', 'Executando ato meios'),
+        
+        # Regras de carta
+        ([gerar_regex_flexivel(k) for k in ['xs carta', 'carta']], 
+         'carta', 'carta', 'Executando carta'),
+        
+        ([gerar_regex_flexivel('xs pz carta')], 
+         'carta', 'xs_pz_carta', 'Executando carta prazo'),
+        
+        # Regras de movimento/sobrestamento
+        ([re.compile(r'\bsob\s+\d+', re.IGNORECASE)], 
+         'mov', 'mov_sob', 'Executando movimento sobrestamento'),
+        
+        ([gerar_regex_flexivel('sob chip')], 
+         'atos', 'def_chip', 'Executando definição chip'),
+        
+        ([gerar_regex_flexivel('sobrestamento vencido')], 
+         'atos', 'def_sob', 'Executando definição sobrestamento'),
+        
+        # Regras especiais (saldo removido)
+    ]
     
-    # Regras mínimas para todas ações PEC
-    if "pec cp" in observacao_lower:
-        return "pec_cpgeral"
-    elif "pec edital" in observacao_lower:
-        return "pec_editaldec"
-    elif "pec dec" in observacao_lower:
-        return "pec_decisao"
-    elif "pec idpj" in observacao_lower:
-        return "pec_editalidpj"
-    elif "xs carta" in observacao_lower:
-        return "xs_carta"
-    elif "pec bloq" in observacao_lower or "pec bloq".replace(" ","") in observacao_lower:
-        return "pec_bloqueio"
-    elif "xs pz carta" in observacao_lower:
-        return "xs_pz_carta"
-    elif re.search(r'\bsob\s+\d+', observacao_lower):
-        return "mov_sob"
-    elif "sob chip" in observacao_lower:
-        return "def_chip"
-    elif "sobrestamento vencido" in observacao_lower:
-        return "def_sob"
-    elif "xs pec cp" in observacao_lower:
-        return "pec_cpgeral"
-    elif "xs pec edital" in observacao_lower:
-        return "pec_editaldec"
-    elif "xs pec dec" in observacao_lower:
-        return "pec_decisao"
-    elif "xs pec idpj" in observacao_lower:
-        return "pec_editalidpj"
-    elif "pz idpj" in observacao_lower:
-        return "ato_idpj"
-    elif "xs carta" in observacao_lower:
-        return "carta"
-    elif "xs bloq" in observacao_lower:
-        return "pec_bloqueio"
-    elif "xs parcial" in observacao_lower:
-        return "ato_bloq"
-    elif "meios" in observacao_lower:
-        return "ato_meios"
-    elif "pec aud" in observacao_lower:
-        return "pec_editalaud"
-    else:
-        return "PULAR"
+    # PROCESSAMENTO ÚNICO - SIMILAR AO P2B.PY
+    observacao_normalizada = normalizar_texto(observacao)
+    
+    for padroes, modulo, funcao, msg_debug in regras_pec:
+        for regex in padroes:
+            if regex.search(observacao_normalizada):
+                if debug:
+                    print(f'[PEC] ✅ {msg_debug}')
+                
+                try:
+                    # Importação dinâmica
+                    module = import_module(modulo)
+                    func = getattr(module, funcao)
+                    
+                    # Execução com parâmetros específicos por tipo de função
+                    if funcao == 'minuta_bloqueio':
+                        # Função SISBAJUD minuta_bloqueio - detectar prazo na observação
+                        prazo_dias = 30  # Padrão
+                        observacao_lower = observacao.lower() if observacao else ""
+                        
+                        # Detecção ampliada: qualquer "60" na observação indica 60 dias
+                        if "60" in observacao_lower:
+                            prazo_dias = 60
+                            print(f"[PEC] 📅 Prazo de 60 dias detectado na observação: '{observacao}'")
+                        else:
+                            print(f"[PEC] 📅 Usando prazo padrão de 30 dias")
+                        
+                        # Chamar função com prazo detectado
+                        resultado = func(driver_pje=driver, dados_processo=None, prazo_dias=prazo_dias)
+                        
+                        # Se minuta_bloqueio foi bem-sucedida, executar juntada
+                        if resultado and resultado.get('status') == 'sucesso':
+                            print("[PEC] ✅ Minuta SISBAJUD executada com sucesso - executando juntada...")
+                            
+                            # Aguardar estabilização do driver PJe
+                            import time
+                            time.sleep(2)
+                            
+                            try:
+                                # Verificar se driver PJe ainda está responsivo
+                                driver.current_url  # Teste simples
+                                print("[PEC] ✅ Driver PJe confirmado como responsivo")
+                                
+                                # Executar wrapper SISB para juntada no PJe
+                                print("[PEC] Executando juntada do relatório SISBAJUD no PJe...")
+                                from anexos import sisb_wrapper
+                                
+                                # Extrair número do processo
+                                from Fix import extrair_dados_processo
+                                dados_processo = extrair_dados_processo(driver)
+                                numero_processo = dados_processo.get('numero_processo', '') if dados_processo else ''
+                                
+                                resultado_wrapper = sisb_wrapper(
+                                    driver=driver,
+                                    numero_processo=numero_processo,
+                                    debug=True
+                                )
+                                
+                                if resultado_wrapper:
+                                    print("[PEC] ✅ Relatório SISBAJUD inserido no PJe com sucesso!")
+                                else:
+                                    print("[PEC] ⚠️ Falha na inserção do relatório no PJe, mas minuta foi executada")
+                                    
+                            except Exception as juntada_error:
+                                print(f"[PEC] ⚠️ Erro na juntada: {juntada_error}")
+                                # Não falhamos o processo todo por causa da juntada
+                                
+                    elif funcao == 'processar_ordem_sisbajud':
+                        # Função SISBAJUD processar_ordem
+                        from Fix import extrair_dados_processo
+                        dados_processo = extrair_dados_processo(driver)
+                        resultado = func(driver, dados_processo, driver_pje=driver)
+                    elif funcao == 'mov_sob':
+                        # Função mov_sob precisa extrair número do sobrestamento
+                        import re
+                        match = re.search(r'\bsob\s+(\d+)', observacao_normalizada)
+                        if match:
+                            numero_sob = match.group(1)
+                            resultado = func(driver, numero_sob, debug=debug)
+                        else:
+                            resultado = False
+                    elif funcao == 'def_chip':
+                        # Função def_chip precisa de numero_processo e observacao
+                        from Fix import extrair_dados_processo
+                        dados_processo = extrair_dados_processo(driver)
+                        numero_processo = dados_processo.get('numero_processo', '') if dados_processo else ''
+                        resultado = func(driver, numero_processo, observacao, debug=debug)
+                    else:
+                        # Funções padrão (atos, carta, etc.)
+                        resultado = func(driver, debug=debug)
+                    
+                    if debug:
+                        status = "✅ Sucesso" if resultado else "❌ Falha"
+                        print(f'[PEC] {status} na execução de {funcao}')
+                    
+                    return bool(resultado)
+                    
+                except Exception as e:
+                    if debug:
+                        print(f'[PEC] ❌ Erro ao executar {funcao}: {e}')
+                        import traceback
+                        traceback.print_exc()
+                    return False
+    
+    # Nenhuma regra aplicada
+    if debug:
+        print(f'[PEC] ⚠️ Nenhuma regra aplicada para observação: "{observacao}"')
+    return False
+
+
+def determinar_acao_por_observacao(observacao):
+    """
+    FUNÇÃO DEPRECIADA - Use processar_observacao_com_regras() ao invés desta
+    
+    Determina a ação a ser executada baseada na observação extraída.
+    MANTIDA APENAS PARA REFERÊNCIA - SISTEMA NOVO BASEADO EM REGEX É MAIS ELEGANTE
+    """
+    print("[DEPRECATED] ⚠️ Função determinar_acao_por_observacao está depreciada. Use processar_observacao_com_regras()")
+    return "PULAR"
 
 def indexar_processo_atual_gigs(driver):
     """
@@ -679,10 +994,14 @@ def indexar_processo_atual_gigs(driver):
 
 def executar_acao(driver, acao, numero_processo, observacao):
     """
-    Executa a ação determinada no processo aberto.
-    """
+    FUNÇÃO DEPRECIADA - Use processar_observacao_com_regras() ao invés desta
     
-    print(f"[AÇÃO] Executando ação '{acao}' para processo {numero_processo}")
+    Esta função foi substituída pelo novo sistema baseado em regex que é mais elegante,
+    flexível e fácil de manter. Todas as ações agora são executadas diretamente
+    pela função processar_observacao_com_regras().
+    """
+    print("[DEPRECATED] ⚠️ Função executar_acao está depreciada. Use processar_observacao_com_regras()")
+    return False
     
     try:
         if acao == "xs_pz_carta":
@@ -777,6 +1096,13 @@ def executar_acao(driver, acao, numero_processo, observacao):
             # Executa ato_bloq do atos.py
             from atos import ato_bloq
             resultado = ato_bloq(driver, debug=True)
+            return bool(resultado)
+            
+        elif acao == "ato_meios":
+            # Nova ação: Executa ato_meios do atos.py (meios)
+            print("[AÇÃO] ✅ Detectado 'meios' - executando ato_meios")
+            from atos import ato_meios
+            resultado = ato_meios(driver, debug=True)
             return bool(resultado)
             
         elif acao == "minuta_bloqueio_sisbajud":
@@ -880,20 +1206,12 @@ def executar_acao(driver, acao, numero_processo, observacao):
                 traceback.print_exc()
                 return False
             
-        elif acao == "saldo":
-            # Executa função saldo local (analisa alvará e consulta sistemas)
-            resultado = saldo(driver, numero_processo, observacao, debug=True)
-            return bool(resultado)
-            
         else:
             print(f"[AÇÃO] ❌ Ação '{acao}' não reconhecida")
             return False
             
     except Exception as e:
         print(f"[AÇÃO] Erro ao executar ação '{acao}': {e}")
-        return False
-        return False
-
 def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=False):
     """
     Analisa documentos após execução de carta para observação "xs pz carta".
@@ -1188,19 +1506,16 @@ def executar_fluxo_novo(driver=None):
                     return False
                 _, observacao = processo_atual
                 print(f"[CALLBACK_PEC] Processo: {numero_processo} | Observação: {observacao}")
-                acao = determinar_acao_por_observacao(observacao)
-                print(f"[CALLBACK_PEC] Ação determinada: {acao}")
-                if acao == "PULAR":
-                    print(f"[CALLBACK_PEC] ⏭️ Pulando processo (ação não definida)")
-                    marcar_processo_executado_pec(numero_processo, progresso)
-                    return True
-                sucesso_acao = executar_acao(driver, acao, numero_processo, observacao)
+                
+                # Usar novo sistema de regras baseado em regex
+                sucesso_acao = processar_observacao_com_regras(observacao, driver, numero_processo, debug=True)
+                
                 time.sleep(2)
                 if sucesso_acao:
                     marcar_processo_executado_pec(numero_processo, progresso)
-                    print(f"[CALLBACK_PEC] ✅ Ação '{acao}' executada e processo marcado como concluído")
+                    print(f"[CALLBACK_PEC] ✅ Regra executada e processo marcado como concluído")
                 else:
-                    print(f"[CALLBACK_PEC] ❌ Falha na execução da ação '{acao}'")
+                    print(f"[CALLBACK_PEC] ❌ Falha na execução da regra ou nenhuma regra aplicada")
                     marcar_processo_executado_pec(numero_processo, progresso)
                 print(f"[CALLBACK_PEC] Processamento do callback concluído")
             except Exception as e:
@@ -1373,154 +1688,14 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
             print("[INDEXAR] ⚠️ Todos os processos já foram executados!")
             return True
         
-        # ===== ETAPA 4: PROCESSAR CADA PROCESSO INDIVIDUALMENTE =====
-        print("[INDEXAR] 4. Iniciando processamento individual...")
-        
-        processos_sucesso = 0
-        processos_erro = 0
+        # ===== USAR PROCESSAMENTO AGRUPADO OTIMIZADO =====
+        print("[INDEXAR] 🎯 Usando processamento agrupado otimizado...")
         aba_lista_original = driver.current_window_handle
+        processos_sucesso, processos_erro = processar_processos_agrupados(
+            driver, processos_pendentes, aba_lista_original
+        )
         
-        for idx, processo_info in enumerate(processos_pendentes):
-            numero_processo = processo_info['numero']
-            observacao = processo_info['observacao']
-            linha = processo_info['linha']
-            linha_index = processo_info['linha_index']
-            
-            print(f"[INDEXAR] === Processando {idx + 1}/{len(processos_pendentes)}: {numero_processo} ===")
-            print(f"[INDEXAR] Observação: {observacao}")
-            print(f"[INDEXAR] Linha índice: {linha_index}")
-            
-            try:
-                # Verificar se linha ainda é válida
-                linha_atual = linha
-                try:
-                    linha_atual.is_displayed()
-                except:
-                    # Linha ficou stale, tentar reindexar
-                    print(f"[INDEXAR] ⚠️ Linha ficou stale, reindexando...")
-                    from Fix import reindexar_linha
-                    linha_atual = reindexar_linha(driver, numero_processo)
-                    if not linha_atual:
-                        print(f"[INDEXAR] ❌ Não foi possível reindexar linha para {numero_processo}")
-                        processos_erro += 1
-                        continue
-                
-                # NAVEGAR PARA O PROCESSO ESPECÍFICO
-                from Fix import abrir_detalhes_processo, trocar_para_nova_aba
-                
-                # 1. Abrir detalhes do processo
-                if not abrir_detalhes_processo(driver, linha_atual):
-                    print(f"[INDEXAR] ❌ Botão de detalhes não encontrado para {numero_processo}")
-                    processos_erro += 1
-                    continue
-                
-                # 2. Trocar para nova aba
-                time.sleep(1)
-                nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
-                if not nova_aba:
-                    print(f"[INDEXAR] ❌ Nova aba do processo {numero_processo} não foi aberta")
-                    processos_erro += 1
-                    continue
-                
-                # 3. Aguardar carregamento
-                time.sleep(2)
-                
-                # 4. PROCESSAR O PROCESSO usando executar_acao
-                acao = determinar_acao_por_observacao(observacao)
-                print(f"[INDEXAR] Ação determinada para '{observacao}': {acao}")
-                
-                if acao == "PULAR":
-                    print(f"[INDEXAR] ⏭️ Observação '{observacao}' não tem regra definida - pulando")
-                    # Voltar para lista antes de pular
-                    try:
-                        if aba_lista_original in driver.window_handles:
-                            driver.switch_to.window(aba_lista_original)
-                            # Fechar aba do processo já que vamos pular
-                            for handle in driver.window_handles:
-                                if handle != aba_lista_original:
-                                    try:
-                                        driver.switch_to.window(handle)
-                                        driver.close()
-                                    except:
-                                        pass
-                            driver.switch_to.window(aba_lista_original)
-                    except Exception as e:
-                        print(f"[INDEXAR] ⚠️ Erro ao voltar para lista (PULAR): {e}")
-                    continue
-                
-                # Executar ação correta
-                resultado = executar_acao(driver, acao, numero_processo, observacao)
-                
-                if resultado:
-                    processos_sucesso += 1
-                    print(f"[INDEXAR] ✅ Processo {numero_processo} processado com sucesso")
-                else:
-                    processos_erro += 1
-                    print(f"[INDEXAR] ❌ Falha ao processar processo {numero_processo}")
-                
-                # SEMPRE registrar no progresso (sucesso ou erro) para evitar reprocessamento
-                marcar_sucesso = marcar_processo_executado_pec(numero_processo, progresso)
-                if marcar_sucesso:
-                    print(f"[INDEXAR] ✅ Progresso atualizado para processo {numero_processo}")
-                else:
-                    print(f"[INDEXAR] ⚠️ Falha ao atualizar progresso para processo {numero_processo}")
-                
-                # 5. Voltar para a lista de forma robusta
-                try:
-                    if aba_lista_original in driver.window_handles:
-                        driver.switch_to.window(aba_lista_original)
-                        # Fecha outras abas abertas para evitar acúmulo
-                        for handle in driver.window_handles:
-                            if handle != aba_lista_original:
-                                try:
-                                    driver.switch_to.window(handle)
-                                    driver.close()
-                                except:
-                                    pass
-                        # Volta garantidamente para a lista
-                        driver.switch_to.window(aba_lista_original)
-                        print(f"[INDEXAR] ✅ Retornou para lista com sucesso")
-                    else:
-                        print(f"[INDEXAR] ❌ Aba da lista não está mais disponível")
-                except Exception as back_error:
-                    print(f"[INDEXAR] ⚠️ Erro ao voltar para lista: {back_error}")
-                
-                time.sleep(1)  # Aguarda estabilização
-                
-            except Exception as e:
-                processos_erro += 1
-                print(f"[INDEXAR] ❌ Exceção ao processar {numero_processo}: {e}")
-                import traceback
-                traceback.print_exc()
-                
-                # MESMO EM CASO DE EXCEÇÃO, marcar como executado para evitar loop infinito
-                try:
-                    marcar_sucesso = marcar_processo_executado_pec(numero_processo, progresso)
-                    if marcar_sucesso:
-                        print(f"[INDEXAR] ✅ Processo {numero_processo} marcado como executado mesmo com erro")
-                    else:
-                        print(f"[INDEXAR] ⚠️ Falha ao marcar processo {numero_processo} após erro")
-                except Exception as prog_e:
-                    print(f"[INDEXAR] ❌ Erro crítico ao marcar progresso após exceção: {prog_e}")
-                
-                # Tentar voltar para a lista em caso de erro
-                try:
-                    if aba_lista_original in driver.window_handles:
-                        driver.switch_to.window(aba_lista_original)
-                        # Fechar outras abas se necessário
-                        for handle in driver.window_handles:
-                            if handle != aba_lista_original:
-                                try:
-                                    driver.switch_to.window(handle)
-                                    driver.close()
-                                except:
-                                    pass
-                        driver.switch_to.window(aba_lista_original)
-                except Exception as back_error:
-                    print(f"[INDEXAR] ⚠️ Erro ao voltar para lista: {back_error}")
-                continue
-        
-        # ===== ETAPA 5: RELATÓRIO FINAL =====
+        # ===== RELATÓRIO FINAL =====
         print(f"[INDEXAR] ========== RELATÓRIO FINAL ==========")
         print(f"[INDEXAR] Total de processos na lista: {len(todos_processos)}")
         print(f"[INDEXAR] Processos filtrados por observação: {len(processos_filtrados)}")
@@ -1530,13 +1705,357 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
         print(f"[INDEXAR] Taxa de sucesso: {(processos_sucesso/len(processos_pendentes)*100):.1f}%" if processos_pendentes else "N/A")
         print(f"[INDEXAR] =====================================")
         
-        return True
+        return processos_erro == 0  # Retorna True se não houve erros
         
     except Exception as e:
         print(f"[INDEXAR] ❌ Erro geral na indexação: {e}")
         import traceback
         traceback.print_exc()
         return False
+
+# ===== FUNÇÃO DE OTIMIZAÇÃO PARA AGRUPAMENTO DE PROCESSOS =====
+
+def processar_processos_agrupados(driver, processos_pendentes, aba_lista_original):
+    """
+    Processa processos agrupados por tipo de ação para otimizar uso de drivers externos.
+
+    Args:
+        driver: Driver principal do PJe
+        processos_pendentes: Lista de processos a processar
+        aba_lista_original: Handle da aba original
+
+    Returns:
+        tuple: (processos_sucesso, processos_erro)
+    """
+    import time
+    from importlib import import_module
+
+    print("[OTIMIZAÇÃO] 🔄 Iniciando processamento agrupado de processos...")
+
+    # ===== ETAPA 1: AGRUPAR PROCESSOS POR TIPO DE AÇÃO =====
+    grupos_processos = {
+        'sisb_minuta_bloqueio': [],  # Processos que precisam de minuta_bloqueio
+        'outros': []  # Outros tipos de ação
+    }
+
+    for processo_info in processos_pendentes:
+        numero_processo = processo_info['numero']
+        observacao = processo_info['observacao']
+
+        # Classificar processo baseado na observação
+        if detectar_acao_sisb_minuta_bloqueio(observacao):
+            grupos_processos['sisb_minuta_bloqueio'].append(processo_info)
+            print(f"[OTIMIZAÇÃO] 📋 {numero_processo} → SISB minuta_bloqueio")
+        else:
+            grupos_processos['outros'].append(processo_info)
+            print(f"[OTIMIZAÇÃO] 📋 {numero_processo} → Outros")
+
+    print(f"[OTIMIZAÇÃO] 📊 Agrupamento concluído:")
+    print(f"[OTIMIZAÇÃO]   • SISB minuta_bloqueio: {len(grupos_processos['sisb_minuta_bloqueio'])} processos")
+    print(f"[OTIMIZAÇÃO]   • Outros: {len(grupos_processos['outros'])} processos")
+
+    processos_sucesso = 0
+    processos_erro = 0
+
+    # ===== ETAPA 2: PROCESSAR GRUPO SISB MINUTA_BLOQUEIO =====
+    if grupos_processos['sisb_minuta_bloqueio']:
+        print("[OTIMIZAÇÃO] 🎯 Processando grupo SISB minuta_bloqueio...")
+        sucesso_sisb, erro_sisb = processar_grupo_sisb_minuta_bloqueio(
+            driver, grupos_processos['sisb_minuta_bloqueio'], aba_lista_original
+        )
+        processos_sucesso += sucesso_sisb
+        processos_erro += erro_sisb
+
+    # ===== ETAPA 3: PROCESSAR OUTROS PROCESSOS =====
+    if grupos_processos['outros']:
+        print("[OTIMIZAÇÃO] 🎯 Processando grupo outros...")
+        sucesso_outros, erro_outros = processar_grupo_outros(
+            driver, grupos_processos['outros'], aba_lista_original
+        )
+        processos_sucesso += sucesso_outros
+        processos_erro += erro_outros
+
+    print(f"[OTIMIZAÇÃO] ✅ Processamento agrupado concluído: {processos_sucesso} sucesso, {processos_erro} erro")
+    return processos_sucesso, processos_erro
+
+def detectar_acao_sisb_minuta_bloqueio(observacao):
+    """Detecta se a observação requer minuta_bloqueio do SISBAJUD"""
+    import re
+    import unicodedata
+
+    def normalizar_texto(txt):
+        return ''.join(c for c in unicodedata.normalize('NFD', txt.lower())
+                      if unicodedata.category(c) != 'Mn')
+
+    def gerar_regex_flexivel(termo):
+        termo_norm = normalizar_texto(termo)
+        palavras = termo_norm.split()
+        partes = [re.escape(p) for p in palavras]
+        regex = r''
+        for i, parte in enumerate(partes):
+            regex += parte
+            if i < len(partes) - 1:
+                regex += r'[\s\.,;:!\-–—]*'
+        return re.compile(rf"{regex}", re.IGNORECASE)
+
+    # Padrões que indicam minuta_bloqueio
+    padroes_minuta_bloqueio = [
+        gerar_regex_flexivel(k) for k in ['teimosinha', 't2']
+    ]
+
+    observacao_norm = normalizar_texto(observacao or "")
+
+    for padrao in padroes_minuta_bloqueio:
+        if padrao.search(observacao_norm):
+            return True
+
+    return False
+
+def processar_grupo_sisb_minuta_bloqueio(driver, processos_sisb, aba_lista_original):
+    """
+    Processa todos os processos que precisam de minuta_bloqueio usando um único driver SISBAJUD.
+    """
+    print(f"[SISB-GRUPO] 🚀 Iniciando processamento de {len(processos_sisb)} processos SISB...")
+
+    processos_sucesso = 0
+    processos_erro = 0
+
+    # ===== PROCESSAR CADA PROCESSO DO GRUPO SISBAJUD =====
+    driver_sisbajud = None  # Inicializar apenas quando necessário
+
+    for idx, processo_info in enumerate(processos_sisb):
+            numero_processo = processo_info['numero']
+            observacao = processo_info['observacao']
+            linha = processo_info['linha']
+            linha_index = processo_info['linha_index']
+
+            print(f"[SISB-GRUPO] === Processando {idx + 1}/{len(processos_sisb)}: {numero_processo} ===")
+
+            try:
+                # NAVEGAR PARA O PROCESSO
+                from Fix import abrir_detalhes_processo, trocar_para_nova_aba
+
+                # 1. Abrir detalhes do processo
+                if not abrir_detalhes_processo(driver, linha):
+                    print(f"[SISB-GRUPO] ❌ Botão de detalhes não encontrado para {numero_processo}")
+                    processos_erro += 1
+                    continue
+
+                # 2. Trocar para nova aba
+                time.sleep(1)
+                nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
+                if not nova_aba:
+                    print(f"[SISB-GRUPO] ❌ Nova aba do processo {numero_processo} não foi aberta")
+                    processos_erro += 1
+                    continue
+
+                # 3. Aguardar carregamento e EXTRAIR DADOS DO PROCESSO
+                time.sleep(2)
+                print(f"[SISB-GRUPO] 📋 Extraindo dados do processo {numero_processo}...")
+
+                # Extrair dados do processo ATUAL (essencial para SISBAJUD)
+                from Fix import extrair_dados_processo
+                dados_processo_atual = extrair_dados_processo(driver)
+
+                if not dados_processo_atual:
+                    print(f"[SISB-GRUPO] ❌ Não foi possível extrair dados do processo {numero_processo}")
+                    processos_erro += 1
+                    continue
+
+                numero_processo_atual = dados_processo_atual.get('numero_processo', numero_processo)
+                print(f"[SISB-GRUPO] ✅ Dados extraídos: {numero_processo_atual}")
+
+                # ===== EXECUTAR MINUTA_BLOQUEIO COM DRIVER REUTILIZADO =====
+                print(f"[SISB-GRUPO] 🎯 Executando minuta_bloqueio para {numero_processo_atual}...")
+
+                # Detectar prazo da observação
+                prazo_dias = 30  # Padrão
+                observacao_lower = observacao.lower() if observacao else ""
+                if "60" in observacao_lower or "sessenta" in observacao_lower:
+                    prazo_dias = 60
+                    print(f"[SISB-GRUPO] 📅 Prazo de 60 dias detectado na observação: '{observacao}'")
+                else:
+                    print(f"[SISB-GRUPO] 📅 Prazo padrão de 30 dias (observação: '{observacao}')")
+
+                # ===== INICIALIZAR DRIVER SISBAJUD SE NECESSÁRIO =====
+                if driver_sisbajud is None:
+                    print("[SISB-GRUPO] 🚀 Inicializando driver SISBAJUD único para o grupo...")
+                    try:
+                        # Usar a função de gerenciamento único do driver SISBAJUD
+                        driver_sisbajud = obter_driver_sisbajud_unico(driver_pje=driver)
+
+                        if driver_sisbajud:
+                            print("[SISB-GRUPO] ✅ Driver SISBAJUD único obtido com sucesso")
+                        else:
+                            print("[SISB-GRUPO] ❌ Falha ao obter driver SISBAJUD único")
+                            processos_erro += 1
+                            continue
+
+                    except Exception as e:
+                        print(f"[SISB-GRUPO] ❌ Erro ao obter driver SISBAJUD único: {e}")
+                        processos_erro += 1
+                        continue
+                        
+                    except Exception as e:
+                        print(f"[SISB-GRUPO] ❌ Erro ao inicializar driver SISBAJUD: {e}")
+                        processos_erro += 1
+                        continue
+
+                # Executar minuta_bloqueio com driver reutilizado e dados corretos
+                print(f"[SISB-GRUPO] DEBUG: Passando driver_sisbajud: {driver_sisbajud is not None}")
+                from sisb import minuta_bloqueio
+                resultado = minuta_bloqueio(
+                    driver_pje=driver,
+                    dados_processo=dados_processo_atual,  # DADOS EXTRAÍDOS!
+                    driver_sisbajud=driver_sisbajud,  # REUTILIZAR DRIVER!
+                    prazo_dias=prazo_dias,
+                    fechar_driver=False  # NÃO fechar driver para reutilização no grupo
+                )
+
+                if resultado and resultado.get('status') == 'sucesso':
+                    print(f"[SISB-GRUPO] ✅ Minuta SISBAJUD executada com sucesso para {numero_processo_atual}")
+
+                    # Aguardar estabilização
+                    time.sleep(2)
+
+                    # ===== EXECUTAR JUNTADA NO PJE =====
+                    print(f"[SISB-GRUPO] 📎 Executando juntada para {numero_processo_atual}...")
+                    try:
+                        from anexos import sisb_wrapper
+
+                        resultado_wrapper = sisb_wrapper(
+                            driver=driver,
+                            numero_processo=numero_processo_atual,
+                            debug=True
+                        )
+
+                        if resultado_wrapper:
+                            print(f"[SISB-GRUPO] ✅ Juntada realizada com sucesso para {numero_processo_atual}")
+                            processos_sucesso += 1
+                        else:
+                            print(f"[SISB-GRUPO] ❌ Falha na juntada para {numero_processo_atual}")
+                            processos_erro += 1
+
+                    except Exception as e:
+                        print(f"[SISB-GRUPO] ❌ Erro na juntada para {numero_processo_atual}: {e}")
+                        processos_erro += 1
+
+                else:
+                    print(f"[SISB-GRUPO] ❌ Falha na minuta_bloqueio para {numero_processo}")
+                    processos_erro += 1
+
+                # ===== VOLTAR PARA LISTA =====
+                try:
+                    if aba_lista_original in driver.window_handles:
+                        driver.switch_to.window(aba_lista_original)
+                        # Fechar aba do processo
+                        for handle in driver.window_handles:
+                            if handle != aba_lista_original:
+                                try:
+                                    driver.switch_to.window(handle)
+                                    driver.close()
+                                except:
+                                    pass
+                        driver.switch_to.window(aba_lista_original)
+                except Exception as e:
+                    print(f"[SISB-GRUPO] ⚠️ Erro ao voltar para lista: {e}")
+
+            except Exception as e:
+                print(f"[SISB-GRUPO] ❌ Erro geral no processamento de {numero_processo}: {e}")
+                processos_erro += 1
+
+    # ===== FINALIZAR DRIVER SISBAJUD =====
+    print("[SISB-GRUPO] 🔚 Finalizando driver SISBAJUD único...")
+    fechar_driver_sisbajud_global()
+
+    print(f"[SISB-GRUPO] 📊 Resultado grupo SISB: {processos_sucesso} sucesso, {processos_erro} erro")
+    return processos_sucesso, processos_erro
+
+def processar_grupo_outros(driver, processos_outros, aba_lista_original):
+    """
+    Processa processos que não precisam de SISBAJUD usando o método tradicional.
+    """
+    print(f"[OUTROS-GRUPO] 🚀 Iniciando processamento de {len(processos_outros)} processos outros...")
+
+    processos_sucesso = 0
+    processos_erro = 0
+
+    for idx, processo_info in enumerate(processos_outros):
+        numero_processo = processo_info['numero']
+        observacao = processo_info['observacao']
+        linha = processo_info['linha']
+        linha_index = processo_info['linha_index']
+
+        print(f"[OUTROS-GRUPO] === Processando {idx + 1}/{len(processos_outros)}: {numero_processo} ===")
+
+        try:
+            # Verificar se linha ainda é válida
+            linha_atual = linha
+            try:
+                linha_atual.is_displayed()
+            except:
+                # Linha ficou stale, tentar reindexar
+                print(f"[OUTROS-GRUPO] ⚠️ Linha ficou stale, reindexando...")
+                from Fix import reindexar_linha
+                linha_atual = reindexar_linha(driver, numero_processo)
+                if not linha_atual:
+                    print(f"[OUTROS-GRUPO] ❌ Não foi possível reindexar linha para {numero_processo}")
+                    processos_erro += 1
+                    continue
+
+            # NAVEGAR PARA O PROCESSO ESPECÍFICO
+            from Fix import abrir_detalhes_processo, trocar_para_nova_aba
+
+            # 1. Abrir detalhes do processo
+            if not abrir_detalhes_processo(driver, linha_atual):
+                print(f"[OUTROS-GRUPO] ❌ Botão de detalhes não encontrado para {numero_processo}")
+                processos_erro += 1
+                continue
+
+            # 2. Trocar para nova aba
+            time.sleep(1)
+            nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
+            if not nova_aba:
+                print(f"[OUTROS-GRUPO] ❌ Nova aba do processo {numero_processo} não foi aberta")
+                processos_erro += 1
+                continue
+
+            # 3. Aguardar carregamento
+            time.sleep(2)
+
+            # 4. PROCESSAR O PROCESSO usando novo sistema de regras
+            print(f"[OUTROS-GRUPO] Processando observação: '{observacao}'")
+
+            sucesso_acao = processar_observacao_com_regras(observacao, driver, numero_processo, debug=True)
+
+            if not sucesso_acao:
+                print(f"[OUTROS-GRUPO] ⏭️ Observação '{observacao}' não tem regra definida ou falhou - pulando")
+                processos_erro += 1
+            else:
+                processos_sucesso += 1
+
+            # ===== VOLTAR PARA LISTA =====
+            try:
+                if aba_lista_original in driver.window_handles:
+                    driver.switch_to.window(aba_lista_original)
+                    # Fechar aba do processo
+                    for handle in driver.window_handles:
+                        if handle != aba_lista_original:
+                            try:
+                                driver.switch_to.window(handle)
+                                driver.close()
+                            except:
+                                pass
+                    driver.switch_to.window(aba_lista_original)
+            except Exception as e:
+                print(f"[OUTROS-GRUPO] ⚠️ Erro ao voltar para lista: {e}")
+
+        except Exception as e:
+            print(f"[OUTROS-GRUPO] ❌ Erro geral no processamento de {numero_processo}: {e}")
+            processos_erro += 1
+
+    print(f"[OUTROS-GRUPO] 📊 Resultado grupo outros: {processos_sucesso} sucesso, {processos_erro} erro")
+    return processos_sucesso, processos_erro
 
 
 def aplicar_filtro_xs(driver):
@@ -2786,23 +3305,25 @@ def criar_lembrete(driver, titulo, conteudo, debug=False):
             print(f'[LEMBRETE][ERRO] Falha ao criar lembrete: {e}')
         return False
 
-def saldo(driver, numero_processo, observacao, debug=False, timeout=10):
+# Função saldo removida - não é mais necessária
+
+def def_SIF(driver, numero_processo, observacao, debug=False):
     """
-    Função def_saldo: analisa timeline para identificar primeira ocorrência de Alvará/Alvará
-    e executa ação baseada no responsável (Magistrado ou Servidor).
+    Função def_SIF: Consulta saldo no sistema SIF e executa ação baseada no resultado.
     
     Fluxo:
-    1. Percorre timeline procurando primeira ocorrência de "Alvará" ou "Alvará"
-    2. Ao identificar, lê o atributo aria-label do ícone responsável
-    3. Se "Magistrado" -> def_SIF
-    4. Se "Servidor" -> def_Siscon
+    1. Clicar no menu do processo (fa-bars)
+    2. Clicar em "Dados Financeiros" (fa-file-invoice-dollar)
+    3. Aguardar carregamento da página SIF
+    4. Ler saldo disponível da página SIF
+    5. Se saldo > 0 → criar_gigs (1/Bruna/Liberação)
+    6. Se saldo = 0 → ato_parcela
     
     Args:
         driver: WebDriver do Selenium
         numero_processo: Número do processo
         observacao: Observação que disparou a ação
         debug: Se True, exibe logs detalhados
-        timeout: Timeout para aguardar elementos
     
     Returns:
         bool: True se executado com sucesso
@@ -3036,11 +3557,6 @@ def saldo(driver, numero_processo, observacao, debug=False, timeout=10):
         traceback.print_exc()
         return False
     
-    finally:
-        log_msg("=" * 60)
-        log_msg("FIM DA FUNÇÃO SALDO")
-        log_msg("=" * 60)
-
 def def_SIF(driver, numero_processo, observacao, debug=False):
     """
     Função def_SIF: Consulta saldo no sistema SIF e executa ação baseada no resultado.

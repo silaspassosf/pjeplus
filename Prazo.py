@@ -1,8 +1,9 @@
-# run_all.py
+# prazo.py - Executa loop.py seguido diretamente de p2b.py
 from driver_config import criar_driver, login_func
 import logging
-from loop import loop_prazo
-from p2b import processar_p2
+import subprocess
+import sys
+import os
 
 # Configuração do logging
 logging.basicConfig(
@@ -17,45 +18,39 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def executar_sequencia():
-    """Executa loop.py seguido de p2.py usando o mesmo driver."""
-    driver = None
+    """Executa loop.py seguido diretamente de p2b.py."""
     try:
-        # Criar e configurar o driver para login automático
-        driver = criar_driver(headless=False)
-        logger.info("[LOGIN] Executando login automático...")
-        login_ok = login_func(driver)
-        if not login_ok:
-            logger.error("[LOGIN] Falha no login automático.")
-            raise Exception("Falha no login automático")
-        
-        # Fase 1: Executar loop_prazo
-        logger.info("[SEQUENCIA] Iniciando execução do loop_prazo...")
+        # Fase 1: Executar loop.py
+        logger.info("[SEQUENCIA] Iniciando execução do loop.py...")
         try:
-            loop_prazo(driver)
-            logger.info("[SEQUENCIA] loop_prazo concluído com sucesso.")
+            result = subprocess.run([sys.executable, "loop.py"], capture_output=True, text=True, cwd=os.getcwd())
+            if result.returncode == 0:
+                logger.info("[SEQUENCIA] loop.py concluído com sucesso.")
+                logger.info(result.stdout)
+            else:
+                logger.error(f"[SEQUENCIA][ERRO] Falha na execução do loop.py: {result.stderr}")
+                raise Exception(f"loop.py falhou: {result.stderr}")
         except Exception as e:
-            logger.error(f"[SEQUENCIA][ERRO] Falha na execução do loop_prazo: {e}")
+            logger.error(f"[SEQUENCIA][ERRO] Falha na execução do loop.py: {e}")
             raise
-            
-        # Fase 2: Executar p2
-        logger.info("[SEQUENCIA] Iniciando execução do p2...")
+
+        # Fase 2: Executar p2b.py diretamente
+        logger.info("[SEQUENCIA] Iniciando execução do p2b.py...")
         try:
-            processar_p2(driver)  # Função principal do p2.py
-            logger.info("[SEQUENCIA] p2 concluído com sucesso.")
+            result = subprocess.run([sys.executable, "p2b.py"], capture_output=True, text=True, cwd=os.getcwd())
+            if result.returncode == 0:
+                logger.info("[SEQUENCIA] p2b.py concluído com sucesso.")
+                logger.info(result.stdout)
+            else:
+                logger.error(f"[SEQUENCIA][ERRO] Falha na execução do p2b.py: {result.stderr}")
+                raise Exception(f"p2b.py falhou: {result.stderr}")
         except Exception as e:
-            logger.error(f"[SEQUENCIA][ERRO] Falha na execução do p2: {e}")
+            logger.error(f"[SEQUENCIA][ERRO] Falha na execução do p2b.py: {e}")
             raise
-            
+
     except Exception as e:
         logger.error(f"[SEQUENCIA][ERRO] Erro crítico na execução da sequência: {e}")
         raise
-    finally:
-        if driver:
-            try:
-                driver.quit()
-                logger.info("[SEQUENCIA] Driver fechado com sucesso.")
-            except:
-                logger.error("[SEQUENCIA][ERRO] Falha ao fechar o driver.")
 
 if __name__ == "__main__":
     try:

@@ -37,6 +37,16 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 from selenium.webdriver.common.keys import Keys
 from driver_config import criar_driver, login_func
 
+# ====================================================================
+# SISTEMA UNIFICADO DE MONITORAMENTO DE PROGRESSO
+# ====================================================================
+from monitoramento_progresso_unificado import (
+    executar_com_monitoramento_unificado,
+    carregar_progresso_p2b, salvar_progresso_p2b,
+    extrair_numero_processo_p2b, verificar_acesso_negado_p2b,
+    processo_ja_executado_p2b, marcar_processo_executado_p2b
+)
+
 # Função de compatibilidade para callbacks que esperam função sem retorno
 def ato_pesquisas_callback(driver):
     """Wrapper para manter compatibilidade com callbacks antigos"""
@@ -359,89 +369,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger('AutomacaoPJe')
 
-# ===== FUNÇÕES DE PROGRESSO PARA P2B =====
-def carregar_progresso_p2b():
-    """Carrega o estado de progresso do arquivo JSON específico para P2B"""
-    try:
-        if os.path.exists("progresso_p2b.json"):
-            with open("progresso_p2b.json", "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"[PROGRESSO_P2B][AVISO] Erro ao carregar progresso: {e}")
-    return {"processos_executados": [], "session_active": True, "last_update": None}
+logger = logging.getLogger('AutomacaoPJe')
 
-def salvar_progresso_p2b(progresso):
-    """Salva o estado de progresso no arquivo JSON específico para P2B"""
-    try:
-        progresso["last_update"] = datetime.now().isoformat()
-        with open("progresso_p2b.json", "w", encoding="utf-8") as f:
-            json.dump(progresso, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[PROGRESSO_P2B][ERRO] Falha ao salvar progresso: {e}")
-
-def extrair_numero_processo_p2b(driver):
-    """Extrai o número do processo da URL ou elemento da página (adaptado para P2B)"""
-    try:
-        url = driver.current_url
-        
-        # Primeiro tenta extrair o ID da URL
-        if "processo/" in url:
-            match = re.search(r"processo/(\d+)", url)
-            if match:
-                id_processo = match.group(1)
-                return id_processo
-        
-        # Depois tenta extrair o número formatado dos elementos
-        try:
-            candidatos = driver.find_elements(By.CSS_SELECTOR, 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho')
-            for elemento in candidatos:
-                texto = elemento.text.strip()
-                if texto:
-                    match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
-                    if match:
-                        numero_formatado = re.sub(r'[^\d]', '', match.group(1))
-                        return numero_formatado
-        except Exception:
-            pass
-        
-        return None
-    except Exception as e:
-        print(f"[PROGRESSO_P2B][ERRO] Falha ao extrair número do processo: {e}")
-        return None
-
-def verificar_acesso_negado_p2b(driver):
-    """Verifica se estamos na página de acesso negado no sistema P2B"""
-    try:
-        url_atual = driver.current_url
-        return "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower()
-    except Exception as e:
-        print(f"[PROGRESSO_P2B][ERRO] Falha ao verificar acesso negado: {e}")
-        return False
-
-def processo_ja_executado_p2b(numero_processo, progresso):
-    """Verifica se o processo já foi executado no fluxo P2B"""
-    if not numero_processo:
-        return False
-    return numero_processo in progresso.get("processos_executados", [])
-
-def marcar_processo_executado_p2b(numero_processo, progresso):
-    """Marca processo como executado no fluxo P2B"""
-    if numero_processo and numero_processo not in progresso.get("processos_executados", []):
-        progresso.setdefault("processos_executados", []).append(numero_processo)
-        salvar_progresso_p2b(progresso)
-        print(f"[PROGRESSO_P2B] Processo {numero_processo} marcado como executado")
-
-def processo_ja_executado(numero_processo, progresso):
-    """Verifica se o processo já foi executado"""
-    if not numero_processo:
-        return False
-    return numero_processo in progresso.get("processos_executados", [])
-
-def marcar_processo_executado(numero_processo, progresso):
-    """Marca processo como executado (mantido inativo como em m1.py)"""
-    # Função desativada para não registrar processos como executados nesta execução
-    pass
-
+# ===== FUNÇÃO DE RECUPERAÇÃO DE SESSÃO (MANTIDA) =====
 def recuperar_sessao(driver):
     """Tenta recuperar sessão após acesso negado (comportamento similar ao m1.py)"""
     try:
@@ -563,17 +493,25 @@ def reaplicar_filtros_p2b(driver):
 
 def parse_gigs_param(param):
     """
-    Recebe uma string no formato 'dias/responsavel/observacao' e retorna (dias, responsavel, observacao).
-    Se não houver responsável, deve ser 'dias/-/observacao'.
+    Recebe uma string no formato 'dias/responsavel/observacao' ou 'dias/observacao' e retorna (dias, responsavel, observacao).
+    Se não houver responsável, pode ser 'dias/observacao' ou 'dias/-/observacao'.
     """
-    if isinstance(param, str) and param.count('/') >= 2:
+    if isinstance(param, str) and param.count('/') >= 1:
         partes = param.split('/', 2)
         try:
             dias = int(partes[0]) if partes[0].isdigit() else 0
         except Exception:
             dias = 0
-        responsavel = partes[1].strip()
-        observacao = partes[2].strip()
+
+        if len(partes) == 2:
+            # Formato: dias/observacao (sem responsável)
+            responsavel = ''
+            observacao = partes[1].strip()
+        else:
+            # Formato: dias/responsavel/observacao
+            responsavel = partes[1].strip()
+            observacao = partes[2].strip()
+
         return dias, responsavel, observacao
     # fallback: dias=0, responsavel='', observacao=param
     return 0, '', param
@@ -804,7 +742,7 @@ def fluxo_pz(driver):
                 continue
         
         if not doc_encontrado or not doc_link:
-            logger.error('[FLUXO_PZ] Nenhum documento relevante encontrado.')
+            print('[FLUXO_PZ] Nenhum documento relevante encontrado.')
             return
 
         doc_link.click()
@@ -816,34 +754,34 @@ def fluxo_pz(driver):
         
         # Tentar primeiro com extrair_direto (nova função otimizada)
         try:
-            logger.info('[FLUXO_PZ] Tentando extração DIRETA com extrair_direto...')
+            print('[FLUXO_PZ] Tentando extração DIRETA com extrair_direto...')
             resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=False)
             
             if resultado_direto and resultado_direto.get('sucesso') and resultado_direto.get('conteudo_bruto'):
                 texto = resultado_direto['conteudo_bruto'].lower()
-                logger.info(f'[FLUXO_PZ] ✅ Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
+                print(f'[FLUXO_PZ] OK: Extração DIRETA bem-sucedida via {resultado_direto.get("metodo", "método desconhecido")}')
             else:
-                logger.warning('[FLUXO_PZ] extrair_direto não conseguiu extrair texto válido')
+                print('[FLUXO_PZ] extrair_direto não conseguiu extrair texto válido')
                 
         except Exception as e_direto:
-            logger.error(f'[FLUXO_PZ] Erro na extração DIRETA: {e_direto}')
+            print(f'[FLUXO_PZ] Erro na extração DIRETA: {e_direto}')
         
         # Fallback: usar extrair_documento original se a extração direta falhou
         if not texto:
-            logger.info('[FLUXO_PZ] Usando fallback: extrair_documento original...')
+            print('[FLUXO_PZ] Usando fallback: extrair_documento original...')
             texto_tuple = None
             try:
                 texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=True)
                 if texto_tuple and texto_tuple[0]:
                     texto = texto_tuple[0].lower()
-                    logger.info('[FLUXO_PZ] ✅ Fallback extrair_documento funcionou')
+                    print('[FLUXO_PZ] OK: Fallback extrair_documento funcionou')
                 else:
-                    logger.error('[FLUXO_PZ] extrair_documento retornou None ou texto vazio.')
+                    print('[FLUXO_PZ] extrair_documento retornou None ou texto vazio.')
             except Exception as e_extrair:
-                logger.error(f'[FLUXO_PZ] Erro ao chamar/processar extrair_documento: {e_extrair}')
+                print(f'[FLUXO_PZ] Erro ao chamar/processar extrair_documento: {e_extrair}')
         
         if not texto:
-            logger.error('[FLUXO_PZ] ❌ Não foi possível extrair o texto do documento com nenhum método.')
+            print('[FLUXO_PZ] ERRO: Não foi possível extrair o texto do documento com nenhum método.')
             return
         
         # Log do texto extraído (início apenas)
@@ -903,7 +841,7 @@ def fluxo_pz(driver):
                 'remessa ao sobrestamento, com fluência',
                 'sob pena de sobrestamento e fluência do prazo prescricional',
             ]],
-             'gigs', '1/Silas/Sob 24', ato_sobrestamento),
+             'gigs', '1/xs sob 24', ato_sobrestamento),
             ([gerar_regex_geral(k) for k in [
                 'é revel, não',
                 'concorda com homologação',
@@ -1051,9 +989,9 @@ def fluxo_pz(driver):
                         
                         return
             except Exception as bloqueio_error:
-                logger.error(f'[FLUXO_PZ] Erro na regra especial de bloqueio: {bloqueio_error}')
+                print(f'[FLUXO_PZ] Erro na regra especial de bloqueio: {bloqueio_error}')
                 if minuta_salva:
-                    logger.info('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
+                    print('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
                     break
                 raise
 # ...existing code...
@@ -1116,9 +1054,9 @@ def fluxo_pz(driver):
                         acao_secundaria(driver)
                     time.sleep(1)
             except Exception as gigs_error:
-                logger.error(f'[FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: {gigs_error}')
+                print(f'[FLUXO_PZ] Falha ao criar GIGS ou na ação secundária: {gigs_error}')
                 if minuta_salva:
-                    logger.info('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
+                    print('[FLUXO_PZ] Minuta já salva. Não repetindo loop após erro.')
                     break
         elif acao_definida == 'movimentar':
              func_movimento = parametros_acao
@@ -1129,7 +1067,7 @@ def fluxo_pz(driver):
                      print(f'[FLUXO_PZ] Movimentação {func_movimento.__name__} executada com SUCESSO.')
                      minuta_salva = True  # FLAG: minuta foi salva
                  else:
-                     logger.error(f'[FLUXO_PZ] Movimentação {func_movimento.__name__} FALHOU (retornou False).')
+                     print(f'[FLUXO_PZ] Movimentação {func_movimento.__name__} FALHOU (retornou False).')
                      return  # Sai da função sem log de sucesso
                  time.sleep(1) # Pause after movement
              except Exception as mov_error:

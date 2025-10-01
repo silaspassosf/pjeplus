@@ -14,3 +14,5 @@ Testar funcionalidade antes de polir detalhes - validar que as correções princ
 Focar em uma tarefa por vez - não misturar correções funcionais com melhorias de log
 Perguntar ao usuário quando não há ações práticas claras a tomar
 nao criar novos arquivos, relartorios ou testes se nao fopir solicirtyado, em nenhuma hipotese.
+executar testes apenas de terminal,. como compilacoes e imports, com com,ando py nao python
+MEMORIZE PARA A SESSAO

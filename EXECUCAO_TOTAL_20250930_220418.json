@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-09-30T22:04:18.030694",
+  "duracao_total_segundos": 0.8836300373077393,
+  "duracao_total_formatada": "0.88s",
+  "etapas": {
+    "import_pec": {
+      "duracao": 0.746737003326416,
+      "sucesso": true,
+      "percentual_total": 84.50787906685342
+    },
+    "teste_funcao_simples": {
+      "duracao": 0.13649821281433105,
+      "sucesso": true,
+      "percentual_total": 15.447439205463906
+    }
+  },
+  "metricas_sistema": [],
+  "hipoteses_otimizacao": [
+    {
+      "tipo": "seletor_prioritario",
+      "script": "pec.py",
+      "hipotese": "No pec.py, priorizar seletor '#timeline' que teve sucesso em 1 casos",
+      "beneficio_esperado": "Redução de tentativas de localização de elementos"
+    },
+    {
+      "tipo": "seletor_problematico",
+      "script": "pec.py",
+      "hipotese": "No pec.py, 1 seletores falharam - considerar remoção ou melhoria",
+      "beneficio_esperado": "Redução de tempo gasto em seletores que não funcionam"
+    }
+  ],
+  "resumo": {
+    "etapas_executadas": 2,
+    "etapas_falharam": 0,
+    "total_etapas": 2
+  }
+}

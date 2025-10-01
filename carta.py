@@ -5,38 +5,29 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 import re
-import pyperclip
 
 def carta(driver, log=True, limite_intimacoes=None):
     """
     Função principal para processar intimações de carta no PJe
     """
-    # 1. Tentar clicar no ícone de copiar número do processo antes de extrair do clipboard
-    process_number = None
-    clipboard_content = None
-    try:
-        icone_clipboard = driver.find_element(By.CSS_SELECTOR, 'pje-icone-clipboard .mat-tooltip-trigger.pointer')
-        icone_clipboard.click()
+    # 1. Extrair dados do processo via API para obter o número do processo
+    from Fix import extrair_dados_processo
+    dados_processo = extrair_dados_processo(driver, caminho_json=None, debug=log)
+
+    if not dados_processo:
         if log:
-            print("[CARTA][DEBUG] Ícone de copiar número do processo clicado.")
-        time.sleep(0.5)
-    except Exception as e:
+            print("[CARTA][ERRO] Não foi possível extrair dados do processo via API")
+        return None
+
+    # Extrair número do processo dos dados da API
+    process_number = dados_processo.get("numero")
+    if not process_number:
         if log:
-            print(f"[CARTA][DEBUG] Falha ao clicar no ícone de copiar número do processo: {e}")
-    try:
-        clipboard_content = pyperclip.paste()
-        if log:
-            print(f"[CARTA] Conteúdo do clipboard: {clipboard_content}")
-    except Exception:
-        if log:
-            print("[CARTA][AVISO] Não foi possível acessar a área de transferência")
-    # Extrair número do processo do clipboard
-    if clipboard_content:
-        proc_match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4})', clipboard_content)
-        if proc_match:
-            process_number = proc_match.group(1)
-            if log:
-                print(f"[CARTA] Número do processo extraído: {process_number}")
+            print("[CARTA][ERRO] Número do processo não encontrado nos dados da API")
+        return None
+
+    if log:
+        print(f"[CARTA] Número do processo extraído via API: {process_number}")
     
     # 2. Buscar intimações na timeline do PJe
     intimation_ids = []
@@ -49,6 +40,8 @@ def carta(driver, log=True, limite_intimacoes=None):
     
     # Variável para controlar se encontramos intimação de correio
     intimacao_encontrada = False
+    continue_busca = False  # Controla se deve continuar buscando outras intimações
+    data_referencia = None  # Data da primeira intimação encontrada
     
     # Verificar apenas o primeiro item para ver se é intimação
     if itens:
@@ -73,79 +66,113 @@ def carta(driver, log=True, limite_intimacoes=None):
                 link.click()
                 time.sleep(2)
                 
-                # Extrair conteúdo para verificar se é correio
-                from Fix import extrair_documento, extrair_pdf
-                texto_completo = None
+                # Extrair conteúdo usando extrair_direto com log de conteúdo
+                from Fix import extrair_direto
+                resultado_extracao = extrair_direto(driver, timeout=10, debug=log)
                 
-                # Tentativa 1: Usar extrair_documento
-                try:
-                    texto_completo = extrair_documento(driver, regras_analise=None, timeout=10, log=False)
-                    if texto_completo:
-                        texto_completo = texto_completo.lower()
-                        if log:
-                            print(f"[CARTA][DEBUG] Texto extraído com sucesso usando extrair_documento ({len(texto_completo)} chars)")
-                    else:
-                        if log:
-                            print("[CARTA][DEBUG] extrair_documento retornou None")
-                except Exception as e:
+                if not resultado_extracao.get('sucesso', False):
                     if log:
-                        print(f"[CARTA][DEBUG] Erro ao extrair documento com extrair_documento: {e}")
+                        print("[CARTA][DEBUG] Não foi possível extrair conteúdo da intimação")
+                    continue_busca = True  # Continua buscando outras
                 
-                # Se extrair_documento falhou, tentar extrair_pdf
-                if not texto_completo or len(texto_completo.strip()) < 10:
+                if not continue_busca:
+                    texto_completo = resultado_extracao.get('conteudo', '').lower()
                     if log:
-                        print("[CARTA][DEBUG] Tentando alternativa com extrair_pdf...")
-                    try:
-                        texto_pdf = extrair_pdf(driver, log=False)
-                        if texto_pdf:
-                            texto_completo = texto_pdf.lower()
+                        print(f"[CARTA][DEBUG] Conteúdo extraído com sucesso ({len(texto_completo)} chars)")
+                        if log and len(texto_completo) > 0:
+                            # Log das primeiras linhas para debug
+                            linhas = texto_completo.split('\n')[:5]
+                            print("[CARTA][DEBUG] Primeiras linhas do conteúdo:")
+                            for i, linha in enumerate(linhas, 1):
+                                print(f"[CARTA][DEBUG]   {i}: {linha[:100]}{'...' if len(linha) > 100 else ''}")
+                    
+                    # Extrair data da intimação para usar como referência
+                    linhas = texto_completo.split('\n')
+                    for linha in linhas:
+                        linha_strip = linha.strip()
+                        if 'reg.' in linha_strip.lower():
+                            # Tentar extrair data da linha REG (formato: "...reg. sao paulo/sp, 11 de setembro de 2025...")
+                            import re
+                            data_match = re.search(r'reg\.\s*[^,]+,\s*(\d{1,2})\s+de\s+([a-zçã]+)\s+de\s+(\d{4})', linha_strip.lower())
+                            if data_match:
+                                dia, mes, ano = data_match.groups()
+                                # Converter mês por extenso para número
+                                meses = {
+                                    'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+                                    'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+                                    'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+                                }
+                                mes_num = meses.get(mes, '01')
+                                data_referencia = f"{dia.zfill(2)}/{mes_num}/{ano}"
+                                if log:
+                                    print(f"[CARTA][DEBUG] Data de referência extraída: {data_referencia}")
+                                break
+                    
+                    # Verificar se temos texto válido
+                    if not texto_completo or len(texto_completo.strip()) < 10:
+                        if log:
+                            print("[CARTA][DEBUG] Conteúdo extraído muito curto ou vazio")
+                        continue_busca = True  # Continua buscando outras
+                    
+                    if not continue_busca:
+                        # FILTRO PARA SABER SE É DE CORREIO:
+                        # 1. Ler a linha com "REG."
+                        # 2. Ignorar notificações que tenham "ENDEREÇO: Expediente enviado por outro meio"
+                        
+                        linha_reg = None
+                        
+                        # Procurar pela linha que contém "REG."
+                        for linha in linhas:
+                            linha_strip = linha.strip()
+                            if 'reg.' in linha_strip.lower():
+                                linha_reg = linha_strip
+                                if log:
+                                    print(f"[CARTA][DEBUG] Linha REG encontrada: {linha_reg}")
+                                break
+                        
+                        # Verificar se encontrou a linha REG
+                        if not linha_reg:
                             if log:
-                                print("[CARTA][DEBUG] Texto extraído com sucesso usando extrair_pdf ({len(texto_pdf)} chars)")
-                        else:
-                            if log:
-                                print("[CARTA][DEBUG] extrair_pdf retornou None")
-                    except Exception as e:
-                        if log:
-                            print(f"[CARTA][DEBUG] Erro ao extrair documento com extrair_pdf: {e}")
-                
-                # Verificar se temos texto válido
-                if not texto_completo or len(texto_completo.strip()) < 10:
-                    if log:
-                        print("[CARTA][DEBUG] Não foi possível extrair texto da intimação")
-                    return
-                
-                # Verificar se é intimação de correio
-                correio_detectado = 'NAO APAGAR NENHUM CARACTERE' in texto_completo.upper()
-                if log:
-                    print(f"[CARTA][DEBUG] Procurando 'NAO APAGAR NENHUM CARACTERE' - Encontrado: {correio_detectado}")
-                
-                if correio_detectado:
-                    # Extrair ID da intimação
-                    link_text = link.text.strip()
-                    if log:
-                        print(f"[CARTA][DEBUG] Texto do link: {link_text}")
-                    
-                    # Buscar padrão: "Intimação(Intimação) - CODIGO"
-                    id_match = re.search(r'-\s*([a-f0-9]+)\s*$', link_text)
-                    if id_match:
-                        id_curto = id_match.group(1)
-                    else:
-                        # Fallback para aria-label
-                        id_match = re.search(r'Id: ([a-f0-9]+)', aria)
-                        id_curto = id_match.group(1) if id_match else primeiro_item.get_attribute('id')
-                    
-                    intimation_ids.append(id_curto)
-                    intimacao_encontrada = True
-                    
-                    if log:
-                        print(f"[CARTA] ID da intimação de correio encontrado: {id_curto}")
-                        print(f"[CARTA] Número do processo: {process_number}")
-                else:
-                    if log:
-                        print("[CARTA][DEBUG] Intimação não é de correio - iniciando fallback")
+                                print("[CARTA][DEBUG] Linha com 'REG.' não encontrada - não é intimação de correio")
+                            continue_busca = True  # Continua buscando outras
+                        
+                        if not continue_busca:
+                            # Verificar se contém "ENDEREÇO: Expediente enviado por outro meio"
+                            # Se contiver, ignorar pois nunca será de correio
+                            endereco_outro_meio = "endereço: expediente enviado por outro meio"
+                            if endereco_outro_meio in linha_reg.lower():
+                                if log:
+                                    print("[CARTA][DEBUG] Intimação tem 'ENDEREÇO: Expediente enviado por outro meio' - continuando busca")
+                                continue_busca = True  # Continua buscando outras
+                            else:
+                                # Se passou pelos filtros, é intimação de correio
+                                if log:
+                                    print("[CARTA][DEBUG] Intimação de correio confirmada pelos filtros")
+                                
+                                # Extrair ID da intimação
+                                link_text = link.text.strip()
+                                if log:
+                                    print(f"[CARTA][DEBUG] Texto do link: {link_text}")
+                                
+                                # Buscar padrão: "Intimação(Intimação) - CODIGO"
+                                id_match = re.search(r'-\s*([a-f0-9]+)\s*$', link_text)
+                                if id_match:
+                                    id_curto = id_match.group(1)
+                                else:
+                                    # Fallback para aria-label
+                                    id_match = re.search(r'Id: ([a-f0-9]+)', aria)
+                                    id_curto = id_match.group(1) if id_match else primeiro_item.get_attribute('id')
+                                
+                                intimation_ids.append(id_curto)
+                                intimacao_encontrada = True
+                                
+                                if log:
+                                    print(f"[CARTA] ID da intimação de correio encontrado: {id_curto}")
+                                    print(f"[CARTA] Número do processo: {process_number}")
             except Exception as e:
                 if log:
-                    print(f"[CARTA] Erro ao processar intimação: {e}")
+                    print(f"[CARTA] Erro ao processar primeira intimação: {e}")
+                continue_busca = True  # Continua buscando outras
     
     # Fallback: Buscar sequencialmente por intimações até encontrar uma de correio
     if not intimacao_encontrada:
@@ -161,6 +188,40 @@ def carta(driver, log=True, limite_intimacoes=None):
                 doc_text = link.text.lower()
                 
                 if 'intimação' in doc_text:
+                    # Se temos data de referência, verificar se esta intimação é da mesma data
+                    if data_referencia:
+                        # Extrair data desta intimação para comparar
+                        link_fallback = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                        link_fallback.click()
+                        time.sleep(2)
+                        
+                        resultado_fallback = extrair_direto(driver, timeout=10, debug=False)
+                        if resultado_fallback.get('sucesso', False):
+                            texto_fallback = resultado_fallback.get('conteudo', '').lower()
+                            linhas_fallback = texto_fallback.split('\n')
+                            
+                            data_atual = None
+                            for linha in linhas_fallback:
+                                linha_strip = linha.strip()
+                                if 'reg.' in linha_strip.lower():
+                                    data_match = re.search(r'reg\.\s*[^,]+,\s*(\d{1,2})\s+de\s+([a-zçã]+)\s+de\s+(\d{4})', linha_strip.lower())
+                                    if data_match:
+                                        dia, mes, ano = data_match.groups()
+                                        meses = {
+                                            'janeiro': '01', 'fevereiro': '02', 'março': '03', 'abril': '04',
+                                            'maio': '05', 'junho': '06', 'julho': '07', 'agosto': '08',
+                                            'setembro': '09', 'outubro': '10', 'novembro': '11', 'dezembro': '12'
+                                        }
+                                        mes_num = meses.get(mes, '01')
+                                        data_atual = f"{dia.zfill(2)}/{mes_num}/{ano}"
+                                        break
+                            
+                            # Verificar se a data coincide
+                            if data_atual != data_referencia:
+                                if log:
+                                    print(f"[CARTA][FALLBACK] Intimação do item {idx + 1} tem data {data_atual}, diferente da referência {data_referencia} - pulando")
+                                continue
+                    
                     count_intimacoes += 1
                     if log:
                         print(f"[CARTA][FALLBACK] Intimação encontrada no item {idx + 1}")
@@ -170,54 +231,64 @@ def carta(driver, log=True, limite_intimacoes=None):
                             print(f"[CARTA][FALLBACK] Limite de {limite} intimações atingido")
                         break
                     
-                    link.click()
-                    time.sleep(2)
+                    # Se já clicou para verificar data, não precisa clicar novamente
+                    if not data_referencia:
+                        link.click()
+                        time.sleep(2)
                     
-                    # Extrair conteúdo
-                    from Fix import extrair_documento, extrair_pdf
-                    texto_completo = None
+                    # Extrair conteúdo usando extrair_direto com log de conteúdo
+                    from Fix import extrair_direto
+                    resultado_extracao = extrair_direto(driver, timeout=10, debug=log)
                     
-                    # Tentativa 1: Usar extrair_documento
-                    try:
-                        texto_completo = extrair_documento(driver, regras_analise=None, timeout=10, log=False)
-                        if texto_completo:
-                            texto_completo = texto_completo.lower()
-                            if log:
-                                print(f"[CARTA][FALLBACK] Texto extraído com sucesso usando extrair_documento ({len(texto_completo)} chars)")
-                        else:
-                            if log:
-                                print("[CARTA][FALLBACK] extrair_documento retornou None")
-                    except Exception as e:
+                    if not resultado_extracao.get('sucesso', False):
                         if log:
-                            print(f"[CARTA][FALLBACK] Erro ao extrair documento com extrair_documento: {e}")
+                            print(f"[CARTA][FALLBACK] Não foi possível extrair conteúdo da intimação")
+                        continue
                     
-                    # Se extrair_documento falhou, tentar extrair_pdf
-                    if not texto_completo or len(texto_completo.strip()) < 10:
-                        if log:
-                            print("[CARTA][FALLBACK] Tentando alternativa com extrair_pdf...")
-                        try:
-                            texto_pdf = extrair_pdf(driver, log=False)
-                            if texto_pdf:
-                                texto_completo = texto_pdf.lower()
-                                if log:
-                                    print(f"[CARTA][FALLBACK] Texto extraído com sucesso usando extrair_pdf ({len(texto_pdf)} chars)")
-                            else:
-                                if log:
-                                    print("[CARTA][FALLBACK] extrair_pdf retornou None")
-                        except Exception as e:
-                            if log:
-                                print(f"[CARTA][FALLBACK] Erro ao extrair documento com extrair_pdf: {e}")
+                    texto_completo = resultado_extracao.get('conteudo', '').lower()
+                    if log:
+                        print(f"[CARTA][FALLBACK] Conteúdo extraído com sucesso ({len(texto_completo)} chars)")
                     
                     # Verificar se temos texto válido
                     if not texto_completo or len(texto_completo.strip()) < 10:
                         if log:
-                            print(f"[CARTA][FALLBACK] Não foi possível extrair texto da intimação")
+                            print(f"[CARTA][FALLBACK] Conteúdo extraído muito curto ou vazio")
                         continue
                     
-                    # Verificar se é intimação de correio
-                    correio_detectado = 'NAO APAGAR NENHUM CARACTERE' in texto_completo.upper()
+                    # FILTRO PARA SABER SE É DE CORREIO:
+                    # 1. Ler a linha com "REG."
+                    # 2. Ignorar notificações que tenham "ENDEREÇO: Expediente enviado por outro meio"
                     
-                    if correio_detectado:
+                    linhas = texto_completo.split('\n')
+                    linha_reg = None
+                    
+                    # Procurar pela linha que contém "REG."
+                    for linha in linhas:
+                        linha_strip = linha.strip()
+                        if 'reg.' in linha_strip.lower():
+                            linha_reg = linha_strip
+                            if log:
+                                print(f"[CARTA][FALLBACK] Linha REG encontrada: {linha_reg}")
+                            break
+                    
+                    # Verificar se encontrou a linha REG
+                    if not linha_reg:
+                        if log:
+                            print(f"[CARTA][FALLBACK] Linha com 'REG.' não encontrada - não é intimação de correio")
+                        continue
+                    
+                    # Verificar se contém "ENDEREÇO: Expediente enviado por outro meio"
+                    # Se contiver, ignorar pois nunca será de correio
+                    endereco_outro_meio = "endereço: expediente enviado por outro meio"
+                    if endereco_outro_meio in linha_reg.lower():
+                        if log:
+                            print(f"[CARTA][FALLBACK] Intimação tem 'ENDEREÇO: Expediente enviado por outro meio' - ignorando")
+                        continue
+                    
+                    # Se passou pelos filtros, é intimação de correio
+                    correio_detectado = True
+                    if log:
+                        print(f"[CARTA][FALLBACK] Intimação de correio confirmada pelos filtros")
                         # Extrair ID
                         aria = link.get_attribute('aria-label') or ''
                         link_text = link.text.strip()

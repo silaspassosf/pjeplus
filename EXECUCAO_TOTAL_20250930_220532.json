@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-09-30T22:05:32.281068",
+  "duracao_total_segundos": 0.11037468910217285,
+  "duracao_total_formatada": "0.11s",
+  "etapas": {
+    "teste_simples": {
+      "duracao": 0.110198974609375,
+      "sucesso": true,
+      "percentual_total": 99.84080182311074
+    }
+  },
+  "metricas_sistema": [],
+  "hipoteses_otimizacao": [
+    {
+      "tipo": "seletor_prioritario",
+      "script": "pec.py",
+      "hipotese": "No pec.py, priorizar seletor '#timeline' que teve sucesso em 1 casos",
+      "beneficio_esperado": "Redução de tentativas de localização de elementos"
+    }
+  ],
+  "resumo": {
+    "etapas_executadas": 1,
+    "etapas_falharam": 0,
+    "total_etapas": 1
+  }
+}

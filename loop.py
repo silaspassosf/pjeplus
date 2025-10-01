@@ -14,47 +14,38 @@ def selecionar_destino(driver, opcao_destino, max_tentativas=3):
     Seleciona a opção de destino usando diferentes estratégias de seleção.
     Retorna True se conseguiu selecionar, levanta exceção em caso de erro crítico.
     """
-    print(f'[LOOP_PRAZO][DEBUG] Início da seleção do destino: {opcao_destino}')
-    
     for tentativa in range(max_tentativas):
         try:
-            print(f'[LOOP_PRAZO][DEBUG] Tentativa {tentativa + 1}: Clicando no select principal')
             # Primeiro tenta encontrar e clicar no select principal
             select = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="destinos"]'))
             )
             select.click()
-            print('[LOOP_PRAZO][DEBUG] Select principal clicado com sucesso')
             time.sleep(1)
             
             # Estratégia 1: Seletor exato do mat-option com mat-option-text
             try:
-                print('[LOOP_PRAZO][DEBUG] Tentando seletor: mat-option span.mat-option-text')
                 opcao = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, f'mat-option span.mat-option-text'))
                 )
                 if opcao_destino.lower() in opcao.text.lower():
-                    print('[LOOP_PRAZO][DEBUG] ✓ SUCESSO: Seletor mat-option span.mat-option-text funcionou!')
                     opcao.click()
                     return True
             except Exception as e:
-                print(f'[LOOP_PRAZO][DEBUG] × Falha com seletor mat-option span.mat-option-text: {str(e)}')
+                pass
 
             # Estratégia 2: XPath exato
             try:
-                print('[LOOP_PRAZO][DEBUG] Tentando XPath com texto exato')
                 opcao = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.XPATH, f"//mat-option/span[normalize-space(text())='{opcao_destino}']"))
                 )
-                print('[LOOP_PRAZO][DEBUG] ✓ SUCESSO: XPath com texto exato funcionou!')
                 opcao.click()
                 return True
             except Exception as e:
-                print(f'[LOOP_PRAZO][DEBUG] × Falha com XPath exato: {str(e)}')
+                pass
 
             # Estratégia 3: JavaScript com querySelector
             try:
-                print('[LOOP_PRAZO][DEBUG] Tentando JavaScript com mat-option')
                 script = """
                     const option = Array.from(document.querySelectorAll('mat-option'))
                         .find(opt => opt.textContent.toLowerCase().includes(arguments[0].toLowerCase()));
@@ -66,16 +57,12 @@ def selecionar_destino(driver, opcao_destino, max_tentativas=3):
                     return false;
                 """
                 if driver.execute_script(script, opcao_destino):
-                    print('[LOOP_PRAZO][DEBUG] ✓ SUCESSO: JavaScript funcionou!')
                     return True
-                print('[LOOP_PRAZO][DEBUG] × JavaScript não encontrou a opção')
             except Exception as e:
-                print(f'[LOOP_PRAZO][DEBUG] × Falha com JavaScript: {str(e)}')
+                pass
             
         except Exception as e:
-            print(f"[LOOP_PRAZO][ERRO] Tentativa {tentativa + 1} falhou: {e}")
             if tentativa < max_tentativas - 1:
-                print("[LOOP_PRAZO] Tentando novamente após 2 segundos...")
                 time.sleep(2)
                 try:
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
@@ -83,11 +70,7 @@ def selecionar_destino(driver, opcao_destino, max_tentativas=3):
                 except:
                     pass
             else:
-                print("[LOOP_PRAZO][ERRO CRÍTICO] Todas as tentativas de selecionar destino falharam")
                 raise Exception(f"Falha ao selecionar opção '{opcao_destino}' após {max_tentativas} tentativas")
-    
-    print("[LOOP_PRAZO][ERRO CRÍTICO] Nenhuma estratégia de seleção funcionou")
-    raise Exception(f"Falha crítica: Nenhuma estratégia funcionou para selecionar '{opcao_destino}'")
 
 def ciclo1(driver, opcao_destino='Análise'):
     # 1. Aplicar filtro de fase processual: Liquidação e Execução  ##start2  
@@ -137,45 +120,83 @@ def ciclo1(driver, opcao_destino='Análise'):
         print(f"[LOOP_PRAZO][ERRO] URL de movimentacao-lote não carregou: {e}")
         return False
 
-    # 6. Clicar na seta do dropdown "Tarefa destino única" (robustez: aguarda elemento existir e estar visível)
+    # 6. Clicar na seta do dropdown "Tarefa destino única" - OTIMIZADO
     try:
-        seta_dropdown = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
-        # [FIX] Restaurar zoom para 100% antes do clique na seta
-        print("[LOOP_PRAZO][DEBUG] Restaurando zoom para 100% antes do clique na seta do dropdown.")
-        driver.execute_script("document.body.style.zoom='100%'")
-        time.sleep(0.3)
-        seta_dropdown.click()
-        print("[LOOP_PRAZO][OK] Clique na seta do dropdown 'Tarefa destino única' realizado com sucesso (div.mat-select-arrow-wrapper)")
-        time.sleep(0.5)
+        # Estratégia 1: Tentar mat-select principal primeiro
+        try:
+            mat_select = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="destinoUnico"]'))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", mat_select)
+            mat_select.click()
+            print("[LOOP_PRAZO][OK] Dropdown 'Tarefa destino única' aberto via mat-select principal")
+            time.sleep(0.5)
+        except:
+            # Estratégia 2: Buscar pela seta do dropdown
+            seta_dropdown = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "mat-form-field div.mat-select-arrow-wrapper"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
+            # [FIX] Restaurar zoom para 100% antes do clique na seta
+            print("[LOOP_PRAZO][DEBUG] Restaurando zoom para 100% antes do clique na seta do dropdown.")
+            driver.execute_script("document.body.style.zoom='100%'")
+            time.sleep(0.3)
+            seta_dropdown.click()
+            print("[LOOP_PRAZO][OK] Dropdown 'Tarefa destino única' aberto via seta do dropdown")
+            time.sleep(0.5)
+
+        # Validação: Verificar se o dropdown foi realmente aberto
+        try:
+            WebDriverWait(driver, 3).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane mat-option"))
+            )
+            print("[LOOP_PRAZO][DEBUG] Validação: Dropdown aberto com sucesso")
+        except:
+            print("[LOOP_PRAZO][ERRO] Validação falhou: Dropdown não foi aberto corretamente")
+            return False
+
     except Exception as e:
-        print(f"[LOOP_PRAZO][ERRO] Falha ao abrir dropdown Tarefa destino única pela seta: {e}")
+        print(f"[LOOP_PRAZO][ERRO] Falha ao abrir dropdown Tarefa destino única: {e}")
         print(f"[LOOP_PRAZO][DEBUG] URL atual: {driver.current_url}")
-        return False    # 7. Selecionar a opção de destino (padrão: "Análise")
+        return False    # 7. Selecionar a opção de destino - OTIMIZADO
     try:
+        # Estratégia 1: Aguardar overlay do dropdown aparecer
         overlay = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
         )
+        time.sleep(0.3)
+
+        # Estratégia 2: Buscar opção por texto exato
         opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         try:
             opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
+            driver.execute_script("arguments[0].scrollIntoView(true);", opcao_elemento)
             opcao_elemento.click()
-            print(f"[LOOP_PRAZO] Opção '{opcao_destino}' selecionada com sucesso.")
+            print(f"[LOOP_PRAZO][OK] Opção '{opcao_destino}' selecionada com sucesso")
             time.sleep(0.5)
         except Exception as e_opcao:
-            print(f"[LOOP_PRAZO][ERRO] Opção '{opcao_destino}' não encontrada. Tentando selecionar a primeira opção disponível: {e_opcao}")
-            # Fallback: tentar selecionar a primeira opção disponível
+            print(f"[LOOP_PRAZO][ERRO] Opção '{opcao_destino}' não encontrada. Tentando estratégias alternativas: {e_opcao}")
+
+            # Estratégia 3: Buscar por texto parcial (contains)
             try:
-                primeira_opcao = overlay.find_element(By.XPATH, ".//span[contains(@class,'mat-option-text')]")
-                opcao_texto = primeira_opcao.text.strip()
-                primeira_opcao.click()
-                print(f"[LOOP_PRAZO] Primeira opção disponível '{opcao_texto}' selecionada como fallback.")
+                opcao_xpath_partial = f".//span[contains(@class,'mat-option-text') and contains(text(), '{opcao_destino.split()[0]}')]"
+                opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath_partial)
+                driver.execute_script("arguments[0].scrollIntoView(true);", opcao_elemento)
+                opcao_elemento.click()
+                print(f"[LOOP_PRAZO][OK] Opção contendo '{opcao_destino.split()[0]}' selecionada com sucesso")
                 time.sleep(0.5)
-            except Exception as e_fallback:
-                print(f"[LOOP_PRAZO][ERRO] Não foi possível selecionar nenhuma opção: {e_fallback}")
-                return False
+            except:
+                # Estratégia 4: Selecionar primeira opção disponível como fallback
+                try:
+                    primeira_opcao = overlay.find_element(By.XPATH, ".//span[contains(@class,'mat-option-text')]")
+                    opcao_texto = primeira_opcao.text.strip()
+                    driver.execute_script("arguments[0].scrollIntoView(true);", primeira_opcao)
+                    primeira_opcao.click()
+                    print(f"[LOOP_PRAZO][OK] Primeira opção disponível '{opcao_texto}' selecionada como fallback")
+                    time.sleep(0.5)
+                except Exception as e_fallback:
+                    print(f"[LOOP_PRAZO][ERRO] Não foi possível selecionar nenhuma opção: {e_fallback}")
+                    return False
     except Exception as e:
         print(f"[LOOP_PRAZO][ERRO] Falha ao acessar o painel de opções: {e}")
         return False    # 8. Clicar em "Movimentar processos" [CORRIGIDO]
@@ -356,18 +377,40 @@ def ciclo2(driver, opcao_destino='Cumprimento de providências'):
             raise Exception('Não está na página de movimentação em lote após tentativas.')
         print('[LOOP_PRAZO] Procurando seta do dropdown Tarefa destino única...')
         try:
-            seta_dropdown = WebDriverWait(driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
-            )
-            driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
-            print("[LOOP_PRAZO][DEBUG] Restaurando zoom para 100% antes do clique na seta do dropdown.")
-            driver.execute_script("document.body.style.zoom='100%'")
-            time.sleep(0.3)
-            seta_dropdown.click()
-            print("[LOOP_PRAZO][OK] Clique na seta do dropdown 'Tarefa destino única' realizado com sucesso (div.mat-select-arrow-wrapper)")
-            time.sleep(0.5)
+            # Estratégia 1: Tentar mat-select principal primeiro
+            try:
+                mat_select = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="destinoUnico"]'))
+                )
+                driver.execute_script("arguments[0].scrollIntoView(true);", mat_select)
+                mat_select.click()
+                print("[LOOP_PRAZO][OK] Dropdown 'Tarefa destino única' aberto via mat-select principal")
+                time.sleep(0.5)
+            except:
+                # Estratégia 2: Buscar pela seta do dropdown
+                seta_dropdown = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "mat-form-field div.mat-select-arrow-wrapper"))
+                )
+                driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
+                print("[LOOP_PRAZO][DEBUG] Restaurando zoom para 100% antes do clique na seta do dropdown.")
+                driver.execute_script("document.body.style.zoom='100%'")
+                time.sleep(0.3)
+                seta_dropdown.click()
+                print("[LOOP_PRAZO][OK] Dropdown 'Tarefa destino única' aberto via seta do dropdown")
+                time.sleep(0.5)
+
+            # Validação: Verificar se o dropdown foi realmente aberto
+            try:
+                WebDriverWait(driver, 3).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane mat-option"))
+                )
+                print("[LOOP_PRAZO][DEBUG] Validação: Dropdown aberto com sucesso")
+            except:
+                print("[LOOP_PRAZO][ERRO] Validação falhou: Dropdown não foi aberto corretamente")
+                raise Exception("Dropdown não foi aberto corretamente")
+
         except Exception as e:
-            print(f"[LOOP_PRAZO][ERRO CRÍTICO] Falha ao clicar na seta do dropdown: {e}")
+            print(f"[LOOP_PRAZO][ERRO CRÍTICO] Falha ao abrir dropdown Tarefa destino única: {e}")
             raise
         try:
             painel = WebDriverWait(driver, 5).until(
@@ -377,24 +420,37 @@ def ciclo2(driver, opcao_destino='Cumprimento de providências'):
                 print("[LOOP_PRAZO][ERRO CRÍTICO] Painel de opções não apareceu")
                 raise Exception("[ERRO CRÍTICO] Painel de opções não apareceu")
             print('[LOOP_PRAZO] ✓ Painel de opções visível')
-            # Seleciona a opção diretamente, igual ciclo1
+            # Seleção da opção - OTIMIZADO com múltiplas estratégias
             opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
             try:
                 opcao_elemento = painel.find_element(By.XPATH, opcao_xpath)
+                driver.execute_script("arguments[0].scrollIntoView(true);", opcao_elemento)
                 opcao_elemento.click()
-                print(f"[LOOP_PRAZO] Opção '{opcao_destino}' selecionada com sucesso.")
+                print(f"[LOOP_PRAZO][OK] Opção '{opcao_destino}' selecionada com sucesso")
                 time.sleep(0.5)
             except Exception as e_opcao:
-                print(f"[LOOP_PRAZO][ERRO] Opção '{opcao_destino}' não encontrada. Tentando selecionar a primeira opção disponível: {e_opcao}")
+                print(f"[LOOP_PRAZO][ERRO] Opção '{opcao_destino}' não encontrada. Tentando estratégias alternativas: {e_opcao}")
+
+                # Estratégia 2: Buscar por texto parcial (contains)
                 try:
-                    primeira_opcao = painel.find_element(By.XPATH, ".//span[contains(@class,'mat-option-text')]")
-                    opcao_texto = primeira_opcao.text.strip()
-                    primeira_opcao.click()
-                    print(f"[LOOP_PRAZO] Primeira opção disponível '{opcao_texto}' selecionada como fallback.")
+                    opcao_xpath_partial = f".//span[contains(@class,'mat-option-text') and contains(text(), '{opcao_destino.split()[0]}')]"
+                    opcao_elemento = painel.find_element(By.XPATH, opcao_xpath_partial)
+                    driver.execute_script("arguments[0].scrollIntoView(true);", opcao_elemento)
+                    opcao_elemento.click()
+                    print(f"[LOOP_PRAZO][OK] Opção contendo '{opcao_destino.split()[0]}' selecionada com sucesso")
                     time.sleep(0.5)
-                except Exception as e_fallback:
-                    print(f"[LOOP_PRAZO][ERRO CRÍTICO] Não foi possível selecionar nenhuma opção: {e_fallback}")
-                    raise
+                except:
+                    # Estratégia 3: Selecionar primeira opção disponível como fallback
+                    try:
+                        primeira_opcao = painel.find_element(By.XPATH, ".//span[contains(@class,'mat-option-text')]")
+                        opcao_texto = primeira_opcao.text.strip()
+                        driver.execute_script("arguments[0].scrollIntoView(true);", primeira_opcao)
+                        primeira_opcao.click()
+                        print(f"[LOOP_PRAZO][OK] Primeira opção disponível '{opcao_texto}' selecionada como fallback")
+                        time.sleep(0.5)
+                    except Exception as e_fallback:
+                        print(f"[LOOP_PRAZO][ERRO CRÍTICO] Não foi possível selecionar nenhuma opção: {e_fallback}")
+                        raise
             print('[LOOP_PRAZO] ✓ Destino selecionado com sucesso')
             
             # [CORRIGIDO] Clique robusto no botão "Movimentar processos" 

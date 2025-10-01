@@ -1,11 +1,12 @@
 # pje.py
-# Script orquestrador que executa m1.py, prazo.py e pec.py em sequência compartilhando o mesmo driver
+# Script orquestrador que executa m1.py, loop.py, p2b.py e pec.py em sequência compartilhando o mesmo driver
 
 import sys
 import time
 import logging
 from datetime import datetime
 from driver_config import criar_driver, login_func
+from monitor import monitor
 
 # Configuração do logging
 logging.basicConfig(
@@ -46,43 +47,48 @@ def executar_m1(driver):
         logger.error(f"[M1] ❌ Erro na execução do M1.PY: {e}")
         return False
 
-def executar_prazo(driver):
-    """Executa loop.py seguido de p2b.py com o mesmo driver"""
+def executar_loop(driver):
+    """Executa loop.py com navegação específica"""
     try:
-        logger.info("[PRAZO] Iniciando execução da sequência PRAZO...")
+        logger.info("[LOOP] Iniciando execução do LOOP.PY...")
         
-        # === FASE 1: LOOP.PY ===
-        logger.info("[PRAZO] === FASE 1: Executando LOOP.PY ===")
+        # Importar função específica do loop.py
         from loop import loop_prazo
         
         # loop_prazo já navega para sua URL específica e executa o fluxo completo
-        resultado_loop = loop_prazo(driver)
+        resultado = loop_prazo(driver)
         
-        if not resultado_loop:
-            logger.error("[PRAZO] ❌ Falha na execução do LOOP.PY")
+        if resultado:
+            logger.info("[LOOP] ✅ LOOP.PY executado com sucesso")
+            return True
+        else:
+            logger.error("[LOOP] ❌ Falha na execução do LOOP.PY")
             return False
+            
+    except Exception as e:
+        logger.error(f"[LOOP] ❌ Erro na execução do LOOP.PY: {e}")
+        return False
+
+def executar_p2b(driver):
+    """Executa p2b.py com navegação específica"""
+    try:
+        logger.info("[P2B] Iniciando execução do P2B.PY...")
         
-        logger.info("[PRAZO] ✅ LOOP.PY executado com sucesso")
-        
-        # === FASE 2: P2B.PY ===
-        logger.info("[PRAZO] === FASE 2: Executando P2B.PY ===")
+        # Importar função específica do p2b.py
         from p2b import processar_p2
         
         # Chama p2b.py passando o driver existente
-        resultado_p2b = processar_p2(driver_existente=driver)
+        resultado = processar_p2(driver_existente=driver)
         
-        if not resultado_p2b:
-            logger.error("[PRAZO] ❌ Falha na execução do P2B.PY")
+        if resultado:
+            logger.info("[P2B] ✅ P2B.PY executado com sucesso")
+            return True
+        else:
+            logger.error("[P2B] ❌ Falha na execução do P2B.PY")
             return False
-        
-        logger.info("[PRAZO] ✅ P2B.PY executado com sucesso")
-        logger.info("[PRAZO] ✅ Sequência PRAZO (LOOP + P2B) concluída com sucesso")
-        return True
-        
+            
     except Exception as e:
-        logger.error(f"[PRAZO] ❌ Erro na execução da sequência PRAZO: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"[P2B] ❌ Erro na execução do P2B.PY: {e}")
         return False
 
 def executar_pec(driver):
@@ -128,6 +134,9 @@ def main():
     logger.info(f"[PJE_SEQUENCIAL] Timestamp: {datetime.now()}")
     logger.info("="*60)
     
+    # Iniciar monitoramento
+    monitor.iniciar_monitoramento()
+    
     driver = None
     etapas_executadas = []
     
@@ -155,58 +164,74 @@ def main():
         logger.info("[ETAPA 1] Executando M1.PY")
         logger.info("="*50)
         
+        monitor.registrar_inicio_etapa("M1.PY")
         sucesso_m1 = executar_m1(driver)
+        monitor.registrar_fim_etapa("M1.PY", sucesso_m1)
+        
         if sucesso_m1:
             etapas_executadas.append("M1")
             logger.info("[ETAPA 1] ✅ M1.PY executado com sucesso")
-            
-            # Aguardar confirmação para continuar
-            if not aguardar_confirmacao("M1.PY"):
-                logger.info("[ETAPA 1] ⚠️ Execução interrompida pelo usuário após M1.PY")
-                return True
         else:
             logger.error("[ETAPA 1] ❌ Falha na execução do M1.PY")
             if not aguardar_confirmacao("M1.PY (com erro)"):
                 return False
         
-        # === ETAPA 2: PRAZO (LOOP + P2B) ===
+        # === ETAPA 2: LOOP.PY ===
         logger.info("\n" + "="*50)
-        logger.info("[ETAPA 2] Executando PRAZO (LOOP + P2B)")
+        logger.info("[ETAPA 2] Executando LOOP.PY")
         logger.info("="*50)
         
-        sucesso_prazo = executar_prazo(driver)
-        if sucesso_prazo:
-            etapas_executadas.append("PRAZO")
-            logger.info("[ETAPA 2] ✅ PRAZO (LOOP + P2B) executado com sucesso")
-            
-            # Aguardar confirmação para continuar
-            if not aguardar_confirmacao("PRAZO (LOOP + P2B)"):
-                logger.info("[ETAPA 2] ⚠️ Execução interrompida pelo usuário após PRAZO (LOOP + P2B)")
-                return True
+        monitor.registrar_inicio_etapa("LOOP.PY")
+        sucesso_loop = executar_loop(driver)
+        monitor.registrar_fim_etapa("LOOP.PY", sucesso_loop)
+        
+        if sucesso_loop:
+            etapas_executadas.append("LOOP")
+            logger.info("[ETAPA 2] ✅ LOOP.PY executado com sucesso")
         else:
-            logger.error("[ETAPA 2] ❌ Falha na execução do PRAZO (LOOP + P2B)")
-            if not aguardar_confirmacao("PRAZO (LOOP + P2B) (com erro)"):
+            logger.error("[ETAPA 2] ❌ Falha na execução do LOOP.PY")
+            if not aguardar_confirmacao("LOOP.PY (com erro)"):
                 return False
         
-        # === ETAPA 3: PEC.PY ===
+        # === ETAPA 3: P2B.PY ===
         logger.info("\n" + "="*50)
-        logger.info("[ETAPA 3] Executando PEC.PY")
+        logger.info("[ETAPA 3] Executando P2B.PY")
         logger.info("="*50)
         
+        monitor.registrar_inicio_etapa("P2B.PY")
+        sucesso_p2b = executar_p2b(driver)
+        monitor.registrar_fim_etapa("P2B.PY", sucesso_p2b)
+        
+        if sucesso_p2b:
+            etapas_executadas.append("P2B")
+            logger.info("[ETAPA 3] ✅ P2B.PY executado com sucesso")
+        else:
+            logger.error("[ETAPA 3] ❌ Falha na execução do P2B.PY")
+            if not aguardar_confirmacao("P2B.PY (com erro)"):
+                return False
+        
+        # === ETAPA 4: PEC.PY ===
+        logger.info("\n" + "="*50)
+        logger.info("[ETAPA 4] Executando PEC.PY")
+        logger.info("="*50)
+        
+        monitor.registrar_inicio_etapa("PEC.PY")
         sucesso_pec = executar_pec(driver)
+        monitor.registrar_fim_etapa("PEC.PY", sucesso_pec)
+        
         if sucesso_pec:
             etapas_executadas.append("PEC")
-            logger.info("[ETAPA 3] ✅ PEC.PY executado com sucesso")
+            logger.info("[ETAPA 4] ✅ PEC.PY executado com sucesso")
         else:
-            logger.error("[ETAPA 3] ❌ Falha na execução do PEC.PY")
+            logger.error("[ETAPA 4] ❌ Falha na execução do PEC.PY")
         
         # Relatório final
         logger.info("\n" + "="*60)
-        logger.info("[RELATÓRIO FINAL]")
+        logger.info("[RELATÓRIO FINAL] EXECUÇÃO TOTAL")
         logger.info(f"Etapas executadas com sucesso: {', '.join(etapas_executadas)}")
-        logger.info(f"Total de etapas: {len(etapas_executadas)}/3")
+        logger.info(f"Total de etapas: {len(etapas_executadas)}/4")
         
-        if len(etapas_executadas) == 3:
+        if len(etapas_executadas) == 4:
             logger.info("🎉 TODAS AS ETAPAS EXECUTADAS COM SUCESSO!")
         else:
             logger.warning("⚠️ Algumas etapas falharam ou foram interrompidas")

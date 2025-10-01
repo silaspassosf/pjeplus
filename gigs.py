@@ -15,13 +15,15 @@ var seletorDetalhesNumeroProcesso210 = '*[aria-label*="Abre o resumo do processo
 var seletorDetalhesNumeroProcesso = seletorDetalhesNumeroProcesso210 + ',' + '*[aria-label*="Detalhes do Processo"],*[mattooltip="Detalhes do Processo"],button[name="numero-processo"], button[name="numero-processo"], pje-descricao-processo button, pje-descricao-processo a';
 var listaDeVariaveisParaEditorDeTexto = [
 	['[maisPje:exequente]',''],
-	['[maisPje:executado]',''],
+	['[maisPje:executado]',''],	
 	['[maisPje:valorDivida]',''],
 	['[maisPje:dataDaDivida]',''],
 	['[maisPje:justiçagratuita]',''],
 	['[maisPje:justiçagratuitaData]',''],
 	['[maisPje:transitoJulgado]',''],
 	['[maisPje:custasArbitradas]',''],
+	['[maisPje:audiencia:data]',''],
+	['[maisPje:audiencia:hora]',''],
 	['[maisPje:chaveDeAcesso:id]','Chave de Acesso'],
 	['[maisPje:chaveDeAcesso:chave]','Chave de Acesso'],
 	['[maisPje:petiçãoInicial:id]','Petição Inicial'],
@@ -45,7 +47,10 @@ var listaDeVariaveisParaEditorDeTexto = [
 	['[maisPje:últimoCálculo:id]','Planilha de Cálculos'],
 	['[maisPje:últimoCálculo:chave]','Planilha de Cálculos'],
 	['[maisPje:último:id]','*'],
-	['[maisPje:último:chave]','*']
+	['[maisPje:último:chave]','*'],
+	['[maisPje:último:anexos]','*'], //traz a lista de ids dos anexos "Id.xxx, Id.xxx, Id.xxx", contendo a lista de ids dos anexos do último documento juntado
+	['[maisPje:perito]',''],
+	['[maisPje:exequente:telefone]','']
 ];
 
 browser.storage.local.get(null, async function(configuracoes){
@@ -62,11 +67,13 @@ browser.storage.local.get(null, async function(configuracoes){
 	}
 });
 
+
+
 //FUNÇÃO RESPONSÁVEL POR FILTRAR AS PÁGINAS QUE RECEBERÃO TRATAMENTO
 //SEMPRE QUE A PÁGINA É CARREGADA (ONLOAD) A FUNÇÃO VERIFICA O ENDEREÇO DA PÁGINA E EXECUTA AS FUNÇÕES DE ACORDO COM AS PREFERÊNCIAS GRAVADAS
 async function executar() {
 	if (!preferencias.extensaoAtiva) { return } 
-	console.debug(document.referrer + " >>>> " + document.location.href + " >>>> " + performance.navigation.type);
+	console.debug(document.referrer + " >>>> " + document.location.href + " >>>> " + performance.getEntriesByType("navigation")[0].type);
 	console.debug('*******************************');
 	console.debug('*************maisPje: INICIANDO A PAGINA');
 	console.debug('*******************************');
@@ -77,6 +84,7 @@ async function executar() {
 	// console.debug('*************preferencias.trt:' + preferencias.trt);
 
 	if (document.location.href.includes("moz-extension:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) { return }
+	if (document.location.href.includes("moz-extension:") && document.getElementById('/PJe-Atual/options')) { return }
 
 	if (document.location.href.includes("/administracao")) {
 		if (document.referrer.includes("login.seam")) {
@@ -88,11 +96,33 @@ async function executar() {
 		
 	} else if (document.location.href.includes(".jus.br/pjekz/")) {
 		//a transição ocorre apenas depois de carregar a https://pje.trt12.jus.br/pjekz/ ... nesses casos tem que aguardar o carregamento da transição
+		// console.log(document.location.href.slice(-7))
 		if (document.location.href.slice(-7) == '/pjekz/') { 
+			console.log('esperando transição')
 			await esperarTransicao(true,3000);
+			console.log(document.location.href)
 		}
 		
-		if (document.querySelector('pje-cabecalho-perfil')) { monitor_Janela_Principal() }
+		if (document.querySelector('pje-cabecalho-perfil')) {
+			
+			if (document.location.href.includes("/pauta-inteligente/buscar-vaga")) {
+				let btLimpar = await esperarElemento('pje-pauta-buscar-vaga button[aria-label="Limpar Filtros"]');
+				btLimpar.addEventListener('click', async function(event) {
+					let filtroDataFim = await esperarElemento('pje-pauta-buscar-vaga #filtroDataFim');
+					if (filtroDataFim.value == '') {
+						let hoje = new Date();
+						let fim = ("0" + hoje.getDate()).slice(-2) + '/' + ("0" + (hoje.getMonth()+1)).slice(-2) + '/' + (hoje.getFullYear()+1);
+						await preencherInput(filtroDataFim,fim) 
+					}
+				});
+				btLimpar.click();				
+				monitor_Janela_PautaInteligente_IncluirEmPauta();
+				return;				
+			} else {
+				monitor_Janela_Principal();
+			}
+			
+		}
 		
 		//Por quê <<<!document.location.href.includes("mailto")>>> ? serve para inibir a entrada de parametros enviados com o protocolo mailto contendo links do pje (que possuem a expressão ".jus.br/pjekz/")
 		if (document.referrer.length == 0 && !document.location.href.includes("/pauta-audiencias") && !document.location.href.includes("/conteudo") && !document.location.href.includes("mailto") && !document.location.href.includes("/detalhe")) {
@@ -104,7 +134,31 @@ async function executar() {
 		}
 
 		if (document.location.href.includes("/tarefa") || document.location.href.includes("/movimentar")) {
-			if (preferencias.tempBt.length > 0) {
+			
+			//controle de acordo
+			if (document.location.href.includes("/tarefa/") && document.location.href.includes("/acordo")) {
+				console.log('maisPJe: Tarefa Aguardando Cumprimento de Acordo')
+				posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);	
+				await inserirBotaoControleDeAcordo();
+				return;
+				//performance.getEntriesByType("navigation")[0].type
+
+			// } else if (document.location.href.includes("/tarefa/") && (document.location.href.includes("/dependencia-prevencao/minutar") || document.location.href.includes("/dependencia-prevencao/conclusao"))) {
+			// 	console.log(preferencias.tempAR + '-*-*-*-*-*-*-')
+				// if (preferencias.tempBt[1] == 'rejeitarPrevencao') {
+				// 	await esperarElemento('pje-conclusao-dependencia button','Prevenção');
+				// 	await rejeitarPrevencaoEmLote();
+
+				// 	browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+				// 	return;
+				// } else if (preferencias.tempBt[1] == 'aceitarPrevencao') { 
+				// 	await esperarElemento('pje-conclusao-dependencia button','Prevenção');
+				// 	await aceitarPrevencaoEmLote();
+
+				// 	browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+				// 	return;
+				// }
+			} else if (preferencias.tempBt.length > 0) {
 			
 				posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 				if (preferencias.tempBt[0] == "acao_bt_aaDespacho") {	
@@ -114,15 +168,26 @@ async function executar() {
 					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
 				}
 				
-				if (preferencias.tempBt[0] == "acao_bt_aaMovimento") {	
-		
+				if (preferencias.tempBt[0] == "acao_bt_aaMovimento") {
+					if (document.location.href.includes("/comunicacoesprocessuais/minutas")) {	
+						inserirParte_BB_CEF();
+						monitor_janela_expedientes(); //insere o monitor na tarefa PREPARAR EXPEDIENTES E COMUNICAÇÕES
+					}
+
 					fundo(true);
 					acao_bt_aaMovimento(preferencias.tempBt[1]);
 					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
 				}
+
+				if (preferencias.tempBt[0] == "acao_bt_aaComunicacao") {
+					if (document.location.href.includes("/comunicacoesprocessuais/minutas")) {	
+						inserirParte_BB_CEF();
+						monitor_janela_expedientes(); //insere o monitor na tarefa PREPARAR EXPEDIENTES E COMUNICAÇÕES
+					}
+				}
 				
 			} else {
-			
+
 				posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 				addBotaoTarefas();
 				kaizen('TAREFAS');				
@@ -142,19 +207,39 @@ async function executar() {
 					if (preferencias.tempAR == 'trocarMagistradoResponsavelPelaMinuta') { 
 						await trocarMagistradoResponsavelPelaMinuta();
 					} else {
-						await addZoom_Editor(); //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS
+						await addZoom_Editor();
+						await addBotaoPrazoEmLote();
+						await addBotaoMarcarDesmarcarTodos();
 					}
 					
-				} else  if (document.location.href.includes("/comunicacoesprocessuais/")) {
+				} else if (document.location.href.includes("/comunicacoesprocessuais/minutas")) {
+					//pela tarefa
+
 					inserirParte_BB_CEF();
+					monitor_janela_expedientes(); //insere o monitor na tarefa PREPARAR EXPEDIENTES E COMUNICAÇÕES
+
+					if (preferencias.tempBt.length > 0) {
+						if (preferencias.tempBt[0] == "acao_bt_aaComunicacao") {	
+							fundo(true);				
+							acao_bt_aaComunicacao(preferencias.tempBt[1]);
+							browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+						}
+					}
+
 				} else  if (document.location.href.includes("/sobrestamento/aguardandofinal")) {
 					// analisarMotivosSobrestamento();
-				}
 				
+				} else  if (document.location.href.includes("/tarefa/193/remessa")) {
+					console.log('maisPJe: analisando remessa de recurso')
+					janelaRemessaRecursoBotoes();
+					await analiseDoTipoDeRecurso();
+				}
+
 				if (document.location.href.includes("/475")) { //475 é o ID da Tarefa Conclusão ao Magistrado
 					//este if serve apenas para os casos do processo já estar na tarefa de conclusão a magistrado. 
 					//a transição entre tarefas a função acionada é a do document.body.addEventListener('focusout'
 					filtroMagistrado();
+				
 				}
 			}
 		
@@ -190,9 +275,16 @@ async function executar() {
 				console.log("Extensão maisPJE (" + agora() + "): gigsRecolherLembretes() - a partir de DETALHES");
 				ocultarLembretes();
 			}
+
+			if (preferencias.gigsTirarSomLembretes && preferencias.AALote.length == 0) { // não executar quando vem de lote
+				console.log("Extensão maisPJE (" + agora() + "): gigsTirarSomLembretes() - a partir de DETALHES");
+				await esperarElemento('pje-visualizador-post-its'); //aguarda o carregamento do postit
+				tirarSomLembretes();
+			}
 			
 			if (preferencias.gigsCriarMenu && preferencias.AALote.length == 0 && preferencias.tempBt.length == 0) { // não executar quando vem de vinculo ou de lote
 				console.log("Extensão maisPJE (" + agora() + "): gigsCriarMenu() - a partir de DETALHES");
+				
 				gigsCriarMenu();
 			}
 			
@@ -202,26 +294,33 @@ async function executar() {
 				apreciarPeticoes();
 			}
 			
-			//DESCRIÇÃO: Abre a janela TAREFAS, exceto se sua origem não for a janela TAREFAS.
-			if (preferencias.gigsAbrirTarefas && !document.referrer.includes("/tarefa")) {
-				//DESCRIÇÃO: Essa condicional serve para a JANELA TAREFA abrir mais rápido quando se deseja abrir a TAREFA sem o GIGS
-				console.log("Extensão maisPJE (" + agora() + "): abrirTarefasProcesso() - a partir de DETALHES");
-				abrirTarefasProcesso();
-			}
-			
 			//DESCRIÇÃO: identifica se o GIGs está aberto na janela e insere os botões
 			addBotaoGigs();
 			
 			//DESCRIÇÃO: insere o botão de busca personalizada na timeline
-			addBotaoBotaoBuscaPersonalizada()
+			addBotaoBotaoBuscaPersonalizada();
 			
 			//DESCRIÇÃO: identifica se a tela de alertas abriu
 			addBotaoFecharAlertasEmLote();
 
+			//DESCRIÇÃO: insere o botão de busca personalizada na timeline
+			if (preferencias.ocultarPublicacoesDJEN) { aguardarUltimoMutation(ocultarPublicacoesNoDJEN) }
+
 			if (preferencias.AALote.length > 0) {
-				console.log("Extensão maisPJE (" + agora() + "): Ações Automatizadas em Lote");
-				fundo(true);
-				acao_vinculo(preferencias.AALote);
+				if (preferencias.AALote != 'abrindovariosprocessosemlote') { //abertura de varios processos não aciona as ações automatizadas
+					console.log("Extensão maisPJE (" + agora() + "): Ações Automatizadas em Lote");
+					fundo(true);
+					acao_vinculo(preferencias.AALote);
+				}
+				
+			}
+
+			//DESCRIÇÃO: Abre a janela TAREFAS, exceto se sua origem não for a janela TAREFAS.
+			if (preferencias.gigsAbrirTarefas && !document.referrer.includes("/tarefa") && performance.getEntriesByType("navigation")[0].type != 'reload') {
+				//DESCRIÇÃO: Essa condicional serve para a JANELA TAREFA abrir mais rápido quando se deseja abrir a TAREFA sem o GIGS
+				console.log("Extensão maisPJE (" + agora() + "): abrirTarefasProcesso() - a partir de DETALHES");
+				abrirTarefasProcesso();
+				return;
 			}
 			
 		//ENDEREÇO DA PÁGINA: GIGS
@@ -241,17 +340,21 @@ async function executar() {
 			posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 			// ajustarColuna("70%");
 			monitor_janela_anexar();//cria monitor para identificar a assinatura e a atualização automatica d janela detalhes
-			await addZoom_Editor(); //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS
-		
-		} else if (document.location.href.includes("/conteudo") && document.location.href.includes("/documento/")) {
+			await addZoom_Editor(); //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS			
+		} else if (document.location.href.includes("/pauta-audiencias?maisPje=true")) { //vem do kaizen
+			posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
+		} else if (document.location.href.includes("/pauta-inteligente/buscar-vaga")) {
+			posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 
-			let idDoDocumento = await obterIdDocumentoDaUrl(document.location.href)
-			console.log(idDoDocumento)
+		} else if (document.location.href.includes("/conteudo") && document.location.href.includes("/documento/")) {
+			let idDoDocumento = await obterIdDocumentoDaUrl(document.location.href);			
 			await addBotoesDocumentoIsoladoCarregado(idDoDocumento);
 
 		//ENDEREÇO DA PÁGINA: COMUNICAÇÕES E EXPEDIENTES		
-		} else if (document.location.href.includes("/comunicacoesprocessuais/")) {
+		} else if (document.location.href.includes("/comunicacoesprocessuais/minutas")) {
+			//pela janela detalhes
 			inserirParte_BB_CEF(); //parei aqui o refatoramento do código
+			monitor_janela_expedientes(); //insere o monitor na tarefa PREPARAR EXPEDIENTES E COMUNICAÇÕES
 			
 			if (preferencias.tempBt.length > 0) {
 				if (preferencias.tempBt[0] == "acao_bt_aaComunicacao") {	
@@ -278,7 +381,7 @@ async function executar() {
 						let obj = preferencias.tempBt[1][1];
 						await acao_bt_retificarAutuacao(preferencias.tempBt[1][1]);
 						browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
-						// [999, preferencias.aaVariados[13].objeto]
+						// [999, preferencias.aaVariados[15].objeto]
 					} else {
 						// console.log(tipoRetificacao); //999
 						// console.log(multiResultado);  //array de objeto
@@ -301,7 +404,40 @@ async function executar() {
 				}
 			}
 		
-		
+		} else if (document.location.href.includes("/retificacao")) { //AA Retficiar Autuação > Associar Processos
+
+			if (preferencias.tempBt.length > 0) {
+				if (preferencias.tempBt[0] == "acao_bt_retificarAutuacao") {
+					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+					//pega o processo pai e pesquisa ele
+					let processoPai = await extrairNumeroProcesso(document.location.href);
+					await preencherInput('#inputNumeroProcesso',processoPai);
+					await esperarDesaparecer('div[class*="container-loading"] mat-progress-spinner');
+					await clicarBotao('button[aria-label="Associar processo"]');
+					await esperarDesaparecer('div[class*="container-loading"] mat-progress-spinner');
+					
+					let multiResultado = preferencias.tempBt[1].toString().split(/,|;/g); //separador , ou ; para os casos de mais de uma parte
+					
+					if (multiResultado.length > 1) {
+						let ancora = await esperarElemento('h1','Processo Principal');
+						let div = await criarElemento('div','height: 5vh;margin-top: 1vh;');
+						let bt = await criarElemento('button','display: inline-block; height: 5vh; min-width: 50%; margin: 0px 10px 10px; padding: 5px 10px; border: 0px; box-sizing: border-box; background-color: rgb(0, 120, 170); color: rgb(255, 255, 255); font-weight: bold; border-radius: 4px; box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px, rgba(0, 0, 0, 0.12) 0px 1px 3px; cursor: pointer;font-size: 1em;font-weight: normal;','maisPJe: Lista de Processos');
+						bt.onclick = async function() {
+							let resultado = await criarCaixaSelecao(multiResultado,'Escolha o processo Associado');
+							await preencherInput('pje-inclui-processo-associado-dialogo input[data-placeholder="Processo Associado"]',resultado);
+							await clicarBotao('pje-inclui-processo-associado-dialogo  mat-select[placeholder="Tipo de Associação"]');
+						};
+						div.appendChild(bt)
+						ancora.appendChild(div)					
+
+					} else {
+						await preencherInput('pje-inclui-processo-associado-dialogo input[data-placeholder="Processo Associado"]',multiResultado[0]);
+						await clicarBotao('pje-inclui-processo-associado-dialogo  mat-select[placeholder="Tipo de Associação"]');					
+					}
+					
+				}
+			}
+
 		//DETALHES DO PROCESSO: OBRIGAÇÕES DE PAGAR
 		} else if (document.location.href.includes("/obrigacao-pagar/")) {
 			let ancora = await esperarElemento('a[mattooltip="Incluir obrigação de pagar"]');
@@ -320,8 +456,9 @@ async function executar() {
 				ancora.click();
 			}
 		
-		} else if (document.location.href.includes("/comunicacoesprocessuais/minutas")) {
-			inserirParte_BB_CEF();
+		// } else if (document.location.href.includes("/comunicacoesprocessuais/minutas")) {
+		// 	inserirParte_BB_CEF();
+
 		} else if (document.location.href.includes("/bndt?maisPje=excluir")) {
 			excluirBNDT();
 		} else if (document.location.href.includes("/configuracao/modelos-documentos")) {
@@ -330,7 +467,7 @@ async function executar() {
 			console.log('document.location.href: ' + document.location.href)
 		}
 	
-	//TAREFAS pje antigo
+	//TAREFAS pje antigo	
 	} else if (document.location.href.includes("/Processo/movimentar.seam")) { 
 		if (document.location.href.includes("/segundograu/")) {
 			incluirPrazoRelator(); //pjeKz
@@ -353,7 +490,40 @@ async function executar() {
 			}
 		}
 	
-	//ENDEREÇO DA PÁGINA: DETALHES NO PJE ANTIGO 
+	
+	} else if (document.location.href.includes(".jus.br/aud/#/")) {
+		
+		aguardarUltimoMutation(async () => {
+			console.log('ata de audiência');
+
+			//ativa o link para abrir o processo
+			let span_numeroProcesso = document.querySelector('.texto-numero-processo');
+			if (span_numeroProcesso) {				
+				let padraoProcesso = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g; 
+				if (padraoProcesso.test(span_numeroProcesso.innerText)) {
+					
+					//CARREGA O PACOTE DE ÍCONES PARA A PÁGINA E O CSS DO MENU
+					browser.runtime.sendMessage({tipo: 'insertCSS', file: 'maisPje_icones.css'});
+					
+					let numero = span_numeroProcesso.innerText.match(padraoProcesso).join();
+					span_numeroProcesso.style.color = '#faed34';
+					span_numeroProcesso.title = 'maisPJe: abrir processo'
+					console.log(numero)
+					span_numeroProcesso.onclick = () => { consultaRapidaPJE(numero) };
+					
+					//abrir painel copia e cola
+					if (preferencias.modulo10_painelCopiaeCola) {
+						let idProcesso = await obterIdProcessoViaApi(numero);
+						await gigsCriarMenu(idProcesso,numero);
+						span_numeroProcesso.style.color = '#fff';					
+						browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
+					} else { span_numeroProcesso.style.color = '#fff' }
+					
+				}
+			}
+		});
+	
+		//ENDEREÇO DA PÁGINA: DETALHES NO PJE ANTIGO 
 	} else if (document.location.href.includes(preferencias.grau_usuario + "/Processo/ConsultaProcesso/Detalhe/") && document.location.href.includes("baixar=true")) {
 		acao1();
 		
@@ -457,26 +627,59 @@ async function executar() {
 	} else if (document.location.href.includes("/eCarta-web/")) {
 		console.log("Extensão maisPJE (" + agora() + "): e-carta");
 
+		if (document.location.href.includes('?maisPJeConsultaPorId=')) {
+			let idDocumento = document.location.href.match(/(?![0-9]{6,})(?![a-zA-Z]{6,7})([A-Za-z0-9]{6,7})/gi);
+
+			let ancoraCampo = await esperarElemento('span[id*="grpIdPje"]');
+
+			if (ancoraCampo) {
+				let campoDtInicio = await esperarElemento('input[id*="inicio_input"]');
+				campoDtInicio.focus();
+				campoDtInicio.value = '';
+				triggerEvent(campoDtInicio, 'input');
+				campoDtInicio.blur();
+
+				let campoDtFim = await esperarElemento('input[id*="termino_input"]');
+				campoDtFim.focus();
+				campoDtFim.value = '';
+				triggerEvent(campoDtFim, 'input');
+				campoDtFim.blur();
+				
+				let campoIdDocumento = ancoraCampo.querySelector('input');
+				campoIdDocumento.focus();
+				campoIdDocumento.value = idDocumento;
+				triggerEvent(campoIdDocumento, 'input');
+				campoIdDocumento.blur();
+
+				let btFiltrar = ancoraCampo.querySelector('button');
+				btFiltrar.focus();
+				btFiltrar.click();
+			}
+			return;
+		}
+
 		if (document.location.href.includes("/consultarObjeto.xhtml")) {
 			let padrao = /[A-Z]{2}[0-9]{9}[A-Z]{2}/gm;
 			if (padrao.test(document.location.href)) {
 				let listaObjetos = document.location.href.match(padrao).join().split(',');
 				console.log(listaObjetos + " : " + listaObjetos.length)
 				let btAdicionar = await esperarElemento('button','Adicionar')
-				
-				for (const [pos, objeto] of listaObjetos.entries()) {
-					console.log(pos)
-					if (pos > 0 && pos < 11) { //o primeiro passa para o proximo pq já vem preenchido
-						let input = document.querySelector('input[type="text"][value=""],input[type="text"]:not([value])');
-						if (input) {
-							await preencherInput(input,objeto);
-							btAdicionar.click()
-							await esperarDesaparecer('div[class*="ui-widget-overlay"]');						
-						}					
-					}
-				}
+				if (listaObjetos.length > 0) {
 
-				await clicarBotao('button','Pesquisar');
+					for (const [pos, objeto] of listaObjetos.entries()) {
+						console.log(pos)
+						if (pos > 0 && pos < 11) { //o primeiro passa para o proximo pq já vem preenchido
+							let input = document.querySelector('input[type="text"][value=""],input[type="text"]:not([value])');
+							if (input) {
+								await preencherInput(input,objeto);
+								btAdicionar.click()
+								await esperarDesaparecer('div[class*="ui-widget-overlay"]');						
+							}					
+						}
+					}
+
+					await clicarBotao('button','Pesquisar');
+				}
 			}
 		}		
 	
@@ -548,7 +751,7 @@ async function executar() {
 		addBotaoPlanilhasGoogle();
 	
 	//ENDEREÇO DA PÁGINA: SISBAJUD
-	} else if (document.location.href.includes("sisbajud.cnj.jus.br") || document.location.href.includes("sisbajud.cloud.pje.jus.br")) {
+	} else if (document.location.href.includes("sisbajud.cnj.jus.br") || document.location.href.includes("sisbajud.cloud.pje.jus.br")|| document.location.href.includes("sisbajud.pdpj.jus.br")) {
 		if (!preferencias.modulo9.sisbajud) { return }
 		if (!document.getElementById('maisPje_menuConvenios')) {
 			console.log("SISBAJUD");
@@ -658,6 +861,23 @@ async function executar() {
 				}		
 			});
 		}
+		if (document.location.href.includes("indisponibilidade.onr.org.br") && document.location.href.includes("ordem/cancelar/confirmacao")) {
+			let bt = await esperarElemento('button','Enviar Cancelamento');
+			if (bt) { 
+				console.log('maisPJe: CNIB: clicando em Enviar Cancelamento'); 
+				bt.scrollIntoView({behavior: 'smooth',block: 'start'});
+				await timer(bt, 3, 'orangered', 'pulseGeral') 
+			}
+		}
+		if (document.location.href.includes("indisponibilidade.onr.org.br") && document.location.href.includes("ordem/cancelar/confirmacao")) {
+			let bt = await esperarElemento('button','Assinar');
+			if (bt) { 
+				console.log('maisPJe: CNIB: clicando em Assinar Cancelamento'); 
+				bt.scrollIntoView({behavior: 'smooth',block: 'start'});
+				await timer(bt, 5, 'orangered', 'pulseGeral') 
+			}
+		}
+		
 		// if (document.location.href.includes("indisponibilidade.onr.org.br") && (document.location.href.includes("ordem/cancelamento/") || document.location.href.includes("/ordem/consulta/"))) {
 		// 	let var1 = browser.storage.local.get('processo_memoria', function(result){
 		// 		if (!result.processo_memoria.numero) {return}
@@ -708,47 +928,7 @@ async function executar() {
 			menuConvenios("RENAJUDNOVO");
 			await assistenteDeImpressao();
 		}
-	
-	//ENDEREÇO DA PÁGINA: SERASAJUD ANTIGO
-	} else if (document.location.href.includes("serasa.com.br/SerasaJudicial/CadastrarOficios")) {
-		if (!preferencias.modulo9.serasajud) { return }
-		console.log('SERASAJUD - Antigo');
-		let var1 = browser.storage.local.get('processo_memoria', async function(result){
-			if (!result.processo_memoria.numero) {return}
 			
-			let el = await esperarElemento('input[id="ctl00_Conteudo_txtNumeroProcesso"]');
-			if (!el) { return }				
-			el.focus();
-			el.value = result.processo_memoria.numero;
-			triggerEvent(el, 'input');
-			el.blur();
-			
-			let janelaDePreenchimento = await esperarElemento('div[id="ctl00_Conteudo_modalBenef_foregroundElement"]');
-			
-			if (janelaDePreenchimento.style.display.includes('none')) { return }
-
-			console.log("      |___INSERÇÃO DOS RÉUS: SERASAJUD ANTIGO");
-			let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
-			fundo(true);
-			if (!lista_de_executados) { return }			
-			//SÓ PERMITE CADASTRAR UM POR VEZ
-			console.log("      |___" + lista_de_executados[0].nome + " ( " + lista_de_executados[0].cpfcnpj + ")");
-			await preencherInput('input[id="ctl00_Conteudo_txtNomeBenef"]', lista_de_executados[0].nome);
-			
-			let elSelect = await esperarElemento('select[id="ctl00_Conteudo_ddlTipoPessoaBenef"]');
-			if (lista_de_executados[0].cpfcnpj.length > 14) { //CNPJ
-				elSelect.value = 1;
-			} else { //CPF
-				elSelect.value = 0;
-			}
-			triggerEvent(el, 'change');			
-			await preencherInput('input[id="ctl00_Conteudo_txtCPFBeneficiario"]', lista_de_executados[0].cpfcnpj);
-			await clicarBotao('input[id="ctl00_Conteudo_btnOk"]');
-			await preencherInput('input[id="ctl00_Conteudo_txtCPFBeneficiario"]', lista_de_executados[0].cpfcnpj);
-			await clicarBotao('input[id="ctl00_Conteudo_btnOk"]');
-			fundo(false)
-		});
-		
 	//ENDEREÇO DA PÁGINA: SERASAJUD NOVO
 	} else if (document.location.href.includes("serasa-judicial.serasaexperian")) {
 		if (!preferencias.modulo9.serasajud) { return }
@@ -830,16 +1010,17 @@ async function executar() {
 	} else if (document.location.href.includes(".jus.br/gprec/")) {
 		if (!preferencias.modulo9.gprec[0]) { return }
 		console.log('GPREC');
-		await incluirBotoesGPREC();
+		await incluirBotoesGPREC();		
 				
-		let var1 = browser.storage.local.get('processo_memoria', async function(result){
+		let var1 = browser.storage.local.get(['processo_memoria','tempAR'], async function(result){
 			//CARREGA O PACOTE DE ÍCONES PARA A PÁGINA E O CSS DO MENU
 			browser.runtime.sendMessage({tipo: 'insertCSS', file: 'maisPje_icones.css'});
 			let velocidadeInteracaoGPREC = preferencias.modulo9.gprec[1];
 
-			if (!result.processo_memoria.numero) {return}
+			
 			//Nova RP
 			if (document.location.href.includes("gprec/view/private/solicitacao/solicitacao_cadastro")) {
+				if (!result.processo_memoria.numero) {return}
 				let check = setInterval(function() {
 					if (document.getElementById('tabGeral:inNrProc')) {
 						clearInterval(check);
@@ -852,11 +1033,22 @@ async function executar() {
 			
 			//consultar pagamento RPV e consultar lista de RPVS expedidos
 			if (document.location.href.includes("gprec/view/private/rpv/rpv") && document.location.href.includes("_lista.xhtml")) {
+				
+				if (result.tempAR?.gprec?.includes('autuada')) {
+					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
+					await clicarBotao('#cmbSituacao_label');					
+					await clicarBotao('#cmbSituacao_panel li','Autuada');					
+					await clicarBotao('button[id="btnRpPesquisar"]');					
+				}
+
+				inserirBotaoBusca();
+				inserirBotaoInformarPrazoPagamento();
+
+				if (!result.processo_memoria.numero) {return}
 				await preencherInput('input[id="inNrProc"]', result.processo_memoria.numero);
 				await clicarBotao('button[id="btnRpvPagListBuscar"], button[id="btnRpPesquisar"]');
 				await sleep(1000);
-				inserirBotaoBusca();
-				inserirBotaoInformarPrazoPagamento();
+
 			}
 
 			//registrar pagamentos de RPV e PRecatorios
@@ -866,101 +1058,134 @@ async function executar() {
 					
 					if (document.querySelector('div[id="dlgPagamentoBeneficioEdit"][aria-hidden="false"]')) {
 						clearInterval(check);
-						
-						//puxa os valores requisitados e preenche como valores pagos
+
+						//1 - preenche com os valores requisitados
 						let ancora = document.querySelector('#dlgPagamentoBeneficioEdit');
 						let padraoSoNumero = /[1-9]\d{0,2}(?:\.\d{3})*,\d{2}/g;	
 						
+						//PEGA OS ELEMENTOS QUE CONTÊM OS VALORES
 						let el_valorLiquido = ancora.querySelector('#inVlLiquido');
+						let el_valorIR = ancora.querySelector('#inVlIr');
+						let el_valorINSSBeneficiario = ancora.querySelector('#inVlInssBenef');
+						let el_valorINSSExecutado = ancora.querySelector('#inVlInssExec');
+						let el_valorFGTS = ancora.querySelector('#inVlFgts');
+						let el_valorCustas = ancora.querySelector('#inVlCustas');
+
+						//PEGA OS VALORES E CONVERTE
 						let valorLiquido = el_valorLiquido.parentElement.querySelector('img').title;
 						if (padraoSoNumero.test(valorLiquido)) {
 							valorLiquido = valorLiquido.match(padraoSoNumero).join()
-						} else { valorLiquido = 0 }
+						} else { valorLiquido = '0' }						
 						
-						let el_valorIR = ancora.querySelector('#inVlIr');
 						let valorIR = el_valorIR.parentElement.querySelector('img').title;
 						if (padraoSoNumero.test(valorIR)) {
 							valorIR = valorIR.match(padraoSoNumero).join()
-						} else { valorIR = 0 }
+						} else { valorIR = '0' }						
 						
-						let el_valorINSSBeneficiario = ancora.querySelector('#inVlInssBenef');
 						let valorINSSBeneficiario = el_valorINSSBeneficiario.parentElement.querySelector('img').title;
 						if (padraoSoNumero.test(valorINSSBeneficiario)) {
 							valorINSSBeneficiario = valorINSSBeneficiario.match(padraoSoNumero).join()
-						} else { valorINSSBeneficiario = 0 }
+						} else { valorINSSBeneficiario = '0' }						
 						
-						let el_valorINSSExecutado = ancora.querySelector('#inVlInssExec');
 						let valorINSSExecutado = el_valorINSSExecutado.parentElement.querySelector('img').title;
 						if (padraoSoNumero.test(valorINSSExecutado)) {
 							valorINSSExecutado = valorINSSExecutado.match(padraoSoNumero).join()
-						} else { valorINSSExecutado = 0 }
+						} else { valorINSSExecutado = '0' }						
 						
-						let el_valorFGTS = ancora.querySelector('#inVlFgts');
 						let valorFGTS = el_valorFGTS.parentElement.querySelector('img').title;
 						if (padraoSoNumero.test(valorFGTS)) {
 							valorFGTS = valorFGTS.match(padraoSoNumero).join()
-						} else { valorFGTS = 0 }
+						} else { valorFGTS = '0' }						
 						
-						let el_valorCustas = ancora.querySelector('#inVlCustas');
 						let valorCustas = el_valorCustas.parentElement.querySelector('img').title;
 						if (padraoSoNumero.test(valorCustas)) {
 							valorCustas = valorCustas.match(padraoSoNumero).join()
-						} else { valorCustas = 0 }
+						} else { valorCustas = '0' }						
 						
-						preencherInput(el_valorLiquido, valorLiquido);
-						preencherInput(el_valorIR, valorIR);
-						preencherInput(el_valorINSSBeneficiario, valorINSSBeneficiario);
-						preencherInput(el_valorINSSExecutado, valorINSSExecutado);
-						preencherInput(el_valorFGTS, valorFGTS);
-						preencherInput(el_valorCustas, valorCustas);
+						valorLiquido = parseFloat(valorLiquido.replace(".", "").replace(",", "."));
+						valorIR = parseFloat(valorIR.replace(".", "").replace(",", "."));
+						valorINSSBeneficiario = parseFloat(valorINSSBeneficiario.replace(".", "").replace(",", "."));
+						valorINSSExecutado = parseFloat(valorINSSExecutado.replace(".", "").replace(",", "."));
+						valorFGTS = parseFloat(valorFGTS.replace(".", "").replace(",", "."));
+						valorCustas = parseFloat(valorCustas.replace(".", "").replace(",", "."));
 
-						//preencher a data do pagamento
+						let valorTotal = valorLiquido + valorIR + valorINSSBeneficiario + valorINSSExecutado + valorFGTS + valorCustas;
+												
+						// console.log(valorLiquido)
+						// console.log(valorIR)
+						// console.log(valorINSSBeneficiario)
+						// console.log(valorINSSExecutado)
+						// console.log(valorFGTS)
+						// console.log(valorCustas)
+						// console.log(valorTotal)
+
+						//cria a linha Nova com o Valor Total e botao de proporcionalizar
+						let tabela = el_valorCustas.parentElement.parentElement.parentElement;						
+						let trNovo1 = document.createElement('tr');
+						trNovo1.className = 'ui-widget-content ui-panelgrid-even';
+						trNovo1.setAttribute('role','row');
+						let tdNovo1 = document.createElement('td');
+						tdNovo1.id = 'maisPJe_gprec_totalDevido';
+						tdNovo1.className = 'ui-panelgrid-cell';
+						tdNovo1.setAttribute('role','gridcell');
+						tdNovo1.style.color = 'orangered';
+						tdNovo1.style.fontWeight = 'bold';
+						trNovo1.appendChild(tdNovo1);
+						let tdNovo2 = document.createElement('td');
+						tdNovo2.className = 'ui-panelgrid-cell'
+						tdNovo2.setAttribute('role','gridcell');
+						let btProporcionalizar = document.createElement('span');
+						btProporcionalizar.id = 'maisPJe_btProporcionalizar';
+
+						//inclui a proporcao no botao
+						btProporcionalizar.setAttribute('maisPjePercentual_valorLiquido',valorLiquido/valorTotal);
+						btProporcionalizar.setAttribute('maisPjePercentual_valorIR',valorIR/valorTotal);
+						btProporcionalizar.setAttribute('maisPjePercentual_valorINSSBeneficiario',valorINSSBeneficiario/valorTotal);
+						btProporcionalizar.setAttribute('maisPjePercentual_valorINSSExecutado',valorINSSExecutado/valorTotal);
+						btProporcionalizar.setAttribute('maisPjePercentual_valorFGTS',valorFGTS/valorTotal);
+						btProporcionalizar.setAttribute('maisPjePercentual_valorCustas',valorCustas/valorTotal);
+
+						valorLiquido = numeroValorFormatado(valorLiquido);
+						valorIR = numeroValorFormatado(valorIR);
+						valorINSSBeneficiario = numeroValorFormatado(valorINSSBeneficiario);
+						valorINSSExecutado = numeroValorFormatado(valorINSSExecutado);
+						valorFGTS = numeroValorFormatado(valorFGTS);
+						valorCustas = numeroValorFormatado(valorCustas);
+
+						btProporcionalizar.style = 'background-color: #ccc; border: 1px solid #aed0ea;border-radius: 5px;padding: 4px 12px;color: #3c82b4;font-weight: bold;cursor: pointer;';
+						btProporcionalizar.innerText = "Proporcionalizar";
+						btProporcionalizar.onclick = proporcionalizarValores;
+						tdNovo2.appendChild(btProporcionalizar);
+						trNovo1.appendChild(tdNovo2);
+						tabela.appendChild(trNovo1);
+
+						await preencherValoresRequisitados([valorLiquido,valorIR,valorINSSBeneficiario,valorINSSExecutado,valorFGTS,valorCustas,numeroValorFormatado(valorTotal)]);
+
+
+						//2 - anexa o comprovante
+						// await clicarBotao('div[id="dlgPagamentoBeneficioEdit"][aria-hidden="false"] button[id="btnIncluirPdfRpvPagBeneficio:btnIncluirPdf"]');
+						// let cxSelecaoPDF = await esperarElemento('div[id*="btnIncluirPdfRpvPagBeneficio:dlgIncluirPdf"]');
+						// if (!cxSelecaoPDF) { return }						
+						// await esperarElemento('div[id="mensagem_container"]','incluído com sucesso!',120000); //espera o anexo ser juntado por no máximo 2 minutos
+
+						//3 - preencher com valores proporcionais de acordo com o valor efetivamente pago
+						if (preferencias.modulo9.gprec[2]) { await clicarBotao('#maisPJe_btProporcionalizar') }
+
+						// 3 - preencher a data do pagamento
 						let dtPagto = await criarCaixaDePergunta('data','Data do Pagamento:', preferencias.tempAR);
 						let el_dtPagto = await esperarElemento('div[id="dlgPagamentoBeneficioEdit"][aria-hidden="false"] input[id="inDdtTrProc_input"]');
-						
-						//acionar o incluir comprovante
-						await clicarBotao('div[id="dlgPagamentoBeneficioEdit"][aria-hidden="false"] button[id="btnIncluirPdfRpvPagBeneficio:btnIncluirPdf"]');
-						await clicarBotao('div[id="btnIncluirPdfRpvPagBeneficio:dlgIncluirPdf"][aria-hidden="false"] input[id="btnIncluirPdfRpvPagBeneficio:fileUploadIncluirPdfGlobal_input"]');
-						
-						//espera o anexo ser juntado
-						await esperarElemento('div[id="btnIncluirPdfRpvPagBeneficio:dlgIncluirPdf"][aria-hidden="true"]');
-						
-						let var1 = browser.storage.local.set({'tempAR': dtPagto});
-						Promise.all([var1]).then(async values => {			
-							await preencherInput(el_dtPagto, dtPagto);						
-							await clicarBotao('div[id="dlgPagamentoBeneficioEdit"][aria-hidden="false"] button','Salvar');
+						let var1 = browser.storage.local.set({'tempAR': dtPagto}); //guarda da data do pagamento para a próxima inserção
+						Promise.all([var1]).then(async values => {
+								
+							await preencherInput(el_dtPagto, dtPagto);
+							await clicarBotao('div[id="dlgPagamentoBeneficioEdit"]'); //tira o foco do calendario
+							await clicarBotao('button','Salvar');
+							await criarCaixaDeAlerta('ATENÇÃO','Dados preenchidos automaticamente. Confirme os dados, clique em Salvar e em Confirmar',5);
 						});
 					}
 
 				}, 1000);
 				
-				let check2 = setInterval(async function() {
-					let ancora = document.querySelectorAll('#tblBeneficios_data td');
-					if (ancora[5]?.innerText == 'Registrado') {
-						clearInterval(check2);
-						await clicarBotao('#frmGeral button','Confirmar Pagamento');
-
-						let ancora2 = await esperarColecao('div[id*="dlgConfirmacaoPagamento"] button',2);
-						let btContinuar = ancora2[0];
-						let btCancelar = ancora2[1];
-
-						btContinuar.style.cursor = 'pointer';
-						btContinuar.style.animation = 'pulse 1s infinite';
-						
-						btCancelar.addEventListener('click', async function(event) {
-							btContinuar.style.animation = 'revert';							
-							btContinuar = null; //derruba o clique
-							document.querySelector('#maisPje_icoAtualizarPagina').remove();
-						});
-
-						await getContadorDePagina(velocidadeInteracaoGPREC);
-						if (btContinuar) {
-							btContinuar.style.animation = 'revert';
-							btContinuar.click();
-						}
-					}
-				}, 1000);
-
 				let check3 = setInterval(async function() {
 					let ancora = document.querySelectorAll('#tblBeneficios_data td');
 					if (ancora[5]?.innerText == 'Não Registrado') {
@@ -971,19 +1196,6 @@ async function executar() {
 						await getContadorDePagina(velocidadeInteracaoGPREC);
 						btRegistrar.style.animation = 'revert';
 						btRegistrar.click();
-					}
-				}, 1000);
-			}
-
-			if (document.location.href.includes("/gprec/view/private/requisicaopagamento/listarRequisicoesParaPagar.xhtml")) {
-				let check4 = setInterval(async function() {
-					if (document.querySelector('div[id="mensagem_container"]')) {
-						let ancora = document.querySelector('div[id="mensagem_container"]');
-						clearInterval(check4);
-						if (ancora?.innerText.includes('Operação Realizada com Sucesso')) {
-							await sleep(1000)
-							await clicarBotao('a','maisPJe: RPV > RegistrarPagamento');
-						}
 					}
 				}, 1000);
 			}
@@ -1078,6 +1290,56 @@ async function executar() {
 			}
 			ancora.appendChild(bt);			
 		}
+
+		async function preencherValoresRequisitados(novosValores) {
+			let ancora = document.querySelector('#dlgPagamentoBeneficioEdit');
+			let el_valorLiquido = ancora.querySelector('#inVlLiquido');
+			let el_valorIR = ancora.querySelector('#inVlIr');
+			let el_valorINSSBeneficiario = ancora.querySelector('#inVlInssBenef');
+			let el_valorINSSExecutado = ancora.querySelector('#inVlInssExec');
+			let el_valorFGTS = ancora.querySelector('#inVlFgts');
+			let el_valorCustas = ancora.querySelector('#inVlCustas');
+			preencherInput(el_valorLiquido, novosValores[0]);
+			preencherInput(el_valorIR, novosValores[1]);
+			preencherInput(el_valorINSSBeneficiario, novosValores[2]);
+			preencherInput(el_valorINSSExecutado, novosValores[3]);
+			preencherInput(el_valorFGTS, novosValores[4]);
+			preencherInput(el_valorCustas, novosValores[5]);
+			document.getElementById('maisPJe_gprec_totalDevido').innerText = 'maisPje (Total: ' + novosValores[6] + ')';
+			return;
+		}
+
+		async function proporcionalizarValores() {
+			let novoValorTotalPago = await criarCaixaDePergunta('texto','Preencha o valor total pago');
+			novoValorTotalPago = parseFloat(novoValorTotalPago.replace(".", "").replace(",", "."));
+
+			// console.log(novoValorTotalPago + " ------- " + typeof(novoValorTotalPago));
+
+			let valorLiquidoNovo = novoValorTotalPago * (parseFloat(this.getAttribute('maisPjePercentual_valorLiquido')));
+			let valorIRNovo = novoValorTotalPago * (parseFloat(this.getAttribute('maisPjePercentual_valorIR')));
+			let valorINSSBeneficiarioNovo = novoValorTotalPago * (parseFloat(this.getAttribute('maisPjePercentual_valorINSSBeneficiario')));
+			let valorINSSExecutadoNovo = novoValorTotalPago * (parseFloat(this.getAttribute('maisPjePercentual_valorINSSExecutado')));
+			let valorFGTSNovo = novoValorTotalPago * (parseFloat(this.getAttribute('maisPjePercentual_valorFGTS')));
+			let valorCustasNovo = novoValorTotalPago * (parseFloat(this.getAttribute('maisPjePercentual_valorCustas')));
+			
+			valorLiquidoNovo = numeroValorFormatado(valorLiquidoNovo.toFixed(2));
+			valorIRNovo = numeroValorFormatado(valorIRNovo.toFixed(2));
+			valorINSSBeneficiarioNovo = numeroValorFormatado(valorINSSBeneficiarioNovo.toFixed(2));
+			valorINSSExecutadoNovo = numeroValorFormatado(valorINSSExecutadoNovo.toFixed(2));
+			valorFGTSNovo = numeroValorFormatado(valorFGTSNovo.toFixed(2));
+			valorCustasNovo = numeroValorFormatado(valorCustasNovo.toFixed(2));
+
+			// console.log(valorLiquidoNovo)
+			// console.log(valorIRNovo)
+			// console.log(valorINSSBeneficiarioNovo)
+			// console.log(valorINSSExecutadoNovo)
+			// console.log(valorFGTSNovo)
+			// console.log(valorCustasNovo)
+			// console.log(novoValorTotalPago)
+
+			await preencherValoresRequisitados([valorLiquidoNovo,valorIRNovo,valorINSSBeneficiarioNovo,valorINSSExecutadoNovo,valorFGTSNovo,valorCustasNovo,numeroValorFormatado(novoValorTotalPago)]);
+			return;
+		}
 	
 	//ENDEREÇO DA PÁGINA: SIGEO AJJT
 	} else if (document.location.href.includes("aj.sigeo.jt.jus.br")) {
@@ -1089,6 +1351,7 @@ async function executar() {
 		
 	//ENDEREÇO DA PÁGINA: SIF
 	} else if (document.location.href.includes(".jus.br/sif")) {
+		if (!preferencias.modulo9.sif[0]) { return }
 		if (document.location.href.includes("/sif/consultar-extrato/")) {
 			let el = await esperarElemento('a[placeholder*="voltar para a tela anterior"]');
 			if (document.location.href.includes("maisPJe_SIF_bt_extrato")) {
@@ -1134,9 +1397,9 @@ async function executar() {
 			async function acao3() {
 				//copia o número da conta judicial para a memoria (ctrl + c) 
 				let texto = document.querySelector('mat-grid-list').innerText;
-				let padrao = /\d{4}\.\d{3}\.\d{8}\-\d{1}/g; //3521/042/01501234-0
-				if (padrao.test(texto)) {
-					navigator.clipboard.writeText(texto.match(padrao).join());
+				let padraoCEF = /\d{4}\.\d{3}\.\d{8}\-\d{1}/g; //3521/042/01501234-0
+				if (padraoCEF.test(texto)) {
+					navigator.clipboard.writeText(texto.match(padraoCEF).join());
 				}				
 
 				let el = await clicarBotao('button[placeholder*="consultar extrato"]');
@@ -1170,7 +1433,6 @@ async function executar() {
 			});
 			
 		} else {
-			if (!preferencias.modulo9.sif) { return }
 			
 			if (document.location.href.includes("?maisPJeconferir")) {
 				fundo(true);
@@ -1377,7 +1639,7 @@ async function executar() {
 					// console.log('p: ' + p)
 					let idProcessoApiPublica = await obterIdProcessoViaApiPublica(p);
 					// console.log(idProcessoApiPublica[0].id)
-					let idProcesso = idProcessoApiPublica[0].id;
+					let idProcesso = idProcessoApiPublica[0]?.id;
 					// console.log(idProcesso)
 					if (!idProcesso) { 	idProcesso = await obterIdProcessoViaApi(p) }
 					exibir_mensagem("PESQUISANDO ALVARÁS:\n\n" + p + "\n\nObtendo dados");
@@ -1427,38 +1689,88 @@ async function executar() {
 				}				
 			}
 		}
+	
+	} else if (document.location.href.includes("portaldeservicos.pdpj.jus.br/consulta") && document.location.href.includes('maisPjeNumeroProcesso=')) {
+		
+		let proc = await extrairNumeroProcesso(document.location.href);
+		console.log(proc)
+		if (!proc) { return }
+		let ancora = await esperarElemento('app-consulta-processo input[name="numeroProcesso"]');
+		await preencherInput(ancora,proc);
+		await clicarBotao('app-consulta-processo button','Buscar');
+		await esperarDesaparecer('mat-sidenav-content mat-spinner'); //aguardar carregamento
+		
+		//verifica se o processo possui mais de uma tramitação
+		let resposta = await esperarElemento('app-lista-processo em[mattooltip="Este processo possui mais de uma tramitação."]',null,2000);
+		if (resposta) { 
+			await clicarBotao(resposta);
+		} else {
+			await clicarBotao('#mat_row_lista_processo');
+		}
+
 	} else {
 		if (document.location.href.includes('moz-extension:') && document.location.href.includes('popupPainelCopiaECola')) {
+			
 			await sleep(2000)
 			let itens = await esperarColecao('domicilio');
-			for (const [pos, item] of itens.entries()) {
-				
-				let domicilio = await obterDomicilioEletronico(item.getAttribute('maisPje'));
-
-				if (domicilio) {
-					item.innerText = 'Domicílio Eletrônico: SIM';
-				} else {
-					item.innerText = 'Domicílio Eletrônico: NÃO';
+			if (itens) {
+				for (const [pos, item] of itens.entries()) {
+					console.log(item.getAttribute('maisPje'))
+					let domicilio = await obterDomicilioEletronico(item.getAttribute('maisPje'));
+					console.log(domicilio)
+					if (domicilio) {
+						item.innerText = 'Domicílio Eletrônico: SIM';
+					} else {
+						item.innerText = 'Domicílio Eletrônico: NÃO';
+					}
+					item.classList.remove('carregando');
+					item.classList.add('carregado');
+					item.style.display = 'flex';
+					
 				}
-				item.classList.remove('carregando');
-				item.classList.add('carregado');
-				item.style.display = 'flex';
-				
 			}
+			
 			
 			let itens2 = await esperarColecao('endereco');
-			for (const [pos, item] of itens2.entries()) {
-				let param = item.getAttribute('maisPje').split('|');
-				console.log(param[0] + ' , ' + param[1])
-				item.innerText = 'Sem endereço cadastrado no processo';
-				if (parseInt(param[1]) >= 0) {
-					item.innerText = await obterEnderecoDaParte(param[0],param[1]);
+			if (itens2) {
+				for (const [pos, item] of itens2.entries()) {
+					let param = item.getAttribute('maisPje').split('|');
+					// console.log(param[0] + ' , ' + param[1])
+					item.innerText = 'Sem endereço cadastrado no processo';
+					if (parseInt(param[1]) >= 0) {
+						item.innerText = await obterEnderecoDaParte(param[0],param[1]);
+					}
+					item.classList.remove('carregando');				
+					item.classList.add('carregado');
+					item.style.display = 'flex';
 				}
-				item.classList.remove('carregando');				
-				item.classList.add('carregado');
-				item.style.display = 'flex';
 			}
 			
+		}
+
+		// console.log(preferencias.tempAR?.conferirSiscondj);
+		if (preferencias.tempAR?.maispjeTemporizadorEmail) { 
+			console.log('maisPJe: enviando email via AAVariadas')
+
+			window.addEventListener("beforeunload", function (e) {
+				browser.storage.local.set({'tempAR': 'EnviarEmailConcluido'});
+			});
+
+			let tempo = parseInt(preferencias.tempAR?.maispjeTemporizadorEmail);
+			if (tempo > 0) {
+				let btEnviar = await esperarElemento('[aria-label="Enviar"]');
+				if (!btEnviar) { return }			
+				let textoBt = btEnviar.innerText;
+				let check = setInterval(function() {
+					if (tempo <= 0) { 
+						clearInterval(check);
+						btEnviar.click();
+					} else {
+						btEnviar.innerText = textoBt + ' (' + tempo + ')'
+						tempo = tempo-1;
+					}				
+				}, 1000);
+			}
 		}
 	}
 
@@ -1504,22 +1816,12 @@ async function checarVariaveis() {
 
 	//Modo Noite
 	ativarModoNoite(preferencias.modoNoite);
-	
-	if (!preferencias.oj_usuario) {
-		let ehServidor = await verificarSeServidor();
-		ehServidor ? console.log('Usuário identificado como Servidor/Magistrado') : console.log('Usuário identificado como Advogado/Perito');
-		if (!ehServidor) {
-			preferencias.extensaoAtiva = false;
-			browser.storage.local.set({'extensaoAtiva':false});
-			browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Desligado', icone: 'ico_16_off.png'});
-			return;
-		}
-	}
-	
+
 	preferencias.versao = typeof(preferencias.versao) == "undefined" ? "0" : preferencias.versao;
 	preferencias.trt = typeof(preferencias.trt) == "undefined" ? "erro" : preferencias.trt;
 	preferencias.num_trt = extrairTRT(preferencias.trt);
 	preferencias.nm_usuario = typeof(preferencias.nm_usuario) == "undefined" ? "" : preferencias.nm_usuario;
+	preferencias.papel_usuario = typeof(preferencias.papel_usuario) == "undefined" ? "" : preferencias.papel_usuario;	
 	preferencias.oj_usuario = typeof(preferencias.oj_usuario) == "undefined" ? "" : preferencias.oj_usuario;
 	preferencias.grau_usuario = typeof(preferencias.grau_usuario) == "undefined" ? "" : preferencias.grau_usuario;
 	preferencias.desativarAjusteJanelas = typeof(preferencias.desativarAjusteJanelas) == "undefined" ? true : preferencias.desativarAjusteJanelas;
@@ -1542,7 +1844,9 @@ async function checarVariaveis() {
 	preferencias.gigsPesquisaDeDocumentos = typeof(preferencias.gigsPesquisaDeDocumentos) == "undefined" ? 0 : preferencias.gigsPesquisaDeDocumentos;
 	preferencias.gigsCriarMenuAbrirPainelCopiaECola = typeof(preferencias.gigsCriarMenuAbrirPainelCopiaECola) == "undefined" ? false : preferencias.gigsCriarMenuAbrirPainelCopiaECola;
 	preferencias.guiaPersonalizadaDetalhes = typeof(preferencias.guiaPersonalizadaDetalhes) == "undefined" ? '' : preferencias.guiaPersonalizadaDetalhes;
-	preferencias.maisPje_velocidade_interacao = typeof(preferencias.maisPje_velocidade_interacao) == "undefined" ? 1 : preferencias.maisPje_velocidade_interacao * 1000; //NA HORA DE USAR EU CONVERTO EM SEGUNDOS
+	preferencias.pesquisaRapidaDeProcessoEmAba = typeof(preferencias.pesquisaRapidaDeProcessoEmAba) == "undefined" ? false : preferencias.pesquisaRapidaDeProcessoEmAba;
+	preferencias.ocultarPublicacoesDJEN = typeof(preferencias.ocultarPublicacoesDJEN) == "undefined" ? '' : preferencias.ocultarPublicacoesDJEN;	
+	preferencias.maisPje_velocidade_interacao = typeof(preferencias.maisPje_velocidade_interacao) == "undefined" ? 1000 : preferencias.maisPje_velocidade_interacao * 1000; //NA HORA DE USAR EU CONVERTO EM SEGUNDOS
 	preferencias.aaAnexar = typeof(preferencias.aaAnexar) == "undefined" ? [] : preferencias.aaAnexar;
 	preferencias.aaComunicacao = typeof(preferencias.aaComunicacao) == "undefined" ? [] : preferencias.aaComunicacao;
 	preferencias.aaAutogigs = typeof(preferencias.aaAutogigs) == "undefined" ? [] : preferencias.aaAutogigs;
@@ -1596,12 +1900,12 @@ async function checarVariaveis() {
 	preferencias.sisbajud.salvarEprotocolar = typeof(preferencias.sisbajud.salvarEprotocolar) == "undefined" ? "não" : preferencias.sisbajud.salvarEprotocolar;		
 	preferencias.sisbajud = {juiz: preferencias.sisbajud.juiz, vara: preferencias.sisbajud.vara, cnpjRaiz: preferencias.sisbajud.cnpjRaiz, teimosinha: preferencias.sisbajud.teimosinha, contasalario: preferencias.sisbajud.contasalario, naorespostas: preferencias.sisbajud.naorespostas, valor_desbloqueio: preferencias.sisbajud.valor_desbloqueio, banco_preferido: preferencias.sisbajud.banco_preferido, agencia_preferida: preferencias.sisbajud.agencia_preferida, preencherValor: preferencias.sisbajud.preencherValor, confirmar: preferencias.sisbajud.confirmar, executarAAaoFinal: preferencias.sisbajud.executarAAaoFinal, salvarEprotocolar: preferencias.sisbajud.salvarEprotocolar};
 	preferencias.sisbajud.naorespostas = preferencias.sisbajud.naorespostas == "" ? "Cancelar" : preferencias.sisbajud.naorespostas;
+	
+	//ajustando pq agora perdeu o juiz responsavel
+	preferencias.serasajud = typeof(preferencias.serasajud) == "undefined" ? {foro: "", vara: "", prazo_atendimento: "", aa: "Nenhum"} : preferencias.serasajud;
+	preferencias.serasajud.aa = preferencias.serasajud.aa ? preferencias.serasajud.aa : "Nenhum";
+	preferencias.serasajud = {"foro": preferencias.serasajud.foro, "vara": preferencias.serasajud.vara, "prazo_atendimento": preferencias.serasajud.prazo_atendimento, "aa": preferencias.serasajud.aa}
 
-	preferencias.serasajud_juiz = typeof(preferencias.serasajud_juiz) == "undefined" ? "" : preferencias.serasajud_juiz;
-	preferencias.serasajud_foro = typeof(preferencias.serasajud_foro) == "undefined" ? "" : preferencias.serasajud_foro;
-	preferencias.serasajud_vara = typeof(preferencias.serasajud_vara) == "undefined" ? "" : preferencias.serasajud_vara;
-	preferencias.serasajud_prazo_atendimento = typeof(preferencias.serasajud_prazo_atendimento) == "undefined" ? "" : preferencias.serasajud_prazo_atendimento;
-	preferencias.serasajud = typeof(preferencias.serasajud) == "undefined" ? {juiz: preferencias.serasajud_juiz, foro: preferencias.serasajud_foro, vara: preferencias.serasajud_vara, prazo_atendimento: preferencias.serasajud_prazo_atendimento} : preferencias.serasajud;
 	preferencias.renajud = typeof(preferencias.renajud) == "undefined" ? {tipo_restricao: "", comarca: "", tribunal: "", orgao: "", juiz: "", juiz2: ""} : preferencias.renajud;
 	preferencias.zoom_editor = typeof(preferencias.zoom_editor) == "undefined" ? 1 : preferencias.zoom_editor;
 	preferencias.modulo8 = typeof(preferencias.modulo8) == "undefined" ? [] : preferencias.modulo8;
@@ -1611,12 +1915,18 @@ async function checarVariaveis() {
 	preferencias.modulo9.saj = preferencias.modulo9.saj ? preferencias.modulo9.saj : true;
 	preferencias.saj = typeof(preferencias.saj) == "undefined" ? { vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "" } : preferencias.saj;		
 	
-	preferencias.modulo9.sif = (preferencias.modulo9.sif[1] ? preferencias.modulo9.sif : [true,10]);
-	preferencias.modulo9.siscondj = (preferencias.modulo9.siscondj[1] ? preferencias.modulo9.siscondj : [true,10]);
-	preferencias.modulo9.gprec = (preferencias.modulo9.gprec[1] ? preferencias.modulo9.gprec : [true,5]);
+	preferencias.modulo9.sif = (preferencias.modulo9.sif[1]) ? preferencias.modulo9.sif : [true,10];
+	preferencias.modulo9.sif = (preferencias.modulo9.sif[2]) ? preferencias.modulo9.sif : [preferencias.modulo9.sif[0],preferencias.modulo9.sif[1],'dia'];
+	
+	preferencias.modulo9.siscondj = (preferencias.modulo9.siscondj) ? preferencias.modulo9.siscondj : [true,10,true];
+	preferencias.modulo9.siscondj[2] = (preferencias.modulo9.siscondj[2]) ? preferencias.modulo9.siscondj[2] : true;
+
+	preferencias.modulo9.gprec = (preferencias.modulo9.gprec[1] ? preferencias.modulo9.gprec : [true,5,false]);
+	preferencias.modulo9.gprec = (!preferencias.modulo9.gprec[2] ? [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],false] : [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],preferencias.modulo9.gprec[2]]);
 
 	preferencias.modulo10 = typeof(preferencias.modulo10) == "undefined" ? [] : preferencias.modulo10;
 	preferencias.modulo10_juntadaMidia = typeof(preferencias.modulo10_juntadaMidia) == "undefined" ? [false,''] : preferencias.modulo10_juntadaMidia;
+	preferencias.modulo10_painelCopiaeCola = typeof(preferencias.modulo10_painelCopiaeCola) == "undefined" ? false : preferencias.modulo10_painelCopiaeCola;
 	preferencias.modulo2 = typeof(preferencias.modulo2) == "undefined" ? [] : preferencias.modulo2;
 	preferencias.menu_kaizen = typeof(preferencias.menu_kaizen) == "undefined" ? {principal:{posx:'96%',posy:'92%'},detalhes:{posx:'96%',posy:'92%'},tarefas:{posx:'96%',posy:'92%'},sisbajud:{posx:'93%',posy:'80%'},serasajud:{posx:'93%',posy:'80%'},renajud:{posx:'93%',posy:'80%'},cnib:{posx:'93%',posy:'80%'},ccs:{posx:'93%',posy:'80%'},prevjud:{posx:'93%',posy:'80%'},protestojud:{posx:'93%',posy:'80%'},sniper:{posx:'93%',posy:'80%'},censec:{posx:'93%',posy:'80%'},celesc:{posx:'93%',posy:'80%'},casan:{posx:'93%',posy:'80%'},sigef:{posx:'93%',posy:'80%'},infoseg:{posx:'93%',posy:'80%'},ajjt:{posx:'93%',posy:'80%'}} : preferencias.menu_kaizen;
 	preferencias.AALote = typeof(preferencias.AALote) == "undefined" ? '' : preferencias.AALote;
@@ -1633,6 +1943,9 @@ async function checarVariaveis() {
 	preferencias.extrasSugerirDescricaoAoAnexar = typeof(preferencias.extrasSugerirDescricaoAoAnexar) == "undefined" ? true : preferencias.extrasSugerirDescricaoAoAnexar;
 	preferencias.extrasProcurarExecucao = typeof(preferencias.extrasProcurarExecucao) == "undefined" ? 'SAO' : preferencias.extrasProcurarExecucao;
 	preferencias.extrasPrazoEmLote = typeof(preferencias.extrasPrazoEmLote) == "undefined" ? ['0','2','5','8','10','15'] : preferencias.extrasPrazoEmLote;
+	preferencias.atalho = typeof(preferencias.atalho) == "undefined" ? {'painelcopiaecola':''}: preferencias.atalho;
+	preferencias.atalho.painelcopiaecola = typeof(preferencias.atalho.painelcopiaecola) == "undefined" ? '' : preferencias.atalho.painelcopiaecola;
+
 
 	// console.log(preferencias.num_trt + ' : ' +  preferencias.grau_usuario)
 	preferencias.configURLs = typeof(preferencias.configURLs) == "undefined" ? await obterUrlsConciliaJT(preferencias.num_trt) : preferencias.configURLs;
@@ -1831,10 +2144,6 @@ async function ajjt() {
 						if (tabela[0].querySelector('td[headers="005"]').innerText == 'Paga') {
 							await clicarBotao(tabela[0]);
 							await clicarBotao('input[id="formAJIntranet:visualizar"]');
-						} else {
-							await clicarBotao(tabela[0]);
-							await sleep(2000)
-							await clicarBotao('input[id="formAJIntranet:imprimir"]');
 						}
 						
 					}
@@ -2045,17 +2354,35 @@ async function incluirBotoesGPREC() {
 				menu3.style.backgroundColor = 'revert';
 
 			} else if (destinoLink.includes('/gprec/view/private/rpv/rpv_lista.xhtml')) {
-				let menu1 = await esperarElemento('a','Requisição de Pagamento');
-				menu1.style.backgroundColor = 'red';
-				await sleep(200);
-				triggerEvent(menu1, 'mouseover')
-				menu1.style.backgroundColor = 'revert';
 
-				let menu2 = await esperarElemento('a','Listagem de RP');
-				menu2.style.backgroundColor = 'red';
-				await sleep(200);
-				triggerEvent(menu2, 'click')
-				menu2.style.backgroundColor = 'revert';
+				if (destinoLink.includes('?maisPJe="Autuada"')) {
+					let guardarStorage = browser.storage.local.set({'tempAR': {"gprec":"autuada"}});
+					Promise.all([guardarStorage]).then(async values => { 
+						let menu1 = await esperarElemento('a','Requisição de Pagamento');
+						menu1.style.backgroundColor = 'red';
+						await sleep(200);
+						triggerEvent(menu1, 'mouseover')
+						menu1.style.backgroundColor = 'revert';
+
+						let menu2 = await esperarElemento('a','Listagem de RP');
+						menu2.style.backgroundColor = 'red';
+						await sleep(200);
+						triggerEvent(menu2, 'click')
+						menu2.style.backgroundColor = 'revert';
+					});
+				} else {
+					let menu1 = await esperarElemento('a','Requisição de Pagamento');
+					menu1.style.backgroundColor = 'red';
+					await sleep(200);
+					triggerEvent(menu1, 'mouseover')
+					menu1.style.backgroundColor = 'revert';
+
+					let menu2 = await esperarElemento('a','Listagem de RP');
+					menu2.style.backgroundColor = 'red';
+					await sleep(200);
+					triggerEvent(menu2, 'click')
+					menu2.style.backgroundColor = 'revert';
+				}
 			}
 			
 		}
@@ -2068,10 +2395,12 @@ async function incluirBotoesGPREC() {
 			const barra = await esperarElemento('ul[class*="ui-menu-list"]');
 			if (barra.hasAttribute('maisPje')) { return resolver(false) }
 			barra.setAttribute('maisPje','true');		
-			const menu1 = criarBotaoGPREC("maisPJe: RPV > RegistrarPagamento", '/gprec/view/private/rpv/rpv_pagamento_lista.xhtml');
+			const menu1 = criarBotaoGPREC("maisPJe: RPV > Listar Todos", '/gprec/view/private/rpv/rpv_lista.xhtml');
 			barra.insertBefore(menu1, barra.lastElementChild);
-			const menu2 = criarBotaoGPREC("maisPJe: RPV > lista", '/gprec/view/private/rpv/rpv_lista.xhtml');
+			const menu2 = criarBotaoGPREC("maisPJe: RPV > Registrar Prazo", '/gprec/view/private/rpv/rpv_lista.xhtml?maisPJe="Autuada"');
 			barra.insertBefore(menu2, barra.lastElementChild);
+			const menu3 = criarBotaoGPREC("maisPJe: RPV > Registrar Pagamento", '/gprec/view/private/rpv/rpv_pagamento_lista.xhtml');
+			barra.insertBefore(menu3, barra.lastElementChild);
 			resolver(true);
 		}
 	);
@@ -2193,7 +2522,7 @@ function posicionarJanelaDetalhes(desativado) {
 
 async function guiaPersonalizadaDetalhes() {
 	//guia personalizada
-	if (preferencias.guiaPersonalizadaDetalhes) {
+	if (preferencias.guiaPersonalizadaDetalhes) {		
 		let numeroProcesso = await esperarElemento(seletorDetalhesNumeroProcesso);
 		// console.log(numeroProcesso.innerText);
 		let numeroDecomposto = await decomporNumeroProcesso(numeroProcesso.innerText);
@@ -2423,33 +2752,59 @@ function iniciarMonitorGigs() {
 	}
 }
 
+//FUNÇÃO RESPONSÁVEL POR GUARDAR O NOME, PAPEL E OJ DO USUARIO
+async function guardarOJdoUsuario() {
+	return new Promise(async resolve => {
+		//DESCRIÇÃO: Identifica se o usuário deu refresh na página.	
+		if (performance.getEntriesByType("navigation")[0].type == 'reload') { return resolve(false) }
+
+		let ehServidor = await verificarSeServidor();
+		ehServidor ? console.log('Usuário identificado como Servidor/Magistrado') : console.log('Usuário identificado como Advogado/Perito');
+		if (!ehServidor) {
+			preferencias.extensaoAtiva = false;
+			browser.storage.local.set({'extensaoAtiva':false});
+			browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Desligado', icone: 'ico_16_off.png'});
+			return;
+		}
+		
+		let ancora = await esperarElemento('pje-cabecalho-perfil div[class*="info-usuario"]');
+		let nm_usuario = ancora.childNodes[0].innerText;
+		let oj_usuario = ancora.childNodes[1].innerText;
+		let papel_usuario = ancora.childNodes[3].innerText;
+
+		//faz o request para identificar qual o orgao julgador do dusuairo. A primeira vez, no login, não há identificaçlão de troca de perfil. A partyir de então, quando houver troca de perfild entro do sistema, o novo codigo do orgao julgador é obtido
+		let codigoOJ = await obterUrlDoNetworkRequest('/pje-comum-api/api/orgaosjulgadores/', true);
+		if (codigoOJ == 'Nenhum') { codigoOJ = await obterUrlDoNetworkRequest('/pje-comum-api/api/orgaosjulgadores/') }
+		codigoOJ = codigoOJ.replace('https://' + preferencias.trt + '/pje-comum-api/api/orgaosjulgadores/','');		
+		let oj_usuarioId = await apis.permissaoPerfisOjUsuario.executar(preferencias.trt,{codigoOJ});
+
+		console.debug('maisPJe> Guardando informações do usuários na memória')
+		console.debug('maisPJe> Servidor: Sim')
+		console.debug('maisPJe> Nome: ' + nm_usuario)
+		console.debug('maisPJe> OJ: ' + oj_usuario)
+		console.debug('maisPJe> OJ Código: ' + oj_usuarioId.codigoOrigem)
+		console.debug('maisPJe> Papel: ' + papel_usuario)
+		
+		let guardarStorage = browser.storage.local.set({'nm_usuario': nm_usuario, 'papel_usuario': papel_usuario, 'oj_usuario': oj_usuario, 'oj_usuarioId': oj_usuarioId.codigoOrigem});
+		Promise.all([guardarStorage]).then(values => { 
+			preferencias.nm_usuario = nm_usuario;
+			preferencias.oj_usuario = oj_usuario;	
+			preferencias.oj_usuarioId = oj_usuarioId.codigoOrigem;
+			preferencias.papel_usuario = papel_usuario;
+			return resolve(true);
+		});
+	});
+}
+
 //FUNÇÃO RESPONSÁVEL PELA MUDANÇA DO PERFIL DO USUÁRIO DE ACORDO COM AS PREFERÊNCIAS GRAVADAS
 //ELA É ACIONADA DE DENTRO DA FUNÇÃO EXECUTAR()
 async function mudarPerfil() {
+	//DESCRIÇÃO: Identifica se o usuário deu refresh na página. Neste caso não acionar a troca do perfil		
+	if (performance.getEntriesByType("navigation")[0].type == 'reload') { return }
 	console.log('maisPJe: mudarPerfil');
-	console.debug('preferencias.modulo4PaginaInicial: ' + preferencias.modulo4PaginaInicial);
+	console.debug('preferencias.modulo4PaginaInicial: ' + preferencias.modulo4PaginaInicial);	
+	mudaTelaInicial();	
 	
-	//DESCRIÇÃO: Identifica se o usuário deu refresh na página. Neste caso não acionar a troca do perfil	
-	if (window.performance) {
-		if (performance.navigation.type == 1) {
-			return;
-		}
-	}
-
-	let nm_usuario, oj_usuario;
-	let check = setInterval(function() {
-		if (document.querySelector('span[class="nome-usuario"]')) {
-			clearInterval(check);
-			nm_usuario = document.querySelector('span[class="nome-usuario"]').innerText;
-			oj_usuario = document.querySelector('span[class="papel-usuario"]').innerText;
-			browser.storage.local.set({'nm_usuario': nm_usuario, 'oj_usuario': oj_usuario});
-			preferencias.nm_usuario = nm_usuario;
-			preferencias.oj_usuario = oj_usuario;
-			mudaTelaInicial();
-		}
-	}, 100);
-	
-	//muda a tela inicial
 	async function mudaTelaInicial() {
 		if (!preferencias.modulo4PaginaInicial) { return }
 		if (preferencias.modulo4PaginaInicial.includes('nenhum')) { return }
@@ -2497,6 +2852,7 @@ async function mudarPerfil() {
 		});
 	}
 }
+
 
 //FUNÇÃO RESPONSÁVEL POR APRECIAR TODAS AS PETIÇÕES DO PROCESSO DE ACORDO COM AS PREFERÊNCIAS DO USUÁRIO
 //ELA É ACIONADA DE DENTRO DA FUNÇÃO EXECUTAR()
@@ -2626,6 +2982,12 @@ async function ocultarLembretes() {
 	if (postIts) { await clicarBotao('button[aria-label="Recolher Lembretes"]') }
 }
 
+async function tirarSomLembretes() {
+	if (preferencias.AALote.length > 0) { return resolve(false) } //desativa quando vem das ações em lote	
+	console.log('desligando som da janela')
+	browser.runtime.sendMessage({tipo: 'silenciarGuia'}); //desliga o som
+}
+
 async function ocultarCabecalho() {
 	let el = await esperarElemento('button[aria-label="Esconder Cabeçalho"]');
 	if (!el) { return }
@@ -2647,7 +3009,7 @@ async function exibirCabecalho() {
 }
 
 //FUNÇÃO RESPONSÁVEL PELA CRIAÇÃO DO MENU COM OS DADOS DAS PARTES DO PROCESSO
-async function gigsCriarMenu() {
+async function gigsCriarMenu(idProcesso,numeroProcesso) {
 	return new Promise(async resolve => {
 		if (!preferencias.num_trt) { return }
 		
@@ -2662,41 +3024,45 @@ async function gigsCriarMenu() {
 		
 		browser.storage.onChanged.addListener(storageChange);
 		// await fundo(true);
-		let processo = await aguardarCarregamento();
-
-		// console.log("gigsCriarMenu " + processo)
-
+		// let processo = await aguardarCarregamento();
 		await menuStatus(true); //,muda icone para estrela ninja (carregando dados...)
-		let id = document.location.href.substring(document.location.href.search('/processo/')+10, document.location.href.search('/detalhe'));
-		// await exibir_mensagem("Criando menu");
-		browser.runtime.sendMessage({tipo: 'obterPartesDoProcesso', trt: preferencias.trt, id: id, processo: processo}); //chama o background para carregar os dados
-		resolve(true);
+		if (!idProcesso) { idProcesso = await obterIdProcessoDaUrl() }
+		if (!numeroProcesso) { 
+			let api = await obterNumeroProcessoViaId(idProcesso);
+			numeroProcesso = api.numero;
+		}
+		console.log("gigsCriarMenu [idProcesso: " +idProcesso+ " , numeroProcesso: " +numeroProcesso+ "]")
+		browser.runtime.sendMessage({tipo: 'obterPartesDoProcesso', trt: preferencias.trt, id: idProcesso, processo: numeroProcesso}); //chama o background para carregar os dados
+		
+		async function storageChange(changes) { //quando o processo_memoria for carregado no storage avisa para desligar a função
+			if (Object.keys(changes)[0] == 'processo_memoria') { // background grava os dados aqui
+				// fundo(false);
+				// await sleep(1000);
+				menuStatus(false); // desliga a estrela ninja - guardou tudo!
+				resolve(true);
+			}
+		}	
 	});
 
-	async function storageChange(changes) { //quando o processo_memoria for carregado no storage avisa para desligar a função
-		if (Object.keys(changes)[0] == 'processo_memoria') { // background grava os dados aqui
-			// fundo(false);
-			await sleep(1000);
-			menuStatus(false); // desliga a estrela ninja - guardou tudo!
-		}
-	}	
+	
 
-	async function aguardarCarregamento() {
-		return new Promise(async resolve => {
-			let ancora = await esperarElemento(seletorDetalhesNumeroProcesso);
-			let padrao = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
-			if (ancora) {
-				let check = setInterval(function() {
-					if (padrao.test(ancora.innerText)) {
-						clearInterval(check);
-						return resolve(ancora.innerText.match(padrao));
-					}
-				}, 100);
-			} else {
-				return resolve(null);
-			}
-		});
-	}
+	// async function aguardarCarregamento() {
+	// 	return new Promise(async resolve => {
+	// 		let ancora = await esperarElemento(seletorDetalhesNumeroProcesso,null,120000); //aumentei o tempo de espera para 2minutos. processos com muitas partes são excessivamente pesados e demoram para carregar
+	// 		console.log('entrou');
+	// 		let padrao = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
+	// 		if (ancora) {
+	// 			let check = setInterval(function() {
+	// 				if (padrao.test(ancora.innerText)) {
+	// 					clearInterval(check);
+	// 					return resolve(ancora.innerText.match(padrao));
+	// 				}
+	// 			}, 100);
+	// 		} else {
+	// 			return resolve(null);
+	// 		}
+	// 	});
+	// }
 }
 
 async function registrarObrigacaoDePagar() {
@@ -2761,7 +3127,7 @@ async function registrarObrigacaoDePagar() {
 		return new Promise(async resolve => {
 			fundo(true);
 			
-			let linha = await esperarElemento('div[class*="bloco-participante"] tbody tr','Reclamante,Requerente[ou]');
+			let linha = await esperarElemento('div[class*="bloco-participante"] tbody tr','Reclamante,Requerente,Exequente[ou]');
 			linha.style.backgroundColor = 'rgb(173, 216, 230)';
 			let ckb = linha.querySelector('mat-checkbox[aria-label="Marcar Parte"]');
 			await clicarBotao(ckb.firstElementChild);
@@ -2775,7 +3141,7 @@ async function registrarObrigacaoDePagar() {
 		return new Promise(async resolve => {
 			fundo(true);
 			
-			let linha = await esperarElemento('div[class*="bloco-participante"] tbody tr','Reclamado,Requerido[ou]');
+			let linha = await esperarElemento('div[class*="bloco-participante"] tbody tr','Reclamado,Requerido,Executado[ou]');
 			linha.style.backgroundColor = 'rgb(230, 200, 173)';
 			let ckb = linha.querySelector('mat-checkbox[aria-label="Marcar Parte"]');
 			await clicarBotao(ckb.firstElementChild);
@@ -2797,9 +3163,8 @@ async function acaoBotaoDetalhes(bt1, bt2=null, monitor=true) {
 	return new Promise(async resolve => {
 		console.log("Extensão PJE (" + agora() + "): acaoBotaoDetalhes()");
 		await clicarBotao('button[id="botao-menu"]');
-
-		if (document.querySelector('pje-icone-post-it')) { document.querySelector('pje-icone-post-it button').setAttribute('aria-label','Lembretes') }
-		
+		await esperarElemento('pje-menu-processo');
+		if (document.querySelector('pje-icone-post-it')) { document.querySelector('pje-icone-post-it button').setAttribute('aria-label','Lembretes') }		
 		let bt3 = (bt1.includes('Gigs')) ? bt1.replace('Gigs','GIGS') : bt1;		
 		let btAncora = document.querySelector('button[aria-label="' + bt1 + '"]') || document.querySelector('button[aria-label="' + bt2 + '"]') || document.querySelector('button[aria-label*="' + bt3 + '"]');
 		if (!btAncora) { btAncora = await esperarElemento('button',bt1) }
@@ -2861,8 +3226,6 @@ function consultarAR(emLote=false) {
 			exibir_mensagem("Abrindo ARs em Lote: " + item);
 			let url = preferencias.modulo9.ecarta[1] + item;
 			let w = window.open(url, '_blank', parametroJanela);
-			
-
 			w.dispatchEvent(simularTecla('keydown',27));
 		}		
 	}
@@ -3016,7 +3379,7 @@ function meusProcessosGlobal2() {
 }
 
 //FUNÇÃO RESPONSÁVEL POR FILTRAR APENAS OS PROCESSOS (RELATÓRIO GIGS) CUJO RESPONSÁVEL É O USUÁRIO
-async function meusProcessosGigs() {
+async function meusProcessosGigs(prazoOUpreparo) {
 	//verifica se o usuário está na tela principal
 	if (document.querySelector('button[aria-label="Meu Painel"]')) {
 		fundo(true);
@@ -3025,7 +3388,11 @@ async function meusProcessosGigs() {
 		console.log("Extensão maisPJE (" + agora() + "): meusProcessosGigs: " + usuario);
 		await clicarBotao('button[aria-label="Relatórios do GIGS"]');
 		await clicarBotao('button[aria-label="Limpar Filtro"]');
-		await clicarBotao('i[aria-label="Atividades sem prazo"]');
+		if (prazoOUpreparo) {
+			await clicarBotao('i[aria-label="Prazos Vencidos"]');
+		} else {
+			await clicarBotao('i[aria-label="Atividades sem prazo"]');
+		}		
 		await escolherOpcaoTeste('mat-select[aria-label*="Filtro Responsáveis"]', usuario);		
 		await clicarBotao('button[aria-label="Filtrar"]');
 		await clicarBotao('th','Data Atividade');
@@ -3036,23 +3403,30 @@ async function meusProcessosGigs() {
 //FUNÇÃO RESPONSÁVEL POR FILTRAR OS PROCESSOS (PAINEL GLOBAL, RELATÓRIO GIGS e ESCANINHO) DE ACORDO COM O ÚLTIMO NÚMERO
 async function filtrarPorMeuFiltro() {
 	console.log("Extensão maisPJE (" + agora() + "): filtrarPorMeuFiltro()");
+
 	let meuFiltro_temp = [];
 	let meuFiltro_tempSTR = '';
-	preferencias.meuFiltro.forEach((element, index, array) => {	return element ? meuFiltro_temp.push(index) : -1 });
 	
-	if (meuFiltro_temp.length > 0) {
-		let ativar = document.querySelector('tbody').getAttribute('maisPje_filtro_ativado');
-		if (!ativar || ativar == "false") {
-			console.log(meuFiltro_temp.toString());
-			if (meuFiltro_temp.toString().includes('10') || meuFiltro_temp.toString().includes('11')) {
-				ativarFiltro(true);
+	let var1 = browser.storage.local.get('meuFiltro', function(result){			
+		preferencias.meuFiltro = result.meuFiltro;
+		preferencias.meuFiltro.forEach((element, index, array) => {	return element ? meuFiltro_temp.push(index) : -1 });
+		
+		if (meuFiltro_temp.length > 0) {
+			let ativar = document.querySelector('tbody').getAttribute('maisPje_filtro_ativado');
+			if (!ativar || ativar == "false") {
+				// console.log(meuFiltro_temp.toString());
+				if (meuFiltro_temp.toString().includes('10') || meuFiltro_temp.toString().includes('11')) {
+					ativarFiltro(true);
+				} else {
+					ativarFiltro();
+				}
 			} else {
-				ativarFiltro();
+				desativarFiltro();
 			}
-		} else {
-			desativarFiltro();
 		}
-	}
+
+
+	});
 	
 	async function ativarFiltro(porJuiz=false) {
 
@@ -3091,7 +3465,7 @@ async function filtrarPorMeuFiltro() {
 						digito = processoNumero.substring(4, 5);
 					}
 					let filtroNum = meuFiltro_temp.toString().includes(digito);
-					console.log(processoNumero + " : " + numero + " : " + ano + " : " + digito + " : " + filtroNum);
+					// console.log(processoNumero + " : " + numero + " : " + ano + " : " + digito + " : " + filtroNum);
 					
 					(!filtroNum) ? linha.style.setProperty('display', 'none') : linha.style.setProperty('background-color', 'khaki');
 					(!filtroNum) ? linha.setAttribute('maisPje_filtro',false): linha.setAttribute('maisPje_filtro',true);
@@ -3677,13 +4051,20 @@ async function addBotaoDetalhes() {
 
 				let idProcesso = await obterIdProcessoDaUrl();
 				let situacaoPericia = await obterSituacaoPericiaViaApi(idProcesso)
-				let t = (situacaoPericia) ? 'Perícias: ' + situacaoPericia : 'Perícias';
 				const botao18 = criarBotaoDetalhes({
 					id: "maisPJe_bt_detalhes_pericias",
-					tooltip: t,
+					tooltip: 'Perícias',
 					iconClass: "fas fa-user-md"
 				});
-				botao18.onclick = function () {acaoBotaoDetalhes("Perícias")}				
+				botao18.onmouseenter = async function () {
+					this.style.color = '#0006';
+					await sleep(500);
+					if (elementoAtivo == this.id) { addInformacoesPericia(situacaoPericia) }
+				}
+				botao18.onmouseleave = function () {this.style.color = 'rgba(0, 0, 0, 0.87)';elementoAtivo = "";}
+				botao18.onclick = function () {acaoBotaoDetalhes("Perícias")}	
+				//altera a cor do ícone caso tenha perícia
+				if (situacaoPericia) { botao18.firstElementChild.style = 'color: tomato;filter: grayscale(15%) drop-shadow(0px 0px 1px #821b08);' }
 				base.appendChild(botao18);
 			}
 			//Quadro de recursos
@@ -3846,12 +4227,12 @@ async function addBotaoDetalhes() {
 	
 	//DISPARA EVENTUAL AÇÃO AUTOMATIZADA CASO A PÁGINA SEJA ATUALIZADA E O LISTENER ABAIXO SEJA ENCERRADO
 	// console.log('---------------------------------');
-	// console.log('performance.navigation.type: ' + performance.navigation.type);
+	// console.log('atualizou a página? : ' + performance.getEntriesByType("navigation")[0].type);
 	// console.log('preferencias.tempAAEspecial.length: ' + preferencias.tempAAEspecial.length);
 	// console.log('preferencias.tempAAEspecial: ' + preferencias.tempAAEspecial);
 	// console.log('preferencias.tempBt: ' + preferencias.tempBt);
 	// console.log('---------------------------------');
-	// if (performance.navigation.type == 1 && preferencias.tempAAEspecial.length > 0) { await acionarAcaoAutomatizadaEmReload() }
+	// if (performance.getEntriesByType("navigation")[0].type == 'reload' && preferencias.tempAAEspecial.length > 0) { await acionarAcaoAutomatizadaEmReload() }
 	
 	//MONITORA A AÇÃO AUTOMATIZADA. CASO ESTEJA VINCULADA A OUTRA, MANDA DISPARAR
 	browser.storage.onChanged.addListener(logStorageChange);				
@@ -3907,14 +4288,27 @@ async function addBotaoDetalhes() {
 			} else if (item == "processo_memoria") {
 				// console.log(changes[item].newValue)
 				preferencias.processo_memoria = changes[item].newValue;
+			} else if(item == "tempAR") {
+
+				//Ação automatizada Variadas: enviar email
+				if (changes[item].newValue == "EnviarEmailConcluido") {
+					fundo(false);
+					browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
+					// comando para prosseguir as AA em LOTE caso exista
+					if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+					// comando para prosseguir as AA em LOTE caso exista
+					if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+				}
 			}
 		}
 	}
 	
 	// se a janela DETALHES DO PROCESSO nasceu de um refresh(F5) ou de um vinculo Atualizar|Atualizar
 	// verificar se tem algum vínculo pendente de prosseguimento
-	// console.log(performance.navigation.type + ' : ' + preferencias.tempBt + ' : ' + preferencias.tempAAEspecial);
-	if (performance.navigation.type == 1 && (preferencias.tempBt != 'undefined' || preferencias.tempAAEspecial != '')) {
+	// console.log(performance.getEntriesByType("navigation")[0].type == 'reload' + ' : ' + preferencias.tempBt + ' : ' + preferencias.tempAAEspecial);
+	
+	// if (performance.getEntriesByType("navigation")[0].type == 'reload') { return }
+	if (performance.getEntriesByType("navigation")[0].type == 'reload' && (preferencias.tempBt != 'undefined' || preferencias.tempAAEspecial != '')) {
 		console.log("JANELA DETALHES atualizou...");		
 		
 		//DESCRIÇÃO: Aplica visibilidade de sigilo às partes quando da juntada de documentos sigilosos
@@ -4200,8 +4594,20 @@ async function addBotaoTelaPrincipal() {
 				el.appendChild(botao2);
 
 				const botao3 = criarBotaoMenuLateral("button", "maisPje_bt_principal_3", "Meu Filtro", 'Atalho: F2',
-					function () {filtrarPorMeuFiltro()});
-
+					function () {
+						if (this.hasAttribute('maisPje_ativado')) { //desativa o botão
+							this.removeAttribute('maisPje_ativado');
+							this.style.border = 'revert';
+							this.style.borderRadius = 'revert';
+							this.style.backgroundColor = 'revert';
+						} else {
+							this.setAttribute('maisPje_ativado','true'); //ativa o botão
+							this.style.border = '1px solid #9b9455';
+							this.style.borderRadius = '4px';
+							this.style.backgroundColor = 'khaki';
+						}
+						filtrarPorMeuFiltro()
+					});
 				el.appendChild(botao3);				
 			}
 		}
@@ -4229,6 +4635,31 @@ async function addBotaoCopiarDocumento(id) {
 				i.className = "fas fa-copy";
 				bt.appendChild(i);
 				ancora.appendChild(bt);
+			}
+		}
+
+		//adiciona eventlistener para copiar o código do id
+		if (document.querySelector('div[class="cabecalho-esquerda"]')) {
+			if (!document.getElementById("extensaoPje_bt_copiarID_" + id)) {
+				
+				//DESCRIÇÃO: REGRA DO TOOLTIP
+				if (!document.getElementById('maispje-tooltip-abaixo6')) {
+					tooltip('abaixo6');
+				}
+
+				let ancora = document.querySelector('div[class="cabecalho-esquerda"]').firstElementChild;
+				let elementoEspelho = document.querySelector('span[aria-label="Copiar link de validação do documento"]');
+				let novoBt = elementoEspelho.cloneNode(true);
+				novoBt.id = "extensaoPje_bt_copiarID_" + id;
+				novoBt.setAttribute('maispje-tooltip-abaixo6','Copiar Id');
+				novoBt.setAttribute('aria-label','Copiar Id');
+				novoBt.onclick = function () {
+					let padraoID = /(i{1}d{1}[.| |:]{1,})([A-Za-z0-9]{7})/i;
+					let idDocumento = ancora.innerText.match(padraoID)[2];
+					navigator.clipboard.writeText(idDocumento);
+					browser.runtime.sendMessage({tipo: 'criarAlerta', valor: idDocumento + ' copiado para a memória (CTRL + C)!!', icone: '5'});
+				};
+				ancora.appendChild(novoBt);
 			}
 		}
 		resolve(true);
@@ -4455,57 +4886,158 @@ async function addBotaoBotaoBuscaPersonalizada() {
 	}
 }
 
+async function ocultarPublicacoesNoDJEN() {
+	return new Promise(async resolve => {
+		let ancora = await esperarElemento('ul[class*="timeline"]');
+		Array.from(ancora.childNodes).forEach(child => ocultar(child));
+	});
+
+	function ocultar(child) {
+		if (child?.innerText?.includes('Certidão de Publicação no DJEN')) {
+			child.style.display = 'none';
+		}
+	}
+}
+
+async function janelaRemessaRecursoBotoes() {
+	return new Promise(async resolve => {
+		let listaDeBotoes = await esperarElemento('div[class="div-acoes-partes-remessa"]');
+		listaDeBotoes.style = 'position: fixed;z-index: 5000;top: 84%;left: 0%;background-color: #00000012;border-radius: 15px;box-shadow: 0px 1px 2px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.1);';
+		return resolve(true)
+	});
+}
+
+async function analiseDoTipoDeRecurso() {
+	return new Promise(async resolve => {
+		let idProcesso = await obterIdProcessoDaUrl();
+		let tipoDeRecurso = await obterTipoDeRecurso(idProcesso);
+		console.log(tipoDeRecurso)
+		if (tipoDeRecurso) {
+			//apenas escolhe automaticamente os tipos de recurso mais comuns
+			// let tipoRecursoOrdinario = ['Recurso Ordinário','Recurso Ordinário - Rito Sumaríssimo','Recurso Ordinário Trabalhista']; //posição 0 é o tipo de recurso.. os demais são as opções decorrente dele
+			// let tipoRecursoAgravoInstrumento = ['Agravo de Instrumento','Agravo de Instrumento em Agravo de Petição','Agravo de Instrumento em Recurso Ordinário']
+			let opcaoEscolhida = '';			
+			if (tipoDeRecurso == 'Agravo de Instrumento') {
+				let faseDoProcesso = await obterFaseIdProcessoViaApi(idProcesso);
+				console.log(faseDoProcesso);
+				switch (faseDoProcesso) {
+					case 'Conhecimento':
+						opcaoEscolhida = 'Agravo de Instrumento em Recurso Ordinário';
+						break
+					case 'Excecução':
+						opcaoEscolhida = 'Agravo de Instrumento em Agravo de Petição';
+						break
+					default:
+						opcaoEscolhida = '';
+						break
+				}
+			} else if (tipoDeRecurso == 'Recurso Ordinário') {
+				let d = await esperarElemento('pje-cabecalho pje-descricao-processo')
+				let ritoProcesso = await obterRitoProcessoDoTexto(d.innerText);
+				console.log(ritoProcesso);
+				switch (ritoProcesso) {
+					case 'ATOrd':
+						opcaoEscolhida = 'Recurso Ordinário Trabalhista';
+						break
+					case 'ATSum':
+						opcaoEscolhida = 'Recurso Ordinário - Rito Sumaríssimo';
+						break
+					default:
+						opcaoEscolhida = '';
+						break
+				}
+			} else if (tipoDeRecurso == 'Agravo de Petição') {
+				opcaoEscolhida = tipoDeRecurso + '[exato]';
+			}
+
+			if (opcaoEscolhida) {
+				await escolherOpcaoTeste2('pje-remeter-processo form mat-select[placeholder="Classe judicial"]',opcaoEscolhida);
+			}
+
+			return resolve(true);	
+		}
+		
+	});
+
+	async function obterTipoDeRecurso(idProcesso) {
+		return new Promise(async resolve => {
+			//desativei para buscar tb movimentos = true.. já que na api o parametro movimentos eh false
+			// const dados = await apis.timelineProcesso.executar(preferencias.trt, {'idProcesso': idProcesso, 'buscarMovimentos' : 'true'});
+			let resultado = '';
+			let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/timeline?somenteDocumentosAssinados=false&buscarMovimentos=true&buscarDocumentos=true';
+			let resposta = await fetch(url);
+			let dados = await resposta.json();
+			
+			if (dados) {
+				let tiposQueInterrompem = ['Conclusos os autos para julgamento Proferir sentença']; //o movimento de proferir sentença interrompe
+				let tiposQueImportam = ['Recurso Ordinário','Agravo de Petição','Agravo de Instrumento','Recurso de Revista'];
+				for (const [pos, item] of dados.entries()) {
+					if ((!item.documento) && tiposQueInterrompem.includes(item.titulo)) { break } //somente movimentos interrompe
+					if (tiposQueImportam.includes(item.tipo)) { resultado = item.tipo; break }
+				}
+				return resolve(resultado);
+			} else {
+				return resolve('ERRO2');
+			}
+			
+		});
+	}
+}
+
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR O BOTÃO PRAZO EM LOTE NOS DESPACHOS/DECISÃO/SENTENÇA
 async function addBotaoPrazoEmLote() {
 	//INSERE O BOTÃO PARA INSERIR PRAZO EM LOTE
-	if (!document.querySelector('pje-intimacao-automatica')) {
-		return;
-	} else {
-		if (!document.getElementById('pjextension_prazoEmLote')) {
-			var el = document.querySelector('div[class="controle-intimacao"]')
-			var botao = document.createElement("button");
-			botao.textContent = "Prazo em lote";
-			botao.id = "pjextension_prazoEmLote";
-			botao.style = "cursor: pointer; margin-left: 10px;"
-			botao.onmouseenter = function () {
-				if (!document.getElementById('maisPje_barra_bt_pzoLote')) {
+	return new Promise(async resolve => {
+		let tempo_espera = preferencias.maisPje_velocidade_interacao + 1000;
+		let ancora = await esperarElemento('pje-intimacao-automatica',null,tempo_espera);
+		if (!ancora) { return resolve(false) }
+		let jaExiste = await esperarElemento('button[id="pjextension_prazoEmLote"]',null,tempo_espera);
+		if (jaExiste) { return resolve(true) }
+		
+		var el = document.querySelector('div[class="controle-intimacao"]')
+		var botao = document.createElement("button");
+		botao.textContent = "Prazo em lote";
+		botao.id = "pjextension_prazoEmLote";
+		botao.style = "cursor: pointer; margin-left: 10px;"
+		botao.onmouseenter = function () {
+			if (!document.getElementById('maisPje_barra_bt_pzoLote')) {
 
-					let barra_bt_pzoLote_temp = document.createElement("div");
-					barra_bt_pzoLote_temp.id = "maisPje_barra_bt_pzoLote";
-					barra_bt_pzoLote_temp.style = "z-index: 100; height: auto; position: absolute; background-color: rgb(255, 255, 255); text-align: center; border-radius: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center;margin-top: 5px;margin-left: -3px; gap: 10px;";
-					barra_bt_pzoLote_temp.onmouseleave = function (e) {
-						barra_bt_pzoLote_temp.className = "maisPje-fade-out";
-						setTimeout(function(){				
-							document.getElementById('maisPje_barra_bt_pzoLote').remove();
-						}, 250);
-					};
+				let barra_bt_pzoLote_temp = document.createElement("div");
+				barra_bt_pzoLote_temp.id = "maisPje_barra_bt_pzoLote";
+				barra_bt_pzoLote_temp.style = "z-index: 100; height: auto; position: absolute; background-color: rgb(255, 255, 255); text-align: center; border-radius: 3px; display: grid; grid-template-columns: 1fr 1fr 1fr; align-items: center;margin-top: 5px;margin-left: -3px; gap: 10px;";
+				barra_bt_pzoLote_temp.onmouseleave = function (e) {
+					barra_bt_pzoLote_temp.className = "maisPje-fade-out";
+					setTimeout(function(){				
+						document.getElementById('maisPje_barra_bt_pzoLote').remove();
+					}, 250);
+				};
 
-					let listaDePrazos = preferencias.extrasPrazoEmLote;
+				let listaDePrazos = preferencias.extrasPrazoEmLote;
 
-					for (const [pos, prazo] of listaDePrazos.entries()) {
-						let elBotao = criarElemento('button', "cursor: pointer; position: relative; top: 20%;  z-index: 1; background-color: rgb(0, 120, 170); border: 1px solid rgb(102, 174, 204); outline: rgb(0, 111, 157) solid 1px; border-radius: 3px; color: white;min-width: 64px;line-height: 30px;padding: 0 10px;", prazo + ' dias');
-						elBotao.setAttribute('prazo',prazo);
-						elBotao.onclick = function () {
-							this.parentElement.remove();
-							executar(this.getAttribute('prazo'));
-						};
-						barra_bt_pzoLote_temp.appendChild(elBotao);
-					}
-
-					let btOutro = criarElemento('button', "cursor: pointer; position: relative; top: 20%;  z-index: 1; background-color: rgb(0, 120, 170); border: 1px solid rgb(102, 174, 204); outline: rgb(0, 111, 157) solid 1px; border-radius: 3px; color: white;min-width: 64px;line-height: 30px;padding: 0 10px;", 'outro');
-					btOutro.onclick = async function () {
+				for (const [pos, prazo] of listaDePrazos.entries()) {
+					let elBotao = criarElemento('button', "cursor: pointer; position: relative; top: 20%;  z-index: 1; background-color: rgb(0, 120, 170); border: 1px solid rgb(102, 174, 204); outline: rgb(0, 111, 157) solid 1px; border-radius: 3px; color: white;min-width: 64px;line-height: 30px;padding: 0 10px;", prazo + ' dias');
+					elBotao.setAttribute('prazo',prazo);
+					elBotao.onclick = function () {
 						this.parentElement.remove();
-						let pzOutro = await criarCaixaDePergunta('text', 'Digite o prazo em dias Úteis:\n');
-						executar(pzOutro);
+						executar(this.getAttribute('prazo'));
 					};
-					barra_bt_pzoLote_temp.appendChild(btOutro);
-
-					botao.appendChild(barra_bt_pzoLote_temp);
+					barra_bt_pzoLote_temp.appendChild(elBotao);
 				}
-			};			
-			el.appendChild(botao);
-		}
-	}
+
+				let btOutro = criarElemento('button', "cursor: pointer; position: relative; top: 20%;  z-index: 1; background-color: rgb(0, 120, 170); border: 1px solid rgb(102, 174, 204); outline: rgb(0, 111, 157) solid 1px; border-radius: 3px; color: white;min-width: 64px;line-height: 30px;padding: 0 10px;", 'outro');
+				btOutro.onclick = async function () {
+					this.parentElement.remove();
+					let pzOutro = await criarCaixaDePergunta('text', 'Digite o prazo em dias Úteis:\n');
+					executar(pzOutro);
+				};
+				barra_bt_pzoLote_temp.appendChild(btOutro);
+
+				botao.appendChild(barra_bt_pzoLote_temp);
+			}
+		};			
+		el.appendChild(botao);
+		return resolve(true);
+	});
 	
 	async function executar(prazoEmLote) {
 		let el = document.querySelectorAll('mat-form-field[class*="prazo"]');
@@ -4532,10 +5064,11 @@ async function addBotaoPrazoEmLote() {
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR O BOTÃO DE MARCAR/DESMARCAR TODOS OS CHECKBOXES
 async function addBotaoMarcarDesmarcarTodos() {
 	//INSERE O BOTÃO PARA INSERIR CHECK MARCAR/DESMARCAR TODOS
-	let ancora = await esperarElemento('pje-intimacao-automatica');
-	if (!ancora) {
-		return;
-	} else {
+	return new Promise(async resolve => {
+		let tempo_espera = preferencias.maisPje_velocidade_interacao + 1000;
+		let ancora = await esperarElemento('pje-intimacao-automatica',null,tempo_espera);
+		if (!ancora) { return resolve(false) }
+		
 		let el = ancora.querySelector('div[class="cabecalho"]').nextSibling;
 		
 		if (!document.getElementById('maisPje_desmarcar')) {
@@ -4570,7 +5103,8 @@ async function addBotaoMarcarDesmarcarTodos() {
 			ckbox3.onclick = function () { fundo(true); executar('3', ancora, ckbox3.checked); };
 			el.appendChild(ckbox3);
 		}
-	}
+		return resolve(true);
+	});	
 	
 	function executar(opcao, ancora, valor) {
 		// console.log(valor);
@@ -4774,15 +5308,22 @@ function addBotaoTipoEmLote() {
 					
 					if (padraoSISBAJUD.test(texto) && texto.length == 8) {
 						if (campoDescricaoTexto.toLowerCase().includes('desbloqueio')) {
-							return resolve({tipo:'Sisbajud (desbloqueio)',descricao:texto,anterior:texto});
+							return resolve({tipo:'Sisbajud (desbloqueio)',descricao:'desbloqueio SISBAJUD',anterior:texto});
 						} else {
-							return resolve({tipo:'Sisbajud (bloqueio)',descricao:texto,anterior:texto});
+							return resolve({tipo:'Sisbajud (bloqueio)',descricao:'bloqueio SISBAJUD',anterior:texto});
 						}
 					}
 
 					if (padraoCNIB.test(texto)) {
-						return resolve({tipo:'Documento Diverso',descricao:'Resposta CNIB',anterior:texto});
+						if (campoDescricaoTexto.toLowerCase().includes('cancelamento')) {
+							return resolve({tipo:'Documento Diverso',descricao:'Cancelamento CNIB',anterior:texto});
+						} else {
+							return resolve({tipo:'Documento Diverso',descricao:'Resposta CNIB',anterior:texto});
+						}
+					} else if (campoDescricaoTexto.toLowerCase().includes('cancelamento') && campoDescricaoTexto.toLowerCase().includes('cnib')) { //para os casos em que o arquivo baixado vem como "detalhe"
+						return resolve({tipo:'Documento Diverso',descricao:'Cancelamento CNIB',anterior:texto});
 					}
+
 					if (padraoRENAJUDAntigoCancelamento.test(texto)) {
 						return resolve({tipo:'Documento Diverso',descricao:'Resposta RENAJUD Cancelamento',anterior:texto});
 					}
@@ -4961,22 +5502,32 @@ async function criarContainer(idContainer='',btFecharOn=false) {
 
 async function montarBotoes(lista, acao) {
 	return new Promise(async resolve => {
+		let faseProcesso = document.querySelector('pje-cabecalho-processo span[class*="descricao-tarefa"]').innerText;
+		let padraoFase = /(Conhecimento)|(Execução)|(Liquidação)|(Arquivado)/gmi;
+		if (padraoFase.test(faseProcesso)) { 
+			faseProcesso = faseProcesso.match(padraoFase).join();
+			faseProcesso = removeAcento(faseProcesso.toLowerCase());
+		} else {
+			faseProcesso = 'todos';
+		}
+		console.log(faseProcesso);
+
 		for (const [pos, aa] of lista.entries()) {
-			await criarBotao('maisPjeContainerAA', pos, aa.nm_botao, aa.cor, aa.visibilidade, acao, aa.vinculo);
+			await criarBotao('maisPjeContainerAA', pos, aa.nm_botao, aa.cor, aa.visibilidade, acao, aa.vinculo, faseProcesso);
 		}
 		corrigirPosicaoElementos();
 		resolve(true);
 	});
 }
 
-async function criarBotao(container, id, nm_botao, cor, visivel, acao, v=['Nenhum']) {
+async function criarBotao(container, id, nm_botao, cor, visivel, acao, v=['Nenhum'], faseProcesso='todos') {
 	return new Promise(async resolve => {
 		ancora = await esperarElemento(container);
 		let bt = document.createElement("button");
 		bt.id = id;
 		bt.name = nm_botao;
 		bt.className = "mat-raised-button mat-primary ng-star-inserted";
-		if (visivel == "sim") {
+		if (visivel == "sim" || visivel == faseProcesso) {
 			bt.style = "margin: 3px; z-index: 5;" + (cor != "" ? "background-color: " + cor + ";" : "");
 		} else {
 			bt.style = "display: none;";
@@ -5104,6 +5655,7 @@ async function addBotaoAutoGigs() {
 	return new Promise(async resolve => {
 		await criarContainer('addBotaoAutoGigs',true);
 		await criarBotaoRenovarAtividadeGIGS();
+		await criarBotaoTrocarResponsavelAtividadeGIGS();
 		await montarBotoes(
 			preferencias.aaAutogigs,
 			function() {
@@ -5128,7 +5680,7 @@ async function addBotaoAutoGigs() {
 			bt.name = 'bt_renovarAtividadeGIGS';
 			bt.title = 'Renovar Atividade GIGS';
 			bt.className = "mat-raised-button mat-primary ng-star-inserted";
-			bt.style = "margin: 3px; z-index: 5; background-color: rgb(55, 71, 79);";
+			bt.style = "margin: 3px; z-index: 5; background-color: rgb(55, 71, 79); display:none;";
 			bt.onclick = async function() {
 				
 				listaDeAtividades = [];
@@ -5151,7 +5703,7 @@ async function addBotaoAutoGigs() {
 
 					let t = 0;
 					if (listaDeAtividadesSelect.length > 1) {
-						t = await criarCaixaSelecao(listaDeAtividadesSelect, 'Escolha a Atividade que deseja Atualizar','Nenhum',false,-1,5,true); //select retornando a posição escolhida
+						t = await criarCaixaSelecao(listaDeAtividadesSelect, 'Escolha a Atividade que deseja Atualizar','Nenhum',false,true); //select retornando a posição escolhida
 					}
 										
 					// console.log(listaDeAtividades[t].tipo)
@@ -5186,6 +5738,89 @@ async function addBotaoAutoGigs() {
 			resolve(true);
 		});
 	}
+
+	async function criarBotaoTrocarResponsavelAtividadeGIGS() {
+		return new Promise(async resolve => {
+			ancora = await esperarElemento('maisPjeContainerAA');
+			let bt = document.createElement("button");
+			bt.id = 998;
+			bt.name = 'bt_trocarResponsavelAtividadeGIGS';
+			bt.title = 'Trocar Responsavel Atividade GIGS';
+			bt.className = "mat-raised-button mat-primary ng-star-inserted";
+			bt.style = "margin: 3px; z-index: 5; background-color: rgb(55, 71, 79);display:none;";
+			bt.onclick = async function() {
+				listaDeAtividades = [];
+				listaDeAtividadesSelect = [];
+				let dados = await esperarColecao('div[id="tabela-atividades"] table tbody tr', 1 , 100);
+				if (dados) {
+					for (const [pos, item] of dados.entries()) {
+						console.log(item.innerText);
+						item.id = 'maisPje_atividade_' + pos;
+						let data = item.querySelector('time').innerText;
+						let responsavel = (item.querySelector('span[class*="texto-responsavel"]')) ? item.querySelector('span[class*="texto-responsavel"]').innerText : '';
+						responsavel = responsavel.replace('Responsável: ','');
+						let all = item.querySelector('span[class="descricao"]').innerText.split(/:(.+)/s);
+						let tipo = all[0];
+						let observacao = all[1];
+						let preparoOUprazo = item.querySelector('.atividade-sem-prazo') ? 'preparo' : 'prazo';
+						listaDeAtividadesSelect.push(data.trim() + ' - ' + tipo.trim() + ": " + observacao.trim());
+						listaDeAtividades.push({"id":'maisPje_atividade_' + pos,"preparoOUprazo":preparoOUprazo,"data":data.trim(),"responsavel":responsavel.trim(),"tipo":tipo.trim(),"observacao":observacao.trim()});
+					}
+
+					let t = 0;
+					if (listaDeAtividadesSelect.length > 1) {
+						t = await criarCaixaSelecao(listaDeAtividadesSelect, 'Escolha a Atividade que deseja trocar o Responsável','Nenhum',false,true); //select retornando a posição escolhida
+					}
+
+					fundo(true);
+					let elAtividadeEscolhida = await esperarElemento('#' + listaDeAtividades[t].id);
+					novoResponsavel = (preferencias.tempAR.novoresponsavel) ? preferencias.tempAR.novoresponsavel : await criarCaixaDePergunta('text','Digite o nome do novo responsável','',listaDeAtividades[t].responsavel);
+					await clicarBotao(elAtividadeEscolhida.querySelector('button[aria-label="Editar Atividade"]'));
+					await preencherInput('input[formcontrolname="responsavel"]','');
+					await sleep(500);
+					await escolherOpcaoTeste('pje-gigs-cadastro-atividades input[formcontrolname="responsavel"]', novoResponsavel);
+					await clicarBotao('button', 'Salvar');
+					await esperarSalvamento();
+					fundo(false);
+					if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+
+				}
+			}
+			let i = document.createElement("i");
+			i.className = "fas fa-redo-alt fa-lg";
+			bt.appendChild(i);
+			ancora.appendChild(bt);
+			resolve(true);
+		});
+
+		async function esperarSalvamento() {
+			return new Promise(async resolve => {
+				let target = document.body;
+				let observer = new MutationObserver(async function(mutations) {
+					mutations.forEach(async function(mutation) {
+						if (!mutation.addedNodes[0]) { return }					
+						if (!mutation.addedNodes[0].tagName) { return }
+						if (mutation.addedNodes[0].tagName.includes("SIMPLE-SNACK-BAR")) { //avisos de erro
+							if (mutation.addedNodes[0].innerText.includes('com sucesso!')) {
+								mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso de erro
+								observer.disconnect();
+								// console.log('---Atividade concluída com sucesso"')
+								resolve(true);
+							}
+							
+							if (mutation.addedNodes[0].innerText.includes('Tipo de argumento inválido')) {
+								mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso de erro
+								await sleep(preferencias.maisPje_velocidade_interacao);
+								await clicarBotao('button', 'Salvar');
+							}
+						}
+					});
+				});
+				let config = { childList: true, subtree:true }
+				observer.observe(target, config); //inicia o MutationObserver
+			});
+		}
+	}
 }
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR OS BOTÕES NA PÁGINA DETALHES - DESPACHO
@@ -5193,6 +5828,8 @@ async function addBotaoDespacho() {
 	return new Promise(async resolve => {
 		await criarContainer('addBotaoDespacho',true);
 		await criarBotaoTrocarMagistradoResponsavel();
+		await criarBotaoAceitarPrevencao();
+		await criarBotaoRejeitarPrevencao();
 		await montarBotoes(
 			preferencias.aaDespacho,
 			function() {
@@ -5229,6 +5866,52 @@ async function addBotaoDespacho() {
 			}
 			let i = document.createElement("i");
 			i.className = "fa fa-sync fa-lg";
+			bt.appendChild(i);
+			ancora.appendChild(bt);
+			resolve(true);
+		});
+	}
+
+	async function criarBotaoRejeitarPrevencao() {
+		return new Promise(async resolve => {
+			ancora = await esperarElemento('maisPjeContainerAA');
+			let bt = document.createElement("button");
+			bt.id = 990;
+			bt.title = 'Rejeitar Prevenção';
+			bt.name = 'bt_prevencaoRejeitar';
+			bt.className = "mat-raised-button mat-primary ng-star-inserted";
+			bt.style = "margin: 3px; z-index: 5; background-color: #f44336;"; // display: none;";
+			bt.onclick = function() {
+				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_aaDespacho', this.id]});
+				Promise.all([var1]).then(values => {
+					abrirTarefaDoProcesso();
+				});
+			}
+			let i = document.createElement("i");
+			i.className = "fas fa-thumbs-down";
+			bt.appendChild(i);
+			ancora.appendChild(bt);
+			resolve(true);
+		});
+	}
+
+	async function criarBotaoAceitarPrevencao() {
+		return new Promise(async resolve => {
+			ancora = await esperarElemento('maisPjeContainerAA');
+			let bt = document.createElement("button");
+			bt.id = 991;
+			bt.title = 'Aceitar Prevenção';
+			bt.name = 'bt_prevencaoAceitar';
+			bt.className = "mat-raised-button mat-primary ng-star-inserted";
+			bt.style = "margin: 3px; z-index: 5; background-color: green;"; // display: none;";
+			bt.onclick = function() {
+				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_aaDespacho', this.id]});
+				Promise.all([var1]).then(values => {
+					abrirTarefaDoProcesso();
+				});
+			}
+			let i = document.createElement("i");
+			i.className = "fas fa-thumbs-up";
 			bt.appendChild(i);
 			ancora.appendChild(bt);
 			resolve(true);
@@ -5634,6 +6317,28 @@ async function addBotaoRetificarAutuacao() {
 		span5.innerText = "Terceiro Interessado > Perito";
 		bt5.appendChild(span5);
 		el.appendChild(bt5);
+
+		//DESCRIÇÃO: BOTÃO ADICIONAR TERCEIRO>TESTEMUNHA
+		let bt50 = document.createElement("button");
+		bt50.id = "botao_retificar_autuacao_5";
+		bt50.name = "botao_retificar_autuacao_addTerceiroTestemunha";
+		bt50.className = "mat-raised-button mat-primary ng-star-inserted";
+		bt50.style = "margin: 3px; z-index: 5; background-color: purple;";
+		bt50.onclick = async function () {
+
+			let resp = await criarCaixaDePergunta('text','Digite o CPF/CNPJ da Testemunha. Se não tiver, digite o nome:\n', '', 'Para cadastrar vários, separe-os com vírgula. Ex: 123.456.789-00,987.654.321-00', false);
+			if (resp) {
+				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [17, resp]]}); // 17 - parte TESTEMUNHA
+				Promise.all([var1]).then(values => {
+					acaoBotaoDetalhes("Retificar autuação");
+				});
+			}
+		};
+		let span50 = document.createElement("span");
+		span50.className = "mat-button-wrapper";
+		span50.innerText = "Terceiro Interessado > Testemunha";
+		bt50.appendChild(span50);
+		el.appendChild(bt50);
 				
 		//DESCRIÇÃO: BOTÃO RETIFICAR PROCESSO PRA JUÍZO 100% DIGITAL
 		let bt2 = document.createElement("button");
@@ -5786,6 +6491,41 @@ async function addBotaoRetificarAutuacao() {
 		span15.innerText = "Remover Prioridade";
 		bt15.appendChild(span15);
 		el.appendChild(bt15);
+
+		//BOTÃO ASSOCIAR PROCESSO
+		//,['botao_retificar_autuacao_associarProcesso','Associar Processo']
+		let bt16 = document.createElement("button");
+		bt16.id = "botao_retificar_autuacao_16";
+		bt16.name = "botao_retificar_autuacao_associarProcesso";
+		bt16.className = "mat-raised-button mat-primary ng-star-inserted";
+		bt16.style = "margin: 3px; z-index: 5;";
+		bt16.onclick = async function () {
+			// https://pje.trt12.jus.br/pjekz/retificacao
+			//oriundo da Ação em Lote. Uso essa variável para passar o código do assunto
+			browser.storage.local.get('tempAR', function(result){
+				preferencias.tempAR = result.tempAR;
+			});
+			
+			let texto = preferencias.tempAR;
+
+			if (!texto) {
+				texto = await criarCaixaDePergunta('text','Digite o número do processo que será ASSOCIADO a estes autos:\n', '', 'Para mais de um processo, separe-os com vírgula.', false);
+			} 
+
+			if (texto) {
+				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', texto]});
+				let numeroProcesso = await obterNumeroDoProcessoNaTela();
+				Promise.all([var1]).then(values => {					
+					let url = apis.associarProcessos.montarUrl(preferencias.trt, {'maisPJe':numeroProcesso});
+					browser.runtime.sendMessage({tipo: 'criarJanela', url: url});
+				});
+			}
+		};
+		let span16 = document.createElement("span");
+		span16.className = "mat-button-wrapper";
+		span16.innerText = "Associar Processo";
+		bt16.appendChild(span16);
+		el.appendChild(bt16);
 		
 	}
 	
@@ -6204,112 +6944,7 @@ async function addInformacoesSIF() {
 					bt.style = "margin: 3px; z-index: 3; background-color: #1e931e;background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 5px, transparent 5px, transparent 10px);color: #004200;text-shadow: #1e931e 1px 1px;";
 					bt.title = 'Imprimir Todos';
 					bt.setAttribute('referencia',processo);
-					bt.onclick = async function () {
-						let msg = 'Obtendo extratos SIF..';
-						fundo(true,msg)
-						let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
-						let contas = document.querySelectorAll('maispjecontaineraa[id="addInformacoesSIF"] button[title="Consultar Extrato"]');
-						
-						let dados = await obterDadosProcessoViaApi(idProcesso);
-						let d = new Date(dados.autuadoEm);
-						let dataAutuacao = d.getFullYear() + '-' + ("0" + (d.getMonth() + 1)).slice(-2) + '-' + ("0" + d.getDate()).slice(-2);
-						let dataAutuacaoFormatada = ("0" + d.getDate()).slice(-2) + '-' + ("0" + (d.getMonth() + 1)).slice(-2) + '-' + d.getFullYear();
-						let conta,processo;						
-						let htmlExtratos = document.createElement('div');
-						htmlExtratos.className = 'pagebreak';
-						let cabecalho = document.createElement('div')
-						cabecalho.style = "display: grid;grid-template-columns: 1fr; width: 100%; grid-gap: 10px;margin-bottom:3vh;";
-						
-						let numProcessoFormatado =  numeroProcessoFormatado(this.getAttribute('referencia'));
-						cabecalho.appendChild(inserirLinha('Número do Processo: ' + numProcessoFormatado,'destaque'));
-						cabecalho.appendChild(inserirLinha('Instituição Financeira: 104-CAIXA ECONÔMICA FEDERAL','destaque'));
-						htmlExtratos.appendChild(cabecalho);
-
-						let apenasComSaldo = await criarCaixaSelecao(['apenas Contas com saldo','Todas as contas'],titulo='Gerar Extrato de:');
-						for (const [pos, item] of contas.entries()) {
-							if (apenasComSaldo == 'apenas Contas com saldo' && item.getAttribute('saldo') == '0') {
-								continue;
-							}
-							
-							conta = item.id.replace('botao_checklist_','');
-							processo = this.getAttribute('referencia');
-							let hoje = new Date();
-							let dtFim = hoje.getFullYear() + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + ("0" + hoje.getDate()).slice(-2);
-							let dtFimFormatada = ("0" + hoje.getDate()).slice(-2) + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + hoje.getFullYear();
-							// https://pje.trt12.jus.br/sif-financeiro-api/api/contas/00022525220115120059/104/3521042015203286/extrato/0/2011-06-28/2025-03-19?tipo=download
-							
-							msg += '\n\n' + numeroContaSIFFormatado(conta) + '...';
-							exibir_mensagem(msg);
-							
-							const extrato = await obterExtratoSIF(processo, conta, dataAutuacao, dtFim);
-
-							let containerUL = document.createElement('div')
-							containerUL.className = 'container';
-							//montar tela do extrato
-							let dadosExtrato = document.createElement('dadosExtrato')							
-							dadosExtrato.appendChild(inserirLinha('Conta:','destaque'));
-							dadosExtrato.appendChild(inserirLinha(numeroContaSIFFormatado(conta),'destaque'));
-							dadosExtrato.appendChild(inserirLinha(''));
-							dadosExtrato.appendChild(inserirLinha('Período:'));
-							dadosExtrato.appendChild(inserirLinha(dataAutuacaoFormatada + ' a ' + dtFimFormatada));
-							dadosExtrato.appendChild(inserirLinha(''));
-							containerUL.appendChild(dadosExtrato);
-							htmlExtratos.appendChild(containerUL);
-
-							//extrato
-							let dadosExtrato2 = document.createElement('dadosExtrato2');
-							for (const [pos2, item2] of extrato.entries()) {
-								if (!item2.textoLinhaExtrato[0]) { break }
-								let li = document.createElement('li');			
-								let dados = item2.textoLinhaExtrato[0].split(';');
-								if (dados[1]) {
-
-									// console.log(dados[1])
-									// console.log(dados[2])
-									// console.log(dados[3])
-									// console.log(dados[4])
-									// console.log(dados[5])
-									// console.log(dados[6])
-									// console.log(dados[7])
-
-									li.style = 'display: grid;grid-template-columns: 10vw 20vw auto 20vw 20vw;grid-gap: 5px;';
-									
-									let extrato_data = numeroDataFormatado(dados[1]);
-									extrato_data = (extrato_data == '00000000') ? '' : extrato_data; 									
-									li.appendChild(inserirLinha(extrato_data)); //12/02/2025
-									
-									let extrato_historico = dados[3].replace('Historico: ','');
-									li.appendChild(inserirLinha(extrato_historico)); // CRED TED
-
-									li.appendChild(inserirLinha('','pontos'));// .........
-
-									let extrato_valor = numeroValorFormatado(dados[4]);
-									let extrato_saldo;
-									if (dados[0].includes("SA")) {
-										li.appendChild(inserirLinha(extrato_valor)); //49.38    VALOR										
-										extrato_saldo = numeroValorFormatado(dados[5]);
-										li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[6]));										
-									} else {
-										li.appendChild(inserirLinha(extrato_valor + ' ' + dados[5])); //49.38    VALOR
-										extrato_saldo = numeroValorFormatado(dados[6]);
-										li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[7])); //40.06    SALDO c
-									}									
-
-								} else {
-									li.style = 'display: grid;grid-template-columns: 1fr;grid-gap: 5px;';
-									li.appendChild(inserirLinha(item2.textoLinhaExtrato[0]));									
-								} 
-								dadosExtrato2.appendChild(li);
-							}
-							
-							containerUL.appendChild(dadosExtrato2);
-							htmlExtratos.appendChild(containerUL);						
-
-						}
-
-						criarPaginaImpressaoExtratosDeConta(htmlExtratos, numProcessoFormatado);
-						fundo(false);
-					};
+					bt.onclick = async function () { imprimirExtratoSIF()	};
 					let span = document.createElement("span");
 					span.className = "mat-button-wrapper";
 					span.innerText = "Imprimir Todos (SIF)";
@@ -6418,17 +7053,32 @@ async function addInformacoesSIF() {
 		bt.className = "mat-raised-button mat-primary ng-star-inserted";
 		bt.style = "margin: 3px; z-index: 3; background-color: " + cor + ";";
 		bt.title = 'Consultar Extrato';
+		bt.setAttribute('maispje-tooltip-abaixo2','pressione Ctrl + clique para copiar o número da conta');
 		bt.setAttribute('saldo',saldo);
-		bt.onclick = function () {
-			let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
-			getAtalhosNovaAba().consultarExtrato.abrirAtalhoemNovaJanela(idProcesso, idconta, processo);
+		bt.onclick = function (event) {
+			
+			if (event.getModifierState("Control")) { //CTRL +clique copia apenas o numero da conta e o saldo
+				let texto = bt.innerText;
+				let padraoCEF = /\d{4}\.\d{3}\.\d{8}\-\d{1}/g; //3521/042/01501234-0
+				if (padraoCEF.test(texto)) {
+					let t = texto.match(padraoCEF).join();
+					navigator.clipboard.writeText(t);
+					browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Conteúdo copiado com sucesso!\n' + t, icone: '3'});
+				}
+			} else {
+				// let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+				// getAtalhosNovaAba().consultarExtrato.abrirAtalhoemNovaJanela(idProcesso, idconta, processo);
+				imprimirExtratoSIF(idconta);
+			}
+			
 		};
+
 		let span = document.createElement("span");
 		span.className = "mat-button-wrapper";
 		let valor_formatado_para_uso = Intl.NumberFormat('pt-br', {style: 'currency', currency: 'BRL'}).format(saldo);
 		span.innerText = idconta_formatada + ": " + valor_formatado_para_uso;
 		bt.appendChild(span);
-		el.appendChild(bt);
+		el.appendChild(bt);		
 	}
 	
 	function corrigirPosicaoElementos() {
@@ -6447,6 +7097,180 @@ async function addInformacoesSIF() {
 		}
 	}
 	
+	async function imprimirExtratoSIF(contaunica='') {
+		let msg = 'Obtendo extratos SIF..';
+		fundo(true,msg)
+		let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
+		let contas = document.querySelectorAll('maispjecontaineraa[id="addInformacoesSIF"] button[title="Consultar Extrato"]');
+		
+		let dados = await obterDadosProcessoViaApi(idProcesso);
+		let d = new Date(dados.autuadoEm);
+		let dataAutuacao = d.getFullYear() + '-' + ("0" + (d.getMonth() + 1)).slice(-2) + '-' + ("0" + d.getDate()).slice(-2);
+		let dataAutuacaoFormatada = ("0" + d.getDate()).slice(-2) + '-' + ("0" + (d.getMonth() + 1)).slice(-2) + '-' + d.getFullYear();
+		let conta;						
+		let htmlExtratos = document.createElement('div');
+		htmlExtratos.className = 'pagebreak';
+		let cabecalho = document.createElement('div')
+		cabecalho.style = "display: grid;grid-template-columns: 1fr; width: 100%; grid-gap: 10px;margin-bottom:3vh;";
+		
+		let numProcessoFormatado =  dados.numero;
+		let processo = extrairNumeros(dados.numero, true);
+		cabecalho.appendChild(inserirLinha('Número do Processo: ' + numProcessoFormatado,'destaque'));
+		cabecalho.appendChild(inserirLinha('Instituição Financeira: 104-CAIXA ECONÔMICA FEDERAL','destaque'));
+		htmlExtratos.appendChild(cabecalho);
+
+		if (contaunica) {
+			let hoje = new Date();
+			let dtFim = hoje.getFullYear() + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + ("0" + hoje.getDate()).slice(-2);
+			let dtFimFormatada = ("0" + hoje.getDate()).slice(-2) + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + hoje.getFullYear();
+			msg += '\n\n' + numeroContaSIFFormatado(contaunica) + '...';
+			exibir_mensagem(msg);
+			
+			const extrato = await obterExtratoSIF(processo, contaunica, dataAutuacao, dtFim);
+
+			let containerUL = document.createElement('div')
+			containerUL.className = 'container';
+			//montar tela do extrato
+			let dadosExtrato = document.createElement('dadosExtrato')							
+			dadosExtrato.appendChild(inserirLinha('Conta:','destaque'));
+			dadosExtrato.appendChild(inserirLinha(numeroContaSIFFormatado(contaunica),'destaque'));
+			dadosExtrato.appendChild(inserirLinha(''));
+			dadosExtrato.appendChild(inserirLinha('Período:'));
+			dadosExtrato.appendChild(inserirLinha(dataAutuacaoFormatada + ' a ' + dtFimFormatada));
+			dadosExtrato.appendChild(inserirLinha(''));
+			containerUL.appendChild(dadosExtrato);
+			htmlExtratos.appendChild(containerUL);
+
+			//extrato
+			let dadosExtrato2 = document.createElement('dadosExtrato2');
+			for (const [pos2, item2] of extrato.entries()) {
+				if (!item2.textoLinhaExtrato[0]) { break }
+				let li = document.createElement('li');			
+				let dados = item2.textoLinhaExtrato[0].split(';');
+				if (dados[1]) {
+					li.style = 'display: grid;grid-template-columns: 10vw 20vw auto 20vw 20vw;grid-gap: 5px;';
+					
+					let extrato_data = numeroDataFormatado(dados[1]);
+					extrato_data = (extrato_data == '00000000') ? '' : extrato_data; 									
+					li.appendChild(inserirLinha(extrato_data)); //12/02/2025
+					
+					let extrato_historico = dados[3].replace('Historico: ','');
+					li.appendChild(inserirLinha(extrato_historico)); // CRED TED
+
+					li.appendChild(inserirLinha('','pontos'));// .........
+
+					let extrato_valor = numeroValorFormatado(dados[4]);
+					let extrato_saldo;
+					if (dados[0].includes("SA")) {
+						li.appendChild(inserirLinha(extrato_valor)); //49.38    VALOR										
+						extrato_saldo = numeroValorFormatado(dados[5]);
+						li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[6]));										
+					} else {
+						li.appendChild(inserirLinha(extrato_valor + ' ' + dados[5])); //49.38    VALOR
+						extrato_saldo = numeroValorFormatado(dados[6]);
+						li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[7])); //40.06    SALDO c
+					}									
+
+				} else {
+					li.style = 'display: grid;grid-template-columns: 1fr;grid-gap: 5px;';
+					li.appendChild(inserirLinha(item2.textoLinhaExtrato[0]));									
+				} 
+				dadosExtrato2.appendChild(li);
+			}
+			
+			containerUL.appendChild(dadosExtrato2);
+			htmlExtratos.appendChild(containerUL);
+			navigator.clipboard.writeText(numeroContaSIFFormatado(contaunica)) //guarda o processo no ctrl + C
+			
+		} else {
+			let apenasComSaldo = await criarCaixaSelecao(['apenas Contas com saldo','Todas as contas'],titulo='Gerar Extrato de:');
+			for (const [pos, item] of contas.entries()) {
+				if (apenasComSaldo == 'apenas Contas com saldo' && item.getAttribute('saldo') == '0') {
+					continue;
+				}
+				
+				conta = item.id.replace('botao_checklist_','');			
+				let hoje = new Date();
+				let dtFim = hoje.getFullYear() + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + ("0" + hoje.getDate()).slice(-2);
+				let dtFimFormatada = ("0" + hoje.getDate()).slice(-2) + '-' + ("0" + (hoje.getMonth()+1)).slice(-2) + '-' + hoje.getFullYear();
+				// https://pje.trt12.jus.br/sif-financeiro-api/api/contas/00022525220115120059/104/3521042015203286/extrato/0/2011-06-28/2025-03-19?tipo=download
+				
+				msg += '\n\n' + numeroContaSIFFormatado(conta) + '...';
+				exibir_mensagem(msg);
+				
+				const extrato = await obterExtratoSIF(processo, conta, dataAutuacao, dtFim);
+
+				let containerUL = document.createElement('div')
+				containerUL.className = 'container';
+				//montar tela do extrato
+				let dadosExtrato = document.createElement('dadosExtrato')							
+				dadosExtrato.appendChild(inserirLinha('Conta:','destaque'));
+				dadosExtrato.appendChild(inserirLinha(numeroContaSIFFormatado(conta),'destaque'));
+				dadosExtrato.appendChild(inserirLinha(''));
+				dadosExtrato.appendChild(inserirLinha('Período:'));
+				dadosExtrato.appendChild(inserirLinha(dataAutuacaoFormatada + ' a ' + dtFimFormatada));
+				dadosExtrato.appendChild(inserirLinha(''));
+				containerUL.appendChild(dadosExtrato);
+				htmlExtratos.appendChild(containerUL);
+
+				//extrato
+				let dadosExtrato2 = document.createElement('dadosExtrato2');
+				for (const [pos2, item2] of extrato.entries()) {
+					if (!item2.textoLinhaExtrato[0]) { break }
+					let li = document.createElement('li');			
+					let dados = item2.textoLinhaExtrato[0].split(';');
+					if (dados[1]) {
+
+						// console.log(dados[1])
+						// console.log(dados[2])
+						// console.log(dados[3])
+						// console.log(dados[4])
+						// console.log(dados[5])
+						// console.log(dados[6])
+						// console.log(dados[7])
+
+						li.style = 'display: grid;grid-template-columns: 10vw 20vw auto 20vw 20vw;grid-gap: 5px;';
+						
+						let extrato_data = numeroDataFormatado(dados[1]);
+						extrato_data = (extrato_data == '00000000') ? '' : extrato_data; 									
+						li.appendChild(inserirLinha(extrato_data)); //12/02/2025
+						
+						let extrato_historico = dados[3].replace('Historico: ','');
+						li.appendChild(inserirLinha(extrato_historico)); // CRED TED
+
+						li.appendChild(inserirLinha('','pontos'));// .........
+
+						let extrato_valor = numeroValorFormatado(dados[4]);
+						let extrato_saldo;
+						if (dados[0].includes("SA")) {
+							li.appendChild(inserirLinha(extrato_valor)); //49.38    VALOR										
+							extrato_saldo = numeroValorFormatado(dados[5]);
+							li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[6]));										
+						} else {
+							li.appendChild(inserirLinha(extrato_valor + ' ' + dados[5])); //49.38    VALOR
+							extrato_saldo = numeroValorFormatado(dados[6]);
+							li.appendChild(inserirLinha(extrato_saldo + ' ' + dados[7])); //40.06    SALDO c
+						}									
+
+					} else {
+						li.style = 'display: grid;grid-template-columns: 1fr;grid-gap: 5px;';
+						li.appendChild(inserirLinha(item2.textoLinhaExtrato[0]));									
+					} 
+					dadosExtrato2.appendChild(li);
+				}
+				
+				containerUL.appendChild(dadosExtrato2);
+				htmlExtratos.appendChild(containerUL);						
+
+			}
+		}
+
+		
+
+		criarPaginaImpressaoExtratosDeConta(htmlExtratos, numProcessoFormatado);
+		fundo(false);
+	}
+
 	function criarPaginaImpressaoExtratosDeConta(html, numeroProcesso) {
 		prepararEAbrirArquivo(html.outerHTML);
 		function prepararEAbrirArquivo(tabela) {
@@ -6509,6 +7333,80 @@ async function addInformacoesSIF() {
 		span.className = classe;
 		span.innerText = valor;
 		return span;
+	}
+}
+
+async function addInformacoesPericia(situacaoPericia) {
+	return new Promise(async resolve => {
+		await criarContainer('addInformacoesPericia',true);
+		await montarBotoes();
+		await sleep(500);
+		resolve(true);
+	});
+	
+	function montarBotoes() {
+		return new Promise(async resolve => {
+			criaBotao();
+			corrigirPosicaoElementos();
+			resolve(true);
+		});
+	}
+	
+	function criaBotao() {
+		let el = document.querySelector('maisPjeContainerAA');
+		for (const [pos, pericia] of situacaoPericia.entries()) {
+			//DESCRIÇÃO: BOTÃO AUTUAR PARTE COMO AUTOR
+			let bt = document.createElement("button");
+			bt.id = "maispje_botao_pericia_" + pos;
+			bt.className = "mat-raised-button mat-primary ng-star-inserted";
+			bt.style = "margin: 3px; z-index: 5; background-color: tomato;";
+			bt.onclick = async function () { acaoBotaoDetalhes("Perícias") };
+			let span = document.createElement("span");
+			span.className = "mat-button-wrapper";
+			span.innerText = pericia.nomePerito + '\rEspecialidade: ' + pericia.descricaoEspecialidade + '\rSituação: ' + pericia.situacaoPericia;
+			
+			let i = document.createElement('i')
+			i.style.marginRight = '10px';
+			if (pericia.descricaoEspecialidade.includes('Engenh')) { //Engenharia ou Engenheiro de ...
+				i.className = 'fas fa-wrench';				
+			} else if (pericia.descricaoEspecialidade.includes('Contabilidade')) {
+				i.className = 'fas fa-calculator';
+			} if (pericia.descricaoEspecialidade.includes('Medicina') || pericia.descricaoEspecialidade.includes('Médic')) {
+				i.className = 'fas fa-briefcase-medical';
+			}
+			bt.appendChild(i);
+			
+
+			//muda a cor de acordo com o status
+			if (pericia.situacaoPericia.includes('CANCELADA') || pericia.situacaoPericia.includes('REDESIGNADA')) {
+				bt.style.backgroundColor = 'gray';
+				bt.style.opacity = '.3';
+			} else if (pericia.situacaoPericia.includes('FINALIZADA')) {
+				bt.style.backgroundColor = 'gray';
+				bt.style.opacity = '.5';
+				bt.style.outline = '2px dashed black';
+			}
+
+			bt.appendChild(span);
+			el.appendChild(bt);
+		}
+		
+	}
+	
+	function corrigirPosicaoElementos() {
+		let altura = document.querySelector('button[aria-label="Filtrar"]').getBoundingClientRect().bottom + 29;
+		//move o botão "Esconder Linha do Tempo" para cima
+		if (document.querySelector('button[aria-label="Esconder Linha do Tempo"]')) {
+			document.querySelector('button[aria-label="Esconder Linha do Tempo"]').style = "top: " + altura + "px;";
+		}
+		//move o botão "Esconder o GIGS" para cima
+		if (document.querySelector('button[aria-label="Esconder o GIGS"]')) {
+			document.querySelector('button[aria-label="Esconder o GIGS"]').style = "top: " + altura + "px;";
+		}
+		//move o botão "Mostrar o GIGS" para cima
+		if (document.querySelector('button[aria-label="Mostrar o GIGS"]')) {
+			document.querySelector('button[aria-label="Mostrar o GIGS"]').style = "top: " + altura + "px;";
+		}
 	}
 }
 
@@ -6751,7 +7649,7 @@ async function fundo(ligar, mensagem, altura) {
 async function menuStatus(ligar) {
 	return new Promise(async resolve => {
 		let menuStatus = document.getElementById('menuMaisPje_status');
-		if (!menuStatus) { return }
+		if (!menuStatus) { return resolve(false)}
 		if (ligar) {
 			menuStatus.style.display = 'contents';
 			if (document.querySelector('MAT-SIDENAV-CONTENT')) {
@@ -6859,9 +7757,9 @@ async function copiarDocumentoProcesso(id) {
 	// document.execCommand("copy");
 	// document.body.removeChild(textarea);
 	let textocopiado = conteudo.replace(/\s{2,}/g, ' ');
-	navigator.clipboard.writeText(textocopiado);
-	
+	navigator.clipboard.writeText(textocopiado);	
 	fundo(false);
+		
 	// browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Conteúdo copiado com sucesso!', icone: '3'});
 	
 	
@@ -6904,15 +7802,26 @@ async function copiarDocumentoProcesso(id) {
 //FUNÇÃO RESPONSÁVEL PELAS AÇÕES DOS BOTÕES AÇÕES_AUTOMATIZADAS_ANEXAR
 async function acao_bt_aaAnexar(id) {
 	// teste_mutation_observer();
+	window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 	let aa;	
 	if (typeof id === 'object') {
 		await sleep(1000);
 		aa = id;
 	} else {
-		if (id == 997) {
+		if (id == 996) {//certidão de vencimento de prazo
+			console.log(preferencias.tempAR.textoCertidao)
+			window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
+			let digitando = await inserirTextoNoEditor('C E R T I D Ã O\n', preferencias.tempAR.textoCertidao);
+			
+			if (digitando) {
+				aa = {"nm_botao":"ID996_CertificarPrazo","tipo":"Certidão","descricao":"Decurso Prazo","sigilo":"não","modelo":"","assinar":"não","cor":"","vinculo":"Nenhum","visibilidade":"sim"};
+			} else {
+				return;
+			}
+
+		} else if (id == 997) {		
 			aa = {"nm_botao":"ID997_Anexar Depoimento","tipo":"Certidão","descricao":"Registro Audiovisual da Audiência","sigilo":"não","modelo":preferencias.modulo10_juntadaMidia[1],"assinar":"nao","cor":"","vinculo":"Nenhum","visibilidade":"sim"};
 		} else if (id == 998) {
-			// aa = {"nm_botao":"ID998_Assinar documento","tipo":"","descricao":"","sigilo":"nao","modelo":"","assinar":"Sim","cor":"#3085d6","vinculo":"Nenhum","visibilidade":"nao"};
 			console.log('><><><><><><><><><><><><><><><><><><><><><><><entrou')
 			window.addEventListener("beforeunload", function (e) {
 				browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Nenhum'});
@@ -6932,7 +7841,7 @@ async function acao_bt_aaAnexar(id) {
 	}	
 	
 	exibir_mensagem("Executando a Ação Automatizada " + aa.nm_botao + "\nPróximo vínculo: " + (!preferencias.tempAAEspecial ? aa.vinculo : preferencias.tempAAEspecial));
-		
+	
 	//escolhe PDF
 	if (aa.modelo.toLowerCase() === "pdf") {
 		await clicarBotao('input[role="switch"]');
@@ -6980,10 +7889,11 @@ async function acao_bt_aaAnexar(id) {
 			if (!buscandoModelo) {
 				await criarCaixaDeAlerta('ATENÇÃO','O modelo ' + aa.modelo + ' não foi encontrado!',3);			
 			} else {
-				let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
-				await inserirModeloNoDocumento(elementoModelo);
-				//TESTES
-				// await substituirVariaveisEditorTexto();
+				await inserirModeloNoDocumento(buscandoModelo);
+				//tem que esperar a substituição das variáveis maisPje
+				//vou mudar o icone para verde após concluir
+				//****************** */
+				await esperarTransicaoVariaveisMaisPje('div[aria-label="Barra de Ferramentas da Lista Suspensa"], button[data-cke-tooltip-text="Pesquisar e substituir (Ctrl+F)"]');
 			}
 		}
 	}
@@ -7095,13 +8005,35 @@ async function acao_bt_aaAnexar(id) {
 
 	async function verificarSeExisteTextoNoEditor() {
 		return new Promise(async resolve => { 
-			if (document.querySelector('pdf-viewer')) { return resolve(true) } //documento em pdf
+			if (document.querySelector('pdf-viewer')) { return resolve(true) } //tem documento em pdf
 			
 			await esperarElemento('pje-arvore-modelo-documento'); //esperar o carregamento da pagina
 			let areaConteudo = await esperarElemento('div[class*="area-conteudo"][contenteditable="true"]',null,500);
 			let resposta = false;
 			if (areaConteudo?.innerText.length > 1) { resposta = true }
+			if (areaConteudo.querySelector('figure')) { resposta = true } //imagem anexada sem texto
 			return resolve(resposta);
+		});
+	}
+
+	async function inserirTextoNoEditor(titulo,texto) {
+		return new Promise(async resolve => { 
+			if (document.querySelector('pdf-viewer')) { return resolve(true) } //tem documento em pdf			
+			await esperarElemento('pje-arvore-modelo-documento'); //esperar o carregamento da pagina			
+			let areaConteudo = await esperarElemento('div[class*="area-conteudo"][contenteditable="true"]');
+			areaConteudo.focus();				
+			
+			if (titulo) { //INSERIR TITULO
+				await clicarBotao('button[data-cke-tooltip-text="Centralizar"]'); //centraliza o texto
+				await clicarBotao('button[data-cke-tooltip-text="Negrito (Ctrl+B)"]'); //poe negrito				
+				document.execCommand('insertText',false,titulo);
+				await clicarBotao('button[data-cke-tooltip-text="Negrito (Ctrl+B)"]'); //tira negrito
+				await clicarBotao('button[data-cke-tooltip-text="Centralizar"]'); //tira o centralizar
+			}
+			
+			document.execCommand('insertText',false,texto);
+
+			return resolve(true);
 		});
 	}
 	
@@ -7164,6 +8096,7 @@ async function acao_bt_aaComunicacao(id) {
 	
 	console.log("***acao_bt_aaComunicacao***");
 	inserirParte_BB_CEF();
+	monitor_janela_expedientes();
 	
 	//preenche o tipo de expediente
 	aa.tipo = (aa.tipo != "") ? aa.tipo : "Intimação"; //se não tiver tipo definido será "Intimação"
@@ -7215,10 +8148,12 @@ async function acao_bt_aaComunicacao(id) {
 		if (!buscandoModelo) {
 			await criarCaixaDeAlerta('ATENÇÃO','O modelo ' + aa.modelo + ' não foi encontrado!',3);			
 		} else {
-			let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
-			await inserirModeloNoDocumento(elementoModelo);
-			//TESTES
-			// await substituirVariaveisEditorTexto();
+			// let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
+			await inserirModeloNoDocumento(buscandoModelo);
+			//tem que esperar a substituição das variáveis maisPje
+			//vou mudar o icone para verde após concluir
+			//****************** */
+			await esperarTransicaoVariaveisMaisPje('div[aria-label="Barra de Ferramentas da Lista Suspensa"], button[data-cke-tooltip-text="Pesquisar e substituir (Ctrl+F)"]');
 		}
 		
 	}
@@ -7247,53 +8182,61 @@ async function acao_bt_aaComunicacao(id) {
 	//função de teste**** a ideia é escolher o polo que quer intimar [ativo,passivo,terceiros] e se quer clicar em assinar[assinar]
 	async function segueParaOsParametros() {
 		let parametros = await obterParametros();
+		// console.log(parametros)
 		if (parametros.length > 0) {
 			fundo(true)
 
 			await esperarElemento('SIMPLE-SNACK-BAR', 'Ato elaborado com sucesso.');
-			await clicarBotao('SIMPLE-SNACK-BAR button');			
-
+			await clicarBotao('SIMPLE-SNACK-BAR button');
+			
 			let condicao = 0;
-			if (parametros.includes('ativo')) {
+			if (parametros.includes('ativo:sim')) {
 				console.debug('clicou no polo ativo')
 				exibir_mensagem(msg + "\n\n Incluindo polo ativo...");
-				let menosDeDezAutores = await esperarElemento('pje-pec-partes-processo button[aria-label*="somente polo ativo"]');
+
+				let containerAtivo = await esperarElemento('pje-pec-partes-processo #mat-expansion-panel-header-0');
+				containerAtivo = containerAtivo.parentElement;
+				let btAtivo = containerAtivo.querySelector('button[name="btnIntimarSomentePoloAtivo"]');
+				let menosDeDezAutores = (btAtivo.getAttribute('aria-label').includes('partes exibidas')) ? false : true;
 				
 				if (menosDeDezAutores) {
-					await clicarBotao('pje-pec-partes-processo button[aria-label*="somente polo ativo"]', null, true);			
-					condicao = 1;
+					await clicarBotao(btAtivo, null, true);			
+					condicao = 2;
 				} else {
-					await clicarBotao('mat-expansion-panel-header[id="mat-expansion-panel-header-0"]');
-					await linhasPorPagina('100');
-					await clicarBotao('pje-pec-partes-processo button[aria-label="Intimar somente partes exibidas no polo ativo"', null, true);
-					await clicarBotao('mat-expansion-panel-header[id="mat-expansion-panel-header-0"]');
-					condicao = 1;
+					await clicarBotao('#mat-expansion-panel-header-0');
+					await linhasPorPagina('100','div[aria-labelledby="mat-expansion-panel-header-0"] pje-paginador');
+					await clicarBotao(btAtivo, null, true);
+					await clicarBotao('#mat-expansion-panel-header-0');
+					condicao = 2;
 				}
 				await esperarElemento('pje-pec-tabela-destinatarios i[aria-label="Ato confeccionado"]');
 				await sleep(1000); //espera carregar todas as novas configurações do documento
 			}
 			
-			if (parametros.includes('passivo')) {
+			if (parametros.includes('passivo:sim')) {
 				console.debug('clicou no polo passivo')
 				exibir_mensagem(msg + "\n\n Incluindo polo passivo...");
-
-				let menosDeDezReus = await esperarElemento('pje-pec-partes-processo button[aria-label*="somente polo passivo"]');
+				
+				let containerPassivo = await esperarElemento('pje-pec-partes-processo #mat-expansion-panel-header-1');
+				containerPassivo = containerPassivo.parentElement;
+				let btPassivo = containerPassivo.querySelector('button[name="btnIntimarSomentePoloPassivo"]');
+				let menosDeDezReus = (btPassivo.getAttribute('aria-label').includes('partes exibidas')) ? false : true;
 				
 				if (menosDeDezReus) {
-					await clicarBotao('pje-pec-partes-processo button[aria-label*="somente polo passivo"]', null, true);			
+					await clicarBotao(btPassivo, null, true);			
 					condicao = 2;
 				} else {
-					await clicarBotao('mat-expansion-panel-header[id="mat-expansion-panel-header-1"]');
-					await linhasPorPagina('100');
-					await clicarBotao('pje-pec-partes-processo button[aria-label="Intimar somente partes exibidas no polo passivo"', null, true);
-					await clicarBotao('mat-expansion-panel-header[id="mat-expansion-panel-header-1"]');
+					await clicarBotao('#mat-expansion-panel-header-1');
+					await linhasPorPagina('100','div[aria-labelledby="mat-expansion-panel-header-1"] pje-paginador');
+					await clicarBotao(btPassivo, null, true);
+					await clicarBotao('#mat-expansion-panel-header-1');
 					condicao = 2;
 				}
 				await esperarElemento('pje-pec-tabela-destinatarios i[aria-label="Ato confeccionado"]');
 				await sleep(1000); //espera carregar todas as novas configurações do documento
 			}
 			
-			if (parametros.includes('terceiros')) {
+			if (parametros.includes('terceiros:sim')) {
 				console.debug('clicou em terceiros')
 				exibir_mensagem(msg + "\n\n Incluindo Outros Participantes...");
 				await clicarBotao('pje-pec-partes-processo button[aria-label*="somente terceiros interessados"]', null, true);
@@ -7301,47 +8244,48 @@ async function acao_bt_aaComunicacao(id) {
 				await sleep(1000); //espera carregar todas as novas configurações do documento
 			}
 
-			if (parametros.includes('trt')) {
-				console.log("parametros.includes('trt')")
-				exibir_mensagem(document.getElementById('maisPJe_mensagem_fundo').innerText + "\n\n Incluindo Autoridade...");
-				if (parametros.includes(':')) {
-					// let trt = parametros.split(';');
-					let trt = Array.from(parametros.split(';')).find(i => i.includes('trt'));
-					let vara = trt.split(':')[1];
-					document.querySelector('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara').setAttribute('maisPjeNomeDestinatario',vara);
-					await clicarBotao('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara');
-
-					await esperarElemento('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara[maisPJe="true"]')
-					await esperarDesaparecer('PJE-DIALOGO-STATUS-PROGRESSO'); //espera carregar o expediente
-					await sleep(500);
-
-					await esperarElemento('pje-pec-tabela-destinatarios pje-pec-coluna-endereco i'); //espera carregar primeiro					
-					if (document.querySelector('pje-pec-tabela-destinatarios pje-pec-coluna-endereco i[aria-label="Endereço desconhecido"]')) {
-						await clicarBotao('pje-pec-tabela-destinatarios button[aria-label="Alterar endereço"]');
-						await sleep(500);
-						await clicarBotao('pje-pec-dialogo-endereco button[aria-label="Selecionar endereço"]');
-						await sleep(500);
-						await clicarBotao('pje-pec-dialogo-endereco a[mattooltip="Fechar"]');
-						await sleep(500);
-						await clicarBotao('pje-pec-coluna-confeccionar-ato button[aria-label="Confeccionar ato"]');
-						await sleep(500);
-						await clicarBotao('pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]');
-						await sleep(500);
-
-						//Ato elaborado com sucesso. Tipo de documento selecionado: Requisição de Pequeno Valor (RPV)
-						await esperarElemento('SIMPLE-SNACK-BAR', 'Ato elaborado com sucesso.');
-						await clicarBotao('SIMPLE-SNACK-BAR button');
-					}
-				} else {
-					await clicarBotao('#maisPje_bt_invisivel_outrosDestinatarios_TRT');
-					await sleep(500);
-				}
-				
+			if (parametros.includes('trt:sim')) {
+				await clicarBotao('#maisPje_bt_invisivel_outrosDestinatarios_TRT');
+				await sleep(500);
 				condicao = 4;
 			}
 
-			if (parametros == 'assinar') { //apenas assinar.. sem escolher destinatário. Para os casos de Notificação Inicial que os réus são escolhidos automaticamente pelo PJe
+			let padraoAutoridade = /autoridade:\D{1,};/;
+			let padraoAutoridadeNegativo = /autoridade:n.o;/;
+			if (padraoAutoridade.test(parametros) && !padraoAutoridadeNegativo.test(parametros)) {		
+				let autoridadeObtida = parametros.match(padraoAutoridade).join();
+				autoridadeObtida = autoridadeObtida.replace('autoridade:','');
+				autoridadeObtida = autoridadeObtida.replace(';','');
+				
+				document.querySelector('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara').setAttribute('maisPjeNomeDestinatario',autoridadeObtida);
+				await clicarBotao('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara');
+
+				await esperarElemento('#maisPje_bt_invisivel_outrosDestinatarios_TRT_Vara[maisPJe="true"]')
+				await esperarDesaparecer('PJE-DIALOGO-STATUS-PROGRESSO'); //espera carregar o expediente
+				await sleep(500);
+
+				await esperarElemento('pje-pec-tabela-destinatarios pje-pec-coluna-endereco i'); //espera carregar primeiro					
+				if (document.querySelector('pje-pec-tabela-destinatarios pje-pec-coluna-endereco i[aria-label="Endereço desconhecido"]')) {
+					await clicarBotao('pje-pec-tabela-destinatarios button[aria-label="Alterar endereço"]');
+					await sleep(500);
+					await clicarBotao('pje-pec-dialogo-endereco button[aria-label="Selecionar endereço"]');
+					await sleep(500);
+					await clicarBotao('pje-pec-dialogo-endereco a[mattooltip="Fechar"]');
+					await sleep(500);
+					await clicarBotao('pje-pec-coluna-confeccionar-ato button[aria-label="Confeccionar ato"]');
+					await sleep(500);
+					await clicarBotao('pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]');
+					await sleep(500);
+
+					//Ato elaborado com sucesso. Tipo de documento selecionado: Requisição de Pequeno Valor (RPV)
+					await esperarElemento('SIMPLE-SNACK-BAR', 'Ato elaborado com sucesso.');
+					await clicarBotao('SIMPLE-SNACK-BAR button');
+				}
 				condicao = 5;
+			}
+
+			if (parametros.includes('assinar:sim')) { //apenas assinar.. sem escolher destinatário. Para os casos de Notificação Inicial que os réus são escolhidos automaticamente pelo PJe
+				condicao = 6;
 			}
 
 			let prontoParaAssinar = await esperarElemento('pje-pec-tabela-destinatarios i[aria-label="Ato confeccionado"]'); //aguarda o ato estar pronto para assinatura. ao menos um ato deve estar pronto para tentar a assinatura
@@ -7353,11 +8297,24 @@ async function acao_bt_aaComunicacao(id) {
 				
 				if (document.querySelector('pje-pec-tabela-destinatarios pje-pec-coluna-signatario mat-radio-button[class*="mat-radio-checked"]').id.includes('PapelAssinaturaMAGISTRADO')) { // signatário é magistrado
 					if (preferencias.modulo8?.length > 0) {//esperar a execução da seleção do magistrado do MODULO8, se for o caso
-						await esperarElemento('mat-select[placeholder*="Pessoas que assinam"][maispje="true"]');				
+						let assinador = await esperarElemento('mat-select[placeholder*="Pessoas que assinam"]');
+						if (!assinador.hasAttribute('maispje')) {
+							let el = await esperarElemento('mat-radio-button[id*="PapelAssinaturaMAGISTRADO"]', null, 5000);
+							if (el) {
+								if (el.className.includes('mat-radio-checked')) {
+									let processoNumero = document.querySelector('span[class="texto-numero-processo"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
+									let magistrado = await filtroMagistrado(processoNumero);
+									await escolherOpcao('mat-select[placeholder="Pessoas que assinam"]', magistrado.toUpperCase(), 1);
+									assinador.setAttribute('maisPJe', true);
+									fundo(false);
+								}
+							}
+
+						}
 					}
 				}
 
-				if (parametros.includes('assinar') && condicao > 0) {
+				if (parametros.includes('assinar:sim') && condicao > 0) {
 					console.debug('assinando')
 					exibir_mensagem(msg + "\n\n Assinando os expedientes...");
 					let btAssinar = await esperarElemento('pje-pec-tabela-destinatarios button[aria-label="Assinar ato(s)"],pje-pec-tabela-destinatarios button[aria-label="Enviar para assinatura"]');
@@ -7398,7 +8355,7 @@ async function acao_bt_aaComunicacao(id) {
 			observer.observe(document.body, { childList: true, subtree: true });
 			//********************
 			
-			console.log("       |___clicando sobre o modelo encontrado.");
+			console.log("       |___clicando sobre o modelo encontrado: " + modeloEscolhido);
 			await clicarBotao(modeloEscolhido);
 		});
 	}
@@ -7406,9 +8363,13 @@ async function acao_bt_aaComunicacao(id) {
 	async function obterParametros() {
 		return new Promise(async resolve => {
 			let padrao = /\[(.*?)\]/gm;
-			let param = ''
-			if (padrao.test(aa.nm_botao)) {				
-				param = aa.nm_botao.match(new RegExp(/\[(.*?)\]/gm)).join();
+			let param = '';
+
+			let comandosEspeciaisTemp = (!aa.comandosEspeciais) ? aa.nm_botao : aa.comandosEspeciais;
+			console.log(comandosEspeciaisTemp)
+			
+			if (padrao.test(comandosEspeciaisTemp)) {				
+				param = comandosEspeciaisTemp.match(new RegExp(/\[(.*?)\]/gm)).join();
 				param = param.replace('[','');
 				param = param.replace(']','');
 				console.debug('Parametros: ' + param);
@@ -7417,12 +8378,61 @@ async function acao_bt_aaComunicacao(id) {
 				return resolve('');
 			}
 		});
+
+		async function ajustarComandosEspeciaisComunicacao(nomeBotao, comandosExistentes) {
+			return new Promise(resolve => {
+				console.log('maisPJe: ajustarComandosEspeciaisComunicacao: ' + nomeBotao + '  :  ' + comandosExistentes);
+				let opcoes1 = '';
+				let opcoes2 = '';
+				let opcoes3 = '';
+				let opcoes4 = '';
+				let opcoes5 = '';
+				let opcoes6 = '';
+		
+				if (comandosExistentes) {
+					comandosExistentes = comandosExistentes.replace(/(\[)|(\])/g,''); //tira os colchetes
+					comandosExistentes = comandosExistentes.replace('trt:','autoridade:'); //tira os colchetes
+					let ultimoCaractere = comandosExistentes.slice(-1); ////exclui o ultimo ponto e virgula, caso exista
+					if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }		
+					
+					let trt = 'trt' + opcoes.num_trt;			
+					opcoes1 = (comandosExistentes.includes('ativo')) ? 'sim' : 'não'; //ativo
+					opcoes2 = (comandosExistentes.includes('passivo')) ? 'sim' : 'não'; //passivo
+					opcoes3 = (comandosExistentes.includes('terceiros')) ? 'sim' : 'não'; //terceiros
+					opcoes4 = (comandosExistentes.includes('assinar')) ? 'sim' : 'não'; //assinar			
+					opcoes5 = (comandosExistentes.includes(trt)) ? trt : 'não'; //trt
+					opcoes6 = 'não';
+		
+					let padraoAutoridade = /autoridade:\D{1,};/;
+					if (padraoAutoridade.test(comandosExistentes)) {
+						let autoridadeObtida = comandosExistentes.match(padraoAutoridade).join();
+						autoridadeObtida = autoridadeObtida.replace('autoridade:','');
+						autoridadeObtida = autoridadeObtida.replace(';','');
+						opcoes6 = autoridadeObtida;
+					}
+		
+				}		
+				
+				let resposta = "[";
+				resposta += "ativo:" + opcoes1 + ";";
+				resposta += "passivo:" + opcoes2 + ";";
+				resposta += "terceiros:" + opcoes3 + ";";
+				resposta += "assinar:" + opcoes4 + ";";
+				resposta += "trt:" + opcoes5 + ";";
+				resposta += "autoridade:" + opcoes6 + ";";
+				resposta += "]";
+				
+				console.log('          |_____ajustado para: ' + resposta);
+				return resolve(resposta);
+		
+			});
+		}
 	}
 	
-	async function linhasPorPagina(qtde) {
-		return new Promise(async resolver => {
-			let ancora = await esperarElemento('pje-paginador');
-			let itensPorPagina = ancora.querySelectorAll('div[class*="mat-select-trigger"]');
+	async function linhasPorPagina(qtde, ancora='') {
+		return new Promise(async resolver => {			
+			let paginador = await esperarElemento(ancora);
+			let itensPorPagina = paginador.querySelectorAll('div[class*="mat-select-trigger"]');
 			await escolherOpcaoTeste(itensPorPagina[1],qtde);
 			resolver(true);
 		});
@@ -7469,7 +8479,7 @@ async function acao_bt_aaAutogigs(id) {
 	
 	ligar_mutation_observer(); //sempre que um lançamento ocorre (concluir não) chama o próximo vínculo
 	
-	switch (aa.tipo) {
+	switch (aa.tipo.toLowerCase()) {
 		case 'chip':
 			lancarChip()
 			break
@@ -7479,6 +8489,10 @@ async function acao_bt_aaAutogigs(id) {
 		case 'lembrete':
 			lancarLembrete();
 			break
+		case 'nenhum':
+			fundo(false);
+			monitorFim(aa.vinculo);
+			break;
 		default: //gigs
 			//o GIGS está aberto na janela detalhes?
 			if(gigs_fechado_em_detalhes) { await clicarBotao('button[aria-label="Mostrar o GIGS"]') }
@@ -7877,6 +8891,8 @@ async function acao_bt_aaAutogigs(id) {
 					if (aa.observacao.includes('[link_audi]')) { aa.observacao = aa.observacao.replace('[link_audi]',link_audi) }
 
 				}
+			} else if (aa.prazo?.includes('[perguntar]')) {
+				aa.prazo = await criarCaixaDePergunta('data', "Escolha o prazo (data fixa ou dias úteis):",'','',false,true);
 			}
 
 			//preenche o campo observação
@@ -7886,8 +8902,19 @@ async function acao_bt_aaAutogigs(id) {
 			}
 			
 			//escolhe a quantidade de dias úteis, se for prazo
-			if (aa.prazo) {				
-				if (aa.prazo.length < 5) {
+			if (aa.prazo) {
+				
+				if (aa.prazo.toString().toLowerCase().includes('dc')) {
+					//obter a data
+					let numdias = parseInt(aa.prazo.replace('dc',''));
+					let hoje = new Date();
+					let dataFim = new Date();
+					dataFim.setDate(hoje.getDate() + numdias);
+					let dt = await decomporData(dataFim.toLocaleDateString());
+					aa.prazo = dt.dia+'/'+dt.mes+'/'+dt.ano;
+					await preencherInput('input[data-placeholder="Data Prazo"]', aa.prazo)
+					 
+				} else if (aa.prazo.length < 5) {
 					await preencherInput('input[formcontrolname="dias"]', aa.prazo);
 					
 				} else {
@@ -8237,6 +9264,19 @@ async function acao_bt_aaDespacho(id) {
 		} else if (id == 998) {
 			console.log("id 998");
 			aa = {"nm_botao":"Em branco","tipo":"Despacho","descricao":"","sigilo":"não","modelo":"","juiz":"","responsavel":"","assinar":"sim","cor":"","vinculo":"Nenhum","visibilidade":"sim"}			
+		} else if (id == 990) {
+			console.log("id 990");
+			// aa = {"nm_botao":"","tipo":"Prevenção","descricao":"","sigilo":"não","modelo":"","juiz":"","responsavel":"","assinar":"sim","cor":"","vinculo":"Nenhum","visibilidade":"sim"}
+			await esperarElemento('pje-conclusao-dependencia button','Prevenção');
+			await rejeitarPrevencaoEmLote();
+			monitorFim('');
+			return;
+		} else if (id == 991) {
+			console.log("id 991");
+			// aa = {"nm_botao":"","tipo":"Prevenção","descricao":"","sigilo":"não","modelo":"","juiz":"","responsavel":"","assinar":"sim","cor":"","vinculo":"Nenhum","visibilidade":"sim"}		
+			await esperarElemento('pje-conclusao-dependencia button','Prevenção');
+			await aceitarPrevencaoEmLote();
+			monitorFim('');
 		} else {
 			aa = preferencias.aaDespacho[id];
 		}
@@ -8383,9 +9423,12 @@ async function acao_bt_aaDespacho(id) {
 				if (!buscandoModelo) {
 					await criarCaixaDeAlerta('ATENÇÃO','O modelo ' + aa.modelo + ' não foi encontrado!',3);			
 				} else {
-					let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)
-					await inserirModeloNoDocumento(elementoModelo);					
-					// await substituirVariaveisEditorTexto();
+					// let elementoModelo = await esperarElemento('div[role="treeitem"]', aa.modelo)			
+					await inserirModeloNoDocumento(buscandoModelo);
+					//tem que esperar a substituição das variáveis maisPje
+					//vou mudar o icone para verde após concluir
+					//****************** */
+					await esperarTransicaoVariaveisMaisPje('div[aria-label="Barra de Ferramentas da Lista Suspensa"], button[data-cke-tooltip-text="Pesquisar e substituir (Ctrl+F)"]');
 				}
 				
 			} else {
@@ -8423,16 +9466,21 @@ async function acao_bt_aaDespacho(id) {
 			await clicarBotao('button[aria-label="Salvar"]', null, true);
 			
 			//preencher movimentos
-			const comandos = await extrairComandosComuns(aa.nm_botao);
-			if (comandos?.intimar) {
-				if (comandos.intimar.toLowerCase() == "sim") {
-					// ativa a guia Intimações se desativada
-					let guia = await esperarElemento('pje-editor-lateral div[aria-posinset="1"]');
-					if (guia.getAttribute('aria-selected') == "false") {
-						await clicarBotao(guia);
-						await sleep(500);
-					}
 
+			let comandosEspeciaisTemp = (!aa.comandosEspeciais) ? aa.nm_botao : aa.comandosEspeciais;
+			console.log(comandosEspeciaisTemp)
+			const comandos = await extrairComandosComuns(comandosEspeciaisTemp);
+			console.log(comandos);
+			
+			if (comandos?.intimar) {
+				// ativa a guia Intimações se desativada
+				let guia = await esperarElemento('pje-editor-lateral div[aria-posinset="1"]');
+				if (guia.getAttribute('aria-selected') == "false") {
+					await clicarBotao(guia);
+					await sleep(500);
+				}
+
+				if (comandos.intimar.toLowerCase() == "sim") {
 					//clica no botão Intimar
 					let btIntimar = await esperarElemento('pje-intimacao-automatica label[class="mat-slide-toggle-label"]');
 					if (!btIntimar.parentElement.className.includes('mat-checked')) { //se está desativado
@@ -8443,21 +9491,10 @@ async function acao_bt_aaDespacho(id) {
 					
 					if (comandos.prazo) { await definirPrazoEmLote(comandos.prazo) } //preencher prazo
 					
-					if (comandos.enviarPEC) { //Enviar PEC
-						let situacaoAtual = document.querySelector('div[class="checkbox-pec"] mat-checkbox[class*="mat-checkbox-checked"]');
-						if (situacaoAtual) { //está marcado
-							if (!comandos.enviarPEC.toLowerCase().includes('sim')) { // já veio marcado: se não, clica para desmarcar, se sim, fica como está
-								await clicarBotao('mat-checkbox[aria-label="Enviar para PEC"] label');
-							}
-						} else {
-							if (comandos.enviarPEC.toLowerCase().includes('sim')) { // já veio desmarcado: se sim, clica para marcar, se não, fica como está
-								await clicarBotao('mat-checkbox[aria-label="Enviar para PEC"] label');
-							}
-						}				
-					}
-
 					//clica no botão GRAVAR
-					await clicarBotao('pje-intimacao-automatica button[aria-label*="Gravar"]', null, true);
+					if (!comandos?.enviarpec) { //se não tiver o comando enviarpec ele grava, senão deixa pra gravar lá no enviarpec
+						await clicarBotao('pje-intimacao-automatica button[aria-label*="Gravar"]', null, true);
+					}
 				} else {
 					//clica no botão Intimar
 					let btIntimar = await esperarElemento('pje-intimacao-automatica label[class="mat-slide-toggle-label"]');
@@ -8465,6 +9502,22 @@ async function acao_bt_aaDespacho(id) {
 						await clicarBotao(btIntimar);
 					}
 				}
+			}
+
+			if (comandos?.enviarpec) { //Enviar PEC
+
+				let btEnviarpec = await esperarElemento('pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"]');
+				if (comandos.enviarpec.toLowerCase() == "sim") {
+					if (!btEnviarpec.className.includes('mat-checkbox-checked')) { //não está ativado
+						await clicarBotao(btEnviarpec.querySelector('label'));
+						await clicarBotao('pje-intimacao-automatica button[aria-label*="Gravar"]', null, true);//clica no botão GRAVAR
+					}
+				} else {
+					if (btEnviarpec.className.includes('mat-checkbox-checked')) { //está ativado
+						await clicarBotao(btEnviarpec.querySelector('label'));
+						await clicarBotao('pje-intimacao-automatica button[aria-label*="Gravar"]', null, true);//clica no botão GRAVAR
+					}
+				}	
 			}
 
 			if (comandos?.movimento) {
@@ -8510,11 +9563,11 @@ async function acao_bt_aaDespacho(id) {
 				await clicarBotao('mat-dialog-container button', 'Sim', true);
 				
 			}
-			
-			
+						
 			//enviar para assinatura
 			aa.assinar = typeof(aa.assinar) == "undefined" ? "não" : aa.assinar;
 			await clicarBotao('button[aria-label="Salvar"]', null, true);
+
 			if (aa.assinar.toLowerCase() == "sim") {
 				await clicarBotao('button[aria-label="Enviar para assinatura"]');
 				await esperarTransicao(true);
@@ -8568,8 +9621,11 @@ async function acao_bt_aaDespacho(id) {
 				await clicarBotao('div[role="tab"]','Modelos');
 				let elementoModelo = await buscarModeloNaArvoreDeModelos(aa.modelo);
 				await inserirModeloNoDocumento(elementoModelo);
-				//TESTES
-				// await substituirVariaveisEditorTexto();
+				//tem que esperar a substituição das variáveis maisPje
+				//vou mudar o icone para verde após concluir
+				//****************** */
+				await esperarTransicaoVariaveisMaisPje('div[aria-label="Barra de Ferramentas da Lista Suspensa"], button[data-cke-tooltip-text="Pesquisar e substituir (Ctrl+F)"]');
+			
 			} else {
 				//clica na opção de inserir modelo
 				await clicarBotao('div[role="tab"]','Modelos');
@@ -8873,6 +9929,14 @@ async function acao_bt_aaMovimento(id) {
 			//O PROCESSO JÁ SE ENCONTRA NA TAREFA DESTINO
 			if (tarefa.includes(destino)) {
 				console.log("      |___O PROCESSO JÁ SE ENCONTRA NA TAREFA DESTINO");
+
+				if (tarefa == 'cumprimento de providencias') {
+					console.log("          |___MAS É cumprimento de providencias, ENTÃO VAMOS TIRAR E DEVOLVER PRA TAREFA PARA RENOVAR A DATA DE CHEGADA");
+
+					await movimentar_analise(tarefa);
+					await movimentar_destino();
+					return;
+				}
 				
 				if (id == 999) {
 					await fundo(false);
@@ -9045,12 +10109,13 @@ async function acao_bt_aaMovimento(id) {
 				await clicarBotao('button', 'Sim', true);
 				await esperarTransicao();
 				
-			} else if (tarefa.includes('iniciar Execucao')) {
-				await clicarBotao('button', 'iniciar', true);
+			} else if (tarefa.includes('iniciar execucao')) {
+				console.log('-*-*-*-*-*-*-*-*entrou')
+				await clicarBotao('pje-transicao-tarefa button', 'iniciar', true);
 				await esperarTransicao();
 				
 			} else if (tarefa.includes('iniciar liquidacao')) {
-				await clicarBotao('button', 'iniciar', true);
+				await clicarBotao('pje-transicao-tarefa button', 'iniciar', true);
 				await esperarTransicao();
 				
 			} else if (tarefa.includes('remeter')) {
@@ -9240,6 +10305,7 @@ async function acao_bt_aaMovimento(id) {
 	
 	async function preencherFormularioSobrestamento() {
 		return new Promise(async resolve => {
+			// console.log('preencherFormularioSobrestamento()')
 			let tarefa = await obter_tarefa();
 			let tempoDaTransicao = preferencias.maisPje_velocidade_interacao + 1000;
 			const comandos = await extrairComandosComuns(aa.ultimoLance);
@@ -9255,7 +10321,7 @@ async function acao_bt_aaMovimento(id) {
 				for (const [pos,comando] of comandos.entries()) {
 					console.log('pos,comando: ' + pos + ',' + comando)
 					
-					if (!comando.includes('corrigir data') && !comando.includes('AtualizarDataPerguntar')  && !comando.includes('Atualizar1ano')  && !comando.includes('Atualizar2anos')  && !comando.includes('AtualizarDataEspecifica')) {
+					if (!comando.includes('corrigir data') && !comando.includes('AtualizarDataPerguntar')  && !comando.includes('Atualizar1ano')  && !comando.includes('Atualizar2anos')  && !comando.includes('AtualizarDataEspecifica')  && !comando.includes('AtualizarDataPeloGIGS')) {
 						let complementos = document.querySelectorAll('pje-complemento'); //opçoes de escolha após selecionar o movimento
 						console.log('complementos ' + complementos.length)
 						if (complementos.length > 0) {
@@ -9288,7 +10354,7 @@ async function acao_bt_aaMovimento(id) {
 					await clicarBotao(definirPrazoSobrestamento);
 					let ancora = await esperarElemento('pje-dialog-prazo-sobrestamento');
 					// await sleep(tempoDaTransicao);
-					await preencherInput('pje-dialog-prazo-sobrestamento input[data-placeholder*="Prazo em meses"]', '24');
+					await preencherInput('pje-dialog-prazo-sobrestamento input[data-placeholder*="Prazo em meses"]', '12');
 					await sleep(tempoDaTransicao);
 					let erro = await clicarBotao('pje-dialog-prazo-sobrestamento button','Prosseguir', true);
 					await sleep(tempoDaTransicao);
@@ -9371,6 +10437,26 @@ async function acao_bt_aaMovimento(id) {
 						});
 					}
 					
+				} else if (comandoEspecial == 'AtualizarDataPeloGIGS') { //comando especial para quando o processo já estiver na janela Aguardando prazo sobrestamento
+					
+					await clicarBotao(definirPrazoSobrestamento);
+					await esperarElemento('pje-dialog-prazo-sobrestamento');
+					// await sleep(tempoDaTransicao);
+					let idProcesso = await obterIdProcessoDaUrl();
+					let novadata = await obterPrazoDoGIGS(idProcesso);					
+					await preencherInput('pje-dialog-prazo-sobrestamento input[data-placeholder*="Data limite"]', novadata+'');
+					await sleep(tempoDaTransicao);
+					let erro = await clicarBotao('pje-dialog-prazo-sobrestamento button','Prosseguir', true);
+					await sleep(tempoDaTransicao);
+					
+					if (!erro) { //não foi possível cadastrar
+						let numeroProcesso = await esperarElemento(seletorDetalhesNumeroProcesso);
+						preferencias.erros += numeroProcesso.innerText + ';';
+						let guardarErros = browser.storage.local.set({'erros': preferencias.erros}); //uso para levar o código do assunto da AA de Retificar Autuação
+						Promise.all([guardarErros]).then(async values => {
+							console.debug('maisPje: erro ao atualizar o prazo de sobrestamento do processo ' + numeroProcesso.innerText);
+						});
+					}
 				}
 
 				return resolve(true);
@@ -9466,6 +10552,26 @@ async function acao_bt_aaMovimento(id) {
 							console.debug('maisPje: erro ao atualizar o prazo de sobrestamento do processo ' + numeroProcesso.innerText);
 						});
 					}
+				} else if (comandoEspecial == 'AtualizarDataPeloGIGS') { //comando especial para quando o processo já estiver na janela Aguardando prazo sobrestamento
+					
+					await clicarBotao(definirPrazoSobrestamento);
+					await esperarElemento('pje-dialog-prazo-sobrestamento');
+					// await sleep(tempoDaTransicao);
+					let idProcesso = await obterIdProcessoDaUrl();
+					let novadata = await obterPrazoDoGIGS(idProcesso);					
+					await preencherInput('pje-dialog-prazo-sobrestamento input[data-placeholder*="Data limite"]', novadata+'');
+					await sleep(tempoDaTransicao);
+					let erro = await clicarBotao('pje-dialog-prazo-sobrestamento button','Prosseguir', true);
+					await sleep(tempoDaTransicao);
+					
+					if (!erro) { //não foi possível cadastrar
+						let numeroProcesso = await esperarElemento(seletorDetalhesNumeroProcesso);
+						preferencias.erros += numeroProcesso.innerText + ';';
+						let guardarErros = browser.storage.local.set({'erros': preferencias.erros}); //uso para levar o código do assunto da AA de Retificar Autuação
+						Promise.all([guardarErros]).then(async values => {
+							console.debug('maisPje: erro ao atualizar o prazo de sobrestamento do processo ' + numeroProcesso.innerText);
+						});
+					}
 				}
 				
 				//verifica se existe algum lançamento ativo
@@ -9508,6 +10614,35 @@ async function acao_bt_aaMovimento(id) {
 						default:
 					}
 					return resolve(true);
+				});
+			}
+
+			async function obterPrazoDoGIGS(idProcesso) {
+				return new Promise(async resolve => {
+					apis.atividadeProcesso.executar(preferencias.trt, {idProcesso})
+					.then(async data=>{
+						let listaDeAtividades = [];
+						let dt;
+						for (const [pos, item] of data.entries()) {
+							if (item.dataPrazo) { // se não tem dataPrazo ignora pq eh preparo
+								dt = await decomporData(item.dataPrazo);
+								let tipo = (item?.tipoAtividade?.descricao) ? item.tipoAtividade.descricao : '';
+								let observacao = (item?.observacao) ? item.observacao : '';
+								listaDeAtividades.push(dt.dia+'/'+dt.mes+'/'+dt.ano + ' - ' + tipo + ' : ' + observacao);
+							}																
+						}
+
+						let atividadeEscolhida = 0;
+						if (listaDeAtividades.length > 1) {
+							atividadeEscolhida = await criarCaixaSelecao(listaDeAtividades, 'Escolha o PRAZO do Gigs que deseja utilizar','Nenhum',false,true,0,5); //select retornando a posição escolhida
+						}
+						
+						dt = await decomporData(data[atividadeEscolhida].dataPrazo);
+						return resolve(dt.dia+'/'+dt.mes+'/'+dt.ano);
+					})
+					.catch(function (err) {
+						return '';
+					});
 				});
 			}
 			
@@ -9626,6 +10761,13 @@ async function acao_bt_aaMovimento(id) {
 				console.log('novoSignatario: ' + novoSignatario)
 				await escolherOpcao('mat-select[placeholder="Pessoas que assinam"]', novoSignatario.toUpperCase(), 1);
 				await sleep(preferencias.maisPje_velocidade_interacao);
+
+				//clicar em editar e salvar novamente
+				// await sleep(500);
+				// await clicarBotao('pje-pec-coluna-confeccionar-ato button[aria-label="Confeccionar ato"]');
+				// await sleep(500);
+				// await clicarBotao('pje-pec-dialogo-ato button[aria-label="Finalizar minuta"]');
+				// await sleep(500);
 				
 				let erro = await clicarBotao('button', 'Salvar', true);
 				await sleep(preferencias.maisPje_velocidade_interacao + 1000);
@@ -9751,6 +10893,7 @@ async function acao_bt_aaMovimento(id) {
 		let padrao3 = /(?:AtualizarDataEspecifica){1}/g;
 		let padrao4 = /(?:AtualizarDataPerguntar){1}/g;
 		let padrao5 = /(?:corrigir data){1}/g;
+		let padrao6 = /(?:AtualizarDataPeloGIGS){1}/g;
 		let resposta = "";
 
 		if (padrao1.test(texto)) {
@@ -9776,6 +10919,11 @@ async function acao_bt_aaMovimento(id) {
 		if (padrao5.test(texto)) {
 			aa.ultimoLance = aa.ultimoLance.replace('corrigir data', '').trim();
 			resposta = 'AtualizarDataPerguntar';
+		}
+
+		if (padrao6.test(texto)) {
+			aa.ultimoLance = aa.ultimoLance.replace('AtualizarDataPeloGIGS', '').trim();
+			resposta = 'AtualizarDataPeloGIGS';
 		}
 		
 		return resposta;
@@ -10242,6 +11390,9 @@ async function acao_vinculo(v) {
 		return;
 	} else if (v == 'Fechar Pagina|Fechar Pagina') {
 		fundo(false);
+	} else if (v == 'interromper') {
+		if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+		fundo(false);
 	} else {
 		exibir_mensagem("Executando a Ação Automatizada " + v);
 	}
@@ -10251,7 +11402,7 @@ async function acao_vinculo(v) {
 	let arr = v.split("|");
 	
 	if (arr[0] == 'AplicarSigilo') {
-		console.log('entrou')
+		// console.log('entrou')
 
 		preferencias.anexadoDoctoEmSigilo = await getLocalStorage('anexadoDoctoEmSigilo');
 
@@ -10355,12 +11506,8 @@ async function acao_vinculo(v) {
 			
 			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
 		}		
-	} else if (arr[0] == 'Kaizen') {
-		await clicarBotao('menumaispje span[id="'+arr[1]+ '"] a');
-		fundo(false);
-		if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }		
-
 	} else if (arr[0] == 'Atualizar Pagina') {
+		console.log('Atualizar Pagina|Atualizar Pagina*/*/*/*/*/*/*: ' + preferencias.AALote)
 		if (preferencias.AALote != "") {  //Não atualiza a página se vier do AALote
 			browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) 
 		} else {
@@ -10445,8 +11592,9 @@ async function acao_vinculo(v) {
 	} else if (arr[0] == 'Variados') {
 		
 		if (arr[1] == 'Apreciar Peticoes') {
-			console.log('maisPJe: Executando a Ação Automatizada Variados| Apreciar Petições pelo vínculo..' + preferencias.tempAAEspecial);
-			exibir_mensagem("Executando a Ação Automatizada Variados| Apreciar Petições\nPróximo vínculo: " + preferencias.tempAAEspecial);
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			await clicarBotao('button[aria-label="Apreciar todos."], #apreciarTodos');
 			await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button', 'Sim');	
 			fundo(false);
@@ -10456,6 +11604,9 @@ async function acao_vinculo(v) {
 			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
 
 		} else if (arr[1] == 'SISBAJUD F2') {
+			
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			fundo(false);
 			browser.runtime.sendMessage({tipo: 'storage_guardar', chave: 'tempAR', valor: 'F2'});
 
@@ -10463,24 +11614,31 @@ async function acao_vinculo(v) {
 			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
 
 		} else if (arr[1] == 'Assinar Expedientes') {
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			await addBotaoMovimento();
 			await clicarBotao('button[name="maisPje_bt_assinar_expediente"]');
 			document.querySelector('maisPjeContainerAA').remove();
+
 		} else if (arr[1] == 'Assinar Documentos') {
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);			
 			await addBotaoTelaAnexar();
 			await clicarBotao('button[name="maisPje_bt_assinar_documento"]');
-			document.querySelector('maisPjeContainerAA').remove();			
+			document.querySelector('maisPjeContainerAA').remove();		
+
 		} else if (arr[1] == 'Excluir BNDT') {
 
-			console.log("maisPJe: Executando a Ação Automatizada Variados|Excluir BNDT.." + preferencias.tempAAEspecial);
-			exibir_mensagem("maisPJe: Executando a Ação Automatizada Variados|Excluir BNDT.." + preferencias.tempAAEspecial);
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			let idProcesso;
 			if (document.location.href.includes("/tarefa")) {
 				idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/tarefa"));
 			} else {
 				idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
-			}
-			
+			}			
 			let bndt = await verificarBNDT(idProcesso);
 			if (bndt) { 
 				apis.bndtProcesso.abrir(preferencias.trt, {idProcesso});				
@@ -10492,20 +11650,18 @@ async function acao_vinculo(v) {
 
 		} else if (arr[1] == 'Enviar Email') {
 
-			console.log("maisPJe: Executando a Ação Automatizada Variados|Enviar Email.." + preferencias.tempAAEspecial);
-			exibir_mensagem("maisPJe: Executando a Ação Automatizada Variados|Enviar Email.." + preferencias.tempAAEspecial);
-			
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);			
 			let msg = await montarMensagemEmailWato(arr[1]);	
-			let gigsURL = 'mailto:' + preferencias.aaVariados[9].objeto.destinatario + '?subject=' + msg.titulo + '&body=' + msg.corpo;
-			browser.runtime.sendMessage({tipo: 'criarJanela', url: gigsURL, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
-						
-			await criarCaixaSelecao(['Sim','Não'],'Finalize o envio do email e depois clique em "Continuar"','Continuar',false,1,preferencias.aaVariados[9].temporizador);
+			let gigsURL = 'mailto:' + preferencias.aaVariados[10].objeto.destinatario + '?subject=' + msg.titulo + '&body=' + msg.corpo;
 			
-			fundo(false);
-			browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
-
-			//comando para prosseguir as AA em LOTE caso exista
-			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+			let guardarStorage = browser.storage.local.set({'tempAR': {"maispjeTemporizadorEmail":preferencias.aaVariados[10].temporizador}});
+			Promise.all([guardarStorage]).then(values => {
+				browser.runtime.sendMessage({tipo: 'criarJanela', url: gigsURL, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
+				//continua na função logStorageChange de addBotaoDetalhes()				
+			});
+			
+			
 			
 		} else if (arr[1] == 'Atualizar Timeline') {
 			if (preferencias.AALote != "") {  //Não atualiza a página se vier do AALote
@@ -10524,25 +11680,45 @@ async function acao_vinculo(v) {
 				return;
 			}
 		} else if (arr[1] == 'AUTOGIGS>Renovar Atividade GIGS') {
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			await addBotaoAutoGigs();
 			await clicarBotao('button[name="bt_renovarAtividadeGIGS"]');
 			document.querySelector('maisPjeContainerAA').remove();
+		
+		} else if (arr[1] == 'AUTOGIGS>Trocar Responsável Atividade GIGS') {
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			await addBotaoAutoGigs();
+			await clicarBotao('button[name="bt_trocarResponsavelAtividadeGIGS"]');
+			document.querySelector('maisPjeContainerAA').remove();			
 
 		} else if (arr[1] == 'DESPACHO>Trocar Magistrado Responsável') {
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			await addBotaoDespacho();
 			await clicarBotao('button[name="bt_trocarMagistradoResponsavelPelaMinuta"]');
 			document.querySelector('maisPjeContainerAA').remove();
 
 		} else if (arr[1] == 'MOVIMENTO>Renovar a Data da Tarefa') {
+
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			await addBotaoMovimento();
 			await clicarBotao('button[name="bt_atualizar_tarefa"]');
 			document.querySelector('maisPjeContainerAA').remove();
+
 		} else if (arr[1] == 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado') {
 
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
 			let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
-			let cont = parseInt(preferencias.aaVariados[13].temporizador);
+			let cont = parseInt(preferencias.aaVariados[15].temporizador);
 			if (cont <= 0) {
-				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [999, preferencias.aaVariados[13].objeto]]}); //999: pesquisar partes
+				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [999, preferencias.aaVariados[15].objeto]]}); //999: pesquisar partes
 				Promise.all([var1]).then(values => {
 					acaoBotaoDetalhes("Retificar autuação");
 				});
@@ -10566,13 +11742,27 @@ async function acao_vinculo(v) {
 				ico2.innerText = cont;
 				if (cont <= 0) { 
 					clearInterval(check);	
-					let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [999, preferencias.aaVariados[13].objeto]]}); //999: pesquisar partes
+					let var1 = browser.storage.local.set({'tempBt': ['acao_bt_retificarAutuacao', [999, preferencias.aaVariados[15].objeto]]}); //999: pesquisar partes
 					Promise.all([var1]).then(values => {
 						document.querySelector('#maisPje_icoAtualizarPagina').remove();
 						acaoBotaoDetalhes("Retificar autuação");
 					});
 				}
 			}, 1000);
+
+		} else if (arr[1] == 'PREVENÇÃO>Rejeitar') {
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			await addBotaoDespacho();
+			await clicarBotao('button[name="bt_prevencaoRejeitar"]');
+			document.querySelector('maisPjeContainerAA').remove();
+		
+		} else if (arr[1] == 'KAIZEN>Incluir em Pauta') {
+			console.log('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			exibir_mensagem('maisPJe: Executando a Ação Automatizada Variados| ' + arr[1] + ' pelo vínculo.' + preferencias.tempAAEspecial);
+			await clicarBotao('menumaispje span[id="maisPje_menuKaizen_itemmenu_abrir_pauta"] a');
+			fundo(false);
+			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
 		}		
 		
 	} else {
@@ -10622,6 +11812,9 @@ async function acao_bt_retificarAutuacao(id) {
 				if (!padrao.test(nomeDaParte)) { nomeDaParte = await obterNomeDaParte(nomeDaParte) }//eh cpf ou CNPJ
 				
 				await sleep(500);
+				await esperarElemento('pje-autuacao-partes-vinculadas pje-paginador');
+				await linhasPorPagina('50','pje-autuacao-partes-vinculadas pje-paginador');
+
 				let parte_a_vincular = await esperarElemento('pje-autuacao-partes-vinculadas mat-list-option',nomeDaParte);
 				await clicarBotao(parte_a_vincular);
 				
@@ -10730,6 +11923,11 @@ async function acao_bt_retificarAutuacao(id) {
 					fundo(false);
 					await monitorFim();
 					window.close();	
+					break;
+				case 17:
+					await acao7('testemunha', id[1]); //CADASTRAR TERCEIRO > TESTEMUNHA
+					fundo(false);
+					await monitorFim();
 					break;
 				default:
 					console.log('PADRAO')
@@ -10902,6 +12100,11 @@ async function acao_bt_retificarAutuacao(id) {
 			let lista_de_advogados = await esperarColecao('table[name="Advogados"] button[aria-label="Selecionar"]', 1);
 			if (lista_de_advogados.length == 1) {
 				await clicarBotao(lista_de_advogados[0]);
+				
+				await esperarElemento('pje-autuacao-partes-vinculadas pje-paginador');
+				await linhasPorPagina('50','pje-autuacao-partes-vinculadas pje-paginador');
+				await sleep(1000);
+				
 				let partes_a_vincular = await esperarColecao('pje-autuacao-partes-vinculadas mat-list-option', 1);
 				console.log(partes_a_vincular.length);
 				if (partes_a_vincular.length == 1) {
@@ -10964,7 +12167,7 @@ async function acao_bt_retificarAutuacao(id) {
 				polo = "Polo ativo";
 			} else if (tipo_parte == "reu") {
 				polo = "Polo passivo";
-			} else if (tipo_parte == "terceiro") {
+			} else {
 				polo = "Outros participantes";
 			}
 			
@@ -10972,6 +12175,8 @@ async function acao_bt_retificarAutuacao(id) {
 			
 			if (tipo_parte == "terceiro") {
 				await escolherOpcao('mat-select[aria-label="Tipo de participação"]', 'TERCEIRO INTERESSADO', 5);
+			} else if (tipo_parte == "testemunha") {
+				await escolherOpcao('mat-select[aria-label="Tipo de participação"]', 'TESTEMUNHA', 5);
 			}
 			
 			//padrão CPF
@@ -11136,7 +12341,7 @@ async function acao_bt_retificarAutuacao(id) {
 			
 		});
 	}
-	
+
 	async function monitorFim() {		
 		let param = preferencias.tempAAEspecial;
 		console.log('monitorFim(' + param + ')');
@@ -11155,6 +12360,15 @@ async function acao_bt_retificarAutuacao(id) {
 				Promise.all([guardarStorage]).then(values => { window.close() });
 			}
 		}
+	}
+
+	async function linhasPorPagina(qtde, ancora='') {
+		return new Promise(async resolver => {			
+			let paginador = await esperarElemento(ancora);
+			let itensPorPagina = paginador.querySelectorAll('div[class*="mat-select-trigger"]');
+			await escolherOpcaoTeste(itensPorPagina[1],qtde);
+			resolver(true);
+		});
 	}
 }
 
@@ -11294,10 +12508,11 @@ async function cadastrarPessoaPublica(tipoPessoa, nomeOuDocumento) {
 async function buscandoModeloNaArvore() {
 	return new Promise(async resolve => {
 		console.debug('maisPJe: buscandoModeloNaArvore')
-		let check = setInterval(function() {
+		let checkBuscandoModeloNaArvore = setInterval(function() {
 			if (document.querySelector('span[class="nodo-filtrado"]')) {
-				clearInterval(check);
-				return resolve(true);
+				clearInterval(checkBuscandoModeloNaArvore);
+				let nodoFiltrado = document.querySelector('span[class="nodo-filtrado"]').parentElement.parentElement;
+				return resolve(nodoFiltrado);
 			} else {
 				document.querySelector('pje-arvore-modelo-documento div[aria-expanded="false"]').click();
 			}
@@ -11334,6 +12549,7 @@ async function obterDadosPessoaPublica2(cnpj) {
 	}
 
 }
+
 //@Deprecated ver a função acima se pode subsitituir.
 //IDENTIFICAR SE O CNPJ PERTENCE À PESSOA JURÍDICA PÚBLICA
 async function obterDadosPessoaPublica(cpfcnpj) {
@@ -11407,102 +12623,107 @@ async function obterDadosPessoaPublica(cpfcnpj) {
 
 //FUNÇÃO RESPONSÁVEL PELA CONSULTA RÁPIDA DE PROCESSO NO PJE
 async function consultaRapidaPJE(processo, id=false) { //se tiver id consulta direto pelo Id
-	if (document.querySelector('#maisPje_caixa_de_selecao, #maisPje_caixa_de_pergunta')) { return }	
+	return new Promise(async resolver => {
+		console.log('maisPJe: consultaRapidaPJE: ' + processo + ' : ' + id)
+		if (document.querySelector('#maisPje_caixa_de_selecao, #maisPje_caixa_de_pergunta')) { return resolver(false) }	
+		if(!preferencias.trt){ return resolver(false) }
 
-	if(!processo){
-		let textoSelecionado = await obterTextoSelecionado();
-		console.log(textoSelecionado)
-		if (textoSelecionado) {
-			processo = await criarCaixaDePergunta('text','Digite o número do processo ou o nome da parte:\n', textoSelecionado.trim(), '', true);
-		} else {
-			processo = await criarCaixaDePergunta('text','Digite o número do processo ou o nome da parte:\n');
+		let textoSelecionado;
+		
+		//****CONSULTA POR ID */
+		if (id) {
+			apis.abrirDetalhesProcesso.abrir(preferencias.trt, { 'idProcesso': processo });
+			fundo(false);
+			return resolver(true);
 		}
 		
-	}
-	
-	if(!preferencias.trt){
-		return;
-	}
-
-	if (id) { //consulta direto pelo id
-		console.log(processo)
-		apis.abrirDetalhesProcesso.abrir(preferencias.trt, { 'idProcesso': processo });		
-		fundo(false);
-		return;
-	}
-	
-	if (processo.includes('??')) { //pesquisando apenas o dígito verificador
-		let numeroVerdadeiro = await retornaProcessoComDigitoVerificador(processo);
-		await criarCaixaDeAlerta('RESPOSTA','O número completo do processo com dígito verificador é:\n\n ' + numeroVerdadeiro + '\n');
-		return;
-	}
-
-	let api = [];
-	let soNumeros = processo.replace(/[^0-9]+/g, '');
-	if (soNumeros === '') {		
-		if (processo.length < 7) { criarCaixaDeAlerta("Consulta Rápida de Processo",'Informe pelo menos 7 caracteres nas pesquisas por nome.'); fundo(false); return; }
-		exibir_mensagem("Pesquisando processos em nome da parte " + processo + "\n\n Essa consulta costuma demorar um pouco mais..");
-
-		let maisDeUmNome = processo.split(';');
-		if (maisDeUmNome.length > 1) {
-			for (const [pos, nome] of maisDeUmNome.entries()) {
-				console.debug('maisPJe: pesquisando processos em nome de ' + nome);
-				let lista = await obterIdProcessoViaApiPublica(nome);
-				if (lista.resultado) { api.push(...lista.resultado) }
-			}
-		} else {
-			api = await obterIdProcessoViaApiPublica(processo);
-			api = api.resultado;
+		//****CONSULTA PARA OBTER DIGITO VERIFICADOR */
+		if (processo?.includes('??')) {
+			let numeroVerdadeiro = await retornaProcessoComDigitoVerificador(processo);
+			await criarCaixaDeAlerta('RESPOSTA','O número completo do processo com dígito verificador é:\n\n ' + numeroVerdadeiro + '\n');
+			return resolver(true);
 		}
-	} else if (!new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g').test(processo)) { //se o número não estiver completo
-		let var1 = processo;
-		if (var1.length >= 20) {
-			if (var1.length == 20) {
-				var1 = var1.substring(0,7) + "-" + var1.substring(7,9) + "." + var1.substring(9,13) + "." + var1.substring(13,14) + "." + var1.substring(14,16) + "." + var1.substring(16,20);
+
+		//****CONSULTA GENÉRICA.. SEM PARAMETRO*/
+		if(!processo) {
+			textoSelecionado = await obterTextoSelecionado();
+			console.log(textoSelecionado)
+			if (!textoSelecionado) {
+				textoSelecionado = await criarCaixaDePergunta('text','Digite o número do processo ou o nome da parte:\n');				
 			}
-			processo = var1;
-			api = await obterIdProcessoViaApi(processo);
-		} else {
-			// a separação somente será feita se tiver digito verificador
-			if (var1.search('-') > 0) {
-				let n = ''; //numero
-				let d = ''; //digito
-				let a = ''; //ano
-				n = var1.substring(0, var1.search('-'));
-				n = (n.length < 7) ? ('0000000' + n).slice(-7) : n;
-				if (var1.match(new RegExp('\\-\\d{2}','g'))) {
-					d = var1.match(new RegExp('\\-\\d{2}','g')).join();
-					d = d.replace(/-/g, '');
-					console.log('Dígito: ' + d);
+			
+			// console.log('-*-*-*-*-*-*-' + textoSelecionado)
+			// console.log('-*-*-*-*-*-*-' + Array.isArray(textoSelecionado) + '   -   ' + textoSelecionado.length)
+			let url;
+			if (Array.isArray(textoSelecionado) && textoSelecionado.length > 1) {
+				console.log('-*-*-*-*-*-*-consulta de varios processos SELECIONADOS ao mesmo tempo (resultado esperado: abre individualmente um por um, na sequencia)')
+				
+				for (const [pos, item] of textoSelecionado.entries()) {
+					console.log('-*-*-*-*-*-*-' + item)
+					let api = await obterAPIVariada(item);
+					if (typeof(api) == "undefined") { 
+						processoNaoEncontrado(item);
+					} else if (typeof(api[0]) == "undefined") {
+						processoNaoEncontrado(item);
+					} else if (preferencias.oj_usuarioId != api[0].codigoOrgaoJulgador) { //verifica se o processo é do órgão Julgador do Usuário
+						processoNaoEncontrado(item);
+					} else {
+						let idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
+						url = apis.abrirDetalhesProcesso.montarUrl(preferencias.trt, { idProcesso });
+						//NÃO PODE SER VIA "apis.abrirDetalhesProcesso.abrir" Senão dá um erro muito doido
+						browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsDetalhesLeft, posy: preferencias.gigsDetalhesTop, width: preferencias.gigsDetalhesWidth, height: preferencias.gigsDetalhesHeight});
+					}
+					await sleep(2000);
 				}
-				if (var1.match(new RegExp('\\.\\d{4}','g'))) {
-					a = var1.match(new RegExp('\\.\\d{4}','g')).join();
-					console.log('Ano: ' + a);
-				}
-				processo = n + '-' + d + a;
-				api = await idProcessoPorNumeroIncompleto(processo);
+				return resolver(true);
+
 			} else {
-				var1 = (var1.length < 7) ? ('0000000' + var1).slice(-7) : var1;
-				processo = var1+'-';
-				// api = await obterIdProcessoViaApi(processo);
-				api = await idProcessoPorNumeroIncompleto(processo);
-			}		
+				console.log('-*-*-*-*-*-*-consulta de um único processo, SELECIONADO ou não (resultado esperado: reagir de acordo com a pesquisa e retornar apenas um processo)')
+				let api = await obterAPIVariada(textoSelecionado);
+				console.log(api)
+				if (typeof(api) == "undefined") { 
+					processoNaoEncontrado(textoSelecionado);
+					return;
+				} else if (typeof(api[0]) == "undefined") {
+					processoNaoEncontrado(textoSelecionado);
+					return;
+				} else if (api[0]?.codigoOrgaoJulgador && (preferencias.oj_usuarioId != api[0].codigoOrgaoJulgador)) { //verifica se o processo é do órgão Julgador do Usuário
+					processoNaoEncontrado(textoSelecionado);
+				} else {
+					if (api.length > 1) { 
+						criarCaixaDeSelecao(api);
+						return resolver(true);
+					} else {					
+						let idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
+						// apis.abrirDetalhesProcesso.abrir(preferencias.trt, { idProcesso });
+						//NÃO PODE SER VIA "apis.abrirDetalhesProcesso.abrir" Senão dá um erro muito doido.. 
+						url = apis.abrirDetalhesProcesso.montarUrl(preferencias.trt, { idProcesso });
+						browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsDetalhesLeft, posy: preferencias.gigsDetalhesTop, width: preferencias.gigsDetalhesWidth, height: preferencias.gigsDetalhesHeight});
+						fundo(false);
+						return resolver(true);
+					}
+				}
+			} 
 		}
+
+		//****CONSULTA PASSANDO O PROCESSO NO PARAMETRO */
+		let api = await obterAPIVariada(processo);
+		if (typeof(api) == "undefined") { 
+			processoNaoEncontrado(processo);
+		} else if (typeof(api[0]) == "undefined") {
+			processoNaoEncontrado(processo);
+		} else if (preferencias.oj_usuarioId != api[0].codigoOrgaoJulgador) { //verifica se o processo é do órgão Julgador do Usuário
+			processoNaoEncontrado(processo);
+		} else {
+			let idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
+			url = apis.abrirDetalhesProcesso.montarUrl(preferencias.trt, { idProcesso });
+			//NÃO PODE SER VIA "apis.abrirDetalhesProcesso.abrir" Senão dá um erro muito doido
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsDetalhesLeft, posy: preferencias.gigsDetalhesTop, width: preferencias.gigsDetalhesWidth, height: preferencias.gigsDetalhesHeight});
+		}
+		fundo(false);
+		return resolver(true);
+	});
 		
-	} else {
-		api = await obterIdProcessoViaApiPublica(processo);
-	}
-	
-	if (typeof(api) == "undefined") { criarCaixaDeAlerta("Consulta Rápida de Processo","Processo " + processo + " não encontrado.",3); fundo(false); return; }
-	if (typeof(api[0]) == "undefined") { criarCaixaDeAlerta("Consulta Rápida de Processo","Processo " + processo + " não encontrado.",3); fundo(false); return; }
-	if (api.length > 1) { criarCaixaDeSelecao(api) }
-	if (api.length == 1) {
-		const idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
-		apis.abrirDetalhesProcesso.abrir(preferencias.trt, { idProcesso });
-	}
-	fundo(false);
-	
-	// ZZZ
 	function criarCaixaDeSelecao(dados) {
 		if (!document.getElementById('maisPje_caixa_de_selecao')) {
 			// DESCRIÇÃO: REGRA DO TOOLTIP
@@ -11621,20 +12842,141 @@ async function consultaRapidaPJE(processo, id=false) { //se tiver id consulta di
 			document.body.appendChild(elemento1);
 		}
 	}
+
+	async function obterAPIVariada(processo) {
+		return new Promise(async resolver => {
+			// if (typeof(processo) == "undefined") { return resolver(null) }
+			let api = [];			
+			let soNumeros = processo.toString().replace(/[^0-9]+/g, '');
+			let padraoNumeroCompleto = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
+			// console.log(soNumeros)
+			
+			if (soNumeros === '') { //consulta por nome
+				console.debug('maisPJe: obterAPIVariada(' + processo + '): consulta por nome');
+				if (processo.length < 7) { criarCaixaDeAlerta("Consulta Rápida de Processo",'Informe pelo menos 7 caracteres nas pesquisas por nome.'); fundo(false); return; }
+				exibir_mensagem("Pesquisando processos em nome da parte " + processo + "\n\n Essa consulta costuma demorar um pouco mais..");
+
+				let maisDeUmNome = processo.split(';');
+				if (maisDeUmNome.length > 1) {
+					for (const [pos, nome] of maisDeUmNome.entries()) {
+						console.debug('maisPJe: pesquisando processos em nome de ' + nome);
+						let lista = await obterIdProcessoViaApiPublica(nome);
+						if (lista.resultado) { api.push(...lista.resultado) }
+					}
+				} else {
+					api = await obterIdProcessoViaApiPublica(processo);
+					api = api.resultado;
+				}
+				fundo(false);
+			
+			} else if (!padraoNumeroCompleto.test(processo)) { //consulta por numero incompleto
+				console.debug('maisPJe: obterAPIVariada(' + processo + '): consulta por número incompleto');
+				if (!document.location.href.includes(preferencias.trt)) {
+					await criarCaixaDeAlerta("Atenção","Não é possível consultar processos usando apenas parte do número se vc estiver fora do domínio do PJe.\nOU você deve pesquisar pelo número inteiro ou ir até uma janela do PJe para fazer este tipo de pesquisa.",15);
+					return resolver(null); 
+				}
+				let var1 = processo;
+				if (var1.length >= 20) {
+					if (var1.length == 20) {
+						var1 = var1.substring(0,7) + "-" + var1.substring(7,9) + "." + var1.substring(9,13) + "." + var1.substring(13,14) + "." + var1.substring(14,16) + "." + var1.substring(16,20);
+					}
+					processo = var1;
+					api = await obterIdProcessoViaApi(processo);
+				} else {
+					// a separação somente será feita se tiver digito verificador
+					if (var1.search('-') > 0) {
+						let n = ''; //numero
+						let d = ''; //digito
+						let a = ''; //ano
+						n = var1.substring(0, var1.search('-'));
+						n = (n.length < 7) ? ('0000000' + n).slice(-7) : n;
+						if (var1.match(new RegExp('\\-\\d{2}','g'))) {
+							d = var1.match(new RegExp('\\-\\d{2}','g')).join();
+							d = d.replace(/-/g, '');
+							console.log('Dígito: ' + d);
+						}
+						if (var1.match(new RegExp('\\.\\d{4}','g'))) {
+							a = var1.match(new RegExp('\\.\\d{4}','g')).join();
+							console.log('Ano: ' + a);
+						}
+						processo = n + '-' + d + a;
+						api = await idProcessoPorNumeroIncompleto(processo);
+					} else {
+						var1 = (var1.length < 7) ? ('0000000' + var1).slice(-7) : var1;
+						processo = var1+'-';
+						// api = await obterIdProcessoViaApi(processo);
+						api = await idProcessoPorNumeroIncompleto(processo);
+					}		
+				}
+				
+			} else { //consulta geral
+				console.debug('maisPJe: obterAPIVariada(' + processo + '): consulta por numero completo');
+				api = await obterIdProcessoViaApiPublica(processo);
+			}
+			
+			// console.log(api)
+			return resolver(api);
+		})
+	}
+
+	async function processoNaoEncontrado(num) {		
+		let numeroProcessoFormatado = await extrairNumeroProcesso(num);
+		let trtDoUsuario = preferencias.num_trt;
+		trtDoUsuario = ("0" + trtDoUsuario).slice(-2);
+		let trtDoProcesso = await decomporNumeroProcesso(numeroProcessoFormatado);
+		console.log(("5." + trtDoUsuario) + " == " + (trtDoProcesso.jurisdicao + '.' + trtDoProcesso.regiao));
+
+		if (("5." + trtDoUsuario) == (trtDoProcesso.jurisdicao + '.' + trtDoProcesso.regiao)) { 
+			//se for do mesmo regional mas de órgão julgador diferente consulta no PJe do Regional - processos de terceiros
+			apis.consultaProcessosTerceiros.abrir(preferencias.trt, { 'numero':numeroProcessoFormatado });
+			fundo(false); 
+			return;
+		} else if (numeroProcessoFormatado.includes('ERRO')) { 
+			await criarCaixaDeAlerta("Consulta Rápida de Processo",numeroProcessoFormatado,3); 
+			fundo(false); 
+			return;
+		} else {
+			//se for do outro regional ou outra justiça consulta no PJe no PDPJ
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'https://portaldeservicos.pdpj.jus.br/consulta?maisPjeNumeroProcesso=' + numeroProcessoFormatado, posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
+			fundo(false); 
+			return;
+		}
+	}
 }
 
 async function obterTextoSelecionado() {
 	return new Promise(async resolver => {
 		var objSelecionado = window.getSelection();
-		var textoSelecionado = objSelecionado.toString(); 
+		// console.log(objSelecionado)
+		// console.log(objSelecionado?.anchorNode.tagName);
+		if (objSelecionado?.anchorNode?.tagName == 'BODY') {
+			console.log('maisPJe: consulta no visualizador de documentos do PJe - IFRAME');
+			let iframe = document.querySelector('object[class="conteudo-pdf"]');
+			if (!iframe) { return resolver(null) }
+			objSelecionado = iframe.contentWindow.getSelection();
+		}
 
-		let padrao = /\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{1,2}\.\d{4}/g;
-
-		if (!textoSelecionado) {
-			return resolver('');
-		} else if (padrao.test(textoSelecionado)) {
-			resolver(textoSelecionado.match(padrao).join());
+		let textoSelecionado = objSelecionado.toString();
+		// console.log(textoSelecionado);
+		let padrao1 = /\d{20}/gm;
+		let padrao2 = /\d{7}-\d{2}\.\d{4}\.\d{1,2}\.\d{1,2}\.\d{4}/g;		
+		if (padrao1.test(textoSelecionado)) {
+			console.debug('obterTextoSelecionado(): só numeros: ' + textoSelecionado);
+			let listaTemp = textoSelecionado.match(padrao1);
+			let novaLista = [];
+			[].map.call(
+				listaTemp.join().split(','), 
+				function(item) {
+					let numeroNovo = item.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/g,"$1-$2.$3.$4.$5.$6");
+					novaLista.push(numeroNovo)
+				}
+			);
+			resolver(novaLista);
+		} else if (padrao2.test(textoSelecionado)) {
+			console.debug('obterTextoSelecionado(): numeros com ponto e traço: ' + textoSelecionado);
+			resolver(textoSelecionado.match(padrao2));
 		} else {
+			console.debug('obterTextoSelecionado(): sem padrão: ' + textoSelecionado);
 			resolver(textoSelecionado);
 		}
 	});	
@@ -11673,7 +13015,7 @@ async function addBotaoPlanilhasGoogle(){
 				if(window.location.href.includes('docs.google.com/spreadsheets')) {
 					
 					let numeroProcesso = identificarNumeroDoProcessoDaPlanilhaGoogle();
-					let guardarStorage = browser.storage.local.set({'AALote': 'Kaizen|maisPje_menuKaizen_itemmenu_abrir_pauta'});
+					let guardarStorage = browser.storage.local.set({'AALote': 'Variados|maisPje_menuKaizen_itemmenu_abrir_pauta'});
 					Promise.all([guardarStorage]).then(values => {					
 						consultaRapidaPJE(numeroProcesso);
 					});
@@ -11943,7 +13285,7 @@ function criarAreaDoPreferenciasF2() {
 	areaDeAtalhoF2.onclick = function() {
 		acao_vinculo(preferencias.tempF2);
 	}
-	acionarSemCliqueGenerico(areaDeAtalhoF2,'black','#1c5536',preferencias.aaVariados[3].temporizador);	
+	acionarSemClique(areaDeAtalhoF2,'black','#1c5536',preferencias.aaVariados[3].temporizador);	
 	
 	containerAreaDeAtalhoF2.onmouseenter = function () { this.style.animation  = 'subir .5s 1 forwards'	};
 	containerAreaDeAtalhoF2.onmouseleave = function () { this.style.animation  = 'descer .5s 1 forwards' };
@@ -11975,7 +13317,7 @@ function criarAreaDoPreferenciasF3() {
 	areaDeAtalhoF3.onclick = function() {
 		acao_vinculo(preferencias.tempF3);
 	}
-	acionarSemCliqueGenerico(areaDeAtalhoF3,'black','#681d01',preferencias.aaVariados[4].temporizador);	
+	acionarSemClique(areaDeAtalhoF3,'black','#681d01',preferencias.aaVariados[4].temporizador);	
 
 	containerAreaDeAtalhoF3.onmouseenter = function () { this.style.animation  = 'subir .5s 1 forwards'	};
 	containerAreaDeAtalhoF3.onmouseleave = function () { this.style.animation  = 'descer .5s 1 forwards' };
@@ -11989,8 +13331,10 @@ function criarAreaDoPreferenciasF3() {
 
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR O BOTÃO DE ZOOM NA JANELA DETALHES
 async function addBotoesDocumentoCarregado(id) {
-	return new Promise(resolve => {
-		addBotao();
+	return new Promise(async resolve => {
+		if (!document.getElementById('extensaoPje_barra_botoes_' + id)) {
+			await addBotao();
+		}
 		resolve(true);
 	});
 	
@@ -12228,7 +13572,7 @@ async function addBotoesDocumentoCarregado(id) {
 			barra_zoom.appendChild(sendWA);
 			
 			if (preferencias.mapeamentoDeIDs) {
-				//cria o botão para mapear os ids
+				//cria o botão para mapear os ids				
 				let mapearIds = document.createElement('button');
 				mapearIds.id = 'extensaoPje_mapearIds';
 				mapearIds.setAttribute('maisPje-tooltip-direita','Mapear Ids');
@@ -12237,6 +13581,7 @@ async function addBotoesDocumentoCarregado(id) {
 				mapearIds.onmouseenter = function () {mapearIds.style.opacity  = '1'};
 				mapearIds.onmouseleave = function () {mapearIds.style.opacity  = '0.4'};
 				mapearIds.onclick = function () {
+					if (this.style.color == 'green') { return }
 					//CONVERTER IDS EM LINKS
 					let el_docto = document.getElementById('obj' + id); //antes era doc + id
 					//MODELO DE DOCUMENTO ATUAL
@@ -12246,7 +13591,7 @@ async function addBotoesDocumentoCarregado(id) {
 						
 						let qtdePaginas = el_docto_conteudo.querySelectorAll('div[class="page"]').length;
 						console.log("Extensão maisPJE (" + agora() + "): Mapeando Ids do Documento Id " + id + ": " + qtdePaginas + " página(s)");
-						console.log("    |___Modelo de Documento: padrão atual");
+						console.log("    |___Modelo de Documento: padrão atual1");
 						
 						//CONSULTA AS PAGINAS DO DOCUMENTO PARA CONVERSÃO. SE EXISTEM PÁGINAS PENDENTES DE CARREGAMENTO INICIA O MONITOR.
 						let elem = el_docto_conteudo.querySelectorAll('div[class="page"]');
@@ -12301,13 +13646,13 @@ async function addBotoesDocumentoCarregado(id) {
 					}
 					
 					function listenerClickIdConvertido(event) {
-						if (event.target.tagName == "BUTTON" || event.target.tagName == "A") {
+						if (event.target.tagName == "SECTION") {
 							if (!event.target.id) {
 								return
 							}
 							let codigoId = event.target.id;
-							if (codigoId.search("extensaoPje_documento_linkId_") > -1) {
-								codigoId = codigoId.replace("extensaoPje_documento_linkId_","")
+							if (codigoId.includes("section_extensaoPje_documento_linkId_")) {
+								codigoId = codigoId.replace("section_extensaoPje_documento_linkId_","");
 								let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
 								abrirDocumentoPeloId(idProcesso, codigoId);
 							}
@@ -12459,13 +13804,14 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 				mapearIds.onmouseenter = function () {mapearIds.style.opacity  = '1'};
 				mapearIds.onmouseleave = function () {mapearIds.style.opacity  = '0.4'};
 				mapearIds.onclick = async function () {
-					
+
+					if (this.style.color == 'green') { return }
 					//MODELO DE DOCUMENTO ATUAL
 					if (document.querySelector('pdf-viewer')) {
 						el_docto_conteudo = await esperarElemento('pdf-viewer div[class*="pdfViewer"]');
 						let qtdePaginas = el_docto_conteudo.querySelectorAll('div[class="page"]').length;
 						console.log("Extensão maisPJE (" + agora() + "): Mapeando Ids do Documento Id " + id + ": " + qtdePaginas + " página(s)");
-						console.log("    |___Modelo de Documento: padrão atual");
+						console.log("    |___Modelo de Documento: padrão atual2");
 
 						//CRIA O LISTENER DE CLIQUE PARA O DOCUMENTO (IFRAME)
 						document.body.addEventListener('click', function(event) {
@@ -12499,8 +13845,8 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 							//informa ao ícone que a funcionalidade foi ativada
 							mapearIds.style.color = "green";
 							mapearIds.setAttribute('maisPje-tooltip-direita','Ids mapeados');
-						}									
-						
+						}
+												
 						
 					//MODELO DE DOCUMENTO ANTIGO
 					} else {		
@@ -12520,13 +13866,13 @@ async function addBotoesDocumentoIsoladoCarregado(id) {
 					}
 					
 					async function listenerClickIdConvertido(event) {
-						if (event.target.tagName == "BUTTON" || event.target.tagName == "A") {
+						if (event.target.tagName == "SECTION") {
 							if (!event.target.id) {
 								return
 							}
 							let codigoId = event.target.id;
-							if (codigoId.search("extensaoPje_documento_linkId_") > -1) {
-								codigoId = codigoId.replace("extensaoPje_documento_linkId_","")
+							if (codigoId.includes("section_extensaoPje_documento_linkId_")) {
+								codigoId = codigoId.replace("section_extensaoPje_documento_linkId_","");
 								let idProcesso = await obterIdProcessoDaUrl();								
 								abrirDocumentoPeloId(idProcesso, codigoId);
 							}
@@ -12612,23 +13958,15 @@ function converterIdsEmLinks(el, id_documento, antigo) {
 		codigo = el.innerHTML;
 
 		Promise.all([buscaIds(texto)]).then(values => {
-			gerarLinksDosIds(el, listaIds_Novo, '#da70d66e')
-		// 	listaIds_Novo.forEach(function (item, indice) {
-		// 		let regexId = new RegExp(item,"g");
-		// 		codigo = codigo.replace(regexId,'<a title="Abrir documento" id="extensaoPje_documento_linkId_' + item + '" style="background-color: #da70d66e;cursor: pointer;">' +  item + '</a>');
-		// 	});
-			
-			// el.innerHTML = codigo;
+			gerarLinksDosIds(el, listaIds_Novo);
 		});
 	} else {
 		let elemento = el.getElementsByClassName('textLayer')[0];
 		texto = elemento.innerText.replace(/\s{2,}/g, ' '); //tira os espaços em branco duplicados
 		texto = texto.replace(/(\r\n|\n|\r)/gm, " "); //substitui as quebras de linha
-
 		// console.log(texto)
 		Promise.all([buscaIds(texto)]).then(values => {
-			gerarLinksDosIds(elemento, listaIds_Novo, '#d236c9')
-
+			gerarLinksDosIds(elemento, listaIds_Novo)
 			// codigo = elemento.innerHTML;
 			// listaIds_Novo.forEach(function (item, indice) {
 			// 	let regexId = new RegExp(item,"g");
@@ -12643,18 +13981,27 @@ function converterIdsEmLinks(el, id_documento, antigo) {
 		let listaIdsConcat = [];
 		let listaIdsPadrao1 = [];
 		let listaIdsPadrao2 = [];
+		let listaIdsPadrao3 = [];		
+		
+		// console.log(txt);
+		//excluir padroes que podem confundir
+		txt = txt.replace(new RegExp("[A-Z]{2}[0-9]{9}[A-Z]{2}","gmi"),''); //exclui padrao de ar
+		txt = txt.replace(/\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/gmi,''); //exclui padrao de numero de processo
+		// console.log(txt)
+		
+		let padraoBase = /(?![0-9]{6,})(?![a-zA-Z]{6,7})([A-Za-z0-9]{6,7})/gmi;
 		//PRIMEIRO PADRÃO (ID.XXXXXXX ou ID:XXXXXXX ou ID XXXXXXX ou ID. XXXXXXX ou ID: XXXXXXX)
-		// let padrao1 = /i{1}d{1}[.| |:]{1,}[A-Za-z0-9]{6,7}/gmi; 
-		let padrao1 =/i{1}d{1}[.| |:|s|'s|nº]{1,}[A-Za-z0-9]{6,7}/gmi;
+		let padrao1 = /i{1}[ ]*d{1}[’|.| |:|s]{1,}[A-Za-z0-9]{6,7}/gmi;
 		if (padrao1.test(txt)) {
-			let id1 = txt.match(padrao1).join().split(',');;
-			console.info('PADRÃO 1: ' + id1.length + ' encontrados: ' + id1);
-			
+			let id1 = txt.match(padrao1).join().split(',');
+			console.info('PADRÃO 1: ' + id1.length + ' encontrados: ' + id1);			
 			let map1 = [].map.call(
 				id1, 
 				function(item) {
-					let i1 = item.match(new RegExp('[A-Za-z0-9]{6,7}','gmi')).join(); //pega apenas o id
-					listaIdsPadrao1.push(i1);
+					if (padraoBase.test(item)) {
+						let i1 = item.match(padraoBase).join(); //pega apenas o id
+						listaIdsPadrao1.push(i1);
+					}
 				}
 			);
 		}
@@ -12662,26 +14009,67 @@ function converterIdsEmLinks(el, id_documento, antigo) {
 		// SEGUNDO PADRÃO (ID do mandado. XXXXXXX ou ID do mandado: XXXXXXX ou ID do mandado XXXXXXX)
 		let padrao2 = /ID do mandado[.| |:]{1,}[A-Za-z0-9]{6,7}/gmi;
 		if (padrao2.test(txt)) {
-			let id2 = txt.match(padrao2).join().split(',');;
+			let id2 = txt.match(padrao2).join().split(',');
 			console.info('PADRÃO 2: ' + id2.length + ' encontrados: ' + id2);
 
 			let map2 = [].map.call(
 				id2, 
 				function(item) {
-					let i2 = item.match(new RegExp('[A-Za-z0-9]{6,7}','gmi')).join(); //pega apenas o id
-					let idFiltrado = i2.split(',').filter(filtro => filtro != 'mandado')
-					listaIdsPadrao2.push(idFiltrado.toString());
+					if (padraoBase.test(item)) {
+						let i2 = item.match(padraoBase).join(); //pega apenas o id
+						let idFiltrado = i2.split(',').filter(filtro => filtro != 'mandado')
+						listaIdsPadrao2.push(idFiltrado);						
+					}
+				}
+			);
+		}
+
+		//PRIMEIRO PADRÃO ,XXXXXXX ou e XXXXXXX
+		let padrao3 = /[,| e]{1}[.| |:]{1,}(?![0-9]{7})(?![a-zA-Z]{6,7})([A-Za-z0-9]{6,7})/gmi;
+		if (padrao3.test(txt)) {
+			let id3 = txt.match(padrao3).join().split(',');
+			console.info('PADRÃO 3: ' + id3.length + ' encontrados: ' + id3);			
+			let map3 = [].map.call(
+				id3, 
+				function(item) {
+					if (item) {
+						if (padraoBase.test(item)) {
+							let i3 = item.match(padraoBase).join(); //pega apenas o id
+							listaIdsPadrao3.push(i3);
+						}
+					}
 				}
 			);
 		}
 		
 		//MÉTODO PARA EXCLUIR OS IDs DUPLICADOS
-		listaIdsConcat = listaIdsPadrao1.concat(listaIdsPadrao2);
-		listaIds_Novo = [...new Set(listaIdsConcat)];
-		listaIdsConcat.forEach((element) => console.log(element));
+		listaIdsConcat = [...listaIdsPadrao1, ...listaIdsPadrao2, ...listaIdsPadrao3];		
+		
+		//apenas para os modelos de documentos novos
+		if (el.getElementsByClassName('textLayer')[0]) {
+			let ancora = el.getElementsByClassName('textLayer')[0];
+			let map4 = [].map.call(
+				ancora.childNodes, 
+				function(child) {
+					if (child.textContent.length >= 6 && child.textContent.length <= 7) {
+						if (padraoBase.test(child.textContent)) {
+							let id4 = child.textContent.match(padraoBase).join();
+							if (listaIdsConcat.indexOf(id4) < 0) { //nao insere os repetidos
+								console.info('PADRÃO BASE: ' + id4.length + ' encontrados: ' + id4);
+								listaIdsConcat.push(id4);
+							}
+						}
+					}				
+				}
+			);
+		}		
 
-		console.info('Resultado após filtrar os Ids repetidos: ' + listaIds_Novo + ' : ' + listaIds_Novo.length);
+		//filtra os repetidos
+		listaIds_Novo = listaIdsConcat.filter((id, i) => listaIdsConcat.indexOf(id) == i);
+
+		console.info('Resultado após filtrar os Ids repetidos: ' + listaIds_Novo + '::::' + listaIds_Novo.length);
 	}
+
 }
 
 //FUNÇÃO RESPONSÁVEL POR APLICAR O ZOOM NO DOCUMENTO
@@ -12720,7 +14108,7 @@ async function mailto(el) {
 
 	let msg = await montarMensagemEmailWato(el);	
 	
-	browser.runtime.sendMessage({tipo: 'criarJanela', url: 'mailto:?subject=' + msg.titulo + '&body=' + msg.corpo});
+	browser.runtime.sendMessage({tipo: 'criarJanela', url: 'mailto:' + msg.destinatario + '?subject=' + msg.titulo + '&body=' + msg.corpo});
 }
 
 //FUNÇÃO RESPONSÁVEL POR ENVIAR O DOCUMENTO ATIVO POR WHATTSAPPWEB
@@ -12769,7 +14157,6 @@ async function montarMensagemEmailWato(el) {
 
 		// let idProcesso = document.location.href.substring(document.location.href.search("/processo/")+10, document.location.href.search("/detalhe"));
 		let idProcesso = await obterIdProcessoDaUrl();
-		console.log(idProcesso)
 		let audi = await obterAudienciaMarcada(idProcesso);
 		let data_audi = '';
 		let tipo_audi = '';
@@ -12794,13 +14181,13 @@ async function montarMensagemEmailWato(el) {
 		const grau_usuario = getGrauAsNumber(preferencias.grau_usuario)
 		autenticacao = apis.validacaoChave.montarUrl(preferencias.trt, {'chave': chave, 'instancia' : grau_usuario});
 		//CRIAR TITULO
-		let titulo = (!aaEnviarEmail) ? preferencias.emailAutomatizado.titulo : preferencias.aaVariados[9].objeto.titulo;
+		let titulo = (!aaEnviarEmail) ? preferencias.emailAutomatizado.titulo : preferencias.aaVariados[10].objeto.titulo;
 		titulo = titulo.replace(new RegExp('#{processo}', 'g'), proc);
 		titulo = titulo.replace(new RegExp('#{tipoDocumento}', 'g'), tipoDocumento);
 		titulo = titulo.replace(new RegExp('#{idDocumento}', 'g'), idDocumento);
 		titulo = titulo.replace(new RegExp('#{autenticacao}', 'g'), autenticacao);
 		titulo = titulo.replace(new RegExp('#{servidor}', 'g'), preferencias.nm_usuario);
-		titulo = titulo.replace(new RegExp('#{OJServidor}', 'g'), preferencias.oj_usuario);
+		titulo = titulo.replace(new RegExp('#{OJServidor}', 'g'), preferencias.papel_usuario);
 		titulo = titulo.replace(new RegExp('#{partes}', 'g'), nomePartes);
 		titulo = titulo.replace(new RegExp('#{dados_audi}', 'g'), dados_audi);
 		titulo = titulo.replace(new RegExp('#{data_audi}', 'g'), data_audi);
@@ -12810,13 +14197,13 @@ async function montarMensagemEmailWato(el) {
 		titulo = titulo.replace(new RegExp('#{chave}', 'g'), chave);
 		
 		//CRIAR CORPO
-		let corpo = (!aaEnviarEmail) ? preferencias.emailAutomatizado.corpo : preferencias.aaVariados[9].objeto.corpo;		
+		let corpo = (!aaEnviarEmail) ? preferencias.emailAutomatizado.corpo : preferencias.aaVariados[10].objeto.corpo;		
 		corpo = corpo.replace(new RegExp('#{processo}', 'g'), proc);
 		corpo = corpo.replace(new RegExp('#{tipoDocumento}', 'g'), tipoDocumento);
 		corpo = corpo.replace(new RegExp('#{idDocumento}', 'g'), idDocumento);
 		corpo = corpo.replace(new RegExp('#{autenticacao}', 'g'), autenticacao);
 		corpo = corpo.replace(new RegExp('#{servidor}', 'g'), preferencias.nm_usuario);
-		corpo = corpo.replace(new RegExp('#{OJServidor}', 'g'), preferencias.oj_usuario);
+		corpo = corpo.replace(new RegExp('#{OJServidor}', 'g'), preferencias.papel_usuario);
 		corpo = corpo.replace(new RegExp('#{partes}', 'g'), nomePartes);
 		corpo = corpo.replace(new RegExp('#{dados_audi}', 'g'), dados_audi);
 		corpo = corpo.replace(new RegExp('#{data_audi}', 'g'), data_audi);
@@ -12826,13 +14213,13 @@ async function montarMensagemEmailWato(el) {
 		corpo = corpo.replace(new RegExp('#{chave}', 'g'), chave);
 		
 		//CRIAR ASSINATURA
-		let assinatura = (!aaEnviarEmail) ? preferencias.emailAutomatizado.assinatura : preferencias.aaVariados[9].objeto.assinatura;
+		let assinatura = (!aaEnviarEmail) ? preferencias.emailAutomatizado.assinatura : preferencias.aaVariados[10].objeto.assinatura;
 		assinatura = assinatura.replace(new RegExp('#{processo}', 'g'), proc);
 		assinatura = assinatura.replace(new RegExp('#{tipoDocumento}', 'g'), tipoDocumento);
 		assinatura = assinatura.replace(new RegExp('#{idDocumento}', 'g'), idDocumento);
 		assinatura = assinatura.replace(new RegExp('#{autenticacao}', 'g'), autenticacao);
 		assinatura = assinatura.replace(new RegExp('#{servidor}', 'g'), preferencias.nm_usuario);
-		assinatura = assinatura.replace(new RegExp('#{OJServidor}', 'g'), preferencias.oj_usuario);
+		assinatura = assinatura.replace(new RegExp('#{OJServidor}', 'g'), preferencias.papel_usuario);
 		assinatura = assinatura.replace(new RegExp('#{partes}', 'g'), nomePartes);
 		assinatura = assinatura.replace(new RegExp('#{dados_audi}', 'g'), dados_audi);
 		assinatura = assinatura.replace(new RegExp('#{data_audi}', 'g'), data_audi);
@@ -12846,8 +14233,33 @@ async function montarMensagemEmailWato(el) {
 
 		if (estavacolapsado) { await clicarBotao('pje-cabecalho-documento button[name="Mostrar ou Esconder Cabeçalho do Documento"]') }
 
-		return resolve({"titulo": titulo,"corpo":corpo});
+		let destinatario = '';
+		let textoObtido = obterTextoDocumento();
+		let padraoEmail = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+)/gmi;
+		if (padraoEmail.test(textoObtido)) {
+			destinatario = textoObtido.match(padraoEmail).join();
+		}
+		return resolve({"destinatario":destinatario,"titulo": titulo,"corpo":corpo});
 	});
+
+	function obterTextoDocumento(id) {
+		let el_docto = document.querySelector('object[class="conteudo-pdf"]');		
+		
+		if (el_docto) { //MODELO DE DOCUMENTO ATUAL
+
+			let el_docto_conteudo = el_docto.contentDocument || el_docto.contentWindow.document;
+			if (!el_docto_conteudo) { return ''}
+			let camadaDeTexto = el_docto_conteudo.getElementsByClassName('textLayer')[0];
+			let texto = camadaDeTexto.innerText.replace(/\s{2,}/g, ' '); //tira os espaços em branco duplicados
+			texto = texto.replace(/(\r\n|\n|\r)/gm, " "); //substitui as quebras de linha
+			return texto;
+
+		} else {  //MODELO ANITGO
+			let el_docto_conteudo = document.querySelector('mat-card-content[class*="conteudo-html"]')
+			if (!el_docto_conteudo) { return ''}
+			return el_docto_conteudo.innerText;
+		}
+	}
 }
 
 //FUNÇÃO RESPONSÁVEL POR ABRIR UM MENU PARA ASSISTENCIA NA TELA DO SISBAJUD
@@ -13119,7 +14531,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							novaMinutaSAJ();
 							break;
 						case "PREVJUD":
-							let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário'],'Escolha entre as opções','Nenhum',false,-1,5,true);
+							let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário'],'Escolha entre as opções','Nenhum',false,true);
 							preenchercamposPREVJUD(false,opt);							
 							break;
 					}
@@ -13135,50 +14547,54 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				"Preencher Campos com Polo Passivo",
 				"orangered",
 				function () {
-					switch(nome_convenio) {
-						case "SISBAJUD":
-							preenchercamposSisbajud(0);
-							break;
-						case "SERASAJUD":
-							preenchercamposSerasajud();
-							break;
-						case "RENAJUD":
-							preenchercamposRenajud();
-							break;
-						case "RENAJUDNOVO":
-							preenchercamposRenajudNovo();
-							break;
-						case "CNIB":
-							preenchercamposCnib();
-							break;
-						case "CCS":
-							preenchercamposCCS();
-							break;
-						case "PROTESTOJUD":
-							preenchercamposPROTESTOJUD();
-							break;
-						case "SNIPER":
-							preenchercamposSNIPER();
-							break;
-						case "CENSEC":
-							preenchercamposCENSEC();
-							break;
-						case "CELESC":
-							preenchercamposCELESC();
-							break;
-						case "CASAN":
-							preenchercamposCASAN();
-							break;
-						case "SIGEF":
-							preenchercamposSIGEF();
-							break;
-						case "INFOSEG":
-							preenchercamposINFOSEG();
-							break;
-						case "SAJ":
-							preenchercamposSAJ();
-							break;
-					}
+					let var1 = browser.storage.local.get('processo_memoria', function(result){
+						preferencias.processo_memoria = result.processo_memoria;
+						switch(nome_convenio) {
+							case "SISBAJUD":
+								preenchercamposSisbajud(0);
+								break;
+							// case "SERASAJUD":
+							// 	preenchercamposSerasajud();
+							// 	break;
+							case "RENAJUD":
+								preenchercamposRenajud();
+								break;
+							case "RENAJUDNOVO":
+								preenchercamposRenajudNovo();
+								break;
+							case "CNIB":
+								preenchercamposCnib();
+								break;
+							case "CCS":
+								preenchercamposCCS();
+								break;
+							case "PROTESTOJUD":
+								preenchercamposPROTESTOJUD();
+								break;
+							case "SNIPER":
+								preenchercamposSNIPER();
+								break;
+							case "CENSEC":
+								preenchercamposCENSEC();
+								break;
+							case "CELESC":
+								preenchercamposCELESC();
+								break;
+							case "CASAN":
+								preenchercamposCASAN();
+								break;
+							case "SIGEF":
+								preenchercamposSIGEF();
+								break;
+							case "INFOSEG":
+								preenchercamposINFOSEG();
+								break;
+							case "SAJ":
+								preenchercamposSAJ();
+								break;
+						}
+					});
+					
 				},
 				"acionarMouseEmCima"
 			)
@@ -13191,11 +14607,14 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				"Preencher Campos com Polo Ativo",
 				"darkcyan",
 				function () {
-					switch(nome_convenio) {
-						case "SISBAJUD":
-							preenchercamposSisbajud(1);
-							break;
-					}
+					let var1 = browser.storage.local.get('processo_memoria', function(result){
+						preferencias.processo_memoria = result.processo_memoria;
+						switch(nome_convenio) {
+							case "SISBAJUD":							
+								preenchercamposSisbajud(1);
+								break;
+						}
+					});					
 				},
 				"acionarMouseEmCima"
 			)
@@ -13232,12 +14651,28 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							consultarMinutaSAJ();
 							break;
 						case "PREVJUD":
-							let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário'],'Escolha entre as opções','Nenhum',false,-1,5,true);
+							let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário'],'Escolha entre as opções','Nenhum',false,true);
 							preenchercamposPREVJUD(true,opt);
 							break;
 					}
 				},
 				"acionarMouseEmCima"
+			)
+
+			//BOTÃO CONSULTAR MINUTA2
+			let atalho_consultar_minuta2 = criar_botao(
+				"maisPje_menuKaizen_itemmenu_consultar_minuta2",
+				"5",
+				"icone menuConvenio_search t100 tamanho70",
+				"Consultar Minuta Por Protocolo",
+				"darkcyan",
+				async function () {
+					switch(nome_convenio) {
+						case "SISBAJUD":
+							consultarMinutaSisbajudPorProtocolo();
+							break;						
+					}
+				}
 			)
 			
 			//BOTÃO CONSULTAR TEIMOSINHA
@@ -13316,6 +14751,9 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 								});
 							}
 							break;
+						case "SERASAJUD":
+							baixarDividaSerasajud();
+							break;
 					}
 				},
 				"acionarMouseEmCima"
@@ -13378,6 +14816,8 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				case "SISBAJUD":
 					atalho_consulta_rapida.style.setProperty("--p","1");					
 					atalho_consultar_minuta.style.setProperty("--p","2");
+					atalho_consultar_minuta2.style.setProperty("--p","2");
+					atalho_consultar_minuta2.style.setProperty("--c","1");
 					atalho_consultar_teimosinha.style.setProperty("--p","3");
 					atalho_nova_minuta.style.setProperty("--p","4");
 					atalho_nova_minutaEnd.style.setProperty("--p","4");
@@ -13393,6 +14833,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 					menuMaisPje_content.appendChild(atalho_nova_minutaEnd);
 					menuMaisPje_content.appendChild(atalho_nova_minuta);
 					menuMaisPje_content.appendChild(atalho_consultar_teimosinha);
+					menuMaisPje_content.appendChild(atalho_consultar_minuta2);
 					menuMaisPje_content.appendChild(atalho_consultar_minuta);
 					menuMaisPje_content.appendChild(atalho_consulta_rapida);
 					
@@ -13403,18 +14844,23 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 					});
 					break;
 				case "SERASAJUD":
-					atalho_consulta_rapida.style.setProperty("--p","1");
-					atalho_consultar_minuta.style.setProperty("--p","2");
+					// atalho_consulta_rapida.style.setProperty("--p","1");
+					atalho_consultar_minuta.style.setProperty("--p","1");					
 					atalho_nova_minuta.style.setProperty("--p","3");
 					atalho_nova_minutaEnd.style.setProperty("--p","3");
 					atalho_nova_minutaEnd.style.setProperty("--c","1");
-					atalho_preencher_campos.style.setProperty("--p","4");
-					menuMaisPje_content.appendChild(atalho_preencher_campos);
+					atalho_excluir_restricao.style.setProperty("--p","2");
 					menuMaisPje_content.appendChild(atalho_consultar_minuta);
+					menuMaisPje_content.appendChild(atalho_excluir_restricao);
 					menuMaisPje_content.appendChild(atalho_nova_minutaEnd);
 					menuMaisPje_content.appendChild(atalho_nova_minuta);
-					menuMaisPje_content.appendChild(atalho_consulta_rapida);
 					
+					
+					// menuMaisPje_content.appendChild(atalho_consulta_rapida);
+					
+					alterarTootlipMenu(atalho_nova_minuta,'Incluir Dívida');
+					alterarTootlipMenu(atalho_nova_minutaEnd,'Consultar Endereço');
+					alterarTootlipMenu(atalho_excluir_restricao,'Baixar Dívida');
 					browser.storage.local.get('menu_kaizen', function(result){
 						if (!result.menu_kaizen) { return }
 						menuMaisPje.style.left = result.menu_kaizen.serasajud.posx;
@@ -13623,8 +15069,6 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 		if (nome_convenio == "CNIB") {
 			monitor_janela_cnib();
 		}
-
-		
 		
 		async function novaMinutaSisbajud() {
 			await clicarBotao('button[aria-label*="menu de navegação"]');
@@ -13649,17 +15093,36 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				await clicarBotao('button', 'Consultar');
 			});			
 		}
+
+		async function consultarMinutaSisbajudPorProtocolo() {
+			await clicarBotao('button[aria-label*="menu de navegação"]');
+			await clicarBotao('a[aria-label*="Ir para Ordem judicial"]');
+			let numeroProtocolo = await criarCaixaDePergunta('texto','Número do protocolo');
+			await preencherInput('input[placeholder="Protocolo"]',numeroProtocolo,false);
+			await clicarBotao('button', 'Consultar');
+			let mensagemDeErro = await esperarElemento('sisbajud-snack-messenger','Não existe ordem judicial correspondente',1000)
+			if(!mensagemDeErro) {
+				console.log('achou')
+				await esperarElemento('mat-expansion-panel[style*="rgba(50, 205, 50, 0.5)"], mat-expansion-panel[style*="rgba(255, 39, 0, 0.5)"]')
+				await clicarBotao('#maisPJe_atalhoConsultaPJe')
+			} else {
+				console.log('não achou')
+			}
+				
+		}
 		
 		async function consultarTeimosinhaSisbajud() {
-			let barraLateral = await esperarElemento('mat-sidenav-container mat-sidenav');			
-			barraLateral.style.marginLeft = '-1000px';
-			await clicarBotao('button[aria-label*="menu de navegação"]');			
-			await clicarBotao('a[aria-label*="Ir para Teimosinha"]');			
+			// let barraLateral = await esperarElemento('mat-sidenav-container mat-sidenav');			
+			// barraLateral.style.marginLeft = '-1000px';
+				
+			await clicarBotao('button[aria-label*="menu de navegação"]'); //exibir
+			await clicarBotao('a[aria-label*="Ir para Teimosinha"]');					
 			let var1 = browser.storage.local.get('processo_memoria', async function(result){
 				if (!result.processo_memoria.numero) { return }
 				await preencherInput('input[placeholder="Número do Processo"]',result.processo_memoria.numero,false);
 				await clicarBotao('button', 'Consultar');
-			});			
+				await clicarBotao('button[aria-label*="menu de navegação"]'); //ocultar
+			});	
 		}
 		
 		async function preenchercamposSisbajud(inverterPolo) {
@@ -13734,11 +15197,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				});
 				let config_erros = { childList: true, characterData: true, subtree:true }
 				
-				let var1 = browser.storage.local.get('processo_memoria', function(result){
-					preferencias.processo_memoria = result.processo_memoria;
-					acao1();
-				});
-				
+				acao1();
 				
 				//JUIZ SOLICITANTE
 				async function acao1() {
@@ -13749,7 +15208,9 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 						let magistrado = preferencias.sisbajud.juiz;
 						if (magistrado.toLowerCase().includes('modulo8')) {
 							let processoNumero = preferencias.processo_memoria.numero.toString().match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
+							console.log(processoNumero)
 							magistrado = await filtroMagistrado(processoNumero);
+							console.log(magistrado)
 						}								
 						// await escolherOpcao('input[placeholder*="Juiz"]',magistrado,0,false);								
 						await escolherOpcaoSISBAJUD('input[placeholder*="Juiz"]',magistrado);
@@ -14101,9 +15562,9 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 								let btSalvar = querySelectorByText('div[class="uikit-actions"] button','Salvar');
 								btSalvar.onclick = async function() {
 									let btProtocolar = await esperarElemento('div[class="uikit-actions"] button','Protocolar');
-									if (btProtocolar) { acionarSemCliqueGenerico(btProtocolar,'#005efc','#ff3d00') }
+									if (btProtocolar) { acionarSemClique(btProtocolar,'#005efc','#ff3d00') }
 								}
-								if (btSalvar) { acionarSemCliqueGenerico(btSalvar,'#005efc','#ff3d00') }
+								if (btSalvar) { acionarSemClique(btSalvar,'#005efc','#ff3d00') }
 							}
 							
 							fundo(false);
@@ -14217,102 +15678,144 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 			}
 		}
 		
-		async function preenchercamposSerasajud() {
+		async function preenchercamposSerasajud(tipo) {
 			if (document.location.href.includes("serasa") && document.location.href.includes("cadastrar-ordem")) {
 				console.log("   |___PREENCHER CAMPOS");
 				let lista_de_executados = await criarCaixaDeSelecaoComReclamados();
-				fundo(true);
 				if (!lista_de_executados) { return }
 				let contador = 0;
-				let target = document.querySelector('app-incluir-acao-form') || document.querySelector('app-atualizar-acao-form') || document.querySelector('app-consultar-endereco');
+				let target = document.body;
 				let observer = new MutationObserver(function(mutations) {
 					mutations.forEach(function(mutation) {
-						if(mutation.target.tagName == "MAT-TOOLBAR") {
-							cadastro();
+						if (mutation.addedNodes[0]) {
+							if (!mutation.addedNodes[0].tagName) { return }
+							// console.log("ADDNODES: " + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+							
+							if(mutation.addedNodes[0].tagName == "APP-DIALOG" && mutation.addedNodes[0].innerText.includes('Se houver mais titulares')) {
+								console.log('1')
+								mutation.addedNodes[0].querySelector('button').click();
+							}
+
+							if(mutation.addedNodes[0].tagName == "APP-DIALOG" && mutation.addedNodes[0].innerText.includes('Se houver mais devedores')) {
+								console.log('2')
+								mutation.addedNodes[0].querySelector('button').click();								
+							}							
+
+							if(document.querySelector("APP-DIALOG") && document.querySelector("APP-DIALOG").innerText.includes('Ação encontrada na base de dados do Serasa')) {
+								if (!document.querySelector("APP-DIALOG").hasAttribute('maisPJe')) {
+									document.querySelector("APP-DIALOG").setAttribute('maisPJe','true');
+									clicarBotao('app-dialog button','Atualizar');
+									cadastro();
+								}								
+							}
+
+							if(mutation.addedNodes[0].tagName == "TR" && mutation.addedNodes[0].parentElement.tagName == "TBODY") { 
+								if (!mutation.addedNodes[0].hasAttribute('maisPje')) {
+									mutation.addedNodes[0].setAttribute('maisPje','true');
+									cadastro();
+								}								
+							}
 						}
 					});
 				});		
 				let config = { childList: true, characterData: true, subtree:true }
 				browser.storage.local.get('processo_memoria', async function(result){
 					preferencias.processo_memoria = result.processo_memoria;
-					
-					let jaExisteOrdemAnterior = await esperarElemento('app-atualizar-acao-form',null,1000);
-					if (jaExisteOrdemAnterior) {
-						console.log("      |___INSERÇÃO DOS RÉUS");
-						observer.observe(target, config); //inicia o MutationObserver
-						await cadastro();
-					} else {
+					let jaExisteOrdemAnterior = await esperarElemento('app-atualizar-acao-form',null,2000);
+					if (!jaExisteOrdemAnterior) {
 						iniciar_acoes_serasajud();
+					} else {
+						observer.observe(target, config); //inicia o MutationObserver
 					}
 				});
 				
 				
 				//FORO
 				async function iniciar_acoes_serasajud() {
-					console.log("      |___FORO");
-					await escolherOpcaoTeste('mat-select[formcontrolname="foro"]', preferencias.serasajud.foro);
-					console.log("      |___VARA");
-					await escolherOpcaoTeste('mat-select[formcontrolname="vara"]', preferencias.serasajud.vara);
-					console.log("      |___MAGISTRADO");
-					await escolherOpcaoTeste('mat-select[formcontrolname="varaMagistrado"]', preferencias.serasajud.juiz);
-					
-					if (document.querySelector('div[role="tab"]').className.includes('mat-tab-label-active')) { // "Inclusão de Dívida"
-						console.log("      |___PRAZO DE ATENDIMENTO");
-						await esperarColecao('mat-radio-button', 1, 500).then(matoption=>{ //alterações de cadastro não tem a opção de prazo de atendimento
-							if (!matoption) { return }
-							for (const [pos, opt] of matoption.entries()) {
-								if (opt.innerText.includes(preferencias.serasajud.prazo_atendimento)) {
-									opt.querySelector('label').click();
-									break;
-								}
+					console.log("      |___PRAZO DE ATENDIMENTO");
+					await esperarColecao('mat-radio-button', 1, 500).then(matoption=>{ //alterações de cadastro não tem a opção de prazo de atendimento
+						if (!matoption) { return }
+						for (const [pos, opt] of matoption.entries()) {
+							if (opt.innerText.includes(preferencias.serasajud.prazo_atendimento)) {
+								opt.querySelector('label').click();
+								break;
 							}
-						});
-						console.log("      |___TIPO DE AÇÃO");
-						await preencherInput('input[data-placeholder="Tipo Ação"]', 'Execução Judicial Trabalhista');
-						await esperarColecao('mat-option[role="option"]', 1, 500).then(matoption=>{ //precisa escolher depois de preencher o input senão dá erro quando protocola a ordem
-							if (!matoption) { return }
-							for (const [pos, opt] of matoption.entries()) {
-								if (opt.innerText.includes('Execução Judicial Trabalhista')) {
-									opt.click();
-									break;
-								}
-							}
-						});
-						
+						}
+					});
+					// console.log("      |___FORO"); //tiraram o foro
+					// await escolherOpcaoTeste('mat-select[formcontrolname="foro"]', preferencias.serasajud.foro);
+					// console.log("      |___VARA"); //tiraram a vara
+					// await escolherOpcaoTeste('mat-select[formcontrolname="vara"]', preferencias.serasajud.vara);
+										
+					if (tipo == 1) { // Inclusão de Dívida
 						console.log("      |___VALOR DA ANOTAÇÃO");
 						let valor_formatado_para_uso = Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL'}).format(preferencias.processo_memoria.divida.valor);
 						let inputVlrAcao = await esperarElemento('input[formcontrolname="vlrAcao"]');
 						await preencherInput(inputVlrAcao, valor_formatado_para_uso);
 						inputVlrAcao.focus();
-						inputVlrAcao.dispatchEvent(simularTecla('keypress',32)); //dispara um spacebar para validar o campo						
+						inputVlrAcao.dispatchEvent(simularTecla('keypress',32)); //dispara um spacebar para validar o campo		
+										
+					} else if (tipo == 2) { // Baixar a Dívida
 						
-						console.log("      |___NOME AUTOR");
-						await preencherInput('input[formcontrolname="autor"]', preferencias.processo_memoria.autor[0].nome);
-						console.log("      |___NOME RÉU");
-						await preencherInput('input[formcontrolname="reu"]', preferencias.processo_memoria.reu[0].nome);
+						console.log("      |___NOME CREDOR: " + preferencias.processo_memoria.autor[0].nome);
+						await preencherInput('app-lista-credores input[formcontrolname="nome"]', preferencias.processo_memoria.autor[0].nome);
 						
-					} else { // "Requisição de informações"
-						console.log("      |___NÚMERO PROCESSO");
-						await preencherInput('input[formcontrolname="nroProcesso"]', preferencias.processo_memoria.numero);
+						// console.log("      |___CPF CREDOR: " + preferencias.processo_memoria.autor[0].cpfCnpj); //não é para preencher nos casos de dívidas processuais
+						// await preencherInput('app-lista-credores input[formcontrolname="documento"]', preferencias.processo_memoria.autor[0].cpfCnpj);
+						console.log("      |___VALOR DA ANOTAÇÃO");
+						let valor_formatado_para_uso = Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL'}).format(preferencias.processo_memoria.divida.valor);
+						let inputVlrAcao = await esperarElemento('input[formcontrolname="valor"]');
+						await preencherInput(inputVlrAcao, valor_formatado_para_uso);
+						inputVlrAcao.focus();
+						inputVlrAcao.dispatchEvent(simularTecla('keypress',32)); //dispara um spacebar para validar o campo								
+						await sleep(1000);
+
+						
+						console.log("      |___DATA DA DÍVIDA");
+						await preencherDataNoCalendarioSERASAJUD(preferencias.processo_memoria.divida.data);
+						await clicarBotao('app-lista-credores button', "Adicionar");
+						await sleep(200)
+						await clicarBotao('APP-DIALOG button', "Entendi");						
+
 					}
 					
 					console.log("      |___INSERÇÃO DOS RÉUS");
 					observer.observe(target, config); //inicia o MutationObserver
 					await cadastro();
+					
+					if (tipo == 1) { // Inclusão de Dívida
+						//ao final
+						console.log("      |___NOME AUTOR");
+						await preencherInput('input[formcontrolname="autor"]', preferencias.processo_memoria.autor[0].nome);
+						
+						console.log("      |___NOME RÉU");
+						await preencherInput('input[formcontrolname="reu"]', preferencias.processo_memoria.reu[0].nome);
+
+					} else if (tipo == 2) { // Baixar a Dívida
+						console.log("      |___NOME AUTOR");
+						await escolherOpcaoTeste('mat-select[formcontrolname="autor"]', preferencias.processo_memoria.autor[0].nome);
+						
+						let reu = extrairCaracteresEspeciais(preferencias.processo_memoria.reu[0].nome) //eles tiram caracteres especiais do nome
+						console.log("      |___NOME RÉU: "+ reu);
+						await escolherOpcaoTeste('mat-select[formcontrolname="reu"]', reu);
+						await sleep(500);
+					}
+					
 				}
 				
 				async function cadastro() {
-					return new Promise(async resolve => {
+					return new Promise(async resolve => {						
 						let el1 = document.querySelector('input[formcontrolname="nome"]') || document.querySelector('input[data-placeholder="Inclusão em nome de"]');
-						let el2 = document.querySelector('input[formcontrolname="nroDocumento"]') || document.querySelector('input[data-placeholder="CPF/CNPJ"]');
-						let el3;
-						if (document.querySelector('input[placeholder="Valor da Anotação"]')) {
+						let el2 = document.querySelector('input[formcontrolname="documento"]') || document.querySelector('input[data-placeholder="CPF/CNPJ"]');
+						let el3;						
+						if (tipo == 1 || tipo == 2) {
 							el3 = await querySelectorByText('button','Adicionar');
 						} else {
-							el3 = await querySelectorByText('div[class*="btn"]','Adicionar');							
-						}
-						// console.log(contador + " < " + lista_de_executados.length + " : " + (contador < lista_de_executados.length))
-						if (contador < lista_de_executados.length) {
+							el3 = await querySelectorByText('div[class*="btn"]','Adicionar');
+						}			
+						let totalExecutados = lista_de_executados.length;
+						// console.log(contador + " < " + totalExecutados + " : " + (contador < totalExecutados));
+						if (contador < totalExecutados) {
 							console.log("      |___" + contador + ": " + lista_de_executados[contador].nome + " (" + lista_de_executados[contador].cpfcnpj + ")");
 							await preencherInput(el1, lista_de_executados[contador].nome);
 							await preencherInput(el2, lista_de_executados[contador].cpfcnpj);
@@ -14320,58 +15823,147 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 							await clicarBotao(el3);
 							return resolve(true);
 						} else { // final da lista de executados
-							observer.disconnect(); //finaliza o MutationObserver
-							fundo(false);
 							contador = 0;
 							console.log("      |___FIM");
 							
-							let ancora = await esperarElemento('button','Incluir Dívida', 500);
-							if (ancora) { await clicarBotao(ancora) }
-							
-							ancora = await esperarElemento('button','Consultar Endereço', 500);
-							if (ancora) { ancora.focus() }
-							
-							ancora = await esperarElemento('button','Atualizar Ação', 500);
-							if (ancora) { await clicarBotao(ancora) }
-							
-							
+							let ancora;
+							if (tipo == 1) {
+								ancora = await esperarElemento('button','Incluir Dívida', 500);
+								if (ancora) { 
+									ancora.scrollIntoView({behavior: 'smooth',block: 'start'});
+									await timer(ancora, 1, 'orangered', 'pulseGeral')
+									browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.serasajud.aa});
+								}
+							} else {
+								ancora = await esperarElemento('button','Consultar Endereço', 500);
+								if (ancora) { 
+									ancora.scrollIntoView({behavior: 'smooth',block: 'start'});
+									await timer(ancora, 1, 'orangered', 'pulseGeral')
+								}
+							}
+
+							observer.disconnect(); //finaliza o MutationObserver
 							return resolve(true);
 						}
 					});
 				}
 			}
 		}
-		
-		async function novaMinutaSerasajud() {
+
+		async function baixarDividaSerasajud() {
+
 			await clicarBotao('button[routerlink="/ordem"]');
 			await clicarBotao('button[routerlink="/cadastrar-ordem"]');
 			await sleep(500);
-			await clicarBotao('button','Verificar');
-			await sleep(500);
-			let jaExiste = esperarElemento('app-dialog-atualizar-baixar-acao',null,1000);
-					
-			if (jaExiste) {
-				await clicarBotao('app-dialog-atualizar-baixar-acao button','Atualizar') 
-			}
+			await clicarBotao('div[aria-posinset="2"]');						
 			
-			await clicarBotao('span[id="maisPje_menuKaizen_itemmenu_preencher_campos"] a'); //preencher campos
+			let novaOrdem = esperarElemento('app-baixa-anotacao',null,1000);						
+			if (novaOrdem) {
+				browser.storage.local.get('processo_memoria', async function(result){
+					preferencias.processo_memoria = result.processo_memoria;
+					console.log("      |___NUMERO DO PROCESSO");
+					await preencherInput('app-baixa-anotacao input[placeholder="0000000-00.0000.0.00.0000"]',preferencias.processo_memoria.numero)
+					await sleep(500);
+					await preenchercamposSerasajud(2);
+					await clicarBotao('app-baixa-anotacao app-acao-buttons button','Baixar Dívida');
+					return;
+				});	
+			}
+		}
+
+		//CALENDARIO SERASAJUD
+		async function preencherDataNoCalendarioSERASAJUD(texto) {
+			return new Promise(async resolve => {
+				//obter a data
+				// console.log(texto)
+				let dataDivida = await decomporData(texto);
+				let dataFim = new Date(dataDivida.ano,dataDivida.mes,dataDivida.dia);
+				let ano = '' + dataFim.getFullYear();
+				console.log("      |___ABRE CALENDARIO ");
+				await clicarBotao('mat-datepicker-toggle');
+				await clicarBotao('mat-calendar button[aria-label="Choose month and year"]');
+				await clicarBotao('mat-calendar button[aria-label="' + ano + '"]'); //clica no ano
+
+				//encontra o mês livre..
+				// let arrayMeses = ["janeiro de ", "fevereiro de ", "março de ", "abril de ", "maio de ", "junho de ", "julho de ", "agosto de ", "setembro de ", "outubro de ", "novembro de ", "dezembro"];
+				let arrayMesesIngles = ["January ", "February ", "March ", "April ", "May ", "June ", "July ", "August ", "September ", "October ", "November ", "December "];
+				let mesD = dataFim.getMonth()-1; //mes em numero
+				let diaD = dataFim.getDate(); //dia em numero
+				let mes; //mes por extenso
+				let elMes; //elemento que representa o mes
+				let elDia; //elemento que representa o dia
+				while(true) {
+					mes = arrayMesesIngles[mesD];
+					console.log('***maisPJe.Sisbajud... tentando acionar o mês ' + mes + ano);
+					elMes = await esperarElemento('mat-calendar button[aria-label="' + mes + ano + '"]');
+					if (!elMes.hasAttribute('aria-disabled')) { break }
+					mesD--;
+					console.log('***maisPJe.Sisbajud... em razão da alteração do mês, o dia será alterado para 31');
+					diaD = 31; //se o mes estiver desabilitado, voltara ao mes anterior e o dia será o último do mes, ou seja 31
+				}
+				await clicarBotao(elMes); //clica no mês
+
+				//encontra o primeiro dia livre..
+				while(true) {
+					console.log('***maisPJe.Sisbajud... tentando acionar o dia ' + mes + diaD + ', ' + ano);
+					// elDia = await esperarElemento('mat-calendar button[aria-label="' + diaD + ' de ' + mes + '"]',null,1000);
+					elDia = await esperarElemento('mat-calendar button[aria-label="' + mes + diaD + ', ' + ano +'"]',null,1000);
+					if (elDia && !elDia.hasAttribute('aria-disabled')) { break }
+					diaD--;
+				}
+				await clicarBotao(elDia); //clica no dia
+				
+				return resolve(true);
+			});
+		}
+
+		async function novaMinutaSerasajud() {
+			await clicarBotao('button[routerlink="/ordem"]');
+			await clicarBotao('button[routerlink="/cadastrar-ordem"]');
+			browser.storage.local.get('processo_memoria', async function(result){
+				preferencias.processo_memoria = result.processo_memoria;
+				await preencherInput('input[placeholder="0000000-00.0000.0.00.0000"]',preferencias.processo_memoria.numero)
+				await sleep(500);
+
+				let btVerificar = await esperarElemento('button','Verificar')
+				btVerificar.scrollIntoView({behavior: 'smooth',block: 'start'});
+				await timer(btVerificar, 0, 'orangered', 'pulseGeral')
+				// await clicarBotao('button','Verificar');
+
+				await sleep(500);
+				let novaOrdem = esperarElemento('app-inclusao-acao',null,1000);						
+				if (novaOrdem) {
+					preenchercamposSerasajud(1);
+				}
+			});
 		}
 		
 		async function novaMinutaEndSerasajud() {
+			
 			await clicarBotao('button[routerlink="/ordem"]');
 			await clicarBotao('button[routerlink="/cadastrar-ordem"]');
 			await sleep(500);
 			await clicarBotao('div[aria-posinset="2"]');
 			await sleep(500);
-			await clicarBotao('span[id="maisPje_menuKaizen_itemmenu_preencher_campos"] a'); //preencher campos
+			let novaOrdem = esperarElemento('app-consultar-endereco',null,1000);						
+			if (novaOrdem) {
+				browser.storage.local.get('processo_memoria', async function(result){					
+					preferencias.processo_memoria = result.processo_memoria;
+					await preencherInput('input[placeholder="0000000-00.0000.0.00.0000"]',preferencias.processo_memoria.numero)
+					preenchercamposSerasajud(2);
+				});	
+			}
 		}
 		
-		async function consultarMinutaSerasajud() {
+		async function consultarMinutaSerasajud() {			
 			await clicarBotao('button[routerlink="/listar-ordem"]');
 			let var1 = browser.storage.local.get('processo_memoria', async function(result){
-				await preencherInput('input[formcontrolname="nroProcesso"]', result.processo_memoria.numero);
-				await sleep(500);
-				await clicarBotao('button','Buscar');
+				await preencherInput('input[formcontrolname="numeroProcesso"]', result.processo_memoria.numero);
+				let ancora = await esperarElemento('app-loader div[class*="loading-gif"]', null, 1000);
+				if (!ancora) {
+					await clicarBotao('app-listar-ordem button','Buscar');
+				}
+				
 			});
 			
 		}		
@@ -14564,7 +16156,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 			
 			console.log("   |___PREENCHER CAMPOS");
 			// let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
-			let lista_de_executados = await criarCaixaDeSelecaoComTodos();
+			let lista_de_executados = await criarCaixaDeSelecaoComTodos(false);
 			fundo(true);
 			if (!lista_de_executados) { return }			
 			console.log("      |___INSERÇÃO DOS RÉUS");
@@ -14628,7 +16220,8 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 						selecao4.selected = true;
 						triggerEvent(magistrado,'change');
 						
-						await preencherInput('input[id="numeroProcesso"]', result.processo_memoria.numero);
+						let inputNumeroProcesso = await esperarElemento('input[id="numeroProcesso"]');
+						await simularDigitacaoDeTexto(inputNumeroProcesso,result.processo_memoria.numero,0,'keydown');
 						await clicarBotao('button', 'Inserir');
 						
 						let btConfirmar = await esperarElemento('button', 'Confirmar');
@@ -14885,12 +16478,11 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 					let el = document.querySelector('input[name="numeroProcesso"]');
 					el.focus();
 					
-					let var1 = browser.storage.local.get('processo_memoria', function(result){
-						el.value = result.processo_memoria.numero;
-						triggerEvent(el, 'input');
-						el.blur();
-						acao2();
-					});
+					el.value = preferencias.processo_memoria.numero;
+					triggerEvent(el, 'input');
+					el.blur();
+					acao2();
+					
 				}
 				
 				//MOTIVO DA CONSULTA
@@ -14975,7 +16567,7 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 					await clicarBotao('BUTTON','APLICAR');
 					fundo(false);
 				} else {
-					let lista_de_partes = await criarCaixaDeSelecaoComTodos();
+					let lista_de_partes = await criarCaixaDeSelecaoComTodos(false);
 					if (!lista_de_partes) { return }
 					fundo(true);
 					let el1 = await esperarElemento('MAT-CARD','SOLICITAR DOSSIÊ');
@@ -15174,8 +16766,13 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				await preencherInput('app-public-query input[formcontrolname="cpfCnpj"]', cpfCnpjSoNumeros);
 				el.blur(); //tirar o foco para quando for pressionar p
 				await clicarBotao('app-public-query button','Buscar');
-				await sleep(1000);
-				await clicarBotao(document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]'));
+				
+				//desafio captcha
+				let existeDesafio = await esperarElemento('iframe[title*="desafio"]',null,2000);
+				if (existeDesafio) { //verifica se foi resolvido a cada segundo
+					await esperarDesaparecer(existeDesafio.parentElement.parentElement,1000);
+					await clicarBotao(document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]'));
+				} 				
 				fundo(false);
 			}
 		}
@@ -15300,17 +16897,13 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 			
 			// console.log("   |___PREENCHER CAMPOS");
 			let formGroups = await esperarColecao('#processoTab-panel div[class="form-group"]');
-			let var1 = browser.storage.local.get('processo_memoria', function(result){		
-				preferencias.processo_memoria = result.processo_memoria;
-				acao1();
-			});
+			acao1();
 			
 			
 			async function acao1() {
 				fundo(true);
 				console.log("      |___NOME DA VARA");				
-				let el1 = formGroups[0].querySelector('input');				
-				// await selecionarVara(el1, preferencias.saj.vara);
+				let el1 = formGroups[0].querySelector('input');		
 				await preencherCampoPeloTipo(el1, preferencias.saj.vara);
 				await clicarBotao(el1);
 				await clicarBotao(el1.parentElement.querySelector('div'), preferencias.saj.vara);
@@ -15373,14 +16966,10 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				
 				let el15 = document.querySelector('#processoTab-panel input[id="email"]');
 				await preencherCampoPeloTipo(el15, preferencias.saj.email);
-				
-				// não está funcionando.. o usuário terá que preencher manualmente
-				// let el16 = document.querySelector('#processoTab-panel input[id="telefone"]');
-				// el16.focus();
-				// el16.value = preferencias.saj.telefone;
-				// triggerEvent(el16, 'input');
-				// el16.blur();
-				
+								
+				let el16 = document.querySelector('#processoTab-panel input[id="telefone"]');
+				await simularDigitacaoDeTexto(el16,preferencias.saj.telefone,0)
+								
 				//próximo
 				await clicarBotao('app-requisicao-extrato-cadastro label', 'Próximo');
 
@@ -15391,32 +16980,32 @@ function menuConvenios(nome_convenio,executar_funcao='') {
 				if (!lista_de_executados) { return }
 				let listaDeReus = document.querySelector('app-dialog-adicionar-investigados input[aria-label="+CPF/CNPJ"]');
 				for (let [pos, reu] of lista_de_executados.entries()) {
-					console.log("      |___" + reu.nome + " ( " + reu.cpfcnpj + ")");
+					// console.log("      |___" + reu.nome + " ( " + reu.cpfcnpj + ")");
 					await preencherCampoPeloTipo(listaDeReus, reu.cpfcnpj);
 					await sleep(1000)
 				}
 				console.log("      |___FIM");
-				
-
 
 				//enviar ordem
 				// await clicarBotao('app-requisicao-extrato-cadastro button', 'Enviar Ordem');
 			}
 			
 		}
-	
+		
+		function alterarTootlipMenu(itemMenu, novoTooltip) {
+			return itemMenu.querySelector('a').setAttribute('maisPje-tooltip-esquerda', novoTooltip);
+		}
 	}
 }
 
 //MONITORES MUTATION OBSERVER
-
 async function monitor_janela_tarefa() {
 	if (document.querySelector('body[monitorMaisPje="true"]')) { return } //verifica se o monitor já existe
 	document.body.setAttribute('monitorMaisPje','true');
 	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_tarefa");
 
-	let elParaCorrigirOCabecalho, posicaoAnterior, posicaoAtual;
-	let verificacaoUnica = false; //garante que a verificação do cabeçalho ocorrerá apenas uma vez
+	// let elParaCorrigirOCabecalho, posicaoAnterior, posicaoAtual;
+	// let verificacaoUnica = false; //garante que a verificação do cabeçalho ocorrerá apenas uma vez
 	let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
 		mutationsDocumento.forEach(async function(mutation) {
 			if (!mutation.addedNodes[0]) { return }
@@ -15424,24 +17013,24 @@ async function monitor_janela_tarefa() {
 			
 			// console.log(mutation.addedNodes[0].tagName + '   -   ' + mutation.addedNodes[0].innerText)
 			// verificarBNDT()
-			if (!elParaCorrigirOCabecalho) { 
-				elParaCorrigirOCabecalho = document.querySelector('pje-cabecalho-tarefa');
-				posicaoAnterior = elParaCorrigirOCabecalho?.getBoundingClientRect().bottom;
-				verificacaoUnica = true;
-			}
+			// if (!elParaCorrigirOCabecalho) { 
+			// 	elParaCorrigirOCabecalho = document.querySelector('pje-cabecalho-tarefa');
+			// 	posicaoAnterior = elParaCorrigirOCabecalho?.getBoundingClientRect().bottom;
+			// 	verificacaoUnica = true;
+			// }
 			
-			posicaoAtual = parseInt(elParaCorrigirOCabecalho?.getBoundingClientRect().bottom);
+			// posicaoAtual = parseInt(elParaCorrigirOCabecalho?.getBoundingClientRect().bottom);
 			// console.log('***************' + posicaoAnterior + ' : ' + posicaoAtual)
-			if (verificacaoUnica) {
-				if (posicaoAtual < posicaoAnterior) {
-					let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
-					if (!cabecalho) { return }
-					if (cabecalho.style.position == "relative") { return }
-					cabecalho.style.setProperty("position", "relative", "important");
-					cabecalho.style.setProperty("height", "auto", "important");
-					console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')					
-				}
-			}
+			// if (verificacaoUnica) {
+			// 	if (posicaoAtual < posicaoAnterior) {
+			// 		let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
+			// 		if (!cabecalho) { return }
+			// 		if (cabecalho.style.position == "relative") { return }
+			// 		cabecalho.style.setProperty("position", "relative", "important");
+			// 		cabecalho.style.setProperty("height", "auto", "important");
+			// 		console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')					
+			// 	}
+			// }
 			
 			if (mutation.target.tagName == "MAT-DIALOG-CONTAINER") {//erro ao iniciar a tarefa... FECHAR caixa de dialogo
 				if (mutation.target.innerText.includes('Erro ao iniciar tarefa')) {
@@ -15450,60 +17039,13 @@ async function monitor_janela_tarefa() {
 			}
 			
 			if (document.location.href.includes("/minutar") || document.location.href.includes("/assinar")) { //tela minutar ou assinar DESPACHO/DECISÃO/SENTENÇA
-				// console.log('mutation.target.tagName: ' + mutation.target.tagName + ' class=' + mutation.target.className);
-				// console.log('   |___mutation.addedNodes[0].tagName: ' + mutation.addedNodes[0].tagName + ' class=' + mutation.addedNodes[0].className);				
-				
-				if (mutation.addedNodes[0].tagName == "DIV") { //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS
-					if (mutation.addedNodes[0].getAttribute('aria-label')) {
-						if (mutation.addedNodes[0].getAttribute('aria-label').includes('Ferramentas do Editor') && !document.getElementById('extensaoPje_barra_zoom_editor')) {
-							addZoom_Editor();
-						}
-					}
-				}
-				
-				//
-				if (mutation.addedNodes[0].tagName == "PJE-INTIMACAO-AUTOMATICA") { //INCLUI OS BOTÕES 
-					let controleIntimacao = await esperarElemento('div[class="controle-intimacao"]');
-					if (controleIntimacao) {
-						addBotaoPrazoEmLote();
-						addBotaoMarcarDesmarcarTodos();
-					}
-				}
-				
-				if (mutation.addedNodes[0].tagName == "CANVAS") { //INCLUI O BOTÃO COPIAR TRANSCRIÇÃO
-					let cabecalhoDireita = await esperarElemento('div[class="cabecalho-direita"]');
-					if (cabecalhoDireita) {
-						addBotaoCopiarDocumento();
-					}
-				}
-				
-				
-				if (mutation.addedNodes[0].tagName == "UL") { //INCLUI A OPÇÃO DE INVERTER IDS
-					if (mutation.addedNodes[0].className.includes("ck-list")) {
-						if (preferencias.extrasEditorInverterOrdem) {
-							mutation.addedNodes[0].style = "display: flex;flex-direction: column;";
-						}
-						let lista = mutation.addedNodes[0].querySelectorAll('li');
-						for (let [pos, linha] of lista.entries()) {
-							let span = linha.querySelector('span');
-							if (span.innerText.length <= 0) {
-								if (preferencias.extrasEditorOcultarAutotexto) {
-									linha.remove();
-								} else {
-									linha.style = 'order: ' + (10000 + lista.length - pos) + ";";
-								}
-							} else {
-								linha.style = 'order: ' + (lista.length - pos) + ";";
-							}							
-						}
-					}
-				}
-
 				//ATIVA A SUBSTITUIÇÃO DE VARIÁVEIS NO EDITOR
 				if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR' ||  mutation.target.tagName == 'SIMPLE-SNACK-BAR') {
 					if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor') || mutation.target.innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+						console.log('pelo monitor_janela_tarefa');
 						await substituirVariaveisEditorTexto();
 					}
+					
 				}
 			}
 
@@ -15516,33 +17058,26 @@ async function monitor_janela_tarefa() {
 	});		
 	let configDocumento = { childList: true, subtree:true }
 	observerDocumento.observe(document.body, configDocumento); //inicia o MutationObserver
+
+	let addBotoesDeDespacho = async () => {
+		if (document.location.href.includes("/minutar") || document.location.href.includes("/assinar")) {
+			console.log('maisPJe: addBotoesDeDespacho()')
+			await addZoom_Editor();
+			await clicarBotao('button[aria-label="Salvar"]'); //tem que clicar no botao Salvar para aparecer o elemento ancora dos botoes abaixo
+			await addBotaoPrazoEmLote();
+			await addBotaoMarcarDesmarcarTodos();
+		}
+	};
+	await aguardarUltimoMutation(addBotoesDeDespacho);
 }
 
 async function monitor_documento_JanelaDetalhes() {
 	console.log("Extensão maisPJE (" + agora() + "): iniciarMonitorDeDocumentos");
 	
-	let elParaCorrigirOCabecalho, posicaoAnterior, posicaoAtual;	
 	let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
 		mutationsDocumento.forEach(async function(mutation) {
 			
 				if (!mutation.addedNodes[0]) { return }
-				
-				if (!elParaCorrigirOCabecalho) { 
-					elParaCorrigirOCabecalho = document.querySelector('pje-resumo-processo');
-					posicaoAnterior = elParaCorrigirOCabecalho?.getBoundingClientRect().bottom;
-				}
-				
-				posicaoAtual = elParaCorrigirOCabecalho?.getBoundingClientRect().bottom;
-				// console.log('***************' + posicaoAnterior + ' : ' + posicaoAtual)
-				if (posicaoAtual < posicaoAnterior) {
-					let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
-					if (!cabecalho) { return }
-					if (cabecalho.style.position == "relative") { return }
-					cabecalho.style.setProperty("position", "relative", "important");
-					cabecalho.style.setProperty("height", "auto", "important");
-					console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')
-				}
-				
 				
 				// console.log('************' + mutation.target.tagName + "    :    " + mutation.target.className)
 				// console.log(mutation.target.tagName + " : " + mutation.target.getAttribute('aria-label') + " : " + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className)
@@ -15560,22 +17095,49 @@ async function monitor_documento_JanelaDetalhes() {
 				}
 				
 				if (mutation.addedNodes[0].tagName == 'PJE-HISTORICO-SCROLL-DOCUMENTO') { // conteudo-documento
-					if (mutation.target.getElementsByTagName('object')[0]) { //modelo novo						
-						let id_div_documento_principal = mutation.target.getElementsByTagName('object')[0].id.replace("obj", "");
-						await addBotoesDocumentoCarregado(id_div_documento_principal);
-						await addBotaoCopiarDocumento(id_div_documento_principal);
+					
+					if (mutation.target.getElementsByTagName('object')[0]) { //modelo novo
 						
+						let id_div_documento_principal = mutation.target.getElementsByTagName('object')[0].id.replace("obj", "");
+						await addBotaoCopiarDocumento(id_div_documento_principal); //já está inserido abaixo******
+						await addBotoesDocumentoCarregado(id_div_documento_principal);						
 						//cria o onkeydow listener para o documento do processo pois o listener tradicional "desaparece" no iframe
 						let el_docto = document.querySelector('#' + mutation.target.getElementsByTagName('object')[0].id);
 						if (!el_docto) { return }
-						el_docto.addEventListener("load", function() { 
+						// el_docto.addEventListener("load", function() { //comentei porque o load não estava iniciando.. sem ele passou a funcionar
 							let el_docto_conteudo = el_docto.contentDocument || el_docto.contentWindow.document;
 							if (!el_docto_conteudo) { return }
 							el_docto_conteudo.addEventListener('keydown', async function(event) {
+								if (event.getModifierState("Control")) {
+									if (preferencias?.atalho?.painelcopiaecola && (event.key === preferencias.atalho.painelcopiaecola)) {
+										if (document.location.href.includes("/detalhe")) {
+											let numeroProcesso = await esperarElemento(seletorDetalhesNumeroProcesso);
+											if (preferencias.processo_memoria) {
+												if (preferencias.processo_memoria.numero != numeroProcesso.innerText) {
+													await gigsCriarMenu();
+												}
+											} else {
+												await gigsCriarMenu();
+											}
+											
+											console.log('segue em frente')
+											let var1 = browser.storage.local.get('processo_memoria', async function(result){
+												if (!result.processo_memoria.numero) { return }
+												event.preventDefault();
+												window.onunload = function() {
+													browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});											
+												};
+												browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});		
+											});
+											return;
+										}
+									}
+								}
+
 								if (event.code === "F1") {
 									event.preventDefault();
 									event.stopPropagation();
-									consultaRapidaPJE();	
+									await consultaRapidaPJE();
 								} else if (event.code === "F2") {
 									event.preventDefault();
 									event.stopPropagation();
@@ -15595,19 +17157,26 @@ async function monitor_documento_JanelaDetalhes() {
 								
 								}
 							});
-						});
+						// });
 
 						
 					} else { //modelo antigo
 						let url = await obterUrlDoNetworkRequest('/documentos/id/');
 						let idDoDocumento = await obterIdDocumentoDaUrl(url);
-						await addBotoesDocumentoCarregado(idDoDocumento);
+						
 						await addBotaoCopiarDocumento(idDoDocumento);
+						await addBotoesDocumentoCarregado(idDoDocumento);
 					}
 				}
 				
 				if (mutation.addedNodes[0].tagName == 'PJE-GIGS-CADASTRO-ATIVIDADES') {
 					gigsInserirBorrachaResponsavel();
+				}
+
+				if (mutation.addedNodes[0].tagName == 'PJE-EXPEDIENTES-DIALOGO') {
+					// console.log('expedientes')
+					
+					addCertificarPrazos();
 				}
 				
 				
@@ -15619,25 +17188,6 @@ async function monitor_documento_JanelaDetalhes() {
 							await mapearChecklistExecucao(mutation.target);
 						});
 					}
-				}
-				
-				if (mutation.target.tagName == 'DIV' && mutation.target.className.includes('cabecalho-direita') && mutation.addedNodes[0].tagName == 'BUTTON') {
-					if (!mutation.addedNodes[0].getAttribute('aria-label')) { return }
-					if (mutation.addedNodes[0].getAttribute('aria-label').includes('Histórico de versões')) {
-						if (mutation.target.getElementsByTagName('object')[0]) { //modelo novo
-							let id_div_documento_principal = mutation.target.getElementsByTagName('object')[0].id.replace("obj", "");
-							await addBotaoCopiarDocumento(id_div_documento_principal);
-						} else { //modelo antigo
-							if (!document.getElementsByTagName('pje-historico-scroll-titulo')[0]) { return }
-							if (!document.getElementsByTagName('pje-historico-scroll-titulo')[0].querySelector('button[aria-label="Certidão"]')) { return }
-							if (!document.getElementsByTagName('pje-historico-scroll-titulo')[0].querySelector('button[aria-label="Certidão"]').parentElement) { return }
-							let el = document.getElementsByTagName('pje-historico-scroll-titulo')[0].querySelector('button[aria-label="Certidão"]').parentElement;
-							let id_div_documento_principal = el.href.substring(el.href.search('documento/') + 10);
-							id_div_documento_principal = id_div_documento_principal.replace('/certidao','');
-							await addBotaoCopiarDocumento(id_div_documento_principal);
-						}
-					}
-					
 				}
 				
 				if (mutation.target.tagName == 'DIV' && mutation.addedNodes[0].tagName == 'MAT-CHECKBOX') {
@@ -15676,7 +17226,7 @@ async function monitor_documento_JanelaDetalhes() {
 								naTimeLine.parentElement.querySelector('a[class="tl-documento"]').click();
 								
 								//corrige cabeçalho da janela detalhes
-								document.querySelector('button[aria-label*="Abre a tarefa"]').focus();
+								corrigeCabecalho();
 							}
 						}
 					}
@@ -15704,11 +17254,7 @@ async function monitor_documento_JanelaDetalhes() {
 									naTimeLine.parentElement.querySelector('a[class="tl-documento"]').click();
 
 									//corrige cabeçalho da janela detalhes
-									document.querySelector('button[aria-label*="Abre a tarefa"]').focus();
-									// let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
-									// if (!cabecalho) { return }
-									// cabecalho.style.setProperty("position", "relative", "important");
-									// cabecalho.style.setProperty("height", "auto", "important");
+									corrigeCabecalho();
 								}
 							}
 						}
@@ -15717,24 +17263,6 @@ async function monitor_documento_JanelaDetalhes() {
 				resolve(true);
 			}
 		});
-	}
-	
-	async function converterDataTimeline(inputFormat) {
-		console.log("Inicio: " + inputFormat);
-		inputFormat = inputFormat.replace("\/01\/" , " jan. ");
-		inputFormat = inputFormat.replace("\/02\/" , " fev. ");
-		inputFormat = inputFormat.replace("\/03\/" , " mar. ");
-		inputFormat = inputFormat.replace("\/04\/" , " abr. ");
-		inputFormat = inputFormat.replace("\/05\/" , " mai. ");
-		inputFormat = inputFormat.replace("\/06\/" , " jun. ");
-		inputFormat = inputFormat.replace("\/07\/" , " jul. ");
-		inputFormat = inputFormat.replace("\/08\/" , " ago. ");
-		inputFormat = inputFormat.replace("\/09\/" , " set. ");
-		inputFormat = inputFormat.replace("\/10\/" , " out. ");
-		inputFormat = inputFormat.replace("\/11\/" , " nov. ");
-		inputFormat = inputFormat.replace("\/12\/" , " dez. ");
-		console.log("Fim: " + inputFormat);
-		return inputFormat;
 	}
 
 	//FUNÇÃO RESPONSÁVEL POR SELECIONAR OS ANEXOS DO DOCUMENTO PRINCIPAL NOS CASOS DE SELEÇÃO EM LOTE DO PJE
@@ -15745,9 +17273,19 @@ async function monitor_documento_JanelaDetalhes() {
 		}
 	}
 
+	function corrigeCabecalho() {
+		let cabecalho = document.querySelector('mat-sidenav-container[class*="mat-drawer-container"]');							
+		if (!cabecalho) { return }
+		if (cabecalho.style.position == "relative") { return }
+		cabecalho.style.setProperty("position", "relative", "important");
+		cabecalho.style.setProperty("height", "auto", "important");
+		console.debug('maisPJe: corrigindo o cabeçalho da Janela Detalhes do Processo')
+		return;
+	}
 }
 
 async function monitor_Janela_Principal() {
+	
 	let janelaPrincipal = await esperarElemento('button[aria-label="Menu Completo"]', null, 500); //esperar por 0.5 segundo
 	if (janelaPrincipal) {
 		let existeMonitor = await criar_elemento_monitor('MAISPJEMONITORJANELAPRINCIPAL');
@@ -15804,11 +17342,28 @@ async function monitor_Janela_Principal() {
 					if (mutation.addedNodes[0]) {
 						if (!mutation.addedNodes[0].tagName) { return }
 						
-						// console.log('ADD: ' + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+						if (mutation.addedNodes[0]?.parentElement?.tagName == 'THEAD') { //barra de carregamento da tabela
+							// console.log('ADD: ' + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+							// console.log('           |___' + mutation.addedNodes[0].childNodes[0].tagName + ' ---- ' + mutation.addedNodes[0].childNodes[0].className)
+							// console.log('                  |___' + mutation.addedNodes[0].childNodes[0].childNodes[0].tagName + ' ---- ' + mutation.addedNodes[0].childNodes[0].childNodes[0].className)
+							let barraDeCarregamento = mutation.addedNodes[0]?.childNodes[0]?.childNodes[0]?.tagName;
+							if (barraDeCarregamento) {
+								await esperarDesaparecer(barraDeCarregamento);
+								await sleep(1000);
+								let btMeuFiltro = document.getElementById('maisPje_bt_principal_3');
+								if (btMeuFiltro?.hasAttribute('maispje_ativado')) {
+									fundo(true,'maisPJe: aplicando Meu Filtro...');
+									await sleep(1000);									
+									filtrarPorMeuFiltro();
+									fundo(false);
+								}
+							}
+						}
+						
 						
 						if (mutation.addedNodes[0].tagName == 'PJE-HOME') {
-							console.log('Janela Principal - Troca de Perfil');
-							await obterOJdoUsuario();
+						// 	console.log('Janela Principal');
+							await guardarOJdoUsuario();
 						}
 						
 						// if (mutation.addedNodes[0].tagName == 'PJE-GIGS-MEU-PAINEL') {
@@ -15832,6 +17387,7 @@ async function monitor_Janela_Principal() {
 						// 	console.log('Janela Principal - Verificar Atas de Audiência');							
 						// }
 						
+						
 						if (mutation.addedNodes[0].tagName == 'MAT-PROGRESS-SPINNER' && document.location.href.includes('/pauta-inteligente')) {
 							console.log('Janela Principal - Pauta Inteligente');
 							conciLIAnaPauta();
@@ -15847,7 +17403,7 @@ async function monitor_Janela_Principal() {
 						}
 
 						if (mutation.addedNodes[0].tagName == 'PJE-PAUTA-AUDIENCIAS') { //primeira tela
-							console.log('ADD: ' + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+							// console.log('ADD: ' + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
 							
 							let ancora = await esperarElemento('button[aria-label="Mês anterior"]');
 
@@ -15863,8 +17419,6 @@ async function monitor_Janela_Principal() {
 
 						}
 
-						
-						
 						// if (mutation.addedNodes[0].tagName == 'PJE-DESIGNACAO-AUTOMATICA') {
 							// console.log('Janela Principal - Designação Automática de Responsável');
 						// }
@@ -15894,9 +17448,9 @@ async function monitor_Janela_Principal() {
 									});
 									console.log('3')
 									document.querySelector('button[aria-label="Primeiro"]').addEventListener('click', async function(event) {
-		await aguardarCarregamentoTabela();
-		await sleep(1000);
-		conciLIAnaTriagemInicial();
+										await aguardarCarregamentoTabela();
+										await sleep(1000);
+										conciLIAnaTriagemInicial();
 									});
 									console.log('4')
 									document.querySelector('button[aria-label="Anterior"]').addEventListener('click', async function(event) {
@@ -15972,7 +17526,7 @@ async function monitor_Janela_Principal() {
 						
 						//TELA ESCANINHO > SITUAÇÃO DO ALVARÁ
 						if (mutation.addedNodes[0].tagName == 'NG-COMPONENT') {
-							if (!preferencias.modulo9.sif) { return }
+							if (!preferencias.modulo9.sif[0]) { return }
 							let el = document.querySelector('pje-data-table[nametabela*="Tabela de situação do alvará"]');
 							if (!el) { return }							
 							let ancora = await esperarElemento('div[class="div-estatisticas"]');
@@ -15987,7 +17541,7 @@ async function monitor_Janela_Principal() {
 								ancora.appendChild(botao);
 							}
 						}
-					
+											
 						//TELA PAUTA MENSAL DE AUDIÊNCIAS
 						if (document.querySelector('pje-pauta-audiencias') && document.querySelector('table[name*="Horários do"]') && preferencias.modulo10_juntadaMidia[0]) {
 							if (mutation.addedNodes[0].tagName != 'TR') { return }
@@ -16032,8 +17586,7 @@ async function monitor_Janela_Principal() {
 					}
 					
 					// if (mutation.removedNodes[0]) {
-					// 	if (!mutation.removedNodes[0].tagName) { return }
-						
+						// if (!mutation.removedNodes[0].tagName) { return }
 						// console.log('DEL: ' + mutation.removedNodes[0].tagName + " : " + mutation.removedNodes[0].className + " : " + mutation.removedNodes[0].innerText);
 						
 					// }
@@ -16041,7 +17594,7 @@ async function monitor_Janela_Principal() {
 				});
 			});
 			observerJanelaPrincipal.observe(document.body, { childList: true, subtree:true }); //inicia o MutationObserver
-			await obterOJdoUsuario();
+			await guardarOJdoUsuario();
 		}
 		//atualiza o grau do usuario
 		// await apiObterGraudeJurisdicaoDoPerfil();
@@ -16094,16 +17647,7 @@ async function monitor_Janela_Principal() {
 			}
 		})
 	}
-
-	async function obterOJdoUsuario() {
-		return new Promise(async resolve => {
-			let oju = await esperarElemento('pje-cabecalho-perfil span[class*="papel-usuario"]');
-			preferencias.oj_usuario = oju.innerText;
-			console.log('preferencias.oj_usuario: ' + preferencias.oj_usuario)
-			let var0 = browser.storage.local.set({'oj_usuario': preferencias.oj_usuario});
-			Promise.all([var0]).then(values => { return resolve(preferencias.oj_usuario) });
-		});
-	}
+	
 }
 
 async function monitor_Janela_Gigs_Separada() {
@@ -16216,7 +17760,7 @@ async function monitor_janela_sisbajud() {
 					if (mutation.addedNodes[0].tagName == "BUTTON" && (mutation.addedNodes[0].innerText.includes('Salvar') || mutation.addedNodes[0].innerText.includes('Protocolar'))) {
 						if (!mutation.addedNodes[0].hasAttribute('disabled')) {
 							if (!mutation.addedNodes[0].hasAttribute('maispje')) {
-								acionarSemCliqueGenerico(mutation.addedNodes[0],'#005efc','#ff3d00')
+								acionarSemClique(mutation.addedNodes[0],'#005efc','#ff3d00')
 							}
 						}
 					}
@@ -16225,7 +17769,7 @@ async function monitor_janela_sisbajud() {
 						let btExportarPDF = document.querySelector('button[title="Exportar PDF"]:not([disabled])');
 						if (!btExportarPDF.hasAttribute('maispje')) {
 							btExportarPDF.setAttribute('maisPje','true');
-							acionarSemCliqueGenerico(btExportarPDF,'#005efc','#ff3d00')
+							acionarSemClique(btExportarPDF,'#005efc','#ff3d00')
 						}
 					}
 
@@ -16471,19 +18015,20 @@ async function monitor_janela_sisbajud() {
 		let changedItems = Object.keys(changes);
 		for (let item of changedItems) {
 			// browser.runtime.sendMessage({tipo: 'storage_guardar', chave: 'tempAR', valor: 'F2'});
-			console.log('*********************************' + item + ' : ' +changes[item].newValue)
+			// console.log('*********************************' + item + ' : ' +changes[item].newValue)
 			if (item == "tempAR") { //controla as AA e os vínculos (No caso aqui só nos interessa os vínculos
 				if (changes[item].newValue == 'F2') {
 					clicarBotao('span[id="maisPje_menuKaizen_itemmenu_preencher_campos"] a');
 				} else if (changes[item].newValue.includes('conferirTeimosinhaEmLote')) {
 					fundo(true)
 					let processo = changes[item].newValue.replace('conferirTeimosinhaEmLote','');
-					let barraLateral = await esperarElemento('mat-sidenav-container mat-sidenav');			
-					barraLateral.style.marginLeft = '-1000px';
-					await clicarBotao('button[aria-label*="menu de navegação"]');
+					// let barraLateral = await esperarElemento('mat-sidenav-container mat-sidenav');			
+					// barraLateral.style.marginLeft = '-1000px';
+					await clicarBotao('button[aria-label*="menu de navegação"]'); //exibir
 					await clicarBotao('a[aria-label*="Ir para Teimosinha"]');
 					await preencherInput('input[placeholder="Número do Processo"]',processo,false);
 					await clicarBotao('button', 'Consultar');
+					await clicarBotao('button[aria-label*="menu de navegação"]'); //ocultar
 					let resposta = [];
 
 					let erro = await esperarElemento('sisbajud-snack-messenger','Nenhuma série encontrada',1000);
@@ -16494,8 +18039,9 @@ async function monitor_janela_sisbajud() {
 							let d = linha.querySelector('td[data-label*="dataProgramada"]').innerText;
 							let v = linha.querySelector('td[data-label*="valorBloqueado"]').innerText;
 							let s = linha.querySelector('td[data-label*="dataFim"]').innerText; //status encerrada?
-							console.log(i + ' : ' + d + ' : ' + v + ' : ' + s)
-							resposta.push({id:i,data:d,valor:v,situacao:s});
+							let p = linha.querySelector('td[data-label*="processo"]').innerText;
+							console.log(i + ' : ' + d + ' : ' + v + ' : ' + s + ' : ' + p)
+							resposta.push({id:i,data:d,valor:v,situacao:s,processo:p});
 						}
 					}
 				
@@ -16591,7 +18137,7 @@ async function monitor_janela_sisbajud() {
 					let btSalvar = querySelectorByText('Button','Salvar');
 					if (btSalvar) {
 						if (!btSalvar.hasAttribute('maispje')) {
-							acionarSemCliqueGenerico(btSalvar,'#005efc','#ff3d00')
+							acionarSemClique(btSalvar,'#005efc','#ff3d00')
 						}						
 					}
 				}
@@ -16768,16 +18314,28 @@ async function monitor_janela_sisbajud() {
 			atalho3.onmouseleave = function () { this.style.backgroundColor = 'white' };
 			atalho3.onclick = async function () { acaoNaoLidas() };
 			el.appendChild(atalho3);
+
+			await inserirBotaoIrAoFinal();
 			
 			//*******************AÇÕES DOS BOTÕES*********************
 			async function acaoBloqueiosPendentes() {
 				await clicarBotao('button[title*="Limpar"]');
 				await clicarBotao('div[role="tab"]', 'Busca por filtros de pesquisa');
 				await vara_juizo();
+
+				//PREENCHER PERIODO DE UM ANO
+				let dataFim = new Date();
+				let dataInicio = new Date();
+				dataInicio.setDate(dataFim.getDate() - 365); // subtrai o numero de dias
+				
+				let camposDeData = await esperarColecao('button[aria-label="Open calendar"]',2);
+				await escolherDataCalendario(camposDeData[0],dataInicio);
+				await escolherDataCalendario(camposDeData[1],dataFim);
+
 				await clicarBotao('button', 'Exibir mais filtros');
 				let ckbox = await esperarElemento('span[class*="mat-checkbox-label"]','Bloqueios efetivados sem qualquer desdobramento');
 				await clicarBotao(ckbox.parentElement.firstElementChild.firstElementChild);
-				await clicarBotao('button', 'Consultar');
+				await clicarBotao('button', 'Consultar');								
 			}
 			
 			async function acaoNaoRespostas() {
@@ -16841,6 +18399,66 @@ async function monitor_janela_sisbajud() {
 				preferencias.erros = '';
 				preferencias.AALote = '';				
 				
+			}
+
+			async function escolherDataCalendario(elementoCalendario, dataEscolhida) {
+				return new Promise(async resolve => {
+					let ano = '' + dataEscolhida.getFullYear();					
+
+					await clicarBotao(elementoCalendario);
+					await clicarBotao('mat-calendar button[aria-label="Choose month and year"]');
+					await clicarBotao('mat-calendar td[aria-label="' + ano + '"]'); //clica no ano
+
+					//encontra o mês livre..
+					let arrayMeses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+					let mesD = dataEscolhida.getMonth(); //mes em numero
+					let diaD = dataEscolhida.getDate(); //dia em numero
+					let mes; //mes por extenso
+					let elMes; //elemento que representa o mes
+					let elDia; //elemento que representa o dia
+					while(true) {
+						mes = arrayMeses[mesD] + ' de ' + ano;
+						elMes = await esperarElemento('mat-calendar td[aria-label="' + mes + '"]');
+						if (!elMes.hasAttribute('aria-disabled')) { break }
+						mesD--;
+						diaD = 31; //se o mes estiver desabilitado, voltara ao mes anterior e o dia será o último do mes, ou seja 31
+					}
+					await clicarBotao(elMes); //clica no mês
+
+					//encontra o primeiro dia livre..
+					
+					while(true) {
+						elDia = await esperarElemento('mat-calendar td[aria-label="' + diaD + ' de ' + mes + '"]',null,1000);
+						if (elDia && !elDia.hasAttribute('aria-disabled')) { break }
+						diaD--;
+					}
+					await clicarBotao(elDia); //clica no dia
+					
+					return resolve(true);
+				});
+			}
+
+			async function inserirBotaoIrAoFinal() {
+				if (document.querySelector('#extensaoPje_sisbajud_atalhoIrAoFinal')) { return }
+				let ancora = document.querySelector('div[class="uikit-actions"]');
+				let atalhoIrAoFinal = document.createElement("button");
+				atalhoIrAoFinal.id = "extensaoPje_sisbajud_atalhoIrAoFinal";
+				atalhoIrAoFinal.className = "mat-fab mat-button-base";
+				atalhoIrAoFinal.style = " margin-right: 3px; height: auto;width: 148px;border-radius: 32px;background-color: wheat;"
+				atalhoIrAoFinal.innerText = "Ir última página";
+				atalhoIrAoFinal.onmouseenter = function () {atalhoIrAoFinal.style.backgroundColor = 'rgb(64,224,208,0.67)'};
+				atalhoIrAoFinal.onmouseleave = function () {atalhoIrAoFinal.style.backgroundColor = 'wheat'};
+				atalhoIrAoFinal.onclick = async function () {
+					while(true) {
+						let bt = document.querySelector('mat-paginator button[aria-label="Próxima página"]');
+						if (bt.hasAttribute('disabled')) { break }
+						bt.click();
+						await esperarElemento('div[class="loading-container"]'); //é o fundo do sisbajud quando está carregando dados a classe deste elemento muda para class="loading-container visible", depois que carrega volta para class="loading-container"
+					}
+				};
+				insertAfter(ancora,atalhoIrAoFinal)
+				acionarSemClique(atalhoIrAoFinal,'wheat','rgb(64,224,208,0.67)')
+				// ancora.parentElement.insertBefore(atalhoIrAoFinal,ancora);
 			}
 			//***********************************************************
 		}
@@ -17290,17 +18908,17 @@ async function monitor_janela_renajudNovo() {
 				selecao3.selected = true;
 				triggerEvent(orgao,'change');
 				
-				if (!document.location.href.includes('veiculo/restricao/exclusao')) {
-					console.log(preferencias.renajud.juiz + " : " + preferencias.renajud.juiz2)
-					let magistrado = await esperarElemento('select[id="magistrado"]');
-					await escolherOpcao(magistrado, preferencias.renajud.juiz2,1);
-					let selecao4 = await esperarElemento('OPTION',preferencias.renajud.juiz2);
-					selecao4.selected = true;
-					triggerEvent(magistrado,'change');
-				}
+				console.log(preferencias.renajud.juiz + " : " + preferencias.renajud.juiz2)
+				let magistrado = await esperarElemento('select[id="magistrado"]');
+				await escolherOpcao(magistrado, preferencias.renajud.juiz2,1);
+				console.log(preferencias.renajud.juiz2 + '*******************')
+				let selecao4 = await esperarElemento('OPTION',preferencias.renajud.juiz2);
+				selecao4.selected = true;
+				triggerEvent(magistrado,'change');
 				
-				console.log(result.processo_memoria.numero)
-				await preencherInput('input[id="numeroProcesso"]', result.processo_memoria.numero);
+				let inputNumeroProcesso = await esperarElemento('input[id="numeroProcesso"]');
+				await simularDigitacaoDeTexto(inputNumeroProcesso,result.processo_memoria.numero,0,'keydown');
+
 				await clicarBotao('button', 'Retirar');
 				
 				let btConfirmar = await esperarElemento('div[class="modal-footer"] button', 'Sim'); //MODAL-CONTAINER button
@@ -17323,6 +18941,38 @@ async function monitor_janela_crcjud() {
 		let resultado = pai.querySelector('label');
 		let assistenteDeImpressao = document.querySelector('#maisPje_assistenteImpressao_crcjud');
 		if (assistenteDeImpressao) { assistenteDeImpressao.setAttribute('tipoDeCertidao',resultado.innerText) }
+
+		//faz a pesquisa ao clicar nos radioButtons
+		fundo(true)
+		await sleep(500);
+		await clicarBotao('#btn_pesquisar');
+		await esperarDesaparecer('span[id="pesq_loading"] img'); //loading
+		await sleep(500);
+		
+		if (document.querySelector('div[id="pesq_registros"] table')) { //achou resultados
+			await clicarBotao(document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]'));
+		} else {
+
+			document.querySelector('div[id="principal"] h1[id="maisPje_tipoDeCertidao"]')?.remove();
+			document.querySelector('div[id="principal"] h4[id="maisPje_nenhumResultado"]')?.remove();
+
+			let tipoDeCertidao = document.querySelector('#maisPje_assistenteImpressao_crcjud');
+			let ancora = document.querySelector('div[id="pesq_registros"]');
+			if (!ancora) { return }
+			let valor = tipoDeCertidao.getAttribute('tipoDeCertidao');
+			let h1 = document.createElement('h1');
+			h1.id = 'maisPje_tipoDeCertidao';
+			h1.style.letterSpacing = '8px';
+			h1.innerText = valor
+			ancora.appendChild(h1);
+			let h4 = document.createElement('h4');
+			h4.id = 'maisPje_nenhumResultado';
+			h4.innerText = 'Nenhum resultado encontrado.';
+			ancora.appendChild(h4);			
+			await clicarBotao(document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]'));
+		}
+
+		fundo(false)
 	}
 
 
@@ -17351,19 +19001,23 @@ async function monitor_janela_crcjud() {
 
 								await preencherInput('input[name="numero_processo"]', result.processo_memoria.numero); //preenche o numero do processo
 								await escolherSelect('select[name="vara_juiz_id"]', 'VARA DO TRABALHO', 3); //escolhe a vara - a primeira que tiver
-								let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
-								if (!lista_de_executados) { return }
-								await preencherInput('input[name="nome_registrado"]', lista_de_executados[0].nome); //preenche o numero do processo
-								await preencherInput('input[name="cpf_registrado"]', lista_de_executados[0].cpfcnpj); //preenche o numero do processo
+
+								let lista_de_partes = await criarCaixaDeSelecaoComTodos(false);
+								// let lista_de_partes = await criarCaixaDeSelecaoComReclamados(false);
+								if (!lista_de_partes) { return }
+								await preencherInput('input[name="nome_registrado"]', lista_de_partes[0].nome); //preenche o numero do processo
+								await preencherInput('input[name="cpf_registrado"]', lista_de_partes[0].cpfcnpj); //preenche o numero do processo
 								await clicarBotao('input[value="C,TC"]');								
 								incluirBT();
 
 							} else if (titulo.includes('Pedido de 2')) {
 								await preencherInput('input[name="numero_processo"]', result.processo_memoria.numero); //preenche o numero do processo
 								await escolherSelect('select[name="vara_juiz_id"]', 'VARA DO TRABALHO', 3); //escolhe a vara - a primeira que tiver
-								let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
-								if (!lista_de_executados) { return }
-								await preencherInput('input[name="nome_registrado"]', lista_de_executados[0].nome); //preenche o numero do processo
+
+								let lista_de_partes = await criarCaixaDeSelecaoComTodos(false);
+								// let lista_de_partes = await criarCaixaDeSelecaoComReclamados(false);
+								if (!lista_de_partes) { return }
+								await preencherInput('input[name="nome_registrado"]', lista_de_partes[0].nome); //preenche o numero do processo
 							} else if (titulo.includes('Pesquisa de Certidões')) {
 								await preencherInput('input[name="num_processo"]', result.processo_memoria.numero); //preenche o numero do processo
 							}
@@ -17389,37 +19043,7 @@ async function monitor_janela_crcjud() {
 	}
 	
 	async function incluirBT() {
-		if (!document.getElementById('maisPje_bt_imprimir')) {
-			let ancora1 = document.getElementById('btn_pesquisar').parentElement;
-			let bt1 = document.createElement("input");
-			bt1.id = "maisPje_bt_imprimir";
-			bt1.className = "botao";
-			bt1.style = 'style="margin-right: 10px;margin-left: 5px;"';
-			bt1.type = "submit";
-			bt1.value = "Imprimir";
-			bt1.onclick = function () {
-				document.querySelector('input[name="nome_pai"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('input[name="nome_mae"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('select[name="uf"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('select[name="cidade_id"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('select[name="cartorio_id"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('input[name="data_ocorrido_ini"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('input[name="data_registro_ini"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('input[name="num_livro"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('input[name="num_folha"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('input[name="num_registro"]').parentElement.parentElement.style.display = "none";
-				document.querySelector('h4').style.display = "none";
 				
-				// inserir o css de impressão
-				let style = document.createElement("style");
-				style.textContent = '@media print { body * { visibility: hidden; } #principal, #principal * { visibility: visible; } }';
-				document.body.appendChild(style);
-				
-				window.print();
-			};
-			ancora1.appendChild(bt1);
-		}
-		
 		if (!document.getElementById('maisPje_bt_incluir_reu')) {
 			let ancora2 = document.getElementById('btn_pesquisar').parentElement;
 			let bt2 = document.createElement("input");
@@ -17428,10 +19052,11 @@ async function monitor_janela_crcjud() {
 			bt2.type = "submit";
 			bt2.value = "Incluir Executado";
 			bt2.onclick = async function () {
-				let lista_de_executados = await criarCaixaDeSelecaoComReclamados(false);
-				if (!lista_de_executados) { return }
-				await preencherInput('input[name="nome_registrado"]', lista_de_executados[0].nome); //preenche o numero do processo
-				await preencherInput('input[name="cpf_registrado"]', lista_de_executados[0].cpfcnpj); //preenche o numero do processo
+				let lista_de_partes = await criarCaixaDeSelecaoComTodos(false);
+				// let lista_de_partes = await criarCaixaDeSelecaoComReclamados(false);
+				if (!lista_de_partes) { return }
+				await preencherInput('input[name="nome_registrado"]', lista_de_partes[0].nome); //preenche o numero do processo
+				await preencherInput('input[name="cpf_registrado"]', lista_de_partes[0].cpfcnpj); //preenche o numero do processo
 			};
 			ancora2.appendChild(bt2);
 		}
@@ -17466,15 +19091,17 @@ async function monitor_janela_expedientes() {
 	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_expedientes");
 	let contadorFecharAutomatico = 0;
 	let targetDocumento = document.body;
+	if (targetDocumento.hasAttribute('maisPJe_monitor_janela_expedientes')) { return }
+	targetDocumento.setAttribute('maisPJe_monitor_janela_expedientes','true');
 	let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
 		mutationsDocumento.forEach(async function(mutation) {
 			if (!mutation.removedNodes[0] && !mutation.addedNodes[0]) { return }
 			
 			if (mutation.addedNodes[0]) {
 				if (!mutation.addedNodes[0].tagName) { return }
-				// console.log("ADDNODES: " + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+				console.log("ADDNODES: " + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
 				
-				if (!mutation.addedNodes[0].tagName.includes('SIMPLE-SNACK-BAR') && !mutation.addedNodes[0].tagName.includes("MAT-FORM-FIELD") && !mutation.addedNodes[0].tagName.includes("UL") && !mutation.addedNodes[0].tagName.includes("PJE-DATA-TABLE")) { return }
+				if (!mutation.addedNodes[0].tagName.includes('MAT-DIALOG-CONTAINER') && !mutation.addedNodes[0].tagName.includes('SIMPLE-SNACK-BAR') && !mutation.addedNodes[0].tagName.includes("MAT-FORM-FIELD") && !mutation.addedNodes[0].tagName.includes("UL") && !mutation.addedNodes[0].tagName.includes("PJE-DATA-TABLE")) { return }
 				
 				if (mutation.addedNodes[0].className.includes('pec-signatarios-ato-individual')) {
 					let campo = mutation.addedNodes[0].querySelector('mat-select[placeholder*="Pessoas que assinam"]');
@@ -17517,6 +19144,13 @@ async function monitor_janela_expedientes() {
 						}
 					}
 				}
+
+				//autorizar prosseguir a AA caso no documento inserido exista texto com marcatexto
+				if (mutation.addedNodes[0].tagName.includes("MAT-DIALOG-CONTAINER")) {
+					if (mutation.addedNodes[0].innerText.includes('Há um texto marcado para análise neste documento.')) {
+						await clicarBotao(mutation.addedNodes[0].querySelectorAll('button')[0])
+					}
+				}
 				
 				if (mutation.addedNodes[0].tagName == 'PJE-DATA-TABLE') {
 					if (mutation.addedNodes[0].getAttribute('aria-label').includes("Endereços do destinatário no sistema")) {
@@ -17525,8 +19159,9 @@ async function monitor_janela_expedientes() {
 				}
 
 				//ATIVA A SUBSTITUIÇÃO DE VARIÁVEIS NO EDITOR
-				if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR' ||  mutation.target.tagName == 'SIMPLE-SNACK-BAR') {
-					if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor') || mutation.target.innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+				if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR') {
+					if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+						console.log('pelo monitor_janela_expedientes');
 						await substituirVariaveisEditorTexto();
 					}
 				}
@@ -17690,8 +19325,9 @@ async function monitor_janela_anexar() {
 			}
 
 			//ATIVA A SUBSTITUIÇÃO DE VARIÁVEIS NO EDITOR
-			if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR' ||  mutation.target.tagName == 'SIMPLE-SNACK-BAR') {
-				if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor') || mutation.target.innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+			if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR') {
+				if (mutation.addedNodes[0].innerText.includes('Modelo de documento inserido com sucesso no editor')) {
+					console.log('pelo monitor_janela_anexar');
 					await substituirVariaveisEditorTexto();
 				}
 			}
@@ -17706,67 +19342,44 @@ async function monitor_janela_PJeCalc() {
 	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_PJeCalc");
 
 	console.log('-+-+-+-+-+-+-+-+' + JSON.stringify(preferencias.tempAR))
-	await esperarElemento('body');
-
-	document.body.addEventListener('click', async function(event) {
-		let barraTitulo = document.querySelector('div[id="barraTitulo"]');
-		if (barraTitulo.innerText.includes('Cálculo > Buscar')) {
-			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria')) { return }
-			let btBuscar = await esperarElemento('input[value="Limpar"]',null,2000);	
-			if (btBuscar) { inserirBotaoBuscaMemoria(btBuscar) }
-		}		
-	});
-	
+	await esperarElemento('body');	
 	document.body.addEventListener('keydown', async function(event) {
+		console.log(event.code)
 		if (event.code === "ESC") {	
-			let guardarStorage = browser.storage.local.set({'tempAR': ''});
-			Promise.all([guardarStorage]).then(values => { 
-				fundo(false);
-			});
+			fundo(false);
+			let var1 = browser.storage.local.set({'tempAR': ''});
+			Promise.all([var1]).then(async values => { fundo(false) });
+			
 		}
 	});
 
-
+	//inserir botoes especiais
+	addBotoesPjeCalc()
 	let tempo_espera = 2000;
 	
-	if (!preferencias.tempAR) { console.log('saiu1');return } //só aciona se tiver preferências.tempAR
-	if (typeof preferencias.tempAR !== 'object') { console.log('saiu2');return } //só aciona se for um object
+	if (!preferencias.tempAR) { return } //só aciona se tiver preferências.tempAR
+	if (typeof preferencias.tempAR !== 'object') { return } //só aciona se for um object
 	
-	// console.log(JSON.stringify(preferencias.tempAR))
-
 	if (preferencias.tempAR.tipo == 'apenasAbrir') { 
 		fundo(true,'maisPJe: buscando cálculo do processo..');		
-	} else if (preferencias.tempAR.tipo == 'RPVPrec') {  
+	} else if (preferencias.tempAR.tipo.includes('RPVPrec')) {  
 		fundo(true,'maisPJe: atualização rápida para RPV / PRECATÓRIO..');
-	} else if (preferencias.tempAR.tipo == 'atualizacaorapida') { 
+	} else if (preferencias.tempAR.tipo.includes('atualizacaorapida')) { 
 		fundo(true,'maisPJe: atualização rápida..');
 	}
-
 		
-	// let barraTitulo = await esperarElemento('div[id="barraTitulo"]');
-	// console.log(barraTitulo?.innerText)
 	let barraTitulo = document.querySelector('div[id="barraTitulo"]');
-	// console.log(barraTitulo?.innerText)
 	if (barraTitulo?.innerText == "") { await clicarBotao('a[title="Buscar Cálculo"]') }
 
-	if (barraTitulo.innerText.includes('Cálculo > Buscar')) {
-				
-		let numeroProcessoDecomposto = await decomporNumeroProcesso(preferencias.tempAR.numeroProcesso.toString());
-		await preencherInputSimples('input[id*="numeroProcessoBusca"]',numeroProcessoDecomposto.numero);
-		await preencherInputSimples('input[id*="digitoProcessoBusca"]',numeroProcessoDecomposto.digito);
-		await preencherInputSimples('input[id*="anoProcessoBusca"]',numeroProcessoDecomposto.ano);
-		await preencherInputSimples('input[id*="justicaBusca"]',numeroProcessoDecomposto.jurisdicao);
-		await preencherInputSimples('input[id*="regiaoBusca"]',numeroProcessoDecomposto.regiao);
-		await preencherInputSimples('input[id*="varaProcessoBusca"]',numeroProcessoDecomposto.vara);
-		let calculosDoSetor = await esperarElemento('input[id*="formulario:setor"]'); //checked="checked"
-		if (calculosDoSetor.hasAttribute('checked')) {
-			await clicarBotao('input[id*="formulario:setor"]');
-			await sleep(250);
-		}
-		await clicarBotao('input[id*="formulario:buscar"]');
-		
+	if (barraTitulo.innerText.includes('Cálculo > Novo Cálculo Externo')) {
+		await clicarBotao('#maisPJe_PJECAL_botao_BuscaMemoria2');
+
+	} else if (barraTitulo.innerText.includes('Cálculo > Buscar')) {
+		await clicarBotao('#maisPJe_PJECAL_botao_BuscaMemoria1');
+		fundo(false);
 		
 		if (preferencias.tempAR.tipo == 'apenasAbrir') { 
+			fundo(false);
 			let var1 = browser.storage.local.set({'tempAR': ''});
 			Promise.all([var1]).then(async values => { fundo(false) });
 
@@ -17874,12 +19487,12 @@ async function monitor_janela_PJeCalc() {
 				
 				} else {
 					
-					let var1 = browser.storage.local.set({'tempAR': ''});
+					// let var1 = browser.storage.local.set({'tempAR': ''});
+					let var1 = browser.storage.local.set({'tempAR':{'tipo':'RPVPrec','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 					Promise.all([var1]).then(async values => {
 						fundo(false);
-						await criarCaixaDeAlerta('ALERTA','Erro do PJeCalc.. Processo Incorreto. Refazer o procedimento',3);						
-						await clicarBotao('li[id="li_operacoes_fechar"] a','Fechar');
-						window.close();
+						await criarCaixaDeAlerta('ALERTA','Erro do PJeCalc.. Processo Incorreto. Refazendo a busca',3);
+						await clicarBotao('.menuImageClose')
 					});
 					
 					
@@ -17892,18 +19505,26 @@ async function monitor_janela_PJeCalc() {
 			Promise.all([guardarStorage]).then(async values => {
 				
 				let inputCheckRPVPrec = await esperarElemento('input[id="formulario:chkEnviarRelatorioPrecatorio"]')
-				if (inputCheckRPVPrec) { await clicarBotao(inputCheckRPVPrec) }
+				if (inputCheckRPVPrec) { 
+					await ativarElemento(inputCheckRPVPrec, tempo_espera);
+					await clicarBotao(inputCheckRPVPrec);
+				}
 
 				let consolidarDados = await esperarElemento('input[value="Consolidar Dados"]')
-				if (consolidarDados) { await clicarBotao(consolidarDados) }
+				if (consolidarDados) { 
+					await ativarElemento(consolidarDados, tempo_espera);
+					await clicarBotao(consolidarDados) ;
+				}
 				
 				await esperarElemento('span[class="rich-messages-label"]','Os dados estão prontos para serem enviados para o PJe',30000); //espera até trinta segundos
 				//o botão enviar ao pje somente aparece após consolidar os dados
 				let btEnviarPJe = await esperarElemento('input[value="Enviar para o PJe"]')
 				if (btEnviarPJe) { 
-					await clicarBotao(btEnviarPJe) 
-					await sleep(tempo_espera + 2000);
-					await clicarBotao('input[id="popup_ok"]');
+					await ativarElemento(btEnviarPJe, tempo_espera);
+					await clicarBotao(btEnviarPJe);
+					let bt_popup_ok = await esperarElemento('input[id="popup_ok"]')
+					await ativarElemento(bt_popup_ok, tempo_espera + 2000);
+					await clicarBotao(bt_popup_ok);
 					
 				}
 					
@@ -17920,7 +19541,7 @@ async function monitor_janela_PJeCalc() {
 				if (avisoSucesso) {
 					await clicarBotao('li[class*="header"]','Operações');
 					await sleep(tempo_espera);
-					await clicarBotao('a[class="menuImageClose"]');
+					await clicarBotao('.menuImageClose');
 					browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Clicar em|Abrir cálculos do processo,Variados|Atualizar Timeline,Nenhum'});
 					window.close();					
 
@@ -17947,8 +19568,10 @@ async function monitor_janela_PJeCalc() {
 			let guardarStorage = browser.storage.local.set({'tempAR':{'tipo':'atualizacaorapida:passo3','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 			Promise.all([guardarStorage]).then(async values => {
 				
-				let observacao = await esperarElemento('textarea[id="formulario:comentarios"]');			
-				await preencherTextArea(observacao,'maisPJe: Atualização Rápida');
+				let observacao = await esperarElemento('textarea[id="formulario:comentarios"]');
+				let txtMensagem = observacao.value;
+				txtMensagem = !txtMensagem.includes('MAISPJE: ATUALIZAÇÃO RÁPIDA') ? txtMensagem + '\nMAISPJE: ATUALIZAÇÃO RÁPIDA' : txtMensagem;
+				await preencherTextArea(observacao,txtMensagem);
 				
 				//antes de clicar no botão liquidar conferir se o PJeCalc está abrindo o cálculo do processo correto... isso é um bug do PJeCalc
 				let processoNumero = document.querySelector('span[id="formulario:panelDadosCalculo"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
@@ -17980,14 +19603,11 @@ async function monitor_janela_PJeCalc() {
 					}
 				
 				} else {
-					
-					let var1 = browser.storage.local.set({'tempAR': ''});
+					let var1 = browser.storage.local.set({'tempAR':{'tipo':'atualizacaorapida','numeroProcesso':preferencias.tempAR.numeroProcesso}});
 					Promise.all([var1]).then(async values => {
 						fundo(false);
-						await criarCaixaDeAlerta('ALERTA','Erro do PJeCalc.. Processo Incorreto. Refazer o procedimento',3);
-						
-						await clicarBotao('li[id="li_operacoes_fechar"] a','Fechar');
-						window.close();
+						await criarCaixaDeAlerta('ALERTA','Erro do PJeCalc.. Processo Incorreto. Refazendo a busca',3);
+						await clicarBotao('.menuImageClose')
 					});
 					
 					
@@ -18000,15 +19620,20 @@ async function monitor_janela_PJeCalc() {
 			Promise.all([guardarStorage]).then(async values => {
 					
 				let consolidarDados = await esperarElemento('input[value="Consolidar Dados"]')
-				if (consolidarDados) { await clicarBotao(consolidarDados) }
+				if (consolidarDados) { 
+					await ativarElemento(consolidarDados, tempo_espera);
+					await clicarBotao(consolidarDados) 
+				}
 				
 				await esperarElemento('span[class="rich-messages-label"]','Os dados estão prontos para serem enviados para o PJe',30000); //espera até trinta segundos
 				//o botão enviar ao pje somente aparece após consolidar os dados
-				let btEnviarPJe = await esperarElemento('input[value="Enviar para o PJe"]')
+				let btEnviarPJe = await esperarElemento('input[value="Enviar para o PJe"]')				
 				if (btEnviarPJe) { 
-					await clicarBotao(btEnviarPJe) 
-					await sleep(tempo_espera + 2000);
-					await clicarBotao('input[id="popup_ok"]');
+					await ativarElemento(btEnviarPJe, tempo_espera);
+					await clicarBotao(btEnviarPJe)
+					let bt_popup_ok = await esperarElemento('input[id="popup_ok"]')
+					await ativarElemento(bt_popup_ok, tempo_espera + 2000);					
+					await clicarBotao(bt_popup_ok);
 					
 				}
 					
@@ -18025,7 +19650,7 @@ async function monitor_janela_PJeCalc() {
 				if (avisoSucesso) {
 					await clicarBotao('li[class*="header"]','Operações');
 					await sleep(tempo_espera);
-					await clicarBotao('a[class="menuImageClose"]');
+					await clicarBotao('.menuImageClose');
 					browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: 'Clicar em|Abrir cálculos do processo,Variados|Atualizar Timeline,Nenhum'});
 					window.close();					
 
@@ -18044,10 +19669,6 @@ async function monitor_janela_PJeCalc() {
 		pesquisarProcesso();
 		
 	}
-
-	
-			
-	
 
 	
 	async function pesquisarProcesso() {
@@ -18082,22 +19703,48 @@ async function monitor_janela_PJeCalc() {
 		});
 	}
 	
-	async function inserirBotaoBuscaMemoria(ancora) {
-		if (!ancora) { return }
-		let var1 = browser.storage.local.get('processo_memoria', async function(result){
-			if (!result.processo_memoria.numero) {return}					
-			console.log("      |___PROCESSO: " + result.processo_memoria.numero);
-			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria')) { return }		
-			let bt = document.createElement('input');
-			bt.id = 'maisPJe_PJECAL_botao_BuscaMemoria'
-			bt.className = "botao";
-			bt.style.width = "90px";
-			bt.style.height = "15px";
-			bt.style.backgroundImage = "linear-gradient(to bottom, orange, orangered)";
-			bt.value = "Buscar maisPje";
+	async function addBotoesPjeCalc() {
+		let barraTitulo = await esperarElemento('div[id="barraTitulo"]',null,2000);
+		if (!barraTitulo) { return }
+		console.log(barraTitulo?.innerText)
+		if (barraTitulo?.innerText.includes('Cálculo > Buscar')) {
+			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria1')) { return }
+			let btBuscar = document.querySelector('input[value="Limpar"]');	
+			if (btBuscar) { inserirBotaoBuscaMemoria(btBuscar,'maisPJe_PJECAL_botao_BuscaMemoria1') }
+		}
+		if (barraTitulo?.innerText.includes('Cálculo > Novo Cálculo Externo')) {
+			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria2')) { return }
+			let btBuscar = document.querySelector('a[title="Selecionar Processo do PJe"]');	
+			if (btBuscar) { inserirBotaoBuscaMemoria(btBuscar,'maisPJe_PJECAL_botao_BuscaMemoria2') }
+		} else if (barraTitulo?.innerText.includes('Cálculo > Novo')) {
+			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria2')) { return }
+			let btBuscar = document.querySelector('a[title="Selecionar Processo do PJe"]');	
+			if (btBuscar) { inserirBotaoBuscaMemoria(btBuscar,'maisPJe_PJECAL_botao_BuscaMemoria2') }
+		}
+		if (barraTitulo?.innerText.includes('Cálculo > Relatório Consolidado > Relatório Consolidado')) {
+			if (document.getElementById('maisPJe_PJECAL_botao_BuscaMemoria3')) { return }
+			let btBuscar = document.querySelector('a[title="Selecionar"]');	
+			if (btBuscar) { inserirBotaoBuscaMemoria(btBuscar,'maisPJe_PJECAL_botao_BuscaMemoria3') }
+		}
+	}
+	
+	async function inserirBotaoBuscaMemoria(ancora,id) {
+		let numeroProcesso = preferencias.tempAR?.numeroProcesso?.toString();
+		if (!numeroProcesso) { numeroProcesso = await obterNumeroProcessoMemoria() } //pega da memória
+		if (!numeroProcesso) { return }
+		console.log("      |___PROCESSO: " + numeroProcesso);
+
+		let numeroProcessoDecomposto = await decomporNumeroProcesso(numeroProcesso);
+		
+		if (ancora.tagName == 'INPUT') {
+			let bt = document.createElement('maisPJe_PJECAL_botao_BuscaMemoria');
+			bt.id = id;
+			bt.style = "width: 90px;  background-image: linear-gradient(orange, orangered);position: absolute;height: 25px;border-radius: 5px;margin-left: 5px;outline: 2px double orangered;border: 2px solid white;color: white;align-content: center;text-align: center;font-family: Arial,verdana,tahoma,helvetica,sans-serif;font-size: 12px;font-weight: bold;cursor: pointer;";
+			bt.innerText = "+PJe:Buscar";
 			bt.title = "Busca o cálculo do processo que está na memória da extensão";
-			bt.onclick = async function () {
-				let numeroProcessoDecomposto = await decomporNumeroProcesso(result.processo_memoria.numero.toString());
+			bt.onmouseover = function() { this.style.filter = 'brightness(0.9)' }
+			bt.onmouseout = function() { this.style.filter = 'brightness(1)' }
+			bt.onclick = async function () {					
 				await preencherInputSimples('input[id*="numeroProcessoBusca"]',numeroProcessoDecomposto.numero);
 				await preencherInputSimples('input[id*="digitoProcessoBusca"]',numeroProcessoDecomposto.digito);
 				await preencherInputSimples('input[id*="anoProcessoBusca"]',numeroProcessoDecomposto.ano);
@@ -18110,13 +19757,59 @@ async function monitor_janela_PJeCalc() {
 					await clicarBotao('input[id*="formulario:setor"]');
 					await sleep(250);
 				}
-
 				await clicarBotao('input[id*="formulario:buscar"]');				
 			}
 			insertAfter(ancora,bt);
-		});
+		} else if (ancora.tagName == 'A') {
+			let bt = document.createElement('maisPJe_PJECAL_botao_BuscaMemoria');
+			bt.id = id;
+			if (id.includes('3')) {
+				bt.style = "width: 90px;  background-image: linear-gradient(orange, orangered);position: absolute;height: 25px;border-radius: 5px;margin: 10px 5px;outline: 2px double orangered;border: 2px solid white;color: white;align-content: center;text-align: center;font-family: Arial,verdana,tahoma,helvetica,sans-serif;font-size: 12px;font-weight: bold;cursor: pointer;";
+				bt.innerText = "+PJe:Buscar";
+				bt.title = "Busca o cálculo do processo que está na memória da extensão";
+				bt.onmouseover = function() { this.style.filter = 'brightness(0.9)' }
+				bt.onmouseout = function() { this.style.filter = 'brightness(1)' }
+				bt.onclick = async function () {
+					await preencherInputSimples('#contentPrincipal input[id*=":numeroProcessoBusca"]',numeroProcessoDecomposto.numero);
+					await preencherInputSimples('#contentPrincipal input[id*=":digitoProcessoBusca"]',numeroProcessoDecomposto.digito);
+					await preencherInputSimples('#contentPrincipal input[id*=":anoProcessoBusca"]',numeroProcessoDecomposto.ano);
+					await preencherInputSimples('#contentPrincipal input[id*=":regiaoBusca"]',numeroProcessoDecomposto.regiao);
+					await preencherInputSimples('#contentPrincipal input[id*=":varaProcessoBusca"]',numeroProcessoDecomposto.vara);
+					await clicarBotao(ancora);
+				}
+			
+			} else {
+				bt.style = "top: 20px;width: 90px;  background-image: linear-gradient(orange, orangered);position: absolute;height: 25px;border-radius: 5px;margin-left: 5px;outline: 2px double orangered;border: 2px solid white;color: white;align-content: center;text-align: center;font-family: Arial,verdana,tahoma,helvetica,sans-serif;font-size: 12px;font-weight: bold;cursor: pointer;";
+				bt.innerText = "+PJe:Buscar";
+				bt.title = "Busca o cálculo do processo que está na memória da extensão";
+				bt.onmouseover = function() { this.style.filter = 'brightness(0.9)' }
+				bt.onmouseout = function() { this.style.filter = 'brightness(1)' }
+				bt.onclick = async function () {
+					await clicarBotao(ancora);
+					await preencherInputSimples('#modalPPJEContentTable input[id*=":numero"]',numeroProcessoDecomposto.numero);
+					await preencherInputSimples('#modalPPJEContentTable input[id*=":digito"]',numeroProcessoDecomposto.digito);
+					await preencherInputSimples('#modalPPJEContentTable input[id*=":ano"]',numeroProcessoDecomposto.ano);
+					await preencherInputSimples('#modalPPJEContentTable input[id*=":regiao"]',numeroProcessoDecomposto.regiao);
+					await preencherInputSimples('#modalPPJEContentTable input[id*=":vara"]',numeroProcessoDecomposto.vara);
+					await clicarBotao('#modalPPJEContentTable a[title="Pesquisar"]');
+					await sleep(800);
+					await clicarBotao('input[id*="formulario:buscar"]');				
+				}
+			}			
+			
+			insertAfter(ancora,bt);
+		}
 	}
 	
+	async function obterNumeroProcessoMemoria() {
+		return new Promise(async resolve => {
+			let var1 = await browser.storage.local.get('processo_memoria', async function(result){
+				if (!result.processo_memoria) { return resolve('') }
+				if (!result.processo_memoria.numero) { return resolve('') }	
+				return resolve(result.processo_memoria.numero);
+			});
+		});
+	}
 }
 
 async function monitor_janela_sif() {
@@ -18124,249 +19817,160 @@ async function monitor_janela_sif() {
 	
 	let nomeBeneficiarioSelecionado = 'nenhum';
 	let representacaoBeneficiarioSelecionado = 'nenhum';
+
+	let ancora = await esperarElemento('pje-dado-processo mat-card-title');
+	let numero = await extrairNumeroProcesso(ancora.innerText);
 	
-	browser.storage.local.get('processo_memoria', function(result){
-		preferencias.processo_memoria = result.processo_memoria;
-	});
-	
+	var listenerRepresentacao = async function() {			
+		
+		if (nomeBeneficiarioSelecionado?.includes('Beneficiário')) { return }
+
+		let ancoraRepresentacao = document.querySelector('pje-form-alvara mat-select[formcontrolname="representacaoForm"]');		
+		
+		if (!ancoraRepresentacao) { return }
+		
+		if (ancoraRepresentacao?.innerText.includes('Representação Processual')) { 
+			// console.log('*************nomeBeneficiarioSelecionado:' + nomeBeneficiarioSelecionado)
+			// console.log('*************representacaoBeneficiarioSelecionado:' + representacaoBeneficiarioSelecionado)
+			ancoraRepresentacao.setAttribute('maisPje','Jus Postulandi');
+			await escolherOpcao(ancoraRepresentacao,'Jus Postulandi');
+			return;
+		}
+
+		if (!ancoraRepresentacao.hasAttribute('maisPje')) { return }
+		// console.log('/////////' + ancoraRepresentacao?.innerText + ' : ' + ancoraRepresentacao.getAttribute('maisPje'))
+		
+		let nomeDaParte = ancoraRepresentacao.getAttribute('maisPje');
+
+		if (ancoraRepresentacao?.innerText.includes('Jus Postulandi')) {
+			nomeDaParte = document.querySelector('pje-form-alvara mat-select[formcontrolname="beneficiario"]')?.innerText;
+			ancoraRepresentacao.setAttribute('maisPje',nomeDaParte)
+
+		} else if (!ancoraRepresentacao?.innerText.includes(nomeDaParte)) {			
+			nomeDaParte = ancoraRepresentacao?.innerText;
+			ancoraRepresentacao.setAttribute('maisPje',nomeDaParte)
+			
+		}
+
+		let novoBeneficiario = await obterDadosDeNomeDaParte(numero, null, nomeDaParte)
+		// console.log(JSON.stringify(novoBeneficiario));
+		let tipoPessoa = novoBeneficiario.cpfcnpj.replace(/\D/gm,'');
+		if (tipoPessoa.length < 12) {
+			await clicarBotao('pje-form-alvara input[value="fisica"]');
+			await preencherInput('pje-form-alvara input[formcontrolname="numeroDocumento"]', novoBeneficiario.cpfcnpj);
+			await clicarBotao('pje-form-alvara button[aria-label="Pesquisar CPF"]');				
+		} else {
+			await clicarBotao('pje-form-alvara input[value="juridica"]');				
+			await preencherInput('pje-form-alvara input[formcontrolname="numeroDocumento"]', novoBeneficiario.cpfcnpj);				
+			await clicarBotao('pje-form-alvara button[aria-label="Pesquisar CNPJ"]');				
+		}
+	}
+
 	let target = document.body;
 	let observer = new MutationObserver(async function(mutationsDocumento) {
 		mutationsDocumento.forEach(async function(mutation) {
 			if (!mutation.removedNodes[0] && !mutation.addedNodes[0]) { return }
 			
-			if (preferencias.processo_memoria) {
-				if (mutation.removedNodes[0]) {
-					if (!mutation.removedNodes[0].tagName) { return }
-					
-					
-					// console.log('REMOVEDNODES : ' + mutation.removedNodes[0].tagName + " : " + mutation.removedNodes[0].className + " : " + mutation.removedNodes[0].innerText);
-					
-					if (mutation.removedNodes[0].tagName == 'DIV' && mutation.removedNodes[0].className.includes('cdk-overlay-backdrop')) {
-						
-						//somente funciona na opção "NOVO ALVARÁ"
-						if (!document.querySelector('pje-novo-alvara-dialog')) { return }
-						
-						if (!document.querySelector('pje-novo-alvara-dialog h2')) { return }
-						
-						if (!document.querySelector('pje-novo-alvara-dialog h2').innerText.includes('Incluir Alvará')) { //somente ativa nos casos de novos alvarás
-							return;
-						}
-						
-						
-						//no caso de edição desligar a extensão
-						if (!document.querySelector('pje-novo-alvara-dialog button[class*="botao-incluir-alterar"]')) { return }
-						
-						if (document.querySelector('pje-novo-alvara-dialog button[class*="botao-incluir-alterar"]').innerText.includes('Alterar')) { return }
-						
-						
-						//ignorar na primeira vez
-						let ancora = document.querySelector('mat-select[placeholder="Beneficiário"]');
-						if (!ancora) { return }
-						if (ancora.innerText.includes('Beneficiário')) { return }
-						
-						if (!document.querySelector('mat-select[placeholder="Beneficiário"]').innerText.includes(nomeBeneficiarioSelecionado)) { //preenche de acordo com o beneficiário
-							if (ancora.getAttribute('maisPje') == 'true') { return }
-							mudancaInfo()
-						} else if (!document.querySelector('mat-select[placeholder="Representação Processual"]').innerText.includes(representacaoBeneficiarioSelecionado)) { //preenche de acordo com a representação processual
-							ancora = document.querySelector('mat-select[placeholder="Representação Processual"]');
-							if (ancora.getAttribute('maisPje') == 'true') { return }
-							mudancaInfo()
-						}
-					}
-				}
-			}
-			
 			if (mutation.addedNodes[0]) {
 				if (!mutation.addedNodes[0].tagName) { return }
+				// console.log(mutation.addedNodes[0].tagName + ' - ' + mutation.addedNodes[0].className + ' - ' + mutation.addedNodes[0].innerText)
 				
-				// console.log('ADDNODES : ' + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
-				
-				if (mutation.addedNodes[0].tagName == 'LABEL' && mutation.addedNodes[0].innerText == 'Código do Banco') {
-					let ancora = await esperarElemento('pje-form-conta-cred mat-form-field');
-					inserirbotao(ancora);
+				if (mutation.addedNodes[0].tagName == 'PJE-NOVO-ALVARA-DIALOG') {
+					console.log('alvara novo')
 				}
 				
 				if (mutation.addedNodes[0].tagName == 'MAT-ERROR' && mutation.addedNodes[0].innerText.includes('Deve ser selecionado um magistrado')) {
-					if (preferencias.modulo8) {
-						if (preferencias.modulo8.length > 0) {
-							let processoNumero = document.querySelector('mat-card-title[class*="dados-processo"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
-							let magistrado = await filtroMagistrado(processoNumero);
-							await clicarBotao('pje-selecionar-magistrado mat-expansion-panel-header');
-							await clicarBotao('mat-list-item', magistrado);
-						}
-					}
+					preencherAlvaraSIF(numero);
 				}
 				
+			}
+
+			if (mutation.removedNodes[0]) {
+				if (!mutation.removedNodes[0].tagName) { return }
+				// console.log(mutation.removedNodes[0].tagName + ' - ' + mutation.removedNodes[0].className + ' - ' + mutation.removedNodes[0].innerText)
+				
+				//troca de beneficiario ou representante
+				if (mutation.removedNodes[0].tagName == 'DIV' && mutation.removedNodes[0].className.includes('mat-select-panel-wrap')) {
+
+					//não pode ter nenhum dos dois
+					if (!document.querySelector('div[aria-label="Selecione o Beneficiário"]') && !document.querySelector('div[aria-label="Selecione o Representante Processual"]')) {
+						nomeBeneficiarioSelecionado = document.querySelector('pje-form-alvara mat-select[formcontrolname="beneficiario"]')?.innerText;
+						representacaoBeneficiarioSelecionado = document.querySelector('pje-form-alvara mat-select[formcontrolname="representacaoForm"]')?.innerText;
+						listenerRepresentacao();
+					}
+					
+				}				
 			}
 		});
 	});		
 	let configDocumento = { childList: true, characterData: true, subtree:true }
 	observer.observe(target, configDocumento); //inicia o MutationObserver
 	
-	function inserirbotao(elemento) {
-		//insere o pacote de ícones
-		browser.runtime.sendMessage({tipo: 'insertCSS', file: 'maisPje_icones.css'});
+	async function preencherAlvaraSIF(numeroProcesso) {
 		
-		//CRIA BOTÃO CONSULTA RAPIDA DE PROCESSOS
-		let container = document.createElement("mat-form-field");
-		container.style = 'align-self: center;margin-right: 10px;';
-		let atalho = document.createElement("a");
-		atalho.id = "maisPJe_atalhoConsultaBancos";
-		atalho.style = 'display: flex; position: relative; z-index: 100; text-align: left; color: black;';
-		atalho.setAttribute('title','MaisPJe: Consultar Código dos Bancos');
-		atalho.onmouseenter = function () {atalho.style.color  = 'orangered'};
-		atalho.onmouseleave = function () {atalho.style.color  = 'black'};
-		atalho.onclick = function () {
-			let nome_banco = prompt('Digite o nome do banco, ou parte dele:\n','');
-			if (!nome_banco) { return }
-			let url = "https://www.google.com/search?q=codigo+de+transferencia+banco+" + nome_banco + "&client=firefox-b-e";
-			window.open(url);
-		};
-		let i = document.createElement("i");
-		i.className = "search";
-		i.style = "display: inline-block; font-style: normal; font-variant: normal; text-rendering: auto; line-height: 1; cursor: pointer; width: 2vh; height: 2vh; background-color: gray;";
-		atalho.appendChild(i);						
-		container.appendChild(atalho);
-		elemento.insertAdjacentElement('beforebegin',container);
-	}
-	
-	async function obterDoctoParte(nome) {
-		return new Promise(
-			resolve => {
-				if (!preferencias.processo_memoria) { return resolve(null) } //se vazio
-					
-				for (const [pos, parte] of preferencias.processo_memoria.autor.entries()) {
-					if (parte.nome.includes(nome)) {
-						return resolve(parte.cpfcnpj);
-						break;
-					}
-				}
-				
-				for (const [pos, parte] of preferencias.processo_memoria.reu.entries()) {
-					if (parte.nome.includes(nome)) {
-						return resolve(parte.cpfcnpj);
-						break;
-					}
-				}
-				
-				for (const [pos, parte] of preferencias.processo_memoria.terceiro.entries()) {
-					if (parte.nome.includes(nome)) {
-						return resolve(parte.cpfcnpj);
-						break;
-					}
-				}
-				
-				for (const [pos, parte] of preferencias.processo_memoria.autor.entries()) {
-					for (const [pos2, adv] of parte.representantes.entries()) {
-						if (adv.nome.includes(nome)) {
-							return resolve(adv.cpfcnpj);
-							break;
-						}
-					}
-				}
-				
-				for (const [pos, parte] of preferencias.processo_memoria.reu.entries()) {
-					for (const [pos2, adv] of parte.representantes.entries()) {
-						if (adv.nome.includes(nome)) {
-							return resolve(adv.cpfcnpj);
-							break;
-						}
-					}
-				}
-				
-				for (const [pos, parte] of preferencias.processo_memoria.terceiro.entries()) {
-					for (const [pos2, adv] of parte.representantes.entries()) {
-						if (adv.nome.includes(nome)) {
-							return resolve(adv.cpfcnpj);
-							break;
-						}
-					}
-				}
+		let beneficiario = await criarCaixaDeSelecaoCom(numeroProcesso);
+		beneficiario.nome = beneficiario.nome.replace(/(\d{1,2}. )/g,'');
+		//retira a posicao do beneficiário do nome, por exemplo: 1. Reu   2. Reu       tira o '1. ' da frente
+		let ancora = await esperarElemento('pje-form-alvara mat-select[placeholder="Confeccionar Alvará"]');
+		let hoje = new Date();
+		let dtVencimento = setDataDias(hoje, 60);
+
+		let dtAtualizacao;
+		if (preferencias.modulo9.sif[2] == 'dia') {
+			dtAtualizacao = hoje.toLocaleDateString();
+		} else {
+			let np = await extrairNumeros(numeroProcesso,true);
+			let ancora = await esperarElemento('pje-dado-conta mat-card-title[class*="dados-conta"]');
+			let conta = await extrairNumeros(ancora.innerText,true);
+			let dadosConta = await obterDetalhesContaSIF(np,conta);			
+			dtAtualizacao = await decomporData(dadosConta.dtDeposito);
+			dtAtualizacao = new Date(dtAtualizacao.ano,dtAtualizacao.mes-1,dtAtualizacao.dia).toLocaleDateString()			
+		}
+
+		if (ancora.innerText.includes('Saque ao Beneficiário')) {
+			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="beneficiario"]', beneficiario.nome);
+			await preencherInput('pje-form-alvara input[formcontrolname="dataAtualizacao"]', dtAtualizacao); //CORREÇÃO
+
+		} else if (ancora.innerText.includes('Transferência ao Beneficiário')) {
+			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="beneficiario"]', beneficiario.nome);
+			//o representante escolhe via listener
+			await preencherInput('pje-form-alvara input[formcontrolname="dataAtualizacao"]', dtAtualizacao);
+
+		} else if (ancora.innerText.includes('Documento de Arrecadação de Receitas Federais DARF')) {
+
+			await escolherOpcao('pje-form-alvara input[formcontrolname="recolhimento"]','6092'); //CODIGO
+			let p = await decomporNumeroProcesso(numeroProcesso);
+			referencia = p.numero + p.digito + p.ano;
+			await preencherInput('pje-form-alvara input[formcontrolname="numeroReferencia"]',referencia); //REFERENCIA			
+			await preencherInput('pje-form-alvara input[formcontrolname="dataVencimento"]', dtVencimento.toLocaleDateString()); //DATA DE VENCIMENTO
+			await preencherInput('pje-form-alvara input[formcontrolname="dataApuracao"]', obterDataMMYYYY(hoje)); //PERÍODO APURAÇÃO		
+			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="contribuinte"]', beneficiario.nome); //CONTRIBUINTE
+			// await esperarTransicaoSIF(60000,'PJE-SPINNER-DIALOG');	//pje-spinner-dialog
+			await preencherInput('pje-form-alvara input[formcontrolname="dataAtualizacao"]', dtAtualizacao); //CORREÇÃO
+
+		} else if (ancora.innerText.includes('Guia da Previdência Social GPS')) {
+
+		} else if (ancora.innerText.includes('Guia de Recolhimento da União - GRU JUDICIAL')) {
+
+			await escolherOpcao('pje-form-alvara input[formcontrolname="recolhimento"]','18740-2');
+			await preencherInput('pje-form-alvara input[formcontrolname="competencia"]', obterDataMMYYYY(hoje));
+			await preencherInput('pje-form-alvara input[formcontrolname="dataVencimento"]', dtVencimento.toLocaleDateString()); //DATA DE VENCIMENTO
+			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="contribuinte"]', beneficiario.nome);
+
+		} else if (ancora.innerText.includes('Transferência Contas Judiciais')) {
+			
+		} else {
+			
+		}
+
+		if (preferencias.modulo8) {
+			if (preferencias.modulo8.length > 0) {
+				let magistrado = await filtroMagistrado(numero);
+				await clicarBotao('pje-selecionar-magistrado mat-expansion-panel-header');
+				await clicarBotao('mat-list-item', magistrado);							
 			}
-		);
-	}
-	
-	async function mudancaBeneficiario(ancora) {
-		fundo(true);
-		ancora.setAttribute('maisPje',true);
-		nomeBeneficiarioSelecionado = ancora.innerText;
-		let tipoBeneficiarioSelecionado = nomeBeneficiarioSelecionado.match(new RegExp(/(\([^\)]+\))/gm)).join();
-		nomeBeneficiarioSelecionado = nomeBeneficiarioSelecionado.replace(tipoBeneficiarioSelecionado,'').trim();
-		let doctoBeneficiarioSelecionado = await obterDoctoParte(nomeBeneficiarioSelecionado);
-		if (!doctoBeneficiarioSelecionado) { return }
-		
-		await clicarBotao('mat-select[placeholder="Representação Processual"]');
-		await clicarBotao('mat-option[value="Jus Postulandi"]');
-		representacaoBeneficiarioSelecionado = document.querySelector('mat-select[placeholder="Representação Processual"]').innerText;					
-		
-		if (doctoBeneficiarioSelecionado.length > 14) {
-			await clicarBotao('mat-radio-button[value="juridica"] input');
-		} else {
-			await clicarBotao('mat-radio-button[value="fisica"] input');
 		}
-		await sleep(500);
-		await preencherInput('input[data-placeholder="Nome do Titular"]',nomeBeneficiarioSelecionado)
-		await preencherInput('input[formcontrolname="numeroDocumento"]',doctoBeneficiarioSelecionado)
-		ancora.setAttribute('maisPje',false);
-		guardarInfo(nomeBeneficiarioSelecionado, representacaoBeneficiarioSelecionado, nomeBeneficiarioSelecionado + doctoBeneficiarioSelecionado);
-		fundo(false);
-	}
-	
-	async function mudancaRepresentacao(ancora) {
-		fundo(true);
-		ancora.setAttribute('maisPje',true);
-		let representacaoBeneficiarioSelecionado = ancora.innerText;
-		let tipoRepresentanteSelecionado = representacaoBeneficiarioSelecionado.match(new RegExp(/(\([^\)]+\))/gm)).join();
-		representacaoBeneficiarioSelecionado = representacaoBeneficiarioSelecionado.replace(tipoRepresentanteSelecionado,'').trim();
-		let doctoRepresentanteSelecionado = await obterDoctoParte(representacaoBeneficiarioSelecionado);
-		if (!doctoRepresentanteSelecionado) { return }
-		
-		if (doctoRepresentanteSelecionado.length > 14) {
-			await clicarBotao('mat-radio-button[value="juridica"] input');
-		} else {
-			await clicarBotao('mat-radio-button[value="fisica"] input');
-		}
-		await sleep(500);
-		await preencherInput('input[data-placeholder="Nome do Titular"]',representacaoBeneficiarioSelecionado)
-		await preencherInput('input[formcontrolname="numeroDocumento"]',doctoRepresentanteSelecionado)
-		ancora.setAttribute('maisPje',false);
-		guardarInfo(null, representacaoBeneficiarioSelecionado, representacaoBeneficiarioSelecionado + doctoRepresentanteSelecionado);
-		fundo(false);
-	}
-	
-	async function guardarInfo(beneficiario, representante, informacoes) {
-		if (beneficiario) { document.querySelector('pje-form-beneficiario').setAttribute('maisPje', beneficiario) }
-		if (representante) { document.querySelector('pje-form-representacao').setAttribute('maisPje', representante) }
-		if (informacoes) { document.querySelector('pje-form-conta-cred').setAttribute('maisPje', informacoes) }
-	}
-	
-	async function mudancaInfo() {
-		let beneficiarioAtual = document.querySelector('mat-select[placeholder="Beneficiário"]').innerText;
-		let representanteAtual = document.querySelector('mat-select[placeholder="Representação Processual"]').innerText;
-		let info1 = (!document.querySelector('input[data-placeholder="Nome do Titular"]')) ? 'nenhum' : document.querySelector('input[data-placeholder="Nome do Titular"]').value;
-		let info2 = (!document.querySelector('input[formcontrolname="numeroDocumento"]')) ? 'nenhum' : document.querySelector('input[formcontrolname="numeroDocumento"]').value;
-		let informacoesAtual = info1 + info2;
-		
-		let beneficiarioAnterior = document.querySelector('pje-form-beneficiario').getAttribute('maisPje');
-		let representanteAnterior = document.querySelector('pje-form-representacao').getAttribute('maisPje');
-		let informacoesAnterior = document.querySelector('pje-form-conta-cred').getAttribute('maisPje');
-		
-		// console.log(beneficiarioAtual + " : " + beneficiarioAnterior);
-		// console.log(representanteAtual + " : " + representanteAnterior);
-		// console.log(informacoesAtual + " : " + informacoesAnterior);
-		
-		if (!beneficiarioAtual.includes(beneficiarioAnterior)) {
-			// console.log('************************ mudou o beneficiario');
-			mudancaBeneficiario(document.querySelector('mat-select[placeholder="Beneficiário"]'));
-		} else if (!representanteAtual.includes(representanteAnterior)) {
-			// console.log('************************ mudou o representante');
-			mudancaRepresentacao(document.querySelector('mat-select[placeholder="Representação Processual"]'));
-		} else if (!informacoesAtual.includes(informacoesAnterior)) {
-			// console.log('************************ mudou a informação');
-			guardarInfo(null,null,informacoesAtual);
-		} else {
-			return;
-		}		
+
 	}
 }
 
@@ -18402,10 +20006,8 @@ async function monitor_janela_siscondj() {
 	let configDocumento = { childList: true, characterData: true, subtree:true }
 	observer.observe(target, configDocumento); //inicia o MutationObserver
 	
-	await abrirSaldoAtualizadoDasContas();
-	await abrirSaldoAtualizadoDasParcelasdaConta();
-	
-	criarBotaoImprimirEmLote();
+	console.log(preferencias.modulo9.siscondj[2])
+	criarBotaoExpandirSubContas(preferencias.modulo9.siscondj[2]);
 
 	async function obterExtrato() {
 		return new Promise(async resolve => {
@@ -18464,7 +20066,8 @@ async function monitor_janela_siscondj() {
 	}
 
 	async function criarBotaoImprimirEmLote() {
-		let bt = criarElemento('span', ' width: 80px; height: auto; background-color: rgb(204, 204, 204); border: 1px solid gray; border-radius: 3px; cursor: pointer;   padding: 10px;', 'Baixar TODOS os Extratos');
+		let bt = criarElemento('span', ' width: 80px; height: auto; background-color: orange; border: 1px solid orangered; border-radius: 3px; cursor: pointer;   padding: 10px;', 'Baixar TODOS os Extratos');
+		bt.id = 'maisPJe_Baixar_TODOS_os_Extratos';
 		bt.onclick = async function () {
 			let extratosDaConta = await esperarColecao('span[id*="maisPje_bt_download_extrato_"]',1,preferencias.maisPje_velocidade_interacao);
 			if (!extratosDaConta) { return resolve(false); }
@@ -18488,6 +20091,31 @@ async function monitor_janela_siscondj() {
 			await criarCaixaDeAlerta('AVISO', 'Download concluído com sucesso! Foram baixados ' + (extratosDaConta.length) + ' extratos.', temporizador=1);
 		}
 		document.getElementById('divAcao').appendChild(bt);
+	}
+
+	async function criarBotaoExpandirSubContas(clicar=false) {
+		if (!document.querySelector('#maispje_bt_expandir')) {
+
+		}
+		let ancora = document.querySelector('#table_processo caption');
+		let button1 = document.createElement('span');
+		button1.id = 'maispje_bt_expandir';
+		button1.style = 'width: 80px; height: auto; background-color: orange; border: 1px solid orangered; border-radius: 3px; cursor: pointer; padding: 5px 10px;margin-left: 10px;font-weight: normal;font-family: Tahoma, Arial, Helvetica, sans-serif;font-size: .8em;';
+		button1.onclick = async function () {
+
+			if (!document.querySelector('#maisPJe_Baixar_TODOS_os_Extratos')) {
+				await abrirSaldoAtualizadoDasContas();
+				await abrirSaldoAtualizadoDasParcelasdaConta();			
+				criarBotaoImprimirEmLote();
+			}
+			
+		}
+		// let span1 = document.createElement('span');		
+		// span1.className = 'ui-button-text';
+		button1.innerText = 'maisPJe: Expandir SubContas';
+		ancora.appendChild(button1);
+
+		if (clicar) { button1.click() }
 	}
 
 	async function criarBotaoImprimirIndividual(elementoAncora,nomeArquivo) {
@@ -18617,7 +20245,7 @@ async function monitor_janela_censec() {
 			// console.log("----------REMOVEDNODES: " + mutation.removedNodes[0].tagName + " : " + mutation.removedNodes[0].className + " : " + mutation.removedNodes[0].innerText);
 			if (mutation.removedNodes[0].tagName == 'DIV' && mutation.removedNodes[0].className.includes('cdk-overlay-backdrop')) {
 				if (document.querySelector('ngx-loading')) { document.querySelector('ngx-loading').setAttribute('maisPje','true') }
-			}
+			}			
 		}
 
 		});
@@ -18663,13 +20291,26 @@ async function monitor_janela_cnib() {
 
 		if (mutation.addedNodes[0]) {
 			if (!mutation.addedNodes[0].tagName) { return }
+			// console.log(mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText); //excluir após os testes
 			if (mutation.addedNodes[0].tagName == 'TABLE' && mutation.addedNodes[0].id == 'tbParties') {
 				let pai = mutation.addedNodes[0].parentElement;
 				pai.style.setProperty('max-height','100%');
 				pai.style.setProperty('height','auto%');
 			}
+
+			if (mutation.addedNodes[0].tagName == 'LABEL' && mutation.addedNodes[0].innerText.includes('FOI AUTORIZADO O CANCELAMENTO DA INDISPONIBILIDADE ABAIXO NO DIA')) {
+				// LABEL : fw-bold text-danger : FOI AUTORIZADO O CANCELAMENTO DA INDISPONIBILIDADE ABAIXO NO DIA 01/09/2025 as 17:00:45
+				let bt = await esperarElemento('a[href="/relatorio/cancelamento/detalhe"]','Imprimir');
+				if (bt) { 
+					console.log('maisPJe: CNIB: clicando em Imprimir ordem de Cancelamento'); 
+					bt.scrollIntoView({behavior: 'smooth',block: 'start'});
+					await timer(bt, 3, 'orangered', 'pulseGeral') 
+				}
+			}
 		}
 
+
+		//divProgressBlazor
 		});
 	});
 	let configDocumento = { childList: true, subtree:true }
@@ -18693,8 +20334,7 @@ async function monitor_janela_onr(acao) {
 	if (cabecalho) {
 		let el_docto_conteudo_cabecalho = cabecalho.contentDocument || cabecalho.contentWindow.document;
 		if (!el_docto_conteudo_cabecalho) { return }
-		el_docto_conteudo_cabecalho.addEventListener('click', function(event) {
-			console.log('teta1');
+		el_docto_conteudo_cabecalho.addEventListener('click', function(event) {			
 			console.log(event.target.tagName)
 			monitorarCorpo(janelaBody);
 		});
@@ -18735,19 +20375,343 @@ async function monitor_janela_onr(acao) {
 	
 
 }
+
+async function monitor_Janela_PautaInteligente_IncluirEmPauta() {
+	console.log("Extensão maisPJE (" + agora() + "): monitor_Janela_PautaInteligente_IncluirEmPauta");
+	let targetDocumento = await esperarElemento('pje-pauta-buscar-vaga');
+	let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
+		mutationsDocumento.forEach(async function(mutation) {
+			if (!preferencias.processo_memoria) { return  }
+			if (!mutation.addedNodes[0]) { return }
+			if (!mutation.addedNodes[0].tagName) { return }			
+			// console.log("ADDNODES: " + mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
+						
+			if (mutation.addedNodes[0].tagName == "DIV" && mutation.addedNodes[0].className.includes('mat-select-panel-wrap')) {
+				
+				let ancora = mutation.addedNodes[0].querySelector('div[aria-label*="Filtro Tipo de Audiência"]');
+				if (ancora) {
+					let dados = await obterDadosProcessoViaApi(preferencias.processo_memoria.id);
+					// console.log(JSON.stringify(dados))
+
+					let rito = dados.classeJudicial.sigla || '';
+					let fase = dados.labelFaseProcessual	 || '';
+					let exibir = [];
+
+					console.log(rito + " : " + fase)
+
+					if (rito.includes('ATSum')) {
+						if (fase.includes('Execução')) {
+							exibir.push('Conciliação em Execução por videoconferência');
+							exibir.push('Conciliação em Execução por videoconferência - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Execução por videoconferência - Semana Nacional de Execução');
+							exibir.push('Conciliação em Execução');
+							exibir.push('Conciliação em Execução - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Execução - Semana Nacional de Execução');
+						}
+						
+						if (fase.includes('Conhecimento')) {
+							exibir.push('Conciliação em Conhecimento por videoconferência');
+							exibir.push('Conciliação em Conhecimento por videoconferência - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Conhecimento');
+							exibir.push('Conciliação em Conhecimento - Semana Nacional de Conciliação');
+							exibir.push('Inicial por videoconferência (rito sumaríssimo)');
+							exibir.push('Instrução por videoconferência (rito sumaríssimo)');
+							exibir.push('Una por videoconferência (rito sumaríssimo)');
+							exibir.push('Una (rito sumaríssimo)');
+							exibir.push('Inicial (rito sumaríssimo)');
+							exibir.push('Instrução (rito sumaríssimo)');
+							exibir.push('Encerramento de instrução');
+							exibir.push('Encerramento de instrução por videoconferência');
+						}
+					} else if (rito.includes('CartPrec')) {
+						exibir.push('Inquirição de testemunha por videoconferência (juízo deprecado)');
+						exibir.push('Inquirição de testemunha (juízo deprecado)');
+					} else {
+						if (fase.includes('Execução')) {
+							exibir.push('Conciliação em Execução por videoconferência');
+							exibir.push('Conciliação em Execução por videoconferência - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Execução por videoconferência - Semana Nacional de Execução');
+							exibir.push('Conciliação em Execução');
+							exibir.push('Conciliação em Execução - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Execução - Semana Nacional de Execução');
+						}
+						
+						if (fase.includes('Conhecimento')) {
+							exibir.push('Conciliação em Conhecimento por videoconferência');
+							exibir.push('Conciliação em Conhecimento por videoconferência - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Conhecimento');
+							exibir.push('Conciliação em Conhecimento - Semana Nacional de Conciliação');
+							exibir.push('Inicial');
+							exibir.push('Instrução');
+							exibir.push('Inicial por videoconferência');
+							exibir.push('Instrução por videoconferência');
+							exibir.push('Encerramento de instrução');
+							exibir.push('Encerramento de instrução por videoconferência');
+							exibir.push('Julgamento');
+							exibir.push('Una');
+							exibir.push('Una por videoconferência');
+						}
+
+						if (fase.includes('Liquidação')) {
+							exibir.push('Conciliação em Execução por videoconferência');
+							exibir.push('Conciliação em Execução por videoconferência - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Execução por videoconferência - Semana Nacional de Execução');
+							exibir.push('Conciliação em Execução');
+							exibir.push('Conciliação em Execução - Semana Nacional de Conciliação');
+							exibir.push('Conciliação em Execução - Semana Nacional de Execução');
+						}
+					}
+					//primeiro exibe todos
+					let buttonOptionExibirTodos = ancora.querySelector('button[aria-label="Filtrar"]').cloneNode();
+					buttonOptionExibirTodos.onclick = () => Array.from(ancora.querySelectorAll('mat-option')).find(function(opcao){opcao.style.display = "flex"});
+					buttonOptionExibirTodos.style.backgroundColor = 'cadetblue';
+					buttonOptionExibirTodos.title = 'maisPJe: filtrando de acordo com o processo ' + preferencias.processo_memoria.numero;
+					let buttonOptionExibirTodos_i = document.createElement('i');
+					buttonOptionExibirTodos_i.className = "fas fa-eye";
+					buttonOptionExibirTodos_i.style = "pointer-events:none;";
+					buttonOptionExibirTodos.appendChild(buttonOptionExibirTodos_i);
+
+					buttonOptionExibirTodos.onclick = () => {
+						if (buttonOptionExibirTodos.style.backgroundColor == 'gray') {
+							buttonOptionExibirTodos.style.backgroundColor = 'cadetblue';
+							Array.from(ancora.querySelectorAll('mat-option')).find(function(opcao){if(!exibir.includes(opcao.innerText)){opcao.style.display = "none"}});
+						} else {
+							buttonOptionExibirTodos.style.backgroundColor = 'gray';
+							Array.from(ancora.querySelectorAll('mat-option')).find(function(opcao){opcao.style.display = "flex"});
+						}
+					}
+
+
+					insertAfter(ancora.querySelector('button[aria-label="Filtrar"]'),buttonOptionExibirTodos)
+					
+
+					Array.from(ancora.querySelectorAll('mat-option')).find(function(opcao){opcao.style.display = "flex"});
+					//depois aplica o filtro
+					Array.from(ancora.querySelectorAll('mat-option')).find(function(opcao){if(!exibir.includes(opcao.innerText)){opcao.style.display = "none"}});
+
+				}
+			}
+
+			if (mutation.addedNodes[0].tagName == "TD") {
+				adicionarEventListenerDesignarAudiencia(mutation.addedNodes[0].querySelector('pje-designacao-audiencia'));
+				if (mutation.addedNodes[0].querySelector('pje-designacao-audiencia')) {
+
+				}
+			}
+		});
+	});		
+	let configDocumento = { childList: true, subtree:true }
+	observerDocumento.observe(targetDocumento, configDocumento);
+}
+
+async function adicionarEventListenerDesignarAudiencia(elemento) {	
+	if (!elemento) { return }
+	elemento.addEventListener('click', async () => { await preencherInput('mat-dialog-container #inputNumeroProcesso',preferencias.processo_memoria.numero) } )	
+}
+
+async function addCertificarPrazos() {
 	
+	if (!document.querySelector('#maisPje_Certificar_Prazos_expedientes')) {
+
+		let tabela = await esperarElemento('pje-expedientes-data-table pje-data-table[nametabela="substituir"]');
+		
+		if (!tabela) { return }
+		
+		let verificador = await esperarElemento('pje-expedientes-data-table span[class="total-registros"]',null,1000);
+		if (verificador) { return } //só prossegue em certificação pela timeline.. evitando o agurpador de prazos do menu
+		
+		const linhasTabela = await esperarColecao('pje-expedientes-data-table table[name="substituir"] tbody tr');		
+		if (!linhasTabela) { return	}
+
+		let ancora = await esperarElemento('pje-expedientes-dialogo div[class="titulo"]');
+		let padraoId = /(?![0-9]{6,})(?![a-zA-Z]{6,7})([A-Za-z0-9]{6,7})/gi;
+		let idDocumento = (padraoId.test(ancora.innerText)) ? ancora.innerText.match(padraoId) : '';
+
+		//recupera os itens da timeline do processo
+		let idProcesso = await obterIdProcessoDaUrl();
+		let timeline = await apis.timelineProcesso.executar(preferencias.trt, {idProcesso});
+
+		let listaDePrazos = [];		
+		for (const [key, linha] of linhasTabela.entries()) {
+
+			let destinatario = linha.querySelectorAll('td')[0].innerText.toUpperCase();
+			let dataCriacao = linha.querySelectorAll('td')[3].innerText;			
+			
+			let peticoesDoDestinatario = await obterPeticoesDoDestinatarioNaTimeline(timeline,destinatario,dataCriacao); //retorna de petições da parte após a data da intimação
+			// console.debug(JSON.stringify(peticoesDoDestinatario));
+
+			//insere atalho para as petições protocoladas
+			linha.querySelectorAll('td')[0].style = 'display: flex;align-items: center;justify-content: center;height: inherit;';
+			let elNome = document.createElement('i');
+			elNome.style = 'color: steelblue;font-style: normal;margin-right: 5px;'
+			elNome.innerText = destinatario;
+			linha.querySelectorAll('td')[0].innerText = '';
+			linha.querySelectorAll('td')[0].appendChild(elNome);
+
+			if (peticoesDoDestinatario.length > 0) {				
+
+				for (const [pos2, peticao] of peticoesDoDestinatario.entries()) {
+
+					//monta o preview
+					let img = document.createElement('img')
+					img.id = "img_extensaoPje_documento_linkId_" + peticao.id;
+					// ler nrProcesso = await obterNumeroDoProcessoNaTela();
+					// let newUrl = apis.documentoProcessoPreview.montarUrl(preferencias.trt, {nrProcesso, peticao.id});		
+					img.src = peticao.preview;
+					img.style = "pointer-events: none;display: none; position: absolute; width: auto; height: 90vh; top: 0px; left: 100vw; padding: 16px; background-color: rgba(88, 88, 88, 0.8);z-index: 1000;border: 12px double white;transition: transform .25s ease-in-out; transform: translateX(0);";
+					document.body.appendChild(img);
+
+					const link = document.createElement('i');
+					link.title = "Abrir documento";
+					link.className = 'fa fa-paperclip';
+					link.id = "link_extensaoPje_documento_linkId_" + peticao.id;
+					link.style = 'position: relative;color: #0078aa; margin: auto 5px; display: block;cursor: pointer;';
+					link.setAttribute('link',peticao.link);
+					link.setAttribute('preview',peticao.preview);
+					link.onmouseenter = async function () {
+
+						document.body.style.overflowX = 'hidden';
+						this.style.filter = 'brightness(0.5)';
+						let seletorImg = '#' + this.id.replace('link','img');
+						document.querySelector(seletorImg).style.display = 'flex';
+						await sleep(250);
+						let modo = (document.querySelector(seletorImg).width > document.querySelector(seletorImg).height) ? 'paisagem' : 'retrato';
+						console.log(modo);
+						document.querySelector(seletorImg).style.transform = (modo == 'paisagem') ? 'translateX(-63vw)' : 'translateX(-33vw)';
+					
+					}
+					link.onmouseleave = async function() { 
+
+						document.body.style.overflowX = 'revert';	
+						this.style.filter = 'brightness(1)';
+						let seletorImg = '#' + this.id.replace('link','img');
+						document.querySelector(seletorImg).style.transform = 'translateX(0)';
+						await sleep(250);
+						document.querySelector(seletorImg).style.display = 'none';			
+					
+					}
+					link.onclick = async function() {
+						alert(this.getAttribute('link'))
+						browser.runtime.sendMessage({tipo: 'criarJanela', url: this.getAttribute('link')});
+					
+					}
+
+					linha.querySelectorAll('td')[0].appendChild(link) //insere atalhos junto ao nome
+				
+				}
+
+			} else { //não achou petições
+
+				elNome.style = 'color: orangered;font-style: normal;margin-right: 5px;';
+
+			}
+
+			listaDePrazos.push({
+				dtVencimento: linha.querySelectorAll('td')[9].innerText,
+				dias: linha.querySelectorAll('td')[8].innerText,
+				idDocumento: idDocumento,
+				tipoDocumento: linha.querySelectorAll('td')[1].innerText.toLowerCase(),
+				destinatario: destinatario
+			});
+		}
+
+		//adiciona o botão Certificar prazos
+		let botao = document.createElement("button");
+		botao.id = "maisPje_Certificar_Prazos_expedientes";
+		botao.textContent = "📝 Certificar Prazo";	
+		botao.style = "cursor: pointer; height: 4.5vh; background-color: rgb(0, 120, 170); border-radius: 4px; box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px; box-sizing: border-box; color: rgb(255, 255, 255); display: inline-block; margin: 0px 10px 10px;  padding: 5px 10px; border: 0px;min-width: 160px;";
+		botao.onclick = async function () { 
+			let textoDaCertidão = '\n\n';
+			for (const [key, item] of listaDePrazos.entries()) {
+				textoDaCertidão += 'Certifico que, no dia ' + item.dtVencimento + ', decorreu o prazo de ' + item.dias + ' dias sem manifestação da parte ' + item.destinatario + ' acerca do(a) ' + item.tipoDocumento + ' Id. ' + item.idDocumento + '.\n';
+			}			
+			let var1 = browser.storage.local.set({'tempBt': ['acao_bt_aaAnexar', 996]});
+			let var2 = browser.storage.local.set({'tempAR': {'textoCertidao':textoDaCertidão}});
+			let idProcesso = await obterIdProcessoDaUrl();
+			Promise.all([var1,var2]).then(values => {
+				clicarBotao('pje-expedientes-dialogo a[mattooltip="Fechar"]')
+				let urlLink = 'https://' + preferencias.trt + '/pjekz/processo/' + idProcesso + '/documento/anexar';
+				// getAtalhosNovaAba().anexarDocumentos.abrirAtalhoemNovaJanela(idProcesso, false, false); //--não dá para usar este pois está dando erro de foco
+				browser.runtime.sendMessage({tipo: 'criarJanela', url: urlLink, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
+			});
+		};
+
+		//adiciona o botão Buscar E-CARTA
+		let botao0 = document.createElement("button");
+		botao0.id = "maisPje_Certificar_Prazos_expedientes";
+		botao0.textContent = "📮 E-Carta";	
+		botao0.style = "cursor: pointer; height: 4.5vh; background-color: rgb(0, 120, 170); border-radius: 4px; box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px; box-sizing: border-box; color: rgb(255, 255, 255); display: inline-block; margin: 0px 10px 10px;  padding: 5px 10px; border: 0px;min-width: 160px;";
+		botao0.onclick = async function () { 
+			console.log(idDocumento);
+			let url = preferencias.modulo9.ecarta[1];
+			url = url.substr(0, url.indexOf("/eCarta-web/")+12);
+			url = url + '?maisPJeConsultaPorId=' + idDocumento;	
+			console.log(url)		
+			clicarBotao('pje-expedientes-dialogo a[mattooltip="Fechar"]')
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: url});			
+		};
+
+		let div = document.createElement("div");
+		div.style = 'text-align: center;position: absolute;right: 0;';
+		div.appendChild(botao0);
+		div.appendChild(botao);
+		//vou colocar o botão em cima a direita no mat-label-container
+		ancora = document.querySelector('pje-expedientes-dialogo div[class="mat-tab-labels"]');
+		ancora.appendChild(div);
+
+	}
+
+	async function obterPeticoesDoDestinatarioNaTimeline(timeline,nomeDaParte,data) {
+		return new Promise(async resolve => {
+			let resultado = [];
+			if (timeline) {	
+				// console.debug(timeline)
+				let nrProcesso = await obterNumeroDoProcessoNaTela();
+				for (const [key, item] of timeline.entries()) {
+
+					let dtPeticao = await decomporData(item.data);
+					let dtIntimacao = await decomporData(data);
+					dtPeticaoGetTime = new Date(dtPeticao.ano,dtPeticao.mes,dtPeticao.dia).getTime();					
+					dtIntimacaoGetTime = new Date(dtIntimacao.ano,dtIntimacao.mes,dtIntimacao.dia).getTime();
+					// console.debug((dtPeticao.dia+'/'+(dtPeticao.mes)+'/'+dtPeticao.ano) + ' < ' + (dtIntimacao.dia+'/'+(dtIntimacao.mes)+'/'+dtIntimacao.ano) + '     : ' + (dtPeticaoGetTime < dtIntimacaoGetTime));
+					
+					if (dtPeticaoGetTime < dtIntimacaoGetTime) { break } //sai do loop
+
+					//confere o nome da parte
+					let idProcesso = await obterIdProcessoDaUrl();
+					let nomeResponsavel = await apis.nomeParteRepresentada.executar(preferencias.trt, {'idProcesso': idProcesso, 'idRepresentante' : item.idUsuario});
+					nomeResponsavel.map(({nome}) => {
+						let n1 = nome.toUpperCase().trim();
+						let n2 = nomeDaParte.toUpperCase().trim();
+						// console.debug(n1 + '==' + n2 + ':' + (n1 == n2))
+						if (n1 == n2) {
+							let urlPreview = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/nrprocesso/' + nrProcesso + '/documentos/idUnico/' + item.idUnicoDocumento + '/preview?incluirAssinatura=true&formato=.jpeg';
+							let urlLink = 'https://' + preferencias.trt + '/pjekz/processo/' + idProcesso + '/documento/' + item.id + '/conteudo';
+							resultado.push({'id':item.id,'link':urlLink,'preview':urlPreview}) 
+						}
+					});
+					
+				}
+
+				
+			} else {
+				return resolve(resultado);
+			}
+			return resolve(resultado);
+		});
+	}
+}
+
 //FUNÇÃO RESPONSÁVEL POR ADICIONAR A OPÇÃO DE ZOOM NO EDITOR DE TEXTOS
 async function addZoom_Editor() {
 	return new Promise(async resolve => {
-		let jaExiste = await esperarElemento('div[id="extensaoPje_barra_zoom_editor"]',null,1000);
-		if (jaExiste) { return resolve(true) }
-		
-		let toolbar_editor = await esperarElemento('div[class*="ck-toolbar__items"]');
-		
-		if (!toolbar_editor) { return }
+		let tempo_espera = preferencias.maisPje_velocidade_interacao + 1000;
+		let toolbar_editor = await esperarElemento('div[class*="ck-toolbar__items"]',null,tempo_espera);
+		if (!toolbar_editor) { return resolve(false) }
+		let jaExiste = await esperarElemento('div[id="extensaoPje_barra_zoom_editor"]',null,tempo_espera);
+		if (jaExiste) { return resolve(true) }	
 		
 		let componente_negrito_editor = await esperarElemento('div[class*="ck-toolbar__items"] span','Negrito');
-		
 		if (!componente_negrito_editor) { return }	
 		
 		let ancora = document.querySelector('div[class*="ck-toolbar__items"]');
@@ -19204,14 +21168,19 @@ async function gigsAtribuirResponsavel(el) {
 async function abrirDocumentoPeloId(idProcesso, idSetePosicoesDocumento) {
 	const {resultado} = await apis.documentosProcesso.executar(preferencias.trt, {idProcesso, idUnicoDocumento: idSetePosicoesDocumento});
 	const documento = resultado?.[0];
-	if (documento?.idUnicoDocumento == idSetePosicoesDocumento) {
-			// console.log("abrir documento Id " + documento.idUnicoDocumento);
-			getAtalhosNovaAba().abrirDocumento.abrirAtalhoemNovaJanela(idProcesso, documento.id);
+	console.log(idSetePosicoesDocumento + ' == ' + documento?.idUnicoDocumento)
+	if (documento?.idUnicoDocumento.includes(idSetePosicoesDocumento)) {
+			console.log("abrir documento Id " + documento.idUnicoDocumento);
+			// getAtalhosNovaAba().abrirDocumento.abrirAtalhoemNovaJanela(idProcesso, documento.id);
+
+			let url = 'https://' + preferencias.trt + '/pjekz/processo/' + idProcesso + '/documento/' + documento.id + '/conteudo';
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
+
 	}
 }
 
 //FUNÇÃO DE EXIBIÇÃO DA LOCALIZAÇÃO DO PROCESSO NA PAUTA DE PERÍCIAS
-async function painelPericiaTarefaProcesso() {
+async function painelPericiaGigsProcesso() {
 	fundo(true)
 	let listaNum = document.querySelector('table[name="Tabela de Perícias"]').innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join().split(",");
 	let listaTarefa = [];
@@ -19278,20 +21247,36 @@ async function filtroMagistrado(processoNumero) {
 			let magistrado = "";
 			let orgaoJulgadorCargo;
 
-			//usa o orgão julgador cargo da memoria pois a api sendo consultada da pagina do sisbajud da erro 400			
-			if (preferencias.processo_memoria.numero && processoNumero == preferencias.processo_memoria.numero) {
-				orgaoJulgadorCargo = preferencias.processo_memoria.orgaoJulgadorCargo
-				console.log(orgaoJulgadorCargo)
-			} else {
+			//Nos convênios a regra OJCargo deve ser ignorada
+			if (document.getElementById('maisPje_menuConvenios')) {
 				orgaoJulgadorCargo = await obterOrgaoJulgadorCargo(processoNumero);
+			} else {
+				orgaoJulgadorCargo = 'TODOS';
 			}
+
+			//usa o orgão julgador cargo da memoria pois a api sendo consultada da pagina do sisbajud da erro 400
+			orgaoJulgadorCargo = await obterOrgaoJulgadorCargo(processoNumero);
+			if (!orgaoJulgadorCargo) {
+				if (preferencias.processo_memoria.numero && processoNumero == preferencias.processo_memoria.numero) {
+					orgaoJulgadorCargo = preferencias.processo_memoria.orgaoJulgadorCargo				
+				} else {
+					await criarCaixaDeAlerta('ATENÇÃO','Não foi possível obter o órgão Julgador CARGO do processo ' + processoNumero + '.\n Confira o magistrado selecionado automaticamente pela extensão maisPJe.',3);
+					orgaoJulgadorCargo = 'TODOS';
+				}
+			}			
+
+			orgaoJulgadorCargo = orgaoJulgadorCargo.toUpperCase(); //traz para caixa alta
 
 			for (const [pos, item] of preferencias.modulo8.entries()) {
 				let regra = item.split('|');
 				let nomeJuiz = regra[10];
 				let regraPorFinalDoProcesso = (/true/gi).test(regra[ultimo]);
 				let regraOJ = (regra[11] == preferencias.oj_usuario || regra[11] == 'TODOS' || !regra[11]);
+				if (!regra[12]) { regra[12] = 'TODOS' }
 				let regraOJCargo = (orgaoJulgadorCargo.includes(regra[12]) || regra[12] == 'TODOS' || !regra[12]);
+				
+				//Nos convênios a regra OJCargo deve ser ignorada
+				regraOJCargo = (orgaoJulgadorCargo == 'TODOS') ? true : regraOJCargo;
 
 				console.log("REGRA " + pos);
 				console.log("  |___Juiz: " + nomeJuiz);
@@ -19329,6 +21314,7 @@ async function filtroMagistrado(processoNumero) {
 			//encontra a regra
 			let magistrado = "";
 			let orgaoJulgadorCargo = await obterOrgaoJulgadorCargo(processoNumero);
+			orgaoJulgadorCargo = orgaoJulgadorCargo.toUpperCase(); //traz para caixa alta
 
 			for (const [pos, item] of preferencias.modulo8.entries()) {
 				let regra = item.split('|');
@@ -19341,7 +21327,8 @@ async function filtroMagistrado(processoNumero) {
 				console.log("  |___Juiz: " + nomeJuiz);
 				console.log("  |___Digito " + ultimo + ': ' + regraPorFinalDoProcesso);
 				console.log("  |___OJ: " + regra[11] + " == " + preferencias.oj_usuario + " : " + regraOJ);
-				console.log("  |___OJC: " + regra[12] + " == " + orgaoJulgadorCargo + " : " + regraOJCargo);
+				console.log("  |___OJC: " + regra[12] + " == " + orgaoJulgadorCargo + " : " + regraOJCargo); 
+				// tem que fazer includes (titular e substituto)
 				console.log("      __________________________");
 				console.log("        " + (regraPorFinalDoProcesso && regraOJ && regraOJCargo))
 				if (regraPorFinalDoProcesso && regraOJ && regraOJCargo) {
@@ -19369,18 +21356,20 @@ async function filtroMagistrado(processoNumero) {
 
 //FUNÇÃO QUE ADICIONA OS ATALHOS PARA INCLUIR DESTINATÁRIOS CEF E BB NO PREPARAR EXPEDIENTES E COMUNICAÇÕES
 function inserirParte_BB_CEF() {
-	console.log('inserirParte_BB_CEF()');
-	if (document.location.href.includes("/comunicacoesprocessuais/")) {
-		monitor_janela_expedientes(); //insere o monitor na tarefa PREPARAR EXPEDIENTES E COMUNICAÇÕES
-		let check = setInterval(function() {
-			if (document.querySelector('button[mattooltip="Adicionar outros destinatários"]')) {
-				clearInterval(check);
-				addBotoes_BB_CEF();
-				incluirBotoesInvisiveis();
-			}
-		}, 100);
-	}
-	
+	return new Promise(async resolve => {
+		console.log('inserirParte_BB_CEF()');
+		if (document.location.href.includes("/comunicacoesprocessuais/")) {
+			let check = setInterval(function() {
+				if (document.querySelector('button[mattooltip="Adicionar outros destinatários"]')) {
+					clearInterval(check);
+					console.log('maisPje: inseridos botões especiais na janela de Expedientes.')
+					addBotoes_BB_CEF();
+					incluirBotoesInvisiveis();
+					return resolve(true);
+				}
+			}, 100);
+		}
+	});
 	
 	function addBotoes_BB_CEF() {
 		let el = document.querySelector('button[mattooltip="Adicionar outros destinatários"]');
@@ -19732,9 +21721,10 @@ function inserirParte_BB_CEF() {
 			console.log("acao9()");
 			await clicarBotao(document.getElementById('tipoAUTORIDADE').firstElementChild);
 			await preencherInput('input[aria-label="Autoridade"]',nome.substring(0,3));
+			await sleep(500);
 			await preencherInput('input[aria-label="Autoridade"]',nome);
 			await sleep(1000);
-			await clicarBotao('div[class="cdk-overlay-pane"] mat-option');
+			await clicarBotao('div[class="cdk-overlay-pane"] mat-option',nome);
 			await sleep(1000);
 			await clicarBotao('pje-pec-dialogo-outros-destinatarios button[aria-label="Acrescentar"]');
 			await sleep(1000);
@@ -19859,7 +21849,7 @@ async function garimpo(target) {
 		atalho.onmouseenter = function () {atalho.style.color  = 'orangered'};
 		atalho.onmouseleave = function () {atalho.style.color  = 'black'};
 		atalho.onclick = function () { 
-			consultaRapidaPJE(this.previousSibling.innerText); 
+			consultaRapidaPJE(this.parentElement.querySelector('span').innerText); 
 		};
 		atalho.title = 'MaisPje: Consultar Processo no PJe';
 		
@@ -20277,7 +22267,7 @@ async function montarFiltrosFavoritos(ancora) {
 			//atalho
 			let botao = document.createElement("button");
 			botao.id = "maisPje_filtrofavorito_" + nome;
-			botao.style = "margin: 5px; padding: 5px 8px; background-color: #bbb;border: 1px solid white;outline: darkgray solid 1px;border-radius: 3px;color: #1e1e1e;";
+			botao.style = "cursor:pointer;margin: 5px; padding: 5px 8px; background-color: #bbb;border: 1px solid white;outline: darkgray solid 1px;border-radius: 3px;color: #1e1e1e;";
 			botao.onclick = function () {acao(tabela, camposFixos, camposDinamicos,qtde)};
 			let botao_span = document.createElement("span");
 			botao_span.innerText = nome;
@@ -20576,7 +22566,9 @@ async function montarFiltrosFavoritos(ancora) {
 			
 			while(dados[1]?.innerText?.includes('Carregando itens')) {
 				await sleep(200);
+				window.focus();
 				dados = await esperarColecao('mat-option[role="option"]', 1);
+				
 			}
 			
 			// console.log(dados[1]?.innerText?.includes('Carregando itens'));
@@ -20677,7 +22669,8 @@ async function inserirBotaoCopiarListaDeProcessos() {
 
 //FUNÇÃO QUE RETORNA O ID DO PROCESSO PARA ABERTURA DE NOVAS PÁGINAS
 async function obterIdProcessoViaApi(numero) {
-	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);	
+	if (numero.includes('ERRO')) { return null }
 	return apis.idProcessoPorNumero.executar(preferencias.trt, {numero},
         {
 			method: "GET",
@@ -20708,9 +22701,9 @@ async function idProcessoPorNumeroIncompleto(numero) {
 }
 
 async function obterIdProcessoViaApiPublica(numero) {
-	let soNumeros = numero.trim().replace(/[^0-9]+/g, '');
-	// console.log(soNumeros +  " : " + (soNumeros === ''));
-	
+	let soNumeros = numero.toString().trim().replace(/[^0-9]+/g, '');
+	// console.log(soNumeros +  " : " + (soNumeros === ''));	
+
 	let urlBase = preferencias.trt;
 	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
 	
@@ -20731,6 +22724,35 @@ async function obterIdProcessoViaApiPublica(numero) {
         .then(function (response) {
 			return response.json();
         })
+        .then(data=>{
+			// {
+			// 	"id": 489839,
+			// 	"numeroIdentificacaoJustica": 512,
+			// 	"numero": "0048000-20.2007.5.12.0004",
+			// 	"classe": "ATOrd",
+			// 	"codigoOrgaoJulgador": "0600",
+			// 	"juizoDigital": false
+			//   }
+
+			// {
+			// 	"id": 427609,
+			// 	"numeroIdentificacaoJustica": 512,
+			// 	"numero": "0000202-09.2018.5.12.0059",
+			// 	"classe": "ATOrd",
+			// 	"codigoOrgaoJulgador": "0059",
+			// 	"juizoDigital": false
+			//   }
+            return data || '';
+        })
+        .catch(function (err) {
+			return '';
+        });
+}
+
+async function obterNumeroProcessoViaId(idProcesso) {
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+	// console.log('entrou')
+	return apis.processoPorIdRapido.executar(preferencias.trt, {idProcesso}, { method: "GET", mode: "cors", credentials: "include", headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario}})
         .then(data=>{
             return data || '';
         })
@@ -20837,7 +22859,10 @@ async function obterMotivoSobrestamentoViaApi(idProcesso) {
 	let urlBase = preferencias.trt;
 	let resposta = await fetch('https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/sobrestamentos');
 	let dados = await resposta.json();
-	return dados[0].textoFinalExternoSobrestamento;
+
+	let item = Array.from(dados).find(i => !i.dataRevogacao);
+
+	return item.textoFinalExternoSobrestamento;
 }
 
 //FUNÇÃO QUE RETORNA OS GIGS ATIVOS LANÇADOS NO Processo
@@ -20917,6 +22942,183 @@ async function obterDadosProcessoViaApi(idProcesso) {
 	return apis.processoPorId.executar(preferencias.trt, {idProcesso});
 }
 
+//FUNÇÃO QUE RETORNA PARTES DO PROCESSO
+async function obterPartesDoProcesso(idProcesso, comPosicao=true) { //comPosicao trará um numeral na frente do nome da parte caso exista mais de uma no mesmo polo
+	return new Promise(async resolve => {
+		let urlBase = preferencias.trt;
+		if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }						
+		if (!idProcesso) { 
+			alert("maisPje: " + idProcesso + " não encontrado [ERRO1].");
+			return resolve('ERRO1');
+		}
+		
+		let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
+		let resposta = await fetch(url);
+		let dados = await resposta.json();
+
+		let poloAtivo = [];
+		let poloPassivo = [];
+		let poloOutros = [];
+
+		for (const [pos, parte] of dados.ATIVO.entries()) {
+			let nome = parte.nome.trim();
+			if (dados.ATIVO.length > 1) { nome = (comPosicao) ? (pos+1) + '. ' + nome : nome }
+			let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido";
+			
+			//primeiro pega o celular depois o numero residencial e por fim o comercial
+			let telefone = 'desconhecido';
+			if (parte?.pessoaFisica) {
+				telefone = (parte.pessoaFisica.dddCelular) ? '(' + parte.pessoaFisica.dddCelular + ') ' + parte.pessoaFisica.numeroCelular : "";
+				telefone += (parte.pessoaFisica.dddResidencial) ? ' (' + parte.pessoaFisica.dddResidencial + ') ' + parte.pessoaFisica.numeroResidencial : "";
+				telefone += (parte.pessoaFisica.dddComercial) ? ' (' + parte.pessoaFisica.dddComercial + ') ' + parte.pessoaFisica.numeroComercial : "";				
+			}
+
+			poloAtivo.push({'nome':nome,'cpfcnpj':cpfcnpj,'tipo':'AUTOR','telefone':telefone});
+
+			//obter advogados
+			if (parte.representantes) {
+				[].map.call(
+					parte.representantes, 
+					function(representante) {
+						let cpfcnpj = (representante.documento) ? representante.documento : "desconhecido"
+						poloOutros.push({'nome':representante.nome.trim(),'cpfcnpj':cpfcnpj,'tipo':representante.tipo + ' do AUTOR'});						
+					}
+				);
+			}
+		}
+		
+		for (const [pos, parte] of dados.PASSIVO.entries()) {
+			let nome = parte.nome.trim();
+			if (dados.PASSIVO.length > 1) { nome = (comPosicao) ? (pos+1) + '. ' + nome : nome }
+			let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido"
+			poloPassivo.push({'nome':nome,'cpfcnpj':cpfcnpj,'tipo':'RÉU'});
+			//obter advogados
+			if (parte.representantes) {
+				[].map.call(
+					parte.representantes, 
+					function(representante) {
+						let cpfcnpj = (representante.documento) ? representante.documento : "desconhecido"
+						poloOutros.push({'nome':representante.nome.trim(),'cpfcnpj':cpfcnpj,'tipo':representante.tipo + ' do RÉU'});
+					}
+				);
+			}
+		}
+		
+		if (dados.TERCEIROS) {
+			for (const [pos, parte] of dados.TERCEIROS.entries()) {
+				let nome = parte.nome.trim();
+				if (dados.TERCEIROS.length > 1) { nome = (comPosicao) ? (pos+1) + '. ' + nome : nome }
+				let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido";
+				poloOutros.push({'nome':nome,'cpfcnpj':cpfcnpj,'tipo':parte.tipo});
+				//obter advogados
+				if (parte.representantes) {
+					[].map.call(
+						parte.representantes, 
+						function(representante) {
+							let cpfcnpj = (representante.documento) ? representante.documento : "desconhecido"				
+							poloOutros.push({'nome':representante.nome.trim(),'cpfcnpj':cpfcnpj,'tipo':representante.tipo + ' de ' + parte.nome.trim()});
+						}
+					);
+				}
+			}
+		}
+
+		return resolve({"poloAtivo":poloAtivo,"poloPassivo":poloPassivo,"poloOutros":poloOutros});
+	});
+}
+
+//FUNÇÃO QUE RETORNA OS DADOS RESUMIDOS DO PROCESSO
+async function obterDadosResumidosDoProcesso(numeroProcesso, idProcesso, soDadosGerais=false, soDadosPartes=false, comPosicao=true){ // se passar o nomeDaParte a extensão retorna apenas os dados dela
+	if (!idProcesso) {
+		let api = await obterIdProcessoViaApiPublica(numeroProcesso);
+		idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
+	}
+	
+	let dadosGerais, partes;
+	
+	if (soDadosGerais) {
+		dadosGerais = await obterNumeroProcessoViaId(idProcesso);
+	} else if (soDadosPartes) {
+		partes = await obterPartesDoProcesso(idProcesso, comPosicao);
+	} else {
+		dadosGerais = await obterNumeroProcessoViaId(idProcesso);
+		partes = await obterPartesDoProcesso(idProcesso, comPosicao);
+	}
+	
+	/*INFORMAÇÕES DE "dadosGerais"
+	{
+		"id":915482,
+		"numero":"0000361-73.2023.5.12.0059",
+		"classeJudicial":{"descricao":"ATOrd"},
+		"segredoDeJustica":false,
+		"temComentario":true,
+		"temOcorrenciaImpedimento":false,
+		"ocorrenciaImpedimentoVisivelOj":false,
+		"orgaoJulgador":{"id":23,"descricao":"VARA DO TRABALHO DE PALHOÇA","sigla":"PCA"},
+		"orgaoJulgadorColegiado":{},
+		"nomeTarefa":"Análise",
+		"idTarefa":473,
+		"tarefaVisivelOj":true,
+		"tarefaVisivelOjc":false,
+		"nomeParteAutora":"ELIZIANE DANIELA SCHALM DE OLIVEIRA",
+		"nomeParteRe":"NEOSUL DISTRIBUIDORA DE MEDICAMENTOS LTDA.",
+		"idResponsavel":211232,
+		"nomeResponsavel":"CASSIANO WOTROBA",
+		"juizoDigital":false
+	}
+	*/
+	// console.log(JSON.stringify(dados))
+	
+	//OBTER DADOS DAS PARTES
+	return { 
+		"numero": numeroProcesso,
+		"idProcesso": idProcesso,
+		"dados": dadosGerais,
+		"partes": partes
+	}
+}
+
+async function obterDadosDeNomeDaParte(numeroProcesso, idProcesso, nomeDaParte) {
+	let dadosResumidos = await obterDadosResumidosDoProcesso(numeroProcesso, idProcesso, false, true, false);
+	let procurando = true;
+	let parteEncontrada;
+	for (const [pos, parte] of dadosResumidos.partes.poloAtivo.entries()) {
+		// console.debug(nomeDaParte + ' .includes( ' + parte.nome.trim() + ' ) == ' + (nomeDaParte.includes(parte.nome)));
+		// console.debug(parte.nome.trim() + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
+		if (nomeDaParte.includes(parte.nome.trim())) {
+			parteEncontrada = parte;
+			procurando = false;
+			break;
+		}
+	}
+
+	if (procurando) {
+		for (const [pos, parte] of dadosResumidos.partes.poloPassivo.entries()) {
+			// console.debug(nomeDaParte + ' .includes( ' + parte.nome.trim() + ' ) == ' + (nomeDaParte.includes(parte.nome)));
+			// console.debug(parte.nome.trim() + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
+			if (nomeDaParte.includes(parte.nome.trim())) {
+				parteEncontrada = parte;
+				procurando = false;
+				break;
+			}
+		}
+	}
+
+	if (procurando) {
+		for (const [pos, parte] of dadosResumidos.partes.poloOutros.entries()) {
+			console.debug(nomeDaParte + ' .includes( ' + parte.nome.trim() + ' ) == ' + (nomeDaParte.includes(parte.nome)));
+			console.debug(parte.nome.trim() + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
+			if (nomeDaParte.includes(parte.nome.trim())) {
+				parteEncontrada = parte;
+				procurando = false;
+				break;
+			}
+		}
+	}
+
+	return parteEncontrada;
+}
+
 //FUNÇÃO QUE RETORNA O JUIZ RESPONSÁVEL PELA MINUTA DE DESPACHO/DECISÃO/SENTENÇA
 async function obterDadosJuizDaMinuta(idProcesso) {
 	//https://pje.trt12.jus.br/pje-comum-api/api/processos/id/1073845/tarefas/479/conclusao/minuta/parametros	
@@ -20957,6 +23159,19 @@ async function obterExtratoSIF(processo, conta, dataAutuacao, dataFim) {
 	return apis.extratoContaSIF.executar(urlBase,{processo, conta, dataAutuacao, dataFim})
         .then(data=>{
 			return data?.linhasExtrato || '';
+        })
+        .catch(function (err) {
+			return '';
+        });
+}
+
+//FUNÇÃO QUE RETORNA DETALHES DA CONTA SIF EM JSON
+async function obterDetalhesContaSIF(processo, conta) {
+	let urlBase = preferencias.trt;
+	if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }
+	return apis.detalhesContaSIF.executar(urlBase,{processo, conta})
+        .then(data=>{
+			return data[0] || '';
         })
         .catch(function (err) {
 			return '';
@@ -21070,7 +23285,7 @@ async function obterSituacaoPericiaViaApi(idProcesso) {
 			return response.json();
         })
         .then(data=>{
-			return data.resultado[0].situacaoPericia || '';
+			return data.resultado || '';
         })
         .catch(function (err) {
 			return '';
@@ -21134,7 +23349,17 @@ async function analisarMotivosSobrestamento() {
 
 //FUNÇÃO QUE VERIFICA SE O USUARIO É SERVIDOR
 async function verificarSeServidor() {
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
+	console.log('+-+-+-+-+-+-+-+-')
 	const dados = await apis.permissaoPerfis.executar(preferencias.trt);
+	// console.log('RESPOSTA verificarSeServidor(): ' + JSON.stringify(dados))
 	let papeis = [];
 	let retorno = true;
 	if (dados.mensagem) { return true } //sem autenticação
@@ -21147,13 +23372,14 @@ async function verificarSeServidor() {
 }
 
 async function obterDomicilioEletronico(idParte) {
-	try {
-		const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
-		const dados = await apis.domicilioEletronico.executar(preferencias.trt, {idParte}, { method: "GET", mode: "cors", credentials: "include", headers: { "Content-Type": "application/json", "X-Grau-Instancia": grau_usuario || 1 } });
-		return !!dados?.habilitada;
-	} catch (err) {	
-		return false;
-	}	
+	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
+	return apis.domicilioEletronico.executar(preferencias.trt, {idParte}, { method: "GET", mode: "cors", credentials: "include", headers: {"Content-Type": "application/json","X-Grau-Instancia": grau_usuario}})
+	.then(data=>{
+		return !!data?.habilitada;
+	})
+	.catch(function (err) {
+		return 'ERRO';
+	});
 }
 
 async function obterEnderecoDaParte(idParte, idEndereco='') {
@@ -21611,15 +23837,13 @@ async function ativarModulo10() {
 		let nomeSala = document.querySelector('span[name="sala"]').innerText;
 		console.log(nomeSala)
 		for (const [pos, item] of preferencias.modulo10.entries()) {
-			console.log(item.horario + ' --- ' + item.sala + ' --- ' + item.url)
+			// console.log(item.horario + ' --- ' + item.sala + ' --- ' + item.url)
 			if (nomeSala == item.sala) {
 				arrayDeLinks.push({"horario":item.horario,"sala":item.sala,"url":item.url})
 			}
 		}
 		console.log(arrayDeLinks + ': ' + arrayDeLinks.length)
 		modulo10Temp = (arrayDeLinks.length < 1) ? preferencias.modulo10 : arrayDeLinks;
-
-
 
 		if (modulo10Temp.length == 0) {
 			return;
@@ -21662,6 +23886,10 @@ async function ativarModulo10() {
 				}
 			}
 		}
+
+		//mapearBotao Confirmar para acionar sem clique, apenas repousando
+		let btConfirmar = await esperarElemento('mat-dialog-container div[class="container-botoes"] button','Confirmar');
+		if (btConfirmar) { acionarSemClique(btConfirmar,'transparent','cadetblue') }
 	}
 	
 	function criarCaixaDeSelecao(dados) {
@@ -21918,7 +24146,7 @@ async function ativarModoNoite(ligar) {
 	
 }
 
-//BOTAO PARA ACHAR PROCESSOS SEM AUDIÊNCIA DESIGNADA NA TAREFA AGUARDANDO AUDIÊNCIA
+//BOTAO PARA ACHAR PROCESSOS SEM AUDIÊNCIA DESIGNADA
 async function processosSemAudienciaDesignada() {
 	console.log('processosSemAudienciaDesignada()');
 	if (!document.getElementById('maisPje_processosSemAudienciaDesignada')) {
@@ -21962,10 +24190,23 @@ async function processosSemAudienciaDesignada() {
 						linha.style.setProperty('filter', 'revert');
 						linha.style.setProperty('outline', 'revert');
 					} else {
-						linha.style.setProperty('filter', 'revert');
-						linha.style.setProperty('outline', 'revert');
-						linha.style.setProperty('background-color', 'khaki');
-						linha.setAttribute('maisPje_processosSemAudienciaDesignada_ativado',true);
+
+
+						//caso não exista na própria célula, pesquisar na api, pois o relatório GIGS não traz essa informação, por exemplo.
+						let processoNumero = linha.innerText.match(new RegExp('\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1,2}\\.\\d{1,2}\\.\\d{4}','g')).join();
+						let idProcesso = await obterIdProcessoViaApi(processoNumero);
+						let audiencia = await apis.audienciasProcesso.executar(preferencias.trt, {idProcesso});
+						console.log(audiencia)
+						if (audiencia.length > 0) {
+							linha.style.display = 'none';
+							linha.style.setProperty('filter', 'revert');
+							linha.style.setProperty('outline', 'revert');
+						} else {
+							linha.style.setProperty('filter', 'revert');
+							linha.style.setProperty('outline', 'revert');
+							linha.style.setProperty('background-color', 'khaki');
+							linha.setAttribute('maisPje_processosSemAudienciaDesignada_ativado',true);
+						}
 					}
 					
 				}
@@ -22007,7 +24248,7 @@ async function processosSemAudienciaDesignada() {
 	
 }
 
-//BOTAO PARA ACHAR PROCESSOS SEM AUDIÊNCIA DESIGNADA NA TAREFA AGUARDANDO AUDIÊNCIA
+//BOTAO PARA ACHAR PROCESSOS SEM GIGS CADASTRADO 
 async function processosSemGigsCadastrado() {
 	console.log('processosSemGigsCadastrado()');
 	if (!document.getElementById('maisPje_processosSemGigsCadastrado')) {
@@ -22094,7 +24335,7 @@ async function processosSemGigsCadastrado() {
 	
 }
 
-//BOTAO PARA ACHAR PROCESSOS SEM AUDIÊNCIA DESIGNADA NA TAREFA AGUARDANDO AUDIÊNCIA
+//BOTAO PARA ACHAR O JUIZ RESPONSAVEL PELA MINUTA DO PROCESSO
 async function juizResponsavelPelaMinuta() {
 	console.log('juizResponsavelPelaMinuta()');
 	if (!document.getElementById('maisPje_juizResponsavelPelaMinuta')) {
@@ -22312,7 +24553,6 @@ async function obterSaldoSIF() {
 	}
 }
 
-
 //BOTAO PARA OBTER O INDICE CONCILIAJT
 async function ObterConcilia() {
 	if (!document.getElementById('maisPje_obterConcilia')) {
@@ -22352,9 +24592,6 @@ async function conferirTeimosinhaEmLote() {
 		botao.onclick = async function () {
 			//orientar o usuário a fazer login no sisbajud antes de começar
 			let opcoes = await criarCaixaCheckBox(['Sim','Não'], [true,false], 'Você já efetuou o login no sistema Sisbajud?',false,'Continuar');
-
-			console.log(opcoes);
-
 			if (opcoes[0]) {
 				console.log("Extensão maisPJE (" + agora() + "): conferirTeimosinhaEmLote");
 				let ativar = document.querySelector('tbody').getAttribute('maisPje_conferirTeimosinhaEmLote_ativado');
@@ -22406,7 +24643,7 @@ async function conferirTeimosinhaEmLote() {
 
 						let dados = await obterResultadoTeimosinha(processoNumero);						
 						// console.log(dados);
-						//os dados serão um array de {id:i,data:d,valor:v,situacao:s}
+						//os dados serão um array de {id:i,data:d,valor:v,situacao:s,processo:p}
 						
 						let respostaConsulta = document.createElement('div');
 						respostaConsulta.style.display = 'grid';
@@ -22439,7 +24676,7 @@ async function conferirTeimosinhaEmLote() {
 							novaLinha.onclick = async function () {
 								await consultaRapidaPJE(processoNumero); //é necessario abrir o processo para guardar os dados na memória
 								await sleep(1000);
-								window.focus();
+								window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 								let win2 = window.open(this.getAttribute('maisPjeLink'), '_blank');
 								win2.focus();
 							};
@@ -22474,7 +24711,9 @@ async function conferirTeimosinhaEmLote() {
 						}
 						div.appendChild(respostaConsulta);
 						
-						linha.childNodes[1].appendChild(div);
+						// linha.childNodes[1].appendChild(div);
+						// console.log(dados[dados.length - 1].processo)
+						document.querySelector('tr[maispje_numerodoprocesso="' + dados[dados.length - 1].processo + '"]').childNodes[1].appendChild(div); //insere a resposta na linha correspondente
 						linha.style.backgroundColor = corFundoAntiga;
 						linha.style.outline = 'revert';
 					}
@@ -22960,7 +25199,7 @@ async function listaProcessoParaAcoesEmLote(listaPronta) {
 			lista_processos.addEventListener("selectionchange", function (event) { ajustarNumeroDeProcessos() });
 			container.appendChild(lista_processos);
 			
-			let bt_continuar = document.createElement("span");
+			let bt_continuar = document.createElement("button");
 			bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
 			bt_continuar.innerText = "Continuar";
 			bt_continuar.onmouseenter = function () {
@@ -22981,15 +25220,22 @@ async function listaProcessoParaAcoesEmLote(listaPronta) {
 			if (listaPronta) { bt_continuar.click() }
 		}
 	);
-
 	
 	async function ajustarNumeroDeProcessos() {
-		let conteudo = document.querySelector('#maisPje_aaLote_lista_processos_textarea').value;
-		console.log(conteudo)
+		let conteudo = document.querySelector('#maisPje_aaLote_lista_processos_textarea').value;		
 		let padrao = /\d{20}/gm;
 		if (padrao.test(conteudo)) {
-			let novoConteudo = conteudo.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/g,"$1-$2.$3.$4.$5.$6");
-			document.querySelector('#maisPje_aaLote_lista_processos_textarea').value = numeroProcessoFormatado(novoConteudo);
+			let listaTemp = conteudo.match(/\d{20}/gm).join();
+			let novaLista = [];
+			[].map.call(
+				listaTemp.toString().split(','), 
+				function(item) {
+					let numeroNovo = item.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/g,"$1-$2.$3.$4.$5.$6");
+					novaLista.push(numeroNovo)
+				}
+			);
+			// let novoConteudo = conteudo.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/gm,"$1-$2.$3.$4.$5.$6");
+			document.querySelector('#maisPje_aaLote_lista_processos_textarea').value = novaLista.toString();
 			await sleep(500);
 		}
 	}
@@ -23013,10 +25259,9 @@ async function acoesEmLote(listaPronta) {
 		let listaDeProcessos = [];
 		
 		fundo(true);
-		for (const [pos, numeroProcesso] of lista.entries()) {
+		for (const [pos, numeroProcesso] of lista.entries()) {			
 			let idProcessoApiPublica = await obterIdProcessoViaApiPublica(numeroProcesso);
-			let idProcesso = idProcessoApiPublica[0].id;
-			if (!idProcesso) { 	idProcesso = await obterIdProcessoViaApi(numeroProcesso) }
+			const idProcesso = idProcessoApiPublica[0]?.id ?? await obterIdProcessoViaApi(numeroProcesso);
 			listaDeProcessos.push({id:idProcesso,numero:numeroProcesso});
 		}
 		
@@ -23058,7 +25303,7 @@ async function acoesEmLote(listaPronta) {
 		}; //se clicar fora fecha a janela
 		
 		let container = document.createElement("div");
-		container.style="position: absolute;top: 10vh;width: 43vw;max-width: 43vw;min-width: 43vw;max-height: 90vh; display: inline-grid; background-color: white;padding: 20px 0 20px 20px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12); overflow: auto;";
+		container.style="position: absolute;top: 10vh;width: 44vw;max-width: 44vw;min-width: 44vw;max-height: 80vh; display: inline-grid; background-color: white;padding: 20px 0 20px 20px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12); overflow: auto;";
 		let bloqueioContainer = document.createElement("maisPjebloqueioContainer"); //server para suavizar os eventos onmouseenter e onmouseleave dos processos da lista
 		bloqueioContainer.style="display: none;position: absolute;width: 43vw;max-height: 90vh;background-color: transparent;height: 90vh;z-index: 1000;";
 
@@ -23067,7 +25312,7 @@ async function acoesEmLote(listaPronta) {
 		cabecalho.style = 'display: grid;grid-template-columns: 5% 90% 5%;';
 
 		//BOTAO COPIAR LISTA PARA A MEMORIA
-		let btCopiarLista = document.createElement("span");
+		let btCopiarLista = document.createElement("button");
 		btCopiarLista.id = 'maisPje_bt_copiarLista';
 		btCopiarLista.title = "Copiar lista";
 		btCopiarLista.onmouseenter = function () {document.getElementById('maisPje_i_copiarLista').style.filter = 'brightness(0.5)'};
@@ -23080,7 +25325,7 @@ async function acoesEmLote(listaPronta) {
 		btCopiarLista.appendChild(iCopiarLista);
 		
 		//BOTAO ATIVAR FILTROS
-		let btAtivarFiltros = document.createElement("span");
+		let btAtivarFiltros = document.createElement("button");
 		btAtivarFiltros.id = 'maisPje_bt_ativarFiltros';
 		btAtivarFiltros.title = "Filtros";
 		btAtivarFiltros.onmouseenter = function () {document.getElementById('maisPje_i_ativarFiltros').style.filter = 'brightness(0.5)'};
@@ -23102,14 +25347,14 @@ async function acoesEmLote(listaPronta) {
 		cabecalho.appendChild(btAtivarFiltros);
 		container.appendChild(cabecalho);
 		
-		let selectAcaoAutomatizada = document.createElement('span')
+		let selectAcaoAutomatizada = document.createElement('button')
 		selectAcaoAutomatizada.id = 'escolherAAVinculo';
 		selectAcaoAutomatizada.style = "width: 41vw;max-width: 41vw;min-width: 41vw;cursor: pointer; margin-top: 10px; background-color: cornsilk; color: #a52a2a70;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 5vh;padding: 0 10px;display: flex;align-items: center;font-size: 1.125em;"
 		selectAcaoAutomatizada.innerText = "Escolha uma Ação Automatizada";
 		selectAcaoAutomatizada.onmouseenter = function () { this.style.outline = '2px solid #ff6c0042' }
 		selectAcaoAutomatizada.onmouseleave = function () { this.style.outline = 'revert' }
 
-		let bt_executar = document.createElement("span");
+		let bt_executar = document.createElement("button");
 		bt_executar.style = "width: 41vw;max-width: 41vw;min-width: 41vw;height: 2.5vh;color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
 		bt_executar.id = "maisPje_bt_executar";
 		bt_executar.innerText = "Executar";
@@ -23127,12 +25372,17 @@ async function acoesEmLote(listaPronta) {
 						preferencias.tempAR = prompt('Código Assunto:','');
 					} else if (selectAcaoAutomatizada.innerText == "LançarMovimento|botao_lancar_movimento_4") {
 						preferencias.tempAR = await criarCaixaDePergunta('data','Data da Publicação:','');
-					} else if (selectAcaoAutomatizada.innerText == "LançarMovimento|botao_lancar_movimento_5") {						
+					} else if (selectAcaoAutomatizada.innerText == "LançarMovimento|botao_lancar_movimento_5") {
 						preferencias.tempAR = await criarCaixaDePergunta('data','Data da Publicação:','');
+					} else if (selectAcaoAutomatizada.innerText == "Variados|AUTOGIGS>Trocar Responsável Atividade GIGS") {
+						let novoresponsavel = await criarCaixaDePergunta('text','Digite o nome do novo responsável');
+						if (novoresponsavel != '') { //se deixar em branco a pergunta é por processo
+							preferencias.tempAR = { 'novoresponsavel':novoresponsavel }
+						}						
 					}
 					let guardarStorage2 = browser.storage.local.set({'tempAR': preferencias.tempAR});
 					Promise.all([guardarStorage2]).then(values => {					
-						executarAAEmLote([listaDeProcessosTemp,selectAcaoAutomatizada.innerText]);
+						executarAAEmLote(listaDeProcessosTemp,selectAcaoAutomatizada.innerText);
 					});	
 				});				
 			} else if (this.innerText.includes("Continuar"))  {
@@ -23315,17 +25565,18 @@ async function acoesEmLote(listaPronta) {
 			span.innerText = processo.numero;
 			span.setAttribute('labelAnterior',processo.numero);
 			span.onmouseenter = async function () {
+				this.style.cursor = 'auto';
 				this.style.setProperty('grid-template-columns','2fr 4fr 1fr 1fr');
 				this.style.filter = 'brightness(.5)';				
-				this.style.outline = 'rgb(255, 255, 255) solid 1px';
 				this.innerText = '';
 				
 				let atalho1 = document.createElement("span");
 				let atalho1_i = document.createElement("i");
-				atalho1_i.className = 'fas fa-trash-alt icone-padrao';
+				atalho1_i.className = 'fas fa-trash-alt icone-padrao';				 
 				atalho1.title = 'Excluir da Lista';
-				atalho1.onmouseenter = function () { this.style.outline = '1px dashed silver'; }
-				atalho1.onmouseleave = function () { this.style.outline = 'unset'; }
+				atalho1.style.cursor = 'pointer';
+				atalho1.onmouseenter = function () { this.style.opacity = '.5'; }
+				atalho1.onmouseleave = function () { this.style.opacity = '1'; }
 				atalho1.onclick = function () {
 					this.parentElement.remove();
 					listaDeProcessosTemp.splice(listaDeProcessosTemp.findIndex(e => e.id === processo.id), 1);					
@@ -23338,11 +25589,17 @@ async function acoesEmLote(listaPronta) {
 				atalho2.style = 'padding-left:20px;padding-right:20px;';
 				atalho2.innerText = processo.numero;
 				atalho2.title = 'Abrir Detalhes';
-				atalho2.onmouseenter = function () { this.style.color = 'white'; this.style.outline = '1px dashed silver'; }
-				atalho2.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.outline = 'unset';  }
-				atalho2.onclick = function () {
-					this.parentElement.style.outline = '1px dashed black';
-					consultaRapidaPJE(processo.id,true);
+				atalho2.style.cursor = 'pointer';
+				atalho2.onmouseenter = function () { this.style.color = 'white'; this.style.opacity = '.5'; }
+				atalho2.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.opacity = '1';  }
+				atalho2.onclick = function (event) {
+					if (event.getModifierState("Control")) { //CTRL +clique
+						navigator.clipboard.writeText(this.innerText);
+						browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Conteúdo copiado com sucesso!\n' + this.innerText, icone: '3'});
+					} else {
+						this.parentElement.style.outline = '1px dashed black';
+						consultaRapidaPJE(processo.id,true);
+					}					
 				};
 
 				let atalho3 = document.createElement("a");
@@ -23350,8 +25607,9 @@ async function acoesEmLote(listaPronta) {
 				let nomeTarefa = (span.hasAttribute('tarefaProcesso')) ? span.getAttribute('tarefaProcesso') : '';
 				atalho3.innerText = nomeTarefa;				
 				atalho3.title = 'Abrir Tarefa';
-				atalho3.onmouseenter = async function () { this.style.color = 'white'; this.style.outline = '1px dashed silver';}
-				atalho3.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.outline = 'unset';  }
+				atalho3.style.cursor = 'pointer';
+				atalho3.onmouseenter = async function () { this.style.color = 'white'; this.style.opacity = '.5';}
+				atalho3.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.opacity = '1';  }
 				atalho3.onclick = function () {
 					this.parentElement.style.outline = '1px dashed black';
 					abrirTarefaDoProcesso(processo.id);
@@ -23362,8 +25620,9 @@ async function acoesEmLote(listaPronta) {
 				atalho4_i.className = 'fa fa-tag icone-padrao';
 				atalho4_i.style.color = span.getAttribute('gigsColor');				
 				atalho4.title = span.getAttribute('gigs');
-				atalho4.onmouseenter = function () { this.style.outline = '1px dashed silver'; }
-				atalho4.onmouseleave = function () { this.style.outline = 'unset'; }
+				atalho4.style.cursor = 'pointer';
+				atalho4.onmouseenter = function () {  this.style.opacity = '.5'; }
+				atalho4.onmouseleave = function () { this.style.opacity = '1'; }
 				atalho4.appendChild(atalho4_i);
 				
 				// span.appendChild(descricao);				
@@ -23373,15 +25632,18 @@ async function acoesEmLote(listaPronta) {
 				span.appendChild(atalho1);
 
 				//amplia o campo span em caso de informações úteis
-				if (span.getAttribute('motivoSobrestamento').length > 0) {
+				let motivoSobrestamento = '';
+				if (span.hasAttribute('motivoSobrestamento')) {
+					motivoSobrestamento = (span.hasAttribute('motivoSobrestamento')) ? '\n\n\u27BDMotivo do Sobrestamento: ' + span.getAttribute('motivoSobrestamento') : '';
+					motivoSobrestamento += (span.hasAttribute('motivoSobrestamentoDetalhes')) ? span.getAttribute('motivoSobrestamentoDetalhes') : '';
+				}
+				let textoGigs = (span.hasAttribute('gigs')) ? span.getAttribute('gigs') : '';
+				let alturaspan = span.offsetHeight;
+				if (motivoSobrestamento || textoGigs) {
 					let ttip = document.createElement('span')
 					ttip.id = span.id + '_ttip';
 					ttip.style = 'z-index:999999;width: 38vw;max-width: 38vw;min-width: 38vw;grid-area: observacao; background-color: white;color: teal;opacity:.7;font-weight: lighter;border-radius: 5px;padding: 1vh;margin-top: 1vh;height: 5vh;font-size: smaller;height:auto;';
-					
-					let motivoSobrestamento = (span.hasAttribute('motivoSobrestamento')) ? span.getAttribute('motivoSobrestamento') : '';
-					motivoSobrestamento += (span.hasAttribute('motivoSobrestamentoDetalhes')) ? span.getAttribute('motivoSobrestamentoDetalhes') : '';
-					
-					ttip.innerText = motivoSobrestamento;
+					ttip.innerText = textoGigs + motivoSobrestamento;
 					span.appendChild(ttip);
 					span.style.setProperty('grid-template-columns','unset');
 					let gt = `
@@ -23389,13 +25651,13 @@ async function acoesEmLote(listaPronta) {
 					"observacao observacao observacao observacao"
 					`;
 					span.style.setProperty('grid-template-areas',gt);
-					span.style.height = span.offsetHeight + ttip.offsetHeight + 'px';
+					span.style.height = alturaspan + ttip.offsetHeight + 'px';
 				}
 			};
 			span.onmouseleave = async function () {
 				bloqueioContainer.style.display = 'block'; //ativa o bloqueio do container
-				this.style.filter = 'brightness(1)';				
-				this.style.outline = 'unset';
+				this.style.cursor = 'pointer';
+				this.style.filter = 'brightness(1)';
 				this.style.height = '23px';
 				this.style.setProperty('grid-template-columns','1fr');
 				this.innerText = this.getAttribute('labelAnterior');
@@ -23404,10 +25666,10 @@ async function acoesEmLote(listaPronta) {
 					exibirDoctoNaoAssinado(this);
 				}
 
-				setTimeout(function() {	bloqueioContainer.style.display = 'none' },250)//desativa o bloqueio do container para suavizar a transição entre elementos
+				setTimeout(function() {	bloqueioContainer.style.display = 'none' },200)//desativa o bloqueio do container para suavizar a transição entre elementos
 				
 			};
-						
+			
 			obterFaseIdProcessoViaApi(processo.id).then(resultado => {
 				switch(resultado) {
 					case 'CONHECIMENTO':
@@ -23440,10 +25702,12 @@ async function acoesEmLote(listaPronta) {
 					span.setAttribute('motivoSobrestamento',motivo);
 
 					let temNumeroProcesso = await extrairNumeroProcesso(motivo);
-					if (temNumeroProcesso) {
+					if (temNumeroProcesso && !temNumeroProcesso.includes('ERRO')) {						
 						let idNovo = await obterIdProcessoViaApi(temNumeroProcesso);
 						let tarefaNovo = await obterNomeTarefaDoProcessoViaApi(idNovo);
-						span.setAttribute('motivoSobrestamentoDetalhes','\n\u21AA O processo n. ' + temNumeroProcesso + ' está na tarefa ' + tarefaNovo);						
+						span.setAttribute('motivoSobrestamentoDetalhes','\n\u21AA O processo n. ' + temNumeroProcesso + ' está na tarefa ' + tarefaNovo);
+						if (tarefaNovo.includes('Arquivo')) { span.style.outline = '2px solid red' }
+						if (tarefaNovo.includes('Aguardando apreciação pela instância superior')) { span.style.outline = '2px solid lightsalmon' }
 					}
 				}
 			});
@@ -23644,26 +25908,33 @@ async function acoesEmLote(listaPronta) {
 		});
 	}
 
-	async function executarAAEmLote(listaDeProcessosParaAcaoAutomatizadaEmLote) {
-		
-		for (const [pos, processo] of listaDeProcessosParaAcaoAutomatizadaEmLote[0].entries()) {
+	async function executarAAEmLote(processos, acaoAutomatizada) {
+		let continuar;
+		for (const [pos, processo] of processos.entries()) {
 			// console.log(processo.numero + " (" + processo.id + ")");
 			//verifica se está ativo na lista - por causa dos filtros
 			if (document.querySelector('#maisPje_AALote_' + processo.id)?.style.display != "none") {
 				await sleep(preferencias.maisPje_velocidade_interacao + 1000);			
-				await lancarNovoProcesso(listaDeProcessosParaAcaoAutomatizadaEmLote[1], processo.id);
+				continuar = await lancarNovoProcesso(acaoAutomatizada, processo.id);
+				if (!continuar) { break } //ação interrompida pelo usuário
 			}			
 		}
 		console.debug("      |___maisPJe: FIM de acoesEmLote");
 		
 		let guardarStorage = browser.storage.local.set({'tempAR': ''});
 		Promise.all([guardarStorage]).then(values => {
-			let var1 = browser.storage.local.get('erros', function(result){
-				if ((result.erros.length > 0)) {
-					console.log('result.erros: ' + result.erros.toString());
-					criarCaixaDeAlerta("ERRO",'Identificado erro durante o Lote. Verifique a lista');
-				}
-			});
+			if (!continuar) {
+				criarCaixaDeAlerta("AVISO",'Ações em Lote interrompidas pelo usuário!!');
+				browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'});
+			} else {
+				let var1 = browser.storage.local.get('erros', function(result){
+					if ((result.erros.length > 0)) {
+						console.log('result.erros: ' + result.erros.toString());
+						criarCaixaDeAlerta("ERRO",'Identificado erro durante o Lote. Verifique a lista');
+					}
+				});
+			}
+			
 		});
 		
 	}
@@ -23671,13 +25942,17 @@ async function acoesEmLote(listaPronta) {
 	function aguardandoFimAAEmLote() {
 		return new Promise(resolve => {
 
-			let verificador = false;
+			let verificador = 0;
 			browser.storage.onChanged.addListener(logStorageChange);
 			let check = setInterval(function() {
-				if (verificador) {
+				if (verificador == 1) { //completou a tarefa e vai pra próxima
 					clearInterval(check);
 					browser.storage.onChanged.removeListener(logStorageChange);
 					return resolve(true);
+				} else if (verificador == 2) { //AALote interrompida pelo usuário
+					clearInterval(check);
+					browser.storage.onChanged.removeListener(logStorageChange);
+					return resolve(false);
 				}
 			}, 1000);
 			
@@ -23685,7 +25960,7 @@ async function acoesEmLote(listaPronta) {
 				let changedItems = Object.keys(changes);
 				for (let item of changedItems) {
 					if (item == "AALote") {
-						verificador = true;
+						verificador = (changes[item].newValue == 'interromper') ? 2 : 1;
 					}
 				}
 			}
@@ -23700,22 +25975,29 @@ async function acoesEmLote(listaPronta) {
 			Promise.all([guardarStorage1,guardarStorage2]).then(async values => {
 				
 				const janelaDetalhes = apis.abrirDetalhesProcesso.abrir(preferencias.trt, { idProcesso });
-				await aguardandoFimAAEmLote();
+				let continuar = await aguardandoFimAAEmLote();
 				janelaDetalhes.close();
-				let el = await esperarElemento('span[id*="maisPje_AALote_' + idProcesso + '"]');
 				
-				let var1 = browser.storage.local.get('erros', function(result){
-					let errosEncontrados = result.erros;
-					errosEncontrados = (errosEncontrados.length > 0) ? errosEncontrados : '';
-					if (errosEncontrados.includes(el.innerText)) {
-						el.style.color = 'red';
-						el.innerText = el.innerText + " [erro]";	
-					} else {
-						el.style.textDecoration = 'line-through';
-					}
-					el.scrollIntoView({behavior: 'auto',block: 'center',inline: 'center'});
-					return resolve(true);
-				});
+				if (continuar) {
+					let el = await esperarElemento('span[id*="maisPje_AALote_' + idProcesso + '"]');				
+					let var1 = browser.storage.local.get('erros', function(result){
+						let errosEncontrados = result.erros;
+						errosEncontrados = (errosEncontrados.length > 0) ? errosEncontrados : '';
+						if (errosEncontrados.includes(el.innerText)) {
+							el.style.color = 'red';
+							el.innerText = el.innerText + " [erro]";	
+						} else {
+							el.style.textDecoration = 'line-through';
+						}
+						el.scrollIntoView({behavior: 'auto',block: 'center',inline: 'center'});
+						return resolve(true);
+					});
+
+				} else {
+					return resolve(false);
+				}
+				
+				
 			});
 		});
 	}
@@ -23735,7 +26017,7 @@ async function janelaAlvarasSIF(tipo) {
 	let result = await mapTratarDados(listaTemporaria);	
 	let guardarStorage = browser.storage.local.set({'tempAR': result});
 	Promise.all([guardarStorage]).then(values => {
-		browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSIF.html', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});					
+		browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSIF.html', posx: preferencias.gigsDetalhesLeft, posy: preferencias.gigsDetalhesTop, width: preferencias.gigsDetalhesWidth, height: preferencias.gigsDetalhesHeight});
 		fundo(false);
 	});	
 	
@@ -23786,7 +26068,13 @@ async function verificarDocumentosNaoAssinados() {
 			for (const [pos, item] of lista.entries()) {
 				exibir_mensagem('Verificando se existem documentos não assinados - ' + pos)
 
-				let idProcesso = await obterIdProcessoDaUrl(item.href);
+				let idProcesso;
+				if (item.hasAttribute('id')) {
+					idProcesso = item.id;
+				} else {
+					idProcesso = await obterIdProcessoDaUrl(item.href);
+				}
+				console.log(idProcesso)
 				let doctoNaoAssinado = await existeDoctoNaoAssinado(idProcesso);		
 				if (doctoNaoAssinado) {
 					let i = document.createElement('i')
@@ -23850,8 +26138,8 @@ async function obterAlvarasTipo(tipo) {
 						// console.log('idprocesso2: ' + dadosProcesso)						
 						let idProcesso = dadosProcesso[0].id ? dadosProcesso[0].id : dadosProcesso[0].idProcesso;
 						alvara.idProcesso = idProcesso;
-						alvara.processoFormatado = p;
-						alvara.emissor = await obterEmissorDoAlvara(alvara.processo,alvara.banco,alvara.idConta);						
+						alvara.processoFormatado = p;				
+						alvara.emissor = '...';
 						let status = '';
 
 						if (alvara.nomeBeneficiario) {
@@ -23878,73 +26166,35 @@ async function obterAlvarasTipo(tipo) {
 }
 
 async function conferirStatusDoBeneficiarioNoProcesso(idProcesso,parte) {
-	//https://pje.trt12.jus.br/pje-consulta-api/api/processos/961027   ---api publica.. mas dá erro fora da rede do trt
-	let url = 'https://' + preferencias.trt + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
-	let resposta = await fetch(url,	{ headers: { "X-Grau-Instancia": 1	},	credentials: "include",	method: "GET",	mode: "cors" });
-	let dados = await resposta.json();
-	let status = await obterStatus(dados.ATIVO,parte);
-	
+	let dadosResumidos = await obterDadosResumidosDoProcesso('',idProcesso,false,true) //obterDadosResumidosDoProcesso(numeroProcesso, idProcesso, soDadosGerais=false, soDadosPartes=false)
+	let status = await obterStatus(dadosResumidos.partes.poloAtivo,parte.trim());	
 	if (!status) { 
-		status = await obterStatus(dados.PASSIVO,parte);
+		status = await obterStatus(dadosResumidos.partes.poloPassivo,parte.trim());
 	}
-
-	if (!status && dados.TERCEIROS) {
-		status = await obterStatus(dados.TERCEIROS,parte);
-	}
-	
+	if (!status) {
+		status = await obterStatus(dadosResumidos.partes.poloOutros,parte.trim());
+	}	
 	if (!status) {
 		status = ' (NÃO IDENTIFICADA)'
 	}
-
-	// console.log(parte + ' ' + status);
 	return parte + ' ' + status;
 }
 
-async function obterStatus(objeto, nome) {
+async function obterStatus(listaDePartes, nome) {
 	return new Promise(
 		async resolver => {
-			let status = ''
-			for (const [pos, i1] of objeto.entries()) {
+			let status = '';
+			for (const [pos, parte] of listaDePartes.entries()) {
 				if (!status) {
-					// console.log('            |____' + i1.nome.trim());
-					if (i1.nome.trim() == nome.trim()) {
-						status = '(' + i1.tipo.trim() + ')';
-					} else {
-						// console.log('            |____' + i1.nome.substring(0,39).trim() + " == " + nome.trim() + ' : ' + (i1.nome.substring(0,39).trim() == nome.trim()));
-						if (i1.nome.substring(0,39).trim() == nome.trim()) { // o SIF guarda o nome com no máximo 39 caracteres
-							status = '(' + i1.tipo.trim() + ')';
-						} else if (i1.representantes) {
-							for (const [pos, i2] of i1.representantes.entries()) {
-								// console.log('            |____' + i2.nome.trim());
-								if (i2.nome.trim() == nome.trim()) {
-									status = '(' + i2.tipo.trim() + ' DO ' + i1.tipo.trim() + ')';
-								}
-							}
-						}
+					let nomeDaParteTemp = parte.nome.trim();
+					// console.log('            |____' + nomeDaParteTemp);
+					if (nomeDaParteTemp.includes(nome)) {
+						status = '(' + parte.tipo + ')';
 					}
-				}
+				} else { break }
 			}
 
 			return resolver(status);
-		}
-	);
-}
-
-async function obterEmissorDoAlvara(numeroProcesso,banco,contajudicial) {
-	return new Promise(
-		async resolver => {
-
-			if (banco == 'CAIXA ECONÔMICA FEDERAL') {
-				let url1 = 'https://' + preferencias.trt + '/sif-financeiro-api/api/alvaras/lista/' + numeroProcesso + '/104/' + contajudicial + '?pagina=1&tamanhoPagina=5&ordenacaoCrescente=false&ordenacaoColuna=dtHrSituacao';
-				let resposta1 = await fetch(url1);
-				let dados1 = await resposta1.json();
-				
-				if (!dados1) { return resolver('') }
-				if (!dados1.resultado) { return resolver('') }
-				if (dados1.resultado.length <= 0) { return resolver('') }						
-				return resolver(dados1.resultado[0]?.nomeEmissor);
-			}			
-			
 		}
 	);
 }
@@ -23959,6 +26209,14 @@ async function esperarConferenciaAlvaraSif(descricaoBotao) {
 		
 		if (descricaoBotao == 'Conferir e Salvar') { //se a data de validade estiver incorreta.. corrige
 			if (document.querySelector('button[aria-label="Limpar Data de Validade"]')) { document.querySelector('button[aria-label="Limpar Data de Validade"]').click() }
+		}
+
+		//se o beneficiario não estiver escolhido (bug do sif que acontece com nomes de réus muito grandes), escolhe o beneficiario
+		console.log(document.querySelector('mat-select[placeholder="Contribuinte"]'))
+		if (document.querySelector('mat-select[placeholder="Contribuinte"][aria-invalid="true"]')) 
+			{
+			let beneficiario = decodeURIComponent(document.location.href.match(/(={1})([A-Za-z0-9].{1,})/)[2]);
+			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="contribuinte"]', beneficiario); //CONTRIBUINTE			
 		}
 
 		elemento1.onclick = function (e) { console.log('clicou em ' + descricaoBotao); return resolver(true);  }
@@ -24118,7 +26376,7 @@ async function janelaAlvarasSISCONDJ(tipo) {
 		let result = await mapTratarDados(lista);
 		let guardarStorage = browser.storage.local.set({'tempAR': result});
 		Promise.all([guardarStorage]).then(values => {
-			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSISCONDJ.html', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});					
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSISCONDJ.html', posx: preferencias.gigsDetalhesLeft, posy: preferencias.gigsDetalhesTop, width: preferencias.gigsDetalhesWidth, height: preferencias.gigsDetalhesHeight});					
 			fundo(false);
 		});
 	}	
@@ -24363,6 +26621,67 @@ async function verificarBNDT(idProcesso) {
 
 //função em TESTES
 
+async function inserirBotaoControleDeAcordo() {
+	return new Promise(async resolve => {
+
+		//DESCRIÇÃO: REGRA DO TOOLTIP
+		if (!document.getElementById('maisPje_tooltip_abaixo3')) {
+			tooltip('abaixo3');
+		}
+
+		let ancora = await esperarColecao('pje-controle-acordo-parcelas pje-data-table thead tr',3); //[0] acordo principal [1] creditos de terceiros
+		
+		if (ancora[0]) {
+			if (!document.getElementById("maisPje_bt_excluirSelecionadas_0")) {
+				let bt0 = document.createElement("button");
+				bt0.id = "maisPje_bt_excluirSelecionadas_0";
+				bt0.className = "mat-icon-button";
+				bt0.style="font-size: 1.3em;"
+				bt0.setAttribute('maisPje-tooltip-abaixo3','Excluir Selecionados');	
+				bt0.onclick = function () { excluirSelecionadas(this)};
+				let i0 = document.createElement("i");
+				i0.className = "fa fa-trash";
+				ancora[0].style.textAlign = 'center';
+				bt0.appendChild(i0);
+				ancora[0].lastElementChild.appendChild(bt0);
+			}
+		}
+
+		if (ancora[2]) {
+			if (!document.getElementById("maisPje_bt_excluirSelecionadas_1")) {
+				let bt1 = document.createElement("button");
+				bt1.id = "maisPje_bt_excluirSelecionadas_1";
+				bt1.className = "mat-icon-button";
+				bt1.style="font-size: 1.3em;"
+				bt1.setAttribute('maisPje-tooltip-abaixo3','Excluir Selecionados');	
+				bt1.onclick = function () { excluirSelecionadas(this)};
+				let i1 = document.createElement("i");
+				i1.className = "fa fa-trash";
+				bt1.appendChild(i1);
+				ancora[2].style.textAlign = 'center';
+				ancora[2].lastElementChild.appendChild(bt1);				
+			}
+		}
+	});
+
+	async function excluirSelecionadas(elemento) {
+		return new Promise(async resolve2 => {
+			let ancora = elemento.parentElement.parentElement.parentElement.parentElement; //cai no table
+
+			let linhas = ancora.querySelectorAll('tbody tr');
+			for (const [pos, linha] of linhas.entries()) {
+				if (linha.querySelector('mat-checkbox[class*="mat-checkbox-checked"]')) {
+					await clicarBotao(linha.querySelector('button[mattooltip="Excluir"]'));
+					await clicarBotao('div[class="cdk-overlay-container"] mat-dialog-container button', 'Sim');					
+				}
+				
+			}
+
+		});
+	}
+}
+
+
 function incluirBotaoVariaveis() {
 	return new Promise(async resolve => {
 		let jaExiste = await esperarElemento('div[id="extensaoPje_barra_select_variaveis"]',null,1000);
@@ -24425,6 +26744,7 @@ function incluirBotaoVariaveis() {
 	});
 }
 
+//0001763-73.2015.5.12.0059
 async function substituirVariaveisEditorTexto() {
 	return new Promise(async resolver => {
 		if (document.querySelector('pje-editor-documento')) {
@@ -24436,10 +26756,29 @@ async function substituirVariaveisEditorTexto() {
 			
 			console.log('maisPje: substituirVariaveisEditorTexto(): ' + ancora);
 
-			if (ancora.textContent.includes('[maisPje:exequente]') || ancora.textContent.includes('[maisPje:executado]')) {
-				let partes = await ObterPartesDoProcesso(idProcesso);
-				if (ancora.textContent.includes('[maisPje:exequente]')) { await substituir('[maisPje:exequente]',partes.poloativo) }
-				if (ancora.textContent.includes('[maisPje:executado]')) { await substituir('[maisPje:executado]',partes.polopassivo) }
+			if (ancora.textContent.includes('[maisPje:exequente]') || ancora.textContent.includes('[maisPje:executado]') || ancora.textContent.includes('[maisPje:exequente:telefone]') || ancora.textContent.includes('[maisPje:perito]')) {
+				let partes = await obterPartesDoProcesso(idProcesso);
+				if (ancora.textContent.includes('[maisPje:exequente]')) { 
+					let ativos = '';
+					Array.from(partes.poloAtivo).find(function(parte){ativos += parte.nome + ' (CPF/CNPJ ' + parte.cpfcnpj + ') ' });					
+					await substituir('[maisPje:exequente]',ativos)
+				}
+				if (ancora.textContent.includes('[maisPje:executado]')) {
+					let passivos = '';
+					Array.from(partes.poloPassivo).find(function(parte){passivos += parte.nome + ' (CPF/CNPJ ' + parte.cpfcnpj + ') ' });					
+					await substituir('[maisPje:executado]',passivos)
+				}
+				if (ancora.textContent.includes('[maisPje:perito]')) {
+					let peritos = '';
+					Array.from(partes.poloOutros).find(function(parte){if(parte.tipo.includes('PERITO')){ peritos += parte.nome + ' ' }});
+					console.log('peritos: ' + peritos)
+					await substituir('[maisPje:perito]',peritos)
+				}
+				if (ancora.textContent.includes('[maisPje:exequente:telefone]')) {
+					let telefones = '';					
+					Array.from(partes.poloAtivo).find(function(parte){telefones += parte.nome + ' - telefone nº ' + parte.telefone});
+					await substituir('[maisPje:exequente:telefone]',telefones)
+				}
 			}
 			if (ancora.textContent.includes('[maisPje:valorDivida]') || ancora.textContent.includes('[maisPje:dataDaDivida]')) {
 				let divida = await ObterValorExecucao(idProcesso);
@@ -24491,6 +26830,19 @@ async function substituirVariaveisEditorTexto() {
 				}
 				
 			}
+			if (ancora.textContent.includes('[maisPje:audiencia')) {
+				let audi = await obterAudienciaMarcada(idProcesso);
+				let data = audi.dataInicio;
+				console.log(JSON.stringify(audi))
+				if (ancora.textContent.includes('[maisPje:audiencia:data]')) {					
+					await substituir('[maisPje:audiencia:data]',new Date(data).toLocaleDateString())
+				}
+				if (ancora.textContent.includes('[maisPje:audiencia:hora]')) {
+					await substituir('[maisPje:audiencia:hora]',obterHoraMinuto(new Date(data)))
+				}
+
+			}
+			
 
 			let variavel;
 			let itensTimeline = undefined;
@@ -24501,7 +26853,7 @@ async function substituirVariaveisEditorTexto() {
 					if (ancora.textContent.includes(item[0])) { 
 						itensTimeline = itensTimeline ?? await apis.timelineProcesso.executar(preferencias.trt, {idProcesso});
 						// console.log(idProcesso)
-						// console.log(item)
+						console.log(item)
 						// console.log(itensTimeline)
 						variavel = await obterPecaProcessualDaTimeline(idProcesso, item, itensTimeline);
 						await substituir(item[0],variavel);				 
@@ -24509,6 +26861,12 @@ async function substituirVariaveisEditorTexto() {
 				}
 			}
 
+			//aqui finaliza todas as substituições..
+			//para avisar as ações automatizadas que as variáveis já foram substituídas, podendo prosseguir, vou trocar a cor
+			// do icone localizar/substituir, assim como faço no mapearIds
+			let bt = document.querySelector('div[aria-label="Barra de Ferramentas da Lista Suspensa"]') || document.querySelector('button[data-cke-tooltip-text="Pesquisar e substituir (Ctrl+F)"]')
+			if (bt) { bt.classList.add('variaveisMaisPje') }
+			
 			fundo(false);
 		}
 		return resolver(true);
@@ -24521,7 +26879,8 @@ async function substituirVariaveisEditorTexto() {
 			if (!ancora.innerText.includes(localizar)) { return resolver(true) }
 			
 			let menuSuspenso;
-			if (versaoAtualMaiorQue('2.13.1 - JATOBÁ') && !document.querySelector('div[aria-label="Barra de Ferramentas da Lista Suspensa"]')) {
+			// if (versaoAtualMaiorQue('2.13.1 - JATOBÁ') && !document.querySelector('div[aria-label="Barra de Ferramentas da Lista Suspensa"]')) {
+			if (!document.querySelector('div[aria-label="Barra de Ferramentas da Lista Suspensa"]')) {
 				let ancora = await esperarElemento('button[data-cke-tooltip-text*="Pesquisar e substituir"]');
 				ancora.parentElement.querySelector('div[class*="panel"]').style.opacity = '0';
 				ancora.click();
@@ -24539,37 +26898,6 @@ async function substituirVariaveisEditorTexto() {
 				return resolver(true);
 			}						
 			
-		});
-	}
-
-	async function ObterPartesDoProcesso(idProcesso) {
-		return new Promise(async resolve => {
-			let urlBase = preferencias.trt;
-			if (preferencias.trt.includes('dev015')) { urlBase = preferencias.trt.replace('dev015','pje') }						
-			if (!idProcesso) { 
-				alert("maisPje: " + idProcesso + " não encontrado [ERRO1].");
-				return resolve('ERRO1');
-			}
-			
-			let url = 'https://' + urlBase + '/pje-comum-api/api/processos/id/' + idProcesso + '/partes';
-			let resposta = await fetch(url);
-			let dados = await resposta.json();
-
-			let poloAtivo = '';
-			for (const [pos, parte] of dados.ATIVO.entries()) {
-				if (dados.ATIVO.length > 1) { poloAtivo += (pos+1) + '. ' }
-				let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido";
-				poloAtivo += parte.nome.trim() + ' (CPF/CNPJ ' + cpfcnpj + ') ';
-			}
-
-			let poloPassivo = '';
-			for (const [pos, parte] of dados.PASSIVO.entries()) {
-				if (dados.PASSIVO.length > 1) { poloPassivo += (pos+1) + '. ' }
-				let cpfcnpj = (parte.documento) ? parte.documento : "desconhecido"
-				poloPassivo += parte.nome.trim() + ' (CPF/CNPJ ' + cpfcnpj + ') ';
-			}
-
-			return resolve({"poloativo":poloAtivo,"polopassivo":poloPassivo});
 		});
 	}
 
@@ -24618,16 +26946,40 @@ async function substituirVariaveisEditorTexto() {
 			const dados = itensTimeline ?? await apis.timelineProcesso.executar(preferencias.trt, {idProcesso});
 			let resultado = '';
 			if (dados) {
-				let pesquisandoChave = tipo[0].includes(':chave]') ? true : false; //estou pesquisando chave de Acesso? Pq neste caso tenho que pegar o IdDoDocumento pra depois pegar a chave
-				const getResultado = async (doc) => 
-					pesquisandoChave 
-						? await obterCodigoValidacaoDocumento(idProcesso, doc.id) // este passa a chave
-						: doc.idUnicoDocumento; //este passa o Id
+				let pesquisandoChave = tipo[0].includes(':chave]') ? 0 : 1; // chave = 0, id = 1, anexos = 2 //estou pesquisando chave de Acesso? Pq neste caso tenho que pegar o IdDoDocumento pra depois pegar a chave
+				pesquisandoChave = tipo[0].includes(':anexos]') ? 2 : pesquisandoChave;
+				
+				// const getResultado = async (doc) => 
+				// 	pesquisandoChave 
+				// 		? await obterCodigoValidacaoDocumento(idProcesso, doc.id) // este passa a chave
+				// 		: doc.idUnicoDocumento; //este passa o Id
+
+				const getResultado = async function(doc) {
+					if (pesquisandoChave == 0) { //chave
+						return await obterCodigoValidacaoDocumento(idProcesso, doc.id) // este passa a chave
+					} else if (pesquisandoChave == 1) { //id
+						return doc.idUnicoDocumento; //este passa o Id
+					} else { //anexos
+						
+						let frase = '';
+						let arrayDeAnexos = [...dados.flatMap(d => d?.anexos || [])];
+						let arrayDeAnexosApenasDoDocumento = [...arrayDeAnexos.filter((d) => d.idDocumentoPai == doc.id)];
+						console.log(arrayDeAnexosApenasDoDocumento)
+						for (const [pos, item] of arrayDeAnexosApenasDoDocumento.entries()) {							
+							frase += (pos > 0) ? ', ' : '';							
+							frase += '#id:' + item.idUnicoDocumento
+						}						
+						console.log('frase: ' + frase);
+						return frase; //este passa a frase (anexos Id.xxx, Id.xxx, Id.xxx)
+					}
+				}
+
+
 				if (tipo[1] == '*') {
 					resultado = await getResultado(dados[0]);
+					console.log('-*-*-*-*-*-*-*-*- ' + resultado);
 					return resolve(resultado)
-				} else if (!JSON.stringify(dados).includes(tipo[1])) {
-					return resolve(resultado) 
+
 				}
 				for (const docto of [...dados, ...dados.flatMap(d => d?.anexos || [])]) {
 					const isChaveAcesso = (tipo[1] == 'Chave de Acesso') && 
@@ -24639,12 +26991,11 @@ async function substituirVariaveisEditorTexto() {
 					if (isChaveAcesso ||
 						isPlanilhaCalculos ||
 						docto.tipo == tipo[1]) {
-						resultado = await getResultado(docto);
+							resultado = await getResultado(docto);
 							break;
-
 					}
 				}
-				// console.log('----------- ' + resultado + ' --------------')
+				console.log('----------- ' + resultado + ' --------------')
 				return resolve(resultado);
 			} else {
 				return resolve('ERRO2');
@@ -24677,9 +27028,20 @@ async function substituirVariaveisEditorTexto() {
 	}
 }
 
+function esperarTransicaoVariaveisMaisPje(seletor) {
+	return new Promise(resolve => {
+		let check = setInterval(function() {
+			if (document.querySelector(seletor)?.className.includes('variaveisMaisPje')) {				
+				clearInterval(check);					
+				resolve(true);
+			}				
+		}, 10);
+	});
+}
+
 async function trocarMagistradoResponsavelPelaMinuta() {
 	return new Promise(async resolver => {
-		console.log('entrou')
+		// console.log('entrou')
 		let editor = await esperarElemento('pje-editor-documento')
 		if (editor) {
 			fundo(true,'maisPje: substituindo juiz pela nova regra do módulo 8');
@@ -24787,6 +27149,121 @@ async function trocarMagistradoResponsavelPelaMinuta() {
 	}
 }
 
+async function rejeitarPrevencaoEmLote() {
+	return new Promise(async resolver => {
+
+		console.log('entrou')
+
+		if (document.location.href.includes("/conclusao")) {
+			//escolhe o magistrado
+			await filtroMagistrado();
+			
+			//espera por um segundos pela regra de impedimento ou suspeição, bem como para recarregar os botões (eles mudam sempre que troca o juiz)
+			let impedimento_suspeição = await esperarElemento('i[mattooltip="Existe impedimento ou suspeição para este Magistrado"]', null, 1000);		
+			
+			if (impedimento_suspeição) {
+				fundo(false);
+				criarCaixaDeAlerta("ALERTA",'Atenção, o(a) Magistrado(a) possui regra de suspeição/impedimento ativa para este processo!');			
+				return resolver(false);
+			}
+		
+			//escolhe o tipo de conclusão
+			let tipo = "Prevenção"; //se não tiver tipo definido será "Despacho"
+			let ancora = await esperarElemento('pje-concluso-tarefa-botao', tipo);
+
+			let botao_ativado = await clicarBotao(ancora.firstElementChild);
+			if (!botao_ativado) { //verifica se o botão está habilitado
+				fundo(false);
+				return resolver(false);
+			}
+		}
+		
+		//esperar a transição da página para elaborar despacho/decisão/sentença
+		await esperarElemento('PJE-MODAL-DEPENDENCIA-PREVENCAO pje-tabela-dependencia-prevencao tr');
+
+		ancora = await esperarElemento('PJE-MODAL-DEPENDENCIA-PREVENCAO mat-radio-button', 'REJEITAR PREVENÇÃO');
+		let botao_rejeicao = await clicarBotao(ancora.querySelector('input'));
+		if (!botao_rejeicao) { //verifica se o botão está habilitado
+			fundo(false);
+			return resolver(false);
+		}
+
+		await clicarBotao('PJE-MODAL-DEPENDENCIA-PREVENCAO button','Rejeitar');		
+		await clicarBotao('button[aria-label="Salvar"]',null, true);		
+		await clicarBotao('button[aria-label="Enviar para assinatura"]');
+		
+		await esperarTransicaoParaAssinatura();
+		
+		await clicarBotao('PJE-MODAL-DEPENDENCIA-PREVENCAO button','Rejeitar');
+		await sleep(1000);
+		fundo(false);
+		
+		return resolver(true);
+	});
+
+	async function esperarTransicaoParaAssinatura() {
+		return new Promise(async resolve => {
+			let check = setInterval(async function() {
+				let condicao1 = document.querySelector('pje-elaborar-assinar-dependencia button[aria-label="Somente Magistrados podem assinar esse documento"]');
+				let condicao2 = document.querySelector('pje-cabecalho-tarefa h1[class="titulo-tarefa"]');
+				if (condicao1 && condicao2.innerText.includes('Assinar decisão - Dependência')) {
+					clearInterval(check);
+					return resolve(true);
+				}				
+			}, 1000);
+		});
+	}
+}
+
+async function aceitarPrevencaoEmLote() {
+	return new Promise(async resolver => {
+
+		if (document.location.href.includes("/assinar")) { //evita executar em duplicidade após o envio para assinatura
+			fundo(false);
+			return resolver(false);
+		}
+		if (document.location.href.includes("/conclusao")) {
+			//escolhe o magistrado
+			await filtroMagistrado();
+			
+			//espera por um segundos pela regra de impedimento ou suspeição, bem como para recarregar os botões (eles mudam sempre que troca o juiz)
+			let impedimento_suspeição = await esperarElemento('i[mattooltip="Existe impedimento ou suspeição para este Magistrado"]', null, 1000);		
+			
+			if (impedimento_suspeição) {
+				fundo(false);
+				criarCaixaDeAlerta("ALERTA",'Atenção, o(a) Magistrado(a) possui regra de suspeição/impedimento ativa para este processo!');			
+				return resolver(false);
+			}
+		
+			//escolhe o tipo de conclusão
+			let tipo = "Prevenção"; //se não tiver tipo definido será "Despacho"
+			let ancora = await esperarElemento('pje-concluso-tarefa-botao', tipo);
+
+			let botao_ativado = await clicarBotao(ancora.firstElementChild);
+			if (!botao_ativado) { //verifica se o botão está habilitado
+				fundo(false);
+				return resolver(false);
+			}
+		}
+		
+		//esperar a transição da página para elaborar despacho/decisão/sentença
+		await esperarElemento('PJE-MODAL-DEPENDENCIA-PREVENCAO pje-tabela-dependencia-prevencao tr');
+		let linhas = await esperarColecao('PJE-MODAL-DEPENDENCIA-PREVENCAO table[name="tabelaProcessosPreventos"] tbody tr');
+		console.log(linhas);
+		if (linhas.length == 1) {
+			await clicarBotao(linhas[0].querySelector('input'));
+			await clicarBotao('PJE-MODAL-DEPENDENCIA-PREVENCAO mat-select div');
+			fundo(false);
+			return resolver(false);			
+		} else {
+			fundo(false);
+			return resolver(false);
+		}
+		
+	});
+	
+}
+
 //testes..
 async function remeterAoSegundoGrau(idProcesso) {
 	return new Promise(async resolver => {
@@ -24880,7 +27357,7 @@ browser.runtime.onMessage.addListener(request => {
 			window.onunload = function() {
 				browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});											
 			};
-			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});							
+			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
 		}
 		return;
 	}
@@ -24939,7 +27416,8 @@ document.body.addEventListener('dblclick', function(event) {
 			}
 		}
 		if(botao == "Relatórios do GIGS"){
-			meusProcessosGigs();
+			let prazoOUpreparo = event.getModifierState("Control");
+			meusProcessosGigs(prazoOUpreparo);
 		}
 		
 		//se o gigs estiver aberto atribui o responsável automaticamente		
@@ -24960,7 +27438,9 @@ document.body.addEventListener('click', async function(event) {
 	// console.log(event.target.id + " : " + event.target.name + " : " + event.target.tagName + " : " + event.target.className + " : " + event.target.innerText);
 		
 	if (document.location.href.includes(".jus.br/pjekz/") || document.location.href.includes("/administracao") || document.location.href.includes(".jus.br/centralmandados/")) {
-		kaizen();
+		if (!document.location.href.includes("/conteudo")) { //o menukaizen clareia a seleção de texto nos documentos
+			kaizen();
+		}		
 		
 		//DESCRIÇÃO: coloca barra de rolagem na consulta de expedientes, quando tem muito o botão de "fechar expediente" some da tela
 		if (document.getElementsByTagName("pje-expedientes-dialogo")[0]) {
@@ -25276,6 +27756,16 @@ document.body.addEventListener('click', async function(event) {
 		let aa = await criarCaixaDeSelecaoComAAs('Escolha uma Ação Automatizada para VINCULAR');		
 		event.target.innerText = aa;
 	}
+
+	//clicou segurando o ctrl e o o alvo é um numero de processo
+	if (event.getModifierState("Control")) {
+		if (event.target.innerText.length == 0) { console.log('vazio'); return; }
+		let numeroProcesso = await extrairNumeroProcesso(event.target.innerText);
+		console.log(numeroProcesso.split(',').length)
+		if (numeroProcesso.split(',').length > 1) { return }
+		if (numeroProcesso.includes('ERRO')) { return }		
+		consultaRapidaPJE(numeroProcesso);
+	}
 });
 
 //FUNÇÃO RESPONSÁVEL POR ESCUTAR EVENTOS DE saída de formulários
@@ -25376,9 +27866,9 @@ document.body.addEventListener('focusout', async function(event) {
 
 //FUNÇÃO RESPONSÁVEL POR ESCUTAR EVENTOS DE entrada de clique
 //só existe porque a transição de datas na pauta a primeira vez não registra como clique (vai entender)
-document.body.addEventListener('mousedown', function(event) {
+document.addEventListener('mousedown', function(event) {
 	if (!preferencias.extensaoAtiva) { return }
-	//DESCRIÇÃO: CONCILIAJT NA PAUTA DE AUDIÊNCIA
+	//DESCRIÇÃO: CONCILIAJT NA PAUTA DE AUDIeNCIA
 	if (document.location.href.includes("/pauta-audiencias") || document.location.href.includes("/pauta-inteligente")) {
 		// console.log('ativando conciLIAnaPauta')
 		// setTimeout(function() { //pauta tradicional
@@ -25508,37 +27998,63 @@ document.body.addEventListener('mousedown', function(event) {
 		},500);
 	}
 });
-
 ////FUNÇÃO RESPONSÁVEL POR ATRIBUIR TECLAS DE ATALHO AO PJE
-window.addEventListener('keydown', async function(event) {
-	
-	// event.preventDefault();
+var podeProsseguir = true;
+document.addEventListener('keyup', function(event) { podeProsseguir = true });
+var eventosDeTeclaNaJanela = async function(event) {
+	if (['ControlLeft','ShiftLeft','AltLeft','ControlRight','ShiftRight','AltRight'].includes(event.code)) { return }
+	if (!podeProsseguir) { return } //ignora eventos keydown de mesma tecla sem keyup
+	podeProsseguir = false;
+
 	if (!preferencias.extensaoAtiva) { return }
-	//pagina para obter os event.codes : https://keycode.info/
-	
+	//pagina para obter os event.codes : https://keycode.info/	
 	
 	if (preferencias.concordo) {
 		// console.log(event.code);
-		if (event.code === "F1") {
+		// console.log('-*-*-*-*-*-*-entrou')
+		//atalhos configuraveis
+		if (event.getModifierState("Control")) {	
+			if (preferencias?.atalho?.painelcopiaecola && (event.key === preferencias.atalho.painelcopiaecola)) {
+				if (document.location.href.includes("/detalhe")) {
+					let numeroProcesso = await esperarElemento(seletorDetalhesNumeroProcesso);
+					if (preferencias.processo_memoria) {
+						if (preferencias.processo_memoria.numero != numeroProcesso.innerText) {
+							await gigsCriarMenu();
+						}
+					} else {
+						await gigsCriarMenu();
+					}
+					
+					console.log('segue em frente')
+					let var1 = browser.storage.local.get('processo_memoria', async function(result){
+						if (!result.processo_memoria.numero) { return }
+						event.preventDefault();
+						window.onunload = function() {
+							browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});											
+						};
+						browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});		
+					});
+					return;
+				}
+			}
+		}
 
+		//atalhos padrão		
+		if (event.code === "F1") {			
 			if (document.location.href.search("docs.google.com/spreadsheets") > -1) {
 				consultaRapidaPJE(identificarNumeroDoProcessoDaPlanilhaGoogle());				
 			} else {
-				consultaRapidaPJE();				
+				await consultaRapidaPJE();
 			}		
 		} else if (event.code === "F2") {
 			event.preventDefault();
 			event.stopPropagation();
-
-			// teste_mutation_observer();
-			// teste_apis();
-			// return;
-
+			
 			if (document.location.href.search("docs.google.com/spreadsheets") > -1) {
 				
-				let numeroProcesso = identificarNumeroDoProcessoDaPlanilhaGoogle();
-				let guardarStorage = browser.storage.local.set({'AALote': 'Kaizen|maisPje_menuKaizen_itemmenu_abrir_pauta'});
-				Promise.all([guardarStorage]).then(values => {					
+				let numeroProcesso = await identificarNumeroDoProcessoDaPlanilhaGoogle();
+				let guardarStorage = browser.storage.local.set({'AALote': 'Variados|maisPje_menuKaizen_itemmenu_abrir_pauta'});
+				Promise.all([guardarStorage]).then(values => {		
 					consultaRapidaPJE(numeroProcesso);
 				});
 
@@ -25588,7 +28104,7 @@ window.addEventListener('keydown', async function(event) {
 			} else if (document.location.href.includes("previdenciario.pdpj.jus.br")) {
 				await clicarBotao('#maisPje_menuKaizen_itemmenu_consultar_minuta a')
 			} else {
-				filtrarPorMeuFiltro();				
+				document.getElementById('maisPje_bt_principal_3')?.click();
 			}
 			
 			
@@ -25596,6 +28112,7 @@ window.addEventListener('keydown', async function(event) {
 			event.preventDefault();
 			event.stopPropagation();
 
+			// console.log(document.location.href)
 			if (document.location.href.includes(".jus.br/pjekz/") && document.location.href.includes("/detalhe")) {
 				if (!preferencias.tempF3 || preferencias.tempF3 == 'Nenhum') {
 					await clicarBotao('menumaispje span[id="maisPje_menuKaizen_itemmenu_preferencia_f3"] a', null, 1000);
@@ -25603,6 +28120,7 @@ window.addEventListener('keydown', async function(event) {
 					acao_vinculo(preferencias.tempF3);
 				}
 			} else if (document.location.href.includes("moz-extension:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) {
+				console.log('entrou')
 				browser.runtime.sendMessage({tipo: 'insertCSS', file: 'maisPje_icones.css'});
 				await verificarDocumentosNaoAssinados();
 
@@ -25619,13 +28137,12 @@ window.addEventListener('keydown', async function(event) {
 					document.querySelector('span[class="titulo"]').innerText = 'Relatório de ALVARÁS SIF - Total: ' + qtde + ' registros'
 				}
 				ancora.appendChild(bt);
-
-
+			
 			} else {
 				gerarRelatorioGerencialSecretaria();
 			}
 			// verificarVersoesPjeTRTs();
-			
+		
 		} else if (event.code === "Escape") {
 			if (event.getModifierState("ScrollLock")) { //desliga a tela do fundo sem desativar as AA
 				//Cancela o fundo que bloqueia a página
@@ -25642,21 +28159,27 @@ window.addEventListener('keydown', async function(event) {
 				preferencias.AALote = '';
 				preferencias.anexadoDoctoEmSigilo = -1;
 			}
-		}
-		
-		if (event.getModifierState("Control")) {	
-			if (event.code === "Digit1" || event.code === "Numpad1") {
-				//CONSULTAR AR
-				// consultarAR();
-			} else if (event.code === "Digit2" || event.code === "Numpad2") {
+		} else if (event.code === "Digit1" || event.code === "Numpad1") {
+			if (event.getModifierState("Control")) {  }//NÃO TEM NADA
+			if (event.getModifierState("Alt")) { relatorioGerencialSecretaria();return; }
+		} else if (event.code === "Digit2" || event.code === "Numpad2") {
+			if (event.getModifierState("Alt")) { relatorioGerencialExecucao();return; }
+			if (event.getModifierState("Control")) {
+				event.preventDefault();
+				event.stopPropagation();
 				if (document.location.href.search("/detalhe") > -1) {
 					//DETALHES > CRIAR MENU
 					gigsCriarMenu(document.location.href.search("/detalhe") > -1);
 				} else if (document.body.contains(document.evaluate('//button[@aria-label="Meu Painel"]', document, null, XPathResult.ANY_TYPE, null).iterateNext())) {				
 					//PRINCIPAL > PAINEL ANTIGO
 					getAtalhosNovaAba().abrirPJeAntigo.abrirAtalhoemNovaJanela();
-				}			
-			} else if (event.code === "Digit3" || event.code === "Numpad3") {			
+				}
+			}
+		} else if (event.code === "Digit3" || event.code === "Numpad3") {
+			if (event.getModifierState("Alt")) { relatorioGerencialContadoria();return; }
+			if (event.getModifierState("Control")) {
+				event.preventDefault();
+				event.stopPropagation();
 				if (document.location.href.search("/detalhe") > -1) {
 					//DETALHES > FAZER DOWNLOAD
 					acaoBotaoDetalhes("Baixar processo completo");
@@ -25664,7 +28187,11 @@ window.addEventListener('keydown', async function(event) {
 					//PRINCIPAL > CONSULTAR PROCESSO
 					getAtalhosNovaAba().consultarProcessos.abrirAtalhoemNovaJanela();
 				}
-			} else if (event.code === "Digit4" || event.code === "Numpad4") {		
+			}
+		} else if (event.code === "Digit4" || event.code === "Numpad4") {
+			if (event.getModifierState("Control")) {
+				event.preventDefault();
+				event.stopPropagation();
 				if (document.location.href.search("/detalhe") > -1) {
 					//DETALHES > ANEXAR DOCUMENTOS				
 					acaoBotaoDetalhes("Anexar Documentos");				
@@ -25674,44 +28201,33 @@ window.addEventListener('keydown', async function(event) {
 					let gigsURL = prefixo + '/' + preferencias.grau_usuario + '/PessoaAdvogado/ConfirmarCadastro/listView.seam';
 					let winGigs = window.open(gigsURL, '_blank');
 				}
-			} else if (event.code === "Digit5" || event.code === "Numpad5") {
 			}
-		}
+		} else if (event.code === "Digit5" || event.code === "Numpad5") {
 		
-		if (event.getModifierState("Alt")) {
-			if (event.code === "Digit1" || event.code === "Numpad1") {
-				// relatorioGerencialSecretaria();
-			} else if (event.code === "Digit2" || event.code === "Numpad2") {
-				// relatorioGerencialExecucao();			
-			} else if (event.code === "Digit3" || event.code === "Numpad3") {
-				// relatorioGerencialContadoria();
-				// verificarVersoesPjeTRTs();
-				// acoesEmLote();
-				
-			} else if (event.code === "ArrowUp") {
-				inverterCaixaAlta("ArrowUp");
-			} else if (event.code === "ArrowDown") {
-				inverterCaixaAlta("ArrowDown");
-			} else if (event.code === "ArrowRight") {
-				converterEmExtenso();
-			} else if (event.code === "KeyP") {
-				assistenteDeImpressao();
-			}
-		}
-		
-		if (document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]')) {
-			if (event.code === "KeyP") {
+		} else if (event.code === "ArrowUp") {
+			if (event.getModifierState("Alt")) { inverterCaixaAlta("ArrowUp");return; }
+			
+		} else if (event.code === "ArrowDown") {
+			if (event.getModifierState("Alt")) { inverterCaixaAlta("ArrowDown");return; }
+			
+		} else if (event.code === "ArrowRight") {
+			if (event.getModifierState("Alt")) { converterEmExtenso();return; }
+			
+		} else if (event.code === "KeyP") {
+			if (event.getModifierState("Alt")) { assistenteDeImpressao();return; }
+			if (document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]')) {
 				document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]').click();
 			}
 		}
 
-		if (document.querySelector('#maisPje_caixa_de_selecao')) {
+		if (document.querySelector('#maisPje_caixa_de_selecao')) { //habilita a seleção rápida apenas clicando na opção escolhida
 			if ('Digit1,Digit2,Digit3,Digit4,Digit5,Digit6,Digit7,Digit8,Digit9,Numpad1,Numpad2,Numpad3,Numpad4,Numpad5,Numpad6,Numpad7,Numpad8,Numpad9'.includes(event.code)) {
 				let soNumero = event.code.toString().replace(/\D/g, "");
 				await clicarBotao('#maisPje_selecao_select_' + soNumero);
 			}
 		}
 		
+		// console.log('-*-*-*-*-*-*-saiu')
 		function inverterCaixaAlta(tecla) {
 			let e = document.activeElement;
 			if (e.tagName == 'DIV') {
@@ -25792,7 +28308,8 @@ window.addEventListener('keydown', async function(event) {
 		}
 
 	}
-});
+}
+document.addEventListener('keydown', eventosDeTeclaNaJanela);
 
 browser.storage.onChanged.addListener(logStorageChangeGeral);
 
@@ -25804,6 +28321,8 @@ async function logStorageChangeGeral(changes, area) {
 		if (item == "modoNoite") { //altera o visual do pje para o modo noturno
 			ativarModoNoite(changes[item].newValue);
 			preferencias.modoNoite = changes[item].newValue;
+		} else if (item == "processo_memoria") {
+			preferencias.processo_memoria = changes[item].newValue;
 		}
 	}
 }
@@ -26020,31 +28539,32 @@ async function teste_apis() {
 async function teste_mutation_observer() {
 	console.log('teste_mutation_observer()');
 	let primeiraCamada = await ObterCamadaUm();
-	
+	// ObterMutationFinal();
 	
 	async function ObterCamadaUm() {
 		return new Promise(async resolve => {
 			// let el_docto = await esperarElemento('frame[name="contents"]');
 			// let el_docto_conteudo = el_docto.contentDocument || el_docto.contentWindow.document;
-			await ligarMOCamadaUm(document.body);
+			
+			// let alvo = document.body;
+			// let alvo = await esperarElemento('div[class="loading-container"]'); //div[class="loading-container"]
+			let alvo = document.body;
+			await ligarMOCamadaUm(alvo);
 			return resolve(el_docto_conteudo);
 		});
 	}
 	
-	// async function ObterCamadaDois() {
-		
-		// let cabecalho = primeiraCamada.getElementById('menupenhora');
-		// let corpo = primeiraCamada.getElementById('mainpenhora');
-		// let conteudoCabecalho = cabecalho.contentDocument || cabecalho.contentWindow.document;		
-		// let conteudoCorpo = corpo.contentDocument || corpo.contentWindow.document;
-	// }
-	
-	
 	function ligarMOCamadaUm(alvo) {
 		return new Promise(async resolve => {
-			console.log('ligarMOCamadaUm')
+			console.log('ligarMOCamadaUm')			
 			let observer_cabecalho = new MutationObserver(function(mutationsDocumento) {
 				mutationsDocumento.forEach(function(mutation) {
+
+					if (mutation.type === "attributes") {
+						console.log(`The ${mutation.attributeName} attribute was modified para ${mutation.oldValue}.`);
+						console.log(mutation.target.className)
+				  	}
+
 					if (!mutation.removedNodes[0] && !mutation.addedNodes[0]) { return }
 					
 					if (mutation.removedNodes[0]) {
@@ -26060,12 +28580,31 @@ async function teste_mutation_observer() {
 					}
 				});
 			});
-			let configDocumento = { childList: true, subtree:true }
+			let configDocumento = { childList: true, subtree:true, attributes: true }
 			observer_cabecalho.observe(alvo, configDocumento);
 			
 			
 		});
 	}
+}
+
+//FUNÇÃO QUE AGUARDA O ÚLTIMO MUTATION LANÇADO. PODEMOS TER VÁRIAS REMESSAS DE MUTATION. ESSA FUNÇÃO SEMPRE DISPARA APENAS NO ÚLTIMO MUTAIUTON DE CADA REMESSA
+async function aguardarUltimoMutation(minhaFuncao) {
+	return new Promise(async resolve => {
+		console.log('maisPJe: aguardarUltimoMutation...')
+		let timer;
+		let uObserver = new MutationObserver(function(mutations) {
+			if (timer) clearTimeout(timer);
+			  timer = setTimeout(() => {
+				mutations.forEach(function(mutation) {
+					// console.log('testando***********************************************************' + timer);
+					minhaFuncao();
+					return resolve(true);
+				});
+			}, 500);
+		});
+		uObserver.observe(document.body, { childList: true });
+	});
 }
 
 //CLASSES
@@ -26185,15 +28724,19 @@ function substituirTextoSelecionado(texto) {
 	});
 }
 
-async function extrairComandosComuns(texto) { //converte a string em objeto: ex: ["intimar:sim","prazo:30","enviarPEC:não"] se transforma em Object { intimar: "sim", prazo: "30", enviarPEC: "não" }
+async function extrairComandosComuns(texto) { //converte a string em objeto: ex: ["intimar:sim","prazo:30","enviarpec:não"] se transforma em Object { intimar: "sim", prazo: "30", enviarpec: "não" }
 	let padrao = /\[.+\]/gm;
 	let txt = '';
 	if (padrao.test(texto)) {
 		txt = texto.match(padrao).join();
 		txt = txt.replace('[','');
 		txt = txt.replace(']','');
-		let array = txt.split(';');
-		let json = txt.split(';').map(elements => JSON.parse(`{"${elements.split(':').join('":"')}"}`));
+		
+		//exclui o ultimo ponto e virgula, caso exista
+		let ultimoCaractere = txt.slice(-1);
+		if (ultimoCaractere == ';') { txt = txt.slice(0,-1) }
+		
+		let json = txt.split(';').map(elements => JSON.parse(`{"${elements?.split(':')?.join('":"')}"}`));
 		let resposta = Object.create({});
 		let map = [].map.call(
 			json, 
@@ -26227,27 +28770,11 @@ async function copiarClipboard(t) {
 
 	//***Atualização de comando.. por questão de segurança 
 	try {
-		await navigator.clipboard.writeText(t);
+		await navigator.clipboard.writeText(t);		
 	} catch (e) {
 		console.error('Não foi possível efetuar o comando copiar (Ctrl + C)..');
 	}
 }
-
-// function decomporNumeroProcesso(numero) {
-// 	return new Promise(
-// 		resolver => {
-// 			let campos = numero.replace(/\.|\-/g,'.').split('.')
-// 			return resolver({
-// 				'numero':campos[0],
-// 				'digito':campos[1],
-// 				'ano':campos[2],
-// 				'jurisdicao':campos[3],
-// 				'regiao':campos[4],
-// 				'vara':campos[5],
-// 			});
-// 		}
-// 	);
-// }
 
 function numeroProcessoFormatado(texto) {
 	texto = extrairNumeros(texto);
@@ -26270,180 +28797,21 @@ function numeroDataFormatado(texto,separador='/') {
 	}
 }
 
-function numeroValorFormatado(texto) {
-	let padrao =/(\d{1,}\.\d{2})/;	
-	if (padrao.test(texto)) {
-		texto = texto.match(padrao).join();
-		return Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL', minimumFractionDigits: 2}).format(parseFloat(texto));
-	} else {
-		return null;
-	} 
+function numeroValorFormatado(valor) {
+	if (typeof(valor) == 'string') {
+		// valor = valor.replace(".", "").replace(",", "."); //troca a virgula por ponto
+		let padrao =/(\d{1,}\.\d{2})|(\d{1,})/;	
+		if (padrao.test(valor)) {
+			valor = valor.match(padrao).join();
+			return Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL', minimumFractionDigits: 2}).format(parseFloat(valor));
+		} else {
+			return null;
+		}
+	} else { //number
+		return Intl.NumberFormat('pt-br', {style: 'decimal', currency: 'BRL', minimumFractionDigits: 2}).format(parseFloat(valor));
+	}
+	
 }
-
-// function extrairNumeros(texto) {
-// 	let padrao = /\d{1,}/;	
-// 	if (padrao.test(texto)) {
-// 		return texto.match(padrao).join();
-// 	} else {
-// 		return texto;
-// 	}
-// }
-
-// function porExtenso(valor){
-// 	console.debug('------------------------------------------------')
-// 	let listaDeExcecoes = {
-// 		"010":"dez",
-// 		"011":"onze",
-// 		"012":"doze",
-// 		"013":"treze",
-// 		"014":"catorze",
-// 		"015":"quinze",
-// 		"016":"dezesseis",
-// 		"017":"dezessete",
-// 		"018":"dezoito",
-// 		"019":"dezenove",
-// 		"020":"vinte",
-// 		"030":"trinta",
-// 		"040":"quarenta",
-// 		"050":"cinquenta",
-// 		"060":"sessenta",
-// 		"070":"setenta",
-// 		"080":"oitenta",
-// 		"090":"noventa",
-// 		"100":"cem",
-// 		"200":"duzentos",
-// 		"300":"trezentos",
-// 		"400":"quatrocentos",
-// 		"500":"quinhentos",
-// 		"600":"seiscentos",
-// 		"700":"setecentos",
-// 		"800":"oitocentos",
-// 		"900":"novecentos",
-// 	};
-
-// 	let arrayDeReferencia = {
-// 		"unidade":["", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"],
-// 		"dezena":["","", "vinte e ", "trinta e ", " quarenta e ", " cinquenta e ", " sessenta e ", " setenta e ", " oitenta e ", " noventa e "],
-// 		"centena":["", "cento e ", "duzentos e ", "trezentos e ", "quatrocentos e ", "quinhentos e ", "seiscentos e ", "setecentos e ", "oitocentos e ", "novecentos e "]
-// 	};
-	
-// 	let soNumero = valor.replace(/\D/g, "");	
-// 	soNumero = soNumero.padStart(14,"0"); //999 bilhão possui 14 zeros, incluindo os centavos	
-// 	let nCentavos = soNumero.slice(soNumero.length-2, soNumero.length);
-// 	let nReais = soNumero.slice(soNumero.length-5, soNumero.length-2);
-// 	let nMilhar = soNumero.slice(soNumero.length-8, soNumero.length-5);
-// 	let nMilhao = soNumero.slice(soNumero.length-11, soNumero.length-8);
-// 	let nBilhao = soNumero.slice(soNumero.length-14, soNumero.length-11);
-	
-// 	//regras do centavos	
-// 	let centavos = '';
-// 	nCentavos = nCentavos.padStart(3,"0"); //acrescena mais um zero nos centavos para não ficar criando exceções repetidas na listaDeExcecoes
-// 	if (nCentavos == '000') {
-// 		centavos = '';
-// 	} else if (nCentavos == '001') {
-// 		centavos = 'um centavo'
-// 	} else if (listaDeExcecoes.hasOwnProperty(nCentavos)) { //se está na lista de exceções
-// 		centavos = listaDeExcecoes[nCentavos] + ' centavos';
-// 	} else {
-// 		centavos = arrayDeReferencia.centena[parseInt(nCentavos[0])] + arrayDeReferencia.dezena[parseInt(nCentavos[1])] + arrayDeReferencia.unidade[parseInt(nCentavos[2])] + ' centavos';
-// 	}
-	
-// 	//regras do reais
-// 	let reais = '';
-// 	if (nReais == '000') {
-// 		reais = '';
-// 	} else if (nReais == '001') {
-// 		reais = 'um real';
-// 	} else if (listaDeExcecoes.hasOwnProperty(nReais)) { //se está na lista de exceções
-// 		reais = listaDeExcecoes[nReais] + ' reais';
-// 	} else {
-// 		let x = '0' + nReais[1] + nReais[2]; //exceção da dezena
-// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nReais[1])] + arrayDeReferencia.unidade[parseInt(nReais[2])];
-// 		reais = arrayDeReferencia.centena[parseInt(nReais[0])] + x + ' reais';
-// 	}
-	
-// 	//regras do milhar	
-// 	let milhar = '';
-// 	if (nMilhar == '000') {
-// 		milhar = '';
-// 	} else if (listaDeExcecoes.hasOwnProperty(nMilhar)) { //se está na lista de exceções
-// 		milhar = listaDeExcecoes[nMilhar] + ' mil';
-// 	} else {
-// 		let x = '0' + nMilhar[1] + nMilhar[2]; //exceção da dezena
-// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhar[1])] + arrayDeReferencia.unidade[parseInt(nMilhar[2])];
-// 		milhar = arrayDeReferencia.centena[parseInt(nMilhar[0])] + x + ' mil';
-// 	}
-	
-// 	//regras do milhao
-// 	let milhao = '';
-// 	if (nMilhao == '000') {
-// 		milhao = '';
-// 	} else if (nMilhao == '001') {
-// 		milhao = 'um milhão ';
-// 	} else if (listaDeExcecoes.hasOwnProperty(nMilhao)) { //se está na lista de exceções
-// 		milhao = listaDeExcecoes[nMilhao] + ' milhões ';
-// 	} else {
-// 		let x = '0' + nMilhao[1] + nMilhao[2]; //exceção da dezena
-// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhao[1])] + arrayDeReferencia.unidade[parseInt(nMilhao[2])];
-// 		milhao = arrayDeReferencia.centena[parseInt(nMilhao[0])] + x + ' milhões, ';
-// 	}
-	
-// 	//regras do bilhao
-// 	let bilhao = '';
-// 	if (nBilhao == '000') {
-// 		bilhao = '';
-// 	} else if (nBilhao == '001') {
-// 		bilhao = 'um bilhão ';
-// 	} else if (listaDeExcecoes.hasOwnProperty(nBilhao)) { //se está na lista de exceções
-// 		bilhao = listaDeExcecoes[nBilhao] + ' bilhões ';
-// 	} else {
-// 		let x = '0' + nBilhao[1] + nBilhao[2]; //exceção da dezena
-// 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nBilhao[1])] + arrayDeReferencia.unidade[parseInt(nBilhao[2])];
-// 		bilhao = arrayDeReferencia.centena[parseInt(nBilhao[0])] + x + ' bilhões, ';
-// 	}
-	
-// 	//montando a frase
-// 	if (centavos) {
-// 		if (reais || milhar || milhao || bilhao) {
-// 			centavos = ' e ' + centavos;
-// 		}
-// 	}
-	
-// 	if (reais) {
-// 		if (milhar || milhao || bilhao) {
-// 			reais = (centavos ? ', ' : ' e ') + reais;
-// 		}
-// 	}
-	
-// 	if (milhar) {
-// 		if (!reais) {
-// 			milhar += ' reais';
-// 		}
-// 	}
-	
-// 	if (milhao) {
-// 		if (!reais && !milhar) {
-// 			milhao += ' de reais';
-// 		}
-// 	}
-	
-// 	if (bilhao) {
-// 		if (!reais && !milhar && !milhao) {
-// 			bilhao += ' de reais';
-// 		}
-// 	}
-	
-// 	console.debug('regras do bilhao: ' +  bilhao)
-// 	console.debug('regras do milhao: ' + milhao)
-// 	console.debug('regras do milhar: ' + milhar)
-// 	console.debug('regras dos reais: ' + reais)
-// 	console.debug('regras dos centavos: ' + centavos)
-	
-// 	let frase = bilhao + milhao + milhar + reais + centavos;
-// 	frase = frase.replace(/\s{2,}/gm,' '); //exclui os espaços duplicados
-// 	console.debug(valor + ": " + frase.trim());
-// 	return frase.trim();
-// }
 
 function obterIdProcessoDaUrl(url) {
 	return new Promise(resolve => {
@@ -26490,35 +28858,50 @@ function obterIdDocumentoDaUrl(url) {
 	});
 }
 
-async function obterUrlDoNetworkRequest(queContem) {	
+async function obterUrlDoNetworkRequest(queContem, trocaDePerfil=false) {	
 	return new Promise(async resolve => {
 		let capture_resource = performance.getEntriesByType("resource");
 		let startTimeUltimoNR = capture_resource[capture_resource.length - 1].startTime;
 		
 		//obtém a lista de NR's do ultimo segundo e confere se ela é um dos request's de filtro
 		let requestName = 'Nenhum';
+		let houvetroca = false;
 		for (let i = 0; i < capture_resource.length; i++) {			
 			if (capture_resource[i].startTime > (startTimeUltimoNR-1000))  {
-				// console.log(capture_resource[i].name)
-				if (capture_resource[i].name.includes(queContem)) {					
-					requestName = capture_resource[i].name;
-					console.log('    |____peguei')
-					break;
-				}
+				// console.log('------------------------------------' + capture_resource[i].name);
+				if (trocaDePerfil) {
+					if (capture_resource[i].name.includes('pje-seguranca/api/token/perfis/trocar')) { //troca de perfil
+						houvetroca = true;
+					} else if (houvetroca) {
+						if (capture_resource[i].name.includes(queContem)) {			
+							// console.log('------------------------------------|_____________' + capture_resource[i].name);
+							requestName = capture_resource[i].name;
+							break;					
+						}
+					}
+
+				} else {
+					if (capture_resource[i].name.includes(queContem)) {			
+						requestName = capture_resource[i].name;
+						break;					
+					}
+				}				
 			}				
 		}
+		// console.log('------------------------------------***********************************' + requestName);
 		return resolve(requestName);		
 	});
 }
 
-// async function extrairNumeroProcesso(texto) {
-// 	let padrao = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
-// 	let n = '';
-// 	if (padrao.test(texto)) {
-// 		n = texto.match(padrao).join();
-// 	}	
-// 	return n;
-// }
+function obterRitoProcessoDoTexto(texto) {
+	return new Promise(resolve => {
+		
+		let padrao = /[A-Za-z]{5,}/;
+		texto = texto?.match(padrao)?.join();
+		return resolve(texto);
+
+	});
+}
 
 function consultaPJe(el) {
 	if (document.getElementById('maisPJe_atalhoConsultaPJe')) { return }
@@ -26622,6 +29005,7 @@ async function existeDoctoNaoAssinado(param) {
 }
 
 async function triggerEvent(el, type, keycode=null) {
+	window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 	if (type == 'click') {
 		el.click();
 	} else if (keycode) {
@@ -26669,12 +29053,52 @@ function simularTecla(tipo,keycode,ctrl=false,alt=false,shift=false) {
 	return e;
 }
 
-function acionarSemCliqueGenerico(elemento,cor1,cor2,tempo='1') {
+function simularDigitacaoDeTexto(elemento, texto, segundos=0.1, tipoEvento='keypress') { //segundos = intervalo digitação
+	return new Promise(
+		async resolver => {
+			let keyEvent;
+			for (const [pos, letra] of texto.split("").entries()) {
+				// console.log("pos " + pos + ": " + letra)
+				keyEvent = new KeyboardEvent(tipoEvento, { key: letra, bubbles: true, cancelable: true });
+				elemento.focus();
+				elemento.dispatchEvent(keyEvent);
+				await triggerEvent(elemento, 'input');				
+				await sleep(segundos*1000)		
+			}
+			elemento.blur();
+			return resolver(true);
+		}
+	);
+		
+}
+
+function acionarSemClique(elemento,cor1,cor2,tempo='1',angulo='0deg') {
 	if (elemento) {
 		
 		//inserir css
 		let style = document.createElement("style");
-		style.textContent = '@keyframes trocarCorGeral { 0% { background: linear-gradient(var(--color1) 100%, var(--color2) 0); } 10% { background: linear-gradient(var(--color1) 90%, var(--color2) 0); } 20% { background: linear-gradient(var(--color1) 80%, var(--color2) 0); } 30% { background: linear-gradient(var(--color1) 70%, var(--color2) 0); } 40% { background: linear-gradient(var(--color1) 60%, var(--color2) 0); } 50% { background: linear-gradient(var(--color1) 50%, var(--color2) 0); } 60% { background: linear-gradient(var(--color1) 40%, var(--color2) 0); } 70% { background: linear-gradient(var(--color1) 30%, var(--color2) 0); } 80% { background: linear-gradient(var(--color1) 20%, var(--color2) 0); } 90% { background: linear-gradient(var(--color1) 10%, var(--color2) 0); } 100% { background: linear-gradient(var(--color1) 0%, var(--color2) 0); }}';
+		style.textContent = '@keyframes trocarCorGenerico {';
+		style.textContent += '0% { background: linear-gradient(' + angulo + ',var(--color1) 100%, var(--color2) 0); } ';
+		style.textContent += '5% { background: linear-gradient(' + angulo + ',var(--color1) 95%, var(--color2) 0); } ';
+		style.textContent += '10% { background: linear-gradient(' + angulo + ',var(--color1) 90%, var(--color2) 0); } ';
+		style.textContent += '15% { background: linear-gradient(' + angulo + ',var(--color1) 85%, var(--color2) 0); } ';
+		style.textContent += '20% { background: linear-gradient(' + angulo + ',var(--color1) 80%, var(--color2) 0); } ';
+		style.textContent += '25% { background: linear-gradient(' + angulo + ',var(--color1) 75%, var(--color2) 0); } ';
+		style.textContent += '30% { background: linear-gradient(' + angulo + ',var(--color1) 70%, var(--color2) 0); } ';
+		style.textContent += '35% { background: linear-gradient(' + angulo + ',var(--color1) 65%, var(--color2) 0); } ';
+		style.textContent += '40% { background: linear-gradient(' + angulo + ',var(--color1) 60%, var(--color2) 0); } ';
+		style.textContent += '45% { background: linear-gradient(' + angulo + ',var(--color1) 55%, var(--color2) 0); } ';
+		style.textContent += '50% { background: linear-gradient(' + angulo + ',var(--color1) 50%, var(--color2) 0); } ';
+		style.textContent += '55% { background: linear-gradient(' + angulo + ',var(--color1) 45%, var(--color2) 0); } ';
+		style.textContent += '60% { background: linear-gradient(' + angulo + ',var(--color1) 40%, var(--color2) 0); } ';
+		style.textContent += '65% { background: linear-gradient(' + angulo + ',var(--color1) 35%, var(--color2) 0); } ';
+		style.textContent += '70% { background: linear-gradient(' + angulo + ',var(--color1) 30%, var(--color2) 0); } ';
+		style.textContent += '75% { background: linear-gradient(' + angulo + ',var(--color1) 25%, var(--color2) 0); } ';
+		style.textContent += '80% { background: linear-gradient(' + angulo + ',var(--color1) 20%, var(--color2) 0); } ';
+		style.textContent += '85% { background: linear-gradient(' + angulo + ',var(--color1) 15%, var(--color2) 0); } ';
+		style.textContent += '90% { background: linear-gradient(' + angulo + ',var(--color1) 10%, var(--color2) 0); } ';
+		style.textContent += '95% { background: linear-gradient(' + angulo + ',var(--color1) 5%, var(--color2) 0); } ';
+		style.textContent += '100% { background: linear-gradient(' + angulo + ',var(--color1) 0%, var(--color2) 0); }}';
 		document.body.appendChild(style);
 
 		let temporizador = parseFloat(tempo);
@@ -26693,7 +29117,7 @@ function acionarSemCliqueGenerico(elemento,cor1,cor2,tempo='1') {
 		elemento.onmouseenter = function (event) {				
 			event.preventDefault();
 			if (mouseEmCima) { return }
-			this.style.animation = 'trocarCorGeral ' + temporizador + 's';
+			this.style.animation = 'trocarCorGenerico ' + temporizador + 's';
 			mouseEmCima = true;
 			let seg = 1;
 			check99 = setInterval(function() {
@@ -26701,12 +29125,10 @@ function acionarSemCliqueGenerico(elemento,cor1,cor2,tempo='1') {
 				if (mouseEmCima && seg < 1) {
 					clearInterval(check99);					
 					mouseEmCima = false;
-					
 					elemento.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
 					setTimeout(function() {elemento.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
-					
-					window.focus(); // garante o clique mesmo que o usuário clique em outra janela			
-					elemento.click();
+					window.focus(); // garante o clique mesmo que o usuário clique em outra janela
+					elemento.click();										
 				}			
 				
 			}, temporizador*1000);
@@ -26948,7 +29370,8 @@ function criarCaixaDeSelecaoComReclamantes() {
 	);
 }
 
-function criarCaixaDeSelecaoComTodos() {
+function criarCaixaDeSelecaoComTodos(excluir=true) {
+	//excluir=true cria uma caixa de seleção de reclamados que você deixa apenas aqueles que quer utilizar
 	//excluir=false cria uma caixa de seleção de reclamados que vc escolhe apenas um dentre aqueles que aparecem
 	return new Promise(
 		resolver => {
@@ -26983,7 +29406,7 @@ function criarCaixaDeSelecaoComTodos() {
 					let titulo = document.createElement("span");
 					titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
 					titulo.innerText = "Lista de Partes";
-					titulo.innerText += " - clique para ESCOLHER";
+					titulo.innerText += (excluir) ? " - clique para EXCLUIR" : " - clique para ESCOLHER";
 					container.appendChild(titulo);
 
 					for (const [pos, autor] of preferencias.processo_memoria.autor.entries()) {
@@ -26992,14 +29415,26 @@ function criarCaixaDeSelecaoComTodos() {
 						span.innerText = autor.nome + " (" + autor.cpfcnpj + ") - AUTOR";
 						span.onmouseenter = function () {
 							span.style.backgroundColor  = 'lightgrey';
+							if (excluir) {
+								span.style.color  = 'red';
+								span.innerText = "Excluir";
+							}
 						};
 						span.onmouseleave = function () {
 							span.style.backgroundColor  = 'white';
 							span.style.color  = 'rgb(81, 81, 81)';
+							if (excluir) {
+								span.innerText = autor.nome + " (" + autor.cpfcnpj + ")";
+							}
 						};
 						span.onclick = function () {
-							resolver([{cpfcnpj: autor.cpfcnpj, nome: autor.nome}]);
-							document.getElementById('maisPje_caixa_de_selecao').remove();
+							if (excluir) {
+								this.remove();
+								lista_de_partes_temp.splice(lista_de_partes_temp.findIndex(e => e.cpfcnpj === autor.cpfcnpj), 1);
+							} else {
+								resolver([{cpfcnpj: autor.cpfcnpj, nome: autor.nome}]);
+								document.getElementById('maisPje_caixa_de_selecao').remove();
+							}
 						};
 
 						
@@ -27014,22 +29449,171 @@ function criarCaixaDeSelecaoComTodos() {
 						span.innerText = reu.nome + " (" + reu.cpfcnpj + ") - RÉU";
 						span.onmouseenter = function () {
 							span.style.backgroundColor  = 'lightgrey';
+							if (excluir) {
+								span.style.color  = 'red';
+								span.innerText = "Excluir";
+							}
 						};
 						span.onmouseleave = function () {
 							span.style.backgroundColor  = 'white';
 							span.style.color  = 'rgb(81, 81, 81)';
+							if (excluir) {
+								span.innerText = reu.nome + " (" + reu.cpfcnpj + ")";
+							}
 						};
 						span.onclick = function () {
-							resolver([{cpfcnpj: reu.cpfcnpj, nome: reu.nome}]);
-							document.getElementById('maisPje_caixa_de_selecao').remove();
+							if (excluir) {
+								this.remove();
+								lista_de_partes_temp.splice(lista_de_partes_temp.findIndex(e => e.cpfcnpj === reu.cpfcnpj), 1);
+							} else {
+								resolver([{cpfcnpj: reu.cpfcnpj, nome: reu.nome}]);
+								document.getElementById('maisPje_caixa_de_selecao').remove();
+							}
 						};
 						container.appendChild(span);
 						lista_de_partes_temp.push({ cpfcnpj: reu.cpfcnpj, nome: reu.nome });
+					}
+
+					if (excluir) {
+						let bt_continuar = document.createElement("span");
+						bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
+						bt_continuar.innerText = "Continuar";
+						bt_continuar.onmouseenter = function () {
+							bt_continuar.style.backgroundColor  = '#5077a4';
+						};
+						bt_continuar.onmouseleave = function () {
+							bt_continuar.style.backgroundColor  = '#7a9ec8';
+						};
+						bt_continuar.onclick = function () {
+							resolver(lista_de_partes_temp);
+							document.getElementById('maisPje_caixa_de_selecao').remove();
+						};
+						container.appendChild(bt_continuar);
 					}
 					
 					elemento1.appendChild(container);
 					document.body.appendChild(elemento1);
 				});
+			} else {
+				resolver(null);
+			}
+		}
+	);
+}
+
+async function criarCaixaDeSelecaoCom(numeroProcesso,ativo=true,passivo=true,outros=true,representantes=true) {
+	//excluir=false cria uma caixa de seleção de reclamados que vc escolhe apenas um dentre aqueles que aparecem
+	return new Promise(
+		async resolver => {
+			if (!document.getElementById('maisPje_caixa_de_selecao')) {
+				let dadosResumidos = await obterDadosResumidosDoProcesso(numeroProcesso,null,false,true,false);
+				
+				// console.log(JSON.stringify(dadosResumidos));
+				if (!dadosResumidos) { resolver(null); return; } //se vazio
+				
+				let lista_de_partes_temp = [];
+				// DESCRIÇÃO: REGRA DO TOOLTIP
+				if (!document.getElementById('maisPje_tooltip_fundo')) {
+					tooltip('fundo', true);
+				}
+				
+				let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+				
+				let elemento1 = document.createElement("div");
+				elemento1.id = 'maisPje_caixa_de_selecao';
+				elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; font-size: 16px; text-align: center; flex-direction: column;';
+				
+				elemento1.onclick = function (e) {
+					if (e.target.id == "maisPje_caixa_de_selecao") {
+						elemento1.remove();
+					}
+				}; //se clicar fora fecha a janela
+				
+				let container = document.createElement("div");
+				container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);overflow-y: auto;";
+				
+				let titulo = document.createElement("span");
+				titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
+				titulo.innerText = "Lista de Partes do Processo";
+				titulo.innerText += " - clique para ESCOLHER";
+				container.appendChild(titulo);
+
+				// return { 
+				// 	"numero": numeroProcesso,
+				// 	"idProcesso": idProcesso,
+				// 	"dados": dados,
+				// 	"partes": partes
+				// }
+
+				for (const [pos, parte] of dadosResumidos.partes.poloAtivo.entries()) {
+					// console.debug(parte.nome + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
+					let span = document.createElement("span");
+					span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_a_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
+					span.innerText = parte.nome + ' (' + parte.tipo + ')';
+					span.onmouseenter = function () {
+						span.style.backgroundColor  = 'lightgrey';
+					};
+					span.onmouseleave = function () {
+						span.style.backgroundColor  = 'white';
+						span.style.color  = 'rgb(81, 81, 81)';
+					};
+					span.onclick = function () {
+						resolver(parte);
+						document.getElementById('maisPje_caixa_de_selecao').remove();
+					};
+
+					container.appendChild(span);
+					lista_de_partes_temp.push(parte);
+				}
+				
+				for (const [pos, parte] of dadosResumidos.partes.poloPassivo.entries()) {
+					// console.debug(parte.nome + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
+					let span = document.createElement("span");						
+					span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_r_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
+					span.innerText = parte.nome + ' (' + parte.tipo + ')';
+					span.onmouseenter = function () {
+						span.style.backgroundColor  = 'lightgrey';
+					};
+					span.onmouseleave = function () {
+						span.style.backgroundColor  = 'white';
+						span.style.color  = 'rgb(81, 81, 81)';
+					};
+					span.onclick = function () {
+						resolver(parte);
+						document.getElementById('maisPje_caixa_de_selecao').remove();
+					};
+					container.appendChild(span);
+					lista_de_partes_temp.push(parte);
+				}
+
+				for (const [pos, parte] of dadosResumidos.partes.poloOutros.entries()) {
+					// console.debug(parte.nome + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
+					let span = document.createElement("span");						
+					
+					if (parte.tipo.includes('ADVOGADO')) {
+						span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_adv_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
+					} else {
+						span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_t_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
+					}
+					
+					span.innerText = parte.nome + ' (' + parte.tipo + ')';
+					span.onmouseenter = function () {
+						span.style.backgroundColor  = 'lightgrey';
+					};
+					span.onmouseleave = function () {
+						span.style.backgroundColor  = 'white';
+						span.style.color  = 'rgb(81, 81, 81)';
+					};
+					span.onclick = function () {
+						resolver(parte);
+						document.getElementById('maisPje_caixa_de_selecao').remove();
+					};
+					container.appendChild(span);
+					lista_de_partes_temp.push(parte);
+				}
+				
+				elemento1.appendChild(container);
+				document.body.appendChild(elemento1);
 			} else {
 				resolver(null);
 			}
@@ -27061,7 +29645,7 @@ async function criarCaixaDeSelecaoComAAs(label) {
 				let container = document.createElement("div");
 				container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
 				
-				let bt_continuar = document.createElement("span");
+				let bt_continuar = document.createElement("button");
 				bt_continuar.id = "maisPje_caixa_de_selecao_btContinuar";
 				bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
 				bt_continuar.innerText = "Salvar";
@@ -27082,7 +29666,7 @@ async function criarCaixaDeSelecaoComAAs(label) {
 				container.appendChild(titulo);
 
 				let filtro = document.createElement("div");
-				filtro.style = 'min-height: 3vh;font-size: 1.3em;';
+				filtro.style = 'min-height: 3vh;font-size: 1.3em; display: flex; justify-content: center; gap: 1vw';
 				filtro.appendChild(criarFiltro('ANEXAR DOCUMENTOS','fa fa-paperclip'));
 				filtro.appendChild(criarFiltro('INTIMAÇÃO/EXPEDIENTE','fa fa-envelope'));
 				filtro.appendChild(criarFiltro('AUTOGIGS','fa fa-tag'));
@@ -27163,6 +29747,23 @@ async function criarCaixaDeSelecaoComAAs(label) {
 				//monta as acoes automatizadas de Despacho
 				let optionGR4 = document.createElement("optgroup");
 				optionGR4.label = 'DESPACHO';
+				
+				let optionAADAceitarPrevencao = document.createElement("option");
+				optionAADAceitarPrevencao.value = 'Despacho|bt_prevencaoAceitar';
+				optionAADAceitarPrevencao.innerText = 'Despacho|Aceitar Prevenção';
+				optionAADAceitarPrevencao.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+				optionAADAceitarPrevencao.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+				optionAADAceitarPrevencao.onclick = function (){ bt_continuar.click() }
+				optionGR4.appendChild(optionAADAceitarPrevencao);
+
+				let optionAADRejeitarPrevencao = document.createElement("option");
+				optionAADRejeitarPrevencao.value = 'Despacho|bt_prevencaoRejeitar';
+				optionAADRejeitarPrevencao.innerText = 'Despacho|Rejeitar Prevenção';
+				optionAADRejeitarPrevencao.onmouseenter  = function () { this.style.backgroundColor = 'lightgray' }
+				optionAADRejeitarPrevencao.onmouseleave  = function () { this.style.backgroundColor = 'revert' }
+				optionAADRejeitarPrevencao.onclick = function (){ bt_continuar.click() }
+				optionGR4.appendChild(optionAADRejeitarPrevencao);
+				
 				for (const [pos, item] of preferencias.aaDespacho.entries()) {
 					let optionAAD = document.createElement("option");
 					optionAAD.value = 'Despacho|' + item.nm_botao;
@@ -27172,6 +29773,7 @@ async function criarCaixaDeSelecaoComAAs(label) {
 					optionAAD.onclick = function (){ bt_continuar.click() }
 					optionGR4.appendChild(optionAAD);
 				}
+
 				selectAcaoAutomatizada.appendChild(optionGR4)
 				
 				//monta as acoes automatizadas de Movimento
@@ -27220,7 +29822,7 @@ async function criarCaixaDeSelecaoComAAs(label) {
 				//monta as acoes automatizadas de Retificar Autuação
 				let optionGR7 = document.createElement("optgroup");
 				optionGR7.label = 'RETIFICAR AUTUAÇÃO';
-				let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7','addAutor'],['botao_retificar_autuacao_8','addRéu'],['botao_retificar_autuacao_0','addUnião'],['botao_retificar_autuacao_10','addMPT'],['botao_retificar_autuacao_3','addLeiloeiro'],['botao_retificar_autuacao_4','addPerito'],['botao_retificar_autuacao_addTerceiroTerceiro','Terceiro>Terceiro'],['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],['botao_retificar_autuacao_Falencia','Falência/Rec.Judicial'],['botao_retificar_autuacao_assunto','Assunto'],['botao_retificar_autuacao_justicaGratuita','Justiça Gratuita']];
+				let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7','addAutor'],['botao_retificar_autuacao_8','addRéu'],['botao_retificar_autuacao_0','addUnião'],['botao_retificar_autuacao_10','addMPT'],['botao_retificar_autuacao_3','addLeiloeiro'],['botao_retificar_autuacao_4','addPerito'],['botao_retificar_autuacao_5','addTestemunha'],['botao_retificar_autuacao_6','addTerceiro'],['botao_retificar_autuacao_100Digital','Juízo 100% Digital'],['botao_retificar_autuacao_tutelaLiminar','Pedido de Tutela'],['botao_retificar_autuacao_Falencia','Falência/Rec.Judicial'],['botao_retificar_autuacao_assunto','Assunto'],['botao_retificar_autuacao_justicaGratuita','Justiça Gratuita'],['botao_retificar_autuacao_associarProcesso','Associar Processo']];
 
 				[].map.call(aaItemRetificarAutuacao,function(item) {
 					let optionIRA = document.createElement("option");
@@ -27298,16 +29900,29 @@ async function criarCaixaDeSelecaoComAAs(label) {
 	);
 
 	function criarFiltro(nome,icone,color='#333') {
-		let filtro = document.createElement("span");
-		filtro.style = "cursor: pointer; margin-left: 1vw; color: " + color + "; position: relative; top: 0.3vh; opacity: .3;";
+		let filtro = document.createElement("button");
+		filtro.style = `
+		  cursor: pointer;
+		  color: ${color};
+		  position: relative;
+		  top: 0.3vh;
+		  opacity: .3;
+		  border: none;
+		  background: none;
+		  outline: none;
+		  font-size: inherit;
+		`;
+		filtro.setAttribute('aria-label',nome)
 		filtro.onmouseenter  = function () { 
 			this.style.opacity = '.8';
 			document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = nome;
 		}
+		filtro.onfocus = filtro.onmouseenter
 		filtro.onmouseleave  = function () {
 			this.style.opacity = '.3';
 			document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = '';
 		}
+		filtro.onblur = filtro.onmouseleave;
 		filtro.onclick = function (){
 			for (const [pos, item] of document.querySelectorAll('select optgroup').entries()) {
 				if (item.label == nome) { 
@@ -27324,14 +29939,16 @@ async function criarCaixaDeSelecaoComAAs(label) {
 	}
 }
 
-function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', acionamentoAutomatico) {
+function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', acionamentoAutomatico=false, permitirTrocaTipo=false) {
 	return new Promise(resolver => {
 		if (!document.getElementById('maisPje_caixa_de_selecao')) {
 			// DESCRIÇÃO: REGRA DO TOOLTIP
 			if (!document.getElementById('maisPje_tooltip_fundo')) {
-			tooltip('fundo', true);
+				tooltip('fundo', true);
 			}
-
+			if (!document.getElementById('maisPje_tooltip_abaixo')) {
+				tooltip('abaixo');
+			}
 			let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
 			let elemento1 = document.createElement("div");
@@ -27378,24 +29995,28 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 				container.appendChild(spanOpt);
 			}
 
-			let inputTexto;			
+			let containerTitulo = document.createElement('span');
+			containerTitulo.style = 'color: grey; border-bottom: 1px solid lightgrey; text-align: justify;';
+			let inputTexto;
+			let trocaTipoTitulo = document.createElement('span');
+
 			if (tipo == 'textarea') {
 				inputTexto = document.createElement("textarea")
 				inputTexto.id = 'maisPje_cxPergunta_inputTexto';
-				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;height: calc(70vh * .1);letter-spacing: normal;";
+				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;height: calc(70vh * .1);letter-spacing: normal;width: 35vw;";
 				if (valorAnterior) { inputTexto.value = valorAnterior }
 				if (placeholder) { inputTexto.placeholder = placeholder }
 				inputTexto.onkeypress = function (e) {
 					if (e.getModifierState("Control") && e.keyCode == 13) {
 						btOk.click();
 					}
-				};
+				};				
 
 			} else if (tipo == 'data') {
 				inputTexto = document.createElement("input");
 				inputTexto.id = 'maisPje_cxPergunta_inputTexto';
 				inputTexto.type = 'date';				
-				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;";
+				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;width: 35vw;";
 				
 				if (valorAnterior) { inputTexto.value = valorAnterior.split('/').reverse().join('-') }
 				if (placeholder) { inputTexto.placeholder = placeholder.split('/').reverse().join('-')  }
@@ -27404,12 +30025,14 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 						btOk.click();
 					}
 				};
+				trocaTipoTitulo.setAttribute('maisPje-tooltip-abaixo', 'Texto');
+				trocaTipoTitulo.innerText = '⌨';
 
 			} else {
 				inputTexto = document.createElement("input");
 				inputTexto.id = 'maisPje_cxPergunta_inputTexto';
 				inputTexto.type = tipo;
-				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;";
+				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;width: 35vw;";
 				if (valorAnterior) { inputTexto.value = valorAnterior }
 				if (placeholder) { inputTexto.placeholder = placeholder }
 				inputTexto.onkeypress = function (e) {
@@ -27417,9 +30040,31 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 						btOk.click();
 					}
 				};
+				trocaTipoTitulo.setAttribute('maisPje-tooltip-abaixo', 'Data');
+				trocaTipoTitulo.innerText = '🗓';
 			}
-			
-			container.appendChild(inputTexto);
+
+			containerTitulo.appendChild(inputTexto);
+
+			if (tipo != 'textarea' && permitirTrocaTipo) {
+				trocaTipoTitulo.id = 'maisPje_cxPergunta_btTrocaTitulo';	
+				trocaTipoTitulo.style = 'position: absolute;font-weight: normal;font-size: 1.8em;padding: 7px;margin-left: -4vw;width: 1vw;height: 40px; cursor: pointer;';
+				trocaTipoTitulo.onclick = function() {
+					console.log(this.title)
+					let inputAntigo = document.querySelector('#maisPje_cxPergunta_inputTexto');	
+					let novoInput;
+					if (inputAntigo.type == 'date') {
+						novoInput = criarCampoPreenchimento('texto', valorAnterior, placeholder);
+					} else if (inputAntigo.type == 'text') {
+						novoInput = criarCampoPreenchimento('data', valorAnterior, placeholder);
+						
+					}
+					inputAntigo.parentElement.replaceChild(novoInput, inputAntigo);
+					novoInput.focus();
+				}
+				containerTitulo.appendChild(trocaTipoTitulo);
+			}
+			container.appendChild(containerTitulo);
 
 			let btOk = document.createElement("span");
 			btOk.id = 'maisPje_caixa_de_pergunta_btOK';
@@ -27427,14 +30072,16 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 			btOk.innerText = "OK";
 			btOk.onmouseenter = function () { btOk.style.backgroundColor  = '#5077a4' };
 			btOk.onmouseleave = function () { btOk.style.backgroundColor  = '#7a9ec8' };
-			btOk.onclick = function () {
+			btOk.onclick = async function () {
 				elemento1.remove();
 				let resposta;
-				if (tipo == 'data') {					
-					let dataPreenchida = new Date(inputTexto.value);
-					let dia  =  (dataPreenchida.getDate()+1 + '').padStart(2,'0') + '/';
-					let mes = ((dataPreenchida.getMonth()+1) + '').padStart(2,'0');
-					let ano = '/' + dataPreenchida.getFullYear();
+				if (tipo == 'data') {
+					let x = inputTexto.value.split('-');
+					let dataPreenchida = new Date(x[0],x[1]-1,x[2]).toLocaleDateString();
+					let dataDecomposta = await decomporData(dataPreenchida);
+					let dia  =  (dataDecomposta.dia).padStart(2,'0') + '/';
+					let mes = (dataDecomposta.mes).padStart(2,'0');
+					let ano = '/' + dataDecomposta.ano;
 					resposta = dia + mes + ano;
 				} else {
 					resposta = inputTexto.value;
@@ -27446,10 +30093,11 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 			elemento1.appendChild(container);
 			document.body.appendChild(elemento1);
 
-			//atribui o foco ao input
+			//atribui o foco ao input			
 			let check1 = setInterval(async function() {
 				if (document.activeElement === inputTexto) { 
 					clearInterval(check1);
+					window.focus(); //primeiro a janela
 					inputTexto.focus();
 				} else {
 					inputTexto.focus();
@@ -27461,6 +30109,43 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 			resolver(null);
 		}
 	});
+
+	function criarCampoPreenchimento(t, v, p) {
+		console.log(t)		
+		let inputTexto;
+		if (t == 'data') {
+			inputTexto = document.createElement("input");
+			inputTexto.id = 'maisPje_cxPergunta_inputTexto';
+			inputTexto.type = 'date';				
+			inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;width: 35vw;";
+			
+			if (v) { inputTexto.value = v.split('/').reverse().join('-') }
+			if (p) { inputTexto.placeholder = p.split('/').reverse().join('-')  }
+			inputTexto.onkeypress = function (e) {
+				if (e.keyCode == 13) {
+					btOk.click();
+				}
+			};
+			document.querySelector('#maisPje_cxPergunta_btTrocaTitulo').setAttribute('maisPje-tooltip-abaixo', 'Texto');
+			document.querySelector('#maisPje_cxPergunta_btTrocaTitulo').innerText = '⌨';
+			return inputTexto;
+		} else {
+			inputTexto = document.createElement("input");
+			inputTexto.id = 'maisPje_cxPergunta_inputTexto';
+			inputTexto.type = tipo;
+			inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;width: 35vw;";
+			if (v) { inputTexto.value = v }
+			if (p) { inputTexto.placeholder = p }
+			inputTexto.onkeypress = function (e) {
+				if (e.keyCode == 13) {
+					btOk.click();
+				}
+			};
+			document.querySelector('#maisPje_cxPergunta_btTrocaTitulo').setAttribute('maisPje-tooltip-abaixo', 'Data');
+			document.querySelector('#maisPje_cxPergunta_btTrocaTitulo').innerText = '🗓';
+			return inputTexto;
+		}
+	}
 
 }
 
@@ -27546,8 +30231,7 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 	);
 }
 
-
-async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opções',nomeBotaoContinuar='Nenhum',multiplaEscolha=false,opcaoFavorita=-1,opcaoFavoritaVelocidadeDeInteracao=5,retornarPosicao=false) {
+async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opções',nomeBotaoContinuar='Nenhum',multiplaEscolha=false,retornarPosicao=false,opcaoFavorita=-1,opcaoFavoritaVelocidadeDeInteracao=5) {
 	return new Promise(
 		resolver => {
 			if (!document.getElementById('maisPje_caixa_de_selecao')) {
@@ -27592,7 +30276,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				container.appendChild(t);
 								
 				let containerSelect = document.createElement("select");
-				containerSelect.style = 'cursor: pointer; margin-top: 10px; padding: 10px; background-color: white; color: rgb(81, 81, 81); font-size:1.125em;overflow-y: auto;text-align: center;';
+				containerSelect.style = 'max-height: 90vh;cursor: pointer; margin-top: 10px; padding: 10px; background-color: white; color: rgb(81, 81, 81); font-size:1.125em;overflow-y: auto;text-align: center;';
 				
 				if (multiplaEscolha) {
 					containerSelect.setAttribute('multiple','true');
@@ -27616,7 +30300,6 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 						
 						option.onclick = function () { 
 							clearInterval(check);
-							let resposta;
 							if (retornarPosicao) {
 								resposta = pos;								
 							} else {
@@ -27646,9 +30329,13 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 					};
 					bt_continuar.onclick = function () {
 						let valores = containerSelect.value;
-						if (multiplaEscolha) {
-							let optSelecionadas = containerSelect.selectedOptions;
-							valores = Array.from(optSelecionadas).map(({ value }) => value);							
+						if (multiplaEscolha) {		
+							let optSelecionadas = containerSelect.selectedOptions;					
+							if (retornarPosicao) {
+								valores = [...optSelecionadas].map((opt) => opt.index )
+							} else {
+								valores = Array.from(optSelecionadas).map(({ value }) => value);
+							}
 						}
 						resolver(valores);
 						document.getElementById('maisPje_caixa_de_selecao').remove();
@@ -28217,20 +30904,20 @@ async function assistenteDeImpressao() {
 						}
 
 						//página vazia?
-						if (!ancora.querySelector('h1')) {
-							let tipoDeCertidao = document.querySelector('#maisPje_assistenteImpressao_crcjud');
-							if (tipoDeCertidao) {
-								let valor = tipoDeCertidao.getAttribute('tipoDeCertidao');
-								let h1 = document.createElement('h1');
-								h1.style.letterSpacing = '8px';
-								h1.innerText = valor
-								ancora.appendChild(h1);
-								let h4 = document.createElement('h4');
-								h4.innerText = 'Nenhum resultado encontrado.'
-								ancora.appendChild(h4);
-							}
+						// if (!ancora.querySelector('h1')) {
+						// 	let tipoDeCertidao = document.querySelector('#maisPje_assistenteImpressao_crcjud');
+						// 	if (tipoDeCertidao) {
+						// 		let valor = tipoDeCertidao.getAttribute('tipoDeCertidao');
+						// 		let h1 = document.createElement('h1');
+						// 		h1.style.letterSpacing = '8px';
+						// 		h1.innerText = valor
+						// 		ancora.appendChild(h1);
+						// 		let h4 = document.createElement('h4');
+						// 		h4.innerText = 'Nenhum resultado encontrado.'
+						// 		ancora.appendChild(h4);
+						// 	}
 							
-						}
+						// }
 					}
 
 					if (convenio.nome == 'saj') {
@@ -28680,7 +31367,12 @@ async function assistenteDeImpressao() {
 			areaDeImpressao += '<div style="text-align: right;">' + (pos+1) + ' de ' + paginas.length + '</div><br>';
 			areaDeImpressao += '<div style="margin-bottom: 10px;">';
 			areaDeImpressao += pagina.innerHTML;
-			areaDeImpressao += '</div><hr><h2 class="quebradepagina"></h2>';
+			console.log(pos + '    -   ' + paginas.length)
+			if (pos == (paginas.length-1)) {
+				areaDeImpressao += '</div></h2>';
+			} else {
+				areaDeImpressao += '</div><hr><h2 class="quebradepagina"></h2>';
+			}			
 		}
 		
 		areaDeImpressao += '</body></html>';
@@ -28810,7 +31502,7 @@ async function documentoEmSigilo(valor) {
 }
 
 //FUNÇÕES ASSINCRONAS
-function timer(botao, tempo_para_click, corDeFundo='rgba(80, 119, 164, .7)') {
+function timer(botao, tempo_para_click, corDeFundo='rgba(80, 119, 164, .7)', tipoAnimacao='pulseLeve') {
 	return new Promise(resolve => {
 		let textoDoBotao;
 		let check;
@@ -28835,19 +31527,20 @@ function timer(botao, tempo_para_click, corDeFundo='rgba(80, 119, 164, .7)') {
 		} else {
 			textoDoBotao = botao.innerText;
 			botao.innerText = textoDoBotao + ' ( ' + tempo_para_click + ' )';
-			botao.style.animation = 'pulseLeve 1s infinite';
+			botao.style.animation = tipoAnimacao + ' 1s infinite';
 			botao.style.backgroundColor = corDeFundo;
 			botao.addEventListener('click', function(event) { tempo_para_click = 0 }); //estar interromper a contagem com o pressionar do ESC			
 			
 			tempo_para_click--; //o check inicia já descontando 1 segundo
-			check = setInterval(function() {				
+			check = setInterval(function() {
 				if (tempo_para_click <= 0) {
-					clearInterval(check);
+					// botao.innerText = textoDoBotao;
+					clearInterval(check);									
 					botao.click();
+					botao.style.animation = 'unset';					
 					resolve(true)
-				} else {
-					tempo_para_click--;
 				}
+				tempo_para_click--;
 				botao.innerText = textoDoBotao + ' ( ' + tempo_para_click + ' )';
 				
 			}, 1000);
@@ -28873,6 +31566,7 @@ function retornaProcessoComDigitoVerificador(processo) {
 
 async function escolherOpcao(seletor, valor, qtde_minima=1, possuiBarraProgresso) {
 	await sleep(preferencias.maisPje_velocidade_interacao);
+	// window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 	//quando for passar um elemento HTML para esta função tem que ter certeza que ele já existe na tela
 	if (seletor instanceof HTMLElement) {
 		seletor.parentElement.parentElement.click();
@@ -28894,8 +31588,12 @@ async function escolherOpcao(seletor, valor, qtde_minima=1, possuiBarraProgresso
 				encontrou = true;
 			};
 		} else {
+			// console.log(removeAcento(opcao.innerText.toLowerCase()))
+			// console.log(removeAcento(valor.toLowerCase()))
+			// console.log(removeAcento(opcao.innerText.toLowerCase()).includes(removeAcento(valor.toLowerCase())))
 			if (removeAcento(opcao.innerText.toLowerCase()).includes(removeAcento(valor.toLowerCase()))) {
 				// console.log("                       |--->OPTION " + valor);
+
 				opcao.click();
 				encontrou = true;
 			};
@@ -28943,6 +31641,7 @@ async function escolherOpcao(seletor, valor, qtde_minima=1, possuiBarraProgresso
 async function escolherOpcaoTeste(seletor, valor, possuiBarraProgresso) {
 	return new Promise(async resolve => {
 		await sleep(preferencias.maisPje_velocidade_interacao);
+		// window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 		if (seletor instanceof HTMLElement) { //aciona o listbox
 			await clicarBotao(seletor.parentElement.parentElement);
 		} else {
@@ -28979,6 +31678,7 @@ async function escolherOpcaoTeste2(seletor, valor, possuiBarraProgresso) {
 	return new Promise(async resolve => {
 		//NOVOS TESTES PARA QUE A FUNÇÃO FUNCIONE EM ABAS(GUIAS) DESATIVADAS
 		await sleep(preferencias.maisPje_velocidade_interacao);
+		// window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 		if (seletor instanceof HTMLElement) {
 		} else {
 			seletor = await esperarElemento(seletor);
@@ -29024,6 +31724,7 @@ async function escolherOpcaoTeste2(seletor, valor, possuiBarraProgresso) {
 				}
 			}
 		}
+		console.log('**********************************************************passou')
 		await sleep(500); //espera um tempo ,ínimo para carregar as opções
 		await clicarBotao('mat-option[role="option"], option', valor); //aciona a opção
 		if (possuiBarraProgresso) {
@@ -29051,6 +31752,7 @@ async function escolherOpcaoTeste2(seletor, valor, possuiBarraProgresso) {
 
 async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto') {
 	await sleep(preferencias.maisPje_velocidade_interacao);
+	window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 	let elemento;
 	if (seletor instanceof HTMLElement) {
 		elemento = seletor;
@@ -29133,6 +31835,7 @@ async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto'
 
 async function preencherInputSimples(seletor, valor) {
 	await sleep(preferencias.maisPje_velocidade_interacao);
+	window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 	let elemento;
 	if (seletor instanceof HTMLElement) {
 		elemento = seletor;
@@ -29148,6 +31851,7 @@ async function preencherInputSimples(seletor, valor) {
 
 async function clicarBotao(seletor, texto, monitorar=false) {
 	await sleep(preferencias.maisPje_velocidade_interacao);
+	window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 	let elemento, cont;
 	if (seletor instanceof HTMLElement) {
 		elemento = seletor;
@@ -29156,7 +31860,7 @@ async function clicarBotao(seletor, texto, monitorar=false) {
 	}
 	
 	if (!elemento?.hasAttribute('disabled')) {
-		console.log("                   |---> CLIQUE " + seletor + (texto ? ">" + texto : ""));
+		console.debug("                   |---> CLIQUE " + seletor + (texto ? ">" + texto : ""));
 		await elemento.click();
 		if (monitorar) {
 			let resultado = await ligar_mutation_observer();
@@ -29286,7 +31990,7 @@ async function preencherCampoPeloTipo(campo, valor) {
 
         switch (tagName) {
             case 'input':
-				console.log('entrou')
+				// console.log('entrou')
 				await preencherInput(campo, valor)
                 break;
 			case 'label':
@@ -29328,54 +32032,158 @@ function criarCabecalhoNome(nome, cpfCnpj = '', tag = 'h1', estilo = "font-size:
     return cabecalhoImpressao;
 }
 
-function gerarLinksDosIds(elemento, listaIds_Novo, backgroundColor='#d236c9') {
-    // Função para criar o link
-    function criarLink(item) {
-        const link = document.createElement('a');
+async function gerarLinksDosIds(elemento, listaIds_Novo, backgroundColor='coral') {
+    // Função para criar o link		
+    function criarLink(item,tipoDocumento) {
+		const link = document.createElement('a');
+		let tamanho = (parseFloat(item.altura) * 1.5);
         link.title = "Abrir documento";
-        link.id = `extensaoPje_documento_linkId_${item}`;
-        link.style.backgroundColor = backgroundColor;		
-		link.style.outline = '2px dotted darkviolet;';
-        link.style.cursor = "pointer";
-        link.textContent = item;
-        return link;
+		link.id = `extensaoPje_documento_linkId_${item.id}`;
+		link.style = 'pointer-events: none;position: relative;font-size: ' + tamanho + 'px; top: -4px;width: ' + tamanho + 'px;height: ' + tamanho + 'px;display: block;';
+		// link.innerText = "\u2315";
+		return link;
     }
 
-    // Função para percorrer os nós de texto e substituir IDs por links
-    async function processarNos(node) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            let textContent = node.textContent;
-            let parentNode = node.parentNode;
-			
-			// console.info('maisPJe: criando links a partir dos Ids:');
-			let houveTroca = false;
+	let idProcesso = await obterIdProcessoDaUrl();			
+	let nrProcesso = await obterNumeroProcessoViaId(idProcesso);
+	nrProcesso = nrProcesso.numero;
 
-            listaIds_Novo.forEach(item => {				
-                let regexId = new RegExp(`\\b${item}\\b`, "g");
-				// console.info('   |__procurando Id: ' + item);
-				// console.info('       |__no texto: ' + textContent);
-                if (regexId.test(textContent)) {
-					houveTroca = true;
-                    let parts = textContent.split(regexId);
-                    for (let i = 0; i < parts.length - 1; i++) {
-						// console.log('*****Parte ' + i + ': ' + parts[i])
-                        parentNode.insertBefore(document.createTextNode(parts[i]), node);
-                        parentNode.insertBefore(criarLink(item), node);						
-                    }
-                    parentNode.insertBefore(document.createTextNode(parts[parts.length - 1]), node); //precisa desse comando para os modelos de documento antigos                
-                }
+	let posicaoLinks = [];
+	Array.from(elemento.childNodes).forEach(child => processarNos(child));
+
+	if (elemento.tagName == 'MAT-CARD-CONTENT') { return } //documento sem assinatura	
+	let page = elemento.parentElement;	
+	// let divAnnotation = page.lastElementChild;
+	let divAnnotation = page.querySelector('div[class="annotationLayer"]');	
+	if (!divAnnotation) {
+		divAnnotation = document.createElement('div');
+		divAnnotation.className = 'annotationLayer'
+		page.appendChild(divAnnotation);
+	}
+
+	posicaoLinks.forEach(async id_encontrado => {
+		//ajuste fino dos parametros de acordo com o documento
+		let documentoIsolado = document.location.href.includes('/conteudo');
+		let calculo
+		if (id_encontrado.posicaoId == '0') { //id isolado no span.. acontece quando ele eh mapeado pela própria função do pje
+			calculo = parseFloat(id_encontrado.left)  * parseFloat(id_encontrado.escala);
+			id_encontrado.left = calculo + 'px';
+		} else {
+			calculo = (parseFloat(id_encontrado.left) + (parseFloat(id_encontrado.largura)/2) - (parseFloat(id_encontrado.altura)));
+			calculo = (calculo * parseFloat(id_encontrado.escala)) - (parseFloat(id_encontrado.largura)/2);
+		}		
+		id_encontrado.left = calculo + 'px';
+		id_encontrado.top = (parseFloat(id_encontrado.top)) + "px";
+		
+		let section = document.createElement('section');
+		section.id = "section_extensaoPje_documento_linkId_" + id_encontrado.id;
+		section.className = 'linkAnnotation';
+		let a = criarLink(id_encontrado, documentoIsolado);
+		section.style.position = 'absolute';
+		section.style.width = id_encontrado.altura;
+		section.style.height = id_encontrado.altura;
+		section.style.top = id_encontrado.top;		
+		section.style.left = id_encontrado.left;
+		section.style.cursor = "pointer";
+		section.style.zIndex = "9999";
+		section.style.scale = '1.5';
+		section.style.backgroundColor = 'rgb(0, 193, 255, .6)';		
+		section.style.borderRadius = id_encontrado.altura;
+		section.style.boxShadow = "0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12)"; //com icone
+
+		section.appendChild(a);
+		section.onmouseenter = async function () {			
+			this.style.filter = 'brightness(0.5)';			
+			let seletorImg = '#' + this.id.replace('section','img');
+			document.querySelector(seletorImg).style.display = 'flex';
+			await sleep(250);
+			let modo = (document.querySelector(seletorImg).width > document.querySelector(seletorImg).height) ? 'paisagem' : 'retrato';
+			console.log(modo)
+			document.querySelector(seletorImg).style.transform = (modo == 'paisagem') ? 'translateX(-63vw)' : 'translateX(-33vw)';
+		}
+		section.onmouseleave = async function() { 			
+			this.style.filter = 'brightness(1)';
+			let seletorImg = '#' + this.id.replace('section','img');
+			document.querySelector(seletorImg).style.transform = 'translateX(0)';
+			await sleep(250);
+			document.querySelector(seletorImg).style.display = 'none';			
+		}
+		section.onclick = async function (event) {
+			if (event.getModifierState("Control")) { //CTRL +clique copia apenas o numero da conta e o saldo
+				let texto = this.id.replace('section_extensaoPje_documento_linkId_','');
+				navigator.clipboard.writeText(texto);
+				browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Conteúdo copiado com sucesso!\n' + texto, icone: '3'});
+			}
+		}
+		divAnnotation.appendChild(section);
+
+		let img = document.createElement('img')
+		img.id = "img_" + a.id;
+		let idUnicoDocumento = id_encontrado.id;			
+		let newUrl = apis.documentoProcessoPreview.montarUrl(preferencias.trt, {nrProcesso, idUnicoDocumento});		
+		img.src = newUrl;
+		img.style = "pointer-events: none;display: none; position: absolute; width: auto; height: 90vh; top: 0px; left: 100vw; padding: 16px; background-color: rgba(88, 88, 88, 0.8);z-index: 1;border: 12px double white;transition: transform .25s ease-in-out; transform: translateX(0);";
+		document.body.appendChild(img);
+	});
+	
+	page.appendChild(divAnnotation)
+
+
+	async function processarNos(node) {
+		
+        if (node.nodeType === Node.TEXT_NODE) {
+           	//node: é a estrutura do conteudo do span. Exemplo: #text "PODER JUDICIÁRIO ".
+			//textContent: é o conteúdo textual do node
+			//parentNode: é o elemento-pai onde está inserido o node
+			let textContent = node.textContent;
+            let parentNode = node.parentNode;
+            listaIds_Novo.forEach(id_encontrado => {
+				let padrao = new RegExp(`(${id_encontrado})`, "gm");
+				let padraoProcesso = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g; 
+				// console.log(!padraoProcesso.test(textContent))
+                if (padrao.test(textContent)) {
+					if (!padraoProcesso.test(textContent)) { //excluir o numero de processo pq cai neste regex
+						console.info('      |__encontrado Id: ' + id_encontrado + ' no texto ' + textContent);
+						
+						let larguraParent = parseFloat(parentNode.offsetWidth);
+						let alturaParent = parseFloat(parentNode.offsetHeight);
+						let leftParent = parseFloat(parentNode.style.left);
+						let topParent = parseFloat(parentNode.style.top);
+						let transform = parentNode.style.transform.match(/[0-9.]+/);						
+						let larguraPorCaract = parseFloat(larguraParent / textContent.length); // tamanho da string dividido pelo numero de caracteres
+						let larguraDoId = parseFloat(larguraPorCaract * (id_encontrado.length)); // uma parte multiplicado por 7 (qtde de caacteres do Id).. acresço 1 para ajustes
+						let posicaoId = parseFloat(textContent.indexOf(id_encontrado)) //onde está posicionado nos carcateres da string
+						let posXDoId = parseFloat((posicaoId * larguraPorCaract) + leftParent);
+
+						// console.log('parent width: ' + larguraParent)
+						// console.log('qtde carcateres: ' + textContent.length)
+						// console.log('largura de um caracter: ' + larguraPorCaract)
+						// console.log('parent left: ' + leftParent)						
+						// console.log('largura de um caracter: ' + larguraPorCaract)
+						// console.log('larguraDoId: ' + larguraDoId)
+						// console.log('posicao do Id: ' + posicaoId)
+						// console.log('posicaoX do Id em relação ao parent: ' + posXDoId)
+
+						posicaoLinks.push({
+							'id': id_encontrado,
+							'left': posXDoId + 'px',
+							'top': topParent + 'px',
+							'largura': larguraDoId + 'px',
+							'altura': alturaParent + 'px',
+							'escala': transform,
+							'posicaoId': posicaoId,
+						})
+					}
+				}
             });
 
-			if (houveTroca) {
-				parentNode.removeChild(parentNode.lastChild);
-			}
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             Array.from(node.childNodes).forEach(child => processarNos(child));
         }
-    }
 
-    // Processa todos os nós filhos do elemento
-    Array.from(elemento.childNodes).forEach(child => processarNos(child));
+		
+    }
+	
 }
 
 function versaoAtualMaiorQue(aPartirDe) {

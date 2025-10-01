@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Visual - 30/09/2025 21:58:51 - Debug Visual PJe Plus</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .section {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .info-item {
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .info-value {
+            color: #3498db;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .status-ok {
+            color: #27ae60;
+        }
+        .status-warn {
+            color: #f39c12;
+        }
+        .status-error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Debug Visual - 30/09/2025 21:58:51</h1>
+        <p>Relatório de Debug Visual - PJe Plus</p>
+        <p><strong>Data:</strong> 30/09/2025 21:59:41</p>
+    </div>
+
+    <div class="section">
+        <h3>📄 Informações da Página</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">URL:</div>
+                <div class="info-value">about:blank</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Título:</div>
+                <div class="info-value"></div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Total de Abas:</div>
+                <div class="info-value">1</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Aba Atual:</div>
+                <div class="info-value">81e85eff-b061-4cb8-872b-c48ebc783375</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🔘 Análise de Elementos Gerais</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Botões Totais:</div>
+                <div class="info-value">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Botões Visíveis:</div>
+                <div class="info-value">0</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Inputs Totais:</div>
+                <div class="info-value">0</div>
+            </div>
+        </div>
+
+        <h4>📋 Detalhes dos Botões (primeiros 10)</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Texto</th>
+                    <th>ARIA Label</th>
+                    <th>MatTooltip</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>⚖️ Elementos Específicos do PJe</h3>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Botões de Tarefa:</div>
+                <div class="info-value">{elementos_pje.get('botoes_tarefa', 0)}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Elementos Sobrestamento:</div>
+                <div class="info-value">{elementos_pje.get('elementos_sobrestamento', 0)}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Itens na Timeline:</div>
+                <div class="info-value">{elementos_pje.get('itens_timeline', 0)}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📊 Tipos de Input Encontrados</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Quantidade</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>💡 Recomendações</h3>
+        <ul>
+            <li>Verifique se os botões de tarefa estão visíveis e acessíveis</li>
+            <li>Confirme se há elementos de sobrestamento na página atual</li>
+            <li>Analise a timeline para verificar documentos disponíveis</li>
+            <li>Teste a abertura de tarefas em novas abas</li>
+        </ul>
+    </div>
+</body>
+</html>

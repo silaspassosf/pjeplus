@@ -672,7 +672,21 @@ def login_automatico_sisbajud(driver):
     """
     try:
         print('[SISBAJUD][LOGIN] Navegando para SISBAJUD...')
-        driver.get('https://sisbajud.cnj.jus.br/')
+        
+        # Tentar navegação com retry em caso de erro de conexão
+        max_tentativas = 3
+        for tentativa in range(1, max_tentativas + 1):
+            try:
+                driver.get('https://sisbajud.cnj.jus.br/')
+                break  # Sucesso, sair do loop
+            except Exception as nav_error:
+                print(f'[SISBAJUD][LOGIN] ⚠️ Tentativa {tentativa}/{max_tentativas} falhou: {nav_error}')
+                if tentativa < max_tentativas:
+                    print(f'[SISBAJUD][LOGIN] Aguardando 3s antes de tentar novamente...')
+                    time.sleep(3)
+                else:
+                    print('[SISBAJUD][LOGIN] ❌ Todas as tentativas de navegação falharam')
+                    return False
         
         # Aguardar carregamento otimizado
         time.sleep(random.uniform(1.0, 1.5))  # Reduzido de 2.5-4.0 para 1.0-1.5
@@ -1429,7 +1443,7 @@ def carregar_dados_processo():
         print(f'[SISBAJUD][ERRO] Falha ao carregar dados do processo: {e}')
         return None
 
-def coletar_dados_minuta_sisbajud(driver):
+def coletar_dados_minuta_sisbajud(driver, protocolo_primeira=None, data_protocolo=None):
     """
     Executa JavaScript para coletar dados da minuta SISBAJUD e retorna o texto formatado
     """
@@ -1488,6 +1502,12 @@ def coletar_dados_minuta_sisbajud(driver):
             let resultado = `<p ${pStyle}><strong>Dados da Teimosinha protocolada:</strong></p>`;
             resultado += `<p ${pStyle}>Número do processo: <strong>${numeroProcesso || 'Não encontrado'}</strong></p>`;
             resultado += `<p ${pStyle}>Número do protocolo: <strong>${numeroProtocolo || 'Não encontrado'}</strong></p>`;
+            
+            // Adicionar data do protocolo se fornecida
+            if (arguments[0] && arguments[0].dataProtocolo) {
+                resultado += `<p ${pStyle}>Data do protocolo: <strong>${arguments[0].dataProtocolo}</strong></p>`;
+            }
+            
             resultado += `<p ${pStyle}>Repetição programada? <strong>${repeticaoProgramada || 'Não encontrado'}</strong></p>`;
             resultado += `<p ${pStyle}>Limite da repetição: <strong>${limiteRepeticao || 'Não encontrado'}</strong></p>`;
             resultado += `<p ${pStyle}>Valor do bloqueio: <strong>${valorBloqueio ? valorBloqueio.split('\\n')[0] : 'Não encontrado'}</strong></p>`;
@@ -1499,6 +1519,11 @@ def coletar_dados_minuta_sisbajud(driver):
                 });
             } else {
                 resultado += `<p ${pStyle}><strong>Nenhum executado encontrado</strong></p>`;
+            }
+            
+            // Adicionar linha sobre segunda ordem se protocolo fornecido
+            if (arguments[0] && arguments[0].protocoloPrimeira) {
+                resultado += `<p ${pStyle}><strong>Protocolo da segunda ordem agendada para o dia útil seguinte: ${arguments[0].protocoloPrimeira}</strong></p>`;
             }
             
             resultado += `<p ${pStyle}>Notas:</p>`;
@@ -1513,7 +1538,7 @@ def coletar_dados_minuta_sisbajud(driver):
         """
         
         # Executar o script e obter o resultado
-        resultado = driver.execute_script(script_coleta)
+        resultado = driver.execute_script(script_coleta, {'protocoloPrimeira': protocolo_primeira, 'dataProtocolo': data_protocolo})
         
         if resultado and not resultado.startswith('ERRO:'):
             print('[SISBAJUD] ✅ Dados coletados com sucesso')
@@ -1570,6 +1595,75 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
             return None
         
         print('[SISBAJUD] ✅ Dados do processo carregados')
+        
+        # Extrair número do processo dos dados
+        numero_processo = dados_processo.get('numero', 'desconhecido')
+        print(f'[SISBAJUD] Número do processo: {numero_processo}')
+        
+        # 2.1. NOVO: Verificar se há réus restantes de processamento anterior
+        print('[SISBAJUD] 2.1. Verificando réus restantes de processamento anterior...')
+        reus_restantes_arquivo = os.path.join(os.path.dirname(__file__), f'reus_restantes_{numero_processo}.json')
+        
+        if os.path.exists(reus_restantes_arquivo):
+            try:
+                with open(reus_restantes_arquivo, 'r', encoding='utf-8') as f:
+                    dados_restantes = json.load(f)
+                
+                reus_restantes_carregados = dados_restantes.get('reus_restantes', [])
+                if reus_restantes_carregados:
+                    print(f'[SISBAJUD] ✅ Encontrados {len(reus_restantes_carregados)} réus restantes de processamento anterior')
+                    print(f'[SISBAJUD] Usando réus restantes em vez dos dados originais do processo')
+                    
+                    # Substituir os réus pelos restantes
+                    reus = reus_restantes_carregados
+                    
+                    # Remover o arquivo após carregar
+                    os.remove(reus_restantes_arquivo)
+                    print(f'[SISBAJUD] ✅ Arquivo de réus restantes removido após carregamento')
+                else:
+                    print('[SISBAJUD] ⚠️ Arquivo de réus restantes encontrado mas vazio')
+            except Exception as e:
+                print(f'[SISBAJUD] ❌ Erro ao carregar réus restantes: {e}')
+        else:
+            print('[SISBAJUD] ✅ Nenhum réu restante encontrado - processando todos os réus')
+        
+        # 2.2. Verificar se há valor de execução nos dados do processo
+        print('[SISBAJUD] 2.2. Verificando valor de execução...')
+        valor_execucao = dados_processo.get('parametros_automacao', {}).get('valor_execucao') or dados_processo.get('divida', {}).get('valor')
+        
+        if not valor_execucao or str(valor_execucao).strip() == '' or str(valor_execucao).strip() == '0' or str(valor_execucao).strip() == '0.00':
+            print('[SISBAJUD] ⚠️ Valor de execução não encontrado nos dados do processo')
+            print('[SISBAJUD] Criando GIGS "Bruna atualizar cálculos" e abortando processamento SISBAJUD...')
+            
+            try:
+                # Importar função criar_gigs se necessário
+                from Fix import criar_gigs
+                
+                # Criar GIGS para Bruna atualizar cálculos
+                resultado_gigs = criar_gigs(driver_pje, "01", "Bruna", "atualizar cálculos", log=True)
+                
+                if resultado_gigs:
+                    print('[SISBAJUD] ✅ GIGS criado com sucesso: 01/Bruna/atualizar cálculos')
+                    return {
+                        'status': 'gigs_criado',
+                        'motivo': 'valor_execucao_ausente',
+                        'gigs': '30/Bruna/atualizar cálculos'
+                    }
+                else:
+                    print('[SISBAJUD] ❌ Falha ao criar GIGS')
+                    return {
+                        'status': 'erro_gigs',
+                        'motivo': 'falha_criacao_gigs'
+                    }
+                    
+            except Exception as e:
+                print(f'[SISBAJUD] ❌ Erro ao criar GIGS: {e}')
+                return {
+                    'status': 'erro_gigs',
+                    'motivo': str(e)
+                }
+        else:
+            print(f'[SISBAJUD] ✅ Valor de execução encontrado: {valor_execucao}')
         
         # 3. Verificar se já estamos na página de cadastro ou navegar para /minuta
         current_url = driver_sisbajud.current_url
@@ -1985,8 +2079,21 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
         
         print(f'[SISBAJUD] Total de réus: {len(reus)}')
         
+        # NOVO: Limitar a 10 executados ativos por minuta
+        MAX_EXECUTADOS_POR_MINUTA = 10
+        executados_ativos = 0
+        executados_processados = 0
+        reus_restantes = []
+        
         for contador, reu in enumerate(reus):
             print(f'\n[SISBAJUD] === PROCESSANDO RÉU {contador + 1}/{len(reus)} ===')
+            
+            # Verificar se já atingimos o limite de 10 executados ativos
+            if executados_ativos >= MAX_EXECUTADOS_POR_MINUTA:
+                print(f'[SISBAJUD] ⚠️ Limite de {MAX_EXECUTADOS_POR_MINUTA} executados ativos atingido')
+                print(f'[SISBAJUD] Restantes serão processados em nova ordem')
+                reus_restantes = reus[contador:]
+                break
             
             cpf_cnpj_reu = reu.get('cpfcnpj', '')
             if not cpf_cnpj_reu:
@@ -2063,7 +2170,60 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
                 # Aguardar processamento com delay inteligente
                 smart_delay('form_fill', base_delay=3.0)  # Aumentado para 3 segundos
                 
-                # Verificar se houve erro ou se foi adicionado com sucesso
+                # NOVO: Verificar imediatamente se o réu tem 0 contas e remover se necessário
+                script_verificar_contas = """
+                // Verificar se o último réu adicionado tem 0 relacionamentos
+                var tabelaLinhas = document.querySelectorAll('tr.mat-row');
+                if (tabelaLinhas.length > 0) {
+                    var ultimaLinha = tabelaLinhas[tabelaLinhas.length - 1];
+                    var celulaRelacionamentos = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
+                    if (celulaRelacionamentos) {
+                        var botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
+                        if (botaoRelacionamentos && botaoRelacionamentos.textContent.trim() === '0') {
+                            // Encontrou 0 relacionamentos - remover imediatamente
+                            var botaoMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
+                            if (botaoMenu) {
+                                botaoMenu.click();
+                                return 'REMOVER_AGORA';
+                            }
+                        } else {
+                            // Tem relacionamentos - contar como ativo
+                            return 'EXECUTADO_ATIVO';
+                        }
+                    }
+                }
+                return 'VERIFICACAO_INCONCLUSIVA';
+                """
+                
+                resultado_verificacao = safe_execute_script(driver_sisbajud, script_verificar_contas, 'default')
+                
+                if resultado_verificacao == 'REMOVER_AGORA':
+                    print(f'[SISBAJUD] ⚠️ Réu {contador + 1} tem 0 contas - removendo imediatamente...')
+                    
+                    # Aguardar menu abrir e clicar em excluir
+                    time.sleep(0.5)
+                    script_excluir_zero_contas = """
+                    var botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
+                    if (botaoExcluir) {
+                        botaoExcluir.closest('button').click();
+                        return true;
+                    }
+                    return false;
+                    """
+                    
+                    excluiu = driver_sisbajud.execute_script(script_excluir_zero_contas)
+                    if excluiu:
+                        print(f'[SISBAJUD] ✅ Réu {contador + 1} com 0 contas removido imediatamente')
+                        time.sleep(1)  # Aguardar processamento
+                        continue  # Pular para o próximo réu
+                    else:
+                        print(f'[SISBAJUD] ❌ Falha ao remover réu {contador + 1} com 0 contas')
+                        
+                elif resultado_verificacao == 'EXECUTADO_ATIVO':
+                    executados_ativos += 1
+                    print(f'[SISBAJUD] ✅ Réu {contador + 1} adicionado como executado ativo ({executados_ativos}/{MAX_EXECUTADOS_POR_MINUTA})')
+                
+                executados_processados += 1
                 verificar_erro = """
                 // Verificar se há mensagem de erro
                 var errorMsg = document.querySelector('.mat-snack-bar-container');
@@ -2096,110 +2256,34 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
                 print(f'[SISBAJUD] ❌ Falha ao executar script para réu {contador + 1}')
                 SISBAJUD_STATS['consecutive_errors'] += 1
         
-        # 9.1. AGUARDAR PROCESSAMENTO E REMOVER RÉUS SEM CONTA BANCÁRIA
-        print('[SISBAJUD] 9.1. Aguardando processamento e verificando contas bancárias...')
-        smart_delay('form_fill', base_delay=5.0)  # Aguardar SISBAJUD processar todas as consultas
-        
-        # Fechar overlay de erro (se existir)
-        script_fechar_overlay = """
-        var overlay = document.querySelector('.mat-snack-bar-container');
-        if (overlay) {
-            var botaoOk = overlay.querySelector('button .mat-button-wrapper');
-            if (botaoOk && botaoOk.textContent.includes('OK')) {
-                botaoOk.closest('button').click();
-                return true;
-            }
-        }
-        return false;
-        """
-        
-        fechou_overlay = safe_execute_script(driver_sisbajud, script_fechar_overlay, 'default')
-        if fechou_overlay:
-            print('[SISBAJUD] ✅ Overlay de erro fechado')
-            smart_delay('default')
-        
-        # Identificar e remover réus com 0 relacionamentos (sem conta bancária)
-        script_verificar_sem_conta = """
-        var linhasSemConta = [];
-        var tabelaLinhas = document.querySelectorAll('tr.mat-row');
-        
-        for (var i = 0; i < tabelaLinhas.length; i++) {
-            var linha = tabelaLinhas[i];
+        # Se há réus restantes, criar nova ordem
+        if reus_restantes:
+            print(f'\n[SISBAJUD] === CRIANDO NOVA ORDEM PARA {len(reus_restantes)} RÉUS RESTANTES ===')
+            print(f'[SISBAJUD] Executados ativos nesta minuta: {executados_ativos}')
+            print(f'[SISBAJUD] Réus restantes para próxima ordem: {len(reus_restantes)}')
             
-            // Procurar célula de relacionamentos na linha
-            var celulaRelacionamentos = linha.querySelector('td.mat-column-qtdeRelacionamentos');
-            if (celulaRelacionamentos) {
-                var botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
-                
-                // Se encontrou relacionamentos = 0, marcar para remoção
-                if (botaoRelacionamentos && botaoRelacionamentos.textContent.trim() === '0') {
-                    linhasSemConta.push(i);
-                }
-            }
-        }
-        
-        return linhasSemConta.length;
-        """
-        
-        total_sem_conta = driver_sisbajud.execute_script(script_verificar_sem_conta)
-        
-        if total_sem_conta and total_sem_conta > 0:
-            print(f'[SISBAJUD] ⚠️ Encontrados {total_sem_conta} réus sem conta bancária. Removendo...')
-            
-            # Remover um por vez para evitar problemas de timing
-            for i in range(total_sem_conta):
-                script_remover_primeiro_sem_conta = """
-                var tabelaLinhas = document.querySelectorAll('tr.mat-row');
-                
-                for (var i = 0; i < tabelaLinhas.length; i++) {
-                    var linha = tabelaLinhas[i];
-                    
-                    // Procurar célula de relacionamentos na linha
-                    var celulaRelacionamentos = linha.querySelector('td.mat-column-qtdeRelacionamentos');
-                    if (celulaRelacionamentos) {
-                        var botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
-                        
-                        // Se encontrou relacionamentos = 0, remover essa linha
-                        if (botaoRelacionamentos && botaoRelacionamentos.textContent.trim() === '0') {
-                            // Clicar no menu de três pontos
-                            var botaoMenu = linha.querySelector('button.mat-menu-trigger');
-                            if (botaoMenu) {
-                                botaoMenu.click();
-                                return 'MENU_OPENED';
-                            }
-                        }
-                    }
+            # Salvar dados dos réus restantes para próxima execução
+            try:
+                dados_restantes = {
+                    'reus_restantes': reus_restantes,
+                    'numero_processo': numero_processo,
+                    'data_criacao': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'executados_ativos': executados_ativos,
+                    'total_reus_original': len(reus)
                 }
                 
-                return 'NOT_FOUND';
-                """
+                restantes_path = os.path.join(os.path.dirname(__file__), f'reus_restantes_{numero_processo}.json')
+                with open(restantes_path, 'w', encoding='utf-8') as f:
+                    json.dump(dados_restantes, f, ensure_ascii=False, indent=2)
                 
-                resultado_menu = driver_sisbajud.execute_script(script_remover_primeiro_sem_conta)
+                print(f'[SISBAJUD] ✅ Dados dos réus restantes salvos em: {restantes_path}')
+                print(f'[SISBAJUD] 💡 Para processar os restantes, chame minuta_bloqueio novamente')
                 
-                if resultado_menu == 'MENU_OPENED':
-                    time.sleep(0.5)  # Aguardar menu abrir
-                    
-                    # Clicar em Excluir
-                    script_clicar_excluir = """
-                    var botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
-                    if (botaoExcluir) {
-                        botaoExcluir.closest('button').click();
-                        return true;
-                    }
-                    return false;
-                    """
-                    
-                    excluiu = driver_sisbajud.execute_script(script_clicar_excluir)
-                    if excluiu:
-                        print(f'[SISBAJUD] ✅ Réu sem conta {i+1}/{total_sem_conta} removido')
-                        time.sleep(1)  # Aguardar remoção processar
-                    else:
-                        print(f'[SISBAJUD] ❌ Falha ao remover réu sem conta {i+1}/{total_sem_conta}')
-                else:
-                    print(f'[SISBAJUD] ❌ Não foi possível abrir menu para réu {i+1}/{total_sem_conta}')
-                    break
-        else:
-            print('[SISBAJUD] ✅ Todos os réus possuem conta bancária')
+            except Exception as e:
+                print(f'[SISBAJUD] ❌ Erro ao salvar dados dos réus restantes: {e}')
+        
+        # Remover a lógica antiga de verificação/removal em lote (já foi integrada acima)
+        print('[SISBAJUD] ✅ Processamento individual de réus concluído')
         
         # 10. VALOR (se houver)
         print('[SISBAJUD] 10. Configurando Valor...')
@@ -2373,6 +2457,466 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
             
             if status_salvamento == 'SALVO_COM_SUCESSO':
                 print('[SISBAJUD] ✅ Minuta salva com sucesso! Botão "Alterar" detectado.')
+                
+                # === NOVA FASE: PROTOCOLAR MINUTA ===
+                print('[SISBAJUD] === NOVA FASE: PROTOCOLAR MINUTA ===')
+                
+                # 1. Clicar no botão "Protocolar Minuta"
+                print('[SISBAJUD] 1. Clicando no botão "Protocolar Minuta"...')
+                script_protocolar = """
+                var btnProtocolar = document.querySelector('button.mat-fab[title="Protocolar Minuta"]');
+                if (btnProtocolar) {
+                    btnProtocolar.click();
+                    return true;
+                }
+                return false;
+                """
+                sucesso_protocolar = safe_execute_script(driver_sisbajud, script_protocolar, 'click')
+                if sucesso_protocolar:
+                    print('[SISBAJUD] ✅ Botão "Protocolar Minuta" clicado')
+                    smart_delay('navigation')
+                else:
+                    print('[SISBAJUD] ❌ Falha ao clicar no botão "Protocolar Minuta"')
+                    return None
+                
+                # 2. Aguardar modal de protocolo aparecer
+                print('[SISBAJUD] 2. Aguardando modal de protocolo...')
+                modal_apareceu = False
+                for tentativa in range(10):
+                    try:
+                        modal = driver_sisbajud.find_element(By.CSS_SELECTOR, 'mat-dialog-container')
+                        if modal.is_displayed():
+                            print('[SISBAJUD] ✅ Modal de protocolo detectado')
+                            modal_apareceu = True
+                            break
+                    except:
+                        pass
+                    time.sleep(0.5)
+                
+                if not modal_apareceu:
+                    print('[SISBAJUD] ❌ Modal de protocolo não apareceu')
+                    return None
+                
+                # 3. Digitar senha de forma humana (simulando erros como no login SISBAJUD)
+                print('[SISBAJUD] 3. Digitando senha de forma humana...')
+                senha = "Fl\"quinho182"
+                
+                # Simular digitação humana com possíveis erros
+                script_senha = f"""
+                var inputSenha = document.querySelector('input[formcontrolname="senha"]');
+                if (inputSenha) {{
+                    inputSenha.focus();
+                    
+                    // Simular digitação humana com atrasos e possíveis erros
+                    var senha = "{senha}";
+                    var erros = ["F", "Fl", "Fl\"", "Fl\"q", "Fl\"qu", "Fl\"qui", "Fl\"quin", "Fl\"quinh"]; // Simular erros de digitação
+                    
+                    // Escolher se vai cometer erro (30% de chance)
+                    var cometerErro = Math.random() < 0.3;
+                    
+                    if (cometerErro) {{
+                        // Digitar com erro e corrigir
+                        var erroEscolhido = erros[Math.floor(Math.random() * erros.length)];
+                        for (var i = 0; i < erroEscolhido.length; i++) {{
+                            inputSenha.value += erroEscolhido[i];
+                            inputSenha.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            // Delay entre caracteres
+                            var delay = 100 + Math.random() * 200;
+                            setTimeout(function(){{}}, delay);
+                        }}
+                        // Apagar erro
+                        setTimeout(function() {{
+                            for (var i = 0; i < erroEscolhido.length; i++) {{
+                                inputSenha.value = inputSenha.value.slice(0, -1);
+                                inputSenha.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                var delay = 50 + Math.random() * 100;
+                                setTimeout(function(){{}}, delay);
+                            }}
+                        }}, 500);
+                        
+                        // Aguardar correção e digitar correto
+                        setTimeout(function() {{
+                            for (var i = 0; i < senha.length; i++) {{
+                                inputSenha.value += senha[i];
+                                inputSenha.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                                var delay = 100 + Math.random() * 200;
+                                setTimeout(function(){{}}, delay);
+                            }}
+                        }}, 1000);
+                    }} else {{
+                        // Digitar diretamente
+                        for (var i = 0; i < senha.length; i++) {{
+                            inputSenha.value += senha[i];
+                            inputSenha.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                            var delay = 100 + Math.random() * 200;
+                            setTimeout(function(){{}}, delay);
+                        }}
+                    }}
+                    
+                    return true;
+                }}
+                return false;
+                """
+                
+                sucesso_senha = driver_sisbajud.execute_script(script_senha)
+                if sucesso_senha:
+                    print('[SISBAJUD] ✅ Senha digitada (com simulação humana)')
+                    time.sleep(2)  # Aguardar digitação completar
+                else:
+                    print('[SISBAJUD] ❌ Falha ao digitar senha')
+                    return None
+                
+                # 4. Clicar em "Confirmar"
+                print('[SISBAJUD] 4. Clicando em "Confirmar"...')
+                script_confirmar = """
+                var btnConfirmar = document.querySelector('button.mat-raised-button.mat-primary[type="submit"]');
+                if (btnConfirmar && !btnConfirmar.disabled) {
+                    btnConfirmar.click();
+                    return true;
+                }
+                return false;
+                """
+                sucesso_confirmar = safe_execute_script(driver_sisbajud, script_confirmar, 'click')
+                if sucesso_confirmar:
+                    print('[SISBAJUD] ✅ Botão "Confirmar" clicado')
+                    smart_delay('navigation')
+                else:
+                    print('[SISBAJUD] ❌ Falha ao clicar em "Confirmar"')
+                    return None
+                
+                # 5. Aguardar processamento e coletar dados atualizados com protocolo
+                print('[SISBAJUD] 5. Aguardando processamento e coletando dados atualizados...')
+                time.sleep(5)  # Aguardar processamento
+                
+                # Extrair protocolo e data do protocolo
+                script_extrair_protocolo = """
+                try {
+                    var protocoloElement = document.querySelector('span.sisbajud-label-valor.maisPJe_destaque_elemento');
+                    var protocolo = protocoloElement ? protocoloElement.textContent.trim() : null;
+                    
+                    var dataElement = document.querySelector('span.sisbajud-label-valor');
+                    var dataProtocolo = null;
+                    if (dataElement && dataElement.textContent.includes('SET')) {
+                        // Padronizar data para dd/mm/yy
+                        var dataTexto = dataElement.textContent.trim();
+                        var match = dataTexto.match(/(\\d{1,2})\\s+(\\w{3})\\s+(\\d{4})/);
+                        if (match) {
+                            var dia = match[1].padStart(2, '0');
+                            var mes = match[2].toUpperCase();
+                            var ano = match[3].slice(-2);
+                            var meses = {'JAN': '01', 'FEV': '02', 'MAR': '03', 'ABR': '04', 'MAI': '05', 'JUN': '06',
+                                       'JUL': '07', 'AGO': '08', 'SET': '09', 'OUT': '10', 'NOV': '11', 'DEZ': '12'};
+                            dataProtocolo = dia + '/' + meses[mes] + '/' + ano;
+                        }
+                    }
+                    
+                    return {protocolo: protocolo, dataProtocolo: dataProtocolo};
+                } catch (e) {
+                    return {erro: e.message};
+                }
+                """
+                
+                dados_protocolo = driver_sisbajud.execute_script(script_extrair_protocolo)
+                protocolo_primeira = dados_protocolo.get('protocolo') if dados_protocolo else None
+                data_protocolo = dados_protocolo.get('dataProtocolo') if dados_protocolo else None
+                
+                print(f'[SISBAJUD] ✅ Protocolo primeira minuta: {protocolo_primeira}')
+                print(f'[SISBAJUD] ✅ Data do protocolo: {data_protocolo}')
+                
+                # === NOVA FASE: COPIAR DADOS PARA NOVA ORDEM ===
+                print('[SISBAJUD] === NOVA FASE: COPIAR DADOS PARA NOVA ORDEM ===')
+                
+                # 6. Clicar em "Copiar Dados para Nova Ordem"
+                print('[SISBAJUD] 6. Clicando em "Copiar Dados para Nova Ordem"...')
+                script_copiar = """
+                var btnCopiar = document.querySelector('button.mat-fab[title="Copiar Dados para Nova Ordem"]');
+                if (btnCopiar) {
+                    btnCopiar.click();
+                    return true;
+                }
+                return false;
+                """
+                sucesso_copiar = safe_execute_script(driver_sisbajud, script_copiar, 'click')
+                if sucesso_copiar:
+                    print('[SISBAJUD] ✅ Botão "Copiar Dados para Nova Ordem" clicado')
+                    smart_delay('navigation')
+                else:
+                    print('[SISBAJUD] ❌ Falha ao clicar no botão "Copiar Dados para Nova Ordem"')
+                    return None
+                
+                # 7. Aguardar modal de confirmação e clicar em "Confirmar"
+                print('[SISBAJUD] 7. Aguardando modal de confirmação...')
+                modal_confirmacao_apareceu = False
+                for tentativa in range(10):
+                    try:
+                        modal_confirmacao = driver_sisbajud.find_element(By.CSS_SELECTOR, 'mat-dialog-container')
+                        if modal_confirmacao.is_displayed():
+                            print('[SISBAJUD] ✅ Modal de confirmação detectado')
+                            modal_confirmacao_apareceu = True
+                            break
+                    except:
+                        pass
+                    time.sleep(0.5)
+                
+                if modal_confirmacao_apareceu:
+                    script_confirmar_copia = """
+                    var btnConfirmarCopia = document.querySelector('button.mat-raised-button.mat-primary');
+                    if (btnConfirmarCopia && btnConfirmarCopia.textContent.includes('Confirmar')) {
+                        btnConfirmarCopia.click();
+                        return true;
+                    }
+                    return false;
+                    """
+                    sucesso_confirmar_copia = safe_execute_script(driver_sisbajud, script_confirmar_copia, 'click')
+                    if sucesso_confirmar_copia:
+                        print('[SISBAJUD] ✅ Confirmação de cópia clicada')
+                        smart_delay('navigation')
+                    else:
+                        print('[SISBAJUD] ❌ Falha ao confirmar cópia')
+                        return None
+                else:
+                    print('[SISBAJUD] ❌ Modal de confirmação não apareceu')
+                    return None
+                
+                # 8. Aguardar URL /copiar-ordem
+                print('[SISBAJUD] 8. Aguardando navegação para /copiar-ordem...')
+                url_copiar_ready = False
+                for tentativa in range(20):
+                    current_url = driver_sisbajud.current_url
+                    if '/copiar-ordem' in current_url:
+                        print('[SISBAJUD] ✅ URL /copiar-ordem confirmada')
+                        url_copiar_ready = True
+                        break
+                    time.sleep(0.5)
+                
+                if not url_copiar_ready:
+                    print('[SISBAJUD] ❌ Timeout aguardando URL /copiar-ordem')
+                    return None
+                
+                # 9. Preencher dados que faltam na segunda minuta
+                print('[SISBAJUD] 9. Preenchendo dados da segunda minuta...')
+                
+                # 9.1. Juiz Solicitante (igual à primeira)
+                print('[SISBAJUD] 9.1. Preenchendo Juiz Solicitante...')
+                script_juiz_segunda = f"""
+                var juizInput = document.querySelector('input[placeholder*="Juiz"]');
+                if (juizInput) {{
+                    juizInput.focus();
+                    juizInput.value = '';
+                    juizInput.value = '{juiz}';
+                    juizInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    
+                    // Aguardar opções aparecerem
+                    setTimeout(function() {{
+                        var opcoes = document.querySelectorAll('mat-option[role="option"]');
+                        for (var i = 0; i < opcoes.length; i++) {{
+                            if (opcoes[i].textContent.toLowerCase().includes('{juiz.lower()}')) {{
+                                opcoes[i].click();
+                                break;
+                            }}
+                        }}
+                    }}, 500);
+                    return true;
+                }}
+                return false;
+                """
+                sucesso_juiz_segunda = safe_execute_script(driver_sisbajud, script_juiz_segunda, 'form_fill')
+                if sucesso_juiz_segunda:
+                    print(f'[SISBAJUD] ✅ Juiz preenchido na segunda minuta: {juiz}')
+                    smart_delay('form_fill')
+                
+                # 9.2. Selecionar "Sim" no radio button de agendar protocolo da minuta
+                print('[SISBAJUD] 9.2. Selecionando "Sim" para agendar protocolo da minuta...')
+                script_radio_sim = """
+                var radios = document.querySelectorAll('mat-radio-button');
+                for (var i = 0; i < radios.length; i++) {
+                    var label = radios[i].querySelector('label');
+                    if (label && label.textContent.includes('Sim')) {
+                        label.click();
+                        return true;
+                    }
+                }
+                return false;
+                """
+                sucesso_radio = safe_execute_script(driver_sisbajud, script_radio_sim, 'click')
+                if sucesso_radio:
+                    print('[SISBAJUD] ✅ "Sim" selecionado para agendar protocolo da minuta')
+                    smart_delay('form_fill')
+                
+                # 9.3. Abrir calendário e escolher dia seguinte útil
+                print('[SISBAJUD] 9.3. Configurando data limite da repetição...')
+                
+                # Calcular dia seguinte útil (evitando sábado e domingo)
+                hoje = datetime.now()
+                dia_seguinte = hoje + timedelta(days=1)
+                
+                # Se for sábado, pular para segunda
+                if dia_seguinte.weekday() == 5:  # Sábado
+                    dia_seguinte += timedelta(days=2)
+                elif dia_seguinte.weekday() == 6:  # Domingo
+                    dia_seguinte += timedelta(days=1)
+                
+                ano_segunda = dia_seguinte.year
+                mes_segunda = dia_seguinte.month - 1  # 0-based
+                dia_segunda = dia_seguinte.day
+                
+                print(f'[SISBAJUD] Data limite segunda minuta: {dia_seguinte.strftime("%d/%m/%Y")}')
+                
+                # Abrir calendário
+                script_abrir_calendario_segunda = """
+                var btnCalendario = document.querySelector('button[aria-label="Open calendar"]');
+                if (btnCalendario) {
+                    btnCalendario.click();
+                    return true;
+                }
+                return false;
+                """
+                sucesso_abrir_calendario = safe_execute_script(driver_sisbajud, script_abrir_calendario_segunda, 'click')
+                if sucesso_abrir_calendario:
+                    print('[SISBAJUD] ✅ Calendário aberto para segunda minuta')
+                    time.sleep(1)
+                    
+                    # Abrir seleção mês/ano
+                    script_mes_ano_segunda = """
+                    var btnMesAno = document.querySelector('mat-calendar button[aria-label="Choose month and year"]');
+                    if (btnMesAno) {
+                        btnMesAno.click();
+                        return true;
+                    }
+                    return false;
+                    """
+                    sucesso_mes_ano = safe_execute_script(driver_sisbajud, script_mes_ano_segunda, 'click')
+                    if sucesso_mes_ano:
+                        print('[SISBAJUD] ✅ Seleção mês/ano aberta')
+                        time.sleep(1)
+                        
+                        # Selecionar ano
+                        script_ano_segunda = f"""
+                        var anoCell = document.querySelector('mat-calendar td[aria-label="{ano_segunda}"]');
+                        if (anoCell) {{
+                            anoCell.click();
+                            return true;
+                        }}
+                        return false;
+                        """
+                        sucesso_ano_segunda = safe_execute_script(driver_sisbajud, script_ano_segunda, 'click')
+                        if sucesso_ano_segunda:
+                            print(f'[SISBAJUD] ✅ Ano selecionado: {ano_segunda}')
+                            time.sleep(1)
+                            
+                            # Selecionar mês
+                            meses_segunda = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", 
+                                           "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+                            mes_str_segunda = f"{meses_segunda[mes_segunda]} de {ano_segunda}"
+                            
+                            script_mes_segunda = f"""
+                            var mesCell = document.querySelector('mat-calendar td[aria-label="{mes_str_segunda}"]');
+                            if (mesCell && !mesCell.getAttribute('aria-disabled')) {{
+                                mesCell.click();
+                                return true;
+                            }}
+                            return false;
+                            """
+                            sucesso_mes_segunda = safe_execute_script(driver_sisbajud, script_mes_segunda, 'click')
+                            if sucesso_mes_segunda:
+                                print(f'[SISBAJUD] ✅ Mês selecionado: {mes_str_segunda}')
+                                time.sleep(1)
+                                
+                                # Selecionar dia
+                                script_dia_segunda = f"""
+                                var diaCell = document.querySelector('mat-calendar td[aria-label="{dia_segunda}"]');
+                                if (diaCell && !diaCell.getAttribute('aria-disabled')) {{
+                                    diaCell.click();
+                                    return true;
+                                }}
+                                return false;
+                                """
+                                sucesso_dia_segunda = safe_execute_script(driver_sisbajud, script_dia_segunda, 'click')
+                                if sucesso_dia_segunda:
+                                    print(f'[SISBAJUD] ✅ Dia selecionado: {dia_segunda}')
+                                    smart_delay('form_fill')
+                                else:
+                                    print(f'[SISBAJUD] ❌ Falha ao selecionar dia: {dia_segunda}')
+                            else:
+                                print(f'[SISBAJUD] ❌ Falha ao selecionar mês: {mes_str_segunda}')
+                        else:
+                            print(f'[SISBAJUD] ❌ Falha ao selecionar ano: {ano_segunda}')
+                    else:
+                        print('[SISBAJUD] ❌ Falha ao abrir seleção mês/ano')
+                else:
+                    print('[SISBAJUD] ❌ Falha ao abrir calendário')
+                
+                # 9.4. Preencher valor da execução (igual ao da primeira)
+                print('[SISBAJUD] 9.4. Preenchendo valor da execução...')
+                script_valor_segunda = f"""
+                var valorInput = document.querySelector('input[placeholder*="Valor aplicado a todos"]');
+                if (valorInput) {{
+                    valorInput.focus();
+                    valorInput.value = '';
+                    valorInput.value = '{valor_execucao}';
+                    valorInput.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    valorInput.blur();
+                    return true;
+                }}
+                return false;
+                """
+                sucesso_valor_segunda = safe_execute_script(driver_sisbajud, script_valor_segunda, 'form_fill')
+                if sucesso_valor_segunda:
+                    print(f'[SISBAJUD] ✅ Valor preenchido na segunda minuta: {valor_execucao}')
+                    smart_delay('form_fill')
+                
+                # 9.5. Salvar segunda minuta
+                print('[SISBAJUD] 9.5. Salvando segunda minuta...')
+                script_salvar_segunda = """
+                // Buscar botão de salvar
+                var btnSalvar = document.querySelector('button.mat-fab.mat-primary mat-icon.fa-save');
+                if (btnSalvar) {
+                    btnSalvar.closest('button').click();
+                    return true;
+                }
+                
+                // Fallback
+                var btnFallback = document.querySelector('button mat-icon.fa-save');
+                if (btnFallback) {
+                    btnFallback.closest('button').click();
+                    return true;
+                }
+                
+                var buttons = document.querySelectorAll('button');
+                for (var i = 0; i < buttons.length; i++) {
+                    if (buttons[i].textContent.includes('Salvar')) {
+                        buttons[i].click();
+                        return true;
+                    }
+                }
+                
+                return false;
+                """
+                
+                salvou_segunda = safe_execute_script(driver_sisbajud, script_salvar_segunda, 'click')
+                if salvou_segunda:
+                    print('[SISBAJUD] ✅ Botão Salvar segunda minuta clicado')
+                    smart_delay('navigation')
+                    
+                    # Aguardar confirmação
+                    time.sleep(3)
+                    print('[SISBAJUD] ✅ Segunda minuta salva com sucesso')
+                    
+                    # Extrair protocolo da segunda minuta
+                    try:
+                        script_extrair_protocolo_segunda = """
+                        var protocoloElement = document.querySelector('span.sisbajud-label-valor.maisPJe_destaque_elemento');
+                        return protocoloElement ? protocoloElement.textContent.trim() : null;
+                        """
+                        protocolo_segunda = driver_sisbajud.execute_script(script_extrair_protocolo_segunda)
+                        print(f'[SISBAJUD] ✅ Protocolo segunda minuta: {protocolo_segunda}')
+                    except Exception as e:
+                        print(f'[SISBAJUD] ⚠️ Erro ao extrair protocolo segunda minuta: {e}')
+                        protocolo_segunda = None
+                else:
+                    print('[SISBAJUD] ❌ Falha ao salvar segunda minuta')
+                    return None
+                
             elif status_salvamento == 'AINDA_EDITANDO':
                 print('[SISBAJUD] ⚠️ Minuta ainda em modo de edição - pode não ter salvado')
             else:
@@ -2385,7 +2929,7 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
         
         # 13. COLETAR DADOS DA MINUTA PARA RELATÓRIO
         print('[SISBAJUD] 13. Coletando dados da minuta para relatório...')
-        dados_relatorio = coletar_dados_minuta_sisbajud(driver_sisbajud)
+        dados_relatorio = coletar_dados_minuta_sisbajud(driver_sisbajud, protocolo_primeira, data_protocolo)
         if dados_relatorio:
             # Salvar dados coletados em arquivo
             relatorio_path = os.path.join(os.path.dirname(__file__), 'relatorio_sisbajud.html')
@@ -2432,26 +2976,16 @@ def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, 
         except:
             pass
         
-        # Fechar driver SISBAJUD para retornar ao PJe (com espera)
-        print('[SISBAJUD] Fechando driver SISBAJUD para retornar ao PJe...')
-        try:
-            driver_sisbajud.quit()
-            print('[SISBAJUD] ✅ Driver SISBAJUD fechado com sucesso')
-            
-            # Esperar explicitamente para garantir fechamento completo
-            print('[SISBAJUD] Aguardando 3 segundos para garantir fechamento completo...')
-            time.sleep(3)
-            print('[SISBAJUD] ✅ Aguardo concluído - controle retornado ao driver PJe')
-            
-        except Exception as e:
-            print(f'[SISBAJUD] ⚠️ Erro ao fechar driver SISBAJUD: {e}')
-            # Mesmo com erro, aguardar para evitar conflitos
-            time.sleep(2)
+        # NÃO fechar driver SISBAJUD aqui - deixar para a função coordenadora
+        # O driver deve ser reutilizado para múltiplos processos SISBAJUD
+        print('[SISBAJUD] ✅ Minuta de bloqueio concluída - mantendo driver SISBAJUD aberto para próximos processos')
         
         return {
             'status': 'sucesso',
             'dados_minuta': {
-                'protocolo': protocolo,
+                'protocolo_primeira': protocolo_primeira,
+                'protocolo_segunda': protocolo_segunda if 'protocolo_segunda' in locals() else None,
+                'data_protocolo': data_protocolo,
                 'tipo': 'bloqueio',
                 'repeticao': 'sim',
                 'data_limite': data_limite_str,
@@ -3436,34 +3970,72 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
                                 SISBAJUD_STATS['consecutive_errors'] += 1
                                 return {'sucesso': False, 'tempo': time.time() - start_time, 'erro': 'Opções não encontradas'}
                             
-                            # Delay antes de selecionar opção
-                            smart_delay('click', base_delay=0.6)
+                            # Buscar opções no dropdown com lógica igual a gigs.py
+                            opcoes_encontradas = []
+                            transferir_opcao = None
+                            desbloquear_opcao = None
+                            cancelar_opcao = None
                             
-                            # Buscar 'transferir valor'
                             for i, opcao in enumerate(opcoes):
                                 try:
                                     # Delay entre verificações de opções
                                     if i > 0:
                                         smart_delay('default', base_delay=0.3)
                                     
-                                    texto = opcao.text.strip().lower()
-                                    if 'transferir valor' in texto or 'transferir' in texto:
-                                        # Simular movimento para a opção
-                                        simulate_human_movement(driver, opcao)
-                                        
-                                        # Clicar com função segura
-                                        if safe_click(driver, opcao, 'click'):
-                                            tempo_total = time.time() - start_time
-                                            if log:
-                                                print(f"[SISBAJUD] ✅ Ação selecionada no dropdown #{dropdown_index+1}: '{texto}' -- tempo_total={tempo_total:.2f}s")
-                                            return {'sucesso': True, 'texto': texto, 'tempo': tempo_total}
-                                        else:
-                                            print(f"[SISBAJUD] ❌ Falha ao clicar na opção: {texto}")
+                                    texto = opcao.text.strip()
+                                    texto_lower = texto.lower()
+                                    
+                                    # Guardar referências para as opções - BUSCAR EXATAMENTE "Transferir valor" (sem "e desbloquear")
+                                    if texto == 'Transferir valor':
+                                        transferir_opcao = opcao
+                                    elif 'desbloquear valor' in texto_lower and 'transferir' not in texto_lower:
+                                        desbloquear_opcao = opcao
+                                    elif 'cancelar' in texto_lower:
+                                        cancelar_opcao = opcao
+                                    
+                                    opcoes_encontradas.append(texto)
                                 except Exception:
                                     continue
                             
+                            if log:
+                                print(f"[SISBAJUD] Opções encontradas no dropdown: {opcoes_encontradas}")
+                            
+                            # Lógica de seleção igual a gigs.py:
+                            # 1. Priorizar "Transferir valor"
+                            # 2. Se não tiver "Transferir", escolher "Cancelar"
+                            # 3. Se não tiver nem "Cancelar", deixar em branco (primeira opção)
+                            
+                            opcao_selecionada = None
+                            
+                            if transferir_opcao:
+                                opcao_selecionada = transferir_opcao
+                                texto_acao = 'Transferir valor'
+                            elif cancelar_opcao:
+                                opcao_selecionada = cancelar_opcao
+                                texto_acao = 'Cancelar'
+                            else:
+                                # Sem transferir nem cancelar - selecionar primeira opção (em branco)
+                                if opcoes and len(opcoes) > 0:
+                                    opcao_selecionada = opcoes[0]
+                                    texto_acao = 'opção em branco (primeira opção)'
+                            
+                            if opcao_selecionada:
+                                # Simular movimento para a opção
+                                simulate_human_movement(driver, opcao_selecionada)
+                                
+                                # Clicar com função segura
+                                if safe_click(driver, opcao_selecionada, 'click'):
+                                    tempo_total = time.time() - start_time
+                                    if log:
+                                        print(f"[SISBAJUD] ✅ Ação selecionada no dropdown #{dropdown_index+1}: '{texto_acao}' -- tempo_total={tempo_total:.2f}s")
+                                    return {'sucesso': True, 'texto': texto_acao, 'tempo': tempo_total}
+                                else:
+                                    print(f"[SISBAJUD] ❌ Falha ao clicar na opção: {texto_acao}")
+                            else:
+                                print(f"[SISBAJUD] ❌ Nenhuma opção válida encontrada no dropdown")
+                            
                             SISBAJUD_STATS['consecutive_errors'] += 1
-                            return {'sucesso': False, 'tempo': time.time() - start_time, 'erro': 'Opção transferir não encontrada'}
+                            return {'sucesso': False, 'tempo': time.time() - start_time, 'erro': 'Nenhuma opção válida encontrada'}
                             
                         except Exception as e:
                             return {'sucesso': False, 'tempo': time.time() - start_time, 'erro': str(e)}
@@ -3486,273 +4058,267 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True):
                 if log:
                     print(f"[SISBAJUD] ⚠️ Erro ao selecionar ação (POSITIVO): {e}")
 
-            # Clicar em Salvar
+            # Clicar em Salvar com proteção contra stale element
+            if log:
+                print(f"[SISBAJUD] Aguardando antes de clicar em Salvar...")
+            
+            # Delay antes de tentar salvar
+            smart_delay('form_fill', base_delay=2.0)
+            
             if log:
                 print(f"[SISBAJUD] Clicando em Salvar")
+            
             salvar_clicado = False
             for tentativa in range(3):
                 try:
+                    # Re-localizar botão a cada tentativa
                     seletores_salvar = [
                         "button.mat-fab.mat-primary mat-icon.fa-save",
                         "//button[contains(@class,'mat-fab') and .//mat-icon[contains(@class,'fa-save')]]",
-                        "//button[contains(@class,'mat-primary') and .//mat-icon[contains(@class,'fa-save')]]"
+                        "//button[contains(@class,'mat-primary') and .//mat-icon[contains(@class,'fa-save')]]",
+                        "//button[@title='Salvar']"
                     ]
+                    
+                    btn_salvar = None
                     for seletor in seletores_salvar:
                         try:
                             if seletor.startswith("//"):
-                                btn_salvar = driver.find_element(By.XPATH, seletor)
+                                btn_salvar = WebDriverWait(driver, 3).until(
+                                    EC.element_to_be_clickable((By.XPATH, seletor))
+                                )
                             else:
-                                btn_salvar = driver.find_element(By.CSS_SELECTOR, seletor)
-                            btn_salvar.click()
-                            salvar_clicado = True
+                                btn_salvar = WebDriverWait(driver, 3).until(
+                                    EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+                                )
                             break
                         except:
                             continue
-                    if salvar_clicado:
-                        break
-                    time.sleep(1)
+                    
+                    if btn_salvar:
+                        # Simular movimento humano
+                        simulate_human_movement(driver, btn_salvar)
+                        
+                        # Tentar clicar
+                        if safe_click(driver, btn_salvar, 'click'):
+                            salvar_clicado = True
+                            if log:
+                                print(f"[SISBAJUD] ✅ Botão Salvar clicado com sucesso")
+                            break
+                        else:
+                            # Fallback JavaScript
+                            if safe_execute_script(driver, 'arguments[0].click();', 'click', btn_salvar):
+                                salvar_clicado = True
+                                if log:
+                                    print(f"[SISBAJUD] ✅ Botão Salvar clicado via JavaScript")
+                                break
+                    
+                    if not salvar_clicado and tentativa < 2:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Tentativa {tentativa+1}/3: Botão Salvar não clicou, tentando novamente...")
+                        smart_delay('default', base_delay=1.5)
+                        
                 except Exception as e:
                     if log:
-                        print(f"[SISBAJUD] Tentativa {tentativa+1}: Erro ao clicar em Salvar: {e}")
-                    time.sleep(1)
+                        print(f"[SISBAJUD] ⚠️ Tentativa {tentativa+1}/3: Erro ao clicar em Salvar: {e}")
+                    if tentativa < 2:
+                        smart_delay('default', base_delay=1.5)
+                        
             if not salvar_clicado:
                 if log:
-                    print(f"[SISBAJUD] ❌ Não foi possível clicar em Salvar")
+                    print(f"[SISBAJUD] ❌ Não foi possível clicar em Salvar após 3 tentativas")
                 return False
         
             # Após salvar, preencher dados de transferência no fluxo POSITIVO
             if tipo_fluxo == "POSITIVO":
+                if log:
+                    print("[SISBAJUD] Preenchendo dados de transferência (depósito)")
+                
+                # Delay antes de iniciar preenchimento
+                smart_delay('form_fill', base_delay=1.0)
+                
+                # ===== TIPO DE CRÉDITO: GERAL =====
                 try:
-                    if log:
-                        print("[SISBAJUD] Preenchendo dados de transferência (depósito)")
-                    
-                    # Delay antes de iniciar preenchimento de dados sensíveis
-                    smart_delay('form_fill', base_delay=3.0)
-                    
-                    # Tipo de crédito: Geral (mat-select) com delays humanos
+                    # RE-LOCALIZAR elemento imediatamente antes de usar
                     tipo_credito_select = WebDriverWait(driver, 6).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="tipoCredito"]'))
                     )
                     
-                    # Simular movimento humano
-                    simulate_human_movement(driver, tipo_credito_select)
+                    # Clicar para abrir dropdown
+                    driver.execute_script("arguments[0].click();", tipo_credito_select)
+                    smart_delay('form_fill', base_delay=0.8)
                     
-                    # Clicar com segurança
-                    if not safe_click(driver, tipo_credito_select, 'click'):
-                        # Fallback via JavaScript
-                        safe_execute_script(driver, 'arguments[0].click();', 'click', tipo_credito_select)
+                    # RE-LOCALIZAR as opções após abrir o dropdown
+                    opcoes_tipo = WebDriverWait(driver, 5).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.mat-option-text"))
+                    )
                     
-                    # Delay após abrir dropdown
-                    smart_delay('form_fill', base_delay=1.5)
-                    
-                    opcoes_tipo = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
-                    for i, opcao in enumerate(opcoes_tipo):
+                    # Procurar e clicar em "Geral"
+                    for opcao in opcoes_tipo:
                         try:
-                            # Delay entre verificações
-                            if i > 0:
-                                smart_delay('default', base_delay=0.4)
-                            
                             if "Geral" in (opcao.text or ''):
-                                simulate_human_movement(driver, opcao)
-                                if safe_click(driver, opcao, 'click'):
-                                    if log:
-                                        print("[SISBAJUD] ✅ Tipo de crédito 'Geral' selecionado")
-                                    break
-                        except Exception:
+                                driver.execute_script("arguments[0].click();", opcao)
+                                if log:
+                                    print("[SISBAJUD] ✅ Tipo de crédito 'Geral' selecionado")
+                                break
+                        except:
                             continue
-
-                    # Delay antes do próximo campo
-                    smart_delay('form_fill', base_delay=2.0)
-
-                    # Banco: 0001 Banco do Brasil (input com autocomplete) - COM DELAYS
+                    
+                    smart_delay('form_fill', base_delay=0.5)
+                    
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] ❌ Erro ao selecionar tipo de crédito: {e}")
+                    SISBAJUD_STATS['consecutive_errors'] += 1
+                
+                # ===== BANCO: 00001 BANCO DO BRASIL =====
+                try:
+                    # RE-LOCALIZAR o input do banco
                     banco_input = WebDriverWait(driver, 6).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="instituicaoFinanceiraPorCategoria"]'))
                     )
                     
-                    # Simular movimento humano
-                    simulate_human_movement(driver, banco_input)
+                    # Clicar para abrir autocomplete
+                    driver.execute_script("arguments[0].click();", banco_input)
+                    smart_delay('form_fill', base_delay=0.8)
                     
-                    # Clicar com segurança
-                    if not safe_click(driver, banco_input, 'click'):
-                        safe_execute_script(driver, 'arguments[0].click();', 'click', banco_input)
+                    # RE-LOCALIZAR as opções após abrir autocomplete
+                    opcoes_banco = WebDriverWait(driver, 5).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, "span.mat-option-text"))
+                    )
                     
-                    # Delay após abrir autocomplete
-                    smart_delay('form_fill', base_delay=1.8)
-                    
-                    opcoes_banco = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
-                    escolhido_banco = None
-                    for i, opcao in enumerate(opcoes_banco):
+                    # Procurar e clicar em Banco do Brasil
+                    banco_encontrado = False
+                    for opcao in opcoes_banco:
                         try:
-                            # Delay entre verificações de banco
-                            if i > 0:
-                                smart_delay('default', base_delay=0.3)
-                            
                             txt = (opcao.text or '').strip()
-                            # tentar casar formatos comuns: '00001 - BCO DO BRASIL' ou contendo 'Banco do Brasil'
                             if '00001' in txt or 'BANCO DO BRASIL' in txt.upper() or 'BCO DO BRASIL' in txt.upper():
-                                escolhido_banco = opcao
+                                driver.execute_script("arguments[0].click();", opcao)
+                                if log:
+                                    print(f"[SISBAJUD] ✅ Banco selecionado: '{txt}'")
+                                banco_encontrado = True
                                 break
-                        except Exception:
+                        except:
                             continue
-
-                    if escolhido_banco:
-                        # Simular movimento humano para a opção
-                        simulate_human_movement(driver, escolhido_banco)
-                        
-                        # Clicar com segurança
-                        if safe_click(driver, escolhido_banco, 'click'):
-                            if log:
-                                print(f"[SISBAJUD] ✅ Banco selecionado: '{(escolhido_banco.text or '').strip()}'")
-                        else:
-                            # Fallback via JavaScript - re-localizar elemento para evitar stale reference
-                            try:
-                                # Re-buscar o banco na lista atual
-                                opcoes_banco_fresh = driver.find_elements(By.CSS_SELECTOR, "span.mat-option-text")
-                                escolhido_banco_fresh = None
-                                for opcao_fresh in opcoes_banco_fresh:
-                                    try:
-                                        txt_fresh = (opcao_fresh.text or '').strip()
-                                        if '00001' in txt_fresh or 'BANCO DO BRASIL' in txt_fresh.upper() or 'BCO DO BRASIL' in txt_fresh.upper():
-                                            escolhido_banco_fresh = opcao_fresh
-                                            break
-                                    except Exception:
-                                        continue
-                                
-                                if escolhido_banco_fresh and safe_execute_script(driver, 'arguments[0].click();', 'click', escolhido_banco_fresh):
-                                    if log:
-                                        print(f"[SISBAJUD] ✅ Banco (JS click) selecionado: '{(escolhido_banco_fresh.text or '').strip()}'")
-                                else:
-                                    if log:
-                                        print("[SISBAJUD] ❌ Falha ao clicar na opção de banco selecionada")
-                                    SISBAJUD_STATS['consecutive_errors'] += 1
-                            except Exception as e:
-                                if log:
-                                    print(f"[SISBAJUD] ❌ Erro ao re-localizar banco: {e}")
-                                SISBAJUD_STATS['consecutive_errors'] += 1
-                    else:
+                    
+                    if not banco_encontrado:
                         if log:
-                            print("[SISBAJUD] ❌ Opção de banco desejada não encontrada nas opções exibidas")
+                            print("[SISBAJUD] ❌ Banco do Brasil não encontrado nas opções")
                         SISBAJUD_STATS['consecutive_errors'] += 1
-
-                    # Delay antes do campo agência
-                    smart_delay('form_fill', base_delay=2.5)
-
-                    # Agência: 5905 - COM DELAYS HUMANOS (usando função segura)
-                    if safe_fill_field(driver, 'input[formcontrolname="agencia"]', "5905", "Agência", 1.0, log):
-                        pass  # Sucesso já reportado pela função
-                    else:
-                        # Fallback manual se a função segura falhar
-                        try:
-                            agencia_input = WebDriverWait(driver, 3).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="agencia"]'))
-                            )
-                            agencia_input.clear()
-                            agencia_input.send_keys("5905")
-                            if log:
-                                print("[SISBAJUD] ✅ Agência '5905' preenchida (fallback)")
-                        except Exception as e:
-                            if log:
-                                print(f"[SISBAJUD] ❌ Falha total no preenchimento da agência: {e}")
-                            SISBAJUD_STATS['consecutive_errors'] += 1
-
-                    # Delay antes de confirmar
-                    smart_delay('form_fill', base_delay=2.0)
-
-                    # Confirmar/Enviar o modal de dados de depósito (botão 'Confirmar') - COM DELAYS
-                    try:
-                        # Re-localizar o botão antes de clicar para evitar stale reference
-                        btn_confirm = WebDriverWait(driver, 6).until(
-                            EC.element_to_be_clickable((By.XPATH, "//sisbajud-dialog-dados-deposito-judicial//button//span[normalize-space(text())='Confirmar']/ancestor::button"))
-                        )
-                        
-                        # Simular movimento humano
-                        simulate_human_movement(driver, btn_confirm)
-                        
-                        # Tentar clicar com múltiplas estratégias
-                        clique_sucesso = False
-                        
-                        # Estratégia 1: Clique normal
-                        if safe_click(driver, btn_confirm, 'click'):
-                            clique_sucesso = True
-                            if log:
-                                print("[SISBAJUD] ✅ Confirmado modal de dados de depósito (clique normal)")
-                        else:
-                            # Estratégia 2: Re-localizar e tentar JavaScript
-                            try:
-                                btn_confirm_fresh = WebDriverWait(driver, 3).until(
-                                    EC.element_to_be_clickable((By.XPATH, "//sisbajud-dialog-dados-deposito-judicial//button//span[normalize-space(text())='Confirmar']/ancestor::button"))
-                                )
-                                if safe_execute_script(driver, 'arguments[0].click();', 'click', btn_confirm_fresh):
-                                    clique_sucesso = True
-                                    if log:
-                                        print("[SISBAJUD] ✅ Confirmado modal de dados de depósito (JavaScript)")
-                                else:
-                                    # Estratégia 3: Buscar por qualquer botão com texto "Confirmar"
-                                    script_confirmar = """
-                                    var buttons = document.querySelectorAll('button');
-                                    for (var i = 0; i < buttons.length; i++) {
-                                        if (buttons[i].textContent.toLowerCase().includes('confirmar')) {
-                                            buttons[i].click();
-                                            return true;
-                                        }
-                                    }
-                                    return false;
-                                    """
-                                    if safe_execute_script(driver, script_confirmar, 'click'):
-                                        clique_sucesso = True
-                                        if log:
-                                            print("[SISBAJUD] ✅ Confirmado modal de dados de depósito (script genérico)")
-                                    
-                            except Exception as e:
-                                if log:
-                                    print(f"[SISBAJUD] ❌ Erro ao re-localizar botão confirmar: {e}")
-                        
-                        if not clique_sucesso:
-                            if log:
-                                print("[SISBAJUD] ❌ Falha em todas as estratégias para confirmar modal")
-                            SISBAJUD_STATS['consecutive_errors'] += 1
-
-                        # Delay após confirmação
-                        smart_delay('form_fill', base_delay=3.0)
-
-                        # aguardar fechamento do modal
-                        try:
-                            WebDriverWait(driver, 6).until(
-                                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'sisbajud-dialog-dados-deposito-judicial'))
-                            )
-                            if log:
-                                print("[SISBAJUD] ✅ Modal de depósito fechado")
-                        except Exception:
-                            if log:
-                                print("[SISBAJUD] ⚠️ Modal de depósito não fechou imediatamente; prosseguindo")
-                        
-                        # Delay após fechar modal
-                        smart_delay('form_fill', base_delay=2.0)
-                        
-                        # após (possível) snackbar OK, aguardar botão 'Protocolar' e então clicar no chevron 'voltar' para sair de /desdobrar
-                        try:
-                            # Aguarda aparecimento do botão Protocolar como sinal de que a ordem foi processada
-                            WebDriverWait(driver, 6).until(
-                                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class,'mat-fab') and @title='Protocolar']"))
-                            )
-                            if log:
-                                print("[SISBAJUD] ✅ Botão 'Protocolar' detectado - ordem processada com sucesso")
-                            
-                            # IMPORTANTE: NÃO clicar em voltar aqui - isso será feito pela função que chama
-                            # A extração de dados deve acontecer ANTES do clique em voltar
-                            
-                        except Exception:
-                            if log:
-                                print("[SISBAJUD] ⚠️ Botão 'Protocolar' não encontrado após confirmar depósito")
-
-                    except Exception as e:
-                        if log:
-                            print(f"[SISBAJUD] ❌ Erro ao confirmar dados de depósito: {e}")
-                        SISBAJUD_STATS['consecutive_errors'] += 1
-
+                    
+                    smart_delay('form_fill', base_delay=0.8)
+                    
                 except Exception as e:
                     if log:
-                        print(f"[SISBAJUD] ❌ Erro no preenchimento de dados de transferência: {e}")
+                        print(f"[SISBAJUD] ❌ Erro ao selecionar banco: {e}")
+                    SISBAJUD_STATS['consecutive_errors'] += 1
+                
+                # ===== AGÊNCIA: 5905 =====
+                agencia_preenchida = False
+                for tentativa_agencia in range(5):
+                    try:
+                        if log and tentativa_agencia > 0:
+                            print(f"[SISBAJUD] Tentativa {tentativa_agencia+1}/5 de preencher agência...")
+                        
+                        # RE-LOCALIZAR o campo agência a cada tentativa
+                        agencia_input = WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="agencia"]'))
+                        )
+                        
+                        # Aguardar ser clicável
+                        WebDriverWait(driver, 3).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[formcontrolname="agencia"]'))
+                        )
+                        
+                        # Scroll e foco
+                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", agencia_input)
+                        time.sleep(0.2)
+                        driver.execute_script("arguments[0].focus();", agencia_input)
+                        time.sleep(0.2)
+                        
+                        # Limpar e preencher
+                        driver.execute_script("arguments[0].value = '';", agencia_input)
+                        time.sleep(0.2)
+                        agencia_input.send_keys("5905")
+                        time.sleep(0.3)
+                        
+                        # Disparar eventos
+                        driver.execute_script("""
+                            var input = arguments[0];
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                            input.dispatchEvent(new Event('blur', { bubbles: true }));
+                        """, agencia_input)
+                        
+                        # Verificar se preencheu
+                        time.sleep(0.3)
+                        # RE-LOCALIZAR para verificar valor
+                        agencia_input_verificar = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="agencia"]')
+                        valor_atual = agencia_input_verificar.get_attribute('value')
+                        
+                        if valor_atual == '5905':
+                            agencia_preenchida = True
+                            if log:
+                                print("[SISBAJUD] ✅ Agência '5905' preenchida e verificada")
+                            break
+                        else:
+                            if log:
+                                print(f"[SISBAJUD] ⚠️ Valor incorreto: '{valor_atual}' (esperado '5905')")
+                        
+                    except Exception as e:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Tentativa {tentativa_agencia+1}/5 falhou: {e}")
+                        if tentativa_agencia < 4:
+                            time.sleep(1.0)
+                
+                if not agencia_preenchida:
+                    if log:
+                        print("[SISBAJUD] ❌ Não foi possível preencher a agência '5905'")
+                    SISBAJUD_STATS['consecutive_errors'] += 1
+                
+                smart_delay('form_fill', base_delay=1.5)
+                
+                # ===== CONFIRMAR MODAL =====
+                try:
+                    # RE-LOCALIZAR botão confirmar
+                    btn_confirm = WebDriverWait(driver, 6).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button//span[contains(text(),'Confirmar')]/ancestor::button"))
+                    )
+                    
+                    # Clicar com JavaScript (mais confiável)
+                    driver.execute_script("arguments[0].click();", btn_confirm)
+                    
+                    if log:
+                        print("[SISBAJUD] ✅ Confirmado modal de dados de depósito")
+                    
+                    smart_delay('form_fill', base_delay=2.0)
+                    
+                    # Aguardar fechamento do modal
+                    try:
+                        WebDriverWait(driver, 6).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, 'sisbajud-dialog-dados-deposito-judicial'))
+                        )
+                        if log:
+                            print("[SISBAJUD] ✅ Modal de depósito fechado")
+                    except:
+                        if log:
+                            print("[SISBAJUD] ⚠️ Modal não fechou visualmente, mas prosseguindo...")
+                    
+                    smart_delay('form_fill', base_delay=1.5)
+                    
+                    # Aguardar botão Protocolar
+                    try:
+                        WebDriverWait(driver, 6).until(
+                            EC.element_to_be_clickable((By.XPATH, "//button[@title='Protocolar']"))
+                        )
+                        if log:
+                            print("[SISBAJUD] ✅ Botão 'Protocolar' detectado - ordem processada")
+                    except:
+                        if log:
+                            print("[SISBAJUD] ⚠️ Botão 'Protocolar' não encontrado")
+                    
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] ❌ Erro ao confirmar modal: {e}")
                     SISBAJUD_STATS['consecutive_errors'] += 1
         
         # Retornar True se chegou até aqui sem erros críticos
@@ -4210,7 +4776,6 @@ def gerar_relatorio_bloqueios_processados(dados_bloqueios, log=True):
             # Total do executado
             total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
             relatorio_html += f'<p {pStyle}><strong>Total do executado: {total_format}</strong></p>'
-            relatorio_html += '<br>'  # Espaço entre executados
         
         # Total geral do processo
         total_geral_format = f"R$ {dados_bloqueios['total_geral']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -4439,12 +5004,14 @@ def gerar_relatorio_processamento_ordem(tipo_fluxo, series_processadas, ordens_p
 
 def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True):
     """
-    Processamento completo de ordens no SISBAJUD:
-    1. Navegação para teimosinha
+    Processamento completo de ordens EXISTENTES no SISBAJUD:
+    1. Navegação para teimosinha (área de ordens existentes)
     2. Filtro de ordens recentes
     3. Extração de dados
     4. Processamento individual de cada ordem
     5. Fechamento do driver
+    
+    DIFERENTE de minuta_bloqueio que cria novas minutas!
     """
     resultado = {
         'status': 'pendente',
@@ -4461,106 +5028,22 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True):
         if numero_processo:
             driver._numero_processo_atual = numero_processo
         
-        # ETAPA 1: NAVEGAÇÃO INICIAL
-        if log:
-            print("\n" + "="*80)
-            print("[SISBAJUD] INICIANDO PROCESSAMENTO COMPLETO")
-            print("="*80)
-        
-        # Verificar URL inicial
-        current_url = driver.current_url
-        if 'sisbajud.cnj.jus.br' not in current_url:
-            erro = f"URL inválida: {current_url}"
-            if log:
-                print(f"[SISBAJUD] ❌ {erro}")
-            resultado['status'] = 'erro'
-            resultado['erros'].append(erro)
-            return resultado
-        
-        # Navegar para /minuta se necessário
-        if '/minuta' not in current_url:
-            if log:
-                print("[SISBAJUD] Navegando para /minuta...")
-            driver.get('https://sisbajud.cnj.jus.br/minuta')
-            time.sleep(2)
-        
-        # ETAPA 2: ACESSAR TEIMOSINHA
+        # ETAPA 1: NAVEGAÇÃO PARA TEIMOSINHA (sempre, independente do estado atual)
         if log:
             print("\n[SISBAJUD] ETAPA 1: NAVEGAÇÃO PARA TEIMOSINHA")
         
-        # Clicar no menu hamburguer
+        # Navegar sempre para /teimosinha, independente do estado atual do driver
         if log:
-            print("[SISBAJUD] 1. Clicando no menu hamburguer...")
-        hamburger_clicado = False
-        seletores_hamburger = [
-            'button.btn-hamburger.hamburger--slider.mat-flat-button',
-            'button[aria-label="Abri menu de navegação"]',
-            'button.btn-hamburger',
-            'button[mattooltip="Abri menu de navegação"]'
-        ]
+            print("[SISBAJUD] Navegando para /teimosinha...")
+        driver.get('https://sisbajud.cnj.jus.br/teimosinha')
+        time.sleep(2)
         
-        for i, seletor in enumerate(seletores_hamburger, 1):
-            try:
-                hamburguer_btn = WebDriverWait(driver, 3).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-                )
-                hamburguer_btn.click()
-                if log:
-                    print(f"[SISBAJUD] ✅ Menu hamburguer clicado com seletor {i}: {seletor}")
-                hamburger_clicado = True
-                break
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] ❌ Seletor {i} falhou: {seletor} - {str(e)[:50]}...")
-        
-        if not hamburger_clicado:
-            erro = "Não foi possível clicar no menu hamburguer"
-            if log:
-                print(f"[SISBAJUD] ❌ {erro}")
-            resultado['status'] = 'erro'
-            resultado['erros'].append(erro)
-            return resultado
-        
-        time.sleep(1)
-        
-        # Clicar no link Teimosinha
+        # ETAPA 2: JÁ ESTAMOS EM TEIMOSINHA - INICIAR PROCESSAMENTO
         if log:
-            print("[SISBAJUD] 2. Clicando no link Teimosinha...")
-        teimosinha_clicado = False
-        seletores_teimosinha = [
-            'a[href="/teimosinha"]',
-            'a[aria-label="Ir para Teimosinha"]',
-            'a:contains("Teimosinha")',
-            'a.mat-button[href="/teimosinha"]'
-        ]
+            print("\n[SISBAJUD] ETAPA 2: INICIANDO PROCESSAMENTO DE ORDENS EXISTENTES")
+            print("[SISBAJUD] ✅ Já estamos na página de teimosinha")
         
-        for i, seletor in enumerate(seletores_teimosinha, 1):
-            try:
-                if ':contains(' in seletor:
-                    teimosinha_link = WebDriverWait(driver, 3).until(
-                        EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Teimosinha')]"))
-                    )
-                else:
-                    teimosinha_link = WebDriverWait(driver, 3).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-                    )
-                teimosinha_link.click()
-                if log:
-                    print(f"[SISBAJUD] ✅ Link Teimosinha clicado com seletor {i}: {seletor}")
-                teimosinha_clicado = True
-                break
-            except Exception as e:
-                if log:
-                    print(f"[SISBAJUD] ❌ Seletor {i} falhou: {seletor} - {str(e)[:50]}...")
-        
-        if not teimosinha_clicado:
-            erro = "Não foi possível clicar no link Teimosinha"
-            if log:
-                print(f"[SISBAJUD] ❌ {erro}")
-            resultado['status'] = 'erro'
-            resultado['erros'].append(erro)
-            return resultado
-        
+        # Aguardar carregamento da página
         time.sleep(2)
         
         # Confirmar URL /teimosinha
@@ -5042,67 +5525,129 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True):
             if log:
                 print("[SISBAJUD] ⚠️ Falha na geração do relatório")
         
-        # ETAPA 7: FINALIZAÇÃO E JUNTADA NO PJE
+        # ETAPA 7: FINALIZAÇÃO
         if log:
             print("\n[SISBAJUD] ETAPA 6: FINALIZAÇÃO")
         
-        # Fechar driver SISBAJUD para retornar ao PJe (com espera)
-        print('[SISBAJUD] Fechando driver SISBAJUD para retornar ao PJe...')
-        try:
-            driver.quit()
-            print('[SISBAJUD] ✅ Driver SISBAJUD fechado com sucesso')
-            
-            # Esperar explicitamente para garantir fechamento completo
-            print('[SISBAJUD] Aguardando 3 segundos para garantir fechamento completo...')
-            time.sleep(3)
-            print('[SISBAJUD] ✅ Aguardo concluído - controle retornado ao driver PJe')
-            
-        except Exception as e:
-            print(f'[SISBAJUD] ⚠️ Erro ao fechar driver SISBAJUD: {e}')
-            # Mesmo com erro, aguardar para evitar conflitos
-            time.sleep(2)
+        # NÃO fechar driver SISBAJUD aqui - deixar para a função coordenadora em pec.py
+        # O driver será reutilizado para próximos processos da lista SISBAJUD
+        if log:
+            print('[SISBAJUD] ✅ Ordem processada - mantendo driver SISBAJUD aberto para próximos processos')
         
-        # Executar juntada automática no PJe baseada no tipo de fluxo
-        if resultado['relatorio_gerado']:
+        # ETAPA 7: JUNTADAS NO PJE (baseado no tipo de fluxo)
+        if driver_pje and numero_processo:
             if log:
-                print(f"[SISBAJUD] Executando juntada automática para fluxo: {resultado['tipo_fluxo']}")
+                print("\n[SISBAJUD] ETAPA 7: JUNTADAS NO PJE")
+            
+            tipo_fluxo = resultado.get('tipo_fluxo')
             
             try:
-                # Importar anexos para juntada
-                from anexos import sisb_wrapper, wrapper_bloqneg, wrapper_parcial
+                # Importar funções necessárias
+                from anexos import wrapper_parcial, wrapper_bloqneg
+                from atos import ato_bloq, ato_meiosocio
                 
-                # O driver PJe já existe no ambiente que chamou esta função
-                # Não precisamos criar um novo, apenas utilizamos o driver_pje existente
-                
-                # Extrair número do processo para juntada
-                numero_processo = dados_processo.get('numero_processo') or dados_processo.get('numero')
-                
-                if resultado['tipo_fluxo'] in ['NEGATIVO', 'DESBLOQUEIO']:
+                if tipo_fluxo == 'DESBLOQUEIO':
+                    # DESBLOQUEIO: juntada + ato_meiosocio (sem juntada na minuta)
                     if log:
-                        print(f"[SISBAJUD] Chamando wrapper_bloqneg para fluxo {resultado['tipo_fluxo']}")
+                        print("[SISBAJUD] Fluxo DESBLOQUEIO: juntada + ato_meiosocio")
                     
-                    resultado_juntada = wrapper_bloqneg(
-                        driver=driver_pje,
-                        numero_processo=numero_processo,
-                        debug=log
-                    )
-                    
-                elif resultado['tipo_fluxo'] == 'POSITIVO':
-                    if log:
-                        print("[SISBAJUD] Chamando wrapper_parcial para fluxo POSITIVO")
-                    
-                    resultado_juntada = wrapper_parcial(
-                        driver=driver_pje,
-                        numero_processo=numero_processo,
-                        debug=log
-                    )
-                
-                if log:
-                    print("[SISBAJUD] ✅ Juntada automática executada")
+                    # 1. Juntada
+                    resultado_juntada = wrapper_bloqneg(driver=driver_pje, numero_processo=numero_processo, debug=True)
+                    if resultado_juntada:
+                        print("[SISBAJUD] ✅ Juntada DESBLOQUEIO concluída")
                         
+                        # Fechar aba e confirmar /detalhe
+                        todas_abas = driver_pje.window_handles
+                        if len(todas_abas) > 1:
+                            driver_pje.close()
+                            driver_pje.switch_to.window(todas_abas[0])
+                        
+                        import time
+                        time.sleep(1)
+                        if '/detalhe' not in driver_pje.current_url:
+                            driver_pje.get(f"https://pje.trt2.jus.br/pjekz/processo/{numero_processo}/detalhe")
+                            time.sleep(2)
+                        
+                        # 2. ato_meiosocio (sem juntada)
+                        resultado_ato = ato_meiosocio(driver_pje, debug=True)
+                        if resultado_ato:
+                            print("[SISBAJUD] ✅ ato_meiosocio executado")
+                        else:
+                            print("[SISBAJUD] ⚠️ Falha no ato_meiosocio")
+                    else:
+                        print("[SISBAJUD] ⚠️ Falha na juntada DESBLOQUEIO")
+                
+                elif tipo_fluxo == 'POSITIVO':
+                    # POSITIVO: juntada parcial + ato_bloq (com juntada do relatório na minuta)
+                    if log:
+                        print("[SISBAJUD] Fluxo POSITIVO: juntada parcial + ato_bloq")
+                    
+                    # 1. Juntada parcial (certidão)
+                    resultado_juntada = wrapper_parcial(driver=driver_pje, numero_processo=numero_processo, debug=True)
+                    if resultado_juntada:
+                        print("[SISBAJUD] ✅ Juntada POSITIVO (certidão) concluída")
+                        
+                        # Fechar aba e confirmar /detalhe
+                        todas_abas = driver_pje.window_handles
+                        if len(todas_abas) > 1:
+                            driver_pje.close()
+                            driver_pje.switch_to.window(todas_abas[0])
+                        
+                        import time
+                        time.sleep(1)
+                        if '/detalhe' not in driver_pje.current_url:
+                            driver_pje.get(f"https://pje.trt2.jus.br/pjekz/processo/{numero_processo}/detalhe")
+                            time.sleep(2)
+                        
+                        # 2. ato_bloq (junta relatório no despacho)
+                        resultado_ato = ato_bloq(driver_pje, debug=True)
+                        if resultado_ato:
+                            print("[SISBAJUD] ✅ ato_bloq executado (relatório juntado no despacho)")
+                        else:
+                            print("[SISBAJUD] ⚠️ Falha no ato_bloq")
+                    else:
+                        print("[SISBAJUD] ⚠️ Falha na juntada POSITIVO")
+                
+                elif tipo_fluxo == 'NEGATIVO':
+                    # NEGATIVO: juntada + ato_meiosocio
+                    if log:
+                        print("[SISBAJUD] Fluxo NEGATIVO: juntada + ato_meiosocio")
+                    
+                    # 1. Juntada
+                    resultado_juntada = wrapper_bloqneg(driver=driver_pje, numero_processo=numero_processo, debug=True)
+                    if resultado_juntada:
+                        print("[SISBAJUD] ✅ Juntada NEGATIVO concluída")
+                        
+                        # Fechar aba e confirmar /detalhe
+                        todas_abas = driver_pje.window_handles
+                        if len(todas_abas) > 1:
+                            driver_pje.close()
+                            driver_pje.switch_to.window(todas_abas[0])
+                        
+                        import time
+                        time.sleep(1)
+                        if '/detalhe' not in driver_pje.current_url:
+                            driver_pje.get(f"https://pje.trt2.jus.br/pjekz/processo/{numero_processo}/detalhe")
+                            time.sleep(2)
+                        
+                        # 2. ato_meiosocio
+                        resultado_ato = ato_meiosocio(driver_pje, debug=True)
+                        if resultado_ato:
+                            print("[SISBAJUD] ✅ ato_meiosocio executado")
+                        else:
+                            print("[SISBAJUD] ⚠️ Falha no ato_meiosocio")
+                    else:
+                        print("[SISBAJUD] ⚠️ Falha na juntada NEGATIVO")
+                
+                else:
+                    if log:
+                        print(f"[SISBAJUD] ⚠️ Tipo de fluxo desconhecido: {tipo_fluxo}")
+                
             except Exception as e:
                 if log:
-                    print(f"[SISBAJUD] ❌ Erro durante preparação da juntada automática: {e}")
+                    print(f"[SISBAJUD] ❌ Erro nas juntadas PJE: {e}")
+                import traceback
+                traceback.print_exc()
         
         resultado['status'] = 'concluido'
         return resultado

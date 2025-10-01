@@ -5,157 +5,38 @@ import re
 from datetime import datetime
 from selenium.webdriver.common.by import By
 
-# ===== FUNÇÕES DE PROGRESSO PARA PEC =====
-def carregar_progresso_pec():
-    """Carrega o estado de progresso do arquivo JSON específico para PEC com recuperação automática"""
-    try:
-        if os.path.exists("progresso_pec.json"):
-            with open("progresso_pec.json", "r", encoding="utf-8") as f:
-                dados = json.load(f)
-                
-                # Validar estrutura dos dados carregados
-                if not isinstance(dados, dict):
-                    raise ValueError("Dados não são um dicionário válido")
-                
-                if "processos_executados" not in dados:
-                    dados["processos_executados"] = []
-                
-                if not isinstance(dados["processos_executados"], list):
-                    dados["processos_executados"] = []
-                
-                print(f"[PROGRESSO_PEC] ✅ Progresso carregado: {len(dados['processos_executados'])} processos executados")
-                return dados
-                
-    except (json.JSONDecodeError, ValueError, FileNotFoundError) as e:
-        print(f"[PROGRESSO_PEC][AVISO] Arquivo corrompido ou inválido: {e}")
-        print("[PROGRESSO_PEC][AVISO] Criando novo arquivo de progresso...")
-        
-        # Tentar fazer backup do arquivo corrompido
-        try:
-            if os.path.exists("progresso_pec.json"):
-                import shutil
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                backup_path = f"progresso_pec_backup_{timestamp}.json"
-                shutil.copy("progresso_pec.json", backup_path)
-                print(f"[PROGRESSO_PEC] 📋 Backup criado: {backup_path}")
-        except Exception as backup_e:
-            print(f"[PROGRESSO_PEC] ⚠️ Erro ao criar backup: {backup_e}")
-        
-    except Exception as e:
-        print(f"[PROGRESSO_PEC][AVISO] Erro inesperado ao carregar progresso: {e}")
-    
-    # Retornar estrutura padrão limpa
-    dados_limpos = {
-        "processos_executados": [], 
-        "session_active": True, 
-        "last_update": None
-    }
-    
-    # Salvar estrutura limpa
-    try:
-        salvar_progresso_pec(dados_limpos)
-        print("[PROGRESSO_PEC] ✅ Arquivo de progresso limpo criado")
-    except Exception as save_e:
-        print(f"[PROGRESSO_PEC] ⚠️ Erro ao salvar progresso limpo: {save_e}")
-    
-    return dados_limpos
+# ====================================================================
+# SISTEMA UNIFICADO DE MONITORAMENTO DE PROGRESSO
+# ====================================================================
+from monitoramento_progresso_unificado import (
+    executar_com_monitoramento_unificado,
+    carregar_progresso_pec, salvar_progresso_pec,
+    extrair_numero_processo_pec, verificar_acesso_negado_pec,
+    processo_ja_executado_pec, marcar_processo_executado_pec
+)
 
-def salvar_progresso_pec(progresso):
-    """Salva o estado de progresso no arquivo JSON específico para PEC"""
-    try:
-        progresso["last_update"] = datetime.now().isoformat()
-        with open("progresso_pec.json", "w", encoding="utf-8") as f:
-            json.dump(progresso, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[PROGRESSO_PEC][ERRO] Falha ao salvar progresso: {e}")
+# ====================================================================
+# MONITOR DE PERFORMANCE (OPCIONAL)
+# ====================================================================
+try:
+    from monitor import monitor
+    MONITOR_ATIVO = True
+    print("[PEC] 📊 Monitor de performance disponível")
+except ImportError:
+    MONITOR_ATIVO = False
+    print("[PEC] ⚠️ Monitor de performance não disponível (opcional)")
 
-def extrair_numero_processo_pec(driver):
-    """
-    Extrai o número do processo da URL ou elemento da página (adaptado para PEC).
-    Funciona tanto na visualização de processo individual quanto na lista.
-    """
-    try:
-        # Método 1: Extrair da URL quando estamos dentro de um processo
-        url = driver.current_url
-        if "processo/" in url:
-            match = re.search(r"processo/(\d+)", url)
-            if match:
-                numero_limpo = match.group(1)
-                print(f"[PROGRESSO_PEC] ✅ Número extraído da URL: {numero_limpo}")
-                return numero_limpo
-        
-        # Método 2: Buscar por seletores específicos na página
-        try:
-            candidatos = driver.find_elements(By.CSS_SELECTOR, 'h1, h2, h3, .processo-numero, [data-testid*="numero"], .cabecalho, .numero-processo')
-            for elemento in candidatos:
-                texto = elemento.text.strip()
-                match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
-                if match:
-                    numero_limpo = re.sub(r'[^\d]', '', match.group(1))
-                    print(f"[PROGRESSO_PEC] ✅ Número extraído do elemento: {numero_limpo}")
-                    return numero_limpo
-        except Exception as inner_e:
-            print(f"[PROGRESSO_PEC] ⚠️ Erro ao buscar por seletores: {inner_e}")
-        
-        # Método 3: JavaScript para extrair da página atual (mais robusto)
-        try:
-            numero_js = driver.execute_script("""
-                // Busca por padrão de processo em todo o texto da página
-                var textoCompleto = document.body.innerText || document.body.textContent || '';
-                var matches = textoCompleto.match(/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/g);
-                if (matches && matches.length > 0) {
-                    // Retorna o primeiro número encontrado (sem formatação)
-                    return matches[0].replace(/[^\\d]/g, '');
-                }
-                
-                // Fallback: buscar em título da página ou elementos específicos
-                var titulo = document.title;
-                var matchTitulo = titulo.match(/\\d{7}-\\d{2}\\.\\d{4}\\.\\d\\.\\d{2}\\.\\d{4}/);
-                if (matchTitulo) {
-                    return matchTitulo[0].replace(/[^\\d]/g, '');
-                }
-                
-                return null;
-            """)
-            
-            if numero_js:
-                print(f"[PROGRESSO_PEC] ✅ Número extraído via JavaScript: {numero_js}")
-                return numero_js
-                
-        except Exception as js_e:
-            print(f"[PROGRESSO_PEC] ⚠️ Erro no JavaScript de extração: {js_e}")
-        
-        print("[PROGRESSO_PEC] ⚠️ Nenhum número de processo encontrado")
-        return None
-        
-    except Exception as e:
-        print(f"[PROGRESSO_PEC][ERRO] Falha ao extrair número do processo: {e}")
-        return None
-
-def verificar_acesso_negado_pec(driver):
-    """Verifica se estamos na página de acesso negado no sistema PEC"""
-    try:
-        url_atual = driver.current_url
-        return "acesso-negado" in url_atual.lower() or "login.jsp" in url_atual.lower()
-    except Exception as e:
-        print(f"[PROGRESSO_PEC][ERRO] Falha ao verificar acesso negado: {e}")
-        return False
-
-def processo_ja_executado_pec(numero_processo, progresso):
-    """Verifica se o processo já foi executado no fluxo PEC"""
-    if not numero_processo:
-        return False
-    return numero_processo in progresso.get("processos_executados", [])
+# ===== FUNÇÕES DE PROGRESSO PARA PEC - SISTEMA UNIFICADO =====
 
 def extrair_numero_processo_da_lista(driver, linha_index=None):
     """
     Extrai número do processo diretamente da lista de atividades.
     Esta função é específica para usar no progresso sem abrir processos individuais.
-    
+
     Args:
         driver: WebDriver do Selenium
         linha_index: Índice da linha na tabela (0-based) - se não fornecido, tenta extrair de qualquer lugar
-    
+
     Returns:
         str: Número do processo limpo (apenas dígitos) ou None se não encontrado
     """
@@ -165,15 +46,15 @@ def extrair_numero_processo_da_lista(driver, linha_index=None):
             resultado_js = driver.execute_script("""
                 var linha_index = arguments[0];
                 var linhas = document.querySelectorAll('tbody tr.tr-class');
-                
+
                 if (linha_index >= 0 && linha_index < linhas.length) {
                     var linha = linhas[linha_index];
                     var colunas = linha.querySelectorAll('td');
-                    
+
                     if (colunas.length >= 2) {
                         var celula_processo = colunas[1]; // Segunda coluna (processo)
                         var elemento_b = celula_processo.querySelector('b');
-                        
+
                         if (elemento_b) {
                             var texto = elemento_b.textContent || elemento_b.innerText || '';
                             var match = texto.match(/(\\d{7}-\\d{2}\\.\\d{4}\\.\\d{1}\\.\\d{2}\\.\\d{4})/);
@@ -185,226 +66,23 @@ def extrair_numero_processo_da_lista(driver, linha_index=None):
                 }
                 return null;
             """, linha_index)
-            
+
             if resultado_js:
                 print(f"[PROGRESSO_PEC] ✅ Número extraído da linha {linha_index}: {resultado_js}")
                 return resultado_js
-        
+
         # Método geral: usar função existente
         numero = extrair_numero_processo_pec(driver)
         if numero:
             print(f"[PROGRESSO_PEC] ✅ Número extraído via método geral: {numero}")
             return numero
-        
+
         print("[PROGRESSO_PEC] ⚠️ Nenhum número encontrado na lista")
         return None
-        
+
     except Exception as e:
         print(f"[PROGRESSO_PEC][ERRO] Falha ao extrair número da lista: {e}")
         return None
-
-def marcar_processo_executado_pec(numero_processo, progresso):
-    """Marca processo como executado no fluxo PEC com validação robusta"""
-    try:
-        if not numero_processo:
-            print("[PROGRESSO_PEC] ⚠️ Número do processo vazio - não foi possível marcar como executado")
-            return False
-        
-        # Garantir que numero_processo é string
-        numero_processo = str(numero_processo).strip()
-        
-        if not numero_processo:
-            print("[PROGRESSO_PEC] ⚠️ Número do processo vazio após limpeza")
-            return False
-        
-        # Garantir que a lista de processos executados existe
-        if "processos_executados" not in progresso:
-            progresso["processos_executados"] = []
-        
-        # Verificar se não está duplicado
-        if numero_processo not in progresso["processos_executados"]:
-            progresso["processos_executados"].append(numero_processo)
-            salvar_progresso_pec(progresso)
-            print(f"[PROGRESSO_PEC] ✅ Processo {numero_processo} marcado como executado")
-            print(f"[PROGRESSO_PEC] 📊 Total de processos executados: {len(progresso['processos_executados'])}")
-            return True
-        else:
-            print(f"[PROGRESSO_PEC] ⚠️ Processo {numero_processo} já estava marcado como executado")
-            return True
-            
-    except Exception as e:
-        print(f"[PROGRESSO_PEC][ERRO] Falha ao marcar processo como executado: {e}")
-        return False
-
-def recuperar_sessao_pec(driver):
-    """Tenta recuperar sessão após acesso negado no sistema PEC"""
-    try:
-        print("[RECOVERY_PEC][SESSÃO] Detectado acesso negado, tentando recuperar sessão...")
-        login_url = "https://alvaraeletronico.trt2.jus.br/portaltrtsp/login.jsp"
-        driver.get(login_url)
-        time.sleep(3)
-        if fazer_login_siscon_manual(driver, debug=True):
-            print("[RECOVERY_PEC][SESSÃO] ✅ Login realizado com sucesso")
-            url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
-            driver.get(url_atividades)
-            time.sleep(5)
-            try:
-                from Fix import aplicar_filtro_100
-                if aplicar_filtro_100(driver):
-                    print("[RECOVERY_PEC][SESSÃO] ✅ Filtro de 100 itens reaplicado")
-                    time.sleep(2)
-                coluna_observacao = driver.find_element(By.XPATH, '//div[@role="column" and @class="th-elemento-class ng-star-inserted" and contains(text(), "Observação")]')
-                coluna_observacao.click()
-                print("[RECOVERY_PEC][SESSÃO] ✅ Lista reorganizada por observação")
-                time.sleep(3)
-                return True
-            except Exception as filter_error:
-                print(f"[RECOVERY_PEC][SESSÃO][ERRO] Falha ao reaplicar filtros: {filter_error}")
-        else:
-            print("[RECOVERY_PEC][SESSÃO] ❌ Falha no login")
-        return False
-    except Exception as e:
-        print(f"[RECOVERY_PEC][SESSÃO][ERRO] Falha na recuperação: {e}")
-        return False
-
-
-def reiniciar_driver_e_logar_pje(driver, log=True):
-    """
-    Reinicia o driver do PJe usando as fábricas em `driver_config` e executa o login
-    Retorna o novo driver se bem-sucedido, ou None em caso de falha.
-    """
-    try:
-        if log:
-            print('[RECOVERY][RESTART] Reiniciando driver e efetuando novo login...')
-        try:
-            # Tentar fechar o driver anterior de forma segura
-            try:
-                driver.quit()
-            except Exception:
-                pass
-
-            # Importar factories e função de login
-            from driver_config import criar_driver, login_func
-
-            # Criar novo driver
-            novo_driver = criar_driver()
-            if not novo_driver:
-                if log:
-                    print('[RECOVERY][RESTART] Falha ao criar novo driver')
-                return None
-
-            # Executar login (pode ser automático ou manual conforme configuração)
-            ok = False
-            try:
-                ok = login_func(novo_driver)
-            except Exception as e:
-                if log:
-                    print(f'[RECOVERY][RESTART] Erro ao executar login_func: {e}')
-                ok = False
-
-            if not ok:
-                if log:
-                    print('[RECOVERY][RESTART] Login falhou no novo driver')
-                try:
-                    novo_driver.quit()
-                except Exception:
-                    pass
-                return None
-
-            # Navegar para a lista de atividades para retomar o processamento
-            try:
-                url_atividades = 'https://pje.trt2.jus.br/pjekz/gigs/relatorios/atividades'
-                novo_driver.get(url_atividades)
-                time.sleep(4)
-                # Tentar reaplicar filtro de 100 itens se disponível
-                try:
-                    from Fix import aplicar_filtro_100
-                    aplicar_filtro_100(novo_driver)
-                    time.sleep(1)
-                except Exception:
-                    pass
-            except Exception:
-                pass
-
-            if log:
-                print('[RECOVERY][RESTART] Novo driver pronto e logado')
-            return novo_driver
-
-        except Exception as e:
-            if log:
-                print(f'[RECOVERY][RESTART] Falha durante reinício do driver: {e}')
-            return None
-    except Exception as e:
-        print(f'[RECOVERY][RESTART][ERRO] Exceção inesperada: {e}')
-        return None
-
-def resetar_progresso_pec():
-    """Reseta o arquivo de progresso específico para PEC"""
-    try:
-        if os.path.exists("progresso_pec.json"):
-            os.remove("progresso_pec.json")
-            print("[PROGRESSO_PEC][RESET] ✅ Arquivo de progresso removido")
-        else:
-            print("[PROGRESSO_PEC][RESET] ❌ Arquivo de progresso não existe")
-    except Exception as e:
-        print(f"[PROGRESSO_PEC][RESET][ERRO] Falha ao resetar: {e}")
-
-def listar_processos_executados_pec():
-    """Lista processos já executados no fluxo PEC"""
-    progresso = carregar_progresso_pec()
-    executados = progresso.get("processos_executados", [])
-    if executados:
-        print(f"[PROGRESSO_PEC][LIST] {len(executados)} processos já executados:")
-        for i, proc in enumerate(executados, 1):
-            print(f"  {i:3d}. {proc}")
-    else:
-        print("[PROGRESSO_PEC][LIST] Nenhum processo executado ainda")
-    return executados
-
-def testar_sistema_progresso_pec():
-    """Testa as funções de progresso PEC para verificar se estão funcionando"""
-    print("\n" + "="*60)
-    print("[TESTE_PROGRESSO] INICIANDO TESTE DO SISTEMA DE PROGRESSO")
-    print("="*60)
-    
-    # Teste 1: Carregar progresso
-    print("[TESTE_PROGRESSO] 1. Testando carregamento de progresso...")
-    progresso = carregar_progresso_pec()
-    print(f"[TESTE_PROGRESSO] ✅ Progresso carregado: {type(progresso)}")
-    print(f"[TESTE_PROGRESSO] ✅ Estrutura: {list(progresso.keys())}")
-    print(f"[TESTE_PROGRESSO] ✅ Processos executados: {len(progresso.get('processos_executados', []))}")
-    
-    # Teste 2: Marcar processo fictício
-    numero_teste = "1234567891011121314"
-    print(f"\n[TESTE_PROGRESSO] 2. Testando marcação de processo: {numero_teste}")
-    resultado = marcar_processo_executado_pec(numero_teste, progresso)
-    print(f"[TESTE_PROGRESSO] ✅ Resultado da marcação: {resultado}")
-    
-    # Teste 3: Verificar se foi marcado
-    print(f"\n[TESTE_PROGRESSO] 3. Verificando se processo foi marcado...")
-    ja_executado = processo_ja_executado_pec(numero_teste, progresso)
-    print(f"[TESTE_PROGRESSO] ✅ Processo já executado: {ja_executado}")
-    
-    # Teste 4: Listar todos os processos
-    print(f"\n[TESTE_PROGRESSO] 4. Listando todos os processos executados...")
-    listar_processos_executados_pec()
-    
-    # Teste 5: Salvar progresso
-    print(f"\n[TESTE_PROGRESSO] 5. Testando salvamento...")
-    salvar_progresso_pec(progresso)
-    print(f"[TESTE_PROGRESSO] ✅ Progresso salvo")
-    
-    # Teste 6: Recarregar e verificar persistência
-    print(f"\n[TESTE_PROGRESSO] 6. Testando persistência...")
-    progresso_recarregado = carregar_progresso_pec()
-    ja_executado_depois = processo_ja_executado_pec(numero_teste, progresso_recarregado)
-    print(f"[TESTE_PROGRESSO] ✅ Processo ainda marcado após recarregar: {ja_executado_depois}")
-    
-    print("\n" + "="*60)
-    print("[TESTE_PROGRESSO] ✅ TESTE CONCLUÍDO COM SUCESSO!")
-    print("="*60)
-    
-    return True
 import time
 import re
 import unicodedata
@@ -529,13 +207,13 @@ def determinar_acao_por_observacao(observacao):
     if "exclusão" in observacao_lower or "exclusao" in observacao_lower:
         return "pec_excluiargos"
     
+    # Nova regra: xs resultado, resultado teimosinha ou apenas resultado -> processar_ordem_sisbajud (VERIFICAR PRIMEIRO)
+    if "xs resultado" in observacao_lower or "resultado teimosinha" in observacao_lower or observacao_lower.strip() == "resultado":
+        return "processar_ordem_sisbajud"
+    
     # Nova regra: TEIMOSINHA ou T2 -> fluxo SISBAJUD completo
     if "teimosinha" in observacao_lower or "t2" in observacao_lower:
         return "minuta_bloqueio_sisbajud"
-    
-    # Nova regra: xs resultado -> processar_ordem_sisbajud
-    if "xs resultado" in observacao_lower:
-        return "processar_ordem_sisbajud"
     
     # Regras mínimas para todas ações PEC
     if "pec cp" in observacao_lower:
@@ -677,6 +355,483 @@ def indexar_processo_atual_gigs(driver):
         print(f"[INDEXAR_GIGS] ❌ Erro geral ao indexar processo atual: {e}")
         return None
 
+def eh_acao_sisbajud(acao):
+    """
+    Verifica se uma ação é do tipo SISBAJUD (teimosinha ou resultado)
+    """
+    return acao in ["minuta_bloqueio_sisbajud", "processar_ordem_sisbajud"]
+
+def criar_lista_execucao_sisbajud_da_lista(driver):
+    """
+    Lê a lista completa de atividades em /atividades e cria lista de execução SISBAJUD
+    baseada nas observações, SEM abrir nenhum processo.
+    
+    Returns:
+        lista_execucao: Lista de dicionários com dados dos processos SISBAJUD
+    """
+    import re
+    from selenium.webdriver.common.by import By
+    
+    print("[SISBAJUD_LISTA] 🔍 Lendo lista completa de atividades para criar lista SISBAJUD...")
+    
+    lista_execucao = []
+    
+    try:
+        # Usar seletor específico para PEC (tr.tr-class)
+        linhas = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class')
+        if not linhas:
+            print("[SISBAJUD_LISTA] ❌ Nenhuma linha encontrada na tabela de atividades")
+            return []
+        
+        print(f"[SISBAJUD_LISTA] � Encontradas {len(linhas)} linhas na tabela")
+        
+        # Padrão para extrair número do processo
+        padrao_proc = re.compile(r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}')
+        
+        for idx, linha in enumerate(linhas):
+            try:
+                colunas = linha.find_elements(By.TAG_NAME, 'td')
+                if len(colunas) < 6:
+                    continue
+                
+                # Extrair número do processo da 2ª coluna
+                celula_processo = colunas[1]
+                numero_processo = None
+                
+                # Buscar elemento <b> que contém o número
+                try:
+                    elemento_b = celula_processo.find_element(By.TAG_NAME, 'b')
+                    if elemento_b:
+                        texto_b = elemento_b.text.strip()
+                        match = padrao_proc.search(texto_b)
+                        if match:
+                            numero_processo = match.group(0)
+                except:
+                    pass
+                
+                if not numero_processo:
+                    continue
+                
+                # Extrair observação da 6ª coluna
+                celula_observacao = colunas[5]
+                observacao = ""
+                
+                # Buscar span.texto-descricao
+                try:
+                    span_observacao = celula_observacao.find_element(By.CSS_SELECTOR, 'span.texto-descricao')
+                    observacao = span_observacao.text.lower().strip()
+                except:
+                    # Fallback: texto direto da célula
+                    observacao = celula_observacao.text.lower().strip()
+                
+                if not observacao:
+                    continue
+                
+                # Determinar ação baseada na observação
+                acao = determinar_acao_por_observacao(observacao)
+                
+                print(f"[SISBAJUD_LISTA] 📋 Processo: {numero_processo} | Observação: {observacao} | Ação: {acao}")
+                
+                # Se é ação SISBAJUD, adiciona à lista
+                if eh_acao_sisbajud(acao):
+                    dados_processo = {
+                        'numero_processo': numero_processo,
+                        'observacao': observacao,
+                        'acao': acao,
+                        'prazo_dias': 60 if '60' in observacao.lower() else 30,
+                        'linha_element': linha  # Guardar referência para clicar depois
+                    }
+                    lista_execucao.append(dados_processo)
+                    print(f"[SISBAJUD_LISTA] ✅ Adicionado à lista SISBAJUD: {numero_processo} ({acao})")
+                
+            except Exception as e:
+                print(f"[SISBAJUD_LISTA] ⚠️ Erro ao processar linha {idx + 1}: {e}")
+                continue
+        
+        print(f"[SISBAJUD_LISTA] ✅ Varredura concluída. Encontrados {len(lista_execucao)} processos SISBAJUD")
+        
+    except Exception as e:
+        print(f"[SISBAJUD_LISTA] ❌ Erro na leitura da lista: {e}")
+        return []
+    
+    return lista_execucao
+
+def executar_lista_sisbajud_por_abas(driver_pje, lista_execucao):
+    """
+    Executa ações SISBAJUD abrindo/fechando abas dos processos individualmente.
+    Primeiro abre o processo, extrai dados, e decide se precisa do driver SISBAJUD.
+    
+    Args:
+        driver_pje: Driver do PJe (para navegar entre abas)
+        lista_execucao: Lista de processos SISBAJUD para executar
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    
+    print(f"[SISBAJUD_EXEC] 🚀 Iniciando execução de {len(lista_execucao)} processos SISBAJUD por abas...")
+    
+    if not lista_execucao:
+        print("[SISBAJUD_EXEC] ℹ️ Lista de execução vazia")
+        return []
+    
+    # Driver SISBAJUD será inicializado apenas quando necessário
+    driver_sisbajud = None
+    resultados = []
+    aba_lista_original = driver_pje.current_window_handle
+    
+    for i, dados in enumerate(lista_execucao, 1):
+        numero_processo = dados['numero_processo']
+        acao = dados['acao']
+        observacao = dados['observacao']
+        prazo_dias = dados['prazo_dias']
+        linha_element = dados['linha_element']
+        
+        print(f"\n[SISBAJUD_EXEC] === EXECUTANDO {i}/{len(lista_execucao)}: {numero_processo} ===")
+        
+        try:
+            # 1. Verificar se o processo já está aberto em alguma aba existente
+            print(f"[SISBAJUD_EXEC] 🔍 Verificando se processo {numero_processo} já está aberto...")
+            aba_existente_encontrada = None
+            aba_lista_original = driver_pje.current_window_handle
+            aba_aberta_pela_funcao = False  # Flag para controlar se devemos fechar a aba
+            
+            # Verificar todas as abas existentes
+            for handle in driver_pje.window_handles:
+                try:
+                    driver_pje.switch_to.window(handle)
+                    current_url = driver_pje.current_url
+                    current_title = driver_pje.title
+                    
+                    # Verificar se a aba contém o processo (pela URL ou título)
+                    if numero_processo in current_url or numero_processo in current_title:
+                        aba_existente_encontrada = handle
+                        print(f"[SISBAJUD_EXEC] ✅ Processo {numero_processo} já está aberto na aba existente")
+                        break
+                except Exception:
+                    continue
+            
+            # Voltar para aba da lista
+            driver_pje.switch_to.window(aba_lista_original)
+            
+            if aba_existente_encontrada:
+                # Usar aba existente
+                driver_pje.switch_to.window(aba_existente_encontrada)
+                nova_aba = aba_existente_encontrada
+                aba_aberta_pela_funcao = False  # Não fechar aba existente
+                print(f"[SISBAJUD_EXEC] ✅ Alternado para aba existente do processo {numero_processo}")
+            else:
+                # 2. Abrir detalhes do processo (mesmo método que XS)
+                print(f"[SISBAJUD_EXEC] 📂 Abrindo processo {numero_processo} em nova aba...")
+                
+                from Fix import abrir_detalhes_processo, trocar_para_nova_aba
+                
+                # Abrir detalhes do processo clicando no botão de detalhes
+                if not abrir_detalhes_processo(driver_pje, linha_element):
+                    print(f"[SISBAJUD_EXEC] ❌ Botão de detalhes não encontrado para {numero_processo}")
+                    resultados.append({
+                        'numero_processo': numero_processo,
+                        'acao': acao,
+                        'sucesso': False,
+                        'erro': 'botao_detalhes_nao_encontrado'
+                    })
+                    continue
+                
+                # Trocar para nova aba
+                time.sleep(1)
+                nova_aba = trocar_para_nova_aba(driver_pje, aba_lista_original)
+                
+                if not nova_aba:
+                    print(f"[SISBAJUD_EXEC] ❌ Nova aba do processo {numero_processo} não foi aberta")
+                    resultados.append({
+                        'numero_processo': numero_processo,
+                        'acao': acao,
+                        'sucesso': False,
+                        'erro': 'nova_aba_nao_aberta'
+                    })
+                    continue
+                
+                aba_aberta_pela_funcao = True  # Fechar aba que foi aberta pela função
+            print(f"[SISBAJUD_EXEC] ✅ Aba do processo {numero_processo} aberta")
+            
+            # Aguardar carregamento da página do processo
+            time.sleep(3)
+            
+            # 2. Extrair dados do processo
+            print(f"[SISBAJUD_EXEC] 📊 Extraindo dados do processo {numero_processo}...")
+            from Fix import extrair_dados_processo
+            dados_processo = extrair_dados_processo(driver_pje)
+            
+            if not dados_processo:
+                print(f"[SISBAJUD_EXEC] ❌ Falha ao extrair dados do processo {numero_processo}")
+                # Mesmo sem dados, fechar aba e continuar
+                try:
+                    driver_pje.close()
+                    driver_pje.switch_to.window(aba_lista_original)
+                except:
+                    pass
+                resultados.append({
+                    'numero_processo': numero_processo,
+                    'acao': acao,
+                    'sucesso': False,
+                    'erro': 'falha_extrair_dados'
+                })
+                continue
+            
+            # 3. VERIFICAÇÃO ESPECÍFICA PARA TEIMOSINHA
+            if acao == "minuta_bloqueio_sisbajud":
+                # Verificar se há valor da execução
+                valor_execucao = dados_processo.get('valor_execucao')
+                tem_calculos = dados_processo.get('tem_calculos', False)
+                data_calculo_str = dados_processo.get('data_calculo')
+                
+                if not valor_execucao or valor_execucao == "R$ 0,00":
+                    # SEM VALOR → Criar GIGS 1/Bruna/Atualizar
+                    print(f"[SISBAJUD_EXEC] ⚠️ Processo {numero_processo} sem valor da execução → Criando GIGS 1/Bruna/Atualizar")
+                    
+                    try:
+                        from Fix import criar_gigs
+                        resultado_gigs = criar_gigs(driver_pje, numero_processo, "1", "Bruna", "Atualizar", debug=True)
+                        
+                        if resultado_gigs:
+                            print(f"[SISBAJUD_EXEC] ✅ GIGS criado para {numero_processo}")
+                            resultados.append({
+                                'numero_processo': numero_processo,
+                                'acao': 'criar_gigs',
+                                'sucesso': True,
+                                'motivo': 'sem_valor_execucao'
+                            })
+                        else:
+                            print(f"[SISBAJUD_EXEC] ❌ Falha ao criar GIGS para {numero_processo}")
+                            resultados.append({
+                                'numero_processo': numero_processo,
+                                'acao': 'criar_gigs',
+                                'sucesso': False,
+                                'erro': 'falha_criar_gigs'
+                            })
+                    except Exception as e:
+                        print(f"[SISBAJUD_EXEC] ❌ Erro ao criar GIGS: {e}")
+                        resultados.append({
+                            'numero_processo': numero_processo,
+                            'acao': 'criar_gigs',
+                            'sucesso': False,
+                            'erro': str(e)
+                        })
+                    
+                    # Fechar aba e continuar
+                    try:
+                        driver_pje.close()
+                        driver_pje.switch_to.window(aba_lista_original)
+                    except:
+                        pass
+                    continue
+                
+                # COM VALOR → Verificar antiguidade do cálculo
+                from datetime import datetime, timedelta
+                
+                calculos_atualizados = False
+                if data_calculo_str:
+                    try:
+                        # Converter data dd/mm/yyyy para datetime
+                        data_calculo = datetime.strptime(data_calculo_str, "%d/%m/%Y")
+                        data_limite = datetime.now() - timedelta(days=90)  # 3 meses = 90 dias
+                        calculos_atualizados = data_calculo >= data_limite
+                    except:
+                        calculos_atualizados = False
+                
+                if calculos_atualizados:
+                    # VALOR + CÁLCULOS ATUALIZADOS (< 3 meses) → Executar minuta de bloqueio
+                    print(f"[SISBAJUD_EXEC] ✅ Processo {numero_processo} com valor e cálculos atualizados → Executando minuta de bloqueio")
+                else:
+                    # VALOR + CÁLCULOS ANTIGOS (> 3 meses) → Criar GIGS 1/Silas/Atualizar
+                    print(f"[SISBAJUD_EXEC] ⚠️ Processo {numero_processo} com cálculos antigos → Criando GIGS 1/Silas/Atualizar")
+                    
+                    try:
+                        from Fix import criar_gigs
+                        resultado_gigs = criar_gigs(driver_pje, numero_processo, "1", "Silas", "Atualizar", debug=True)
+                        
+                        if resultado_gigs:
+                            print(f"[SISBAJUD_EXEC] ✅ GIGS criado para {numero_processo}")
+                            resultados.append({
+                                'numero_processo': numero_processo,
+                                'acao': 'criar_gigs',
+                                'sucesso': True,
+                                'motivo': 'calculos_antigos'
+                            })
+                        else:
+                            print(f"[SISBAJUD_EXEC] ❌ Falha ao criar GIGS para {numero_processo}")
+                            resultados.append({
+                                'numero_processo': numero_processo,
+                                'acao': 'criar_gigs',
+                                'sucesso': False,
+                                'erro': 'falha_criar_gigs'
+                            })
+                    except Exception as e:
+                        print(f"[SISBAJUD_EXEC] ❌ Erro ao criar GIGS: {e}")
+                        resultados.append({
+                            'numero_processo': numero_processo,
+                            'acao': 'criar_gigs',
+                            'sucesso': False,
+                            'erro': str(e)
+                        })
+                    
+                    # Fechar aba e continuar
+                    try:
+                        driver_pje.close()
+                        driver_pje.switch_to.window(aba_lista_original)
+                    except:
+                        pass
+                    continue
+            
+            # 4. Executar ação SISBAJUD
+            print(f"[SISBAJUD_EXEC] 🚀 Executando ação SISBAJUD para {numero_processo}")
+            
+            sucesso = False
+            
+            # Inicializar driver SISBAJUD apenas quando necessário
+            if not driver_sisbajud:
+                print("[SISBAJUD_EXEC] 🔧 Inicializando driver SISBAJUD (primeira vez)...")
+                from sisb import iniciar_sisbajud
+                driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
+                
+                if not driver_sisbajud:
+                    print("[SISBAJUD_EXEC] ❌ Falha ao inicializar driver SISBAJUD")
+                    # Mesmo com falha, fechar aba e continuar
+                    try:
+                        driver_pje.close()
+                        driver_pje.switch_to.window(aba_lista_original)
+                    except:
+                        pass
+                    resultados.append({
+                        'numero_processo': numero_processo,
+                        'acao': acao,
+                        'sucesso': False,
+                        'erro': 'falha_driver_sisbajud'
+                    })
+                    continue
+                    
+                print("[SISBAJUD_EXEC] ✅ Driver SISBAJUD inicializado")
+            
+            # Executar a ação SISBAJUD
+            if acao == "minuta_bloqueio_sisbajud":
+                # Executar minuta de bloqueio
+                from sisb import minuta_bloqueio
+                resultado = minuta_bloqueio(
+                    driver_pje=driver_pje,
+                    dados_processo=dados_processo,
+                    driver_sisbajud=driver_sisbajud,
+                    prazo_dias=prazo_dias
+                )
+                
+                if resultado and (resultado.get('status') == 'sucesso' or resultado.get('status') == 'gigs_criado'):
+                    sucesso = True
+                    print(f"[SISBAJUD_EXEC] ✅ Minuta de bloqueio executada para {numero_processo}")
+                    
+                    # Executar juntada do relatório se foi sucesso real
+                    if resultado.get('status') == 'sucesso':
+                        try:
+                            from anexos import sisb_wrapper
+                            resultado_wrapper = sisb_wrapper(
+                                driver=driver_pje,
+                                numero_processo=numero_processo,
+                                debug=True
+                            )
+                            if resultado_wrapper:
+                                print(f"[SISBAJUD_EXEC] ✅ Relatório SISBAJUD inserido no PJe para {numero_processo}")
+                            else:
+                                print(f"[SISBAJUD_EXEC] ⚠️ Falha na inserção do relatório para {numero_processo}")
+                        except Exception as e:
+                            print(f"[SISBAJUD_EXEC] ❌ Erro na juntada do relatório: {e}")
+                else:
+                    print(f"[SISBAJUD_EXEC] ❌ Falha na minuta de bloqueio para {numero_processo}")
+                    
+            elif acao == "processar_ordem_sisbajud":
+                # Executar processamento de ordem (XS RESULTADO - sem verificação de valor)
+                from sisb import processar_ordem_sisbajud
+                resultado = processar_ordem_sisbajud(
+                    driver=driver_sisbajud,
+                    dados_processo=dados_processo,
+                    driver_pje=driver_pje,
+                    log=True
+                )
+                
+                if resultado and resultado.get('status') == 'concluido':
+                    sucesso = True
+                    print(f"[SISBAJUD_EXEC] ✅ Processamento de ordem executado para {numero_processo}")
+                    print(f"[SISBAJUD_EXEC] ℹ️ Juntadas PJE já foram executadas dentro de processar_ordem_sisbajud")
+                    
+                else:
+                    print(f"[SISBAJUD_EXEC] ❌ Falha no processamento de ordem para {numero_processo}")
+            
+            # 5. Fechar aba do processo e voltar para lista (apenas se foi aberta pela função)
+            if aba_aberta_pela_funcao:
+                print(f"[SISBAJUD_EXEC] 🔒 Fechando aba do processo {numero_processo}...")
+                
+                try:
+                    driver_pje.close()  # Fecha aba atual
+                    driver_pje.switch_to.window(aba_lista_original)  # Volta para lista
+                    print(f"[SISBAJUD_EXEC] ✅ Aba fechada, retornado à lista")
+                except Exception as e:
+                    print(f"[SISBAJUD_EXEC] ⚠️ Erro ao fechar aba: {e}")
+                    # Tentar voltar para lista de qualquer forma
+                    try:
+                        for handle in driver_pje.window_handles:
+                            if handle != nova_aba:
+                                driver_pje.switch_to.window(handle)
+                                break
+                    except:
+                        pass
+            else:
+                print(f"[SISBAJUD_EXEC] ⏭️ Mantendo aba existente do processo {numero_processo} aberta")
+                # Voltar para aba da lista
+                try:
+                    driver_pje.switch_to.window(aba_lista_original)
+                except Exception as e:
+                    print(f"[SISBAJUD_EXEC] ⚠️ Erro ao voltar para aba da lista: {e}")
+            
+            # Aguardar estabilização
+            time.sleep(1)
+            
+            resultados.append({
+                'numero_processo': numero_processo,
+                'acao': acao,
+                'sucesso': sucesso,
+                'observacao': observacao
+            })
+            
+        except Exception as e:
+            print(f"[SISBAJUD_EXEC] ❌ Erro ao executar {acao} para {numero_processo}: {e}")
+            resultados.append({
+                'numero_processo': numero_processo,
+                'acao': acao,
+                'sucesso': False,
+                'observacao': observacao,
+                'erro': str(e)
+            })
+            
+            # Tentar fechar aba em caso de erro
+            try:
+                if driver_pje.current_window_handle != aba_lista_original:
+                    driver_pje.close()
+                    driver_pje.switch_to.window(aba_lista_original)
+            except:
+                pass
+    
+    # Fechar driver SISBAJUD se foi inicializado
+    if driver_sisbajud:
+        try:
+            driver_sisbajud.quit()
+            print("[SISBAJUD_EXEC] ✅ Driver SISBAJUD fechado")
+        except Exception as e:
+            print(f"[SISBAJUD_EXEC] ⚠️ Erro ao fechar driver SISBAJUD: {e}")
+    
+    # Resumo final
+    sucessos = sum(1 for r in resultados if r['sucesso'])
+    print(f"\n[SISBAJUD_EXEC] 📊 RESUMO FINAL: {sucessos}/{len(resultados)} ações SISBAJUD executadas com sucesso")
+    
+    return resultados
+
 def executar_acao(driver, acao, numero_processo, observacao):
     """
     Executa a ação determinada no processo aberto.
@@ -709,8 +864,17 @@ def executar_acao(driver, acao, numero_processo, observacao):
             
         elif acao == "mov_sob":
             # Executa função mov_sob do atos.py
+            print(f"[AÇÃO] 🚀 Iniciando execução de mov_sob para {numero_processo}")
+            print(f"[AÇÃO] 📝 Observação: '{observacao}'")
+
             from atos import mov_sob
-            resultado = mov_sob(driver, numero_processo, observacao)
+            resultado = mov_sob(driver, numero_processo, observacao, debug=True, timeout=30)
+
+            if resultado:
+                print(f"[AÇÃO] ✅ mov_sob executado com sucesso para {numero_processo}")
+            else:
+                print(f"[AÇÃO] ❌ mov_sob falhou para {numero_processo}")
+
             return bool(resultado)
             
         elif acao == "def_chip":
@@ -1190,6 +1354,12 @@ def executar_fluxo_novo(driver=None):
                 print(f"[CALLBACK_PEC] Processo: {numero_processo} | Observação: {observacao}")
                 acao = determinar_acao_por_observacao(observacao)
                 print(f"[CALLBACK_PEC] Ação determinada: {acao}")
+                
+                # === NOVA LÓGICA: PULAR AÇÕES SISBAJUD (já processadas no modo agrupado) ===
+                if eh_acao_sisbajud(acao):
+                    print(f"[CALLBACK_PEC] ⏭️ Ação SISBAJUD '{acao}' será processada no modo agrupado - pulando")
+                    return True  # Continua para o próximo processo
+                
                 if acao == "PULAR":
                     print(f"[CALLBACK_PEC] ⏭️ Pulando processo (ação não definida)")
                     marcar_processo_executado_pec(numero_processo, progresso)
@@ -1209,6 +1379,34 @@ def executar_fluxo_novo(driver=None):
         print("[FLUXO_NOVO] Iniciando processamento com filtro de observações...")
         # Filtrar apenas processos com observações: xs, silas, sobrestamento e sob (com espaço)
         filtros = ['xs', 'silas', 'sobrestamento', 'sob ']
+        
+        # === NOVA LÓGICA: PROCESSAMENTO AGRUPADO DE AÇÕES SISBAJUD ===
+        print("[FLUXO_NOVO] 🔍 Verificando se há ações SISBAJUD para processamento agrupado...")
+        
+        # 1. Criar lista de execução SISBAJUD
+        lista_sisbajud = criar_lista_execucao_sisbajud_da_lista(driver)
+        
+        # 2. Executar ações SISBAJUD agrupadas se houver
+        if lista_sisbajud:
+            print(f"[FLUXO_NOVO] 📋 Encontradas {len(lista_sisbajud)} ações SISBAJUD para processamento agrupado")
+            
+            # Executa todas as ações SISBAJUD em sequência
+            resultados_sisbajud = executar_lista_sisbajud_por_abas(driver, lista_sisbajud)
+            
+            # Marca processos SISBAJUD como executados no progresso
+            for resultado in resultados_sisbajud:
+                if resultado['sucesso']:
+                    marcar_processo_executado_pec(resultado['numero_processo'], progresso)
+                    print(f"[FLUXO_NOVO] ✅ Processo SISBAJUD {resultado['numero_processo']} marcado como executado")
+                else:
+                    print(f"[FLUXO_NOVO] ❌ Processo SISBAJUD {resultado['numero_processo']} falhou - será processado novamente no fluxo normal")
+            
+            print("[FLUXO_NOVO] ✅ Processamento agrupado SISBAJUD concluído")
+        else:
+            print("[FLUXO_NOVO] ℹ️ Nenhuma ação SISBAJUD encontrada ou falha na inicialização do driver")
+        
+        # === CONTINUA PROCESSAMENTO NORMAL PARA OUTRAS AÇÕES ===
+        print("[FLUXO_NOVO] 🔄 Iniciando processamento normal das demais ações...")
         sucesso = indexar_e_processar_lista_filtrada(driver, callback_pec_progresso, filtros)
         if sucesso:
             print("[FLUXO_NOVO] ✅ Processamento concluído com sucesso!")
@@ -1332,14 +1530,17 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
             print(f"[INDEXAR] ❌ Erro na indexação: {e}")
             return False
         
-        # ===== ETAPA 2: FILTRAR POR OBSERVAÇÃO =====
-        print("[INDEXAR] 2. Filtrando por observação...")
+        # ===== ETAPA 2: FILTRAR POR OBSERVAÇÃO E DETERMINAR AÇÃO =====
+        print("[INDEXAR] 2. Filtrando por observação e determinando ações...")
         
         processos_filtrados = []
+        processos_com_acao = []
+        
         for processo in todos_processos:
             observacao = processo['observacao']
             passa_filtro = False
             
+            # Primeiro verificar se passa no filtro de observação
             for filtro in filtros_observacao:
                 if filtro.lower() in observacao:
                     passa_filtro = True
@@ -1347,8 +1548,21 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
             
             if passa_filtro:
                 processos_filtrados.append(processo)
+                
+                # Determinar qual ação seria executada para esta observação
+                acao = determinar_acao_por_observacao(observacao)
+                
+                if acao != "PULAR":
+                    # Só adiciona à lista se tiver uma ação válida
+                    processo_com_acao = processo.copy()
+                    processo_com_acao['acao'] = acao
+                    processos_com_acao.append(processo_com_acao)
+                    print(f"[INDEXAR] ✅ Processo {processo['numero']} - Ação: {acao}")
+                else:
+                    print(f"[INDEXAR] ⏭️ Processo {processo['numero']} - Sem ação definida, pulando")
         
         print(f"[INDEXAR] ✅ {len(processos_filtrados)} processos passaram no filtro de observação")
+        print(f"[INDEXAR] ✅ {len(processos_com_acao)} processos têm ações válidas para executar")
         
         # ===== ETAPA 3: FILTRAR POR PROGRESSO (JÁ EXECUTADOS) =====
         print("[INDEXAR] 3. Filtrando processos já executados...")
@@ -1356,7 +1570,7 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
         processos_pendentes = []
         processos_pulados = 0
         
-        for processo in processos_filtrados:
+        for processo in processos_com_acao:
             numero_processo = processo['numero']
             
             if processo_ja_executado_pec(numero_processo, progresso):
@@ -1364,7 +1578,7 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
                 processos_pulados += 1
             else:
                 processos_pendentes.append(processo)
-                print(f"[INDEXAR] ✅ Processo {numero_processo} será processado")
+                print(f"[INDEXAR] ✅ Processo {numero_processo} será processado (ação: {processo['acao']})")
         
         print(f"[INDEXAR] {processos_pulados} processos pulados (já executados)")
         print(f"[INDEXAR] {len(processos_pendentes)} processos serão processados")
@@ -1425,9 +1639,16 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
                 # 3. Aguardar carregamento
                 time.sleep(2)
                 
-                # 4. PROCESSAR O PROCESSO usando executar_acao
-                acao = determinar_acao_por_observacao(observacao)
-                print(f"[INDEXAR] Ação determinada para '{observacao}': {acao}")
+                # 4. PROCESSAR O PROCESSO usando a ação já determinada na indexação
+                acao = processo_info['acao']  # Já determinado na etapa 2
+                print(f"[INDEXAR] Executando ação pré-determinada: {acao}")
+                
+                # === NOVA LÓGICA: PULAR AÇÕES SISBAJUD (já processadas no modo agrupado) ===
+                if eh_acao_sisbajud(acao):
+                    print(f"[INDEXAR] ⏭️ Ação SISBAJUD '{acao}' será processada no modo agrupado - pulando")
+                    # Mesmo assim marcar como executado para evitar reprocessamento
+                    marcar_processo_executado_pec(numero_processo, progresso)
+                    continue
                 
                 if acao == "PULAR":
                     print(f"[INDEXAR] ⏭️ Observação '{observacao}' não tem regra definida - pulando")
@@ -1493,15 +1714,21 @@ def indexar_e_processar_lista_filtrada(driver, callback, filtros_observacao=None
                 import traceback
                 traceback.print_exc()
                 
-                # MESMO EM CASO DE EXCEÇÃO, marcar como executado para evitar loop infinito
-                try:
-                    marcar_sucesso = marcar_processo_executado_pec(numero_processo, progresso)
-                    if marcar_sucesso:
-                        print(f"[INDEXAR] ✅ Processo {numero_processo} marcado como executado mesmo com erro")
-                    else:
-                        print(f"[INDEXAR] ⚠️ Falha ao marcar processo {numero_processo} após erro")
-                except Exception as prog_e:
-                    print(f"[INDEXAR] ❌ Erro crítico ao marcar progresso após exceção: {prog_e}")
+                # Verificar se é erro de conexão - NÃO marcar como executado para permitir reprocessamento
+                erro_conexao = "Tried to run command without establishing a connection" in str(e)
+                
+                if erro_conexao:
+                    print(f"[INDEXAR] 🚫 Erro de conexão detectado - NÃO marcando {numero_processo} como executado para permitir reprocessamento")
+                else:
+                    # PARA OUTROS ERROS, marcar como executado para evitar loop infinito
+                    try:
+                        marcar_sucesso = marcar_processo_executado_pec(numero_processo, progresso)
+                        if marcar_sucesso:
+                            print(f"[INDEXAR] ✅ Processo {numero_processo} marcado como executado mesmo com erro")
+                        else:
+                            print(f"[INDEXAR] ⚠️ Falha ao marcar processo {numero_processo} após erro")
+                    except Exception as prog_e:
+                        print(f"[INDEXAR] ❌ Erro crítico ao marcar progresso após exceção: {prog_e}")
                 
                 # Tentar voltar para a lista em caso de erro
                 try:
@@ -1576,11 +1803,36 @@ def aplicar_filtro_xs(driver):
         return False
 
 # Função principal para manter compatibilidade
-def main(driver=None):
+def main(driver=None, monitor_performance=False):
     """
     Função principal - executa o novo fluxo
+
+    Args:
+        driver: WebDriver do Selenium (opcional)
+        monitor_performance: Se True, ativa monitoramento de performance
     """
-    return executar_fluxo_novo(driver)
+    if monitor_performance and MONITOR_ATIVO:
+        print("[PEC] 📊 Iniciando monitoramento de performance...")
+        monitor.iniciar_monitoramento()
+        monitor.registrar_inicio_etapa("execucao_fluxo_novo")
+
+    try:
+        resultado = executar_fluxo_novo(driver)
+
+        if monitor_performance and MONITOR_ATIVO:
+            monitor.registrar_fim_etapa("execucao_fluxo_novo", sucesso=True)
+            monitor.finalizar_monitoramento()
+            print("[PEC] ✅ Monitoramento concluído - relatório gerado")
+
+        return resultado
+
+    except Exception as e:
+        if monitor_performance and MONITOR_ATIVO:
+            monitor.registrar_fim_etapa("execucao_fluxo_novo", sucesso=False)
+            monitor.finalizar_monitoramento()
+            print(f"[PEC] ❌ Monitoramento concluído com erro: {e}")
+
+        raise
 
 def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
     """
@@ -1764,9 +2016,189 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
             try:
                 from datetime import datetime, timedelta
                 import re
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
                 
-                # ===== ETAPA 1: LER DATA ATUAL DO SOBRESTAMENTO =====
-                log_msg("1. Verificando data atual do sobrestamento...")
+                def executar_fluxo_completo():
+                    """Executa o fluxo completo (mov_fimsob + ato_fal) como fallback"""
+                    log_msg("3. Executando fluxo completo (mov_fimsob + ato_fal)...")
+                    
+                    # Capturar informações das abas antes de executar mov_fimsob
+                    abas_antes_fimsob = driver.window_handles
+                    aba_processo_atual = driver.current_window_handle
+                    log_msg(f"   Abas disponíveis: {len(abas_antes_fimsob)}")
+                    
+                    # ETAPA 3A: Executar mov_fimsob primeiro
+                    log_msg("3A. Executando mov_fimsob...")
+                    log_msg(f"   🔍 DEPURAÇÃO: Estado das abas ANTES de mov_fimsob:")
+                    log_msg(f"   Total de abas: {len(abas_antes_fimsob)}")
+                    log_msg(f"   Aba atual: {aba_processo_atual}")
+                    for i, aba in enumerate(abas_antes_fimsob):
+                        try:
+                            # Não mudar de aba, apenas verificar URL
+                            original_aba = driver.current_window_handle
+                            driver.switch_to.window(aba)
+                            current_url = driver.current_url
+                            log_msg(f"   Aba {i}: {current_url}")
+                            driver.switch_to.window(original_aba)  # Voltar para aba original
+                        except Exception as e:
+                            log_msg(f"   Aba {i}: ERRO ao verificar - {e}")
+                    
+                    from atos import mov_fimsob
+                    # CORREÇÃO: skip_open_task=True porque já estamos na aba da tarefa
+                    resultado_fimsob = mov_fimsob(driver, debug=debug, skip_open_task=False)
+                    
+                    if not resultado_fimsob:
+                        log_msg("❌ Falha na execução do mov_fimsob")
+                        log_msg("   🔍 DEPURAÇÃO: Verificando estado das abas APÓS falha do mov_fimsob...")
+                        try:
+                            abas_apos_falha = driver.window_handles
+                            aba_atual_falha = driver.current_window_handle
+                            log_msg(f"   Abas após falha: {len(abas_apos_falha)}")
+                            log_msg(f"   Aba atual: {aba_atual_falha}")
+                            for i, aba in enumerate(abas_apos_falha):
+                                try:
+                                    original_aba = driver.current_window_handle
+                                    driver.switch_to.window(aba)
+                                    current_url = driver.current_url
+                                    log_msg(f"   Aba {i}: {current_url}")
+                                    driver.switch_to.window(original_aba)
+                                except Exception as e:
+                                    log_msg(f"   Aba {i}: ERRO ao verificar - {e}")
+                        except Exception as e_deb:
+                            log_msg(f"   ERRO na depuração: {e_deb}")
+                        return False
+                    
+                    log_msg("✅ mov_fimsob executado com sucesso")
+                    
+                    # Aguardar URL /transicao
+                    log_msg("   Aguardando URL /transicao...")
+                    for tentativa in range(30):
+                        time.sleep(1)
+                        current_url = driver.current_url
+                        log_msg(f"   [{tentativa+1}] URL: {current_url}")
+                        if '/transicao' in current_url:
+                            log_msg("   ✅ /transicao detectada")
+                            break
+                    
+                    if '/transicao' not in driver.current_url:
+                        log_msg("❌ /transicao não detectada")
+                        return False
+                    
+                    # ETAPA 3B: Executar ato_fal em seguida
+                    log_msg("3B. Executando ato_fal...")
+                    from atos import ato_fal
+                    resultado_fal = ato_fal(driver, debug=debug)
+                    
+                    if resultado_fal:
+                        log_msg("✅ ato_fal executado com sucesso")
+                        log_msg(f"✅ Processo {numero_processo}: Sequência completa executada")
+                        return True
+                    else:
+                        log_msg("❌ Falha na execução do ato_fal")
+                        return False
+                
+                # ===== ETAPA 1: ABRIR TAREFA DO PROCESSO PARA VERIFICAR PRAZO =====
+                log_msg("1. Abrindo tarefa do processo para verificar prazo do sobrestamento...")
+                
+                # Guardar handles antes de abrir tarefa
+                abas_antes = set(driver.window_handles)
+                
+                # Procurar botão para abrir tarefa do processo
+                btn_tarefa = None
+                
+                # Estratégia 1: Procurar botões relacionados a tarefa
+                try:
+                    botoes = driver.find_elements(By.TAG_NAME, 'button')
+                    for botao in botoes:
+                        try:
+                            texto = botao.text.lower()
+                            aria_label = botao.get_attribute('aria-label') or ''
+                            mattooltip = botao.get_attribute('mattooltip') or ''
+                            
+                            if ('tarefa' in texto or 'tarefa' in aria_label.lower() or 
+                                'tarefa' in mattooltip.lower() or 'abrir' in texto):
+                                btn_tarefa = botao
+                                log_msg(f"✅ Botão de tarefa encontrado: '{botao.text.strip()}'")
+                                break
+                        except:
+                            continue
+                except Exception as e:
+                    log_msg(f"⚠️ Erro ao procurar botão de tarefa: {e}")
+                
+                # Estratégia 2: Usar seletor específico se não encontrou
+                if not btn_tarefa:
+                    log_msg("🔍 Usando seletor específico para tarefa...")
+                    seletores_tarefa = [
+                        'button[mattooltip="Abre a tarefa do processo"]',
+                        'button[aria-label*="tarefa"]',
+                        'button[mattooltip*="tarefa"]',
+                        'pje-cabecalho-tarefa button'
+                    ]
+                    
+                    for seletor in seletores_tarefa:
+                        try:
+                            btn_tarefa = WebDriverWait(driver, 3).until(
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
+                            )
+                            if btn_tarefa:
+                                log_msg(f"✅ Botão tarefa encontrado via seletor: {seletor}")
+                                break
+                        except:
+                            continue
+                
+                if not btn_tarefa:
+                    log_msg("❌ ERRO: Não foi possível encontrar botão para abrir tarefa do processo")
+                    log_msg("Executando fluxo completo como fallback")
+                    return executar_fluxo_completo()
+                
+                # Clicar no botão para abrir tarefa
+                try:
+                    from Fix import safe_click
+                    click_resultado = safe_click(driver, btn_tarefa)
+                    if not click_resultado:
+                        log_msg("❌ Falha no clique do botão da tarefa")
+                        log_msg("Executando fluxo completo como fallback")
+                        return executar_fluxo_completo()
+                    log_msg("✅ Botão da tarefa clicado com sucesso")
+                except Exception as e:
+                    log_msg(f"❌ Erro ao clicar no botão da tarefa: {e}")
+                    log_msg("Executando fluxo completo como fallback")
+                    return executar_fluxo_completo()
+                
+                # Aguardar nova aba abrir
+                log_msg("⏳ Aguardando nova aba da tarefa abrir...")
+                nova_aba = None
+                tentativas_aba = 0
+                max_tentativas_aba = 10
+                
+                while tentativas_aba < max_tentativas_aba:
+                    abas_depois = set(driver.window_handles)
+                    novas_abas = abas_depois - abas_antes
+                    if novas_abas:
+                        nova_aba = novas_abas.pop()
+                        log_msg(f"✅ Nova aba detectada após {tentativas_aba + 1} tentativas")
+                        break
+                    tentativas_aba += 1
+                    time.sleep(0.3)
+                
+                if nova_aba:
+                    driver.switch_to.window(nova_aba)
+                    log_msg("✅ Foco trocado para nova aba da tarefa")
+                    
+                    # Aguardar carregamento da aba
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            lambda d: d.execute_script("return document.readyState") == "complete"
+                        )
+                        log_msg("✅ Nova aba carregada completamente")
+                    except:
+                        log_msg("⚠️ Timeout aguardando carregamento, continuando...")
+                else:
+                    log_msg("⚠️ Nenhuma nova aba detectada, prosseguindo na aba atual")
+                
+                # ===== ETAPA 2: LER DATA ATUAL DO SOBRESTAMENTO =====
+                log_msg("2. Verificando data atual do sobrestamento...")
                 
                 data_sobrestamento = None
                 try:
@@ -1831,7 +2263,7 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                     log_msg(f"❌ Erro crítico ao buscar data do sobrestamento: {e}")
                     log_msg("Executando fluxo completo como fallback")
                 
-                # ===== ETAPA 2: CALCULAR DIFERENÇA DE MESES =====
+                # ===== ETAPA 3: CALCULAR DIFERENÇA DE MESES =====
                 executar_fimsob_e_ato_fal = True  # Padrão: executar fluxo completo
                 
                 if data_sobrestamento:
@@ -1866,15 +2298,27 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                         data_final_esperada = data_sobrestamento + timedelta(days=9*30)
                         log_msg(f"   Data final esperada (9 meses): {data_final_esperada.strftime('%d/%m/%Y')}")
                         
-                        # Executar mov_sob com número calculado de meses
+                        # Executar mov_sob com número calculado de meses (tarefa já aberta)
                         try:
                             log_msg(f"2. Executando mov_sob com {meses_necessarios} meses...")
                             from atos import mov_sob
-                            resultado_sob = mov_sob(driver, numero_processo, f"sob {meses_necessarios}", debug=debug, timeout=timeout)
+                            resultado_sob = mov_sob(driver, numero_processo, f"sob {meses_necessarios}", debug=debug, timeout=timeout, skip_open_task=True)
                             
                             if resultado_sob:
                                 log_msg(f"✅ Sobrestamento ajustado para {meses_necessarios} meses com sucesso")
                                 log_msg(f"✅ Processo {numero_processo}: Prazo ajustado para {meses_necessarios} meses (total 9 meses)")
+                                # Fechar aba da tarefa após sucesso
+                                if nova_aba:
+                                    try:
+                                        driver.close()
+                                        log_msg("✅ Aba da tarefa fechada")
+                                        # Voltar para aba original
+                                        abas_restantes = set(driver.window_handles)
+                                        if abas_antes & abas_restantes:
+                                            driver.switch_to.window((abas_antes & abas_restantes).pop())
+                                            log_msg("✅ Retornado à aba original")
+                                    except Exception as e:
+                                        log_msg(f"⚠️ Erro ao fechar aba da tarefa: {e}")
                                 return True
                             else:
                                 log_msg("❌ Falha no ajuste do sobrestamento")
@@ -1894,9 +2338,13 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                     log_msg("⚠️ DECISÃO: Data não encontrada")
                     log_msg("   Ação: Executar fluxo completo como fallback")
                 
+                # NÃO FECHAR A ABA AQUI - mov_fimsob vai precisar dela!
+                # O fechamento será feito pelo próprio mov_fimsob
+                
                 # ===== ETAPA 3: EXECUTAR FLUXO COMPLETO SE NECESSÁRIO =====
                 if executar_fimsob_e_ato_fal:
                     log_msg("3. Executando fluxo completo (mov_fimsob + ato_fal)...")
+                    log_msg("   IMPORTANTE: Tarefa já está aberta, usando skip_open_task=True")
                     
                     # Capturar informações das abas antes de executar mov_fimsob
                     abas_antes_fimsob = driver.window_handles
@@ -1905,25 +2353,89 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                     
                     # ETAPA 3A: Executar mov_fimsob primeiro
                     log_msg("3A. Executando mov_fimsob...")
+                    log_msg(f"   🔍 DEPURAÇÃO: Estado das abas ANTES de mov_fimsob:")
+                    log_msg(f"   Total de abas: {len(abas_antes_fimsob)}")
+                    log_msg(f"   Aba atual: {aba_processo_atual}")
+                    for i, aba in enumerate(abas_antes_fimsob):
+                        try:
+                            # Não mudar de aba, apenas verificar URL
+                            original_aba = driver.current_window_handle
+                            driver.switch_to.window(aba)
+                            current_url = driver.current_url
+                            log_msg(f"   Aba {i}: {current_url}")
+                            driver.switch_to.window(original_aba)  # Voltar para aba original
+                        except Exception as e:
+                            log_msg(f"   Aba {i}: ERRO ao verificar - {e}")
+                    
+                    # CRIAR GIGS ANTES DE MOV_FIMSOB
+                    log_msg("   Criando gigs de Fix.py (1/xs sob 9)...")
+                    try:
+                        from gigs import criar_gigs
+                        criar_gigs(driver, numero_processo, '1/xs sob 9', debug=debug)
+                        log_msg("   ✅ Gigs criadas com sucesso")
+                    except Exception as e:
+                        log_msg(f"   ⚠️ Erro ao criar gigs: {e}")
+                    
                     from atos import mov_fimsob
-                    resultado_fimsob = mov_fimsob(driver, debug=debug)
+                    # CORREÇÃO: skip_open_task=True porque a tarefa JÁ ESTÁ ABERTA
+                    resultado_fimsob = mov_fimsob(driver, debug=debug, skip_open_task=True)
                     
                     if not resultado_fimsob:
                         log_msg("❌ Falha na execução do mov_fimsob")
+                        log_msg("   🔍 DEPURAÇÃO: Verificando estado das abas APÓS falha do mov_fimsob...")
+                        try:
+                            abas_apos_falha = driver.window_handles
+                            aba_atual_falha = driver.current_window_handle
+                            log_msg(f"   Abas após falha: {len(abas_apos_falha)}")
+                            log_msg(f"   Aba atual: {aba_atual_falha}")
+                            for i, aba in enumerate(abas_apos_falha):
+                                try:
+                                    original_aba = driver.current_window_handle
+                                    driver.switch_to.window(aba)
+                                    current_url = driver.current_url
+                                    log_msg(f"   Aba {i}: {current_url}")
+                                    driver.switch_to.window(original_aba)
+                                except Exception as e:
+                                    log_msg(f"   Aba {i}: ERRO ao verificar - {e}")
+                        except Exception as e_deb:
+                            log_msg(f"   ERRO na depuração: {e_deb}")
                         return False
                     
                     log_msg("✅ mov_fimsob executado com sucesso")
+                    
+                    # CORREÇÃO: Aguardar mudança de URL após mov_fimsob (sem mudar de aba)
+                    log_msg("   Aguardando mudança de URL após mov_fimsob...")
+                    url_esperada_encontrada = False
+                    tentativas_url = 0
+                    max_tentativas_url = 30  # 30 segundos máximo
+                    
+                    while not url_esperada_encontrada and tentativas_url < max_tentativas_url:
+                        time.sleep(1)  # Aguardar 1 segundo como sugerido
+                        current_url = driver.current_url
+                        log_msg(f"   [{tentativas_url+1}/{max_tentativas_url}] Verificando URL atual: {current_url}")
+                        
+                        # Verificar se a URL mudou para algo diferente de aguardandofinal
+                        if '/aguardandofinal' not in current_url and ('/transicao' in current_url or '/aguardando-prazo' in current_url or '/detalhe' in current_url):
+                            url_esperada_encontrada = True
+                            log_msg(f"   ✅ URL válida detectada: {current_url}")
+                            break
+                        elif '/aguardandofinal' in current_url:
+                            log_msg("   ⏳ Ainda em /aguardandofinal, aguardando mudança...")
+                        else:
+                            log_msg(f"   ⏳ URL atual não é a esperada: {current_url}")
+                        
+                        tentativas_url += 1
+                    
+                    if not url_esperada_encontrada:
+                        log_msg("❌ Timeout: URL válida não foi detectada após mov_fimsob")
+                        return False
                     
                     # Verificar estado das abas após mov_fimsob
                     abas_apos_fimsob = driver.window_handles
                     log_msg(f"   Abas após fimsob: {len(abas_apos_fimsob)}")
                     
-                    # Garantir que está na aba correta para ato_fal
-                    if aba_processo_atual in abas_apos_fimsob:
-                        driver.switch_to.window(aba_processo_atual)
-                        log_msg("✅ Retornado à aba do processo original")
-                    else:
-                        log_msg("⚠️ Aba original não encontrada, permanecendo na aba atual")
+                    # NÃO mudar de aba - permanecer na aba atual conforme orientação
+                    log_msg("   Permanecendo na aba atual (sem mudança de aba)")
                     
                     # ETAPA 3B: Executar ato_fal em seguida
                     log_msg("3B. Executando ato_fal...")
@@ -1980,6 +2492,33 @@ def def_sob(driver, numero_processo, observacao, debug=False, timeout=10):
                     return False
                 
                 log_msg("✅ mov_fimsob executado com sucesso")
+                
+                # CORREÇÃO: Aguardar mudança de URL após mov_fimsob (sem mudar de aba)
+                log_msg("   Aguardando mudança de URL após mov_fimsob...")
+                url_esperada_encontrada = False
+                tentativas_url = 0
+                max_tentativas_url = 30  # 30 segundos máximo
+                
+                while not url_esperada_encontrada and tentativas_url < max_tentativas_url:
+                    time.sleep(1)  # Aguardar 1 segundo como sugerido
+                    current_url = driver.current_url
+                    log_msg(f"   [{tentativas_url+1}/{max_tentativas_url}] Verificando URL atual: {current_url}")
+                    
+                    # Verificar se a URL mudou para algo diferente de aguardandofinal
+                    if '/aguardandofinal' not in current_url and ('/transicao' in current_url or '/aguardando-prazo' in current_url or '/detalhe' in current_url):
+                        url_esperada_encontrada = True
+                        log_msg(f"   ✅ URL válida detectada: {current_url}")
+                        break
+                    elif '/aguardandofinal' in current_url:
+                        log_msg("   ⏳ Ainda em /aguardandofinal, aguardando mudança...")
+                    else:
+                        log_msg(f"   ⏳ URL atual não é a esperada: {current_url}")
+                    
+                    tentativas_url += 1
+                
+                if not url_esperada_encontrada:
+                    log_msg("❌ Timeout: URL válida não foi detectada após mov_fimsob")
+                    return False
                 
                 # Verificar estado das abas após mov_fimsob
                 abas_apos_fimsob = driver.window_handles
@@ -2294,7 +2833,7 @@ def def_presc(driver, numero_processo, texto_decisao, data_decisao_str=None, deb
                     }
                     
                     // "08/08/2023"
-                    var matchNumerico = dataTexto.match(/(\\d{1,2})[\/\\-\\.](\\d{1,2})[\/\\-\\.]?(\\d{4})/);
+                    var matchNumerico = dataTexto.match(/(\\d{1,2})[\\/\\-\\.](\\d{1,2})[\\/\\-\\.]?(\\d{4})/);
                     if (matchNumerico) {
                         var dia = matchNumerico[1].padStart(2, '0');
                         var mes = matchNumerico[2].padStart(2, '0');
@@ -2459,6 +2998,33 @@ def def_presc(driver, numero_processo, texto_decisao, data_decisao_str=None, deb
                 resultado_fimsob = mov_fimsob(driver, debug=debug)
                 if not resultado_fimsob:
                     log_msg("❌ Falha na execução do mov_fimsob")
+                    return False
+
+                # CORREÇÃO: Aguardar mudança de URL após mov_fimsob (sem mudar de aba)
+                log_msg("   Aguardando mudança de URL após mov_fimsob...")
+                url_esperada_encontrada = False
+                tentativas_url = 0
+                max_tentativas_url = 30  # 30 segundos máximo
+                
+                while not url_esperada_encontrada and tentativas_url < max_tentativas_url:
+                    time.sleep(1)  # Aguardar 1 segundo como sugerido
+                    current_url = driver.current_url
+                    log_msg(f"   [{tentativas_url+1}/{max_tentativas_url}] Verificando URL atual: {current_url}")
+                    
+                    # Verificar se a URL mudou para algo diferente de aguardandofinal
+                    if '/aguardandofinal' not in current_url and ('/transicao' in current_url or '/aguardando-prazo' in current_url or '/detalhe' in current_url):
+                        url_esperada_encontrada = True
+                        log_msg(f"   ✅ URL válida detectada: {current_url}")
+                        break
+                    elif '/aguardandofinal' in current_url:
+                        log_msg("   ⏳ Ainda em /aguardandofinal, aguardando mudança...")
+                    else:
+                        log_msg(f"   ⏳ URL atual não é a esperada: {current_url}")
+                    
+                    tentativas_url += 1
+                
+                if not url_esperada_encontrada:
+                    log_msg("❌ Timeout: URL válida não foi detectada após mov_fimsob")
                     return False
 
                 # Após mov_fimsob, identificar se uma nova aba foi aberta e trocar para ela para prosseguir o CLS

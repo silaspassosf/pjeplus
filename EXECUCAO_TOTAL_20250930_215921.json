@@ -1,0 +1,42 @@
+{
+  "timestamp": "2025-09-30T21:59:21.171474",
+  "duracao_total_segundos": 1.9348225593566895,
+  "duracao_total_formatada": "1.93s",
+  "etapas": {
+    "configuracao_driver": {
+      "duracao": 0.6109733581542969,
+      "sucesso": true,
+      "percentual_total": 31.577746248598626
+    },
+    "navegacao_pagina": {
+      "duracao": 0.41095805168151855,
+      "sucesso": true,
+      "percentual_total": 21.240089934560114
+    },
+    "localizar_elementos": {
+      "duracao": 0.9123420715332031,
+      "sucesso": true,
+      "percentual_total": 47.153785091101504
+    }
+  },
+  "metricas_sistema": [],
+  "hipoteses_otimizacao": [
+    {
+      "tipo": "seletor_prioritario",
+      "script": "teste.py",
+      "hipotese": "No teste.py, priorizar seletor '#elemento1' que teve sucesso em 2 casos",
+      "beneficio_esperado": "Redução de tentativas de localização de elementos"
+    },
+    {
+      "tipo": "seletor_problematico",
+      "script": "teste.py",
+      "hipotese": "No teste.py, 1 seletores falharam - considerar remoção ou melhoria",
+      "beneficio_esperado": "Redução de tempo gasto em seletores que não funcionam"
+    }
+  ],
+  "resumo": {
+    "etapas_executadas": 3,
+    "etapas_falharam": 0,
+    "total_etapas": 3
+  }
+}

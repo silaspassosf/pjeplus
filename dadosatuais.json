@@ -1,56 +1,40 @@
 {
-  "numero": [
-    "1001353-67.2024.5.02.0703"
-  ],
-  "id": 6413516,
-  "autor": [
-    {
-      "nome": "GABRIEL CESAR GONZAGA SAMPAIO",
-      "cpfcnpj": "24067981864",
-      "advogado": {
-        "nome": "KATIANE COSTA GONZAGA",
-        "cpf": "29753425864",
-        "oab": ""
+  "numero": "1000587-87.2019.5.02.0703",
+  "id": 2629082,
+  "partes": {
+    "autor": [
+      {
+        "nome": "FABIANA RAMOS DE LIMA GABRIEL",
+        "documento": "310.353.758-18"
       }
-    }
-  ],
-  "reu": [
-    {
-      "nome": "24.026.787 RAPHAEL CHAVES MESQUITA",
-      "cpfcnpj": "24026787000129"
-    },
-    {
-      "nome": "RAPHAEL CHAVES MESQUITA",
-      "cpfcnpj": "38202198895"
-    }
-  ],
-  "terceiro": [
-    {
-      "nome": "MINISTÉRIO PÚBLICO DO TRABALHO"
-    }
-  ],
-  "divida": {
-    "valor": "R$ 22.621,62",
-    "data": "01/08/2025"
+    ],
+    "reu": [
+      {
+        "nome": "RICARDO SERGIO GOMES COSMETICOS - ME",
+        "documento": "14.479.342/0001-40"
+      },
+      {
+        "nome": "RICARDO SERGIO GOMES",
+        "documento": "255.664.778-79"
+      },
+      {
+        "nome": "SINTONIA BLUE COSMETICOS EIRELI",
+        "documento": "28.307.041/0001-44"
+      },
+      {
+        "nome": "REJANE CORREIA GOMES",
+        "documento": "315.194.098-69"
+      }
+    ],
+    "terceiro": [
+      {
+        "nome": "CONFEDERACAO NACIONAL DAS EMPRESAS DE SEGUROS GERAIS, PREVIDENCIA PRIVADA E VIDA, SAUDE SUPLEMENTAR E CAPITALIZACAO - CNSEG",
+        "documento": "10.393.001/0001-05"
+      }
+    ]
   },
-  "justicaGratuita": [],
-  "transito": "",
-  "custas": "",
-  "dtAutuacao": "19/08/2024",
-  "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
-    "requerProcessoReferenciaCodigo": "NE",
-    "controlaValorCausa": true,
-    "podeIncluirAutoridade": false,
-    "pisoValorCausa": 60720.01,
-    "ativo": true,
-    "idClasseJudicialPai": 323,
-    "possuiFilhos": false
-  },
-  "labelFaseProcessual": "Execução",
-  "orgaoJuizo": {},
-  "dataUltimo": ""
+  "data_ajuizamento": "14/05/2019",
+  "valor_execucao": "R$ 30.279,07",
+  "data_calculo": "28/07/2025",
+  "tem_calculos": true
 }

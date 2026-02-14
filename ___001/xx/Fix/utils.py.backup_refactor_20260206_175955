@@ -1,0 +1,246 @@
+﻿"""
+Fix.utils - compat shim for refactored utils modules.
+
+Keep this file thin: only re-exports from Fix/utils_* modules.
+"""
+
+from .utils_error import ErroCollector
+from .utils_formatting import (
+    formatar_moeda_brasileira,
+    formatar_data_brasileira,
+    normalizar_cpf_cnpj,
+    extrair_raiz_cnpj,
+    identificar_tipo_documento,
+)
+from .utils_drivers import (
+    criar_driver_firefox,
+    criar_driver_PC,
+    criar_driver_VT,
+    criar_driver_notebook,
+    criar_driver_sisb_pc,
+    criar_driver_sisb_notebook,
+    configurar_driver_avancado,
+    verificar_driver_ativo,
+    fechar_driver_safely,
+    limpar_temp_selenium,
+)
+from .utils_login import (
+    AHK_EXE_PC,
+    AHK_SCRIPT_PC,
+    AHK_EXE_NOTEBOOK,
+    AHK_SCRIPT_NOTEBOOK,
+    AHK_EXE_ACTIVE,
+    AHK_SCRIPT_ACTIVE,
+    USAR_COOKIES_AUTOMATICO,
+    SALVAR_COOKIES_AUTOMATICO,
+    login_manual,
+    login_automatico,
+    login_automatico_direto,
+    login_cpf,
+    exibir_configuracao_ativa,
+    login_pc,
+    criar_driver,
+    criar_driver_sisb,
+    login_func,
+)
+from .utils_cookies import (
+    verificar_e_aplicar_cookies,
+    salvar_cookies_sessao,
+    limpar_cookies_antigos,
+    listar_cookies_salvos,
+    SimpleConfig,
+    config,
+    COOKIES_DIR,
+)
+from .utils_collect import (
+    coletar_texto_seletor,
+    coletar_valor_atributo,
+    coletar_multiplos_elementos,
+    coletar_tabela_como_lista,
+    coletar_links_pagina,
+    coletar_dados_formulario,
+    extrair_numero_processo,
+    extrair_cpf_cnpj,
+    coletar_dados_pagina,
+)
+from .utils_sleep import (
+    sleep_random,
+    sleep_fixed,
+    sleep_progressivo,
+    aguardar_url_mudar,
+    aguardar_elemento_sumir,
+    aguardar_texto_mudar,
+    aguardar_loading_sumir,
+    sleep_condicional,
+    aguardar_pagina_carregar,
+    sleep_com_logging,
+    aguardar_multiplas_condicoes,
+    sleep_adaptativo,
+    sleep,
+    smart_sleep,
+)
+from .utils_selectors import (
+    SELECTORS_PJE,
+    obter_seletor_pje,
+    buscar_seletor_robusto,
+    gerar_seletor_dinamico,
+    detectar_seletor_elemento,
+    validar_seletor,
+    encontrar_seletor_estavel,
+    criar_seletor_fallback,
+    aplicar_estrategia_seletor,
+)
+from .utils_angular import (
+    aguardar_angular_carregar,
+    aguardar_angular_requests,
+    clicar_elemento_angular,
+    preencher_campo_angular,
+    aguardar_elemento_angular_visivel,
+    verificar_angular_app,
+    aguardar_angular_digest,
+    obter_angular_scope,
+    executar_angular_expressao,
+)
+
+__all__ = [
+    "ErroCollector",
+    "formatar_moeda_brasileira",
+    "formatar_data_brasileira",
+    "normalizar_cpf_cnpj",
+    "extrair_raiz_cnpj",
+    "identificar_tipo_documento",
+    "criar_driver_firefox",
+    "criar_driver_PC",
+    "criar_driver_VT",
+    "criar_driver_notebook",
+    "criar_driver_sisb_pc",
+    "criar_driver_sisb_notebook",
+    "configurar_driver_avancado",
+    "verificar_driver_ativo",
+    "fechar_driver_safely",
+    "limpar_temp_selenium",
+    "AHK_EXE_PC",
+    "AHK_SCRIPT_PC",
+    "AHK_EXE_NOTEBOOK",
+    "AHK_SCRIPT_NOTEBOOK",
+    "AHK_EXE_ACTIVE",
+    "AHK_SCRIPT_ACTIVE",
+    "USAR_COOKIES_AUTOMATICO",
+    "SALVAR_COOKIES_AUTOMATICO",
+    "login_manual",
+    "login_automatico",
+    "login_automatico_direto",
+    "login_cpf",
+    "exibir_configuracao_ativa",
+    "login_pc",
+    "criar_driver",
+    "criar_driver_sisb",
+    "login_func",
+    "verificar_e_aplicar_cookies",
+    "salvar_cookies_sessao",
+    "limpar_cookies_antigos",
+    "listar_cookies_salvos",
+    "SimpleConfig",
+    "config",
+    "COOKIES_DIR",
+    "coletar_texto_seletor",
+    "coletar_valor_atributo",
+    "coletar_multiplos_elementos",
+    "coletar_tabela_como_lista",
+    "coletar_links_pagina",
+    "coletar_dados_formulario",
+    "extrair_numero_processo",
+    "extrair_cpf_cnpj",
+    "coletar_dados_pagina",
+    "sleep_random",
+    "sleep_fixed",
+    "sleep_progressivo",
+    "aguardar_url_mudar",
+    "aguardar_elemento_sumir",
+    "aguardar_texto_mudar",
+    "aguardar_loading_sumir",
+    "sleep_condicional",
+    "aguardar_pagina_carregar",
+    "sleep_com_logging",
+    "aguardar_multiplas_condicoes",
+    "sleep_adaptativo",
+    "sleep",
+    "smart_sleep",
+    "SELECTORS_PJE",
+    "obter_seletor_pje",
+    "buscar_seletor_robusto",
+    "gerar_seletor_dinamico",
+    "detectar_seletor_elemento",
+    "validar_seletor",
+    "encontrar_seletor_estavel",
+    "criar_seletor_fallback",
+    "aplicar_estrategia_seletor",
+    "aguardar_angular_carregar",
+    "aguardar_angular_requests",
+    "clicar_elemento_angular",
+    "preencher_campo_angular",
+    "aguardar_elemento_angular_visivel",
+    "verificar_angular_app",
+    "aguardar_angular_digest",
+    "obter_angular_scope",
+    "executar_angular_expressao",
+]
+
+# --- Compatibility stubs for legacy API surface (placeholders during refactor)
+def coletar_link_ato_timeline(driver, *args, **kwargs):
+    return None
+
+def coletar_conteudo_js(driver, script, *args, **kwargs):
+    try:
+        return driver.execute_script(script)
+    except Exception:
+        return None
+
+def coletar_elemento_css(driver, selector, *args, **kwargs):
+    try:
+        return driver.find_element('css selector', selector)
+    except Exception:
+        return None
+
+def executar_coleta_parametrizavel(driver, *args, **kwargs):
+    return None
+
+def inserir_html_editor(driver, html, *args, **kwargs):
+    return False
+
+def inserir_texto_editor(driver, texto, *args, **kwargs):
+    return False
+
+def inserir_html_no_editor_apos_marcador(driver, marcador, html, *args, **kwargs):
+    return False
+
+def obter_ultimo_conteudo_clipboard():
+    try:
+        import pyperclip
+        return pyperclip.paste()
+    except Exception:
+        return ""
+
+def inserir_link_ato(driver, link, *args, **kwargs):
+    return False
+
+def inserir_link_ato_validacao(driver, link, *args, **kwargs):
+    return False
+
+def configurar_recovery_driver(*args, **kwargs):
+    return None
+
+def verificar_e_tratar_acesso_negado_global(*args, **kwargs):
+    return False
+
+def handle_exception_with_recovery(*args, **kwargs):
+    return None
+
+def obter_driver_padronizado(*args, **kwargs):
+    return None
+
+def driver_pc(*args, **kwargs):
+    return None
+
+def navegar_para_tela(*args, **kwargs):
+    return None

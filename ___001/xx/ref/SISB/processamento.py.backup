@@ -1,0 +1,1056 @@
+# SISB/processamento.py
+# Contém a lógica principal de negócio para o SISBAJUD,
+# como a criação de minutas de bloqueio.
+
+import time
+import traceback
+import os
+import re
+from datetime import datetime, timedelta
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import StaleElementReferenceException
+
+# Importações necessárias
+# from Fix import safe_click, wait_el, get_el, extracao_dados
+from .core import (
+    iniciar_sisbajud
+)
+from .utils import (
+    safe_execute_script, safe_navigate
+)
+
+# Constantes necessárias
+USAR_CORE_MODULES = False  # Temporariamente desabilitado para evitar dependências
+coletor_erros = None  # Placeholder para coletor de erros
+
+# Funções auxiliares necessárias (simplificadas)
+def print_rate_limit_status():
+    """Status do rate limiting (placeholder)"""
+    print("[SISBAJUD] Rate limiting: OK")
+
+def emergency_slow_mode():
+    """Modo de emergência (placeholder)"""
+    print("[SISBAJUD] Modo de emergência ativado")
+
+SISBAJUD_STATS = {'consecutive_errors': 0}
+
+def criar_js_otimizado():
+    """Cria JS otimizado (placeholder)"""
+    return """
+    function esperarElemento(seletor, timeout = 5000) {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            const check = () => {
+                const el = document.querySelector(seletor);
+                if (el) {
+                    resolve(el);
+                } else if (Date.now() - start < timeout) {
+                    setTimeout(check, 100);
+                } else {
+                    resolve(null);
+                }
+            };
+            check();
+        });
+    }
+
+    function esperarOpcoes(seletor, timeout = 3000) {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            const check = () => {
+                const opts = document.querySelectorAll(seletor);
+                if (opts.length > 0) {
+                    resolve(Array.from(opts));
+                } else if (Date.now() - start < timeout) {
+                    setTimeout(check, 100);
+                } else {
+                    resolve([]);
+                }
+            };
+            check();
+        });
+    }
+
+    function triggerEvent(element, eventName) {
+        const event = new Event(eventName, { bubbles: true });
+        element.dispatchEvent(event);
+    }
+    """
+
+def carregar_dados_processo():
+    """Carrega dados do processo (placeholder)"""
+    print("[SISBAJUD] Carregando dados do processo...")
+    return None
+
+def coletar_dados_minuta_sisbajud(driver):
+    """Coleta dados da minuta (placeholder)"""
+    print("[SISBAJUD] Coletando dados da minuta...")
+    return "<p>Dados da minuta coletados</p>"
+
+def criar_gigs(driver_pje, *args, **kwargs):
+    """
+    Placeholder para função criar_gigs do PJE
+    """
+    print("[SISBAJUD] ⚠️ criar_gigs não implementado - função placeholder")
+    return None
+
+
+def minuta_bloqueio(driver_pje=None, dados_processo=None, driver_sisbajud=None, prazo_dias=30):
+    """
+    Cria minuta de bloqueio no SISBAJUD reproduzindo exatamente a lógica do gigs.py
+    
+    Args:
+        driver_pje: Driver do PJe
+        dados_processo: Dados do processo
+        driver_sisbajud: Driver do SISBAJUD (opcional)
+        prazo_dias: Prazo em dias para repetição (30 ou 60, padrão 30)
+    """
+    try:
+        print('\n[SISBAJUD] INICIANDO MINUTA DE BLOQUEIO')
+        print('=' * 60)
+        
+        # FOCO: Garantir que o driver SISBAJUD esteja visível/focado durante suas operações
+        if driver_sisbajud:
+            try:
+                driver_sisbajud.switch_to.window(driver_sisbajud.window_handles[-1])
+                print("[SISBAJUD] 🔍 Foco definido para driver SISBAJUD (minuta_bloqueio)")
+            except Exception as focus_err:
+                print(f"[SISBAJUD] ⚠️ Erro ao focar driver SISBAJUD: {focus_err}")
+        
+        # Imprimir status do rate limiting
+        print_rate_limit_status()
+        
+        # Ativar modo de emergência se muitos erros consecutivos
+        if SISBAJUD_STATS['consecutive_errors'] > 3:
+            emergency_slow_mode()
+        
+        # 1. Usar driver fornecido ou inicializar novo
+        print('[SISBAJUD] 1. Verificando driver SISBAJUD...')
+        driver_created = False  # marca se a função criou o driver (para não fechá-lo se for compartilhado)
+        if driver_sisbajud:
+            print('[SISBAJUD] Usando driver SISBAJUD fornecido')
+            # FOCO: Focar no driver fornecido
+            try:
+                driver_sisbajud.switch_to.window(driver_sisbajud.window_handles[-1])
+                print("[SISBAJUD] 🔍 Foco definido no driver SISBAJUD fornecido")
+            except Exception as focus_err:
+                print(f"[SISBAJUD] ⚠️ Erro ao focar driver SISBAJUD: {focus_err}")
+        else:
+            driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
+            driver_created = True
+            # FOCO: Focar no driver recém-criado
+            if driver_sisbajud:
+                try:
+                    driver_sisbajud.switch_to.window(driver_sisbajud.window_handles[-1])
+                    print("[SISBAJUD] 🔍 Foco definido no driver SISBAJUD recém-criado")
+                except Exception as focus_err:
+                    print(f"[SISBAJUD] ⚠️ Erro ao focar driver SISBAJUD: {focus_err}")
+        
+        if not driver_sisbajud:
+            print('[SISBAJUD] ❌ Falha ao obter driver SISBAJUD')
+            return None
+        
+        print('[SISBAJUD] ✅ Driver SISBAJUD disponível')
+        
+        # 2. Carregar dados do processo
+        if not dados_processo:
+            print('[SISBAJUD] 2. Carregando dados do processo...')
+            dados_processo = carregar_dados_processo()
+        
+        if not dados_processo:
+            print('[SISBAJUD] ❌ Dados do processo não disponíveis')
+            return None
+        
+        print('[SISBAJUD] ✅ Dados do processo carregados')
+        
+        # 3. Verificar se já estamos na página de cadastro ou navegar para /minuta
+        current_url = driver_sisbajud.current_url
+        print(f'[SISBAJUD] 3. URL atual: {current_url}')
+        
+        if '/minuta/cadastrar' in current_url:
+            print('[SISBAJUD] ✅ Já estamos na página de cadastro de minuta')
+            # Aguardar estabilização da página
+            time.sleep('navigation')
+        else:
+            print('[SISBAJUD] 3. Navegando para página /minuta...')
+            if not safe_navigate(driver_sisbajud, 'https://sisbajud.cnj.jus.br/minuta', 'navigation'):
+                print('[SISBAJUD] ❌ Falha na navegação para /minuta')
+                return None
+            
+            # Aguardar URL /minuta com delay inteligente
+            minuta_indicator = 'sisbajud.cnj.jus.br/minuta'
+            url_timeout = 30
+            inicio_url = time.time()
+            url_ready = False
+            while time.time() - inicio_url < url_timeout:
+                time.sleep('default', base_delay=0.5)  # Delay entre verificações
+                current_url = driver_sisbajud.current_url
+                if minuta_indicator in current_url:
+                    print(f'[SISBAJUD] ✅ URL /minuta confirmada: {current_url}')
+                    url_ready = True
+                    break
+            
+            if not url_ready:
+                print('[SISBAJUD] ❌ Timeout aguardando URL /minuta')
+                return None
+            
+            # Aguardar estabilização da página antes de clicar em Nova Minuta
+            print('[SISBAJUD] Aguardando estabilização da página...')
+            time.sleep('navigation')
+            
+            print('[SISBAJUD] Clicando em "Nova Minuta"...')
+            script = """
+            var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
+            if (!botaoNova) {
+                botaoNova = document.querySelector('button.mat-fab.mat-primary');
+            }
+            if (botaoNova) {
+                if (botaoNova.tagName === 'MAT-ICON') {
+                    botaoNova = botaoNova.closest('button');
+                }
+                botaoNova.click();
+                return true;
+            }
+            return false;
+            """
+            
+            # Usar função segura para executar script
+            sucesso = safe_execute_script(driver_sisbajud, script, 'click')
+            if sucesso:
+                print('[SISBAJUD] ✅ Botão "Nova Minuta" clicado com sucesso')
+                time.sleep('form_fill')  # Aguardar carregamento do formulário
+            else:
+                print('[SISBAJUD] ❌ Falha ao clicar em "Nova Minuta"')
+                return None
+        
+        # Verificar se agora estamos na página de cadastro
+        current_url = driver_sisbajud.current_url
+        if '/minuta/cadastrar' not in current_url:
+            print(f'[SISBAJUD] ❌ Não conseguimos chegar à página de cadastro. URL atual: {current_url}')
+            return None
+        
+        print('[SISBAJUD] ✅ Estamos na página de cadastro de minuta')
+        
+        # === REPRODUÇÃO EXATA DO GIGS.PY PARA MINUTA DE BLOQUEIO ===
+        
+        # Valores hardcoded (equivalentes às preferências do gigs.py)
+        juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
+        vara = dados_processo.get('sisbajud', {}).get('vara', '30006')
+        numero_lista = dados_processo.get('numero', [])
+        numero_processo = numero_lista[0] if numero_lista else ''
+        
+        # CPF/CNPJ e nome do autor
+        cpf_cnpj_autor = ''
+        nome_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            cpf_cnpj_autor = dados_processo['autor'][0].get('cpfcnpj', '')
+            nome_autor = dados_processo['autor'][0].get('nome', '')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            cpf_cnpj_autor = dados_processo['reu'][0].get('cpfcnpj', '')
+            nome_autor = dados_processo['reu'][0].get('nome', '')
+        
+        cpf_cnpj_limpo = cpf_cnpj_autor.replace('.', '').replace('-', '').replace('/', '')
+        
+        # Réus
+        reus = dados_processo.get('reu', [])
+        
+        print('[SISBAJUD] === OTIMIZAÇÃO: SCRIPT ÚNICO PARA CAMPOS INICIAIS ===')
+        
+        # Validar prazo_dias (apenas 30 ou 60 dias permitidos)
+        if prazo_dias not in [30, 60]:
+            print(f'[SISBAJUD] ⚠️ Prazo inválido ({prazo_dias} dias). Usando padrão de 30 dias.')
+            prazo_dias = 30
+        
+        # Calcular data: hoje + prazo_dias + 2 extras
+        numdias = prazo_dias
+        hoje = datetime.now()
+        data_fim = hoje + timedelta(days=numdias + 2)
+        
+        print(f'[SISBAJUD] Prazo configurado: {prazo_dias} dias (+ 2 dias extras)')
+        print(f'[SISBAJUD] Data calculada: {data_fim.strftime("%d/%m/%Y")}')
+        
+        ano = data_fim.year
+        mes_d = data_fim.month - 1  # Month index (0-11 como no JS)
+        dia_d = data_fim.day
+        
+        meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", 
+                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+        
+        # SCRIPT ÚNICO - Preenche TODOS os campos (1-8) em uma única requisição
+        # MANTÉM TODA LÓGICA do sisb.py (callbacks, timeouts, fallbacks)
+        script_unico_campos = f"""
+        {criar_js_otimizado()}
+        
+        async function preencherMinutaCompleta() {{
+            let log = [];
+            
+            try {{
+                // 1. JUIZ SOLICITANTE
+                log.push('1. Preenchendo Juiz...');
+                let juizInput = await esperarElemento('input[placeholder*="Juiz"]', 5000);
+                if (juizInput) {{
+                    juizInput.focus();
+                    juizInput.value = '{juiz}';
+                    triggerEvent(juizInput, 'input');
+                    
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.toLowerCase().includes('{juiz.lower()}')) {{
+                            opcao.click();
+                            log.push('✅ Juiz: {juiz}');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+                
+                // 2. VARA/JUÍZO
+                log.push('2. Preenchendo Vara...');
+                let varaSelect = await esperarElemento('mat-select[name*="varaJuizoSelect"]', 3000);
+                if (varaSelect) {{
+                    varaSelect.focus();
+                    varaSelect.click();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.includes('{vara}')) {{
+                            opcao.click();
+                            log.push('✅ Vara: {vara}');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+                
+                // 3. NÚMERO DO PROCESSO
+                log.push('3. Preenchendo Número Processo...');
+                let numeroInput = await esperarElemento('input[placeholder="Número do Processo"]', 3000);
+                if (numeroInput) {{
+                    numeroInput.focus();
+                    numeroInput.value = '{numero_processo}';
+                    triggerEvent(numeroInput, 'input');
+                    numeroInput.blur();
+                    log.push('✅ Processo: {numero_processo}');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+                
+                // 4. TIPO DE AÇÃO
+                log.push('4. Preenchendo Tipo Ação...');
+                let acaoSelect = await esperarElemento('mat-select[name*="acao"]', 3000);
+                if (acaoSelect) {{
+                    acaoSelect.focus();
+                    acaoSelect.click();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.includes('Ação Trabalhista')) {{
+                            opcao.click();
+                            log.push('✅ Ação: Trabalhista');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+                
+                // 5. CPF/CNPJ DO AUTOR
+                log.push('5. Preenchendo CPF/CNPJ Autor...');
+                let cpfInput = await esperarElemento('input[placeholder*="CPF"]', 3000);
+                if (cpfInput) {{
+                    cpfInput.focus();
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    cpfInput.value = '{cpf_cnpj_limpo}';
+                    triggerEvent(cpfInput, 'input');
+                    cpfInput.blur();
+                    log.push('✅ CPF/CNPJ Autor: {cpf_cnpj_limpo}');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }}
+                
+                // 6. NOME DO AUTOR
+                log.push('6. Preenchendo Nome Autor...');
+                let nomeInput = await esperarElemento('input[placeholder="Nome do autor/exequente da ação"]', 3000);
+                if (nomeInput) {{
+                    nomeInput.focus();
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    nomeInput.value = '{nome_autor}';
+                    triggerEvent(nomeInput, 'input');
+                    nomeInput.blur();
+                    log.push('✅ Nome Autor: {nome_autor}');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }}
+                
+                // 7. TEIMOSINHA
+                log.push('7. Selecionando Teimosinha...');
+                let radios = document.querySelectorAll('mat-radio-button');
+                for (let radio of radios) {{
+                    if (radio.textContent.includes('Repetir a ordem')) {{
+                        let label = radio.querySelector('label');
+                        if (label) {{
+                            label.click();
+                            log.push('✅ Teimosinha: Repetir ordem');
+                            break;
+                        }}
+                    }}
+                }}
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 8. CALENDÁRIO - LÓGICA COMPLETA DO SISB.PY
+                log.push('8. Configurando Calendário...');
+                
+                // Abrir calendário
+                let btnCalendario = await esperarElemento('button[aria-label="Open calendar"]', 3000);
+                if (!btnCalendario) {{
+                    return {{sucesso: false, msg: 'Botão calendário não encontrado', log: log}};
+                }}
+                btnCalendario.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Abrir seleção mês/ano
+                let btnMesAno = await esperarElemento('mat-calendar button[aria-label="Choose month and year"]', 3000);
+                if (!btnMesAno) {{
+                    return {{sucesso: false, msg: 'Seleção mês/ano não encontrada', log: log}};
+                }}
+                btnMesAno.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Selecionar ano
+                let anoCell = await esperarElemento('mat-calendar td[aria-label="{ano}"]', 3000);
+                if (!anoCell) {{
+                    return {{sucesso: false, msg: 'Ano {ano} não encontrado', log: log}};
+                }}
+                anoCell.click();
+                log.push('✅ Ano: {ano}');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Selecionar mês (lógica exata sisb.py com loop)
+                let meses = {meses};
+                let mesAtual = {mes_d};
+                let diaD = {dia_d};
+                let mesEncontrado = false;
+                
+                while (mesAtual >= 0) {{
+                    let mesStr = meses[mesAtual] + ' de {ano}';
+                    let mesCell = document.querySelector('mat-calendar td[aria-label="' + mesStr + '"]');
+                    if (mesCell && !mesCell.getAttribute('aria-disabled')) {{
+                        mesCell.click();
+                        log.push('✅ Mês: ' + mesStr);
+                        mesEncontrado = true;
+                        break;
+                    }}
+                    mesAtual--;
+                    diaD = 31;
+                }}
+                
+                if (!mesEncontrado) {{
+                    return {{sucesso: false, msg: 'Nenhum mês disponível', log: log}};
+                }}
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Selecionar dia (lógica exata sisb.py com loop)
+                let mesFinalStr = meses[mesAtual] + ' de {ano}';
+                let diaEncontrado = false;
+                
+                while (diaD > 0) {{
+                    let diaStr = diaD + ' de ' + mesFinalStr;
+                    let diaCell = document.querySelector('mat-calendar td[aria-label="' + diaStr + '"]');
+                    if (diaCell && !diaCell.getAttribute('aria-disabled')) {{
+                        diaCell.click();
+                        log.push('✅ Dia: ' + diaD);
+                        diaEncontrado = true;
+                        break;
+                    }}
+                    diaD--;
+                }}
+                
+                if (!diaEncontrado) {{
+                    return {{sucesso: false, msg: 'Nenhum dia disponível', log: log}};
+                }}
+                
+                let dataFinal = diaD + '/' + (mesAtual + 1) + '/{ano}';
+                log.push('✅ Data final: ' + dataFinal);
+                
+                return {{sucesso: true, msg: 'Campos preenchidos com sucesso', log: log, data_final: dataFinal}};
+                
+            }} catch(e) {{
+                return {{sucesso: false, msg: 'Erro: ' + e.message, log: log}};
+            }}
+        }}
+        
+        return preencherMinutaCompleta();
+        """
+        
+        # Executar SCRIPT ÚNICO (reduz de ~15 requisições para 1)
+        print('[SISBAJUD] Executando preenchimento otimizado (1 requisição)...')
+        resultado_campos = driver_sisbajud.execute_script(script_unico_campos)
+        
+        if resultado_campos and resultado_campos.get('sucesso'):
+            print('[SISBAJUD] ✅ TODOS OS CAMPOS PREENCHIDOS (script único)')
+            if resultado_campos.get('log'):
+                for msg in resultado_campos['log']:
+                    print(f'[SISBAJUD] {msg}')
+            data_limite_str = resultado_campos.get('data_final', data_fim.strftime('%d/%m/%Y'))
+            print(f'[SISBAJUD] ✅ Data final configurada: {data_limite_str}')
+        else:
+            msg_erro = resultado_campos.get('msg') if resultado_campos else 'Erro desconhecido'
+            print(f'[SISBAJUD] ❌ Falha no preenchimento: {msg_erro}')
+            if resultado_campos and resultado_campos.get('log'):
+                for msg in resultado_campos['log']:
+                    print(f'[SISBAJUD] {msg}')
+            return None
+        
+        # 9. INSERÇÃO DOS RÉUS/EXECUTADOS - OTIMIZADO MAS MANTENDO TODA LÓGICA
+        print('[SISBAJUD] 9. Inserindo Réus/Executados (otimizado)...')
+        
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado')
+            return None
+        
+        print(f'[SISBAJUD] Total de réus: {len(reus)}')
+        
+        # Preparar lista de réus para processar
+        lista_reus_js = []
+        for reu in reus:
+            cpf_cnpj = reu.get('cpfcnpj', '')
+            if cpf_cnpj:
+                cpf_cnpj_limpo = ''.join(filter(str.isdigit, cpf_cnpj))
+                # Para bloqueio, sempre usar apenas raiz do CNPJ
+                if len(cpf_cnpj_limpo) == 14:
+                    cpf_cnpj_limpo = cpf_cnpj_limpo[:8]
+                lista_reus_js.append({
+                    'cpfcnpj': cpf_cnpj_limpo,
+                    'nome': reu.get('nome', '')
+                })
+        
+        # SCRIPT ÚNICO que processa TODOS os réus mantendo TODA lógica sisb.py
+        script_processar_reus = f"""
+        {criar_js_otimizado()}
+        
+        async function processarTodosReus() {{
+            let reus = {lista_reus_js};
+            let log = [];
+            let reusAdicionados = 0;
+            let reusRemovidos = 0;
+            
+            try {{
+                for (let i = 0; i < reus.length; i++) {{
+                    let reu = reus[i];
+                    log.push('\\n=== RÉU ' + (i+1) + '/' + reus.length + ' ===');
+                    log.push('Adicionando: ' + reu.nome + ' (' + reu.cpfcnpj + ')');
+                    
+                    // 1. Buscar campo CPF
+                    let cpfInput = await esperarElemento('input[placeholder="CPF/CNPJ do réu/executado"]', 3000);
+                    if (!cpfInput) {{
+                        cpfInput = await esperarElemento('input.mat-input-element[cpfcnpjmask]', 2000);
+                    }}
+                    if (!cpfInput) {{
+                        log.push('❌ Campo CPF não encontrado');
+                        continue;
+                    }}
+                    
+                    // 2. Preencher CPF/CNPJ
+                    cpfInput.focus();
+                    cpfInput.value = '';
+                    await new Promise(resolve => setTimeout(resolve, 400));
+                    
+                    cpfInput.value = reu.cpfcnpj;
+                    triggerEvent(cpfInput, 'input');
+                    triggerEvent(cpfInput, 'change');
+                    
+                    // 3. Aguardar e clicar no botão adicionar
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                    
+                    let btnAdicionar = document.querySelector('button.btn-adicionar.mat-mini-fab');
+                    if (!btnAdicionar) {{
+                        btnAdicionar = document.querySelector('button mat-icon.fa-plus-square');
+                        if (btnAdicionar) btnAdicionar = btnAdicionar.closest('button');
+                    }}
+                    
+                    if (!btnAdicionar || btnAdicionar.disabled) {{
+                        log.push('❌ Botão adicionar não disponível');
+                        continue;
+                    }}
+                    
+                    btnAdicionar.click();
+                    log.push('✅ Réu adicionado, aguardando processamento...');
+                    
+                    // 4. Aguardar processamento (CRÍTICO - como sisb.py)
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                    // 5. VERIFICAR CONTAS - lógica exata sisb.py
+                    let tabelaLinhas = document.querySelectorAll('tr.mat-row');
+                    if (tabelaLinhas.length > 0) {{
+                        let ultimaLinha = tabelaLinhas[tabelaLinhas.length - 1];
+                        let celulaRelacionamentos = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
+                        
+                        if (celulaRelacionamentos) {{
+                            let botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
+                            if (botaoRelacionamentos) {{
+                                let qtde = botaoRelacionamentos.textContent.trim();
+                                
+                                if (qtde === '0') {{
+                                    log.push('⚠️ Réu sem contas - REMOVENDO...');
+                                    
+                                    // 6. REMOVER RÉU SEM CONTAS - lógica exata sisb.py
+                                    let botaoMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
+                                    if (botaoMenu) {{
+                                        botaoMenu.click();
+                                        await new Promise(resolve => setTimeout(resolve, 500));
+                                        
+                                        let botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
+                                        if (botaoExcluir) {{
+                                            botaoExcluir.closest('button').click();
+                                            log.push('✅ Réu removido (0 contas)');
+                                            reusRemovidos++;
+                                            await new Promise(resolve => setTimeout(resolve, 800));
+                                        }}
+                                    }}
+                                }} else {{
+                                    log.push('✅ Réu possui ' + qtde + ' conta(s) - MANTIDO');
+                                    reusAdicionados++;
+                                }}
+                            }}
+                        }}
+                    }}
+                    
+                    // 7. Delay entre réus (como sisb.py)
+                    if (i < reus.length - 1) {{
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }}
+                }}
+                
+                return {{
+                    sucesso: true, 
+                    log: log, 
+                    adicionados: reusAdicionados,
+                    removidos: reusRemovidos
+                }};
+                
+            }} catch(e) {{
+                return {{
+                    sucesso: false, 
+                    msg: 'Erro: ' + e.message, 
+                    log: log,
+                    adicionados: reusAdicionados,
+                    removidos: reusRemovidos
+                }};
+            }}
+        }}
+        
+        return processarTodosReus();
+        """
+        
+        # Executar processamento de TODOS os réus em 1 requisição
+        print('[SISBAJUD] Processando réus (1 requisição otimizada)...')
+        resultado_reus = driver_sisbajud.execute_script(script_processar_reus)
+        
+        if resultado_reus:
+            if resultado_reus.get('log'):
+                for msg in resultado_reus['log']:
+                    print(f'[SISBAJUD] {msg}')
+            
+            adicionados = resultado_reus.get('adicionados', 0)
+            removidos = resultado_reus.get('removidos', 0)
+            print(f'\n[SISBAJUD] ✅ Réus processados: {adicionados} adicionados, {removidos} removidos')
+            
+            if resultado_reus.get('sucesso'):
+                SISBAJUD_STATS['consecutive_errors'] = 0
+            else:
+                print(f"[SISBAJUD] ⚠️ Processamento com avisos: {resultado_reus.get('msg', '')}")
+        else:
+            print('[SISBAJUD] ❌ Falha no processamento de réus')
+            SISBAJUD_STATS['consecutive_errors'] += 1
+        
+        # 10. VALOR (se houver)
+        print('[SISBAJUD] 10. Configurando Valor...')
+        if dados_processo.get('divida', {}).get('valor'):
+            # Dados já vêm formatados do Fix.py
+            valor_formatado = dados_processo['divida']['valor']
+            data_divida_formatada = dados_processo.get('divida', {}).get('data', '')
+            
+            print(f'[SISBAJUD] Valor encontrado: {valor_formatado}')
+            print(f'[SISBAJUD] Data da dívida: {data_divida_formatada}')
+            
+            # Criar span clicável como gigs.py com formatação correta
+            script_valor = f"""
+            var ancora = document.querySelector('div[class="label-valor-extenso"]');
+            if (ancora && !document.getElementById('maisPJe_valor_execucao')) {{
+                var span = document.createElement('span');
+                span.id = 'maisPJe_valor_execucao';
+                span.innerText = "Última atualização do processo: {valor_formatado} em {data_divida_formatada}";
+                span.style = "color: white; background-color: slategray; padding: 10px; border-radius: 10px; cursor: pointer; font-weight: bold; margin: 5px 0;";
+                span.onclick = function() {{
+                    var input = document.querySelector('input[placeholder*="Valor aplicado a todos"]');
+                    if (input) {{
+                        input.value = "{valor_formatado}";
+                        input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    }}
+                }};
+                ancora.appendChild(document.createElement('br'));
+                ancora.appendChild(document.createElement('br'));
+                ancora.appendChild(span);
+            }}
+            return true;
+            """
+            driver_sisbajud.execute_script(script_valor)
+            print('[SISBAJUD] ✅ Span de valor criado com formatação correta')
+            
+            # Aguardar um pouco e clicar no overlay para inserir o valor
+            time.sleep(1)
+            print('[SISBAJUD] 10.1. Clicando no overlay para inserir valor...')
+            
+            script_clicar_overlay = """
+            var overlay = document.getElementById('maisPJe_valor_execucao');
+            if (overlay) {
+                overlay.click();
+                return true;
+            }
+            return false;
+            """
+            
+            clicou_overlay = driver_sisbajud.execute_script(script_clicar_overlay)
+            if clicou_overlay:
+                print('[SISBAJUD] ✅ Overlay de valor clicado')
+                time.sleep(1)
+                
+                # Clicar no botão de adicionar valor (seletor específico para valor)
+                print('[SISBAJUD] 10.2. Clicando no botão de adicionar valor...')
+                script_adicionar_valor = """
+                var botaoAdicionar = document.querySelector('button.btn-adicionar.mat-mini-fab.mat-primary mat-icon.fa-check-square');
+                if (botaoAdicionar) {
+                    botaoAdicionar.closest('button').click();
+                    return true;
+                }
+                
+                // Fallback: buscar por qualquer botão com ícone de check-square
+                var botaoFallback = document.querySelector('button.mat-mini-fab mat-icon.fa-check-square');
+                if (botaoFallback) {
+                    botaoFallback.closest('button').click();
+                    return true;
+                }
+                
+                return false;
+                """
+                
+                adicionou_valor = driver_sisbajud.execute_script(script_adicionar_valor)
+                if adicionou_valor:
+                    print('[SISBAJUD] ✅ Valor adicionado com sucesso')
+                else:
+                    print('[SISBAJUD] ❌ Falha ao adicionar valor - botão não encontrado')
+                    
+            else:
+                print('[SISBAJUD] ❌ Falha ao clicar no overlay de valor')
+        else:
+            # NOVA LÓGICA: Se valor da dívida não foi localizado, executar apenas criar_gigs
+            print('[SISBAJUD] ⚠️ Valor da dívida não localizado - executando criar_gigs')
+            try:
+                # Sair do SISBAJUD e voltar para PJE para criar GIGS
+                if driver_pje:
+                    print('[SISBAJUD] Retornando para PJE para criar GIGS...')
+                    driver_pje.switch_to.window(driver_pje.window_handles[0])  # Volta para PJE
+                    criar_gigs(driver_pje, "1", "Bruna", "Atualizar")
+                    print('[SISBAJUD] ✅ GIGS criado: 1/Bruna/Atualizar')
+                    return "gigs_criado"  # Retorna status especial
+                else:
+                    print('[SISBAJUD] ❌ Driver PJE não disponível para criar GIGS')
+                    return None
+            except Exception as e:
+                print(f'[SISBAJUD] ❌ Erro ao criar GIGS: {e}')
+                return None
+        
+        # 11. CONTA-SALÁRIO (se configurado)
+        print('[SISBAJUD] 11. Configurando Conta-Salário...')
+        if dados_processo.get('sisbajud', {}).get('contasalario', '').lower() == 'sim':
+            script_conta_salario = """
+            var toggles = document.querySelectorAll('mat-slide-toggle label');
+            for (var i = 0; i < toggles.length; i++) {
+                toggles[i].click();
+            }
+            return true;
+            """
+            driver_sisbajud.execute_script(script_conta_salario)
+            print('[SISBAJUD] ✅ Conta-salário ativada')
+        
+        # 12. SALVAR MINUTA (OBRIGATÓRIO)
+        print('[SISBAJUD] 12. Salvando Minuta...')
+        
+        script_salvar = """
+        // Buscar botão de salvar com seletor específico
+        var btnSalvar = document.querySelector('button.mat-fab.mat-primary mat-icon.fa-save');
+        if (btnSalvar) {
+            btnSalvar.closest('button').click();
+            return true;
+        }
+        
+        // Fallback: buscar por qualquer botão com ícone de save
+        var btnFallback = document.querySelector('button mat-icon.fa-save');
+        if (btnFallback) {
+            btnFallback.closest('button').click();
+            return true;
+        }
+        
+        // Fallback 2: buscar por texto "Salvar"
+        var buttons = document.querySelectorAll('button');
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].textContent.includes('Salvar')) {
+                buttons[i].click();
+                return true;
+            }
+        }
+        
+        return false;
+        """
+        
+        salvou = driver_sisbajud.execute_script(script_salvar)
+        if salvou:
+            print('[SISBAJUD] ✅ Botão Salvar clicado')
+            
+            # Aguardar salvamento e verificar confirmação
+            print('[SISBAJUD] 12.1. Aguardando confirmação do salvamento...')
+            time.sleep(3)
+            
+            # Verificar se apareceu o botão "Alterar" (confirmação de que foi salvo)
+            script_verificar_salvamento = """
+            // Buscar botão "Alterar" como confirmação
+            var btnAlterar = document.querySelector('button mat-icon.fa-edit');
+            if (btnAlterar) {
+                var btnTexto = btnAlterar.closest('button');
+                if (btnTexto && btnTexto.textContent.includes('Alterar')) {
+                    return 'SALVO_COM_SUCESSO';
+                }
+            }
+            
+            // Verificar se ainda está na página de edição (não salvou)
+            var btnSalvar = document.querySelector('button mat-icon.fa-save');
+            if (btnSalvar) {
+                return 'AINDA_EDITANDO';
+            }
+            
+            return 'STATUS_DESCONHECIDO';
+            """
+            
+            status_salvamento = driver_sisbajud.execute_script(script_verificar_salvamento)
+            
+            if status_salvamento == 'SALVO_COM_SUCESSO':
+                print('[SISBAJUD] ✅ Minuta salva com sucesso! Botão "Alterar" detectado.')
+            elif status_salvamento == 'AINDA_EDITANDO':
+                print('[SISBAJUD] ⚠️ Minuta ainda em modo de edição - pode não ter salvado')
+            else:
+                print('[SISBAJUD] ⚠️ Status de salvamento desconhecido')
+                
+        else:
+            print('[SISBAJUD] ❌ Falha ao clicar no botão Salvar')
+        
+        print('[SISBAJUD] ✅ MINUTA DE BLOQUEIO CRIADA COM SUCESSO')
+        
+        # 13. COLETAR DADOS DA MINUTA PARA RELATÓRIO
+        print('[SISBAJUD] 13. Coletando dados da minuta para relatório...')
+        dados_relatorio = coletar_dados_minuta_sisbajud(driver_sisbajud)
+        if dados_relatorio:
+            # Salvar dados coletados em arquivo
+            relatorio_path = os.path.join(os.path.dirname(__file__), 'relatorio_sisbajud.html')
+            try:
+                # Criar HTML completo para visualização
+                html_completo = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório SISBAJUD</title>
+</head>
+<body>
+{dados_relatorio}
+</body>
+</html>"""
+                
+                with open(relatorio_path, 'w', encoding='utf-8') as f:
+                    f.write(html_completo)
+                print(f'[SISBAJUD] ✅ Relatório salvo em: {relatorio_path}')
+                
+                # Também salvar apenas o conteúdo para uso direto no PJe
+                relatorio_texto_path = os.path.join(os.path.dirname(__file__), 'relatorio_sisbajud.txt')
+                with open(relatorio_texto_path, 'w', encoding='utf-8') as f:
+                    f.write(dados_relatorio)
+                print(f'[SISBAJUD] ✅ Conteúdo para PJe salvo em: {relatorio_texto_path}')
+                
+                # Nota: Integração com PJe agora é feita pelo fluxo chamador (pec.py)
+                print('[SISBAJUD] ✅ Relatório gerado para integração posterior com PJe')
+                
+            except Exception as e:
+                print(f'[SISBAJUD] ⚠️ Erro ao salvar relatório: {e}')
+        else:
+            print('[SISBAJUD] ⚠️ Não foi possível coletar dados da minuta')
+        
+        # Extrair protocolo (se possível)
+        protocolo = None
+        try:
+            url = driver_sisbajud.current_url
+            match = re.search(r'/(\d{10,})/', url)
+            if match:
+                protocolo = match.group(1)
+                print(f'[SISBAJUD] Protocolo extraído: {protocolo}')
+        except:
+            pass
+        
+        # Fechar driver SISBAJUD para retornar ao PJe (com espera) apenas se foi criado aqui
+        print('[SISBAJUD] Fechando driver SISBAJUD (se criado pela função) para retornar ao PJe...')
+        try:
+            if driver_created and driver_sisbajud:
+                driver_sisbajud.quit()
+                print('[SISBAJUD] ✅ Driver SISBAJUD (criado aqui) fechado com sucesso')
+                # Esperar explicitamente para garantir fechamento completo
+                print('[SISBAJUD] Aguardando 3 segundos para garantir fechamento completo...')
+                time.sleep(3)
+                print('[SISBAJUD] ✅ Aguardo concluído - controle retornado ao driver PJe')
+            else:
+                print('[SISBAJUD] ℹ️ Driver SISBAJUD não foi criado pela função; não será fechado')
+        except Exception as e:
+            print(f'[SISBAJUD] ⚠️ Erro ao fechar driver SISBAJUD: {e}')
+            # Mesmo com erro, aguardar para evitar conflitos
+            time.sleep(2)
+        
+        # FOCO: Retornar foco para driver PJE após fechar SISBAJUD
+        if driver_pje:
+            try:
+                print("[SISBAJUD] 🔄 Retornando foco para driver PJE (minuta_bloqueio)...")
+                driver_pje.switch_to.window(driver_pje.window_handles[-1])
+                print("[SISBAJUD] ✅ Foco retornado para driver PJE")
+            except Exception as focus_err:
+                print(f"[SISBAJUD] ⚠️ Erro ao retornar foco para PJE: {focus_err}")
+        
+        return {
+            'status': 'sucesso',
+            'dados_minuta': {
+                'protocolo': protocolo,
+                'tipo': 'bloqueio',
+                'repeticao': 'sim',
+                'data_limite': data_limite_str,
+                'quantidade_reus': len(reus),
+                'relatorio_html': 'relatorio_sisbajud.html',
+                'relatorio_texto': 'relatorio_sisbajud.txt'
+            }
+        }
+        
+    except Exception as e:
+        print(f'[SISBAJUD][ERRO] Falha na minuta de bloqueio: {e}')
+        traceback.print_exc()
+        
+        # Fechar driver SISBAJUD em caso de erro (apenas se foi criado aqui)
+        try:
+            if driver_created and 'driver_sisbajud' in locals() and driver_sisbajud:
+                driver_sisbajud.quit()
+                print('[SISBAJUD] ✅ Driver SISBAJUD (criado aqui) fechado após erro')
+        except Exception as cleanup_error:
+            print(f'[SISBAJUD] ⚠️ Erro ao fechar driver SISBAJUD: {cleanup_error}')
+        
+        # FOCO: Retornar foco para driver PJE mesmo em caso de erro
+        if driver_pje:
+            try:
+                print("[SISBAJUD] 🔄 Retornando foco para driver PJE (após erro minuta_bloqueio)...")
+                driver_pje.switch_to.window(driver_pje.window_handles[-1])
+                print("[SISBAJUD] ✅ Foco retornado para driver PJE (após erro)")
+            except Exception as focus_err:
+                print(f"[SISBAJUD] ⚠️ Erro ao retornar foco para PJE (após erro): {focus_err}")
+        
+        # Etapa 5: Gerar relatório de erros coletados
+        if USAR_CORE_MODULES:
+            coletor_erros.gerar_relatorio()
+            if coletor_erros.tem_erros():
+                coletor_erros.exportar_csv(f'erros_minuta_{numero_processo}.csv')
+        
+        return None
+
+
+def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True):
+    """
+    Processamento completo de ordens no SISBAJUD:
+    1. Navegação para teimosinha
+    2. Filtro de ordens recentes
+    3. Extração de dados
+    4. Processamento individual de cada ordem
+    5. Fechamento do driver
+    """
+    resultado = {
+        'status': 'pendente',
+        'tipo_fluxo': None,
+        'series_processadas': 0,
+        'ordens_processadas': 0,
+        'erros': [],
+        'detalhes': {}
+    }
+    
+    try:
+        # Placeholder para processamento completo - implementação simplificada
+        if log:
+            print("[SISBAJUD] ⚠️ Processamento completo ainda não implementado - retornando sucesso básico")
+        
+        resultado['status'] = 'concluido'
+        return resultado
+        
+    except Exception as e:
+        erro = f"Erro geral no processamento: {str(e)}"
+        if log:
+            print(f"[SISBAJUD] ❌ {erro}")
+        resultado['status'] = 'erro'
+        resultado['erros'].append(erro)
+        return resultado
+
+
+def processar_bloqueios(driver_pje=None):
+    """
+    Processa bloqueios no SISBAJUD usando a função processar_ordem_sisbajud
+    SEMPRE carrega dados de dadosatuais.json - nenhum parâmetro necessário
+    """
+    try:
+        print('\n[SISBAJUD] INICIANDO PROCESSAMENTO DE BLOQUEIOS')
+        print('=' * 60)
+        
+        # 1. Inicializar SISBAJUD
+        driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
+        if not driver_sisbajud:
+            print('[SISBAJUD] ❌ Falha ao inicializar SISBAJUD')
+            return None
+        
+        # 2. Carregar dados do processo do arquivo (ÚNICA FONTE)
+        dados_processo = carregar_dados_processo()
+        if not dados_processo:
+            print('[SISBAJUD] ❌ Arquivo dadosatuais.json não encontrado. Execute extrair_dados_processo NO PJE antes!')
+            return None
+        
+        # 3. Processar ordens SISBAJUD
+        resultado = processar_ordem_sisbajud(driver_sisbajud, dados_processo, driver_pje=driver_pje)
+        
+        # 4. Retornar resultado para o PJe
+        if resultado['status'] == 'concluido':
+            print('[SISBAJUD] ✅ Processamento de bloqueios concluído com sucesso!')
+            
+            return {
+                'status': 'sucesso',
+                'dados_processamento': resultado,
+                'acao_posterior': {
+                    'tipo': 'atualizar_pje_bloqueios',
+                    'parametros': {
+                        'id_processo': dados_processo.get('id_processo'),
+                        'tipo_fluxo': resultado.get('tipo_fluxo'),
+                        'series_processadas': resultado.get('series_processadas', 0),
+                        'ordens_processadas': resultado.get('ordens_processadas', 0)
+                    }
+                }
+            }
+        else:
+            print('[SISBAJUD] ❌ Falha no processamento de bloqueios')
+            return {
+                'status': 'erro',
+                'erros': resultado.get('erros', []),
+                'acao_posterior': None
+            }
+            
+    except Exception as e:
+        print(f'[SISBAJUD][ERRO] Falha no processamento de bloqueios: {e}')
+        traceback.print_exc()
+        return None

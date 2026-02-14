@@ -1,0 +1,263 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+@module: Fix.gigs
+@responsibility: Sistema GIGS - Criação e gestão de atividades PJe
+@depends_on: Fix.selenium_base
+@used_by: Prazo, Mandado
+@entry_points: criar_gigs, criar_comentario, criar_lembrete_posit, gigs_minuta
+@tags: #gigs #atividades #pje #minuta
+"""
+
+import time
+from typing import Optional
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+from Fix.log import logger
+from Fix.selenium_base.wait_operations import aguardar_e_clicar
+from Fix.selenium_base.element_interaction import preencher_campo
+
+__all__ = [
+	'criar_gigs',
+	'criar_comentario',
+	'criar_lembrete_posit',
+]
+
+
+def _gigs_responsavel_valido(responsavel: Optional[str]) -> bool:
+	"""
+	Verifica se responsável é válido (não vazio, não '-').
+	"""
+	return responsavel is not None and responsavel.strip() and responsavel.strip() != '-'
+
+
+def _parse_gigs_string(string):
+	"""
+	Parseia string de teste GIGS automaticamente.
+	"""
+	if '/' not in string:
+		return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
+
+	if '//' in string:
+		partes = string.split('//', 1)
+		if len(partes) == 2:
+			prazo_str, obs = partes
+			try:
+				dias_uteis = int(prazo_str.strip())
+			except ValueError:
+				dias_uteis = None
+			return {'dias_uteis': dias_uteis, 'responsavel': None, 'observacao': obs.strip()}
+
+	partes = string.split('/')
+	if len(partes) == 2:
+		prazo_str, obs = partes
+		try:
+			dias_uteis = int(prazo_str.strip())
+		except ValueError:
+			dias_uteis = None
+		return {'dias_uteis': dias_uteis, 'responsavel': None, 'observacao': obs.strip()}
+	elif len(partes) == 3:
+		prazo_str, resp, obs = partes
+		try:
+			dias_uteis = int(prazo_str.strip())
+		except ValueError:
+			dias_uteis = None
+		return {'dias_uteis': dias_uteis, 'responsavel': resp.strip(), 'observacao': obs.strip()}
+
+	return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
+
+
+def criar_lembrete_posit(driver, titulo, conteudo, debug=False):
+	"""
+	Cria lembrete/post-it genérico com título e conteúdo customizáveis.
+	"""
+	try:
+		menu_clicked = aguardar_e_clicar(driver, '.fa-bars', log=debug)
+		time.sleep(0.8)
+
+		seletores_lembrete = [
+			'button[aria-label*="Lembrete"]',
+			'button[title*="Lembrete"]',
+			'pje-icone-post-it button',
+			'.lista-itens-menu li:nth-child(16) button',
+		]
+
+		lembrete_clicked = False
+		for seletor in seletores_lembrete:
+			try:
+				lembrete_clicked = aguardar_e_clicar(driver, seletor, timeout=3, log=False)
+				if lembrete_clicked:
+					break
+			except Exception:
+				continue
+
+		time.sleep(0.8)
+
+		aguardar_e_clicar(driver, '.mat-dialog-content', log=False)
+		time.sleep(0.8)
+
+		titulo_elem = aguardar_e_clicar(driver, '#tituloPostit', timeout=5)
+		if titulo_elem:
+			preencher_campo(titulo_elem, titulo)
+
+		conteudo_elem = aguardar_e_clicar(driver, '#conteudoPostit', timeout=5)
+		if conteudo_elem:
+			preencher_campo(conteudo_elem, conteudo)
+
+		seletores_salvar = [
+			'button[color="primary"]',
+			'.mat-raised-button:not([disabled])',
+			'button[type="submit"]',
+		]
+
+		for seletor in seletores_salvar:
+			try:
+				if aguardar_e_clicar(driver, seletor, timeout=3, log=False):
+					break
+			except Exception:
+				continue
+
+		time.sleep(0.8)
+		return True
+
+	except Exception as e:
+		if debug:
+			logger.error(f'[LEMBRETE][POSIT][ERRO] {e}')
+		return False
+
+
+def criar_gigs(driver, dias_uteis=None, responsavel=None, observacao=None, timeout=10, log=True):
+	"""
+	Cria atividade GIGS na aba /detalhe.
+	"""
+	if isinstance(dias_uteis, str) and responsavel is None and observacao is None:
+		parsed = _parse_gigs_string(dias_uteis)
+		dias_uteis = parsed['dias_uteis']
+		responsavel = parsed['responsavel']
+		observacao = parsed['observacao']
+
+	if observacao is None and responsavel is not None:
+		observacao = responsavel
+		responsavel = None
+
+	try:
+		if log:
+			info = f"{dias_uteis or '-'}" + f"/{responsavel or '-'}" + f"/{observacao or '-'}"
+
+		btn_nova = WebDriverWait(driver, timeout).until(
+			EC.element_to_be_clickable((By.XPATH,
+				"//button[.//span[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')] "
+				"or contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')]"
+			))
+		)
+		btn_nova.click()
+		time.sleep(1)
+
+		WebDriverWait(driver, timeout).until(
+			EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
+		)
+		if dias_uteis:
+			campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
+			campo_dias.clear()
+			campo_dias.send_keys(str(dias_uteis))
+			time.sleep(0.3)
+		if responsavel and _gigs_responsavel_valido(responsavel):
+			campo_resp = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]')
+			campo_resp.clear()
+			campo_resp.send_keys(responsavel)
+			time.sleep(0.5)
+			campo_resp.send_keys(Keys.ARROW_DOWN)
+			time.sleep(0.2)
+			campo_resp.send_keys(Keys.ENTER)
+		if observacao:
+			campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
+			campo_obs.clear()
+			campo_obs.send_keys(observacao)
+			driver.execute_script(
+				"arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
+				campo_obs
+			)
+			time.sleep(0.3)
+		btn_salvar = WebDriverWait(driver, timeout).until(
+			EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Salvar')]"))
+		)
+		btn_salvar.click()
+
+		time.sleep(0.3)
+		try:
+			WebDriverWait(driver, timeout).until(
+				EC.presence_of_element_located((By.XPATH, "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]"))
+			)
+			return True
+		except TimeoutException:
+			return True
+
+	except Exception as e:
+		if log:
+			logger.error(f'[GIGS][ERRO] {e}')
+		return False
+
+
+def criar_comentario(driver, observacao, visibilidade='LOCAL', timeout=10, log=True):
+	"""
+	Cria comentário GIGS na aba /detalhe.
+	"""
+	try:
+		btn_novo = WebDriverWait(driver, timeout).until(
+			EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Novo Comentário') or contains(., 'Novo comentário')]"))
+		)
+		btn_novo.click()
+		time.sleep(1)
+
+		WebDriverWait(driver, timeout).until(
+			EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]'))
+		)
+		campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]')
+		campo_obs.clear()
+		campo_obs.send_keys(observacao)
+		driver.execute_script(
+			"arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
+			campo_obs
+		)
+		time.sleep(0.3)
+		visibilidade_upper = visibilidade.upper()
+		try:
+			radio_buttons = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button')
+			if len(radio_buttons) >= 3:
+				index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
+				idx = index_map.get(visibilidade_upper, 0)
+				radio_buttons[idx].find_element(By.CSS_SELECTOR, 'input').click()
+				time.sleep(0.3)
+
+				if visibilidade_upper == 'RESTRITA':
+					time.sleep(0.5)
+		except Exception:
+			pass
+		btn_salvar = WebDriverWait(driver, timeout).until(
+			EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Salvar')]"))
+		)
+		btn_salvar.click()
+		time.sleep(1)
+
+		time.sleep(1)
+		try:
+			modals = driver.find_elements(By.CSS_SELECTOR, 'mat-dialog-container')
+			modal_aberto = any(m.is_displayed() for m in modals)
+			if not modal_aberto:
+				return True
+			else:
+				driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+				time.sleep(0.5)
+				return True
+		except Exception:
+			return True
+
+	except Exception as e:
+		if log:
+			logger.error(f'[COMENTARIO][ERRO] {e}')
+		return False

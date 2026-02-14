@@ -1,0 +1,20 @@
+"""
+@module: Fix.navigation
+@responsibility: Filtros e navegação no PJe
+@depends_on: selenium.webdriver, Fix.selenium_base
+@used_by: Prazo, PEC, workflows
+@entry_points: aplicar_filtro_100, filtro_fase, filtrofases
+@tags: #navigation #filters #pje
+"""
+
+from .filters import (
+    aplicar_filtro_100,
+    filtro_fase,
+    filtrofases
+)
+
+__all__ = [
+    'aplicar_filtro_100',
+    'filtro_fase',
+    'filtrofases',
+]

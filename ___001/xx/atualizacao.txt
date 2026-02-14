@@ -1,0 +1,18 @@
+Nova regra em mandado
+- se certdao contiver cancelamento + cnib ou serasa:
+-checar primeira ocorrencia de sentença na timeline
+se sentença contiver BRUNA ou SILVIA, chama acao de arquivamento:
+- excluir bndt
+- fechar todos prazos (implementar) - é o fechar intoamcao mas considerar todas checkboxes disponiveis.
+-mov_arquivar()
+
+mov_arquivar
+-melhorar funcao geral de mov via a.py
+- destino deve ser arquiivo deinitivo (aceitar tyarefas seguidas em mvo)
+-testar se pode ter acao de assinar clicando em sim apos arq def
+
+mdando - 
+rever regras argos, varios erros com bloqueio eidpj
+
+atos/pec
+Assinar?

@@ -1,0 +1,166 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+Retry Logic - Estratégias de retry e busca robusta
+===================================================
+
+Extração do Fix/core.py (2915 linhas) → selenium_base/retry_logic.py (~150 linhas)
+
+FUNÇÕES EXTRAÍDAS (lines 212-286, 1167-1218 do core.py):
+- com_retry: Decorator/função para executar com retry e backoff exponencial
+- buscar_seletor_robusto: (TODO - a implementar) Busca elemento com múltiplos seletores
+
+RESPONSABILIDADE:
+- Retry patterns com backoff exponencial
+- Busca robusta de elementos com múltiplas estratégias
+- Consolidação de código repetitivo de tentativas
+
+DEPENDÊNCIAS:
+- time: Para delays exponenciais
+- Fix.log: Para logging de tentativas
+
+USO TÍPICO:
+    from Fix.selenium_base.retry_logic import com_retry
+    
+    # Com retry automático
+    resultado = com_retry(minha_funcao, max_tentativas=3, log=True)
+    
+    # Com argumentos
+    resultado = com_retry(lambda: buscar_elemento(driver, seletor), 
+                         max_tentativas=5, backoff_base=2)
+
+AUTOR: Extração PJePlus Refactoring Phase 2
+DATA: 2025-01-XX
+"""
+
+import time
+from typing import Any, Callable, Optional, TypeVar
+
+from Fix.log import logger
+
+# Type variable para preservar tipo de retorno da função
+T = TypeVar('T')
+
+def com_retry(
+    func: Callable[..., T],
+    max_tentativas: int = 3,
+    backoff_base: int = 2,
+    log_enabled: bool = False,
+    *args,
+    **kwargs
+) -> Optional[T]:
+    """
+    Executa função com retry e backoff exponencial.
+    
+    Padrão repetitivo consolidado: for tentativa + try/except + sleep
+    
+    Args:
+        func: Função a executar
+        max_tentativas: Número máximo de tentativas (default: 3)
+        backoff_base: Base para cálculo exponencial (2^tentativa) (default: 2)
+        log_enabled: Ativa logging de tentativas (default: False)
+        *args: Argumentos posicionais para a função
+        **kwargs: Argumentos nomeados para a função
+    
+    Returns:
+        Resultado da função se sucesso, None se todas tentativas falharam
+    
+    Exemplo Simples:
+        # Ao invés de:
+        # for tentativa in range(3):
+        #     try:
+        #         resultado = minha_funcao()
+        #         if resultado: break
+        #     except: time.sleep(2 ** tentativa)
+        
+        # Usar:
+        resultado = com_retry(minha_funcao, max_tentativas=3)
+    
+    Exemplo com Argumentos:
+        # Função com argumentos
+        resultado = com_retry(
+            buscar_elemento,
+            max_tentativas=5,
+            backoff_base=2,
+            log_enabled=True,
+            driver=driver,  # arg para buscar_elemento
+            seletor='#botao'  # arg para buscar_elemento
+        )
+    
+    Exemplo com Lambda:
+        # Para funções inline
+        resultado = com_retry(
+            lambda: driver.find_element(By.ID, 'elemento'),
+            max_tentativas=3
+        )
+    
+    Comportamento:
+        - Tentativa 1: Executa imediatamente
+        - Falha: Espera backoff_base^0 = 1s
+        - Tentativa 2: Executa após 1s
+        - Falha: Espera backoff_base^1 = 2s
+        - Tentativa 3: Executa após 2s
+        - Falha: Espera backoff_base^2 = 4s
+        - etc.
+    
+    Notas:
+        - Aceita 0 como resultado válido (ex: contador zerado)
+        - Retorna None se todas tentativas falharem
+        - Log inclui número da tentativa e tempo de espera
+    """
+    for tentativa in range(max_tentativas):
+        try:
+            resultado = func(*args, **kwargs)
+            
+            # Permite 0 como resultado válido (ex: contador)
+            if resultado or resultado == 0:
+                if log_enabled:
+                    logger.info(f" com_retry: sucesso na tentativa {tentativa + 1}")
+                return resultado
+                
+        except Exception as e:
+            if log_enabled:
+                logger.error(
+                    f" com_retry tentativa {tentativa + 1}/{max_tentativas}: {e}"
+                )
+            
+            # Se não é a última tentativa, aguarda antes de tentar novamente
+            if tentativa < max_tentativas - 1:
+                delay = backoff_base ** tentativa
+                if log_enabled:
+                    logger.info(f"⏳ Aguardando {delay}s antes da próxima tentativa...")
+                time.sleep(delay)
+            else:
+                # Última tentativa falhou
+                if log_enabled:
+                    logger.error(
+                        f" com_retry: todas {max_tentativas} tentativas falharam"
+                    )
+                return None
+    
+    return None
+
+# TODO: Extrair buscar_seletor_robusto do core.py
+# Esta função aparece no MAPEAMENTO_CORE.md mas não foi localizada no código
+# Provavelmente é uma função a ser criada ou está com nome diferente
+#
+# def buscar_seletor_robusto(
+#     driver: WebDriver,
+#     seletores: list[tuple],
+#     timeout: int = 10,
+#     log_enabled: bool = False
+# ) -> Optional[WebElement]:
+#     """
+#     Busca elemento usando múltiplos seletores em ordem de prioridade.
+#     
+#     Args:
+#         driver: WebDriver do Selenium
+#         seletores: Lista de tuplas (By, seletor)
+#         timeout: Timeout em segundos
+#         log_enabled: Ativa logging
+#     
+#     Returns:
+#         WebElement se encontrado, None caso contrário
+#     """
+#     pass

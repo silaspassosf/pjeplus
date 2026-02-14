@@ -1,0 +1,25 @@
+
+==================================================
+PROCESSO: 1000348-15.2021.5.02.0703
+==================================================
+    Id Pje: f7164af
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH035167567BR
+    Destinatário: MARCOS ANTONIO DOS SANTOS
+    Data do envio: 02/02/2026
+    Data da entrega: 10/02/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 5be2bbe
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH035167575BR
+    Destinatário: MARCOS ANTONIO DOS SANTOS
+    Data do envio: 02/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 8 dias (20/02/2026)
+==================================================
+
+
+
+

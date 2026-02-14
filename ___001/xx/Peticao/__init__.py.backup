@@ -1,0 +1,19 @@
+"""
+@module: Peticao
+@responsibility: Análise e processamento de petições eletrônicas
+@depends_on: Fix, atos
+@used_by: Workflows de triagem de petições
+@entry_points: analisar_peticao, processar_peticao
+@tags: #peticao #analise #processamento #triagem
+@created: 2026-01-29
+@note: Módulo consolidado de pet.py, pet2.py e pet_novo.py (serão refatorados posteriormente)
+"""
+
+# Arquivos consolidados aqui (pendente refatoração):
+# - pet.py
+# - pet2.py  
+# - pet_novo.py
+# 
+# TODO: Consolidar duplicação entre pet2 e pet_novo (~80% overlap)
+
+__all__ = []

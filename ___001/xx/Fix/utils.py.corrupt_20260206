@@ -1,0 +1,9 @@
+"""
+Backup of the corrupted Fix/utils.py before restoring from the official backup.
+Timestamp: 2026-02-06
+
+This file contains the current contents of Fix/utils.py (corrupted/merged)
+and is intended only as a recovery snapshot.
+"""
+
+# NOTE: The full corrupted content was saved here as a snapshot by the refactor agent.

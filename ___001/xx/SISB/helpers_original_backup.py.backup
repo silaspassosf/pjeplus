@@ -1,0 +1,3813 @@
+"""
+SISBAJUD Helpers - Funções auxiliares consolidadas
+Refatoração seguindo padrão orquestrador + helpers
+Junta helpers de minuta_bloqueio e processar_ordem_sisbajud
+"""
+
+import time
+import os
+from datetime import datetime, timedelta
+
+# Selenium imports
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# =============================================================================
+# HELPERS PARA FUNÇÃO MINUTA_BLOQUEIO
+# =============================================================================
+
+def _validar_dados(dados_processo):
+    """
+    Helper para validar dados do processo necessários para minuta de bloqueio.
+
+    Args:
+        dados_processo: Dados do processo (se None, carrega do arquivo dadosatuais.json)
+
+    Returns:
+        tuple: (dados_validos, numero_processo) onde dados_validos é bool e numero_processo é str
+    """
+    try:
+        # Se dados_processo não foi fornecido, carregar do arquivo
+        if not dados_processo:
+            print('[SISBAJUD] Carregando dados do processo do arquivo dadosatuais.json...')
+            try:
+                from .utils import carregar_dados_processo
+                dados_processo = carregar_dados_processo()
+                if not dados_processo:
+                    print('[SISBAJUD] ❌ Arquivo dadosatuais.json não encontrado ou vazio')
+                    return False, None
+                print('[SISBAJUD] ✅ Dados carregados do arquivo')
+            except Exception as e:
+                print(f'[SISBAJUD] ❌ Erro ao carregar dados do arquivo: {e}')
+                return False, None
+
+        # Verificar campos obrigatórios
+        numero_lista = dados_processo.get('numero', [])
+        if not numero_lista:
+            print('[SISBAJUD] ❌ Número do processo não encontrado')
+            return False, None
+
+        numero_processo = numero_lista[0] if numero_lista else None
+        if not numero_processo:
+            print('[SISBAJUD] ❌ Número do processo vazio')
+            return False, None
+
+        reus = dados_processo.get('reu', [])
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado')
+            return False, None
+
+        print('[SISBAJUD] ✅ Dados do processo validados')
+        return True, numero_processo
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao validar dados: {e}')
+        return False, None
+
+def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
+    """
+    Helper para preencher campos iniciais da minuta de bloqueio.
+
+    Args:
+        driver: Driver SISBAJUD
+        dados_processo: Dados do processo
+        prazo_dias: Prazo em dias
+
+    Returns:
+        str or None: Data limite formatada ou None se erro
+    """
+    try:
+        from .utils import criar_js_otimizado
+
+        # Valores hardcoded (equivalentes às preferências do gigs.py)
+        juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
+        vara = dados_processo.get('sisbajud', {}).get('vara', '30006')
+        numero_lista = dados_processo.get('numero', [])
+        numero_processo = numero_lista[0] if numero_lista else ''
+
+        # CPF/CNPJ e nome do autor
+        cpf_cnpj_autor = ''
+        nome_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            cpf_cnpj_autor = dados_processo['autor'][0].get('cpfcnpj', '')
+            nome_autor = dados_processo['autor'][0].get('nome', '')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            cpf_cnpj_autor = dados_processo['reu'][0].get('cpfcnpj', '')
+            nome_autor = dados_processo['reu'][0].get('nome', '')
+
+        cpf_cnpj_limpo = cpf_cnpj_autor.replace('.', '').replace('-', '').replace('/', '')
+
+        # Validar prazo_dias
+        if prazo_dias not in [30, 60]:
+            print(f'[SISBAJUD] ⚠️ Prazo inválido ({prazo_dias} dias). Usando padrão de 30 dias.')
+            prazo_dias = 30
+
+        # Calcular data
+        numdias = prazo_dias
+        hoje = datetime.now()
+        data_fim = hoje + timedelta(days=numdias + 2)
+
+        print(f'[SISBAJUD] Prazo configurado: {prazo_dias} dias (+ 2 dias extras)')
+        print(f'[SISBAJUD] Data calculada: {data_fim.strftime("%d/%m/%Y")}')
+
+        ano = data_fim.year
+        mes_d = data_fim.month - 1  # Month index (0-11 como no JS)
+        dia_d = data_fim.day
+
+        meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+        # SCRIPT ÚNICO - Preenche TODOS os campos (1-8) em uma única requisição
+        script_unico_campos = f"""
+        {criar_js_otimizado()}
+
+        async function preencherMinutaCompleta() {{
+            let log = [];
+
+            try {{
+                // 1. JUIZ SOLICITANTE
+                log.push('1. Preenchendo Juiz...');
+                let juizInput = await esperarElemento('input[placeholder*="Juiz"]', 5000);
+                if (juizInput) {{
+                    juizInput.focus();
+                    juizInput.value = '{juiz}';
+                    triggerEvent(juizInput, 'input');
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.toLowerCase().includes('{juiz.lower()}')) {{
+                            opcao.click();
+                            log.push('✅ Juiz: {juiz}');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 2. VARA/JUÍZO
+                log.push('2. Preenchendo Vara...');
+                let varaSelect = await esperarElemento('mat-select[name*="varaJuizoSelect"]', 3000);
+                if (varaSelect) {{
+                    varaSelect.focus();
+                    varaSelect.click();
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.includes('{vara}')) {{
+                            opcao.click();
+                            log.push('✅ Vara: {vara}');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 3. NÚMERO DO PROCESSO
+                log.push('3. Preenchendo Número Processo...');
+                let numeroInput = await esperarElemento('input[placeholder="Número do Processo"]', 3000);
+                if (numeroInput) {{
+                    numeroInput.focus();
+                    numeroInput.value = '{numero_processo}';
+                    triggerEvent(numeroInput, 'input');
+                    numeroInput.blur();
+                    log.push('✅ Processo: {numero_processo}');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 4. TIPO DE AÇÃO
+                log.push('4. Preenchendo Tipo Ação...');
+                let acaoSelect = await esperarElemento('mat-select[name*="acao"]', 3000);
+                if (acaoSelect) {{
+                    acaoSelect.focus();
+                    acaoSelect.click();
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.includes('Ação Trabalhista')) {{
+                            opcao.click();
+                            log.push('✅ Ação: Trabalhista');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 5. CPF/CNPJ DO AUTOR
+                log.push('5. Preenchendo CPF/CNPJ Autor...');
+                let cpfInput = await esperarElemento('input[placeholder*="CPF"]', 3000);
+                if (cpfInput) {{
+                    cpfInput.focus();
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    cpfInput.value = '{cpf_cnpj_limpo}';
+                    triggerEvent(cpfInput, 'input');
+                    cpfInput.blur();
+                    log.push('✅ CPF/CNPJ Autor: {cpf_cnpj_limpo}');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }}
+
+                // 6. NOME DO AUTOR
+                log.push('6. Preenchendo Nome Autor...');
+                let nomeInput = await esperarElemento('input[placeholder="Nome do autor/exequente da ação"]', 3000);
+                if (nomeInput) {{
+                    nomeInput.focus();
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    nomeInput.value = '{nome_autor}';
+                    triggerEvent(nomeInput, 'input');
+                    nomeInput.blur();
+                    log.push('✅ Nome Autor: {nome_autor}');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }}
+
+                // 7. TEIMOSINHA
+                log.push('7. Selecionando Teimosinha...');
+                let radios = document.querySelectorAll('mat-radio-button');
+                for (let radio of radios) {{
+                    if (radio.textContent.includes('Repetir a ordem')) {{
+                        let label = radio.querySelector('label');
+                        if (label) {{
+                            label.click();
+                            log.push('✅ Teimosinha: Repetir ordem');
+                            break;
+                        }}
+                    }}
+                }}
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 8. CALENDÁRIO - LÓGICA COMPLETA DO SISB.PY
+                log.push('8. Configurando Calendário...');
+
+                // Abrir calendário
+                let btnCalendario = await esperarElemento('button[aria-label="Open calendar"]', 3000);
+                if (!btnCalendario) {{
+                    return {{sucesso: false, msg: 'Botão calendário não encontrado', log: log}};
+                }}
+                btnCalendario.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Abrir seleção mês/ano
+                let btnMesAno = await esperarElemento('mat-calendar button[aria-label="Choose month and year"]', 3000);
+                if (!btnMesAno) {{
+                    return {{sucesso: false, msg: 'Seleção mês/ano não encontrada', log: log}};
+                }}
+                btnMesAno.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Selecionar ano
+                let anoCell = await esperarElemento('mat-calendar td[aria-label="{ano}"]', 3000);
+                if (!anoCell) {{
+                    return {{sucesso: false, msg: 'Ano {ano} não encontrado', log: log}};
+                }}
+                anoCell.click();
+                log.push('✅ Ano: {ano}');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Selecionar mês (lógica exata sisb.py com loop)
+                let meses = {meses};
+                let mesAtual = {mes_d};
+                let diaD = {dia_d};
+                let mesEncontrado = false;
+
+                while (mesAtual >= 0) {{
+                    let mesStr = meses[mesAtual] + ' de {ano}';
+                    let mesCell = document.querySelector('mat-calendar td[aria-label="' + mesStr + '"]');
+                    if (mesCell && !mesCell.getAttribute('aria-disabled')) {{
+                        mesCell.click();
+                        log.push('✅ Mês: ' + mesStr);
+                        mesEncontrado = true;
+                        break;
+                    }}
+                    mesAtual--;
+                    diaD = 31;
+                }}
+
+                if (!mesEncontrado) {{
+                    return {{sucesso: false, msg: 'Nenhum mês disponível', log: log}};
+                }}
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Selecionar dia (lógica exata sisb.py com loop)
+                let mesFinalStr = meses[mesAtual] + ' de {ano}';
+                let diaEncontrado = false;
+
+                while (diaD > 0) {{
+                    let diaStr = diaD + ' de ' + mesFinalStr;
+                    let diaCell = document.querySelector('mat-calendar td[aria-label="' + diaStr + '"]');
+                    if (diaCell && !diaCell.getAttribute('aria-disabled')) {{
+                        diaCell.click();
+                        log.push('✅ Dia: ' + diaD);
+                        diaEncontrado = true;
+                        break;
+                    }}
+                    diaD--;
+                }}
+
+                if (!diaEncontrado) {{
+                    return {{sucesso: false, msg: 'Nenhum dia disponível', log: log}};
+                }}
+
+                let dataFinal = diaD + '/' + (mesAtual + 1) + '/{ano}';
+                log.push('✅ Data final: ' + dataFinal);
+
+                return {{sucesso: true, msg: 'Campos preenchidos com sucesso', log: log, data_final: dataFinal}};
+
+            }} catch(e) {{
+                return {{sucesso: false, msg: 'Erro: ' + e.message, log: log}};
+            }}
+        }}
+
+        return preencherMinutaCompleta().then(arguments[arguments.length - 1]);
+        """
+
+        # Executar SCRIPT ÚNICO
+        print('[SISBAJUD] Executando preenchimento otimizado (1 requisição)...')
+        resultado_campos = driver.execute_async_script(script_unico_campos)
+
+        if resultado_campos and resultado_campos.get('sucesso'):
+            print('[SISBAJUD] ✅ TODOS OS CAMPOS PREENCHIDOS (script único)')
+            if resultado_campos.get('log'):
+                for msg in resultado_campos['log']:
+                    print(f'[SISBAJUD] {msg}')
+            data_limite_str = resultado_campos.get('data_final', data_fim.strftime('%d/%m/%Y'))
+            print(f'[SISBAJUD] ✅ Data final configurada: {data_limite_str}')
+            return data_limite_str
+        else:
+            msg_erro = resultado_campos.get('msg') if resultado_campos else 'Erro desconhecido'
+            print(f'[SISBAJUD] ❌ Falha no preenchimento: {msg_erro}')
+            if resultado_campos and resultado_campos.get('log'):
+                for msg in resultado_campos['log']:
+                    print(f'[SISBAJUD] {msg}')
+            return None
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao preencher campos iniciais: {e}')
+        return None
+
+def _processar_reus_otimizado(driver, reus):
+    """
+    Helper para processar réus de forma otimizada.
+
+    Args:
+        driver: Driver SISBAJUD
+        reus: Lista de réus
+
+    Returns:
+        dict: Resultado do processamento
+    """
+    try:
+        from .utils import criar_js_otimizado
+
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado')
+            return {'sucesso': False, 'msg': 'Nenhum réu encontrado'}
+
+        print(f'[SISBAJUD] Total de réus: {len(reus)}')
+
+        # Preparar lista de réus para processar
+        lista_reus_js = []
+        for reu in reus:
+            cpf_cnpj = reu.get('cpfcnpj', '')
+            if cpf_cnpj:
+                cpf_cnpj_limpo = ''.join(filter(str.isdigit, cpf_cnpj))
+                # Para bloqueio, sempre usar apenas raiz do CNPJ
+                if len(cpf_cnpj_limpo) == 14:
+                    cpf_cnpj_limpo = cpf_cnpj_limpo[:8]
+                lista_reus_js.append({
+                    'cpfcnpj': cpf_cnpj_limpo,
+                    'nome': reu.get('nome', '')
+                })
+
+        # SCRIPT ÚNICO que processa TODOS os réus
+        script_processar_reus = f"""
+        {criar_js_otimizado()}
+
+        async function processarTodosReus() {{
+            let reus = {lista_reus_js};
+            let log = [];
+            let reusAdicionados = 0;
+            let reusRemovidos = 0;
+
+            try {{
+                for (let i = 0; i < reus.length; i++) {{
+                    let reu = reus[i];
+                    log.push('\\n=== RÉU ' + (i+1) + '/' + reus.length + ' ===');
+                    log.push('Adicionando: ' + reu.nome + ' (' + reu.cpfcnpj + ')');
+
+                    // 1. Buscar campo CPF
+                    let cpfInput = await esperarElemento('input[placeholder="CPF/CNPJ do réu/executado"]', 3000);
+                    if (!cpfInput) {{
+                        cpfInput = await esperarElemento('input.mat-input-element[cpfcnpjmask]', 2000);
+                    }}
+                    if (!cpfInput) {{
+                        log.push('❌ Campo CPF não encontrado');
+                        continue;
+                    }}
+
+                    // 2. Preencher CPF/CNPJ
+                    cpfInput.focus();
+                    cpfInput.value = '';
+                    await new Promise(resolve => setTimeout(resolve, 400));
+
+                    cpfInput.value = reu.cpfcnpj;
+                    triggerEvent(cpfInput, 'input');
+                    triggerEvent(cpfInput, 'change');
+
+                    // 3. Aguardar e clicar no botão adicionar
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    let btnAdicionar = document.querySelector('button.btn-adicionar.mat-mini-fab');
+                    if (!btnAdicionar) {{
+                        btnAdicionar = document.querySelector('button mat-icon.fa-plus-square');
+                        if (btnAdicionar) btnAdicionar = btnAdicionar.closest('button');
+                    }}
+
+                    if (!btnAdicionar || btnAdicionar.disabled) {{
+                        log.push('❌ Botão adicionar não disponível');
+                        continue;
+                    }}
+
+                    btnAdicionar.click();
+                    log.push('✅ Réu adicionado, aguardando processamento...');
+
+                    // 4. Aguardar processamento (CRÍTICO)
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    // 5. VERIFICAR CONTAS
+                    let tabelaLinhas = document.querySelectorAll('tr.mat-row');
+                    if (tabelaLinhas.length > 0) {{
+                        let ultimaLinha = tabelaLinhas[tabelaLinhas.length - 1];
+                        let celulaRelacionamentos = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
+
+                        if (celulaRelacionamentos) {{
+                            let botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
+                            if (botaoRelacionamentos) {{
+                                let qtde = botaoRelacionamentos.textContent.trim();
+
+                                if (qtde === '0') {{
+                                    log.push('⚠️ Réu sem contas - REMOVENDO...');
+
+                                    // 6. REMOVER RÉU SEM CONTAS
+                                    let botaoMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
+                                    if (botaoMenu) {{
+                                        botaoMenu.click();
+                                        await new Promise(resolve => setTimeout(resolve, 500));
+
+                                        let botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
+                                        if (botaoExcluir) {{
+                                            botaoExcluir.closest('button').click();
+                                            log.push('✅ Réu removido (0 contas)');
+                                            reusRemovidos++;
+                                            await new Promise(resolve => setTimeout(resolve, 800));
+                                        }}
+                                    }}
+                                }} else {{
+                                    log.push('✅ Réu possui ' + qtde + ' conta(s) - MANTIDO');
+                                    reusAdicionados++;
+                                }}
+                            }}
+                        }}
+                    }}
+
+                    // 7. Delay entre réus
+                    if (i < reus.length - 1) {{
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }}
+                }}
+
+                return {{
+                    sucesso: true,
+                    log: log,
+                    adicionados: reusAdicionados,
+                    removidos: reusRemovidos
+                }};
+
+            }} catch(e) {{
+                return {{
+                    sucesso: false,
+                    msg: 'Erro: ' + e.message,
+                    log: log,
+                    adicionados: reusAdicionados,
+                    removidos: reusRemovidos
+                }};
+            }}
+        }}
+
+        return processarTodosReus().then(arguments[arguments.length - 1]);
+        """
+
+        # Executar processamento de TODOS os réus em 1 requisição
+        print('[SISBAJUD] Processando réus (1 requisição otimizada)...')
+        resultado_reus = driver.execute_async_script(script_processar_reus)
+
+        if resultado_reus:
+            if resultado_reus.get('log'):
+                for msg in resultado_reus['log']:
+                    print(f'[SISBAJUD] {msg}')
+
+            adicionados = resultado_reus.get('adicionados', 0)
+            removidos = resultado_reus.get('removidos', 0)
+            print(f'\n[SISBAJUD] ✅ Réus processados: {adicionados} adicionados, {removidos} removidos')
+
+            if resultado_reus.get('sucesso'):
+                return {
+                    'sucesso': True,
+                    'adicionados': adicionados,
+                    'removidos': removidos
+                }
+            else:
+                print(f"[SISBAJUD] ⚠️ Processamento com avisos: {resultado_reus.get('msg', '')}")
+                return {
+                    'sucesso': False,
+                    'msg': resultado_reus.get('msg', ''),
+                    'adicionados': adicionados,
+                    'removidos': removidos
+                }
+        else:
+            print('[SISBAJUD] ❌ Falha no processamento de réus')
+            return {'sucesso': False, 'msg': 'Falha no processamento de réus'}
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao processar réus: {e}')
+        return {'sucesso': False, 'msg': str(e)}
+
+def _salvar_minuta(driver):
+    """
+    Helper para salvar a minuta.
+
+    Args:
+        driver: Driver SISBAJUD
+
+    Returns:
+        bool: True se salvou com sucesso
+    """
+    try:
+        print('[SISBAJUD] Salvando Minuta...')
+
+        script_salvar = """
+        // Buscar botão de salvar com seletor específico
+        var btnSalvar = document.querySelector('button.mat-fab.mat-primary mat-icon.fa-save');
+        if (btnSalvar) {
+            btnSalvar.closest('button').click();
+            return true;
+        }
+
+        // Fallback: buscar por qualquer botão com ícone de save
+        var btnFallback = document.querySelector('button mat-icon.fa-save');
+        if (btnFallback) {
+            btnFallback.closest('button').click();
+            return true;
+        }
+
+        // Fallback 2: buscar por texto "Salvar"
+        var buttons = document.querySelectorAll('button');
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].textContent.includes('Salvar')) {
+                buttons[i].click();
+                return true;
+            }
+        }
+
+        return false;
+        """
+
+        salvou = driver.execute_script(script_salvar)
+        if salvou:
+            print('[SISBAJUD] ✅ Botão Salvar clicado')
+
+            # Aguardar confirmação do salvamento
+            print('[SISBAJUD] Aguardando confirmação do salvamento...')
+            time.sleep(3)
+
+            # Verificar se foi salvo
+            script_verificar_salvamento = """
+            // Buscar botão "Alterar" como confirmação
+            var btnAlterar = document.querySelector('button mat-icon.fa-edit');
+            if (btnAlterar) {
+                var btnTexto = btnAlterar.closest('button');
+                if (btnTexto && btnTexto.textContent.includes('Alterar')) {
+                    return 'SALVO_COM_SUCESSO';
+                }
+            }
+
+            // Verificar se ainda está na página de edição
+            var btnSalvar = document.querySelector('button mat-icon.fa-save');
+            if (btnSalvar) {
+                return 'AINDA_EDITANDO';
+            }
+
+            return 'STATUS_DESCONHECIDO';
+            """
+
+            status_salvamento = driver.execute_script(script_verificar_salvamento)
+
+            if status_salvamento == 'SALVO_COM_SUCESSO':
+                print('[SISBAJUD] ✅ Minuta salva com sucesso! Botão "Alterar" detectado.')
+                return True
+            elif status_salvamento == 'AINDA_EDITANDO':
+                print('[SISBAJUD] ⚠️ Minuta ainda em modo de edição - pode não ter salvado')
+                return False
+            else:
+                print('[SISBAJUD] ⚠️ Status de salvamento desconhecido')
+                return False
+        else:
+            print('[SISBAJUD] ❌ Falha ao clicar no botão Salvar')
+            return False
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao salvar minuta: {e}')
+        return False
+
+def _gerar_relatorio_minuta(driver, numero_processo):
+    """
+    Helper para gerar relatório da minuta.
+    Salva no clipboard.txt centralizado.
+
+    Args:
+        driver: Driver SISBAJUD
+        numero_processo: Número do processo
+
+    Returns:
+        dict: Dados do relatório
+    """
+    try:
+        print('[SISBAJUD] Gerando relatório da minuta...')
+
+        # Coletar dados da minuta
+        from .core import coletar_dados_minuta_sisbajud
+        dados_relatorio = coletar_dados_minuta_sisbajud(driver)
+        if dados_relatorio:
+            try:
+                # Salvar no clipboard.txt centralizado
+                from PEC.anexos import salvar_conteudo_clipboard
+                
+                sucesso = salvar_conteudo_clipboard(
+                    conteudo=dados_relatorio,
+                    numero_processo=numero_processo or "SISBAJUD",
+                    tipo_conteudo="sisbajud_minuta",
+                    debug=True
+                )
+                
+                if sucesso:
+                    print('[SISBAJUD] ✅ Relatório salvo no clipboard.txt centralizado')
+                else:
+                    print('[SISBAJUD] ⚠️ Falha ao salvar no clipboard centralizado')
+
+                # Extrair protocolo
+                protocolo = None
+                try:
+                    url = driver.current_url
+                    import re
+                    match = re.search(r'/(\d{10,})/', url)
+                    if match:
+                        protocolo = match.group(1)
+                        print(f'[SISBAJUD] Protocolo extraído: {protocolo}')
+                except:
+                    pass
+
+                return {
+                    'protocolo': protocolo,
+                    'tipo': 'bloqueio',
+                    'repeticao': 'sim',
+                    'conteudo': dados_relatorio  # Guardar conteúdo para possível atualização
+                }
+            except Exception as e:
+                print(f'[SISBAJUD] ⚠️ Erro ao salvar relatório: {e}')
+                return None
+        else:
+            print('[SISBAJUD] ⚠️ Não foi possível coletar dados da minuta')
+            return None
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao gerar relatório: {e}')
+        return None
+
+
+def _atualizar_relatorio_com_segundo_protocolo(numero_processo, protocolo_primeira, protocolo_segunda, log=True):
+    """
+    Atualiza o relatório no clipboard.txt adicionando o protocolo da segunda minuta.
+    
+    Modifica a linha de protocolo de:
+    "Protocolo: 12345678901234"
+    Para:
+    "Protocolos: 12345678901234 e 98765432109876"
+    
+    Args:
+        numero_processo: Número do processo
+        protocolo_primeira: Protocolo da primeira minuta
+        protocolo_segunda: Protocolo da segunda minuta
+        log: Se True, exibe logs
+        
+    Returns:
+        bool: True se atualizou com sucesso
+    """
+    try:
+        if log:
+            print(f'\n[SISBAJUD][RELATORIO] 📝 Atualizando relatório com segundo protocolo...')
+        
+        # Ler clipboard.txt
+        from PEC.anexos import obter_caminho_clipboard
+        clipboard_path = obter_caminho_clipboard(numero_processo or "SISBAJUD")
+        
+        if not os.path.exists(clipboard_path):
+            if log:
+                print(f'[SISBAJUD][RELATORIO] ⚠️ Arquivo não encontrado: {clipboard_path}')
+            return False
+        
+        with open(clipboard_path, 'r', encoding='utf-8') as f:
+            conteudo = f.read()
+        
+        # Substituir linha de protocolo
+        import re
+        # Padrão: "Protocolo: XXXXX" -> "Protocolos: XXXXX e YYYYY"
+        padrao = r'Protocolo:\s*(\d+)'
+        substituicao = f'Protocolos: {protocolo_primeira} e {protocolo_segunda}'
+        
+        conteudo_atualizado = re.sub(padrao, substituicao, conteudo)
+        
+        # Salvar de volta
+        with open(clipboard_path, 'w', encoding='utf-8') as f:
+            f.write(conteudo_atualizado)
+        
+        if log:
+            print(f'[SISBAJUD][RELATORIO] ✅ Relatório atualizado: {protocolo_primeira} e {protocolo_segunda}')
+        
+        return True
+        
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD][RELATORIO] ❌ Erro ao atualizar relatório: {e}')
+            import traceback
+            traceback.print_exc()
+        return False
+
+
+def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
+    """
+    Helper para protocolar/assinar minuta no SISBAJUD.
+    
+    Processo:
+    1. Clica no botão "Protocolar" (já está na página da minuta após salvar)
+    2. Aguarda modal de senha
+    3. Digita a senha no campo de senha de forma humanizada
+    4. Confirma o protocolo
+    5. Verifica sucesso pelo botão "Copiar Dados para Nova Ordem"
+    
+    Args:
+        driver: Driver SISBAJUD (já deve estar na página da minuta)
+        protocolo_minuta: Número do protocolo da minuta (opcional, apenas para log)
+        log: Se True, exibe logs detalhados
+        
+    Returns:
+        bool: True se protocolou com sucesso, False caso contrário
+    """
+    try:
+        if log:
+            info_protocolo = f' {protocolo_minuta}' if protocolo_minuta else ''
+            print(f'\n[SISBAJUD][PROTOCOLO] 📝 Iniciando protocolo da minuta{info_protocolo}...')
+        
+        # Aguardar página estar pronta
+        time.sleep(1)
+        
+        # 1. Localizar e clicar no botão "Protocolar"
+        if log:
+            print('[SISBAJUD][PROTOCOLO] 🔍 Procurando botão "Protocolar"...')
+        
+        try:
+            # Tentar encontrar pelo texto "Protocolar" no span com mat-icon de martelo
+            script_encontrar_botao = """
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const protocoloBtn = buttons.find(btn => {
+                const spans = btn.querySelectorAll('span.mat-button-wrapper');
+                return Array.from(spans).some(span => {
+                    const hasIcon = span.querySelector('mat-icon.fa-gavel');
+                    const hasText = span.textContent.includes('Protocolar');
+                    return hasIcon || hasText;
+                });
+            });
+            if (protocoloBtn) {
+                protocoloBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
+                return true;
+            }
+            return false;
+            """
+            
+            encontrado = driver.execute_script(script_encontrar_botao)
+            
+            if not encontrado:
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] ❌ Botão "Protocolar" não encontrado')
+                return False
+            
+            time.sleep(0.5)
+            
+            # Clicar no botão
+            script_clicar = """
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const protocoloBtn = buttons.find(btn => {
+                const spans = btn.querySelectorAll('span.mat-button-wrapper');
+                return Array.from(spans).some(span => {
+                    const hasIcon = span.querySelector('mat-icon.fa-gavel');
+                    const hasText = span.textContent.includes('Protocolar');
+                    return hasIcon || hasText;
+                });
+            });
+            if (protocoloBtn) {
+                protocoloBtn.click();
+                return true;
+            }
+            return false;
+            """
+            
+            clicado = driver.execute_script(script_clicar)
+            
+            if not clicado:
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] ❌ Não foi possível clicar no botão "Protocolar"')
+                return False
+            
+            if log:
+                print('[SISBAJUD][PROTOCOLO] ✅ Botão "Protocolar" clicado')
+            
+        except Exception as e:
+            if log:
+                print(f'[SISBAJUD][PROTOCOLO] ❌ Erro ao clicar no botão "Protocolar": {e}')
+            return False
+        
+        # 3. Aguardar modal de senha aparecer
+        time.sleep(1)
+        
+        # 4. Localizar e preencher campo de senha
+        if log:
+            print('[SISBAJUD][PROTOCOLO] 🔑 Procurando campo de senha...')
+        
+        try:
+            # Encontrar o campo de senha
+            campo_senha = driver.find_element(By.CSS_SELECTOR, 'input[type="password"][formcontrolname="senha"]')
+            
+            # Scroll e foco no campo
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", campo_senha)
+            time.sleep(0.3)
+            
+            campo_senha.click()
+            time.sleep(0.3)
+            
+            # Digitar a senha de forma humanizada (igual ao login)
+            senha = "Fl@quinho182"
+            
+            if log:
+                print('[SISBAJUD][PROTOCOLO] ⌨️ Digitando senha de forma humanizada...')
+            
+            import random
+            for i, char in enumerate(senha):
+                # Simular erro de digitação (5% chance)
+                if random.random() < 0.05:
+                    erro_char = chr(random.randint(33, 126))
+                    campo_senha.send_keys(erro_char)
+                    time.sleep(random.uniform(0.08, 0.18))
+                    campo_senha.send_keys(Keys.BACKSPACE)
+                    time.sleep(random.uniform(0.08, 0.18))
+                # Digitar caractere correto
+                campo_senha.send_keys(char)
+                time.sleep(random.uniform(0.09, 0.22))
+            
+            if log:
+                print('[SISBAJUD][PROTOCOLO] ✅ Senha digitada com simulação humana')
+            
+        except Exception as e:
+            if log:
+                print(f'[SISBAJUD][PROTOCOLO] ❌ Erro ao digitar senha: {e}')
+            return False
+        
+        # 5. Aguardar e clicar no botão de confirmação
+        time.sleep(0.6)  # Aguardar antes de confirmar
+        
+        if log:
+            print('[SISBAJUD][PROTOCOLO] 🔍 Procurando botão "Confirmar"...')
+        
+        try:
+            # Procurar botão "Confirmar" com type="submit" e color="primary"
+            script_confirmar = """
+            const buttons = Array.from(document.querySelectorAll('button[type="submit"][color="primary"]'));
+            const confirmBtn = buttons.find(btn => {
+                const wrapper = btn.querySelector('span.mat-button-wrapper');
+                return wrapper && wrapper.textContent.trim() === 'Confirmar';
+            });
+            if (confirmBtn) {
+                confirmBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
+                return true;
+            }
+            return false;
+            """
+            
+            encontrado = driver.execute_script(script_confirmar)
+            
+            if not encontrado:
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] ⚠️ Botão "Confirmar" não encontrado, tentando alternativa...')
+                # Fallback: qualquer botão com texto "Confirmar"
+                script_confirmar_alt = """
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const confirmBtn = buttons.find(btn => btn.textContent.includes('Confirmar'));
+                if (confirmBtn) {
+                    confirmBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
+                    return true;
+                }
+                return false;
+                """
+                encontrado = driver.execute_script(script_confirmar_alt)
+            
+            if not encontrado:
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] ❌ Botão "Confirmar" não encontrado')
+                return False
+            
+            time.sleep(0.3)
+            
+            # Clicar no botão
+            script_clicar = """
+            const buttons = Array.from(document.querySelectorAll('button[type="submit"][color="primary"]'));
+            let confirmBtn = buttons.find(btn => {
+                const wrapper = btn.querySelector('span.mat-button-wrapper');
+                return wrapper && wrapper.textContent.trim() === 'Confirmar';
+            });
+            
+            // Fallback se não encontrar o botão específico
+            if (!confirmBtn) {
+                const allButtons = Array.from(document.querySelectorAll('button'));
+                confirmBtn = allButtons.find(btn => btn.textContent.includes('Confirmar'));
+            }
+            
+            if (confirmBtn) {
+                confirmBtn.click();
+                return true;
+            }
+            return false;
+            """
+            
+            clicado = driver.execute_script(script_clicar)
+            
+            if clicado:
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] ✅ Botão "Confirmar" clicado')
+                
+                # Aguardar processamento
+                time.sleep(2)
+                
+                # Verificar sucesso pela presença do botão "Copiar Dados para Nova Ordem"
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] 🔍 Verificando sucesso do protocolo...')
+                
+                script_verificar_sucesso = """
+                const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
+                if (buttons.length > 0) {
+                    return true;
+                }
+                // Fallback: procurar por botão com mat-icon fa-copy e texto "Copiar Dados"
+                const allButtons = Array.from(document.querySelectorAll('button'));
+                const copyBtn = allButtons.find(btn => {
+                    const icon = btn.querySelector('mat-icon.fa-copy');
+                    const text = btn.textContent;
+                    return icon && text.includes('Copiar Dados');
+                });
+                return copyBtn !== undefined;
+                """
+                
+                # Tentar verificar com retry (até 5 segundos)
+                sucesso_verificado = False
+                for tentativa in range(10):  # 10 x 0.5s = 5 segundos
+                    try:
+                        sucesso_verificado = driver.execute_script(script_verificar_sucesso)
+                        if sucesso_verificado:
+                            break
+                    except:
+                        pass
+                    time.sleep(0.5)
+                
+                if sucesso_verificado:
+                    if log:
+                        print('[SISBAJUD][PROTOCOLO] ✅ Minuta protocolada com sucesso!')
+                        print('[SISBAJUD][PROTOCOLO] ✅ Botão "Copiar Dados para Nova Ordem" detectado')
+                    return True
+                else:
+                    if log:
+                        print('[SISBAJUD][PROTOCOLO] ⚠️ Confirmação clicada mas não foi possível verificar sucesso')
+                        print('[SISBAJUD][PROTOCOLO] ⚠️ Botão "Copiar Dados para Nova Ordem" não encontrado')
+                    return False
+            else:
+                if log:
+                    print('[SISBAJUD][PROTOCOLO] ⚠️ Não foi possível clicar no botão "Confirmar"')
+                return False
+                
+        except Exception as e:
+            if log:
+                print(f'[SISBAJUD][PROTOCOLO] ❌ Erro ao confirmar: {e}')
+            return False
+        
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD][PROTOCOLO] ❌ Erro ao protocolar minuta: {e}')
+            import traceback
+            traceback.print_exc()
+        return False
+
+
+def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
+    """
+    Cria segunda minuta agendada usando o botão "Copiar Dados para Nova Ordem".
+    Muito mais eficiente que criar do zero - a maioria dos campos já vem preenchida.
+    
+    Fluxo:
+    1. Clica em "Copiar Dados para Nova Ordem" (já visível após protocolar)
+    2. Confirma modal
+    3. Verifica URL /copiar-ordem
+    4. Marca radio SIM + define data agendamento
+    5. Confirma juiz (já copiado)
+    6. Confirma calendário repetição (já copiado - 30 dias)
+    7. Confirma valor (já copiado)
+    8. Salva minuta
+    9. Protocola minuta
+    10. Extrai e retorna protocolo da segunda minuta
+    
+    Args:
+        driver: Driver SISBAJUD (deve estar na página da minuta protocolada)
+        dados_processo: Dados do processo (para calcular data)
+        log: Se True, exibe logs
+        
+    Returns:
+        str: Protocolo da segunda minuta agendada, ou None se falhar
+    """
+    try:
+        if log:
+            print('\n[SISBAJUD][COPIA] 📋 Iniciando criação de minuta agendada por cópia...')
+        
+        # 1. Clicar no botão "Copiar Dados para Nova Ordem"
+        if log:
+            print('[SISBAJUD][COPIA] 🔍 Procurando botão "Copiar Dados para Nova Ordem"...')
+        
+        script_copiar = """
+        const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
+        if (buttons.length > 0) {
+            buttons[0].scrollIntoView({behavior: 'smooth', block: 'center'});
+            return 'found';
+        }
+        // Fallback
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        const copyBtn = allButtons.find(btn => {
+            const icon = btn.querySelector('mat-icon.fa-copy');
+            const text = btn.textContent;
+            return icon && text.includes('Copiar Dados');
+        });
+        if (copyBtn) {
+            copyBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
+            return 'found';
+        }
+        return 'not_found';
+        """
+        
+        encontrado = driver.execute_script(script_copiar)
+        if encontrado == 'not_found':
+            if log:
+                print('[SISBAJUD][COPIA] ❌ Botão "Copiar Dados para Nova Ordem" não encontrado')
+            return None
+        
+        time.sleep(0.5)
+        
+        # Clicar no botão
+        script_clicar_copiar = """
+        const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
+        if (buttons.length > 0) {
+            buttons[0].click();
+            return true;
+        }
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        const copyBtn = allButtons.find(btn => {
+            const icon = btn.querySelector('mat-icon.fa-copy');
+            const text = btn.textContent;
+            return icon && text.includes('Copiar Dados');
+        });
+        if (copyBtn) {
+            copyBtn.click();
+            return true;
+        }
+        return false;
+        """
+        
+        clicado = driver.execute_script(script_clicar_copiar)
+        if not clicado:
+            if log:
+                print('[SISBAJUD][COPIA] ❌ Não foi possível clicar em "Copiar Dados para Nova Ordem"')
+            return None
+        
+        if log:
+            print('[SISBAJUD][COPIA] ✅ Botão "Copiar Dados" clicado')
+        
+        # 2. Aguardar modal e confirmar
+        time.sleep(0.8)
+        
+        if log:
+            print('[SISBAJUD][COPIA] 🔍 Procurando botão "Confirmar" no modal...')
+        
+        script_confirmar = """
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const confirmBtn = buttons.find(btn => {
+            const wrapper = btn.querySelector('span.mat-button-wrapper');
+            return wrapper && wrapper.textContent.trim() === 'Confirmar';
+        });
+        if (confirmBtn) {
+            confirmBtn.click();
+            return true;
+        }
+        return false;
+        """
+        
+        confirmado = driver.execute_script(script_confirmar)
+        if not confirmado:
+            if log:
+                print('[SISBAJUD][COPIA] ❌ Não foi possível confirmar modal de cópia')
+            return None
+        
+        if log:
+            print('[SISBAJUD][COPIA] ✅ Modal confirmado')
+        
+        # 3. Aguardar e verificar URL /copiar-ordem
+        time.sleep(1)
+        
+        url_atual = driver.current_url
+        if '/copiar-ordem' not in url_atual:
+            if log:
+                print(f'[SISBAJUD][COPIA] ⚠️ URL não é /copiar-ordem: {url_atual}')
+        else:
+            if log:
+                print('[SISBAJUD][COPIA] ✅ Navegou para /copiar-ordem')
+        
+        # 4. Marcar radio SIM para agendamento
+        if log:
+            print('[SISBAJUD][COPIA] 📅 Marcando agendamento SIM...')
+        
+        script_marcar_sim = """
+        const radioGroups = Array.from(document.querySelectorAll('mat-radio-group.sisbajud-radio-group'));
+        for (const group of radioGroups) {
+            const radioButtons = group.querySelectorAll('mat-radio-button');
+            for (const radio of radioButtons) {
+                const label = radio.querySelector('.mat-radio-label-content');
+                if (label && label.textContent.trim() === 'Sim') {
+                    radio.click();
+                    return true;
+                }
+            }
+        }
+        return false;
+        """
+        
+        marcado = driver.execute_script(script_marcar_sim)
+        if not marcado:
+            if log:
+                print('[SISBAJUD][COPIA] ❌ Não foi possível marcar radio SIM')
+            return None
+        
+        if log:
+            print('[SISBAJUD][COPIA] ✅ Radio SIM marcado')
+        
+        time.sleep(0.5)
+        
+        # 5. Calcular e definir data de agendamento (próximo dia útil)
+        from datetime import datetime, timedelta
+        data_atual = datetime.now()
+        weekday = data_atual.weekday()
+        
+        if weekday == 4:  # Sexta
+            dias_adicionar = 3  # Segunda
+        elif weekday == 5:  # Sábado
+            dias_adicionar = 2  # Segunda
+        else:  # Segunda a quinta
+            dias_adicionar = 1
+        
+        data_agendamento = data_atual + timedelta(days=dias_adicionar)
+        dia_agendar = data_agendamento.day
+        
+        if log:
+            print(f'[SISBAJUD][COPIA] 📅 Data agendamento: {data_agendamento.strftime("%d/%m/%Y")} (dia {dia_agendar})')
+        
+        # 6. Clicar no ícone do calendário
+        script_abrir_calendario = """
+        const svgs = Array.from(document.querySelectorAll('svg.mat-datepicker-toggle-default-icon'));
+        if (svgs.length > 0) {
+            const button = svgs[0].closest('button');
+            if (button) {
+                button.click();
+                return true;
+            }
+        }
+        return false;
+        """
+        
+        calendario_aberto = driver.execute_script(script_abrir_calendario)
+        if not calendario_aberto:
+            if log:
+                print('[SISBAJUD][COPIA] ❌ Não foi possível abrir calendário')
+            return None
+        
+        if log:
+            print('[SISBAJUD][COPIA] ✅ Calendário aberto')
+        
+        time.sleep(0.5)
+        
+        # 7. Selecionar dia no calendário
+        script_selecionar_dia = f"""
+        const cells = Array.from(document.querySelectorAll('.mat-calendar-body-cell'));
+        for (const cell of cells) {{
+            const content = cell.querySelector('.mat-calendar-body-cell-content');
+            if (content && content.textContent.trim() === '{dia_agendar}') {{
+                // Verificar se não está disabled
+                if (!cell.classList.contains('mat-calendar-body-disabled')) {{
+                    content.click();
+                    return true;
+                }}
+            }}
+        }}
+        return false;
+        """
+        
+        dia_selecionado = driver.execute_script(script_selecionar_dia)
+        if not dia_selecionado:
+            if log:
+                print(f'[SISBAJUD][COPIA] ❌ Não foi possível selecionar dia {dia_agendar}')
+            return None
+        
+        if log:
+            print(f'[SISBAJUD][COPIA] ✅ Dia {dia_agendar} selecionado')
+        
+        time.sleep(0.5)
+        
+        # 8. Preencher campos que NÃO são copiados: juiz, calendário 30 dias, valor
+        # REUs e outros campos já vêm copiados, mas estes precisam ser preenchidos
+        if log:
+            print('[SISBAJUD][COPIA] 📝 Preenchendo juiz, calendário e valor...')
+        
+        # Preencher juiz
+        try:
+            from . import processamento
+            processamento._preencher_juiz(driver, dados_processo)
+            if log:
+                print('[SISBAJUD][COPIA] ✅ Juiz preenchido')
+        except Exception as e:
+            if log:
+                print(f'[SISBAJUD][COPIA] ⚠️ Erro ao preencher juiz: {e}')
+        
+        time.sleep(0.3)
+        
+        # Preencher calendário (30 dias)
+        try:
+            processamento._preencher_calendario_repeticao(driver, prazo_dias=30)
+            if log:
+                print('[SISBAJUD][COPIA] ✅ Calendário repetição (30 dias) preenchido')
+        except Exception as e:
+            if log:
+                print(f'[SISBAJUD][COPIA] ⚠️ Erro ao preencher calendário: {e}')
+        
+        time.sleep(0.3)
+        
+        # Preencher valor
+        try:
+            processamento._configurar_valor(driver, dados_processo)
+            if log:
+                print('[SISBAJUD][COPIA] ✅ Valor configurado')
+        except Exception as e:
+            if log:
+                print(f'[SISBAJUD][COPIA] ⚠️ Erro ao configurar valor: {e}')
+        
+        time.sleep(0.5)
+        
+        # 9. Salvar minuta
+        if log:
+            print('[SISBAJUD][COPIA] 💾 Salvando minuta agendada...')
+        
+        minuta_salva = _salvar_minuta(driver)
+        if not minuta_salva:
+            if log:
+                print('[SISBAJUD][COPIA] ❌ Falha ao salvar minuta agendada')
+            return None
+        
+        if log:
+            print('[SISBAJUD][COPIA] ✅ Minuta agendada salva')
+        
+        # 10. Protocolar minuta agendada
+        if log:
+            print('[SISBAJUD][COPIA] 🔐 Protocolando minuta agendada...')
+        
+        minuta_protocolada = _protocolar_minuta(driver, protocolo_minuta=None, log=log)
+        if not minuta_protocolada:
+            if log:
+                print('[SISBAJUD][COPIA] ⚠️ Falha ao protocolar minuta agendada')
+            # Continuar mesmo sem protocolar - extrair protocolo da URL
+        
+        # 11. Extrair protocolo da segunda minuta
+        if log:
+            print('[SISBAJUD][COPIA] 🔍 Extraindo protocolo da minuta agendada...')
+        
+        # Tentar extrair do elemento específico primeiro
+        script_extrair_protocolo = """
+        const divs = Array.from(document.querySelectorAll('div.col-md-3'));
+        for (const div of divs) {
+            const label = div.querySelector('div.sisbajud-label');
+            if (label && label.textContent.includes('Número do Protocolo')) {
+                const valor = div.querySelector('span.sisbajud-label-valor');
+                if (valor) {
+                    return valor.textContent.trim();
+                }
+            }
+        }
+        return null;
+        """
+        
+        protocolo_agendada = driver.execute_script(script_extrair_protocolo)
+        
+        # Fallback: extrair da URL
+        if not protocolo_agendada:
+            try:
+                import re
+                url = driver.current_url
+                match = re.search(r'/(\d{10,})/', url)
+                if match:
+                    protocolo_agendada = match.group(1)
+            except:
+                pass
+        
+        if protocolo_agendada:
+            if log:
+                print(f'[SISBAJUD][COPIA] ✅ Protocolo da minuta agendada: {protocolo_agendada}')
+            return protocolo_agendada
+        else:
+            if log:
+                print('[SISBAJUD][COPIA] ⚠️ Não foi possível extrair protocolo da minuta agendada')
+            return None
+        
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD][COPIA] ❌ Erro ao criar minuta agendada por cópia: {e}')
+            import traceback
+            traceback.print_exc()
+        return None
+
+
+def _criar_minuta_agendada(driver, dados_processo, reus_ja_processados, log=True):
+    """
+    Cria segunda minuta idêntica à primeira, mas com agendamento.
+    IMPORTANTE: Deve ser chamada quando driver está na página da minuta salva.
+    
+    Args:
+        driver: WebDriver do SISBAJUD
+        dados_processo: Dados já validados do processo
+        reus_ja_processados: Número de REUs processados na primeira minuta (apenas informativo)
+        log: Se True, imprime logs
+    
+    Returns:
+        bool: True se minuta agendada foi criada com sucesso
+    """
+    try:
+        if log:
+            print('\n[SISBAJUD] 📅 CRIANDO MINUTA AGENDADA (Segunda Minuta)')
+            print('=' * 60)
+        
+        # 1. VOLTAR PARA A TELA DE LISTAGEM (onde tem o botão "Nova Minuta")
+        if log:
+            print('[SISBAJUD] ▶️ Voltando para tela de listagem...')
+        
+        script_voltar = """
+        // Procurar botão "Voltar" ou ícone de seta
+        var btnVoltar = document.querySelector('button mat-icon.fa-arrow-left');
+        if (btnVoltar) {
+            btnVoltar.closest('button').click();
+            return true;
+        }
+        // Fallback: buscar por texto "Voltar"
+        var buttons = document.querySelectorAll('button');
+        for (var btn of buttons) {
+            if (btn.textContent.toLowerCase().includes('voltar')) {
+                btn.click();
+                return true;
+            }
+        }
+        return false;
+        """
+        
+        voltou = driver.execute_script(script_voltar)
+        if not voltou:
+            if log:
+                print('[SISBAJUD] ⚠️ Botão "Voltar" não encontrado - tentando navegação por URL')
+            # Fallback: navegar para URL base
+            try:
+                url_atual = driver.current_url
+                # Extrair base URL até /minuta/
+                import re
+                match = re.search(r'(https://[^/]+/sisbajud/[^/]+/teimosinha)', url_atual)
+                if match:
+                    url_listagem = match.group(1)
+                    driver.get(url_listagem)
+                    if log:
+                        print(f'[SISBAJUD] ✅ Navegado para listagem via URL: {url_listagem}')
+                    time.sleep(2)
+                else:
+                    if log:
+                        print('[SISBAJUD] ❌ Não foi possível extrair URL de listagem')
+                    return False
+            except Exception as e:
+                if log:
+                    print(f'[SISBAJUD] ❌ Erro ao navegar para listagem: {e}')
+                return False
+        else:
+            if log:
+                print('[SISBAJUD] ✅ Voltou para tela de listagem')
+            time.sleep(1.5)
+        
+        # 2. Clicar em "Nova Minuta" novamente
+        if log:
+            print('[SISBAJUD] ▶️ Clicando em "Nova Minuta" para segunda ordem...')
+        
+        script_nova_minuta = """
+        var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
+        if (!botaoNova) {
+            botaoNova = document.querySelector('button.mat-fab.mat-primary mat-icon');
+        }
+        if (botaoNova) {
+            if (botaoNova.tagName === 'MAT-ICON') {
+                botaoNova = botaoNova.closest('button');
+            }
+            botaoNova.click();
+            return true;
+        }
+        return false;
+        """
+        
+        sucesso = driver.execute_script(script_nova_minuta)
+        if not sucesso:
+            if log:
+                print('[SISBAJUD] ❌ Botão "Nova Minuta" não encontrado para segunda minuta')
+            return False
+        
+        if log:
+            print('[SISBAJUD] ✅ Iniciando segunda minuta')
+        time.sleep(2)
+        
+        # 3. Preencher campos iniciais (reutilizar função existente)
+        campos_preenchidos = _preencher_campos_iniciais(driver, dados_processo, 30)
+        if not campos_preenchidos:
+            if log:
+                print('[SISBAJUD] ❌ Falha ao preencher campos da segunda minuta')
+            return False
+        
+        # 4. Processar REUs (reutilizar função existente)
+        reus_processados = _processar_reus_otimizado(driver, dados_processo.get('reu', []))
+        if log:
+            print(f'[SISBAJUD] ✅ REUs processados na segunda minuta: {reus_processados}')
+        
+        # 5. Configurar valor
+        from . import processamento
+        processamento._configurar_valor(driver, dados_processo)
+        
+        # 6. MARCAR RADIO "SIM" PARA AGENDAMENTO
+        if log:
+            print('[SISBAJUD] ▶️ Marcando agendamento "Sim"...')
+        
+        script_marcar_sim = """
+        // Procurar radio button "Sim" para agendamento
+        var radiosSim = document.querySelectorAll('mat-radio-button');
+        for (var radio of radiosSim) {
+            var labelContent = radio.querySelector('.mat-radio-label-content');
+            if (labelContent && labelContent.textContent.trim().toLowerCase() === 'sim') {
+                // Verificar se está em grupo de agendamento (classe sisbajud-radio-group)
+                var radioGroup = radio.closest('mat-radio-group');
+                if (radioGroup && radioGroup.classList.contains('sisbajud-radio-group')) {
+                    radio.click();
+                    return true;
+                }
+            }
+        }
+        return false;
+        """
+        
+        sim_marcado = driver.execute_script(script_marcar_sim)
+        if not sim_marcado:
+            if log:
+                print('[SISBAJUD] ⚠️ Radio "Sim" de agendamento não encontrado')
+            return False
+        
+        if log:
+            print('[SISBAJUD] ✅ Agendamento "Sim" marcado')
+        time.sleep(1)  # Aguardar campo de data aparecer
+        
+        # 7. CALCULAR DATA DE AGENDAMENTO (próximo dia útil ou segunda se sexta)
+        from datetime import datetime, timedelta
+        data_atual = datetime.now()
+        data_agendamento = data_atual + timedelta(days=1)
+        
+        # Se for sexta (4) ou sábado (5), agendar para segunda
+        if data_atual.weekday() == 4:  # Sexta
+            data_agendamento = data_atual + timedelta(days=3)  # Segunda
+            if log:
+                print('[SISBAJUD] 📅 Hoje é sexta - agendando para segunda-feira')
+        elif data_atual.weekday() == 5:  # Sábado (improvável, mas por segurança)
+            data_agendamento = data_atual + timedelta(days=2)  # Segunda
+            if log:
+                print('[SISBAJUD] 📅 Hoje é sábado - agendando para segunda-feira')
+        else:
+            if log:
+                print('[SISBAJUD] 📅 Agendando para amanhã')
+        
+        data_formatada = data_agendamento.strftime('%d/%m/%Y')
+        if log:
+            print(f'[SISBAJUD] 📅 Data de agendamento: {data_formatada}')
+        
+        # 8. CLICAR NO ÍCONE DO CALENDÁRIO E SELECIONAR DATA
+        if log:
+            print('[SISBAJUD] ▶️ Abrindo calendário...')
+        
+        script_abrir_calendario = """
+        // Procurar ícone do calendário SVG (aparece após marcar "Sim")
+        var iconesCalendario = document.querySelectorAll('svg.mat-datepicker-toggle-default-icon');
+        for (var icone of iconesCalendario) {
+            // Verificar se está visível (só aparece após marcar "Sim")
+            if (icone.offsetParent !== null) {
+                var botao = icone.closest('button');
+                if (botao) {
+                    botao.click();
+                    return true;
+                }
+            }
+        }
+        return false;
+        """
+        
+        calendario_aberto = driver.execute_script(script_abrir_calendario)
+        if not calendario_aberto:
+            if log:
+                print('[SISBAJUD] ⚠️ Calendário não encontrado ou não abriu')
+            return False
+        
+        if log:
+            print('[SISBAJUD] ✅ Calendário aberto')
+        time.sleep(0.5)
+        
+        # 9. SELECIONAR DATA NO CALENDÁRIO
+        script_selecionar_data = f"""
+        // Aguardar calendário estar visível
+        var calendario = document.querySelector('mat-calendar');
+        if (!calendario) return false;
+        
+        // Procurar célula com a data desejada
+        var dia = {data_agendamento.day};
+        var celulas = calendario.querySelectorAll('.mat-calendar-body-cell');
+        
+        for (var celula of celulas) {{
+            var conteudo = celula.querySelector('.mat-calendar-body-cell-content');
+            if (conteudo && parseInt(conteudo.textContent.trim()) === dia) {{
+                // Verificar se não está disabled
+                if (!celula.classList.contains('mat-calendar-body-disabled')) {{
+                    conteudo.click();
+                    return true;
+                }}
+            }}
+        }}
+        return false;
+        """
+        
+        data_selecionada = driver.execute_script(script_selecionar_data)
+        if not data_selecionada:
+            if log:
+                print('[SISBAJUD] ⚠️ Data não selecionada no calendário')
+            return False
+        
+        if log:
+            print(f'[SISBAJUD] ✅ Data {data_formatada} selecionada')
+        time.sleep(0.5)
+        
+        # 10. SALVAR SEGUNDA MINUTA
+        if log:
+            print('[SISBAJUD] ▶️ Salvando segunda minuta (agendada)...')
+        
+        minuta_salva = _salvar_minuta(driver)
+        if not minuta_salva:
+            if log:
+                print('[SISBAJUD] ❌ Falha ao salvar segunda minuta')
+            return False
+        
+        if log:
+            print('[SISBAJUD] ✅ Segunda minuta (agendada) salva com sucesso!')
+            print('[SISBAJUD] ℹ️ Agora voltando para listagem para prosseguir com juntada no PJe')
+        
+        # 11. VOLTAR PARA LISTAGEM NOVAMENTE (para não interferir no fluxo seguinte)
+        time.sleep(1)
+        driver.execute_script(script_voltar)
+        time.sleep(1)
+        
+        return True
+        
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD] ❌ Erro ao criar minuta agendada: {e}')
+        return False
+
+
+# =============================================================================
+# HELPERS PARA FUNÇÃO PROCESSAR_ORDEM_SISBAJUD
+# =============================================================================
+
+def _carregar_dados_ordem():
+    """
+    Helper para carregar dados do processo para processamento de ordens.
+
+    Returns:
+        tuple: (dados_processo, numero_processo) ou (None, None) se erro
+    """
+    try:
+        print('[SISBAJUD] Carregando dados do processo...')
+
+        from .utils import carregar_dados_processo
+
+        # Carregar dados do arquivo
+        dados_arquivo = carregar_dados_processo()
+        if not dados_arquivo or not isinstance(dados_arquivo, dict):
+            print('[SISBAJUD] ❌ Arquivo dadosatuais.json não encontrado ou vazio')
+            return None, None
+
+        # Extrair número do processo
+        numero_bruto = dados_arquivo.get('numero')
+        if isinstance(numero_bruto, list) and len(numero_bruto) > 0:
+            numero_processo = numero_bruto[0]
+        elif isinstance(numero_bruto, str) and numero_bruto.strip():
+            numero_processo = numero_bruto.strip()
+        else:
+            print('[SISBAJUD] ❌ Campo numero vazio ou inválido')
+            return None, None
+
+        print(f'[SISBAJUD] ✅ Dados carregados. Processo: {numero_processo}')
+        return dados_arquivo, numero_processo
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao carregar dados: {e}')
+        return None, None
+
+def _filtrar_series(driver, data_limite):
+    """
+    Helper para filtrar séries válidas da tabela.
+    Implementa lógica corrigida:
+    1. Extrair dados das séries via JS
+    2. Validar cada série em Python
+    3. Enriquecer dados válidos
+    4. Retornar apenas séries válidas
+
+    Args:
+        driver: Driver SISBAJUD
+        data_limite: Data limite para filtro
+
+    Returns:
+        list: Lista de séries válidas enriquecidas
+    """
+    try:
+        print('[SISBAJUD] Filtrando séries válidas...')
+
+        # ETAPA 1: EXTRAIR DADOS DA TABELA VIA JS
+        script_extrair = f"""
+        {criar_js_otimizado()}
+
+        async function extrairSeries() {{
+            try {{
+                let tabela = await esperarElemento('table.mat-table', 10000);
+                if (!tabela) return {{sucesso: false, erro: 'Tabela não encontrada'}};
+
+                let linhas = tabela.querySelectorAll('tbody tr.mat-row');
+                let series = [];
+
+                for (let i = 0; i < linhas.length; i++) {{
+                    let linha = linhas[i];
+                    let colunas = linha.querySelectorAll('td');
+                    
+                    // Extrair cada coluna
+                    let serie = {{
+                        linha_index: i
+                    }};
+                    
+                    if (colunas.length >= 8) {{
+                        serie.id_serie = colunas[0].textContent.trim();
+                        serie.protocolo = colunas[1].textContent.trim();
+                        serie.acao = colunas[2].textContent.trim();
+                        serie.valor_bloquear_text = colunas[3].textContent.trim();
+                        serie.valor_bloqueado_text = colunas[4].textContent.trim();
+                        serie.data_conclusao = colunas[5].textContent.trim();
+                        serie.situacao = colunas[6].textContent.trim();
+                    }}
+                    
+                    series.push(serie);
+                }}
+
+                return {{sucesso: true, series: series}};
+            }} catch(e) {{
+                return {{sucesso: false, erro: e.message}};
+            }}
+        }}
+
+        return extrairSeries().then(arguments[arguments.length - 1]);
+        """
+
+        resultado = driver.execute_async_script(script_extrair)
+        if not resultado or not resultado.get('sucesso'):
+            print(f'[SISBAJUD] ❌ Erro na extração: {resultado.get("erro")}')
+            return []
+
+        series_bruto = resultado.get('series', [])
+        print(f'[SISBAJUD] 📊 Extraídas {len(series_bruto)} séries da tabela')
+
+        # ETAPA 2: VALIDAR E ENRIQUECER SÉRIES
+        series_validas = []
+        meses_map = {
+            'JAN': 1, 'FEV': 2, 'MAR': 3, 'ABR': 4, 'MAI': 5, 'JUN': 6,
+            'JUL': 7, 'AGO': 8, 'SET': 9, 'OUT': 10, 'NOV': 11, 'DEZ': 12
+        }
+
+        def extrair_valor_monetario(texto):
+            """Converte texto monetário para float"""
+            texto_limpo = texto.replace('R$', '').replace('\xa0', '').replace('&nbsp;', '').strip()
+            texto_limpo = texto_limpo.replace('.', '').replace(',', '.')
+            try:
+                return float(texto_limpo)
+            except:
+                return 0.0
+
+        for idx, serie_raw in enumerate(series_bruto, 1):
+            try:
+                id_serie = serie_raw.get('id_serie', 'DESCONHECIDA')
+                print(f'[SISBAJUD] 🔍 Analisando série {idx}: {id_serie}')
+
+                # VALIDAÇÃO 1: Verificar situação (deve conter "encerrada")
+                situacao = serie_raw.get('situacao', '').strip()
+                if 'encerrada' not in situacao.lower():
+                    print(f'[SISBAJUD]   ❌ Rejeitada: situação="{situacao}" (não é "encerrada")')
+                    continue
+
+                print(f'[SISBAJUD]   ✅ Situação válida: {situacao}')
+
+                # VALIDAÇÃO 2: Validar e parsear data
+                data_texto = serie_raw.get('data_conclusao', '').strip()
+                if not data_texto:
+                    print(f'[SISBAJUD]   ❌ Rejeitada: data vazia')
+                    continue
+
+                partes = data_texto.upper().split()
+                if len(partes) < 5:
+                    print(f'[SISBAJUD]   ❌ Rejeitada: formato de data inválido')
+                    continue
+
+                try:
+                    dia = int(partes[0])
+                    mes_nome = partes[2]
+                    ano = int(partes[4])
+                    mes = meses_map.get(mes_nome)
+
+                    if not mes:
+                        print(f'[SISBAJUD]   ❌ Rejeitada: mês inválido "{mes_nome}"')
+                        continue
+
+                    data_serie = datetime(ano, mes, dia)
+                except (ValueError, IndexError) as e:
+                    print(f'[SISBAJUD]   ❌ Rejeitada: erro ao parsear data - {e}')
+                    continue
+
+                # VALIDAÇÃO 3: Verificar data limite
+                if isinstance(data_limite, datetime) and data_serie < data_limite:
+                    print(f'[SISBAJUD]   ❌ Rejeitada: data {data_serie.strftime("%d/%m/%Y")} < limite {data_limite.strftime("%d/%m/%Y")}')
+                    continue
+
+                print(f'[SISBAJUD]   ✅ Data válida: {data_serie.strftime("%d/%m/%Y")}')
+
+                # ENRIQUECIMENTO: Converter valores monetários
+                valor_bloqueado_text = serie_raw.get('valor_bloqueado_text', 'R$ 0,00')
+                valor_bloquear_text = serie_raw.get('valor_bloquear_text', 'R$ 0,00')
+                
+                valor_bloqueado = extrair_valor_monetario(valor_bloqueado_text)
+                valor_bloquear = extrair_valor_monetario(valor_bloquear_text)
+
+                # CRIAR SÉRIE VÁLIDA ENRIQUECIDA
+                serie_valida = {
+                    'id_serie': id_serie,
+                    'protocolo': serie_raw.get('protocolo', ''),
+                    'acao': serie_raw.get('acao', ''),
+                    'data_conclusao': data_serie,
+                    'data_conclusao_text': data_texto,
+                    'situacao': situacao,
+                    'valor_bloqueado': valor_bloqueado,
+                    'valor_bloquear': valor_bloquear,
+                    'valor_bloqueado_text': valor_bloqueado_text,
+                    'valor_bloquear_text': valor_bloquear_text,
+                    'linha_index': serie_raw.get('linha_index', idx - 1)
+                }
+
+                series_validas.append(serie_valida)
+                print(f'[SISBAJUD]   ✅ Série válida: R${valor_bloqueado:.2f} bloqueado, R${valor_bloquear:.2f} a bloquear')
+
+            except Exception as e:
+                print(f'[SISBAJUD] ⚠️  Erro processando série {idx}: {e}')
+                continue
+
+        # RESUMO FINAL
+        print(f'[SISBAJUD] ✅ Filtradas {len(series_validas)} séries válidas de {len(series_bruto)}')
+        if series_validas:
+            print('[SISBAJUD] 📋 Séries válidas:')
+            for s in series_validas:
+                print(f'  - ID: {s["id_serie"]}, Data: {s["data_conclusao_text"]}, Situação: {s["situacao"]}')
+            
+            total_bloqueado = sum(s['valor_bloqueado'] for s in series_validas)
+            print(f'[SISBAJUD] 📊 Total bloqueado das séries válidas: R$ {total_bloqueado:.2f}')
+
+        return series_validas
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao filtrar séries: {e}')
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def _voltar_para_lista_ordens_serie(driver, log=True):
+    """
+    Volta da ordem processada para a lista de ordens da série.
+    Clica apenas uma vez no botão voltar (chevron-left).
+    
+    IMPORTANTE: Só deve ser chamado quando estiver em /desdobrar!
+    
+    Args:
+        driver: WebDriver do Selenium
+        log: Se deve fazer log das operações
+    
+    Returns:
+        bool: True se conseguiu voltar com sucesso
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    
+    try:
+        # VERIFICAR SE ESTÁ EM /DESDOBRAR ANTES DE TENTAR VOLTAR
+        url_atual = driver.current_url.lower()
+        if "/desdobrar" not in url_atual:
+            if log:
+                print(f"[SISBAJUD] ⚠️ Não está em /desdobrar (URL: {driver.current_url}), pulando 'voltar'")
+            # Se já está na lista de ordens (/detalhes), não precisa voltar
+            if "/detalhes" in url_atual:
+                if log:
+                    print("[SISBAJUD] ✅ Já está na lista de ordens, nada a fazer")
+                return True
+            return False
+        
+        if log:
+            print("[SISBAJUD] Voltando para lista de ordens da série...")
+        
+        # Aguardar um pouco para garantir que a página está carregada
+        time.sleep(1)
+        
+        # Seletores para o botão voltar (chevron-left)
+        seletores_voltar = [
+            "button[aria-label='Voltar'] i.fa-chevron-left",
+            "button i.fa-chevron-left",
+            ".fa-chevron-left",
+            "i.fa-chevron-left",
+            "button.btn-voltar",
+            "[aria-label='Voltar']",
+            "button[title='Voltar']"
+        ]
+        
+        # Tentar encontrar e clicar no botão voltar
+        botao_encontrado = False
+        for seletor in seletores_voltar:
+            try:
+                elementos = driver.find_elements(By.CSS_SELECTOR, seletor)
+                
+                for elemento in elementos:
+                    if elemento.is_displayed() and elemento.is_enabled():
+                        driver.execute_script("arguments[0].click();", elemento)
+                        if log:
+                            print(f"[SISBAJUD] ✅ Clicou no botão voltar usando seletor: {seletor}")
+                        botao_encontrado = True
+                        break
+                
+                if botao_encontrado:
+                    break
+                    
+            except Exception as e:
+                continue
+        
+        if not botao_encontrado:
+            # Última tentativa: buscar por JavaScript
+            try:
+                js_script = """
+                var botoes = document.querySelectorAll('button, a, .btn');
+                for (var i = 0; i < botoes.length; i++) {
+                    var botao = botoes[i];
+                    var chevron = botao.querySelector('i.fa-chevron-left, .fa-chevron-left');
+                    if (chevron && botao.offsetParent !== null) {
+                        botao.click();
+                        return 'Clicou via JavaScript';
+                    }
+                }
+                return 'Botão não encontrado';
+                """
+                resultado_js = driver.execute_script(js_script)
+                if log:
+                    print(f"[SISBAJUD] JavaScript result: {resultado_js}")
+                botao_encontrado = resultado_js == 'Clicou via JavaScript'
+            except Exception as e:
+                if log:
+                    print(f"[SISBAJUD] JavaScript fallback falhou: {str(e)}")
+        
+        if not botao_encontrado:
+            if log:
+                print("[SISBAJUD] ❌ Não foi possível encontrar o botão voltar")
+            return False
+        
+        # Aguardar a navegação e estabilização da página
+        if log:
+            print("[SISBAJUD] ⏳ Aguardando página estabilizar...")
+        
+        # Aguardar URL mudar (sinal de que navegação iniciou)
+        for i in range(10):
+            time.sleep(0.5)
+            if "/desdobrar" not in driver.current_url:
+                break
+        
+        # Aguardar tabela de ordens reaparecer
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
+            )
+            time.sleep(1.5)
+            if log:
+                print("[SISBAJUD] 📊 Tabela de ordens recarregada")
+        except Exception as e:
+            if log:
+                print(f"[SISBAJUD] ⚠️ Erro ao aguardar tabela: {e}")
+        
+        if log:
+            print("[SISBAJUD] ✅ Voltou para lista de ordens da série")
+        return True
+        
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Erro ao voltar para lista de ordens da série: {str(e)}")
+        return False
+
+
+def _voltar_para_lista_principal(driver, log=True):
+    """
+    Volta para a lista principal de séries usando navegação direta ou botão voltar.
+    
+    Args:
+        driver: WebDriver do Selenium
+        log: Se deve fazer log das operações
+    
+    Returns:
+        bool: True se conseguiu voltar com sucesso
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.keys import Keys
+    
+    try:
+        if log:
+            print("[SISBAJUD] Voltando para lista principal de séries...")
+        
+        # Detectar e fechar overlays/modais que podem bloquear cliques
+        try:
+            overlays = driver.find_elements(By.CSS_SELECTOR, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing')
+            if overlays:
+                if log:
+                    print(f"[SISBAJUD] ⚠️ Detectados {len(overlays)} overlays abertos")
+                for overlay in overlays:
+                    try:
+                        overlay.click()
+                        time.sleep(0.5)
+                    except:
+                        try:
+                            driver.execute_script("arguments[0].style.display = 'none';", overlay)
+                        except:
+                            pass
+                time.sleep(1.0)
+        except:
+            pass
+        
+        # Tentar navegação direta usando a URL
+        url_atual = driver.current_url
+        
+        # Se estamos em uma página de detalhes de série, voltar para teimosinha
+        if "/detalhes" in url_atual:
+            numero_processo = None
+            
+            # Tentar extrair número do processo
+            if "numeroProcesso=" in url_atual:
+                numero_processo = url_atual.split("numeroProcesso=")[1].split("&")[0]
+            elif hasattr(driver, '_numero_processo_atual'):
+                numero_processo = driver._numero_processo_atual
+            
+            # Construir URL de volta
+            if numero_processo:
+                url_volta = f"https://sisbajud.cnj.jus.br/teimosinha?numeroProcesso={numero_processo}"
+            else:
+                url_volta = "https://sisbajud.cnj.jus.br/teimosinha"
+            
+            if log:
+                print(f"[SISBAJUD] Navegando diretamente para: {url_volta}")
+            
+            driver.get(url_volta)
+            time.sleep(3)
+            
+            if log:
+                print("[SISBAJUD] ✅ Navegação direta concluída")
+            return True
+        
+        # Se não está em página de detalhes, tentar usar botão voltar (duas vezes)
+        if log:
+            print("[SISBAJUD] Tentando usar botão voltar...")
+        
+        for clique in range(2):
+            seletores_voltar = [
+                'button.mat-icon-button .fa-chevron-left',
+                'button[mat-icon-button] .fas.fa-chevron-left',
+                'button .mat-icon.fa-chevron-left',
+                'button i.fa-chevron-left',
+                '.fa-chevron-left'
+            ]
+            
+            botao_voltar_clicado = False
+            for seletor in seletores_voltar:
+                try:
+                    # Pressionar ESC antes para fechar possíveis modais
+                    try:
+                        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                        time.sleep(0.5)
+                    except:
+                        pass
+                    
+                    botao_icon = driver.find_element(By.CSS_SELECTOR, seletor)
+                    # Tentar pegar botão pai
+                    try:
+                        botao = botao_icon.find_element(By.XPATH, './ancestor::button[1]')
+                    except:
+                        botao = botao_icon
+                    
+                    driver.execute_script("arguments[0].click();", botao)
+                    botao_voltar_clicado = True
+                    time.sleep(2)
+                    break
+                except:
+                    continue
+            
+            if not botao_voltar_clicado:
+                break
+        
+        if botao_voltar_clicado:
+            if log:
+                print("[SISBAJUD] ✅ Voltou para lista principal via botão")
+            return True
+        else:
+            if log:
+                print("[SISBAJUD] ❌ Falha ao voltar para lista principal")
+            return False
+            
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Erro ao voltar para lista principal: {e}")
+        return False
+
+
+def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
+    """
+    Navega para uma série específica e extrai suas ordens.
+
+    Args:
+        driver: WebDriver do Selenium
+        serie: Dicionário com dados da série (deve conter 'id_serie')
+        log: Se deve fazer log
+
+    Returns:
+        list: Lista de ordens da série
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
+    try:
+        id_serie = serie.get('id_serie')
+        if not id_serie:
+            return []
+
+        if log:
+            print(f"[SISBAJUD] Navegando para detalhes da série {id_serie}")
+
+        # Navegar diretamente para a URL da série
+        url_serie = f"https://sisbajud.cnj.jus.br/teimosinha/{id_serie}/detalhes"
+        driver.get(url_serie)
+        time.sleep(3)  # Aguardar carregamento da página
+
+        # Verificar se chegou na página correta
+        if f"/{id_serie}/detalhes" not in driver.current_url:
+            if log:
+                print(f"[SISBAJUD] ❌ URL atual não corresponde à série: {driver.current_url}")
+            return []
+
+        if log:
+            print(f"[SISBAJUD] ✅ Navegação direta bem-sucedida para série {id_serie}")
+
+        # Aguardar a tabela de ordens carregar
+        time.sleep(2)
+
+        # Extrair ordens da série
+        ordens = _extrair_ordens_da_serie(driver, log)
+        if log:
+            print(f"[SISBAJUD] ✅ {len(ordens)} ordens extraídas da série {id_serie}")
+
+        return ordens
+
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Erro na navegação para série {serie.get('id_serie', 'unknown')}: {str(e)}")
+        return []
+
+
+def _extrair_ordens_da_serie(driver, log=True):
+    """
+    Extrai ordens da página de detalhes da série.
+
+    Args:
+        driver: WebDriver do Selenium
+        log: Se deve fazer log
+
+    Returns:
+        list: Lista de ordens com estrutura {'sequencial', 'data', 'valor_bloquear', 'protocolo', 'linha_el'}
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+
+    ordens = []
+    try:
+        tabela = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "table.mat-table tbody"))
+        )
+
+        linhas = tabela.find_elements(By.CSS_SELECTOR, "tr.mat-row")
+        meses = {
+            "JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6,
+            "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12
+        }
+
+        for linha in linhas:
+            try:
+                cols = linha.find_elements(By.CSS_SELECTOR, "td")
+                if len(cols) < 6:
+                    continue
+
+                sequencial = int(cols[0].text.strip())
+                data_txt = cols[2].text.strip()
+                protocolo = cols[5].text.strip()
+
+                # Extrair status da ordem (mas NÃO pular ainda - identificar bloqueios primeiro)
+                situacao = ""
+                try:
+                    all_text = ' '.join([c.text for c in cols]).strip()
+                    if 'Respondida com minuta' in all_text:
+                        situacao = "Respondida com minuta"
+                    elif 'Respondida' in all_text:
+                        situacao = "Respondida"
+                except:
+                    pass
+
+                valor_txt = cols[4].text.strip()
+
+                # Converter data
+                data_ordem = None
+                if "/" in data_txt:
+                    partes = data_txt.split(",")
+                    data_parte = partes[0].strip() if len(partes) > 0 else data_txt.strip()
+                    data_split = data_parte.split("/")
+                    if len(data_split) == 3:
+                        try:
+                            dia, mes, ano = map(int, data_split)
+                            data_ordem = datetime(ano, mes, dia)
+                        except Exception as e:
+                            if log:
+                                print(f"[SISBAJUD] Ignorando ordem: data inválida '{data_txt}'")
+                            continue
+
+                if not data_ordem:
+                    continue
+
+                # Converter valor
+                try:
+                    valor = float(valor_txt.replace("R$", "").replace("\u00a0", "").replace(".", "").replace(",", ".").strip())
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] Ignorando ordem: valor inválido '{valor_txt}'")
+                    continue
+
+                ordens.append({
+                    "sequencial": sequencial,
+                    "data": data_ordem,
+                    "valor_bloquear": valor,
+                    "protocolo": protocolo,
+                    "situacao": situacao,  # Incluir status
+                    "linha_el": linha
+                })
+
+                if log:
+                    print(f"[SISBAJUD] Ordem {sequencial}: Data={data_ordem.strftime('%d/%m/%Y')}, Valor=R$ {valor:.2f}")
+
+            except Exception as e:
+                if log:
+                    print(f"[SISBAJUD] Ignorando linha: erro inesperado - {e}")
+                continue
+
+        # Ordenar por data
+        ordens.sort(key=lambda x: x["data"])
+        return ordens
+
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] Erro ao extrair ordens: {e}")
+        return []
+
+
+def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
+    """
+    Seleciona a ação correta na página /desdobrar baseado no tipo de fluxo.
+    Implementação robusta adaptada de a.py (escolher_Opcao function)
+    
+    Args:
+        driver: WebDriver SISBAJUD
+        tipo_fluxo: 'POSITIVO' ou 'DESBLOQUEIO'
+        log: Se deve fazer log
+        valor_parcial: Se presente (float), seleciona transferência parcial e preenche valor
+    
+    Returns:
+        bool: True se ação foi selecionada com sucesso
+    """
+    from selenium.webdriver.common.action_chains import ActionChains
+    from .utils import safe_click
+    
+    try:
+        if log:
+            print(f"[_aplicar_acao] Iniciando seleção de ação para fluxo {tipo_fluxo}")
+            if valor_parcial:
+                print(f"[_aplicar_acao] Valor parcial solicitado: R$ {valor_parcial:.2f}")
+
+        # Determinar ação alvo conforme fluxo
+        if tipo_fluxo == 'POSITIVO':
+            if valor_parcial:
+                acao_alvo = 'Transferir valor e desbloquear saldo remanescente'
+            else:
+                acao_alvo = 'Transferir valor'
+        else:  # DESBLOQUEIO
+            acao_alvo = 'Desbloquear valor'
+        
+        if log:
+            print(f"[_aplicar_acao] Ação alvo: '{acao_alvo}'")
+
+        # Aguardar página carregar
+        time.sleep(0.5)
+
+        # Buscar todos os mat-selects (pode haver vários na página)
+        selects = driver.find_elements(By.CSS_SELECTOR, "mat-select")
+        
+        if not selects:
+            if log:
+                print('[_aplicar_acao] ❌ Nenhum mat-select encontrado na página')
+            return False
+        
+        if log:
+            print(f"[_aplicar_acao] Encontrados {len(selects)} dropdowns mat-select")
+
+        # Tentar cada dropdown até encontrar a ação
+        for idx, select_element in enumerate(selects):
+            try:
+                if log:
+                    print(f"[_aplicar_acao] Testando dropdown #{idx+1}/{len(selects)}...")
+                
+                # Verificar se o select está visível
+                if not select_element.is_displayed():
+                    if log:
+                        print(f"[_aplicar_acao]   Dropdown #{idx+1} não está visível, pulando...")
+                    continue
+                
+                # TÉCNICA DO A.PY: Clicar no parentElement.parentElement para abrir dropdown
+                if log:
+                    print(f"[_aplicar_acao]   Clicando no parentElement.parentElement do dropdown #{idx+1}...")
+                try:
+                    # Tentar clicar no parent.parent (técnica a.py)
+                    parent_element = driver.execute_script("return arguments[0].parentElement.parentElement;", select_element)
+                    if parent_element:
+                        safe_click(driver, parent_element, 'click')
+                    else:
+                        safe_click(driver, select_element, 'click')
+                except:
+                    # Fallback: clicar direto no elemento
+                    safe_click(driver, select_element, 'click')
+                
+                time.sleep(0.8)  # Aguardar dropdown abrir
+                
+                # Aguardar opções aparecerem COM RETRY CONSERVADOR (evitar excesso de requisições)
+                opcoes = None
+                max_tentativas_opcoes = 2  # REDUZIDO: SISBAJUD é sensível a muitas requisições
+                for tentativa_opcoes in range(max_tentativas_opcoes):
+                    try:
+                        if log and tentativa_opcoes > 0:
+                            print(f"[_aplicar_acao]   Retry {tentativa_opcoes+1}/{max_tentativas_opcoes} para carregar opções...")
+                        
+                        opcoes = WebDriverWait(driver, 3.0).until(  # Timeout maior: 3s
+                            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option[role='option']"))
+                        )
+                        
+                        if opcoes and len(opcoes) > 0:
+                            if log:
+                                print(f"[_aplicar_acao]   Encontradas {len(opcoes)} opções no dropdown #{idx+1}")
+                            break
+                        else:
+                            # Opções vazias - aguardar mais antes de retry
+                            if tentativa_opcoes < max_tentativas_opcoes - 1:
+                                if log:
+                                    print(f"[_aplicar_acao]   Lista vazia, aguardando antes de retry...")
+                                time.sleep(1.5)  # AUMENTADO: Aguardar mais antes de tentar novamente
+                                    
+                    except Exception as e_wait:
+                        if tentativa_opcoes < max_tentativas_opcoes - 1:
+                            # Só tentar novamente se for a primeira tentativa
+                            if log:
+                                print(f"[_aplicar_acao]   Timeout, aguardando 1.5s antes de retry...")
+                            time.sleep(1.5)  # AUMENTADO: dar tempo ao servidor
+                        else:
+                            if log:
+                                print(f"[_aplicar_acao]   ⚠️ Timeout após {max_tentativas_opcoes} tentativas: {e_wait}")
+                        continue
+                
+                if not opcoes or len(opcoes) == 0:
+                    # Fechar dropdown
+                    try:
+                        ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                    except:
+                        pass
+                    time.sleep(0.3)
+                    continue
+
+                if not opcoes:
+                    if log:
+                        print(f"[_aplicar_acao]   Lista de opções vazia no dropdown #{idx+1}")
+                    continue
+
+                # LISTAR TODAS AS OPÇÕES PARA DEBUG
+                if log:
+                    print(f"[_aplicar_acao]   Opções disponíveis:")
+                    for i, opc in enumerate(opcoes):
+                        try:
+                            texto = opc.text.strip()
+                            print(f"[_aplicar_acao]     {i+1}. '{texto}'")
+                        except:
+                            pass
+
+                # Iterar opções e verificar texto
+                opcao_encontrada = False
+                for opc_idx, opcao in enumerate(opcoes):
+                    try:
+                        texto_opcao = opcao.text.strip()
+                        
+                        # Para POSITIVO com valor parcial: buscar "remanescente"
+                        if tipo_fluxo == 'POSITIVO' and valor_parcial is not None and 'remanescente' in texto_opcao.lower():
+                            if log:
+                                print(f"[_aplicar_acao]   ✅ Encontrou opção parcial: '{texto_opcao}'")
+                            safe_click(driver, opcao, 'click')
+                            time.sleep(0.5)
+                            
+                            # Preencher valor parcial
+                            try:
+                                campo_valor = WebDriverWait(driver, 2).until(
+                                    EC.presence_of_element_located((By.CSS_SELECTOR, "input[placeholder='Valor'][prefix='R$ ']"))
+                                )
+                                campo_valor.clear()
+                                # Formatar valor: 258.98 -> "258,98"
+                                valor_formatado = f"{valor_parcial:.2f}".replace('.', ',')
+                                campo_valor.send_keys(valor_formatado)
+                                if log:
+                                    print(f"[_aplicar_acao]   ✅ Valor parcial preenchido: R$ {valor_formatado}")
+                                return True
+                            except Exception as e_valor:
+                                if log:
+                                    print(f"[_aplicar_acao]   ❌ Erro ao preencher valor parcial: {e_valor}")
+                                return False
+                        
+                        # Para POSITIVO: buscar "Transferir valor"
+                        elif tipo_fluxo == 'POSITIVO' and texto_opcao == 'Transferir valor':
+                            if log:
+                                print(f"[_aplicar_acao]   ✅ Encontrou 'Transferir valor' (opção {opc_idx+1})")
+                            safe_click(driver, opcao, 'click')
+                            time.sleep(0.3)
+                            if log:
+                                print(f"[_aplicar_acao]   ✅ 'Transferir valor' selecionada")
+                            return True
+                        
+                        # Para DESBLOQUEIO: buscar "Desbloquear valor"
+                        elif tipo_fluxo == 'DESBLOQUEIO' and 'Desbloquear valor' in texto_opcao:
+                            if log:
+                                print(f"[_aplicar_acao]   ✅ Encontrou 'Desbloquear valor' (opção {opc_idx+1})")
+                            safe_click(driver, opcao, 'click')
+                            time.sleep(0.3)
+                            if log:
+                                print(f"[_aplicar_acao]   ✅ 'Desbloquear valor' selecionada")
+                            return True
+                            
+                    except Exception as e_opcao:
+                        if log:
+                            print(f"[_aplicar_acao]   Erro ao processar opção {opc_idx+1}: {e_opcao}")
+                        continue
+
+                # Nenhuma opção encontrada neste dropdown, fechar e prosseguir
+                if log:
+                    print(f"[_aplicar_acao]   Ação '{acao_alvo}' não encontrada neste dropdown, fechando...")
+                try:
+                    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                    time.sleep(0.3)
+                except:
+                    pass
+                        
+            except Exception as e_dropdown:
+                if log:
+                    print(f"[_aplicar_acao] ⚠️ Erro ao processar dropdown #{idx+1}: {e_dropdown}")
+                    import traceback
+                    traceback.print_exc()
+                # Fechar dropdown para próxima tentativa
+                try:
+                    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                except:
+                    pass
+                time.sleep(0.3)
+                continue
+
+        # Se chegou aqui, não conseguiu encontrar a ação em nenhum dropdown
+        if log:
+            print(f"[_aplicar_acao] ❌ Ação '{acao_alvo}' NÃO encontrada em nenhum dos {len(selects)} dropdowns")
+        return False
+
+    except Exception as e:
+        if log:
+            print(f"[_aplicar_acao] ❌ Erro crítico: {e}")
+            import traceback
+            traceback.print_exc()
+        return False
+
+
+def _identificar_ordens_com_bloqueio(ordens, valor_total_bloqueado_serie=None, log=True):
+    """
+    Identifica ordens que geraram bloqueio usando lógica de diferença de valores.
+
+    Args:
+        ordens: Lista de ordens da série
+        valor_total_bloqueado_serie: Valor total bloqueado da série (para fallback)
+        log: Se deve fazer log
+
+    Returns:
+        list: Lista de ordens que têm bloqueio
+    """
+    bloqueios = []
+
+    if not ordens:
+        return bloqueios
+
+    # 1. Detectar bloqueios pela diferença de valor entre ordens consecutivas
+    for i in range(len(ordens) - 1):
+        valor_atual = ordens[i]["valor_bloquear"]
+        valor_posterior = ordens[i + 1]["valor_bloquear"]
+
+        if valor_atual > valor_posterior:
+            # Adicionar campo com valor esperado de bloqueio (diferença)
+            ordem_com_bloqueio = ordens[i].copy()
+            valor_bloqueio = valor_atual - valor_posterior
+            ordem_com_bloqueio['valor_bloqueio_esperado'] = valor_bloqueio
+            
+            # NOVO: Pré-adicionar ao relatório (será atualizado no processamento)
+            ordem_com_bloqueio['_relatorio'] = {
+                'protocolo': ordem_com_bloqueio.get('protocolo', 'N/A'),
+                'valor_esperado': valor_bloqueio,
+                'status': 'pendente',  # pendente | processado | erro
+                'discriminacao': None   # Será preenchido com dados por executado
+            }
+            
+            bloqueios.append(ordem_com_bloqueio)
+            if log:
+                print(f"[SISBAJUD] Bloqueio detectado na ordem {ordens[i]['sequencial']}: {valor_atual} → {valor_posterior} (bloqueio: {valor_bloqueio:.2f})")
+
+    # 2. Verificar última ordem usando diferença de valores
+    if len(ordens) > 0:
+        ultima_ordem = ordens[-1]
+        valor_original_a_bloquear = ordens[0]["valor_bloquear"] if ordens else 0
+        valor_efetivamente_bloqueado = valor_total_bloqueado_serie or 0
+        valor_ultima_ordem = ultima_ordem["valor_bloquear"]
+        diferenca_esperada = valor_original_a_bloquear - valor_efetivamente_bloqueado
+        diferenca_absoluta = abs(diferenca_esperada - valor_ultima_ordem)
+
+        if diferenca_absoluta > 0.01:  # Tolerância para arredondamento
+            if ultima_ordem not in bloqueios:
+                # Adicionar campo com valor esperado de bloqueio
+                ordem_com_bloqueio = ultima_ordem.copy()
+                ordem_com_bloqueio['valor_bloqueio_esperado'] = diferenca_esperada
+                
+                # NOVO: Pré-adicionar ao relatório (será atualizado no processamento)
+                ordem_com_bloqueio['_relatorio'] = {
+                    'protocolo': ordem_com_bloqueio.get('protocolo', 'N/A'),
+                    'valor_esperado': diferenca_esperada,
+                    'status': 'pendente',
+                    'discriminacao': None
+                }
+                
+                bloqueios.append(ordem_com_bloqueio)
+                if log:
+                    print(f"[SISBAJUD] ✅ Bloqueio detectado na ÚLTIMA ordem {ultima_ordem['sequencial']} (bloqueio esperado: {diferenca_esperada:.2f})")
+
+    # 3. FALLBACK: Se série tem valor bloqueado mas nenhum bloqueio foi detectado
+    if valor_total_bloqueado_serie and valor_total_bloqueado_serie > 0 and len(bloqueios) == 0 and len(ordens) > 0:
+        ultima_ordem = ordens[-1]
+        # Adicionar campo com valor esperado de bloqueio
+        ordem_com_bloqueio = ultima_ordem.copy()
+        ordem_com_bloqueio['valor_bloqueio_esperado'] = valor_total_bloqueado_serie
+        
+        # NOVO: Pré-adicionar ao relatório (será atualizado no processamento)
+        ordem_com_bloqueio['_relatorio'] = {
+            'protocolo': ordem_com_bloqueio.get('protocolo', 'N/A'),
+            'valor_esperado': valor_total_bloqueado_serie,
+            'status': 'pendente',
+            'discriminacao': None
+        }
+        
+        bloqueios.append(ordem_com_bloqueio)
+        if log:
+            print(f"[SISBAJUD] 🔄 FALLBACK: Série tem valor bloqueado mas nenhum bloqueio detectado")
+            print(f"[SISBAJUD]    Forçando bloqueio na última ordem: {ultima_ordem['sequencial']} (bloqueio esperado: {valor_total_bloqueado_serie:.2f})")
+
+    return bloqueios
+
+
+def _agrupar_dados_bloqueios(dados_acumulados, dados_novos, log=True):
+    """
+    Agrupa dados de bloqueios novos nos dados acumulados.
+    Merge por executado (chave = nome|documento).
+    
+    CORRIGIDO: Não evita duplicatas - apenas adiciona todos os protocolos.
+    O legado fazia extend simples sem verificar duplicatas.
+    
+    Args:
+        dados_acumulados: Dict existente {'executados': {...}, 'total_geral': float}
+        dados_novos: Dict com novos dados {'executados': {...}, 'total_geral': float}
+        log: Se deve fazer log
+    
+    Returns:
+        None (modifica dados_acumulados in-place)
+    """
+    try:
+        if not dados_novos or not dados_novos.get('executados'):
+            if log:
+                print(f"[SISBAJUD] ⚠️ _agrupar_dados_bloqueios: dados_novos vazio ou sem executados")
+            return
+        
+        if log:
+            print(f"[SISBAJUD] 📥 _agrupar_dados_bloqueios recebeu: {len(dados_novos['executados'])} executados, total_novo: R$ {dados_novos.get('total_geral', 0):.2f}")
+            print(f"[SISBAJUD] 📦 Estado acumulado ANTES: {len(dados_acumulados['executados'])} executados, total_acum: R$ {dados_acumulados['total_geral']:.2f}")
+        
+        for chave_executado, dados_exec in dados_novos['executados'].items():
+            if log:
+                print(f"[SISBAJUD]   → Processando executado: {chave_executado}, valor: R$ {dados_exec.get('total', 0):.2f}")
+            
+            # Se executado já existe nos acumulados, merge os protocolos
+            if chave_executado in dados_acumulados['executados']:
+                exec_acum = dados_acumulados['executados'][chave_executado]
+                
+                # Adicionar TODOS os protocolos (extend simples como no legado)
+                # ✨ CORRIGIDO: Garantir que protocolos_novos é sempre lista
+                protocolos_novos = dados_exec.get('protocolos', [])
+                if not isinstance(protocolos_novos, list):
+                    # Se não for lista, converter para lista
+                    protocolos_novos = [protocolos_novos] if protocolos_novos else []
+                
+                # Garantir que exec_acum['protocolos'] é lista
+                if not isinstance(exec_acum['protocolos'], list):
+                    exec_acum['protocolos'] = [exec_acum['protocolos']] if exec_acum['protocolos'] else []
+                
+                exec_acum['protocolos'].extend(protocolos_novos)
+                exec_acum['total'] += dados_exec.get('total', 0.0)
+                if log:
+                    print(f"[SISBAJUD]   ✅ Executado existente atualizado, total agora: R$ {exec_acum['total']:.2f}")
+            else:
+                # Novo executado - adicionar integralmente
+                dados_acumulados['executados'][chave_executado] = {
+                    'nome': dados_exec.get('nome', 'Executado'),
+                    'documento': dados_exec.get('documento', ''),
+                    'protocolos': list(dados_exec.get('protocolos', [])),  # ✨ Garantir que é sempre lista
+                    'total': float(dados_exec.get('total', 0.0))  # ✨ Garantir que é sempre float
+                }
+                if log:
+                    print(f"[SISBAJUD]   ✅ Novo executado adicionado")
+            
+            # Somar ao total geral (soma os totais de cada executado novo)
+            dados_acumulados['total_geral'] += dados_exec.get('total', 0.0)
+        
+        if log:
+            print(f"[SISBAJUD] 📦 Estado acumulado APÓS: {len(dados_acumulados['executados'])} executados, total_acum: R$ {dados_acumulados['total_geral']:.2f}")
+    
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ⚠️ Erro ao agrupar dados: {e}")
+
+
+def extrair_dados_bloqueios_processados(driver, log=True, protocolo_ordem=None):
+    """
+    Extrai dados dos bloqueios processados agrupados por executado.
+    Lê diretamente dos headers mat-expansion-panel-header na página do SISBAJUD.
+    
+    Baseado no legado ORIGINAIS/sisb.py
+    
+    Args:
+        driver: WebDriver do SISBAJUD
+        log: Se deve fazer log
+        protocolo_ordem: Número do protocolo da ordem (extraído da lista de ordens)
+    
+    Seletores usados (baseado no HTML fornecido):
+    - mat-expansion-panel-header.sisbajud-mat-expansion-panel-header
+    - .col-reu-dados-nome-pessoa (nome do executado)
+    - .col-reu-dados a (documento CPF/CNPJ)
+    - .div-description-reu span (valor bloqueado)
+    
+    Returns:
+        dict: {'executados': {chave: {nome, documento, protocolos, total}}, 'total_geral': float}
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import re
+    import time as time_module
+    
+    try:
+        if log:
+            print("[SISBAJUD] Extraindo dados dos bloqueios processados da página...")
+        
+        # ===== AGUARDAR HEADERS DE EXECUTADOS APARECEREM (até 3s) =====
+        # Importante: após clicar Salvar, a página pode demorar para renderizar os dados
+        try:
+            WebDriverWait(driver, 3).until(
+                EC.presence_of_element_located((
+                    By.CSS_SELECTOR, 
+                    'mat-expansion-panel-header.sisbajud-mat-expansion-panel-header'
+                ))
+            )
+            if log:
+                print("[SISBAJUD] ✅ Headers de executados detectados na página")
+        except:
+            if log:
+                print("[SISBAJUD] ⚠️ Headers de executados não encontrados após espera (tentando extração mesmo assim)")
+        
+        # Pequeno delay adicional para garantir renderização completa
+        time_module.sleep(0.5)
+        
+        # Estrutura para armazenar dados agrupados por executado
+        dados_bloqueios = {
+            'executados': {},
+            'total_geral': 0.0
+        }
+        
+        # 1. Usar o protocolo da ordem (passado como parâmetro) - é o protocolo correto!
+        numero_protocolo = protocolo_ordem if protocolo_ordem else "N/A"
+        if log:
+            print(f"[SISBAJUD] Usando protocolo da ordem: {numero_protocolo}")
+        
+        # 2. Buscar todos os cabeçalhos de executados
+        try:
+            headers_executados = driver.find_elements(
+                By.CSS_SELECTOR, 
+                'mat-expansion-panel-header.sisbajud-mat-expansion-panel-header'
+            )
+            
+            if not headers_executados:
+                if log:
+                    print("[SISBAJUD] ⚠️ Nenhum header de executado encontrado")
+                return dados_bloqueios
+            
+            if log:
+                print(f"[SISBAJUD] Encontrados {len(headers_executados)} headers de executados")
+            
+            for idx, header in enumerate(headers_executados, 1):
+                try:
+                    # Extrair nome do executado
+                    nome_executado = "Executado não identificado"
+                    try:
+                        nome_element = header.find_element(By.CSS_SELECTOR, '.col-reu-dados-nome-pessoa')
+                        nome_executado = nome_element.text.strip()
+                    except:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Nome não encontrado no header {idx}")
+                    
+                    # Extrair documento do executado (CPF/CNPJ)
+                    documento_executado = ""
+                    try:
+                        documento_element = header.find_element(By.CSS_SELECTOR, '.col-reu-dados a')
+                        documento_executado = documento_element.text.strip()
+                    except:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Documento não encontrado no header {idx}")
+                    
+                    # Extrair valor bloqueado do executado
+                    valor_float = 0.0
+                    try:
+                        valor_element = header.find_element(By.CSS_SELECTOR, '.div-description-reu span')
+                        valor_text = valor_element.text.strip()
+                        
+                        # Processar valor: "Valor bloqueado (bloqueio original e reiterações): R$ 187,94"
+                        # Usar regex para extrair o valor monetário (igual ao legado)
+                        valor_match = re.search(r'R\$\s*([0-9.,]+)', valor_text)
+                        if valor_match:
+                            valor_str = valor_match.group(1)
+                            # Converter formato brasileiro (1.234,56) para float
+                            valor_float = float(valor_str.replace('.', '').replace(',', '.'))
+                        
+                        if log:
+                            print(f"[SISBAJUD] Header {idx}: {nome_executado} ({documento_executado}) - R$ {valor_float:.2f}")
+                    except Exception as e:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Valor não encontrado no header {idx}: {e}")
+                    
+                    # Pular se valor for 0 (não houve bloqueio)
+                    if valor_float <= 0:
+                        if log:
+                            print(f"[SISBAJUD] ⚠️ Header {idx} com valor zero, pulando...")
+                        continue
+                    
+                    # Criar chave única para o executado
+                    chave_executado = f"{nome_executado}|{documento_executado}"
+                    
+                    # Inicializar dados do executado se não existir
+                    if chave_executado not in dados_bloqueios['executados']:
+                        dados_bloqueios['executados'][chave_executado] = {
+                            'nome': nome_executado,
+                            'documento': documento_executado,
+                            'protocolos': [],  # ✨ Sempre inicializar como lista vazia
+                            'total': 0.0
+                        }
+                    
+                    # Adicionar protocolo e valor
+                    valor_formatado = f"R$ {valor_float:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                    dados_bloqueios['executados'][chave_executado]['protocolos'].append({
+                        'numero': numero_protocolo,
+                        'valor': valor_float,
+                        'valor_formatado': valor_formatado,
+                        'erro_bloqueio': None  # Será preenchido se houver erro
+                    })
+                    
+                    # Somar aos totais
+                    dados_bloqueios['executados'][chave_executado]['total'] += valor_float
+                    dados_bloqueios['total_geral'] += valor_float
+                    
+                except Exception as e:
+                    if log:
+                        print(f"[SISBAJUD] ⚠️ Erro ao processar header {idx}: {e}")
+                    continue
+            
+            if log:
+                print(f"[SISBAJUD] ✅ Extração concluída: {len(dados_bloqueios['executados'])} executados, Total: R$ {dados_bloqueios['total_geral']:.2f}")
+            
+            return dados_bloqueios
+            
+        except Exception as e:
+            if log:
+                print(f"[SISBAJUD] ❌ Erro ao buscar headers: {e}")
+            return dados_bloqueios
+            
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Falha geral na extração: {e}")
+        return {'executados': {}, 'total_geral': 0.0}
+
+
+def gerar_relatorio_bloqueios_processados(dados_bloqueios, log=True):
+    """
+    Gera o relatório formatado dos bloqueios processados agrupados por executado
+    Copiado do legado ORIGINAIS/sisb.py
+    """
+    try:
+        if log:
+            print("[SISBAJUD] Gerando relatório dos bloqueios processados...")
+        
+        if not dados_bloqueios or not dados_bloqueios.get('executados'):
+            return "Nenhum bloqueio processado encontrado."
+        
+        # Estrutura HTML do relatório
+        pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"'
+        relatorio_html = ''
+        
+        # Percorrer cada executado
+        for chave_executado, dados_exec in dados_bloqueios['executados'].items():
+            nome = dados_exec['nome']
+            documento = dados_exec.get('documento', '')
+            protocolos = dados_exec['protocolos']
+            total_executado = dados_exec['total']
+            
+            # ✨ VALIDAÇÃO: Garantir que protocolos é sempre lista
+            if not isinstance(protocolos, list):
+                if log:
+                    print(f"[SISBAJUD] ⚠️ Protocolos não é lista para executado {chave_executado}, convertendo...")
+                protocolos = [protocolos] if protocolos else []
+            
+            # Cabeçalho do executado
+            doc_str = f" - {documento}" if documento else ""
+            relatorio_html += f'<p {pStyle}><strong>Executado: {nome}{doc_str}</strong></p>'
+            
+            # Listar protocolos do executado
+            for protocolo in protocolos:
+                try:
+                    # Garantir que protocolo é dict
+                    if isinstance(protocolo, dict):
+                        numero_prot = protocolo.get('numero', 'N/A')
+                        valor_format = protocolo.get('valor_formatado', 'R$ 0,00')
+                    else:
+                        # Se não for dict, tentar extrair valor
+                        numero_prot = str(protocolo)
+                        valor_format = 'R$ 0,00'
+                    
+                    relatorio_html += f'<p {pStyle}>Protocolo {numero_prot} - Valor: {valor_format}</p>'
+                except Exception as e_prot:
+                    if log:
+                        print(f"[SISBAJUD] ⚠️ Erro ao processar protocolo: {e_prot}")
+                    continue
+            
+            # Total do executado
+            total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            relatorio_html += f'<p {pStyle}><strong>Total do executado: {total_format}</strong></p>'
+        
+        # Total geral do processo
+        total_geral_format = f"R$ {dados_bloqueios['total_geral']:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        relatorio_html += f'<p {pStyle}><strong>Total efetivamente transferido à conta judicial do processo: {total_geral_format}</strong></p>'
+        
+        # Mensagem sobre transferência em 48h (ANTES da seção de erros)
+        relatorio_html += f'<p {pStyle}>Considerando os bloqueios realizados, as quantias localizadas foram <strong>TRANSFERIDAS</strong> à conta judicial do processo, ação que será efetivada em até 48h úteis.</p>'
+        
+        # Adicionar ordens com erro de bloqueio (se houver)
+        if dados_bloqueios.get('ordens_com_erro_bloqueio'):
+            if log:
+                print(f"[SISBAJUD] 📝 Adicionando {len(dados_bloqueios['ordens_com_erro_bloqueio'])} ordens com erro ao relatório DETALHADO")
+            relatorio_html += f'<p {pStyle}><strong><u>ORDENS COM ERRO DE BLOQUEIO:</u></strong></p>'
+            for ordem_erro in dados_bloqueios['ordens_com_erro_bloqueio']:
+                prot = ordem_erro.get('protocolo', 'N/A')
+                val_esp = ordem_erro.get('valor_esperado', 0.0)
+                val_esp_fmt = f"R$ {val_esp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                relatorio_html += f'<p {pStyle}>Protocolo {prot}: Bloqueio esperado de {val_esp_fmt} está <strong>INDISPONÍVEL</strong> para transferência.</p>'
+            
+            # Texto final sobre acompanhamento dos erros
+            relatorio_html += f'<p {pStyle}>As ordens acima, com erro de processamento, serão alvo de ofício ao suporte do SISBAJUD para esclarecimentos, caso os valores não estejam disponíves em até 10 dias.</p>'
+        
+        if log:
+            print(f"[SISBAJUD] ✅ Relatório de bloqueios gerado: {len(dados_bloqueios['executados'])} executados")
+        
+        return relatorio_html
+        
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Erro ao gerar relatório de bloqueios: {e}")
+        return "Erro ao gerar relatório dos bloqueios processados."
+
+
+def gerar_relatorio_bloqueios_conciso(dados_bloqueios, log=True):
+    """
+    Gera versão CONCISA do relatório de bloqueios - apenas 2 linhas por executado:
+    - Nome (documento)
+    - Ordens transferidas: [protocolos] - Total: valor
+    
+    Ordens com erro de bloqueio aparecem inline com destaque e observação.
+    """
+    try:
+        if log:
+            print("[SISBAJUD] Gerando relatório conciso dos bloqueios...")
+        
+        if not dados_bloqueios or not dados_bloqueios.get('executados'):
+            return ""
+        
+        # Estrutura HTML do relatório
+        pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"'
+        relatorio_html = ''
+        
+        relatorio_html += f'<p {pStyle}><strong>Relatório de bloqueios discriminado por executado:</strong></p>'
+        
+        # Percorrer cada executado
+        for idx, (chave_executado, dados_exec) in enumerate(dados_bloqueios['executados'].items(), 1):
+            nome = dados_exec['nome']
+            documento = dados_exec.get('documento', '')
+            protocolos = dados_exec['protocolos']
+            total_executado = dados_exec['total']
+            
+            # ✨ VALIDAÇÃO: Garantir que protocolos é sempre lista
+            if not isinstance(protocolos, list):
+                protocolos = [protocolos] if protocolos else []
+            
+            # Linha 1: Nome do executado (documento)
+            doc_str = f" ({documento})" if documento else ""
+            relatorio_html += f'<p {pStyle}>- {nome}{doc_str}:</p>'
+            
+            # Construir lista de protocolos com marcação de erros
+            protocolos_formatados = []
+            for protocolo in protocolos:
+                try:
+                    if isinstance(protocolo, dict):
+                        num = protocolo.get('numero', 'N/A')
+                        erro_info = protocolo.get('erro_bloqueio')
+                        if erro_info:
+                            # Protocolo com erro - adicionar com destaque
+                            protocolos_formatados.append(f"<strong><u>{num} ({erro_info})</u></strong>")
+                        else:
+                            protocolos_formatados.append(num)
+                    else:
+                        protocolos_formatados.append(str(protocolo))
+                except:
+                    continue
+            
+            protocolos_str = ", ".join(protocolos_formatados) if protocolos_formatados else "N/A"
+            total_format = f"R$ {total_executado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            
+            relatorio_html += f'<p {pStyle}>Ordens com bloqueios transferidos desta parte: [{protocolos_str}] - Total transferido do executado: {total_format}</p>'
+        
+        # Adicionar ordens com erro (se houver)
+        if dados_bloqueios.get('ordens_com_erro_bloqueio'):
+            if log:
+                print(f"[SISBAJUD] 📝 Adicionando {len(dados_bloqueios['ordens_com_erro_bloqueio'])} ordens com erro ao relatório")
+            relatorio_html += f'<p {pStyle}><strong><u>ORDENS COM ERRO DE BLOQUEIO:</u></strong></p>'
+            for ordem_erro in dados_bloqueios['ordens_com_erro_bloqueio']:
+                prot = ordem_erro.get('protocolo', 'N/A')
+                val_esp = ordem_erro.get('valor_esperado', 0.0)
+                val_esp_fmt = f"R$ {val_esp:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                relatorio_html += f'<p {pStyle}>Protocolo {prot}: Bloqueio esperado de {val_esp_fmt} está <strong>INDISPONÍVEL</strong> para transferência.</p>'
+            
+            # Texto final sobre acompanhamento dos erros
+            relatorio_html += f'<p {pStyle}>As ordens acima, com erro de processamento, serão alvo de ofício ao suporte do SISBAJUD para esclarecimentos, caso os valores não estejam disponíves em até 10 dias.</p>'
+        else:
+            if log:
+                print(f"[SISBAJUD] ℹ️ Nenhuma ordem com erro de bloqueio encontrada")
+        
+        if log:
+            print(f"[SISBAJUD] ✅ Relatório conciso gerado: {len(dados_bloqueios['executados'])} executados")
+        
+        return relatorio_html
+        
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ❌ Erro ao gerar relatório conciso: {e}")
+        return ""
+
+
+def _extrair_nome_executado_serie(driver, log=True):
+    """
+    Tenta extrair o nome do executado na página de detalhes da série.
+    Usa múltiplos seletores para maior robustez.
+    """
+    try:
+        from selenium.webdriver.common.by import By
+        
+        # Tentativa 1: Cabeçalho do expansion panel (mais comum no SISBAJUD)
+        try:
+            header = driver.find_element(By.CSS_SELECTOR, "mat-expansion-panel-header .col-reu-dados-nome-pessoa")
+            if header and header.text.strip():
+                if log:
+                    print(f"[SISBAJUD] Executado encontrado via expansion-panel: {header.text.strip()}")
+                return header.text.strip()
+        except:
+            pass
+        
+        # Tentativa 2: Cabeçalho principal com traço
+        try:
+            header = driver.find_element(By.CSS_SELECTOR, "div.header-title, .mat-card-title, h1, h2")
+            if header:
+                text = header.text
+                # Se tiver formato "Detalhes da ordem - NOME DO EXECUTADO"
+                if "-" in text:
+                    nome = text.split("-")[-1].strip()
+                    if nome and len(nome) > 3:
+                        if log:
+                            print(f"[SISBAJUD] Executado encontrado via header: {nome}")
+                        return nome
+        except:
+            pass
+            
+        # Tentativa 3: Card de detalhes do réu
+        try:
+            cards = driver.find_elements(By.CSS_SELECTOR, "mat-card-title, .card-title, .reu-nome")
+            for card in cards:
+                text = card.text.strip()
+                if text and len(text) > 3 and "Executado" not in text and "Ordem" not in text and "Série" not in text:
+                    if log:
+                        print(f"[SISBAJUD] Executado encontrado via card: {text}")
+                    return text
+        except:
+            pass
+            
+        # Tentativa 4: Buscar por label "Réu" ou "Executado"
+        try:
+            labels = driver.find_elements(By.XPATH, "//*[contains(text(), 'Réu') or contains(text(), 'Executado')]/following-sibling::*[1]")
+            for label in labels:
+                text = label.text.strip()
+                if text and len(text) > 3:
+                    if log:
+                        print(f"[SISBAJUD] Executado encontrado via label: {text}")
+                    return text
+        except:
+            pass
+            
+        # Tentativa 5: Buscar na URL (algumas páginas têm o nome codificado)
+        try:
+            url = driver.current_url
+            # Tentar extrair de parâmetros da URL se existir
+            if "nome=" in url.lower():
+                import urllib.parse
+                parsed = urllib.parse.urlparse(url)
+                params = urllib.parse.parse_qs(parsed.query)
+                if 'nome' in params:
+                    nome = params['nome'][0]
+                    if log:
+                        print(f"[SISBAJUD] Executado encontrado via URL: {nome}")
+                    return nome
+        except:
+            pass
+
+        if log:
+            print("[SISBAJUD] ⚠️ Nome do executado não identificado, usando placeholder")
+        return "Executado"
+    except Exception as e:
+        if log:
+            print(f"[SISBAJUD] ⚠️ Erro ao extrair nome do executado: {e}")
+        return "Executado"
+
+def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=None):
+    """
+    Helper para processar séries e suas ordens.
+    Com estratégia TRANSFERIR_PARCIAL: transfere até limite, pula 1, desbloqueia restantes.
+    
+    Args:
+        driver: Driver SISBAJUD
+        series_validas: Lista de séries válidas
+        tipo_fluxo: Tipo de fluxo (POSITIVO, NEGATIVO, DESBLOQUEIO)
+        log: Se deve fazer log
+        estrategia: Dict com estratégia de bloqueio (None = processar tudo normal)
+    
+    Returns:
+        dict: Resultado do processamento com keys: series_processadas, ordens_processadas, erros, detalhes
+    """
+    try:
+        if log:
+            print(f'[SISBAJUD] Processando {len(series_validas)} séries...')
+
+        resultado = {
+            'series_processadas': 0,
+            'ordens_processadas': 0,
+            'erros': [],
+            'detalhes': {
+                'dados_bloqueios': {
+                    'executados': {},
+                    'total_geral': 0.0,
+                    'ordens_com_erro_bloqueio': []  # Lista de ordens com erro de bloqueio
+                },
+                'ordens_transferidas': [],  # NOVO: rastrear ordens transferidas
+                'ordem_pendente': None,      # NOVO: ordem que ficou pendente
+                'ordens_desbloqueadas': []   # NOVO: ordens desbloqueadas
+            }
+        }
+
+        # Controle de acumulado para estratégia parcial
+        acumulado_transferido = 0.0
+        usar_estrategia_parcial = (estrategia and estrategia.get('tipo') == 'TRANSFERIR_PARCIAL')
+        limite_execucao = estrategia.get('acumulado_limite', 0.0) if usar_estrategia_parcial else 0.0
+        ordem_pulada = False
+
+        for idx_serie, serie in enumerate(series_validas, 1):
+            if log:
+                print(f'[SISBAJUD] >>> Processando série {idx_serie}/{len(series_validas)}: {serie["id_serie"]}')
+
+            try:
+                # 1. Navegar para detalhes da série e extrair ordens
+                ordens = _navegar_e_extrair_ordens_serie(driver, serie, log)
+                if not ordens:
+                    if log:
+                        print(f'[SISBAJUD] ⚠️ Nenhuma ordem extraída da série {serie["id_serie"]}')
+                    # Série sem ordens - voltar para lista principal
+                    _voltar_para_lista_principal(driver, log)
+                    continue
+
+                # 1.5 Extrair nome do executado (após navegar)
+                nome_executado = _extrair_nome_executado_serie(driver, log)
+                if log:
+                    print(f'[SISBAJUD] Executado identificado: {nome_executado}')
+
+                # 2. Identificar ordens com bloqueio
+                valor_bloqueado = float(serie.get('valor_bloqueado', 0))
+                ordens_bloqueadas = _identificar_ordens_com_bloqueio(ordens, valor_bloqueado, log)
+
+                if not ordens_bloqueadas:
+                    if log:
+                        print(f'[SISBAJUD] ⚠️ Nenhuma ordem com bloqueio encontrada na série {serie["id_serie"]}, voltando para lista de séries')
+                    # Série sem bloqueio - voltar para lista principal
+                    _voltar_para_lista_principal(driver, log)
+                    resultado['series_processadas'] += 1
+                    continue
+                
+                # Ordenar ordens por valor (decrescente) para otimizar transferências
+                if usar_estrategia_parcial:
+                    ordens_bloqueadas_ordenadas = sorted(ordens_bloqueadas, key=lambda o: float(o.get('valor_bloquear', 0)), reverse=True)
+                    if log:
+                        print(f'[SISBAJUD] 📊 {len(ordens_bloqueadas)} ordens ordenadas por valor (maior primeiro)')
+                    ordens_bloqueadas = ordens_bloqueadas_ordenadas
+
+                # 3. Processar cada ordem com bloqueio COM estratégia
+                total_ordens_serie = len(ordens_bloqueadas)
+                for idx_ordem, ordem in enumerate(ordens_bloqueadas, 1):
+                    sequencial_ordem = ordem.get('sequencial')
+                    situacao_ordem = ordem.get('situacao', '')
+                    
+                    if log:
+                        print(f'\n[SISBAJUD] >>> Processando ordem {idx_ordem}/{total_ordens_serie} da série {serie["id_serie"]}')
+                        print(f'[SISBAJUD] Ordem: {sequencial_ordem}, Protocolo: {ordem.get("protocolo", "N/A")}')
+                    
+                    # Verificar se ordem já está "Respondida com minuta"
+                    # Abrir apenas para extrair discriminação (nunca terá erro aqui)
+                    if "Respondida com minuta" in situacao_ordem:
+                        if log:
+                            print(f'[SISBAJUD] Ordem {sequencial_ordem} já processada (Respondida com minuta)')
+                        
+                        # Abrir para extrair dados se for fluxo POSITIVO
+                        if tipo_fluxo == 'POSITIVO':
+                            if log:
+                                print(f'[SISBAJUD]    📊 Extraindo dados da ordem já processada...')
+                            try:
+                                from .processamento import _processar_ordem
+                                sucesso = _processar_ordem(driver, ordem, tipo_fluxo, log, apenas_extrair=True)
+                                
+                                # Agrupar dados extraídos (nunca será erro, sempre discriminação)
+                                if sucesso and '_relatorio' in ordem and ordem['_relatorio'].get('discriminacao'):
+                                    _agrupar_dados_bloqueios(
+                                        resultado['detalhes']['dados_bloqueios'],
+                                        ordem['_relatorio']['discriminacao'],
+                                        log
+                                    )
+                                    if log:
+                                        print(f'[SISBAJUD]    ✅ Dados extraídos e agrupados')
+                                
+                            except Exception as e:
+                                if log:
+                                    print(f'[SISBAJUD]    ⚠️ Erro ao extrair dados: {e}')
+                        
+                        resultado['ordens_processadas'] += 1
+                        continue
+                    
+                    # Limpar referências de elementos obsoletos antes de cada processamento
+                    if 'linha_el' in ordem:
+                        ordem['linha_el'] = None
+                    
+                    # Determinar ação para esta ordem baseado na estratégia
+                    valor_ordem = float(ordem.get('valor_bloquear', 0))
+                    acao = None
+                    valor_a_transferir = None  # Para transferência parcial
+                    
+                    if not usar_estrategia_parcial:
+                        # Estratégia normal: transferir tudo
+                        acao = 'TRANSFERIR'
+                    else:
+                        # Estratégia parcial: decidir baseado no acumulado
+                        if acumulado_transferido >= limite_execucao:
+                            # Já atingiu ou ultrapassou o limite - desbloquear todas restantes
+                            acao = 'DESBLOQUEAR'
+                        else:
+                            projecao = acumulado_transferido + valor_ordem
+                            
+                            if projecao <= limite_execucao:
+                                # Ainda cabe - transferir
+                                acao = 'TRANSFERIR'
+                            else:
+                                # Esta ordem faria ultrapassar - transferir parcialmente
+                                valor_restante = limite_execucao - acumulado_transferido
+                                acao = 'TRANSFERIR_PARCIAL'
+                                valor_a_transferir = valor_restante
+                                ordem_pulada = True
+                                if log:
+                                    print(f'[SISBAJUD]    ⚙️  Ordem {sequencial_ordem}: TRANSFERÊNCIA PARCIAL (R$ {valor_restante:.2f} de R$ {valor_ordem:.2f})')
+                    
+                    try:
+                        # Executar ação conforme estratégia
+                        if acao in ['TRANSFERIR', 'TRANSFERIR_PARCIAL']:
+                            if log and usar_estrategia_parcial and acao == 'TRANSFERIR':
+                                print(f'[SISBAJUD]    ▶️  Ordem {sequencial_ordem}: TRANSFERIR (R$ {valor_ordem:.2f})')
+                            
+                            from .processamento import _processar_ordem
+                            
+                            # Processar ordem (sem retry automático - se falhar, para tudo)
+                            sucesso_processamento = _processar_ordem(
+                                driver, 
+                                ordem, 
+                                tipo_fluxo, 
+                                log,
+                                valor_parcial=valor_a_transferir if acao == 'TRANSFERIR_PARCIAL' else None
+                            )
+                            
+                            # CRÍTICO: Se falhou após todas as tentativas, VERIFICAR MOTIVO
+                            if not sucesso_processamento:
+                                # VERIFICAR SE É ERRO DE BLOQUEIO (valor zerado no sistema)
+                                if '_relatorio' in ordem and ordem['_relatorio'].get('status') == 'erro':
+                                    rel = ordem['_relatorio']
+                                    erro = f'⚠️ ERRO DE BLOQUEIO: Ordem {sequencial_ordem} - {rel.get("erro_msg", "erro desconhecido")}'
+                                    if log:
+                                        print(f'[SISBAJUD]   {erro}')
+                                    resultado['erros'].append(erro)
+                                    
+                                    # Adicionar à lista de erros de bloqueio
+                                    erro_item = {
+                                        'protocolo': rel['protocolo'],
+                                        'valor_esperado': rel['valor_esperado'],
+                                        'erro_msg': rel.get('erro_msg', 'Erro desconhecido')
+                                    }
+                                    resultado['detalhes']['dados_bloqueios']['ordens_com_erro_bloqueio'].append(erro_item)
+                                    if log:
+                                        print(f'[SISBAJUD]   📝 Erro adicionado à lista: {erro_item}')
+                                    
+                                    # CONTINUAR para próxima ordem (não parar tudo)
+                                    continue
+                                
+                                # Se não é erro de bloqueio, é erro real - PARAR TUDO
+                                erro = f'❌ CRÍTICO: Impossível processar ordem {sequencial_ordem}'
+                                if log:
+                                    print(f'[SISBAJUD]   {erro}')
+                                resultado['erros'].append(erro)
+                                # NÃO continuar - retornar resultado parcial
+                                return resultado
+                            
+                            if sucesso_processamento:
+                                valor_transferido = valor_a_transferir if acao == 'TRANSFERIR_PARCIAL' else valor_ordem
+                                acumulado_transferido += valor_transferido
+                                resultado['ordens_processadas'] += 1
+                                resultado['detalhes']['ordens_transferidas'].append({
+                                    'sequencial': sequencial_ordem,
+                                    'valor': valor_transferido,
+                                    'serie': serie['id_serie'],
+                                    'parcial': acao == 'TRANSFERIR_PARCIAL'
+                                })
+                                
+                                if log:
+                                    print(f'[SISBAJUD]   ✅ Ordem {sequencial_ordem} processada com sucesso')
+                                
+                                # ===== EXTRAIR DADOS IMEDIATAMENTE APÓS PROCESSAMENTO (ANTES DE VOLTAR) =====
+                                if tipo_fluxo == 'POSITIVO':
+                                    protocolo_ordem = ordem.get('protocolo', 'N/A')
+                                    if log:
+                                        print(f'[SISBAJUD] 📊 Extraindo dados dos bloqueios da página (Protocolo: {protocolo_ordem})...')
+                                    
+                                    try:
+                                        dados_ordem = extrair_dados_bloqueios_processados(driver, log, protocolo_ordem=protocolo_ordem)
+                                        
+                                        # Atualizar entrada do relatório
+                                        if '_relatorio' in ordem:
+                                            ordem['_relatorio']['status'] = 'processado'
+                                            ordem['_relatorio']['discriminacao'] = dados_ordem
+                                        
+                                        if dados_ordem and dados_ordem.get('executados'):
+                                            _agrupar_dados_bloqueios(
+                                                resultado['detalhes']['dados_bloqueios'], 
+                                                dados_ordem, 
+                                                log
+                                            )
+                                            if log:
+                                                print(f'[SISBAJUD]   ✅ Dados extraídos da ordem {sequencial_ordem}')
+                                        else:
+                                            if log:
+                                                print(f'[SISBAJUD]   ⚠️ Nenhum dado de bloqueio extraído da ordem {sequencial_ordem}')
+                                                
+                                    except Exception as e_dados:
+                                        if log:
+                                            print(f'[SISBAJUD]   ⚠️ Erro ao extrair dados para relatório: {e_dados}')
+                            
+                            # Se chegou aqui, processamento foi sucesso (não teria retornado antes)
+                        
+                        elif acao == 'DESBLOQUEAR':
+                            if log:
+                                print(f'[SISBAJUD]    Ordem {sequencial_ordem}: DESBLOQUEAR (R$ {valor_ordem:.2f})')
+                            
+                            from .processamento import _processar_ordem
+                            
+                            # Processar ordem (sem retry automático - se falhar, para tudo)
+                            sucesso_processamento = _processar_ordem(driver, ordem, 'DESBLOQUEIO', log)
+                            
+                            # CRÍTICO: Se falhou, PARAR TUDO
+                            if not sucesso_processamento:
+                                erro = f'CRÍTICO: Impossível desbloquear ordem {sequencial_ordem}'
+                                if log:
+                                    print(f'[SISBAJUD]   {erro}')
+                                resultado['erros'].append(erro)
+                                # NÃO continuar - retornar resultado parcial
+                                return resultado
+                            
+                            if sucesso_processamento:
+                                resultado['ordens_processadas'] += 1
+                                resultado['detalhes']['ordens_desbloqueadas'].append({
+                                    'sequencial': sequencial_ordem,
+                                    'valor': valor_ordem,
+                                    'serie': serie['id_serie'],
+                                    'protocolo': ordem.get('protocolo', 'N/A')
+                                })
+                                if log:
+                                    print(f'[SISBAJUD]   ✅ Ordem {sequencial_ordem} desbloqueada com sucesso')
+                            
+                            # Se chegou aqui, processamento foi sucesso (não teria retornado antes)
+                        
+                        # ===== CRUCIAL: NAVEGAÇÃO APÓS PROCESSAR ORDEM COM SUCESSO =====
+                        if idx_ordem < total_ordens_serie:
+                            # Ainda há mais ordens para processar nesta série
+                            if log:
+                                print(f'[SISBAJUD] Voltando para lista de ordens (mais {total_ordens_serie - idx_ordem} ordens restantes)...')
+                            _voltar_para_lista_ordens_serie(driver, log)
+                            
+                            # Invalidar TODAS as referências de elementos após voltar da página
+                            for ordem_restante in ordens_bloqueadas[idx_ordem:]:
+                                if 'linha_el' in ordem_restante:
+                                    ordem_restante['linha_el'] = None
+                            if log:
+                                print(f'[SISBAJUD] 🧹 Elementos invalidados após retorno (ordens restantes)')
+                        else:
+                            # Última ordem da série, voltar para lista de séries
+                            if log:
+                                print(f'[SISBAJUD] Última ordem da série {serie["id_serie"]}, voltando para lista de séries')
+                            _voltar_para_lista_principal(driver, log)
+                        
+                    except Exception as e:
+                        erro = f'Erro ao processar ordem {ordem["sequencial"]} da série {serie["id_serie"]}: {str(e)}'
+                        if log:
+                            print(f'[SISBAJUD] ❌ {erro}')
+                        resultado['erros'].append(erro)
+                        
+                        # Tentar voltar para lista de ordens ou séries após erro
+                        try:
+                            if idx_ordem < total_ordens_serie:
+                                _voltar_para_lista_ordens_serie(driver, log)
+                                # Invalidar elementos após erro e retorno
+                                for ordem_restante in ordens_bloqueadas[idx_ordem:]:
+                                    if 'linha_el' in ordem_restante:
+                                        ordem_restante['linha_el'] = None
+                            else:
+                                _voltar_para_lista_principal(driver, log)
+                        except:
+                            pass
+
+                resultado['series_processadas'] += 1
+
+            except Exception as e:
+                erro = f'Erro na série {serie.get("id_serie", "unknown")}: {str(e)}'
+                if log:
+                    print(f'[SISBAJUD] ❌ {erro}')
+                resultado['erros'].append(erro)
+                
+                # Tentar voltar para lista de séries após erro
+                try:
+                    _voltar_para_lista_principal(driver, log)
+                except:
+                    pass
+                continue
+
+        if log:
+            print(f'[SISBAJUD] ✅ Processamento concluído: {resultado["series_processadas"]} séries, {resultado["ordens_processadas"]} ordens')
+            if usar_estrategia_parcial:
+                print(f'[SISBAJUD]    💰 Total transferido: R$ {acumulado_transferido:.2f} de R$ {limite_execucao:.2f}')
+                print(f'[SISBAJUD]    📊 Ordens transferidas: {len(resultado["detalhes"]["ordens_transferidas"])}')
+                print(f'[SISBAJUD]    ⏭️  Ordem pendente: {1 if resultado["detalhes"]["ordem_pendente"] else 0}')
+                print(f'[SISBAJUD]    🔓 Ordens desbloqueadas: {len(resultado["detalhes"]["ordens_desbloqueadas"])}')
+
+        return resultado
+
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD] ❌ Erro geral no processamento: {e}')
+        return {'series_processadas': 0, 'ordens_processadas': 0, 'erros': [str(e)], 'detalhes': {}}
+
+
+def _calcular_estrategia_bloqueio(series_validas, dados_processo, log=True):
+    """
+    Calcula estratégia de bloqueio comparando valor total bloqueado com valor da execução.
+    
+    Lógica:
+    - Se total_bloqueado <= valor_execucao: transferir TUDO (estratégia padrão)
+    - Se total_bloqueado > valor_execucao:
+      * Transferir ordens até a que NÃO ultrapassaria o limite
+      * Pular a ordem que ultrapassaria (sem tratamento)
+      * Desbloquear todas as ordens seguintes (desta e outras séries)
+    
+    Args:
+        series_validas: Lista de séries válidas
+        dados_processo: Dados do processo (inclui divida.valor)
+        log: Se deve fazer log
+    
+    Returns:
+        dict: {
+            'tipo': 'TRANSFERIR_TUDO' | 'TRANSFERIR_PARCIAL',
+            'valor_execucao': float,
+            'total_bloqueado': float,
+            'acumulado_limite': float
+        }
+    """
+    try:
+        # 1. Extrair valor da execução
+        valor_execucao_str = dados_processo.get('divida', {}).get('valor', 'R$ 0,00')
+        # Converter para float
+        texto_limpo = valor_execucao_str.replace('R$', '').replace('\xa0', '').replace('&nbsp;', '').strip()
+        texto_limpo = texto_limpo.replace('.', '').replace(',', '.')
+        try:
+            valor_execucao = float(texto_limpo)
+        except:
+            valor_execucao = 0.0
+        
+        # 2. Calcular total bloqueado
+        total_bloqueado = sum(float(s.get('valor_bloqueado', 0)) for s in series_validas)
+        
+        if log:
+            print(f'[SISBAJUD] 🔍 Estratégia de bloqueio:')
+            print(f'[SISBAJUD]    Valor da execução: R$ {valor_execucao:.2f}')
+            print(f'[SISBAJUD]    Total bloqueado: R$ {total_bloqueado:.2f}')
+        
+        # 3. Decidir estratégia
+        if total_bloqueado <= valor_execucao:
+            if log:
+                print(f'[SISBAJUD]    ✅ Estratégia: TRANSFERIR TUDO (bloqueado não excede execução)')
+            return {
+                'tipo': 'TRANSFERIR_TUDO',
+                'valor_execucao': valor_execucao,
+                'total_bloqueado': total_bloqueado,
+                'acumulado_limite': valor_execucao
+            }
+        
+        # 4. Total excede - usar transferência parcial
+        if log:
+            excesso = total_bloqueado - valor_execucao
+            print(f'[SISBAJUD]    ⚠️ Estratégia: TRANSFERIR PARCIAL (bloqueado excede em R$ {excesso:.2f})')
+            print(f'[SISBAJUD]    📋 Será: transferir até limite, pular 1 ordem, desbloquear restantes')
+        
+        return {
+            'tipo': 'TRANSFERIR_PARCIAL',
+            'valor_execucao': valor_execucao,
+            'total_bloqueado': total_bloqueado,
+            'acumulado_limite': valor_execucao
+        }
+        
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD] ❌ Erro ao calcular estratégia: {e}')
+        # Em caso de erro, usar estratégia padrão
+        return {
+            'tipo': 'TRANSFERIR_TUDO',
+            'valor_execucao': 0.0,
+            'total_bloqueado': 0.0,
+            'acumulado_limite': 0.0
+        }
+
+
+def _gerar_relatorio_ordem(tipo_fluxo, series_processadas, ordens_processadas, detalhes, series_validas=None, driver=None, log=True, numero_processo=None, estrategia=None):
+    """
+    Helper para gerar relatório do processamento de ordens (Transferência/Desbloqueio).
+    SEMPRE inclui primeiro o relatório das séries analisadas.
+    Para fluxo POSITIVO: extrai dados dos bloqueios diretamente da página via driver.
+    Para outros fluxos: gera relatório com dados das séries + mensagem específica.
+    Salva no clipboard.txt centralizado.
+
+    Args:
+        tipo_fluxo: Tipo de fluxo (POSITIVO, NEGATIVO, DESBLOQUEIO)
+        series_processadas: Número de séries processadas
+        ordens_processadas: Número de ordens processadas
+        detalhes: Detalhes do processamento
+        series_validas: Lista de séries processadas (para gerar relatório detalhado)
+        driver: WebDriver SISBAJUD para extrair dados dos bloqueios (usado no fluxo POSITIVO)
+        log: Se deve fazer log
+        numero_processo: Número do processo para salvar no clipboard
+
+    Returns:
+        bool: True se relatório gerado com sucesso
+    """
+    import os
+    import re
+    
+    try:
+        if log:
+            print('[SISBAJUD] Gerando relatório de processamento de ordens...')
+
+        # Estrutura HTML do relatório
+        pStyle = 'class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"'
+        relatorio_html = ""
+        
+        # ===== ETAPA 1: SEMPRE incluir relatório das séries primeiro =====
+        if series_validas and len(series_validas) > 0:
+            if log:
+                print(f'[SISBAJUD] Incluindo relatório de {len(series_validas)} séries analisadas...')
+            
+            relatorio_html += f'<p {pStyle}><strong>Relatório de séries executadas:</strong></p>'
+            
+            for i, serie in enumerate(series_validas, 1):
+                # Extrair dados da série
+                numero_serie = serie.get('id_serie', 'N/A')
+                data_conclusao = serie.get('data_conclusao')
+                total_bloqueado = serie.get('valor_bloqueado', 0)
+                total_bloqueado_text = serie.get('valor_bloqueado_text', '')
+                
+                # Formatar data
+                if data_conclusao and hasattr(data_conclusao, 'strftime'):
+                    data_str = data_conclusao.strftime('%d/%m/%Y')
+                elif serie.get('data_conclusao_text'):
+                    data_str = serie.get('data_conclusao_text')
+                else:
+                    data_str = 'Data não disponível'
+                
+                # Formatar valor (usar texto original se disponível)
+                if total_bloqueado_text and total_bloqueado_text != 'R$ 0,00':
+                    valor_str = total_bloqueado_text
+                else:
+                    valor_str = f"R$ {total_bloqueado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+                
+                # Adicionar linha da série
+                linha_serie = f"- (Série {numero_serie}) - Data da finalização: ({data_str}) - Total bloqueado: ({valor_str})"
+                relatorio_html += f'<p {pStyle}>{linha_serie}</p>'
+        else:
+            if log:
+                print('[SISBAJUD] ⚠️ Nenhuma série disponível para o relatório')
+        
+        # ===== ETAPA 1.5: ADICIONAR INFORMAÇÃO DE VALOR DA EXECUÇÃO (se estratégia presente) =====
+        if estrategia:
+            valor_exec = estrategia.get('valor_execucao', 0.0)
+            total_bloq = estrategia.get('total_bloqueado', 0.0)
+            
+            valor_exec_fmt = f"R$ {valor_exec:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            total_bloq_fmt = f"R$ {total_bloq:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+            
+            relatorio_html += f'<p {pStyle}><strong>Valor da execução:</strong> {valor_exec_fmt}</p>'
+            
+            # Adicionar indicação de excesso no total bloqueado
+            if estrategia.get('tipo') == 'TRANSFERIR_PARCIAL':
+                relatorio_html += f'<p {pStyle}><strong>Total bloqueado nas séries:</strong> {total_bloq_fmt} (excede valor da execução)</p>'
+            else:
+                relatorio_html += f'<p {pStyle}><strong>Total bloqueado nas séries:</strong> {total_bloq_fmt}</p>'
+        
+        # ===== ETAPA 2: Processar baseado no tipo de fluxo =====
+        if tipo_fluxo == 'POSITIVO':
+            # Fluxo POSITIVO: gerar relatório detalhado dos bloqueios transferidos
+            if log:
+                print('[SISBAJUD] Fluxo POSITIVO: Gerando relatório de transferências...')
+            
+            # Usar dados coletados DURANTE o processamento de cada ordem
+            # (a extração da página acontece a cada ordem processada em _processar_series)
+            dados_bloqueios = detalhes.get('dados_bloqueios', {}) if detalhes else {}
+            
+            if log:
+                if dados_bloqueios and dados_bloqueios.get('executados'):
+                    print(f'[SISBAJUD] Dados disponíveis: {len(dados_bloqueios["executados"])} executados, Total: R$ {dados_bloqueios.get("total_geral", 0):.2f}')
+                else:
+                    print('[SISBAJUD] ⚠️ Nenhum dado de bloqueio coletado durante processamento')
+            
+            # Gerar relatório se houver dados
+            if dados_bloqueios and dados_bloqueios.get('executados'):
+                # DEBUG: Mostrar estrutura completa de dados_bloqueios
+                if log:
+                    print(f'[SISBAJUD] 🔍 DEBUG - dados_bloqueios antes do relatório:')
+                    print(f'[SISBAJUD]    - executados: {len(dados_bloqueios["executados"])} executados')
+                    print(f'[SISBAJUD]    - total_geral: R$ {dados_bloqueios.get("total_geral", 0):,.2f}')
+                    erros_bloq = dados_bloqueios.get('ordens_com_erro_bloqueio', [])
+                    print(f'[SISBAJUD]    - ordens_com_erro_bloqueio: {len(erros_bloq)} erros')
+                    if erros_bloq:
+                        for idx, erro in enumerate(erros_bloq):
+                            print(f'[SISBAJUD]      Erro {idx+1}: {erro}')
+                
+                # Adicionar título de discriminação antes dos detalhes por executado
+                relatorio_html += f'<p {pStyle}><strong>DISCRIMINAÇÃO DE BLOQUEIOS TRANSFERIDOS:</strong></p>'
+                
+                # 📊 GERAR RELATÓRIOS SEPARADOS
+                # Relatório CONCISO (para visualização rápida) - salvar em arquivo específico
+                relatorio_conciso = gerar_relatorio_bloqueios_conciso(dados_bloqueios, log)
+                
+                # Salvar relatório CONCISO em arquivo específico (não no clipboard.txt)
+                try:
+                    import os
+                    # Salvar em PEC/sisbajud_conciso_ultimo.txt
+                    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # pasta raiz do projeto
+                    pec_dir = os.path.join(base_dir, "PEC")
+                    os.makedirs(pec_dir, exist_ok=True)
+                    
+                    arquivo_conciso = os.path.join(pec_dir, "sisbajud_conciso_ultimo.txt")
+                    with open(arquivo_conciso, 'w', encoding='utf-8') as f:
+                        f.write(relatorio_conciso)
+                    
+                    if log:
+                        print(f'[SISBAJUD] ✅ Relatório CONCISO salvo em: {arquivo_conciso}')
+                except Exception as e_conciso:
+                    if log:
+                        print(f'[SISBAJUD] ⚠️ Erro ao salvar relatório conciso: {e_conciso}')
+                
+                # Ajustar total_geral para valor da execução se TRANSFERIR_PARCIAL
+                if estrategia and estrategia.get('tipo') == 'TRANSFERIR_PARCIAL':
+                    dados_bloqueios['total_geral'] = estrategia.get('valor_execucao', dados_bloqueios['total_geral'])
+                
+                # Relatório DETALHADO (para juntada automática) - adicionar ao HTML principal
+                relatorio_detalhado = gerar_relatorio_bloqueios_processados(dados_bloqueios, log)
+                
+                # Adicionar APENAS o detalhado ao relatório principal (usado pela juntada)
+                relatorio_html += relatorio_detalhado
+                
+                # Mensagem final ajustada SOMENTE se for TRANSFERIR_PARCIAL (com desbloqueios)
+                if estrategia and estrategia.get('tipo') == 'TRANSFERIR_PARCIAL':
+                    ordens_desbloq = detalhes.get('ordens_desbloqueadas', [])
+                    qtd_desbloq = len(ordens_desbloq)
+                    
+                    if qtd_desbloq > 0:
+                        # Adicionar informação sobre desbloqueios
+                        protocolos = [od.get('protocolo', 'N/A') for od in ordens_desbloq]
+                        protocolos_str = ', '.join(protocolos)
+                        relatorio_html += f'<p {pStyle}>Os valores excedentes ({qtd_desbloq} ordem(ns) - protocolos {protocolos_str}) foram devidamente <strong>DESBLOQUEADOS</strong>.</p>'
+            else:
+                # Fallback se não tiver dados detalhados
+                if log:
+                    print('[SISBAJUD] ⚠️ Nenhum dado de bloqueio disponível, usando mensagem padrão')
+                relatorio_html += f'<p {pStyle}>Considerando os bloqueios realizados, as quantias localizadas foram <strong>TRANSFERIDAS</strong> à conta judicial do processo, ação que será efetivada em até 48h úteis.</p>'
+                    
+        elif tipo_fluxo == 'NEGATIVO':
+            # Fluxo NEGATIVO: não houve bloqueios
+            if log:
+                print('[SISBAJUD] Fluxo NEGATIVO: Sem bloqueios realizados')
+            relatorio_html += f'<p {pStyle}>Não houve bloqueios realizados.</p>'
+            
+        elif tipo_fluxo == 'DESBLOQUEIO':
+            # Fluxo DESBLOQUEIO: valores irrisórios desbloqueados
+            if log:
+                print('[SISBAJUD] Fluxo DESBLOQUEIO: Valores irrisórios')
+            relatorio_html += f'<p {pStyle}>Considerando as regras sobre bloqueios irrisórios, as quantias localizadas foram <strong>DESBLOQUEADAS</strong>, ação que será efetivada em até 48h úteis.</p>'
+            
+        else:
+            # Fluxo não reconhecido
+            relatorio_html += f'<p {pStyle}>Séries processadas: {series_processadas}</p>'
+            relatorio_html += f'<p {pStyle}>Ordens processadas: {ordens_processadas}</p>'
+            relatorio_html += f'<p {pStyle}>Data/Hora: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}</p>'
+
+        # Salvar no clipboard.txt centralizado
+        try:
+            from PEC.anexos import salvar_conteudo_clipboard
+            
+            # Salvar APENAS relatório DETALHADO - usado pela juntada
+            # NÃO salvar o conciso aqui pois sobrescreveria o detalhado
+            sucesso = salvar_conteudo_clipboard(
+                conteudo=relatorio_html,
+                numero_processo=numero_processo or "SISBAJUD",
+                tipo_conteudo=f"sisbajud_{tipo_fluxo.lower()}",
+                debug=log
+            )
+            
+            if sucesso:
+                if log:
+                    print(f'[SISBAJUD] ✅ Relatório {tipo_fluxo} (detalhado) salvo no clipboard.txt centralizado')
+            else:
+                if log:
+                    print('[SISBAJUD] ⚠️ Falha ao salvar no clipboard centralizado')
+                    
+        except ImportError as e:
+            if log:
+                print(f'[SISBAJUD] ⚠️ Não foi possível importar salvar_conteudo_clipboard: {e}')
+
+        return True
+
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD] ❌ Erro ao gerar relatório: {e}')
+        return False
+
+def _executar_juntada_pje(driver_pje, tipo_fluxo, numero_processo, log=True):
+    """
+    Helper para executar juntada automática no PJE.
+
+    Args:
+        driver_pje: Driver do PJE
+        tipo_fluxo: Tipo de fluxo
+        numero_processo: Número do processo
+        log: Se deve fazer log
+
+    Returns:
+        bool: True se juntada executada com sucesso
+    """
+    try:
+        if log:
+            print(f'[SISBAJUD] Executando juntada automática para fluxo {tipo_fluxo}...')
+
+        # Importar wrappers de PEC.anexos
+        from PEC.anexos import consulta_wrapper, wrapper_bloqneg, wrapper_parcial
+
+        # Executar baseado no tipo de fluxo
+        if tipo_fluxo in ['NEGATIVO', 'DESBLOQUEIO']:
+            if log:
+                print('[SISBAJUD] Usando wrapper_bloqneg (resultado negativo/desbloqueio)')
+            resultado = wrapper_bloqneg(
+                driver=driver_pje,
+                numero_processo=numero_processo,
+                debug=log
+            )
+        elif tipo_fluxo == 'POSITIVO':
+            if log:
+                print('[SISBAJUD] Usando wrapper_parcial')
+            resultado = wrapper_parcial(
+                driver=driver_pje,
+                numero_processo=numero_processo,
+                debug=log
+            )
+        else:
+            if log:
+                print(f'[SISBAJUD] ⚠️ Tipo de fluxo não reconhecido: {tipo_fluxo}')
+            return False
+
+        if resultado and log:
+            print('[SISBAJUD] ✅ Juntada executada com sucesso')
+        elif log:
+            print('[SISBAJUD] ⚠️ Juntada pode não ter sido executada corretamente')
+
+        return bool(resultado)
+
+    except Exception as e:
+        if log:
+            print(f'[SISBAJUD] ❌ Erro na juntada: {e}')
+        return False
+
+# =============================================================================
+# JAVASCRIPT UTILITÁRIO COMPARTILHADO
+# =============================================================================
+
+def criar_js_otimizado():
+    """
+    JavaScript otimizado para operações SISBAJUD.
+    (Versão simplificada para helpers)
+    """
+    return """
+    async function esperarElemento(seletor, timeout = 5000) {
+        return new Promise((resolve) => {
+            const element = document.querySelector(seletor);
+            if (element) {
+                resolve(element);
+                return;
+            }
+
+            const observer = new MutationObserver(() => {
+                const element = document.querySelector(seletor);
+                if (element) {
+                    observer.disconnect();
+                    resolve(element);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            setTimeout(() => {
+                observer.disconnect();
+                resolve(null);
+            }, timeout);
+        });
+    }
+
+    async function esperarOpcoes(seletor, timeout = 3000) {
+        return new Promise((resolve) => {
+            const elements = document.querySelectorAll(seletor);
+            if (elements.length > 0) {
+                resolve(elements);
+                return;
+            }
+
+            const observer = new MutationObserver(() => {
+                const elements = document.querySelectorAll(seletor);
+                if (elements.length > 0) {
+                    observer.disconnect();
+                    resolve(elements);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            setTimeout(() => {
+                observer.disconnect();
+                resolve([]);
+            }, timeout);
+        });
+    }
+
+    function triggerEvent(element, eventType) {
+        if (eventType === 'input') {
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (eventType === 'click') {
+            element.click();
+        } else if (eventType === 'change') {
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+    """

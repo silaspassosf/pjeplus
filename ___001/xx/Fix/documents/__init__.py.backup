@@ -1,0 +1,26 @@
+"""
+@module: Fix.documents
+@responsibility: Busca e extração de documentos PJe
+@depends_on: selenium.webdriver, Fix.selenium_base, Fix.extracao
+@used_by: SISB, Prazo, PEC, Mandado
+@entry_points: buscar_documentos_sequenciais, buscar_documento_argos, buscar_documentos_polo_ativo
+@tags: #documents #search #timeline #pje
+"""
+
+from .search import (
+    verificar_documento_decisao_sentenca,
+    buscar_ultimo_mandado,
+    buscar_mandado_autor,
+    buscar_documentos_sequenciais,
+    buscar_documentos_polo_ativo,
+    buscar_documento_argos
+)
+
+__all__ = [
+    'verificar_documento_decisao_sentenca',
+    'buscar_ultimo_mandado',
+    'buscar_mandado_autor',
+    'buscar_documentos_sequenciais',
+    'buscar_documentos_polo_ativo',
+    'buscar_documento_argos',
+]

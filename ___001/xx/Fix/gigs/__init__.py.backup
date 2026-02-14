@@ -1,0 +1,19 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+@module: Fix.gigs
+@responsibility: Sistema GIGS - Criação e gestão de atividades PJe
+@depends_on: Fix.selenium_base
+@used_by: Prazo, Mandado
+@entry_points: criar_gigs, gigs_minuta
+@tags: #gigs #atividades #pje #minuta
+"""
+
+# Imports serão adicionados conforme refatoração progride
+# from .creator import criar_gigs
+# from .minuta import gigs_minuta
+# from .validator import validar_gigs
+# from .templates import get_template_observacao
+
+__all__ = []

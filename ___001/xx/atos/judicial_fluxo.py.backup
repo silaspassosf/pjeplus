@@ -1,0 +1,317 @@
+from Fix.core import aguardar_e_clicar, safe_click, logger, esperar_url_conter
+from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
+import time
+
+from typing import Optional, Tuple, Dict, List, Union, Callable
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
+from .wrappers_utils import preparar_campo_filtro_modelo
+
+
+def fluxo_cls(
+    driver: WebDriver,
+    conclusao_tipo: str,
+    forcar_iniciar_execucao: bool = False
+) -> bool:
+    """
+    Fluxo corrigido para CLS (Conclusão ao Magistrado → Minutar):
+    
+    LÓGICA SEQUENCIAL:
+    1. Abrir tarefa do processo e trocar de aba
+    2. Clicar em "Conclusão ao Magistrado" OU "Análise" (se o primeiro não disponível)
+       - Se clicar em Análise, confirma URL /transicao e repete clique em "Conclusão ao Magistrado"
+    3. Confirma URL /conclusao e escolhe o tipo de conclusão
+    4. Confirma URL /minutar e inicia o fluxo de preenchimento
+    
+    TRATAMENTO DE ESTADOS INTERMEDIÁRIOS (ao abrir tarefa):
+    - Se já em /assinar → retorna True (ato já cumprido)
+    - Se já em /minutar → foca no campo e retorna True
+    - Se já em /conclusao → vai direto para escolha de tipo
+    
+    Retorna True em caso de sucesso, False em caso de falha.
+    """
+    try:
+        # ===== VERIFICAÇÃO INICIAL: Checar estado atual =====
+        current_url = (driver.current_url or '').lower()
+        
+        # CASO 1: Já está em /assinar → Ato já cumprido
+        if '/assinar' in current_url:
+            return True
+        
+        # CASO 2: Já está em /minutar → Apenas focar no campo
+        if '/minutar' in current_url:
+            try:
+                campo_filtro_modelo = WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
+                )
+                driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+            except Exception as e:
+                # Silencioso - a função de modelo vai validar
+                pass
+            return True
+        
+        # CASO 3: Já está em /conclusao → Pula para escolha de tipo
+        ja_em_conclusao = '/conclusao' in current_url
+        
+        # ===== PASSO 1: ABRIR TAREFA DO PROCESSO (se necessário) =====
+        if not ja_em_conclusao:
+            abas_antes = set(driver.window_handles)
+            btn_abrir_tarefa = aguardar_e_clicar(driver, BTN_TAREFA_PROCESSO, timeout=10, retornar_elemento=True)
+            if not btn_abrir_tarefa:
+                logger.error('[CLS] Botão "Abrir tarefa do processo" não encontrado!')
+                return False
+
+            # Verificar se já está em "Assinar"
+            tarefa_do_botao = None
+            try:
+                span_tarefa = btn_abrir_tarefa.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
+                if span_tarefa:
+                    tarefa_do_botao = span_tarefa.text.strip()
+            except Exception:
+                try:
+                    tarefa_do_botao = btn_abrir_tarefa.text.strip()
+                except Exception:
+                    pass
+
+            if tarefa_do_botao and 'assinar' in tarefa_do_botao.lower():
+                return True
+
+            # Clicar para abrir tarefa
+            if not safe_click(driver, btn_abrir_tarefa):
+                logger.error('[CLS] Falha ao clicar em "Abrir tarefa do processo"')
+                return False
+
+            # Aguardar nova aba
+            nova_aba = None
+            try:
+                WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > len(abas_antes))
+                abas_depois = set(driver.window_handles)
+                novas_abas = abas_depois - abas_antes
+                if novas_abas:
+                    nova_aba = novas_abas.pop()
+            except TimeoutException:
+                pass
+
+            if nova_aba:
+                driver.switch_to.window(nova_aba)
+                
+                # Aguardar carregamento MÍNIMO (sem múltiplos F5)
+                try:
+                    # Apenas aguarda body estar presente - rápido
+                    WebDriverWait(driver, 8).until(lambda d: d.find_element(By.TAG_NAME, 'body'))
+                except Exception:
+                    pass
+
+                # Verificar URL após abertura da aba
+                current_url = (driver.current_url or '').lower()
+                if '/assinar' in current_url:
+                    return True
+                if '/minutar' in current_url:
+                    try:
+                        campo_filtro_modelo = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
+                        )
+                        driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+                    except Exception as e:
+                        # Silencioso - a função de modelo vai validar
+                        pass
+                    return True
+                if '/conclusao' in current_url:
+                    ja_em_conclusao = True
+        
+        # Limpeza de overlays
+        try:
+            overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container')
+            if overlays:
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                time.sleep(0.15)
+        except Exception:
+            pass
+        
+        # ===== PASSO 2: NAVEGAR PARA CONCLUSÃO AO MAGISTRADO (se necessário) =====
+        if not ja_em_conclusao:
+            
+            # Aguardar que os botões de transição estejam carregados
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
+                )
+            except Exception:
+                logger.warning('[CLS][WARN] Botões de transição não carregaram')
+            
+            # Tentar clicar em "Conclusão ao Magistrado"
+            btn_conclusao_encontrado = False
+            try:
+                btn_conclusao = WebDriverWait(driver, 3).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                )
+                btn_conclusao.click()
+                btn_conclusao_encontrado = True
+            except Exception as e:
+                pass
+            
+            # Se não encontrou, tentar "Análise" primeiro
+            if not btn_conclusao_encontrado:
+                try:
+                    btn_analise = WebDriverWait(driver, 3).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Análise']"))
+                    )
+                    btn_analise.click()
+                    
+                    # Aguardar transição para /transicao (aguardar URL mudar rapidamente)
+                    if not esperar_url_conter(driver, '/transicao', timeout=8):
+                        logger.warning(f'[CLS][WARN] URL não contém /transicao após Análise: {driver.current_url}')
+                    
+                    # ===== CRÍTICO: AGUARDAR E REMOVER OVERLAY APÓS ANÁLISE =====
+                    max_tentativas_overlay = 5
+                    for tentativa in range(max_tentativas_overlay):
+                        try:
+                            # Verifica se há overlay visível
+                            overlays_visiveis = driver.find_elements(
+                                By.CSS_SELECTOR,
+                                'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing'
+                            )
+                            if overlays_visiveis:
+                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                                time.sleep(0.3)
+                            else:
+                                break
+                        except Exception as overlay_err:
+                            logger.error(f'[CLS][DEBUG] Erro ao verificar overlay: {overlay_err}')
+                            break
+                    
+                    # Pequena pausa adicional para estabilizar interface
+                    time.sleep(0.5)
+                    
+                    # Aguardar botões de transição novamente
+                    try:
+                        WebDriverWait(driver, 10).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
+                        )
+                    except Exception:
+                        pass
+                    
+                    # Agora tentar clicar em "Conclusão ao magistrado"
+                    
+                    # Tenta múltiplas estratégias de clique
+                    btn_conclusao_clicado = False
+                    max_tentativas_clique = 3
+                    
+                    for tentativa_clique in range(max_tentativas_clique):
+                        try:
+                            btn_conclusao = WebDriverWait(driver, 8).until(
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Conclusão ao magistrado']"))
+                            )
+                            
+                            # Primeira tentativa: clique normal
+                            if tentativa_clique == 0:
+                                btn_conclusao.click()
+                            # Segunda tentativa: JavaScript click
+                            elif tentativa_clique == 1:
+                                driver.execute_script('arguments[0].click();', btn_conclusao)
+                            # Terceira tentativa: ScrollIntoView + JavaScript click
+                            else:
+                                driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_conclusao)
+                                time.sleep(0.3)
+                                driver.execute_script('arguments[0].click();', btn_conclusao)
+                            
+                            btn_conclusao_clicado = True
+                            break
+                            
+                        except ElementClickInterceptedException as click_err:
+                            logger.warning(f'[CLS][WARN] Clique interceptado na tentativa {tentativa_clique + 1}: {click_err}')
+                            # Remove overlays novamente antes de próxima tentativa
+                            try:
+                                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                                time.sleep(0.5)
+                            except Exception:
+                                pass
+                        except Exception as other_err:
+                            logger.error(f'[CLS][WARN] Erro na tentativa {tentativa_clique + 1}: {other_err}')
+                            time.sleep(0.5)
+                    
+                    if not btn_conclusao_clicado:
+                        logger.error('[CLS][ERRO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas')
+                        return False
+                        
+                except Exception as e2:
+                    logger.error(f'[CLS][ERRO] Falha ao navegar via Análise: {e2}')
+                    return False
+            
+            # Aguardar URL /conclusao
+            if not esperar_url_conter(driver, '/conclusao', timeout=15):
+                logger.error(f'[CLS][ERRO] URL não mudou para /conclusao: {driver.current_url}')
+                # Se não está em /minutar, é erro real
+                if '/minutar' not in driver.current_url.lower():
+                    return False
+                else:
+                    # Se já foi direto para /minutar (caso raro), retornar sucesso
+                    try:
+                        campo_filtro_modelo = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
+                        )
+                        driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+                    except Exception as e:
+                        # Silencioso - a função de modelo vai validar
+                        pass
+                    return True
+
+        # ===== PASSO 3: ESCOLHER O TIPO DE CONCLUSÃO =====
+        # Aguardar botões de conclusão aparecerem
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
+            )
+        except Exception as e:
+            pass
+
+        # Procurar botão do tipo de conclusão
+        try:
+            btn_tipo_conclusao = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, f"button[aria-label='{conclusao_tipo}']"))
+            )
+        except Exception:
+            btn_tipo_conclusao = None
+        
+        if not btn_tipo_conclusao:
+            # Tentar procurar por texto no botão
+            try:
+                botoes = driver.find_elements(By.CSS_SELECTOR, 'pje-botoes-transicao button')
+                for btn in botoes:
+                    if conclusao_tipo.lower() in btn.text.strip().lower():
+                        btn_tipo_conclusao = btn
+                        break
+            except Exception:
+                pass
+        
+        if not btn_tipo_conclusao:
+            logger.error(f'[CLS][ERRO] Botão de conclusão "{conclusao_tipo}" não encontrado')
+            return False
+        
+        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
+        time.sleep(0.3)
+        driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+        time.sleep(1)
+
+        # ===== PASSO 4: AGUARDAR URL /MINUTAR E FOCAR NO CAMPO =====
+        if not esperar_url_conter(driver, '/minutar', timeout=20):
+            logger.error(f'[CLS][ERRO] URL não mudou para /minutar: {driver.current_url}')
+            return False
+
+        # Foco no campo de filtro de modelos
+        if not preparar_campo_filtro_modelo(driver, log=True):
+            logger.error('[CLS][MODELO][ERRO] Falha ao preparar campo de filtro de modelos')
+            return False
+
+        return True
+    except Exception as e:
+        logger.error(f'[CLS][ERRO] Falha no fluxo de CLS: {e}')
+        try:
+            driver.save_screenshot(f'erro_fluxo_cls_{conclusao_tipo}.png')
+        except Exception as screen_err:
+            logger.error(f'[CLS][WARN] Falha ao salvar screenshot do erro: {screen_err}')
+        return False # Indicate failure

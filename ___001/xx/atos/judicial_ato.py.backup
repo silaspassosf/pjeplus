@@ -1,0 +1,408 @@
+from Fix.core import aguardar_e_clicar, esperar_elemento, safe_click, logger, esperar_url_conter, preencher_multiplos_campos
+from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
+from Fix.extracao import bndt, criar_gigs
+from Fix.movimento_helpers import selecionar_movimento_auto
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
+import time
+import logging
+
+from typing import Optional, Tuple, Dict, List, Union, Callable
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.support.ui import WebDriverWait
+from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario, esperar_insercao_modelo, preparar_campo_filtro_modelo
+from .core import verificar_carregamento_pagina, aguardar_e_verificar_aba
+from .judicial_fluxo import fluxo_cls
+
+
+def ato_judicial(
+    driver: WebDriver,
+    conclusao_tipo=None,
+    modelo_nome=None,
+    prazo=None,
+    marcar_pec=None,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=None,
+    debug=False,
+    sigilo=None,
+    descricao=None,  # NOVO: parâmetro para descrição
+    perito=False,     # NOVO: parâmetro para ativar peritos
+    Assinar=False,    # NOVO: parâmetro para ativar assinatura
+    coleta_conteudo=None,  # NOVO: parâmetro para coleta de conteúdo parametrizável
+    inserir_conteudo=None,  # NOVO: função opcional para inserção no editor (ex: editor_insert.inserir_link_ato_validacao)
+    intimar=None,     # NOVO: parâmetro para controlar intimações automáticas
+    **kwargs
+):
+    """
+    Fluxo generalizado para qualquer ato judicial, seguindo a ordem:
+    0. Coleta de conteúdo parametrizável (PRIMEIRO PASSO - na aba /detalhe)
+    1. Modelo (fluxo_cls)
+    2. Descrição
+    3. Sigilo
+    4. Intimar
+    5. PEC
+    6. Prazo
+    7. Movimento
+    8. Assinar
+    9. Função extra de sigilo (NOTA: não executada aqui, deve ser feita externamente)
+    
+    NOVO COMPORTAMENTO DE SIGILO:
+    - A função visibilidade_sigilosos não é mais executada automaticamente
+    - Deve ser executada externamente após fechar a aba e estar na URL /detalhe
+    - Use executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado)
+    
+    :return: (sucesso: bool, sigilo_ativado: bool)
+    """
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    import time
+    
+    try:
+        # 0. PRIMEIRO: Executar coleta de conteúdo parametrizável na aba /detalhe (se especificado)
+        if coleta_conteudo:
+            try:
+                # Verifica se está na aba /detalhe
+                current_url = driver.current_url
+                if '/detalhe' not in current_url:
+                    logger.warning(f'[ATO][COLETA][WARN] URL atual não contém /detalhe: {current_url}')
+                    logger.warning('[ATO][COLETA][WARN] Coleta deve ser executada na aba /detalhe')
+                    
+                # Importa a função do módulo de coleta
+                
+                # Se coleta_conteudo for string, converte para dict simples
+                if isinstance(coleta_conteudo, str):
+                    config_coleta = {'tipo': coleta_conteudo}
+                else:
+                    config_coleta = coleta_conteudo
+                
+                # Extrai parâmetros
+                tipo_coleta = config_coleta.get('tipo', '')
+                parametros = config_coleta.get('parametros', None)
+                
+                # Tenta extrair número do processo da URL atual
+                try:
+                    from PEC.anexos import extrair_numero_processo_da_url
+                    numero_processo = extrair_numero_processo_da_url(driver)  # Passa o driver, não a URL
+                    if not numero_processo:
+                        logger.warning('[ATO][COLETA][WARN] Número do processo não encontrado na URL')
+                        numero_processo = "PROCESSO_DESCONHECIDO"
+                except Exception as e:
+                    logger.error(f'[ATO][COLETA][ERRO] Erro na extração do número do processo: {e}')
+                    numero_processo = "PROCESSO_DESCONHECIDO"
+                
+                # Executa a coleta
+                sucesso_coleta = executar_coleta_parametrizavel(
+                    driver, numero_processo, tipo_coleta, parametros, debug
+                )
+                
+                if sucesso_coleta:
+                    pass
+            except Exception as coleta_err:
+                logger.error(f'[ATO][COLETA][ERRO] Erro na coleta de conteúdo: {coleta_err}')
+                logger.error('[ATO][COLETA] Continuando com o fluxo principal mesmo com erro na coleta...')
+                # Não falha o fluxo principal por erro na coleta
+
+        
+        # ===== VERIFICAÇÃO DE URL ATUAL =====
+        # Detecta se já estamos em /conclusao ou /minutar para pular etapas
+        current_url = (driver.current_url or '').lower()
+        ja_em_conclusao = '/conclusao' in current_url
+        ja_em_minutar = '/minutar' in current_url
+        
+        if ja_em_minutar:
+            pass
+        elif ja_em_conclusao:
+            pass
+        
+        # 1. Modelo (fluxo_cls) - EXECUTADO APENAS SE NÃO ESTIVER JÁ EM /minutar
+        sigilo_ativado = False
+        resultado_cls = False
+        
+        # Se já estamos em /minutar, pular completamente o fluxo_cls
+        if ja_em_minutar:
+            resultado_cls = True  # Considera sucesso pois já estamos onde precisamos
+        elif conclusao_tipo and modelo_nome:
+            try:
+                resultado_cls = fluxo_cls(driver, conclusao_tipo, forcar_iniciar_execucao=False)
+                if not resultado_cls:
+                    # Verificar se mesmo com falha estamos em /minuta (pode ter navegado parcialmente)
+                    current_url_check = (driver.current_url or '').lower()
+                    if '/minutar' in current_url_check or '/minuta' in current_url_check:
+                        logger.warning('[ATO][WARN] Fluxo CLS retornou False, mas estamos em /minuta - continuando')
+                        resultado_cls = True
+                    else:
+                        logger.error('[ATO][ERRO] Fluxo CLS falhou e NÃO estamos em /minuta - abortando')
+                        return False, False
+            except Exception as e:
+                logger.error(f'[ATO][ERRO] Falha no fluxo CLS: {e}')
+                return False, False
+        
+        # 5. PEC
+        # LOGS INICIAIS DE DEBUG
+        
+        # 2. Digitação do modelo e prosseguimento (padrão MaisPje/gigs-plugin.js)
+        # NOTA: Só executa se fluxo_cls foi bem-sucedido OU se devemos tentar mesmo com falha
+        if resultado_cls or conclusao_tipo:  # Tenta mesmo se CLS falhou
+            
+            try:
+                from selenium.webdriver.common.by import By
+                # Verifica se já estamos na tela de minuta (campo #inputFiltro existe)
+                try:
+                    campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
+                except:
+                    if not resultado_cls:
+                        logger.error('[ATO][ERRO] Fluxo CLS falhou e não estamos na tela de minuta')
+                        return False, False
+                    return False, False
+                
+                # VERIFICAÇÃO: Editor já tem conteúdo? (caso "elaborar")
+                try:
+                    editor = driver.find_element(By.CSS_SELECTOR, 'div.ck-content[contenteditable="true"]')
+                    conteudo_editor = editor.text.strip()
+                    
+                    if conteudo_editor:
+                        
+                        # Pular para etapa de PEC (não inserir modelo)
+                        # Mas continuar o fluxo normalmente (não retornar aqui)
+                        skip_modelo_insert = True
+                    else:
+                        skip_modelo_insert = False
+                except Exception as e:
+                    skip_modelo_insert = False
+                
+                # Se não deve pular, insere o modelo
+                if not skip_modelo_insert:
+                    # Preenche o modelo
+                    driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+                    driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo_nome)
+                    # Dispara eventos como no gigs-plugin.js
+                    for ev in ['input', 'change', 'keyup']:
+                        driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+                    # Simula Enter
+                    from selenium.webdriver.common.keys import Keys
+                    campo_filtro_modelo.send_keys(Keys.ENTER)
+                    
+                    # Aguardar lista de modelos carregar e clicar no primeiro
+                    if not esperar_insercao_modelo(driver, log=True):
+                        logger.error('[ATO][MODELO][ERRO] Falha ao selecionar modelo')
+                        return False, False
+                
+            except Exception as e:
+                logger.error(f'[ATO][ERRO] Falha ao inserir modelo: {e}')
+                return False, False
+        
+        # 3. Descrição (se fornecida)
+        if descricao:
+            try:
+                descricao_input = WebDriverWait(driver, 10).until(
+                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[formcontrolname="descricao"]'))
+                )
+                descricao_input.clear()
+                descricao_input.send_keys(descricao)
+            except Exception as e:
+                logger.error(f'[ATO][DESCRICAO][ERRO] Falha ao inserir descrição: {e}')
+                # Não interrompe o fluxo
+        
+        # 4. Sigilo (checkbox)
+        if sigilo is not None:
+            try:
+                checkbox_sigilo = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sigilo"]'))
+                )
+                sigilo_atual = checkbox_sigilo.get_attribute('aria-checked') == 'true'
+                if sigilo and not sigilo_atual:
+                    driver.execute_script('arguments[0].click();', checkbox_sigilo)
+                    sigilo_ativado = True
+                elif not sigilo and sigilo_atual:
+                    driver.execute_script('arguments[0].click();', checkbox_sigilo)
+                    sigilo_ativado = False
+            except Exception as e:
+                logger.error(f'[ATO][SIGILO][ERRO] Falha ao ajustar sigilo: {e}')
+                # Não interrompe o fluxo
+        
+        # 4.1. Intimar (checkbox)
+        if intimar is not None:
+            try:
+                checkbox_intimar = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Intimar"]'))
+                )
+                intimar_atual = checkbox_intimar.get_attribute('aria-checked') == 'true'
+                if intimar and not intimar_atual:
+                    driver.execute_script('arguments[0].click();', checkbox_intimar)
+                elif not intimar and intimar_atual:
+                    driver.execute_script('arguments[0].click();', checkbox_intimar)
+            except Exception as e:
+                logger.error(f'[ATO][INTIMAR][ERRO] Falha ao ajustar intimação: {e}')
+                # Não interrompe o fluxo
+        
+        # 5. PEC
+        if marcar_pec:
+            try:
+                # Marcador PEC na mesma tela de minuta
+                checkbox_pec = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="PEC"]'))
+                )
+                pec_atual = checkbox_pec.get_attribute('aria-checked') == 'true'
+                if not pec_atual:
+                    driver.execute_script('arguments[0].click();', checkbox_pec)
+            except Exception as e:
+                logger.error(f'[ATO][PEC][ERRO] Falha ao marcar PEC: {e}')
+                # Não interrompe o fluxo
+        
+        # 6. Prazo
+        if prazo is not None:
+            try:
+                from .judicial_helpers import preencher_prazos_destinatarios
+                if not preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=marcar_primeiro_destinatario, perito=perito):
+                    logger.warning('[ATO][PRAZO][WARN] Falha ao preencher prazos de destinatários')
+            except Exception as e:
+                logger.error(f'[ATO][PRAZO][ERRO] Erro ao preencher prazos: {e}')
+                # Não interrompe o fluxo
+        
+        # 7. Movimento
+        if movimento:
+            try:
+                selecionar_movimento_auto(driver, movimento, debug=debug)
+            except Exception as e:
+                logger.error(f'[ATO][MOVIMENTO][ERRO] Falha ao selecionar movimento: {e}')
+                # Não interrompe o fluxo
+        
+        # 8. Assinar
+        if Assinar:
+            try:
+                btn_assinar = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Assinar"]'))
+                )
+                driver.execute_script('arguments[0].click();', btn_assinar)
+                # Aguarda redirecionamento para /assinar
+                esperar_url_conter(driver, '/assinar', timeout=15)
+            except Exception as e:
+                logger.error(f'[ATO][ASSINAR][ERRO] Falha ao assinar: {e}')
+                # Não interrompe o fluxo
+        
+        # 9. Inserir conteúdo adicional (se houver função fornecida)
+        if inserir_conteudo:
+            try:
+                inserir_conteudo(driver)
+            except Exception as e:
+                logger.error(f'[ATO][INSERIR][ERRO] Falha ao inserir conteúdo: {e}')
+                # Não interrompe o fluxo
+        
+        # 10. GIGS (se houver)
+        if gigs:
+            try:
+                # Garante que estamos na aba de detalhe do processo antes de criar GIGS
+                try:
+                    current_handle = driver.current_window_handle
+                    current_url = driver.current_url
+                except Exception:
+                    current_handle = None
+                    current_url = None
+                
+                # Se não estiver em /detalhe, tentar localizar
+                if current_url and '/detalhe' not in current_url:
+                    for h in driver.window_handles:
+                        try:
+                            driver.switch_to.window(h)
+                            if '/detalhe' in (driver.current_url or ''):
+                                break
+                        except Exception:
+                            continue
+                
+                # Criar GIGS conforme configuração
+                dias = gigs.get('dias') if isinstance(gigs, dict) else gigs
+                responsavel = gigs.get('responsavel') if isinstance(gigs, dict) else None
+                observacao = gigs.get('observacao') if isinstance(gigs, dict) else None
+                detalhe = gigs.get('detalhe', True) if isinstance(gigs, dict) else True
+                
+                resultado_gigs = criar_gigs(driver, dias, responsavel, observacao)
+                
+                if resultado_gigs:
+                    pass
+                else:
+                    logger.error('[ATO][GIGS][ERRO] Falha na criação')
+                    
+                try:
+                    if not detalhe:
+                        try:
+                            driver.close()
+                        except Exception as eclose:
+                            logger.error(f'[ATO][GIGS][WARN] Erro fechamento: {eclose}')
+                        abas_restantes = driver.window_handles
+                        if abas_restantes:
+                            try:
+                                driver.switch_to.window(abas_restantes[0])
+                                time.sleep(0.5)
+                            except Exception as eswitch:
+                                logger.error(f'[ATO][GIGS][WARN] Erro troca: {eswitch}')
+                    else:
+                        try:
+                            if current_handle in driver.window_handles:
+                                driver.switch_to.window(current_handle)
+                                time.sleep(0.5)
+                            else:
+                                for h in driver.window_handles:
+                                    try:
+                                        driver.switch_to.window(h)
+                                        if '/minutar' in (driver.current_url or ''):
+                                            break
+                                    except Exception:
+                                        continue
+                        except Exception as ere:
+                            logger.error(f'[ATO][GIGS][WARN] Erro retorno: {ere}')
+                except Exception as epost:
+                    logger.error(f'[ATO][GIGS][WARN] Erro pós-criação: {epost}')
+                    
+            except Exception as gigs_err:
+                logger.error(f'[ATO][GIGS][ERRO] Exceção: {gigs_err}')
+        
+        if sigilo_ativado:
+            # Executar visibilidade para sigilosos após o ato judicial
+            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=debug)
+        
+        return True, sigilo_ativado
+    except Exception as e:
+        logger.error(f'[ATO][ERRO] Falha no fluxo do ato judicial ({conclusao_tipo}, {modelo_nome}): {e}')
+        try:
+            driver.save_screenshot(f'erro_ato_{conclusao_tipo}_{modelo_nome}.png')
+        except Exception as screen_err:
+            logger.error(f'[ATO][WARN] Falha ao salvar screenshot do erro: {screen_err}')
+        # RETORNA: (falha, sigilo_nao_ativado)
+        return False, False
+
+
+def make_ato_wrapper(conclusao_tipo, modelo_nome, prazo=None, marcar_pec=None, movimento=None, gigs=None, marcar_primeiro_destinatario=None, descricao=None, sigilo=None, perito=False, Assinar=False, coleta_conteudo=None, inserir_conteudo=None, intimar=None):
+    def wrapper(driver, debug=False, sigilo_=None, movimento_=None, descricao_=None, perito_=None, Assinar_=None, coleta_conteudo_=None, inserir_conteudo_=None, **kwargs):
+        call_args = dict(
+            driver=driver,
+            conclusao_tipo=conclusao_tipo,
+            modelo_nome=modelo_nome,
+            prazo=prazo,
+            marcar_pec=marcar_pec,
+            movimento=movimento_ if movimento_ is not None else movimento,
+            gigs=gigs,
+            marcar_primeiro_destinatario=marcar_primeiro_destinatario,
+            debug=debug,
+            sigilo=sigilo_ if sigilo_ is not None else sigilo,
+            descricao=descricao_ if descricao_ is not None else descricao,
+            perito=perito_ if perito_ is not None else perito,
+            Assinar=Assinar_ if Assinar_ is not None else Assinar,
+            coleta_conteudo=coleta_conteudo_ if coleta_conteudo_ is not None else coleta_conteudo,
+            inserir_conteudo=inserir_conteudo_ if inserir_conteudo_ is not None else inserir_conteudo,
+            intimar=intimar,
+        )
+        # Adicionar kwargs ao call_args para propagar parametros extras (ex: conteudo_relatorio)
+        call_args.update(kwargs)
+        
+        sucesso, sigilo_ativado = ato_judicial(**call_args)
+        
+        # Para compatibilidade com código existente, retorna apenas sucesso
+        # mas armazena sigilo_ativado como atributo para acesso posterior
+        wrapper.ultimo_sigilo_ativado = sigilo_ativado
+        return sucesso
+    return wrapper

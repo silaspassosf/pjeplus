@@ -1,0 +1,255 @@
+import logging
+logger = logging.getLogger(__name__)
+
+#!/usr/bin/env python3
+"""
+GUIDE: LIMPEZA DE LOGS + REFACTORING - Passo a Passo
+======================================================
+
+Este guia leva você por todo processo de limpeza de forma segura.
+Scripts prontos para executar, sem risco de quebrar nada.
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+
+class CleanupGuide:
+    """Guia interativo de limpeza."""
+    
+    STEPS = [
+        {
+            "numero": 0,
+            "nome": "PRÉ-REQUISITOS",
+            "descricao": "Verificar ambiente está setup",
+            "comandos": [
+                "python --version",
+                "pip list | grep selenium",
+                "git status",
+            ],
+            "dicas": [
+                "Certifique-se que está em branch develop ou feature branch",
+                "Tenha git instalado para poder reverter se necessário",
+                "Tenha os testes passando ANTES de começar",
+            ]
+        },
+        {
+            "numero": 1,
+            "nome": "BACKUP + GIT COMMIT",
+            "descricao": "Criar ponto de segurança",
+            "comandos": [
+                "git add -A && git commit -m 'Backup antes de limpeza de logs'",
+                "git branch | grep '*'  # confirmar branch",
+            ],
+            "dicas": [
+                "Se não quer fazer commit, pelo menos faça: git stash",
+                "Isso garante que pode voltar com: git reset --hard HEAD~1",
+            ]
+        },
+        {
+            "numero": 2,
+            "nome": "EXECUTAR LIMPEZA AUTOMÁTICA",
+            "descricao": "Rodar script de limpeza",
+            "comandos": [
+                "python clean_logs.py Fix/core.py",
+                "python clean_logs.py Fix/  # Para toda pasta",
+            ],
+            "dicas": [
+                "Script cria .backup automaticamente",
+                "Se quebrou, pode restaurar: cp Fix/core.py.backup Fix/core.py",
+                "Verifique os backups criados: ls Fix/*.backup",
+            ]
+        },
+        {
+            "numero": 3,
+            "nome": "VALIDAR SINTAXE + LIMPEZA",
+            "descricao": "Verificar que não quebrou nada",
+            "comandos": [
+                "python validate_refactoring.py Fix/",
+                "python validate_refactoring.py  # valida tudo",
+            ],
+            "dicas": [
+                "Se tiver erro de sintaxe, revisar manualmente",
+                "Erro de sintaxe = pode restaurar do backup",
+                "Aviso de logging = OK, pode ignorar alguns",
+            ]
+        },
+        {
+            "numero": 4,
+            "nome": "TESTAR FUNCIONALIDADES",
+            "descricao": "Rodar testes para garantir nada quebrou",
+            "comandos": [
+                "python -m pytest tests/ -v",
+                "python -m pytest tests/test_fix.py -v",
+            ],
+            "dicas": [
+                "Se teste falhar, é problema de refactoring",
+                "Restaurar: git checkout Fix/core.py",
+                "Refactoring manual necessário para esse arquivo",
+            ]
+        },
+        {
+            "numero": 5,
+            "nome": "REVISAR MUDANÇAS (OPCIONAL)",
+            "descricao": "Revisar código antes de commitar",
+            "comandos": [
+                "git diff Fix/core.py | head -100",
+                "git diff Fix/core.py | wc -l  # quantas linhas",
+            ],
+            "dicas": [
+                "Procure por patterns que não foram limpados",
+                "Se vir muitos print() ainda → refactoring incompleto",
+                "Se vir muitos logger.debug() → pode remover mais",
+            ]
+        },
+        {
+            "numero": 6,
+            "nome": "CLEANUP FINAL",
+            "descricao": "Remover backups e commitar",
+            "comandos": [
+                "rm Fix/*.backup  # Remove backups",
+                "git add -A && git commit -m 'Limpeza de logs concluída'",
+                "git log -1 --oneline  # confirmar commit",
+            ],
+            "dicas": [
+                "Só delete backups DEPOIS que tiver certeza que OK",
+                "Se quebrar depois: git revert commit_hash",
+                "Backup protege por ~1 dia antes de ser deletado",
+            ]
+        },
+    ]
+    
+    @staticmethod
+    def print_step(step_num):
+        """Mostra um passo."""
+        step = CleanupGuide.STEPS[step_num]
+        
+        
+        for i, cmd in enumerate(step['comandos'], 1):
+            pass
+        
+        for dica in step['dicas']:
+            pass
+    
+    @staticmethod
+    def print_all_steps():
+        """Mostra todos os passos."""
+        for step in CleanupGuide.STEPS:
+            CleanupGuide.print_step(step['numero'])
+    
+    @staticmethod
+    def run_quick_cleanup():
+        """Executa limpeza automática rápida."""
+        
+        steps_to_run = [
+            ("Backup de git", lambda: subprocess.run(["git", "commit", "-m", "Backup antes de limpeza"], 
+                                                     capture_output=True)),
+            ("Limpeza de logs", lambda: subprocess.run(["python", "clean_logs.py", "Fix/"],
+                                                       capture_output=True)),
+            ("Validação", lambda: subprocess.run(["python", "validate_refactoring.py", "Fix/"],
+                                                capture_output=True)),
+        ]
+        
+        for nome, func in steps_to_run:
+            try:
+                result = func()
+                if result.returncode == 0:
+                    pass
+                else:
+            except Exception as e:
+                logger.error(f"✗ Erro: {e}")
+    
+    @staticmethod
+    def main():
+        """Menu interativo."""
+        print("\n" + "=" * 70)
+        print("GUIDE: LIMPEZA DE LOGS - FIX PROJECT")
+        print("=" * 70)
+        print("\nOpções:")
+        print("  1. Ver todos os passos")
+        print("  2. Ver passo específico (0-6)")
+        print("  3. Executar limpeza rápida (automática)")
+        print("  4. Sair")
+        print()
+        
+        choice = input("Escolha: ").strip()
+        
+        if choice == "1":
+            CleanupGuide.print_all_steps()
+        elif choice == "2":
+            step_num = input("Número do passo (0-6): ").strip()
+            try:
+                CleanupGuide.print_step(int(step_num))
+            except (ValueError, IndexError):
+                print("Passo inválido")
+        elif choice == "3":
+            CleanupGuide.run_quick_cleanup()
+        elif choice == "4":
+            print("Bye!")
+            sys.exit(0)
+        else:
+            print("Opção inválida")
+
+
+# =============================================================================
+# QUICK START (sem menu)
+# =============================================================================
+
+QUICK_START = """
+▶ QUICK START (3 MINUTOS)
+=========================
+
+1. Backup:
+   $ git add -A && git commit -m "Backup antes de limpeza"
+
+2. Limpeza automática:
+   $ python clean_logs.py Fix/core.py
+
+3. Validação:
+   $ python validate_refactoring.py
+
+4. Se tudo OK:
+   $ rm Fix/*.backup
+   $ git add -A && git commit -m "Limpeza de logs concluída"
+
+5. Se algo quebrou:
+   $ cp Fix/core.py.backup Fix/core.py
+   $ git reset --hard HEAD~1
+
+═══════════════════════════════════════════════════════════════
+
+▶ O QUE FOI LIMPADO:
+  ✗ Removidos todos print()
+  ✗ Removidos todos logger.debug() triviais
+  ✗ Removidos todos emojis
+  ✗ Removidas linhas decorativas
+  ✗ Logs agrupados em resumos (em vez de por item)
+  
+  ✓ Mantidos logger.error() e logger.warning()
+  ✓ Mantida lógica de negócio
+  ✓ Mantidas funcionalidades
+
+═══════════════════════════════════════════════════════════════
+
+▶ VERIFICAÇÃO PÓS-LIMPEZA:
+  $ git diff --stat               # Resumo de mudanças
+  $ python -m pytest tests/       # Testa tudo
+  $ git log -1                    # Confirma commit
+
+═══════════════════════════════════════════════════════════════
+
+Perguntas?
+  • Se quebrou → restaure do .backup
+  • Se incompleto → rode clean_logs.py novamente
+  • Se erro de sintaxe → git diff e procure por pattern quebrado
+"""
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--quick":
+            print(QUICK_START)
+        elif sys.argv[1] == "--interactive":
+            CleanupGuide.main()
+    else:
+        print(QUICK_START)

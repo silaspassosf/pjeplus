@@ -1,0 +1,702 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+@module: Fix.selenium_base.element_interaction
+@responsibility: Interação com elementos DOM (clicar, preencher, scroll)
+@depends_on: selenium.webdriver, Fix.selenium_base.wait_operations
+@used_by: Todos os módulos que interagem com elementos
+@entry_points: safe_click, preencher_campo, preencher_campos_prazo, preencher_multiplos_campos, _clicar_botao_movimentar, _clicar_botao_tarefa_processo, js_base
+@tags: #selenium #click #fill #interaction #forms
+@created: 2026-01-29
+@refactored_from: Fix/core.py lines 105-286, 463-607, 973-1082, 2766-2846
+"""
+
+import time
+from typing import Union
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    ElementNotInteractableException,
+    WebDriverException
+)
+from selenium.webdriver.support.ui import WebDriverWait
+
+from ..log import logger
+from .wait_operations import esperar_elemento
+
+# Variáveis de compatibilidade
+import os
+DEBUG = os.getenv('PJEPLUS_DEBUG', '0').lower() in ('1', 'true', 'on')
+
+def _log_info(msg: str) -> None:
+    """Compatibilidade com logs antigos"""
+    logger.info(msg)
+
+def _log_error(msg: str) -> None:
+    """Compatibilidade com logs antigos"""
+    logger.error(msg)
+
+def _audit(action: str, target: str, status: str, extra: dict = None) -> None:
+    """Compatibilidade com auditoria antiga"""
+    if extra:
+        logger.debug(f"[AUDIT] {action}:{target}:{status} {extra}")
+    else:
+        logger.debug(f"[AUDIT] {action}:{target}:{status}")
+
+def js_base() -> str:
+    """
+    Funções JavaScript base usando MutationObserver (padrão gigs.py)
+    Substitui polling Python por espera passiva no browser
+    
+    Funções disponíveis:
+    - esperarElemento(seletor, timeout): Aguarda elemento aparecer
+    - triggerEvent(elemento, tipo): Dispara evento (input, change, blur)
+    - esperarOpcoes(seletor, timeout): Aguarda opções de dropdown
+    """
+    # Usar implementação mais avançada do SISB se disponível
+    try:
+        from SISB.utils import criar_js_otimizado
+        return criar_js_otimizado()
+    except ImportError:
+        # Fallback para implementação original
+        return """
+        function esperarElemento(seletor, timeout = 5000) {
+            return new Promise(resolve => {
+                let elemento = document.querySelector(seletor);
+                let disabled = (elemento && elemento.disabled === undefined) ? false : elemento.disabled;
+                if (elemento && !disabled) {
+                    resolve(elemento);
+                    return;
+                }
+                
+                let observer = new MutationObserver(mutations => {
+                    let elem = document.querySelector(seletor);
+                    let disabled = (elem && elem.disabled === undefined) ? false : elem.disabled;
+                    if (elem && !disabled) {
+                        observer.disconnect();
+                        resolve(elem);
+                    }
+                });
+                
+                observer.observe(document.body, { childList: true, subtree: true });
+                setTimeout(() => { 
+                    observer.disconnect(); 
+                    resolve(null); 
+                }, timeout);
+            });
+        }
+        
+        function triggerEvent(elemento, tipo) {
+            if (!elemento) return;
+            if ('createEvent' in document) {
+                let evento = document.createEvent('HTMLEvents');
+                evento.initEvent(tipo, true, true);
+                elemento.dispatchEvent(evento);
+            } else {
+                elemento.dispatchEvent(new Event(tipo, { bubbles: true }));
+            }
+        }
+        
+        function esperarOpcoes(seletor = 'mat-option[role="option"]', timeout = 5000) {
+            return new Promise(resolve => {
+                let opcoes = document.querySelectorAll(seletor);
+                if (opcoes.length > 0) {
+                    resolve(opcoes);
+                    return;
+                }
+                
+                let observer = new MutationObserver(mutations => {
+                    let opts = document.querySelectorAll(seletor);
+                    if (opts.length > 0) {
+                        observer.disconnect();
+                        resolve(opts);
+                    }
+                });
+                
+                observer.observe(document.body, { childList: true, subtree: true });
+                setTimeout(() => { 
+                    observer.disconnect(); 
+                    resolve([]); 
+                }, timeout);
+            });
+        }
+        """
+
+def safe_click(driver: WebDriver, selector_or_element: Union[str, WebElement], timeout: int = 10, by: By = None, log: bool = False) -> bool:
+    """
+    DEPRECATED: Use aguardar_e_clicar() para melhor performance
+    Mantido apenas para compatibilidade com código legado
+    
+    Clicks safely. Accepts selector (string) or element.
+    
+    Args:
+        driver: WebDriver Selenium
+        selector_or_element: Seletor CSS/XPATH (string) ou WebElement
+        timeout: Timeout em segundos (default: 10)
+        by: Tipo de seletor (default: None)
+        log: Se True, loga operação (default: False)
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    # Import wait function to avoid circular dependency
+    from .wait_operations import wait
+    
+    if isinstance(selector_or_element, str):
+        element = wait(driver, selector_or_element, timeout, by)
+    else:
+        element = selector_or_element
+
+    # Fallback for KZ details icon (robust selector)
+    if element is None and isinstance(selector_or_element, str) and (
+        'Detalhes do Processo' in selector_or_element or 'detalhes do processo' in selector_or_element.lower()
+    ):
+        try:
+            # Try clicking the KZ icon directly
+            element = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
+            driver.execute_script("arguments[0].click();", element)
+            if DEBUG:
+                _log_info('[CLICK] Clicked KZ details icon (img.mat-tooltip-trigger)')
+            _audit('click', 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]', 'ok')
+            return True
+        except Exception:
+            element = None
+
+        # Try clicking the parent button if img not clickable
+        try:
+            img = driver.find_element(By.CSS_SELECTOR, 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]')
+            button = img.find_element(By.XPATH, './ancestor::button[1]')
+            driver.execute_script("arguments[0].click();", button)
+            if DEBUG:
+                _log_info('[CLICK] Clicked parent button of KZ details icon')
+            _audit('click', 'button(parentOf: img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"])', 'ok')
+            return True
+        except Exception:
+            pass
+        
+    if element and element.is_displayed():
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", element)
+            driver.execute_script("arguments[0].click();", element)
+            if DEBUG:
+                _log_info(f'[CLICK] Clicked: {element.text if hasattr(element, "text") else selector_or_element}')
+            _audit('click', selector_or_element, 'ok')
+            return True
+        except Exception as e_click:
+            # Tentativa de fallback: reduzir zoom temporariamente e tentar JS click novamente
+            try:
+                if log:
+                    print(f'[CLICK][WARN] JS click falhou: {e_click} - tentando fallback de zoom')
+                prev_zoom = driver.execute_script("return document.body.style.zoom || '';")
+                driver.execute_script("document.body.style.zoom = '60%';")
+                time.sleep(0.12)
+                driver.execute_script("arguments[0].click();", element)
+                # restaurar zoom
+                try:
+                    driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
+                except Exception:
+                    pass
+                if DEBUG:
+                    _log_info(f'[CLICK] Click via JS com zoom reduzido: {selector_or_element}')
+                _audit('click', selector_or_element, 'ok-fallback-zoom')
+                return True
+            except Exception as e_fallback:
+                if log:
+                    print(f'[CLICK][ERROR] Fallback click falhou: {e_fallback}')
+                try:
+                    # tentar restaurar zoom mesmo em caso de erro
+                    driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
+                except Exception:
+                    pass
+                _log_error(f'[CLICK][ERROR] Failed to click after fallback: {e_fallback}')
+                _audit('click', selector_or_element, 'fail', {'error': str(e_fallback)[:300]})
+                return False
+        
+        # Se o elemento não estiver visível, tentar um click via JS
+        try:
+            driver.execute_script("arguments[0].click();", element)
+            if DEBUG:
+                _log_info(f'[CLICK] Click via JS em elemento não visível: {selector_or_element}')
+            _audit('click', selector_or_element, 'ok-js-hidden')
+            return True
+        except Exception as e_hidden:
+            # Última tentativa: reduzir zoom e tentar novamente
+            try:
+                prev_zoom = driver.execute_script("return document.body.style.zoom || '';")
+                driver.execute_script("document.body.style.zoom = '60%';")
+                time.sleep(0.12)
+                driver.execute_script("arguments[0].click();", element)
+                try:
+                    driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
+                except Exception:
+                    pass
+                if DEBUG:
+                    _log_info(f'[CLICK] Click via JS com zoom reduzido em elemento não visível: {selector_or_element}')
+                _audit('click', selector_or_element, 'ok-js-hidden-zoom')
+                return True
+            except Exception as e_final:
+                _log_error(f'[CLICK][ERROR] Failed to click hidden element: {e_final}')
+                _audit('click', selector_or_element, 'fail-hidden', {'error': str(e_final)[:300]})
+                return False
+
+def preencher_campo(driver: WebDriver, seletor: str, valor: Union[str, int], trigger_events: bool = True, limpar: bool = True, log: bool = False) -> bool:
+    """
+    Preenche campo de formulário com triggers (1 script vs 3-4 requisições)
+    Padrão repetitivo consolidado: clear + send_keys + trigger events
+    
+    Args:
+        driver: WebDriver Selenium
+        seletor: Seletor CSS do campo
+        valor: Valor a preencher
+        trigger_events: Se True, dispara input/change/blur (default: True)
+        limpar: Se True, limpa campo antes de preencher (default: True)
+        log: Ativa logging (default: False)
+    
+    Returns:
+        True se preencheu, False caso contrário
+    
+    Exemplo:
+        # Ao invés de:
+        # campo = driver.find_element(By.ID, 'nome')
+        # campo.clear()
+        # campo.send_keys('João')
+        # campo.send_keys(Keys.TAB)
+        
+        # Usar:
+        preencher_campo(driver, '#nome', 'João')
+    """
+    try:
+        # Escapar valor para JavaScript
+        valor_escapado = str(valor).replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"').replace("\n", "\\n")
+        
+        # execute_async_script: callback automático
+        script = f"""
+        {js_base()}
+        const callback = arguments[arguments.length - 1];
+        
+        esperarElemento('{seletor}', 5000)
+            .then(campo => {{
+                if (!campo) {{
+                    callback(false);
+                    return;
+                }}
+                
+                if ({str(limpar).lower()}) {{
+                    campo.value = '';
+                }}
+                
+                campo.value = '{valor_escapado}';
+                
+                if ({str(trigger_events).lower()}) {{
+                    triggerEvent(campo, 'input');
+                    triggerEvent(campo, 'change');
+                    triggerEvent(campo, 'blur');
+                }}
+                
+                callback(true);
+            }})
+            .catch(err => {{
+                console.error('Erro preencher_campo:', err);
+                callback(false);
+            }});
+        """
+        
+        resultado = driver.execute_async_script(script)
+        if log:
+            status = "" if resultado else ""
+            try:
+                val_preview = str(valor)[:50]
+            except Exception:
+                val_preview = '[unrepresentable]'
+            print(f"{status} preencher_campo: {seletor} = '{val_preview}'")
+        return resultado
+    except Exception as e:
+        if log:
+            pass
+        return False
+
+def preencher_campos_prazo(driver: WebDriver, valor: int = 0, timeout: int = 10, log: bool = True) -> bool:
+    """
+    Preenche todos os campos de prazo (input[type=text].mat-input-element) dentro do formulário.
+    
+    Args:
+        driver: WebDriver Selenium
+        valor: Valor do prazo em dias (default: 0)
+        timeout: Timeout em segundos (default: 10)
+        log: Se True, loga operação (default: True)
+        
+    Returns:
+        True se preencheu, False caso contrário
+    """
+    try:
+        from .wait_operations import wait
+        
+        form = wait(driver, '#mat-tab-content-0-0 > div > pje-intimacao-automatica > div > form', timeout)
+        if not form:
+            if log:
+                print('[Fix.core] Formulário de minuta/comunicação não encontrado.')
+            return False
+        
+        inputs = form.find_elements(By.CSS_SELECTOR, 'input[type="text"].mat-input-element')
+        if not inputs:
+            if log:
+                print('[Fix.core] Nenhum campo de prazo encontrado.')
+            return False
+        
+        for campo in inputs:
+            driver.execute_script("arguments[0].focus();", campo)
+            campo.clear()
+            campo.send_keys(str(valor))
+            driver.execute_script('arguments[0].dispatchEvent(new Event("input", {bubbles:true}));', campo)
+            driver.execute_script('arguments[0].dispatchEvent(new Event("change", {bubbles:true}));', campo)
+            
+            if log:
+                print(f'[Fix.core] Campo de prazo preenchido com {valor}')
+        
+        return True
+
+    except Exception:
+        if log:
+            pass
+        return False
+
+def preencher_multiplos_campos(driver: WebDriver, campos_dict: dict, log: bool = False) -> dict:
+    """
+    Preenche múltiplos campos em uma única operação JavaScript
+    Otimização extra: N campos = 1 requisição (vs N requisições)
+
+    Args:
+        driver: WebDriver Selenium
+        campos_dict: Dict {seletor: valor}
+        log: Ativa logging
+
+    Returns:
+        Dict {seletor: True/False} indicando sucesso de cada campo
+
+    Exemplo:
+        resultado = preencher_multiplos_campos(driver, {
+            '#nome': 'João Silva',
+            '#email': 'joao@email.com',
+            '#telefone': '11999999999'
+        })
+    """
+    try:
+        # Construir array JavaScript de campos
+        campos_js = []
+        for seletor, valor in campos_dict.items():
+            valor_escapado = str(valor).replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
+            campos_js.append(f"{{'seletor': '{seletor}', 'valor': '{valor_escapado}'}}")
+
+        campos_array = "[" + ", ".join(campos_js) + "]"
+
+        script = f"""
+        {js_base()}
+
+        let campos = {campos_array};
+        let resultados = {{}};
+
+        for (let campo of campos) {{
+            try {{
+                let elemento = document.querySelector(campo.seletor);
+                if (elemento) {{
+                    elemento.value = campo.valor;
+                    triggerEvent(elemento, 'input');
+                    triggerEvent(elemento, 'change');
+                    resultados[campo.seletor] = true;
+                }} else {{
+                    resultados[campo.seletor] = false;
+                }}
+            }} catch(e) {{
+                resultados[campo.seletor] = false;
+            }}
+        }}
+
+        return resultados;
+        """
+
+        resultado = driver.execute_script(script)
+
+        if log:
+            for _seletor, _sucesso in resultado.items():
+                pass
+
+        return resultado
+    except Exception:
+        if log:
+            pass
+        return {seletor: False for seletor in campos_dict.keys()}
+
+def _clicar_botao_movimentar(driver: WebDriver, timeout: int = 10, log: bool = False) -> bool:
+    """
+    Estratégia especializada para clicar no botão "Movimentar processos" do PJe
+    Usa apenas seletores XPath válidos que funcionam
+    
+    Args:
+        driver: WebDriver Selenium
+        timeout: Timeout em segundos (default: 10)
+        log: Se True, loga operação (default: False)
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    seletores_prioridade = [
+        # Prioridade máxima: seletor funcional validado
+        "button.mat-raised-button",
+        # XPath de fallback
+        "//button[.//span[contains(text(),'Movimentar processos')]]",
+        "//button[contains(., 'Movimentar processos')]",
+    ]
+
+    for seletor in seletores_prioridade:
+        try:
+            if log:
+                print(f"🔍 Tentando seletor: {seletor}")
+
+            if "//" in seletor or "contains(" in seletor:
+                by_type = By.XPATH
+            else:
+                by_type = By.CSS_SELECTOR
+
+            elemento = esperar_elemento(driver, seletor, timeout=min(timeout, 8), by=by_type, log=False)
+            if elemento:
+                elemento.click()
+                if log:
+                                    time.sleep(0.5)
+                return True
+
+        except Exception as e:
+            if log:
+                            continue
+
+    if log:
+            return False
+
+def _clicar_botao_tarefa_processo(driver: WebDriver, timeout: int = 10, log: bool = False) -> bool:
+    """
+    Estratégia especializada para clicar no botão "Abrir tarefa do processo" do PJe
+    Problema: Falha no contexto Mandado após buscar_documento_argos, mas funciona no Prazo
+    Solução: Verificar overlays, tentar múltiplas abordagens de clique
+    
+    Args:
+        driver: WebDriver Selenium
+        timeout: Timeout em segundos (default: 10)
+        log: Se True, loga operação (default: False)
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    seletor = 'button[mattooltip="Abre a tarefa do processo"]'
+    try:
+        # Passo 1: Aguardar elemento aparecer
+        elemento = esperar_elemento(driver, seletor, timeout=timeout, by=By.CSS_SELECTOR, log=log)
+        if not elemento:
+            if log:
+                pass
+            return False
+
+        if log:
+            pass
+
+        # Passo 2: Verificar overlays
+        try:
+            overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')
+            if overlays:
+                if log:
+                    pass
+                WebDriverWait(driver, 5).until(
+                    lambda d: len(d.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')) == 0
+                )
+        except Exception:
+            if log:
+                pass
+
+        # Passo 3: Scroll para o elemento
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", elemento)
+            time.sleep(0.5)
+        except Exception:
+            if log:
+                pass
+
+        # Passo 4: Clique direto
+        try:
+            elemento.click()
+            if log:
+                time.sleep(1)
+            return True
+        except ElementClickInterceptedException:
+            if log:
+                pass
+        except Exception:
+            if log:
+                pass
+
+        # Passo 5: JS click
+        try:
+            driver.execute_script("arguments[0].click();", elemento)
+            if log:
+                time.sleep(1)
+            return True
+        except Exception:
+            if log:
+                pass
+
+        # Passo 6: ActionChains
+        try:
+            actions = ActionChains(driver)
+            actions.move_to_element(elemento).click().perform()
+            if log:
+                time.sleep(1)
+            return True
+        except Exception:
+            if log:
+                pass
+
+        # Passo 7: Parent element
+        try:
+            parent = elemento.find_element(By.XPATH, "./ancestor::button[1]") if elemento != elemento.find_element(By.XPATH, "./ancestor::button[1]") else elemento
+            if parent != elemento:
+                parent.click()
+                if log:
+                    time.sleep(1)
+                return True
+        except Exception:
+            if log:
+                pass
+
+        if log:
+            pass
+        return False
+
+    except Exception:
+        if log:
+            pass
+        return False
+
+def _tentar_click_padrao(driver: WebDriver, element: WebElement, log: bool, attempt: int) -> bool:
+    """
+    Estratégia 1: Click padrão.
+    
+    Args:
+        driver: WebDriver Selenium
+        element: Elemento a clicar
+        log: Se True, loga operação
+        attempt: Número da tentativa
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    try:
+        if log and attempt == 0:
+            print(f"[SAFE_CLICK] Tentando click padrão")
+        element.click()
+        if log:
+            print(f"[SAFE_CLICK] Click bem sucedido!")
+        return True
+    except (ElementClickInterceptedException, ElementNotInteractableException, WebDriverException) as e:
+        if log:
+            print(f"[SAFE_CLICK] Click padrão falhou: {str(e)}")
+        return False
+    except:
+        return False
+
+def _tentar_click_javascript(driver: WebDriver, element: WebElement, log: bool) -> bool:
+    """
+    Estratégia 2: JavaScript click.
+    
+    Args:
+        driver: WebDriver Selenium
+        element: Elemento a clicar
+        log: Se True, loga operação
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    try:
+        if log:
+            print(f"[SAFE_CLICK] Tentando click via JavaScript")
+        driver.execute_script("arguments[0].click();", element)
+        if log:
+            print(f"[SAFE_CLICK] Click JavaScript bem sucedido!")
+        return True
+    except Exception as e:
+        if log:
+            print(f"[SAFE_CLICK] Click JavaScript falhou: {str(e)}")
+        return False
+
+def _tentar_click_actionchains(driver: WebDriver, element: WebElement, log: bool) -> bool:
+    """
+    Estratégia 3: ActionChains click.
+    
+    Args:
+        driver: WebDriver Selenium
+        element: Elemento a clicar
+        log: Se True, loga operação
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    try:
+        if log:
+            print(f"[SAFE_CLICK] Tentando click via ActionChains")
+        actions = ActionChains(driver)
+        actions.move_to_element(element).click().perform()
+        if log:
+            print(f"[SAFE_CLICK] Click ActionChains bem sucedido!")
+        return True
+    except Exception as e:
+        if log:
+            print(f"[SAFE_CLICK] Click ActionChains falhou: {str(e)}")
+        return False
+
+def _tentar_click_javascript_avancado(driver: WebDriver, element: WebElement, log: bool) -> bool:
+    """
+    Estratégia 4: Advanced JavaScript click.
+    
+    Args:
+        driver: WebDriver Selenium
+        element: Elemento a clicar
+        log: Se True, loga operação
+        
+    Returns:
+        True se clicou com sucesso, False caso contrário
+    """
+    try:
+        if log:
+            print(f"[SAFE_CLICK] Tentando click JavaScript avançado")
+        script = """
+            var element = arguments[0];
+            var e = document.createEvent('MouseEvents');
+            e.initEvent('mousedown', true, true);
+            element.dispatchEvent(e);
+            e.initEvent('mouseup', true, true);
+            element.dispatchEvent(e);
+            e.initEvent('click', true, true);
+            element.dispatchEvent(e);
+            return true;
+        """
+        driver.execute_script(script, element)
+        if log:
+            print(f"[SAFE_CLICK] Click JavaScript avançado bem sucedido!")
+        return True
+    except Exception as e:
+        if log:
+            print(f"[SAFE_CLICK] Click JavaScript avançado falhou: {str(e)}")
+        return False
+
+# Exportações públicas
+__all__ = [
+    'safe_click',
+    'preencher_campo',
+    'preencher_campos_prazo',
+    '_clicar_botao_movimentar',
+    '_clicar_botao_tarefa_processo',
+    '_tentar_click_padrao',
+    '_tentar_click_javascript',
+    '_tentar_click_actionchains',
+    '_tentar_click_javascript_avancado'
+]

@@ -1,0 +1,181 @@
+# PJePlus - Index
+
+Orquestradores e funcoes por modulo (pasta inteira). Use Ctrl+F.
+
+## Fix
+- Fix/abas.py: is_browsing_context_discarded_error, validar_conexao_driver, trocar_para_nova_aba, forcar_fechamento_abas_extras
+- Fix/core.py: _log_info, _log_error, _audit, wait, wait_for_visible, wait_for_clickable, buscar_seletor_robusto, esperar_elemento, safe_click, aguardar_e_clicar, selecionar_opcao, preencher_campo, preencher_campos_prazo, preencher_multiplos_campos, com_retry, escolher_opcao_inteligente, encontrar_elemento_inteligente, js_base, verificar_e_aplicar_cookies, aplicar_filtro_100, filtro_fase, filtrofases, esperar_url_conter, verificar_documento_decisao_sentenca, visibilidade_sigilosos, criar_botoes_detalhes, buscar_ultimo_mandado, buscar_mandado_autor, buscar_documentos_sequenciais, buscar_documentos_polo_ativo, buscar_documento_argos, smart_sleep, sleep
+- Fix/debug_interativo.py: obter_relatorio_debug, inicializar_debug_interativo, get_debug_interativo, on_erro_critico, is_debug_ativo
+- Fix/documents/buttons.py: criar_botoes_detalhes
+- Fix/documents/search.py: verificar_documento_decisao_sentenca, buscar_ultimo_mandado, buscar_mandado_autor, buscar_documentos_sequenciais, buscar_documentos_polo_ativo, buscar_documento_argos
+- Fix/drivers/lifecycle.py: criar_driver_PC, criar_driver_VT, criar_driver_notebook, criar_driver_sisb_pc, criar_driver_sisb_notebook, finalizar_driver
+- Fix/extracao.py: abrir_detalhes_processo, indexar_e_processar_lista
+- Fix/extracao_analise.py: analise_argos, tratar_anexos_argos, analise_outros
+- Fix/extracao_bndt.py: bndt, _bndt_validar_localizacao, _bndt_abrir_menu, _bndt_clicar_icone, _bndt_abrir_nova_aba, _bndt_selecionar_operacao, _bndt_selecionar_operacao_para_polo, _bndt_processar_selecoes, _bndt_processar_selecoes_polo, _bndt_gravar_e_confirmar, _bndt_gravar_e_confirmar_polo
+- Fix/extracao_documento.py: extrair_direto, _normalizar_texto_decisao, _extrair_linha_tipo, _extrair_formatar_texto, _extrair_info_documento, _extrair_via_pdf_viewer, _extrair_via_iframe, _extrair_via_elemento_dom, extrair_documento, extrair_pdf
+- Fix/extracao_indexacao.py: filtrofases, indexar_processos, reindexar_linha, abrir_detalhes_processo, trocar_para_nova_aba, _indexar_preparar_contexto, _indexar_tentar_reindexar, _indexar_tentar_trocar_aba
+- Fix/extracao_indexacao_fluxo.py: _indexar_processar_item, indexar_e_processar_lista
+- Fix/extracao_processo.py: extrair_dados_processo, extrair_destinatarios_decisao, salvar_destinatarios_cache, carregar_destinatarios_cache
+- Fix/forms/multiple_fields.py: _log_info, _log_error, _audit, preencher_multiplos_campos
+- Fix/headless_helpers.py: limpar_overlays_headless, scroll_to_element_safe, click_headless_safe, wait_and_click_headless, find_element_headless_safe, executar_com_retry_headless, is_headless_mode, aguardar_elemento_headless_safe
+- Fix/log.py: _log_info, _log_error, _audit
+- Fix/monitoramento_progresso_unificado.py: _log_progresso, _validar_tipo_execucao, _validar_e_limpar_progresso, carregar_progresso_unificado, salvar_progresso_unificado, limpar_progresso_corrompido, extrair_numero_processo_unificado, verificar_acesso_negado_unificado, processo_ja_executado_unificado, processo_tem_erro_unificado, marcar_processo_executado_unificado, executar_com_monitoramento_unificado, carregar_progresso_p2b, salvar_progresso_p2b, extrair_numero_processo_p2b, verificar_acesso_negado_p2b, processo_ja_executado_p2b, marcar_processo_executado_p2b, carregar_progresso, salvar_progresso, extrair_numero_processo, verificar_acesso_negado, processo_ja_executado, marcar_processo_executado, carregar_progresso_mandado, salvar_progresso_mandado, extrair_numero_processo_mandado, verificar_acesso_negado_mandado, processo_ja_executado_mandado, marcar_processo_executado_mandado, exemplo_uso_monitoramento_unificado
+- Fix/movimento_helpers.py: _normalize_text, selecionar_movimento_dois_estagios, selecionar_movimento_auto
+- Fix/navigation/filters.py: aplicar_filtro_100, filtro_fase, filtrofases
+- Fix/navigation/sigilo.py: visibilidade_sigilosos
+- Fix/otimizacao_wrapper.py: with_learning, usar_headless_safe, inicializar_otimizacoes, finalizar_otimizacoes
+- Fix/progresso_unificado.py: (sem funcoes)
+- Fix/selectors_pje.py: seletor_processo_por_numero, seletor_pec_por_numero, buscar_seletor_robusto
+- Fix/selenium_base/click_operations.py: aguardar_e_clicar
+- Fix/selenium_base/driver_operations.py: criar_driver_PC, criar_driver_VT, criar_driver_notebook, criar_driver_sisb_pc, criar_driver_sisb_notebook, finalizar_driver, salvar_cookies_sessao, carregar_cookies_sessao, credencial
+- Fix/selenium_base/element_interaction.py: _log_info, _log_error, _audit, js_base, safe_click, preencher_campo, preencher_campos_prazo, preencher_multiplos_campos, _clicar_botao_movimentar, _clicar_botao_tarefa_processo, _tentar_click_padrao, _tentar_click_javascript, _tentar_click_actionchains, _tentar_click_javascript_avancado
+- Fix/selenium_base/field_operations.py: preencher_campo
+- Fix/selenium_base/js_helpers.py: js_base
+- Fix/selenium_base/retry_logic.py: _log_info, com_retry, buscar_seletor_robusto
+- Fix/selenium_base/smart_selection.py: selecionar_opcao, _tentar_selecionar_com_seletor, _tentar_selecionar_via_painel, _tentar_selecionar_via_javascript, escolher_opcao_inteligente, encontrar_elemento_inteligente, buscar_seletor_robusto
+- Fix/selenium_base/wait_operations.py: _log_info, wait, wait_for_visible, wait_for_clickable, esperar_elemento, aguardar_e_clicar, esperar_url_conter, _aguardar_loader_painel
+- Fix/session/auth.py: salvar_cookies_sessao, carregar_cookies_sessao, credencial, verificar_e_aplicar_cookies
+- Fix/utils.py: (sem funcoes)
+- Fix/utils_angular.py: aguardar_angular_carregar, aguardar_angular_requests, clicar_elemento_angular, preencher_campo_angular, aguardar_elemento_angular_visivel, verificar_angular_app, aguardar_angular_digest, obter_angular_scope, executar_angular_expressao
+- Fix/utils_collect.py: coletar_texto_seletor, coletar_valor_atributo, coletar_multiplos_elementos, coletar_tabela_como_lista, coletar_links_pagina, coletar_dados_formulario, extrair_numero_processo, extrair_cpf_cnpj, coletar_dados_pagina
+- Fix/utils_collect_content.py: _log_msg_coleta, coletar_conteudo_formatado_documento, coletar_conteudo_js, coletar_elemento_css, executar_coleta_parametrizavel
+- Fix/utils_collect_timeline.py: _log_msg_coleta, coletar_link_ato_timeline
+- Fix/utils_cookies.py: verificar_e_aplicar_cookies, salvar_cookies_sessao, limpar_cookies_antigos, listar_cookies_salvos
+- Fix/utils_driver_legacy.py: obter_driver_padronizado, driver_pc, navegar_para_tela
+- Fix/utils_drivers.py: _obter_caminhos_ahk, criar_driver_firefox, criar_driver_PC, criar_driver_VT, criar_driver_notebook, criar_driver_sisb_pc, criar_driver_sisb_notebook, configurar_driver_avancado, verificar_driver_ativo, fechar_driver_safely, limpar_temp_selenium
+- Fix/utils_editor.py: _get_editable, _place_selection_at_marker, inserir_html_editor, inserir_texto_editor, obter_ultimo_conteudo_clipboard, inserir_link_ato, inserir_html_no_editor_apos_marcador, inserir_link_ato_validacao, inserir_conteudo_formatado
+- Fix/utils_error.py: (sem funcoes)
+- Fix/utils_formatting.py: formatar_moeda_brasileira, formatar_data_brasileira, normalizar_cpf_cnpj, extrair_raiz_cnpj, identificar_tipo_documento
+- Fix/utils_login.py: login_manual, login_automatico, login_automatico_direto, login_cpf, exibir_configuracao_ativa, login_pc
+- Fix/utils_recovery.py: configurar_recovery_driver, verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
+- Fix/utils_selectors.py: obter_seletor_pje, buscar_seletor_robusto, gerar_seletor_dinamico, detectar_seletor_elemento, validar_seletor, encontrar_seletor_estavel, criar_seletor_fallback, aplicar_estrategia_seletor
+- Fix/utils_sleep.py: sleep_random, sleep_fixed, sleep_progressivo, aguardar_url_mudar, aguardar_elemento_sumir, aguardar_texto_mudar, aguardar_loading_sumir, sleep_condicional, aguardar_pagina_carregar, sleep_com_logging, aguardar_multiplas_condicoes, sleep_adaptativo, sleep, smart_sleep
+- Fix/variaveis.py: obter_gigs_com_fase, session_from_driver, obter_codigo_validacao_documento, obter_peca_processual_da_timeline, resolver_variavel, get_all_variables, obter_chave_ultimo_despacho_decisao_sentenca, obter_texto_documento, buscar_atividade_gigs_por_observacao, obter_todas_atividades_gigs_com_observacao, padrao_liq, verificar_bndt, processar_com_verificacao_bndt
+- Fix/variaveis_client.py: session_from_driver
+- Fix/variaveis_helpers.py: obter_gigs_com_fase, obter_texto_documento, buscar_atividade_gigs_por_observacao, obter_todas_atividades_gigs_com_observacao, padrao_liq, verificar_bndt
+- Fix/variaveis_resolvers.py: obter_codigo_validacao_documento, obter_peca_processual_da_timeline, resolver_variavel, get_all_variables, obter_chave_ultimo_despacho_decisao_sentenca
+
+## atos
+- atos/comunicacao.py: comunicacao_judicial, make_comunicacao_wrapper
+- atos/comunicacao_coleta.py: executar_coleta_conteudo
+- atos/comunicacao_destinatarios.py: normalizar_string, selecionar_destinatario_por_documento, selecionar_destinatarios
+- atos/comunicacao_finalizacao.py: alterar_meio_expedicao, remover_destinatarios_invalidos, salvar_minuta_final
+- atos/comunicacao_navigation.py: abrir_minutas
+- atos/comunicacao_preenchimento.py: normalizar_string, preencher_input_js, escolher_opcao_select_js, clicar_radio_button_js, executar_preenchimento_minuta
+- atos/core.py: selecionar_opcao_select, verificar_carregamento_pagina, aguardar_e_verificar_aba, verificar_carregamento_detalhe, aguardar_e_verificar_detalhe
+- atos/judicial.py: fluxo_cls, ato_judicial, make_ato_wrapper, ato_pesquisas, idpj, preencher_prazos_destinatarios, verificar_bloqueio_recente
+- atos/judicial_ato.py: ato_judicial, make_ato_wrapper
+- atos/judicial_fluxo.py: fluxo_cls
+- atos/judicial_helpers.py: ato_pesquisas, idpj, preencher_prazos_destinatarios, verificar_bloqueio_recente
+- atos/movimentos.py: (sem funcoes)
+- atos/movimentos_chips.py: def_chip
+- atos/movimentos_despacho.py: despacho_generico
+- atos/movimentos_fimsob.py: mov_fimsob
+- atos/movimentos_fluxo.py: mov_simples, mov
+- atos/movimentos_sobrestamento.py: mov_sob
+- atos/wrappers_ato.py: _inserir_relatorio_conciso_sisbajud
+- atos/wrappers_mov.py: mov_arquivar, mov_exec, mov_aud, mov_prazo
+- atos/wrappers_pec.py: wrapper_pec_ord_com_domicilio, wrapper_pec_sum_com_domicilio
+- atos/wrappers_utils.py: esperar_insercao_modelo, visibilidade_sigilosos, executar_visibilidade_sigilosos_se_necessario, preparar_campo_filtro_modelo
+
+## SISB
+- SISB/batch.py: processar_lote_sisbajud, _processar_grupo
+- SISB/core.py: simular_movimento_humano, driver_sisbajud, login_automatico_sisbajud, login_manual_sisbajud, salvar_dados_processo_temp, iniciar_sisbajud, minuta_bloqueio, processar_ordem_sisbajud, processar_bloqueios, processar_endereco, coletar_dados_minuta_sisbajud, minuta_bloqueio_60
+- SISB/helpers.py: (sem funcoes)
+- SISB/performance.py: optimized_element_wait, batched_form_fill, cached_selector_lookup, parallel_series_processing, smart_cache_operation
+- SISB/processamento.py: minuta_bloqueio_refatorada, _preencher_campos_principais, _processar_reus_otimizado, _configurar_valor, _configurar_opcoes_adicionais, _salvar_minuta, _gerar_relatorio_minuta, _salvar_relatorios, _finalizar_minuta, _extrair_cpf_autor, _extrair_nome_autor, _processar_ordem
+- SISB/processamento_campos.py: (sem funcoes)
+- SISB/processamento_campos_principais.py: _preencher_campos_principais
+- SISB/processamento_campos_reus.py: _processar_reus_otimizado, _configurar_valor, _configurar_opcoes_adicionais
+- SISB/processamento_extracao.py: _extrair_cpf_autor, _extrair_nome_autor
+- SISB/processamento_minuta.py: minuta_bloqueio_refatorada
+- SISB/processamento_ordens.py: (sem funcoes)
+- SISB/processamento_ordens_extracao.py: (sem funcoes)
+- SISB/processamento_ordens_processamento.py: _processar_ordem
+- SISB/processamento_ordens_processamento_auxiliar.py: _processar_ordem_auxiliar
+- SISB/processamento_ordens_processamento_principal.py: _processar_ordem_principal
+- SISB/processamento_relatorios.py: _salvar_minuta, _gerar_relatorio_minuta, _salvar_relatorios, _finalizar_minuta
+- SISB/s_orquestrador.py: criar_js_otimizado_legacy, iniciar_sisbajud_legacy, minuta_bloqueio_legacy, executar_sisbajud_completo, minuta_bloqueio, minuta_endereco, processar_ordem_sisbajud, processar_bloqueios, trigger_event, safe_execute_script, debug_sisbajud_status, otimizar_performance_sisbajud
+- SISB/standards.py: validar_numero_processo_padronizado, formatar_valor_monetario_padronizado, calcular_data_limite_padronizada, criar_timestamp_padronizado, log_operacao, validar_parametros, retry_on_failure
+- SISB/utils.py: criar_js_otimizado, safe_click, simulate_human_movement, aguardar_elemento, aguardar_e_clicar, escolher_opcao_sisbajud, extrair_protocolo, validar_numero_processo, formatar_valor_monetario, calcular_data_limite, criar_timestamp, log_sisbajud, registrar_erro_minuta, carregar_dados_processo, mutation_observer_script, rate_limiting_manager, advanced_dom_manipulator, consolidated_js_framework, aplicar_rate_limiting, detectar_captcha, anti_detection_measures, smart_wait, _extrair_dados_pje, _criar_driver_sisbajud, _realizar_login, _navegar_minuta, _validar_dados, _preencher_campos_iniciais, _processar_reus_otimizado, _salvar_minuta
+
+## Prazo
+- Prazo/__main__.py: (sem funcoes)
+- Prazo/loop.py: (sem funcoes)
+- Prazo/loop_api.py: _selecionar_processos_por_gigs_aj_jt, _verificar_processo_tem_xs, _verificar_processos_xs_paralelo
+- Prazo/loop_base.py: (sem funcoes)
+- Prazo/loop_ciclo1.py: ciclo1
+- Prazo/loop_ciclo1_filtros.py: _ciclo1_aplicar_filtro_fases, _verificar_quantidade_processos_paginacao
+- Prazo/loop_ciclo1_movimentacao.py: _ciclo1_marcar_todas, _ciclo1_abrir_suitcase, _ciclo1_aguardar_movimentacao_lote, _ciclo1_movimentar_destino_providencias, _ciclo1_movimentar_destino, _ciclo1_retornar_lista
+- Prazo/loop_ciclo2_processamento.py: _ciclo2_criar_atividade_xs, _ciclo2_movimentar_lote, ciclo2_processar_livres_apenas_uma_vez, ciclo2_loop_providencias, ciclo2
+- Prazo/loop_ciclo2_selecao.py: _ciclo2_aplicar_filtros, _ciclo2_processar_livres, _ciclo2_selecionar_nao_livres
+- Prazo/loop_helpers.py: _extrair_numero_processo_da_linha, selecionar_processos_nao_livres
+- Prazo/p2b_core.py: remover_acentos, normalizar_texto, gerar_regex_geral, parse_gigs_param, carregar_progresso_p2b, salvar_progresso_p2b, marcar_processo_executado_p2b, processo_ja_executado_p2b, checar_prox, ato_pesqliq_callback
+- Prazo/p2b_fluxo.py: fluxo_pz
+- Prazo/p2b_fluxo_helpers.py: _lazy_import, prescreve, analisar_timeline_prescreve_js_puro, _encontrar_documento_relevante, _documento_nao_assinado, _extrair_texto_documento, _extrair_com_extrair_direto, _extrair_com_extrair_documento, _definir_regras_processamento, _processar_regras_gerais, _processar_cabecalho_impugnacoes, _processar_checar_cabecalho, _executar_visibilidade_sigilosos, _fechar_aba_processo
+- Prazo/p2b_fluxo_lazy.py: _lazy_import
+- Prazo/p2b_fluxo_prescricao.py: prescreve, analisar_timeline_prescreve_js_puro
+- Prazo/p2b_fluxo_documentos.py: _encontrar_documento_relevante, _documento_nao_assinado, _extrair_texto_documento, _extrair_com_extrair_direto, _extrair_com_extrair_documento, _fechar_aba_processo
+- Prazo/p2b_fluxo_regras.py: _definir_regras_processamento, _processar_regras_gerais
+- Prazo/p2b_fluxo_cabecalho.py: _processar_cabecalho_impugnacoes, _processar_checar_cabecalho, _executar_visibilidade_sigilosos
+- Prazo/p2b_prazo.py: fluxo_prazo, aplicar_filtro_atividades_xs, _indexar_processos_lista, _filtrar_processos_nao_executados, _processar_lista_processos, _processar_processo_individual, _reindexar_linha_se_necessario, _executar_callback_processo, _gerenciar_abas_apos_processo
+- Prazo/prov.py: criar_driver, _criar_driver_vt, _criar_driver_pc, criar_e_logar_driver, fluxo_prov, navegacao_prov, selecionar_e_processar, aplicar_xs_e_registrar, main, fluxo_prov_integrado
+- Prazo/prov_config.py: (sem funcoes)
+- Prazo/prov_driver.py: criar_driver, _criar_driver_vt, _criar_driver_pc, criar_e_logar_driver
+- Prazo/prov_fluxo.py: fluxo_prov, navegacao_prov, selecionar_e_processar, aplicar_xs_e_registrar, main, fluxo_prov_integrado
+
+## PEC
+- PEC/ajuste_gigs.py: def_ajustegigs
+- PEC/anexos/anexos_configuracao.py: salvar_conteudo_clipboard
+- PEC/anexos/anexos_extracao.py: extrair_numero_processo_da_pagina
+- PEC/anexos/anexos_formatacao.py: formatar_conteudo_ecarta
+- PEC/anexos/anexos_gigs.py: (sem funcoes)
+- PEC/anexos/anexos_juntador_base.py: wrapper_juntada_geral, create_juntador, executar_juntada_ate_editor, executar_juntada
+- PEC/anexos/anexos_juntador_helpers.py: _abrir_interface_anexacao, _preencher_campos_basicos, _inserir_modelo, substituir_marcador_por_conteudo
+- PEC/anexos/anexos_juntador_metodos.py: _escolher_opcao_gigs, _preencher_input_gigs, _clicar_elemento_gigs, _selecionar_modelo_gigs, _executar_coleta_opcional, _preencher_tipo, _preencher_descricao, _configurar_sigilo, _selecionar_e_inserir_modelo, _inserir_conteudo_customizado, _salvar_documento, _assinar_se_necessario
+- PEC/anexos/anexos_sisbajud.py: _obter_conteudo_relatorio_sisbajud, _wrapper_sisbajud_generico
+- PEC/anexos/anexos_wrappers.py: carta_wrapper, consulta_wrapper, wrapper_bloqneg, wrapper_parcial, excIDPJ_wrapper
+- PEC/anexos/core.py: (sem funcoes)
+- PEC/carta.py: carta, teste_juntada_carta_html
+- PEC/carta_ecarta.py: _texto_e_correio, _extrair_texto_completo, _processar_item, coletar_intimacoes, coletar_tabela_ecarta
+- PEC/carta_formatacao.py: gerar_html_carta_para_juntada, formatar_dados_ecarta
+- PEC/carta_utils.py: _carregar_calendario_dias_uteis, _somar_dias_uteis, _parse_data_ecarta, _obter_numero_processo
+- PEC/core.py: carregar_progresso_pec, salvar_progresso_pec, extrair_numero_processo_pec, verificar_acesso_negado_pec, verificar_e_recuperar_acesso_negado, processo_ja_executado_pec, marcar_processo_executado_pec, reiniciar_driver_e_logar_pje, navegar_para_atividades, aplicar_filtro_xs, indexar_processo_atual_gigs, analisar_documentos_pos_carta, main
+- PEC/core_main.py: main
+- PEC/core_navegacao.py: navegar_para_atividades, aplicar_filtro_xs, indexar_processo_atual_gigs
+- PEC/core_pos_carta.py: analisar_documentos_pos_carta
+- PEC/core_progresso.py: carregar_progresso_pec, salvar_progresso_pec, extrair_numero_processo_pec, verificar_acesso_negado_pec, processo_ja_executado_pec, marcar_processo_executado_pec
+- PEC/core_recovery.py: verificar_e_recuperar_acesso_negado, reiniciar_driver_e_logar_pje
+- PEC/executor.py: chamar_funcao_com_assinatura_correta, executar_acao, executar_acao_pec
+- PEC/helpers.py: remover_acentos, normalizar_texto, gerar_regex_geral
+- PEC/matcher.py: _build_action_rules, get_cached_rules, get_action_rules, determinar_acoes_por_observacao, determinar_acao_por_observacao
+- PEC/petjs.py: criar_driver_vt, aplicar_filtro_50, extrair_tabela_js, salvar_resultado_json, converter_json_para_peticoes, processar_peticoes_js_integrado, executar_motor_teste, _formatar_acao_detalhada, _obter_nome_acao, main
+- PEC/prescricao.py: def_presc
+- PEC/processamento.py: (sem funcoes)
+- PEC/processamento_base.py: _lazy_import_pec, executar_acao, processar_processo_pec_individual
+- PEC/processamento_buckets.py: _processar_buckets, _processar_bucket_generico, _processar_bucket_demais, _processar_bucket_sisbajud, _imprimir_relatorio_final
+- PEC/processamento_fluxo.py: executar_fluxo_robusto, executar_fluxo_novo, _configurar_driver, _navegar_atividades, _aplicar_filtros, _organizar_e_executar_buckets
+- PEC/processamento_indexacao.py: _indexar_todos_processos, _filtrar_por_observacao, _salvar_amostra_debug_rows, _filtrar_por_progresso, _filtrar_por_acoes_validas, _agrupar_em_buckets, _executar_dry_run, indexar_e_criar_buckets_unico
+- PEC/processamento_listas.py: criar_lista_sisbajud, executar_lista_sisbajud_por_abas, criar_lista_resto
+- PEC/regras.py: (sem funcoes)
+- PEC/sisbajud_driver.py: get_or_create_driver_sisbajud, fechar_driver_sisbajud_global
+- PEC/sobrestamento.py: def_sob
+## Mandado
+- Mandado/atos_wrapper.py: (sem funcoes)
+- Mandado/core.py: setup_driver, navegacao, iniciar_fluxo_robusto, main
+- Mandado/log.py: (sem funcoes)
+- Mandado/processamento.py: _lazy_import_mandado
+- Mandado/processamento_anexos.py: _identificar_tipo_anexo, _aguardar_icone_plus, _buscar_icone_plus_direto, _localizar_modal_visibilidade, _processar_modal_visibilidade, _extrair_resultado_sisbajud, _extrair_executados_pdf, processar_sisbajud, tratar_anexos_argos
+- Mandado/processamento_argos.py: processar_argos
+- Mandado/processamento_fluxo.py: fluxo_mandado
+- Mandado/processamento_outros.py: ultimo_mdd, fluxo_mandados_outros
+- Mandado/regras.py: _lazy_import_mandado_regras, estrategia_defiro_instauracao, estrategia_despacho_argos, estrategia_infojud, estrategia_decisao_manifestar, estrategia_tendo_em_vista_que, aplicar_regras_argos
+- Mandado/utils.py: lembrete_bloq, _selecionar_checkbox_intimacao, fechar_intimacao, retirar_sigilo, retirar_sigilo_fluxo_argos, retirar_sigilo_certidao_devolucao_primeiro, retirar_sigilo_demais_documentos_especificos, retirar_sigilo_documentos_especificos
+- Mandado/utils_intimacao.py: _selecionar_checkbox_intimacao, fechar_intimacao
+- Mandado/utils_lembrete.py: lembrete_bloq
+- Mandado/utils_sigilo.py: retirar_sigilo, retirar_sigilo_fluxo_argos, retirar_sigilo_certidao_devolucao_primeiro, retirar_sigilo_demais_documentos_especificos, retirar_sigilo_documentos_especificos
+
+## Peticao
+- Peticao/pet.py: navegacao_inicial_pet, aplicar_filtro_50, reordenar_coluna_tipo_peticao, extrair_tabela_peticoes, carregar_progresso_pet, salvar_progresso_pet, marcar_hipotese_executada, definir_regras_apagar, verifica_condicoes, normalizar_texto, gerar_regex_flexivel, acao_apagar, agrupar_por_hipotese, executar_grupo_apagar, executar_fluxo_pet
+- Peticao/pet2.py: normalizar_texto, gerar_regex_flexivel, campo, qualquer_campo, criar_acao_gigs, criar_acao_padrao_liq, definir_regras, definir_regras_analise_conteudo, verifica_peticao_contra_hipotese, verifica_peticao_pericias, verifica_peticao_diretos, _acao_apagar, navegacao_inicial_pet, aplicar_filtro_50, reordenar_coluna_tipo_peticao, extrair_tabela_peticoes, extrair_tabela_peticoes_selenium, _abrir_detalhe_peticao, _fechar_e_voltar_lista, processar_analise_pdf, _executar_acao_completa, classificar_peticoes, executar_classificadas, clicar_proxima_pagina, processar_peticoes_escaninho, criar_driver_vt, main
+- Peticao/pet_novo.py: carregar_progresso_pet, salvar_progresso_pet, marcar_processo_executado_pet, processo_ja_executado_pet, normalizar_texto, gerar_regex_flexivel, navegacao_inicial_pet, aplicar_filtro_50, reordenar_coluna_tipo_peticao, extrair_tabela_peticoes, acao_apagar, acao_pericias_com_data, acao_gigs, criar_gigs_1_xs_aud, cris_gigs_minus1_xs_pec, padrao_liq_acao, definir_regras, verifica_peticao_contra_hipotese, verifica_peticao_pericias, verifica_peticao_diretos, agrupar_por_regra, _fechar_e_voltar_lista, _executar_acao_unica, _executar_acoes_sequenciais, _executar_acao, executar_regras, localizar_ultima_peticao, extrair_conteudo_peticao, definir_regras_analise, analise_pet, executar_fluxo_pet

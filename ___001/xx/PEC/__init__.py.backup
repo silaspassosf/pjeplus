@@ -1,0 +1,79 @@
+"""
+Módulo PEC - Petições Eletrônicas (Refatorado)
+
+Estrutura modular:
+- rules/: Sistema de regras (observação -> ação)
+- actions/: Execução de ações
+- analysis/: Análises complexas (sobrestamento, prescrição, GIGS)
+- workflow/: Fluxos principais (executar_fluxo_novo, etc) [TODO]
+- indexing/: Indexação e filtragem de processos [TODO]
+- buckets/: Sistema de buckets [TODO]
+- sisbajud/: Integração SISBAJUD [TODO]
+"""
+
+# ===== NOVOS MÓDULOS REFATORADOS =====
+from .rules import (
+    determinar_acao_por_observacao,
+    get_action_rules,
+    get_cached_rules,
+    remover_acentos,
+    normalizar_texto,
+    gerar_regex_geral,
+)
+
+from .actions import (
+    executar_acao,
+    executar_acao_pec,
+    chamar_funcao_com_assinatura_correta,
+)
+
+from .analysis import (
+    def_sob,
+    def_presc,
+    def_ajustegigs,
+    get_or_create_driver_sisbajud,
+    fechar_driver_sisbajud_global,
+)
+
+# ===== MÓDULOS LEGADOS (manter compatibilidade) =====
+from .carta import *
+from .core import *
+from .anexos import *
+
+# ===== IMPORTS TEMPORÁRIOS DE processamento.py/regras.py =====
+# TODO: Migrar funções restantes para módulos apropriados
+from .processamento import (
+    executar_fluxo_novo,
+    executar_fluxo_robusto,
+    processar_processo_pec_individual,
+    criar_lista_sisbajud,
+    executar_lista_sisbajud_por_abas,
+    criar_lista_resto,
+)
+
+__all__ = [
+    # Rules
+    'determinar_acao_por_observacao',
+    'get_action_rules',
+    'get_cached_rules',
+    'remover_acentos',
+    'normalizar_texto',
+    'gerar_regex_geral',
+    # Actions
+    'executar_acao',
+    'executar_acao_pec',
+    'chamar_funcao_com_assinatura_correta',
+    # Analysis
+    'def_sob',
+    'def_presc',
+    'def_ajustegigs',
+    'get_or_create_driver_sisbajud',
+    'fechar_driver_sisbajud_global',
+    # Workflow (temporário)
+    'executar_fluxo_novo',
+    'executar_fluxo_robusto',
+    'processar_processo_pec_individual',
+    'criar_lista_sisbajud',
+    'executar_lista_sisbajud_por_abas',
+    'criar_lista_resto',
+]

@@ -1,0 +1,71 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+@module: Fix.selenium_base
+@responsibility: Operações fundamentais Selenium (espera, clique, interação)
+@depends_on: selenium.webdriver
+@used_by: Todos os módulos do projeto
+@entry_points: aguardar_e_clicar, safe_click, selecionar_opcao, com_retry
+@tags: #selenium #webdriver #wait #click #interaction
+"""
+
+# =============================
+# 1. WAIT OPERATIONS
+# =============================
+from .wait_operations import (
+    wait,
+    wait_for_visible,
+    wait_for_clickable,
+    esperar_elemento,
+    aguardar_e_clicar,
+    esperar_url_conter
+)
+
+# =============================
+# 2. ELEMENT INTERACTION
+# =============================
+from .element_interaction import (
+    safe_click,
+    preencher_campo,
+    preencher_campos_prazo
+)
+
+# =============================
+# 3. RETRY LOGIC
+# =============================
+from .retry_logic import (
+    com_retry
+)
+
+# =============================
+# 4. SMART SELECTION
+# =============================
+from .smart_selection import (
+    selecionar_opcao,
+    escolher_opcao_inteligente,
+    encontrar_elemento_inteligente
+)
+
+__all__ = [
+    # wait_operations.py (6 funções)
+    'wait',
+    'wait_for_visible',
+    'wait_for_clickable',
+    'esperar_elemento',
+    'aguardar_e_clicar',
+    'esperar_url_conter',
+    
+    # element_interaction.py (3 funções públicas)
+    'safe_click',
+    'preencher_campo',
+    'preencher_campos_prazo',
+    
+    # retry_logic.py (1 função)
+    'com_retry',
+    
+    # smart_selection.py (3 funções)
+    'selecionar_opcao',
+    'escolher_opcao_inteligente',
+    'encontrar_elemento_inteligente',
+]

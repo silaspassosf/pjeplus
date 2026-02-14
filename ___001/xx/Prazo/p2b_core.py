@@ -1,0 +1,336 @@
+"""
+P2B Core Module - Funções básicas e constantes compartilhadas
+Refatoração seguindo guia unificado: modularização para reduzir complexidade
+"""
+
+import datetime
+import json
+import logging
+import os
+import re
+import sys
+import time
+
+from selenium.common.exceptions import NoSuchWindowException, StaleElementReferenceException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+import traceback
+import unicodedata
+
+# Importações pesadas movidas para dentro das funções que as usam
+# from Fix import (...)
+# from atos import (...)
+# from PEC.carta import carta
+# from driver_config import criar_driver, login_func
+# from driver_config import login_manual
+# from listaexec2 import processar_alvaras_completo
+# from progresso_unificado import ProgressoUnificado
+
+# Configurar logging
+# logger = logging.getLogger(__name__)  # Removido para evitar conflitos
+
+# Log de execução (usando arquivo separado para não conflitar)
+try:
+    with open("p2b_log.txt", "w", encoding="utf-8") as f:
+        f.write(f"# Última execução P2B: {datetime.datetime.now()}\n")
+        f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
+        f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
+except Exception:
+    pass  # Ignorar erros de log
+
+### DIRETRIZES MÁXIMAS INEGOCIÁVEIS
+# Priorizar edições apenas no código selecionado ou referenciado
+# Sempre validar se as alterações propostas estão estritamente alinhadas com o prompt do usuário.
+# Evitar modificações em arquivos não explicitamente mencionados.
+# Respeitar convenções de estilo definidas no projeto (ex: indentação com tabs, aspas duplas).
+# Workspace preference: NÃO altere, traduza ou reescreva NENHUMA linha do código, exceto exatamente o trecho solicitado.
+# NÃO traduza palavras-chave, nomes de variáveis, comentários, strings, nem nada do código.
+# NÃO faça ajustes automáticos, refatorações, nem 'melhorias' não solicitadas.
+# Se precisar editar, use sempre o padrão # ...existing code... para indicar partes não alteradas.
+# As edições devem ser ESPECIFICAMENTE sobre erros de log ou pedidos EXPLICITOS do usuario, nada alem disso.
+# tenha em mente que descumprir essas diretizes estraga o codigo e causa perda de tempo
+# nao é neceasário varrer o codigo todo para cada edição pedida
+
+
+# ===== CONSTANTES EXTRAÍDAS =====
+
+# JavaScript para análise de timeline
+SCRIPT_ANALISE_TIMELINE = """
+function analisarTimeline() {
+    const itens = document.querySelectorAll('li.tl-item-container');
+    const resultados = [];
+
+    for (let item of itens) {
+        try {
+            const link = item.querySelector('a.tl-documento:not([target="_blank"])');
+            if (!link) continue;
+
+            const texto = link.textContent.toLowerCase();
+            const dataElement = item.querySelector('.tl-data');
+            const data = dataElement ? dataElement.textContent.trim() : '';
+
+            // Verificar se é documento relevante
+            const relevante = /despacho|decisão|sentença|conclusão/i.test(texto);
+
+            if (relevante) {
+                resultados.push({
+                    texto: texto,
+                    data: data,
+                    elemento: item
+                });
+            }
+        } catch (e) {
+            continue;
+        }
+    }
+
+    return resultados;
+}
+
+return analisarTimeline();
+"""
+
+# Regex patterns para regras de negócio - BASEADO NO P2B.PY ORIGINAL
+REGEX_PATTERNS = {
+    'prescricao': re.compile(r'A pronúncia da', re.IGNORECASE),
+    'bloqueio': re.compile(r'sob pena de bloqueio', re.IGNORECASE),
+    'sobrestamento': re.compile(r'05 dias para a apresentação|suspensão da execução, com fluência|05 dias para oferta|concede-se 05 dias para oferta|cinco dias para apresentação|cinco dias para oferta|cinco dias para apresentacao|concedo o prazo de oito dias|oito dias para apresentacao|visibilidade aos advogados|início da fluência|oito dias para apresentação|oito dias para apresentacao|Reitere-se a intimação para que o\(a\) reclamante apresente cálculos|remessa ao sobrestamento, com fluência|sob pena de sobrestamento e fluência do prazo prescricional', re.IGNORECASE),
+    'homologacao': re.compile(r'é revel, não|concorda com homologação|concorda com homologacao|tomarem ciência dos esclarecimentos apresentados|no prazo de oito dias, impugnar|concordância quanto à imediata homologação da conta|conclusos para homologação de cálculos|ciência do laudo técnico apresentado|homologação imediata|aceita a imediata homologação|aceita a imediata homologacao|informar se aceita a imediata homologação|apresentar impugnação, querendo', re.IGNORECASE),
+    'embargos': re.compile(r'exequente, ora embargado', re.IGNORECASE),
+    'pec': re.compile(r'hasta|saldo devedor', re.IGNORECASE),
+    'descumprimento': re.compile(r'Ante a notícia de descumprimento', re.IGNORECASE),
+    'impugnacao': re.compile(r'impugnações apresentadas|impugnacoes apresentadas|homologo estes|fixando o crédito do autor em|referente ao principal|sob pena de sequestro|comprovar a quitação|comprovar o pagamento|a reclamada para pagamento da parcela pendente|intime-se a reclamada para pagamento das', re.IGNORECASE),
+    'arquivamento': re.compile(r'arquivem-se os autos|remetam-se os autos ao aquivo|A pronúncia da prescrição intercorrente se trata|Se revê o novo sobrestamento|cumprido o acordo homologado|julgo extinta a presente execução, nos termos do art. 924', re.IGNORECASE),
+    'bloqueio_convertido': re.compile(r'bloqueio realizado, ora convertido', re.IGNORECASE),
+    'parcelamento': re.compile(r'sobre o preenchimento dos pressupostos legais para concessão do parcelamento', re.IGNORECASE),
+    'recolhimento': re.compile(r'comprovar recolhimento|comprovar recolhimentos', re.IGNORECASE),
+    'baixa': re.compile(r'determinar cancelamento/baixa|deixo de receber o Agravo|quanto à petição|art. 112 do CPC|comunique-se por Edital|Aguarde-se o cumprimento do mandado expedido', re.IGNORECASE),
+    'penhora': re.compile(r'Defiro a penhora no rosto dos autos', re.IGNORECASE),
+    'calculos': re.compile(r'RECLAMANTE para apresentar cálculos de liquidação', re.IGNORECASE),
+    'tentativas': re.compile(r'deverá realizar tentativas', re.IGNORECASE),
+    'instauracao': re.compile(r'defiro a instauração', re.IGNORECASE),
+    'tendo_em_vista': re.compile(r'tendo em vista que|pagamento da parcela pendente|sob pena de sequestro', re.IGNORECASE),
+    'nao_amparada': re.compile(r'não está amparada', re.IGNORECASE),
+    'instaurado_face': re.compile(r'instaurado em face', re.IGNORECASE)
+}
+
+
+# ===== FUNÇÕES AUXILIARES COMPARTILHADAS =====
+
+def remover_acentos(texto: str) -> str:
+    """Remove acentos de um texto."""
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+
+
+def normalizar_texto(texto: str) -> str:
+    """Normaliza texto: remove acentos e converte para minúsculo."""
+    return remover_acentos(texto.lower())
+
+
+def gerar_regex_geral(termo: str) -> re.Pattern:
+    """
+    Gera regex tolerante para busca de termos em texto.
+
+    Args:
+        termo: Termo a ser procurado
+
+    Returns:
+        Pattern regex compilado
+    """
+    termo_norm = normalizar_texto(termo)
+    palavras = termo_norm.split()
+
+    # Monta regex permitindo pontuação entre palavras
+    partes = [re.escape(p) for p in palavras]
+    regex = r''
+    for i, parte in enumerate(partes):
+        regex += parte
+        if i < len(partes) - 1:
+            regex += r'[\s\w\.,;:!\-–—()$]*'
+
+    # Permite o trecho em qualquer lugar do texto
+    return re.compile(rf"{regex}", re.IGNORECASE)
+
+
+def parse_gigs_param(parametro: str) -> tuple:
+    """
+    Parse parâmetro GIGS no formato 'dias/responsavel/observacao'.
+
+    Args:
+        parametro: String no formato 'dias/responsavel/observacao'
+
+    Returns:
+        Tupla (dias, responsavel, observacao)
+    """
+    partes = parametro.split('/')
+    if len(partes) == 3:
+        return partes[0], partes[1], partes[2]
+    else:
+        # Fallback para formato antigo
+        return "1", parametro, parametro
+
+
+def carregar_progresso_p2b() -> dict:
+    """Carrega progresso salvo do P2B."""
+    # Delegar ao monitoramento unificado (formato e arquivo centralizados)
+    try:
+        from Fix.monitoramento_progresso_unificado import carregar_progresso_p2b as _carregar
+        progresso = _carregar()
+        
+        # Migrar formato antigo (se existir 'p2b' subdict com detalhes por processo)
+        if 'p2b' in progresso and isinstance(progresso['p2b'], dict):
+            old_p2b = progresso.pop('p2b')
+            processos_executados = progresso.get('processos_executados', [])
+            for proc_id, details in old_p2b.items():
+                if details.get('executado') and proc_id not in processos_executados:
+                    processos_executados.append(proc_id)
+            progresso['processos_executados'] = processos_executados
+            # Salvar migrado
+            salvar_progresso_p2b(progresso)
+        
+        return progresso
+    except Exception:
+        # Fallback leve: retornar estrutura vazia compatível
+        return {}
+
+
+def salvar_progresso_p2b(progresso: dict) -> None:
+    """Salva progresso do P2B."""
+    try:
+        from Fix.monitoramento_progresso_unificado import salvar_progresso_p2b as _salvar
+        _salvar(progresso)
+    except Exception as e:
+        print(f'Erro ao salvar progresso P2B (delegate): {e}')  # Substituindo logger por print
+
+
+def marcar_processo_executado_p2b(processo_id: str, progresso: dict) -> None:
+    """Marca processo como executado no progresso P2B."""
+    from Fix.monitoramento_progresso_unificado import marcar_processo_executado_unificado
+    marcar_processo_executado_unificado('p2b', processo_id, progresso, sucesso=True)
+
+
+def processo_ja_executado_p2b(processo_id: str, progresso: dict) -> bool:
+    """Verifica se processo já foi executado no P2B."""
+    return processo_id in progresso.get('processos_executados', [])
+
+
+def checar_prox(driver, itens, doc_idx, regras, texto_normalizado):
+    """
+    Verifica se há próximo documento relevante na timeline.
+
+    Busca o próximo documento (decisão, despacho ou sentença) a partir da posição atual,
+    filtrando por magistrados específicos (otavio, mariana).
+
+    Args:
+        driver: WebDriver instance
+        itens: Lista de itens da timeline
+        doc_idx: Índice atual do documento
+        regras: Lista de regras (não utilizado nesta implementação)
+        texto_normalizado: Texto normalizado (não utilizado nesta implementação)
+
+    Returns:
+        Tupla (doc_encontrado, doc_link, doc_idx) se encontrou documento relevante,
+        ou (None, None, None) se não encontrou
+
+    Note:
+        - Busca apenas um documento por chamada (single-pass)
+        - Filtra por tipos: despacho, decisão/décisão, sentença/sentença, conclusão/conclusão
+        - Verifica ícones de magistrado para validação
+        - Usa normalização de texto para tolerância a acentos
+    """
+    from selenium.webdriver.common.by import By
+    import unicodedata
+
+    # Guard clause: validar entrada
+    if not driver or not itens or doc_idx < 0 or doc_idx >= len(itens):
+        return None, None, None
+
+    # Calcular próximo índice (a partir do documento seguinte)
+    next_idx = doc_idx + 1
+    if next_idx >= len(itens):
+        return None, None, None
+
+    # Iterar apenas pelos próximos itens (otimização: não reprocessar timeline inteira)
+    for idx in range(next_idx, len(itens)):
+        try:
+            item = itens[idx]
+
+            # Buscar link do documento (seletor específico para evitar popups)
+            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+            if not link or not link.is_displayed():
+                continue
+
+            # Extrair e normalizar texto do link
+            raw_text = link.text or ''
+            doc_text = unicodedata.normalize('NFD', raw_text).encode('ascii', 'ignore').decode('ascii').lower()
+
+            # Verificar se é documento relevante (despacho, decisão, sentença, conclusão)
+            if not re.search(r'despacho|decisao|decisão|sentenca|sentença|conclusao|conclusão', doc_text):
+                continue
+
+            # Verificar magistrados (otavio ou mariana)
+            mag_icons = item.find_elements(By.CSS_SELECTOR, 'div.tl-icon[aria-label*="Magistrado"]')
+            mag_ok = any('otavio' in (mag.get_attribute('aria-label') or '').lower() or
+                        'mariana' in (mag.get_attribute('aria-label') or '').lower()
+                        for mag in mag_icons)
+
+            if mag_ok:
+                return item, link, idx
+
+        except Exception:
+            # Ignorar erros individuais e continuar busca
+            continue
+
+    # Não encontrou nenhum documento relevante
+    return None, None, None
+
+
+def ato_pesqliq_callback(driver):
+    """Callback para ato_pesqliq - será implementado em atos.py."""
+    from atos import ato_pesqliq
+    return ato_pesqliq(driver)
+
+
+# ===== DATACLASSES =====
+
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
+
+
+@dataclass
+class RegraProcessamento:
+    """Representa uma regra de processamento de documento."""
+    keywords: list
+    tipo_acao: Optional[str] = None
+    parametros: Optional[str] = None
+    acao_secundaria: Optional[callable] = None
+
+    def aplicar(self, driver, texto_normalizado: str) -> bool:
+        """
+        Aplica a regra se encontrar match no texto.
+
+        Returns:
+            True se a regra foi aplicada, False caso contrário
+        """
+        for regex in self.keywords:
+            if regex.search(texto_normalizado):
+                return True
+        return False
+
+
+# ===== VALIDAÇÃO =====
+
+if __name__ == "__main__":
+    # Teste básico das funções
+
+    # Teste normalizar_texto
+    teste = "TÊSTE ÁCÊNTÖS"
+    resultado = normalizar_texto(teste)
+
+    # Teste regex
+    pattern = gerar_regex_geral("teste regex")
+    teste_texto = "Este é um teste de regex funcionando"
+    match = pattern.search(teste_texto)
+

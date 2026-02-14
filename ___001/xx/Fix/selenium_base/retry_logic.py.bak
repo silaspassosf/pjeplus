@@ -1,0 +1,271 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+Retry Logic - Estratégias de retry e busca robusta
+===================================================
+
+Extração do Fix/core.py (2915 linhas) → selenium_base/retry_logic.py (~150 linhas)
+
+FUNÇÕES EXTRAÍDAS (lines 212-286, 1167-1218 do core.py):
+- com_retry: Decorator/função para executar com retry e backoff exponencial
+- buscar_seletor_robusto: (TODO - a implementar) Busca elemento com múltiplos seletores
+
+RESPONSABILIDADE:
+- Retry patterns com backoff exponencial
+- Busca robusta de elementos com múltiplas estratégias
+- Consolidação de código repetitivo de tentativas
+
+DEPENDÊNCIAS:
+- time: Para delays exponenciais
+- Fix.log: Para logging de tentativas
+
+USO TÍPICO:
+    from Fix.selenium_base.retry_logic import com_retry
+    
+    # Com retry automático
+    resultado = com_retry(minha_funcao, max_tentativas=3, log=True)
+    
+    # Com argumentos
+    resultado = com_retry(lambda: buscar_elemento(driver, seletor), 
+                         max_tentativas=5, backoff_base=2)
+
+AUTOR: Extração PJePlus Refactoring Phase 2
+DATA: 2025-01-XX
+"""
+
+import os
+import time
+from typing import Any, Callable, Optional, TypeVar, List
+
+from Fix.log import logger
+from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+
+# Type variable para preservar tipo de retorno da função
+T = TypeVar('T')
+
+# Variáveis de compatibilidade
+DEBUG = os.getenv('PJEPLUS_DEBUG', '0').lower() in ('1', 'true', 'on')
+
+def _log_info(msg: str) -> None:
+    """Compatibilidade com logs antigos"""
+    logger.info(msg)
+
+def com_retry(
+    func: Callable[..., T],
+    max_tentativas: int = 3,
+    backoff_base: int = 2,
+    log_enabled: bool = False,
+    *args,
+    **kwargs
+) -> Optional[T]:
+    """
+    Executa função com retry e backoff exponencial.
+    
+    Padrão repetitivo consolidado: for tentativa + try/except + sleep
+    
+    Args:
+        func: Função a executar
+        max_tentativas: Número máximo de tentativas (default: 3)
+        backoff_base: Base para cálculo exponencial (2^tentativa) (default: 2)
+        log_enabled: Ativa logging de tentativas (default: False)
+        *args: Argumentos posicionais para a função
+        **kwargs: Argumentos nomeados para a função
+    
+    Returns:
+        Resultado da função se sucesso, None se todas tentativas falharam
+    
+    Exemplo Simples:
+        # Ao invés de:
+        # for tentativa in range(3):
+        #     try:
+        #         resultado = minha_funcao()
+        #         if resultado: break
+        #     except: time.sleep(2 ** tentativa)
+        
+        # Usar:
+        resultado = com_retry(minha_funcao, max_tentativas=3)
+    
+    Exemplo com Argumentos:
+        # Função com argumentos
+        resultado = com_retry(
+            buscar_elemento,
+            max_tentativas=5,
+            backoff_base=2,
+            log_enabled=True,
+            driver=driver,  # arg para buscar_elemento
+            seletor='#botao'  # arg para buscar_elemento
+        )
+    
+    Exemplo com Lambda:
+        # Para funções inline
+        resultado = com_retry(
+            lambda: driver.find_element(By.ID, 'elemento'),
+            max_tentativas=3
+        )
+    
+    Comportamento:
+        - Tentativa 1: Executa imediatamente
+        - Falha: Espera backoff_base^0 = 1s
+        - Tentativa 2: Executa após 1s
+        - Falha: Espera backoff_base^1 = 2s
+        - Tentativa 3: Executa após 2s
+        - Falha: Espera backoff_base^2 = 4s
+        - etc.
+    
+    Notas:
+        - Aceita 0 como resultado válido (ex: contador zerado)
+        - Retorna None se todas tentativas falharem
+        - Log inclui número da tentativa e tempo de espera
+    """
+    for tentativa in range(max_tentativas):
+        try:
+            resultado = func(*args, **kwargs)
+            
+            # Permite 0 como resultado válido (ex: contador)
+            if resultado or resultado == 0:
+                if log_enabled:
+                    pass
+                return resultado
+                
+        except Exception as e:
+            if log_enabled:
+                logger.error(
+                    f" com_retry tentativa {tentativa + 1}/{max_tentativas}: {e}"
+                )
+            
+            # Se não é a última tentativa, aguarda antes de tentar novamente
+            if tentativa < max_tentativas - 1:
+                delay = backoff_base ** tentativa
+                if log_enabled:
+                    pass
+                time.sleep(delay)
+            else:
+                # Última tentativa falhou
+                if log_enabled:
+                    logger.error(
+                        f" com_retry: todas {max_tentativas} tentativas falharam"
+                    )
+                return None
+    
+    return None
+
+def buscar_seletor_robusto(
+    driver: WebDriver,
+    textos: List[str],
+    contexto: Optional[Any] = None,
+    timeout: int = 5,
+    log: bool = False
+) -> Optional[WebElement]:
+    """
+    Busca robusta com múltiplas estratégias (inputs, texto visível, ícones).
+
+    Args:
+        driver: WebDriver Selenium
+        textos: Lista de textos/keywords
+        contexto: Não usado (compatibilidade)
+        timeout: Timeout (compatibilidade)
+        log: Ativa logs
+
+    Returns:
+        WebElement se encontrado, None caso contrário
+    """
+    def buscar_input_associado(elemento):
+        try:
+            input_associado = elemento.find_element(By.XPATH, 
+                './following-sibling::input|./preceding-sibling::input|'
+                './ancestor::*[contains(@class,"form-group")]//input|'
+                './ancestor::*[contains(@class,"mat-form-field")]//input'
+            )
+            return input_associado
+        except Exception as e:
+            if log:
+                print(f'[ROBUSTO][DEBUG] Falha ao buscar input associado: {e}')
+            return None
+    try:
+        # Fase 1: Busca direta por inputs editáveis
+        for texto in textos:
+            if DEBUG:
+                _log_info(f'[ROBUSTO][FASE1] Buscando input com texto/atributo: {texto}')
+            try:
+                elementos = driver.find_elements(By.CSS_SELECTOR, 
+                    f'input[placeholder*="{texto}"], '
+                    f'input[aria-label*="{texto}"], '
+                    f'input[name*="{texto}"]'
+                )
+                for el in elementos:
+                    if el.is_displayed() and el.is_enabled():
+                        if DEBUG:
+                            _log_info(f'[ROBUSTO][ENCONTRADO] Input direto: {el}')
+                        return el
+            except Exception as e:
+                if DEBUG:
+                    _log_info(f'[ROBUSTO][ERRO] Fase1: {e}')
+                continue
+        # Fase 2: Busca hierárquica se não encontrar diretamente
+        for texto in textos:
+            if DEBUG:
+                _log_info(f'[ROBUSTO][FASE2] Buscando por texto visível: {texto}')
+            try:
+                elementos = driver.find_elements(By.XPATH, 
+                    f'//*[contains(text(), "{texto}")]'
+                )
+                for el in elementos:
+                    if DEBUG:
+                        _log_info(f'[ROBUSTO][FASE2] Elemento com texto encontrado: {el}')
+                    input_assoc = buscar_input_associado(el)
+                    if input_assoc:
+                        if DEBUG:
+                            _log_info(f'[ROBUSTO][ENCONTRADO] Input associado: {input_assoc}')
+                        return input_assoc
+            except Exception as e:
+                if DEBUG:
+                    _log_info(f'[ROBUSTO][ERRO] Fase2: {e}')
+                continue
+        # Fase 3: Busca por ícone/fa
+        for texto in textos:
+            if DEBUG:
+                _log_info(f'[ROBUSTO][FASE3] Buscando ícone/fa: {texto}')
+            try:
+                elementos = driver.find_elements(By.CSS_SELECTOR, f'i[mattooltip*="{texto}"], i[aria-label*="{texto}"], i.fa-reply-all')
+                for el in elementos:
+                    if el.is_displayed():
+                        if DEBUG:
+                            _log_info(f'[ROBUSTO][ENCONTRADO] Ícone/fa: {el}')
+                        return el
+            except Exception as e:
+                if DEBUG:
+                    _log_info(f'[ROBUSTO][ERRO] Fase3: {e}')
+                continue
+        if DEBUG:
+            _log_info('[ROBUSTO][FIM] Nenhum elemento encontrado com os critérios fornecidos.')
+        return None
+    except Exception as e:
+        logger.error(f'[ROBUSTO][ERRO GERAL] {e}')
+        return None
+
+# TODO: Extrair buscar_seletor_robusto do core.py
+# Esta função aparece no MAPEAMENTO_CORE.md mas não foi localizada no código
+# Provavelmente é uma função a ser criada ou está com nome diferente
+#
+# def buscar_seletor_robusto(
+#     driver: WebDriver,
+#     seletores: list[tuple],
+#     timeout: int = 10,
+#     log_enabled: bool = False
+# ) -> Optional[WebElement]:
+#     """
+#     Busca elemento usando múltiplos seletores em ordem de prioridade.
+#     
+#     Args:
+#         driver: WebDriver do Selenium
+#         seletores: Lista de tuplas (By, seletor)
+#         timeout: Timeout em segundos
+#         log_enabled: Ativa logging
+#     
+#     Returns:
+#         WebElement se encontrado, None caso contrário
+#     """
+#     pass

@@ -25,7 +25,7 @@
 
     const url = window.location.href;
     const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=205';
+    const V = '?v=206';
 
     // Roteador de injeção assíncrona (Lazy Loader no contexto do sandbox)
     async function load(paths) {
@@ -54,7 +54,7 @@
             await load([
                 'core/utils.js', // Necessário para utils (sleep, showToast, etc)
                 'core/state.js', // Necessário para PJeState
-                'modules/lista/lista.pgto.js'
+                'modules/lista/lista.sisbajud.js'
             ]);
             return;
         }

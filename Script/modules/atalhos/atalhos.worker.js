@@ -3,7 +3,7 @@
 // Executado APENAS na aba worker (?maispje_worker=1)
 // Responsabilidade única: salvar + finalizar expediente e avisar a aba principal.
 
-async function runWorker() {
+window.runWorker = async function () {
     const channel = new BroadcastChannel('maispje_expediente_worker');
 
     // Registra fechamento para quando a função terminar

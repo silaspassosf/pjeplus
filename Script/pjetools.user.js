@@ -25,7 +25,7 @@
 
     const url = window.location.href;
     const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=208';
+    const V = '?v=209';
 
     // Roteador de injeção assíncrona (Lazy Loader no contexto do sandbox)
     async function load(paths) {

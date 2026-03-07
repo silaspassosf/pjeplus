@@ -13,7 +13,7 @@ window.byDataDesc = (a, b) => {
     return db.localeCompare(da);
 };
 
-window.filtrarDocs = function(docs) {
+window.filtrarDocs = function (docs) {
     return docs.filter(d => {
         const tipo = (d.tipo || '').toLowerCase();
         const texto = (d.texto || '').toLowerCase();
@@ -26,7 +26,7 @@ window.filtrarDocs = function(docs) {
     });
 }
 
-window.construirOrdem = function(docs) {
+window.construirOrdem = function (docs) {
     const usados = new Set();
     const saida = [];
     const certsDev = docs.filter(d => isCertDevolucao(d) || isCertOficial(d)).sort(byDataDesc);
@@ -64,7 +64,7 @@ window.construirOrdem = function(docs) {
     return saida;
 }
 
-window.renderTabela = function(id, titulo, corBorda, saida, onRowClick) {
+window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
     document.getElementById(id)?.remove();
     const c = document.createElement('div');
     c.id = id;
@@ -183,7 +183,7 @@ async function onCheckRowClick(doc) {
     }
 }
 
-async function executarCheck() {
+window.executarCheck = async function () {
     const docs = await lerTimelineCompleta();
     const filtrados = filtrarDocs(docs);
     const saida = construirOrdem(filtrados);
@@ -205,7 +205,7 @@ async function executarCheck() {
     }
 }
 
-async function executarBaixarAutomatico(saida) {
+window.executarBaixarAutomatico = async function (saida) {
     const serasaCnib = (saida || []).filter(d =>
         (d.tipo === 'Serasa' || d.tipo === 'CNIB') && d.isAnexo
     );

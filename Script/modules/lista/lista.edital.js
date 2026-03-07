@@ -1,6 +1,6 @@
 'use strict';
 
-async function executarEdital() {
+window.executarEdital = async function () {
     const docs = await lerTimelineCompleta();
     const editais = docs.filter(d => d.tipo === 'Edital').sort(byDataDesc);
     const saida = editais.map(e => ({ ...e, _label: 'Edital' }));

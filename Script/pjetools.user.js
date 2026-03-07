@@ -4,7 +4,9 @@
 // @version      2.0.0
 // @description  Suite de ferramentas para PJe (Lista + Atalhos + Infojud)
 // @author       Silas
-// @match        https://pje.trt2.jus.br/pjekz/*
+// @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
+// @match        https://pje.trt2.jus.br/pjekz/comunicacoesprocessuais/minutas*
+// @match        https://pje.trt2.jus.br/pjekz/pagamento/*/cadastro*
 // @match        https://sisbajud.cnj.jus.br/*
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=200
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=200

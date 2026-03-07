@@ -25,17 +25,17 @@
 
     const url = window.location.href;
     const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=207';
+    const V = '?v=208';
 
     // Roteador de injeção assíncrona (Lazy Loader no contexto do sandbox)
     async function load(paths) {
         for (const p of paths) {
             try {
-                const res = await fetch(GITHUB_BASE + p + V);
+                const res = await fetch(GITHUB_BASE + p + V, { cache: 'no-store' });
                 const code = await res.text();
-                // O eval executará a IIFE no contexto do Tampermonkey Sandbox
-                // Garantindo o acesso ao GM_setValue, GM_getValue, etc.
-                eval(code);
+                // O eval indireto executa o código no escopo global do Tampermonkey Sandbox
+                // permitindo que functions, vars e properties do window converjam.
+                (0, eval)(code);
             } catch (e) {
                 console.error(`[PJeTools] Erro ao carregar o módulo ${p}:`, e);
             }

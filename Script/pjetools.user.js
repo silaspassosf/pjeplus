@@ -10,11 +10,20 @@
 // @match        https://sisbajud.cnj.jus.br/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp*
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.legacy.js?v=212
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=212
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab
-// @grant        GM_xmlhttpRequest
-// @connect      raw.githubusercontent.com
 // @grant        window.close
 // @grant        unsafeWindow
 // @run-at       document-idle
@@ -26,112 +35,49 @@
     if (window.self !== window.top) return;
 
     const url = window.location.href;
-    const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=212';
 
-    // Wrapper GM_xmlhttpRequest → Promise (bypassa CSP cross-origin do PJe)
-    function gmFetch(url) {
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url,
-                headers: { 'Cache-Control': 'no-cache' },
-                onload(r) { resolve(r.responseText); },
-                onerror(e) { reject(new Error(`GM_xmlhttpRequest falhou: ${url}`)); }
-            });
+    // ── Receita Federal (Infojud cross-domain) ────────────────────
+    // infojud.legacy.js já tem guard interno para este domínio
+    if (url.includes('cav.receita.fazenda.gov.br')) return;
+
+    // ── SISBAJUD ──────────────────────────────────────────────────
+    // sisbajud.js já tem guard interno para este domínio
+    if (url.includes('sisbajud.cnj.jus.br')) return;
+
+    // ── PJe MINUTAS ───────────────────────────────────────────────
+    if (url.includes('/comunicacoesprocessuais/minutas')) {
+        // Worker sub-tab
+        if (new URLSearchParams(location.search).get('maispje_worker') === '1') {
+            if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
+            document.documentElement.setAttribute('data-pjetools-worker', '1');
+            window.addEventListener('load', () =>
+                setTimeout(() => window.runWorker && window.runWorker(), 2000));
+        }
+        // infojud.legacy.js já tem guard interno para /minutas
+        return;
+    }
+
+    // ── PJe PAGAMENTO ─────────────────────────────────────────────
+    if (url.includes('/pagamento/') && url.includes('/cadastro')) return;
+
+    // ── PJe DETALHE (Painel Principal) ───────────────────────────
+    if (!/\/processo\/\d+\/detalhe/.test(url)) return;
+
+    // Módulos já carregados via @require, apenas orquestrar o boot
+    if (!window.__pjeToolsLoaded) {
+        window.__pjeToolsLoaded = true;
+
+        window.monitorarSPA && window.monitorarSPA(() => {
+            window.PJeState && window.PJeState.dispose();
+            setTimeout(() => {
+                if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
+                    bootDetalhe();
+                }
+            }, 300);
         });
     }
 
-    // Roteador de injeção assíncrona (Lazy Loader no contexto do sandbox)
-    async function load(paths) {
-        for (const p of paths) {
-            try {
-                const code = await gmFetch(GITHUB_BASE + p + V);
-                // O eval indireto executa no escopo global do Tampermonkey Sandbox
-                (0, eval)(code);
-            } catch (e) {
-                console.error(`[PJeTools] Erro ao carregar o módulo ${p}:`, e);
-            }
-        }
-    }
-
-    async function injectLogic() {
-        // --- 1. Infojud CROSS-DOMAIN (Receita Federal) ---
-        if (url.includes('cav.receita.fazenda.gov.br')) {
-            await load(['modules/infojud/infojud.legacy.js']);
-            return;
-        }
-
-        // --- 2. SISBAJUD Standalone ---
-        if (url.includes('sisbajud.cnj.jus.br')) {
-            await load([
-                'core/utils.js', // Necessário para utils (sleep, showToast, etc)
-                'core/state.js', // Necessário para PJeState
-                'modules/sisbajud/sisbajud.js'
-            ]);
-            return;
-        }
-
-        // --- 3. PJe PAGAMENTOS ---
-        if (url.includes('/pagamento/') && url.includes('/cadastro')) {
-            console.log('[PJeTools] Página de pagamento detectada');
-            return;
-        }
-
-        // --- 4. PJe MINUTAS ---
-        if (url.includes('/comunicacoesprocessuais/minutas')) {
-            // Worker Sub-Tool (MaisePJe)
-            if (new URLSearchParams(location.search).get('maispje_worker') === '1') {
-                if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
-                document.documentElement.setAttribute('data-pjetools-worker', '1');
-                await load([
-                    'core/utils.js',
-                    'core/state.js',
-                    'modules/atalhos/atalhos.worker.js'
-                ]);
-                window.addEventListener('load', () => setTimeout(() => window.runWorker && window.runWorker(), 2000));
-                return;
-            }
-
-            // Infojud PJe (nativo)
-            await load(['modules/infojud/infojud.legacy.js']);
-            return;
-        }
-
-        // --- 5. PJe DETALHE (Painel Principal) ---
-        const isPJe = url.includes('pje.trt2.jus.br');
-        const isAbaDetalhe = /\/processo\/\d+\/detalhe/.test(url) && !url.includes('/minutas');
-
-        if (isPJe && isAbaDetalhe) {
-            // Módulos carregados apenas uma vez por sessão
-            if (!window.__pjeToolsLoaded) {
-                window.__pjeToolsLoaded = true;
-                await load([
-                    'core/utils.js',
-                    'core/state.js',
-                    'modules/lista/lista.timeline.js',
-                    'modules/lista/lista.check.js',
-                    'modules/lista/lista.edital.js',
-                    'modules/lista/lista.pgto.js',
-                    'modules/atalhos/atalhos.js',
-                    'ui/painel.js'
-                ]);
-
-                // Registrar monitor SPA uma única vez
-                window.monitorarSPA && window.monitorarSPA(() => {
-                    window.PJeState && window.PJeState.dispose();
-                    setTimeout(() => {
-                        if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
-                            bootDetalhe();
-                        }
-                    }, 300);
-                });
-            }
-
-            bootDetalhe();
-            return;
-        }
-    }
+    bootDetalhe();
 
     function bootDetalhe() {
         if (!window.PJeState || window.PJeState._iniciado) return;
@@ -139,6 +85,4 @@
         window.inicializarPainel && window.inicializarPainel();
         window.initAtalhos && window.initAtalhos();
     }
-
-    injectLogic();
 })();

@@ -5,9 +5,9 @@
 // @description  Assistente de homologação PJe-Calc (loader @require — Estratégia 2)
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-core.js?v=118
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-pdf.js?v=118
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-overlay.js?v=118
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-core.js?v=119
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-pdf.js?v=119
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-overlay.js?v=119
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle
@@ -45,10 +45,11 @@
 
     // Chama init do overlay/botão depois que o PJe estiver pronto
     aguardarPJe(function () {
-        if (window.hcalcInitBotao) {
+        console.log('[hcalc] boot callback disparado. hcalcInitBotao =', typeof window.hcalcInitBotao);
+        if (typeof window.hcalcInitBotao === 'function') {
             window.hcalcInitBotao();
         } else {
-            console.error('[hcalc] hcalcInitBotao não encontrado — verifique @require / ordem dos arquivos');
+            console.error('[hcalc] hcalcInitBotao não encontrado — verifique @require e se hcalc-overlay.js expõe window.hcalcInitBotao');
         }
     });
 })();

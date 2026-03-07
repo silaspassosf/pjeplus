@@ -85,6 +85,8 @@ window._tornaPainelArrastavel = function (el) {
 }
 
 window.inicializarPainel = function () {
+    // Guard: painel só existe em /detalhe
+    if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
     criarPainel([
         { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
         { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },

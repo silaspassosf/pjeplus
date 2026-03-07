@@ -1,0 +1,1817 @@
+QUESTÃO 1 (ID: Q2384447)
+ASSUNTO: Direito Civil
+Pessoa Jurídica ,
+Parte Geral
+ENUNCIADO: De acordo com o Código Civil, os partidos políticos são
+ALTERNATIVAS:
+  A) autarquias.
+  B) pessoas jurídicas de direito público externo.
+  C) associações públicas.
+  D) entidades de caráter público criadas por lei,
+  E) pessoas jurídicas de direito privado
+COMENTÁRIO: 06 de Março de 2024 às 07:35
+COMENTÁRIO: GAB LETRA E
+COMENTÁRIO: Art. 44. São pessoas jurídicas de direito privado:
+COMENTÁRIO: I - as associações;
+COMENTÁRIO: II - as sociedades;
+COMENTÁRIO: III - as fundações.
+COMENTÁRIO: IV - as organizações religiosas;
+COMENTÁRIO: V - os partidos políticos.
+COMENTÁRIO: .
+COMENTÁRIO: Gostei
+COMENTÁRIO: (168)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2384445)
+ASSUNTO: Direito Civil
+Direito das Coisas / Direitos Reais ,
+Direito de Laje
+ENUNCIADO: O direito de laje, previsto no artigo 1.510-A do Código Civil, constitui direito
+ALTERNATIVAS:
+  A) real, em que a unidade imobiliária autônoma é constituída em matrícula própria e na qual o titular pode dela usar, gozar e dispor.
+  B) obrigacional, em que, por ajuste verbal ou escrito, o proprietário de uma construção-base cede a superfície superior ou inferior de sua construção, a fim de que o titular da laje possa ali edificar.
+  C) contratual decorrente do comodato, o qual tem por principais características a gratuidade e a limitação temporal do ajuste.
+  D) obrigacional, no qual é permitida a cessão da superfície superior e vedada a cessão da área inferior da construção-base.
+  E) real, em que a instituição da laje implica em atribuição de fração ideal do terreno ao titular da laje.
+COMENTÁRIO: 05 de Março de 2024 às 13:37
+COMENTÁRIO: CC
+COMENTÁRIO: Art. 1.225. São direitos reais:
+COMENTÁRIO: I - a propriedade;
+COMENTÁRIO: II - a superfície;
+COMENTÁRIO: III - as servidões;
+COMENTÁRIO: IV - o usufruto;
+COMENTÁRIO: V - o uso;
+COMENTÁRIO: VI - a habitação;
+COMENTÁRIO: VII - o direito do promitente comprador do imóvel;
+COMENTÁRIO: VIII - o penhor;
+COMENTÁRIO: IX - a hipoteca;
+COMENTÁRIO: X - a anticrese.
+COMENTÁRIO: XI - a concessão de uso especial para fins de moradia;
+COMENTÁRIO: XII - a concessão de direito real de uso;
+COMENTÁRIO: XIII - a laje;
+COMENTÁRIO: XIV - os direitos oriundos da imissão provisória na posse, quando concedida à União, aos Estados, ao Distrito Federal, aos Municípios ou às suas entidades delegadas e a respectiva cessão e promessa de cessão.
+COMENTÁRIO: Art. 1.510-A.
+COMENTÁRIO: § 3º Os titulares da laje, unidade imobiliária autônoma constituída em matrícula própria, poderão dela usar, gozar e dispor.
+COMENTÁRIO: § 4º A instituição do direito real de laje não implica a atribuição de fração ideal de terreno ao titular da laje ou a participação proporcional em áreas já edificadas.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA A)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (274)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2384441)
+ASSUNTO: Direito Processual do Trabalho
+Dissídio individual ,
+Incidente de desconsideração da personalidade jurídica
+ENUNCIADO: A desconsideração da personalidade jurídica é aplicável ao processo do trabalho, sendo que
+ALTERNATIVAS:
+  A) o incidente de desconsideração é cabível em todas as fases do processo de conhecimento e no cumprimento definitivo de sentença, não sendo cabivel, no entanto, no cumprimento provisório de sentença.
+  B) deve ser instaurado o incidente ainda que a desconsideração tenha sido requerida na petição inicial.
+  C) da decisão proferida por relator, acolhendo ou rejeitando a desconsideração requerida originalmente no tribunal, cabe agravo interno.
+  D) a instauração do incidente, como regra, não suspende o processo, dependendo, eventual suspensão, de concessão de tutela de urgência de natureza cautelar.
+  E) instaurado o incidente, o sócio ou a pessoa jurídica será citado para manifestar-se e requerer as provas cabíveis no prazo de 10 dias.
+COMENTÁRIO: 05 de Março de 2024 às 17:39
+COMENTÁRIO: A) ERRADO! Art. 134, CPC. O incidente de desconsideração é cabível em todas as fases do processo de conhecimento, no cumprimento de sentença e na execução fundada em título executivo extrajudicial.
+COMENTÁRIO: B) ERRADO! Art. 134, CPC: § 2º Dispensa-se a instauração do incidente se a desconsideração da personalidade jurídica for requerida na petição inicial, hipótese em que será citado o sócio ou a pessoa jurídica.
+COMENTÁRIO: C) CORRETA! CLT, Art. 855-A. § 1 Da decisão interlocutória que acolher ou rejeitar o incidente:  III - cabe agravo interno se proferida pelo relator em incidente instaurado originariamente no tribunal.
+COMENTÁRIO: D) ERRADO! CLT, Art. 855-A. § 2o A instauração do incidente suspenderá o processo, sem prejuízo de concessão da tutela de urgência de natureza cautelar.
+COMENTÁRIO: E) ERRADO! Art. 135, CPC. Instaurado o incidente, o sócio ou a pessoa jurídica será citado para manifestar-se e requerer as provas cabíveis no prazo de 15 (quinze) dias.
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (225)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2384439)
+ASSUNTO: Direito Processual do Trabalho
+Execução trabalhista ,
+Penhora. Expropriação e suas modalidades
+ENUNCIADO: Não estão sujeitos à execução os bens considerados como impenhoráveis ou inalienáveis, entre eles,
+ALTERNATIVAS:
+  A) a quantia depositada em caderneta de poupança, até o limite de 60 salários mínimos.
+  B) a pequena propriedade rural familiar constituída de mais de um terreno, desde que contínuos e com área total inferior a seis módulos fiscais no município de localização.
+  C) os materiais necessários para obras em andamento, ainda que essas sejam penhoradas.
+  D) os imóveis do casal, ou entidade familiar, utilizados como residência, para moradia permanente ou temporária.
+  E) os recursos públicos recebidos por instituições privadas para aplicação compulsória em educação, saúde ou assistência social.
+COMENTÁRIO: 05 de Março de 2024 às 17:20
+COMENTÁRIO: A) ERRADA! Art. 833. São impenhoráveis: X - a quantia depositada em caderneta de poupança, até o limite de 40 (quarenta) salários-mínimos;
+COMENTÁRIO: B) ERRADA! Art. 833 São impenhoráveis: VIII - a pequena propriedade rural, assim definida em lei, desde que trabalhada pela família; ⮕ Tema 961 RG, STF: Tese: É impenhorável a pequena propriedade rural familiar constituída de mais de 01 (um) terreno, desde que contínuos e com área total inferior a 04 (quatro) módulos fiscais do município de localização.
+COMENTÁRIO: C) ERRADA! Art. 833. São impenhoráveis: VII - os materiais necessários para obras em andamento, salvo se essas forem penhoradas;
+COMENTÁRIO: D) ERRADA! Lei nº 8.009/90 Art. 5º Para os efeitos de impenhorabilidade, de que trata esta lei, considera-se residência um único imóvel utilizado pelo casal ou pela entidade familiar para moradia permanente. ⮕ Temporária não!
+COMENTÁRIO: E) CORRETA! Art. 833 São impenhoráveis: IX - os recursos públicos recebidos por instituições privadas para aplicação compulsória em educação, saúde ou assistência social;
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (326)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2384436)
+ASSUNTO: Direito do Trabalho
+Direito Coletivo do Trabalho ,
+Poder normativo da Justiça do Trabalho
+ENUNCIADO: A convenção coletiva de trabalho e o acordo coletivo de trabalho, como instrumentos normativos,
+ALTERNATIVAS:
+  A) contêm cláusulas normativas que integram os contratos individuais de trabalho, que somente podem ser modificadas ou suprimidas mediante negociação coletiva de trabalho.
+  B) têm vigência de, no máximo, quatro anos, sendo vedada estipulação de duração superior e a ultratividade de suas cláusulas.
+  C) podem ser prorrogados, revistos, denunciados ou revogados total ou parcialmente, mediante solicitação ao órgão competente do Ministério do Trabalho.
+  D) devem ser celebrados por escrito e ser submetidos a uma publicidade razoável, consistente no depósito, no prazo de oito dias contados de sua assinatura, no órgão correspondente do Ministério do Trabalho e, ainda, após cinco dias dessa providência, afixados nas respectivas sedes dos sindicatos e nos estabelecimentos das empresas compreendidas na sua abrangência.
+  E) são aplicáveis aos empregados que atuam na atividade preponderante do empregador, sendo também aplicáveis aos empregados integrantes de categoria profissional diferenciada, desde que sindicalizados.
+COMENTÁRIO: 05 de Março de 2024 às 16:44
+COMENTÁRIO: A) ERRADO! Art. 614. § 3  Não será permitido estipular duração de convenção coletiva ou acordo coletivo de trabalho superior a dois anos, sendo vedada a ultratividade. ⮕ As clausulas normativas não integram os contratos individuais de trabalho.
+COMENTÁRIO: B) ERRADO! Mesmo fundamento da letra A.
+COMENTÁRIO: C) ERRADO! Art. 615 - O processo de prorrogação, revisão, denúncia ou revogação total ou parcial de Convenção ou Acordo ficará subordinado, em qualquer caso, à aprovação de Assembleia Geral dos Sindicatos convenentes ou partes acordantes, com observância do disposto no art. 612.
+COMENTÁRIO: D) CORRETA! Art. 614 - Os Sindicatos convenentes ou as empresas acordantes promoverão, conjunta ou separadamente, dentro de 8 (oito) dias da assinatura da Convenção ou Acordo, o depósito de uma via do mesmo, para fins de registro e arquivo, no Departamento Nacional do Trabalho, em se tratando de instrumento de caráter nacional ou interestadual, ou nos órgãos regionais do Ministério do Trabalho e Previdência Social, nos demais casos. § 2º Cópias autênticas das Convenções e dos Acordos deverão ser afixados de modo visível, pelos Sindicatos convenentes, nas respectivas sedes e nos estabelecimentos das empresas compreendidas no seu campo de aplicação, dentro de 5 (cinco) dias da data do depósito previsto neste artigo.
+COMENTÁRIO: E) ERRADO! Súmula nº 374 do TST: Empregado integrante de categoria profissional diferenciada não tem o direito de haver de seu empregador vantagens previstas em instrumento coletivo no qual a empresa não foi representada por órgão de classe de sua categoria.
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (380)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2384435)
+ASSUNTO: Direito do Trabalho
+Descanso no trabalho: repouso anual (férias) e semanal ,
+Efeitos e duração do trabalho nos contratos de emprego
+ENUNCIADO: O repouso semanal remunerado, garantido constitucionalmente, é assegurado aos empregados urbanos, rurais e domésticos, preferencialmente aos domingos, sendo que
+ALTERNATIVAS:
+  A) sua duração pode ser reduzida mediante previsão em convenção coletiva ou acordo coletivo de trabalho.
+  B) as faltas injustificadas do empregado ao serviço durante a semana implicam na perda do direito ao gozo do mesmo.
+  C) a majoração do seu valor em decorrência da integração das horas extras habituais deve repercutir no cálculo efetuado pelo empregador das demais parcelas que têm como base de cálculo o salário, não caracterizando bis in idem.
+  D) os empregados quinzenalistas devem ter seu repouso semanal remunerado calculado e pago, considerando-se o valor de um dia de trabalho, com indicação, em rubrica separada, no recibo de pagamento mensal.
+  E) para os empregados que cumprem jornada de trabalho de 12 x 36, a remuneração mensal pactuada não abrange o pagamento devido pelo repouso semanal remunerado, que deve ser calculado e pago considerando-se o valor de um dia de trabalho, com indicação, em rubrica separada, no recibo de pagamento mensal.
+COMENTÁRIO: 05 de Março de 2024 às 16:26
+COMENTÁRIO: A) ERRADO! Art. 611-B. Constituem objeto ilícito de convenção coletiva ou de acordo coletivo de trabalho, exclusivamente, a supressão ou a redução dos seguintes direitos: IX - repouso semanal remunerado;
+COMENTÁRIO: B) ERRADO! Lei nº 605/49 Art. 6º Não será devida a remuneração quando, sem motivo justificado, o empregado não tiver trabalhado durante toda a semana anterior, cumprindo integralmente o seu horário de trabalho. ⮕ perde a remuneração, mas não perde o descanso.
+COMENTÁRIO: C) CORRETA! OJ nº 394, SDI1 do TST (NOVA REDAÇÃO): I - A majoração do valor do repouso semanal remunerado, decorrente da integração das horas extras habituais, deve repercutir no cálculo, efetuado pelo empregador, das demais parcelas que têm como base de cálculo o salário, não se cogitando de bis in idem por sua incidência no cálculo das férias, da gratificação natalina, do aviso prévio e do FGTS; II - O item I será aplicado às horas extras trabalhadas a partir de 20/3/2023.
+COMENTÁRIO: D) ERRADO! Lei nº 605/49 Art. 7º A remuneração do repouso semanal corresponderá: a) para os que trabalham por dia, semana, quinzena ou mês, à de um dia de serviço, computadas as horas extraordinárias habitualmente prestadas;
+COMENTÁRIO: E) ERRADO! Art. 59-A. (...) é facultado às partes, mediante acordo individual escrito, convenção coletiva ou acordo coletivo de trabalho, estabelecer horário de trabalho de doze horas seguidas por trinta e seis horas ininterruptas de descanso, observados ou indenizados os intervalos para repouso e alimentação. Parágrafo único. A remuneração mensal pactuada pelo horário previsto no caput deste artigo abrange os pagamentos devidos pelo descanso semanal remunerado e pelo descanso em feriados, e serão considerados compensados os feriados e as prorrogações de trabalho noturno, quando houver,
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (356)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2384430)
+ASSUNTO: Direito Civil
+Lei de Introdução às Normas do Direito Brasileiro (LINDB)
+ENUNCIADO: Nos termos da Lei de Introdução às Normas do Direito Brasileiro (Decreto-Lei nº 4.657/1942), a revisão, nas esferas administrativa, controladora ou judicial, quanto à validade de ato, contrato, ajuste, processo ou norma administrativa cuja produção já se houver completado
+ALTERNATIVAS:
+  A) levará em conta as orientações gerais e individuais da atualidade, sendo vedado que, com base em mudança posterior de orientação, se declarem inválidas situações plenamente constituídas.
+  B) não levará em conta qualquer orientação anterior, pois a declaração de invalidade é medida inafastável, de modo a se evitar a manutenção de atos viciados.
+  C) levará em conta as orientações individuais da época, admitindo-se que, com base em mudança posterior de orientação, se declarem inválidas situações plenamente constituídas, sem prejuízo de eventual direito indenizatório.
+  D) levará em conta as orientações gerais da atualidade, admitindo-se que, com base em mudança posterior de orientação geral, se declarem inválidas situações plenamente constituídas.
+  E) levará em conta as orientações gerais da época, sendo vedado que, com base em mudança posterior de orientação geral, se declarem inválidas situações plenamente constituídas.
+COMENTÁRIO: 05 de Março de 2024 às 11:02
+COMENTÁRIO: Lei de Introdução às Normas do Direito Brasileiro (Decreto-Lei nº 4.657/1942)
+COMENTÁRIO: Art. 24. A revisão, nas esferas administrativa, controladora ou judicial, quanto à validade de ato, contrato, ajuste, processo ou norma administrativa cuja produção já se houver completado levará em conta as orientações gerais da época, sendo vedado que, com base em mudança posterior de orientação geral, se declarem inválidas situações plenamente constituídas.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA E)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (517)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2384429)
+ASSUNTO: Direito Penal
+Legislação Penal Especial ,
+Lei do Abuso de Autoridade – Lei nº 4.898 de 1965 e Lei n° 13.869 de 2019
+ENUNCIADO: No que concerne aos crimes previstos na Lei de Abuso de Autoridade (Lei nº 13.869/2019), além da prestação de serviço à comunidade ou a entidades públicas, outra pena restritiva de direitos substitutiva das privativas de liberdade prevista no referido Diploma Legal é a suspensão do exercício do cargo, da função ou do mandato, pelo prazo de
+ALTERNATIVAS:
+  A) 1 a 6 meses, com a perda dos vencimentos e das vantagens, que poderá ser aplicada autônoma ou cumulativamente à prestação de serviço à comunidade ou a entidades públicas.
+  B) 6 meses a 1 ano, com a perda dos vencimentos e das vantagens, que poderá ser aplicada autônoma ou cumulativamente à prestação de serviço à comunidade ou a entidades públicas.
+  C) 1a 6meses, com a perda dos vencimentos e das vantagens, que não poderá ser aplicada cumulativamente à prestação de serviço à comunidade ou a entidades públicas.
+  D) 6 meses a 1 ano, com a perda dos vencimentos e das vantagens, que não poderá ser aplicada cumulativamente à prestação de serviço à comunidade ou a entidades públicas.
+  E) 6 meses a 1ano, com a perda dos vencimentos e das vantagens, que deverá ser aplicada de forma cumulativa à prestação de serviço à comunidade ou a entidades públicas.
+COMENTÁRIO: 05 de Março de 2024 às 10:59
+COMENTÁRIO: Lei de Abuso de Autoridade (Lei nº 13.869/2019)
+COMENTÁRIO: Art. 5º As penas restritivas de direitos substitutivas das privativas de liberdade previstas nesta Lei são:
+COMENTÁRIO: I - prestação de serviços à comunidade ou a entidades públicas;
+COMENTÁRIO: II - suspensão do exercício do cargo, da função ou do mandato, pelo prazo de 1 (um) a 6 (seis) meses, com a perda dos vencimentos e das vantagens;
+COMENTÁRIO: Parágrafo único. As penas restritivas de direitos podem ser aplicadas autônoma ou cumulativamente.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA A)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (378)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2384427)
+ASSUNTO: Direito Administrativo
+Licitações e Lei nº 14.133 de 2021 ,
+Modalidades e Critérios de Julgamento
+ENUNCIADO: Nos termos da Lei nº 14.133/2021, na modalidade licitatória diálogo competitivo será observada, dentre outras, a seguinte disposição:
+ALTERNATIVAS:
+  A) O diálogo competitivo será conduzido por comissão de contratação composta de, pelo menos, 3 servidores efetivos ou empregados públicos pertencentes aos quadros permanentes da Administração, vedada a contratação de profissionais para assessoramento técnico da comissão.
+  B) Os critérios empregados para pré-seleção dos licitantes deverão ser previstos em edital, não sendo admitidos todos os interessados que preencherem os requisitos objetivos estabelecidos, mas sim um número fixo dentre eles, sob pena de tornar inviável a realização da licitação.
+  C) A Administração poderá revelar a outros licitantes as soluções propostas por um dos licitantes, independentemente de seu consentimento, haja vista a publicidade norteadora do certame.
+  D) A Administração definirá a proposta vencedora de acordo com critérios divulgados ao final da fase competitiva, assegurada a contratação mais vantajosa como resultado.
+  E) A Administração apresentará, por ocasião da divulgação do edital em sítio eletrônico oficial, suas necessidades e as exigências já definidas e estabelecerá prazo mínimo de 25 dias úteis para manifestação de interesse na participação da licitação.
+COMENTÁRIO: 05 de Março de 2024 às 10:48
+COMENTÁRIO: Lei nº 14.133/2021
+COMENTÁRIO: Art. 32. § 1º
+COMENTÁRIO: A) ERRADO! XI - o diálogo competitivo será conduzido por comissão de contratação composta de pelo menos 3 (três) servidores efetivos ou empregados públicos pertencentes aos quadros permanentes da Administração, admitida a contratação de profissionais para assessoramento técnico da comissão;
+COMENTÁRIO: B) ERRADO! II - os critérios empregados para pré-seleção dos licitantes deverão ser previstos em edital, e serão admitidos todos os interessados que preencherem os requisitos objetivos estabelecidos;
+COMENTÁRIO: C) ERRADO! V - a Administração não poderá revelar a outros licitantes as soluções propostas ou as informações sigilosas comunicadas por um licitante sem o seu consentimento;  ⮕ Logo, a Administração pode revelar COM o consentimento.
+COMENTÁRIO: D) ERRADO! X - a Administração definirá a proposta vencedora de acordo com critérios divulgados no início da fase competitiva, assegurada a contratação mais vantajosa como resultado;
+COMENTÁRIO: E) CORRETA! I - a Administração apresentará, por ocasião da divulgação do edital em sítio eletrônico oficial, suas necessidades e as exigências já definidas e estabelecerá prazo mínimo de 25 (vinte e cinco) dias úteis para manifestação de interesse na participação da licitação;
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (586)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2384426)
+ASSUNTO: Direito Administrativo
+Processo Administrativo - Lei nº 9.784 de 1999 e Lei nº 14.210 de 2021 ,
+Início e interessados no processo administrativo, delegação e avocação de competências
+ENUNCIADO: Um órgão administrativo e seu titular desejam delegar parte da sua competência a outro órgão hierarquicamente subordinado ao primeiro, por conveniência e em razão de circunstâncias de índole técnica. Nos termos da Lei nº 9.784/1999, que regula O processo administrativo no âmbito da Administração Pública Federal,
+ALTERNATIVAS:
+  A) em se tratando de decisões de recursos administrativos, podem as mesmas serem objeto de delegação, haja vista expressa disposição legal nesse sentido.
+  B) o ato de delegação é revogável a qualquer tempo pela autoridade delegante.
+  C) o ato de delegação especificará as matérias e poderes transferidos, os limites da atuação do delegado, a duração e os objetivos da delegação, não podendo, todavia, conter ressalva de exercício da atribuição delegada.
+  D) as decisões adotadas por delegação devem mencionar explicitamente esta qualidade e considerar-se-ão editadas pela autoridade delegante.
+  E) o ato de delegação e sua revogação não necessitam de publicação em meio oficial, mas devem ser formalizados em regular processo administrativo, de forma a garantir a observância ao princípio da legalidade, e conferir transparência aos atos administrativos.
+COMENTÁRIO: 05 de Março de 2024 às 10:38
+COMENTÁRIO: Lei nº 9.784/1999
+COMENTÁRIO: A) ERRADO! Art. 13. Não podem ser objeto de delegação: I - a edição de atos de caráter normativo; II - a decisão de recursos administrativos; III - as matérias de competência exclusiva do órgão ou autoridade.
+COMENTÁRIO: BIZU: CENORA
+COMENTÁRIO: Competência Exclusiva
+COMENTÁRIO: atos NOrmativos
+COMENTÁRIO: Recursos Administrativos
+COMENTÁRIO: B) CORRETA! Art. 14. § 2 O ato de delegação é revogável a qualquer tempo pela autoridade delegante.
+COMENTÁRIO: C) ERRADO! Art. 14. § 1  O ato de delegação especificará as matérias e poderes transferidos, os limites da atuação do delegado, a duração e os objetivos da delegação e o recurso cabível, podendo conter ressalva de exercício da atribuição delegada.
+COMENTÁRIO: D) ERRADO! Art. 14. § 3  As decisões adotadas por delegação devem mencionar explicitamente esta qualidade e considerar-se-ão editadas pelo delegado.
+COMENTÁRIO: E) ERRADO! Art. 14. O ato de delegação e sua revogação deverão ser publicados no meio oficial.
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (343)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2384425)
+ASSUNTO: Direito Administrativo
+Lei nº 8.112-1990 - Regime jurídico dos servidores públicos federais ,
+Agentes públicos e Lei 8.112 de 1990
+ENUNCIADO: Considere que, Márcia, servidora pública federal, ocupante de cargo efetivo, obteve licença por motivo de doença em pessoa da família e pretende exercer atividade remunerada durante o período da licença narrada. Já sua colega Jéssica, também servidora pública federal, ocupante de cargo efetivo, está em estágio probatório e pretende obter licença para tratar de interesses particulares pelo prazo consecutivo de 4 anos, sem remuneração. Nos termos da Lei nº 8.112/1990, Márcia
+ALTERNATIVAS:
+  A) poderá exercer atividade remunerada durante o período de sua licença; e Jéssica não terá direito à licença pretendida, tendo em vista que está em estágio probatório, embora os demais requisitos descritos estejam em observância ao texto legal.
+  B) poderá exercer atividade remunerada durante o período de sua licença; e Jéssica terá direito à licença pretendida, uma vez que presentes os requisitos legais para tanto.
+  C) não poderá exercer atividade remunerada durante o período de sua licença; e Jéssica terá direito à licença pretendida, uma vez que presentes os requisitos legais.
+  D) não poderá exercer atividade remunerada durante o período de sua licença; e Jéssica não terá direito à licença pretendida, tendo em vista que está em estágio probatório, além de ser uma licença concedida pelo prazo máximo de 3 anos consecutivos.
+  E) poderá exercer atividade remunerada durante o período de sua licença; e Jéssica não terá direito à licença pretendida, pois, embora tal licença possa ser concedida ao servidor em estágio probatório, o seu prazo máximo é de 2 anos consecutivos.
+COMENTÁRIO: 05 de Março de 2024 às 10:25
+COMENTÁRIO: Lei nº 8.112/1990
+COMENTÁRIO: "Márcia, servidora pública federal, ocupante de cargo efetivo, obteve licença por motivo de doença em pessoa da família e pretende exercer atividade remunerada durante o período da licença narrada." ⮕ não poderá exercer atividade remunerada durante o período de sua licença.
+COMENTÁRIO: Art. 81.  Conceder-se-á ao servidor licença:
+COMENTÁRIO: I - por motivo de doença em pessoa da família;
+COMENTÁRIO: § 3o   É vedado o exercício de atividade remunerada durante o período da licença prevista no inciso I deste artigo.
+COMENTÁRIO: "Jéssica, também servidora pública federal, ocupante de cargo efetivo, está em estágio probatório e pretende obter licença para tratar de interesses particulares pelo prazo consecutivo de 4 anos, sem remuneração." ⮕ não terá direito à licença pretendida, tendo em vista que está em estágio probatório, além de ser uma licença concedida pelo prazo máximo de 3 anos consecutivos.
+COMENTÁRIO: Art. 91.  A critério da Administração, poderão ser concedidas ao servidor ocupante de cargo efetivo, desde que não esteja em estágio probatório, licenças para o trato de assuntos particulares pelo prazo de até três anos consecutivos, sem remuneração.
+COMENTÁRIO: _________________________________________________________________________________________________________________
+COMENTÁRIO: # Macete: Durante o estágio probatório o servidor não abre a MATRACA:
+COMENTÁRIO: MAndato classista;
+COMENTÁRIO: TRAtar de interesse particular;
+COMENTÁRIO: CApacitação.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA D)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (515)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2384422)
+ASSUNTO: Direito Constitucional
+Partidos Políticos ,
+Princípios e características dos partidos políticos
+ENUNCIADO: O Partido Político “Partido de Proteção dos Animais” foi criado resguardados a soberania nacional, o regime democrático, o pluripartidarismo e os direitos fundamentais da pessoa humana. Em conformidade com a Constituição Federal, o “Partido de Proteção dos Animais”, observados os demais preceitos nela previstos,
+ALTERNATIVAS:
+  A) não pode receber recursos financeiros de entidade estrangeira, sendo permitido, contudo, o recebimento de recursos financeiros de governo estrangeiro; e deve prestar contas exclusivamente à Justiça Federal.
+  B) pode receber recursos financeiros de entidade ou governo estrangeiros; e deve prestar contas à Justiça Eleitoral.
+  C) pode receber recursos financeiros de entidade ou governo estrangeiros, e deve prestar contas exclusivamente à Justiça Federal.
+  D) não pode receber recursos financeiros de entidade ou governo estrangeiros; e deve prestar contas à Justiça Eleitoral.
+  E) não pode receber recursos financeiros de governo estrangeiro, sendo permitido, contudo, o recebimento de recursos financeiros de entidade estrangeira; e deve prestar contas à Justiça Eleitoral.
+COMENTÁRIO: 05 de Março de 2024 às 10:04
+COMENTÁRIO: CF/88
+COMENTÁRIO: Art. 17. É livre a criação, fusão, incorporação e extinção de partidos políticos, resguardados a soberania nacional, o regime democrático, o pluripartidarismo, os direitos fundamentais da pessoa humana e observados os seguintes preceitos:
+COMENTÁRIO: I - caráter nacional;
+COMENTÁRIO: II - proibição de recebimento de recursos financeiros de entidade ou governo estrangeiros ou de subordinação a estes;
+COMENTÁRIO: III - prestação de contas à Justiça Eleitoral;
+COMENTÁRIO: IV - funcionamento parlamentar de acordo com a lei.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA D)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (311)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2384421)
+ASSUNTO: Direito Constitucional
+Princípios Fundamentais da República
+ENUNCIADO: Com base nos Princípios Fundamentais contidos na Constituição Federal,
+ALTERNATIVAS:
+  A) a República Federativa do Brasil constitui-se em Estado Democrático de Direito e tem como fundamentos, dentre outros, a soberania e os valores sociais do trabalho e da livre iniciativa.
+  B) são Poderes da União, independentes e harmônicos entre si, o Legislativo, o Executivo, o Judiciário e o Ministério Público.
+  C) a República Federativa do Brasil rege-se nas suas relações internacionais pelos princípios da intervenção e da prevalência dos direitos humanos, dentre outros.
+  D) a República Federativa do Brasil rege-se nas suas relações internacionais pelos princípios da autodeterminação dos povos e da proibição da concessão de asilo político, dentre outros.
+  E) a República Federativa do Brasil buscará a integração social e cultural dos povos da América Latina, visando à formação de uma comunidade latino-americana das nações, não sendo permitida, contudo, a integração econômica e política desses povos.
+COMENTÁRIO: 06 de Março de 2024 às 07:32
+COMENTÁRIO: Fundamentos
+COMENTÁRIO: O famoso SOCIDIVAPLU
+COMENTÁRIO: Soberania
+COMENTÁRIO: Cidadania
+COMENTÁRIO: Dignidade da pessoa Humana
+COMENTÁRIO: Valores sociais do trabalho e da livre iniciativa
+COMENTÁRIO: Pluralismo politico
+COMENTÁRIO: OS OBJETIVOS
+COMENTÁRIO: CONGA ERRA PRO!
+COMENTÁRIO: ‘Art. 3º, CF/88 – Constituem objetivos fundamentais da República Federativa do Brasil:
+COMENTÁRIO: I – CONstruir uma sociedade livre, justa e solidária;
+COMENTÁRIO: II – GArantir o desenvolvimento nacional;
+COMENTÁRIO: III – ERRAdicar a pobreza e a marginalização e reduzir as desigualdades sociais e regionais;
+COMENTÁRIO: IV – PROmover o bem de todos, sem preconceitos de origem, raça, sexo, cor, idade e quaisquer outras formas de discriminação.’
+COMENTÁRIO: Cuidado que as bancas sempre trocam Objetivos Fundamentais por Fundamentos!
+COMENTÁRIO: Adendo:
+COMENTÁRIO: Princípios regentes das relações internacionais da República Federativa do Brasil - Art. 4º da CF/88
+COMENTÁRIO: AInDa Não ComPreI ReCoS
+COMENTÁRIO: A - autodeterminação dos povos
+COMENTÁRIO: IN - independência nacional
+COMENTÁRIO: D - defesa da paz
+COMENTÁRIO: NÃO - não intervenção
+COMENTÁRIO: COm - cooperação entre os povos para o progresso da humanidade
+COMENTÁRIO: PRE - prevalência dos direitos humanos
+COMENTÁRIO: I - igualdade entre os Estados
+COMENTÁRIO: RE - repúdio ao terrorismo e ao racismo
+COMENTÁRIO: CO - concessão de asilo político
+COMENTÁRIO: S - solução pacífica dos conflitos
+COMENTÁRIO: Gostei
+COMENTÁRIO: (308)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2384420)
+ASSUNTO: Direito Constitucional
+Direitos Políticos
+ENUNCIADO: Carlos, brasileiro nato, 51 anos, é engenheiro. Edna, brasileira nata, 61 anos, é professora aposentada. Débora, brasileira naturalizada, 35 anos, é advogada. Considerando apenas as informações fornecidas, em conformidade com a Constituição Federal, o alistamento eleitoral e o voto são
+ALTERNATIVAS:
+  A) obrigatórios para Carlos, Edna e Débora.
+  B) obrigatórios para Carlos e facultativos para Edna e Débora.
+  C) facultativos para Carlos e proibidos para Edna e Débora.
+  D) facultativos para Carlos e Edna e proibidos para Débora,
+  E) facultativos para Carlos, Edna e Débora.
+COMENTÁRIO: 05 de Março de 2024 às 09:47
+COMENTÁRIO: CF/88
+COMENTÁRIO: Art. 14.
+COMENTÁRIO: § 1º O alistamento eleitoral e o voto são:
+COMENTÁRIO: I - obrigatórios para os maiores de dezoito anos;
+COMENTÁRIO: II - facultativos para:
+COMENTÁRIO: a) os analfabetos;
+COMENTÁRIO: b) os maiores de setenta anos;
+COMENTÁRIO: c) os maiores de dezesseis e menores de dezoito anos.
+COMENTÁRIO: OBS: Tais disposições alcançam todos os brasileiros, natos ou naturalizados.
+COMENTÁRIO: Portanto:
+COMENTÁRIO: Carlos, brasileiro nato, 51 anos, é engenheiro. ⮕ O alistamento eleitoral e o voto são obrigatórios.
+COMENTÁRIO: Edna, brasileira nata, 61 anos, é professora aposentada. ⮕ O alistamento eleitoral e o voto são obrigatórios.
+COMENTÁRIO: Débora, brasileira naturalizada, 35 anos, é advogada. ⮕ O alistamento eleitoral e o voto são obrigatórios.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA A)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (297)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2384419)
+ASSUNTO: Direito Constitucional
+Direitos da Nacionalidade
+ENUNCIADO: Fernanda, brasileira, estava a serviço do Brasil na Colômbia quando sua filha Carolina nasceu em território colombiano. Em conformidade com a Constituição Federal, Carolina
+ALTERNATIVAS:
+  A) é considerada brasileira naturalizada se registrada no órgão competente, pois sua mãe é brasileira.
+  B) não é brasileira nata, tampouco naturalizada, independentemente de sua mãe ser brasileira e estar em território colombiano a serviço do Brasil quando de seu nascimento, pois nasceu na Colômbia.
+  C) é brasileira nata, pois sua mãe é brasileira e estava na Colômbia a serviço do Brasil.
+  D) é brasileira naturalizada, independentemente de registro em órgão competente, pois sua mãe é brasileira.
+  E) é brasileira nata, desde que venha a residir no Brasil e opte, a qualquer tempo, depois de atingida a maioridade, pela nacionalidade brasileira.
+COMENTÁRIO: 05 de Março de 2024 às 09:30
+COMENTÁRIO: CF/88
+COMENTÁRIO: Art. 12. São brasileiros:
+COMENTÁRIO: I - natos:
+COMENTÁRIO: b) os nascidos no estrangeiro, de pai brasileiro ou mãe brasileira, desde que qualquer deles esteja a serviço da República Federativa do Brasil;
+COMENTÁRIO: # OBS: A letra E está errada porque a cidadania brasileira de Carolina é adquirida automaticamente pelo simples fato de sua mãe estar na Colômbia a serviço do Brasil no momento do seu nascimento.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA C)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (151)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2384418)
+ASSUNTO: Direito Constitucional
+Direitos Sociais
+ENUNCIADO: Guilherme, trabalhador urbano, de acordo com a Constituição Federal, nos termos da lei, cumpridos os requisitos necessários, possui, dentre outros, direito
+ALTERNATIVAS:
+  A) à remuneração do trabalho noturno igual à do diurno bem como à ação, quanto aos créditos resultantes das relações de trabalho, com prazo prescricional de 5 anos.
+  B) à licença-paternidade, bem como ao aviso prévio proporcional ao tempo de serviço, sendo no máximo de 30 dias.
+  C) ao seguro-desemprego, em caso de desemprego voluntário ou involuntário.
+  D) ao adicional de remuneração para as atividades penosas, insalubres ou perigosas, bem como à remuneração do serviço extraordinário superior, no máximo, em 50% à do normal.
+  E) à licença-paternidade, bem como ao aviso prévio proporcional ao tempo de serviço, sendo no mínimo de 30 dias.
+COMENTÁRIO: 05 de Março de 2024 às 09:26
+COMENTÁRIO: CF/88
+COMENTÁRIO: Art. 7º
+COMENTÁRIO: A) ERRADO! IX - remuneração do trabalho noturno superior à do diurno;
+COMENTÁRIO: B) ERRADO! XXI - aviso prévio proporcional ao tempo de serviço, sendo no mínimo de trinta dias, nos termos da lei;
+COMENTÁRIO: C) ERRADO! II - seguro-desemprego, em caso de desemprego involuntário;
+COMENTÁRIO: D) ERRADO! XVI - remuneração do serviço extraordinário superior, no mínimo, em cinquenta por cento à do normal;
+COMENTÁRIO: E) CORRETA! XIX - licença-paternidade, nos termos fixados em lei; XXI - aviso prévio proporcional ao tempo de serviço, sendo no mínimo de trinta dias, nos termos da lei;
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (311)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2384417)
+ASSUNTO: Direito Constitucional
+Direitos Individuais ,
+Direito à Liberdade
+ENUNCIADO: Os moradores de determinado bairro em uma pequena cidade do Estado de Santa Catarina se uniram para formar a “Associação Amigos do Bairro”, com o objetivo de defender os interesses de todos que ali residem. Em conformidade com a Constituição Federal, a criação dessa associação
+ALTERNATIVAS:
+  A) independe de autorização, sendo permitida a interferência estatal em seu funcionamento e, sendo criada, terá ela legitimidade para representar seus filiados judicialmente, quando expressamente autorizada por eles, ou extrajudicialmente, independentemente de autorização expressa.
+  B) independe de autorização, sendo vedada a interferência estatal em seu funcionamento e, sendo criada, terá ela legitimidade para representar seus filiados judicial ou extrajudicialmente quando por eles expressamente autorizada.
+  C) depende de autorização, sendo permitida a interferência estatal em seu funcionamento e, sendo criada, terá ela legitimidade para representar seus filiados judicial ou extrajudicialmente quando expressamente por eles autorizada.
+  D) depende de autorização, sendo vedada a interferência estatal em seu funcionamento e, sendo criada, terá ela legitimidade para representar seus filiados judicialmente, quando expressamente autorizada por eles, ou extrajudicialmente, independentemente de autorização expressa.
+  E) depende de autorização, sendo permitida a interferência estatal em seu funcionamento e, sendo criada, terá ela legitimidade para representar seus filiados apenas extrajudicialmente, independentemente de autorização expressa.
+COMENTÁRIO: 05 de Março de 2024 às 09:18
+COMENTÁRIO: CF/88
+COMENTÁRIO: Art. 5º
+COMENTÁRIO: XVIII - a criação de associações e, na forma da lei, a de cooperativas independem de autorização, sendo vedada a interferência estatal em seu funcionamento;
+COMENTÁRIO: XXI - as entidades associativas, quando expressamente autorizadas, têm legitimidade para representar seus filiados judicial ou extrajudicialmente;
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA B)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (413)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2384416)
+ASSUNTO: Direito Administrativo
+Agentes públicos e Lei 8.112 de 1990 ,
+Provimento e vacância
+ENUNCIADO: Nos termos previstos na Lei nº 8.112/1990, considere os seguintes fatos:
+
+Servidor A: Sofreu limitações em sua capacidade física, verificada em inspeção médica, e foi investido em cargo de atribuições e responsabilidades compatíveis com sua nova condição.
+
+Servidor B: Estava aposentado, mas precisou retornar à atividade por interesse da Administração.
+
+Servidor C: Já era servidor estável, foi aprovado em concurso para outro cargo no mesmo órgão, mas foi inabilitado no estágio probatório e retornou ao cargo anteriormente ocupado.
+
+Esses servidores passaram, correta e respectivamente, pelos processos de
+ALTERNATIVAS:
+  A) readaptação, reversão e recondução.
+  B) aproveitamento, reintegração reversão.
+  C) readaptação, reintegração recondução.
+  D) aproveitamento, reversão recondução.
+  E) readaptação, reversão e reintegração.
+COMENTÁRIO: 05 de Março de 2024 às 09:10
+COMENTÁRIO: Lei nº 8.112/1990
+COMENTÁRIO: Servidor A: Sofreu limitações em sua capacidade física, verificada em inspeção médica, e foi investido em cargo de atribuições e responsabilidades compatíveis com sua nova condição.
+COMENTÁRIO: Art. 24.  Readaptação é a investidura do servidor em cargo de atribuições e responsabilidades compatíveis com a limitação que tenha sofrido em sua capacidade física ou mental verificada em inspeção médica.
+COMENTÁRIO: Servidor B: Estava aposentado, mas precisou retornar à atividade por interesse da Administração.
+COMENTÁRIO: Art. 25.  Reversão é o retorno à atividade de servidor aposentado:   (MACETE: ReVErsão = VElho)
+COMENTÁRIO: I - por invalidez, quando junta médica oficial declarar insubsistentes os motivos da aposentadoria; ou
+COMENTÁRIO: II - no interesse da administração.
+COMENTÁRIO: Servidor C: Já era servidor estável, foi aprovado em concurso para outro cargo no mesmo órgão, mas foi inabilitado no estágio probatório e retornou ao cargo anteriormente ocupado.
+COMENTÁRIO: Art. 29.  Recondução é o retorno do servidor estável ao cargo anteriormente ocupado e decorrerá de:
+COMENTÁRIO: I - inabilitação em estágio probatório relativo a outro cargo;
+COMENTÁRIO: II - reintegração do anterior ocupante.
+COMENTÁRIO: _______________________________________________________________________________________________________________
+COMENTÁRIO: Para memorizar:
+COMENTÁRIO: Aproveito o Disponível.
+COMENTÁRIO: Reintegro o Demitido.
+COMENTÁRIO: Reverto o Aposentado.
+COMENTÁRIO: Reconduzo o Inabilitado.
+COMENTÁRIO: Readapto o Incapacitado.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA A)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (306)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2384415)
+ASSUNTO: Direito Administrativo
+Agentes públicos e Lei 8.112 de 1990
+ENUNCIADO: A Lei nº 8.112/1990 define que servidor é a pessoa
+ALTERNATIVAS:
+  A) aprovada em concurso público de provas e títulos.
+  B) nomeada para provimento em cargo público.
+  C) legalmente investida em cargo público.
+  D) nomeada, em caráter efetivo, para cargo de confiança vago.
+  E) designada para provimento de cargo de confiança vago, salvo na condição de interino.
+COMENTÁRIO: 05 de Março de 2024 às 09:05
+COMENTÁRIO: Lei nº 8.112/1990
+COMENTÁRIO: Art. 2. Para os efeitos desta Lei, servidor é a pessoa legalmente investida em cargo público.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA C)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (282)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2384410)
+ASSUNTO: Matemática
+Aritmética e Problemas ,
+Médias
+ENUNCIADO: O quadro a seguir mostra os preços dos sucos praticados pelo estabelecimento XYZ.
+
+
+
+
+Se o preço médio dos sucos de laranja, acerola e maçã é R$ 16,00, então o preço médio dos sucos desse estabelecimento, em R$, é
+ALTERNATIVAS:
+  A) 15,50
+  B) 15,00
+  C) 14,50
+  D) 13,50
+  E) 14,00
+COMENTÁRIO: 06 de Março de 2024 às 11:29
+COMENTÁRIO: A questão fala que o preço médio de laranja, acerola e maça juntas são de 16 reais, sendo assim a gente descobre que o preço de laranja, acerola e maça custam 48 reais da seguinte forma:
+COMENTÁRIO: L+A+M/3=16
+COMENTÁRIO: L+A+M=48
+COMENTÁRIO: ===
+COMENTÁRIO: Dessa forma, já temos as informações em mãos para fazer o que a devida questão pediu,que é calcular o preço médio dos sucos do estabelecimento,vamos nessa:
+COMENTÁRIO: L+A+M+U+Ab+Me+Ma/7=MÉDIA
+COMENTÁRIO: 48+15,50+13+16+12,50/7=MÉDIA
+COMENTÁRIO: 105/7=MÉDIA
+COMENTÁRIO: MÉDIA=15
+COMENTÁRIO: Tomara que tenha ajudado. Bons estudos e vamos pra cima!!
+COMENTÁRIO: Obs: Caso interesse, tenho questões parecidas como essa em meu caderno de questões, fiquem a vontade: https://www.qconcursos.com/questoes-de-concursos/questoes?notebook_ids%5B%5D=2623241
+COMENTÁRIO: Gostei
+COMENTÁRIO: (97)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2384406)
+ASSUNTO: Português
+Morfologia - Pronomes
+TEXTO ASSOCIADO: [Expectativa e desempenho nossos]
+Numa cultura como a nossa, que valoriza o indivíduo, espera-se de cada um que se faça ouvir e reconhecer pelo que tem de mais singular.
+Um dos grandes imperativos da época diz que é preciso expressar-se a qualquer preço. E acreditamos automaticamente que, se
+pudéssemos procurar fundo nas nossas tripas, encontraríamos pérolas. “Eu sou advogada. mas lá no fundo sou poeta ou romancista”. “Eu
+sou engenheiro, mas lá no fundo sou viajante como Amyr Klink.” Eu sou médica, mas há uma bailarina dentro de mim.” O vínculo social
+tenta nos definir, mas a criatividade nos resgatará.
+Valorizamos o individuo em suas expressões idealmente mais singulares. Portanto, as relações sociais nos parecem sempre suspeitas: será
+que elas não ameaçam a expressão de nossa subjetividade única e original? Apesar dos outros, que nos identificam socialmente,
+imaginamos que é possível ser “nós mesmos” e produzir algo de mais valor. 
+Muitos acabam pensando que, se não seguem sua vocação, é por causa do parceiro com quem vivem. “Não posso deixar de trabalhar; e à
+noite, quando volto para casa, não dá. Precisaria de solidão para tocar, escrever, pensar, treinar. Pedem de mim toda a atenção e não há
+como não conversar.” Em suma, as necessidades da vida em família seriam responsáveis por nossas falências expressivas.
+Surpresa e mistério: quando a reivindicação consegue ser satisfeita, ocorre um imprevisto: aliviado dos compromissos e das
+responsabilidades sociais, sozinho e com o tempo que pediu a Deus, livre e desembaraçado, o indivíduo nada cria, nada produz. O tempo
+e o espaço agora reservados ao seu gênio transformaram-se em caricatura de seus anseios de adolescência.
+(Adaptado de: CALLIGARIS, Contardo. Terra de ninguém. São Paulo: Publifolha, 2004, p. 299-300)
+ENUNCIADO: Muitos creem numa sua vocação profunda, e atribuem a essa vocação tanto mérito que não sabem como justificar que todos ignorem essa sua vocação, que não haja quem logo reconheça a força dessa vocação.
+
+Evitam-se as viciosas repetições da frase acima substituindo-se os elementos sublinhados, na ordem dada, por:
+ALTERNATIVAS:
+  A) lhe atribuem - a ignorem - lhe reconheça a força
+  B) a atribuem - a ignorem - em sua força
+  C) atribuem à ela - lhe ignorem - a reconheça como força
+  D) à qual atribuem - ignorem-na - reconheça a força da mesma
+  E) lhe atribuem - lhe ignorem - à força dela reconheceria
+COMENTÁRIO: 09 de Março de 2024 às 11:24
+COMENTÁRIO: "atribuem a essa vocação tanto mérito" -> Está na ordem inversa, quem atribui, atribui algo A alguém. Logo, "a essa vocação" exerce a função sintática de objeto indireto, podendo ser substituído somente pelos pronomes:
+COMENTÁRIO: lhe (somente para objeto indireto);
+COMENTÁRIO: me, te , se, nos, vos (objeto indireto ou direto).
+COMENTÁRIO: ===
+COMENTÁRIO: "todos ignorem essa sua vocação" -> Quem ignora, ignora ALGO. Logo, "essa sua vocação" exerce a função de objeto direto, podendo ser substituídos somente pelos pronomes:
+COMENTÁRIO: o,a,os,as (somente para objeto direto);
+COMENTÁRIO: me, te , se, nos, vos (objeto direto ou indireto).
+COMENTÁRIO: ===
+COMENTÁRIO: " reconheça a força dessa vocação" -> Quem reconhece, reconhece algo DE alguém. Logo, "dessa vocação" exerce a função de objeto indireto, podendo ser substituídos somente pelos pronomes:
+COMENTÁRIO: lhe (somente para objeto indireto);
+COMENTÁRIO: me, te , se, nos, vos (objeto indireto ou direto).
+COMENTÁRIO: É isso, tomara que tenha ajudado, desculpem-me quaisquer possíveis erros.
+COMENTÁRIO: Obs: Caso queiram fazer as questões de português como essa da FCC do meu caderno, fiquem à vontade: https://www.qconcursos.com/questoes-de-concursos/questoes?notebook_ids%5B%5D=2530609
+COMENTÁRIO: Gostei
+COMENTÁRIO: (240)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2384405)
+ASSUNTO: Português
+Morfologia - Verbos ,
+Flexão verbal de tempo (presente, pretérito, futuro) ,
+Flexão verbal de modo (indicativo, subjuntivo, imperativo)
+ENUNCIADO: Muitos acabam pensando que, se não seguem sua vocação, é por causa do parceiro com quem vivem.
+
+No período acima, os tempos e modos verbais seguirão adequadamente articulados caso se substituam as formas sublinhadas, na ordem dada, por:
+ALTERNATIVAS:
+  A) acabariam - seguirão — era — vivam
+  B) acabarão — seguissem -— será — viveriam
+  C) acabavam -— seguirem — fora -— viverão
+  D) acabarão -— seguirem -— será — vivam
+  E) acabariam - seguissem -— foi — viviam
+COMENTÁRIO: 08 de Março de 2024 às 17:01
+COMENTÁRIO: Descobri que nem português eu sei mais...
+COMENTÁRIO: Gostei
+COMENTÁRIO: (335)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2384404)
+ASSUNTO: Português
+Sintaxe ,
+Análise sintática
+ENUNCIADO: Na frase O tempo e o espaço agora reservados ao seu gênio transformaram-se em caricatura de seus anseios de adolescência (4º parágrafo) o segmento sublinhado pode ser substituído, sem prejuízo para a correção e o sentido básico original, pelo segmento
+ALTERNATIVAS:
+  A) se alteraram drasticamente por conta dos impulsos juvenis.
+  B) comprovaram-se inúteis por sua absoluta falta de maturidade.
+  C) transfiguraram-se em formas rebaixadas de suas aspirações de jovem.
+  D) ridicularizaram-se por excesso de obstinação sua.
+  E) tomaram-se risíveis aos olhos de quem deixou de ser moço.
+COMENTÁRIO: 06 de Março de 2024 às 11:50
+COMENTÁRIO: caricatura: enfatiza e exagera as características da pessoa de uma forma humorística.
+COMENTÁRIO: Não consigo compreender a associação a “forma rebaixada” que traduz o enunciado da alternativa correta…
+COMENTÁRIO: Gostei
+COMENTÁRIO: (122)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (9)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2384401)
+ASSUNTO: Português
+Morfologia - Pronomes ,
+Pronomes relativos
+TEXTO ASSOCIADO: O gavião
+       Gente olhando para o céu: não é mais disco voador. Disco voador perdeu o cartaz com tanto satélite beirando o sol e a lua. Olhamos
+todos para o céu em busca de algo mais sensacional e comovente — o gavião malvado, que mata pombas.
+       Retornamos assim à contemplação de um drama bem antigo, e há o partido das pombas e o partido do gavião. Os pombistas ou
+pombeiros (qualquer palavra é melhor que “columbófilo”) querem matar o gavião. Os amigos deste dizem que ele não é malvado; na
+verdade come a sua pombinha com a mesma inocência com que a pomba come seu grão de milho.
+         Não tomarei partido: admiro a túrgida* inocência das pombas e também o lance magnífico em que o gavião se despenca sobre uma
+delas. Comer pombas é, como diria Saint-Exupéry", “a verdade do gavião”, mas matar um gavião no ar com um belo tiro pode também ser
+a verdade do caçador.
+        Que o gavião mate a pomba e o homem mate alegremente o gavião; ao homem, se não houver outro bicho que o mate, pode lhe
+suceder que ele encontre seu gavião em outro homem. A vida é rapina. A verdade é que não posso mais falar de aves: dei os meus
+passarinhos. Perdi os cantos do meu canário e os assovios do meu sofré; meu coração está mais triste, mas está mais leve também.
+* túrgida = intumescida, dilatada, cheia.
+** Antoine de Saint-Exupéry, escritor francês. 
+(Adaptado de: BRAGA, Rubem. Ai de ti, Copacabana. Rio de Janeiro: Editora do Autor, 1960, p. 163-164)
+ENUNCIADO: Está adequado o emprego do elemento sublinhado na frase:
+ALTERNATIVAS:
+  A) Já não é o fulgurante brilho de um disco voador aquilo em que agora se fixa nossa atenção.
+  B) O interesse do embate violento por cujo nos atraímos toma o partido uma ave contra a outra.
+  C) É na defesa da fome do gavião aonde se apoiam os defensores da lei do mais forte.
+  D) A verdade na qual se refere o escritor Saint-Exupéry diz respeito a um ditame da natureza.
+  E) A palavra columbófilo, de cuja o autor se desagradou, não é das mais afáveis ao ouvido.
+COMENTÁRIO: 07 de Março de 2024 às 09:40
+COMENTÁRIO: Está adequado o emprego do elemento sublinhado na frase:
+COMENTÁRIO: Alternativas
+COMENTÁRIO: A) Correta.
+COMENTÁRIO: Já não é o fulgurante brilho de um disco voador aquilo em que agora se fixa nossa atenção.
+COMENTÁRIO: A expressão relativa "em que" foi usado para se referir a expressão anterior quase que inteira. Essa expressão é quase que universal e se adequa a expressão indicando lugar ou assunto
+COMENTÁRIO: B) Incorreta.
+COMENTÁRIO: O interesse do embate violento por cujo nos atraimos toma o partido uma ave contra a outra.
+COMENTÁRIO: O problema "cujo" apenas se usa com sentido de posse. O termo referenciado "interesse do embate" não tem indicação de posse.
+COMENTÁRIO: C) Incorreta.
+COMENTÁRIO: É na defesa da fome do gavião aonde se apoiam os defensores da lei do mais forte.
+COMENTÁRIO: O pronome "aonde" apenas se usa com verbo de locomoção "ir", "voltar" etc.
+COMENTÁRIO: D) Incorreta
+COMENTÁRIO: A verdade na qual se refere o escritor Saint-Exupéry diz respeito a um ditame da natureza.
+COMENTÁRIO: O verbo "referir-se" exige preposição A.
+COMENTÁRIO: O correto é A verdade à qual...
+COMENTÁRIO: E) Incorreta.
+COMENTÁRIO: A palavra columbófilo, de cuja o autor se desagradou, não é das mais afáveis ao ouvido.
+COMENTÁRIO: Não se usa "cuja" seguido de artigo.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (237)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2384400)
+ASSUNTO: Português
+Sintaxe ,
+Concordância verbal, Concordância nominal
+ENUNCIADO: As normas de concordância verbal estão plenamente observadas na frase:
+ALTERNATIVAS:
+  A) Aos gaviões e às pombas não costumam faltar a empatia dos que pesam as razões do lado que lhes parecem mais favorável,
+  B) Já não se ouve os cantos dos passarinhos de que nos desfizemos, mas também já não nos preocupa o que lhes podiam ameaçar.
+  C) Comer pombas ou alvejar gaviões são opções que se apresentam àqueles a quem move a força de bem específicos interesses.
+  D) Fazem falta ao autor do texto ouvir tanto os cantos do seu canário como os assovios do sofrê, de cujos encantos já não desfrutam.
+  E) Sempre haverão os que defendem medidas drásticas quando se tratam de poupar as vítimas de uma violenta predação.
+COMENTÁRIO: 06 de Março de 2024 às 08:42
+COMENTÁRIO: A - "... não costuma faltar a empatia..."
+COMENTÁRIO: B - " O canto dos pássaros já não se ouve
+COMENTÁRIO: C - "Ao autor do texto faz falta ouvir
+COMENTÁRIO: D - Sempre Haverá - verbo haver na frase é impessoal.
+COMENTÁRIO: Colocando as frases na ordem direta é mais visualizar.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (147)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2099551)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Sistema de Saúde Brasileira
+ENUNCIADO: Trabalhador de fábrica de baterias há 7 anos, apresenta quadro de cólica abdominal, anemia e neuropatia periférica. A hipótese diagnóstica é intoxicação por
+ALTERNATIVAS:
+  A) cromo hexavalente.
+  B) mercúrio metálico.
+  C) cádmio.
+  D) manganês.
+  E) chumbo inorgânico.
+COMENTÁRIO: 11 de Abril de 2024 às 09:34
+COMENTÁRIO: GAB E
+COMENTÁRIO: Com base nos sintomas apresentados pelo trabalhador de uma fábrica de baterias - cólica abdominal, anemia e neuropatia periférica - e considerando o ambiente de trabalho específico, uma hipótese diagnóstica razoável seria intoxicação por chumbo (ou saturnismo).
+COMENTÁRIO: Aqui está a justificativa:
+COMENTÁRIO: Cólica abdominal: A cólica abdominal pode ser um sintoma de intoxicação por chumbo, pois o chumbo pode afetar o sistema gastrointestinal, causando dor abdominal, náuseas, vômitos e constipação.
+COMENTÁRIO: Anemia: O chumbo interfere na produção de hemoglobina e pode levar a uma condição chamada anemia sideroblástica, na qual a medula óssea produz glóbulos vermelhos defeituosos. Isso pode resultar em uma diminuição na quantidade de glóbulos vermelhos saudáveis, causando anemia.
+COMENTÁRIO: Neuropatia periférica: A intoxicação por chumbo pode causar danos aos nervos periféricos, levando a sintomas como dor, formigamento, fraqueza muscular e alterações na sensibilidade, caracterizando uma neuropatia periférica.
+COMENTÁRIO: Trabalhadores de fábricas de baterias estão frequentemente expostos ao chumbo, que é usado nas placas das baterias para melhorar a resistência elétrica. Durante o processo de fabricação e reciclagem de baterias, pode ocorrer a liberação de partículas de chumbo no ar e no ambiente de trabalho, levando à exposição ocupacional.
+COMENTÁRIO: Dada a natureza dos sintomas e a exposição ocupacional ao chumbo em uma fábrica de baterias, a intoxicação por chumbo é uma suspeita diagnóstica importante a ser considerada. É fundamental que o trabalhador receba uma avaliação médica completa, incluindo testes de sangue para detectar os níveis de chumbo, e que medidas sejam tomadas para reduzir a exposição ao chumbo no ambiente de trabalho e tratar os sintomas associados à intoxicação por chumbo.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (5)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2099550)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Sistema de Saúde Brasileira
+ENUNCIADO: Trabalhador exposto a xileno realiza ácido metil-hipúrico na urina, o qual tem o valor acima da referência da NR 7. Não apresenta nenhuma queixa nem alterações em outros exames complementares. Nesse caso, o médico do trabalho deve
+ALTERNATIVAS:
+  A) emitir a Comunicação de Acidente de Trabalho (CAT).
+  B) comunicar aos responsáveis pelo PGR para reavaliação dos riscos ocupacionais e das medidas de prevenção.
+  C) afastar o trabalhador da atividade de trabalho por 15 dias e repetir o ácido metil-hipúrico na urina.
+  D) afastar o trabalhador, encaminhando para Previdência Social, para avaliação de incapacidade e definição da conduta previdenciária.
+  E) afastar o trabalhador, encaminhando para Previdência Social, para reabilitação profissional.
+COMENTÁRIO: 08 de Abril de 2023 às 13:01
+COMENTÁRIO: 7.5.19.4 Sendo verificada a possibilidade de exposição excessiva a agentes listados no Quadro 1 do Anexo I desta NR, o médico do trabalho responsável pelo PCMSO deve informar o fato aos responsáveis pelo PGR para reavaliação dos riscos ocupacionais e das medidas de prevenção.
+COMENTÁRIO: 7.5.19.5 Constatada ocorrência ou agravamento de doença relacionada ao trabalho ou alteração que revele disfunção orgânica por meio dos exames complementares do Quadro 2 do Anexo I, dos demais Anexos desta NR ou dos exames complementares incluídos com base no subitem 7.5.18 da presente NR, caberá à organização, após informada pelo médico responsável pelo PCMSO:
+COMENTÁRIO: a) emitir a Comunicação de Acidente do Trabalho - CAT;
+COMENTÁRIO: b) afastar o empregado da situação, ou do trabalho, quando necessário;
+COMENTÁRIO: c) encaminhar o empregado à Previdência Social, quando houver afastamento do trabalho superior a 15 (quinze) dias, para avaliação de incapacidade e definição da conduta previdenciária;
+COMENTÁRIO: d) reavaliar os riscos ocupacionais e as medidas de prevenção pertinentes no PGR.
+COMENTÁRIO: 4.1.1 Os exames complementares para os empregados expostos a agentes químicos cancerígenos, conforme informado no PGR da organização, são obrigatórios quando a exposição ocupacional estiver acima de 10% (dez por cento) dos limites de exposição ocupacional, ou quando não houver avaliação ambiental, e devem ser executados e interpretados com base nos critérios constantes nesta NR
+COMENTÁRIO: Gostei
+COMENTÁRIO: (21)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2099549)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Acidente de Trabalho (CAT) ,
+Fundamentos da Saúde Ocupacional
+( assuntos)
+ENUNCIADO: Servente de pedreiro, empregado, com 19 anos, primeiro vínculo de emprego CLT. No quarto mês após admissão, sofre queda de andaime que acarreta fratura em sua perna direita. Foi realizada cirurgia, sem nenhuma intercorrência e indicado afastamento por 60 dias para recuperação. Teve boa evolução, sem sequelas e sem limitação funcional após os 60 dias de afastamento das atividades de trabalho. Nesse caso, referente ao(s) benefício(s) previdenciário(s):
+ALTERNATIVAS:
+  A) Terá direito a receber benefício de incapacidade temporária por acidente de trabalho pelo período que se manteve afastado das atividades de trabalho, e auxílio-acidente após retornar as atividades de trabalho.
+  B) Não terá direito a receber benefício previdenciário, pois tinha somente 4 meses de contribuição do INSS e não adquiriu a qualidade de segurado.
+  C) Terá direito somente a receber benefício de auxílio-acidente, pois tinha somente 4 meses de contribuição do INSS e não adquiriu a qualidade de segurado.
+  D) Terá direito a receber benefício de incapacidade temporária por acidente de trabalho pelo período que se manteve afastado das atividades de trabalho, apenas.
+  E) Terá direito a receber benefício de auxílio-acidente e deverá ser encaminhado para reabilitação profissional.
+COMENTÁRIO: 23 de Abril de 2023 às 10:20
+COMENTÁRIO: auxílio-doença > auxílio por incapacidade temporária (Decreto 10.410/2020)
+COMENTÁRIO: LEI 8.213
+COMENTÁRIO: Art. 86. O auxílio-acidente será concedido, como indenização, ao segurado quando, após consolidação das lesões decorrentes de acidente de qualquer natureza, resultarem seqüelas que impliquem redução da capacidade para o trabalho que habitualmente exercia.
+COMENTÁRIO: DECRETO 10.410/2020
+COMENTÁRIO: Art. 71.   O auxílio por incapacidade temporária será devido ao segurado que, uma vez cumprido, quando for o caso, o período de carência exigido, ficar incapacitado para o seu trabalho ou para a sua atividade habitual por mais de quinze dias consecutivos, conforme definido em avaliação médico-pericial.
+COMENTÁRIO: § 2º Será devido auxílio por incapacidade temporária, independentemente do cumprimento de período de carência, aos segurados obrigatório e facultativo quando sofrerem acidente de qualquer natureza.
+COMENTÁRIO: LEI 8.212
+COMENTÁRIO: Art. 12. São segurados obrigatórios da Previdência Social as seguintes pessoas físicas:
+COMENTÁRIO: I - como empregado: a) aquele que presta serviço de natureza urbana ou rural à empresa, em caráter não eventual, sob sua subordinação e mediante remuneração, inclusive como diretor empregado;
+COMENTÁRIO: GAB. D
+COMENTÁRIO: Gostei
+COMENTÁRIO: (22)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2099548)
+ASSUNTO: Segurança e Saúde no Trabalho
+Riscos Ocupacionais (Análise e Gerenciamento de Riscos) ,
+Saúde e Segurança no Ambiente de Trabalho
+ENUNCIADO: Em trabalhos e operações que envolvem agentes biológicos, em contato permanente com pacientes ou com material infectocontagiante, em hospitais, ambulatórios, postos de vacinação, é devido adicional de
+ALTERNATIVAS:
+  A) periculosidade de grau médio.
+  B) insalubridade de grau máximo.
+  C) insalubridade de grau médio.
+  D) insalubridade de grau mínimo.
+  E) periculosidade de grau máximo.
+COMENTÁRIO: 29 de Setembro de 2023 às 12:45
+COMENTÁRIO: Insalubridade de grau máximo
+COMENTÁRIO: (40% do salário mínimo) Trabalho ou operações, em contato permanente com: - pacientes em isolamento por doenças infecto-contagiosas, bem como objetos de seu uso, não previamente esterilizados; (g.n.) - carnes, glândulas, vísceras, sangue, ossos, couros, pêlos e dejeções de animais portadores de doenças infecto-contagiosas (carbunculose, brucelose, tuberculose); - esgotos (galerias e tanques); e - lixo urbano (coleta e industrialização).
+COMENTÁRIO: Insalubridade de grau médio
+COMENTÁRIO: Trabalhos e operações em contato permanente com pacientes, animais ou com material infecto-contagiante, em: - hospitais, serviços de emergência, enfermarias, ambulatórios, postos de vacinação e outros estabelecimentos destinados aos cuidados da saúde humana (aplica-se unicamente ao pessoal que tenha contato com os pacientes, bem como aos que manuseiam objetos de uso desses pacientes, não previamente esterilizados); - hospitais, ambulatórios, postos de vacinação e outros estabelecimentos destinados ao atendimento e tratamento de animais...
+COMENTÁRIO: Gostei
+COMENTÁRIO: (15)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2099547)
+ASSUNTO: Segurança e Saúde no Trabalho
+Segurança do Trabalho e Prevenção de Infortúnios ,
+Medicina do trabalho ,
+Saúde e Segurança no Ambiente de Trabalho
+( assuntos)
+ENUNCIADO: Para o cuidado da saúde integral dos trabalhadores, o médico do trabalho pode instituir programas de saúde. Os exames de rastreamento, como por exemplo realizar glicemia de jejum e/ou hemoglobina glicada, é uma medida de:
+ALTERNATIVAS:
+  A) prevenção primária.
+  B) prevenção quaternária.
+  C) prevenção secundária.
+  D) promoção de saúde.
+  E) prevenção terciária.
+COMENTÁRIO: 13 de Outubro de 2023 às 17:44
+COMENTÁRIO: Prevenção primária: busca evitar o surgimento de doenças;
+COMENTÁRIO: Prevenção secundária: visa detectar precocemente enfermidades;
+COMENTÁRIO: Prevenção terciária: busca minimizar as complicações e reabilitar os indivíduos afetados por doenças crônicas;
+COMENTÁRIO: Prevenção quaternária: estabelece a boa prática médica baseada em evidências com a redução de procedimentos desnecessários no paciente.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (19)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2099546)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 9 - Norma Regulamentadora n° 9 - Programa de Prevenção de Riscos Ambientais - PPRA (Agentes Químicos) ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: De acordo com a NR 9, considere:
+
+I. Identificação do agente e formas de exposição.
+II. Número, tipo de eventos e doenças informadas nas Comunicações de Acidente de Trabalho (CAT’s).
+III. Possíveis lesões ou agravos à saúde relacionados às exposições identificadas.
+IV. Estatísticas de resultados anormais dos exames complementares.
+V. Medidas de prevenção já existentes.
+
+Deve ser considerado para a identificação das exposições ocupacionais aos agentes físicos, químicos e biológicos o que se afirma APENAS em
+ALTERNATIVAS:
+  A) II e IV.
+  B) I e II.
+  C) I, III e V.
+  D) III e IV.
+  E) I, II e V.
+COMENTÁRIO: 07 de Abril de 2023 às 13:14
+COMENTÁRIO: 9.3 Identificação das Exposições Ocupacionais aos Agentes Físicos, Químicos e Biológicos
+COMENTÁRIO: 9.3.1 A identificação das exposições ocupacionais aos agentes físicos, químicos e biológicos deverá
+COMENTÁRIO: considerar:
+COMENTÁRIO: a) descrição das atividades;
+COMENTÁRIO: b) identificação do agente e formas de exposição;
+COMENTÁRIO: c) possíveis lesões ou agravos à saúde relacionados às exposições identificadas;
+COMENTÁRIO: d) fatores determinantes da exposição;
+COMENTÁRIO: e) medidas de prevenção já existentes; e
+COMENTÁRIO: f) identificação dos grupos de trabalhadores expostos.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (47)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2099545)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 4 - Norma Regulamentadora n° 4 - Serviços Especializados em Eng. de Segurança e em Medicina do Trabalho - SESMT ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: De acordo com a NR 4 − Serviços Especializados em Engenharia de Segurança e em Medicina do Trabalho (SESMT):
+ALTERNATIVAS:
+  A) O mapa de risco deve ser elaborado pelo SESMT e apresentado à CIPA. Ele deve ser revisto a cada dois anos.
+  B) Excluem-se do dimensionamento do SESMT da contratante os trabalhadores das contratadas atendidos pelos SESMT das contratadas.
+  C) Os profissionais integrantes dos SESMT deverão ser sempre empregados da empresa.
+  D) O dimensionamento do SESMT vincula-se ao número de empregados da organização e ao menor grau de risco entre a atividade econômica principal e atividade econômica preponderante no estabelecimento.
+  E) A organização deve registrar os SESMT por meio de documento impresso entregue ao Ministério do Trabalho, que deve ser atualizado anualmente.
+COMENTÁRIO: 14 de Abril de 2023 às 10:37
+COMENTÁRIO: A) O mapa de risco deve ser elaborado pelo SESMT e apresentado à CIPA. Ele deve ser revisto a cada dois anos.
+COMENTÁRIO: A atribuição de registrar a percepção dos riscos dos trabalhadores por meio do mapa de risco OU outra técnica ou ferramenta apropriada é da CIPA, conforme NR5.
+COMENTÁRIO: B) Excluem-se do dimensionamento do SESMT da contratante os trabalhadores das contratadas atendidos pelos SESMT das contratadas.
+COMENTÁRIO: C) Os profissionais integrantes dos SESMT deverão ser sempre empregados da empresa.
+COMENTÁRIO: Essa obrigatoriedade foi retirada do novo texto da NR 4, a nova norma não estabelece nenhuma limitação em relação à obrigatoriedade de que os membros do SESMT sejam funcionários da empresa, sendo permitida assim a terceirização dos profissionais contratados.
+COMENTÁRIO: D) O dimensionamento do SESMT vincula-se ao número de empregados da organização e ao menor grau de risco entre a atividade econômica principal e atividade econômica preponderante no estabelecimento.
+COMENTÁRIO: O dimensionamento do SESMT vincula-se ao número de empregados da organização e ao maior grau de risco entre a atividade econômica principal e atividade econômica preponderante no estabelecimento.
+COMENTÁRIO: E) A organização deve registrar os SESMT por meio de documento impresso entregue ao Ministério do Trabalho, que deve ser atualizado anualmente.
+COMENTÁRIO: A organização deve registrar os SESMT de que trata esta NR por meio de sistema eletrônico disponível no portal gov.br.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (35)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2099544)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Riscos Ocupacionais (Análise e Gerenciamento de Riscos) ,
+Fundamentos da Saúde Ocupacional
+( assuntos)
+ENUNCIADO: Sobre o Programa de Gerenciamento de Risco (PGR), é correto afirmar:
+ALTERNATIVAS:
+  A) Pode ser atendido por sistemas de gestão, desde que estes cumpram as exigências previstas na NR-1 e em dispositivos legais de segurança e saúde no trabalho.
+  B) Deve ser sempre implementado por estabelecimento.
+  C) A etapa de levantamento preliminar de perigos deve sempre ser realizada de maneira distinta e antes da etapa de identificação de perigos.
+  D) Para cada risco deve ser indicado o nível de risco ocupacional, seguindo a matriz de risco de três categorias da BS 8800.
+  E) O inventário de riscos ocupacionais deve ser atualizado a cada 2 anos.
+COMENTÁRIO: 23 de Abril de 2023 às 10:30
+COMENTÁRIO: NR 1 - Disposições gerais e gerenciamento de riscos ocupacionais
+COMENTÁRIO: 1.5.3 Responsabilidades
+COMENTÁRIO: 1.5.3.1. A organização deve implementar, por estabelecimento, o gerenciamento de riscos ocupacionais em suas atividades.
+COMENTÁRIO: 1.5.3.1.1 O gerenciamento de riscos ocupacionais deve constituir um Programa de Gerenciamento de Riscos - PGR.
+COMENTÁRIO: 1.5.3.1.1.1 A critério da organização, o PGR pode ser implementado por unidade operacional, setor ou atividade. (B)
+COMENTÁRIO: 1.5.3.1.2 O PGR pode ser atendido por sistemas de gestão, desde que estes cumpram as exigências previstas nesta NR e em dispositivos legais de segurança e saúde no trabalho. (GAB. A)
+COMENTÁRIO: 1.5.4.2 Levantamento preliminar de perigos
+COMENTÁRIO: 1.5.4.2.1.2 A critério da organização, a etapa de levantamento preliminar de perigos pode estar contemplada na etapa de identificação de perigos. (C)
+COMENTÁRIO: 1.5.4.4 Avaliação de riscos ocupacionais
+COMENTÁRIO: 1.5.4.4.2 Para cada risco deve ser indicado o nível de risco ocupacional, determinado pela combinação da severidade das possíveis lesões ou agravos à saúde com a probabilidade ou chance de sua ocorrência. (D)
+COMENTÁRIO: 1.5.7.3 Inventário de riscos ocupacionais
+COMENTÁRIO: 1.5.7.3.3 O inventário de riscos ocupacionais deve ser mantido atualizado. (E)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (23)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2099543)
+ASSUNTO: Segurança e Saúde no Trabalho
+Segurança do Trabalho e Prevenção de Infortúnios ,
+Medicina do trabalho ,
+Acidente de Trabalho (CAT)
+( assuntos)
+ENUNCIADO: Durante procedimento cirúrgico, sangue da paciente espirrou na pele íntegra do pescoço do médico do trabalho. Foram realizados teste rápido HIV, HBsAg, Anti-HBs e sorologia hepatite C no paciente fonte e no médico. Somente teve teste rápido HIV positivo para paciente fonte e todos os demais resultados foram não reagentes para ambos. O médico tinha duas doses de vacina de hepatite B. Nesse caso, a conduta para o médico (trabalhador) é:
+ALTERNATIVAS:
+  A) fazer vacinação hepatite B.
+  B) somente acompanhar por 6 meses com as sorologias HIV, Hepatite B e C.
+  C) fazer quimioprofilaxia para HIV e acompanhar por 6 meses a sorologia HIV.
+  D) fazer quimioprofilaxia para HIV e acompanhar por 3 meses as sorologias HIV, Hepatite B e C.
+  E) somente acompanhar a sorologia HIV, repetindo-a após 4 a 6 semanas.
+COMENTÁRIO: 22 de Março de 2024 às 11:01
+COMENTÁRIO: Caí nessa "pegadinha". Em que pese o paciente tenha dado positivo para HIV, não é forma de contágio do HIV a referida situação.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (6)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2099542)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 32 - Norma Regulamentadora n° 32 - Segurança e Saúde no Trabalho em Serviços de Saúde ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: De acordo com NR 32, Anexo I, os agentes biológicos da classe de risco 2 têm as seguintes características:
+ALTERNATIVAS:
+  A) Risco individual elevado para o trabalhador e com probabilidade elevada de disseminação para a coletividade. Apresenta grande poder de transmissibilidade de um indivíduo a outro. Podem causar doenças graves ao ser humano, para as quais não existem meios eficazes de profilaxia ou tratamento.
+  B) Baixo risco individual para o trabalhador e para a coletividade, com baixa probabilidade de causar doença ao ser humano.
+  C) Risco individual elevado para o trabalhador e com probabilidade de disseminação para a coletividade. Podem causar doenças e infecções graves ao ser humano, para as quais nem sempre existem meios eficazes de profilaxia ou tratamento.
+  D) Risco individual moderado para o trabalhador e com baixa probabilidade de disseminação para a coletividade. Podem causar doenças ao ser humano, para as quais existem meios eficazes de profilaxia ou tratamento.
+  E) Risco individual moderado para o trabalhador e com probabilidade de disseminação para a coletividade. Podem causar doenças e infecções graves ao ser humano, para as quais nem sempre existem meios eficazes de profilaxia ou tratamento.
+COMENTÁRIO: 19 de Abril de 2023 às 09:36
+COMENTÁRIO: Segundo ANEXO I da NR 32
+COMENTÁRIO: Os agentes biológicos são classificados em:
+COMENTÁRIO: Classe de risco 1: baixo risco individual para o trabalhador e para a coletividade, com baixa probabilidade de causar doença ao ser humano.
+COMENTÁRIO: Classe de risco 2: risco individual moderado para o trabalhador e com baixa probabilidade de disseminação para a coletividade. Podem causar doenças ao ser humano, para as quais existem meios eficazes de profilaxia ou tratamento.
+COMENTÁRIO: Classe de risco 3: risco individual elevado para o trabalhador e com probabilidade de disseminação para a coletividade. Podem causar doenças e infecções graves ao ser humano, para as quais nem sempre existem meios eficazes de profilaxia ou tratamento.
+COMENTÁRIO: Classe de risco 4: risco individual elevado para o trabalhador e com probabilidade elevada de disseminação para a coletividade. Apresenta grande poder de transmissibilidade de um indivíduo a outro. Podem causar doenças graves ao ser humano, para as quais não existem meios eficazes de profilaxia ou tratamento.
+COMENTÁRIO: ANOTE:
+COMENTÁRIO: GR 1 -> RISCO INDV BAIXO
+COMENTÁRIO: GR 2 -> RISCO INDV MODERADO
+COMENTÁRIO: GR 3 -> RISCO INDV ELEVADO
+COMENTÁRIO: GR 4 -> RISCO INDV ELEVADO E DISSEMINAÇÃO ELEVADA
+COMENTÁRIO: Gostei
+COMENTÁRIO: (13)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2099541)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Fundamentos da Saúde Ocupacional ,
+Saúde e Segurança no Ambiente de Trabalho
+( assuntos)
+ENUNCIADO: Em relação ao trabalho em turnos:
+ALTERNATIVAS:
+  A) Para escolha do esquema de turno de trabalho não deve ser considerado o cronotipo do trabalhador, uma vez que há alteração do ciclo circadiano independente do cronotipo.
+  B) Deve-se considerar que os turnos matutinos também tendem a provocar débitos de sono, por causa da redução do sono na(s) noite(s) que precede(m) a jornada matutina quando ela se inicia muito cedo.
+  C) Os turnos que rodam no sentido anti-horário são mais adequados do ponto de vista dos ritmos biológicos do que os turnos que adotam sentido horário, em virtude da tendência natural do sistema circadiano humano de adaptar-se mais facilmente ao avanço de fase do que ao seu atraso.
+  D) Recomenda-se que os turnos noturnos sejam fixos; caso não seja viável, devem ser incentivados os esquemas de rotação lenta, para que haja adaptação do ciclo circadiano do trabalhador.
+  E) Os problemas sociais vividos pelos que trabalham em turnos, particularmente à noite, acabaram a partir dos anos 2000 com a existência da sociedade 24 horas, na qual todo tipo de atividade está acessível em qualquer horário.
+COMENTÁRIO: 06 de Abril de 2023 às 20:34
+COMENTÁRIO: prova de biologia?
+COMENTÁRIO: Gostei
+COMENTÁRIO: (162)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2099540)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Sistema de Saúde Brasileira
+ENUNCIADO: Trabalhador do sexo masculino, 53 anos, atualmente exerce a função de capataz em empresa de fundações, realiza atividades no interior do tubulão há mais de dez anos. Apresenta queixa de dor coxo-femoral esquerda e claudicação. Há 1 ano os sintomas tiveram início e evoluíram progressivamente. A hipótese diagnóstica é:
+ALTERNATIVAS:
+  A) barotrauma corporal.
+  B) doença descompressiva.
+  C) barotrauma cutâneo.
+  D) intoxicação por nitrogênio.
+  E) osteonecrose asséptica de fêmur.
+COMENTÁRIO: 05 de Novembro de 2023 às 13:17
+COMENTÁRIO: osteonecrose, também conhecida como necrose avascular ou necrose asséptica, é uma doença em que há um compromisso da circulação sanguínea da cabeça femoral. A necrose óssea leva ao enfraquecimento da estrutura óssea e eventualmente ao afundamento da cabeça femoral e perda da sua esfericidade
+COMENTÁRIO: Gostei
+COMENTÁRIO: (7)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2099539)
+ASSUNTO: Segurança e Saúde no Trabalho
+Saúde Ocupacional ,
+Fundamentos da Saúde Ocupacional
+ENUNCIADO: Para exposição a nível de pressão sonora elevado (NPSE), deve ser realizada audiometria na admissão, anualmente e na demissão. São considerados sugestivos de agravamento da perda auditiva induzida por NPSE os casos já confirmados em exame audiométrico de referência e nos quais a comparação de exame audiométrico sequencial com o de referência mostra evolução que preenche o critério:
+ALTERNATIVAS:
+  A) a piora em pelo menos uma das frequências de 3.000, 4.000 ou 6.000 Hz iguala ou ultrapassa 10 dB (NA).
+  B) a diferença entre as médias aritméticas dos limiares auditivos no grupo de frequências de 500, 1.000 e 2.000 Hz ou no grupo de frequências de 3.000, 4.000 e 6.000 Hz iguala ou ultrapassa 10 dB (NA).
+  C) a diferença entre as médias aritméticas dos limiares auditivos no grupo de frequências de 3.000, 4.000 e 6.000 Hz iguala ou ultrapassa 10 dB (NA).
+  D) a piora em uma frequência isolada iguala ou ultrapassa 10 dB (NA).
+  E) a diferença entre as médias aritméticas dos limiares auditivos no grupo de frequências de 3.000, 4.000 e 6.000 Hz iguala ou ultrapassa 15 dB (NA).
+COMENTÁRIO: 28 de Abril de 2023 às 14:36
+COMENTÁRIO: 5.2 São considerados sugestivos de Perda Auditiva Induzida por Níveis de Pressão Sonora Elevados (PAINPSE) os casos cujos audiogramas, nas frequências de 3.000 e/ou 4.000 e/ou 6.000 Hz, apresentem limiares auditivos acima de 25 (vinte e cinco) dB (NA) e mais elevados do que nas outras frequências testadas, estando estas comprometidas ou não, tanto no teste da via aérea quanto da via óssea, em um ou em ambos os lados.
+COMENTÁRIO: 5.3 São considerados sugestivos de desencadeamento de PAINPSE os casos em que os limiares auditivos em todas as frequências testadas no exame audiométrico de referência e no sequencial permaneçam menores ou iguais a 25 (vinte e cinco) dB (NA), mas a comparação do audiograma sequencial com o de referência mostra evolução que preencha um dos critérios abaixo:
+COMENTÁRIO: a) a diferença entre as médias aritméticas dos limiares auditivos no grupo de frequências de 3.000, 4.000 e 6.000 Hz iguala ou ultrapassa 10 (dez) dB (NA);
+COMENTÁRIO: b) a piora em pelo menos uma das frequências de 3.000, 4.000 ou 6.000 Hz iguala ou ultrapassa 15 (quinze) dB (NA).
+COMENTÁRIO: 5.3.1 São considerados também sugestivos de desencadeamento de PAINPSE os casos em que apenas o exame audiométrico de referência apresente limiares auditivos em todas as frequências testadas menores ou iguais a 25 (vinte e cinco) dB (NA), e a comparação do audiograma seqüencial com o de referência preencha um dos critérios abaixo:
+COMENTÁRIO: a) a diferença entre as médias aritméticas dos limiares auditivos no grupo de freqüências de 3.000, 4.000 e 6.000 Hz iguala ou ultrapassa 10 (dez) dB (NA);
+COMENTÁRIO: b) a piora em pelo menos uma das freqüências de 3.000, 4.000 ou 6.000 Hz iguala ou ultrapassa 15 dB (NA).
+COMENTÁRIO: 5.4 São considerados sugestivos de agravamento da PAINPSE os casos já confirmados em exame audiométrico de referência e nos quais a comparação de exame audiométrico seqüencial com o de referência mostra evolução que preenche um dos critérios abaixo:
+COMENTÁRIO: a) a diferença entre as médias aritméticas dos limiares auditivos no grupo de frequências de 500, 1.000 e 2.000 Hz, ou no grupo de frequências de 3.000, 4.000 e 6.000 Hz iguala ou ultrapassa 10 (dez) dB (NA);
+COMENTÁRIO: b) a piora em uma freqüência isolada iguala ou ultrapassa 15 (quinze) dB (NA).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (4)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2099538)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Sistema de Saúde Brasileira
+ENUNCIADO: No quadro clínico de transtorno de estresse pós-traumático há, além do evento traumático, três grupos de sintomas. São eles:
+ALTERNATIVAS:
+  A) Manifestações de rememoração, despersonalização e baixa autoestima.
+  B) Exaustão emocional, despersonalização e insatisfação profissional.
+  C) Manifestações de rememoração, de evitação e hipervigilância.
+  D) Manifestação de evitação, insatisfação profissional e anedonia.
+  E) Desânimo, sensação de inutilidade e anedonia.
+COMENTÁRIO: 24 de Março de 2024 às 06:10
+COMENTÁRIO: Os sintomas do transtorno de estresse pós-traumático podem ser subdivididos em 4 categorias:
+COMENTÁRIO: Intrusões
+COMENTÁRIO: Esquiva
+COMENTÁRIO: Alterações negativas na cognição e humor
+COMENTÁRIO: Alterações na excitação e reatividade
+COMENTÁRIO: Intrusões: Intrusões são memórias ou pesadelos indesejáveis que repetem o evento desencadeante. As intrusões podem assumir a forma de "flashbacks", que podem ser desencadeados por imagens, sons, cheiros ou outros estímulos. Por exemplo, um ruído alto pode desencadear a memória de uma agressão, levando a pessoa a se jogar no chão em pânico.
+COMENTÁRIO: Esquiva: pessoas com transtorno de estresse pós-traumático podem evitar lembranças do trauma, como partes específicas da cidade ou atividades anteriormente favoritas.
+COMENTÁRIO: Alterações negativas na cognição e humor: alterações cognitivas e de humor incluem desinteresse e desapego, cognições distorcidas, anedonia, autoculpa inapropriada e depressão.
+COMENTÁRIO: Alterações na excitação e reatividade: pessoas com TEPT podem demonstrar excitação excessiva, irritabilidade e reatividade, ou podem parecer entorpecidas e distantes.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2099537)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Sistema de Saúde Brasileira
+ENUNCIADO: Para verificar a associação entre exposição a solvente orgânico e linfoma não-Hodgkin (LNH), foi realizado um estudo no qual participaram um grupo de 150 indivíduos diagnosticados com LNH e um grupo de 300 indivíduos com outros tipos de cânceres diagnosticados na mesma época em determinada região. Em ambos os grupos foram aplicados questionários padronizados que definiram três níveis de exposição e um de não exposição a solvente orgânico, considerando toda a vida laboral dos indivíduos. Este é um
+ALTERNATIVAS:
+  A) Estudo caso-controle.
+  B) Estudo de coorte retrospectivo.
+  C) Estudo Transversal.
+  D) Ensaio clínico randomizado.
+  E) Estudo de coorte prospectivo.
+COMENTÁRIO: 12 de Fevereiro de 2024 às 12:55
+COMENTÁRIO: - Caso-controle
+COMENTÁRIO: É um estudo retrospectivo, ou seja, analisa dados já produzidos (no passado) – como entrevistas, análises de registros, etc. Objetivo é observar a frequência de exposição de uma determinado agente (normalmente doença) em diferentes grupos. Eles são selecionados de uma mesma população – os casos ( grupo de ocorrência do objeto de estudo) e os controles (grupo que não há a ocorrência do obejto de estudo).
+COMENTÁRIO: Visa entender e identificar quais são os fatores de risco e de exposição, fatores prognósticos da patologia em questão e a eficácia das intervenções.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (9)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2099536)
+ASSUNTO: Medicina
+Aspectos de Ética na Pesquisa, Ética Médica e Perícia Médica
+ENUNCIADO: Segundo o Código de Ética Médica, é permitido ao médico
+ALTERNATIVAS:
+  A) expor fato de que tenha conhecimento em virtude do exercício de sua profissão, na investigação de suspeita de crime, em que possa revelar segredo que exponha o paciente a processo penal.
+  B) assinar laudos periciais, auditorias ou de verificação médico-legal quando não tenha realizado pessoalmente o exame, desde que tenha nomeado um assistente para fazê-lo.
+  C) intervir, quando em função de auditor, assistente técnico ou perito, nos atos profissionais de outro médico, ou fazer qualquer apreciação em presença do examinado.
+  D) revelar informações confidenciais obtidas quando do exame médico de trabalhadores por exigência dos dirigentes de empresas ou de instituições, somente quando o silêncio puser em risco a saúde dos empregados ou da comunidade.
+  E) revelar sigilo profissional relacionado a paciente menor de idade, inclusive a seus pais ou representantes legais, mesmo que o menor tenha capacidade de discernimento, independente se a revelação possa acarretar dano ao paciente.
+COMENTÁRIO: 25 de Abril de 2023 às 16:36
+COMENTÁRIO: É vedado ao médico:
+COMENTÁRIO: Art. 76
+COMENTÁRIO: Revelar informações confidenciais obtidas quando do exame médico de trabalhadores,
+COMENTÁRIO: inclusive por exigência dos dirigentes de empresas ou de instituições, salvo se o silêncio puser em
+COMENTÁRIO: risco a saúde dos empregados ou da comunidade.
+COMENTÁRIO: Resolução 2217/18
+COMENTÁRIO: Gostei
+COMENTÁRIO: (5)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2099535)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 7 - Norma Regulamentadora n° 7 - Programa de Controle Médico de Saúde Ocupacional - PCMSO (Avaliação Periódica) ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: O Anexo I da NR 7 do Programa de Controle Médico de Saúde Ocupacional (PCMSO) para a Monitoração da Exposição Ocupacional a Agentes Químicos prevê a realização de Indicadores Biológicos de Exposição com Significado Clínico (IBE/SC), dentre outras, a exposição à seguinte substância:
+ALTERNATIVAS:
+  A) Chumbo inorgânico.
+  B) Benzeno.
+  C) Arsênico.
+  D) Cromo hexavalente.
+  E) Mercúrio metálico.
+COMENTÁRIO: 24 de Julho de 2023 às 21:00
+COMENTÁRIO: Nr7 / Anexo I
+COMENTÁRIO: QUADRO 2 - Indicadores Biológicos de Exposição com Significado Clínico (IBE/SC)
+COMENTÁRIO: SUBSTÂNCIAS:
+COMENTÁRIO: Cádmio e seus compostos inorgânicos;
+COMENTÁRIO: Chumbo e seus compostos inorgânicos;
+COMENTÁRIO: Inseticidas inibidores da Colinesterase; e
+COMENTÁRIO: Flúor, ácido fluorídrico e fluoretos inorgânicos.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (31)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2099534)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 7 - Norma Regulamentadora n° 7 - Programa de Controle Médico de Saúde Ocupacional - PCMSO (Avaliação Periódica) ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: Em relação à NR 7 do Programa de Controle Médico de Saúde Ocupacional (PCMSO), quanto ao seu planejamento relativo à realização obrigatória dos exames médicos, o exame
+ALTERNATIVAS:
+  A) periódico deverá ser realizado a cada 2 anos, independentemente dos riscos ou da faixa etária do trabalhador.
+  B) admissional deve ser realizado depois do período de experiência de 90 dias a que o empregado está submetido.
+  C) demissional deve ser realizado em até 10 dias contados do término do contrato, podendo ser dispensado caso o exame clínico ocupacional mais recente tenha sido realizado há menos de 135 dias, para as organizações de graus de risco 1 e 2, e há menos de 90 dias, para as organizações graus de risco 3 e 4.
+  D) de retorno ao trabalho deve ser realizado antes que o empregado reassuma suas funções, quando ausente por período igual ou superior a 15 dias por motivo de doença ou acidente de natureza ocupacional.
+  E) de mudança de risco ocupacional deve, sempre que possível, ser realizado durante a readaptação do trabalhador à nova função.
+COMENTÁRIO: 27 de Abril de 2023 às 09:42
+COMENTÁRIO: nr7
+COMENTÁRIO: 7.5.9 No exame de retorno ao trabalho, o exame clínico deve ser realizado antes que o empregado reassuma suas funções, quando ausente por período igual ou superior a 30 (trinta) dias por motivo de doença ou acidente, de natureza ocupacional ou não. 7.5.9.1 No exame de retorno ao trabalho, a avaliação médica deve definir a necessidade de retorno gradativo ao trabalho. 7.5.10 O exame de mudança de risco ocupacional deve, obrigatoriamente, ser realizado antes da data da mudança, adequando-se o controle médico aos novos riscos. 7.5.11 No exame demissional, o exame clínico deve ser realizado em até 10 (dez) dias contados do término do contrato, podendo ser dispensado caso o exame clínico ocupacional mais recente tenha sido realizado há menos de 135 (centro e trinta e cinco) dias, para as organizações graus de risco 1 e 2, e há menos de 90 (noventa) dias, para as organizações graus de risco 3 e 4. (
+COMENTÁRIO: Gostei
+COMENTÁRIO: (17)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2099533)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 7 - Norma Regulamentadora n° 7 - Programa de Controle Médico de Saúde Ocupacional - PCMSO (Avaliação Periódica) ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: Em relação à NR 7 do Programa de Controle Médico de Saúde Ocupacional (PCMSO), é correto afirmar:
+ALTERNATIVAS:
+  A) O PCMSO deve ser elaborado considerando os riscos ocupacionais identificados pela Norma Regulamentadora nº 15 e seus agentes insalubres.
+  B) Aplica-se às organizações e aos órgãos públicos da Administração direta e indireta, bem como aos órgãos dos poderes legislativo e judiciário e ao Ministério Público, que possuam empregados regidos pela Consolidação das Leis do Trabalho (CLT), empregados autônomos, cooperativados e estatutários.
+  C) Cabe ao PCMSO uma vigilância passiva da saúde ocupacional, por meio de exames médicos dirigidos que incluam, além dos exames previstos nesta NR, a coleta de dados sobre sinais e sintomas de agravos à saúde relacionados aos riscos ocupacionais.
+  D) Cabe ao empregador garantir a elaboração e a efetiva implantação do PCMSO e indicar médico do trabalho responsável pelo PCMSO, sem necessidade de custear para o empregado que se candidata a um cargo todos os procedimentos relacionados ao PCMSO.
+  E) Tem como diretrizes, dentre outras, rastrear e detectar precocemente os agravos à saúde relacionados ao trabalho, detectar possíveis exposições excessivas a agentes nocivos ocupacionais e definir a aptidão de cada empregado para exercer suas funções ou tarefas determinadas.
+COMENTÁRIO: 11 de Julho de 2023 às 13:51
+COMENTÁRIO: A) O PCMSO deve ser elaborado considerando os riscos ocupacionais identificados pela Norma Regulamentadora nº 15 e seus agentes insalubres.
+COMENTÁRIO: ERRADO.
+COMENTÁRIO: 7.5.1 O PCMSO deve ser elaborado considerando os riscos ocupacionais identificados e classificados pelo PGR.
+COMENTÁRIO: B): Aplica-se às organizações e aos órgãos públicos da Administração direta e indireta, bem como aos órgãos dos poderes legislativo e judiciário e ao Ministério Público, que possuam empregados regidos pela Consolidação das Leis do Trabalho (CLT), empregados autônomos, cooperativados e estatutários.
+COMENTÁRIO: ERRADO.
+COMENTÁRIO: 7.2.1 Esta Norma se aplica às organizações e aos órgãos públicos da administração direta e indireta, bem como aos órgãos dos poderes legislativo e judiciário e ao Ministério Público, que possuam empregados regidos pela Consolidação das Leis do Trabalho - CLT.
+COMENTÁRIO: C) Cabe ao PCMSO uma vigilância passiva da saúde ocupacional, por meio de exames médicos dirigidos que incluam, além dos exames previstos nesta NR, a coleta de dados sobre sinais e sintomas de agravos à saúde relacionados aos riscos ocupacionais.
+COMENTÁRIO: ERRADO.
+COMENTÁRIO: A questão confundiu a vigilância passiva da vigilância ativa.
+COMENTÁRIO: 7.3.2.1 O PCMSO deve incluir ações de:
+COMENTÁRIO: a) vigilância passiva da saúde ocupacional, a partir de informações sobre a demanda espontânea de empregados que procurem serviços médicos;
+COMENTÁRIO: D) Cabe ao empregador garantir a elaboração e a efetiva implantação do PCMSO e indicar médico do trabalho responsável pelo PCMSO, sem necessidade de custear para o empregado que se candidata a um cargo todos os procedimentos relacionados ao PCMSO.
+COMENTÁRIO: ERRADO.
+COMENTÁRIO: 7.4.1 Compete ao empregador:
+COMENTÁRIO: a) garantir a elaboração e efetiva implantação do PCMSO;
+COMENTÁRIO: b) custear sem ônus para o empregado todos os procedimentos relacionados ao PCMSO;
+COMENTÁRIO: c) indicar médico do trabalho responsável pelo PCMSO.
+COMENTÁRIO: E) Tem como diretrizes, dentre outras, rastrear e detectar precocemente os agravos à saúde relacionados ao trabalho, detectar possíveis exposições excessivas a agentes nocivos ocupacionais e definir a aptidão de cada empregado para exercer suas funções ou tarefas determinadas.
+COMENTÁRIO: CORRETA.
+COMENTÁRIO: 7.3.2 São diretrizes do PCMSO:
+COMENTÁRIO: a) rastrear e detectar precocemente os agravos à saúde relacionados ao trabalho;
+COMENTÁRIO: b) detectar possíveis exposições excessivas a agentes nocivos ocupacionais;
+COMENTÁRIO: c) definir a aptidão de cada empregado para exercer suas funções ou tarefas determinadas;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (50)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2099532)
+ASSUNTO: Segurança e Saúde no Trabalho
+Norma Operacional de Saúde do Servidor Público Federal (NOSS)
+ENUNCIADO: Em relação ao Manual de Perícia Oficial em Saúde do Servidor Público Federal,
+ALTERNATIVAS:
+  A) é vedada a presença de acompanhante durante a perícia, uma vez que este pode interferir durante o exame pericial levando a constrangimento a ambas as partes.
+  B) não cabe ao profissional assistente sugerir o tempo estimado de afastamento do trabalho para a recuperação de seu paciente, embora possa emitir parecer sobre os possíveis benefícios ou direitos ou tecer considerações legais ou administrativas.
+  C) o perito não precisa conhecer o tipo de trabalho do avaliado podendo receber informações sobre quais condições são desenvolvidas as atividades laborais, o ambiente, a organização do trabalho, por meio de designação de outros servidores para realizar visitas ou inspeções ao posto de trabalho.
+  D) o perito oficial em saúde, atuando na perícia singular ou em junta, não fica impedido de participar de ato pericial quando a parte for seu paciente ou ex-paciente, uma vez que conhece a história do periciado, pois nesta situação não há comprometimento dele com o caráter de imparcialidade do ato pericial.
+  E) cabe ao profissional assistente prestar as informações necessárias para subsidiar a avaliação pericial, devendo constar, obrigatoriamente, o diagnóstico da doença, sua evolução, a duração, as condutas e respostas terapêuticas, os exames comprobatórios e, se possível, o prognóstico.
+COMENTÁRIO: 03 de Fevereiro de 2024 às 23:26
+COMENTÁRIO: Relação do Perito Oficial em Saúde com o Profissional de Saúde Assistente :
+COMENTÁRIO: É tecnicamente recomendável que a avaliação pericial se inicie pela informação prestada pelo periciado, utilizando a observação do profissional de saúde assistente para subsidiar sua conclusão. Cabe ao profissional assistente prestar as informações necessárias para subsidiar a avaliação pericial, devendo constar, obrigatoriamente, o diagnóstico da doença, sua evolução, a duração, as condutas e respostas terapêuticas, os exames comprobatórios e, se possível, o prognóstico. O profissional assistente pode sugerir, inclusive, o tempo estimado de afastamento do trabalho para a recuperação de seu paciente. Não cabe ao assistente emitir parecer sobre os possíveis benefícios ou direitos ou tecer considerações legais ou administrativas, que estão fora do seu campo de atuação, conforme previsto nas Resoluções do CFM nº 1.851, de 2008 e CFO nº 87, de 2009.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (6)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2099531)
+ASSUNTO: Direito Previdenciário
+Benefícios em Espécie ,
+Auxílio-Acidente
+ENUNCIADO: O auxílio-acidente é um benefício
+ALTERNATIVAS:
+  A) de natureza indenizatória pago ao segurado do INSS que, em decorrência de acidente de trabalho, apresente sequela permanente que reduza sua capacidade para o trabalho e que o impeça de continuar trabalhando.
+  B) por acidente de trabalho devido ao segurado que ficar incapacitado para o seu trabalho ou para sua atividade habitual por mais de quinze dias consecutivos, conforme definido em avaliação médico-pericial.
+  C) de natureza indenizatória pago ao segurado do INSS que, em decorrência de acidente de qualquer natureza, apresente sequela permanente que reduza sua capacidade para o trabalho, não o impedindo de continuar trabalhando após sua concessão.
+  D) devido ao indivíduo que deve ter a qualidade de segurado à época do acidente e ter um período de carência de 12 meses.
+  E) devido ao segurado empregado urbano ou rural ou ao contribuinte individual depois de um período de carência de 6 meses.
+COMENTÁRIO: 05 de Abril de 2023 às 10:13
+COMENTÁRIO: Lei 8.213/91: "Art. 86. O auxílio-acidente será concedido, como indenização, ao segurado quando, após consolidação das lesões decorrentes de acidente de qualquer natureza, resultarem seqüelas que impliquem redução da capacidade para o trabalho que habitualmente exercia.
+COMENTÁRIO: § 1º O auxílio-acidente mensal corresponderá a 50% do salário-de-benefício e será devido, observado o disposto no § 5º, até a véspera do início de qualquer aposentadoria ou até a data do óbito do segurado.
+COMENTÁRIO: § 2º O auxílio-acidente será devido a partir do dia seguinte ao da cessação do auxílio-doença, independentemente de qualquer remuneração ou rendimento auferido pelo acidentado, vedada sua acumulação com qualquer aposentadoria.
+COMENTÁRIO: § 3º O recebimento de salário ou concessão de outro benefício, exceto de aposentadoria, observado o disposto no § 5º, não prejudicará a continuidade do recebimento do auxílio-acidente.
+COMENTÁRIO: § 4º A perda da audição, em qualquer grau, somente proporcionará a concessão do auxílio-acidente, quando, além do reconhecimento de causalidade entre o trabalho e a doença, resultar, comprovadamente, na redução ou perda da capacidade para o trabalho que habitualmente exercia.          "
+COMENTÁRIO: Gostei
+COMENTÁRIO: (167)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2099530)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 17 - Norma Regulamentadora n° 17 - Ergonomia ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: De acordo com a NR 17, Anexo II, que trata do Trabalho em Teleatendimento/Telemarketing:
+ALTERNATIVAS:
+  A) Os mecanismos de monitoramento da produtividade, tais como mensagens nos monitores de vídeo, sinais luminosos, cromáticos, sonoros, ou indicações do tempo utilizado nas ligações ou de filas de clientes em espera, podem ser utilizados para aceleração do trabalho.
+  B) Devem ser fornecidos gratuitamente conjuntos de microfone e fone de ouvido (headsets) coletivos que permitam aos operadores a alternância do uso nas orelhas ao longo da jornada de trabalho e que sejam substituídos sempre que apresentarem defeitos ou desgaste devido ao uso.
+  C) Os locais de trabalho devem ser dotados de condições acústicas adequadas à comunicação telefônica, adotando-se medidas de prevenção a fim de proporcionar conforto acústico com nível de ruído de fundo aceitável até 80 dB(A).
+  D) A participação em quaisquer modalidades de atividade física, quando adotadas pela organização, é obrigatória, e a recusa do trabalhador em praticá-la poderá ser utilizada para efeito de qualquer punição.
+  E) Devem ser garantidas pausas no trabalho imediatamente após operação em que tenham ocorrido ameaças, abuso verbal ou agressões, ou que tenha sido especialmente desgastante, que permitam ao operador recuperar-se e socializar conflitos e dificuldades com colegas, supervisores ou profissionais de saúde ocupacional especialmente capacitados para tal acolhimento.
+COMENTÁRIO: 27 de Abril de 2023 às 09:48
+COMENTÁRIO: ANEXO II NR17
+COMENTÁRIO: 6.4.5 Devem ser garantidas pausas no trabalho imediatamente após operação em que tenham ocorrido ameaças, abuso verbal ou agressões, ou que tenha sido especialmente desgastante, que permitam ao operador recuperar-se e socializar conflitos e dificuldades com colegas, supervisores ou profissionais de saúde ocupacional especialmente capacitados para tal acolhimento.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (23)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2099529)
+ASSUNTO: Segurança e Saúde no Trabalho
+NR 17 - Norma Regulamentadora n° 17 - Ergonomia ,
+Normas Regulamentadoras de Ministério do Trabalho e Emprego
+ENUNCIADO: De acordo com a NR 7 − Ergonomia, é correto afirmar:
+ALTERNATIVAS:
+  A) Visa estabelecer diretrizes e requisitos que permitam adaptar o indivíduo às condições de trabalho de modo a proporcionar um desempenho eficiente no posto de trabalho.
+  B) Sempre que o trabalho puder ser executado alternando a posição de pé com a posição sentada, o posto de trabalho deve ser planejado ou adaptado para favorecer a alternância das posições.
+  C) Todas as Organizações, inclusive as Microempresas e Empresas de Pequeno Porte enquadradas como graus de risco 1 e 2 e o Microempreendedor Individual (MEI), são obrigados a elaborar a Análise Ergonômica do Trabalho (AET).
+  D) A avaliação ergonômica preliminar das situações de trabalho deverá sempre ser feita por meio das ferramentas ergonômicas quantitativas a fim de identificar os perigos e produzir informações para o planejamento das medidas de prevenção necessárias.
+  E) Nas atividades com uso de computador portátil de forma não eventual em posto de trabalho, são dispensadas formas de adaptação do teclado, do mouse ou da tela devido à portabilidade do equipamento.
+COMENTÁRIO: 08 de Abril de 2023 às 11:04
+COMENTÁRIO: A) Visa estabelecer diretrizes e requisitos que permitam adaptar o indivíduo às condições de trabalho de modo a proporcionar um desempenho eficiente no posto de trabalho. (Visa proporcionar conforto, segurança, saúde e desempenho eficiente) [17.1.1 da NR 17]
+COMENTÁRIO: B) Sempre que o trabalho puder ser executado alternando a posição de pé com a posição sentada, o posto de trabalho deve ser planejado ou adaptado para favorecer a alternância das posições. (17.6.2 literal) [CORRETA]
+COMENTÁRIO: C) Todas as Organizações, inclusive as Microempresas e Empresas de Pequeno Porte enquadradas como graus de risco 1 e 2 e o Microempreendedor Individual (MEI), são obrigados a elaborar a Análise Ergonômica do Trabalho (AET). (ME grau de risco 1 e 2 e MEI não são obrigados a elaborar AET) [17.3.4]
+COMENTÁRIO: D) A avaliação ergonômica preliminar das situações de trabalho deverá sempre ser feita por meio das ferramentas ergonômicas quantitativas a fim de identificar os perigos e produzir informações para o planejamento das medidas de prevenção necessárias. (Cuidado com a palavra sempre galera, nesse caso essa avaliação pode ser realizadas por abordagens: 1. Qualitativas, 2. Semiquantitativas, 3. Quantitativas ou combinação destas, a depender do risco) [17.3.1.1]
+COMENTÁRIO: E) Nas atividades com uso de computador portátil de forma não eventual em posto de trabalho, são dispensadas formas de adaptação do teclado, do mouse ou da tela devido à portabilidade do equipamento. (Para trabalhos contínuos com notebook não se pode usar o teclado e o mouse do notebook, tem que ser adaptados) [17.7.3.2]
+COMENTÁRIO: Gostei
+COMENTÁRIO: (18)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2099528)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Doenças do Trabalho e Doenças Profissionais (Dort) ,
+Fundamentos da Saúde Ocupacional
+( assuntos)
+ENUNCIADO: Doença/Moléstia Profissional é aquela decorrente, desencadeada ou agravada pelo exercício de trabalho peculiar a determinada atividade profissional ou adquirida em função de condições ambientais específicas em que se realiza o trabalho. É classificada como Profissional a seguinte doença:
+ALTERNATIVAS:
+  A) Intoxicação pelo chumbo.
+  B) Asma relacionada ao trabalho.
+  C) Transtorno depressivo.
+  D) LER/DORT.
+  E) Hipertensão arterial.
+COMENTÁRIO: 09 de Abril de 2023 às 17:16
+COMENTÁRIO: Chumbo --> Saturnismo.
+COMENTÁRIO: Grupo destinado ao compartilhamento de provas e informações sobre concursos na área de Segurança e Saúde do Trabalho. Segue link do Telegram:
+COMENTÁRIO: https://t.me/+pletNy27gNI5ZTcx
+COMENTÁRIO: Gostei
+COMENTÁRIO: (11)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2099527)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Doenças do Trabalho e Doenças Profissionais (Dort) ,
+Fundamentos da Saúde Ocupacional
+( assuntos)
+ENUNCIADO: Trabalhador com queixas de dispneia, tosse seca e chiado no peito há 8 meses. Informa ser pintor de automóveis com exposição a solventes, catalizadores, tinta poliuretânica e acrílicas há 2 anos. Refere local de trabalho sem sistema de exaustão ou cortina d’água e que utiliza como única proteção individual uma máscara cirúrgica. Informa que no início dos sintomas melhorava nos finais de semana ou quando não havia veículos para pintura. Atualmente com episódios frequentes sem melhora e com pequenos afastamentos. A principal hipótese diagnóstica para o caso é:
+ALTERNATIVAS:
+  A) Bronquiectasias.
+  B) DPOC.
+  C) Bronquiolite.
+  D) Asma relacionada ao trabalho.
+  E) Pneumonia de hipersensibilidade.
+COMENTÁRIO: 13 de Fevereiro de 2024 às 20:16
+COMENTÁRIO: gab D
+COMENTÁRIO: asma Relacionada ao trabalho
+COMENTÁRIO: Gostei
+COMENTÁRIO: (0)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2099526)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Doenças do Trabalho e Doenças Profissionais (Dort) ,
+Fundamentos da Saúde Ocupacional
+( assuntos)
+ENUNCIADO: A pneumoconiose mais prevalente no Brasil é:
+ALTERNATIVAS:
+  A) Pneumoconiose por poeira mista.
+  B) Pneumoconiose dos trabalhadores de carvão.
+  C) Asbestose.
+  D) Silicose.
+  E) Pneumopatia por metal duro.
+COMENTÁRIO: 13 de Setembro de 2023 às 04:22
+COMENTÁRIO: das pneumoconioses, a silicose continua sendo a mais prevalente no Brasil e no resto do mundo, principalmente nos países em desenvolvimento. A silicose é uma doença que pode ser desencadeada ou agravada por diversos fatores presentes no ambiente de trabalho, como poeira, fumaça, vapores, gases, entre outros.
+COMENTÁRIO: As demais alternativas estão incorretas, pois não se enquadram na definição de pneumoconiose mais prevalente no Brasil. A está incorreta, pois a pneumoconiose por poeira mista é uma doença causada pela inalação de poeiras contendo sílica e outros minerais, como carvão, grafite, alumínio, entre outros. A pneumoconiose por poeira mista é menos frequente e menos grave do que a silicose. A está incorreta, pois a pneumoconiose dos trabalhadores de carvão é uma doença causada pela inalação de poeira de carvão mineral ou vegetal, que provoca fibrose e enfisema pulmonar. A pneumoconiose dos trabalhadores de carvão é mais comum em países com indústria carbonífera, como Estados Unidos e China. A está incorreta, pois a asbestose é uma doença causada pela inalação de fibras de asbesto ou amianto, que provoca fibrose e câncer pulmonar. A asbestose é mais comum em trabalhadores expostos ao asbesto em atividades como mineração, construção civil, indústria naval, entre outras. A está incorreta, pois a pneumopatia por metal duro é uma doença causada pela inalação de partículas de metal duro, que são ligas metálicas contendo cobalto e tungstênio. A pneumopatia por metal duro provoca inflamação e fibrose pulmonar. A pneumopatia por metal duro é mais comum em trabalhadores que manipulam metal duro em atividades como usinagem, corte e polimento.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (13)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2099525)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Doenças do Trabalho e Doenças Profissionais (Dort) ,
+Fundamentos da Saúde Ocupacional
+( assuntos)
+ENUNCIADO: Quanto à dermatose ocupacional, é correto afirmar:
+ALTERNATIVAS:
+  A) A dermatite alérgica de contato é a dermatite mais comum nos expostos a cimento.
+  B) As dermatoses causadas por radiação não ionizante são as mais frequentes no país.
+  C) As dermatoses causadas por agentes químicos, como as dermatites de contato, são as mais frequentes, sendo as irritativas as mais prevalentes.
+  D) A dermatite alérgica de contato pela borracha se dá pelo processo de polimerização dos seus monômeros.
+  E) A investigação da etiologia das dermatites de contato, tanto irritativa quanto alérgica, se dá pelos testes de contato (epicutâneos).
+COMENTÁRIO: 20 de Fevereiro de 2024 às 15:33
+COMENTÁRIO: As dermatoses causadas por agentes químicos, como as dermatites de contato, são as mais frequentes, sendo as irritativas as mais prevalentes.
+COMENTÁRIO: Gab.:C
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2099523)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Sistema de Saúde Brasileira
+ENUNCIADO: Sobre a fisiologia do trabalho, considere:
+
+I. O trabalho muscular estático caracteriza um estado prolongado da contração muscular, provocando um estreitamento dos vasos sanguíneos pela pressão interna contra o tecido muscular, reduzindo o suprimento de energia e de nutrientes ao músculo, resultando em dor e fadiga muscular do trabalhador.
+II. No trabalho muscular estático devido a um estado prolongado de contração muscular ocorre uma vasodilatação dos vasos sanguíneos no tecido muscular com edema e liberação de substâncias inflamatórias.
+III. No trabalho muscular dinâmico, obtém-se uma sequência rítmica de contração e de relaxamento da musculatura em trabalho, na qual a contração expulsa o sangue dos músculos enquanto o relaxamento subsequente favorece o influxo de sangue renovado, sendo expresso como o produto de encurtamento dos músculos e a força desenvolvida.
+IV. A frequência cardíaca se destaca como o parâmetro mais adequado para avaliar a carga de trabalho imposta, pela qual a FC diminui de acordo com a temperatura elevada do ambiente, do trabalho estático realizado e do menor recrutamento de fibra muscular para o trabalho dinâmico.
+
+Está correto o que se afirma APENAS em
+ALTERNATIVAS:
+  A) II e IV.
+  B) III.
+  C) II.
+  D) I e IV.
+  E) I e III.
+COMENTÁRIO: 24 de Março de 2024 às 07:15
+COMENTÁRIO: Erro da IV : a FC e a pressão aumentam com o crescimento da temperatura
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2099522)
+ASSUNTO: Segurança e Saúde no Trabalho
+Medicina do trabalho ,
+Riscos Ocupacionais (Análise e Gerenciamento de Riscos) ,
+Doenças do Trabalho e Doenças Profissionais (Dort)
+( assuntos)
+ENUNCIADO: A lesão renal crônica caracterizada por uma modificação prevalente da função tubular distal com proteinúria tubular (β2-microglobulina e proteína ligada ao retinol), além de outros efeitos tubulares como aminoacidúria, glicosúria e fosfatúria, pode ser provocada pela exposição
+ALTERNATIVAS:
+  A) ao chumbo.
+  B) ao cádmio.
+  C) ao manganês.
+  D) ao mercúrio.
+  E) a solventes.
+COMENTÁRIO: 20 de Março de 2024 às 19:52
+COMENTÁRIO: DOENÇAS DO SISTEMA GÊNITO-URINÁRIO
+COMENTÁRIO: RELACIONADAS COM O TRABALHO
+COMENTÁRIO: (Grupo XIV da CID-10)
+COMENTÁRIO: III - Nefropatia túbulo-intersticial induzida por metais pesados (N14.3)
+COMENTÁRIO: 1. Cádmio ou seus compostos (X49.-; Z57.5) (Quadro VI)
+COMENTÁRIO: 2. Chumbo ou seus compostos tóxicos (X49.-; Z57.5) (Quadro VIII)
+COMENTÁRIO: 3. Mercúrio e seus compostos tóxicos (X49.-; Z57.4 e Z57.5) (Quadro XVI)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (3)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2098936)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Análise SWOT
+ENUNCIADO: Considere que, no âmbito da realização de diagnóstico institucional, determinada organização pretenda utilizar como ferramenta a matriz SWOT. Deverá constar da referida matriz
+ALTERNATIVAS:
+  A) a identificação do cenário interno da organização, com suas forças e fraquezas, e o externo, com o mapeamento das oportunidades e as ameaças.
+  B) a classificação das prioridades da organização, elencando as ações de curto, médio e longo prazo a serem implementadas.
+  C) o mapeamento das competências técnicas e comportamentais necessárias para o desempenho das atividades inerentes à organização.
+  D) a fixação de metas e indicadores de desempenho, com a adoção de métricas que permitam a avaliação do desempenho dos colaboradores.
+  E) a relação dos principais projetos da organização, seu cronograma de execução e o caminho crítico apontando os desafios a serem vencidos.
+COMENTÁRIO: 05 de Abril de 2023 às 16:10
+COMENTÁRIO: Análise SWOT (Matriz SWOT)
+COMENTÁRIO: A Análise SWOT é uma ferramenta utilizada na etapa do diagnóstico organizacional.
+COMENTÁRIO: Ela é utilizada para buscar entender a “posição atual” da organização.
+COMENTÁRIO: Consiste, basicamente, na análise do ambiente interno (forças e fraquezas) e do ambiente externo (oportunidades e ameaças).
+COMENTÁRIO: É pautada na ideia de que o administrador deve identificar as forças e fraquezas do ambiente interno da organização, bem como as oportunidades e ameaças do ambiente externo, com o objetivo de elaborar uma estratégia que compatibilize todos esses aspectos com vistas a assegurar o sucesso da organização.
+COMENTÁRIO: A sigla “SWOT” deriva das seguintes palavras em inglês:
+COMENTÁRIO: Strengths (Forças) [interno]
+COMENTÁRIO: Weakness (Fraquezas) [interno]
+COMENTÁRIO: Opportunities (Oportunidades) [externo]
+COMENTÁRIO: Threats (Ameaças) [externo]
+COMENTÁRIO: Em português, também é conhecida como matriz “FOFA”
+COMENTÁRIO: Gostei
+COMENTÁRIO: (88)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2098935)
+ASSUNTO: Gestão de Pessoas
+Aplicando Pessoas ,
+Controle e Avaliação
+ENUNCIADO: Considere que determinada organização pretenda aplicar, com o propósito de avaliação e aprimoramento da gestão de desempenho de seus colaboradores, a metodologia denominada Pesquisa de Campo, o que significará a adoção de um método
+ALTERNATIVAS:
+  A) ultrapassado, pois considera poucas dimensões do comportamento dos avaliados, dando ênfase apenas à assiduidade e à produtividade.
+  B) superficial, pois baseia-se exclusivamente na coleta de dados constantes dos registros funcionais dos avaliados.
+  C) completo, porém de maior custo, pois demanda entrevistas feitas por um especialista em avaliação com os gestores do avaliado, permitindo planejar seu desenvolvimento.
+  D) indireto, pois trabalha com extrapolação de dados de uma amostra de avaliados para aferir uma média da performance do grupo todo.
+  E) rápido, porém sujeito a erros e vícios, baseando-se em questionários e testes respondidos por meio eletrônico e avaliados com base em algoritmos.
+COMENTÁRIO: 05 de Abril de 2023 às 16:14
+COMENTÁRIO: RESUMO dos Principais Métodos Tradicionais de Avaliação de Desempenho cobrados pela FCC
+COMENTÁRIO: Escalas Gráficas
+COMENTÁRIO: Linhas horizontais (fator de avaliação; ex: produtividade) + colunas verticais (escalas; ex: 1 a 5)
+COMENTÁRIO: Vantagens: simples, rápido e barato
+COMENTÁRIO: Desvantagens: subjetivo, superficial, generalização (efeito halo/horn), necessita de métodos estatísticos
+COMENTÁRIO: Escolha Forçada
+COMENTÁRIO: Blocos de frases que descrevem os comportamentos (objetivo de minimizar as desvantagens das Escalas Gráficas)
+COMENTÁRIO: Vantagens: minimiza a subjetividade, a superficialidade e a generalização (efeito halo/horn)
+COMENTÁRIO: Desvantagens: difícil de ser planejado e construído, e o indivíduo não participa ativamente do processo.
+COMENTÁRIO: Pesquisa de Campo
+COMENTÁRIO: Um dos mais completos, consiste na realização de entrevistas pelo staff de avaliação (RH) com o gestor de linha no ambiente de trabalho, para colher informações sobre cada funcionário.
+COMENTÁRIO: Vantagens: avaliação conjunta entre linha-staff e profundidade na avaliação de desempenho
+COMENTÁRIO: Desvantagens: custo elevado, lento e pouca participação do avaliado.
+COMENTÁRIO: Incidentes Críticos
+COMENTÁRIO: O avaliador busca identificar características extremas dos avaliados (positivas ou negativas)
+COMENTÁRIO: Vantagens: fácil elaboração e aplicação
+COMENTÁRIO: Desvantagens: tendencioso, parcial, desconsidera aspectos normais do desempenho
+COMENTÁRIO: Gostei
+COMENTÁRIO: (177)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2098934)
+ASSUNTO: Gestão de Pessoas
+Responsabilidade de Linha e Função de Staff ,
+Agregando Pessoas
+ENUNCIADO: A evolução dos modelos de gestão de recursos humanos, como departamento de pessoal para gestão estratégica de pessoas, apresenta como uma das características a divisão entre responsabilidade de linha e função de staff,
+ALTERNATIVAS:
+  A) resultantes de um processo de valorização e reconhecimento da importância da área de gestão de recursos humanos, que passou a centralizar a função de staff como suporte às necessidades dos colaboradores e a autoridade de linha como cadeia de comando.
+  B) decorrentes de um movimento de descentralização do antigo departamento de RH, que passou a atuar de forma ramificada, com núcleos em cada setor da organização (função de staff), sem prejuízo do seu comando central (autoridade de linha).
+  C) sendo a responsabilidade de linha aquele padrão de conduta exigido de todo colaborador de acordo com as normas da organização e a função de staff as regras específicas para gerentes e gestores.
+  D) sendo a responsabilidade de linha atribuída à área de assessoramento jurídico do setor de recursos humanos, por envolver obrigações legais e normativas, enquanto a função de staff diz respeito à delimitação e à alocação das atribuições no âmbito da organização.
+  E) cabendo a função de staff à área de recursos humanos, representando assessoria, consultoria e apoio aos gestores, enquanto a autoridade de linha pertence a esses últimos e corresponde ao gerenciamento dos recursos humanos alocados nas áreas por eles geridas.
+COMENTÁRIO: 16 de Maio de 2023 às 10:12
+COMENTÁRIO: Posições de linhas: ligadas às atividades-fins;
+COMENTÁRIO: Exemplo: Diretor de Marketing, finanças, logística (coordenação,direção,gerenciamento...);
+COMENTÁRIO: Posições de Staff: ligadas às atividades-meio;
+COMENTÁRIO: Exemplo: Consultor Jurídico(advertir,aconselhar,recomendar quando for tema de seu interesse);
+COMENTÁRIO: Não cofundir com:
+COMENTÁRIO: Cadeia de comando: É a estrutura hierárquica dentro de uma instituição que separa as cargos de acordo com a autoridade de cada um.
+COMENTÁRIO: Amplitude de Controle: Relaciona-se ao número de subordinados que os superiores comandam em uma oranização. Quanto maior o número de subordinados por chefe, maior é a amplitude de controle
+COMENTÁRIO: Cadeia Escalar: Significa que as ordens deverão descer por todos os níveis hierárquicos desde o nível em que é dada até chegar a quem as executa, ou seja, consiste numa linha de autoridade que parte do topo da hierarquia até aos níveis mais baixos.
+COMENTÁRIO: (Geralmente as bancas costumas misturar esses conceitos para confundir o candidato)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (67)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2098933)
+ASSUNTO: Administração Geral
+Processo Decisório
+ENUNCIADO: O processo decisório no âmbito das organizações comporta diferentes abordagens, incluindo a classificação dos tipos de decisões dele decorrentes. Uma dessas categorizações classifica as decisões em “programadas” e “não programadas”, sendo que
+ALTERNATIVAS:
+  A) ambas decorrem do processo de identificação das alternativas aplicáveis à situação-problema, com a diferença de que as decisões programadas dizem respeito a ações já incluídas no planejamento estratégico da organização.
+  B) as programadas são consideradas superiores, pois decorrem de um processo de avaliação individualizado para solução de uma situação-problema inédita na organização.
+  C) as não programadas prestam-se apenas a situações contingentes ou de emergência e, portanto, possuem natureza precária e provisória.
+  D) não há uma hierarquia entre as duas modalidades, mas sim aplicabilidade a situações diversas, sendo as programadas as adotadas com base no acervo de soluções disponíveis na organização e aplicáveis a situações não extraordinárias.
+  E) as programadas somente podem ser aplicadas em organizações com processos de trabalho estratificado ou planificado, por isso são consideradas precursoras das decisões não programadas.
+COMENTÁRIO: 10 de Abril de 2023 às 06:52
+COMENTÁRIO: Decisões Programadas:
+COMENTÁRIO: São computacionais e rotineiras
+COMENTÁRIO: Dados adequados
+COMENTÁRIO: Dados repetitivos
+COMENTÁRIO: Condições estáticas
+COMENTÁRIO: Certeza
+COMENTÁRIO: Baseadas em regras e métodos já estabelecidos
+COMENTÁRIO: Decisões Não programadas:
+COMENTÁRIO: Baseadas em julgamentos
+COMENTÁRIO: Dados inadequados
+COMENTÁRIO: Dados novos
+COMENTÁRIO: Condições dinâmicas
+COMENTÁRIO: Incerteza
+COMENTÁRIO: Baseadas em julgamento pessoal
+COMENTÁRIO: Gostei
+COMENTÁRIO: (98)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2098932)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Liderança e Motivação
+ENUNCIADO: O modelo de liderança situacional baseado nos estudos de Paul Hersey e Ken Blanchard é centrado, basicamente,
+ALTERNATIVAS:
+  A) na estrutura de iniciação, que corresponde à escolha da equipe de acordo com o desafio apresentado.
+  B) na adequação do estilo de liderança à situação e ao nível de maturidade da equipe.
+  C) na estrutura da tarefa, que demanda a adequada atribuição de atividades a cada colaborador, de acordo com seu grau de engajamento.
+  D) nas variáveis exógenas, que não influenciam o comportamento do líder, mas devem ser consideradas no estabelecimento de metas.
+  E) no nível de aceitação do líder pela equipe, que varia em uma relação proporcional ao grau de capacitação técnica dos liderados.
+COMENTÁRIO: 10 de Abril de 2023 às 19:57
+COMENTÁRIO: Gabarito: Letra B
+COMENTÁRIO: Na liderança situacional, proposta por Hersey e Blanchard (1986), não existe uma única, ou melhor, forma de liderar. Para tanto, o líder deve saber agir de maneira condizente com cada situação, aplicando maior ou menor ênfase no comportamento de relacionamento e/ou de tarefa a depender do que a situação específica exige, considerando, em especial, o nível de maturidade daquele indivíduo ou grupo para executar aquela determinada tarefa (HERSEY e BLANCHARD, 1974).
+COMENTÁRIO: @Concurseironnildo
+COMENTÁRIO: Gostei
+COMENTÁRIO: (146)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2098931)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Liderança e Motivação
+ENUNCIADO: A Teoria da Expectativa (ou Expectância) desenvolvida por Victor Vroom, como contribuição aos estudos do fenômeno da motivação predica que
+ALTERNATIVAS:
+  A) a motivação para o trabalho é uma característica intrínseca do ser humano, que não necessita ser induzida por recompensas.
+  B) existe uma hierarquia de necessidades a serem atendidas para gerar a motivação, sendo as ligadas à subsistência as mais relevantes.
+  C) o homem médio não é motivado para o trabalho, sendo necessário criar um sistema de sanções para obter os resultados pretendidos.
+  D) o ser humano é motivado apenas por expectativa de reconhecimento e pertencimento, sendo as recompensas materiais neutras do ponto de vista da motivação.
+  E) o comportamento humano é orientado para resultados, sendo a valência a medida de atração que o resultado, ou recompensa, exerce sobre o indivíduo.
+COMENTÁRIO: 06 de Abril de 2023 às 19:49
+COMENTÁRIO: Letra E.
+COMENTÁRIO: Teoria da EXPECTATIVA DE VROOM:
+COMENTÁRIO: -Motivação depende das expectativas das pessoas sobre habilidade de atingir resultados e conseguir recompensas.
+COMENTÁRIO: É o famoso VEI ------------------> Valência + Expetativa + Instrumentalidade.
+COMENTÁRIO: Bons estudos!! ❤️✍
+COMENTÁRIO: Gostei
+COMENTÁRIO: (236)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+
+GABARITO FINAL
+--------------------
+Questão 1 (ID: Q2384447): E
+Questão 2 (ID: Q2384445): 
+Questão 3 (ID: Q2384441): C
+Questão 4 (ID: Q2384439): E
+Questão 5 (ID: Q2384436): D
+Questão 6 (ID: Q2384435): C
+Questão 7 (ID: Q2384430): E
+Questão 8 (ID: Q2384429): A
+Questão 9 (ID: Q2384427): E
+Questão 10 (ID: Q2384426): 
+Questão 11 (ID: Q2384425): D
+Questão 12 (ID: Q2384422): D
+Questão 13 (ID: Q2384421): A
+Questão 14 (ID: Q2384420): A
+Questão 15 (ID: Q2384419): C
+Questão 16 (ID: Q2384418): E
+Questão 17 (ID: Q2384417): B
+Questão 18 (ID: Q2384416): A
+Questão 19 (ID: Q2384415): C
+Questão 20 (ID: Q2384410): B
+Questão 1 (ID: Q2384406): A
+Questão 2 (ID: Q2384405): 
+Questão 3 (ID: Q2384404): C
+Questão 4 (ID: Q2384401): A
+Questão 5 (ID: Q2384400): C
+Questão 6 (ID: Q2099551): E
+Questão 7 (ID: Q2099550): B
+Questão 8 (ID: Q2099549): D
+Questão 9 (ID: Q2099548): C
+Questão 10 (ID: Q2099547): 
+Questão 11 (ID: Q2099546): C
+Questão 12 (ID: Q2099545): B
+Questão 13 (ID: Q2099544): A
+Questão 14 (ID: Q2099543): 
+Questão 15 (ID: Q2099542): D
+Questão 16 (ID: Q2099541): B
+Questão 17 (ID: Q2099540): E
+Questão 18 (ID: Q2099539): B
+Questão 19 (ID: Q2099538): C
+Questão 20 (ID: Q2099537): A
+Questão 1 (ID: Q2099536): D
+Questão 2 (ID: Q2099535): 
+Questão 3 (ID: Q2099534): C
+Questão 4 (ID: Q2099533): E
+Questão 5 (ID: Q2099532): E
+Questão 6 (ID: Q2099531): C
+Questão 7 (ID: Q2099530): E
+Questão 8 (ID: Q2099529): B
+Questão 9 (ID: Q2099528): A
+Questão 10 (ID: Q2099527): D
+Questão 11 (ID: Q2099526): D
+Questão 12 (ID: Q2099525): 
+Questão 13 (ID: Q2099523): E
+Questão 14 (ID: Q2099522): 
+Questão 15 (ID: Q2098936): 
+Questão 16 (ID: Q2098935): C
+Questão 17 (ID: Q2098934): 
+Questão 18 (ID: Q2098933): D
+Questão 19 (ID: Q2098932): B
+Questão 20 (ID: Q2098931): E

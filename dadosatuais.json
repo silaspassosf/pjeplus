@@ -1,0 +1,65 @@
+{
+  "numero": [
+    "1000938-65.2016.5.02.0703"
+  ],
+  "id": 1005432,
+  "autor": [
+    {
+      "nome": "JANDA NAYARA CYRINO",
+      "cpfcnpj": "41240800851",
+      "advogado": {
+        "nome": "KELLY NASCIMENTO GONCALVES",
+        "cpf": "23121377809",
+        "oab": "SP362929"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "EDSON PEREIRA SALDANHA 25389723880",
+      "cpfcnpj": "19398910000100"
+    },
+    {
+      "nome": "EDSON PEREIRA SALDANHA",
+      "cpfcnpj": "25389723880"
+    }
+  ],
+  "terceiro": [
+    {
+      "nome": "REDECARD S.A."
+    },
+    {
+      "nome": "CIELO S.A."
+    },
+    {
+      "nome": "GETNET ADQUIRENCIA E SERVICOS PARA MEIOS DE PAGAMENTO S.A."
+    },
+    {
+      "nome": "SECRETARIA DA FAZENDA DO GOVERNO DE SAO PAULO - CAT - DEAT - DELEGACIA REGIONAL TRIBUTÁRIA"
+    }
+  ],
+  "divida": {
+    "valor": "R$ 72.949,75",
+    "data": "19/12/2024"
+  },
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "20/05/2016",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Execução",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

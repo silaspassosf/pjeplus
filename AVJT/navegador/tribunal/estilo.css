@@ -1,0 +1,14 @@
+@import url("/css/navegador.css");
+
+main{
+	height:100vh;
+	margin:40px 0 30px 0;
+}
+
+main h2{
+	margin:2rem 0 0 0;
+}
+
+#configuracoes{
+	display:none;
+}

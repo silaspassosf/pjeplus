@@ -1,0 +1,293 @@
+
+==================================================
+PROCESSO: 1000348-15.2021.5.02.0703
+==================================================
+    Id Pje: f7164af
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH035167567BR
+    Destinatário: MARCOS ANTONIO DOS SANTOS
+    Data do envio: 02/02/2026
+    Data da entrega: 10/02/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 5be2bbe
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH035167575BR
+    Destinatário: MARCOS ANTONIO DOS SANTOS
+    Data do envio: 02/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 8 dias (20/02/2026)
+==================================================
+
+
+
+
+
+==================================================
+PROCESSO: 1000361-19.2018.5.02.0703
+==================================================
+    Id Pje: fd49704
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH032112017BR
+    Destinatário: RISTO PETROFF MONEVITS
+    Data do envio: 29/01/2026
+    Data da entrega: 10/02/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: b5e7aa5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH032112003BR
+    Destinatário: RISTO PETROFF MONEVITS
+    Data do envio: 29/01/2026
+    Data da entrega: 09/02/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (20/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000361-19.2018.5.02.0703
+==================================================
+    Id Pje: fd49704
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH032112017BR
+    Destinatário: RISTO PETROFF MONEVITS
+    Data do envio: 29/01/2026
+    Data da entrega: 10/02/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: b5e7aa5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH032112003BR
+    Destinatário: RISTO PETROFF MONEVITS
+    Data do envio: 29/01/2026
+    Data da entrega: 09/02/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (20/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000361-19.2018.5.02.0703
+==================================================
+    Id Pje: fd49704
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH032112017BR
+    Destinatário: RISTO PETROFF MONEVITS
+    Data do envio: 29/01/2026
+    Data da entrega: 10/02/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: b5e7aa5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH032112003BR
+    Destinatário: RISTO PETROFF MONEVITS
+    Data do envio: 29/01/2026
+    Data da entrega: 09/02/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (20/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000750-62.2022.5.02.0703
+==================================================
+    Id Pje: 1f4d3b0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827734BR
+    Destinatário: LIDIMA MAO-DE-OBRA TEMPORARIA LTDA
+    Data do envio: 21/01/2026
+    Data da entrega: 13/02/2026
+    Status: Objeto devolvido ao remetente
+--------------------------------------------------
+
+    Id Pje: 7a867e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827748BR
+    Destinatário: ADARGA SERVICOS DE SEGURANCA E VIGILANCIA LTDA - EPP
+    Data do envio: 21/01/2026
+    Data da entrega: 13/02/2026
+    Status: Objeto devolvido ao remetente
+--------------------------------------------------
+
+    Id Pje: bede825
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827751BR
+    Destinatário: JACQUELINE SOLANAS MUNHOZ
+    Data do envio: 21/01/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: c826ca0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827725BR
+    Destinatário: LIDIMA TERCEIRIZACAO DE SERVICOS LTDA
+    Data do envio: 21/01/2026
+    Data da entrega: 05/02/2026
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1000750-62.2022.5.02.0703
+==================================================
+    Id Pje: 1f4d3b0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827734BR
+    Destinatário: LIDIMA MAO-DE-OBRA TEMPORARIA LTDA
+    Data do envio: 21/01/2026
+    Data da entrega: 13/02/2026
+    Status: Objeto devolvido ao remetente
+--------------------------------------------------
+
+    Id Pje: 7a867e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827748BR
+    Destinatário: ADARGA SERVICOS DE SEGURANCA E VIGILANCIA LTDA - EPP
+    Data do envio: 21/01/2026
+    Data da entrega: 13/02/2026
+    Status: Objeto devolvido ao remetente
+--------------------------------------------------
+
+    Id Pje: bede825
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827751BR
+    Destinatário: JACQUELINE SOLANAS MUNHOZ
+    Data do envio: 21/01/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: c826ca0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827725BR
+    Destinatário: LIDIMA TERCEIRIZACAO DE SERVICOS LTDA
+    Data do envio: 21/01/2026
+    Data da entrega: 05/02/2026
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001047-98.2024.5.02.0703
+==================================================
+    Id Pje: c78a286
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH036324811BR
+    Destinatário: ANDRE RICARDO NASCIMENTO
+    Data do envio: 03/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: d416ad3
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH036324825BR
+    Destinatário: ANDRE RICARDO NASCIMENTO
+    Data do envio: 03/02/2026
+    Data da entrega: 10/02/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (03/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000866-63.2025.5.02.0703
+==================================================
+    Id Pje: f8a1a7e
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH040080262BR
+    Destinatário: RONALDO APARECIDO DE LIMA
+    Data do envio: 04/02/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+
+Prazo: 15 dias (25/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001100-55.2019.5.02.0703
+==================================================
+    Id Pje: e4c1f50
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH049172479BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 13/02/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+--------------------------------------------------
+
+    Id Pje: 7ace5fa
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH049172465BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 13/02/2026
+    Data da entrega: 23/02/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (16/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-47.2020.5.02.0703
+==================================================
+    Id Pje: 7427e15
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH035167743BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 02/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto aguardando retirada no endereço indicado
+--------------------------------------------------
+
+    Id Pje: 3964819
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH035167757BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 02/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (23/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001652-08.2024.5.02.0036
+==================================================
+    Id Pje: bc7696c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483972BR
+    Destinatário: PHOENIX ENGENHARIA E CONSULTORIA LTDA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 5d05202
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483969BR
+    Destinatário: MANOEL MESSIAS BARBOSA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (09/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001731-86.2025.5.02.0703
+==================================================
+    Id Pje: 8d2a01f
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH051391929BR
+    Destinatário: DEMOSTENES LUPERO TOZZI
+    Data do envio: 19/02/2026
+    Data da entrega: 27/02/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (20/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000350-60.2023.5.02.0041
+==================================================
+    Id Pje: f1e9cf0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH063278100BR
+    Destinatário: JACQUES LUCIO DE MOREIRA E NUNES
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (19/03/2026)
+==================================================
+

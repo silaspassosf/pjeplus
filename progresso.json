@@ -1,0 +1,22 @@
+{
+  "pec": {
+    "processos_executados": [
+      "1001044-12.2025.5.02.0703",
+      "1000624-41.2024.5.02.0703",
+      "1000938-65.2016.5.02.0703",
+      "1000235-44.2015.5.02.0712"
+    ],
+    "processos_com_erro": [],
+    "session_active": true,
+    "last_update": "2026-01-23T16:26:17.497925"
+  },
+  "mandado": {
+    "processos_executados": [
+      "1000207-25.2023.5.02.0703",
+      "1001500-64.2022.5.02.0703"
+    ],
+    "processos_com_erro": [],
+    "session_active": true,
+    "last_update": "2026-01-23T16:21:17.208832"
+  }
+}

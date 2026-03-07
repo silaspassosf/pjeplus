@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang='pt-BR'>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            img { display: none;}
+			body {
+				font-family: Open Sans,Arial,Verdana,sans-serif;
+			}
+
+			table {
+				border-collapse: collapse;
+				border-spacing: 0;
+				width: 100%;
+				border: 1px solid #ddd;
+				font-size: 13px;
+			}
+			th {
+				background-color: #f0f0f0;
+				padding: 0 10px;
+				vertical-align: middle;
+				text-align: left;
+				border-bottom: 0 solid;
+				border-color: #d7d7d7;
+				min-width: -moz-fit-content;
+			}
+
+			td {
+				padding: 0 10px;
+				border-top: 2px solid rgba(0,0,0,.12);
+				text-align: left;
+				vertical-align: middle;
+			}
+
+			tr:nth-child(even) {
+				background-color: #f0f0f0;
+			}
+			
+			tr:hover {
+				background-color: #daa52075;
+				border: 2px solid goldenrod;
+			}
+			
+			.titulo {
+				font-size: 24px;
+				color: #373a3c;
+				text-align: center;
+			}
+			.subtitulo {
+				font-size: 14px;
+				color: #888;
+				text-align: center;
+			}
+			
+			a:link {
+				color: unset;
+				text-decoration: none;
+			}
+			
+			a:visited {
+				color: unset;
+				text-decoration: none;
+			}
+			
+			a:active  {
+				color: unset;
+				text-decoration: none;
+			}
+
+			.carregando {
+                width: 5px;
+                aspect-ratio: 1;
+                border-radius: 50%;
+                animation: l5 1s infinite linear alternate;
+                margin: 5px 0 5px 30px;                
+                padding: 0;
+            }
+
+			@keyframes l5 {
+                0%  {box-shadow: 10px 0 rgb(53, 135, 138), -10px 0 rgb(53, 135, 138, 0.2);background: rgb(53, 135, 138) }
+                33% {box-shadow: 10px 0 rgb(53, 135, 138), -10px 0 rgb(53, 135, 138, 0.2);background: rgb(53, 135, 138, 0.2)}
+                66% {box-shadow: 10px 0 rgb(53, 135, 138, 0.2),-10px 0 rgb(53, 135, 138); background: rgb(53, 135, 138, 0.2)}
+                100%{box-shadow: 10px 0 rgb(53, 135, 138, 0.2),-10px 0 rgb(53, 135, 138); background: rgb(53, 135, 138) }
+            }
+
+        </style>
+        <title>Conferência de Alvarás - SIF - maisPJe</title>
+	</head>
+
+	<body id='maisPje_Janela_Conferencia_alvaras'>
+        <span class='titulo'>Relatório de Alvarás SIF - Total: <span id="maisPje_span_total_alvaras"></span></span><br><br>
+        <span class='subtitulo'>Gerado em: </span>
+        <br><br>
+        <span style='position: absolute;right: 0;top: 0;color: #e1b6b6;'>Pressione F2 para ajustar o temporizador da conferência automática de alvarás SIF &nbsp;</span>
+        <span style='position: absolute;right: 0;top: 3vh;color: #e1b6b6;'>Pressione F3 para verificar se o processo possui documento pendente de assinatura&nbsp;</span>
+        <br><br>
+
+		<script src="popupConferirAlvaraSIF.js"></script>
+		<script src="../comum/apis.js"></script>
+        <script src="../comum/mini-selenium.js"></script>		
+        <script src="PJe-Atual/gigs-plugin.js"></script>
+	</body>
+</html>

@@ -1,0 +1,119 @@
+pje-historico-scroll,
+#viewerContainer,
+.container-documentos,
+.pje-timeline
+{
+	scroll-behavior:smooth;
+}
+
+area-de-rolagem{
+	cursor:pointer;
+	display:block;
+	height:0;
+	padding:0;
+	position:fixed;
+	width:0;
+	z-index:10;
+}
+
+area-de-rolagem#pagina-rolagem-inicio,
+area-de-rolagem#pagina-rolagem-final
+{
+	border-left:100px solid transparent;
+	border-right:100px solid transparent;
+}
+
+area-de-rolagem#documento-rolagem-inicio,
+area-de-rolagem#documento-rolagem-final
+{
+	border-left:20px solid transparent;
+	border-right:20px solid transparent;
+	margin:0 0 0 400px;
+}
+
+area-de-rolagem#timeline-rolagem-inicio,
+area-de-rolagem#timeline-rolagem-final
+{
+	border-left:100px solid transparent;
+	border-right:100px solid transparent;
+	margin:0 0 0 100px;
+}
+
+area-de-rolagem#pagina-rolagem-inicio,
+area-de-rolagem#documento-rolagem-inicio,
+area-de-rolagem#timeline-rolagem-inicio
+{
+	border-bottom:rgba(var(--extensao-cor-primaria),0.5) 15px solid;
+}
+
+area-de-rolagem#pagina-rolagem-final,
+area-de-rolagem#documento-rolagem-final,
+area-de-rolagem#timeline-rolagem-final
+{
+	border-top:rgba(var(--extensao-cor-primaria),0.5) 15px solid;
+	bottom:0;
+}
+
+
+area-de-rolagem#documento-rolagem-cima,
+area-de-rolagem#timeline-rolagem-cima
+{
+	border-left:20px solid transparent;
+	border-right:20px solid transparent;
+	border-bottom:rgba(var(--extensao-cor-primaria),0.5) 70px solid;
+	margin:0;
+	top:calc(50% - 35px);
+}
+area-de-rolagem#documento-rolagem-baixo,
+area-de-rolagem#timeline-rolagem-baixo
+{
+	border-left:20px solid transparent;
+	border-right:20px solid transparent;
+	border-top:rgba(var(--extensao-cor-primaria),0.5) 70px solid;
+	margin:0;
+	top:calc(50% + 35px);
+}
+
+
+area-de-rolagem#documento-rolagem-baixo,
+area-de-rolagem#documento-rolagem-cima
+{
+	left:400px;
+}
+
+
+area-de-rolagem#pagina-rolagem-inicio,
+area-de-rolagem#timeline-rolagem-inicio,
+area-de-rolagem#timeline-rolagem-cima,
+area-de-rolagem#timeline-rolagem-baixo,
+area-de-rolagem#timeline-rolagem-final
+{
+	left:0;
+}
+
+area-de-rolagem#documento-rolagem-final
+{
+	bottom:calc(50% - 200px);
+	border-top:rgba(var(--extensao-cor-primaria),0.5) 50px solid;
+}
+
+area-de-rolagem#documento-rolagem-inicio{
+	top:calc(50% - 130px);
+	border-bottom:rgba(var(--extensao-cor-primaria),0.5) 50px solid;
+}
+
+area-de-rolagem#timeline-rolagem-inicio{
+	top:106px;
+}
+
+area-de-rolagem#pagina-rolagem-inicio{
+	left:50%;
+	margin-left:-100px;
+	top:80px;
+}
+
+area-de-rolagem#pagina-rolagem-final{
+	bottom:0;
+	left:50%;
+	margin-left:-100px;
+}

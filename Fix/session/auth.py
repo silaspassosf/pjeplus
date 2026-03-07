@@ -1,0 +1,482 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+Session - Gestão de Sessões, Cookies e Autenticação
+====================================================
+
+Extração do Fix/core.py (2915 linhas) → session/ (~400 linhas)
+
+FUNÇÕES EXTRAÍDAS (lines 1694-1900 do core.py):
+- salvar_cookies_sessao: Salva cookies em JSON
+- carregar_cookies_sessao: Carrega cookies de JSON com validação
+- credencial: Função unificada driver + login + cookies
+
+RESPONSABILIDADE:
+- Salvar e carregar cookies de sessão
+- Validar idade e validade dos cookies
+- Login unificado (certificado ou CPF/senha)
+- Integração com drivers e sistema de login
+
+DEPENDÊNCIAS:
+- selenium.webdriver: WebDriver
+- Fix.drivers: criar_driver_*, finalizar_driver
+- Fix.utils: login_pc, login_cpf
+- json, os, datetime, glob, time
+
+USO TÍPICO:
+    from Fix.session import credencial
+    
+    # Login automático com cookies
+    driver = credencial(tipo_driver='PC', tipo_login='CPF')
+    
+    # Driver já vem autenticado e pronto para uso
+    driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
+
+AUTOR: Extração PJePlus Refactoring Phase 2
+DATA: 2025-01-29
+"""
+
+import os
+import json
+import time
+import glob
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Any
+
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium.webdriver.remote.webelement import WebElement
+
+from Fix.drivers import (
+    criar_driver_PC,
+    criar_driver_VT,
+    criar_driver_notebook,
+    criar_driver_sisb_pc,
+    criar_driver_sisb_notebook
+)
+from Fix.log import logger
+
+# =============================
+# COOKIES MANAGER
+# =============================
+
+def salvar_cookies_sessao(
+    driver: WebDriver,
+    caminho_arquivo: Optional[str] = None,
+    info_extra: Optional[str] = None
+) -> bool:
+    """
+    Salva todos os cookies da sessão Selenium em um arquivo JSON.
+    
+    Formato do arquivo:
+    {
+        "timestamp": "2025-01-29T14:30:00",
+        "url_base": "https://pje.trt2.jus.br/...",
+        "cookies": [...]
+    }
+    
+    Args:
+        driver: WebDriver com sessão ativa
+        caminho_arquivo: Caminho customizado para salvar (opcional)
+        info_extra: Informação extra para o nome do arquivo (opcional)
+    
+    Returns:
+        True se salvou com sucesso, False caso contrário
+    
+    Exemplo Simples:
+        # Salvar cookies automaticamente
+        salvar_cookies_sessao(driver)
+        # Cria: cookies_sessoes/cookies_sessao_20250129_143000.json
+    
+    Exemplo com Info Extra:
+        # Salvar com identificação
+        salvar_cookies_sessao(driver, info_extra='credencial_PC_CPF')
+        # Cria: cookies_sessoes/cookies_sessao_credencial_PC_CPF_20250129_143000.json
+    
+    Exemplo com Caminho Customizado:
+        salvar_cookies_sessao(driver, caminho_arquivo='./meus_cookies.json')
+    
+    Notas:
+        - Pasta padrão: ./cookies_sessoes/
+        - Timestamp automático no nome do arquivo
+        - Salva URL atual junto com os cookies
+        - Retorna False se não há cookies para salvar
+    """
+    try:
+        cookies = driver.get_cookies()
+        if not cookies:
+            return False
+        
+        # Gerar caminho automático se não fornecido
+        if not caminho_arquivo:
+            pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
+            os.makedirs(pasta, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            info = f'_{info_extra}' if info_extra else ''
+            caminho_arquivo = os.path.join(
+                pasta,
+                f'cookies_sessao{info}_{timestamp}.json'
+            )
+        
+        # Preparar dados
+        dados_cookies = {
+            'timestamp': datetime.now().isoformat(),
+            'url_base': driver.current_url,
+            'cookies': cookies
+        }
+        
+        # Salvar JSON
+        with open(caminho_arquivo, 'w', encoding='utf-8') as f:
+            json.dump(dados_cookies, f, ensure_ascii=False, indent=2)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f'[COOKIES][ERRO] Falha ao salvar cookies: {e}')
+        return False
+
+def carregar_cookies_sessao(
+    driver: WebDriver,
+    max_idade_horas: int = 24
+) -> bool:
+    """
+    Carrega cookies de sessão mais recentes e válidos automaticamente.
+    
+    Processo:
+    1. Busca arquivo de cookies mais recente em ./cookies_sessoes/
+    2. Valida idade (max_idade_horas)
+    3. Navega para URL base (https://pje.trt2.jus.br/primeirograu/)
+    4. Adiciona cookies ao driver
+    5. Valida se cookies funcionaram (acesso ao painel)
+    
+    Args:
+        driver: WebDriver para adicionar os cookies
+        max_idade_horas: Idade máxima dos cookies em horas (default: 24)
+    
+    Returns:
+        True se cookies carregados e válidos, False caso contrário
+    
+    Exemplo:
+        driver = criar_driver_PC()
+        
+        # Tentar carregar cookies
+        if carregar_cookies_sessao(driver, max_idade_horas=24):
+            logger.info("Login automático realizado!")
+        else:
+            logger.info("Cookies inválidos, fazer login manual")
+    
+    Validação de Cookies:
+        - Verifica se cookies são muito antigos (>max_idade_horas)
+        - Testa acesso ao painel PJe
+        - Detecta redirecionamento para login ou acesso negado
+        - Apaga cookies automaticamente se inválidos
+    
+    Notas:
+        - Usa arquivo mais recente (por data de modificação)
+        - Limpa campos expiry/httpOnly/secure/sameSite (compatibilidade)
+        - Sleep de 3s após aplicar cookies (estabilização)
+        - Retorna False se pasta não existe ou sem arquivos
+    """
+    try:
+        # Buscar pasta de cookies
+        pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
+        if not os.path.exists(pasta):
+            return False
+        
+        # Buscar arquivos de cookies
+        arquivos_cookies = glob.glob(os.path.join(pasta, 'cookies_sessao*.json'))
+        if not arquivos_cookies:
+            return False
+        
+        # Selecionar arquivo mais recente
+        arquivo_mais_recente = max(arquivos_cookies, key=os.path.getmtime)
+        
+        # Carregar JSON
+        with open(arquivo_mais_recente, 'r', encoding='utf-8') as f:
+            dados = json.load(f)
+        
+        # Extrair timestamp e cookies
+        if 'timestamp' in dados:
+            timestamp_str = dados['timestamp']
+            cookies = dados['cookies']
+        else:
+            # Fallback: usar data de modificação do arquivo
+            timestamp_str = datetime.fromtimestamp(
+                os.path.getmtime(arquivo_mais_recente)
+            ).isoformat()
+            cookies = dados
+
+        # Validar idade dos cookies
+        timestamp_cookies = datetime.fromisoformat(
+            timestamp_str.replace('Z', '+00:00').replace('+00:00', '')
+        )
+        idade = datetime.now() - timestamp_cookies
+
+        if idade > timedelta(hours=max_idade_horas):
+            logger.info(
+                f'[COOKIES] Cookies muito antigos ({idade.total_seconds()/3600:.1f}h). '
+                f'Pulando.'
+            )
+            return False
+
+        # Navegar para URL base antes de adicionar cookies
+        driver.get('https://pje.trt2.jus.br/primeirograu/')
+
+        # Adicionar cookies ao driver
+        cookies_carregados = 0
+        for cookie in cookies:
+            try:
+                # Limpar campos que causam problemas
+                cookie_limpo = {
+                    k: v for k, v in cookie.items()
+                    if k not in ['expiry', 'httpOnly', 'secure', 'sameSite']
+                }
+                driver.add_cookie(cookie_limpo)
+                cookies_carregados += 1
+            except Exception as e:
+                pass
+
+        logger.info(
+            f'[COOKIES] {cookies_carregados} cookies carregados de '
+            f'{os.path.basename(arquivo_mais_recente)}'
+        )
+
+        # Validar se cookies funcionaram.
+        # Usa page_load_timeout curto para retornar assim que o redirect acontecer,
+        # sem esperar o Angular SPA terminar de renderizar (~60s).
+        timeout_original = driver.timeouts.page_load
+        try:
+            driver.set_page_load_timeout(8)
+            driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
+        except Exception:
+            pass  # TimeoutException esperada — URL ja reflete o redirect
+        finally:
+            try:
+                driver.set_page_load_timeout(timeout_original)
+            except Exception:
+                pass
+
+        # Verificar se foi redirecionado para acesso negado
+        if 'acesso-negado' in driver.current_url.lower():
+            try:
+                driver.delete_all_cookies()
+            except Exception as e:
+                pass
+            return False
+        
+        # Verificar se foi redirecionado para login
+        if 'login' in driver.current_url.lower():
+            return False
+        else:
+            return True
+            
+    except Exception as e:
+        logger.error(f'[COOKIES][ERRO] Falha ao carregar cookies: {e}')
+        return False
+
+# =============================
+# CREDENCIAL UNIFICADA
+# =============================
+
+def credencial(
+    tipo_driver: str = 'PC',
+    tipo_login: str = 'CPF',
+    headless: bool = False,
+    cpf: Optional[str] = None,
+    senha: Optional[str] = None,
+    url_login: Optional[str] = None,
+    max_idade_cookies: int = 24
+) -> Optional[WebDriver]:
+    """
+    Função unificada para criação de driver + login + gerenciamento de cookies.
+    
+    Processo completo:
+    1. Cria driver do tipo especificado
+    2. Tenta carregar cookies existentes (login automático)
+    3. Se cookies inválidos, faz login manual
+    4. Salva cookies após login bem-sucedido
+    5. Retorna driver autenticado e pronto para uso
+    
+    Args:
+        tipo_driver: 'PC', 'VT', 'notebook', 'sisb_pc', 'sisb_notebook'
+        tipo_login: 'PC' (certificado) ou 'CPF' (cpf/senha)
+        headless: Executar em modo headless (default: False)
+        cpf: CPF para login (se tipo_login='CPF', default: '35305203813')
+        senha: Senha para login (se tipo_login='CPF', default: 'SpF59866')
+        url_login: URL de login customizada (opcional)
+        max_idade_cookies: Idade máxima dos cookies em horas (default: 24)
+    
+    Returns:
+        WebDriver autenticado, ou None se falhar
+    
+    Exemplo Básico (CPF/senha com cookies automáticos):
+        driver = credencial(tipo_driver='PC', tipo_login='CPF')
+        # Se cookies válidos: login instantâneo
+        # Se cookies inválidos: faz login e salva cookies
+    
+    Exemplo com Certificado:
+        driver = credencial(tipo_driver='PC', tipo_login='PC')
+        # Login por certificado digital
+    
+    Exemplo SISBAJUD:
+        driver = credencial(tipo_driver='sisb_pc', tipo_login='CPF')
+    
+    Exemplo Customizado:
+        driver = credencial(
+            tipo_driver='notebook',
+            tipo_login='CPF',
+            headless=True,
+            cpf='12345678900',
+            senha='minha_senha',
+            max_idade_cookies=48
+        )
+    
+    Notas:
+        - Sempre tenta carregar cookies primeiro (performance)
+        - Salva cookies automaticamente após login bem-sucedido
+        - Fecha driver automaticamente se houver erro
+        - Usa valores padrão para CPF/senha se não fornecidos
+    """
+    try:
+        # 1. CRIAR DRIVER baseado no tipo
+        
+        tipo_driver_upper = tipo_driver.upper()
+        tipo_driver_lower = tipo_driver.lower()
+        
+        if tipo_driver_upper == 'PC':
+            driver = criar_driver_PC(headless=headless)
+        elif tipo_driver_upper == 'VT':
+            driver = criar_driver_VT(headless=headless)
+        elif tipo_driver_lower == 'notebook':
+            driver = criar_driver_notebook(headless=headless)
+        elif tipo_driver_lower == 'sisb_pc':
+            driver = criar_driver_sisb_pc(headless=headless)
+        elif tipo_driver_lower == 'sisb_notebook':
+            driver = criar_driver_sisb_notebook(headless=headless)
+        else:
+            logger.error(f"[CREDENCIAL]  Tipo de driver inválido: {tipo_driver}")
+            return None
+        
+        if not driver:
+            logger.error("[CREDENCIAL]  Falha ao criar driver")
+            return None
+        
+        
+        # 2. CARREGAR COOKIES (sempre ativo)
+        cookies_carregados = carregar_cookies_sessao(driver, max_idade_horas=max_idade_cookies)
+        
+        if cookies_carregados:
+            return driver
+        
+        # 3. FAZER LOGIN baseado no tipo
+        
+        tipo_login_upper = tipo_login.upper()
+        
+        if tipo_login_upper == 'PC':
+            # Login por certificado
+            from Fix.utils import login_pc
+            sucesso_login = login_pc(driver)
+            
+        elif tipo_login_upper == 'CPF':
+            # Login por CPF/senha
+            from Fix.utils import login_cpf
+            
+            # Usar valores padrão se não fornecidos
+            if not cpf:
+                cpf = os.environ.get('PJE_SILAS')
+            if not senha:
+                senha = os.environ.get('PJE_SENHA')
+            
+            sucesso_login = login_cpf(
+                driver,
+                url_login=url_login,
+                cpf=cpf,
+                senha=senha,
+                aguardar_url_final=True
+            )
+        else:
+            logger.error(f"[CREDENCIAL]  Tipo de login inválido: {tipo_login}")
+            driver.quit()
+            return None
+        
+        if not sucesso_login:
+            logger.error(f"[CREDENCIAL]  Falha no login {tipo_login}")
+            driver.quit()
+            return None
+        
+        
+        # 4. SALVAR COOKIES (sempre ativo)
+        try:
+            info_extra = f"credencial_{tipo_driver}_{tipo_login}"
+            salvar_cookies_sessao(driver, info_extra=info_extra)
+        except Exception as e:
+            logger.error(f"[CREDENCIAL]  Erro ao salvar cookies: {e}")
+        
+        return driver
+        
+    except Exception as e:
+        logger.error(f"[CREDENCIAL]  Erro geral: {e}")
+        if 'driver' in locals():
+            try:
+                driver.quit()
+            except:
+                pass
+        return None
+
+
+def verificar_e_aplicar_cookies(driver: WebDriver) -> bool:
+    """Função integrada que verifica e aplica cookies automaticamente"""
+    from .utils_cookies import USAR_COOKIES_AUTOMATICO
+    
+    if not USAR_COOKIES_AUTOMATICO:
+        return False
+
+    sucesso: bool = carregar_cookies_sessao(driver)
+
+    if sucesso:
+        try:
+            current_url: str = driver.current_url
+            if 'acesso-negado' in current_url.lower():
+                logger.warning('Acesso negado detectado após aplicar cookies - forçando login CPF...')
+                url_login: str = 'https://pje.trt2.jus.br/primeirograu/login.seam'
+                driver.get(url_login)
+                time.sleep(1.2)
+
+                try:
+                    from selenium.webdriver.common.by import By
+                    username_field: WebElement = driver.find_element(By.NAME, 'username')
+                    password_field: WebElement = driver.find_element(By.NAME, 'password')
+                    submit_button: WebElement = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
+                    username_field.clear()
+                    username_field.send_keys(os.environ.get('PJE_SILAS', ''))
+                    time.sleep(0.3)
+
+                    password_field.clear()
+                    password_field.send_keys(os.environ.get('PJE_SENHA', ''))
+                    time.sleep(0.3)
+
+                    submit_button.click()
+
+                    # Aguardar redirecionamento pós-login (substituído sleep fixo)
+                    from selenium.webdriver.support.ui import WebDriverWait
+                    try:
+                        WebDriverWait(driver, 15).until(
+                            lambda d: not any(k in d.current_url.lower() for k in ['login', 'auth', 'realms'])
+                        )
+                    except Exception:
+                        pass
+
+                    from .utils_cookies import SALVAR_COOKIES_AUTOMATICO
+                    if SALVAR_COOKIES_AUTOMATICO:
+                        salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
+                    return True
+
+                except Exception as e:
+                    logger.error(f'[COOKIES][ERRO] Falha no login forçado: {e}')
+                    return False
+            return True
+        except Exception as e:
+            logger.error(f'[COOKIES][WARN] Erro ao verificar URL atual: {e}')
+    else:
+        logger.error('Cookies inválidos ou inexistentes. Login manual necessário.')
+    return sucesso

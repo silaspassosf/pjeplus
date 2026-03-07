@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+
+		<meta charset="utf-8">
+
+		<title>Configurações</title>
+
+		<link rel="stylesheet" href="estilo.css" />
+
+	</head>
+
+	<body>
+
+		<header>
+			<h1></h1>
+		</header>
+
+		<main>
+			<form>
+				<fieldset>
+
+					<section>
+						<h2>Configurações da Extensão</h2>
+
+						<informacoes>
+							<i aria-label="Os dados informados nesta seção servirão para definir variáveis em contextos específicos."></i>
+						</informacoes>
+
+						<configuracoes class="usuario">
+							<label class="largura49">Instância:<br>
+								<input
+									type = "number"
+									class = "instancia"
+									min = "1"
+									max = "2"
+									value = "1"
+								>
+							</label>
+							<label class="largura49">E-mail:<br>
+								<input
+									type = "email"
+									class = "email"
+									value = "@trt15.jus.br"
+									aria-label = "E-mail"
+									autofocus
+								>
+							</label>
+
+						</configuracoes>
+					</section>
+					<section id="exportacao-importacao">
+						<h2>Exportação e Importação de Configurações</h2>
+							<informacoes>
+								<i aria-label="Nesta seção é possível exportar e importar configurações da extensão."></i>
+							</informacoes>
+						<configuracoes class="texto">
+							<label class="largura49">Exportar:<br>
+								<textarea
+								rows = "10"
+								class = "exportar"
+								aria-label = "Exportar Configurações"
+								spellcheck="false"
+								></textarea>
+							</label>
+							<label class="largura49">Importar:<br>
+								<textarea
+								rows = "10"
+								class = "importar"
+								aria-label = "Importar Configurações"
+								spellcheck="false"
+								></textarea>
+							</label>
+							<input type="button" id="importar" value="Importar Configurações" title="Importar Configurações">
+						</configuracoes>
+					</section>
+				</fieldset>
+				<input type="submit" id="salvar" value="Salvar" title="Salvar">
+			</form>
+
+		</main>
+
+		<footer></footer>
+
+	</body>
+
+	<script src="/publicas/definicoes.js"></script>
+	<script src="/publicas/gerais.js"></script>
+	<script src="/publicas/relatar.js"></script>
+	<script src="/publicas/navegador.js"></script>
+	<script src="/publicas/dom.js"></script>
+	<script src="/navegador/cabecalho.js"></script>
+	<script src="/navegador/rodape.js"></script>
+	<script src="programa.js"></script>
+
+</html>

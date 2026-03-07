@@ -1,0 +1,54 @@
+# Python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Node
+node_modules/
+package-lock.json
+yarn.lock
+.npm
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs & Temp
+*.log
+*.tmp
+temp/
+logs/
+.cache/
+
+# Project specific
+cookies_sessoes/*.json
+!cookies_sessoes/.gitkeep
+build/supervisor_gui/
+build/temp/
+
+# Large binaries
+*.exe
+*.dmg
+*.pkg
+*.msi
+*.rar
+*.zip
+*.7z

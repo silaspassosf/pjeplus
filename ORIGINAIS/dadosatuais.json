@@ -1,0 +1,59 @@
+{
+  "numero": [
+    "1001238-12.2025.5.02.0703"
+  ],
+  "id": 7513313,
+  "autor": [
+    {
+      "nome": "VANESSA FIGUEIRA AZEVEDO",
+      "cpfcnpj": "05155449731",
+      "advogado": {
+        "nome": "SERGIO GONINI BENICIO",
+        "cpf": "17791556898",
+        "oab": "SP195470"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "OCEANAIR LINHAS AEREAS S/A FALIDO",
+      "cpfcnpj": "02575829000148"
+    },
+    {
+      "nome": "SPSYN PARTICIPACOES LTDA",
+      "cpfcnpj": "06335724000172"
+    },
+    {
+      "nome": "JOSE EFROMOVICH",
+      "cpfcnpj": "69204756853"
+    },
+    {
+      "nome": "LUIZ SIMANTOB",
+      "cpfcnpj": "04613473853"
+    }
+  ],
+  "terceiro": [],
+  "divida": {
+    "valor": "R$ 9.406,69",
+    "data": "01/10/2025"
+  },
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "18/07/2025",
+  "classeJudicial": {
+    "id": 645,
+    "codigo": "15160",
+    "descricao": "Cumprimento de Sentença de Ações Coletivas",
+    "sigla": "CSAC",
+    "requerProcessoReferenciaCodigo": "OB",
+    "controlaValorCausa": false,
+    "podeIncluirAutoridade": false,
+    "ativo": true,
+    "idClasseJudicialPai": 115,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Execução",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

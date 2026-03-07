@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Configurações maisPJe</title>
+		<link rel="stylesheet" href="../maisPje_icones.css" />
+		<style>
+			legend > h3 {
+				margin-top: 1px 0;
+			}
+			.convenios {
+				display: flex;   
+				flex-wrap: wrap; 
+				list-style: none;
+				margin: 0;       
+				padding: 0;      
+				gap: 4px;        
+			}
+			.sr-only {
+				position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+			}
+			ol {
+			margin:0 0 1.5em;
+			padding:0;
+			counter-reset:item;
+			}
+			
+			ol>li {
+			margin:.5em 0;
+			padding:0 0 0 2em;
+			text-indent:-2em;
+			list-style-type:none;
+			counter-increment:item;
+			}
+			
+			ol>li:before {
+			display:inline-block;
+			width:1.5em;
+			padding-right:0.5em;
+			font-weight:bold;
+			text-align:right;
+			content:counter(item) ".";
+			}
+			body {
+				font-family: "NunitoSans Regular", "Arial", sans-serif;
+				font-size: 0.8em;
+				color: #333;
+				font-weight: normal;
+				padding-left: 10px;
+				line-height:1.5;
+				background: #ebf0f3;
+				padding-right: 6vw;
+			}
+			
+			#overlay {
+				position: fixed;
+				width: 100%;
+				height: 100%;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: rgba(0,0,0,1);
+				z-index: 2;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				color: rgba(81,81,81);
+				opacity:0.5;
+				font-size: 80px;
+				font-weight: bold;
+				text-align: center;
+				line-height: 15;
+				text-shadow: 1px 1px #000;				
+			}
+			
+			#atencao{
+				font-weight: bold;
+				color: #000;
+				text-align: center;
+				text-shadow: 1px 1px #fff;
+				background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 5px, transparent 5px, transparent 10px);
+			}
+			
+			#atencao_popUp{				
+				color: #fff;
+				font-size: 60px;
+				font-weight: bold;
+				text-align: center;
+				text-shadow: 1px 1px #000;
+				position: absolute;
+				top: 35%;
+			}
+			
+			#textoItalico{
+				font-size: 20px;
+				color: darkcyan;
+				font-style: italic;
+				text-align:top;	
+			}
+			
+			#subtitulo {
+				color: #545454;
+				font-size: 1.225em;
+				font-weight: 500;
+				line-height: normal;
+				word-wrap: break-word;
+			}
+			
+			ckeckbox {
+				border-radius: 2px;
+			}
+
+			.hiddenradio [type=radio] { 
+				position: absolute;
+				opacity: 0;
+				width: 100%;
+				height: 100%;
+			}
+			
+			fieldset {
+				position: relative;
+				border-radius: 5px;
+				margin-bottom: 1vh;
+				background: white;
+				border: #cccccc solid 1px;
+				box-shadow: 0 0 0.3em #bbb;
+				padding: 15px;
+			}
+						
+			#ajuda{
+				width: 12px;
+				height: 12px;
+			}
+			
+			#config {
+				color: gray;
+				font-size: 30px;
+				font-weight: bold;
+				position: absolute;
+				top: 3%;
+				right: 8vw;
+			}
+			
+			#novidades_versao {
+				position: absolute;
+				top: 10vh;
+				right: 8vw;
+				cursor: pointer;
+				color: white;
+				background: red;
+				padding: 2px 6px 2px 6px;
+				border-radius: .25em;
+				font-size: 16px;
+				animation: pulse-red 2s infinite;
+			}
+			
+			#termoDeUso {
+				position: relative;
+				cursor: pointer;
+				color: gray;
+				font-size: 12px;
+			}
+			
+			#tutoriais {
+				position: relative;
+				cursor: pointer;
+				color: gray;
+				font-size: 16px;
+				top: 1.8px;
+			}
+			
+			@keyframes pulse-red {
+				0% {
+					transform: scale(0.95);
+					box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7);
+				}
+
+				70% {
+					transform: scale(1);
+					box-shadow: 0 0 0 10px rgba(255, 0, 0, 0);
+				}
+
+				100% {
+					transform: scale(0.95);
+					box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+				}
+			}
+
+			@keyframes pulse-font {
+				0% {
+					color: blue;
+				}
+				10% {
+					color: #8e44ad;
+				}
+				20% {
+					color: #1abc9c;
+				}
+				30% {
+					color: #d35400;
+				}
+				40% {
+					color: blue;
+				}
+				50% {
+					color: #34495e;
+				}
+				60% {
+					color: blue;
+				}
+				70% {
+					color: #2980b9;
+				}
+				80% {
+					color: #1abc9c;
+				}
+				90% {
+					color: #2980b9;
+				}
+				100% {
+					color: blue;
+				}
+			}
+			
+			.titulo {
+				position:relative;
+				max-width:100%;
+				margin:0 0 .4em;
+				padding:0;
+				color:#333;
+				font-size:1.875em;
+				font-weight:600;
+				text-align:center;
+				text-transform:none;
+				word-wrap:break-word;
+			}
+			
+			.textoajuda{
+				visibility:hidden;
+				font-size: 0;
+				position: absolute;
+				z-index: -1;
+			}
+			
+			i.tutorial {
+				text-decoration: none;
+				cursor: pointer;
+				color: black;
+				font-style: normal;
+			}
+			
+			i.tutorial:hover {
+				background-color: #3085d6;
+			}
+			
+			a {
+			  text-decoration: none;
+			  color: black;			  
+			}
+			
+			a.tip div {
+				background-color: #ddd;
+				border: 1px solid #aaa;
+				max-width: 450px;
+				text-align: center;
+				padding: 3px 5px;
+				margin: 0;
+				font-style: normal;
+				text-indent: 0;
+				color: #000;
+				display: inline-block;
+				cursor: pointer;
+			}
+			
+			a.tip span {
+				display: none;
+				background-color: #fffff3;
+				opacity: 1;
+			}
+			
+			a.tip:hover span {				
+				display: inherit;
+				position: absolute;
+				z-index: 100;
+				pointer-events: none;
+				padding: 8px 10px;
+				line-height: 2;
+				text-indent: 0;
+				font-style: normal;
+				text-align:justify;		
+				max-width: 450px;				
+				overflow: visible;
+				font-size: .9em;
+				font-weight: normal;
+				color: #333;
+				border-left: 6px solid #3f92b7;
+				-webkit-border-radius: 5px;
+				border-radius: 5px;
+				-webkit-box-shadow: 1px 2px 6px rgba(0,0,0,0.3);
+				box-shadow: 1px 2px 6px rgba(0,0,0,0.3);
+			}
+			
+			.categorias{
+				display: flex;
+				align-items: center;
+				justify-content: left;
+				position: absolute;
+				top: 10px;
+				left: 30px;
+			}
+			
+			.logo {
+				font-family: fantasy;
+				font-weight: bold;
+				font-size: 36px;
+				font-variant: small-caps;
+				display: flex;
+				align-items: flex-start;
+				color: #3d3f3f;
+			}
+			
+			[data-tooltip] {
+				position: relative;
+				cursor: pointer;
+			}
+			
+			[data-tooltip]:before {
+				content: attr(data-tooltip);
+				display: none;
+				position: absolute;
+				top: 20px;
+				width: auto;
+				white-space:pre;
+				z-index: 100;
+				padding: 10px;
+				margin-top: 10px;
+				text-decoration: none;
+				text-align: left;
+				font-family: "NunitoSans Regular", "Arial", sans-serif;
+				font-size: 14px;
+				font-weight: 500;
+				background: black;
+				color: white;
+				border-radius: 5px;
+				box-shadow: 3px 3px 10px grey;
+			}
+			
+			[data-tooltip]:hover:before {
+				display: inline-block;
+			}
+			
+			[data-tooltip2] {
+				position: relative;
+				cursor: pointer;
+			}
+			
+			[data-tooltip2]:before {
+				content: attr(data-tooltip2);
+				display: none;
+				position: absolute;
+				top: 35px;
+				min-width: 340px;
+				white-space:pre-wrap;
+				z-index: 100;
+				padding: 10px;
+				margin-top: 10px;
+				text-decoration: none;
+				text-align: left;
+				font-family: "NunitoSans Regular", "Arial", sans-serif;
+				font-size: 14px;
+				font-weight: 500;
+				background: black;
+				color: white;
+				border-radius: 5px;
+				box-shadow: 3px 3px 10px grey;				
+			}
+			
+			[data-tooltip2]:hover:before {
+				display: inline-block;
+			}
+			
+			[data-tooltip-esquerda] {
+				position: relative;
+				cursor: pointer;
+			}
+			
+			[data-tooltip-esquerda]:before {
+				content: attr(data-tooltip-esquerda);
+				display: none;
+				position: absolute;
+				left:-300px;
+				min-width: 275px;
+				white-space:pre-wrap;
+				z-index: 1;
+				padding: 7px;
+				text-decoration: none;
+				text-align: right;
+				font-family: "NunitoSans Regular", "Arial", sans-serif;
+				font-size: 14px;
+				font-weight: 500;
+				background: black;
+				color: white;
+				border-radius: 5px;
+				box-shadow: 3px 3px 10px grey;	
+			}
+			
+			[data-tooltip-esquerda]:hover:before {
+				display: inline-block;
+			}
+			
+			.container {
+				position: relative;
+				padding-left: 35px;
+				margin-bottom: 12px;
+				cursor: pointer;
+				font-size: 20px;
+			}
+
+			.container input {
+				position: absolute;
+				opacity: 0;
+				cursor: pointer;
+				height: 0;
+				width: 0;
+				top: 0;
+				left: 0;
+			}
+
+			.checkmark {
+				position: absolute;
+				top: 0;
+				left: 0;
+				height: 20px;
+				width: 20px;
+				background-color: #fff;
+				border: 1px dashed darkgray;
+			}
+
+			.container:hover input ~ .checkmark {
+				background-color: #ccc;
+			}
+
+			.container input:checked ~ .checkmark {
+				background-color: #2196F3;
+			}
+
+			.checkmark:after {
+				content: "";
+				position: absolute;
+				display: none;
+			}
+
+			.container input:checked ~ .checkmark:after {
+				display: block;
+			}
+
+			.container .checkmark:after {
+				left: 6px;
+				top: 2px;
+				width: 5px;
+				height: 10px;
+				border: solid white;
+				border-width: 0 3px 3px 0;
+				-webkit-transform: rotate(45deg);
+				-ms-transform: rotate(45deg);
+				transform: rotate(45deg);
+			}
+			
+			#maispje_menu_suspenso {
+				position: fixed;
+				top: 20%;
+				left: 94%;
+				opacity: 1;
+				width: 6vw;
+				height: auto;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 1;
+			}
+			
+			#maispje_menu_suspenso .menuMaisPje-content{
+				list-style: none;
+				display: grid;
+				align-items: center;
+				justify-content: center;
+				grid-template-columns: 1fr;
+				grid-gap: 5px;
+				width: 100%;
+				padding-left: 0;
+			}			
+			
+			.menuMaisPje-content li {
+				cursor: pointer;
+			}
+			
+			.menuMaisPje-content li a:hover {
+				color: white;
+				background-color: orangered;
+			}
+			
+			.menuMaisPje-content li a{
+				height: 35px;
+				width: auto;
+				background-color: #f0f0f0;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 12% 0 0 12%;
+				flex-direction: column;
+				color: black;
+				font-weight: bolder;
+				font-size: 16px;
+				box-shadow: 0px 1px 2px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1), 0px 4px 8px rgba(0,0,0,0.1);
+			}
+			
+			.spanToogle {
+				cursor: pointer;
+				border: 2px solid #fff0;
+				border-radius: .25em;
+				color: lightgray;
+			}
+			
+			.spanToogle:hover {
+				background-color: lightgray;
+				border-color: #f2f2f2;
+				color: #aeaeae;
+			}
+
+			.destacarToogle {
+				outline: 1px solid #d9d9d9;
+			}
+			
+			.destacarToogle:hover {
+				outline: 4px solid #5386b660;
+			}
+			.icon-toolbar {
+				display: flex;
+				align-items: baseline;
+				gap: 8px;
+				flex-wrap: wrap; 
+				list-style: none;
+				margin: 0;       
+				padding: 0;    
+			}
+
+			.icon-button {
+				background: none;
+				border: none;
+				padding: 0;
+				cursor: pointer;
+				width: 32px;
+				height: 32px;
+				text-shadow: none;
+				display: block;
+			}
+
+			#copiarEmojis i {
+				cursor: pointer;
+				font-style: normal;
+			}
+
+			.linha-zebrada:nth-child(even) {
+				background-color: #f0f0f0;
+			}
+
+
+		</style>
+	</head>
+
+	<body>
+		<h1 class="sr-only">Configurações maisPJE</h1>	
+		<nav id="maispje_menu_suspenso" aria-labelledby="acessoModulos" >
+			<h2 id="acessoModulos" class="sr-only">Acesso aos Módulos</h2>
+			<!-- Menu de navegação no início. Se deixar no fim do arquivo, o leitor de telas só vai encontrar após passar por toda a página (perde um pouco o sentido de facilitar o acesso). Visualmente não mudou nada. -->
+			<ul class="menuMaisPje-content">
+				<li data-tooltip-esquerda="Módulo 1: Janela DETALHES do processo"><a id="menu_atalho_modulo1" href="#modulo1" aria-description="detalhes do processo"><span>Módulo 1</span></a></li>
+				<li data-tooltip-esquerda="Módulo 2: Janela GIGS"><a id="menu_atalho_modulo2" href="#modulo2" aria-description="Janela gigs"><span>Módulo 2</span></a></li>
+				<li data-tooltip-esquerda="Módulo 3: Janela TAREFAS do processo"><a id="menu_atalho_modulo3" href="#modulo3" aria-description="TAREFAS do processo"><span>Módulo 3</span></a></li>
+				<li data-tooltip-esquerda="Módulo 4: Tela Inicial após login"><a id="menu_atalho_modulo4" href="#modulo4" aria-description="Tela Inicial após login" ><span>Módulo 4</span></a></li>
+				<li data-tooltip-esquerda="Módulo 5: Filtros"><a id="menu_atalho_modulo5" href="#modulo5" aria-description="Filtros"><span>Módulo 5</span></a></li>
+				<li data-tooltip-esquerda="Módulo 6: Email e WhatsApp"><a id="menu_atalho_modulo6" href="#modulo6" aria-description="Email e WhatsApp"><span>Módulo 6</span></a></li>
+				<li data-tooltip-esquerda="Módulo 7: Ações Automatizadas"><a id="menu_atalho_modulo7" href="#modulo7" aria-description="Ações Automatizadas"><span>Módulo 7</span></a></li>
+				<li data-tooltip-esquerda="Módulo 8: Juízes"><a id="menu_atalho_modulo8" href="#modulo8" aria-description="Juízes"><span>Módulo 8</span></a></li>
+				<li data-tooltip-esquerda="Módulo 9: Convênios"><a id="menu_atalho_modulo9" href="#modulo9" aria-description="Convênios"><span>Módulo 9</span></a></li>
+				<li data-tooltip-esquerda="Módulo 10: Audiências"><a id="menu_atalho_modulo10" href="#modulo10" aria-description="Audiências"><span>Módulo 10</span></a></li>
+				<li data-tooltip-esquerda="Atalhos"><a id="menu_atalho_atalho" href="#atalho"><span>Atalhos</span></a></li>
+				<li data-tooltip-esquerda="Extras"><a id="menu_atalho_extras" href="#extras"><span>Extras</span></a></li>
+				<li data-tooltip-esquerda="Guardar e Restaurar Configurações"><a id="menu_atalho_salvar" href="#salvar" aria-label="Guardar e Restaurar Configurações"><span>Salvar</span></a></li>
+			</ul>
+		</nav>
+			<fieldset id="atencao" style="margin-bottom: 30px; padding-bottom: 0px;">
+				<div>!!!ATENÇÃO!!! <br /> <br />Para melhor aproveitamento do plugin você deverá: <br />
+					1. Desativar a opção "Bloquear janelas pop-up". <a href="https://support.mozilla.org/pt-BR/kb/bloqueador-de-pop-up-excecoes-e-solucoes-de-problemas#w_configuraadaies-do-bloqueador-de-pop-ups" target="_blank"><u>Como?</u></a><br />
+					2. Desativar a opção "Abrir links em abas em vez de janelas". <a href="https://support.mozilla.org/pt-BR/kb/preferencias-e-configuracoes-de-abas" target="_blank"><u>Como?</u></a><br />
+				</div>
+				<ul class="icon-toolbar">
+					<li>
+					  <a id="baixarExtensao" href="https://www.trt12.jus.br/repo/maispje/Downloads/maispje.xpi" class="icon-button" aria-label="Baixar extensão" data-tooltip="Baixar extensão">
+						<i class="icone download t20" style="background-color: gray;"></i>
+					  </a>
+					</li>
+					<li>
+					  <a id="versoesAntigas" href="https://www.trt12.jus.br/repo/maispje/Downloads/versoes" target="_blank" class="icon-button" aria-label="Histórico de versões" data-tooltip="Histórico de versões">
+						<i class="icone history t20" style="background-color: gray;"></i>
+					  </a>
+					</li>
+					<li>
+					  <a href=../aviso.html" id="termoDeUso" class="icon-button" aria-label="Aviso Legal" data-tooltip="Aviso Legal">
+						<i class="icone file-signature t20" style="background-color: gray;"></i>
+					  </a>
+					</li>
+					<li>
+					  <button id="configURLs" class="icon-button" aria-label="Configuração básica" data-tooltip="Configuração básica">
+						<i class="icone route t20" style="background-color: gray;"></i>
+					  </button>
+					</li>
+					<li>
+					  <button id="modoLGPD" class="icon-button" aria-label="Modo LGPD" data-tooltip="Modo LGPD">
+						<i class="icone lgpd-off t20" style="background-color: gray;"></i>
+					  </button>
+					</li>
+					<li>
+					  <button id="modoNoite" class="icon-button" aria-label="Modo Noite" data-tooltip="Modo Noite">
+						<i class="icone modo-noite t20" style="background-color: gray;"></i>
+					  </button>
+					</li>
+					<li>
+					  <button id="tutoriais" class="icon-button" aria-label="Tutoriais" data-tooltip="Tutoriais">
+						<i class="video icone t20" style="background-color: gray;"></i> <!-- classes css video e icone invertidas de proposito para nao cair na regra dos icones. -->
+					  </button>
+					</li>
+				  </ul>
+				  
+			</fieldset>
+			<div id="overlay" style="display: none;"></div>
+			<div>
+				<button id="botao" class="swal2-confirm swal2-styled" style="padding: 15px 45px 15px 45px; font-size: 20px;">Verificar monitores</button>			
+				<label class="container">
+					<input type="checkbox" name="desativarAjusteJanelas" id="desativarAjusteJanelas">Desativar o posicionamento automático das janelas
+					<span class="checkmark"></span>
+				</label>
+				<label class="container" style="margin-left: 12px;">
+					<input type="checkbox" name="pesquisaRapidaDeProcessoEmAba" id="pesquisaRapidaDeProcessoEmAba">Abrir novas páginas em abas em vez de janelas
+					<span class="checkmark"></span>
+				</label>
+
+			</div>
+			<div class="categorias">
+				<div class="logo" data-tooltip2="Módulo de Automatizacao Interna de Secretaria&#013;&#010;Tribunal Regional do Trabalho da 12ª Região">
+					<span style="padding: 0 5px 0 0;"><i class="icone box-open t48"></i></span>
+					<span style="font-size: 30px; padding: 0 5px 0 0;"><i class="icone plus t20"></i></span>	
+					<span><img src="../icons/logo-pje.png" alt="" style="width: auto; height: 32px;padding-top: 10px;"></span>
+				</div>
+			</div>
+			<div id="config">
+				<span id="versao">v. 0.0.0.0</span>				
+			</div>
+			<fieldset id="modulo1">
+				<legend><h2 class="titulo">Módulo 1: Janela <u>DETALHES</u> do processo
+					<i class="icone question-circle t25" id="modulo1_1"></i>
+					<i class="icone video t25" id="modulo1_11"></i>
+					</h2>
+				</legend>
+				<div id="divMonitorDetalhes"  class="hiddenradio"></div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsAbrirGigs" id="gigsAbrirGigs">Abrir automaticamente a janela GIGS
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsAbrirTarefas" id="gigsAbrirTarefas">Abrir automaticamente a janela TAREFAS do processo
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsApreciarPeticoes" id="gigsApreciarPeticoes">Apreciar petições ao abrir a janela DETALHES
+						<span class="checkmark"></span>
+					</label>
+					<i class="icone question-circle t20" id="modulo1_2"></i>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsApreciarPeticoes2" id="gigsApreciarPeticoes2">Apreciar petições ao executar uma Ação Automatizada de DESPACHO ou clicar no ícone &nbsp;
+						<a style="position: relative; padding-right: 15px; top: 2px; margin: 0 -10px 0 -10px; color: rgb(232, 87, 30);font-size: 24px;"><i class="icone gavel t20"></i></a>
+						<span class="checkmark"></span>
+					</label>
+					<i class="icone question-circle t20" id="modulo1_4"></i>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsApreciarPeticoes3" id="gigsApreciarPeticoes3">Apreciar petições ao executar uma Ação Automatizada de MOVIMENTAR PROCESSO ou clicar no ícone &nbsp;
+						<a style="position: relative; padding-right: 15px; top: 2px; margin: 0 -10px 0 -10px; color: rgb(232, 87, 30);font-size: 24px;"><i class="icone hand-paper t20"></i></a>
+						<span class="checkmark"></span>
+					</label>
+					<i class="icone question-circle t20" id="modulo1_6"></i>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsOcultarChips" id="gigsOcultarChips">Ocultar chips
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsOcultarLembretes" id="gigsOcultarLembretes">Recolher Lembretes
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsTirarSomLembretes" id="gigsTirarSomLembretes">Silenciar os Lembretes
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsCriarMenu" id="gigsCriarMenu">Guardar dados do Processo ao abrir a janela DETALHES
+						<span class="checkmark"></span>
+					</label>
+					<i class="icone question-circle t20" id="modulo1_5"></i>
+					<br>
+					<label class="container" style="margin-left: 50px;">
+						<input type="checkbox" name="gigsCriarMenuGuardarNumeroProcesso" id="gigsCriarMenuGuardarNumeroProcesso"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 20px;">Ao guardar os dados levar o número do processo para o Ctrl + V</span>
+						<span class="checkmark"></span>
+					</label>
+					<br>
+					<label class="container" style="margin-left: 50px;">
+						<input type="checkbox" name="gigsCriarMenuAbrirPainelCopiaECola" id="gigsCriarMenuAbrirPainelCopiaECola"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 20px;">Após guardar os dados, abrir o Painel Copia e Cola Automaticamente</span>
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="sanearAJG" id="sanearAJG">Ativar assistente de saneamento de justiça gratuita
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsPesquisaDeDocumentos" id="gigsPesquisaDeDocumentos">Pesquisa de documentos ao abrir a janela DETALHES
+						<span class="checkmark"></span>
+					</label>
+					<i class="icone question-circle t20" id="modulo1_7"></i>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="mapeamentoDeIDs" id="mapeamentoDeIDs">Mapear Ids nos documentos do processo
+						<span class="checkmark"></span>
+					</label>
+					<i class="icone question-circle t20" id="modulo1_8"></i>
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="guiaPersonalizadaDetalhes" id="guiaPersonalizadaDetalhes">Exibir o número resumido do processo na guia/aba/janela
+						<span class="checkmark"></span>
+					</label>					
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="ocultarPublicacoesDJEN" id="ocultarPublicacoesDJEN">Ocultar na timeline as Certidões de Publicação no DJEN
+						<span class="checkmark"></span>
+					</label>					
+				</div>
+				<div>
+					<label class="container">
+						<input type="checkbox" name="ocultarDocumentosExcluidos" id="ocultarDocumentosExcluidos">Ocultar na timeline os documentos excluídos
+						<span class="checkmark"></span>
+					</label>					
+				</div>
+				<br>
+				<div id="textoItalico">Selecione o botão do menu que aparecerá como atalho na janela:
+					<i class="icone question-circle t20" id="modulo1_3"></i>
+				</div>
+				<div id="botoes_detalhes" style="border: #cccccc solid 1px; padding: 5px; font-size: 1.2rem;">
+					<label class="container" data-tooltip="Concluso ao Magistrado">
+						<input type="checkbox" id="c24">
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px;">
+							<i class="icone gavel t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Assumir a Tarefa">
+						<input type="checkbox" id="c0">
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px;">
+							<i class="icone hand-paper t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Guardar Dados">
+						<input type="checkbox" id="c1">
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px;">
+							<i class="icone address-card t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Abrir o Gigs">
+						<input type="checkbox" id="c2"> 
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone tag t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Acesso a Terceiros">
+						<input type="checkbox" id="c3">
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone street-view t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Anexar documentos">
+						<input type="checkbox" id="c4">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone paperclip t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Audiências e Sessões">
+						<input type="checkbox" id="c5">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone users t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Baixar processo completo">
+						<input type="checkbox" id="c6">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone file-pdf t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="BNDT">
+						<input type="checkbox" id="c7">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone money-check-alt t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Abrir cálculos do processo">
+						<input type="checkbox" id="c8">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone calculator t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Criar Intimação/Expediente">
+						<input type="checkbox" id="c9">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone envelope t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Controle de Segredo de Justiça">
+						<input type="checkbox" id="c10">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone book-open t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Copiar Documentos">
+						<input type="checkbox" id="c25">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone clone t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Dados financeiros">
+						<input type="checkbox" id="c11">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone file-invoice-dollar t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Visualizar intimações/expedientes do processo">
+						<input type="checkbox" id="c12">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone mail-bulk t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Histórico de Retificação da Autuação">
+						<input type="checkbox" id="c27">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone history2 t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Histórico do Sigilo">
+						<input type="checkbox" id="c13">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone wpexplorer t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Inserir Lembrete">
+						<input type="checkbox" id="c14">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone thumbtack t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Lançar movimentos">
+						<input type="checkbox" id="c15">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone plus-square t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Obrigação de Pagar">
+						<input type="checkbox" id="c16">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone dollar-sign t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Pagamento">
+						<input type="checkbox" id="c17">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone money-bill t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="PDPJ">
+						<input type="checkbox" id="c26">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<img src="../icons/pdpj.png" style="width: 20px; height: 20px;">
+						</a>
+					</label>
+					<label class="container" data-tooltip="Perícias">
+						<input type="checkbox" id="c18">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone user-md t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Quadro de recursos">
+						<input type="checkbox" id="c19">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone stopwatch t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Redistribuições">
+						<input type="checkbox" id="c28">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone route2 t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Reprocessar chips">
+						<input type="checkbox" id="c20">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone sync t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Retificar autuação">
+						<input type="checkbox" id="c21">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone pencil-alt t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Selo Histórico (Atribuir/Retirar)">
+						<input type="checkbox" id="c22">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone first-order t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Verificar Impedimentos e Suspeições">
+						<input type="checkbox" id="c23"> 
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">
+							<i class="icone thumbs-down t20"></i>
+						</a>
+					</label>
+					<label class="container" data-tooltip="Wiki VT">
+						<input type="checkbox" id="c29">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 5px; margin-left: -10px; font-size: 24px;">
+							<img src="../icons/wikivt.png" style="width: 25px; height: 25px; filter: grayscale(1);">
+						</a>
+					</label>
+					<label class="container" data-tooltip="Domicílio Eletrônico">
+						<input type="checkbox" id="c30">  
+						<span class="checkmark"></span>
+						<a style="position: relative; padding-right: 15px; top: 5px; margin-left: -10px; font-size: 24px;">
+							<img src="../icons/icone-domicilio-judicial-eletronico.png" style="width: 20px; height: 25px; filter: grayscale(1) brightness(0);">
+						</a>
+					</label>
+				</div>
+			</fieldset>
+			
+			<fieldset id="modulo2">
+				<legend><h2 class="titulo">Módulo 2: Janela <u>GIGS</u>
+					<i class="icone question-circle t25" id="modulo2_1"></i>
+					<i class="icone video t25" id="modulo2_1"></i></h2>
+				</legend>
+				<div id="divMonitorGigs" class="hiddenradio"></div>
+				<div id="textoItalico">A atividade registrada no GIGS será atribuída automaticamente para o responsável:&nbsp;<i class="icone question-circle t20" id="modulo2_2" style="vertical-align: text-top;"></i></div>
+				<br />
+				<div style="display: flex;">
+					<button id="modulo2_criarRegra" class="swal2-confirm swal2-styled"> Criar Regra </button>
+					<div data-tooltip="Importar" style="margin-left: 30px; margin-top: 7px;">
+						<i class="icone importar2 t25" id="importar_modulo2"></i>
+					</div>
+					<div data-tooltip="Exportar" style="margin-left: 30px; margin-top: 7px;">
+						<i class="icone exportar2 t25" id="exportar_modulo2"></i>
+					</div>
+				</div>
+				<div id="subtitulo">
+					<table id="lista_modulo2" style="padding-left: 2em;min-width: 100%; border-collapse: collapse; cursor: pointer;"></table>
+				</div>
+				<br />
+				<div>
+					<label class="container">
+						<input type="checkbox" name="gigsTipoAtencao" id="gigsTipoAtencao">A atividade GIGS do tipo <i style="font-style: normal;font-weight: bold;">Atenção</i> destaca a mensagem no cabeçalho do processo
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<br />
+			</fieldset>	
+						
+			<fieldset id="modulo3">
+				<legend ><h2 class="titulo">Módulo 3: Janela <u>TAREFAS</u> do processo
+					<i class="icone question-circle t25" id="modulo3_1"></i>
+					<i class="icone video t25" id="modulo3_1"></i></h2>
+				</legend>
+				<div id="divMonitorTarefas" class="hiddenradio"></div>
+				<div>
+				<label class="container" data-tooltip="Verificar Impedimentos e Suspeições">
+					<input type="checkbox" name="gigsAbrirDetalhes" id="gigsAbrirDetalhes">Abrir automaticamente a janela DETALHES do processo
+					<span class="checkmark"></span>
+				</label>
+				</div>
+			</fieldset>
+						
+			<fieldset id="modulo4">
+				<legend ><h2 class="titulo">Módulo 4: Tela Inicial após login
+					<!-- <i class="icone question-circle t25" id="modulo4_1"></i>
+					<i class="icone video t25" id="modulo4_1"></i> -->
+				</h2>
+				</legend>
+				<!-- <div id="subtitulo"><button id="perfilUsuario" class="swal2-confirm swal2-styled"> Escolha o Papel </button> &nbsp; <span id="perfilUsuarioVar"></span></div> -->
+				<div>					
+					<span>Deseja ir para uma tela inicial ao abrir o processo? Digite no campo abaixo o local que deseja abrir inicialmente. Por exemplo: Escaninho, Pauta de Audiência, Relatórios do GIGS, Painel Global[Análises]. </span>
+					<i class="icone question-circle t25" id="modulo4_2"></i>
+					<input type="text" name="modulo4PaginaInicial" id="modulo4PaginaInicial" class="swal2-input">
+				</div>
+			</fieldset>	
+						
+			<fieldset id="modulo5">
+				<legend ><h2 class="titulo">Módulo 5: Filtros
+					<i class="icone question-circle t25" id="modulo5_1"></i>
+					<i class="icone video t25" id="modulo5_1"></i></h2>
+				</legend>
+				<div>
+					<div id="textoItalico">
+						<b>Filtros Gerais:</b>
+					</div>
+					<br>
+					<div id="subtitulo" style="margin-left: 2vw;">
+						Por final do processo:
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro0" id="meuFiltro0"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">0</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro1" id="meuFiltro1"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">1</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro2" id="meuFiltro2"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">2</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro3" id="meuFiltro3"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">3</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro4" id="meuFiltro4"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">4</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro5" id="meuFiltro5"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">5</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro6" id="meuFiltro6"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">6</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro7" id="meuFiltro7"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">7</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro8" id="meuFiltro8"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">8</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container modulo5_parEimpar">
+							<input type="checkbox" name="meuFiltro9" id="meuFiltro9"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">9</span>
+							<span class="checkmark"></span>
+						</label>
+						<label>
+							<span id="maisPje_modulo5_parEimpar" name="par" class="swal2-label spanToogle" style="min-width: 80px;display: inline-block;text-align: center;padding: 0.5em;">Par</span>
+							<span id="maisPje_modulo5_parEimpar" name="impar"class="swal2-label spanToogle" style="min-width: 80px;display: inline-block;text-align: center;padding: 0.5em;">Ímpar</span>
+							<span id="maisPje_modulo5_parEimpar" name="todos" class="swal2-label spanToogle" style="min-width: 80px;display: inline-block;text-align: center;padding: 0.5em;">Todos</span>
+							<span id="maisPje_modulo5_parEimpar" name="nenhum" class="swal2-label spanToogle" style="min-width: 80px;display: inline-block;text-align: center;padding: 0.5em;">Nenhum</span>
+						</label>
+					</div>
+					<br>
+					<div id="subtitulo" style="margin-left: 2vw;">
+						por Órgão Julgador Cargo:
+						<label class="container">
+							<input type="checkbox" name="meuFiltroJT" id="meuFiltroJT"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">Juiz Titular</span>
+							<span class="checkmark"></span>
+						</label>
+						<label class="container">
+							<input type="checkbox" name="meuFiltroJS" id="meuFiltroJS"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">Juiz Substituto</span>
+							<span class="checkmark"></span>
+						</label>
+					</div>
+				</div>
+				<br>
+				<br>
+				<div>
+					<div id="textoItalico">
+						<b>Filtros Favoritos:</b>
+						<i>(clique para excluir)</i>
+					</div>					
+					<br>
+					<div id="filtros_favoristos_relatorio_GIGS" style="margin-left: 2vw;"></div>
+					<br>
+					<div id="textoItalico">
+						<b>Filtros Favoritos com função específica:</b>						
+					</div>
+					<br>
+					<div id="subtitulo" style="margin-left: 2vw;">						
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_juizDaMinuta" id="modulo5_filtros_favoritos_juizDaMinuta"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Juiz responsável pela minuta de Despacho/Decisão/Sentença</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_semAudienciaDesignada" id="modulo5_filtros_favoritos_semAudienciaDesignada"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Processos sem audiência designada</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_ObterSaldoSIf" id="modulo5_filtros_favoritos_ObterSaldoSIf"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Obter Saldo do SIF</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_conferirTeimosinhaEmLote" id="modulo5_filtros_favoritos_conferirTeimosinhaEmLote"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Conferir Teimosinha em Lote (SISBAJUD)</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_semGIGS" id="modulo5_filtros_favoritos_semGIGS"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Processos sem GIGS cadastrado</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_paradosXXdias" id="modulo5_filtros_favoritos_paradosXXdias"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Processos parados há mais de XX dias</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_conferirGarimpoEmLote" id="modulo5_conferirGarimpoEmLote"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Conferir no Garimpo</span>
+							<span class="checkmark"></span>
+						</label>
+						<br>
+						<br>
+						<label class="container">
+							<input type="checkbox" name="modulo5_filtros_favoritos_conciliaJT" id="modulo5_filtros_favoritos_conciliaJT"><span style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Obter ConciliaJT</span><i style="font-size:14px;animation: pulse-font 2s infinite;">* apenas para os Regionais habilitados no projeto ConciliaJT</i>
+							<span class="checkmark"></span>
+						</label>
+					</div>
+				</div>
+			</fieldset>
+					
+			<fieldset id="modulo6">
+				<legend ><h2 class="titulo">Módulo 6: Email					
+					<i class="icone video t25" id="modulo6_1"></i>
+					&nbsp;e WhatsApp
+					<i class="icone video t25" id="modulo6_2"></i>
+					<i class="icone question-circle t25" id="modulo6_1"></i>	</h2>				
+				</legend>
+				<div disabled style="border-radius: 10px;">
+					<div id="textoItalico">
+						Na janela DETALHES DO PROCESSO será possível encaminhar automaticamente o documento visualizado por email.
+						<br>
+						Para isso é necessário configurar no navegador o email que desejas utilizar: <i href="" id="modulo6_2" class="tutorial">Veja Como</i>
+						<br>					
+						<br>
+						<span id="subtitulo" style="font-size: 16px; font-style: normal;">
+							<b>VARIÁVEIS:</b>
+							<br>
+							<span data-tooltip="número do processo" style="color: orangered;">#{processo}</span><br>
+							<span data-tooltip="partes do processo" style="color: orangered;">#{partes}</span><br>
+							<span data-tooltip="data da audiência + tipo da audiência + sala da audiência" style="color: orangered;">#{dados_audi}</span><br>
+							<span data-tooltip="data da audiência" style="color: orangered;">#{data_audi}</span><br>
+							<span data-tooltip="tipo da audiência" style="color: orangered;">#{tipo_audi}</span><br>
+							<span data-tooltip="sala da audiência" style="color: orangered;">#{sala_audi}</span><br>							
+							<span data-tooltip="link da audiência" style="color: orangered;">#{link_audi}</span><br>
+							<span data-tooltip="tipo do documento" style="color: orangered;">#{tipoDocumento}</span><br>
+							<span data-tooltip="id do documento" style="color: orangered;">#{idDocumento}</span><br>
+							<span data-tooltip="link do documento" style="color: orangered;">#{autenticacao}</span><br>
+							<span data-tooltip="chave de acesso do documento" style="color: orangered;">#{chave}</span><br>
+							<span data-tooltip="nome do usuário" style="color: orangered;">#{servidor}</span><br>
+							<span data-tooltip="órgão julgador do usuário" style="color: orangered;">#{OJServidor}</span><br>
+						</span>
+					</div>
+					<br />
+					<br />
+					<div id="subtitulo">
+						<span id="textoItalico" style="opacity: 0.5;">Título do Email:</span><textarea id="titulo_email" rows="1" class="swal2-textarea" style="height: auto; font-family: inherit;line-height: 1.5em; margin-top: 5px;"></textarea>
+						<span id="textoItalico" style="opacity: 0.5;">Corpo do Email:</span><textarea id="corpo_email" rows="4" class="swal2-textarea" style="height: auto; font-family: inherit;line-height: 1.5em; margin-top: 5px;"></textarea>
+						<span id="textoItalico" style="opacity: 0.5;">Assinatura do Email:</span><textarea id="assinatura_email" rows="3" class="swal2-textarea" style="height: auto; font-family: inherit;line-height: 1.5em; margin-top: 5px;"></textarea>
+					</div>
+					<br />
+					<div style="padding: 30px;background-color: #5f9ea030;border-radius: 8px;">						
+						<label class="container">
+							<input type="checkbox" name="modulo6_destinatario" id="modulo6_destinatario"><span id="textoItalico" style="position: relative; padding-right: 15px; margin-left: -10px; font-size: 16px;">Identificar padrões de email no documento enviado e usá-los como destinatário</span>
+							<span class="checkmark"></span>
+						</label>
+						<br />
+						<br />
+						<div style="display: grid;grid-template-columns: 50px auto;">					
+							<span style="align-content: center;">Ignorar:</span><input type="text" name="modulo6_ignorar" id="modulo6_ignorar" class="swal2-input" style="background-color: white;">
+						</div>
+						<br />						
+					</div>
+				</div>
+			</fieldset>
+			
+			<fieldset id="modulo7">
+				<legend ><h2 class="titulo">Módulo 7: Ações Automatizadas
+					<i class="icone question-circle t25" id="modulo7_1"></i>
+					<i class="icone video t25" id="modulo7_1"></i></h2>
+				</legend>
+				<div id="textoItalico" style="display:flex; font-size: 14px; margin-left: 2vw;">
+					Velocidade da interação (clique):
+					<div>
+						<span style="margin: 10px;vertical-align: -moz-middle-with-baseline;"><input id="maisPje_velocidade_interacao" type="range" min="0.25" max="2.5" step="0.25"></span>
+						<span style="width: 100%;"><label id="maisPje_velocidade_interacao_label" for="maisPje_velocidade_interacao">0</label> segundo(s)</span>
+						<i class="icone question-circle t25" id="modulo7_2"></i>
+						<i class="icone video t25" id="modulo7_2"></i>
+					</div>
+				</div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.1 ANEXAR DOCUMENTOS 
+					<div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
+						<i class="icone plus-square2 t25" id="aa_anexar_documentos"></i>
+					</div>
+					<div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone importar2 t25" id="aa_imp_anexar_documentos"></i>
+					</div>
+					<div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone search2 t25" id="aa_buscar_anexar_documentos"></i>
+					</div>
+				</div>
+				<div id="botoes_anexar_documentos" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;;"></div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.2 INTIMAÇÃO/EXPEDIENTE
+					<div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
+						<i class="icone plus-square2 t25" id="aa_comunicacao"></i>
+					</div>
+					<div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone importar2 t25" id="aa_imp_comunicacao"></i>
+					</div>
+					<div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone search2 t25" id="aa_buscar_comunicacao"></i>
+					</div>
+				</div>
+				<div id="botoes_comunicacao" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.3 AUTOGIGS (Atividade, Comentário, Chip, Lembrete)
+					<div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
+						<i class="icone plus-square2 t25" id="aa_autogigs"></i>
+					</div>
+					<div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone importar2 t25" id="aa_imp_autogigs"></i>
+					</div>
+					<div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone search2 t25" id="aa_buscar_autogigs"></i>
+					</div>
+				</div>
+				<div id="botoes_autogigs" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.4 DESPACHO
+					<div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
+						<i class="icone plus-square2 t25" id="aa_despacho"></i>
+					</div>
+					<div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone importar2 t25" id="aa_imp_despacho"></i>
+					</div>
+					<div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone search2 t25" id="aa_buscar_despacho"></i>
+					</div>
+				</div>
+				<div id="botoes_despacho" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.5 MOVIMENTOS
+					<div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
+						<i class="icone plus-square2 t25" id="aa_movimento"></i>
+					</div>
+					<div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone importar2 t25" id="aa_imp_movimento"></i>
+					</div>
+					<div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone search2 t25" id="aa_buscar_movimento"></i>
+					</div>
+				</div>
+				<div id="botoes_movimento" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.6 CHECKLIST
+					<div data-tooltip="Criar" style="margin-left: 10px; margin-top: -1px;">
+						<i class="icone plus-square2 t25" id="aa_checklist"></i>
+					</div>
+					<div data-tooltip="Importar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone importar2 t25" id="aa_imp_checklist"></i>
+					</div>
+					<div data-tooltip="Buscar" style="margin-left: 10px; margin-top: -2px;">
+						<i class="icone search2 t25" id="aa_buscar_checklist"></i>
+					</div>
+				</div>
+				<div id="botoes_checklist" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+				<br />
+				<div id="subtitulo" style="display:flex; font-size: 24px;">
+					7.7 VARIADOS					
+				</div>
+				<div id="botoes_variados" style="padding: 20px;display: flex;height: auto;flex-flow: row wrap;"></div>
+				<br />
+			</fieldset>
+			
+			<fieldset id="modulo8">
+				<legend><h2 class="titulo">Módulo 8: Juízes
+					<i class="icone question-circle t25" id="modulo8"></i>
+					<!-- <i class="icone video t25" id="modulo8"></i> -->
+				</h2>
+				</legend>
+				<h3 id="textoItalico">
+					Crie regras para escolha automática do magistrado quando for fazer minutas de despacho, decisão e sentença, de acordo com o número final do processo.
+				</h3>
+				<div style="margin-left: 2vw;">
+					<label class="container">
+						<input type="checkbox" name="modulo8_ignorarZero" id="modulo8_ignorarZero"><span style="position: relative; padding-right: 15px; margin-left: 0px; font-size: 14px;">Ignorar 0 (zero) na regra por número final.</span>
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<br />
+				<div>
+					<button id="modulo8_criarRegra" class="swal2-confirm swal2-styled"> Criar Regra </button>					
+				</div>
+				<div id="subtitulo">
+					<table id="lista_modulo8" style="padding-left: 2em;width: 100%;">
+					</table>
+				</div>
+				<br />
+			</fieldset>
+			
+			<fieldset id="modulo9">
+				<legend><h2 class="titulo">Módulo 9: Convênios
+					<i class="icone question-circle t25"></i>
+				</h2>
+				</legend>
+				<div id="textoItalico">
+					A extensão atua também nos sistemas abaixo. Clique no botão correspondente para mais detalhes.
+				</div>
+				<br />
+				<ul class="convenios">
+					<li><button id="convenio_sisbajud" class="swal2-confirm swal2-styled">SISBAJUD</button></li>
+					<li><button id="convenio_renajud" class="swal2-confirm swal2-styled">RENAJUD</button></li>
+					<li><button id="convenio_cnib" class="swal2-confirm swal2-styled">CNIB</button></li>
+					<li><button id="convenio_serasajud" class="swal2-confirm swal2-styled">SERASAJUD</button></li>
+					<li><button id="convenio_ccs" class="swal2-confirm swal2-styled">CCS</button></li>
+					<li><button id="convenio_crcjud" class="swal2-confirm swal2-styled">CRCJUD</button></li>
+					<li><button id="convenio_onr" class="swal2-confirm swal2-styled" style="background-color: rgb(176, 176, 176);">ONR</button></li>
+					<li><button id="convenio_gprec" class="swal2-confirm swal2-styled">GPREC</button></li>
+					<li><button id="convenio_ajjt" class="swal2-confirm swal2-styled">AJJT</button></li>
+					<li><button id="convenio_siscondj" class="swal2-confirm swal2-styled">SISCONDJ</button></li>
+					<li><button id="convenio_garimpo" class="swal2-confirm swal2-styled">GARIMPO</button></li>
+					<li><button id="convenio_sif" class="swal2-confirm swal2-styled">SIF</button></li>
+					<li><button id="convenio_pjecalc" class="swal2-confirm swal2-styled">PJECALC</button></li>
+					<li><button id="convenio_prevjud" class="swal2-confirm swal2-styled">PREVJUD</button></li>
+					<li><button id="convenio_protestojud" class="swal2-confirm swal2-styled">PROTESTOJUD</button></li>
+					<li><button id="convenio_sniper" class="swal2-confirm swal2-styled">SNIPER</button></li>
+					<li><button id="convenio_censec" class="swal2-confirm swal2-styled">CENSEC</button></li>
+					<li><button id="convenio_celesc" class="swal2-confirm swal2-styled">CELESC</button></li>
+					<li><button id="convenio_casan" class="swal2-confirm swal2-styled">CASAN</button></li>
+					<li><button id="convenio_sigef" class="swal2-confirm swal2-styled">SIGEF</button></li>
+					<li><button id="convenio_infoseg" class="swal2-confirm swal2-styled">INFOSEG</button></li>
+					<li><button id="convenio_ecarta" class="swal2-confirm swal2-styled">ECARTA</button></li>
+					<li><button id="convenio_saj" class="swal2-confirm swal2-styled">SAJ - AFASTAMENTO DE SIGILO BANCÁRIO</button></li>
+				  </ul>
+				  
+				<br />
+			</fieldset>
+			
+			<fieldset id="modulo10">
+				<legend><h2 class="titulo">Módulo 10: Audiências
+					<i class="icone question-circle t25" id="modulo10"></i>
+					<!-- <i class="icone video t25" id="modulo8"></i> -->
+					</h2>
+				</legend>
+				<div style="display: flex;align-items: baseline;">
+					<label class="container">
+						<input type="checkbox" name="modulo10_juntadaMidia" id="modulo10_juntadaMidia">Ativar Ação Automatizada para anexar depoimentos
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<br />
+				<div style="display: flex;align-items: baseline;">
+					<label class="container">
+						<input type="checkbox" name="modulo10_painelCopiaeCola" id="modulo10_painelCopiaeCola">Abrir Painel Copia e Cola ao iniciar a audiência
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<br />				
+				<div id="textoItalico">
+					Caso trabalhe com link(s) de audiência fixo(s), registre-o(s) abaixo:
+				</div>
+				<br />
+				<div>
+					<table id="lista_modulo10" style="padding-left: 2em;"></table>
+				</div>
+				<br />
+			</fieldset>
+			
+			<div class="titulo">Informações adicionais:</div>
+				
+				<h2 class="titulo" style="background-color: rgba(0,0,0,0.1);" id="atalho">ATALHOS
+					<i class="icone question-circle t25" id="atalhos_1"></i>
+					<i class="icone video t25" id="atalhos_1"></i>
+				</h2>
+				<h3 id="textoItalico">Atalhos no ícone maisPJe do Navegador</h3>
+				<div id="textoItalico">NOME_DO_ATALHO:ENDEREÇO_DO_ATALHO
+					<i class="icone question-circle t25" id="atalhos_2"></i>
+					<i class="icone t25" id="atalhos_emoji" data-tooltip="ver emojis">🤩</i>
+				</div>
+				<div><textarea name="atalhosPlugin" id="atalhosPlugin" rows="15" class="swal2-textarea" style="background-color:white; height: auto;font-family: inherit;line-height: 1.5em;"></textarea></div>
+				<br />
+				<div id="textoItalico">Os atalhos funcionam na página PRINCIPAL e DETALHES. Se esquecer o atalho pressione F1.</div>
+				<br/>
+				<div id="textoItalico">Atalhos na página PRINCIPAL</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 1)</b> &nbsp; Apreciar Registros(ARS) quando detectados</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 2)</b> &nbsp; Abrir painel antigo</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 3)</b> &nbsp; Consultar processos</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 4)</b> &nbsp; Consultar advogados</div>				
+				<br/>				
+				<div id="textoItalico">Atalhos na página DETALHES</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 1)</b> &nbsp; Apreciar Registros(ARS) quando detectados</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 2)</b> &nbsp; Guardar dados do processo para uso em formulários</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 3)</b> &nbsp; Download do processo</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + 4)</b> &nbsp; Anexar documentos</div>
+				<div> &nbsp;  &nbsp;  |___<b>(CTRL + <input id="atalho_painelcopiaecola" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;"> )</b> &nbsp; Abrir Painel Copia e Cola</div>
+				<br />
+				<h2 class="titulo" style="background-color: rgba(0,0,0,0.1);" id="extras">EXTRAS
+					<i class="icone video t25" id="botoes_1"></i>
+				</h2>
+				<h3 id="textoItalico">Durante o funcionamento da extensão você irá perceber que algumas funcionalidades EXTRAS foram inseridas na página. São elas:</h3>
+				<div id="subtitulo">
+					<b><u>a) Janela PRINCIPAL:</u></b>
+					&nbsp;&nbsp;&nbsp;
+					<a class="tip" style="margin-left: 20px;">
+						<div> Buscar AR </div>
+						<span>Busca números de registro(ARS) na página e, encontrando, abre uma nova janela no site dos correios com a consulta dos ARs.</span>
+					</a>					
+					<a class="tip" style="margin-left: 20px;">
+						<div> PJe Antigo </div>
+						<span>Abre uma nova janela com a tela do PJe antigo.</span>
+					</a>
+					<a class="tip" style="margin-left: 20px;">
+						<div> Meu Filtro </div>
+						<span>Aplica o filtro do usuário na lista de processos que está na tela.</span>
+					</a>
+					<a class="tip" style="margin-left: 20px;">
+						<div style="background-color: unset;border: none;"><i class="icone copy-solid t18" style="background-color: orangered;"></i></div>
+						<span>Aparece no cabeçalho das listas de processo, no painel global, relatórios do GIGS e escaninho. Ao clicar, copia o número de todos os processos da lista. Se clicar segurando o Ctrl, leva todos os processos da lista para as ações automatizadas em lote automaticamente.</span>
+					</a>
+					<a class="tip" style="margin-left: 20px;">
+						<div style="background-color: unset;border: none;"><i class="icone plus-circle t18" style="background-color: orangered;"></i></div>
+						<span>Aparece junto aos filtros do pje, no painel global e relatórios do GIGS. Tem a função de guardar os filtros favoritos (ver módulo 5). Ao clicar, pega os filtros aplicados na tela memorizando-os para uso futuro, permitindo ao usuário dar um nome a este filtro. Os filtros favoritos ficam listados como botões acima dos filtros Pje.</span>
+					</a>
+				</div>
+				<br/>
+				<div id="subtitulo">
+					<b><u>b) Janela GIGS:</u></b>
+				</div>
+				<br/>
+				<a class="tip">
+					<div> Consultar AR </div>
+					<span>Busca números de registro(ARS) na página e, encontrando, abre uma nova janela no site dos correios/E-Carta com a consulta dos ARs.</span>
+				</a>
+				<br/>
+				<br/>
+				<div style="background-color: #00000014;padding: 15px;">
+					<a class="tip">
+						<div> Procurar Execuções </div>
+						<span>Abre em nova janela a consulta de processos do TRT na fase de execução. Pode configurar se a pesquisa será apenas nos processos da Unidade ou no Regional (neste caso precisa ter um relatório no SAO).</span>
+					</a>
+					&nbsp;
+					<label class="container" style="margin-left: 5px;">
+						<input type="checkbox" name="ProcurarExecucaoLocal" id="ProcurarExecucaoLocal"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Usar apenas processos da Vara</span>
+						<span class="checkmark"></span>
+					</label>
+					&nbsp;
+					<label class="container" style="margin-left: 5px;">
+						<input type="checkbox" name="ProcurarExecucaoSAO" id="ProcurarExecucaoSAO"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Usar Relatório do SAO</span>
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<br />
+				<a class="tip">
+					<div style="text-align: center; font-size: 1.3vh;  border: 2px solid rgb(224, 224, 224); border-radius: 5px; background-color: rgb(247, 247, 247); position: relative;  cursor: pointer; color: dimgray;width: 15vw;"> Mostrar Ações Automatizadas </div>
+					<span>Aparece junto ao Checklist de Execução. Agrupa todas as suas Ações Automatizadas de Checklist (ver Módulo 7.6).</span>
+				</a>
+				<br/>
+				<br/>
+				<div id="subtitulo">
+					<b><u>c) Janela MODELOS de documentos e na Janela DETALHES:</u></b>
+					&nbsp;&nbsp;&nbsp;
+					<a class="tip">
+						<div><i class="icone copy-solid t18"></i></div>
+						<span>Lê e copia o conteúdo do documento para a memória em formato de transcrição. Use o "Ctrl+V" para colar o conteúdo transcrito no editor de texto.</span>
+					</a>
+				</div>
+				<br/>
+				<div id="subtitulo">
+					<b><u>d) Janelas com EDITOR DE TEXTOS:</u></b>
+				</div>
+				<br/>
+				Caixa de Seleção de zoom &nbsp; 
+				<a class="tip">					
+					<div style="padding: 0 0 0 0;background-color: white;"><img src="../icons/zoom_editor.png"></div>
+					<span>Permite aumentar a fonte do texto que está sendo editado. Não gera efeitos no documento salvo, apenas facilita a leitura.</span>
+				</a>
+				<br/>
+				<br/>			
+				<div id="subtitulo">
+					<b><u>e) Janela ELABORAR Despacho/Decisão/Sentença:</u></b>
+				</div>
+				<br/>
+				<div style="background-color: #00000014;padding: 15px;">
+					<a class="tip">
+						<div> Prazo em Lote </div>
+						<span>Permite escolher em lote o Prazo da intimação do despacho/decisão/sentença. É possível editar abaixo os valores de prazo que você mais utiliza.</span>
+					</a>
+					&nbsp;
+					<label style="margin-left: 5px;display: grid;grid-template-columns: 1fr 1fr 1fr;gap: 10px;width: 200px;margin-top: 10px;">						
+						<input id="elPzoEmLote0" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;">
+						<input id="elPzoEmLote1" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;">
+						<input id="elPzoEmLote2" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;">
+						<input id="elPzoEmLote3" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;">
+						<input id="elPzoEmLote4" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;">
+						<input id="elPzoEmLote5" class="swal2-input" type="text" style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;">
+					</label>
+				</div>
+				<br/>
+				<a class="tip">
+					<div> Marcar/Desmarcar Todos </div>
+					<span>Permite marcar/desmarcar em lote todas as opções de destinatários</span>
+				</a>
+				<br/>
+				<br/>
+				<div id="subtitulo">
+					<b><u>f) Janela ANEXAR DOCUMENTOS:</u></b>
+				</div>
+				<br/>
+				<a class="tip">
+					<div> Tipo em Lote </div>
+					<span>Permite definir em lote o tipo de documento dos arquivos anexados à certidão e também a sua descrição. Alguns tipos são definidos automaticamente de acordo com o padrão encontrado no nome do arquivo. Por exemplo (o padrão a seguir representa uma ordem Sisbajud, logo a extensão escolherá este tipo para o usuário): 20290000893598_17022023<br>É possível desativar a sugestão do tipo de documento ou da descrição do documento.</span>
+				</a>
+				<br/>
+				<br/>
+				<label class="container" style="margin-left: 5px;">
+					<input type="checkbox" name="extrasSugerirTipoAoAnexar" id="extrasSugerirTipoAoAnexar"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Sugerir o TIPO de documento para os anexos</span>
+					<span class="checkmark"></span>
+				</label>
+				<br/>
+				<label class="container" style="margin-left: 5px;">
+					<input type="checkbox" name="extrasSugerirDescricaoAoAnexar" id="extrasSugerirDescricaoAoAnexar"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Sugerir a DESCRIÇÃO do documento para os anexos</span>
+					<span class="checkmark"></span>
+				</label>
+				<br/>
+				<br/>
+				<a class="tip">
+					<div> Marcar Todos </div>
+					<span>Trabalha em conjunto com o botão EXCLUIR (abaixo). Permite selecionar todos os anexos juntados com um único clique. Caso já tenha sido selecionado manualmente algum anexo, ao clicar no MARCAR TODOS a seleção dos anexos será invertida.</span>
+				</a>
+				<br/>
+				<br/>
+				<a class="tip">
+					<div> Excluir </div>
+					<span>Trabalha em conjunto com o botão MARCAR TODOS (acima). Permite excluir os anexos selecionados pelo usuário. A seleção se caracteriza por uma linha pontilhada vermelha ao redor do anexo.</span>
+				</a>
+				<br/>
+				<br/>
+				<div id="subtitulo" style="display: ruby;">
+					<b><u>g) Menu Kaizen:</u></b>
+					Representado pelo ícone 
+					<div><img src="../icons/gigs-plugin.png" alt="plugin maisPJe"></div> está disponível nas janelas Principal, Tarefa e Detalhes do Processo, permitindo o acesso rápido a diferentes funcionalidades do PJe.<br>
+				</div>
+				<br/>
+				<br/>
+				<div id="botoes-atalho">				
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone bolt t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consulta Rápida de Processo:</i>Permite consultar rapidamente um processo pelo número o por parte de seu número sem precisar pesquisar na tela de painel global.</span>
+					</a>
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone menuConvenio_search t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Processo:</i>Atalho para a tela tradicional de consulta de processos do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone search-plus t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Processo Terceiros:</i>Atalho para a tela tradicional de consulta de processos de terceiros do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone search-textual t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Pesquisa Textual:</i> (Segundo Grau apenas) Atalho para a tela tradicional de pesquisa textual do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone archive t100" style="display: inline list-item;"></i></div>
+						<span><i style="">PJe Antigo:</i> Atalho para o antigo layout do PJe (PJe legado).</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone calendar t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Abrir a pauta:</i> Atalho para a tela de pauta de audiência do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone comment t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Criar/Editar Avisos:</i> Atalho para a tela de Avisos Institucionais do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone menuConvenio_search t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Processo:</i> Atalho para a tela tradicional de consulta de processos do PJe.</span>
+					</a>
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone file t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Modelos:</i> Atalho para a tela de modelos de documentos do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone user-tie t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Advogados:</i> Atalho para a tela de consulta de advogados do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone user-md-solid t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Peritos:</i> Atalho para a tela de consulta de peritos do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone user t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Pessoa Física:</i> Atalho para a tela de consulta de pessoa física do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: orangered;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone building t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Consultar Pessoa Jurídica:</i> Atalho para a tela de consulta de pessoa jurídica do PJe.</span>
+					</a>					
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: darkcyan;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone search t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Abrir Processo no Painel Antigo:</i>(Janela Detalhes do Processo apenas) Abrir a Janela Detalhes do Processo no antigo layout do PJe (PJe legado).</span>
+					</a>
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: darkcyan;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone download2 t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Baixar todos os documentos do processo:</i>(Janela Detalhes do Processo apenas) Funcionalidade que permite ao usuário baixar todos os documentos do processo de forma individualizada.</span>
+					</a>
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: darkcyan;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone keyboard t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Atalho F2:</i>(Janela Detalhes do Processo apenas) Funcionalidade que permite ao usuário guardar uma Ação Automatizada da sua escolha para usar na tecla F2. Para desativar basta escolher como Ação Automatizada a opção 'Nenhum'.</span>
+					</a>
+					<a class="tip">
+						<div style="border-radius: 50%;background-color: darkcyan;width: 15px;min-height: 15px;color: white;display: table-cell;"><i class="icone aaLote t100" style="display: inline list-item;"></i></div>
+						<span><i style="">Ações automatizadas em lote:</i>(Janela Principal apenas) Funcionalidade que permite ao usuário executar Ações Automatizadas em lote a partir de uma lista de processos informados pelo usuário.</span>
+					</a>
+					
+				</div>
+				<br/>				
+				<br/>
+				<label class="container" style="margin-left: 5px;">
+					<input type="checkbox" name="acionarKaizenComClique" id="acionarKaizenComClique"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Acionar menu Kaizen mediante clique do mouse</span>
+					<span class="checkmark"></span>
+				</label>
+				<br/>
+				<label class="container" style="margin-left: 5px;">
+					<input type="checkbox" name="kaizenNaHorizontal" id="kaizenNaHorizontal"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Abrir as opções do menu na horizontal</span>
+					<span class="checkmark"></span>
+				</label>
+				<br/>
+				<label class="container" style="margin-left: 5px;">
+					<input type="checkbox" name="zerarPosicoesKaizen" id="zerarPosicoesKaizen"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Zerar a posição do menu Kaizen nas páginas</span>
+					<span class="checkmark"></span>
+				</label>				
+				<br/>
+				<br/>
+				<br/>
+				<div id="subtitulo" style="display: ruby;">
+					<b><u>h) Calendário:</u></b> nas escolhas de data o campo ficará integrado com o calendário do do PJe, mostrando os feriados e recessos para facilitar a escolha.<br>
+				</div>
+				<br/>
+				<br/>
+				<div id="subtitulo" style="display: ruby;">
+					<b><u>i) Botão ao incluir uma parte no processo:</u></b> 
+					<a class="tip">
+						<div> Buscar Endereço </div>
+						<span>Permite buscar dentre os inúmeros endereços da parte, algum em específico que contenha a expressão desejada. A extensão busca e destaca o endereço desejado. Pode-se utilizar a expressão no CEP, Logradouro, Bairro, Cidade, Número e Complemento.</span>
+					</a>
+				</div>
+				<br/>
+				<br/>
+				<div id="subtitulo">
+					<b><u>j) Janela PREPARAR EXPEDIENTES E COMUNICAÇÕES:</u></b> 
+					<br/>
+					<br/>
+					<label class="container" style="margin-left: 5px;">
+						<input type="checkbox" name="fecharJanelaExpediente" id="fecharJanelaExpediente"><span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Fechar automaticamente a janela após a assinatura</span>
+						<span class="checkmark"></span>
+					</label>
+				</div>
+				<br /><br />
+				<!-- <div class="titulo" style="color: #333;background-color: rgba(0,0,0,0.1);">AJUSTES</div>
+				<br />
+				<div id="textoItalico">Durante o funcionamento da extensão algumas páginas são ajustadas automaticamente para um melhor conforto do usuário, diminuindo o número de cliques na tela. São elas:</div>
+				<br />
+				<div id="subtitulo">a) Comunicações processuais</div>
+				<div id="subtitulo">b) Minutar/Assinar despachos/decisões/sentenças</div>
+				<div id="subtitulo">c) Anexar documentos</div>
+				<br /><br /> -->
+				<h2 class="titulo" style="color: #333;background-color: rgba(0,0,0,0.1);" id="salvar">GUARDAR E RESTAURAR CONFIGURAÇÕES DA EXTENSÃO</h2>
+				<h3 id="textoItalico">Guarde e restaure suas configurações para uso em outro computador</h3>
+				<div id="subtitulo" style="display: flex; gap: 5px; align-items: center;">
+					<button id="salvarConfig" class="swal2-confirm swal2-styled"> Guardar </button>
+					<button id="recuperarConfig" class="swal2-confirm swal2-styled"> Restaurar </button> &nbsp; <i class="icone question-circle t25" id="config_1"></i> &nbsp; <i class="icone video t25" id="config_1"></i>
+				</div>
+			<br /><br /><br />
+		<script src="../comum/item-checkbox-menu.js"></script>
+		<script src="../comum/mini-selenium.js"></script>
+		<script src="../comum/acoes-automatizadas.js"></script>
+		<script src="options.js"></script>
+		<script src="../js/sweetalert2.all.min.js"></script>
+	</body>
+</html>

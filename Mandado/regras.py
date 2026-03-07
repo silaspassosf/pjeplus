@@ -104,7 +104,7 @@ from Fix import (
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit
 from Prazo.p2b_core import checar_prox
-from atos import (
+from .atos_wrapper import (
     ato_judicial,
     ato_meios,
     ato_pesquisas,

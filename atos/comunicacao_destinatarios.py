@@ -1,4 +1,4 @@
-import time
+from Fix.core import safe_click_no_scroll
 import re
 import json
 import unicodedata
@@ -83,8 +83,7 @@ def _clicar_polo_passivo(driver, log):
     alvo = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, '//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]'))
     )
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", alvo)
-    driver.execute_script("arguments[0].click();", alvo)
+    safe_click_no_scroll(driver, alvo, log=False)
 
 
 def _clicar_botao_polo_passivo(driver, log):

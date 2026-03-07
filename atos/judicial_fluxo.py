@@ -7,7 +7,7 @@ usando os módulos especializados para navegação, conclusão, modelos,
 prazos e bloqueios.
 """
 
-from Fix.core import aguardar_e_clicar, esperar_elemento, safe_click, logger, esperar_url_conter, preencher_multiplos_campos
+from Fix.core import aguardar_e_clicar, esperar_elemento, safe_click, safe_click_no_scroll, logger, esperar_url_conter, preencher_multiplos_campos
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
@@ -62,19 +62,31 @@ def fluxo_cls(
     Returns:
         bool: True se sucesso, False se falha
     '''
+    # === TIMING: INICIO ===
+    timing_inicio = time.time()
+    logger.info('[CLS][TIMING][INICIO]')
+    
     try:
         logger.info('=' * 60)
         logger.info('FLUXO CLS - INICIANDO')
         logger.info('=' * 60)
 
         # ===== VERIFICAÇÃO INICIAL: Estados especiais =====
+        timing_check_estado = time.time()
         estado_atual = verificar_estado_atual(driver)
+        timing_check_estado = time.time() - timing_check_estado
+        logger.info(f'[CLS][TIMING][CHECK_ESTADO] {timing_check_estado:.3f}s estado={estado_atual}')
+        
         if estado_atual == 'assinar':
             logger.info('[CLS]  Processo já está em /assinar - ato cumprido')
+            timing_total = time.time() - timing_inicio
+            logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
             return True
         elif estado_atual == 'minutar':
             logger.info('[CLS]  Já estamos em /minutar - focando no campo')
             focar_campo_minutar_se_necessario(driver)
+            timing_total = time.time() - timing_inicio
+            logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar)')
             return True
         elif estado_atual == 'conclusao':
             logger.info('[CLS] Já estamos em /conclusao - pulando navegação')
@@ -86,51 +98,111 @@ def fluxo_cls(
         ja_em_minutar = False
         if not ja_em_conclusao:
             logger.info('[CLS] Passo 1: Abrindo tarefa do processo...')
+            timing_tarefa_inicio = time.time()
             sucesso, ja_em_minutar = abrir_tarefa_processo(driver)
+            timing_tarefa = time.time() - timing_tarefa_inicio
+            logger.info(f'[CLS][TIMING][ABRIR_TAREFA] {timing_tarefa:.3f}s sucesso={sucesso}')
+            
             if not sucesso:
                 logger.error('[CLS] Falha ao abrir tarefa do processo')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao abrir tarefa')
                 return False
             
             # Se já está em /minutar após abrir tarefa, pular navegação e transição
             if ja_em_minutar:
                 logger.info('[CLS] ✅ Já em /minutar após abrir tarefa - fluxo CLS concluído')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
                 return True
 
         # ===== PASSO 2: LIMPAR OVERLAYS =====
         logger.info('[CLS] Passo 2: Limpando overlays...')
+        timing_overlays_inicio = time.time()
         limpar_overlays(driver)
+        timing_overlays = time.time() - timing_overlays_inicio
+        logger.info(f'[CLS][TIMING][LIMPAR_OVERLAYS] {timing_overlays:.3f}s')
 
         # ===== PASSO 3: NAVEGAR PARA CONCLUSÃO (se necessário) =====
         if not ja_em_conclusao:
             logger.info('[CLS] Passo 3: Navegando para conclusão...')
-            if not navegar_para_conclusao(driver):
-                logger.error('[CLS] Falha ao navegar para conclusão')
+            timing_nav_inicio = time.time()
+            try:
+                if not navegar_para_conclusao(driver):
+                    logger.error('[CLS] Falha ao navegar para conclusão')
+                    timing_total = time.time() - timing_inicio
+                    logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao navegar conclusão')
+                    return False
+            except Exception as e:
+                logger.error(f'[CLS][ERRO CRÍTICO] Exceção em navegar_para_conclusao: {e}')
+                import traceback
+                logger.error(traceback.format_exc())
                 return False
+            timing_nav = time.time() - timing_nav_inicio
+            logger.info(f'[CLS][TIMING][NAVEGAR_CONCLUSAO] {timing_nav:.3f}s')
 
         # ===== PASSO 4: ESCOLHER TIPO DE CONCLUSÃO =====
         logger.info(f'[CLS] Passo 4: Escolhendo tipo de conclusão: {conclusao_tipo}')
-        if not escolher_tipo_conclusao(driver, conclusao_tipo):
-            logger.error(f'[CLS] Falha ao escolher tipo de conclusão: {conclusao_tipo}')
+        timing_tipo_inicio = time.time()
+        try:
+            if not escolher_tipo_conclusao(driver, conclusao_tipo):
+                logger.error(f'[CLS] Falha ao escolher tipo de conclusão: {conclusao_tipo}')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao escolher tipo conclusão')
+                return False
+        except Exception as e:
+            logger.error(f'[CLS][ERRO CRÍTICO] Exceção em escolher_tipo_conclusao: {e}')
+            import traceback
+            logger.error(traceback.format_exc())
             return False
+        timing_tipo = time.time() - timing_tipo_inicio
+        logger.info(f'[CLS][TIMING][ESCOLHER_TIPO] {timing_tipo:.3f}s tipo={conclusao_tipo}')
 
         # ===== PASSO 5: AGUARDAR TRANSIÇÃO PARA MINUTAR =====
         logger.info('[CLS] Passo 5: Aguardando transição para minutar...')
-        if not aguardar_transicao_minutar(driver):
-            logger.error('[CLS] Falha na transição para minutar')
+        timing_transicao_inicio = time.time()
+        try:
+            if not aguardar_transicao_minutar(driver):
+                logger.error('[CLS] Falha na transição para minutar')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha na transição minutar')
+                return False
+        except Exception as e:
+            logger.error(f'[CLS][ERRO CRÍTICO] Exceção em aguardar_transicao_minutar: {e}')
+            import traceback
+            logger.error(traceback.format_exc())
             return False
+        timing_transicao = time.time() - timing_transicao_inicio
+        logger.info(f'[CLS][TIMING][TRANSICAO_MINUTAR] {timing_transicao:.3f}s')
 
         # ===== PASSO 6: PREPARAR CAMPO DE MINUTAR =====
         logger.info('[CLS] Passo 6: Preparando campo de minutar...')
-        if not preparar_campo_minutar(driver):
-            logger.error('[CLS] Falha ao preparar campo de minutar')
+        timing_campo_inicio = time.time()
+        try:
+            if not preparar_campo_minutar(driver):
+                logger.error('[CLS] Falha ao preparar campo de minutar')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao preparar campo minutar')
+                return False
+        except Exception as e:
+            logger.error(f'[CLS][ERRO CRÍTICO] Exceção em preparar_campo_minutar: {e}')
+            import traceback
+            logger.error(traceback.format_exc())
             return False
+        timing_campo = time.time() - timing_campo_inicio
+        logger.info(f'[CLS][TIMING][PREPARAR_CAMPO] {timing_campo:.3f}s')
 
         logger.info('=' * 60)
         logger.info('FLUXO CLS - CONCLUÍDO COM SUCESSO')
         logger.info('=' * 60)
+        
+        timing_total = time.time() - timing_inicio
+        logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
         return True
 
     except Exception as e:
+        timing_total = time.time() - timing_inicio
+        logger.error(f'[CLS][TIMING][ERRO] {timing_total:.3f}s erro inesperado: {e}')
         logger.error(f'[CLS] Erro inesperado no fluxo CLS: {e}')
         return False
 
@@ -179,6 +251,10 @@ def ato_judicial(
     from selenium.webdriver.support import expected_conditions as EC
     import time
 
+    # === TIMING: INÍCIO ===
+    timing_inicio = time.time()
+    logger.info('[ATO][TIMING][INICIO] conclusao_tipo={} modelo_nome={}'.format(conclusao_tipo, modelo_nome))
+
     try:
         # 0. PRIMEIRO: Executar coleta de conteúdo parametrizável na aba /detalhe (se especificado)
         if coleta_conteudo:
@@ -200,9 +276,14 @@ def ato_judicial(
         # 1. MODELO: Executar fluxo_cls se modelo_nome especificado
         if modelo_nome:
             logger.info(f'[ATO][MODELO] Iniciando fluxo CLS com modelo: {modelo_nome}')
+            timing_fluxo_cls_inicio = time.time()
             if not fluxo_cls(driver, conclusao_tipo or 'decisão'):
                 logger.error('[ATO][MODELO]  Falha no fluxo CLS')
+                timing_total = time.time() - timing_inicio
+                logger.info(f'[ATO][TIMING][ERRO] {timing_total:.3f}s falha fluxo CLS')
                 return False, False
+            timing_fluxo_cls = time.time() - timing_fluxo_cls_inicio
+            logger.info(f'[ATO][TIMING][FLUXO_CLS] {timing_fluxo_cls:.3f}s')
 
             # ===== DESCRIÇÃO (ANTES de inserir modelo para evitar DOM refresh) =====
             if descricao:
@@ -373,21 +454,17 @@ def ato_judicial(
                     document.body.style.overflow = 'visible';
                 """)
                 
-                # GRAVAR prazos (botão "Gravar" da aba destinatários)
+                # Gravar prazos (usar safe_click_no_scroll em vez de scrollIntoView + click)
                 logger.info('[ATO][PRAZO] Gravando prazos...')
                 btn_gravar_prazo = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"))
                 )
                 
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_gravar_prazo)
-                time.sleep(0.5)
-                
-                try:
-                    driver.execute_script("arguments[0].click();", btn_gravar_prazo)
-                    logger.info('[ATO][PRAZO] Gravado via JS')
-                except Exception:
+                if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
+                    logger.info('[ATO][PRAZO] Gravado via safe_click_no_scroll')
+                else:
+                    logger.warning('[ATO][PRAZO] Falha em safe_click_no_scroll, tentando .click()')
                     btn_gravar_prazo.click()
-                    logger.info('[ATO][PRAZO] Gravado via Selenium')
                 
                 time.sleep(1)
                 logger.info('[ATO][PRAZO]  Prazos concluídos')
@@ -401,27 +478,55 @@ def ato_judicial(
             marcar_pec_bool = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
             logger.info(f'[ATO][PEC] Parâmetro: marcar_pec={marcar_pec!r}')
             try:
-                # Buscar mat-checkbox (padrão do gigs-plugin.js)
-                pec_checkbox = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]'))
-                )
+                pec_checkbox = None
+                pec_input = None
                 
-                # Verificar se está marcado pela classe (mesmo padrão do gigs-plugin.js)
-                is_checked = 'mat-checkbox-checked' in pec_checkbox.get_attribute('class')
+                # Tentar múltiplas formas de encontrar o checkbox PEC (fallbacks)
+                try:
+                    pec_checkbox = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]'))
+                    )
+                    pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                except:
+                    try:
+                        pec_checkbox = WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'div.checkbox-pec mat-checkbox'))
+                        )
+                        pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                    except:
+                        pec_input = WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]'))
+                        )
+                        pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                
+                if not pec_checkbox or not pec_input:
+                    raise Exception("Checkbox PEC não encontrado")
+                
+                # Verificar estado atual
+                is_checked = False
+                try:
+                    if (pec_input.get_attribute('aria-checked') == 'true' or 
+                        pec_input.get_attribute('checked') == 'true' or 
+                        pec_input.is_selected() or 
+                        'mat-checkbox-checked' in pec_checkbox.get_attribute('class')):
+                        is_checked = True
+                except:
+                    is_checked = False
                 
                 logger.info(f'[ATO][PEC] Estado: {"marcado" if is_checked else "desmarcado"} → esperado: {"marcar" if marcar_pec_bool else "desmarcar"}')
                 
-                # Clicar no label se estado é diferente do esperado (padrão do gigs-plugin.js)
+                # Clicar checkbox PEC (usar safe_click_no_scroll em vez de scrollIntoView + click)
                 if marcar_pec_bool != is_checked:
-                    label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-label')
-                    driver.execute_script('arguments[0].scrollIntoView({block: "center"});', label)
-                    time.sleep(0.2)
-                    driver.execute_script('arguments[0].click();', label)
-                    time.sleep(0.3)
+                    # Tentar clicar no label, se não funcionar clicar no checkbox
+                    try:
+                        label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
+                        safe_click_no_scroll(driver, label, log=False)
+                    except:
+                        safe_click_no_scroll(driver, pec_checkbox, log=False)
+                        driver.execute_script('arguments[0].click();', pec_checkbox)
                     
-                    # Verificar novo estado
-                    novo_checked = 'mat-checkbox-checked' in pec_checkbox.get_attribute('class')
-                    logger.info(f'[ATO][PEC] ✅ {"Marcado" if novo_checked else "Desmarcado"}')
+                    time.sleep(0.3)
+                    logger.info(f'[ATO][PEC] ✅ {"Marcado" if marcar_pec_bool else "Desmarcado"}')
                 else:
                     logger.info(f'[ATO][PEC] ✓ Já está conforme esperado')
                     
@@ -614,9 +719,13 @@ def ato_judicial(
         logger.info('=' * 60)
         logger.info('ATO JUDICIAL - CONCLUÍDO COM SUCESSO')
         logger.info('=' * 60)
+        timing_total = time.time() - timing_inicio
+        logger.info(f'[ATO][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
         return True, sigilo_ativado
 
     except Exception as e:
+        timing_total = time.time() - timing_inicio
+        logger.error(f'[ATO][TIMING][ERRO] {timing_total:.3f}s erro inesperado: {e}')
         logger.error(f'[ATO]  Erro inesperado no ato judicial: {e}')
         return False, False
 

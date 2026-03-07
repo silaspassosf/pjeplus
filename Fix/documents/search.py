@@ -473,9 +473,84 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
     ]
     
     try:
+        def _checar_cabecalho(driver, passo):
+            """Verifica se cabeçalho está funcional (não apenas visível).
+            
+            Usa o botão 'Análise' como proxy: se ele existe e está clickable,
+            o cabeçalho Angular está devidamente renderizado.
+            
+            Problema: Angular pode deixar elemento invisível mas presente no DOM.
+            Solução: Verificar se botão está no DOM e é clickable (melhor indicador).
+            """
+            try:
+                # 1. Verificar se botão "Análise" existe e está presente no DOM
+                botoes = driver.find_elements(By.CSS_SELECTOR, 'button.botao-detalhe[accesskey="t"]')
+                
+                if not botoes:
+                    if log:
+                        logger.info(f"[CABECALHO][{passo}] presente=False (botão Análise não encontrado no DOM)")
+                    return False
+                
+                botao = botoes[0]
+                
+                # 2. Verificar se está atualmente displayed (visível na viewport)
+                try:
+                    is_displayed = botao.is_displayed()
+                except Exception:
+                    is_displayed = False
+                
+                # 3. Verificar se está habilitado (clickable)
+                try:
+                    is_enabled = botao.is_enabled()
+                except Exception:
+                    is_enabled = False
+                
+                # 4. Verificar tamanho
+                try:
+                    size = botao.size
+                    has_size = size.get('width', 0) > 0 and size.get('height', 0) > 0
+                except Exception:
+                    has_size = False
+                
+                # 5. Verificar se está na viewport (getBoundingClientRect)
+                try:
+                    rect = driver.execute_script(
+                        'let r = arguments[0].getBoundingClientRect(); return {top: r.top, bottom: r.bottom, left: r.left, right: r.right, visible: r.top < window.innerHeight && r.bottom > 0};',
+                        botao
+                    )
+                    in_viewport = rect.get('visible', False)
+                except Exception:
+                    in_viewport = False
+                
+                # Cabeçalho está OK se: botão existe, está enabled, tem tamanho, e está na viewport
+                # (ou is_displayed retorna True)
+                cabecalho_ok = is_enabled and (is_displayed or in_viewport)
+                
+                if log:
+                    logger.info(f"[CABECALHO][{passo}] presente={cabecalho_ok} displayed={is_displayed} enabled={is_enabled} tamanho={has_size} in_viewport={in_viewport}")
+                
+                return cabecalho_ok
+                
+            except Exception as e:
+                if log:
+                    logger.info(f"[CABECALHO][{passo}] erro ao checar: {str(e)[:100]}")
+                return False
+
+        # === TIMING: Início da busca
+        timing_start = time.time()
+        if log:
+            logger.info('[ARGOS][TIMING][INICIO] buscar_documento_argos iniciada')
+        
+        # checar cabeçalho: início
+        _checar_cabecalho(driver, 'inicio')
+
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
             return None, None, None
+
+        timing_busca_itens = time.time() - timing_start
+        if log:
+            logger.info(f'[ARGOS][TIMING][BUSCA_ITENS] {timing_busca_itens:.3f}s encontrados={len(itens)} itens')
 
         # Localizar índice da primeira planilha (se houver)
         planilha_idx = None
@@ -516,27 +591,58 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
         if not candidates:
             return None, None, None
 
+        timing_candidatos = time.time() - timing_start
+        if log:
+            logger.info(f"[ARGOS][TIMING][CANDIDATOS] {timing_candidatos:.3f}s encontrados={len(candidates)} documentos")
+
         # Iterar pelos candidatos até encontrar um que contenha uma REGRA ARGOS
         for idx, doc_text in candidates:
             try:
+                timing_candidato = time.time() - timing_start
+                if log:
+                    logger.info(f'[ARGOS][TIMING][CANDIDATO_{idx}][START] {timing_candidato:.3f}s tipo={doc_text}')
                 item = itens[idx]
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                # checar cabeçalho antes do clique
+                _checar_cabecalho(driver, f'antes_click_idx_{idx}')
+
+                # Clicar diretamente COM dispatchEvent (estratégia robusta gigs-plugin)
+                # NÃO usar scrollIntoView - causa layout shifts
+                from Fix.core import safe_click_no_scroll
+                timing_antes_click = time.time() - timing_start
+                if not safe_click_no_scroll(driver, link, log=log):
+                    if log:
+                        logger.warning(f"[ARGOS][CLIQUE][idx_{idx}] Falha ao clicar")
+                    continue
                 
-                # Selecionar o documento na timeline
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", link)
-                time.sleep(0.5)
-                link.click()
+                timing_depois_click = time.time() - timing_start
+                if log:
+                    logger.info(f"[ARGOS][CLIQUE][idx_{idx}] metodo='dispatchEvent' tempo={timing_depois_click - timing_antes_click:.3f}s")
+                
                 time.sleep(1)
-                
+                # checar cabeçalho após o clique / navegação
+                _checar_cabecalho(driver, f'apos_click_idx_{idx}')
+
                 # Extrair o texto REAL do documento usando a função robusta do Fix
-                # Essa função lê diretamente do painel ativo sem abrir modais
-                extracao_res = extrair_direto(driver, debug=log)
+                # Essa função lé diretamente do painel ativo sem abrir modais
+                _checar_cabecalho(driver, f'before_extrair_idx_{idx}')
+                timing_antes_extracao = time.time() - timing_start
+                extracao_res = extrair_direto(driver, debug=True)
                 texto = extracao_res.get('conteudo')
+                timing_depois_extracao = time.time() - timing_start
+                
+                if log:
+                    logger.info(f'[ARGOS][EXTRACAO][idx_{idx}] tempo={timing_depois_extracao - timing_antes_extracao:.3f}s metodo={extracao_res.get("metodo")} sucesso={extracao_res.get("sucesso")} tamanho={len(texto) if texto else 0}')
                 
                 if not texto:
                     if log:
                         logger.warning(f'[ARGOS][DOC] Extração de conteúdo via extrair_direto falhou para candidato #{idx}. Tentando item.text como fallback.')
                     texto = item.text
+                
+                # === RETORNA DOCUMENTO ENCONTRADO
+                timing_total = time.time() - timing_start
+                if log:
+                    logger.info(f"[ARGOS][TIMING][SUCESSO] {timing_total:.3f}s documento encontrado idx={idx}")
                 
                 # Retorna o candidato com o texto extraído
                 return texto, ('despacho' if 'despacho' in doc_text else 'decisão'), idx
@@ -546,9 +652,15 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
                     logger.error(f'[ARGOS][DOC] Erro ao processar candidato #{idx}: {e}')
                 continue
 
+        # === NÃO ENCONTROU DOCUMENTO
+        timing_nenhum = time.time() - timing_start
+        if log:
+            logger.info(f'[ARGOS][TIMING][NENHUM] {timing_nenhum:.3f}s nenhum documento ARGOS encontrado')
+
         return None, None, None
 
     except Exception as e:
+        timing_erro = time.time() - timing_start
         if log:
-            logger.error(f'[ARGOS][DOC] Erro geral: {e}')
+            logger.error(f'[ARGOS][TIMING][ERRO] {timing_erro:.3f}s erro geral: {e}')
         return None, None, None

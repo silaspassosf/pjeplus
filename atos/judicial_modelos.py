@@ -6,11 +6,13 @@ Funções para inserção e monitoramento de modelos, além de seleção
 de tipos de conclusão no editor de atos judiciais.
 """
 
+import time
 from Fix.core import aguardar_e_clicar, safe_click, logger, esperar_url_conter
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-import time
+from selenium.common.exceptions import ElementClickInterceptedException
+from Fix.core import safe_click_no_scroll
 
 from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -45,6 +47,11 @@ def esperar_insercao_modelo(driver: WebDriver, timeout: int = 8000) -> bool:
 def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
     """
     Escolhe o tipo de conclusão na tela de conclusão do processo.
+    
+    ESTRATÉGIA SIMPLES (legacy approach):
+    - Procura botão com 3 estratégias
+    - Um ÚNICO clique com scrollIntoView + JS click
+    - Deixa que a página navegue naturalmente sem retry
 
     Args:
         driver: WebDriver instance
@@ -119,18 +126,29 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
             logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado')
             return False
 
-        # Clicar no botão encontrado
-        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
-        time.sleep(0.3)
-        driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
-        logger.info(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" clicado')
+        # ===== CLIQUE ÚNICO + SIMPLES (legacy approach) =====
+        # ScrollIntoView + JavaScript click direto, sem retry logic que interfere com page navigation
+        logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
+        try:
+            driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
+            time.sleep(0.3)
+            driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+            logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
+        except Exception as click_err:
+            logger.error(f'[CONCLUSÃO] ❌ Erro ao clicar: {click_err}')
+            return False
 
+        # Aguardar estabilização
         time.sleep(1)
         return True
 
     except Exception as e:
         logger.error(f'[CONCLUSÃO] Erro ao escolher tipo de conclusão: {e}')
+        import traceback
+        logger.error(traceback.format_exc())
         return False
+
+
 
 
 def aguardar_transicao_minutar(driver: WebDriver) -> bool:

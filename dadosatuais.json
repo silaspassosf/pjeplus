@@ -1,51 +1,47 @@
 {
   "numero": [
-    "1000938-65.2016.5.02.0703"
+    "1001602-18.2024.5.02.0703"
   ],
-  "id": 1005432,
+  "id": 6519982,
   "autor": [
     {
-      "nome": "JANDA NAYARA CYRINO",
-      "cpfcnpj": "41240800851",
+      "nome": "RENE COMPERE",
+      "cpfcnpj": "07173507111",
       "advogado": {
-        "nome": "KELLY NASCIMENTO GONCALVES",
-        "cpf": "23121377809",
-        "oab": "SP362929"
+        "nome": "DANIEL PELISSARI TINTI",
+        "cpf": "30448022885",
+        "oab": "SP281779"
       }
     }
   ],
   "reu": [
     {
-      "nome": "EDSON PEREIRA SALDANHA 25389723880",
-      "cpfcnpj": "19398910000100"
+      "nome": "EDERSON L. F. SOUZA - SOUZA & POSSIDONE CONSTRUTORA",
+      "cpfcnpj": "36443670000120"
     },
     {
-      "nome": "EDSON PEREIRA SALDANHA",
-      "cpfcnpj": "25389723880"
+      "nome": "KALLAS INCORPORACOES E CONSTRUCOES S/A.",
+      "cpfcnpj": "09146451000106",
+      "advogado": {
+        "nome": "GILBERTO FERREIRA DA COSTA",
+        "cpf": "17602774876",
+        "oab": "SP182438"
+      }
     }
   ],
   "terceiro": [
     {
-      "nome": "REDECARD S.A."
-    },
-    {
-      "nome": "CIELO S.A."
-    },
-    {
-      "nome": "GETNET ADQUIRENCIA E SERVICOS PARA MEIOS DE PAGAMENTO S.A."
-    },
-    {
-      "nome": "SECRETARIA DA FAZENDA DO GOVERNO DE SAO PAULO - CAT - DEAT - DELEGACIA REGIONAL TRIBUTÁRIA"
+      "nome": "CAIXA ECONÔMICA FEDERAL"
     }
   ],
   "divida": {
-    "valor": "R$ 72.949,75",
-    "data": "19/12/2024"
+    "valor": "R$ 69.528,92",
+    "data": "01/02/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "20/05/2016",
+  "dtAutuacao": "27/09/2024",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

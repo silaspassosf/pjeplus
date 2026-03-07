@@ -1,0 +1,17 @@
+{
+  "numero_processo": "ATUAL",
+  "destinatarios": [
+    {
+      "nome": "ALEMAO RESTAURANTE E PIZZARIA LTDA",
+      "cpfcnpj": "49557870000155",
+      "tipo": "reu"
+    },
+    {
+      "nome": "ALEMAO PIZZARIA E RESTAURANTE LTDA",
+      "cpfcnpj": "52540501000164",
+      "tipo": "reu"
+    }
+  ],
+  "origem": "argos_idpj_decisao",
+  "timestamp": "2026-03-07T12:02:15.881851"
+}

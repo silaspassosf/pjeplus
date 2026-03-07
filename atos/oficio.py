@@ -11,7 +11,7 @@ Funções:
 """
 
 import logging
-import time
+from Fix.core import safe_click_no_scroll
 import json
 import os
 from typing import Optional, Dict, Any
@@ -83,9 +83,7 @@ def dados(driver: WebDriver, debug: bool = False) -> bool:
             download_icon = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-download.fa-lg'))
             )
-            driver.execute_script('arguments[0].scrollIntoView({block: "center"});', download_icon)
-            time.sleep(0.3)
-            download_icon.click()
+            safe_click_no_scroll(driver, download_icon, log=False)
             logger.info('[OFICIO][DADOS] ✓ Download iniciado')
             time.sleep(2)
         except Exception as e:

@@ -66,9 +66,18 @@ def safe_click(driver: WebDriver, selector_or_element: Union[str, WebElement], t
     return _impl(driver, selector_or_element, timeout=timeout, by=by, log=log)
 
 def aguardar_e_clicar(driver: WebDriver, seletor: str, log: bool = False, timeout: int = 10, by: str = By.CSS_SELECTOR, usar_js: bool = True, retornar_elemento: bool = False, debug: Optional[bool] = None) -> Union[bool, WebElement]:
-    """Wrapper para Fix.extracao.aguardar_e_clicar."""
-    from Fix.extracao import aguardar_e_clicar as _impl
+    """Wrapper para Fix.selenium_base.click_operations.aguardar_e_clicar."""
+    from Fix.selenium_base.click_operations import aguardar_e_clicar as _impl
     return _impl(driver, seletor, log=log, timeout=timeout, by=by, usar_js=usar_js, retornar_elemento=retornar_elemento, debug=debug)
+
+def safe_click_no_scroll(driver: WebDriver, element: WebElement, log: bool = False) -> bool:
+    """Wrapper para Fix.selenium_base.click_operations.safe_click_no_scroll.
+    
+    Click SEM scrollIntoView (evita layout shifts que quebram header dinâmico).
+    Usa dispatchEvent - padrão gigs-plugin.
+    """
+    from Fix.selenium_base.click_operations import safe_click_no_scroll as _impl
+    return _impl(driver, element, log=log)
 
 def selecionar_opcao(driver: WebDriver, seletor_dropdown: str, texto_opcao: str, timeout: int = 10, exato: bool = False, log: bool = False) -> bool:
     """Wrapper para Fix.extracao.selecionar_opcao."""

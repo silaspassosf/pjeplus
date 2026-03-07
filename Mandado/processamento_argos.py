@@ -1,3 +1,4 @@
+import time
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from Fix import (
@@ -29,6 +30,10 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
 
     Cada etapa deve ser executada completamente antes de passar para a próxima.
     """
+    # === TIMING: INÍCIO DO PROCESSAMENTO ===
+    timing_inicio = time.time()
+    logger.info('[ARGOS][TIMING][PROCESAR_ARGOS][INICIO]')
+    
     try:
         logger.info('[ARGOS][INICIO] Iniciando processamento do fluxo Argos com sequência rigorosa')
 
@@ -80,17 +85,22 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
 
         # === ETAPA 4: BUSCAR E APLICAR REGRAS ARGOS (LOOP ITERATIVO) ===
         # Loop: abrir despacho/decisão → extrair → comparar regras → aplicar se tem regra → próximo se não
+        # LIMITE: Máximo 3 documentos. Se passar de 3 sem encontrar regra, abortar busca.
+        
+        timing_etapa4_inicio = time.time()
+        logger.info('[ARGOS][TIMING][ETAPA4][INICIO] Iniciando busca e aplicação de regras ARGOS')
         
         regra_aplicada = False
-        max_tentativas = 15  # Limite para evitar loop infinito
-        tentativa = 0
-        documentos_ignorados = [] # Rastrear índices já tentados que não tinham regra
+        max_documentos_testados = 3  # LIMITE: máximo 3 documentos
+        documentos_testados = 0
+        documentos_ignorados = []  # Rastrear índices já tentados que não tinham regra
         
-        while tentativa < max_tentativas and not regra_aplicada:
-            tentativa += 1
-            
+        while documentos_testados < max_documentos_testados and not regra_aplicada:
             # Buscar próximo documento com regra Argos, ignorando os que já falharam
+            timing_busca_inicio = time.time()
             resultado_documento = buscar_documento_argos(driver, log=True, ignorar_indices=documentos_ignorados)
+            timing_busca_fim = time.time()
+            logger.info(f'[ARGOS][TIMING][BUSCA_DOC] {timing_busca_fim - timing_busca_inicio:.3f}s')
             
             if not resultado_documento or not resultado_documento[0]:
                 logger.info('[ARGOS][ETAPA 4] Fim da busca: Nenhum documento candidato restou na timeline')
@@ -103,8 +113,9 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
                     documentos_ignorados.append(documento_idx)
                 continue
             
+            documentos_testados += 1
             if log:
-                logger.info(f'[ARGOS][ETAPA 4] Analisando candidato #{documento_idx} ({documento_tipo})...')
+                logger.info(f'[ARGOS][ETAPA 4] Testando documento {documentos_testados}/{max_documentos_testados} (índice #{documento_idx}, tipo: {documento_tipo})...')
 
             # === ETAPA 5: EXTRAIR DESTINATÁRIOS ===
             try:
@@ -133,24 +144,42 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
                 pass
 
             # TENTAR APLICAR REGRAS
+            timing_regras_inicio = time.time()
             regras_aplicadas = aplicar_regras_argos(driver, resultado_sisbajud, sigilo_anexos, documento_tipo, documento_texto, debug=True)
+            timing_regras_fim = time.time()
+            logger.info(f'[ARGOS][TIMING][APLICAR_REGRAS] {timing_regras_fim - timing_regras_inicio:.3f}s')
             
             if regras_aplicadas:
                 regra_aplicada = True
-                logger.info(f'[ARGOS][ETAPA 4] SUCESSO: Regra aplicada no documento #{documento_idx}')
+                logger.info(f'[ARGOS][ETAPA 4] ✅ SUCESSO: Regra aplicada no documento #{documento_idx} ({documentos_testados}/{max_documentos_testados})')
                 break
             else:
-                logger.info(f'[ARGOS][ETAPA 4] Nenhuma regra encontrada no documento #{documento_idx}. Tentando próximo...')
+                logger.info(f'[ARGOS][ETAPA 4] ❌ Nenhuma regra encontrada no documento #{documento_idx}')
                 documentos_ignorados.append(documento_idx)
+                
+                # Se atingiu limite de documentos testados, parar busca
+                if documentos_testados >= max_documentos_testados:
+                    logger.info(f'[ARGOS][ETAPA 4] Limite de documentos ({max_documentos_testados}) atingido. Interrompendo busca por regras.')
+                    break
                 continue
         
+        # === TIMING: FIM DA ETAPA 4 ===
+        timing_etapa4_total = time.time() - timing_etapa4_inicio
+        logger.info(f'[ARGOS][TIMING][ETAPA4][TOTAL] {timing_etapa4_total:.3f}s documentos_testados={documentos_testados} regra_aplicada={regra_aplicada}')
+        
         if not regra_aplicada:
-            logger.info('[ARGOS][ETAPA 4-6][ERRO] Nenhum documento teve regra Argos aplicada com sucesso após {tentativa} tentativas')
+            logger.info(f'[ARGOS][ETAPA 4] ❌ ERRO: Nenhuma regra Argos encontrada nos {documentos_testados} documento(s) testado(s) (limite: {max_documentos_testados})')
+            timing_total = time.time() - timing_inicio
+            logger.info(f'[ARGOS][TIMING][PROCESSAR_ARGOS][FALHA] {timing_total:.3f}s')
             return False
 
+        timing_total = time.time() - timing_inicio
+        logger.info(f'[ARGOS][TIMING][PROCESSAR_ARGOS][SUCESSO] {timing_total:.3f}s')
         return True
 
     except Exception as e:
+        timing_erro = time.time() - timing_inicio
+        logger.info(f'[ARGOS][TIMING][PROCESSAR_ARGOS][ERRO] {timing_erro:.3f}s')
         logger.info(f'[ARGOS][ERRO] Falha crítica no processamento: {e}')
         import traceback
         logger.exception("Erro detectado")

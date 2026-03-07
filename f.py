@@ -17,6 +17,7 @@ import sys
 import io
 import os
 import time
+import logging
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -28,13 +29,40 @@ from selenium.webdriver.firefox.service import Service
 from Fix.core import finalizar_driver
 from Fix.utils import login_cpf
 
+# Configurar logging para capturar logs de Fix.* durante execução do f.py
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  # Apenas INFO e acima globalmente
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s: %(message)s')
+
+# Stream handler (stdout) - apenas INFO
+sh = logging.StreamHandler(sys.stdout)
+sh.setFormatter(formatter)
+sh.setLevel(logging.INFO)
+logger.addHandler(sh)
+
+# File handler - apenas INFO
+try:
+    fh = logging.FileHandler(os.path.join(os.path.dirname(__file__), 'f_py_debug.log'), encoding='utf-8')
+    fh.setFormatter(formatter)
+    fh.setLevel(logging.INFO)
+    logger.addHandler(fh)
+except Exception:
+    pass
+
+# Silenciar logs extremamente verbose de selenium e urllib3
+logging.getLogger('selenium').setLevel(logging.WARNING)
+logging.getLogger('selenium.webdriver').setLevel(logging.WARNING)
+logging.getLogger('selenium.webdriver.remote').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+
 
 # ============================================================================
 # SEÇÃO 1: CONFIGURAÇÕES DE NAVEGAÇÃO (MODIFICAR AQUI)
 # ============================================================================
 
-# URL para navegar após login
-URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/6094959/detalhe"
+# URL para navegar após login (caso de teste solicitado)
+URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/6519982/detalhe/"
 
 # Dados adicionais (se necessário para testes)
 NUMERO_PROCESSO = "0010644-31.2024.5.02.0472"
@@ -193,30 +221,45 @@ def criar_driver_vt_visivel():
 
 def executar_testes(driver_pje):
     """
-    Funções de teste - MODIFICAR ESTA FUNÇÃO CONFORME NECESSIDADE
+    TESTE ISOLADO: Execução de pec_idpj no processo já aberto
     """
     print("\n" + "=" * 80)
-    print("TESTE ATO_BLOQ - JUNTADA RELATÓRIO CONCISO")
+    print("TESTE ISOLADO: pec_idpj")
     print("=" * 80)
-    
+
     try:
-        from atos.wrappers_ato import ato_bloq
+        from atos.wrappers_pec import pec_idpj
+        import time
         
-        # Executar ato_bloq nativo (sem passar nada)
-        print("\n📌 Executando ato_bloq nativo...\n")
+        print("\n[1/1] Executando pec_idpj com timing detalhado...")
+        print("-" * 80)
         
-        resultado = ato_bloq(driver=driver_pje, debug=True)
-        
-        # Verificar resultado
-        print("\n" + "="*80)
-        if resultado:
-            print("✅ SUCESSO: ato_bloq retornou True")
-        else:
-            print("❌ ERRO: ato_bloq retornou False")
-        print("="*80 + "\n")
-        
-        return resultado
-        
+        inicio_total = time.time()
+        try:
+            print(f"[PEC_IDPJ] Iniciando...")
+            resultado = pec_idpj(driver_pje, debug=True)
+            tempo_total = time.time() - inicio_total
+            
+            print("-" * 80)
+            print(f"[PEC_IDPJ] Resultado: {resultado}")
+            print(f"[PEC_IDPJ] Tempo total: {tempo_total:.2f}s")
+            
+            if resultado:
+                print("✅ pec_idpj executado com sucesso")
+                return True
+            else:
+                print("⚠️ pec_idpj retornou False")
+                return False
+                
+        except Exception as e:
+            tempo_total = time.time() - inicio_total
+            print("-" * 80)
+            print(f"❌ pec_idpj FALHOU: {e}")
+            print(f"[PEC_IDPJ] Tempo até erro: {tempo_total:.2f}s")
+            import traceback
+            traceback.print_exc()
+            return False
+            
     except Exception as e:
         print(f"\n❌ ERRO NO TESTE: {e}")
         import traceback
@@ -242,7 +285,14 @@ def main():
         print("  [V] VT (máquina específica)")
         print("  [P] PC (padrão)")
         
-        escolha = input("\nDigite V ou P: ").strip().upper()
+        # allow non-interactive choice via env var or CLI arg for automated runs
+        escolha = None
+        if len(sys.argv) > 1:
+            escolha = sys.argv[1].strip().upper()
+        if not escolha:
+            escolha = os.environ.get('F_CHOICE', '').strip().upper()
+        if not escolha:
+            escolha = input("\nDigite V ou P: ").strip().upper()
         
         if escolha == 'V':
             driver_pje = criar_driver_vt_visivel()

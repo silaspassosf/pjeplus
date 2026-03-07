@@ -94,10 +94,10 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
             logger.error(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" não encontrado')
             return False
 
-        # Clicar no botão encontrado
-        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
-        time.sleep(0.3)
-        driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
+        # Clicar no botão encontrado (usar aguardar_e_clicar em vez de scrollIntoView + click)
+        if not aguardar_e_clicar(driver, selector, log=False, timeout=3):
+            logger.error(f'[CONCLUSÃO] Falha ao clicar no botão de conclusão "{conclusao_tipo}"')
+            return False
         logger.info(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" clicado')
 
         time.sleep(1)

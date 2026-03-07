@@ -13,7 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import re
 from datetime import datetime, timedelta
-import time
+from Fix.core import safe_click_no_scroll
 
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
     """
@@ -141,13 +141,11 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             )
 
             if btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_gravar_prazo)
-                time.sleep(0.5)
-
-                try:
-                    driver.execute_script("arguments[0].click();", btn_gravar_prazo)
-                    logger.info('[PRAZOS] ✅ Prazos gravados via JavaScript')
-                except Exception as js_error:
+                # Usar safe_click_no_scroll em vez de scrollIntoView + click
+                if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
+                    logger.info('[PRAZOS] ✅ Prazos gravados via safe_click_no_scroll')
+                else:
+                    logger.warning('[PRAZOS] Falha em safe_click_no_scroll, tentando .click()')
                     btn_gravar_prazo.click()
                     logger.info('[PRAZOS] ✅ Prazos gravados via Selenium')
 

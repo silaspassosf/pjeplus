@@ -286,23 +286,103 @@ def extrair_destinatarios_decisao(texto_decisao: Optional[str], dados_processo: 
 
 
 def salvar_destinatarios_cache(chave_simples: str, destinatarios: List[Dict[str, Any]], origem: str = '') -> None:  # noqa: D401
+    """
+    Salva destinatários no cache GLOBAL, casado com número do processo ATUAL.
+    
+    **IMPORTANTE:** Extrai o número do processo de dadosatuais.json (populado por extrair_dados_processo)
+    de forma automática, garantindo que o cache sempre tenha o número correto.
+    
+    Fluxo:
+    1. Processo X executa extrair_dados_processo() → popula dadosatuais.json com número de X
+    2. Processo X executa extrair_destinatarios_decisao() → extrai nomes
+    3. Processo X chama salvar_destinatarios_cache(destinatarios=nomes)
+    4. Esta função lê número de X de dadosatuais.json e salva {numero_X, nomes} no cache
+    
+    Args:
+        chave_simples: (ignorado - número é extraído de dadosatuais.json)
+        destinatarios: lista de destinatarios extraidos da decisão
+        origem: onde vieram (ex: "argos_idpj_decisao")
+    """
+    # Extrair número do processo ATUAL de dadosatuais.json
+    numero_processo = None
+    try:
+        if Path('dadosatuais.json').exists():
+            dados = json.loads(Path('dadosatuais.json').read_text(encoding='utf-8'))
+            numero_list = dados.get('numero', [])
+            numero_processo = numero_list[0] if isinstance(numero_list, list) and numero_list else None
+            if not numero_processo:
+                logger.warning('[DEST][CACHE] Número de processo não encontrado em dadosatuais.json')
+                return
+    except Exception as exc:
+        logger.warning(f'[DEST][CACHE][WARN] Erro ao ler dadosatuais.json: {exc}')
+        return
+    
+    # Salvar com número automático (não usar chave_simples)
     payload = {
-        'numero_processo': chave_simples,
+        'numero_processo': numero_processo,
         'destinatarios': destinatarios,
         'origem': origem,
         'timestamp': datetime.datetime.now().isoformat()
     }
     try:
         DESTINATARIOS_CACHE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+        logger.info(
+            f'[DEST][CACHE] ✅ Destinatários salvos: '
+            f'processo={numero_processo}, origem={origem}, quantidade={len(destinatarios)}'
+        )
     except Exception as exc:
-        logger.warning(f'[DEST][WARN] Falha ao salvar cache de destinatários: {exc}')
+        logger.warning(f'[DEST][CACHE][WARN] Falha ao salvar cache: {exc}')
 
 
 def carregar_destinatarios_cache() -> Dict[str, Any]:
+    """
+    Carrega destinatários em cache ESPECÍFICO para o processo atual.
+    
+    Busca o número do processo em dadosatuais.json (populado por extrair_dados_processo)
+    e procura no arquivo cache global por destinatarios extraidos daquele processo específico.
+    
+    Returns:
+        Dict com {numero_processo, destinatarios, origem} se encontrado, {} caso contrário
+    """
+    # Passo 1: Extrair número do processo ATUAL de dadosatuais.json
+    numero_processo_atual = None
+    try:
+        if Path('dadosatuais.json').exists():
+            dados = json.loads(Path('dadosatuais.json').read_text(encoding='utf-8'))
+            numero_list = dados.get('numero', [])
+            numero_processo_atual = numero_list[0] if isinstance(numero_list, list) and numero_list else None
+            if numero_processo_atual:
+                logger.info(f'[DEST][CACHE] Processo atual: {numero_processo_atual}')
+    except Exception as exc:
+        logger.warning(f'[DEST][WARN] Erro ao determinar processo atual: {exc}')
+    
+    if not numero_processo_atual:
+        logger.warning('[DEST][CACHE] Não foi possível extrair número do processo de dadosatuais.json')
+        return {}
+    
+    # Passo 2: Buscar no cache global pelo número específico
     try:
         if DESTINATARIOS_CACHE_PATH.exists():
             cache = json.loads(DESTINATARIOS_CACHE_PATH.read_text(encoding='utf-8'))
-            return cache
+            cache_numero = cache.get('numero_processo', '')
+            
+            if cache_numero == numero_processo_atual:
+                # Cache está casado com este processo!
+                destinatarios = cache.get('destinatarios', [])
+                origem = cache.get('origem', '')
+                logger.info(
+                    f'[DEST][CACHE] ✅ Cache encontrado: processo={numero_processo_atual}, '
+                    f'destinatarios={len(destinatarios)}, origem={origem}'
+                )
+                return cache
+            else:
+                logger.info(
+                    f'[DEST][CACHE] Cache existe mas para outro processo '
+                    f'(cache={cache_numero}, atual={numero_processo_atual}) → fallback'
+                )
+                return {}
     except Exception as exc:
-        logger.warning(f'[DEST][WARN] Falha ao carregar cache de destinatários: {exc}')
+        logger.warning(f'[DEST][WARN] Erro ao carregar cache: {exc}')
+    
+    logger.info(f'[DEST][CACHE] Nenhum cache para processo {numero_processo_atual} → fallback')
     return {}

@@ -115,9 +115,8 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                     log(f'[COMUNICACAO][WARN] Linha {idx}: Dropdown não encontrado')
                     continue
 
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", dropdown)
-                time.sleep(0.05)
-                driver.execute_script("arguments[0].click();", dropdown)
+                # Clicar dropdown (usar aguardar_e_clicar em vez de scrollIntoView + click)
+                aguardar_e_clicar(driver, dropdown, log=False, timeout=3)
                 time.sleep(0.2)
 
                 try:

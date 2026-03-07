@@ -2352,7 +2352,7 @@
                 const fgtsJaDepositado = fgtsTipo === 'depositado';
 
                 if (isFgtsSep && !fgtsJaDepositado) {
-                    // FGTS devido (a ser recolhido)
+                    // FGTS devido (a ser recolhido em conta vinculada)
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, atualizados para ${bold(vData)}. `;
                 } else if (isFgtsSep && fgtsJaDepositado) {
                     // FGTS depositado (não menciona "a ser recolhido")
@@ -2389,7 +2389,9 @@
                 }
 
                 if (usarPlaceholder) {
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Desde já, ficam autorizados os descontos previdenciários (cota do reclamante) ora fixados em ${xxx()}, para ${xxx()}.</p>`;
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Desde já, ficam autorizados os descontos previdenciários (cota do reclamante) ora fixados em ${xxx()}, para ${xxx()}, devendo, para as retenções, serem observados os termos da Súmula 368, C. TST e da Instrução Normativa RFB nº 1.500, de 29/10/2014.</p>`;
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Os valores relativos às contribuições previdenciárias devidas em decorrência de decisões proferidas pela Justiça do Trabalho a partir de 1º de outubro de 2023, inclusive acordos homologados, devem ser recolhidos pelo(a) reclamado(a) por meio da DCTF-Web, depois de serem informados os dados da reclamatória trabalhista no e-Social. Atente-se que os registros no e-Social serão feitos por meio dos eventos: "S-2500 - Processos Trabalhistas" e "S-2501 - Informações de Tributos Decorrentes de Processo Trabalhista".</p>`;
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Nos casos em que os recolhimentos forem efetuados diretamente pela Justiça do Trabalho, o reclamado deverá enviar através do e-Social somente o evento "S-2500 – Processos Trabalhistas".</p>`;
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">A reclamada, ainda, deverá pagar o valor de sua cota-parte no INSS, a saber, ${xxx()}, para ${xxx()}.</p>`;
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Para as deduções fiscais de Imposto de Renda, fixadas em ${xxx()} para ${xxx()}, observem-se a Súmula 368 do TST e IN RFB 1500/2014.</p>`;
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Honorários advocatícios sucumbenciais pela reclamada, no importe de ${xxx()}, para ${xxx()}.</p>`;

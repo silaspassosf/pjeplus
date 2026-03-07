@@ -324,7 +324,14 @@ def _executar_callback_processo(driver: WebDriver, proc_id: str, progresso: dict
     Returns:
         True se executado com sucesso
     """
+    aba_lista_original = None
     try:
+        # Preservar aba original para cleanup posterior
+        try:
+            aba_lista_original = driver.window_handles[0] if driver.window_handles else None
+        except Exception:
+            pass
+
         logger.info(f"[PROGRESSO_P2B] Processando: {proc_id}")
 
         fluxo_pz(driver)  # Call the main function for the process tab
@@ -348,6 +355,35 @@ def _executar_callback_processo(driver: WebDriver, proc_id: str, progresso: dict
             marcar_processo_executado_p2b(proc_id, progresso_atual)
             logger.info(f"[PROGRESSO_P2B] Processo {proc_id} marcado como executado (com erro)")
         return False
+    
+    finally:
+        # ===== CALLBACK GERENCIA SUA PRÓPRIA LIMPEZA DE ABAS =====
+        # Após fluxo_pz completar, fechar suas abas extras e retornar à original
+        try:
+            if aba_lista_original:
+                try:
+                    current_handles = driver.window_handles
+                except Exception:
+                    return  # Driver pode estar em estado inconsistente
+                
+                if len(current_handles) > 1 and aba_lista_original in current_handles:
+                    # Fechar todas abas exceto a primeira (original)
+                    for aba in current_handles[1:]:
+                        try:
+                            driver.switch_to.window(aba)
+                            driver.close()
+                            logger.debug(f'[CALLBACK_P2B][CLEANUP] Aba fechada')
+                        except Exception:
+                            pass
+                    
+                    # Retornar para aba principal
+                    try:
+                        driver.switch_to.window(aba_lista_original)
+                        logger.debug(f'[CALLBACK_P2B][CLEANUP] Retornando à aba principal')
+                    except Exception:
+                        pass
+        except Exception as cleanup_err:
+            logger.debug(f'[CALLBACK_P2B][CLEANUP] Erro durante cleanup (não crítico): {cleanup_err}')
 
 
 def _gerenciar_abas_apos_processo(driver: WebDriver, aba_lista_original: str) -> None:

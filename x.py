@@ -39,8 +39,7 @@ from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from Fix.core import finalizar_driver as finalizar_driver_fix
 from Fix.utils import login_cpf
 from Mandado.core import navegacao as mandado_navegacao, iniciar_fluxo_robusto as mandado_fluxo
-from Prazo.loop import loop_prazo
-from Prazo.p2b_fluxo import fluxo_pz
+from Prazo import loop_prazo, fluxo_pz, fluxo_prazo
 from PEC.processamento import executar_fluxo_novo as pec_fluxo
 
 # ============================================================================
@@ -420,10 +419,10 @@ def normalizar_resultado(resultado: Any) -> Dict[str, Any]:
 
 
 def resetar_driver(driver) -> bool:
-    """Reseta driver entre mdulos"""
+    """Reseta driver entre módulos"""
     try:
         print(" Resetando driver...")
-        
+
         # Fechar abas extras
         abas = driver.window_handles
         if len(abas) > 1:
@@ -434,17 +433,17 @@ def resetar_driver(driver) -> bool:
                 except:
                     pass
             driver.switch_to.window(abas[0])
-        
+
         # Resetar zoom
         driver.execute_script("document.body.style.zoom='100%'")
-        
-        # Navegar para pgina inicial
+
+        # Navegar para página inicial
         driver.get("https://pje.trt2.jus.br/pjekz/")
         time.sleep(2)
-        
+
         print(" Driver resetado")
         return True
-        
+
     except Exception as e:
         print(f" Erro ao resetar driver: {e}")
         return False
@@ -468,12 +467,12 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         resultados["mandado"] = executar_mandado(driver)
         resetar_driver(driver)
         time.sleep(3)
-        
+
         # 2. PRAZO
         resultados["prazo"] = executar_prazo(driver)
         resetar_driver(driver)
         time.sleep(3)
-        
+
         # 3. PEC
         resultados["pec"] = executar_pec(driver)
         
@@ -558,7 +557,7 @@ def executar_prazo(driver) -> Dict[str, Any]:
         print("[PRAZO] Executando loop_prazo...")
         resultado_loop = loop_prazo(driver)
         resultado_loop = normalizar_resultado(resultado_loop)
-        
+
         if not resultado_loop.get("sucesso"):
             print(f"[PRAZO]  Falha no loop_prazo: {resultado_loop.get('erro')}")
             return resultado_loop
@@ -569,9 +568,8 @@ def executar_prazo(driver) -> Dict[str, Any]:
         print("[PRAZO] Executando p2b_fluxo...")
         resetar_driver(driver)
         
-        fluxo_pz(driver)  # fluxo_pz no retorna valor
-        
-        print("[PRAZO]  p2b_fluxo concludo")
+        fluxo_pz(driver)  # fluxo_pz não retorna valor
+        print("[PRAZO]  p2b_fluxo concluído")
         print("[PRAZO]  Mdulo Prazo completo")
         
         tempo = (datetime.now() - inicio).total_seconds()
@@ -635,8 +633,8 @@ def executar_p2b(driver) -> Dict[str, Any]:
     try:
         # Executar apenas fluxo_prazo (processamento individual)
         print("[P2B] Executando fluxo_prazo...")
-        fluxo_prazo(driver)  # fluxo_prazo no retorna valor
-        print("[P2B]  Processamento individual concludo")
+        fluxo_prazo(driver)  # fluxo_prazo não retorna valor
+        print("[P2B]  Processamento individual concluído")
         
         tempo = (datetime.now() - inicio).total_seconds()
         
@@ -738,9 +736,32 @@ def configurar_logging(driver_type: DriverType):
     mode_name = "Headless" if headless else "Visible"
     log_file = os.path.join(LOG_DIR, f"x_{env_name}_{mode_name}_{TIMESTAMP}.log")
     
-    # Configurar TeeOutput
+    # Configurar TeeOutput para capturar print()
     tee = TeeOutput(log_file)
     sys.stdout = tee
+    
+    # Configurar logging (para logger.info(), logger.error(), etc.)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Remover handlers antigos se existirem
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # Adicionar FileHandler
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s', 
+                                 datefmt='%H:%M:%S')
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
+    
+    # Adicionar StreamHandler para console (vai passar por TeeOutput)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter('[%(name)s] %(message)s')
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
     
     return log_file, tee
 

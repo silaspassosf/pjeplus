@@ -12,11 +12,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
-import time
+from Fix.core import safe_click_no_scroll
 
 from typing import Optional, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
+import time
 
 
 def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
@@ -211,10 +212,8 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
                             logger.info(f'[NAVEGAÇÃO] Tentativa {tentativa_clique + 1}: JavaScript click')
                             driver.execute_script('arguments[0].click();', btn_conclusao)
                         else:
-                            logger.info(f'[NAVEGAÇÃO] Tentativa {tentativa_clique + 1}: ScrollIntoView + JS click')
-                            driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_conclusao)
-                            time.sleep(0.3)
-                            driver.execute_script('arguments[0].click();', btn_conclusao)
+                            logger.info(f'[NAVEGAÇÃO] Tentativa {tentativa_clique + 1}: safe_click_no_scroll')
+                            safe_click_no_scroll(driver, btn_conclusao, log=False)
 
                         btn_conclusao_encontrado = True
                         logger.info('[NAVEGAÇÃO] Clique em "Conclusão ao magistrado" realizado após Análise')

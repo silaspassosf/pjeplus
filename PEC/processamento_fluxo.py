@@ -81,23 +81,60 @@ def executar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
         # Callback que usa sistema centralizado
         def callback_pec_centralizado(driver: WebDriver) -> bool:
             """Callback que integra com sistema centralizado de retry"""
-            numero_processo = extrair_numero_processo_pec(driver)
-            if not numero_processo:
-                return False
+            aba_lista_original = None
+            try:
+                # Preservar aba original para cleanup posterior
+                try:
+                    aba_lista_original = driver.window_handles[0] if driver.window_handles else None
+                except Exception:
+                    pass
+
+                numero_processo = extrair_numero_processo_pec(driver)
+                if not numero_processo:
+                    return False
+                
+                # Usar sistema centralizado com retry automático
+                resultado = executar_processo_com_retry(
+                    processar_processo_pec_individual,  # Função específica do PEC
+                    driver, 
+                    numero_processo, 
+                    "PEC"
+                )
+                
+                # Log do resultado
+                if not resultado["sucesso"]:
+                    logger.error(f"[CALLBACK_PEC]  Processo {numero_processo} falhou: {resultado.get('status', 'Erro desconhecido')}")
+                
+                return resultado["sucesso"]
             
-            # Usar sistema centralizado com retry automático
-            resultado = executar_processo_com_retry(
-                processar_processo_pec_individual,  # Função específica do PEC
-                driver, 
-                numero_processo, 
-                "PEC"
-            )
-            
-            # Log do resultado
-            if not resultado["sucesso"]:
-                logger.error(f"[CALLBACK_PEC]  Processo {numero_processo} falhou: {resultado.get('status', 'Erro desconhecido')}")
-            
-            return resultado["sucesso"]
+            finally:
+                # ===== CALLBACK GERENCIA SUA PRÓPRIA LIMPEZA DE ABAS =====
+                # Após processar_processo_pec_individual completar, fechar suas abas extras
+                try:
+                    if aba_lista_original:
+                        try:
+                            current_handles = driver.window_handles
+                        except Exception:
+                            return  # Driver pode estar em estado inconsistente
+                        
+                        if len(current_handles) > 1 and aba_lista_original in current_handles:
+                            # Fechar todas abas exceto a primeira (original)
+                            for aba in current_handles[1:]:
+                                try:
+                                    driver.switch_to.window(aba)
+                                    driver.close()
+                                    logger.debug(f'[CALLBACK_PEC][CLEANUP] Aba fechada')
+                                except Exception:
+                                    pass
+                            
+                            # Retornar para aba principal
+                            try:
+                                driver.switch_to.window(aba_lista_original)
+                                logger.debug(f'[CALLBACK_PEC][CLEANUP] Retornando à aba principal')
+                            except Exception:
+                                pass
+                except Exception as cleanup_err:
+                    logger.debug(f'[CALLBACK_PEC][CLEANUP] Erro durante cleanup (não crítico): {cleanup_err}')
         
         # Executar processamento da lista com callback robusto
         # Usar apenas funções da pasta PEC - sem legado

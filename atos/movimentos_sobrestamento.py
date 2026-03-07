@@ -27,7 +27,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         bool: True se executado com sucesso
     """
     import re
-    import time
+    from Fix.core import safe_click_no_scroll
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
@@ -197,8 +197,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
                 icone_cal = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-calendar-alt'))
                 )
-                driver.execute_script('arguments[0].scrollIntoView({block:"center"});', icone_cal)
-                driver.execute_script('arguments[0].click();', icone_cal)
+                safe_click_no_scroll(driver, icone_cal, log=False)
                 log_msg(' Fallback: clique no ícone calendário realizado')
             except Exception:
                 log_msg(' Botão de calendário não encontrado (principal nem fallback)')

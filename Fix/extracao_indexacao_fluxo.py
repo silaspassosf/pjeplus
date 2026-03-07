@@ -106,7 +106,13 @@ def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback
         if hasattr(driver, '_numero_processo_lista'):
             delattr(driver, '_numero_processo_lista')
     
-    # Limpar abas
+    # ===== CALLBACK JÁ GERENCIOU SUAS ABAS NO FINALLY =====
+    # Agora callback retornou e deve ter limpado suas próprias abas.
+    # Um breve sleep para garantir que Selenium esteja sincronizado.
+    logger.info('[PROCESSAR] Callback completado. Sincronizando driver...')
+    time.sleep(0.3)  # Minimal sync sleep
+    
+    # Limpeza de segurança (fallback, em caso callback n tenha conseguido)
     limpeza = forcar_fechamento_abas_extras(driver, aba_lista_original)
     if limpeza == "FATAL":
         logger.error(f'[PROCESSAR][FATAL] Contexto perdido durante limpeza')

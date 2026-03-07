@@ -4,6 +4,7 @@ import unicodedata
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from Fix.core import aguardar_e_clicar, safe_click_no_scroll
 from Fix.log import logger
 from typing import Optional, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -22,12 +23,9 @@ def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], 
             elemento = WebDriverWait(driver, 3).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
             )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
+            # Clicar elemento (usar safe_click_no_scroll em vez de scrollIntoView)
+            safe_click_no_scroll(driver, elemento, log=False)
             time.sleep(0.3)
-            try:
-                driver.execute_script("arguments[0].click();", elemento)
-            except Exception:
-                pass
             driver.execute_script("""
                 var el = arguments[0];
                 var val = arguments[1];

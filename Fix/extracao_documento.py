@@ -29,6 +29,51 @@ def extrair_direto(driver: WebDriver, timeout: int = 10, debug: bool = False, fo
     Extrai o conteúdo do documento PDF ativo na tela do processo PJe DIRETAMENTE.
     SEM CLIQUES, SEM INTERAÇÃO, apenas leitura direta.
     """
+    def _checar_cabecalho_interno(passo):
+        """Checagem interna do cabeçalho para debug - ROBUSTA.
+        
+        Verifica usando o botão 'Análise' como proxy (melhor indicador de
+        cabeçalho funcional que imagem ou CSS).
+        """
+        try:
+            # Verificar if botão "Análise" está presente e funcional
+            botoes = driver.find_elements(By.CSS_SELECTOR, 'button.botao-detalhe[accesskey="t"]')
+            
+            if not botoes:
+                if debug:
+                    logger.info(f"[EXTRAIR_DIRETO][CABECALHO][{passo}] presente=False (botão não encontrado)")
+                return False
+            
+            botao = botoes[0]
+            
+            try:
+                is_displayed = botao.is_displayed()
+            except Exception:
+                is_displayed = False
+            
+            try:
+                is_enabled = botao.is_enabled()
+            except Exception:
+                is_enabled = False
+            
+            try:
+                size = botao.size
+                has_size = size.get('width', 0) > 0 and size.get('height', 0) > 0
+            except Exception:
+                has_size = False
+            
+            cabecalho_ok = is_enabled and (is_displayed or has_size)
+            
+            if debug:
+                logger.info(f"[EXTRAIR_DIRETO][CABECALHO][{passo}] presente={cabecalho_ok} displayed={is_displayed} enabled={is_enabled} tamanho={has_size}")
+            
+            return cabecalho_ok
+            
+        except Exception as e:
+            if debug:
+                logger.info(f"[EXTRAIR_DIRETO][CABECALHO][{passo}] erro ao checar: {str(e)[:100]}")
+            return False
+
     resultado = {
         'conteudo': None,
         'conteudo_bruto': None,
@@ -36,6 +81,9 @@ def extrair_direto(driver: WebDriver, timeout: int = 10, debug: bool = False, fo
         'sucesso': False
     }
     try:
+        # Checagem inicial
+        _checar_cabecalho_interno('start')
+
         # Validar documento ativo
         try:
             WebDriverWait(driver, timeout).until(
@@ -45,7 +93,10 @@ def extrair_direto(driver: WebDriver, timeout: int = 10, debug: bool = False, fo
             try:
                 driver.find_element(By.ID, "documento")
             except:
+                _checar_cabecalho_interno('fail_documento_not_found')
                 return resultado
+
+        _checar_cabecalho_interno('documento_encontrado')
 
         # Tentar 3 estratégias de extração (Strategy Pattern)
         strategies = [
@@ -55,19 +106,29 @@ def extrair_direto(driver: WebDriver, timeout: int = 10, debug: bool = False, fo
         ]
         metodos_nomes = ['PDF viewer direto', 'iframe', 'elemento DOM']
         for idx, strategy in enumerate(strategies):
+            _checar_cabecalho_interno(f'before_strategy_{idx}_{metodos_nomes[idx]}')
             texto_bruto = strategy()
+            _checar_cabecalho_interno(f'after_strategy_{idx}_{metodos_nomes[idx]}')
             if texto_bruto:
+                if debug:
+                    logger.info(f"[EXTRAIR_DIRETO][ESTRATEGIA] metodo='{metodos_nomes[idx]}' sucesso=True tamanho={len(texto_bruto)}")
                 resultado['conteudo_bruto'] = texto_bruto
                 resultado['conteudo'] = _extrair_formatar_texto(texto_bruto, debug) if formatar else texto_bruto
                 resultado['metodo'] = metodos_nomes[idx]
                 resultado['sucesso'] = True
                 resultado['info'] = _extrair_info_documento(driver, debug)
+                _checar_cabecalho_interno('sucesso_final')
                 return resultado
+            else:
+                if debug:
+                    logger.info(f"[EXTRAIR_DIRETO][ESTRATEGIA] metodo='{metodos_nomes[idx]}' falhou, tentando próxima...")
         resultado['info'] = _extrair_info_documento(driver, debug)
+        _checar_cabecalho_interno('end_no_success')
         return resultado
     except Exception as e:
         if debug:
             logger.error(f'[EXTRAIR_DIRETO] Erro geral na extração: {e}')
+        _checar_cabecalho_interno('exception')
         return resultado
 
 

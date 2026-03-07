@@ -5,6 +5,7 @@
 // @description  Suite de ferramentas para PJe (Lista + Atalhos + Infojud)
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/*
+// @match        https://sisbajud.cnj.jus.br/*
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=200
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=200
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=200
@@ -62,8 +63,13 @@
 
     function boot() {
         const currentUrl = window.location.href;
-        const onDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
 
+        // Se estiver no SISBAJUD, o próprio módulo sibajud.js irá se autoinjetar.
+        if (currentUrl.includes('sisbajud.cnj.jus.br')) {
+            return;
+        }
+
+        const onDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl);
         if (onDetalhe && !PJeState._iniciado) {
             PJeState._iniciado = true;
             inicializarPainel();

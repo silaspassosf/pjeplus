@@ -6,7 +6,7 @@ window.CSS_PAINEL = `
 #pjetools-painel button:hover { opacity:.85; }
 `;
 
-window.criarPainel = function(botoes) {
+window.criarPainel = function (botoes) {
     document.getElementById('pjetools-painel')?.remove();
     addStyles(CSS_PAINEL, 'pjetools-styles');
 
@@ -59,7 +59,7 @@ window.criarPainel = function(botoes) {
     PJeState.registry.add(() => painel.remove());
 }
 
-window._tornaPainelArrastavel = function(el) {
+window._tornaPainelArrastavel = function (el) {
     let ox = 0, oy = 0, drag = false;
     const onDown = e => {
         if (e.target.tagName === 'BUTTON') return;
@@ -84,13 +84,12 @@ window._tornaPainelArrastavel = function(el) {
     });
 }
 
-window.inicializarPainel = function() {
+window.inicializarPainel = function () {
     criarPainel([
         { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
         { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
         { id: 'btnSigilo', texto: '🔐 Sigilo', bg: '#d9534f', fn: aplicarVisibilidadeSigilosamente, titulo: 'Marcar visibilidade' },
         { id: 'btnPgto', texto: '💳 Pgto', bg: '#ff6600', fn: executarPgto, titulo: 'Abrir página de pagamento' },
-        { id: 'btnSISBAJUD', texto: '🏦 SISBAJUD', bg: '#6f42c1', fn: executarSISBAJUD, titulo: 'Extrair relatório SISBAJUD' },
         { id: 'btnInfojud', texto: '🔍 Infojud', bg: '#0288d1', fn: () => criarBotoesInfojud(), titulo: 'Busca de endereços', full: true },
     ]);
 }

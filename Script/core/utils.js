@@ -1,9 +1,9 @@
 'use strict';
 
 // ── Primitivas ──────────────────────────────────────────────────
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+window.sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-function waitElement(selector, timeout = 5000) {
+window.waitElement = function(selector, timeout = 5000) {
     return new Promise(resolve => {
         const el = document.querySelector(selector);
         if (el && el.offsetParent !== null) return resolve(el);
@@ -16,7 +16,7 @@ function waitElement(selector, timeout = 5000) {
     });
 }
 
-function waitElementVisible(selector, timeout = 8000) {
+window.waitElementVisible = function(selector, timeout = 8000) {
     return new Promise(resolve => {
         const start = Date.now();
         const id = setInterval(() => {
@@ -28,14 +28,14 @@ function waitElementVisible(selector, timeout = 8000) {
 }
 
 // ── Formatação ──────────────────────────────────────────────────
-function formatMoney(value) {
+window.formatMoney = function(value) {
     const n = typeof value === 'string' ? parseMoney(value) : value;
     return Number.isFinite(n)
         ? n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
         : '0,00';
 }
 
-function parseMoney(str) {
+window.parseMoney = function(str) {
     if (!str) return 0;
     const n = parseFloat(
         String(str).replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '.').trim()
@@ -43,7 +43,7 @@ function parseMoney(str) {
     return Number.isFinite(n) ? n : 0;
 }
 
-function normalizeText(str) {
+window.normalizeText = function(str) {
     return String(str)
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -52,7 +52,7 @@ function normalizeText(str) {
 }
 
 // ── UI ───────────────────────────────────────────────────────────
-function showToast(text, color = '#333', duration = 4000) {
+window.showToast = function(text, color = '#333', duration = 4000) {
     document.getElementById('pjetools-toast')?.remove();
     const t = document.createElement('div');
     t.id = 'pjetools-toast';
@@ -65,7 +65,7 @@ function showToast(text, color = '#333', duration = 4000) {
     setTimeout(() => t.remove(), duration);
 }
 
-function playBeep(freq = 880, ms = 100) {
+window.playBeep = function(freq = 880, ms = 100) {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -79,7 +79,7 @@ function playBeep(freq = 880, ms = 100) {
 }
 
 // ── DOM helpers ──────────────────────────────────────────────────
-function addStyles(css, id) {
+window.addStyles = function(css, id) {
     if (id && document.getElementById(id)) return;
     const s = document.createElement('style');
     if (id) s.id = id;
@@ -87,7 +87,7 @@ function addStyles(css, id) {
     document.head.appendChild(s);
 }
 
-function hoverAndDispatch(el) {
+window.hoverAndDispatch = function(el) {
     const opts = { bubbles: true, cancelable: true, view: window };
     ['mouseover', 'mouseenter', 'mousemove'].forEach(type =>
         el.dispatchEvent(new MouseEvent(type, opts))
@@ -95,7 +95,7 @@ function hoverAndDispatch(el) {
 }
 
 // ── SPA monitor ──────────────────────────────────────────────────
-function monitorarSPA(onNavigate) {
+window.monitorarSPA = function(onNavigate) {
     const orig = history.pushState.bind(history);
     history.pushState = function (...args) {
         orig(...args);
@@ -105,7 +105,7 @@ function monitorarSPA(onNavigate) {
 }
 
 // ── Anti-duplicação ──────────────────────────────────────────────
-function antiDuplicacao(attr) {
+window.antiDuplicacao = function(attr) {
     if (document.documentElement.hasAttribute(attr)) return false;
     document.documentElement.setAttribute(attr, '1');
     return true;

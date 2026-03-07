@@ -1,19 +1,19 @@
 'use strict';
 
 // ── Predicados ──────────────────────────────────────────────────
-const isCertDevolucao = d => d.tipo.toLowerCase().includes('certidão devolução');
-const isCertOficial = d => d.tipo.toLowerCase().includes('certidão de oficial');
-const isAlvara = d => d.tipo.toLowerCase() === 'alvarás';
-const isSobrest = d => d.tipo.toLowerCase().includes('sobrestamento');
-const isSerasaAntigo = d => d.tipo === 'SerasaAntigo';
+window.isCertDevolucao = d => d.tipo.toLowerCase().includes('certidão devolução');
+window.isCertOficial = d => d.tipo.toLowerCase().includes('certidão de oficial');
+window.isAlvara = d => d.tipo.toLowerCase() === 'alvarás';
+window.isSobrest = d => d.tipo.toLowerCase().includes('sobrestamento');
+window.isSerasaAntigo = d => d.tipo === 'SerasaAntigo';
 
-const byDataDesc = (a, b) => {
+window.byDataDesc = (a, b) => {
     const da = (a.data || '').split('/').reverse().join('').padEnd(8, '0');
     const db = (b.data || '').split('/').reverse().join('').padEnd(8, '0');
     return db.localeCompare(da);
 };
 
-function filtrarDocs(docs) {
+window.filtrarDocs = function(docs) {
     return docs.filter(d => {
         const tipo = (d.tipo || '').toLowerCase();
         const texto = (d.texto || '').toLowerCase();
@@ -26,7 +26,7 @@ function filtrarDocs(docs) {
     });
 }
 
-function construirOrdem(docs) {
+window.construirOrdem = function(docs) {
     const usados = new Set();
     const saida = [];
     const certsDev = docs.filter(d => isCertDevolucao(d) || isCertOficial(d)).sort(byDataDesc);
@@ -64,7 +64,7 @@ function construirOrdem(docs) {
     return saida;
 }
 
-function renderTabela(id, titulo, corBorda, saida, onRowClick) {
+window.renderTabela = function(id, titulo, corBorda, saida, onRowClick) {
     document.getElementById(id)?.remove();
     const c = document.createElement('div');
     c.id = id;

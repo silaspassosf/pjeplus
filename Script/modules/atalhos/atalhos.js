@@ -1,8 +1,8 @@
 'use strict';
 
-const CHANNEL_NAME = 'maispje_expediente_worker';
+window.CHANNEL_NAME = 'maispje_expediente_worker';
 
-function initAtalhos() {
+window.initAtalhos = function() {
     const reg = PJeState.atalhos.registry;
 
     // Garante channel único (fechar anterior se existir)

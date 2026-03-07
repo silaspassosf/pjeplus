@@ -1,12 +1,12 @@
 'use strict';
 
-const CSS_PAINEL = `
+window.CSS_PAINEL = `
 .pjetools-destaque        { outline:3px solid #007bff!important; background:#e7f3ff!important; transition:.3s; }
 .pjetools-destaque-edital { outline:3px solid #28a745!important; background:#e8f5e8!important; transition:.3s; }
 #pjetools-painel button:hover { opacity:.85; }
 `;
 
-function criarPainel(botoes) {
+window.criarPainel = function(botoes) {
     document.getElementById('pjetools-painel')?.remove();
     addStyles(CSS_PAINEL, 'pjetools-styles');
 
@@ -59,7 +59,7 @@ function criarPainel(botoes) {
     PJeState.registry.add(() => painel.remove());
 }
 
-function _tornaPainelArrastavel(el) {
+window._tornaPainelArrastavel = function(el) {
     let ox = 0, oy = 0, drag = false;
     const onDown = e => {
         if (e.target.tagName === 'BUTTON') return;
@@ -84,7 +84,7 @@ function _tornaPainelArrastavel(el) {
     });
 }
 
-function inicializarPainel() {
+window.inicializarPainel = function() {
     criarPainel([
         { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
         { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },

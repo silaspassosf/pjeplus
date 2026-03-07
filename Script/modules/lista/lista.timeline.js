@@ -1,14 +1,14 @@
 'use strict';
 
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+window.CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
 // Meses PT para número
-const MESES_PT = {
+window.MESES_PT = {
     jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
     jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12',
 };
 
-function extrairData(item) {
+window.extrairData = function(item) {
     let el = null;
     let prev = item.previousElementSibling;
     while (prev) {
@@ -34,12 +34,12 @@ function extrairData(item) {
     return '';
 }
 
-function extrairUid(link) {
+window.extrairUid = function(link) {
     const m = link.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
     return m ? m[1] : null;
 }
 
-function classificarItem(low, tipoTexto, titulo) {
+window.classificarItem = function(low, tipoTexto, titulo) {
     if (low.includes('devolução de ordem')) return 'Certidão devolução pesquisa';
     if (low.includes('certidão de oficial') || low.includes('oficial de justiça'))
         return 'Certidão de oficial de justiça';
@@ -149,19 +149,19 @@ async function lerTimelineCompleta() {
     return documentos;
 }
 
-function invalidarCacheTimeline() {
+window.invalidarCacheTimeline = function() {
     PJeState.lista.docs = null;
     PJeState.lista.readAt = 0;
 }
 
 // Helper para re-resolver elemento pelo ID/seletor salvo
-function resolverElemento(doc) {
+window.resolverElemento = function(doc) {
     if (doc.elementoSel) return document.querySelector(doc.elementoSel);
     if (doc.elementoId) return document.getElementById(doc.elementoId);
     return null;
 }
 
-function resolverLink(doc) {
+window.resolverLink = function(doc) {
     if (doc.linkId) return document.getElementById(doc.linkId) ||
         document.querySelector(`a[id="${doc.linkId}"]`);
     return null;

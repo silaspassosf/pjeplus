@@ -2,7 +2,7 @@
 
 // ── UI: Botões e Painéis ─────────────────────────────────────────
 
-function criarBotoesInfojud() {
+window.criarBotoesInfojud = function() {
     document.getElementById('god-btns')?.remove();
     const container = document.createElement('div');
     container.id = 'god-btns';
@@ -24,7 +24,7 @@ function criarBotoesInfojud() {
     PJeState.registry.add(() => container.remove());
 }
 
-function exibirRelatorioFinalInfojud() {
+window.exibirRelatorioFinalInfojud = function() {
     playBeep();
     const painel = document.createElement('div');
     painel.id = 'god-relatorio-panel';

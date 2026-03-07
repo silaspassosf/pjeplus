@@ -3,7 +3,7 @@
 // ── CleanupRegistry ──────────────────────────────────────────────
 // Rastreia TODOS os recursos criados (event listeners, intervals,
 // timeouts, observers, channels) e os libera em dispose().
-class CleanupRegistry {
+window.CleanupRegistry = class {
     #items = [];
 
     add(fn) {
@@ -53,7 +53,7 @@ class CleanupRegistry {
 // ── AsyncRunner ───────────────────────────────────────────────────
 // Garante que apenas uma operação assíncrona rode por vez.
 // Cancela a anterior ao iniciar nova (via AbortSignal).
-class AsyncRunner {
+window.AsyncRunner = class {
     #ctrl = null;
 
     get running() { return !!this.#ctrl; }
@@ -132,5 +132,5 @@ if (!window._pjeTools) {
     };
 }
 
-const PJeState = window._pjeTools;
+window.PJeState = window._pjeTools;
 

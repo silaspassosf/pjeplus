@@ -1,11 +1,11 @@
 'use strict';
 
-const URL_BASE_CPF = 'https://pje.trt2.jus.br/infojud-frontend/pages/consulta-cpf/';
-const URL_BASE_CNPJ = 'https://pje.trt2.jus.br/infojud-frontend/pages/consulta-cnpj/';
-const GOD_KEY_STATUS = 'GOD_STATUS';
-const GOD_KEY_TIPO = 'GOD_TIPO_ORIGEM';
+window.URL_BASE_CPF = 'https://pje.trt2.jus.br/infojud-frontend/pages/consulta-cpf/';
+window.URL_BASE_CNPJ = 'https://pje.trt2.jus.br/infojud-frontend/pages/consulta-cnpj/';
+window.GOD_KEY_STATUS = 'GOD_STATUS';
+window.GOD_KEY_TIPO = 'GOD_TIPO_ORIGEM';
 
-function iniciarFluxoInfojud(modo) {
+window.iniciarFluxoInfojud = function(modo) {
     const state = PJeState.infojud;
 
     if (state.runner.running) {
@@ -42,7 +42,7 @@ function iniciarFluxoInfojud(modo) {
     processarProximoInfojud();
 }
 
-function processarProximoInfojud() {
+window.processarProximoInfojud = function() {
     const state = PJeState.infojud;
     if (state.atual >= state.fila.length) {
         console.log('[GOD] Ciclo finalizado');
@@ -62,7 +62,7 @@ function processarProximoInfojud() {
     }
 }
 
-function highlightLinha(doc) {
+window.highlightLinha = function(doc) {
     document.querySelectorAll('span.pec-formatacao-padrao-dados-parte').forEach(s => {
         if (s.textContent.replace(/\D/g, '') === doc) {
             const tr = s.closest('tr');
@@ -71,8 +71,8 @@ function highlightLinha(doc) {
     });
 }
 
-let _godPollId = null;
-function monitorarSinaisInfojud() {
+window._godPollId = null;
+window.monitorarSinaisInfojud = function() {
     if (_godPollId) clearInterval(_godPollId);
     _godPollId = setInterval(() => {
         const status = GM_getValue(GOD_KEY_STATUS);

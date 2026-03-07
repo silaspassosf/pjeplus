@@ -2,16 +2,16 @@
 
 // ── Acumulador SISBAJUD ─────────────────────────────────────────
 // Usa CleanupRegistry para limpar o timer de reset automaticamente
-let _sisbAccum = { executados: {}, protocolos: [] };
-let _sisbTimerId = null;
-const SISB_TIMEOUT = 15000;
+window._sisbAccum = { executados: {}, protocolos: [] };
+window._sisbTimerId = null;
+window.SISB_TIMEOUT = 15000;
 
-function _resetSisbAccum() {
+window._resetSisbAccum = function() {
     _sisbAccum = { executados: {}, protocolos: [] };
     _sisbTimerId = null;
 }
 
-function _acumularDados(executados, protocolo) {
+window._acumularDados = function(executados, protocolo) {
     Object.assign(_sisbAccum.executados, executados);
     if (!_sisbAccum.protocolos.includes(protocolo))
         _sisbAccum.protocolos.push(protocolo);
@@ -50,14 +50,14 @@ async function extrairRelatorioSISB() {
     return null;
 }
 
-function _formatValorSISB(v) {
+window._formatValorSISB = function(v) {
     const n = parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.'));
     return Number.isFinite(n)
         ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
         : v;
 }
 
-function _gerarRelatorioHTML() {
+window._gerarRelatorioHTML = function() {
     const pS = 'style="margin:0;padding:0;text-indent:4.5cm;line-height:1.5;"';
     let html = `<p ${pS}><strong>BLOQUEIOS TRANSFERIDOS - SISBAJUD</strong></p>`;
     Object.entries(_sisbAccum.executados).forEach(([nome, valor]) => {
@@ -69,7 +69,7 @@ function _gerarRelatorioHTML() {
     return html;
 }
 
-function _copiarHTMLFormatado() {
+window._copiarHTMLFormatado = function() {
     const html = _gerarRelatorioHTML();
     const div = document.createElement('div');
     div.innerHTML = html;

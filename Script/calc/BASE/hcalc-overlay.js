@@ -2352,23 +2352,35 @@
                 const fgtsJaDepositado = fgtsTipo === 'depositado';
 
                 if (isFgtsSep && !fgtsJaDepositado) {
-                    // FGTS devido (a ser recolhido em conta vinculada)
-                    introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, atualizados para ${bold(vData)}. `;
+                    // FGTS devido (a ser recolhido em conta vinculada) - texto especial Lei 14.905/2024
+                    introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, para ${bold(vData)}. `;
+                    introTxt += `Atualização na forma da Lei 14.905/2024 e da decisão proferida pela SDI-1 do C. TST, ou seja, a correção monetária será feita pelo IPCA-E até a distribuição da ação; taxa Selic do ajuizamento até 29/08/2024, e, a partir de 30/08/2024, atualização pelo IPCA, com juros de mora correspondentes à diferença entre a SELIC e o IPCA, conforme o artigo 406 do Código Civil.`;
                 } else if (isFgtsSep && fgtsJaDepositado) {
                     // FGTS depositado (não menciona "a ser recolhido")
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)}, atualizado para ${bold(vData)}. `;
+                    
+                    // Aplica índice de atualização normal
+                    if (indice === 'adc58') {
+                        const textoAtualizacao = `Atualização: pelo IPCA-E na fase pré-judicial e, a partir do ajuizamento da ação, pela taxa SELIC (art. 406 do Código Civil), conforme decisão do E. Supremo Tribunal Federal nas ADCs 58 e 59 e ADI 5867, de 18/12/2020.`;
+                        introTxt += textoAtualizacao;
+                    } else {
+                        const dtIngresso = usarPlaceholder ? 'XXX' : ($('data-ingresso').value || '[DATA INGRESSO]');
+                        const textoAtualizacao = `Atualização: pela TR/IPCA-E, conforme sentença transitado em julgado. Juros legais a partir de ${bold(dtIngresso)}.`;
+                        introTxt += textoAtualizacao;
+                    }
                 } else {
                     // Sem FGTS separado
                     introTxt += `fixando o crédito em ${bold(vCredito)}, referente ao valor principal, atualizado para ${bold(vData)}. `;
-                }
-
-                if (indice === 'adc58') {
-                    const textoAtualizacao = `Atualização: pelo IPCA-E na fase pré-judicial e, a partir do ajuizamento da ação, pela taxa SELIC (art. 406 do Código Civil), conforme decisão do E. Supremo Tribunal Federal nas ADCs 58 e 59 e ADI 5867, de 18/12/2020.`;
-                    introTxt += textoAtualizacao;
-                } else {
-                    const dtIngresso = usarPlaceholder ? 'XXX' : ($('data-ingresso').value || '[DATA INGRESSO]');
-                    const textoAtualizacao = `Atualização: pela TR/IPCA-E, conforme sentença transitado em julgado. Juros legais a partir de ${bold(dtIngresso)}.`;
-                    introTxt += textoAtualizacao;
+                    
+                    // Aplica índice de atualização normal
+                    if (indice === 'adc58') {
+                        const textoAtualizacao = `Atualização: pelo IPCA-E na fase pré-judicial e, a partir do ajuizamento da ação, pela taxa SELIC (art. 406 do Código Civil), conforme decisão do E. Supremo Tribunal Federal nas ADCs 58 e 59 e ADI 5867, de 18/12/2020.`;
+                        introTxt += textoAtualizacao;
+                    } else {
+                        const dtIngresso = usarPlaceholder ? 'XXX' : ($('data-ingresso').value || '[DATA INGRESSO]');
+                        const textoAtualizacao = `Atualização: pela TR/IPCA-E, conforme sentença transitado em julgado. Juros legais a partir de ${bold(dtIngresso)}.`;
+                        introTxt += textoAtualizacao;
+                    }
                 }
 
                 if (reclamadaLabel) {
@@ -2376,7 +2388,12 @@
                 }
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
-                // 2º parágrafo: FGTS depositado (com valor)
+                // 2º parágrafo: FGTS devido - liberação após recolhimento
+                if (isFgtsSep && !fgtsJaDepositado) {
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
+                }
+
+                // 3º parágrafo: FGTS depositado (com valor)
                 if (isFgtsSep && fgtsJaDepositado) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">O FGTS, no valor de ${bold(vFgts)}, já foi depositado e, portanto, já está deduzido do crédito.</p>`;
                 }

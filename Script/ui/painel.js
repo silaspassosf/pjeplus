@@ -89,7 +89,7 @@ window.inicializarPainel = function () {
         { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
         { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
         { id: 'btnPgto', texto: '💳 Pgto', bg: '#ff6600', fn: executarPgto, titulo: 'Abrir página de pagamento' },
-        { id: 'btnInfojud', texto: '🔍 Infojud', bg: '#0288d1', fn: () => criarBotoesInfojud(), titulo: 'Busca de endereços', full: true },
+        { id: 'btnInfojud', texto: '🔍 Infojud', bg: '#0288d1', fn: () => alert('Infojud roda automaticamente na tela de /minutas'), titulo: 'Busca de endereços', full: true },
     ]);
 }
 

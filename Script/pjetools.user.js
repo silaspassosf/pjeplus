@@ -8,6 +8,8 @@
 // @match        https://pje.trt2.jus.br/pjekz/comunicacoesprocessuais/minutas*
 // @match        https://pje.trt2.jus.br/pjekz/pagamento/*/cadastro*
 // @match        https://sisbajud.cnj.jus.br/*
+// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp*
+// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp*
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=201
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=201
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=201
@@ -16,8 +18,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.sibajud.js?v=201
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=201
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=201
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=201
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.ui.js?v=201
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.legacy.js?v=201
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=201
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -65,8 +66,8 @@
     function boot() {
         const currentUrl = window.location.href;
 
-        // Se estiver no SISBAJUD, o próprio módulo sibajud.js irá se autoinjetar.
-        if (currentUrl.includes('sisbajud.cnj.jus.br')) {
+        // Ignora boot do painel se estiver em domínios extrínsecos
+        if (currentUrl.includes('sisbajud.cnj.jus.br') || currentUrl.includes('cav.receita.fazenda.gov.br')) {
             return;
         }
 

@@ -1,17 +1,17 @@
-(function() {
+(function () {
     'use strict';
     const HCALC_DEBUG = false;
-    const dbg  = (...args) => { if (HCALC_DEBUG) console.log('[hcalc]', ...args); };
+    const dbg = (...args) => { if (HCALC_DEBUG) console.log('[hcalc]', ...args); };
     const warn = (...args) => console.warn('[hcalc]', ...args);
-    const err  = (...args) => console.error('[hcalc]', ...args);
+    const err = (...args) => console.error('[hcalc]', ...args);
     // Proxies para dependencias de hcalc-core.js e hcalc-pdf.js
-    const normalizarNomeParaComparacao = n     => window.normalizarNomeParaComparacao(n);
-    const carregarPDFJSSeNecessario   = ()     => window.carregarPDFJSSeNecessario();
-    const processarPlanilhaPDF        = (...a) => window.processarPlanilhaPDF(...a);
-    const executarPrep                = (...a) => window.executarPrep(...a);
-    const destacarElementoNaTimeline  = (...a) => window.destacarElementoNaTimeline(...a);
-    const encontrarItemTimeline        = (href) => window.encontrarItemTimeline && window.encontrarItemTimeline(href);
-    const expandirAnexos               = (item) => window.expandirAnexos && window.expandirAnexos(item);
+    const normalizarNomeParaComparacao = n => window.normalizarNomeParaComparacao(n);
+    const carregarPDFJSSeNecessario = () => window.carregarPDFJSSeNecessario();
+    const processarPlanilhaPDF = (...a) => window.processarPlanilhaPDF(...a);
+    const executarPrep = (...a) => window.executarPrep(...a);
+    const destacarElementoNaTimeline = (...a) => window.destacarElementoNaTimeline(...a);
+    const encontrarItemTimeline = (href) => window.encontrarItemTimeline && window.encontrarItemTimeline(href);
+    const expandirAnexos = (item) => window.expandirAnexos && window.expandirAnexos(item);
     // ==========================================
     function initializeBotao() {
         if (window.__hcalcBotaoInitialized) {
@@ -37,9 +37,20 @@
         }
 
         // Injeta APENAS botão + input file (sem overlay)
-        document.body.insertAdjacentHTML('beforeend', `
-    <button id="btn-abrir-homologacao">\uD83D\uDCC4 Carregar Planilha</button>
-    <input type="file" id="input-planilha-pdf" accept=".pdf" style="display: none;">`);
+        document.body.insertAdjacentHTML(
+            'beforeend',
+            `
+            <button id="btn-abrir-homologacao" type="button">
+                \uD83D\uDCC4 Homologar Cálculos
+            </button>
+            <input
+                id="input-planilha-pdf"
+                type="file"
+                accept="application/pdf"
+                style="display:none"
+            />
+            `
+        );
 
         const btn = document.getElementById('btn-abrir-homologacao');
 
@@ -48,15 +59,17 @@
             if (!window.__hcalcOverlayInitialized) {
                 dbg('Primeiro clique: carregando overlay completo (lazy init)...');
                 initializeOverlay();
-                // initializeOverlay() substituiu btn.onclick com o handler completo
+                // initializeOverlay substitui btn.onclick com o handler completo
             }
-            // Executar fase correta
+
+            // FASE 1: ainda não há planilha carregada
             if (!window.hcalcState.planilhaCarregada) {
                 dbg('FASE 1: abrindo file picker.');
                 document.getElementById('input-planilha-pdf').click();
                 return;
             }
-            // FASE 3: re-despacha para o handler completo (overlay já inicializado)
+
+            // FASE 3: overlay já inicializado e planilha carregada
             btn.click();
         };
         dbg('Botão flutuante injetado (lazy init ativo).');
@@ -571,8 +584,8 @@
 
         // Toggle colapso/expansão do card de resumo
         const resumoToggle = document.getElementById('resumo-toggle');
-        const resumoBody   = document.getElementById('resumo-body');
-        const resumoSeta   = document.getElementById('resumo-seta');
+        const resumoBody = document.getElementById('resumo-body');
+        const resumoSeta = document.getElementById('resumo-seta');
         if (resumoToggle && resumoBody) {
             resumoToggle.addEventListener('click', () => {
                 const aberto = resumoBody.style.display !== 'none';
@@ -587,25 +600,53 @@
         }
 
         // ==========================================
+        // Bind no input file (FASE 4 do MD)
+        // ==========================================
+        const fileInput = document.getElementById('input-planilha-pdf');
+        if (fileInput && !fileInput._hcalcBound) {
+            fileInput._hcalcBound = true;
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                try {
+                    await carregarPDFJSSeNecessario();
+                    const dados = await processarPlanilhaPDF(file);
+                    // Atualiza estado
+                    window.hcalcState.planilhaExtracaoData = dados;
+                    window.hcalcState.planilhaCarregada = !!dados && !!dados.sucesso;
+
+                    // Atualizar card/resumo
+                    if (window.hcalcAtualizarResumoPlanilha) {
+                        window.hcalcAtualizarResumoPlanilha(dados);
+                    }
+                } catch (e2) {
+                    err('Erro ao processar planilha PDF:', e2);
+                    window.hcalcState.planilhaCarregada = false;
+                }
+            });
+        }
+
+        // ==========================================
         // 3. LÓGICA DE INTERFACE E EVENTOS (TOGGLES)
         // ==========================================
         const $ = (id) => document.getElementById(id);
         dbg('Binding de eventos iniciado.');
-       
+
         // ==========================================
         // FASE 1: Sistema de Fases do Botão
         // ==========================================
         $('btn-abrir-homologacao').onclick = async () => {
             const btn = $('btn-abrir-homologacao');
             const inputFile = $('input-planilha-pdf');
-           
+
             // FASE 1: Carregar Planilha (estado inicial)
             if (!window.hcalcState.planilhaCarregada) {
                 dbg('FASE 1: Clique em Carregar Planilha');
                 inputFile.click(); // Abre file picker
                 return;
             }
-           
+
             // FASE 3: Gerar Homologação (após planilha carregada)
             dbg('FASE 3: Clique em Gerar Homologação');
             try {
@@ -613,105 +654,105 @@
                 const peritosConh = window.hcalcPeritosConhecimentoDetectados || [];
                 const partesData = window.hcalcPartesData || {};
                 const prep = await executarPrep(partesData, peritosConh);
-               
+
                 // CORREÇÃO 1: Salvar globalmente para preencherDepositosAutomaticos
                 window.hcalcLastPrepResult = prep;
 
-            // Retrocompat: manter window.hcalcTimelineData para construirSecaoIntimacoes
-            window.hcalcTimelineData = {
-                sentenca: prep.sentenca.data ? { data: prep.sentenca.data, href: prep.sentenca.href } : null,
-                acordaos: prep.acordaos,
-                editais: prep.editais
-            };
+                // Retrocompat: manter window.hcalcTimelineData para construirSecaoIntimacoes
+                window.hcalcTimelineData = {
+                    sentenca: prep.sentenca.data ? { data: prep.sentenca.data, href: prep.sentenca.href } : null,
+                    acordaos: prep.acordaos,
+                    editais: prep.editais
+                };
 
-            // Strikethrough no label de depósito recursal se não há acórdão
-            const labelDeposito = $('label-chk-deposito');
-            if (labelDeposito) {
-                labelDeposito.style.textDecoration = prep.acordaos.length === 0 ? 'line-through' : 'none';
-            }
+                // Strikethrough no label de depósito recursal se não há acórdão
+                const labelDeposito = $('label-chk-deposito');
+                if (labelDeposito) {
+                    labelDeposito.style.textDecoration = prep.acordaos.length === 0 ? 'line-through' : 'none';
+                }
 
-            // Link sentença (info inline no card de custas)
-            const linkSentencaContainer = $('link-sentenca-container');
-            if (linkSentencaContainer) {
-                linkSentencaContainer.innerHTML = '';
-                if (prep.sentenca.data) {
-                    const info = [];
-                    if (prep.sentenca.custas) info.push(`Custas: R$${prep.sentenca.custas}`);
-                    if (prep.sentenca.responsabilidade) info.push(`Resp: ${prep.sentenca.responsabilidade}`);
+                // Link sentença (info inline no card de custas)
+                const linkSentencaContainer = $('link-sentenca-container');
+                if (linkSentencaContainer) {
+                    linkSentencaContainer.innerHTML = '';
+                    if (prep.sentenca.data) {
+                        const info = [];
+                        if (prep.sentenca.custas) info.push(`Custas: R$${prep.sentenca.custas}`);
+                        if (prep.sentenca.responsabilidade) info.push(`Resp: ${prep.sentenca.responsabilidade}`);
 
-                    // Honorários periciais: prioriza AJ-JT, só mostra sentença se não tiver AJ-JT
-                    if (prep.pericia.peritosComAjJt.length > 0) {
-                        info.push(`Hon.Periciais: ${prep.pericia.peritosComAjJt.length} AJ-JT detectado(s)`);
-                    } else if (prep.sentenca.honorariosPericiais.length > 0) {
-                        info.push(`Hon.Periciais: ${prep.sentenca.honorariosPericiais.map(h => 'R$' + h.valor + (h.trt ? ' (TRT)' : '')).join(', ')}`);
+                        // Honorários periciais: prioriza AJ-JT, só mostra sentença se não tiver AJ-JT
+                        if (prep.pericia.peritosComAjJt.length > 0) {
+                            info.push(`Hon.Periciais: ${prep.pericia.peritosComAjJt.length} AJ-JT detectado(s)`);
+                        } else if (prep.sentenca.honorariosPericiais.length > 0) {
+                            info.push(`Hon.Periciais: ${prep.sentenca.honorariosPericiais.map(h => 'R$' + h.valor + (h.trt ? ' (TRT)' : '')).join(', ')}`);
+                        }
+
+                        linkSentencaContainer.innerHTML = `<span style="font-size:12px; color:#16a34a;">✔ Sentença: ${prep.sentenca.data}${info.length ? ' | ' + info.join(' | ') : ''}</span>`;
+                    }
+                }
+
+                // Links clicáveis de Sentença e Acórdão (fieldset separado)
+                const linkSentencaAcordaoContainer = $('link-sentenca-acordao-container');
+                if (linkSentencaAcordaoContainer) {
+                    linkSentencaAcordaoContainer.innerHTML = '';
+
+                    // Link da Sentença (foca na timeline)
+                    if (prep.sentenca.href) {
+                        const sentencaLink = document.createElement('a');
+                        sentencaLink.href = '#';
+                        sentencaLink.innerHTML = `<i class="fas fa-crosshairs"></i> Sentença${prep.sentenca.data ? ' - ' + prep.sentenca.data : ''}`;
+                        sentencaLink.style.cssText = 'display:block; color:#16a34a; font-size:12px; margin-bottom:5px; text-decoration:none; font-weight:600; cursor:pointer;';
+                        sentencaLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            destacarElementoNaTimeline(prep.sentenca.href);
+                        });
+                        linkSentencaAcordaoContainer.appendChild(sentencaLink);
                     }
 
-                    linkSentencaContainer.innerHTML = `<span style="font-size:12px; color:#16a34a;">✔ Sentença: ${prep.sentenca.data}${info.length ? ' | ' + info.join(' | ') : ''}</span>`;
-                }
-            }
+                    // Links de Acórdãos
+                    if (prep.acordaos.length > 0) {
+                        prep.acordaos.forEach((acordao, i) => {
+                            if (acordao.href) {
+                                const lbl = prep.acordaos.length > 1 ? `Acórdão ${i + 1}` : `Acórdão`;
+                                const a = document.createElement('a');
+                                a.href = '#';
+                                a.innerHTML = `<i class="fas fa-crosshairs"></i> ${lbl}${acordao.data ? ' - ' + acordao.data : ''}`;
+                                a.style.cssText = "display:block; color:#00509e; font-size:12px; margin-top:5px; text-decoration:none; cursor:pointer;";
+                                a.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    destacarElementoNaTimeline(acordao.href);
+                                });
+                                linkSentencaAcordaoContainer.appendChild(a);
+                            }
+                        });
 
-            // Links clicáveis de Sentença e Acórdão (fieldset separado)
-            const linkSentencaAcordaoContainer = $('link-sentenca-acordao-container');
-            if (linkSentencaAcordaoContainer) {
-                linkSentencaAcordaoContainer.innerHTML = '';
-               
-                // Link da Sentença (foca na timeline)
-                if (prep.sentenca.href) {
-                    const sentencaLink = document.createElement('a');
-                    sentencaLink.href = '#';
-                    sentencaLink.innerHTML = `<i class="fas fa-crosshairs"></i> Sentença${prep.sentenca.data ? ' - ' + prep.sentenca.data : ''}`;
-                    sentencaLink.style.cssText = 'display:block; color:#16a34a; font-size:12px; margin-bottom:5px; text-decoration:none; font-weight:600; cursor:pointer;';
-                    sentencaLink.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        destacarElementoNaTimeline(prep.sentenca.href);
-                    });
-                    linkSentencaAcordaoContainer.appendChild(sentencaLink);
-                }
-               
-                // Links de Acórdãos
-                if (prep.acordaos.length > 0) {
-                    prep.acordaos.forEach((acordao, i) => {
-                        if (acordao.href) {
-                            const lbl = prep.acordaos.length > 1 ? `Acórdão ${i + 1}` : `Acórdão`;
-                            const a = document.createElement('a');
-                            a.href = '#';
-                            a.innerHTML = `<i class="fas fa-crosshairs"></i> ${lbl}${acordao.data ? ' - ' + acordao.data : ''}`;
-                            a.style.cssText = "display:block; color:#00509e; font-size:12px; margin-top:5px; text-decoration:none; cursor:pointer;";
-                            a.addEventListener('click', (e) => {
-                                e.preventDefault();
-                                destacarElementoNaTimeline(acordao.href);
-                            });
-                            linkSentencaAcordaoContainer.appendChild(a);
-                        }
-                    });
-                   
-                    // RECURSOS COM ANEXOS (integrado de rec.js v1.0)
-                    if (prep.depositos.length > 0) {
-                        const recDiv = document.createElement('div');
-                        recDiv.style.cssText = 'margin-top:8px; padding:6px; background:#fffde7; border:1px solid #fbbf24; border-radius:4px;';
-                        recDiv.innerHTML = `<strong style="font-size:11px;color:#92400e">📎 Recursos das Reclamadas (${prep.depositos.length})</strong>`;
+                        // RECURSOS COM ANEXOS (integrado de rec.js v1.0)
+                        if (prep.depositos.length > 0) {
+                            const recDiv = document.createElement('div');
+                            recDiv.style.cssText = 'margin-top:8px; padding:6px; background:#fffde7; border:1px solid #fbbf24; border-radius:4px;';
+                            recDiv.innerHTML = `<strong style="font-size:11px;color:#92400e">📎 Recursos das Reclamadas (${prep.depositos.length})</strong>`;
 
-                        prep.depositos.forEach((dep, depIdx) => {
-                            const card = document.createElement('div');
-                            card.className = 'rec-recurso-card';
-                            card.dataset.href = dep.href || '';
+                            prep.depositos.forEach((dep, depIdx) => {
+                                const card = document.createElement('div');
+                                card.className = 'rec-recurso-card';
+                                card.dataset.href = dep.href || '';
 
-                            const corBadge = { 'Depósito': '#10b981', 'Garantia': '#f59e0b', 'Custas': '#ef4444', 'Anexo': '#6b7280' };
+                                const corBadge = { 'Depósito': '#10b981', 'Garantia': '#f59e0b', 'Custas': '#ef4444', 'Anexo': '#6b7280' };
 
-                            let anexosHtml = '';
-                            if (dep.anexos && dep.anexos.length > 0) {
-                                anexosHtml = `<div class="rec-anexos-lista">` +
-                                    dep.anexos.map((ax, axIdx) =>
-                                        `<div class="rec-anexo-item" data-dep-idx="${depIdx}" data-ax-idx="${axIdx}">
+                                let anexosHtml = '';
+                                if (dep.anexos && dep.anexos.length > 0) {
+                                    anexosHtml = `<div class="rec-anexos-lista">` +
+                                        dep.anexos.map((ax, axIdx) =>
+                                            `<div class="rec-anexo-item" data-dep-idx="${depIdx}" data-ax-idx="${axIdx}">
                                             <span class="rec-anexo-badge" style="background:${corBadge[ax.tipo] || '#6b7280'}">${ax.tipo}</span>
                                             <code class="rec-anexo-id">${ax.id || 'sem id'}</code>
-                                            <span style="font-size:10px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${ax.texto}">${ax.texto.substring(0,40)}</span>
+                                            <span style="font-size:10px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="${ax.texto}">${ax.texto.substring(0, 40)}</span>
                                         </div>`
-                                    ).join('') +
-                                `</div>`;
-                            }
+                                        ).join('') +
+                                        `</div>`;
+                                }
 
-                            card.innerHTML = `
+                                card.innerHTML = `
                                 <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
                                     <span class="rec-tipo-badge">${dep.tipo || 'RO'}</span>
                                     <span style="font-size:11px;color:#92400e;font-weight:600;flex:1">${dep.depositante || 'Parte não identificada'}</span>
@@ -720,234 +761,234 @@
                                 </div>
                                 ${anexosHtml}`;
 
-                            card.addEventListener('click', e => {
-                                const axItem = e.target.closest('.rec-anexo-item');
-                                if (axItem) {
-                                    e.stopPropagation();
-                                    const axIdx = parseInt(axItem.dataset.axIdx, 10);
-                                    const ax = dep.anexos[axIdx];
-                                    if (!ax) return;
+                                card.addEventListener('click', e => {
+                                    const axItem = e.target.closest('.rec-anexo-item');
+                                    if (axItem) {
+                                        e.stopPropagation();
+                                        const axIdx = parseInt(axItem.dataset.axIdx, 10);
+                                        const ax = dep.anexos[axIdx];
+                                        if (!ax) return;
 
-                                    // 1. Destacar o recurso na timeline
-                                    if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch(e2) { console.error('[hcalc]', e2); }
+                                        // 1. Destacar o recurso na timeline
+                                        if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch (e2) { console.error('[hcalc]', e2); }
 
-                                    // 2. Re-encontrar e clicar no anexo (evita referência stale do Angular)
-                                    setTimeout(async () => {
-                                        try {
-                                            const item = encontrarItemTimeline(dep.href);
-                                            if (item) {
-                                                await expandirAnexos(item);
-                                                const links = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
-                                                let alvo = null;
-                                                if (ax.id) {
-                                                    alvo = Array.from(links).find(l => l.textContent.includes(ax.id));
+                                        // 2. Re-encontrar e clicar no anexo (evita referência stale do Angular)
+                                        setTimeout(async () => {
+                                            try {
+                                                const item = encontrarItemTimeline(dep.href);
+                                                if (item) {
+                                                    await expandirAnexos(item);
+                                                    const links = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
+                                                    let alvo = null;
+                                                    if (ax.id) {
+                                                        alvo = Array.from(links).find(l => l.textContent.includes(ax.id));
+                                                    }
+                                                    alvo = alvo || links[axIdx] || links[0];
+                                                    if (alvo) alvo.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+                                                } else if (ax.elemento && ax.elemento.isConnected) {
+                                                    ax.elemento.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
                                                 }
-                                                alvo = alvo || links[axIdx] || links[0];
-                                                if (alvo) alvo.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                                            } else if (ax.elemento && ax.elemento.isConnected) {
-                                                ax.elemento.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-                                            }
-                                        } catch(e3) { console.error('[hcalc] Erro ao clicar no anexo:', e3); }
-                                    }, 600);
-                                    return;
-                                }
+                                            } catch (e3) { console.error('[hcalc] Erro ao clicar no anexo:', e3); }
+                                        }, 600);
+                                        return;
+                                    }
 
-                                card.classList.toggle('expandido');
-                                const seta = card.querySelector('.rec-seta-toggle');
-                                if (seta) seta.textContent = card.classList.contains('expandido')
-                                    ? `\u25bc ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`
-                                    : `\u25b6 ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`;
-                                if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch(e2) { console.error('[hcalc]', e2); }
+                                    card.classList.toggle('expandido');
+                                    const seta = card.querySelector('.rec-seta-toggle');
+                                    if (seta) seta.textContent = card.classList.contains('expandido')
+                                        ? `\u25bc ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`
+                                        : `\u25b6 ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}`;
+                                    if (dep.href) try { destacarElementoNaTimeline(dep.href); } catch (e2) { console.error('[hcalc]', e2); }
+                                });
+
+                                recDiv.appendChild(card);
                             });
 
-                            recDiv.appendChild(card);
-                        });
-
-                        linkSentencaAcordaoContainer.appendChild(recDiv);
-                    }
-                } else {
-                    // Aviso quando não há acórdão
-                    const avisoDiv = document.createElement('div');
-                    avisoDiv.style.cssText = 'margin-top:8px; padding:8px; background:#fef2f2; border:1px solid #ef4444; border-radius:4px;';
-                    avisoDiv.innerHTML = `<span style="font-size:12px; color:#dc2626; font-weight:600;">⚠ Não há Acórdão</span>`;
-                    linkSentencaAcordaoContainer.appendChild(avisoDiv);
-                }
-            }
-
-            // Preencher custas automaticamente - PRIORIZA PLANILHA
-            if (window.hcalcState.planilhaExtracaoData?.custas && $('val-custas')) {
-                $('val-custas').value = window.hcalcState.planilhaExtracaoData.custas;
-                // FIX: sem acórdão → custas são da sentença → data = sentença
-                const semAcordao = prep.acordaos.length === 0;
-                if (semAcordao && prep.sentenca.data && $('custas-data-origem')) {
-                    $('custas-data-origem').value = prep.sentenca.data;
-                } else if (window.hcalcState.planilhaExtracaoData.dataAtualizacao && $('custas-data-origem')) {
-                    $('custas-data-origem').value = window.hcalcState.planilhaExtracaoData.dataAtualizacao;
-                }
-            } else if (prep.sentenca.custas && $('val-custas')) {
-                $('val-custas').value = prep.sentenca.custas;
-                // Data das custas = data da sentença (apenas se não há planilha)
-                if (prep.sentenca.data && $('custas-data-origem')) {
-                    $('custas-data-origem').value = prep.sentenca.data;
-                }
-            }
-
-            // Depósito recursal: visível se tem acórdãos
-            const fieldsetDeposito = $('fieldset-deposito');
-            if (prep.acordaos.length === 0) {
-                if (fieldsetDeposito) fieldsetDeposito.classList.add('hidden');
-            } else {
-                if (fieldsetDeposito) fieldsetDeposito.classList.remove('hidden');
-            }
-
-            // Povoar select de acórdãos se existirem
-            const custasAcordaoSelect = $('custas-acordao-select');
-            if (custasAcordaoSelect && prep.acordaos.length > 0) {
-                custasAcordaoSelect.innerHTML = '<option value="">Selecione o acórdão</option>';
-                prep.acordaos.forEach((acordao, i) => {
-                    const opt = document.createElement('option');
-                    opt.value = i;
-                    opt.textContent = `Acórdão ${i + 1}${acordao.data ? ' - ' + acordao.data : ''}`;
-                    opt.dataset.data = acordao.data || '';
-                    opt.dataset.id = acordao.id || '';
-                    custasAcordaoSelect.appendChild(opt);
-                });
-            }
-
-            // Editais
-            const editaisContainer = $('links-editais-container');
-            const editaisLista = $('links-editais-lista');
-            if (editaisContainer && editaisLista) {
-                editaisLista.innerHTML = '';
-                if (prep.editais.length > 0) {
-                    editaisContainer.classList.remove('hidden');
-                    prep.editais.forEach((edital, i) => {
-                        if (edital.href) {
-                            const btn = document.createElement('a');
-                            btn.href = edital.href;
-                            btn.target = "_blank";
-                            btn.innerHTML = `<i class="fas fa-external-link-alt"></i> Edital ${i + 1}`;
-                            btn.style.cssText = "display:inline-block; margin-right:10px; color:#00509e; font-size:12px; text-decoration:none;";
-                            editaisLista.appendChild(btn);
+                            linkSentencaAcordaoContainer.appendChild(recDiv);
                         }
-                    });
+                    } else {
+                        // Aviso quando não há acórdão
+                        const avisoDiv = document.createElement('div');
+                        avisoDiv.style.cssText = 'margin-top:8px; padding:8px; background:#fef2f2; border:1px solid #ef4444; border-radius:4px;';
+                        avisoDiv.innerHTML = `<span style="font-size:12px; color:#dc2626; font-weight:600;">⚠ Não há Acórdão</span>`;
+                        linkSentencaAcordaoContainer.appendChild(avisoDiv);
+                    }
+                }
+
+                // Preencher custas automaticamente - PRIORIZA PLANILHA
+                if (window.hcalcState.planilhaExtracaoData?.custas && $('val-custas')) {
+                    $('val-custas').value = window.hcalcState.planilhaExtracaoData.custas;
+                    // FIX: sem acórdão → custas são da sentença → data = sentença
+                    const semAcordao = prep.acordaos.length === 0;
+                    if (semAcordao && prep.sentenca.data && $('custas-data-origem')) {
+                        $('custas-data-origem').value = prep.sentenca.data;
+                    } else if (window.hcalcState.planilhaExtracaoData.dataAtualizacao && $('custas-data-origem')) {
+                        $('custas-data-origem').value = window.hcalcState.planilhaExtracaoData.dataAtualizacao;
+                    }
+                } else if (prep.sentenca.custas && $('val-custas')) {
+                    $('val-custas').value = prep.sentenca.custas;
+                    // Data das custas = data da sentença (apenas se não há planilha)
+                    if (prep.sentenca.data && $('custas-data-origem')) {
+                        $('custas-data-origem').value = prep.sentenca.data;
+                    }
+                }
+
+                // Depósito recursal: visível se tem acórdãos
+                const fieldsetDeposito = $('fieldset-deposito');
+                if (prep.acordaos.length === 0) {
+                    if (fieldsetDeposito) fieldsetDeposito.classList.add('hidden');
                 } else {
-                    editaisContainer.classList.add('hidden');
+                    if (fieldsetDeposito) fieldsetDeposito.classList.remove('hidden');
                 }
-            }
 
-            // ==========================================
-            // REGRAS AUTO-PREENCHIMENTO (prep sobrepõe defaults)
-            // ==========================================
-
-            // REGRA 1: Depósito recursal — disparar evento onChange para unificar fluxo
-            // CORREÇÃO 2: Usar dispatchEvent em vez de manipulação direta do DOM
-            if (prep.depositos.length > 0) {
-                console.log('[INICIALIZAÇÃO] Detectados', prep.depositos.length, 'recursos com depósito/garantia');
-               
-                const chkDep = $('chk-deposito');
-                if (chkDep) {
-                    chkDep.checked = true;
-                    // Disparar onChange sintético — aciona visibilidade E preencherDepositosAutomaticos
-                    // de forma unificada, eliminando dessincronização
-                    chkDep.dispatchEvent(new Event('change', { bubbles: true }));
-                    console.log('[INICIALIZAÇÃO] Evento change disparado');
+                // Povoar select de acórdãos se existirem
+                const custasAcordaoSelect = $('custas-acordao-select');
+                if (custasAcordaoSelect && prep.acordaos.length > 0) {
+                    custasAcordaoSelect.innerHTML = '<option value="">Selecione o acórdão</option>';
+                    prep.acordaos.forEach((acordao, i) => {
+                        const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent = `Acórdão ${i + 1}${acordao.data ? ' - ' + acordao.data : ''}`;
+                        opt.dataset.data = acordao.data || '';
+                        opt.dataset.id = acordao.id || '';
+                        custasAcordaoSelect.appendChild(opt);
+                    });
                 }
-            }
 
-            // REGRA 2: Perito conhecimento + TRT / AJ-JT match
-            const peritoTipoEl = $('perito-tipo-pag');
-            const peritoValorEl = $('val-perito-valor');
-            const peritoDataEl = $('val-perito-data');
-            if (prep.pericia.peritosComAjJt.length > 0) {
-                // Perito casou com AJ-JT — pago pelo TRT
-                const match = prep.pericia.peritosComAjJt[0];
-                if (peritoTipoEl) peritoTipoEl.value = 'trt';
-                if (peritoValorEl) peritoValorEl.value = match.idAjJt || '';
-            } else if (prep.sentenca.honorariosPericiais.length > 0) {
-                // Honorários periciais na sentença
-                const hon = prep.sentenca.honorariosPericiais[0];
-                if (hon.trt && peritoTipoEl) {
-                    peritoTipoEl.value = 'trt';
+                // Editais
+                const editaisContainer = $('links-editais-container');
+                const editaisLista = $('links-editais-lista');
+                if (editaisContainer && editaisLista) {
+                    editaisLista.innerHTML = '';
+                    if (prep.editais.length > 0) {
+                        editaisContainer.classList.remove('hidden');
+                        prep.editais.forEach((edital, i) => {
+                            if (edital.href) {
+                                const btn = document.createElement('a');
+                                btn.href = edital.href;
+                                btn.target = "_blank";
+                                btn.innerHTML = `<i class="fas fa-external-link-alt"></i> Edital ${i + 1}`;
+                                btn.style.cssText = "display:inline-block; margin-right:10px; color:#00509e; font-size:12px; text-decoration:none;";
+                                editaisLista.appendChild(btn);
+                            }
+                        });
+                    } else {
+                        editaisContainer.classList.add('hidden');
+                    }
                 }
-                // Sempre preencher valor se detectado
-                if (peritoValorEl && !peritoValorEl.value) {
-                    peritoValorEl.value = 'R$' + hon.valor;
-                }
-            }
-            // Data da sentença no campo de data do perito
-            if (prep.sentenca.data && peritoDataEl && !peritoDataEl.value) {
-                peritoDataEl.value = prep.sentenca.data;
-            }
 
-            // REGRA 3 e 4: Responsabilidade (subsidiária / solidária)
-            const respTipoEl = $('resp-tipo');
-            const respSubOpcoes = $('resp-sub-opcoes');
-            const passivo = window.hcalcPartesData?.passivo || [];
-            if (prep.sentenca.responsabilidade && respTipoEl) {
-                if (prep.sentenca.responsabilidade === 'subsidiaria') {
-                    respTipoEl.value = 'subsidiarias';
-                    if (respSubOpcoes) respSubOpcoes.classList.remove('hidden');
-                } else if (prep.sentenca.responsabilidade === 'solidaria') {
-                    respTipoEl.value = 'solidarias';
+                // ==========================================
+                // REGRAS AUTO-PREENCHIMENTO (prep sobrepõe defaults)
+                // ==========================================
+
+                // REGRA 1: Depósito recursal — disparar evento onChange para unificar fluxo
+                // CORREÇÃO 2: Usar dispatchEvent em vez de manipulação direta do DOM
+                if (prep.depositos.length > 0) {
+                    console.log('[INICIALIZAÇÃO] Detectados', prep.depositos.length, 'recursos com depósito/garantia');
+
+                    const chkDep = $('chk-deposito');
+                    if (chkDep) {
+                        chkDep.checked = true;
+                        // Disparar onChange sintético — aciona visibilidade E preencherDepositosAutomaticos
+                        // de forma unificada, eliminando dessincronização
+                        chkDep.dispatchEvent(new Event('change', { bubbles: true }));
+                        console.log('[INICIALIZAÇÃO] Evento change disparado');
+                    }
+                }
+
+                // REGRA 2: Perito conhecimento + TRT / AJ-JT match
+                const peritoTipoEl = $('perito-tipo-pag');
+                const peritoValorEl = $('val-perito-valor');
+                const peritoDataEl = $('val-perito-data');
+                if (prep.pericia.peritosComAjJt.length > 0) {
+                    // Perito casou com AJ-JT — pago pelo TRT
+                    const match = prep.pericia.peritosComAjJt[0];
+                    if (peritoTipoEl) peritoTipoEl.value = 'trt';
+                    if (peritoValorEl) peritoValorEl.value = match.idAjJt || '';
+                } else if (prep.sentenca.honorariosPericiais.length > 0) {
+                    // Honorários periciais na sentença
+                    const hon = prep.sentenca.honorariosPericiais[0];
+                    if (hon.trt && peritoTipoEl) {
+                        peritoTipoEl.value = 'trt';
+                    }
+                    // Sempre preencher valor se detectado
+                    if (peritoValorEl && !peritoValorEl.value) {
+                        peritoValorEl.value = 'R$' + hon.valor;
+                    }
+                }
+                // Data da sentença no campo de data do perito
+                if (prep.sentenca.data && peritoDataEl && !peritoDataEl.value) {
+                    peritoDataEl.value = prep.sentenca.data;
+                }
+
+                // REGRA 3 e 4: Responsabilidade (subsidiária / solidária)
+                const respTipoEl = $('resp-tipo');
+                const respSubOpcoes = $('resp-sub-opcoes');
+                const passivo = window.hcalcPartesData?.passivo || [];
+                if (prep.sentenca.responsabilidade && respTipoEl) {
+                    if (prep.sentenca.responsabilidade === 'subsidiaria') {
+                        respTipoEl.value = 'subsidiarias';
+                        if (respSubOpcoes) respSubOpcoes.classList.remove('hidden');
+                    } else if (prep.sentenca.responsabilidade === 'solidaria') {
+                        respTipoEl.value = 'solidarias';
+                        if (respSubOpcoes) respSubOpcoes.classList.add('hidden');
+                    }
+                } else if (passivo.length <= 1 && respTipoEl) {
+                    respTipoEl.value = 'unica';
                     if (respSubOpcoes) respSubOpcoes.classList.add('hidden');
                 }
-            } else if (passivo.length <= 1 && respTipoEl) {
-                respTipoEl.value = 'unica';
-                if (respSubOpcoes) respSubOpcoes.classList.add('hidden');
-            }
 
-            // REGRA 5: Custas
-            // Sempre padrão = sentença (usuário pode mudar para acórdão se necessário)
-            const custasStatusEl = $('custas-status');
-            const custasOrigemEl = $('custas-origem');
-            if (prep.sentenca.custas) {
-                // ATENÇÃO: Não sobrepõe se planilha já preencheu custas
-                if ($('val-custas') && !window.hcalcState.planilhaExtracaoData?.custas) {
-                    $('val-custas').value = prep.sentenca.custas;
+                // REGRA 5: Custas
+                // Sempre padrão = sentença (usuário pode mudar para acórdão se necessário)
+                const custasStatusEl = $('custas-status');
+                const custasOrigemEl = $('custas-origem');
+                if (prep.sentenca.custas) {
+                    // ATENÇÃO: Não sobrepõe se planilha já preencheu custas
+                    if ($('val-custas') && !window.hcalcState.planilhaExtracaoData?.custas) {
+                        $('val-custas').value = prep.sentenca.custas;
+                    }
+                    // Sempre usa sentença como padrão
+                    if (custasStatusEl) custasStatusEl.value = 'devidas';
+                    if (custasOrigemEl) custasOrigemEl.value = 'sentenca';
+                    // ATENÇÃO: Não sobrepõe data se planilha já preencheu
+                    if ($('custas-data-origem') && prep.sentenca.data && !window.hcalcState.planilhaExtracaoData?.custas) {
+                        $('custas-data-origem').value = prep.sentenca.data;
+                    }
                 }
-                // Sempre usa sentença como padrão
-                if (custasStatusEl) custasStatusEl.value = 'devidas';
-                if (custasOrigemEl) custasOrigemEl.value = 'sentenca';
-                // ATENÇÃO: Não sobrepõe data se planilha já preencheu
-                if ($('custas-data-origem') && prep.sentenca.data && !window.hcalcState.planilhaExtracaoData?.custas) {
-                    $('custas-data-origem').value = prep.sentenca.data;
+
+                // REGRA 6: hsusp → Honorários Adv. Réu com condição suspensiva
+                const chkHonReu = $('chk-hon-reu');
+                const honReuCampos = $('hon-reu-campos');
+                if (prep.sentenca.hsusp) {
+                    // Lógica invertida: desmarcar "Não há" para mostrar campos
+                    if (chkHonReu) chkHonReu.checked = false;
+                    if (honReuCampos) honReuCampos.classList.remove('hidden');
+
+                    const radSusp = document.querySelector('input[name="rad-hon-reu"][value="suspensiva"]');
+                    if (radSusp) radSusp.checked = true;
+                } else {
+                    // Estado padrão: checkbox marcado, campos ocultos
+                    if (chkHonReu) chkHonReu.checked = true;
+                    if (honReuCampos) honReuCampos.classList.add('hidden');
                 }
-            }
-
-            // REGRA 6: hsusp → Honorários Adv. Réu com condição suspensiva
-            const chkHonReu = $('chk-hon-reu');
-            const honReuCampos = $('hon-reu-campos');
-            if (prep.sentenca.hsusp) {
-                // Lógica invertida: desmarcar "Não há" para mostrar campos
-                if (chkHonReu) chkHonReu.checked = false;
-                if (honReuCampos) honReuCampos.classList.remove('hidden');
-
-                const radSusp = document.querySelector('input[name="rad-hon-reu"][value="suspensiva"]');
-                if (radSusp) radSusp.checked = true;
-            } else {
-                // Estado padrão: checkbox marcado, campos ocultos
-                if (chkHonReu) chkHonReu.checked = true;
-                if (honReuCampos) honReuCampos.classList.add('hidden');
-            }
 
                 // ==========================================
                 // PREENCHER COM DADOS DA PLANILHA (PRIORIDADE)
                 // ==========================================
                 if (window.hcalcState.planilhaExtracaoData) {
                     const dados = window.hcalcState.planilhaExtracaoData;
-                   
+
                     if (dados.idPlanilha && $('val-id')) $('val-id').value = dados.idPlanilha;
                     if (dados.verbas && $('val-credito')) $('val-credito').value = dados.verbas;
-                   
+
                     // FGTS: preencher valor + ajustar checkbox + marcar status depositado conforme extração
                     if ($('val-fgts') && $('calc-fgts')) {
                         const temFgts = dados.fgts && dados.fgts !== '0,00' && dados.fgts !== '0';
-                       
+
                         if (temFgts) {
                             $('val-fgts').value = dados.fgts;
                             $('calc-fgts').checked = true;
-                           
+
                             // Marcar radio button correto (depositado ou devido)
                             if (dados.fgtsDepositado) {
                                 const radDepositado = document.querySelector('input[name="fgts-tipo"][value="depositado"]');
@@ -962,20 +1003,20 @@
                         }
                         $('calc-fgts').dispatchEvent(new Event('change', { bubbles: true }));
                     }
-                   
+
                     // INSS: preencher valores + ajustar checkbox se não há nenhum
                     if (dados.inssTotal && $('val-inss-total')) $('val-inss-total').value = dados.inssTotal;
                     if (dados.inssAutor && $('val-inss-rec')) $('val-inss-rec').value = dados.inssAutor;
-                   
+
                     // Verificar se não há INSS nenhum
                     const semInssTotal = !dados.inssTotal || dados.inssTotal === '0,00' || dados.inssTotal === '0';
                     const semInssAutor = !dados.inssAutor || dados.inssAutor === '0,00' || dados.inssAutor === '0';
-                   
+
                     if (semInssTotal && semInssAutor && $('ignorar-inss')) {
                         $('ignorar-inss').checked = true;
                         $('ignorar-inss').dispatchEvent(new Event('change', { bubbles: true }));
                     }
-                   
+
                     // Custas: valor e data da planilha (prevalece sobre sentença)
                     if (dados.custas && $('val-custas')) {
                         $('val-custas').value = dados.custas;
@@ -984,10 +1025,10 @@
                             $('custas-data-origem').value = dados.dataAtualizacao;
                         }
                     }
-                   
+
                     if (dados.dataAtualizacao && $('val-data')) $('val-data').value = dados.dataAtualizacao;
                     if (dados.honAutor && $('val-hon-autor')) $('val-hon-autor').value = dados.honAutor;
-                   
+
                     // Aplicar IRPF se tributável
                     if (dados.irpfIsento === false) {
                         const irpfTipoEl = document.getElementById('irpf-tipo');
@@ -996,7 +1037,7 @@
                             irpfTipoEl.dispatchEvent(new Event('change', { bubbles: true }));
                         }
                     }
-                   
+
                     // Auto-selecionar origem como PJeCalc
                     if ($('calc-origem')) $('calc-origem').value = 'pjecalc';
                 }
@@ -1025,7 +1066,7 @@
 
                 $('homologacao-overlay').style.display = 'flex';
                 dbg('Overlay exibido para o usuario.');
-               
+
                 // Fallback: tentar clipboard se não tem ID da planilha
                 if (!window.hcalcState.planilhaExtracaoData?.idPlanilha) {
                     try {
@@ -1035,51 +1076,51 @@
                         }
                     } catch (e) { console.warn('Clipboard ignorado ou bloqueado', e); }
                 }
-               
+
                 updateHighlight();
             } catch (e) {
                 err('Erro no handler do botao Gerar Homologacao:', e);
                 alert('Erro ao abrir assistente. Verifique o console (F12).');
                 return;
-                }
+            }
         };
-       
+
         // ==========================================
         // FASE 2: Handler do Input File (Carregar Planilha)
         // ==========================================
         $('input-planilha-pdf').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-           
+
             const btn = $('btn-abrir-homologacao');
             btn.textContent = '⏳ Processando...';
             btn.disabled = true;
-           
+
             try {
                 // Configurar PDF.js (primeira vez)
                 const loaded = carregarPDFJSSeNecessario();
                 if (!loaded) {
                     throw new Error('PDF.js não disponível');
                 }
-               
+
                 // Processar planilha
                 const dados = await processarPlanilhaPDF(file);
-               
+
                 if (dados.sucesso) {
                     // Salvar no state
                     window.hcalcState.planilhaExtracaoData = dados;
                     window.hcalcState.planilhaCarregada = true;
-                   
+
                     // Atualizar dropdowns de linhas extras com a planilha principal recém-carregada
                     atualizarDropdownsPlanilhas();
-                   
+
                     // Atualizar botão
                     btn.textContent = '✓ Dados Extraídos';
                     btn.style.background = '#10b981';
                     btn.disabled = false;
-                   
+
                     dbg('Planilha extraída:', dados);
-                   
+
                     // Feedback visual momentâneo
                     setTimeout(() => {
                         btn.textContent = 'Gerar Homologação';
@@ -1095,13 +1136,13 @@
                 btn.disabled = false;
             }
         };
-       
+
         // Handler do botão Reload (recarregar planilha)
         $('btn-reload-planilha').onclick = () => {
             const inputFile = $('input-planilha-pdf');
             inputFile.click();
         };
-       
+
         $('btn-fechar').onclick = (e) => {
             e.preventDefault();  // Previne scroll indesejado
             const modal = $('homologacao-modal');
@@ -1160,7 +1201,7 @@
 
         $('resp-tipo').onchange = (e) => {
             $('resp-sub-opcoes').classList.toggle('hidden', e.target.value !== 'subsidiarias');
-           
+
             // Atualizar visibilidade de checkboxes "Depositado pela Principal" em todos os depósitos
             window.hcalcState.depositosRecursais.forEach(d => {
                 if (!d.removed) {
@@ -1241,17 +1282,17 @@
         function atualizarDropdownsReclamadas() {
             const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
             const principalIntegral = $('resp-devedora-principal')?.value || '';
-           
+
             // Coletar todas as reclamadas já selecionadas em linhas existentes
             const jaUsadas = new Set([principalIntegral]);
             document.querySelectorAll('.periodo-reclamada').forEach(select => {
                 if (select.value) jaUsadas.add(select.value);
             });
-           
+
             // Atualizar cada dropdown
             document.querySelectorAll('.periodo-reclamada').forEach(select => {
                 const valorAtual = select.value;
-               
+
                 // Reconstruir opções excluindo as já usadas (exceto a própria seleção)
                 select.innerHTML = '<option value="">Selecione a reclamada...</option>';
                 todasReclamadas.forEach(rec => {
@@ -1287,7 +1328,7 @@
             document.querySelectorAll('.periodo-reclamada').forEach(select => {
                 if (select.value) jaUsadas.add(select.value);
             });
-           
+
             let selectOptions = '<option value="">Selecione a reclamada...</option>';
             reclamadas.forEach(rec => {
                 if (!jaUsadas.has(rec)) {
@@ -1341,22 +1382,22 @@
                 </div>
             `;
             container.appendChild(div);
-           
+
             // ─── BOTÃO REMOVER: atualizar dropdowns após remoção ──────────────────────
             const btnRemover = div.querySelector(`.btn-remover-periodo[data-idx="${idx}"]`);
             btnRemover.onclick = () => {
                 document.getElementById(rowId).remove();
                 atualizarDropdownsReclamadas(); // Liberar reclamada de volta
             };
-           
+
             // ─── AUTO-PREENCHER CAMPOS com planilha principal (padrão) ────────────────
             const periodoInput = div.querySelector(`.periodo-periodo[data-idx="${idx}"]`);
-            const idInput      = div.querySelector(`.periodo-id[data-idx="${idx}"]`);
+            const idInput = div.querySelector(`.periodo-id[data-idx="${idx}"]`);
 
             if (window.hcalcState.planilhaExtracaoData) {
                 const pd = window.hcalcState.planilhaExtracaoData;
                 if (periodoInput && pd.periodoCalculo) periodoInput.value = pd.periodoCalculo;
-                if (idInput && pd.idPlanilha)          idInput.value      = pd.idPlanilha;
+                if (idInput && pd.idPlanilha) idInput.value = pd.idPlanilha;
             }
 
             // ─── SELECT RECLAMADA: atualizar dropdowns quando selecionada ─────────────
@@ -1378,13 +1419,13 @@
                     ? window.hcalcState.planilhaExtracaoData
                     : (window.hcalcState.planilhasDisponiveis || []).find(p => p.id === val)?.dados;
                 if (!pd) return;
-                if (pd.idPlanilha && idInput)           idInput.value      = pd.idPlanilha;
-                if (pd.periodoCalculo && periodoInput)  periodoInput.value = pd.periodoCalculo;
+                if (pd.idPlanilha && idInput) idInput.value = pd.idPlanilha;
+                if (pd.periodoCalculo && periodoInput) periodoInput.value = pd.periodoCalculo;
             };
 
             // ─── BOTÃO CARREGAR NOVA PLANILHA ─────────────────────────────────────────
-            const btnCarregar  = div.querySelector(`.btn-carregar-planilha-extra[data-idx="${idx}"]`);
-            const inputExtra   = div.querySelector(`.input-planilha-extra-pdf[data-idx="${idx}"]`);
+            const btnCarregar = div.querySelector(`.btn-carregar-planilha-extra[data-idx="${idx}"]`);
+            const inputExtra = div.querySelector(`.input-planilha-extra-pdf[data-idx="${idx}"]`);
 
             btnCarregar.onclick = () => inputExtra.click();
 
@@ -1405,11 +1446,11 @@
                     if (!dados.sucesso) throw new Error(dados.erro || 'Erro desconhecido');
 
                     // Preencher campos da linha com dados extraídos
-                    if (dados.idPlanilha && idInput)          idInput.value      = dados.idPlanilha;
+                    if (dados.idPlanilha && idInput) idInput.value = dados.idPlanilha;
                     if (dados.periodoCalculo && periodoInput) periodoInput.value = dados.periodoCalculo;
 
                     // Registrar como planilha disponível para as demais linhas
-                    const extraId    = `extra_${idx}`;
+                    const extraId = `extra_${idx}`;
                     const extraLabel = `${dados.idPlanilha || 'Extra'} (Dev.${idx + 2})`;
                     registrarPlanilhaDisponivel(extraId, extraLabel, dados);
 
@@ -1417,14 +1458,14 @@
                     selectPlanilha.value = extraId;
 
                     // Feedback visual
-                    btnCarregar.textContent      = '✓ Analisada';
+                    btnCarregar.textContent = '✓ Analisada';
                     btnCarregar.style.background = '#10b981';
-                    btnCarregar.disabled         = false;
+                    btnCarregar.disabled = false;
 
                 } catch (err) {
                     alert('Erro ao processar planilha: ' + err.message);
                     btnCarregar.textContent = originalText;
-                    btnCarregar.disabled    = false;
+                    btnCarregar.disabled = false;
                 }
             };
         }
@@ -1433,7 +1474,7 @@
             // Lógica invertida: marcado = "Não há" = esconde campos
             $('hon-reu-campos').classList.toggle('hidden', e.target.checked);
         };
-       
+
         // Controlar exibição de campo percentual vs valor
         document.querySelectorAll('input[name="rad-hon-reu-tipo"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
@@ -1442,20 +1483,20 @@
                 $('hon-reu-valor-campo').classList.toggle('hidden', isPercentual);
             });
         });
-       
+
         $('chk-perito-conh').onchange = (e) => { $('perito-conh-campos').classList.toggle('hidden', !e.target.checked); };
 
         // CORREÇÃO 4: Event listener simplificado - guard interno em preencherDepositosAutomaticos
         $('chk-deposito').onchange = (e) => {
             // Toggle visibilidade
             $('deposito-campos').classList.toggle('hidden', !e.target.checked);
-           
+
             // Preencher automaticamente se marcado (safe: tem guard para jaTemCampos)
             if (e.target.checked) {
                 preencherDepositosAutomaticos();
             }
         };
-       
+
         $('chk-pag-antecipado').onchange = (e) => {
             $('pag-antecipado-campos').classList.toggle('hidden', !e.target.checked);
             if (e.target.checked && window.hcalcState.pagamentosAntecipados.length === 0) {
@@ -1480,7 +1521,7 @@
         // ==========================================
         // FUNÇÕES DE GERENCIAMENTO DE MÚLTIPLOS DEPÓSITOS
         // ==========================================
-       
+
         // Preenche depósitos automaticamente com recursos detectados (Depósito/Garantia)
         function preencherDepositosAutomaticos() {
             const prep = window.hcalcLastPrepResult;
@@ -1488,53 +1529,53 @@
                 console.log('[AUTO-DEPOSITOS] Sem dados de prep');
                 return;
             }
-           
+
             const container = $('depositos-container');
             if (!container) {
                 console.error('[AUTO-DEPOSITOS] Container não encontrado!');
                 return;
             }
-           
+
             // Se já tem campos, não limpar (permite adicionar manualmente)
             const jaTemCampos = container.children.length > 0;
             if (jaTemCampos) {
                 console.log('[AUTO-DEPOSITOS] Container já possui campos, pulando');
                 return;
             }
-           
+
             // Limpar depósitos existentes apenas se estiver vazio
             container.innerHTML = '';
             window.hcalcState.nextDepositoIdx = 0;
             window.hcalcState.depositosRecursais = [];
-           
+
             console.log('[AUTO-DEPOSITOS] Iniciando preenchimento com', prep.depositos.length, 'recursos');
-           
+
             // Preencher com TODOS os depósitos/garantias dos recursos detectados
             for (const deposito of prep.depositos) {
                 // Filtrar anexos de tipo Depósito ou Garantia
                 const anexosRelevantes = (deposito.anexos || []).filter(ax =>
                     ax.tipo === 'Depósito' || ax.tipo === 'Garantia'
                 );
-               
+
                 // CORREÇÃO 3: Fallback para recursos sem anexos expandidos
                 if (anexosRelevantes.length > 0) {
                     for (const anexo of anexosRelevantes) {
                         adicionarDepositoRecursal();
                         const idx = window.hcalcState.nextDepositoIdx - 1;
-                       
+
                         const tipoSelect = $(`dep-tipo-${idx}`);
                         const depositanteSelect = $(`dep-depositante-${idx}`);
                         const idInput = $(`dep-id-${idx}`);
-                       
+
                         if (tipoSelect) {
                             tipoSelect.value = anexo.tipo === 'Depósito' ? 'bb' : 'garantia';
                             tipoSelect.dispatchEvent(new Event('change', { bubbles: true }));
                         }
-                       
+
                         if (depositanteSelect) {
                             depositanteSelect.value = deposito.depositante;
                         }
-                       
+
                         if (idInput) {
                             idInput.value = anexo.id || '';
                         }
@@ -1552,25 +1593,25 @@
                 }
             }
         }
-       
+
         function adicionarDepositoRecursal() {
             const idx = window.hcalcState.nextDepositoIdx++;
             const container = $('depositos-container');
-           
+
             // Buscar TODAS as reclamadas do processo (não só as com recursos)
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-           
+
             const depositoDiv = document.createElement('div');
             depositoDiv.id = `deposito-item-${idx}`;
             depositoDiv.className = 'deposito-item';
             depositoDiv.style.cssText = 'border: 1px solid #ddd; padding: 8px; margin-bottom: 8px; border-radius: 4px; background: #f9f9f9;';
-           
+
             // Construir opções do select de depositante com TODAS as reclamadas do processo
             let optionsHtml = '<option value="">-- Selecione Reclamada --</option>';
             for (const nome of reclamadas) {
                 optionsHtml += `<option value="${nome}">${nome}</option>`;
             }
-           
+
             depositoDiv.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <strong style="font-size: 11px; color: #666;">Depósito Recursal #${idx + 1}</strong>
@@ -1598,25 +1639,25 @@
                     <label style="margin-left: 10px;"><input type="radio" name="rad-dep-lib-${idx}" value="detalhada" data-dep-idx="${idx}"> Liberação detalhada (Crédito, INSS, Hon.)</label>
                 </div>
             `;
-           
+
             container.appendChild(depositoDiv);
-           
+
             // Event listeners para este depósito específico
             const tipoEl = $(`dep-tipo-${idx}`);
             const principalEl = $(`dep-principal-${idx}`);
             const liberacaoRow = $(`dep-liberacao-row-${idx}`);
-           
+
             tipoEl.onchange = (e) => {
                 liberacaoRow.classList.toggle('hidden', e.target.value === 'garantia');
             };
-           
+
             principalEl.onchange = (e) => {
                 liberacaoRow.classList.toggle('hidden', !e.target.checked);
             };
-           
+
             // Atualizar visibilidade inicial baseado em tipo de responsabilidade
             atualizarVisibilidadeDepositoPrincipal(idx);
-           
+
             // Event listener para botão remover (evita problema sandbox TamperMonkey)
             const btnRemoverDep = depositoDiv.querySelector(`#btn-remover-dep-${idx}`);
             if (btnRemoverDep) {
@@ -1626,19 +1667,19 @@
                     if (dep) dep.removed = true;
                 });
             }
-           
+
             // Armazenar referência no estado
             window.hcalcState.depositosRecursais.push({ idx, removed: false });
         }
-       
+
         function atualizarVisibilidadeDepositoPrincipal(idx) {
             const tipoResp = $('resp-tipo')?.value || 'unica';
             const isSolidaria = tipoResp === 'solidarias';
-           
+
             const principalRow = $(`dep-principal-row-${idx}`);
             const solidariaInfo = $(`dep-solidaria-info-${idx}`);
             const principalChk = $(`dep-principal-${idx}`);
-           
+
             if (principalRow && solidariaInfo) {
                 if (isSolidaria) {
                     // Ocultar checkbox, mostrar info, forçar checked
@@ -1652,16 +1693,16 @@
                 }
             }
         }
-       
+
         function adicionarPagamentoAntecipado() {
             const idx = window.hcalcState.nextPagamentoIdx++;
             const container = $('pagamentos-container');
-           
+
             const pagamentoDiv = document.createElement('div');
             pagamentoDiv.id = `pagamento-item-${idx}`;
             pagamentoDiv.className = 'pagamento-item';
             pagamentoDiv.style.cssText = 'border: 1px solid #ddd; padding: 8px; margin-bottom: 8px; border-radius: 4px; background: #f9f9f9;';
-           
+
             pagamentoDiv.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <strong style="font-size: 11px; color: #666;">Pagamento Antecipado #${idx + 1}</strong>
@@ -1687,9 +1728,9 @@
                     </div>
                 </div>
             `;
-           
+
             container.appendChild(pagamentoDiv);
-           
+
             // Event listeners para os radios deste pagamento
             document.querySelectorAll(`input[name="lib-tipo-${idx}"]`).forEach(radio => {
                 radio.addEventListener('change', (e) => {
@@ -1698,7 +1739,7 @@
                     $(`lib-devolucao-campos-${idx}`).classList.toggle('hidden', valor !== 'devolucao');
                 });
             });
-           
+
             // Event listener para botão remover (evita problema sandbox TamperMonkey)
             const btnRemoverPag = pagamentoDiv.querySelector(`#btn-remover-pag-${idx}`);
             if (btnRemoverPag) {
@@ -1708,11 +1749,11 @@
                     if (pag) pag.removed = true;
                 });
             }
-           
+
             // Armazenar referência no estado
             window.hcalcState.pagamentosAntecipados.push({ idx, removed: false });
         }
-       
+
         // Bind dos botões de adicionar
         $('btn-add-deposito').onclick = adicionarDepositoRecursal;
         $('btn-add-pagamento').onclick = adicionarPagamentoAntecipado;
@@ -1857,7 +1898,7 @@
 
                 // Checkbox para marcar como principal (primeira é marcada por padrão)
                 const isPrimeiraPorPadrao = idx === 0;
-               
+
                 divRow.innerHTML = `
                     <div style="flex: 1; font-size: 13px; font-weight: bold; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px;" title="${parte.nome}">
                         ${parte.nome}
@@ -2150,8 +2191,8 @@
             const nomeNorm = normalizarNomeParaComparacao(nomeParaVerificar);
             return advogadosAutor.some(adv => {
                 const match = adv.nomeNormalizado === nomeNorm ||
-                              nomeNorm.includes(adv.nomeNormalizado) ||
-                              adv.nomeNormalizado.includes(nomeNorm);
+                    nomeNorm.includes(adv.nomeNormalizado) ||
+                    adv.nomeNormalizado.includes(nomeNorm);
                 if (match) {
                     console.log(`hcalc: match encontrado - "${nomeParaVerificar}" = advogado autor "${adv.nome}"`);
                 }
@@ -2403,7 +2444,7 @@
                 } else {
                     const tipoHonReu = document.querySelector('input[name="rad-hon-reu-tipo"]:checked').value;
                     const temSuspensiva = $('chk-hon-reu-suspensiva').checked;
-                   
+
                     if (tipoHonReu === 'percentual') {
                         const p = $('val-hon-reu-perc').value;
                         if (temSuspensiva) {
@@ -2575,7 +2616,7 @@
                     const passivoDetectado = (window.hcalcPartesData?.passivo || []).map((p) => p?.nome).filter(Boolean);
                     const primeiraReclamada = passivoDetectado[0] || '';
                     const tipoRespAtual = $('resp-tipo')?.value || 'unica';
-                   
+
                     // Coletar todos os depósitos válidos (não removidos)
                     const depositosValidos = window.hcalcState.depositosRecursais
                         .filter(d => !d.removed)
@@ -2586,11 +2627,11 @@
                             const dId = $(`dep-id-${idx}`)?.value || '[ID]';
                             let isPrin = $(`dep-principal-${idx}`)?.checked ?? true;
                             const liberacao = document.querySelector(`input[name="rad-dep-lib-${idx}"]:checked`)?.value || 'reclamante';
-                           
+
                             const isDepositoJudicial = tDep !== 'garantia';
                             let criterioLiberacaoDeposito = 'manual';
                             let depositanteResolvida = dNome;
-                           
+
                             // Auto-resolver depositante baseado em partes detectadas
                             if (passivoDetectado.length === 1) {
                                 depositanteResolvida = passivoDetectado[0];
@@ -2605,26 +2646,26 @@
                                 isPrin = true; // Forçar como principal (todas são principais em solidária)
                                 criterioLiberacaoDeposito = 'solidaria';
                             }
-                           
+
                             const deveLiberarDeposito = isDepositoJudicial && (
                                 criterioLiberacaoDeposito === 'reclamada-unica' ||
                                 criterioLiberacaoDeposito === 'subsidiaria-principal' ||
                                 criterioLiberacaoDeposito === 'solidaria' ||
                                 (criterioLiberacaoDeposito === 'manual' && isPrin)
                             );
-                           
+
                             const naturezaDevedora = criterioLiberacaoDeposito === 'solidaria'
                                 ? 'solidária'
                                 : (isPrin ? 'principal' : 'subsidiária');
-                           
+
                             const bancoTxt = tDep === 'bb' ? 'Banco do Brasil' : (tDep === 'sif' ? 'Caixa Econômica Federal (SIF)' : 'seguro garantia regular');
-                           
+
                             return {
                                 idx, tDep, depositanteResolvida, dId, isPrin, liberacao,
                                 isDepositoJudicial, naturezaDevedora, bancoTxt, deveLiberarDeposito
                             };
                         });
-                   
+
                     if (depositosValidos.length === 0) {
                         text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Há depósito recursal. (Configure os dados)</p>`;
                     } else {
@@ -2646,41 +2687,41 @@
                             if (dep.isDepositoJudicial) grupos[chave].todosGarantia = false;
                             if (dep.liberacao !== 'reclamante') grupos[chave].todosLiberacaoDireta = false;
                         });
-                       
+
                         const formatarLista = (itens) => {
                             if (!itens || itens.length === 0) { return ''; }
                             if (itens.length === 1) { return itens[0]; }
                             if (itens.length === 2) { return `${itens[0]} e ${itens[1]}`; }
                             return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
                         };
-                       
+
                         // Gerar texto para cada grupo
                         Object.values(grupos).forEach(grupo => {
                             const ids = grupo.depositos.map(d => `${bold(d.dId)}`);
                             const idsTexto = ids.length > 1 ? `(Ids ${formatarLista(ids)})` : `(Id ${ids[0]})`;
-                           
+
                             text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Há depósito${grupo.depositos.length > 1 ? 's' : ''} recursal${grupo.depositos.length > 1 ? 'is' : ''} da devedora ${grupo.natureza} (${grupo.depositante} ${idsTexto}) via ${grupo.banco}.</p>`;
-                           
+
                             if (grupo.todosGarantia) {
                                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Tratando-se de seguro garantia, não há liberação imediata de valores nesta oportunidade.</p>`;
                             } else {
                                 // Processar liberações
                                 const depsLiberaveis = grupo.depositos.filter(d => d.deveLiberarDeposito && d.isDepositoJudicial);
-                               
+
                                 if (depsLiberaveis.length > 0) {
                                     const depsDiretos = depsLiberaveis.filter(d => d.liberacao === 'reclamante');
                                     const depsDetalhados = depsLiberaveis.filter(d => d.liberacao === 'detalhada');
-                                   
+
                                     if (depsDiretos.length > 0) {
                                         houveDepositoDireto = true;
                                         const txtPlural = depsDiretos.length > 1 ? 'os depósitos recursais' : 'o depósito recursal';
                                         text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Libere-se ${txtPlural} em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
                                     }
-                                   
+
                                     if (depsDetalhados.length > 0) {
                                         const idsDetalhados = depsDetalhados.map(d => `${grupo.depositante} #${bold(d.dId)}`);
                                         const listaDeps = formatarLista(idsDetalhados);
-                                       
+
                                         houveLibecaoDetalhada = true;
                                         gerarLiberacaoDetalhada({
                                             depositoInfo: `o${depsDetalhados.length > 1 ? 's' : ''} depósito${depsDetalhados.length > 1 ? 's' : ''} recursal${depsDetalhados.length > 1 ? 'is' : ''} (${listaDeps} via ${grupo.banco})`
@@ -2712,16 +2753,16 @@
                                 devValor: $(`lib-dev-valor-${idx}`)?.value || ''
                             };
                         });
-                   
+
                     if (pagamentosValidos.length === 0) {
                         text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Realizado depósito pela reclamada. (Configure os dados)</p>`;
                     } else {
                         pagamentosValidos.forEach(pag => {
                             text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Realizado depósito pela reclamada, #${bold(pag.id)}.</p>`;
-                           
+
                             houveLibecaoDetalhada = true;
                             let proximoNum = gerarLiberacaoDetalhada({});
-                           
+
                             if (pag.tipoLib === 'devolucao') {
                                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${proximoNum}) Devolva-se à reclamada o valor pago a maior, no montante de ${bold('R$ ' + (pag.devValor || '[VALOR]'))}, expedindo-se o competente alvará.</p>`;
                                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Concede-se 05 dias para manifestação das partes.</p>`;
@@ -2735,7 +2776,7 @@
                         });
                     }
                 }
-               
+
                 // INTIMAÇÕES (apenas se NÃO houver pagamento antecipado)
                 if (!isPagamentoAntecipado) {
                     const formatarListaPartes = (nomes) => {
@@ -2752,7 +2793,7 @@
 
                     // Verificar se é responsabilidade subsidiária
                     const isSubsidiaria = $('resp-tipo')?.value === 'subsidiarias';
-                   
+
                     // Obter lista de principais (marcadas como principal)
                     const principaisSet = new Set();
                     if (isSubsidiaria) {
@@ -2765,12 +2806,12 @@
                         elsOpcoes.forEach((sel) => {
                             const nome = sel.getAttribute('data-nome');
                             const v = sel.value;
-                           
+
                             // FILTRO: Se subsidiária, intima apenas principais
                             if (isSubsidiaria && !principaisSet.has(nome)) {
                                 return; // Pula subsidiárias
                             }
-                           
+
                             if (v === 'diario') grpDiario.push(nome);
                             else if (v === 'mandado') grpMandado.push(nome);
                             else if (v === 'edital') grpEdital.push(nome);
@@ -2830,21 +2871,21 @@
                 const periodoCompleto = window.hcalcState.planilhaExtracaoData?.periodoCalculo || '';
                 const principaisParciais = [];
                 const subsidiariasComPeriodo = [];
-               
+
                 linhasPeriodos.forEach((linha) => {
                     const idx = linha.id.replace('periodo-diverso-', '');
                     const nomeRec = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`)?.value || '';
                     const periodoTexto = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`)?.value || '';
                     const idPlanilha = document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '';
                     const tipoRadio = document.querySelector(`input[name="periodo-tipo-${idx}"]:checked`)?.value || 'principal';
-                   
+
                     // NOVO: detectar se usa mesma planilha da principal
                     const planilhaSel = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal';
                     const usarMesmaPlanilha = planilhaSel === 'principal';
-                   
+
                     // Período vazio ou igual ao período completo = integral
                     const isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
-                   
+
                     if (nomeRec && !isPeriodoIntegral) {
                         if (tipoRadio === 'principal') {
                             principaisParciais.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilha || '', usarMesmaPlanilha });
@@ -2860,7 +2901,7 @@
                 const todasReclamadas = Array.from(document.querySelectorAll('.chk-parte-principal'))
                     .map(chk => chk.getAttribute('data-nome'))
                     .filter(n => n);
-               
+
                 const subsidiariasIntegrais = todasReclamadas.filter(nome =>
                     !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome)
                 );
@@ -2868,7 +2909,7 @@
                 let textoIntro = '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Sobre a responsabilidade pelo crédito, tem-se o seguinte:</p>';
                 textoIntro += '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>1 - Devedoras Principais:</strong></p>';
                 textoIntro += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">- ${bold(principalSelecionada)} é devedora principal pelo período integral do contrato.</p>`;
-               
+
                 principaisParciais.forEach(prin => {
                     textoIntro += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">- ${bold(prin.nome)} também é principal, mas pelo período parcial de ${prin.periodo}.</p>`;
                 });
@@ -2876,14 +2917,14 @@
                 const todasSubsidiarias = [...subsidiariasIntegrais, ...subsidiariasComPeriodo];
                 if (todasSubsidiarias.length > 0) {
                     textoIntro += '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>2 - Devedoras Subsidiárias:</strong></p>';
-                   
+
                     // Subsidiárias integrais (agrupadas)
                     if (subsidiariasIntegrais.length > 0) {
                         const listaFormatada = formatarLista(subsidiariasIntegrais);
                         const verbo = subsidiariasIntegrais.length === 1 ? 'é responsável subsidiária' : 'são responsáveis subsidiárias';
                         textoIntro += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">- ${listaFormatada} ${verbo} pelo período integral do contrato.</p>`;
                     }
-                   
+
                     // Subsidiárias com período específico (individuais)
                     subsidiariasComPeriodo.forEach(sub => {
                         textoIntro += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">- ${bold(sub.nome)} é responsável subsidiária pelo período de ${sub.periodo}.</p>`;
@@ -2906,28 +2947,28 @@
                 };
             }
 
-                        const linhasPeriodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]'));
+            const linhasPeriodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]'));
             const usarDuplicacao = $('resp-diversos').checked && linhasPeriodos.length > 0;
 
             if (usarDuplicacao && passivoTotal > 1) {
                 const dadosResp = gerarTextoResponsabilidades();
-               
+
                 if (dadosResp) {
                     const { textoIntro, todasPrincipais, subsidiariasIntegrais, subsidiariasComPeriodo } = dadosResp;
                     const principalIntegral = todasPrincipais[0];
-                   
+
                     text += textoIntro;
-                   
+
                     text += '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>1 - Devedoras Principais:</strong></p>';
-                   
+
                     todasPrincipais.forEach((prin, i) => {
                         const letra = String.fromCharCode(97 + i);
                         const labelPrin = prin.periodo === 'integral'
                             ? `${bold(prin.nome)} (Período Integral)`
                             : `${bold(prin.nome)} (${prin.periodo})`;
-                       
+
                         text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${labelPrin}:</strong></p>`;
-                       
+
                         const idParaUsar = prin.periodo === 'integral'
                             ? idPlanilha
                             : (prin.usarMesmaPlanilha || !prin.idPlanilha ? idPlanilha : prin.idPlanilha);
@@ -2942,14 +2983,14 @@
                             reclamadaLabel: ''
                         });
                     });
-                   
+
                     const totalSubsidiarias = subsidiariasIntegrais.length + subsidiariasComPeriodo.length;
                     if (totalSubsidiarias > 0) {
                         text += '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>2 - Devedoras Subsidiárias:</strong></p>';
                         text += '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">(Respondem apenas em caso de insuficiência patrimonial das principais)</p>';
-                       
+
                         let letraIdx = 0;
-                       
+
                         // Subsidiárias integrais (agrupadas)
                         subsidiariasIntegrais.forEach((nomeSub) => {
                             const letra = String.fromCharCode(97 + letraIdx);
@@ -2957,7 +2998,7 @@
                             text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><em>Subsidiária pelo período integral do contrato, com os mesmos valores definidos para a devedora principal <strong>${principalIntegral.nome}</strong>, conforme planilha <strong>${idPlanilha}</strong>.</em></p>`;
                             letraIdx++;
                         });
-                       
+
                         // Subsidiárias com período específico
                         subsidiariasComPeriodo.forEach((sub) => {
                             const letra = String.fromCharCode(97 + letraIdx);
@@ -3037,7 +3078,7 @@
                             // Obter lista de principais e subsidiárias
                             const principais = [];
                             const subsidiarias = [];
-                           
+
                             document.querySelectorAll('.chk-parte-principal').forEach(chk => {
                                 const nome = chk.getAttribute('data-nome');
                                 if (chk.checked) {
@@ -3046,7 +3087,7 @@
                                     subsidiarias.push(nome);
                                 }
                             });
-                           
+
                             // Texto específico nomeando principais e subsidiárias
                             if (principais.length > 0 && subsidiarias.length > 0) {
                                 const formatarLista = (nomes) => {
@@ -3054,12 +3095,12 @@
                                     if (nomes.length === 2) return `${bold(nomes[0])} e ${bold(nomes[1])}`;
                                     return nomes.slice(0, -1).map(n => bold(n)).join(', ') + ' e ' + bold(nomes[nomes.length - 1]);
                                 };
-                               
+
                                 const txtPrincipais = formatarLista(principais);
                                 const txtSubsidiarias = formatarLista(subsidiarias);
                                 const verboPrin = principais.length > 1 ? 'são devedoras principais' : 'é devedora principal';
                                 const verboSub = subsidiarias.length > 1 ? 'são subsidiárias' : 'é subsidiária';
-                               
+
                                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${txtPrincipais} ${verboPrin}, ${txtSubsidiarias} ${verboSub} pelo período integral do contrato, portanto, os valores neste momento são devidos apenas pelas principais.</p>`;
                             } else {
                                 // Fallback se não houver checkboxes marcados
@@ -3106,7 +3147,7 @@
                 } else {
                     const tipoHonReu = document.querySelector('input[name="rad-hon-reu-tipo"]:checked').value;
                     const temSuspensiva = $('chk-hon-reu-suspensiva').checked;
-                   
+
                     if (tipoHonReu === 'percentual') {
                         const p = $('val-hon-reu-perc').value;
                         if (temSuspensiva) {
@@ -3146,6 +3187,6 @@
         dbg('initializeOverlay finalizado com sucesso.');
     }
 
-    // Ponto de entrada exposto para hcalc.user.js
+    // Expor API pública para o userscript loader
     window.hcalcInitBotao = initializeBotao;
 })();

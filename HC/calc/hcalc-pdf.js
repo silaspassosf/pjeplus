@@ -400,7 +400,11 @@ self.onmessage = async function(e) {
                 if (qualidade.invalidos.length > 0) warn('Campos suspeitos:', qualidade.invalidos.map(i => i.campo + ': ' + i.valor).join(', '));
                 resolve(dadosValidados);
             };
-            worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message)); };
+            worker.onerror = (e) => {
+                console.error('[HCalc Worker] Erro no worker:', e.message, e);
+                worker.terminate();
+                reject(new Error(e.message));
+            };
             worker.postMessage({ arrayBuffer, idNomeArquivo, peritosConhecidos }, [arrayBuffer]);
         });
     }

@@ -10,16 +10,16 @@
 // @match        https://sisbajud.cnj.jus.br/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp*
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.sibajud.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.legacy.js?v=203
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=203
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.sibajud.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.legacy.js?v=204
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=204
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab
@@ -71,9 +71,11 @@
             return;
         }
 
-        // Garante que o painel só injeta se for puramente tela de /detalhe, e não a sub-rota de /minutas
-        const onDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl) && !currentUrl.includes('/minutas');
-        if (onDetalhe && !PJeState._iniciado) {
+        // Garante que o painel só injeta se a URL pertencer ao TRT2 e for estritamente a aba de detalhes
+        const isPJe = currentUrl.includes('pje.trt2.jus.br');
+        const isAbaDetalhe = /\/processo\/\d+\/detalhe/.test(currentUrl) && !currentUrl.includes('/minutas');
+
+        if (isPJe && isAbaDetalhe && !PJeState._iniciado) {
             PJeState._iniciado = true;
             inicializarPainel();
             initAtalhos();

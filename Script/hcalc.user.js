@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Homologação de Cálculos
 // @namespace    http://tampermonkey.net/
-// @version      1.17.0
+// @version      1.18.0
 // @description  Assistente de homologação PJe-Calc
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/pdf.min.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-core.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-pdf.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-prep.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/pdf.min.js?v=118
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-core.js?v=118
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-pdf.js?v=118
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-prep.js?v=118
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=118
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle

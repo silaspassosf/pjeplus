@@ -5,9 +5,9 @@
 // @description  Assistente de homologação PJe-Calc (loader @require — Estratégia 2)
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
-// @require      https://raw.githubusercontent.com/silaspassosf/scp/main/calc/hcalc-core.js?v=117
-// @require      https://raw.githubusercontent.com/silaspassosf/scp/main/calc/hcalc-pdf.js?v=117
-// @require      https://raw.githubusercontent.com/silaspassosf/scp/main/calc/hcalc-overlay.js?v=117
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-core.js?v=117
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-pdf.js?v=117
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/calc/hcalc-overlay.js?v=117
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle

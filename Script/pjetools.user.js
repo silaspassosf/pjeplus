@@ -25,7 +25,7 @@
 
     const url = window.location.href;
     const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=209';
+    const V = '?v=210';
 
     // Roteador de injeção assíncrona (Lazy Loader no contexto do sandbox)
     async function load(paths) {
@@ -90,36 +90,41 @@
         const isAbaDetalhe = /\/processo\/\d+\/detalhe/.test(url) && !url.includes('/minutas');
 
         if (isPJe && isAbaDetalhe) {
-            await load([
-                'core/utils.js',
-                'core/state.js',
-                'modules/lista/lista.timeline.js',
-                'modules/lista/lista.check.js',
-                'modules/lista/lista.edital.js',
-                'modules/lista/lista.pgto.js',
-                'modules/atalhos/atalhos.js',
-                'ui/painel.js'
-            ]);
+            // Módulos carregados apenas uma vez por sessão
+            if (!window.__pjeToolsLoaded) {
+                window.__pjeToolsLoaded = true;
+                await load([
+                    'core/utils.js',
+                    'core/state.js',
+                    'modules/lista/lista.timeline.js',
+                    'modules/lista/lista.check.js',
+                    'modules/lista/lista.edital.js',
+                    'modules/lista/lista.pgto.js',
+                    'modules/atalhos/atalhos.js',
+                    'ui/painel.js'
+                ]);
 
-            if (window.antiDuplicacao && !window.antiDuplicacao('data-pjetools-boot')) return;
-
-            if (window.monitorarSPA) {
-                window.monitorarSPA(() => {
+                // Registrar monitor SPA uma única vez
+                window.monitorarSPA && window.monitorarSPA(() => {
                     window.PJeState && window.PJeState.dispose();
-                    setTimeout(bootDetalhe, 300);
+                    setTimeout(() => {
+                        if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
+                            bootDetalhe();
+                        }
+                    }, 300);
                 });
             }
 
             bootDetalhe();
-
-            function bootDetalhe() {
-                if (!window.PJeState || window.PJeState._iniciado) return;
-                window.PJeState._iniciado = true;
-                if (window.inicializarPainel) window.inicializarPainel();
-                if (window.initAtalhos) window.initAtalhos();
-            }
             return;
         }
+    }
+
+    function bootDetalhe() {
+        if (!window.PJeState || window.PJeState._iniciado) return;
+        window.PJeState._iniciado = true;
+        window.inicializarPainel && window.inicializarPainel();
+        window.initAtalhos && window.initAtalhos();
     }
 
     injectLogic();

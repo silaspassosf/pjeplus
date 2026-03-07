@@ -2363,15 +2363,12 @@
                 }
 
                 if (indice === 'adc58') {
-                    if (isFgtsSep) {
-                        introTxt += `A atualização foi feita na forma da Lei 14.905/2024 e da decisão da SDI-1 do C. TST (IPCA-E até a distribuição; taxa Selic até 29/08/2024, e IPCA + juros de mora a partir de 30/08/2024).`;
-                    } else {
-                        introTxt += `A correção monetária foi realizada pelo IPCA-E na fase pré-judicial e, a partir do ajuizamento, pela taxa SELIC (ADC 58).`;
-                    }
+                    const textoAtualizacao = `Atualização: pelo IPCA-E na fase pré-judicial e, a partir do ajuizamento da ação, pela taxa SELIC (art. 406 do Código Civil), conforme decisão do E. Supremo Tribunal Federal nas ADCs 58 e 59 e ADI 5867, de 18/12/2020.`;
+                    introTxt += textoAtualizacao;
                 } else {
-                    const valJuros = usarPlaceholder ? 'XXX' : ($('val-juros').value || '[JUROS]');
                     const dtIngresso = usarPlaceholder ? 'XXX' : ($('data-ingresso').value || '[DATA INGRESSO]');
-                    introTxt += `Atualizáveis pela TR/IPCA-E, conforme sentença. Juros legais de ${bold('R$' + valJuros)} a partir de ${bold(dtIngresso)}.`;
+                    const textoAtualizacao = `Atualização: pela TR/IPCA-E, conforme sentença transitado em julgado. Juros legais a partir de ${bold(dtIngresso)}.`;
+                    introTxt += textoAtualizacao;
                 }
 
                 if (reclamadaLabel) {
@@ -2381,7 +2378,7 @@
 
                 // 2º parágrafo: FGTS depositado (com valor)
                 if (isFgtsSep && fgtsJaDepositado) {
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><u>O FGTS devido, ${bold(vFgts)}, já foi depositado, portanto deduzido.</u></p>`;
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">O FGTS, no valor de ${bold(vFgts)}, já foi depositado e, portanto, já está deduzido do crédito.</p>`;
                 }
 
                 if (!usarPlaceholder && $('calc-origem').value === 'pjecalc' && !$('calc-pjc').checked) {

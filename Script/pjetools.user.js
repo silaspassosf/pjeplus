@@ -13,6 +13,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab
+// @grant        GM_xmlhttpRequest
 // @grant        window.close
 // @grant        unsafeWindow
 // @run-at       document-idle
@@ -25,16 +26,27 @@
 
     const url = window.location.href;
     const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=210';
+    const V = '?v=211';
+
+    // Wrapper GM_xmlhttpRequest → Promise (bypassa CSP cross-origin do PJe)
+    function gmFetch(url) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url,
+                headers: { 'Cache-Control': 'no-cache' },
+                onload(r) { resolve(r.responseText); },
+                onerror(e) { reject(new Error(`GM_xmlhttpRequest falhou: ${url}`)); }
+            });
+        });
+    }
 
     // Roteador de injeção assíncrona (Lazy Loader no contexto do sandbox)
     async function load(paths) {
         for (const p of paths) {
             try {
-                const res = await fetch(GITHUB_BASE + p + V, { cache: 'no-store' });
-                const code = await res.text();
-                // O eval indireto executa o código no escopo global do Tampermonkey Sandbox
-                // permitindo que functions, vars e properties do window converjam.
+                const code = await gmFetch(GITHUB_BASE + p + V);
+                // O eval indireto executa no escopo global do Tampermonkey Sandbox
                 (0, eval)(code);
             } catch (e) {
                 console.error(`[PJeTools] Erro ao carregar o módulo ${p}:`, e);

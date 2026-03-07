@@ -14,6 +14,7 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // @grant        window.close
 // @grant        unsafeWindow
 // @run-at       document-idle
@@ -26,7 +27,7 @@
 
     const url = window.location.href;
     const GITHUB_BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-    const V = '?v=211';
+    const V = '?v=212';
 
     // Wrapper GM_xmlhttpRequest → Promise (bypassa CSP cross-origin do PJe)
     function gmFetch(url) {

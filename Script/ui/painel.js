@@ -88,7 +88,6 @@ window.inicializarPainel = function () {
     criarPainel([
         { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
         { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
-        { id: 'btnSigilo', texto: '🔐 Sigilo', bg: '#d9534f', fn: aplicarVisibilidadeSigilosamente, titulo: 'Marcar visibilidade' },
         { id: 'btnPgto', texto: '💳 Pgto', bg: '#ff6600', fn: executarPgto, titulo: 'Abrir página de pagamento' },
         { id: 'btnInfojud', texto: '🔍 Infojud', bg: '#0288d1', fn: () => criarBotoesInfojud(), titulo: 'Busca de endereços', full: true },
     ]);

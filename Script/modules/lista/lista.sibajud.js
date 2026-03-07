@@ -1,129 +1,124 @@
-(function () {
-    'use strict';
+'use strict';
 
-    // ── Acumulador SISBAJUD ─────────────────────────────────────────
-    // Usa CleanupRegistry para limpar o timer de reset automaticamente
-    let _sisbAccum = { executados: {}, protocolos: [] };
-    let _sisbTimerId = null;
-    const SISB_TIMEOUT = 15000;
+// ── Acumulador SISBAJUD ─────────────────────────────────────────
+// Usa CleanupRegistry para limpar o timer de reset automaticamente
+let _sisbAccum = { executados: {}, protocolos: [] };
+let _sisbTimerId = null;
+const SISB_TIMEOUT = 15000;
 
-    function _resetSisbAccum() {
-        _sisbAccum = { executados: {}, protocolos: [] };
-        _sisbTimerId = null;
+function _resetSisbAccum() {
+    _sisbAccum = { executados: {}, protocolos: [] };
+    _sisbTimerId = null;
+}
+
+function _acumularDados(executados, protocolo) {
+    Object.assign(_sisbAccum.executados, executados);
+    if (!_sisbAccum.protocolos.includes(protocolo))
+        _sisbAccum.protocolos.push(protocolo);
+    // Limpar timer anterior ANTES de criar novo (evita acúmulo)
+    if (_sisbTimerId) clearTimeout(_sisbTimerId);
+    _sisbTimerId = setTimeout(_resetSisbAccum, SISB_TIMEOUT);
+}
+
+// Registra o timer no CleanupRegistry para limpeza em dispose()
+PJeState.registry.add(() => {
+    if (_sisbTimerId) clearTimeout(_sisbTimerId);
+    _resetSisbAccum();
+});
+
+async function extrairRelatorioSISB() {
+    for (let t = 0; t < 25; t++) {
+        const modal = document.querySelector(
+            '.cdk-overlay-container .mat-dialog-container');
+        if (!modal) { await sleep(600); continue; }
+        const txt = modal.innerText || modal.textContent || '';
+        if (!txt.includes('protocolo') && !txt.includes('Protocolo')) {
+            await sleep(600); continue;
+        }
+        const matchProto = modal.innerHTML.match(/Número do protocolo:\s*(\d+)/i);
+        const protocolo = matchProto ? matchProto[1] : 'N/A';
+
+        const executados = {};
+        const padrao = /(\d+):\s*(.+?)\s+R\$\s*([\d.,]+)/g;
+        let m;
+        while ((m = padrao.exec(modal.innerHTML)) !== null) {
+            executados[m[2].trim()] = m[3].trim();
+        }
+        _acumularDados(executados, protocolo);
+        return { protocolo, executados };
     }
+    return null;
+}
 
-    function _acumularDados(executados, protocolo) {
-        Object.assign(_sisbAccum.executados, executados);
-        if (!_sisbAccum.protocolos.includes(protocolo))
-            _sisbAccum.protocolos.push(protocolo);
-        // Limpar timer anterior ANTES de criar novo (evita acúmulo)
-        if (_sisbTimerId) clearTimeout(_sisbTimerId);
-        _sisbTimerId = setTimeout(_resetSisbAccum, SISB_TIMEOUT);
-    }
+function _formatValorSISB(v) {
+    const n = parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.'));
+    return Number.isFinite(n)
+        ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        : v;
+}
 
-    // Registra o timer no CleanupRegistry para limpeza em dispose()
-    PJeState.registry.add(() => {
-        if (_sisbTimerId) clearTimeout(_sisbTimerId);
-        _resetSisbAccum();
+function _gerarRelatorioHTML() {
+    const pS = 'style="margin:0;padding:0;text-indent:4.5cm;line-height:1.5;"';
+    let html = `<p ${pS}><strong>BLOQUEIOS TRANSFERIDOS - SISBAJUD</strong></p>`;
+    Object.entries(_sisbAccum.executados).forEach(([nome, valor]) => {
+        const lbl = _sisbAccum.protocolos.length > 1 ? 'Protocolos' : 'Protocolo';
+        html += `<p ${pS}>- ${nome}: Ordens com bloqueios transferidos` +
+            ` [${lbl}: ${_sisbAccum.protocolos.join(', ')}]` +
+            ` - Total: ${_formatValorSISB(valor)}</p>`;
     });
+    return html;
+}
 
-    async function extrairRelatorioSISB() {
-        for (let t = 0; t < 25; t++) {
-            const modal = document.querySelector(
-                '.cdk-overlay-container .mat-dialog-container');
-            if (!modal) { await sleep(600); continue; }
-            const txt = modal.innerText || modal.textContent || '';
-            if (!txt.includes('protocolo') && !txt.includes('Protocolo')) {
-                await sleep(600); continue;
-            }
-            const matchProto = modal.innerHTML.match(/Número do protocolo:\s*(\d+)/i);
-            const protocolo = matchProto ? matchProto[1] : 'N/A';
-
-            const executados = {};
-            const padrao = /(\d+):\s*(.+?)\s+R\$\s*([\d.,]+)/g;
-            let m;
-            while ((m = padrao.exec(modal.innerHTML)) !== null) {
-                executados[m[2].trim()] = m[3].trim();
-            }
-            _acumularDados(executados, protocolo);
-            return { protocolo, executados };
-        }
-        return null;
+function _copiarHTMLFormatado() {
+    const html = _gerarRelatorioHTML();
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+    try {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(div);
+        sel.removeAllRanges(); sel.addRange(range);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+    } finally {
+        document.body.removeChild(div);
     }
+}
 
-    function _formatValorSISB(v) {
-        const n = parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.'));
-        return Number.isFinite(n)
-            ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-            : v;
-    }
-
-    function _gerarRelatorioHTML() {
-        const pS = 'style="margin:0;padding:0;text-indent:4.5cm;line-height:1.5;"';
-        let html = `<p ${pS}><strong>BLOQUEIOS TRANSFERIDOS - SISBAJUD</strong></p>`;
-        Object.entries(_sisbAccum.executados).forEach(([nome, valor]) => {
-            const lbl = _sisbAccum.protocolos.length > 1 ? 'Protocolos' : 'Protocolo';
-            html += `<p ${pS}>- ${nome}: Ordens com bloqueios transferidos` +
-                ` [${lbl}: ${_sisbAccum.protocolos.join(', ')}]` +
-                ` - Total: ${_formatValorSISB(valor)}</p>`;
-        });
-        return html;
-    }
-
-    function _copiarHTMLFormatado() {
-        const html = _gerarRelatorioHTML();
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        document.body.appendChild(div);
-        try {
-            const sel = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(div);
-            sel.removeAllRanges(); sel.addRange(range);
-            document.execCommand('copy');
-            sel.removeAllRanges();
-        } finally {
-            document.body.removeChild(div);
-        }
-    }
-
-    async function executarSISBAJUD() {
-        try {
-            showToast('🏦 Extraindo SISBAJUD...', '#6f42c1');
-            const resultado = await extrairRelatorioSISB();
-            if (resultado) {
-                await sleep(300);
-                _copiarHTMLFormatado();
-                alert(`✅ Relatório copiado!\n\nProtocolo: ${resultado.protocolo}\n` +
-                    `Executados: ${Object.keys(_sisbAccum.executados).length}`);
-            } else {
-                alert('⚠ Nenhum modal SISBAJUD encontrado');
-            }
-        } catch (e) {
-            alert(`❌ Erro: ${e.message}`);
-            console.error('[SISB]', e);
-        }
-    }
-
-    // ── Pgto ─────────────────────────────────────────────────────────
-    async function executarPgto() {
-        const docs = await lerTimelineCompleta();
-        const filtrados = filtrarDocs(docs);
-        const alvaras = filtrados
-            .filter(d => d.tipo.toLowerCase() === 'alvarás' && d.data)
-            .map(a => ({ data: a.data, link: resolverLink(a)?.getAttribute('href') || '#' }));
-        localStorage.setItem('pjeplus_alvaras', JSON.stringify(alvaras));
-
-        const match = window.location.href.match(/\/processo\/(\d+)\//);
-        if (match) {
-            window.open(
-                `https://pje.trt2.jus.br/pjekz/pagamento/${match[1]}/cadastro`, '_blank');
+async function executarSISBAJUD() {
+    try {
+        showToast('🏦 Extraindo SISBAJUD...', '#6f42c1');
+        const resultado = await extrairRelatorioSISB();
+        if (resultado) {
+            await sleep(300);
+            _copiarHTMLFormatado();
+            alert(`✅ Relatório copiado!\n\nProtocolo: ${resultado.protocolo}\n` +
+                `Executados: ${Object.keys(_sisbAccum.executados).length}`);
         } else {
-            alert('⚠ Não foi possível identificar o número do processo na URL');
+            alert('⚠ Nenhum modal SISBAJUD encontrado');
         }
+    } catch (e) {
+        alert(`❌ Erro: ${e.message}`);
+        console.error('[SISB]', e);
     }
+}
 
-    // Exports
-    window.executarSISBAJUD = executarSISBAJUD;
-    window.executarPgto = executarPgto;
-})();
+// ── Pgto ─────────────────────────────────────────────────────────
+async function executarPgto() {
+    const docs = await lerTimelineCompleta();
+    const filtrados = filtrarDocs(docs);
+    const alvaras = filtrados
+        .filter(d => d.tipo.toLowerCase() === 'alvarás' && d.data)
+        .map(a => ({ data: a.data, link: resolverLink(a)?.getAttribute('href') || '#' }));
+    localStorage.setItem('pjeplus_alvaras', JSON.stringify(alvaras));
+
+    const match = window.location.href.match(/\/processo\/(\d+)\//);
+    if (match) {
+        window.open(
+            `https://pje.trt2.jus.br/pjekz/pagamento/${match[1]}/cadastro`, '_blank');
+    } else {
+        alert('⚠ Não foi possível identificar o número do processo na URL');
+    }
+}
+

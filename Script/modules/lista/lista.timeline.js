@@ -1,176 +1,169 @@
-(function () {
-    'use strict';
+'use strict';
 
-    const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
-    // Meses PT para número
-    const MESES_PT = {
-        jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
-        jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12',
-    };
+// Meses PT para número
+const MESES_PT = {
+    jan: '01', fev: '02', mar: '03', abr: '04', mai: '05', jun: '06',
+    jul: '07', ago: '08', set: '09', out: '10', nov: '11', dez: '12',
+};
 
-    function extrairData(item) {
-        let el = null;
-        let prev = item.previousElementSibling;
-        while (prev) {
-            el = prev.querySelector('.tl-data[name="dataItemTimeline"]') ||
-                prev.querySelector('.tl-data');
-            if (el) break;
-            prev = prev.previousElementSibling;
-        }
-        if (!el) el = item.querySelector('.tl-data[name="dataItemTimeline"]') ||
-            item.querySelector('.tl-data');
-        const txt = el?.textContent.trim() || '';
+function extrairData(item) {
+    let el = null;
+    let prev = item.previousElementSibling;
+    while (prev) {
+        el = prev.querySelector('.tl-data[name="dataItemTimeline"]') ||
+            prev.querySelector('.tl-data');
+        if (el) break;
+        prev = prev.previousElementSibling;
+    }
+    if (!el) el = item.querySelector('.tl-data[name="dataItemTimeline"]') ||
+        item.querySelector('.tl-data');
+    const txt = el?.textContent.trim() || '';
 
-        // dd/mm/yyyy
-        const m1 = txt.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-        if (m1) return m1[1];
+    // dd/mm/yyyy
+    const m1 = txt.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+    if (m1) return m1[1];
 
-        // "20 out. 2025"
-        const m2 = txt.match(/(\d{1,2})\s+(\w{3})\.\s+(\d{4})/);
-        if (m2) {
-            const mes = MESES_PT[m2[2].toLowerCase()];
-            if (mes) return `${m2[1].padStart(2, '0')}/${mes}/${m2[3].slice(-2)}`;
-        }
-        return '';
+    // "20 out. 2025"
+    const m2 = txt.match(/(\d{1,2})\s+(\w{3})\.\s+(\d{4})/);
+    if (m2) {
+        const mes = MESES_PT[m2[2].toLowerCase()];
+        if (mes) return `${m2[1].padStart(2, '0')}/${mes}/${m2[3].slice(-2)}`;
+    }
+    return '';
+}
+
+function extrairUid(link) {
+    const m = link.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
+    return m ? m[1] : null;
+}
+
+function classificarItem(low, tipoTexto, titulo) {
+    if (low.includes('devolução de ordem')) return 'Certidão devolução pesquisa';
+    if (low.includes('certidão de oficial') || low.includes('oficial de justiça'))
+        return 'Certidão de oficial de justiça';
+    if ((low.includes('mandado de pagamento') && (low.includes('alvará'))))
+        return 'Alvarás';
+    if ((tipoTexto === 'certidão' || tipoTexto === 'documento diverso') &&
+        (titulo.includes('alvará'))) return 'Alvarás';
+    if (tipoTexto === 'alvará' || tipoTexto === 'alvara') return 'Alvarás';
+    if (low.includes('juntada de alvará')) return 'Alvarás';
+    if (low.includes('sobrestamento')) return 'Decisão (Sobrestamento)';
+    if (low.includes('serasa') || low.includes('apjur') ||
+        low.includes('carta ação') || low.includes('carta acao')) return 'SerasaAntigo';
+    if (low.includes('edital')) return 'Edital';
+    return null;
+}
+
+async function lerTimelineCompleta() {
+    const state = PJeState.lista;
+    const agora = Date.now();
+    if (state.docs && (agora - state.readAt) < CACHE_TTL) return state.docs;
+
+    const seletores = [
+        'li.tl-item-container',
+        '.tl-data .tl-item-container',
+        '.timeline-item',
+    ];
+    let itens = [];
+    for (const s of seletores) {
+        itens = document.querySelectorAll(s);
+        if (itens.length) break;
     }
 
-    function extrairUid(link) {
-        const m = link.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
-        return m ? m[1] : null;
-    }
+    const documentos = [];
 
-    function classificarItem(low, tipoTexto, titulo) {
-        if (low.includes('devolução de ordem')) return 'Certidão devolução pesquisa';
-        if (low.includes('certidão de oficial') || low.includes('oficial de justiça'))
-            return 'Certidão de oficial de justiça';
-        if ((low.includes('mandado de pagamento') && (low.includes('alvará'))))
-            return 'Alvarás';
-        if ((tipoTexto === 'certidão' || tipoTexto === 'documento diverso') &&
-            (titulo.includes('alvará'))) return 'Alvarás';
-        if (tipoTexto === 'alvará' || tipoTexto === 'alvara') return 'Alvarás';
-        if (low.includes('juntada de alvará')) return 'Alvarás';
-        if (low.includes('sobrestamento')) return 'Decisão (Sobrestamento)';
-        if (low.includes('serasa') || low.includes('apjur') ||
-            low.includes('carta ação') || low.includes('carta acao')) return 'SerasaAntigo';
-        if (low.includes('edital')) return 'Edital';
-        return null;
-    }
+    for (let i = 0; i < itens.length; i++) {
+        const item = itens[i];
+        const textLink = item.querySelector('a.tl-documento:not([target])');
+        if (!textLink) continue;
+        const iconLink = item.querySelector('a.tl-documento[target="_blank"]');
+        if (!iconLink) continue;
 
-    async function lerTimelineCompleta() {
-        const state = PJeState.lista;
-        const agora = Date.now();
-        if (state.docs && (agora - state.readAt) < CACHE_TTL) return state.docs;
+        const spans = textLink.querySelectorAll('span');
+        if (spans.length < 4) continue;
 
-        const seletores = [
-            'li.tl-item-container',
-            '.tl-data .tl-item-container',
-            '.timeline-item',
-        ];
-        let itens = [];
-        for (const s of seletores) {
-            itens = document.querySelectorAll(s);
-            if (itens.length) break;
-        }
+        const tipoTexto = spans[2].textContent.trim().toLowerCase();
+        const titulo = spans[3].textContent.trim().toLowerCase();
+        const texto = textLink.textContent.trim();
+        const low = texto.toLowerCase();
+        const tipo = classificarItem(low, tipoTexto, titulo);
+        if (!tipo) continue;
 
-        const documentos = [];
+        // ID: usar UID do texto ou fallback index
+        const id = extrairUid(textLink) || `doc${i}`;
 
-        for (let i = 0; i < itens.length; i++) {
-            const item = itens[i];
-            const textLink = item.querySelector('a.tl-documento:not([target])');
-            if (!textLink) continue;
-            const iconLink = item.querySelector('a.tl-documento[target="_blank"]');
-            if (!iconLink) continue;
+        // IMPORTANTE: guardar apenas o ID do elemento, não a referência DOM
+        // A referência será re-resolvida no momento do uso (evita memory leak)
+        documentos.push({
+            tipo, texto, id, tipoTexto,
+            elementoId: item.id || null,
+            elementoSel: item.id ? `#${CSS.escape(item.id)}` : null,
+            linkId: iconLink.id || null,
+            data: extrairData(item),
+            isAnexo: false,
+        });
 
-            const spans = textLink.querySelectorAll('span');
-            if (spans.length < 4) continue;
+        // Buscar anexos Serasa/CNIB apenas para certidões
+        const isCertAlvo = (tipo === 'Certidão devolução pesquisa' ||
+            tipo === 'Certidão de oficial de justiça');
+        if (isCertAlvo) {
+            const anexosRoot = item.querySelector('pje-timeline-anexos');
+            let anexoLinks = anexosRoot
+                ? anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]') : [];
 
-            const tipoTexto = spans[2].textContent.trim().toLowerCase();
-            const titulo = spans[3].textContent.trim().toLowerCase();
-            const texto = textLink.textContent.trim();
-            const low = texto.toLowerCase();
-            const tipo = classificarItem(low, tipoTexto, titulo);
-            if (!tipo) continue;
-
-            // ID: usar UID do texto ou fallback index
-            const id = extrairUid(textLink) || `doc${i}`;
-
-            // IMPORTANTE: guardar apenas o ID do elemento, não a referência DOM
-            // A referência será re-resolvida no momento do uso (evita memory leak)
-            documentos.push({
-                tipo, texto, id, tipoTexto,
-                elementoId: item.id || null,
-                elementoSel: item.id ? `#${CSS.escape(item.id)}` : null,
-                linkId: iconLink.id || null,
-                data: extrairData(item),
-                isAnexo: false,
-            });
-
-            // Buscar anexos Serasa/CNIB apenas para certidões
-            const isCertAlvo = (tipo === 'Certidão devolução pesquisa' ||
-                tipo === 'Certidão de oficial de justiça');
-            if (isCertAlvo) {
-                const anexosRoot = item.querySelector('pje-timeline-anexos');
-                let anexoLinks = anexosRoot
-                    ? anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]') : [];
-
-                // Expandir se necessário
-                if (!anexoLinks.length) {
-                    const toggle = item.querySelector(
-                        'pje-timeline-anexos div[name="mostrarOuOcultarAnexos"]');
-                    if (toggle) {
-                        try { toggle.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
-                        catch (e) { }
-                        await sleep(350);
-                        anexoLinks = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
-                    }
+            // Expandir se necessário
+            if (!anexoLinks.length) {
+                const toggle = item.querySelector(
+                    'pje-timeline-anexos div[name="mostrarOuOcultarAnexos"]');
+                if (toggle) {
+                    try { toggle.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+                    catch (e) { }
+                    await sleep(350);
+                    anexoLinks = item.querySelectorAll('a.tl-documento[id^="anexo_"]');
                 }
-
-                Array.from(anexoLinks).forEach(anexo => {
-                    const t = (anexo.textContent || '').toLowerCase();
-                    const tipoAnexo = /serasa|serasajud/.test(t) ? 'Serasa'
-                        : /cnib|indisp/.test(t) ? 'CNIB'
-                            : null;
-                    if (!tipoAnexo) return;
-                    documentos.push({
-                        tipo: tipoAnexo, texto: anexo.textContent.trim(),
-                        id: anexo.id || `anexo_${id}_${tipoAnexo}`,
-                        elementoId: anexo.id || null,
-                        elementoSel: anexo.id ? `a[id="${anexo.id}"]` : null,
-                        linkId: anexo.id || null,
-                        data: extrairData(item),
-                        isAnexo: true, parentId: id,
-                    });
-                });
             }
+
+            Array.from(anexoLinks).forEach(anexo => {
+                const t = (anexo.textContent || '').toLowerCase();
+                const tipoAnexo = /serasa|serasajud/.test(t) ? 'Serasa'
+                    : /cnib|indisp/.test(t) ? 'CNIB'
+                        : null;
+                if (!tipoAnexo) return;
+                documentos.push({
+                    tipo: tipoAnexo, texto: anexo.textContent.trim(),
+                    id: anexo.id || `anexo_${id}_${tipoAnexo}`,
+                    elementoId: anexo.id || null,
+                    elementoSel: anexo.id ? `a[id="${anexo.id}"]` : null,
+                    linkId: anexo.id || null,
+                    data: extrairData(item),
+                    isAnexo: true, parentId: id,
+                });
+            });
         }
-
-        state.docs = documentos;
-        state.readAt = agora;
-        return documentos;
     }
 
-    function invalidarCacheTimeline() {
-        PJeState.lista.docs = null;
-        PJeState.lista.readAt = 0;
-    }
+    state.docs = documentos;
+    state.readAt = agora;
+    return documentos;
+}
 
-    // Helper para re-resolver elemento pelo ID/seletor salvo
-    function resolverElemento(doc) {
-        if (doc.elementoSel) return document.querySelector(doc.elementoSel);
-        if (doc.elementoId) return document.getElementById(doc.elementoId);
-        return null;
-    }
+function invalidarCacheTimeline() {
+    PJeState.lista.docs = null;
+    PJeState.lista.readAt = 0;
+}
 
-    function resolverLink(doc) {
-        if (doc.linkId) return document.getElementById(doc.linkId) ||
-            document.querySelector(`a[id="${doc.linkId}"]`);
-        return null;
-    }
+// Helper para re-resolver elemento pelo ID/seletor salvo
+function resolverElemento(doc) {
+    if (doc.elementoSel) return document.querySelector(doc.elementoSel);
+    if (doc.elementoId) return document.getElementById(doc.elementoId);
+    return null;
+}
 
-    // Exports
-    window.lerTimelineCompleta = lerTimelineCompleta;
-    window.invalidarCacheTimeline = invalidarCacheTimeline;
-    window.resolverElemento = resolverElemento;
-    window.resolverLink = resolverLink;
-})();
+function resolverLink(doc) {
+    if (doc.linkId) return document.getElementById(doc.linkId) ||
+        document.querySelector(`a[id="${doc.linkId}"]`);
+    return null;
+}
+

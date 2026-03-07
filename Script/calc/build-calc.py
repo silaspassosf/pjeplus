@@ -3,6 +3,18 @@
 
 import os
 
+def detect_encoding(filepath):
+    """Detecta encoding do arquivo pelo BOM (UTF-16 LE, UTF-8 BOM, ou UTF-8)."""
+    with open(filepath, 'rb') as f:
+        bom = f.read(4)
+    if bom[:2] == b'\xff\xfe':
+        return 'utf-16-le'
+    if bom[:2] == b'\xfe\xff':
+        return 'utf-16-be'
+    if bom[:3] == b'\xef\xbb\xbf':
+        return 'utf-8-sig'
+    return 'utf-8'
+
 # Headers and modules
 metadata = """// ==UserScript==
 // @name         Homologação de Cálculos
@@ -33,9 +45,14 @@ content = metadata
 for mod in modules:
     path = os.path.join(os.path.dirname(__file__), mod)
     if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+        enc = detect_encoding(path)
+        with open(path, 'r', encoding=enc) as f:
             content += f"\n// ── {mod} ──────────────────────────────────\n"
-            content += f.read()
+            txt = f.read()
+            # Remove BOM residual se presente
+            if txt and txt[0] == '\ufeff':
+                txt = txt[1:]
+            content += txt
             content += "\n"
 
 # Write output na raiz de Script

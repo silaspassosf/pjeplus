@@ -1811,6 +1811,8 @@
             window.hcalcPeritosDetectados = nomes;
             window.hcalcPeritosConhecimentoDetectados = peritosConhecimento;
 
+            console.log('[hcalc] aplicarRegrasPeritosDetectados: nomes=', nomes, 'temRogerio=', temRogerio, 'peritosConhecimento=', peritosConhecimento);
+
             const origemEl = $('calc-origem');
             const pjcEl = $('calc-pjc');
             const autorEl = $('calc-autor');
@@ -1820,7 +1822,9 @@
             const peritoConhCamposEl = $('perito-conh-campos');
             const valPeritoNomeEl = $('val-perito-nome');
             const valPeritoContabilValorEl = $('val-perito-contabil-valor');
+            const fieldsetPericiaConh = $('fieldset-pericia-conh');
 
+            // SE ROGÉRIO (perito contábil)
             if (temRogerio) {
                 origemEl.value = 'pjecalc';
                 origemEl.disabled = true;
@@ -1830,6 +1834,11 @@
                 autorEl.disabled = true;
                 colEsclarecimentosEl.classList.remove('hidden');
                 rowPeritoContabilEl.classList.remove('hidden');
+                
+                // Esconder seção de conhecimento se APENAS Rogério
+                if (peritosConhecimento.length === 0) {
+                    if (fieldsetPericiaConh) fieldsetPericiaConh.classList.add('hidden');
+                }
             } else {
                 origemEl.disabled = false;
                 pjcEl.disabled = false;
@@ -1838,17 +1847,18 @@
                 if (valPeritoContabilValorEl) {
                     valPeritoContabilValorEl.value = '';
                 }
+                colEsclarecimentosEl.classList.add('hidden');
             }
 
-            // Controlar visibilidade do fieldset de perícia conhecimento
-            const fieldsetPericiaConh = $('fieldset-pericia-conh');
+            // SE TEM QUALQUER PERITO DE CONHECIMENTO (que não seja Rogério)
             if (peritosConhecimento.length > 0) {
                 if (fieldsetPericiaConh) fieldsetPericiaConh.classList.remove('hidden');
                 chkPeritoConhEl.checked = true;
                 peritoConhCamposEl.classList.remove('hidden');
                 valPeritoNomeEl.value = peritosConhecimento.join(' | ');
-            } else {
-                // Esconder card de perícia se não há perito de conhecimento
+                console.log('[hcalc] Mostrando seção de conhecimento com peritos:', peritosConhecimento);
+            } else if (!temRogerio) {
+                // Esconder card de perícia se não há nenhum perito
                 if (fieldsetPericiaConh) fieldsetPericiaConh.classList.add('hidden');
             }
         }

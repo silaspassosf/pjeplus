@@ -2,12 +2,14 @@
 // @name         Homologação de Cálculos
 // @namespace    http://tampermonkey.net/
 // @version      1.17.0
-// @description  Assistente de homologação PJe-Calc (loader @require — Estratégia 2)
+// @description  Assistente de homologação PJe-Calc
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/HC/calc/hcalc-core.js?v=120
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/HC/calc/hcalc-pdf.js?v=120
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/HC/calc/hcalc-overlay.js?v=120
+// @require      http://127.0.0.1:8123/calc/pdf.min.js
+// @require      http://127.0.0.1:8123/calc/hcalc-core.js?v=local1
+// @require      http://127.0.0.1:8123/calc/hcalc-pdf.js?v=local1
+// @require      http://127.0.0.1:8123/calc/hcalc-prep.js?v=local1
+// @require      http://127.0.0.1:8123/calc/hcalc-overlay.js?v=local1
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle

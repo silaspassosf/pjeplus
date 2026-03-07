@@ -15,7 +15,7 @@
         }
 
         window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-            'http://127.0.0.1:8123/calc/pdf.worker.min.js';
+            'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/pdf.worker.min.js';
 
         window.hcalcState.pdfjsLoaded = true;
         console.log('[HCalc] PDF.js worker configurado (lazy).');

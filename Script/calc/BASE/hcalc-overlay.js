@@ -2133,20 +2133,29 @@
                 } else if (/reclamado|réu|executado/i.test(text)) {
                     data.passivo.push({ nome: value });
                 } else {
-                    data.outros.push({ nome: value, tipo: 'OUTRO' });
+                    // Detectar tipo por padrão no texto
+                    let tipo = 'OUTRO';
+                    if (/perito/i.test(text) || /perito/i.test(value)) {
+                        tipo = 'PERITO';
+                    }
+                    data.outros.push({ nome: value, tipo });
                 }
             });
+            console.log('[hcalc] parsePartesFromDom: detectou', data);
             return data;
         }
 
         function extractPeritos(partes) {
             const outros = partes?.outros || [];
+            console.log('[hcalc] extractPeritos: outros=', outros);
             // Filtrar por tipo 'PERITO' ou qualquer variação no nome/tipo
-            return outros.filter((part) => {
+            const peritosEncontrados = outros.filter((part) => {
                 const tipo = (part.tipo || '').toUpperCase();
                 const nome = (part.nome || '').toUpperCase();
                 return tipo.includes('PERITO') || nome.includes('PERITO');
             }).map((part) => part.nome);
+            console.log('[hcalc] extractPeritos: peritos encontrados=', peritosEncontrados);
+            return peritosEncontrados;
         }
 
         function ordenarComRogerioPrimeiro(nomes) {

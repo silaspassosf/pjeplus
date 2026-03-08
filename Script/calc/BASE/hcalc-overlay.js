@@ -41,7 +41,7 @@
             'beforeend',
             `
             <button id="btn-abrir-homologacao" type="button">
-                \uD83D\uDCC4 Homologar Cálculos
+                \uD83D\uDCC4 Carregar Planilha
             </button>
             <input
                 id="input-planilha-pdf"

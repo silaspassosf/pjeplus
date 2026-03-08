@@ -833,6 +833,15 @@
                     }
                 }
 
+                // Se tem recurso da reclamada → custas já pagas
+                if (prep.recursosPassivo && prep.recursosPassivo.length > 0) {
+                    const custasStatusEl = $('custas-status');
+                    if (custasStatusEl) {
+                        custasStatusEl.value = 'pagas';
+                        console.log('[hcalc] Recurso da reclamada detectado! Custas marcadas como pagas.');
+                    }
+                }
+
                 // Depósito recursal: visível se tem acórdãos
                 const fieldsetDeposito = $('fieldset-deposito');
                 if (prep.acordaos.length === 0) {

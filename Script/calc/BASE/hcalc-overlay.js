@@ -1837,6 +1837,12 @@
                 autorEl.disabled = true;
                 colEsclarecimentosEl.classList.remove('hidden');
                 
+                // Mostrar fieldset pai (contém honorários contábeis E conhecimento)
+                if (fieldsetPericiaConh) {
+                    fieldsetPericiaConh.classList.remove('hidden');
+                }
+                
+                // Mostrar linha de honorários contábeis
                 if (rowPeritoContabilEl) {
                     rowPeritoContabilEl.classList.remove('hidden');
                     console.log('[hcalc] ✓ Classe hidden removida de row-perito-contabil');
@@ -1846,7 +1852,10 @@
                 
                 // Esconder seção de conhecimento se APENAS Rogério
                 if (peritosConhecimento.length === 0) {
-                    if (fieldsetPericiaConh) fieldsetPericiaConh.classList.add('hidden');
+                    // Não esconder o fieldset, apenas o checkbox de conhecimento
+                    if (chkPeritoConhEl) {
+                        chkPeritoConhEl.parentElement.parentElement.classList.add('hidden');
+                    }
                 }
             } else {
                 origemEl.disabled = false;

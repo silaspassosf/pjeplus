@@ -140,11 +140,56 @@
 
             loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
             pdf = await loadingTask.promise;
+            
+            // Extrair texto da página 1 e página 2 (se necessário)
+            const LIMITE_MARCADOR = /Crit[ée]rio de C[aá]lculo e Fundamenta[çc][aã]o Legal/i;
+            let textoCompleto = '';
+            let textosBrutos = [];
+            
+            // PÁGINA 1
             page = await pdf.getPage(1);
-            const textContent = await page.getTextContent();
-
-            const textosBrutos = textContent.items.map(item => item.str.trim());
-            const textoCompleto = textosBrutos.filter(str => str !== "").join(' ');
+            let textContent = await page.getTextContent();
+            let textosPagina1 = textContent.items.map(item => item.str.trim());
+            let textoPagina1 = textosPagina1.filter(str => str !== "").join(' ');
+            
+            // Verificar se tem o marcador limite na página 1
+            const posLimite1 = textoPagina1.search(LIMITE_MARCADOR);
+            if (posLimite1 !== -1) {
+                // Limite encontrado na página 1 - usar só até ele
+                textoCompleto = textoPagina1.substring(0, posLimite1);
+                textosBrutos = textosPagina1;
+                console.log('[HCalc] Usando apenas página 1 (limite encontrado)');
+            } else {
+                // Limite não encontrado - tentar página 2
+                textoCompleto = textoPagina1;
+                textosBrutos = textosPagina1;
+                
+                if (pdf.numPages >= 2) {
+                    console.log('[HCalc] Limite não encontrado na pág 1 - buscando pág 2...');
+                    try {
+                        page.cleanup();
+                        page = await pdf.getPage(2);
+                        textContent = await page.getTextContent();
+                        let textosPagina2 = textContent.items.map(item => item.str.trim());
+                        let textoPagina2 = textosPagina2.filter(str => str !== "").join(' ');
+                        
+                        // Verificar limite na página 2
+                        const posLimite2 = textoPagina2.search(LIMITE_MARCADOR);
+                        if (posLimite2 !== -1) {
+                            // Limite encontrado - adicionar só até ele
+                            textoCompleto += ' ' + textoPagina2.substring(0, posLimite2);
+                            console.log('[HCalc] Adicionada página 2 até limite');
+                        } else {
+                            // Sem limite na pág 2 - adicionar tudo
+                            textoCompleto += ' ' + textoPagina2;
+                            console.log('[HCalc] Adicionada página 2 completa (sem limite)');
+                        }
+                        textosBrutos = [...textosPagina1, ...textosPagina2];
+                    } catch (err) {
+                        console.warn('[HCalc] Erro ao ler página 2:', err.message);
+                    }
+                }
+            }
 
             // Regex otimizadas (copiadas de ext.js v4.2)
             const regexVerbas = /VERBAS\s+([\d.,]+)/i;

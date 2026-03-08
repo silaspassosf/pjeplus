@@ -1561,14 +1561,24 @@
 
             // Preencher com TODOS os depósitos/garantias dos recursos detectados
             for (const deposito of prep.depositos) {
-                // Filtrar anexos de tipo Depósito ou Garantia
+                // Filtrar anexos de tipo Depósito, Garantia ou Custas
                 const anexosRelevantes = (deposito.anexos || []).filter(ax =>
-                    ax.tipo === 'Depósito' || ax.tipo === 'Garantia'
+                    ax.tipo === 'Depósito' || ax.tipo === 'Garantia' || ax.tipo === 'Custas'
                 );
 
+                // CONSOLIDAR: apenas 1 ocorrência de cada tipo por recurso
+                // (múltiplos anexos do mesmo tipo = guia + comprovante = mesmo depósito)
+                const tiposUnicos = {};
+                anexosRelevantes.forEach(ax => {
+                    if (!tiposUnicos[ax.tipo]) {
+                        tiposUnicos[ax.tipo] = ax; // Pega o primeiro de cada tipo
+                    }
+                });
+                const anexosConsolidados = Object.values(tiposUnicos);
+
                 // CORREÇÃO 3: Fallback para recursos sem anexos expandidos
-                if (anexosRelevantes.length > 0) {
-                    for (const anexo of anexosRelevantes) {
+                if (anexosConsolidados.length > 0) {
+                    for (const anexo of anexosConsolidados) {
                         adicionarDepositoRecursal();
                         const idx = window.hcalcState.nextDepositoIdx - 1;
 
@@ -1589,7 +1599,7 @@
                             idInput.value = anexo.id || '';
                         }
                     }
-                    console.log('[AUTO-DEPOSITOS]', anexosRelevantes.length, 'depósito(s) de', deposito.depositante);
+                    console.log('[AUTO-DEPOSITOS]', anexosConsolidados.length, 'depósito(s) consolidado(s) de', deposito.depositante);
                 } else {
                     // FALLBACK: Recurso detectado mas sem anexos expandidos
                     console.warn('[AUTO-DEPOSITOS] Recurso sem anexos para', deposito.depositante, '— criando linha sem ID');

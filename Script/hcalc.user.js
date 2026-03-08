@@ -8,10 +8,10 @@
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/hcalc.user.js
 // @downloadURL  https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/hcalc.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-core.js?v=133&t=20260308
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-pdf.js?v=133&t=20260308
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-prep.js?v=133&t=20260308
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=133&t=20260308
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-core.js?v=133&t=202603081445
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-pdf.js?v=133&t=202603081445
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-prep.js?v=133&t=202603081445
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=133&t=202603081445
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle

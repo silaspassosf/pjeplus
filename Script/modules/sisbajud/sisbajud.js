@@ -1,135 +1,223 @@
 'use strict';
 
-// ── Injeção autônoma no SISBAJUD ─────────────────────────────────
-if (window.location.href.includes('sisbajud.cnj.jus.br')) {
+// ═══════════════════════════════════════════════════════════════════
+// SISBAJUD Main - Controle principal e UI
+// Baseado em SISB/relatorios/generator.py
+// Requer: core.js, relatorios.js
+// ═══════════════════════════════════════════════════════════════════
 
-    // ── Acumulador SISBAJUD ─────────────────────────────────────────
-    window._sisbAccum = { executados: {}, protocolos: [] };
-    window._sisbTimerId = null;
-    window.SISB_TIMEOUT = 15000;
+if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href.includes('sisbajud.pdpj.jus.br')) {
 
-    window._resetSisbAccum = function () {
-        _sisbAccum = { executados: {}, protocolos: [] };
-        _sisbTimerId = null;
+    // ── UI: Container de botões ──────────────────────────────────────
+    let containerBotoes = null;
+
+    function criarContainer() {
+        if (containerBotoes) return containerBotoes;
+
+        containerBotoes = document.createElement('div');
+        containerBotoes.id = 'pjetools-sisb-container';
+        containerBotoes.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        `;
+        document.body.appendChild(containerBotoes);
+        return containerBotoes;
     }
 
-    window._acumularDados = function (executados, protocolo) {
-        Object.assign(_sisbAccum.executados, executados);
-        if (!_sisbAccum.protocolos.includes(protocolo))
-            _sisbAccum.protocolos.push(protocolo);
-        if (_sisbTimerId) clearTimeout(_sisbTimerId);
-        _sisbTimerId = setTimeout(_resetSisbAccum, SISB_TIMEOUT);
+    function criarBotao(id, texto, cor, onclick) {
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.textContent = texto;
+        btn.style.cssText = `
+            background: ${cor};
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 16px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+            transition: transform 0.2s, box-shadow 0.2s;
+            min-width: 200px;
+            text-align: left;
+        `;
+        btn.onmouseover = () => {
+            btn.style.transform = 'translateY(-2px)';
+            btn.style.boxShadow = '0 5px 12px rgba(0,0,0,0.35)';
+        };
+        btn.onmouseout = () => {
+            btn.style.transform = 'translateY(0)';
+            btn.style.boxShadow = '0 3px 8px rgba(0,0,0,0.25)';
+        };
+        btn.onclick = onclick;
+        return btn;
     }
 
-    // Registra o timer no CleanupRegistry
-    if (window.PJeState && window.PJeState.registry) {
-        window.PJeState.registry.add(() => {
-            if (_sisbTimerId) clearTimeout(_sisbTimerId);
-            _resetSisbAccum();
-        });
-    }
+    // ── Ações dos botões ─────────────────────────────────────────────
 
-    async function extrairRelatorioSISB() {
-        for (let t = 0; t < 25; t++) {
-            const modal = document.querySelector('.cdk-overlay-container .mat-dialog-container');
-            if (!modal) { await sleep(600); continue; }
-            const txt = modal.innerText || modal.textContent || '';
-            if (!txt.includes('protocolo') && !txt.includes('Protocolo')) {
-                await sleep(600); continue;
-            }
-            const matchProto = modal.innerHTML.match(/Número do protocolo:\s*(\d+)/i);
-            const protocolo = matchProto ? matchProto[1] : 'N/A';
-
-            const executados = {};
-            const padrao = /(\d+):\s*(.+?)\s+R\$\s*([\d.,]+)/g;
-            let m;
-            while ((m = padrao.exec(modal.innerHTML)) !== null) {
-                executados[m[2].trim()] = m[3].trim();
-            }
-            _acumularDados(executados, protocolo);
-            return { protocolo, executados };
-        }
-        return null;
-    }
-
-    window._formatValorSISB = function (v) {
-        const n = parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.'));
-        return Number.isFinite(n)
-            ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-            : v;
-    }
-
-    window._gerarRelatorioHTML = function () {
-        const pS = 'style="margin:0;padding:0;text-indent:4.5cm;line-height:1.5;"';
-        let html = `<p ${pS}><strong>BLOQUEIOS TRANSFERIDOS - SISBAJUD</strong></p>`;
-        Object.entries(_sisbAccum.executados).forEach(([nome, valor]) => {
-            const lbl = _sisbAccum.protocolos.length > 1 ? 'Protocolos' : 'Protocolo';
-            html += `<p ${pS}>- ${nome}: Ordens com bloqueios transferidos` +
-                ` [${lbl}: ${_sisbAccum.protocolos.join(', ')}]` +
-                ` - Total: ${_formatValorSISB(valor)}</p>`;
-        });
-        return html;
-    }
-
-    window._copiarHTMLFormatado = function () {
-        const html = _gerarRelatorioHTML();
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        document.body.appendChild(div);
-        try {
-            const sel = window.getSelection();
-            const range = document.createRange();
-            range.selectNodeContents(div);
-            sel.removeAllRanges(); sel.addRange(range);
-            document.execCommand('copy');
-            sel.removeAllRanges();
-        } finally {
-            document.body.removeChild(div);
-        }
-    }
-
-    async function extrairRelatorioEAlertar() {
-        const btn = document.getElementById('pjetools-btn-sisb');
+    async function extrairDados() {
+        const btn = document.getElementById('btn-sisb-extrair');
         btn.textContent = '⏳ Extraindo...';
         btn.style.background = '#e6a8d7';
         btn.disabled = true;
 
         try {
-            const resultado = await extrairRelatorioSISB();
-            if (resultado) {
-                await sleep(300);
-                _copiarHTMLFormatado();
-                alert(`✅ Relatório copiado!\n\nProtocolo: ${resultado.protocolo}\n` +
-                    `Executados: ${Object.keys(_sisbAccum.executados).length}`);
-            } else {
-                alert('⚠ Nenhum modal de detalhamento do SISBAJUD foi encontrado aberto na tela.');
+            const dados = await SisbCore.extrairDadosBloqueios();
+
+            if (!dados || Object.keys(dados.executados).length === 0) {
+                alert('⚠ Nenhum modal de detalhamento do SISBAJUD foi encontrado aberto.\n\n' +
+                    'Certifique-se de que o modal com os dados de bloqueio está visível na tela.');
+                return;
             }
-        } catch (e) {
-            alert(`❌ Erro: ${e.message}`);
+
+            // Agrupar nos dados acumulados
+            SisbCore.agruparDados(dados);
+
+            const numExec = Object.keys(SisbCore.acumulador.executados).length;
+            const totalFmt = SisbCore.formatarValor(SisbCore.acumulador.total_geral);
+
+            alert(`✅ Dados extraídos e acumulados!\n\n` +
+                `Executados: ${numExec}\n` +
+                `Total acumulado: ${totalFmt}\n\n` +
+                `Use os botões de relatório para gerar a saída final.`);
+
+        } catch (err) {
+            console.error('[SISB] Erro na extração:', err);
+            alert(`❌ Erro: ${err.message}`);
         } finally {
-            btn.textContent = '🏦 Extrair SISBAJUD';
+            btn.textContent = '📥 Extrair Dados';
+            btn.style.background = '#2196f3';
+            btn.disabled = false;
+        }
+    }
+
+    async function gerarRelatorioDetalhado() {
+        const btn = document.getElementById('btn-sisb-detalhado');
+
+        if (Object.keys(SisbCore.acumulador.executados).length === 0) {
+            alert('⚠ Nenhum dado acumulado.\n\nClique em "Extrair Dados" primeiro.');
+            return;
+        }
+
+        btn.textContent = '⏳ Gerando...';
+        btn.style.background = '#9c27b0';
+        btn.disabled = true;
+
+        try {
+            await sleep(100);
+            const resultado = await SisbRelatorios.gerarECopiarDetalhado();
+            alert(resultado.mensagem);
+        } catch (err) {
+            console.error('[SISB] Erro ao gerar relatório:', err);
+            alert(`❌ Erro: ${err.message}`);
+        } finally {
+            btn.textContent = '📄 Relatório Detalhado';
             btn.style.background = '#6f42c1';
             btn.disabled = false;
         }
     }
 
-    function injetarBotaoSisb() {
-        if (document.getElementById('pjetools-btn-sisb')) return;
-        const btn = document.createElement('button');
-        btn.id = 'pjetools-btn-sisb';
-        btn.textContent = '🏦 Extrair SISBAJUD';
-        btn.style.cssText = `position:fixed;bottom:20px;right:20px;z-index:999999;` +
-            `background:#6f42c1;color:#fff;border:none;border-radius:4px;` +
-            `padding:12px 20px;font-weight:bold;font-size:14px;cursor:pointer;` +
-            `box-shadow:0 4px 12px rgba(0,0,0,.3);transition:transform 0.2s;`;
+    async function gerarRelatorioConciso() {
+        const btn = document.getElementById('btn-sisb-conciso');
 
-        btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
-        btn.onmouseout = () => btn.style.transform = 'scale(1)';
-        btn.onclick = extrairRelatorioEAlertar;
-        document.body.appendChild(btn);
+        if (Object.keys(SisbCore.acumulador.executados).length === 0) {
+            alert('⚠ Nenhum dado acumulado.\n\nClique em "Extrair Dados" primeiro.');
+            return;
+        }
+
+        btn.textContent = '⏳ Gerando...';
+        btn.style.background = '#009688';
+        btn.disabled = true;
+
+        try {
+            await sleep(100);
+            const resultado = await SisbRelatorios.gerarECopiarConciso();
+            alert(resultado.mensagem);
+        } catch (err) {
+            console.error('[SISB] Erro ao gerar relatório:', err);
+            alert(`❌ Erro: ${err.message}`);
+        } finally {
+            btn.textContent = '📋 Relatório Conciso';
+            btn.style.background = '#00796b';
+            btn.disabled = false;
+        }
     }
 
-    // Tentar injetar algumas vezes pois as páginas podem ser lentas
-    setTimeout(injetarBotaoSisb, 2000);
-    setTimeout(injetarBotaoSisb, 5000);
+    async function resetarDados() {
+        if (!confirm('🔄 Resetar todos os dados acumulados?')) {
+            return;
+        }
+
+        SisbCore.reset();
+        alert('✅ Dados resetados!\n\nO acumulador foi limpo.');
+    }
+
+    // ── Injetar UI ───────────────────────────────────────────────────
+    function injetarUI() {
+        const isDetalhar = window.location.href.includes('/detalhar');
+        const containerAtivo = document.getElementById('pjetools-sisb-container');
+
+        if (!isDetalhar) {
+            if (containerAtivo) containerAtivo.style.display = 'none';
+            return;
+        }
+
+        if (containerAtivo) {
+            containerAtivo.style.display = 'flex';
+            return;
+        }
+
+        const container = criarContainer();
+
+        // Botão 1: Extrair dados
+        const btnExtrair = criarBotao(
+            'btn-sisb-extrair',
+            '📥 Extrair Dados',
+            '#2196f3',
+            extrairDados
+        );
+        container.appendChild(btnExtrair);
+
+        // Botão 2: Relatório detalhado
+        const btnDetalhado = criarBotao(
+            'btn-sisb-detalhado',
+            '📄 Relatório Detalhado',
+            '#6f42c1',
+            gerarRelatorioDetalhado
+        );
+        container.appendChild(btnDetalhado);
+
+        // Botão 3: Relatório conciso
+        const btnConciso = criarBotao(
+            'btn-sisb-conciso',
+            '📋 Relatório Conciso',
+            '#00796b',
+            gerarRelatorioConciso
+        );
+        container.appendChild(btnConciso);
+
+        // Botão 4: Reset (menor e discreto)
+        const btnReset = criarBotao(
+            'btn-sisb-reset',
+            '🔄 Reset',
+            '#757575',
+            resetarDados
+        );
+        btnReset.style.fontSize = '11px';
+        btnReset.style.padding = '6px 12px';
+        btnReset.style.minWidth = '100px';
+        btnReset.style.textAlign = 'center';
+        container.appendChild(btnReset);
+
+        console.log('[SISB] UI injetada com sucesso');
+    }
+
+    // Injetar periodicamente para lidar com SPA
+    setInterval(injetarUI, 1500);
 }

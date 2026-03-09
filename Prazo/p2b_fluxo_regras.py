@@ -76,7 +76,7 @@ def _definir_regras_processamento() -> List[Tuple]:
             'informar se aceita a imediata homologação',
             'apresentar impugnação, querendo',            
         ]],
-         'gigs', '1/Ana L/Homologação', None),
+         'gigs', '1/Ana Lucia do A/Homologação', None),
 
         # REGRA DE EMBARGOS
         ([gerar_regex_geral('exequente, ora embargado')],
@@ -107,7 +107,7 @@ def _definir_regras_processamento() -> List[Tuple]:
 
         # REGRA DE RECOLHIMENTO
         ([gerar_regex_geral(k) for k in ['comprovar recolhimento', 'comprovar recolhimentos']],
-         'gigs', '1/Ana L/Argos', ato_pesqliq_callback),
+         'gigs', '1/Ana Lucia do A/Argos', ato_pesqliq_callback),
 
         # REGRA DE BAIXA/AGUARDE-SE (Conjunto específico que chama checar_prox)
         ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se', 'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão', 'sob pena de preclusão']],

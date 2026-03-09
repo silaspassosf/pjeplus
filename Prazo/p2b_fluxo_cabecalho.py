@@ -66,7 +66,7 @@ def _processar_cabecalho_impugnacoes(driver: WebDriver) -> None:
 
             # 1. Criar gigs antes das pesquisas
             pass
-            criar_gigs(driver, "1", "Ana L", "Argos")
+            criar_gigs(driver, "1", "Ana Lucia do A", "Argos")
             time.sleep(3)  # Aguardar modal fechar completamente e snackbar desaparecer
             # Criar GIGS adicional "1//xs sigilo"
             pass
@@ -86,7 +86,7 @@ def _processar_cabecalho_impugnacoes(driver: WebDriver) -> None:
 
                 # 1. Criar gigs antes de tudo
             pass
-            criar_gigs(driver, "1", "Ana L", "Argos")
+            criar_gigs(driver, "1", "Ana Lucia do A", "Argos")
             time.sleep(3)  # Aguardar modal fechar completamente e snackbar desaparecer
             # Criar GIGS adicional "1/xs sigilo" (observacao='xs sigilo', responsavel='')
             pass
@@ -160,7 +160,7 @@ def _processar_checar_cabecalho(driver: WebDriver) -> None:
     
     try:
         # 1. Criar GIGS conforme solicitado (manter GIGS)
-        dias, responsavel, observacao = parse_gigs_param('1/Ana L/Argos')
+        dias, responsavel, observacao = parse_gigs_param('1/Ana Lucia do A/Argos')
         criar_gigs(driver, dias, responsavel, observacao)
         time.sleep(3)  # Aguardar modal fechar completamente e snackbar desaparecer
         

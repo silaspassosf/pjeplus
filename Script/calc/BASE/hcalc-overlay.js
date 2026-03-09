@@ -2393,10 +2393,27 @@
                 usarPlaceholder = false,
                 reclamadaLabel = ''
             }) => {
+                // BUSCAR DADOS DA PLANILHA CORRETA
+                let dadosPlanilha;
+                if (idCalculo === idPlanilha) {
+                    // Planilha principal
+                    dadosPlanilha = window.hcalcState.planilhaExtracaoData;
+                } else {
+                    // Planilha extra - buscar em planilhasDisponiveis
+                    dadosPlanilha = (window.hcalcState.planilhasDisponiveis || []).find(p => p.id === idCalculo)?.dados;
+                }
+
+                // Se não encontrou dados da planilha, usar placeholder
+                if (!dadosPlanilha) {
+                    usarPlaceholder = true;
+                }
+
+                // USAR DADOS DA PLANILHA CORRETA (não variáveis globais)
                 let introTxt = '';
-                const vCredito = usarPlaceholder ? 'R$XXX' : `R$${valCredito}`;
-                const vFgts = usarPlaceholder ? 'R$XXX' : `R$${valFgts}`;
-                const vData = usarPlaceholder ? 'XXX' : valData;
+                const vCredito = usarPlaceholder ? 'R$XXX' : `R$${dadosPlanilha?.verbas || valCredito}`;
+                const vFgts = usarPlaceholder ? 'R$XXX' : `R$${dadosPlanilha?.fgts || valFgts}`;
+                const vData = usarPlaceholder ? 'XXX' : (dadosPlanilha?.dataAtualizacao || valData);
+                const fgtsDataDaPlanilha = dadosPlanilha?.fgtsDepositado || false;
 
                 if (isPerito && peritoEsclareceu) {
                     introTxt += `As impugnações apresentadas já foram objeto de esclarecimentos pelo Sr. Perito sob o #${bold(pecaPerito)}, nada havendo a ser reparado no laudo. Portanto, HOMOLOGO os cálculos do expert (#${bold(idCalculo)}), `;
@@ -2404,15 +2421,22 @@
                     introTxt += `Tendo em vista a concordância das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idCalculo)}), `;
                 }
 
-                // Verificar se FGTS foi depositado (para evitar contradição)
-                const fgtsTipo = isFgtsSep ? (document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido') : 'devido';
+                // Verificar se FGTS foi depositado
+                // Se for planilha extra, usar dados da própria planilha; se for principal, usar formulário
+                const temFgts = (idCalculo !== idPlanilha && dadosPlanilha)
+                    ? (dadosPlanilha.fgts && dadosPlanilha.fgts !== '0,00')
+                    : isFgtsSep;
+                
+                const fgtsTipo = (idCalculo !== idPlanilha && dadosPlanilha)
+                    ? (dadosPlanilha.fgtsDepositado ? 'depositado' : 'devido')
+                    : (isFgtsSep ? (document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido') : 'devido');
                 const fgtsJaDepositado = fgtsTipo === 'depositado';
 
-                if (isFgtsSep && !fgtsJaDepositado) {
+                if (temFgts && !fgtsJaDepositado) {
                     // FGTS devido (a ser recolhido em conta vinculada) - texto especial Lei 14.905/2024
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, para ${bold(vData)}. `;
                     introTxt += `Atualização na forma da Lei 14.905/2024 e da decisão proferida pela SDI-1 do C. TST, ou seja, a correção monetária será feita pelo IPCA-E até a distribuição da ação; taxa Selic do ajuizamento até 29/08/2024, e, a partir de 30/08/2024, atualização pelo IPCA, com juros de mora correspondentes à diferença entre a SELIC e o IPCA, conforme o artigo 406 do Código Civil.`;
-                } else if (isFgtsSep && fgtsJaDepositado) {
+                } else if (temFgts && fgtsJaDepositado) {
                     // FGTS depositado (não menciona "a ser recolhido")
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)}, atualizado para ${bold(vData)}. `;
                     
@@ -2446,7 +2470,7 @@
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
                 // 2º parágrafo: FGTS devido - liberação após recolhimento
-                if (isFgtsSep && !fgtsJaDepositado) {
+                if (temFgts && !fgtsJaDepositado) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
                 }
 
@@ -2951,21 +2975,24 @@
                     const idx = linha.id.replace('periodo-diverso-', '');
                     const nomeRec = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`)?.value || '';
                     const periodoTexto = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`)?.value || '';
-                    const idPlanilha = document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '';
+                    const idPlanilhaManual = document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '';
                     const tipoRadio = document.querySelector(`input[name="periodo-tipo-${idx}"]:checked`)?.value || 'principal';
 
-                    // NOVO: detectar se usa mesma planilha da principal
+                    // NOVO: detectar se usa mesma planilha da principal ou uma planilha extra
                     const planilhaSel = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal';
                     const usarMesmaPlanilha = planilhaSel === 'principal';
+                    
+                    // ID final: se selecionou planilha extra, usar ID dela; senão usar ID manual ou vazio
+                    const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
 
                     // Período vazio ou igual ao período completo = integral
                     const isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
 
                     if (nomeRec && !isPeriodoIntegral) {
                         if (tipoRadio === 'principal') {
-                            principaisParciais.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilha || '', usarMesmaPlanilha });
+                            principaisParciais.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
                         } else {
-                            subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilha || '', usarMesmaPlanilha });
+                            subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
                         }
                     }
                 });

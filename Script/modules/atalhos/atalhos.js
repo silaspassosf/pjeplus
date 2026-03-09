@@ -331,58 +331,80 @@ function esperarElemento(selector, timeout = 3000) {
 }
 
 // ─── GIGS CLEANUP ────────────────────────────────────────────────
-async function limparResponsavel(row) {
-    const inputResp = row.querySelector('input[mattooltip="Inserir/Alterar responsável"]');
-    if (!inputResp) return;
-
-    const val = (inputResp.value || '').toLowerCase();
-    const aria = (inputResp.getAttribute('aria-label') || '').toLowerCase();
-
-    if (val.includes('silas passos') || aria.includes('silas passos')) {
-        inputResp.click();
-        await sleep(300);
-
-        inputResp.value = '';
-        inputResp.dispatchEvent(new Event('input', { bubbles: true }));
-        inputResp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
-        await sleep(300);
-
-        for (const opt of document.querySelectorAll('mat-option')) {
-            if (opt.textContent.includes('SEM RESPONSÁVEL')) {
-                opt.click();
-                await sleep(400);
-                break;
-            }
-        }
-    }
-}
-
 async function runCleanup() {
     const runner = new AsyncRunner();
     await runner.run(async (signal) => {
-        let removed = 0;
+        let actionsDone = 0;
         let hasMore = true;
+
+        // Etapa 1: Limpar responsáveis (Silas Passos) sem excluir a linha
         while (hasMore && !signal.aborted) {
             hasMore = false;
             for (const row of document.querySelectorAll('pje-gigs-atividades table tbody tr')) {
                 if (signal.aborted) break;
                 if (row.style.display === 'none') continue;
+
+                const inputResp = row.querySelector('input[mattooltip="Inserir/Alterar responsável"]');
+                if (!inputResp) continue;
+
+                const val = (inputResp.value || '').toLowerCase();
+                const aria = (inputResp.getAttribute('aria-label') || '').toLowerCase();
+
+                if (val.includes('silas passos') || aria.includes('silas passos')) {
+                    inputResp.click();
+                    await sleep(300);
+
+                    inputResp.value = '';
+                    inputResp.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputResp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+                    await sleep(400);
+
+                    let responsavelLimpo = false;
+                    for (const opt of document.querySelectorAll('mat-option')) {
+                        if (opt.textContent.includes('SEM RESPONSÁVEL')) {
+                            opt.click();
+                            await sleep(500);
+                            responsavelLimpo = true;
+                            actionsDone++;
+                            break;
+                        }
+                    }
+
+                    if (responsavelLimpo) {
+                        hasMore = true;
+                        break; // Reinicia o loop pois o DOM pode ter sido atualizado
+                    }
+                }
+            }
+        }
+
+        // Etapa 2: Deletar itens próprios (xs, silas, Dom.E) com prazo vencido/sem prazo
+        hasMore = true;
+        while (hasMore && !signal.aborted) {
+            hasMore = false;
+            for (const row of document.querySelectorAll('pje-gigs-atividades table tbody tr')) {
+                if (signal.aborted) break;
+                if (row.style.display === 'none') continue;
+
                 const desc = row.querySelector('td .descricao')?.textContent.trim();
                 if (!desc) continue;
                 const prazo = row.querySelector('pje-gigs-alerta-prazo .prazo');
                 if (!prazo) continue;
                 if (prazo.querySelector('i.fa-clock.far.success')) continue;
+
                 const isVencida = prazo.querySelector('i.danger.fa-clock.far');
                 const isSemPrazo = prazo.querySelector('i.fa.fa-pen.atividade-sem-prazo');
                 const hasXsOrSilas = desc.toLowerCase().includes('xs') || desc.toLowerCase().includes('silas');
                 const hasDomE = desc.includes('Dom.E');
+
                 if (!((isVencida && hasXsOrSilas) || (isSemPrazo && (hasXsOrSilas || hasDomE)))) continue;
+
                 const btnExcluir = row.querySelector('button[mattooltip="Excluir Atividade"]');
                 if (!btnExcluir) continue;
 
-                await limparResponsavel(row);
+                btnExcluir.click();
+                await sleep(800);
 
-                btnExcluir.click(); await sleep(800);
                 let btnSim = null;
                 for (let b of document.querySelectorAll('button[color="primary"]')) {
                     if (b.querySelector('span.mat-button-wrapper')?.textContent.trim() === 'Sim') {
@@ -394,12 +416,20 @@ async function runCleanup() {
                         if (b.textContent.includes('Sim')) { btnSim = b; break; }
                     }
                 }
-                if (btnSim) { btnSim.click(); removed++; await sleep(1000); hasMore = true; break; }
+
+                if (btnSim) {
+                    btnSim.click();
+                    actionsDone++;
+                    await sleep(1000);
+                    hasMore = true;
+                    break; // Reinicia o loop após excluir
+                }
             }
         }
-        if (removed > 0) {
+
+        if (actionsDone > 0) {
             playSound();
-            showToast(`Limpeza: ${removed} removidos!`, '#4caf50');
+            showToast(`Limpeza: ${actionsDone} ações concluídas!`, '#4caf50');
         } else {
             showToast('Nenhuma atividade para limpar.', '#2196f3');
         }

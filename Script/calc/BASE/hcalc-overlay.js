@@ -446,6 +446,7 @@
                             <label>Origem</label>
                             <select id="custas-origem">
                                 <option value="sentenca" selected>Sentença</option>
+                                <option value="planilha">Planilha</option>
                                 <option value="acordao">Acórdão</option>
                             </select>
                         </div>
@@ -818,18 +819,37 @@
                     }
                 }
 
-                // Preencher custas automaticamente - PRIORIZA PLANILHA
+                // Preencher custas automaticamente (planilha vs sentença)
                 if (window.hcalcState.planilhaExtracaoData?.custas && $('val-custas')) {
-                    $('val-custas').value = window.hcalcState.planilhaExtracaoData.custas;
-                    // FIX: sem acórdão → custas são da sentença → data = sentença
-                    const semAcordao = prep.acordaos.length === 0;
-                    if (semAcordao && prep.sentenca.data && $('custas-data-origem')) {
+                    const custasPlanilha = window.hcalcState.planilhaExtracaoData.custas;
+                    const custasSentenca = prep.sentenca?.custas || '';
+                    $('val-custas').value = custasPlanilha;
+
+                    const valorPlanilha = parseMoney(custasPlanilha || '0');
+                    const valorSentenca = parseMoney(custasSentenca || '0');
+                    const temCustasSentenca = !!custasSentenca;
+                    const custasDiferentes = temCustasSentenca && Math.abs(valorPlanilha - valorSentenca) > 0.0001;
+                    const origemPlanilha = !temCustasSentenca || custasDiferentes;
+
+                    if ($('custas-origem')) {
+                        $('custas-origem').value = origemPlanilha ? 'planilha' : 'sentenca';
+                        $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    // Regra: diferentes da sentença => data da planilha; iguais => data da sentença
+                    if (origemPlanilha) {
+                        if (window.hcalcState.planilhaExtracaoData.dataAtualizacao && $('custas-data-origem')) {
+                            $('custas-data-origem').value = window.hcalcState.planilhaExtracaoData.dataAtualizacao;
+                        }
+                    } else if (prep.sentenca.data && $('custas-data-origem')) {
                         $('custas-data-origem').value = prep.sentenca.data;
-                    } else if (window.hcalcState.planilhaExtracaoData.dataAtualizacao && $('custas-data-origem')) {
-                        $('custas-data-origem').value = window.hcalcState.planilhaExtracaoData.dataAtualizacao;
                     }
                 } else if (prep.sentenca.custas && $('val-custas')) {
                     $('val-custas').value = prep.sentenca.custas;
+                    if ($('custas-origem')) {
+                        $('custas-origem').value = 'sentenca';
+                        $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                     // Data das custas = data da sentença (apenas se não há planilha)
                     if (prep.sentenca.data && $('custas-data-origem')) {
                         $('custas-data-origem').value = prep.sentenca.data;
@@ -1029,12 +1049,28 @@
                         $('ignorar-inss').dispatchEvent(new Event('change', { bubbles: true }));
                     }
 
-                    // Custas: valor e data da planilha (prevalece sobre sentença)
+                    // Custas: comparar planilha x sentença para definir origem/data
                     if (dados.custas && $('val-custas')) {
                         $('val-custas').value = dados.custas;
-                        // Data das custas = data de liquidação da planilha
-                        if (dados.dataAtualizacao && $('custas-data-origem')) {
-                            $('custas-data-origem').value = dados.dataAtualizacao;
+                        const custasSentenca = window.hcalcPrepResult?.sentenca?.custas || '';
+                        const dataSentenca = window.hcalcPrepResult?.sentenca?.data || '';
+                        const valorPlanilha = parseMoney(dados.custas || '0');
+                        const valorSentenca = parseMoney(custasSentenca || '0');
+                        const temCustasSentenca = !!custasSentenca;
+                        const custasDiferentes = temCustasSentenca && Math.abs(valorPlanilha - valorSentenca) > 0.0001;
+                        const origemPlanilha = !temCustasSentenca || custasDiferentes;
+
+                        if ($('custas-origem')) {
+                            $('custas-origem').value = origemPlanilha ? 'planilha' : 'sentenca';
+                            $('custas-origem').dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+
+                        if (origemPlanilha) {
+                            if (dados.dataAtualizacao && $('custas-data-origem')) {
+                                $('custas-data-origem').value = dados.dataAtualizacao;
+                            }
+                        } else if (dataSentenca && $('custas-data-origem')) {
+                            $('custas-data-origem').value = dataSentenca;
                         }
                     }
 

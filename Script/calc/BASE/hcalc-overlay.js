@@ -57,8 +57,27 @@
 
         if (overlayDraftApi) {
             const restored = overlayDraftApi.restoreStateOnly(warn);
-            const rawDraft = (typeof overlayDraftApi.loadRaw === 'function') ? overlayDraftApi.loadRaw(warn) : null;
+            let rawDraft = (typeof overlayDraftApi.loadRaw === 'function') ? overlayDraftApi.loadRaw(warn) : null;
             dbg('overlayDraft restoreStateOnly ->', restored, 'planilhaCarregada=', window.hcalcState && window.hcalcState.planilhaCarregada, 'rawDraft=', !!rawDraft);
+            // fallback: procurar chaves no localStorage caso loadRaw não encontre nada
+            if (!rawDraft) {
+                try {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.indexOf('hcalc-overlay-draft:') === 0) {
+                            try {
+                                const val = JSON.parse(localStorage.getItem(key));
+                                if (val && val.state) {
+                                    rawDraft = val;
+                                    dbg('[hcalc] fallback: found rawDraft in localStorage key=', key);
+                                    break;
+                                }
+                            } catch (e) { /* ignore parse errors */ }
+                        }
+                    }
+                } catch (e) { dbg('[hcalc] fallback localStorage search failed', e); }
+            }
+            dbg('overlayDraft after fallback rawDraft=', !!rawDraft);
 
             // Se o restore direto indicou planilha carregada, ajusta para restaurar com destaque
             if (restored && window.hcalcState && window.hcalcState.planilhaCarregada) {

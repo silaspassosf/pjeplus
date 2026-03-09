@@ -63,6 +63,36 @@
                 btn.title = 'Restaurar dados anteriores extraídos da última planilha (já carregada)';
                 btn.style.background = '#f59e0b';
                 btn.style.color = '#000';
+                // Adiciona botão para limpar rascunho e recomeçar
+                if (!document.getElementById('btn-limpar-rascunho')) {
+                    const limpar = document.createElement('button');
+                    limpar.id = 'btn-limpar-rascunho';
+                    limpar.type = 'button';
+                    limpar.textContent = '🧹 Limpar dados e recomeçar';
+                    limpar.style.marginLeft = '8px';
+                    limpar.style.background = '#ef4444';
+                    limpar.style.color = '#fff';
+                    limpar.style.border = 'none';
+                    limpar.style.padding = '8px 10px';
+                    limpar.style.borderRadius = '6px';
+                    limpar.style.cursor = 'pointer';
+                    btn.insertAdjacentElement('afterend', limpar);
+                    limpar.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        try {
+                            if (overlayDraftApi && typeof overlayDraftApi.clear === 'function') overlayDraftApi.clear();
+                        } catch (err) { console.warn('[hcalc] falha ao limpar rascunho', err); }
+                        try { if (window.hcalcState && typeof window.hcalcState.resetPrep === 'function') window.hcalcState.resetPrep(); } catch (err) { console.warn('[hcalc] resetPrep falhou', err); }
+                        // Restaurar botão ao estado inicial e abrir seletor
+                        btn.textContent = '\uD83D\uDCC4 Carregar Planilha';
+                        btn.style.background = '#00509e';
+                        btn.style.color = '#fff';
+                        const input = document.getElementById('input-planilha-pdf');
+                        if (input) input.click();
+                        // remover o próprio botão limpar
+                        try { limpar.remove(); } catch (e) {}
+                    });
+                }
             }
         }
 

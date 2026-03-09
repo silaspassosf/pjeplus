@@ -59,8 +59,10 @@
             const restored = overlayDraftApi.restoreStateOnly(warn);
             dbg('overlayDraft restoreStateOnly ->', restored, 'planilhaCarregada=', window.hcalcState && window.hcalcState.planilhaCarregada);
             if (restored && window.hcalcState && window.hcalcState.planilhaCarregada) {
-                btn.textContent = 'Gerar Homologação';
-                btn.style.background = '#00509e';
+                btn.textContent = '🔁 Restaurar dados anteriores — planilha já lida';
+                btn.title = 'Restaurar dados anteriores extraídos da última planilha (já carregada)';
+                btn.style.background = '#f59e0b';
+                btn.style.color = '#000';
             }
         }
 

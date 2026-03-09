@@ -228,26 +228,36 @@
 
             const regexHonPerito = /HONORÁRIOS LÍQUIDOS PARA\s+(?!PATRONO DO RECLAMANTE)(.+?)\s+([\d.,]{3,})/i;
 
-            // Extrair trecho entre os marcadores quando possível para aumentar acurácia
-            let honraSection = textoCompleto;
-            // try to find the smallest section delimited by any start/end marker pair
-            try {
-                let best = { s: -1, e: -1, span: Infinity };
-                markerStarts.forEach((sx) => {
-                    markerEnds.forEach((ex) => {
-                        const sIdx = textoCompleto.search(sx);
-                        const eIdx = textoCompleto.search(ex);
-                        if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
-                            const span = eIdx - sIdx;
-                            if (span < best.span) best = { s: sIdx, e: eIdx, span };
-                        }
+            // Extrair trecho entre os marcadores para cada tipo separadamente
+            function extractSectionFor(text, starts, ends) {
+                try {
+                    let best = { s: -1, e: -1, span: Infinity };
+                    starts.forEach((sx) => {
+                        ends.forEach((ex) => {
+                            const sIdx = text.search(sx);
+                            const eIdx = text.search(ex);
+                            if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
+                                const span = eIdx - sIdx;
+                                if (span < best.span) best = { s: sIdx, e: eIdx, span };
+                            }
+                        });
                     });
-                });
-                if (best.s !== -1 && best.e !== -1) {
-                    honraSection = textoCompleto.substring(best.s, best.e);
-                    dbg('[hcalc] usando seção específica para extrair honorários (markers encontrados)');
-                }
-            } catch (e) { dbg('[hcalc] marker section detection failed', e); }
+                    if (best.s !== -1 && best.e !== -1) return text.substring(best.s, best.e);
+                } catch (e) { dbg('[hcalc] extractSectionFor failed', e); }
+                return null;
+            }
+
+            // Section for HONORÁRIOS do AUTOR: especificamente between Reclamado markers
+            const markerStartAutor = /Descri[cç][aã]o de D[eé]bitos do Reclamado por Credor/i;
+            const markerEndAutor = /Total Devido pelo Reclamado/i;
+            const honraSectionAutor = extractSectionFor(textoCompleto, [markerStartAutor], [markerEndAutor]) || textoCompleto;
+
+            // Section for HONORÁRIOS da RECLAMADA: specifically below 'Descrição de Débitos do Reclamante'
+            const markerStartReclamada = /Descri[cç][aã]o de D[eé]bitos do Reclamante/i;
+            const markerEndReclamada = /Total Devido pelo Reclamante/i;
+            const honraSectionReu = extractSectionFor(textoCompleto, [markerStartReclamada], [markerEndReclamada]) || textoCompleto;
+
+            dbg('[hcalc] honraSectionAutor length=', honraSectionAutor.length, 'honraSectionReu length=', honraSectionReu.length);
 
             function findFirstMatch(text, variants) {
                 for (const rx of variants) {

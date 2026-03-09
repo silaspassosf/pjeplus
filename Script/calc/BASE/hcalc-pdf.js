@@ -275,10 +275,12 @@
             const inssTotal = (textoCompleto.match(regexINSSTotal) || [])[1] || "";
             const inssAutor = (textoCompleto.match(regexINSSAutor) || [])[1] || "";
             const custas = (textoCompleto.match(regexCustas) || [])[1] || "";
-            // Tentar extrair honorários do autor e da reclamada primeiro dentro da seção dedicada,
+            // Tentar extrair honorários do autor e da reclamada primeiro dentro de suas seções dedicadas,
             // depois no texto completo como fallback.
-            let honAutor = findFirstMatch(honraSection, regexHonAutor_variants) || findFirstMatch(textoCompleto, regexHonAutor_variants) || "";
-            let honReu = findFirstMatch(honraSection, regexHonReu_variants) || findFirstMatch(textoCompleto, regexHonReu_variants) || "";
+            let honAutor = findFirstMatch(honraSectionAutor, regexHonAutor_variants) || findFirstMatch(textoCompleto, regexHonAutor_variants) || "";
+            let honReu = findFirstMatch(honraSectionReu, regexHonReu_variants) || findFirstMatch(textoCompleto, regexHonReu_variants) || "";
+
+            dbg('[hcalc] extracted honAutor=', honAutor, 'honReu=', honReu);
 
             const matchPerito = textoCompleto.match(regexHonPerito);
             let peritoNome = matchPerito ? matchPerito[1].trim() : "";

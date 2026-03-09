@@ -614,15 +614,20 @@
 
                             let dadosExtra = null;
                             if (sub.idPlanilha && window.hcalcState?.planilhasDisponiveis) {
-                                const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find(
-                                    (planilha) => planilha.idPlanilha === sub.idPlanilha
-                                );
+                                const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find((planilha) => {
+                                    // suportar objetos do tipo {id, label, dados} (extras) ou entradas diretas com idPlanilha
+                                    if (planilha.id && planilha.id === sub.idPlanilha) return true;
+                                    if (planilha.idPlanilha && planilha.idPlanilha === sub.idPlanilha) return true;
+                                    if (planilha.dados && planilha.dados.idPlanilha && planilha.dados.idPlanilha === sub.idPlanilha) return true;
+                                    return false;
+                                });
                                 if (planilhaEncontrada) {
+                                    const dadosSrc = planilhaEncontrada.dados || planilhaEncontrada;
                                     dadosExtra = {
-                                        verbas: planilhaEncontrada.dados.verbas,
-                                        fgts: planilhaEncontrada.dados.fgts,
-                                        dataAtualizacao: planilhaEncontrada.dados.dataAtualizacao,
-                                        fgtsDepositado: planilhaEncontrada.dados.fgtsDepositado
+                                        verbas: dadosSrc.verbas,
+                                        fgts: dadosSrc.fgts,
+                                        dataAtualizacao: dadosSrc.dataAtualizacao,
+                                        fgtsDepositado: dadosSrc.fgtsDepositado
                                     };
                                 }
                             }

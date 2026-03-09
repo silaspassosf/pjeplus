@@ -13,6 +13,47 @@
     const encontrarItemTimeline = (href) => window.encontrarItemTimeline && window.encontrarItemTimeline(href);
     const expandirAnexos = (item) => window.expandirAnexos && window.expandirAnexos(item);
     const overlayDraftApi = window.hcalcOverlayDraft;
+    // Função pública para forçar limpeza de rascunho/estado e permitir carregar nova planilha
+    window.hcalcForceClearAndLoadNew = function () {
+        try {
+            const m = window.location.pathname.match(/processo\/([^/]+)/i);
+            const pid = m ? m[1] : null;
+            if (pid) {
+                const key = `hcalc-overlay-draft:${pid}`;
+                localStorage.removeItem(key);
+                dbg('[hcalc] removed draft key', key);
+            } else {
+                Object.keys(localStorage).filter(k => k.startsWith('hcalc-overlay-draft:')).forEach(k => {
+                    localStorage.removeItem(k);
+                    dbg('[hcalc] removed draft key (no pid)', k);
+                });
+            }
+        } catch (e) { dbg('[hcalc] force clear localStorage failed', e); }
+
+        try {
+            if (window.hcalcState) {
+                if (typeof window.hcalcState.resetPrep === 'function') {
+                    window.hcalcState.resetPrep();
+                } else {
+                    window.hcalcState = {};
+                }
+            } else {
+                window.hcalcState = {};
+            }
+            dbg('[hcalc] window.hcalcState cleared');
+        } catch (e) { dbg('[hcalc] clearing window.hcalcState failed', e); }
+
+        try { if (typeof window.hcalcDispose === 'function') { window.hcalcDispose(); dbg('[hcalc] called hcalcDispose()'); } } catch (e) { dbg('[hcalc] dispose call failed', e); }
+
+        try { document.querySelectorAll('.hcalc-overlay, [data-hcalc-root], #hcalc-overlay, #homologacao-overlay').forEach(el => el.remove()); } catch (e) { /* ignore */ }
+        try { document.querySelectorAll('input[type=file]').forEach(f => { try { f.value = ''; } catch (e) {} }); } catch (e) { /* ignore */ }
+
+        if (typeof window.hcalcInitBotao === 'function') {
+            try { window.hcalcInitBotao(); dbg('[hcalc] hcalcInitBotao() re-called'); } catch (e) { dbg('[hcalc] hcalcInitBotao call failed', e); }
+        } else {
+            dbg('[hcalc] hcalcInitBotao not available to re-init button');
+        }
+    };
     // ==========================================
     function initializeBotao() {
         if (window.__hcalcBotaoInitialized) {
@@ -387,7 +428,10 @@
         <div id="homologacao-modal">
             <div class="modal-header">
                 <h2>Assistente de Homologação</h2>
-                <button class="btn-close" id="btn-fechar">X Fechar</button>
+                <div>
+                    <button id="btn-force-clear-overlay" type="button" style="margin-right:8px;background:#ef4444;color:#fff;border:none;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px;">🧹 Limpar e carregar nova planilha</button>
+                    <button class="btn-close" id="btn-fechar">X Fechar</button>
+                </div>
             </div>
 
 
@@ -712,6 +756,26 @@
         // Inserir HTML limpo
         document.body.insertAdjacentHTML('beforeend', htmlModal);
         dbg('Overlay HTML inserido no DOM.');
+
+        // Registrar listener do botão de limpeza forçada
+        try {
+            const btnForce = document.getElementById('btn-force-clear-overlay');
+            if (btnForce) {
+                btnForce.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    if (confirm('Limpar rascunho e carregar nova planilha? Esta ação removerá o rascunho salvo para este processo.')) {
+                        try {
+                            if (typeof window.hcalcForceClearAndLoadNew === 'function') {
+                                window.hcalcForceClearAndLoadNew();
+                            } else {
+                                dbg('[hcalc] hcalcForceClearAndLoadNew não disponível');
+                            }
+                        } catch (e) { dbg('[hcalc] erro ao executar forceClear', e); }
+                    }
+                });
+                dbg('[hcalc] btn-force-clear-overlay listener registrado');
+            }
+        } catch (e) { dbg('[hcalc] falha ao registrar listener btn-force-clear-overlay', e); }
 
         // Toggle colapso/expansão do card de resumo
         const resumoToggle = document.getElementById('resumo-toggle');

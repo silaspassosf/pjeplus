@@ -15,7 +15,7 @@ window.initAtalhos = function () {
         window.addEventListener('load', () => {
             setTimeout(() => {
                 console.log('[WORKER] Página carregada. Iniciando fluxo...');
-                runWorker();
+                window.runWorker();
             }, 2000);
         });
         return;
@@ -195,7 +195,7 @@ async function performArquivamentoFlow(processoId) {
 }
 
 // ─── MODO WORKER ─────────────────────────────────────────────────
-async function runWorker() {
+window.runWorker = async function () {
     const channel = new BroadcastChannel(CHANNEL_NAME);
 
     try {

@@ -202,8 +202,16 @@
             const regexDataFallback = /([0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9])\s+[A-ZÀ-Ÿ\s]+Data\s+Liquida[çc][ãa]o/i;
             const regexIdAssinatura = /Documento assinado eletronicamente[\s\S]*?-\s*([a-zA-Z0-9]+)(?:\s|$)/i;
             // Honorários: tentar extrair preferencialmente da seção entre os marcadores
-            const markerStart = /Descri[cç][aã]o de D[eé]bitos do Reclamado por Credor/i;
-            const markerEnd = /Total Devido pelo Reclamado/i;
+            const markerStarts = [
+                /Descri[cç][aã]o de D[eé]bitos do Reclamado por Credor/i,
+                /Descri[cç][aã]o de D[eé]bitos do Reclamante/i,
+                /Descri[cç][aã]o de D[eé]bitos do Reclamad[oa]/i
+            ];
+            const markerEnds = [
+                /Total Devido pelo Reclamado/i,
+                /Total Devido pelo Reclamante/i,
+                /Total Devido pelo Reclamad[oa]/i
+            ];
 
             const regexHonAutor_variants = [
                 /HONOR[AÁ]RIOS\s+L[IÍ]QUIDOS\s+PARA\s+PATRONO\s+DO\s+RECLAMANTE\s+([\d.,]+)/i,
@@ -222,12 +230,24 @@
 
             // Extrair trecho entre os marcadores quando possível para aumentar acurácia
             let honraSection = textoCompleto;
-            const sIdx = textoCompleto.search(markerStart);
-            const eIdx = textoCompleto.search(markerEnd);
-            if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
-                honraSection = textoCompleto.substring(sIdx, eIdx);
-                dbg('[hcalc] usando seção específica para extrair honorários (entre marcadores)');
-            }
+            // try to find the smallest section delimited by any start/end marker pair
+            try {
+                let best = { s: -1, e: -1, span: Infinity };
+                markerStarts.forEach((sx) => {
+                    markerEnds.forEach((ex) => {
+                        const sIdx = textoCompleto.search(sx);
+                        const eIdx = textoCompleto.search(ex);
+                        if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
+                            const span = eIdx - sIdx;
+                            if (span < best.span) best = { s: sIdx, e: eIdx, span };
+                        }
+                    });
+                });
+                if (best.s !== -1 && best.e !== -1) {
+                    honraSection = textoCompleto.substring(best.s, best.e);
+                    dbg('[hcalc] usando seção específica para extrair honorários (markers encontrados)');
+                }
+            } catch (e) { dbg('[hcalc] marker section detection failed', e); }
 
             function findFirstMatch(text, variants) {
                 for (const rx of variants) {

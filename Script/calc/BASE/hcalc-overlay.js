@@ -162,6 +162,23 @@
                     }
                 } catch (e) { dbg('[hcalc] draft change handler failed', e); }
             });
+
+            // Extra fallback: checar diretamente localStorage para o rascunho do processo atual
+            try {
+                const m = window.location.pathname.match(/processo\/([^/]+)/i);
+                const pid = m ? m[1] : null;
+                if (pid) {
+                    const directKey = `hcalc-overlay-draft:${pid}`;
+                    const rawStr = localStorage.getItem(directKey);
+                    if (rawStr) {
+                        try {
+                            const parsed = JSON.parse(rawStr);
+                            ensureClearDraftButton(!!parsed && !!parsed.state, parsed && parsed.state && !!parsed.state.planilhaCarregada);
+                            dbg('[hcalc] direct localStorage fallback enabled clear button for key=', directKey);
+                        } catch (e) { dbg('[hcalc] direct localStorage parse failed', e); }
+                    }
+                }
+            } catch (e) { dbg('[hcalc] direct localStorage fallback error', e); }
         }
 
         // Handler do botão — inicializa overlay lazy na primeira vez

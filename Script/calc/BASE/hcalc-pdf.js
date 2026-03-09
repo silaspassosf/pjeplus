@@ -201,9 +201,41 @@
             const regexData = /(?:Data\s+Liquida[çc][ãa]o\s*[:\-]?\s*(\d{2}\/\d{2}\/\d{4}))|(?:(\d{2}\/\d{2}\/\d{4})\s*Data\s+Liquida[çc][ãa]o)/i;
             const regexDataFallback = /([0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9])\s+[A-ZÀ-Ÿ\s]+Data\s+Liquida[çc][ãa]o/i;
             const regexIdAssinatura = /Documento assinado eletronicamente[\s\S]*?-\s*([a-zA-Z0-9]+)(?:\s|$)/i;
-            const regexHonAutor = /HONORÁRIOS LÍQUIDOS PARA PATRONO DO RECLAMANTE\s+([\d.,]+)/i;
-            const regexHonReu = /HONORÁRIOS LÍQUIDOS PARA PATRONO DA RECLAMADA\s+([\d.,]+)/i;
+            // Honorários: tentar extrair preferencialmente da seção entre os marcadores
+            const markerStart = /Descri[cç][aã]o de D[eé]bitos do Reclamado por Credor/i;
+            const markerEnd = /Total Devido pelo Reclamado/i;
+
+            const regexHonAutor_variants = [
+                /HONOR[AÁ]RIOS\s+L[IÍ]QUIDOS\s+PARA\s+PATRONO\s+DO\s+RECLAMANTE\s+([\d.,]+)/i,
+                /HONOR[AÁ]RIOS\s+ADVOCAT[IÁ]CIOS.*?RECLAMANTE[\s\S]*?R\$\s*([\d.,]+)/i,
+                /HONOR[AÁ]RIOS.*?RECLAMANTE[\s\S]*?R\$\s*([\d.,]+)/i
+            ];
+
+            const regexHonReu_variants = [
+                /HONOR[AÁ]RIOS\s+L[IÍ]QUIDOS\s+PARA\s+PATRONO\s+DA\s+RECLAMADA\s+([\d.,]+)/i,
+                /HONOR[AÁ]RIOS\s+ADVOCAT[IÁ]CIOS.*?RECLAMADA[\s\S]*?R\$\s*([\d.,]+)/i,
+                /HONOR[AÁ]RIOS.*?RECLAMADA[\s\S]*?R\$\s*([\d.,]+)/i,
+                /HONOR[AÁ]RIOS.*?PELA\s+RECLAMADA[\s\S]*?R\$\s*([\d.,]+)/i
+            ];
+
             const regexHonPerito = /HONORÁRIOS LÍQUIDOS PARA\s+(?!PATRONO DO RECLAMANTE)(.+?)\s+([\d.,]{3,})/i;
+
+            // Extrair trecho entre os marcadores quando possível para aumentar acurácia
+            let honraSection = textoCompleto;
+            const sIdx = textoCompleto.search(markerStart);
+            const eIdx = textoCompleto.search(markerEnd);
+            if (sIdx !== -1 && eIdx !== -1 && eIdx > sIdx) {
+                honraSection = textoCompleto.substring(sIdx, eIdx);
+                dbg('[hcalc] usando seção específica para extrair honorários (entre marcadores)');
+            }
+
+            function findFirstMatch(text, variants) {
+                for (const rx of variants) {
+                    const m = text.match(rx);
+                    if (m && m[1]) return m[1];
+                }
+                return '';
+            }
             const regexPeriodo = /(\d{2}[\/]?\d{2}[\/]?\d{4})\s+a\s+(\d{2}[\/]?\d{2}[\/]?\d{4})/;
             const regexIRPF = /IRPF\s+DEVIDO\s+PELO\s+RECLAMANTE\s+([\d.,]+)/i;
 
@@ -213,8 +245,10 @@
             const inssTotal = (textoCompleto.match(regexINSSTotal) || [])[1] || "";
             const inssAutor = (textoCompleto.match(regexINSSAutor) || [])[1] || "";
             const custas = (textoCompleto.match(regexCustas) || [])[1] || "";
-            let honAutor = (textoCompleto.match(regexHonAutor) || [])[1] || "";
-            const honReu = (textoCompleto.match(regexHonReu) || [])[1] || "";
+            // Tentar extrair honorários do autor e da reclamada primeiro dentro da seção dedicada,
+            // depois no texto completo como fallback.
+            let honAutor = findFirstMatch(honraSection, regexHonAutor_variants) || findFirstMatch(textoCompleto, regexHonAutor_variants) || "";
+            let honReu = findFirstMatch(honraSection, regexHonReu_variants) || findFirstMatch(textoCompleto, regexHonReu_variants) || "";
 
             const matchPerito = textoCompleto.match(regexHonPerito);
             let peritoNome = matchPerito ? matchPerito[1].trim() : "";

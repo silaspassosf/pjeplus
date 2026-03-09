@@ -1258,6 +1258,34 @@
             atualizarDropdownsReclamadas();
         };
 
+        // Listener para Recuperação Judicial - tacha principais
+        $('resp-rec-judicial').onchange = (e) => {
+            aplicarEstiloRecuperacaoJudicial();
+        };
+
+        // Função para aplicar/remover tachado nas principais
+        function aplicarEstiloRecuperacaoJudicial() {
+            const temRecJudicial = $('resp-rec-judicial')?.checked || false;
+            
+            document.querySelectorAll('.intimacao-row').forEach(row => {
+                const checkbox = row.querySelector('.chk-parte-principal');
+                if (checkbox && checkbox.checked) {
+                    const nomeDiv = row.querySelector('div[title]');
+                    if (nomeDiv) {
+                        if (temRecJudicial) {
+                            nomeDiv.style.textDecoration = 'line-through';
+                            nomeDiv.style.color = '#999';
+                            nomeDiv.title = `${checkbox.dataset.nome} (Em Recuperação Judicial/Falência - sem intimação para pagamento)`;
+                        } else {
+                            nomeDiv.style.textDecoration = 'none';
+                            nomeDiv.style.color = '#333';
+                            nomeDiv.title = checkbox.dataset.nome;
+                        }
+                    }
+                }
+            });
+        }
+
         $('btn-adicionar-periodo').onclick = (e) => {
             e.preventDefault();
             adicionarLinhaPeridoDiverso();
@@ -1968,6 +1996,16 @@
                     </div>
                 `;
                 container.appendChild(divRow);
+            });
+
+            // Aplicar estilos de recuperação judicial após construir lista
+            setTimeout(() => aplicarEstiloRecuperacaoJudicial(), 50);
+
+            // Listener em checkboxes principais para atualizar tachado
+            container.querySelectorAll('.chk-parte-principal').forEach(chk => {
+                chk.addEventListener('change', () => {
+                    aplicarEstiloRecuperacaoJudicial();
+                });
             });
         }
 
@@ -2905,9 +2943,14 @@
                             const nome = sel.getAttribute('data-nome');
                             const v = sel.value;
 
-                            // FILTRO: Se subsidiária, intima apenas principais
+                            // FILTRO 1: Se subsidiária, intima apenas principais
                             if (isSubsidiaria && !principaisSet.has(nome)) {
                                 return; // Pula subsidiárias
+                            }
+
+                            // FILTRO 2: Se recuperação judicial, pula principais (já têm texto de insolvência)
+                            if (temRecJudicial && principaisSet.has(nome)) {
+                                return; // Pula principais em recuperação judicial
                             }
 
                             if (v === 'diario') grpDiario.push(nome);

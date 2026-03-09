@@ -40,6 +40,7 @@
         window.hcalcState.planilhaExtracaoData = draft.state.planilhaExtracaoData || null;
         window.hcalcState.planilhaCarregada = !!draft.state.planilhaCarregada;
         window.hcalcState.planilhasDisponiveis = draft.state.planilhasDisponiveis || [];
+        try { console.log('[hcalc][draft] restoreStateOnly: planilhaCarregada=', !!window.hcalcState.planilhaCarregada, 'planilhaExtracaoData=', window.hcalcState.planilhaExtracaoData); } catch (e) {}
         return !!window.hcalcState.planilhaCarregada;
     }
 

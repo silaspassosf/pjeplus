@@ -684,6 +684,8 @@
             const btn = $('btn-abrir-homologacao');
             const inputFile = $('input-planilha-pdf');
 
+            dbg('btn-abrir-homologacao clicked - planilhaCarregada=', !!(window.hcalcState && window.hcalcState.planilhaCarregada), 'planilhaExtracaoData=', window.hcalcState && window.hcalcState.planilhaExtracaoData);
+
             if (!window.hcalcState.planilhaCarregada) {
                 dbg('FASE 1: Clique em Carregar Planilha');
                 inputFile.click();
@@ -1204,6 +1206,7 @@
                         // Salvar no state
                         window.hcalcState.planilhaExtracaoData = dados;
                         window.hcalcState.planilhaCarregada = true;
+                            dbg('Planilha processada e salva em state:', dados);
 
                         // Atualizar card/resumo
                         if (window.hcalcAtualizarResumoPlanilha) {

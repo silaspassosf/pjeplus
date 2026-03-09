@@ -292,34 +292,27 @@
             // PREVALÊNCIA: Valor da planilha prevalece sobre valor da sentença (mais atualizado)
             if (peritoNome && peritoValor) {
                 const peritosConhecidos = window.hcalcPeritosDetectados || [];
-                const peritoNomeUpper = (peritoNome || '').toUpperCase();
 
-                // Se o trecho capturado for um rótulo do tipo 'PATRONO ...', não tratar como perito
-                if (/PATRONO/.test(peritoNomeUpper)) {
-                    console.log(`hcalc: "${peritoNome}" parece ser rótulo de PATRONO, ignorando como perito.`);
+                // Verificar se nome bate com perito já detectado no processo
+                const ehPerito = peritosConhecidos.some(p =>
+                    normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome)) ||
+                    normalizarNomeParaComparacao(peritoNome).includes(normalizarNomeParaComparacao(p))
+                );
+
+                if (ehPerito) {
+                    // Nome bate com perito detectado → honorário pericial
+                    console.log(`hcalc: "${peritoNome}" confirmado como PERITO (match detectado)`);
+                    // Mantém peritoNome e peritoValor
                 } else {
-                    // Verificar se nome bate com perito já detectado no processo
-                    const ehPerito = peritosConhecidos.some(p =>
-                        normalizarNomeParaComparacao(p).includes(normalizarNomeParaComparacao(peritoNome)) ||
-                        normalizarNomeParaComparacao(peritoNome).includes(normalizarNomeParaComparacao(p))
-                    );
-
-                    if (ehPerito) {
-                        // Nome bate com perito detectado → honorário pericial
-                        console.log(`hcalc: "${peritoNome}" confirmado como PERITO (match detectado)`);
-                        // Mantém peritoNome e peritoValor
+                    // DEFAULT (legado): tratar como honorário do advogado autor salvo se já extraído
+                    console.log(`hcalc: "${peritoNome}" → DEFAULT: honorário advogado autor (legado)`);
+                    if (!honAutor) {
+                        honAutor = peritoValor;
                     } else {
-                        // DEFAULT: Qualquer outro caso = honorário advogado autor
-                        console.log(`hcalc: "${peritoNome}" → DEFAULT: honorário advogado autor`);
-                        // Transferir para honorários do autor somente se não houver valor já extraído
-                        if (!honAutor) {
-                            honAutor = peritoValor;
-                        } else {
-                            console.log('hcalc: honAutor já definido; não sobrescrevendo com peritoValor');
-                        }
-                        peritoNome = "";
-                        peritoValor = "";
+                        console.log('hcalc: honAutor já definido; não sobrescrevendo com peritoValor (legado)');
                     }
+                    peritoNome = "";
+                    peritoValor = "";
                 }
             }
 

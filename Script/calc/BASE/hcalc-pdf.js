@@ -202,6 +202,7 @@
             const regexDataFallback = /([0-3][0-9]\/[0-1][0-9]\/20[2-9][0-9])\s+[A-ZÀ-Ÿ\s]+Data\s+Liquida[çc][ãa]o/i;
             const regexIdAssinatura = /Documento assinado eletronicamente[\s\S]*?-\s*([a-zA-Z0-9]+)(?:\s|$)/i;
             const regexHonAutor = /HONORÁRIOS LÍQUIDOS PARA PATRONO DO RECLAMANTE\s+([\d.,]+)/i;
+            const regexHonReu = /HONORÁRIOS LÍQUIDOS PARA PATRONO DA RECLAMADA\s+([\d.,]+)/i;
             const regexHonPerito = /HONORÁRIOS LÍQUIDOS PARA\s+(?!PATRONO DO RECLAMANTE)(.+?)\s+([\d.,]{3,})/i;
             const regexPeriodo = /(\d{2}[\/]?\d{2}[\/]?\d{4})\s+a\s+(\d{2}[\/]?\d{2}[\/]?\d{4})/;
             const regexIRPF = /IRPF\s+DEVIDO\s+PELO\s+RECLAMANTE\s+([\d.,]+)/i;
@@ -213,6 +214,7 @@
             const inssAutor = (textoCompleto.match(regexINSSAutor) || [])[1] || "";
             const custas = (textoCompleto.match(regexCustas) || [])[1] || "";
             let honAutor = (textoCompleto.match(regexHonAutor) || [])[1] || "";
+            const honReu = (textoCompleto.match(regexHonReu) || [])[1] || "";
 
             const matchPerito = textoCompleto.match(regexHonPerito);
             let peritoNome = matchPerito ? matchPerito[1].trim() : "";
@@ -294,6 +296,7 @@
                 dataAtualizacao,
                 idPlanilha,
                 honAutor,
+                honReu,
                 peritoNome,
                 peritoValor,
                 periodoCalculo,

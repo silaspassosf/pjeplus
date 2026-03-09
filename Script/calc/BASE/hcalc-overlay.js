@@ -1040,6 +1040,18 @@
 
                     if (dados.dataAtualizacao && $('val-data')) $('val-data').value = dados.dataAtualizacao;
                     if (dados.honAutor && $('val-hon-autor')) $('val-hon-autor').value = dados.honAutor;
+                    
+                    // Honorários da reclamada: preencher valor + marcar checkbox automaticamente
+                    if (dados.honReu && $('val-hon-reu')) {
+                        $('val-hon-reu').value = dados.honReu;
+                        
+                        // Marcar radio "com valor" se existir
+                        const radComValor = document.querySelector('input[name="hon-reu-tipo"][value="valor"]');
+                        if (radComValor) {
+                            radComValor.checked = true;
+                            radComValor.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
 
                     // Aplicar IRPF se tributável
                     if (dados.irpfIsento === false) {

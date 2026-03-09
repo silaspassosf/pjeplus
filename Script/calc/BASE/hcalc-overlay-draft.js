@@ -19,7 +19,42 @@
 
     function saveRaw(draft, warnFn = console.warn) {
         try {
-            window.localStorage.setItem(getOverlayDraftKey(), JSON.stringify(draft));
+            // Evitar crescimento ilimitado: manter no máximo 2 rascunhos por diferentes processos.
+            const prefix = 'hcalc-overlay-draft:';
+            const currentKey = getOverlayDraftKey();
+
+            try {
+                // Coletar chaves existentes com o prefixo
+                const existing = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.indexOf(prefix) === 0) {
+                        try {
+                            const val = JSON.parse(localStorage.getItem(key));
+                            existing.push({ key, savedAt: val && val.savedAt ? new Date(val.savedAt).getTime() : 0 });
+                        } catch (e) {
+                            // parse error: treat as oldest
+                            existing.push({ key, savedAt: 0 });
+                        }
+                    }
+                }
+
+                // If currentKey is new and we already have 2 or more different process drafts,
+                // remove the oldest until only 1 remains (so after adding current there will be at most 2).
+                const hasCurrent = existing.some(e => e.key === currentKey);
+                if (!hasCurrent && existing.length >= 2) {
+                    existing.sort((a, b) => a.savedAt - b.savedAt);
+                    const toRemove = existing.length - 1; // remove enough to keep room for current
+                    for (let j = 0; j < toRemove; j++) {
+                        try { localStorage.removeItem(existing[j].key); } catch (e) { /* ignore */ }
+                    }
+                }
+            } catch (e) {
+                // If anything fails during eviction, continue to attempt save
+                warnFn('[hcalc]', 'Eviction check failed:', e);
+            }
+
+            window.localStorage.setItem(currentKey, JSON.stringify(draft));
         } catch (e) {
             warnFn('[hcalc]', 'Falha ao salvar rascunho do overlay:', e);
         }

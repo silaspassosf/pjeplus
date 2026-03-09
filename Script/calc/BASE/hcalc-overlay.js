@@ -55,9 +55,13 @@
 
         const btn = document.getElementById('btn-abrir-homologacao');
 
-        if (overlayDraftApi && overlayDraftApi.restoreStateOnly(warn)) {
-            btn.textContent = 'Gerar Homologação';
-            btn.style.background = '#00509e';
+        if (overlayDraftApi) {
+            const restored = overlayDraftApi.restoreStateOnly(warn);
+            dbg('overlayDraft restoreStateOnly ->', restored, 'planilhaCarregada=', window.hcalcState && window.hcalcState.planilhaCarregada);
+            if (restored && window.hcalcState && window.hcalcState.planilhaCarregada) {
+                btn.textContent = 'Gerar Homologação';
+                btn.style.background = '#00509e';
+            }
         }
 
         // Handler do botão — inicializa overlay lazy na primeira vez

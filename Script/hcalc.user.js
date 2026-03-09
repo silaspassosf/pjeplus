@@ -21,9 +21,6 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=234&t=202603090200
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=234&t=202603090200
 
-// ====== LEGADO (comentado) ======
-// // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/hoverlay.js?v=legado&t=202603090130
-// // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/huser.js?v=legado&t=202603090100
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com
 // @run-at       document-idle

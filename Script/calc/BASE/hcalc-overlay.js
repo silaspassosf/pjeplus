@@ -3104,7 +3104,6 @@
                     textoIntro: '', // Removido - não usa mais
                     principalIntegral: principalSelecionada,
                     principaisParciais,
-                    subsidiarias: todasSubsidiarias,
                     subsidiariasIntegrais,
                     subsidiariasComPeriodo,
                     todasPrincipais: [

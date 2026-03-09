@@ -4,12 +4,12 @@ window.CHANNEL_NAME = 'maispje_expediente_worker';
 
 // ─── DETECÇÃO DE MODO ────────────────────────────────────────────
 const isWorkerTab = /\/comunicacoesprocessuais\/minutas/.test(window.location.href)
-                    && new URLSearchParams(window.location.search).get('maispje_worker') === '1';
+    && new URLSearchParams(window.location.search).get('maispje_worker') === '1';
 
 const isMainTab = /\/detalhe/.test(window.location.href);
 
 // ─── INICIALIZAÇÃO ───────────────────────────────────────────────
-window.initAtalhos = function() {
+window.initAtalhos = function () {
     if (isWorkerTab) {
         console.log('[WORKER] Flag detectada. Aguardando página carregar...');
         window.addEventListener('load', () => {
@@ -91,7 +91,7 @@ function initMain() {
 async function lerTabelaTxt() {
     const candidates = [
         `${location.origin}/tabela.txt`,
-        `${location.pathname.replace(/\/.*/,'')}/tabela.txt`,
+        `${location.pathname.replace(/\/.*/, '')}/tabela.txt`,
         './tabela.txt',
         '/tabela.txt'
     ];
@@ -100,13 +100,13 @@ async function lerTabelaTxt() {
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) continue;
             const text = await res.text();
-            const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
             if (lines.length) return lines;
         } catch (e) { /* tentar próximo */ }
     }
     // fallback: tentar ler de um elemento na página (se existir)
     const el = document.getElementById('tabela-txt-content');
-    if (el) return el.textContent.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    if (el) return el.textContent.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     return [];
 }
 
@@ -136,7 +136,7 @@ async function performArquivamentoFlow(processoId) {
     if (!escolherBtn) {
         // procurar qualquer botão/anchor na mesma linha com texto 'Escolher' ou 'Tipo'
         escolherBtn = Array.from(row.querySelectorAll('button, a, span')).find(el => {
-            const t = (el.textContent||'').trim().toLowerCase();
+            const t = (el.textContent || '').trim().toLowerCase();
             return t === 'escolher' || t.includes('escolher') || t.includes('tipo');
         });
     }
@@ -162,7 +162,7 @@ async function performArquivamentoFlow(processoId) {
     if (!newWin) { showToast('Não foi possível abrir nova aba (controle). Tente abrir manualmente.', '#f44336'); return; }
 
     // aguardar carga (mesmo-origin)
-    for (let i=0;i<40;i++) {
+    for (let i = 0; i < 40; i++) {
         try {
             if (newWin.document && (newWin.document.readyState === 'complete' || newWin.document.readyState === 'interactive')) break;
         } catch (e) { /* cross-origin */ }
@@ -197,7 +197,7 @@ async function performArquivamentoFlow(processoId) {
 // ─── MODO WORKER ─────────────────────────────────────────────────
 async function runWorker() {
     const channel = new BroadcastChannel(CHANNEL_NAME);
-    
+
     try {
         // ── ETAPA 1: SALVAR ──────────────────────────────────────
         showToast('Worker: Buscando botão Salvar...', '#2196f3');
@@ -299,7 +299,7 @@ function encontrarBotaoPorAttrName(attrNameValue) {
         const wrapper = b.querySelector('span.mat-button-wrapper');
         if (wrapper) {
             const txt = wrapper.textContent.trim().toLowerCase();
-            if (attrNameValue === 'btnSalvarExpedientes'    && txt === 'salvar')        return b;
+            if (attrNameValue === 'btnSalvarExpedientes' && txt === 'salvar') return b;
             if (attrNameValue === 'btnFinalizarExpedientes' && txt.includes('assinar')) return b;
         }
     }
@@ -325,12 +325,38 @@ function esperarElemento(selector, timeout = 3000) {
         const interval = setInterval(() => {
             const el = document.querySelector(selector);
             if (el && el.offsetParent !== null) { clearInterval(interval); resolve(el); }
-            if (Date.now() - start > timeout)   { clearInterval(interval); resolve(null); }
+            if (Date.now() - start > timeout) { clearInterval(interval); resolve(null); }
         }, 100);
     });
 }
 
 // ─── GIGS CLEANUP ────────────────────────────────────────────────
+async function limparResponsavel(row) {
+    const inputResp = row.querySelector('input[mattooltip="Inserir/Alterar responsável"]');
+    if (!inputResp) return;
+
+    const val = (inputResp.value || '').toLowerCase();
+    const aria = (inputResp.getAttribute('aria-label') || '').toLowerCase();
+
+    if (val.includes('silas passos') || aria.includes('silas passos')) {
+        inputResp.click();
+        await sleep(300);
+
+        inputResp.value = '';
+        inputResp.dispatchEvent(new Event('input', { bubbles: true }));
+        inputResp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }));
+        await sleep(300);
+
+        for (const opt of document.querySelectorAll('mat-option')) {
+            if (opt.textContent.includes('SEM RESPONSÁVEL')) {
+                opt.click();
+                await sleep(400);
+                break;
+            }
+        }
+    }
+}
+
 async function runCleanup() {
     const runner = new AsyncRunner();
     await runner.run(async (signal) => {
@@ -353,11 +379,14 @@ async function runCleanup() {
                 if (!((isVencida && hasXsOrSilas) || (isSemPrazo && (hasXsOrSilas || hasDomE)))) continue;
                 const btnExcluir = row.querySelector('button[mattooltip="Excluir Atividade"]');
                 if (!btnExcluir) continue;
+
+                await limparResponsavel(row);
+
                 btnExcluir.click(); await sleep(800);
                 let btnSim = null;
                 for (let b of document.querySelectorAll('button[color="primary"]')) {
-                    if (b.querySelector('span.mat-button-wrapper')?.textContent.trim() === 'Sim') { 
-                        btnSim = b; break; 
+                    if (b.querySelector('span.mat-button-wrapper')?.textContent.trim() === 'Sim') {
+                        btnSim = b; break;
                     }
                 }
                 if (!btnSim) {
@@ -368,11 +397,11 @@ async function runCleanup() {
                 if (btnSim) { btnSim.click(); removed++; await sleep(1000); hasMore = true; break; }
             }
         }
-        if (removed > 0) { 
-            playSound(); 
-            showToast(`Limpeza: ${removed} removidos!`, '#4caf50'); 
-        } else { 
-            showToast('Nenhuma atividade para limpar.', '#2196f3'); 
+        if (removed > 0) {
+            playSound();
+            showToast(`Limpeza: ${removed} removidos!`, '#4caf50');
+        } else {
+            showToast('Nenhuma atividade para limpar.', '#2196f3');
         }
     });
 }
@@ -393,28 +422,28 @@ async function runExpedienteFlow() {
 
 async function hoverAndClickTarget(menuSelector, buttonLabel) {
     const triggerEl = document.querySelector(menuSelector);
-    if (!triggerEl) { 
-        showToast(`Menu não encontrado! (${menuSelector})`, '#f44336'); 
-        return; 
+    if (!triggerEl) {
+        showToast(`Menu não encontrado! (${menuSelector})`, '#f44336');
+        return;
     }
     const opts = { bubbles: true, cancelable: true, view: window };
-    triggerEl.dispatchEvent(new MouseEvent('mouseover',  opts));
+    triggerEl.dispatchEvent(new MouseEvent('mouseover', opts));
     triggerEl.dispatchEvent(new MouseEvent('mouseenter', opts));
-    triggerEl.dispatchEvent(new MouseEvent('mousemove',  opts));
+    triggerEl.dispatchEvent(new MouseEvent('mousemove', opts));
     const container = await esperarElemento('maispjecontaineraa', 3000);
-    if (!container) { 
-        showToast('Timeout: Menu MaisPJe não abriu!', '#f44336'); 
-        return; 
+    if (!container) {
+        showToast('Timeout: Menu MaisPJe não abriu!', '#f44336');
+        return;
     }
     await sleep(250);
     const labelLower = buttonLabel.toLowerCase();
     const alvo = Array.from(container.querySelectorAll('button, div, span, a')).find(el => {
-        const name  = (el.getAttribute('name') || '').toLowerCase();
+        const name = (el.getAttribute('name') || '').toLowerCase();
         const texto = (el.textContent || '').toLowerCase();
         return texto.trim() === labelLower || name === labelLower || texto.includes(labelLower);
     });
     if (alvo) {
-        alvo.style.border = '2px solid red'; 
+        alvo.style.border = '2px solid red';
         alvo.style.boxShadow = '0 0 10px red';
         await sleep(150);
         alvo.querySelector('.mat-button-wrapper')?.click();

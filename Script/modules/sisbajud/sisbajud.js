@@ -68,7 +68,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
         btn.disabled = true;
 
         try {
-            const dados = await SisbCore.extrairDadosBloqueios();
+            const dados = await window.SisbCore.extrairDadosBloqueios();
 
             if (!dados || Object.keys(dados.executados).length === 0) {
                 alert('⚠ Nenhum modal de detalhamento do SISBAJUD foi encontrado aberto.\n\n' +
@@ -77,10 +77,10 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
             }
 
             // Agrupar nos dados acumulados
-            SisbCore.agruparDados(dados);
+            window.SisbCore.agruparDados(dados);
 
-            const numExec = Object.keys(SisbCore.acumulador.executados).length;
-            const totalFmt = SisbCore.formatarValor(SisbCore.acumulador.total_geral);
+            const numExec = Object.keys(window.SisbCore.acumulador.executados).length;
+            const totalFmt = window.SisbCore.formatarValor(window.SisbCore.acumulador.total_geral);
 
             alert(`✅ Dados extraídos e acumulados!\n\n` +
                 `Executados: ${numExec}\n` +
@@ -100,7 +100,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
     async function gerarRelatorioDetalhado() {
         const btn = document.getElementById('btn-sisb-detalhado');
 
-        if (Object.keys(SisbCore.acumulador.executados).length === 0) {
+        if (Object.keys(window.SisbCore.acumulador.executados).length === 0) {
             alert('⚠ Nenhum dado acumulado.\n\nClique em "Extrair Dados" primeiro.');
             return;
         }
@@ -111,7 +111,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
 
         try {
             await sleep(100);
-            const resultado = await SisbRelatorios.gerarECopiarDetalhado();
+            const resultado = await window.SisbRelatorios.gerarECopiarDetalhado();
             alert(resultado.mensagem);
         } catch (err) {
             console.error('[SISB] Erro ao gerar relatório:', err);
@@ -126,7 +126,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
     async function gerarRelatorioConciso() {
         const btn = document.getElementById('btn-sisb-conciso');
 
-        if (Object.keys(SisbCore.acumulador.executados).length === 0) {
+        if (Object.keys(window.SisbCore.acumulador.executados).length === 0) {
             alert('⚠ Nenhum dado acumulado.\n\nClique em "Extrair Dados" primeiro.');
             return;
         }
@@ -137,7 +137,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
 
         try {
             await sleep(100);
-            const resultado = await SisbRelatorios.gerarECopiarConciso();
+            const resultado = await window.SisbRelatorios.gerarECopiarConciso();
             alert(resultado.mensagem);
         } catch (err) {
             console.error('[SISB] Erro ao gerar relatório:', err);
@@ -154,7 +154,7 @@ if (window.location.href.includes('sisbajud.cnj.jus.br') || window.location.href
             return;
         }
 
-        SisbCore.reset();
+        window.SisbCore.reset();
         alert('✅ Dados resetados!\n\nO acumulador foi limpo.');
     }
 

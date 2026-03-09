@@ -1124,11 +1124,11 @@
 
                     if (dados.dataAtualizacao && $('val-data')) $('val-data').value = dados.dataAtualizacao;
                     if (dados.honAutor && $('val-hon-autor')) $('val-hon-autor').value = dados.honAutor;
-                    
+
                     // Honorários da reclamada: preencher valor + marcar checkbox automaticamente
                     if (dados.honReu && $('val-hon-reu')) {
                         $('val-hon-reu').value = dados.honReu;
-                        
+
                         // Marcar radio "com valor" se existir
                         const radComValor = document.querySelector('input[name="hon-reu-tipo"][value="valor"]');
                         if (radComValor) {
@@ -1438,88 +1438,6 @@
         window.hcalcPeritosDetectados = [];
         window.hcalcPeritosConhecimentoDetectados = [];
 
-        function isNomeRogerio(nome) {
-            return /rogerio|rogério/i.test(nome || '');
-        }
-
-        function aplicarRegrasPeritosDetectados(peritosDetectados) {
-            const nomes = Array.isArray(peritosDetectados) ? peritosDetectados.filter(Boolean) : [];
-            const temRogerio = nomes.some((nome) => isNomeRogerio(nome));
-            const peritosConhecimento = nomes.filter((nome) => !isNomeRogerio(nome));
-
-            window.hcalcPeritosDetectados = nomes;
-            window.hcalcPeritosConhecimentoDetectados = peritosConhecimento;
-
-            console.log('[hcalc] aplicarRegrasPeritosDetectados: nomes=', nomes, 'temRogerio=', temRogerio, 'peritosConhecimento=', peritosConhecimento);
-
-            const origemEl = $('calc-origem');
-            const pjcEl = $('calc-pjc');
-            const autorEl = $('calc-autor');
-            const colEsclarecimentosEl = $('col-esclarecimentos');
-            const rowPeritoContabilEl = $('row-perito-contabil');
-            const chkPeritoConhEl = $('chk-perito-conh');
-            const peritoConhCamposEl = $('perito-conh-campos');
-            const valPeritoNomeEl = $('val-perito-nome');
-            const valPeritoContabilValorEl = $('val-perito-contabil-valor');
-            const fieldsetPericiaConh = $('fieldset-pericia-conh');
-
-            console.log('[hcalc] Elementos encontrados: rowPeritoContabilEl=', rowPeritoContabilEl, 'fieldsetPericiaConh=', fieldsetPericiaConh);
-
-            // SE ROGÉRIO (perito contábil)
-            if (temRogerio) {
-                console.log('[hcalc] Rogério detectado! Mostrando row-perito-contabil...');
-                origemEl.value = 'pjecalc';
-                origemEl.disabled = true;
-                pjcEl.checked = true;
-                pjcEl.disabled = true;
-                autorEl.value = 'perito';
-                autorEl.disabled = true;
-                colEsclarecimentosEl.classList.remove('hidden');
-                
-                // Mostrar fieldset pai (contém honorários contábeis E conhecimento)
-                if (fieldsetPericiaConh) {
-                    fieldsetPericiaConh.classList.remove('hidden');
-                }
-                
-                // Mostrar linha de honorários contábeis
-                if (rowPeritoContabilEl) {
-                    rowPeritoContabilEl.classList.remove('hidden');
-                    console.log('[hcalc] ✓ Classe hidden removida de row-perito-contabil');
-                } else {
-                    console.error('[hcalc] ✗ Elemento row-perito-contabil NÃO ENCONTRADO!');
-                }
-                
-                // Esconder seção de conhecimento se APENAS Rogério
-                if (peritosConhecimento.length === 0) {
-                    // Não esconder o fieldset, apenas o checkbox de conhecimento
-                    if (chkPeritoConhEl) {
-                        chkPeritoConhEl.parentElement.parentElement.classList.add('hidden');
-                    }
-                }
-            } else {
-                origemEl.disabled = false;
-                pjcEl.disabled = false;
-                autorEl.disabled = false;
-                rowPeritoContabilEl.classList.add('hidden');
-                if (valPeritoContabilValorEl) {
-                    valPeritoContabilValorEl.value = '';
-                }
-                colEsclarecimentosEl.classList.add('hidden');
-            }
-
-            // SE TEM QUALQUER PERITO DE CONHECIMENTO (que não seja Rogério)
-            if (peritosConhecimento.length > 0) {
-                console.log('[hcalc] Perítos de conhecimento detectados:', peritosConhecimento);
-                if (fieldsetPericiaConh) fieldsetPericiaConh.classList.remove('hidden');
-                chkPeritoConhEl.checked = true;
-                peritoConhCamposEl.classList.remove('hidden');
-                valPeritoNomeEl.value = peritosConhecimento.join(' | ');
-                console.log('[hcalc] ✓ Seção de conhecimento mostrada com peritos:', peritosConhecimento);
-            } else if (!temRogerio) {
-                // Esconder card de perícia se não há nenhum perito
-                if (fieldsetPericiaConh) fieldsetPericiaConh.classList.add('hidden');
-            }
-        }
 
         function atualizarStatusProximoCampo(nextInputId = null) {
             // Função simplificada - status removido da interface

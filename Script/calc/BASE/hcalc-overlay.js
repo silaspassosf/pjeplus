@@ -12,6 +12,7 @@
     const destacarElementoNaTimeline = (...a) => window.destacarElementoNaTimeline(...a);
     const encontrarItemTimeline = (href) => window.encontrarItemTimeline && window.encontrarItemTimeline(href);
     const expandirAnexos = (item) => window.expandirAnexos && window.expandirAnexos(item);
+    const overlayDraftApi = window.hcalcOverlayDraft;
     // ==========================================
     function initializeBotao() {
         if (window.__hcalcBotaoInitialized) {
@@ -53,6 +54,11 @@
         );
 
         const btn = document.getElementById('btn-abrir-homologacao');
+
+        if (overlayDraftApi && overlayDraftApi.restoreStateOnly(warn)) {
+            btn.textContent = 'Gerar Homologação';
+            btn.style.background = '#00509e';
+        }
 
         // Handler do botão — inicializa overlay lazy na primeira vez
         btn.onclick = async () => {
@@ -624,6 +630,7 @@
                     if (window.hcalcAtualizarResumoPlanilha) {
                         window.hcalcAtualizarResumoPlanilha(dados);
                     }
+                    queueOverlayDraftSave();
                 } catch (e2) {
                     err('Erro ao processar planilha PDF:', e2);
                     window.hcalcState.planilhaCarregada = false;
@@ -635,7 +642,37 @@
         // 3. LÓGICA DE INTERFACE E EVENTOS (TOGGLES)
         // ==========================================
         const $ = (id) => document.getElementById(id);
+        const modalEl = $('homologacao-modal');
         dbg('Binding de eventos iniciado.');
+
+        function atualizarResumoPlanilha(dados) {
+            const resumoCard = $('resumo-extracao-card');
+            const resumoConteudo = $('resumo-conteudo');
+            if (!resumoCard || !resumoConteudo || !dados) return;
+
+            resumoCard.style.display = 'block';
+            resumoConteudo.innerHTML = `
+                <div class="resumo-item"><strong>ID:</strong> ${dados.idPlanilha || 'N/A'}</div>
+                <div class="resumo-item"><strong>Crédito:</strong> R$ ${dados.verbas || '0,00'}</div>
+                ${dados.fgts ? `<div class="resumo-item"><strong>FGTS:</strong> R$ ${dados.fgts}</div>` : ''}
+                <div class="resumo-item"><strong>INSS Total:</strong> R$ ${dados.inssTotal || '0,00'}</div>
+                <div class="resumo-item"><strong>INSS Rec:</strong> R$ ${dados.inssAutor || '0,00'}</div>
+                ${dados.custas ? `<div class="resumo-item"><strong>Custas:</strong> R$ ${dados.custas}</div>` : ''}
+                <div class="resumo-item"><strong>Data:</strong> ${dados.dataAtualizacao || 'N/A'}</div>
+                ${dados.periodoCalculo ? `<div class="resumo-item"><strong>Período:</strong> ${dados.periodoCalculo}</div>` : ''}
+                ${dados.irpfIsento === false ? `<div class="resumo-item" style="color:#b45309"><strong>IRPF:</strong> Tributável</div>` : ''}
+            `;
+        }
+
+        window.hcalcAtualizarResumoPlanilha = atualizarResumoPlanilha;
+        const draftController = overlayDraftApi.createController({
+            $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
+            adicionarDepositoRecursal, adicionarPagamentoAntecipado,
+            aplicarEstiloRecuperacaoJudicial, atualizarDropdownsPlanilhas,
+            updateHighlight
+        });
+        const queueOverlayDraftSave = draftController.queueSave;
+        const restoreOverlayDraft = draftController.restore;
 
         // ==========================================
         // FASE 1: Sistema de Fases do Botão
@@ -1124,6 +1161,7 @@
                     }
                 }
 
+                restoreOverlayDraft();
                 $('homologacao-overlay').style.display = 'flex';
                 dbg('Overlay exibido para o usuario.');
 
@@ -1180,6 +1218,7 @@
                     btn.disabled = false;
 
                     dbg('Planilha extraída:', dados);
+                    queueOverlayDraftSave();
 
                     // Feedback visual momentâneo
                     setTimeout(() => {
@@ -1337,6 +1376,7 @@
         $('btn-adicionar-periodo').onclick = (e) => {
             e.preventDefault();
             adicionarLinhaPeridoDiverso();
+            queueOverlayDraftSave();
         };
 
         // ─── PLANILHAS EXTRAS: REGISTRO E SINCRONIZAÇÃO ───────────────────────────
@@ -1476,6 +1516,7 @@
             btnRemover.onclick = () => {
                 document.getElementById(rowId).remove();
                 atualizarDropdownsReclamadas(); // Liberar reclamada de volta
+                queueOverlayDraftSave();
             };
 
             // ─── AUTO-PREENCHER CAMPOS com planilha principal (padrão) ────────────────
@@ -1549,6 +1590,7 @@
                     btnCarregar.textContent = '✓ Analisada';
                     btnCarregar.style.background = '#10b981';
                     btnCarregar.disabled = false;
+                    queueOverlayDraftSave();
 
                 } catch (err) {
                     alert('Erro ao processar planilha: ' + err.message);
@@ -1763,11 +1805,13 @@
                     depositoDiv.remove();
                     const dep = window.hcalcState.depositosRecursais.find(d => d.idx === idx);
                     if (dep) dep.removed = true;
+                    queueOverlayDraftSave();
                 });
             }
 
             // Armazenar referência no estado
             window.hcalcState.depositosRecursais.push({ idx, removed: false });
+            queueOverlayDraftSave();
         }
 
         function atualizarVisibilidadeDepositoPrincipal(idx) {
@@ -1845,11 +1889,13 @@
                     pagamentoDiv.remove();
                     const pag = window.hcalcState.pagamentosAntecipados.find(p => p.idx === idx);
                     if (pag) pag.removed = true;
+                    queueOverlayDraftSave();
                 });
             }
 
             // Armazenar referência no estado
             window.hcalcState.pagamentosAntecipados.push({ idx, removed: false });
+            queueOverlayDraftSave();
         }
 
         // Bind dos botões de adicionar

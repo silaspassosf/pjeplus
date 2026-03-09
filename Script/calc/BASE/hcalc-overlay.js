@@ -3076,48 +3076,95 @@
                     const { todasPrincipais, subsidiariasIntegrais, subsidiariasComPeriodo } = dadosResp;
                     const principalIntegral = todasPrincipais[0];
 
-                    // Principais: homologação direta sem bloco introdutório
-                    todasPrincipais.forEach((prin, i) => {
-                        const letra = String.fromCharCode(97 + i);
-                        const labelPrin = prin.periodo === 'integral'
-                            ? `${bold(prin.nome)}`
-                            : `${bold(prin.nome)} (${prin.periodo})`;
+                    const formatarLista = (nomes) => {
+                        if (nomes.length === 0) return '';
+                        if (nomes.length === 1) return bold(nomes[0]);
+                        if (nomes.length === 2) return `${bold(nomes[0])} e ${bold(nomes[1])}`;
+                        const ultimos = nomes.slice(-2);
+                        const anteriores = nomes.slice(0, -2);
+                        return `${anteriores.map(n => bold(n)).join(', ')}, ${bold(ultimos[0])} e ${bold(ultimos[1])}`;
+                    };
 
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${labelPrin}:</strong></p>`;
-
-                        const idParaUsar = prin.periodo === 'integral'
-                            ? idPlanilha
-                            : (prin.usarMesmaPlanilha || !prin.idPlanilha ? idPlanilha : prin.idPlanilha);
-
-                        const usarPlaceholder = prin.periodo !== 'integral' && !prin.usarMesmaPlanilha && !prin.idPlanilha;
-
-                        appendBaseAteAntesPericiais({
-                            idCalculo: idParaUsar,
-                            usarPlaceholder: usarPlaceholder,
-                            reclamadaLabel: ''
-                        });
+                    // a) PRINCIPAL (sempre primeiro item)
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>a) Reclamada ${bold(principalIntegral.nome)}:</strong></p>`;
+                    
+                    appendBaseAteAntesPericiais({
+                        idCalculo: idPlanilha,
+                        usarPlaceholder: false,
+                        reclamadaLabel: ''
                     });
 
-                    // Subsidiárias: apenas linha de responsabilidade + texto simplificado
+                    // PARÁGRAFO DE RESPONSABILIDADE (logo após a principal)
                     const totalSubsidiarias = subsidiariasIntegrais.length + subsidiariasComPeriodo.length;
                     if (totalSubsidiarias > 0) {
-                        text += '<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">(Respondem apenas em caso de insuficiência patrimonial das principais)</p>';
+                        // Subsidiárias integrais (agrupadas em texto corrido)
+                        if (subsidiariasIntegrais.length > 0) {
+                            const listaFormatada = formatarLista(subsidiariasIntegrais);
+                            const verbo = subsidiariasIntegrais.length === 1 ? 'é responsável subsidiária' : 'são responsáveis subsidiárias';
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${listaFormatada} ${verbo} pelo período integral do contrato.</p>`;
+                        }
 
-                        let letraIdx = 0;
+                        // Subsidiárias com período diverso (mencionadas, mas item próprio vem depois)
+                        if (subsidiariasComPeriodo.length > 0) {
+                            subsidiariasComPeriodo.forEach(sub => {
+                                text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">A reclamada ${bold(sub.nome)} é devedora subsidiária por período diverso que será tratado em item próprio.</p>`;
+                            });
+                        }
 
-                        // Subsidiárias integrais: homologação normal
-                        subsidiariasIntegrais.forEach((nomeSub) => {
-                            const letra = String.fromCharCode(97 + todasPrincipais.length + letraIdx);
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${bold(nomeSub)}:</strong></p>`;
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><em>Subsidiária pelo período integral do contrato, com os mesmos valores definidos para a devedora principal <strong>${principalIntegral.nome}</strong>, conforme planilha <strong>${idPlanilha}</strong>.</em></p>`;
-                            letraIdx++;
+                        // Linha final: apenas principal paga neste momento
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Os valores neste momento são devidos apenas pela primeira reclamada.</p>`;
+                    }
+
+                    // PRINCIPAIS PARCIAIS (se houver)
+                    if (todasPrincipais.length > 1) {
+                        todasPrincipais.slice(1).forEach((prin, i) => {
+                            const letra = String.fromCharCode(98 + i); // b, c, d...
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${bold(prin.nome)} (${prin.periodo}):</strong></p>`;
+
+                            const idParaUsar = prin.usarMesmaPlanilha || !prin.idPlanilha ? idPlanilha : prin.idPlanilha;
+                            const usarPlaceholder = !prin.usarMesmaPlanilha && !prin.idPlanilha;
+
+                            appendBaseAteAntesPericiais({
+                                idCalculo: idParaUsar,
+                                usarPlaceholder: usarPlaceholder,
+                                reclamadaLabel: ''
+                            });
                         });
+                    }
 
-                        // Subsidiárias com período diverso: apenas menção simplificada
-                        subsidiariasComPeriodo.forEach((sub) => {
-                            const letra = String.fromCharCode(97 + todasPrincipais.length + letraIdx);
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) A reclamada ${bold(sub.nome)} é devedora subsidiária por período diverso que será tratado em item próprio.</strong></p>`;
-                            letraIdx++;
+                    // SUBSIDIÁRIAS COM PERÍODO DIVERSO (itens próprios b, c, d... ou após principais parciais)
+                    if (subsidiariasComPeriodo.length > 0) {
+                        const letraInicial = 97 + todasPrincipais.length; // Se só tem 1 principal: b. Se tem 2 principais: c
+                        
+                        subsidiariasComPeriodo.forEach((sub, idx) => {
+                            const letra = String.fromCharCode(letraInicial + idx);
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${bold(sub.nome)} (Subsidiária - ${sub.periodo}):</strong></p>`;
+
+                            // Buscar dados da planilha extra se existir
+                            let dadosExtra = null;
+                            if (sub.idPlanilha && window.hcalcState?.planilhasDisponiveis) {
+                                const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find(
+                                    p => p.idPlanilha === sub.idPlanilha
+                                );
+                                if (planilhaEncontrada) {
+                                    dadosExtra = {
+                                        verbas: planilhaEncontrada.dados.verbas,
+                                        fgts: planilhaEncontrada.dados.fgts,
+                                        dataAtualizacao: planilhaEncontrada.dados.dataAtualizacao,
+                                        fgtsDepositado: planilhaEncontrada.dados.fgtsDepositado
+                                    };
+                                }
+                            }
+
+                            const idSubPlanilha = sub.idPlanilha || idPlanilha;
+                            const comPlaceholder = !sub.idPlanilha;
+
+                            appendBaseAteAntesPericiais({
+                                idCalculo: idSubPlanilha,
+                                usarPlaceholder: comPlaceholder,
+                                reclamadaLabel: sub.nome,
+                                dadosOverride: dadosExtra
+                            });
                         });
                     }
                 }

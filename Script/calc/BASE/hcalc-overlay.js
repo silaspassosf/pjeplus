@@ -86,51 +86,82 @@
                 btn.style.color = '#000';
             }
 
-            // Se houver rascunho salvo (mesmo que restoreStateOnly=false), exibe botão de limpar/recuperar
-            if (rawDraft && rawDraft.state) {
-                // criar botão de restauração/limpeza se ainda não existir
-                if (!document.getElementById('btn-limpar-rascunho')) {
-                    const limpar = document.createElement('button');
-                    limpar.id = 'btn-limpar-rascunho';
-                    limpar.type = 'button';
-                    limpar.textContent = '🧹 Limpar dados e recomeçar';
-                    limpar.style.marginLeft = '8px';
-                    limpar.style.background = '#ef4444';
-                    limpar.style.color = '#fff';
-                    limpar.style.border = 'none';
-                    limpar.style.padding = '8px 10px';
-                    limpar.style.borderRadius = '6px';
-                    limpar.style.cursor = 'pointer';
-                    btn.insertAdjacentElement('afterend', limpar);
+            // Função utilitária para criar/remover botão de limpar rascunho do processo atual
+            function ensureClearDraftButton(shouldShow, planilhaCarregadaFlag) {
+                let limpar = document.getElementById('btn-limpar-rascunho');
+                if (shouldShow) {
+                    if (!limpar) {
+                        limpar = document.createElement('button');
+                        limpar.id = 'btn-limpar-rascunho';
+                        limpar.type = 'button';
+                        limpar.textContent = '🧹 Limpar dados e recomeçar';
+                        limpar.style.marginLeft = '8px';
+                        limpar.style.background = '#ef4444';
+                        limpar.style.color = '#fff';
+                        limpar.style.border = 'none';
+                        limpar.style.padding = '8px 10px';
+                        limpar.style.borderRadius = '6px';
+                        limpar.style.cursor = 'pointer';
+                        btn.insertAdjacentElement('afterend', limpar);
 
-                    // também adiciona pequeno botão de 'Restaurar' se planilha estava carregada no rascunho
-                    if (rawDraft.state.planilhaCarregada) {
+                        limpar.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            try {
+                                if (overlayDraftApi && typeof overlayDraftApi.clear === 'function') overlayDraftApi.clear();
+                            } catch (err) { console.warn('[hcalc] falha ao limpar rascunho', err); }
+                            try { if (window.hcalcState && typeof window.hcalcState.resetPrep === 'function') window.hcalcState.resetPrep(); } catch (err) { console.warn('[hcalc] resetPrep falhou', err); }
+                            // Restaurar botão ao estado inicial e abrir seletor
+                            btn.textContent = '\uD83D\uDCC4 Carregar Planilha';
+                            btn.style.background = '#00509e';
+                            btn.style.color = '#fff';
+                            const input = document.getElementById('input-planilha-pdf');
+                            if (input) input.click();
+                            // remover o próprio botão limpar
+                            try { limpar.remove(); } catch (e) {}
+                        });
+                    }
+                    // atualizar texto do botão principal se planilha carregada
+                    if (planilhaCarregadaFlag) {
                         btn.textContent = '🔁 Restaurar dados anteriores — planilha já lida';
                         btn.title = 'Restaurar dados anteriores extraídos da última planilha (já carregada)';
                         btn.style.background = '#f59e0b';
                         btn.style.color = '#000';
                     } else {
-                        // se rascunho existe mas planilha não estava carregada, mostrar aviso simples
                         btn.title = 'Rascunho encontrado (sem planilha carregada)';
                     }
-
-                    limpar.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        try {
-                            if (overlayDraftApi && typeof overlayDraftApi.clear === 'function') overlayDraftApi.clear();
-                        } catch (err) { console.warn('[hcalc] falha ao limpar rascunho', err); }
-                        try { if (window.hcalcState && typeof window.hcalcState.resetPrep === 'function') window.hcalcState.resetPrep(); } catch (err) { console.warn('[hcalc] resetPrep falhou', err); }
-                        // Restaurar botão ao estado inicial e abrir seletor
-                        btn.textContent = '\uD83D\uDCC4 Carregar Planilha';
-                        btn.style.background = '#00509e';
-                        btn.style.color = '#fff';
-                        const input = document.getElementById('input-planilha-pdf');
-                        if (input) input.click();
-                        // remover o próprio botão limpar
-                        try { limpar.remove(); } catch (e) {}
-                    });
+                } else {
+                    if (limpar) {
+                        try { limpar.remove(); } catch (e) { /* ignore */ }
+                    }
+                    // reset title if needed
+                    btn.title = btn.title && btn.title.indexOf('Rascunho') === 0 ? '' : btn.title;
                 }
             }
+
+            // Se houver rascunho salvo (mesmo que restoreStateOnly=false), exibe botão de limpar/recuperar
+            if (rawDraft && rawDraft.state) {
+                ensureClearDraftButton(true, !!rawDraft.state.planilhaCarregada);
+            }
+
+            // Escuta eventos de alteração de rascunho (salvar/limpar) para atualizar botão dinamicamente
+            window.addEventListener('hcalc:draft:changed', (ev) => {
+                try {
+                    const match = window.location.pathname.match(/processo\/([^/]+)/i);
+                    const processoId = match ? match[1] : null;
+                    if (!processoId) return;
+                    const key = `hcalc-overlay-draft:${processoId}`;
+                    if (ev.detail && ev.detail.key === key) {
+                        if (ev.detail.action === 'save') {
+                            // show button
+                            const raw = overlayDraftApi.loadRaw && overlayDraftApi.loadRaw(warn);
+                            ensureClearDraftButton(!!raw && !!raw.state, raw && raw.state && !!raw.state.planilhaCarregada);
+                        } else if (ev.detail.action === 'clear') {
+                            // hide button
+                            ensureClearDraftButton(false);
+                        }
+                    }
+                } catch (e) { dbg('[hcalc] draft change handler failed', e); }
+            });
         }
 
         // Handler do botão — inicializa overlay lazy na primeira vez

@@ -55,6 +55,9 @@
             }
 
             window.localStorage.setItem(currentKey, JSON.stringify(draft));
+            try {
+                window.dispatchEvent(new CustomEvent('hcalc:draft:changed', { detail: { key: currentKey, action: 'save' } }));
+            } catch (e) { /* ignore */ }
         } catch (e) {
             warnFn('[hcalc]', 'Falha ao salvar rascunho do overlay:', e);
         }
@@ -62,7 +65,11 @@
 
     function clearRaw(warnFn = console.warn) {
         try {
-            window.localStorage.removeItem(getOverlayDraftKey());
+            const key = getOverlayDraftKey();
+            window.localStorage.removeItem(key);
+            try {
+                window.dispatchEvent(new CustomEvent('hcalc:draft:changed', { detail: { key, action: 'clear' } }));
+            } catch (e) { /* ignore */ }
         } catch (e) {
             warnFn('[hcalc]', 'Falha ao limpar rascunho do overlay:', e);
         }

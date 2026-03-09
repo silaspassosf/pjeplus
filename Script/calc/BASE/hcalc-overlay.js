@@ -57,13 +57,20 @@
 
         if (overlayDraftApi) {
             const restored = overlayDraftApi.restoreStateOnly(warn);
-            dbg('overlayDraft restoreStateOnly ->', restored, 'planilhaCarregada=', window.hcalcState && window.hcalcState.planilhaCarregada);
+            const rawDraft = (typeof overlayDraftApi.loadRaw === 'function') ? overlayDraftApi.loadRaw(warn) : null;
+            dbg('overlayDraft restoreStateOnly ->', restored, 'planilhaCarregada=', window.hcalcState && window.hcalcState.planilhaCarregada, 'rawDraft=', !!rawDraft);
+
+            // Se o restore direto indicou planilha carregada, ajusta para restaurar com destaque
             if (restored && window.hcalcState && window.hcalcState.planilhaCarregada) {
                 btn.textContent = '🔁 Restaurar dados anteriores — planilha já lida';
                 btn.title = 'Restaurar dados anteriores extraídos da última planilha (já carregada)';
                 btn.style.background = '#f59e0b';
                 btn.style.color = '#000';
-                // Adiciona botão para limpar rascunho e recomeçar
+            }
+
+            // Se houver rascunho salvo (mesmo que restoreStateOnly=false), exibe botão de limpar/recuperar
+            if (rawDraft && rawDraft.state) {
+                // criar botão de restauração/limpeza se ainda não existir
                 if (!document.getElementById('btn-limpar-rascunho')) {
                     const limpar = document.createElement('button');
                     limpar.id = 'btn-limpar-rascunho';
@@ -77,6 +84,18 @@
                     limpar.style.borderRadius = '6px';
                     limpar.style.cursor = 'pointer';
                     btn.insertAdjacentElement('afterend', limpar);
+
+                    // também adiciona pequeno botão de 'Restaurar' se planilha estava carregada no rascunho
+                    if (rawDraft.state.planilhaCarregada) {
+                        btn.textContent = '🔁 Restaurar dados anteriores — planilha já lida';
+                        btn.title = 'Restaurar dados anteriores extraídos da última planilha (já carregada)';
+                        btn.style.background = '#f59e0b';
+                        btn.style.color = '#000';
+                    } else {
+                        // se rascunho existe mas planilha não estava carregada, mostrar aviso simples
+                        btn.title = 'Rascunho encontrado (sem planilha carregada)';
+                    }
+
                     limpar.addEventListener('click', (e) => {
                         e.preventDefault();
                         try {

@@ -2391,29 +2391,23 @@
             const appendBaseAteAntesPericiais = ({
                 idCalculo,
                 usarPlaceholder = false,
-                reclamadaLabel = ''
+                reclamadaLabel = '',
+                dadosOverride = null  // Dados de planilha extra (opcional)
             }) => {
-                // BUSCAR DADOS DA PLANILHA CORRETA
-                let dadosPlanilha;
-                if (idCalculo === idPlanilha) {
-                    // Planilha principal
-                    dadosPlanilha = window.hcalcState.planilhaExtracaoData;
-                } else {
-                    // Planilha extra - buscar em planilhasDisponiveis
-                    dadosPlanilha = (window.hcalcState.planilhasDisponiveis || []).find(p => p.id === idCalculo)?.dados;
-                }
-
-                // Se não encontrou dados da planilha, usar placeholder
-                if (!dadosPlanilha) {
-                    usarPlaceholder = true;
-                }
-
-                // USAR DADOS DA PLANILHA CORRETA (não variáveis globais)
                 let introTxt = '';
-                const vCredito = usarPlaceholder ? 'R$XXX' : `R$${dadosPlanilha?.verbas || valCredito}`;
-                const vFgts = usarPlaceholder ? 'R$XXX' : `R$${dadosPlanilha?.fgts || valFgts}`;
-                const vData = usarPlaceholder ? 'XXX' : (dadosPlanilha?.dataAtualizacao || valData);
-                const fgtsDataDaPlanilha = dadosPlanilha?.fgtsDepositado || false;
+                // Usar dados do override OU variáveis globais
+                const vCredito = usarPlaceholder ? 'R$XXX' : 
+                    (dadosOverride ? `R$${dadosOverride.verbas}` : `R$${valCredito}`);
+                const vFgts = usarPlaceholder ? 'R$XXX' : 
+                    (dadosOverride ? `R$${dadosOverride.fgts || '0,00'}` : `R$${valFgts}`);
+                const vData = usarPlaceholder ? 'XXX' : 
+                    (dadosOverride ? dadosOverride.dataAtualizacao : valData);
+                const fgtsSeparado = dadosOverride 
+                    ? (dadosOverride.fgts && dadosOverride.fgts !== '0,00')
+                    : isFgtsSep;
+                const fgtsDepositadoFlag = dadosOverride
+                    ? dadosOverride.fgtsDepositado
+                    : (isFgtsSep && (document.querySelector('input[name="fgts-tipo"]:checked')?.value === 'depositado'));
 
                 if (isPerito && peritoEsclareceu) {
                     introTxt += `As impugnações apresentadas já foram objeto de esclarecimentos pelo Sr. Perito sob o #${bold(pecaPerito)}, nada havendo a ser reparado no laudo. Portanto, HOMOLOGO os cálculos do expert (#${bold(idCalculo)}), `;
@@ -2421,22 +2415,11 @@
                     introTxt += `Tendo em vista a concordância das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idCalculo)}), `;
                 }
 
-                // Verificar se FGTS foi depositado
-                // Se for planilha extra, usar dados da própria planilha; se for principal, usar formulário
-                const temFgts = (idCalculo !== idPlanilha && dadosPlanilha)
-                    ? (dadosPlanilha.fgts && dadosPlanilha.fgts !== '0,00')
-                    : isFgtsSep;
-                
-                const fgtsTipo = (idCalculo !== idPlanilha && dadosPlanilha)
-                    ? (dadosPlanilha.fgtsDepositado ? 'depositado' : 'devido')
-                    : (isFgtsSep ? (document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido') : 'devido');
-                const fgtsJaDepositado = fgtsTipo === 'depositado';
-
-                if (temFgts && !fgtsJaDepositado) {
+                if (fgtsSeparado && !fgtsDepositadoFlag) {
                     // FGTS devido (a ser recolhido em conta vinculada) - texto especial Lei 14.905/2024
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, para ${bold(vData)}. `;
                     introTxt += `Atualização na forma da Lei 14.905/2024 e da decisão proferida pela SDI-1 do C. TST, ou seja, a correção monetária será feita pelo IPCA-E até a distribuição da ação; taxa Selic do ajuizamento até 29/08/2024, e, a partir de 30/08/2024, atualização pelo IPCA, com juros de mora correspondentes à diferença entre a SELIC e o IPCA, conforme o artigo 406 do Código Civil.`;
-                } else if (temFgts && fgtsJaDepositado) {
+                } else if (fgtsSeparado && fgtsDepositadoFlag) {
                     // FGTS depositado (não menciona "a ser recolhido")
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)}, atualizado para ${bold(vData)}. `;
                     
@@ -2470,7 +2453,7 @@
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
                 // 2º parágrafo: FGTS devido - liberação após recolhimento
-                if (temFgts && !fgtsJaDepositado) {
+                if (isFgtsSep && !fgtsJaDepositado) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
                 }
 
@@ -2801,9 +2784,10 @@
 
                             text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Há depósito${grupo.depositos.length > 1 ? 's' : ''} recursal${grupo.depositos.length > 1 ? 's' : ''} da devedora ${grupo.natureza} (${grupo.depositante} ${idsTexto}) via ${grupo.banco}.</p>`;
 
-                            if (grupo.todosGarantia) {
+                            // Seguro garantia: só menciona liberação para PRINCIPAL
+                            if (grupo.todosGarantia && grupo.natureza === 'principal') {
                                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Tratando-se de seguro garantia, não há liberação imediata de valores nesta oportunidade.</p>`;
-                            } else {
+                            } else if (!grupo.todosGarantia) {
                                 // Processar liberações
                                 const depsLiberaveis = grupo.depositos.filter(d => d.deveLiberarDeposito && d.isDepositoJudicial);
 
@@ -3119,12 +3103,30 @@
                                 // ── CASO 2: planilha própria carregada ou sem planilha ──
                                 const idSubPlanilha = sub.idPlanilha || idPlanilha;
                                 const comPlaceholder = !sub.idPlanilha; // sem planilha própria = placeholder
+                                
+                                // Buscar dados da planilha extra se existir
+                                let dadosExtra = null;
+                                if (sub.idPlanilha && window.hcalcState?.planilhasDisponiveis) {
+                                    const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find(
+                                        p => p.idPlanilha === sub.idPlanilha
+                                    );
+                                    if (planilhaEncontrada) {
+                                        dadosExtra = {
+                                            verbas: planilhaEncontrada.dados.verbas,
+                                            fgts: planilhaEncontrada.dados.fgts,
+                                            dataAtualizacao: planilhaEncontrada.dados.dataAtualizacao,
+                                            fgtsDepositado: planilhaEncontrada.dados.fgtsDepositado
+                                        };
+                                    }
+                                }
+                                
                                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">
                                     <em>Subsidiária pelo período de <strong>${sub.periodo}</strong>.</em></p>`;
                                 appendBaseAteAntesPericiais({
                                     idCalculo: idSubPlanilha,
                                     usarPlaceholder: comPlaceholder,
-                                    reclamadaLabel: sub.nome
+                                    reclamadaLabel: sub.nome,
+                                    dadosOverride: dadosExtra  // Passa dados da planilha extra
                                 });
                             }
                             letraIdx++;

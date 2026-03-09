@@ -1,6 +1,6 @@
 (function () {
     'use strict';
-    const HCALC_DEBUG = false;
+    const HCALC_DEBUG = true;
     const dbg = (...args) => { if (HCALC_DEBUG) console.log('[hcalc]', ...args); };
     const warn = (...args) => console.warn('[hcalc]', ...args);
     const err = (...args) => console.error('[hcalc]', ...args);
@@ -610,33 +610,8 @@
         }
 
         // ==========================================
-        // Bind no input file (FASE 4 do MD)
+        // Bind no input file (FASE 4 do MD) - será definido abaixo após declaração de funções
         // ==========================================
-        const fileInput = document.getElementById('input-planilha-pdf');
-        if (fileInput && !fileInput._hcalcBound) {
-            fileInput._hcalcBound = true;
-            fileInput.addEventListener('change', async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                try {
-                    await carregarPDFJSSeNecessario();
-                    const dados = await processarPlanilhaPDF(file);
-                    // Atualiza estado
-                    window.hcalcState.planilhaExtracaoData = dados;
-                    window.hcalcState.planilhaCarregada = !!dados && !!dados.sucesso;
-
-                    // Atualizar card/resumo
-                    if (window.hcalcAtualizarResumoPlanilha) {
-                        window.hcalcAtualizarResumoPlanilha(dados);
-                    }
-                    queueOverlayDraftSave();
-                } catch (e2) {
-                    err('Erro ao processar planilha PDF:', e2);
-                    window.hcalcState.planilhaCarregada = false;
-                }
-            });
-        }
 
         // ==========================================
         // 3. LÓGICA DE INTERFACE E EVENTOS (TOGGLES)
@@ -1057,6 +1032,7 @@
                 // ==========================================
                 if (window.hcalcState.planilhaExtracaoData) {
                     const dados = window.hcalcState.planilhaExtracaoData;
+                    dbg('Preenchendo campos do overlay com planilhaExtracaoData:', dados);
 
                     if (dados.idPlanilha && $('val-id')) $('val-id').value = dados.idPlanilha;
                     if (dados.verbas && $('val-credito')) $('val-credito').value = dados.verbas;
@@ -1195,57 +1171,71 @@
         };
 
         // ==========================================
-        // FASE 2: Handler do Input File (Carregar Planilha)
+        // FASE 2: Handler do Input File (Carregar Planilha) - UNIFICADO
         // ==========================================
-        $('input-planilha-pdf').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        const fileInput = document.getElementById('input-planilha-pdf');
+        if (fileInput && !fileInput._hcalcBound) {
+            fileInput._hcalcBound = true;
+            fileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
 
-            const btn = $('btn-abrir-homologacao');
-            btn.textContent = '⏳ Processando...';
-            btn.disabled = true;
+                const btn = $('btn-abrir-homologacao');
+                btn.textContent = '⏳ Processando...';
+                btn.disabled = true;
 
-            try {
-                // Configurar PDF.js (primeira vez)
-                const loaded = await carregarPDFJSSeNecessario();
-                if (!loaded) {
-                    throw new Error('PDF.js não disponível');
-                }
+                try {
+                    // Configurar PDF.js (primeira vez)
+                    const loaded = await carregarPDFJSSeNecessario();
+                    if (!loaded) {
+                        throw new Error('PDF.js não disponível');
+                    }
 
-                // Processar planilha
-                const dados = await processarPlanilhaPDF(file);
+                    // Processar planilha
+                    const dados = await processarPlanilhaPDF(file);
 
-                if (dados.sucesso) {
-                    // Salvar no state
-                    window.hcalcState.planilhaExtracaoData = dados;
-                    window.hcalcState.planilhaCarregada = true;
+                    if (dados.sucesso) {
+                        // Salvar no state
+                        window.hcalcState.planilhaExtracaoData = dados;
+                        window.hcalcState.planilhaCarregada = true;
 
-                    // Atualizar dropdowns de linhas extras com a planilha principal recém-carregada
-                    atualizarDropdownsPlanilhas();
+                        // Atualizar card/resumo
+                        if (window.hcalcAtualizarResumoPlanilha) {
+                            window.hcalcAtualizarResumoPlanilha(dados);
+                        }
 
-                    // Atualizar botão
-                    btn.textContent = '✓ Dados Extraídos';
-                    btn.style.background = '#10b981';
+                        // Atualizar dropdowns de linhas extras com a planilha principal recém-carregada
+                        atualizarDropdownsPlanilhas();
+
+                        // Atualizar botão
+                        btn.textContent = '✓ Dados Extraídos';
+                        btn.style.background = '#10b981';
+                        btn.disabled = false;
+
+                        // Limpar o rascunho em FASE 2 para impedir que campos vazios do DOM sejam salvos e sobreponham a Fase 3
+                        if (window.hcalcClearOverlayDraft) {
+                            window.hcalcClearOverlayDraft();
+                        }
+
+                        dbg('Planilha extraída:', dados);
+
+                        // Feedback visual momentâneo
+                        setTimeout(() => {
+                            btn.textContent = 'Gerar Homologação';
+                            btn.style.background = '#00509e';
+                        }, 2000);
+                    } else {
+                        throw new Error(dados.erro || 'Erro desconhecido');
+                    }
+                } catch (error) {
+                    console.error('[HCalc] Erro ao processar PDF:', error.message);
+                    alert('Erro ao processar PDF: ' + error.message);
+                    btn.textContent = '📄 Carregar Planilha';
                     btn.disabled = false;
-
-                    dbg('Planilha extraída:', dados);
-                    queueOverlayDraftSave();
-
-                    // Feedback visual momentâneo
-                    setTimeout(() => {
-                        btn.textContent = 'Gerar Homologação';
-                        btn.style.background = '#00509e';
-                    }, 2000);
-                } else {
-                    throw new Error(dados.erro || 'Erro desconhecido');
+                    window.hcalcState.planilhaCarregada = false;
                 }
-            } catch (error) {
-                console.error('[HCalc] Erro ao processar PDF:', error.message);
-                alert('Erro ao processar PDF: ' + error.message);
-                btn.textContent = '📄 Carregar Planilha';
-                btn.disabled = false;
-            }
-        };
+            });
+        }
 
         // Handler do botão Reload (recarregar planilha)
         $('btn-reload-planilha').onclick = () => {

@@ -40,7 +40,8 @@
                 idCalculo,
                 usarPlaceholder = false,
                 reclamadaLabel = '',
-                dadosOverride = null
+                dadosOverride = null,
+                textoResponsabilidade = ''
             }) => {
                 let introTxt = '';
                 const vCredito = usarPlaceholder ? 'R$XXX' :
@@ -88,6 +89,10 @@
                 }
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
+                if (textoResponsabilidade) {
+                    text += textoResponsabilidade;
+                }
+
                 if (fgtsSeparado && !fgtsDepositadoFlag) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
                 }
@@ -131,8 +136,8 @@
                 if (ignorarInss) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Pela natureza do crédito, não há contribuições previdenciárias devidas.</p>`;
                 } else {
-                    const valInssRecStr = $('val-inss-rec').value || '0';
-                    const valInssTotalStr = $('val-inss-total').value || '0';
+                    const valInssRecStr = dadosOverride && dadosOverride.inssAutor ? dadosOverride.inssAutor : ($('val-inss-rec').value || '0');
+                    const valInssTotalStr = dadosOverride && dadosOverride.inssTotal ? dadosOverride.inssTotal : ($('val-inss-total').value || '0');
                     const valInssRec = parseMoney(valInssRecStr);
                     const valInssTotal = parseMoney(valInssTotalStr);
                     let valInssReclamadaStr = valInssTotalStr;
@@ -146,10 +151,11 @@
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Nos casos em que os recolhimentos forem efetuados diretamente pela Justiça do Trabalho, o reclamado deverá enviar através do e-Social somente o evento \"S-2500 – Processos Trabalhistas\".</p>`;
                 }
 
-                if ($('irpf-tipo').value === 'isento') {
+                const irpfIsentoFlag = dadosOverride !== null && dadosOverride.irpfIsento !== undefined ? dadosOverride.irpfIsento : ($('irpf-tipo').value === 'isento');
+                if (irpfIsentoFlag) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Não há deduções fiscais cabíveis.</p>`;
                 } else {
-                    const vBase = $('val-irpf-base').value || '[VALOR]';
+                    const vBase = dadosOverride ? '[VALOR BASE IRPF NA PLANILHA]' : ($('val-irpf-base').value || '[VALOR]');
                     if ($('calc-origem').value === 'pjecalc') {
                         const vMes = $('val-irpf-meses').value || '[X]';
                         text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Ficam autorizados os descontos fiscais, calculados sobre as verbas tributáveis (${bold('R$' + vBase)}), pelo período de ${bold(vMes + ' meses')}.</p>`;
@@ -159,7 +165,8 @@
                 }
 
                 if (!$('ignorar-hon-autor').checked) {
-                    const vHonA = normalizeMoneyInput($('val-hon-autor').value || '[VALOR]');
+                    const honAVal = dadosOverride && dadosOverride.honAutor ? dadosOverride.honAutor : ($('val-hon-autor').value || '[VALOR]');
+                    const vHonA = normalizeMoneyInput(honAVal);
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Honorários advocatícios sucumbenciais pela reclamada, no importe de ${bold(vHonA)}, para ${bold(valData)}.</p>`;
                 }
 
@@ -177,7 +184,8 @@
                             text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Honorários advocatícios sucumbenciais em favor da reclamada na ordem de ${bold(p)}, a serem descontados do crédito do autor.</p>`;
                         }
                     } else {
-                        const vHonR = normalizeMoneyInput($('val-hon-reu').value || '[VALOR]');
+                        const honRVal = dadosOverride && dadosOverride.honReu ? dadosOverride.honReu : ($('val-hon-reu').value || '[VALOR]');
+                        const vHonR = normalizeMoneyInput(honRVal);
                         if (temSuspensiva) {
                             text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Honorários advocatícios pela reclamante sob condição suspensiva, no importe de ${bold(vHonR)}, para ${bold(valData)}, diante da gratuidade deferida.</p>`;
                         } else {
@@ -561,74 +569,42 @@
                 const dadosResp = responsabilidadesTextoApi.gerarTextoResponsabilidades();
 
                 if (dadosResp) {
-                    const { todasPrincipais, subsidiariasIntegrais, subsidiariasComPeriodo } = dadosResp;
-                    const principalIntegral = todasPrincipais[0];
-
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>a) Reclamada ${bold(principalIntegral.nome)}:</strong></p>`;
+                    const { textoIntro, todasPrincipais, subsidiariasComPeriodo } = dadosResp;
 
                     appendBaseAteAntesPericiais({
                         idCalculo: idPlanilha,
                         usarPlaceholder: false,
-                        reclamadaLabel: ''
+                        reclamadaLabel: '',
+                        textoResponsabilidade: textoIntro
                     });
 
-                    const totalSubsidiarias = subsidiariasIntegrais.length + subsidiariasComPeriodo.length;
-                    if (totalSubsidiarias > 0) {
-                        if (subsidiariasIntegrais.length > 0) {
-                            const listaFormatada = responsabilidadesTextoApi.formatarLista(subsidiariasIntegrais);
-                            const verbo = subsidiariasIntegrais.length === 1 ? 'é responsável subsidiária' : 'são responsáveis subsidiárias';
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${listaFormatada} ${verbo} pelo período integral do contrato.</p>`;
-                        }
-
-                        if (subsidiariasComPeriodo.length > 0) {
-                            subsidiariasComPeriodo.forEach((sub) => {
-                                text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">A reclamada ${bold(sub.nome)} é devedora subsidiária por período diverso que será tratado em item próprio.</p>`;
-                            });
-                        }
-
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Os valores neste momento são devidos apenas pela primeira reclamada.</p>`;
-                    }
-
                     if (todasPrincipais.length > 1) {
-                        todasPrincipais.slice(1).forEach((prin, index) => {
-                            const letra = String.fromCharCode(98 + index);
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${bold(prin.nome)} (${prin.periodo}):</strong></p>`;
-
+                        todasPrincipais.slice(1).forEach((prin) => {
                             const idParaUsar = prin.usarMesmaPlanilha || !prin.idPlanilha ? idPlanilha : prin.idPlanilha;
                             const usarPlaceholder = !prin.usarMesmaPlanilha && !prin.idPlanilha;
 
                             appendBaseAteAntesPericiais({
                                 idCalculo: idParaUsar,
                                 usarPlaceholder,
-                                reclamadaLabel: ''
+                                reclamadaLabel: `Reclamada ${bold(prin.nome)} (${prin.periodo}):`
                             });
                         });
                     }
 
                     if (subsidiariasComPeriodo.length > 0) {
-                        const letraInicial = 97 + todasPrincipais.length;
-
-                        subsidiariasComPeriodo.forEach((sub, index) => {
-                            const letra = String.fromCharCode(letraInicial + index);
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${letra}) Reclamada ${bold(sub.nome)} (Subsidiária - ${sub.periodo}):</strong></p>`;
+                        subsidiariasComPeriodo.forEach((sub) => {
+                            const periodoLabel = sub.periodo === 'integral' ? 'Cálculo Específico' : sub.periodo;
 
                             let dadosExtra = null;
                             if (sub.idPlanilha && window.hcalcState?.planilhasDisponiveis) {
                                 const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find((planilha) => {
-                                    // suportar objetos do tipo {id, label, dados} (extras) ou entradas diretas com idPlanilha
                                     if (planilha.id && planilha.id === sub.idPlanilha) return true;
                                     if (planilha.idPlanilha && planilha.idPlanilha === sub.idPlanilha) return true;
                                     if (planilha.dados && planilha.dados.idPlanilha && planilha.dados.idPlanilha === sub.idPlanilha) return true;
                                     return false;
                                 });
                                 if (planilhaEncontrada) {
-                                    const dadosSrc = planilhaEncontrada.dados || planilhaEncontrada;
-                                    dadosExtra = {
-                                        verbas: dadosSrc.verbas,
-                                        fgts: dadosSrc.fgts,
-                                        dataAtualizacao: dadosSrc.dataAtualizacao,
-                                        fgtsDepositado: dadosSrc.fgtsDepositado
-                                    };
+                                    dadosExtra = planilhaEncontrada.dados || planilhaEncontrada;
                                 }
                             }
 
@@ -638,7 +614,7 @@
                             appendBaseAteAntesPericiais({
                                 idCalculo: idSubPlanilha,
                                 usarPlaceholder: comPlaceholder,
-                                reclamadaLabel: sub.nome,
+                                reclamadaLabel: `Reclamada ${bold(sub.nome)} (Subsidiária - ${periodoLabel}):`,
                                 dadosOverride: dadosExtra
                             });
                         });

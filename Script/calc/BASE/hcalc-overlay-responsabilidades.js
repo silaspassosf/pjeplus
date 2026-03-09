@@ -343,8 +343,31 @@
                 !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome)
             );
 
+            const nomesPrincipais = [principalSelecionada, ...principaisParciais.map(p => p.nome)];
+            const txtPrincipais = formatarLista(nomesPrincipais);
+            const verboPrin = nomesPrincipais.length > 1 ? 'são devedoras principais' : 'é devedora principal';
+
+            let textoIntroStr = `${txtPrincipais} ${verboPrin}`;
+
+            if (subsidiariasIntegrais.length > 0) {
+                const txtSubsInt = formatarLista(subsidiariasIntegrais);
+                const verboSubInt = subsidiariasIntegrais.length > 1 ? 'são subsidiárias' : 'é subsidiária';
+                textoIntroStr += `, ${txtSubsInt} ${verboSubInt} pelo período integral do contrato`;
+            }
+
+            if (subsidiariasComPeriodo.length > 0) {
+                const txtSubsDiv = formatarLista(subsidiariasComPeriodo.map(s => s.nome));
+                const verboSubDiv = subsidiariasComPeriodo.length > 1 ? 'são subsidiárias' : 'é subsidiária';
+                const verboTratadas = subsidiariasComPeriodo.length > 1 ? 'sendo tratadas' : 'sendo tratada';
+                textoIntroStr += `. Já ${txtSubsDiv} ${verboSubDiv} por período diverso, ${verboTratadas} em item próprio a seguir`;
+            }
+
+            textoIntroStr += `. Portanto, os valores neste momento são devidos apenas pelas principais.`;
+
+            const textoIntro = `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${textoIntroStr}</p>`;
+
             return {
-                textoIntro: '',
+                textoIntro,
                 principalIntegral: principalSelecionada,
                 principaisParciais,
                 subsidiariasIntegrais,

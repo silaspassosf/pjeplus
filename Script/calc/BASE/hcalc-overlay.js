@@ -475,6 +475,9 @@
                         <option value="subsidiarias" selected>Devedoras Subsidiárias</option>
                     </select>
                 </div>
+                <div class="row" style="margin-top: 10px;">
+                    <label><input type="checkbox" id="resp-rec-judicial"> Recuperação Judicial/Falência (direciona execução, sem intimação prévia)</label>
+                </div>
                 <div id="resp-sub-opcoes" class="row">
                     <label><input type="checkbox" id="resp-integral" checked> Responde pelo período total</label>
                     <label style="margin-left: 15px;"><input type="checkbox" id="resp-diversos"> Períodos Diversos (Gera estrutura para preencher)</label>
@@ -2692,6 +2695,14 @@
                 }
 
                 // ==========================================
+                // RECUPERAÇÃO JUDICIAL/FALÊNCIA
+                // ==========================================
+                const temRecJudicial = $('resp-rec-judicial')?.checked || false;
+                if (temRecJudicial) {
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
+                }
+
+                // ==========================================
                 // DEPÓSITOS RECURSAIS (múltiplos)
                 // ==========================================
                 if ($('chk-deposito').checked) {
@@ -2727,12 +2738,16 @@
                                 depositanteResolvida = depositanteResolvida || primeiraReclamada || '[RECLAMADA]';
                                 isPrin = true; // Forçar como principal (todas são principais em solidária)
                                 criterioLiberacaoDeposito = 'solidaria';
+                            } else if (temRecJudicial && !isPrin) {
+                                // Recuperação Judicial: subsidiárias também liberam depósitos
+                                criterioLiberacaoDeposito = 'rec-judicial-subsidiaria';
                             }
 
                             const deveLiberarDeposito = isDepositoJudicial && (
                                 criterioLiberacaoDeposito === 'reclamada-unica' ||
                                 criterioLiberacaoDeposito === 'subsidiaria-principal' ||
                                 criterioLiberacaoDeposito === 'solidaria' ||
+                                criterioLiberacaoDeposito === 'rec-judicial-subsidiaria' ||
                                 (criterioLiberacaoDeposito === 'manual' && isPrin)
                             );
 

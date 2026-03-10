@@ -281,19 +281,21 @@ def main():
         print("F.PY - SCRIPT DE TESTE RÁPIDO")
         print("=" * 80)
         
-        # 1. ESCOLHER DRIVER (PJE)
-        print("\n[1/3] Escolha o tipo de driver PJE:")
-        print("  [V] VT (máquina específica)")
+        # 1. ESCOLHER DRIVER (PJE) - DEFAULT PARA PC
+        print("\n[1/3] Escolha o tipo de driver PJE: (default P)")
+        # opção VT comentada por padrão
+        # print("  [V] VT (máquina específica)")
         print("  [P] PC (padrão)")
-        
+
         # allow non-interactive choice via env var or CLI arg for automated runs
         escolha = None
         if len(sys.argv) > 1:
             escolha = sys.argv[1].strip().upper()
         if not escolha:
             escolha = os.environ.get('F_CHOICE', '').strip().upper()
+        # se nada fornecido, usar PC por padrão (P)
         if not escolha:
-            escolha = input("\nDigite V ou P: ").strip().upper()
+            escolha = 'P'
         
         if escolha == 'V':
             driver_pje = criar_driver_vt_visivel()

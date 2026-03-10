@@ -109,62 +109,97 @@ def fluxo_cls(
                                     pec_elem = None
 
                         if pec_elem:
-                            # Debug: registrar atributos iniciais do elemento PEC
+                            # Implementação legada mais robusta para togglear PEC (scroll + clicar label via JS)
                             try:
-                                cls = pec_elem.get_attribute('class') or ''
-                            except Exception:
-                                cls = ''
-                            try:
-                                inp = None
+                                # localizar pec_checkbox e pec_input como no legado
+                                pec_checkbox = None
+                                pec_input = None
                                 try:
-                                    inp = pec_elem.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                                    pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]')
+                                    pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                                 except Exception:
-                                    pass
-                                aria_checked = inp.get_attribute('aria-checked') if inp is not None else None
-                                checked_attr = inp.get_attribute('checked') if inp is not None else None
-                                is_selected_prop = inp.is_selected() if inp is not None else None
-                            except Exception:
-                                aria_checked = checked_attr = is_selected_prop = None
-                            logger.info(f"[ATO][PEC][DEBUG] want_pec={want_pec!r} class='{cls}' aria_checked={aria_checked!r} checked_attr={checked_attr!r} is_selected_prop={is_selected_prop!r}")
-
-                            is_checked = False
-                            try:
-                                if 'mat-checkbox-checked' in (cls or ''):
-                                    is_checked = True
-                                else:
-                                    if inp is not None and (aria_checked == 'true' or checked_attr == 'true' or is_selected_prop):
-                                        is_checked = True
-                            except Exception:
-                                is_checked = False
-
-                            # Se o estado atual difere do desejado, tentar alterar e logar o resultado
-                            if want_pec != is_checked:
-                                try:
                                     try:
-                                        pec_elem.click()
+                                        pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'div.checkbox-pec mat-checkbox')
+                                        pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                                     except Exception:
-                                        driver.execute_script('arguments[0].click();', pec_elem)
-                                    logger.info('[ATO][PEC] Tentativa de togglear PEC via click/JS')
-                                    time.sleep(0.25)
-                                    # reavaliar estado
+                                        try:
+                                            pec_input = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]')
+                                            pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                                        except Exception:
+                                            pec_checkbox = None
+                                            pec_input = None
+
+                                if not pec_checkbox or not pec_input:
+                                    logger.debug('[ATO][PEC] Checkbox PEC não encontrado na estrutura esperada')
+                                else:
+                                    # debug: estado antes
                                     try:
-                                        cls2 = pec_elem.get_attribute('class') or ''
+                                        cls = pec_checkbox.get_attribute('class') or ''
+                                    except Exception:
+                                        cls = ''
+                                    try:
+                                        aria_checked = pec_input.get_attribute('aria-checked')
+                                    except Exception:
+                                        aria_checked = None
+                                    try:
+                                        checked_attr = pec_input.get_attribute('checked')
+                                    except Exception:
+                                        checked_attr = None
+                                    try:
+                                        is_selected_prop = pec_input.is_selected()
+                                    except Exception:
+                                        is_selected_prop = None
+                                    logger.info(f"[ATO][PEC][DEBUG] want_pec={want_pec!r} class='{cls}' aria_checked={aria_checked!r} checked_attr={checked_attr!r} is_selected_prop={is_selected_prop!r}")
+
+                                    checked = False
+                                    try:
+                                        if aria_checked == 'true' or checked_attr == 'true' or is_selected_prop or 'mat-checkbox-checked' in cls:
+                                            checked = True
+                                    except Exception:
+                                        checked = False
+
+                                    # ação: marcar ou desmarcar via clique no label quando disponível
+                                    if want_pec and not checked:
+                                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', pec_checkbox)
+                                        time.sleep(0.2)
+                                        try:
+                                            label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
+                                            driver.execute_script('arguments[0].click();', label)
+                                        except Exception:
+                                            driver.execute_script('arguments[0].click();', pec_checkbox)
+                                        logger.info('[ATO][PEC] Marcado (legado)')
+                                        time.sleep(0.3)
+                                    elif not want_pec and checked:
+                                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', pec_checkbox)
+                                        time.sleep(0.2)
+                                        try:
+                                            label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
+                                            driver.execute_script('arguments[0].click();', label)
+                                        except Exception:
+                                            driver.execute_script('arguments[0].click();', pec_checkbox)
+                                        logger.info('[ATO][PEC] Desmarcado (legado)')
+                                        time.sleep(0.3)
+
+                                    # debug: estado depois
+                                    try:
+                                        cls2 = pec_checkbox.get_attribute('class') or ''
                                     except Exception:
                                         cls2 = ''
                                     try:
-                                        inp2 = None
-                                        try:
-                                            inp2 = pec_elem.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                                        except Exception:
-                                            pass
-                                        aria_checked2 = inp2.get_attribute('aria-checked') if inp2 is not None else None
-                                        checked_attr2 = inp2.get_attribute('checked') if inp2 is not None else None
-                                        is_selected_prop2 = inp2.is_selected() if inp2 is not None else None
+                                        aria_checked2 = pec_input.get_attribute('aria-checked')
                                     except Exception:
-                                        aria_checked2 = checked_attr2 = is_selected_prop2 = None
-                                    logger.info(f"[ATO][PEC][DEBUG] depois click class='{cls2}' aria_checked={aria_checked2!r} checked_attr={checked_attr2!r} is_selected_prop={is_selected_prop2!r}")
+                                        aria_checked2 = None
+                                    try:
+                                        checked_attr2 = pec_input.get_attribute('checked')
+                                    except Exception:
+                                        checked_attr2 = None
+                                    try:
+                                        is_selected_prop2 = pec_input.is_selected()
+                                    except Exception:
+                                        is_selected_prop2 = None
+                                    logger.info(f"[ATO][PEC][DEBUG] depois action class='{cls2}' aria_checked={aria_checked2!r} checked_attr={checked_attr2!r} is_selected_prop={is_selected_prop2!r}")
+
                                     changed = True
-                                    # tentar gravar a alteração localmente
                                     try:
                                         btn_gravar_local = WebDriverWait(driver, 2).until(
                                             EC.element_to_be_clickable((By.CSS_SELECTOR, 'pje-intimacao-automatica button[aria-label*="Gravar"]'))
@@ -173,8 +208,8 @@ def fluxo_cls(
                                         time.sleep(0.6)
                                     except Exception:
                                         pass
-                                except Exception as e:
-                                    logger.error(f'[ATO][PEC] Erro ao reaplicar PEC: {e}')
+                            except Exception as e:
+                                logger.error(f'[ATO][PEC] Erro na rotina legada de PEC: {e}')
                     except Exception as e:
                         logger.debug(f'[ATO][PEC] Não foi possível verificar/reaplicar PEC: {e}')
 

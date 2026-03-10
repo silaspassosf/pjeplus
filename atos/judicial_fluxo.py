@@ -866,6 +866,52 @@ def ato_judicial(
                 btn_sim.click()
                 time.sleep(1)
                 logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
+                # Após confirmar movimento, aplicar sigilo (se solicitado) ANTES do save final
+                try:
+                    if sigilo:
+                        logger.info('[ATO][SIGILO] Aplicando sigilo após gravação do movimento...')
+                        try:
+                            slide = WebDriverWait(driver, 5).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo'))
+                            )
+                            try:
+                                input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                            except Exception:
+                                input_sig = None
+
+                            is_checked = False
+                            try:
+                                if input_sig:
+                                    is_checked = (input_sig.get_attribute('aria-checked') == 'true' or input_sig.is_selected())
+                                else:
+                                    cls = slide.get_attribute('class') or ''
+                                    is_checked = 'mat-checked' in cls
+                            except Exception:
+                                is_checked = False
+
+                            if not is_checked:
+                                try:
+                                    label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
+                                    safe_click_no_scroll(driver, label, log=False)
+                                except Exception:
+                                    try:
+                                        if input_sig:
+                                            driver.execute_script('arguments[0].click();', input_sig)
+                                        else:
+                                            driver.execute_script('arguments[0].click();', slide)
+                                    except Exception:
+                                        # fallback: set property and dispatch events
+                                        try:
+                                            driver.execute_script("var el = arguments[0].querySelector('input[type=\\"checkbox\\"]') || arguments[0]; el.checked = true; el.dispatchEvent(new Event('change', {bubbles:true}));", slide)
+                                        except Exception:
+                                            logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
+                                time.sleep(0.5)
+                            sigilo_ativado = True
+                            logger.info('[ATO][SIGILO] Sigilo aplicado (após movimento)')
+                        except Exception as e:
+                            logger.debug(f'[ATO][SIGILO] Falha ao aplicar sigilo após movimento: {e}')
+                except Exception:
+                    pass
                 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
@@ -873,19 +919,51 @@ def ato_judicial(
 
         # ===== SIGILO/INTIMAR (se necessário na aba destinatários) =====
         sigilo_ativado = False
-        if sigilo:
-            logger.info('[ATO][SIGILO] Ativando sigilo...')
+        # Se já aplicamos sigilo após o movimento, não reaplicar aqui
+        if sigilo and not sigilo_ativado:
+            logger.info('[ATO][SIGILO] Ativando sigilo (fallback pós-movimento)...')
             try:
-                checkbox_sigilo = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-checkbox#sigilo'))
-                )
-                if not checkbox_sigilo.is_selected():
-                    checkbox_sigilo.click()
+                # Preferir o mat-slide-toggle mais específico (ver legado)
+                try:
+                    slide = WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo'))
+                    )
+                    try:
+                        input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                    except Exception:
+                        input_sig = None
+                    is_checked = False
+                    try:
+                        if input_sig:
+                            is_checked = (input_sig.get_attribute('aria-checked') == 'true' or input_sig.is_selected())
+                        else:
+                            cls = slide.get_attribute('class') or ''
+                            is_checked = 'mat-checked' in cls
+                    except Exception:
+                        is_checked = False
+
+                    if not is_checked:
+                        try:
+                            label = slide.find_element(By.CSS_SELECTOR, 'label.mat-slide-toggle-label')
+                            safe_click_no_scroll(driver, label, log=False)
+                        except Exception:
+                            try:
+                                if input_sig:
+                                    driver.execute_script('arguments[0].click();', input_sig)
+                                else:
+                                    driver.execute_script('arguments[0].click();', slide)
+                            except Exception:
+                                try:
+                                    driver.execute_script("var el = arguments[0].querySelector('input[type=\\"checkbox\\"]') || arguments[0]; el.checked = true; el.dispatchEvent(new Event('change', {bubbles:true}));", slide)
+                                except Exception:
+                                    logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
+                        time.sleep(0.5)
                     sigilo_ativado = True
-                logger.info('[ATO][SIGILO]  Sigilo ativado')
+                    logger.info('[ATO][SIGILO]  Sigilo ativado (fallback)')
+                except Exception as e:
+                    logger.error(f'[ATO][SIGILO]  Erro ao ativar sigilo (fallback): {e}')
             except Exception as e:
                 logger.error(f'[ATO][SIGILO]  Erro ao ativar sigilo: {e}')
-                # Não interrompe o fluxo
 
         if intimar_ativado:
             logger.info('[ATO][INTIMAR] Marcando intimação...')

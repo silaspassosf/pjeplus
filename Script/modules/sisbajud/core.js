@@ -101,31 +101,46 @@ window.SisbCore = {
     async extrairDadosBloqueios() {
         console.log('[SISB Core] Iniciando extração de bloqueios...');
 
-        // Aguardar modal aparecer (até 15s)
-        let modal = null;
+        // Aguardar container principal (modal ou página PDPJ) e painéis de réus aparecerem (até 15s)
+        let cont = null;
         for (let tentativa = 0; tentativa < 25; tentativa++) {
-            modal = document.querySelector('.cdk-overlay-container .mat-dialog-container');
-            if (modal) {
-                const txt = modal.innerText || modal.textContent || '';
-                if (txt.includes('protocolo') || txt.includes('Protocolo')) {
+            cont = document.querySelector('.cdk-overlay-container .mat-dialog-container') || document.querySelector('.container-fluid');
+            if (cont) {
+                const txt = cont.innerText || cont.textContent || '';
+                const formatTxt = txt.toLowerCase();
+                if (formatTxt.includes('protocolo')) {
                     break;
                 }
             }
-            await sleep(600);
+            await new Promise(resolve => setTimeout(resolve, 600));
         }
 
-        if (!modal) {
-            console.warn('[SISB Core] Modal não encontrado');
+        if (!cont) {
+            console.warn('[SISB Core] Container de dados não encontrado');
             return null;
         }
 
-        // Extrair protocolo da ordem
-        const matchProto = modal.innerHTML.match(/Número do protocolo:\s*(\d+)/i);
-        const protocolo = matchProto ? matchProto[1] : 'N/A';
-        console.log('[SISB Core] Protocolo encontrado:', protocolo);
-
         // Aguardar headers de executados aparecerem
-        await sleep(500);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Extrair protocolo da ordem
+        let protocolo = 'N/A';
+        // 1. Tentar estrutura HTML PDPJ
+        const protoLabels = Array.from(document.querySelectorAll('.sisbajud-label')).filter(el => {
+            return el.textContent && el.textContent.trim().toLowerCase().includes('protocolo');
+        });
+        if (protoLabels.length > 0 && protoLabels[0].nextElementSibling) {
+            protocolo = protoLabels[0].nextElementSibling.textContent.trim();
+        } else {
+            // 2. Tentar regex ignorando tags HTML
+            const txtSemTags = cont.innerHTML.replace(/<[^>]+>/g, ' ');
+            const matchProto = txtSemTags.match(/Número do protocolo:\s*(\d+)/i);
+            if (matchProto) {
+                protocolo = matchProto[1];
+            }
+        }
+
+        console.log('[SISB Core] Protocolo encontrado:', protocolo);
 
         // Estrutura de retorno
         const dados_bloqueios = {
@@ -134,8 +149,8 @@ window.SisbCore = {
             ordens_com_erro_bloqueio: []
         };
 
-        // Buscar todos os headers de executados
-        const headers = modal.querySelectorAll('mat-expansion-panel-header.sisbajud-mat-expansion-panel-header');
+        // Buscar todos os headers de executados globalmente no documento 
+        const headers = document.querySelectorAll('mat-expansion-panel-header.sisbajud-mat-expansion-panel-header');
 
         if (!headers || headers.length === 0) {
             console.warn('[SISB Core] Nenhum header de executado encontrado');

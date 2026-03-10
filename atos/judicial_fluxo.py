@@ -149,7 +149,7 @@ def fluxo_cls(
                                         is_selected_prop = pec_input.is_selected()
                                     except Exception:
                                         is_selected_prop = None
-                                    logger.info(f"[ATO][PEC][DEBUG] want_pec={want_pec!r} class='{cls}' aria_checked={aria_checked!r} checked_attr={checked_attr!r} is_selected_prop={is_selected_prop!r}")
+                                    
 
                                     checked = False
                                     try:
@@ -197,7 +197,7 @@ def fluxo_cls(
                                         is_selected_prop2 = pec_input.is_selected()
                                     except Exception:
                                         is_selected_prop2 = None
-                                    logger.info(f"[ATO][PEC][DEBUG] depois action class='{cls2}' aria_checked={aria_checked2!r} checked_attr={checked_attr2!r} is_selected_prop={is_selected_prop2!r}")
+                                    
 
                                     changed = True
                                     try:

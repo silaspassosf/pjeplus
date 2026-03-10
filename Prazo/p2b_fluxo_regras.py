@@ -82,6 +82,10 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral('exequente, ora embargado')],
          'gigs', '1/fernanda/julgamento embargos', None),
 
+        # REGRA DE EMBARGOS - quando decidido procedentes os embargos -> executar ato_meios
+        ([gerar_regex_geral('procedentes os embargos'), gerar_regex_geral('procedente os embargos')],
+         None, None, ato_meios),
+
         # REGRA DE PEC
         ([gerar_regex_geral(k) for k in ['hasta', 'saldo devedor']],
          'gigs', '1//xs saldo', None),

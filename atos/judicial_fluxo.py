@@ -67,6 +67,121 @@ def fluxo_cls(
     logger.info('[CLS][TIMING][INICIO]')
     
     try:
+        # Helper local: verifica e reaplica sigilo/PEC após um save que possa ter resetado o estado
+        def _verificar_reaplicar_sigilo_pec():
+            try:
+                changed = False
+                # Reaplicar sigilo se solicitado
+                if sigilo:
+                    try:
+                        checkbox_sig = WebDriverWait(driver, 3).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-checkbox#sigilo'))
+                        )
+                        try:
+                            is_selected = checkbox_sig.is_selected()
+                        except Exception:
+                            is_selected = 'mat-checked' in (checkbox_sig.get_attribute('class') or '')
+                        if not is_selected:
+                            try:
+                                checkbox_sig.click()
+                            except Exception:
+                                driver.execute_script('arguments[0].click();', checkbox_sig)
+                            logger.info('[ATO][SIGILO] Reaplicado sigilo após save')
+                            changed = True
+                    except Exception as e:
+                        logger.debug(f'[ATO][SIGILO] Não foi possível reencontrar sigilo: {e}')
+
+                # Reaplicar PEC se solicitado
+                if marcar_pec is not None:
+                    want_pec = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
+                    try:
+                        pec_elem = None
+                        try:
+                            pec_elem = driver.find_element(By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]')
+                        except Exception:
+                            try:
+                                pec_elem = driver.find_element(By.CSS_SELECTOR, 'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"]')
+                            except Exception:
+                                try:
+                                    pec_input = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Enviar para PEC"]')
+                                    pec_elem = pec_input.find_element(By.XPATH, '..')
+                                except Exception:
+                                    pec_elem = None
+
+                        if pec_elem:
+                            # Debug: registrar atributos iniciais do elemento PEC
+                            try:
+                                cls = pec_elem.get_attribute('class') or ''
+                            except Exception:
+                                cls = ''
+                            try:
+                                inp = None
+                                try:
+                                    inp = pec_elem.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                                except Exception:
+                                    pass
+                                aria_checked = inp.get_attribute('aria-checked') if inp is not None else None
+                                checked_attr = inp.get_attribute('checked') if inp is not None else None
+                                is_selected_prop = inp.is_selected() if inp is not None else None
+                            except Exception:
+                                aria_checked = checked_attr = is_selected_prop = None
+                            logger.info(f"[ATO][PEC][DEBUG] want_pec={want_pec!r} class='{cls}' aria_checked={aria_checked!r} checked_attr={checked_attr!r} is_selected_prop={is_selected_prop!r}")
+
+                            is_checked = False
+                            try:
+                                if 'mat-checkbox-checked' in (cls or ''):
+                                    is_checked = True
+                                else:
+                                    if inp is not None and (aria_checked == 'true' or checked_attr == 'true' or is_selected_prop):
+                                        is_checked = True
+                            except Exception:
+                                is_checked = False
+
+                            # Se o estado atual difere do desejado, tentar alterar e logar o resultado
+                            if want_pec != is_checked:
+                                try:
+                                    try:
+                                        pec_elem.click()
+                                    except Exception:
+                                        driver.execute_script('arguments[0].click();', pec_elem)
+                                    logger.info('[ATO][PEC] Tentativa de togglear PEC via click/JS')
+                                    time.sleep(0.25)
+                                    # reavaliar estado
+                                    try:
+                                        cls2 = pec_elem.get_attribute('class') or ''
+                                    except Exception:
+                                        cls2 = ''
+                                    try:
+                                        inp2 = None
+                                        try:
+                                            inp2 = pec_elem.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
+                                        except Exception:
+                                            pass
+                                        aria_checked2 = inp2.get_attribute('aria-checked') if inp2 is not None else None
+                                        checked_attr2 = inp2.get_attribute('checked') if inp2 is not None else None
+                                        is_selected_prop2 = inp2.is_selected() if inp2 is not None else None
+                                    except Exception:
+                                        aria_checked2 = checked_attr2 = is_selected_prop2 = None
+                                    logger.info(f"[ATO][PEC][DEBUG] depois click class='{cls2}' aria_checked={aria_checked2!r} checked_attr={checked_attr2!r} is_selected_prop={is_selected_prop2!r}")
+                                    changed = True
+                                    # tentar gravar a alteração localmente
+                                    try:
+                                        btn_gravar_local = WebDriverWait(driver, 2).until(
+                                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'pje-intimacao-automatica button[aria-label*="Gravar"]'))
+                                        )
+                                        btn_gravar_local.click()
+                                        time.sleep(0.6)
+                                    except Exception:
+                                        pass
+                                except Exception as e:
+                                    logger.error(f'[ATO][PEC] Erro ao reaplicar PEC: {e}')
+                    except Exception as e:
+                        logger.debug(f'[ATO][PEC] Não foi possível verificar/reaplicar PEC: {e}')
+
+                return changed
+            except Exception as e:
+                logger.debug(f'[ATO][REAPLICAR] Erro geral ao reaplicar sigilo/PEC: {e}')
+                return False
         logger.info('=' * 60)
         logger.info('FLUXO CLS - INICIANDO')
         logger.info('=' * 60)
@@ -111,10 +226,45 @@ def fluxo_cls(
             
             # Se já está em /minutar após abrir tarefa, pular navegação e transição
             if ja_em_minutar:
-                logger.info('[CLS] ✅ Já em /minutar após abrir tarefa - fluxo CLS concluído')
-                timing_total = time.time() - timing_inicio
-                logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
-                return True
+                # Abertura da tarefa pode ter levado diretamente a /assinar, /minutar ou /conclusao
+                current = (driver.current_url or '').lower()
+                if '/assinar' in current:
+                    logger.info('[CLS] ✅ Já em /assinar após abrir tarefa - ato cumprido')
+                    timing_total = time.time() - timing_inicio
+                    logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /assinar após abrir tarefa)')
+                    return True
+                elif '/minutar' in current:
+                    logger.info('[CLS] ✅ Já em /minutar após abrir tarefa - fluxo CLS concluído')
+                    focar_campo_minutar_se_necessario(driver)
+                    timing_total = time.time() - timing_inicio
+                    logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
+                    return True
+                elif '/conclusao' in current:
+                    logger.info('[CLS] Detectado /conclusao após abrir tarefa — executando tipo de conclusão para transicionar a /minutar')
+                    # Escolher o tipo de conclusão e aguardar transição para minutar
+                    try:
+                        if not escolher_tipo_conclusao(driver, conclusao_tipo):
+                            logger.error(f'[CLS] Falha ao escolher tipo de conclusão após abrir tarefa: {conclusao_tipo}')
+                            timing_total = time.time() - timing_inicio
+                            logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao escolher tipo conclusão')
+                            return False
+                        if not aguardar_transicao_minutar(driver):
+                            logger.error('[CLS] Falha na transição para minutar após escolher tipo de conclusão')
+                            timing_total = time.time() - timing_inicio
+                            logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha na transição minutar')
+                            return False
+                        focar_campo_minutar_se_necessario(driver)
+                        timing_total = time.time() - timing_inicio
+                        logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (transicionado para /minutar após conclusão)')
+                        return True
+                    except Exception as e:
+                        logger.error(f'[CLS][ERRO CRÍTICO] Exceção ao processar /conclusao após abrir tarefa: {e}')
+                        import traceback
+                        logger.error(traceback.format_exc())
+                        return False
+                else:
+                    # Estado inesperado — continuar o fluxo padrão
+                    logger.info(f'[CLS] Estado inesperado após abrir tarefa: {current} — continuando fluxo')
 
         # ===== PASSO 2: LIMPAR OVERLAYS =====
         logger.info('[CLS] Passo 2: Limpando overlays...')
@@ -433,7 +583,30 @@ def ato_judicial(
         # ===== ABA DESTINATÁRIOS - PRAZOS =====
         # Verificar intimar_ativado (como no legado)
         intimar_ativado = True if intimar is None else str(intimar).lower() in ("sim", "true", "1")
-        
+
+        # Se intimar_ativado for False, desativa o toggle de intimações (comportamento do legado)
+        if not intimar_ativado:
+            logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
+            try:
+                guia_intimacoes = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-editor-lateral div[aria-posinset="1"]'))
+                )
+                if guia_intimacoes.get_attribute('aria-selected') == "false":
+                    guia_intimacoes.click()
+                    time.sleep(0.5)
+
+                toggle_intimar = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-intimacao-automatica label.mat-slide-toggle-label'))
+                )
+                parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
+                if 'mat-checked' in parent_toggle.get_attribute('class'):
+                    toggle_intimar.click()
+                    logger.info('[ATO][INTIMAR] Toggle "Intimar?" desativado.')
+                else:
+                    logger.info('[ATO][INTIMAR] Toggle "Intimar?" já estava desativado.')
+            except Exception as e:
+                logger.error(f'[ATO][INTIMAR] Erro ao desativar intimações: {e}')
+
         if prazo is not None and intimar_ativado:
             logger.info(f'[ATO][PRAZO] Preenchendo prazos: {prazo} (apenas_primeiro={marcar_primeiro_destinatario})')
             try:
@@ -660,7 +833,7 @@ def ato_judicial(
                 logger.error(f'[ATO][SIGILO]  Erro ao ativar sigilo: {e}')
                 # Não interrompe o fluxo
 
-        if intimar:
+        if intimar_ativado:
             logger.info('[ATO][INTIMAR] Marcando intimação...')
             try:
                 checkbox_intimar = WebDriverWait(driver, 10).until(
@@ -686,6 +859,21 @@ def ato_judicial(
                 btn_salvar.click()
                 logger.info('[ATO][SALVAR] ✅ Ato salvo')
                 time.sleep(1.5)
+                # Verifica e reaplica sigilo/PEC caso o save tenha re-renderizado a aba
+                try:
+                    changed = _verificar_reaplicar_sigilo_pec()
+                    if changed:
+                        logger.info('[ATO][SALVAR] Mudança detectada após reaplicar; salvando novamente...')
+                        try:
+                            btn_salvar2 = WebDriverWait(driver, 5).until(
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
+                            )
+                            btn_salvar2.click()
+                            time.sleep(1)
+                        except Exception as e:
+                            logger.debug(f'[ATO][SALVAR] Não foi possível salvar novamente: {e}')
+                except Exception:
+                    pass
             except Exception as e:
                 logger.error(f'[ATO][SALVAR] ❌ {e}')
                 return False, False
@@ -702,6 +890,22 @@ def ato_judicial(
             except Exception as e:
                 logger.error(f'[ATO][GRAVAR] ❌ {e}')
                 return False, False
+
+            # Após gravar localmente, revalidar/reaplicar sigilo/PEC antes do save final
+            try:
+                changed = _verificar_reaplicar_sigilo_pec()
+                if changed:
+                    logger.info('[ATO][GRAVAR] Mudança detectada após reaplicar; executando save final...')
+                    try:
+                        btn_salvar_final = WebDriverWait(driver, 5).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
+                        )
+                        btn_salvar_final.click()
+                        time.sleep(1)
+                    except Exception as e:
+                        logger.debug(f'[ATO][GRAVAR] Não foi possível executar save final: {e}')
+            except Exception:
+                pass
 
         # 8. ASSINAR: Clicar em assinar se especificado
         if Assinar:

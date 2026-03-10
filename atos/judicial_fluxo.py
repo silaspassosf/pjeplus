@@ -883,7 +883,7 @@ def ato_judicial(
                                     except Exception:
                                         # fallback: set property and dispatch events
                                         try:
-                                            driver.execute_script("var el = arguments[0].querySelector('input[type=\\"checkbox\\"]') || arguments[0]; el.checked = true; el.dispatchEvent(new Event('change', {bubbles:true}));", slide)
+                                            driver.execute_script('''var el = arguments[0].querySelector('input[type="checkbox"]') || arguments[0]; el.checked = true; el.dispatchEvent(new Event('change', {bubbles:true}));''', slide)
                                         except Exception:
                                             logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
                                 time.sleep(0.5)

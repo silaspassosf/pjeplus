@@ -515,7 +515,21 @@
                     GM_setValue('GOD_DADOS_CAPTURA', JSON.stringify(d));
                     GM_setValue('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
 
-                    document.body.innerHTML = '<h1 style="color:green;text-align:center">DADOS OK!</h1>';
+                    // Mostrar um pequeno overlay em vez de substituir toda a página
+                    try {
+                        const existing = document.getElementById('maisPje_overlay_extracao_ok');
+                        if (existing) existing.remove();
+                        const overlay = document.createElement('div');
+                        overlay.id = 'maisPje_overlay_extracao_ok';
+                        overlay.textContent = 'Extração OK';
+                        overlay.style.cssText = 'position:fixed;top:20px;right:20px;background:rgba(40,167,69,0.95);color:#fff;padding:8px 12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.22);z-index:2147483647;font-weight:700;font-family:sans-serif;';
+                        document.body.appendChild(overlay);
+                        setTimeout(() => {
+                            overlay.style.transition = 'opacity 400ms';
+                            overlay.style.opacity = '0';
+                            setTimeout(() => overlay.remove(), 500);
+                        }, 1800);
+                    } catch (e) { console.warn('maisPJe: falha ao mostrar overlay de extração', e); }
                     /* mantendo aba aberta por solicitação do usuário:
                     setTimeout(() => window.close(), 500);
                     */

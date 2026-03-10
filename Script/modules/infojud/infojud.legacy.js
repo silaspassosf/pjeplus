@@ -437,7 +437,10 @@
     else if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         if (document.body.innerText.includes('Nenhum registro') || document.body.innerText.includes('Erro')) {
             GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
-            setTimeout(() => window.close(), 1000); return;
+            /* mantendo aba aberta por solicitação do usuário:
+            setTimeout(() => window.close(), 1000);
+            */
+            return;
         }
         setTimeout(() => {
             const tds = Array.from(document.querySelectorAll('td'));
@@ -445,10 +448,14 @@
             const cpf = labelCpf ? labelCpf.nextElementSibling?.textContent.replace(/\D/g, '') : null;
             if (cpf && cpf.length === 11) {
                 GM_openInTab(URL_BASE_CPF + cpf, { active: true, insert: true });
+                /* mantendo aba aberta por solicitação do usuário:
                 setTimeout(() => window.close(), 500);
+                */
             } else {
                 GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
+                /* mantendo aba aberta por solicitação do usuário:
                 setTimeout(() => window.close(), 500);
+                */
             }
         }, 800);
     }
@@ -509,14 +516,18 @@
                     GM_setValue('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
 
                     document.body.innerHTML = '<h1 style="color:green;text-align:center">DADOS OK!</h1>';
+                    /* mantendo aba aberta por solicitação do usuário:
                     setTimeout(() => window.close(), 500);
+                    */
                 } else {
                     throw new Error('Dados incompletos');
                 }
             } catch (e) {
                 console.error(e);
                 GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
+                /* mantendo aba aberta por solicitação do usuário:
                 setTimeout(() => window.close(), 1000);
+                */
             }
         }, 1000);
     }

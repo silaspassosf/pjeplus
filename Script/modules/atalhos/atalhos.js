@@ -69,16 +69,25 @@ function initMain() {
                 showToast('F8: atalho disponível apenas em Gigs → Relatórios → Atividades.', '#f44336');
                 return;
             }
-            showToast('F8: Iniciando arquivamento (ler tabela)...', '#607d8b');
+            showToast('F8: Iniciando arquivamento (varrendo tabela da página)...', '#607d8b');
             try {
-                const tabela = await lerTabelaTxt();
-                if (!tabela || tabela.length === 0) {
-                    showToast('F8: tabela.txt vazia ou não encontrada.', '#f44336');
+                // Buscar todas as linhas com a coluna Tarefa que apresentam ação "Escolher"/"Tipo"
+                let linhas = buscarLinhasDoTipo();
+                if (!linhas || linhas.length === 0) {
+                    showToast('F8: Nenhuma linha com "Escolher/Tipo" encontrada na página.', '#f44336');
                     return;
                 }
-                const processoId = tabela[0];
-                showToast(`F8: Processando ${processoId}`, '#607d8b');
-                await performArquivamentoFlow(processoId);
+
+                // Processar sequencialmente cada linha encontrada
+                for (let i = 0; i < linhas.length; i++) {
+                    const row = linhas[i];
+                    const resumo = (row.textContent || '').trim().split('\n').map(s => s.trim()).filter(Boolean).slice(0,2).join(' | ');
+                    showToast(`F8: Processando linha ${i+1}/${linhas.length}: ${resumo}`, '#607d8b');
+                    await processRowArquivamento(row);
+                    await sleep(800);
+                }
+
+                showToast('F8: Arquivamento em todas as linhas concluído.', '#4caf50');
             } catch (err) {
                 console.error('[F8] Erro:', err);
                 showToast(`F8 erro: ${err.message || err}`, '#f44336');
@@ -192,6 +201,111 @@ async function performArquivamentoFlow(processoId) {
     }
     try { assinarBtn.click(); } catch (e) { assinarBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
     showToast('F8: Arquivamento iniciado e Assinar clicado.', '#4caf50');
+}
+
+// Retorna todas as linhas da tabela de atividades cuja coluna de tarefa tem ação 'Escolher' ou 'Tipo'
+function buscarLinhasDoTipo() {
+    try {
+        const rows = Array.from(document.querySelectorAll('pje-gigs-atividades table tbody tr'));
+        const out = [];
+        for (const row of rows) {
+            if (row.style.display === 'none') continue;
+            // procurar botão/elemento que represente a ação 'Escolher' ou 'Tipo'
+            const escolher = row.querySelector('button[title*="Escolher"], button[mattooltip*="Escolher"], .escolher-tipo, a[title*="Escolher"]');
+            if (escolher) out.push(row);
+            else {
+                // heurística: coluna tarefa contendo texto 'Escolher' ou 'Tipo'
+                const txt = (row.textContent || '').toLowerCase();
+                if (txt.includes('escolher') || txt.includes('tipo')) out.push(row);
+            }
+        }
+        return out;
+    } catch (e) {
+        return [];
+    }
+}
+
+// Executa o fluxo de arquivamento para a linha fornecida: abre, clica arquivar, assina e fecha
+async function processRowArquivamento(row) {
+    // localizar botão 'Escolher' preferencialmente
+    let escolherBtn = row.querySelector('button[title*="Escolher"], button[mattooltip*="Escolher"], .escolher-tipo, a[title*="Escolher"]');
+    if (!escolherBtn) {
+        escolherBtn = Array.from(row.querySelectorAll('button, a, span')).find(el => {
+            const t = (el.textContent || '').trim().toLowerCase();
+            return t === 'escolher' || t.includes('escolher') || t.includes('tipo');
+        });
+    }
+    if (!escolherBtn) { showToast('F8: botão Escolher não encontrado na linha.', '#f44336'); return; }
+
+    // abrir nova aba/controlar janela
+    let newWin = null;
+    const href = escolherBtn.href || escolherBtn.getAttribute('data-href') || escolherBtn.getAttribute('href');
+    if (href) {
+        newWin = window.open(href, '_blank');
+    } else {
+        escolherBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+        await sleep(300);
+        const link = row.querySelector('a[target="_blank"], a');
+        if (link && link.href) newWin = window.open(link.href, '_blank');
+    }
+
+    if (!newWin) { showToast('F8: Não foi possível abrir nova aba para arquivamento.', '#f44336'); return; }
+
+    // aguardar carregamento (mesmo-origin quando possível)
+    for (let i = 0; i < 40; i++) {
+        try {
+            if (newWin.document && (newWin.document.readyState === 'complete' || newWin.document.readyState === 'interactive')) break;
+        } catch (e) { /* cross-origin */ }
+        await sleep(200);
+    }
+
+    try { newWin.focus(); } catch (e) { }
+
+    // clicar ícone arquivar
+    const icone = await esperarElementoInWindow(newWin, 'i.fas.fa-archive.icone-app', 8000);
+    if (!icone) { showToast('F8: Ícone de arquivar não encontrado na aba.', '#f44336'); try { newWin.close(); } catch (e) {} return; }
+    try { icone.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); } catch (e) { icone.click(); }
+    await sleep(1000);
+
+    // clicar Assinar
+    const btnAssinar = await esperarElementoInWindow(newWin, 'button span.mat-button-wrapper', 8000);
+    let assinarBtn = null;
+    if (btnAssinar) {
+        assinarBtn = Array.from(newWin.document.querySelectorAll('button')).find(b => b.textContent.trim().toLowerCase().includes('assinar'));
+    }
+    if (!assinarBtn) { showToast('F8: Botão Assinar não encontrado na aba.', '#f44336'); try { newWin.close(); } catch (e) {} return; }
+    try { assinarBtn.click(); } catch (e) { assinarBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+    showToast('F8: Arquivamento iniciado e Assinar clicado.', '#4caf50');
+
+    // fechar aba após ação
+    await sleep(800);
+    try { newWin.close(); } catch (e) { }
+}
+
+// ─── LER TABELA DIRETAMENTE DA PÁGINA (GIGS → RELATÓRIOS → ATIVIDADES) ───
+async function lerTabelaDaPagina() {
+    try {
+        const rows = Array.from(document.querySelectorAll('pje-gigs-atividades table tbody tr'));
+        const results = [];
+        for (const row of rows) {
+            if (row.style.display === 'none') continue;
+            const text = (row.textContent || '').trim();
+            if (!text) continue;
+            // Tentar extrair um identificador de processo semelhante às linhas de tabela.txt
+            // Procurar por sequência de dígitos e caracteres comuns (.-/)
+            const m = text.match(/[0-9\.\-\/]{5,}/);
+            if (m && m[0]) {
+                results.push(m[0].trim());
+            } else {
+                // fallback: usar primeira célula textual da linha
+                const firstCell = row.querySelector('td');
+                if (firstCell && firstCell.textContent.trim()) results.push(firstCell.textContent.trim());
+            }
+        }
+        return results;
+    } catch (e) {
+        return [];
+    }
 }
 
 // ─── MODO WORKER ─────────────────────────────────────────────────

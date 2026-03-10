@@ -62,10 +62,10 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # ============================================================================
 
 # URL para navegar após login (caso de teste solicitado)
-URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/6519982/detalhe/"
+URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/2773282/detalhe"
 
 # Dados adicionais (se necessário para testes)
-NUMERO_PROCESSO = "0010644-31.2024.5.02.0472"
+NUMERO_PROCESSO = "2773282"
 
 
 # ============================================================================
@@ -221,41 +221,42 @@ def criar_driver_vt_visivel():
 
 def executar_testes(driver_pje):
     """
-    TESTE ISOLADO: Execução de pec_idpj no processo já aberto
+    TESTE ISOLADO: Execução de `ato_sobrestamento` (wrapper) no processo já aberto
     """
     print("\n" + "=" * 80)
-    print("TESTE ISOLADO: pec_idpj")
+    print("TESTE ISOLADO: ato_sobrestamento")
     print("=" * 80)
 
     try:
-        from atos.wrappers_pec import pec_idpj
+        from atos.wrappers_ato import ato_sobrestamento
         import time
-        
-        print("\n[1/1] Executando pec_idpj com timing detalhado...")
+
+        print("\n[1/1] Executando ato_sobrestamento (wrapper) com timing detalhado...")
         print("-" * 80)
-        
+
         inicio_total = time.time()
         try:
-            print(f"[PEC_IDPJ] Iniciando...")
-            resultado = pec_idpj(driver_pje, debug=True)
+            print(f"[ATO_SOBRESTAMENTO] Iniciando...")
+            resultado, sigilo_ativado = ato_sobrestamento(driver_pje, debug=True)
             tempo_total = time.time() - inicio_total
-            
+
             print("-" * 80)
-            print(f"[PEC_IDPJ] Resultado: {resultado}")
-            print(f"[PEC_IDPJ] Tempo total: {tempo_total:.2f}s")
-            
+            print(f"[ATO_SOBRESTAMENTO] Resultado: {resultado}")
+            print(f"[ATO_SOBRESTAMENTO] Sigilo ativado: {sigilo_ativado}")
+            print(f"[ATO_SOBRESTAMENTO] Tempo total: {tempo_total:.2f}s")
+
             if resultado:
-                print("✅ pec_idpj executado com sucesso")
+                print("✅ ato_sobrestamento executado com sucesso")
                 return True
             else:
-                print("⚠️ pec_idpj retornou False")
+                print("⚠️ ato_sobrestamento retornou False")
                 return False
-                
+
         except Exception as e:
             tempo_total = time.time() - inicio_total
             print("-" * 80)
-            print(f"❌ pec_idpj FALHOU: {e}")
-            print(f"[PEC_IDPJ] Tempo até erro: {tempo_total:.2f}s")
+            print(f"❌ ato_sobrestamento FALHOU: {e}")
+            print(f"[ATO_SOBRESTAMENTO] Tempo até erro: {tempo_total:.2f}s")
             import traceback
             traceback.print_exc()
             return False

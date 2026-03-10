@@ -88,8 +88,7 @@
         if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
         criarPainel([
             { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
-            { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
-            { id: 'btnPgto', texto: '💳 Pgto', bg: '#ff6600', fn: executarPgto, titulo: 'Abrir página de pagamento' }
+            { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' }
         ]);
     };
 })();

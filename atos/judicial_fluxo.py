@@ -742,6 +742,25 @@ def ato_judicial(
                 logger.error(f'[ATO][PEC] ❌ {e}')
                 # Não interrompe o fluxo
 
+        # Após manipular PEC, gravar localmente antes de ir para Movimentos
+        try:
+            logger.info('[ATO][PEC] Tentando gravar alterações de PEC antes do movimento...')
+            # seletor direto para o botão mostrado pelo usuário
+            btn_gravar_pec = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Gravar a intimação/notificação"]'))
+            )
+            if safe_click_no_scroll(driver, btn_gravar_pec, log=False):
+                logger.info('[ATO][PEC] ✅ Clique em Gravar (intimação) realizado')
+            else:
+                try:
+                    btn_gravar_pec.click()
+                    logger.info('[ATO][PEC] ✅ Clique padrão em Gravar realizado')
+                except Exception as e:
+                    logger.debug(f'[ATO][PEC] Falha ao clicar em Gravar via .click(): {e}')
+            time.sleep(0.8)
+        except Exception as e:
+            logger.debug(f'[ATO][PEC] Botão Gravar não encontrado/acionável: {e}')
+
         # ===== ABA DESTINATÁRIOS - MOVIMENTO =====
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')

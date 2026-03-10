@@ -310,12 +310,15 @@
     // Classificação por tipo de anexo
     function classificarAnexo(textoAnexo) {
         const t = textoAnexo.toLowerCase();
+        // Exceções absolutas: se tiver essas palavras, é anexo comum
+        if (/jurisprudência|jurisprudencia|sentença|sentenca|isenção|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
+
         // PRIORIDADE 1: GRU/Custas (mesmo que tenha "depósito recursal" junto)
         if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 1 };
         // PRIORIDADE 2: Depósito recursal
         if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 2 };
         // PRIORIDADE 3: Garantia
-        if (/garantia|seguro|susep/.test(t)) return { tipo: 'Garantia', ordem: 3 };
+        if (/garantia|seguro|susep|apólice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
         // PRIORIDADE 4: Outros anexos
         return { tipo: 'Anexo', ordem: 4 };
     }

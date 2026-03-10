@@ -189,19 +189,35 @@ window.executarCheck = async function () {
     const saida = construirOrdem(filtrados);
     renderTabela('listaDocsExecucaoSimples', '📋 Relatório de Medidas', '#007bff',
         saida, onCheckRowClick);
+    // Adicionar botão "Conferir alvarás" no topo (header) da lista gerada pelo check
+    const panel = document.getElementById('listaDocsExecucaoSimples');
+    if (panel) {
+        // evitar duplicatas
+        const existing = panel.querySelector('#maisPje_btn_conferir_alvaras');
+        if (existing) existing.remove();
 
-    // Botão baixar Serasa/CNIB dentro do painel
-    const tbl = document.getElementById('listaDocsExecucaoSimples_tbl');
-    if (tbl) {
-        const bar = document.createElement('div');
-        bar.style.cssText = 'padding:8px;border-top:1px solid #ddd;';
-        const btn = document.createElement('button');
-        btn.textContent = '⬇ Baixar Serasa/CNIB';
-        btn.style.cssText = 'width:100%;padding:8px;background:#dc3545;color:#fff;' +
-            'border:none;cursor:pointer;font-weight:bold;border-radius:4px;';
-        btn.onclick = () => executarBaixarAutomatico(saida);
-        bar.appendChild(btn);
-        document.getElementById('listaDocsExecucaoSimples').appendChild(bar);
+        const hdr = panel.querySelector('div'); // header criado por renderTabela
+        if (hdr) {
+            const btn = document.createElement('button');
+            btn.id = 'maisPje_btn_conferir_alvaras';
+            btn.textContent = 'Conferir alvarás';
+            btn.title = 'Conferir alvarás';
+            btn.style.cssText = 'margin-left:8px;padding:6px 10px;background:#0078aa;color:#fff;border:none;cursor:pointer;border-radius:4px;font-size:12px;';
+            btn.onclick = async () => {
+                try {
+                    if (typeof window.executarPgto === 'function') {
+                        await window.executarPgto();
+                    } else {
+                        console.warn('executarPgto não encontrado');
+                    }
+                } catch (e) { console.error('Erro ao executar conferir alvarás:', e); }
+            };
+
+            // Inserir antes do botão fechar (último botão no header)
+            const closeBtn = hdr.querySelector('button');
+            if (closeBtn) hdr.insertBefore(btn, closeBtn);
+            else hdr.appendChild(btn);
+        }
     }
 }
 

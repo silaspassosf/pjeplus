@@ -140,18 +140,18 @@
 
             loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
             pdf = await loadingTask.promise;
-            
+
             // Extrair texto da página 1 e página 2 (se necessário)
             const LIMITE_MARCADOR = /Crit[ée]rio de C[aá]lculo e Fundamenta[çc][aã]o Legal/i;
             let textoCompleto = '';
             let textosBrutos = [];
-            
+
             // PÁGINA 1
             page = await pdf.getPage(1);
             let textContent = await page.getTextContent();
             let textosPagina1 = textContent.items.map(item => item.str.trim());
             let textoPagina1 = textosPagina1.filter(str => str !== "").join(' ');
-            
+
             // Verificar se tem o marcador limite na página 1
             const posLimite1 = textoPagina1.search(LIMITE_MARCADOR);
             if (posLimite1 !== -1) {
@@ -163,7 +163,7 @@
                 // Limite não encontrado - tentar página 2
                 textoCompleto = textoPagina1;
                 textosBrutos = textosPagina1;
-                
+
                 if (pdf.numPages >= 2) {
                     console.log('[HCalc] Limite não encontrado na pág 1 - buscando pág 2...');
                     try {
@@ -172,7 +172,7 @@
                         textContent = await page.getTextContent();
                         let textosPagina2 = textContent.items.map(item => item.str.trim());
                         let textoPagina2 = textosPagina2.filter(str => str !== "").join(' ');
-                        
+
                         // Verificar limite na página 2
                         const posLimite2 = textoPagina2.search(LIMITE_MARCADOR);
                         if (posLimite2 !== -1) {
@@ -339,21 +339,8 @@
                 irpfMatch[1].replace(/\./g, '').replace(',', '.')
             ) === 0;
 
-            // Detectar se FGTS foi depositado (comparando valores)
+            // FGTS depositado não será mais testado nem verificado. É sempre devido.
             let fgtsDepositado = false;
-            if (fgts) {
-                const matchDepositoFGTS = textoCompleto.match(regexDepositoFGTS);
-                if (matchDepositoFGTS && matchDepositoFGTS[1]) {
-                    // Normalizar valores para comparação (remover pontos/vírgulas)
-                    const valorFgts = fgts.replace(/[\.,]/g, '');
-                    const valorDeposito = matchDepositoFGTS[1].replace(/[\.,]/g, '');
-
-                    if (valorFgts === valorDeposito) {
-                        fgtsDepositado = true;
-                        console.log(`hcalc: FGTS identificado como DEPOSITADO (valor: ${fgts})`);
-                    }
-                }
-            }
 
             const dadosBrutos = {
                 verbas,

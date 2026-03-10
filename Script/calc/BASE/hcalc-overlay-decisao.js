@@ -53,9 +53,7 @@
                 const fgtsSeparado = dadosOverride
                     ? (dadosOverride.fgts && dadosOverride.fgts !== '0,00')
                     : isFgtsSep;
-                const fgtsDepositadoFlag = dadosOverride
-                    ? dadosOverride.fgtsDepositado
-                    : (isFgtsSep && (document.querySelector('input[name="fgts-tipo"]:checked')?.value === 'depositado'));
+                const fgtsDepositadoFlag = false; // Depositado não será mais usado
 
                 if (isPerito && peritoEsclareceu) {
                     introTxt += `As impugnações apresentadas já foram objeto de esclarecimentos pelo Sr. Perito sob o #${bold(pecaPerito)}, nada havendo a ser reparado no laudo. Portanto, HOMOLOGO os cálculos do expert (#${bold(idCalculo)}), `;
@@ -63,17 +61,9 @@
                     introTxt += `Tendo em vista a concordância das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idCalculo)}), `;
                 }
 
-                if (fgtsSeparado && !fgtsDepositadoFlag) {
+                if (fgtsSeparado) {
                     introTxt += `fixando o crédito do autor em ${bold(vCredito)} relativo ao principal, e ${bold(vFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, para ${bold(vData)}. `;
                     introTxt += `Atualização na forma da Lei 14.905/2024 e da decisão proferida pela SDI-1 do C. TST, ou seja, a correção monetária será feita pelo IPCA-E até a distribuição da ação; taxa Selic do ajuizamento até 29/08/2024, e, a partir de 30/08/2024, atualização pelo IPCA, com juros de mora correspondentes à diferença entre a SELIC e o IPCA, conforme o artigo 406 do Código Civil.`;
-                } else if (fgtsSeparado && fgtsDepositadoFlag) {
-                    introTxt += `fixando o crédito do autor em ${bold(vCredito)}, atualizado para ${bold(vData)}. `;
-                    if (indice === 'adc58') {
-                        introTxt += `Atualização: pelo IPCA-E na fase pré-judicial e, a partir do ajuizamento da ação, pela taxa SELIC (art. 406 do Código Civil), conforme decisão do E. Supremo Tribunal Federal nas ADCs 58 e 59 e ADI 5867, de 18/12/2020.`;
-                    } else {
-                        const dtIngresso = usarPlaceholder ? 'XXX' : ($('data-ingresso').value || '[DATA INGRESSO]');
-                        introTxt += `Atualização: pela TR/IPCA-E, conforme sentença transitado em julgado. Juros legais a partir de ${bold(dtIngresso)}.`;
-                    }
                 } else {
                     introTxt += `fixando o crédito em ${bold(vCredito)}, referente ao valor principal, atualizado para ${bold(vData)}. `;
                     if (indice === 'adc58') {
@@ -93,12 +83,8 @@
                     text += textoResponsabilidade;
                 }
 
-                if (fgtsSeparado && !fgtsDepositadoFlag) {
+                if (fgtsSeparado) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
-                }
-
-                if (fgtsSeparado && fgtsDepositadoFlag) {
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">O FGTS, no valor de ${bold(vFgts)}, já foi depositado e, portanto, já está deduzido do crédito.</p>`;
                 }
 
                 if (!usarPlaceholder && $('calc-origem').value === 'pjecalc' && !$('calc-pjc').checked) {
@@ -630,13 +616,8 @@
                     introTxt += `Tendo em vista a concordância das partes, HOMOLOGO os cálculos apresentados pelo(a) ${u(autoria)} (#${bold(idPlanilha)}), `;
                 }
 
-                const fgtsTipo = isFgtsSep ? (document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido') : 'devido';
-                const fgtsJaDepositado = fgtsTipo === 'depositado';
-
-                if (isFgtsSep && !fgtsJaDepositado) {
+                if (isFgtsSep) {
                     introTxt += `fixando o crédito do autor em ${bold('R$' + valCredito)} relativo ao principal, e ${bold('R$' + valFgts)} relativo ao ${bold('FGTS')} a ser recolhido em conta vinculada, atualizados para ${bold(valData)}. `;
-                } else if (isFgtsSep && fgtsJaDepositado) {
-                    introTxt += `fixando o crédito do autor em ${bold('R$' + valCredito)}, atualizado para ${bold(valData)}. `;
                 } else {
                     introTxt += `fixando o crédito em ${bold('R$' + valCredito)}, referente ao valor principal, atualizado para ${bold(valData)}. `;
                 }
@@ -652,10 +633,6 @@
                     introTxt += `Atualizáveis pela TR/IPCA-E, conforme sentença. Juros legais de ${bold('R$' + valJuros)} a partir de ${bold(dtIngresso)}.`;
                 }
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
-
-                if (isFgtsSep && fgtsJaDepositado) {
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><u>O FGTS devido, ${bold('R$' + valFgts)}, já foi depositado, portanto deduzido.</u></p>`;
-                }
 
                 if (passivoTotal > 1) {
                     if ($('resp-tipo').value === 'solidarias') {

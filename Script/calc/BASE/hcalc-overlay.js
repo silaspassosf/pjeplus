@@ -46,7 +46,7 @@
         try { if (typeof window.hcalcDispose === 'function') { window.hcalcDispose(); dbg('[hcalc] called hcalcDispose()'); } } catch (e) { dbg('[hcalc] dispose call failed', e); }
 
         try { document.querySelectorAll('.hcalc-overlay, [data-hcalc-root], #hcalc-overlay, #homologacao-overlay').forEach(el => el.remove()); } catch (e) { /* ignore */ }
-        try { document.querySelectorAll('input[type=file]').forEach(f => { try { f.value = ''; } catch (e) {} }); } catch (e) { /* ignore */ }
+        try { document.querySelectorAll('input[type=file]').forEach(f => { try { f.value = ''; } catch (e) { } }); } catch (e) { /* ignore */ }
 
         if (typeof window.hcalcInitBotao === 'function') {
             try { window.hcalcInitBotao(); dbg('[hcalc] hcalcInitBotao() re-called'); } catch (e) { dbg('[hcalc] hcalcInitBotao call failed', e); }
@@ -158,7 +158,7 @@
                             const input = document.getElementById('input-planilha-pdf');
                             if (input) input.click();
                             // remover o próprio botão limpar
-                            try { limpar.remove(); } catch (e) {}
+                            try { limpar.remove(); } catch (e) { }
                         });
                     }
                     // atualizar texto do botão principal se planilha carregada
@@ -502,10 +502,6 @@
                     <div class="row" style="align-items: center; gap: 10px; margin-bottom: 5px;">
                         <div class="col" style="flex: 0 0 auto;">
                             <label><input type="checkbox" id="calc-fgts" checked> FGTS apurado separado?</label>
-                        </div>
-                        <div class="col" id="fgts-radios" style="flex: 0 0 auto; display: flex; gap: 12px;">
-                            <label style="margin: 0;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
-                            <label style="margin: 0;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
                         </div>
                     </div>
                     <div class="row" id="row-fgts-valor">
@@ -1224,22 +1220,13 @@
                     if (dados.idPlanilha && $('val-id')) $('val-id').value = dados.idPlanilha;
                     if (dados.verbas && $('val-credito')) $('val-credito').value = dados.verbas;
 
-                    // FGTS: preencher valor + ajustar checkbox + marcar status depositado conforme extração
+                    // FGTS: preencher valor + ajustar checkbox
                     if ($('val-fgts') && $('calc-fgts')) {
                         const temFgts = dados.fgts && dados.fgts !== '0,00' && dados.fgts !== '0';
 
                         if (temFgts) {
                             $('val-fgts').value = dados.fgts;
                             $('calc-fgts').checked = true;
-
-                            // Marcar radio button correto (depositado ou devido)
-                            if (dados.fgtsDepositado) {
-                                const radDepositado = document.querySelector('input[name="fgts-tipo"][value="depositado"]');
-                                if (radDepositado) radDepositado.checked = true;
-                            } else {
-                                const radDevido = document.querySelector('input[name="fgts-tipo"][value="devido"]');
-                                if (radDevido) radDevido.checked = true;
-                            }
                         } else {
                             // Sem FGTS detectado → desmarcar checkbox (que vem marcado por padrão)
                             $('calc-fgts').checked = false;
@@ -1385,7 +1372,7 @@
                         // Salvar no state
                         window.hcalcState.planilhaExtracaoData = dados;
                         window.hcalcState.planilhaCarregada = true;
-                            dbg('Planilha processada e salva em state:', dados);
+                        dbg('Planilha processada e salva em state:', dados);
 
                         // Atualizar card/resumo
                         if (window.hcalcAtualizarResumoPlanilha) {

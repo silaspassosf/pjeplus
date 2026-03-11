@@ -2386,52 +2386,6 @@
             $('row-fgts-valor').classList.toggle('hidden', !isChecked);
             updateHighlight();
         };
-        // Modal bloqueante quando usuário marcar FGTS como 'depositado' (exige OK)
-        document.addEventListener('change', (e) => {
-            try {
-                if (!e.target) return;
-                if (e.target.name === 'fgts-tipo' && e.target.checked && e.target.value === 'depositado') {
-                    // Não abrir múltiplos modais
-                    if (document.getElementById('maisPje_fgts_modal_overlay')) return;
-                    // Overlay full-screen
-                    const overlay = document.createElement('div');
-                    overlay.id = 'maisPje_fgts_modal_overlay';
-                    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
-
-                    // Caixa central
-                    const box = document.createElement('div');
-                    box.id = 'maisPje_fgts_modal_box';
-                    box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
-
-                    const title = document.createElement('div');
-                    title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
-                    title.textContent = 'Atenção';
-
-                    const msg = document.createElement('div');
-                    msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                    msg.textContent = 'Conferir se o FGTS foi de fato depositado. E deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
-
-                    const actions = document.createElement('div');
-                    actions.style.cssText = 'text-align:right;';
-                    const ok = document.createElement('button');
-                    ok.id = 'maisPje_fgts_modal_ok';
-                    ok.textContent = 'OK';
-                    ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
-
-                    actions.appendChild(ok);
-                    box.appendChild(title);
-                    box.appendChild(msg);
-                    box.appendChild(actions);
-                    overlay.appendChild(box);
-                    document.body.appendChild(overlay);
-
-                    // Fechamento apenas por OK
-                    ok.addEventListener('click', () => {
-                        overlay.remove();
-                    });
-                }
-            } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS', ex); }
-        });
         $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
         $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
         $('ignorar-inss').onchange = (e) => {
@@ -3488,7 +3442,7 @@
         // ==========================================
         // 4. LÓGICA DE NAVEGAÇÃO "COLETA INTELIGENTE"
         // ==========================================
-        const orderSequence = [
+        var orderSequence = [
             'val-id', 'val-data', 'val-credito', 'val-fgts',
             'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
         ];

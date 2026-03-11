@@ -2386,22 +2386,51 @@
             $('row-fgts-valor').classList.toggle('hidden', !isChecked);
             updateHighlight();
         };
-        // Aviso quando usuário marcar FGTS como 'depositado'
+        // Modal bloqueante quando usuário marcar FGTS como 'depositado' (exige OK)
         document.addEventListener('change', (e) => {
             try {
                 if (!e.target) return;
                 if (e.target.name === 'fgts-tipo' && e.target.checked && e.target.value === 'depositado') {
-                    // Mostrar pequeno diálogo de atenção
-                    if (document.getElementById('maisPje_fgts_warning')) return;
-                    const warn = document.createElement('div');
-                    warn.id = 'maisPje_fgts_warning';
-                    warn.style.cssText = 'position:fixed;top:90px;right:20px;z-index:2147483647;max-width:320px;background:#fff3cd;border:1px solid #ffeeba;padding:10px 12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.12);font-size:13px;color:#856404;font-family:sans-serif;';
-                    warn.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><strong style="margin-right:8px;">Atenção</strong><button id="maisPje_fgts_warning_close" style="background:transparent;border:none;cursor:pointer;font-weight:bold;color:#856404">[X]</button></div><div style="margin-top:6px;line-height:1.2">Conferir se o FGTS   foi de fato depositado. Ele deve estar como desconta na planilha geral, não no Bruto devido ao reclamante</div>`;
-                    document.body.appendChild(warn);
-                    document.getElementById('maisPje_fgts_warning_close').onclick = () => warn.remove();
-                    setTimeout(() => { warn.style.transition = 'opacity 400ms'; warn.style.opacity = '0'; setTimeout(() => warn.remove(), 500); }, 7000);
+                    // Não abrir múltiplos modais
+                    if (document.getElementById('maisPje_fgts_modal_overlay')) return;
+                    // Overlay full-screen
+                    const overlay = document.createElement('div');
+                    overlay.id = 'maisPje_fgts_modal_overlay';
+                    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
+
+                    // Caixa central
+                    const box = document.createElement('div');
+                    box.id = 'maisPje_fgts_modal_box';
+                    box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
+
+                    const title = document.createElement('div');
+                    title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
+                    title.textContent = 'Atenção';
+
+                    const msg = document.createElement('div');
+                    msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
+                    msg.textContent = 'Conferir se o FGTS foi de fato depositado. Ele deve ser lançado como desconto na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+
+                    const actions = document.createElement('div');
+                    actions.style.cssText = 'text-align:right;';
+                    const ok = document.createElement('button');
+                    ok.id = 'maisPje_fgts_modal_ok';
+                    ok.textContent = 'OK';
+                    ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
+
+                    actions.appendChild(ok);
+                    box.appendChild(title);
+                    box.appendChild(msg);
+                    box.appendChild(actions);
+                    overlay.appendChild(box);
+                    document.body.appendChild(overlay);
+
+                    // Fechamento apenas por OK
+                    ok.addEventListener('click', () => {
+                        overlay.remove();
+                    });
                 }
-            } catch (ex) { console.warn('maisPJe: erro ao mostrar aviso FGTS', ex); }
+            } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS', ex); }
         });
         $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
         $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };

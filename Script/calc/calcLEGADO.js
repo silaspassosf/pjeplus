@@ -2386,6 +2386,23 @@
             $('row-fgts-valor').classList.toggle('hidden', !isChecked);
             updateHighlight();
         };
+        // Aviso quando usuário marcar FGTS como 'depositado'
+        document.addEventListener('change', (e) => {
+            try {
+                if (!e.target) return;
+                if (e.target.name === 'fgts-tipo' && e.target.checked && e.target.value === 'depositado') {
+                    // Mostrar pequeno diálogo de atenção
+                    if (document.getElementById('maisPje_fgts_warning')) return;
+                    const warn = document.createElement('div');
+                    warn.id = 'maisPje_fgts_warning';
+                    warn.style.cssText = 'position:fixed;top:90px;right:20px;z-index:2147483647;max-width:320px;background:#fff3cd;border:1px solid #ffeeba;padding:10px 12px;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,0.12);font-size:13px;color:#856404;font-family:sans-serif;';
+                    warn.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><strong style="margin-right:8px;">Atenção</strong><button id="maisPje_fgts_warning_close" style="background:transparent;border:none;cursor:pointer;font-weight:bold;color:#856404">[X]</button></div><div style="margin-top:6px;line-height:1.2">Conferir se o FGTS   foi de fato depositado. Ele deve estar como desconta na planilha geral, não no Bruto devido ao reclamante</div>`;
+                    document.body.appendChild(warn);
+                    document.getElementById('maisPje_fgts_warning_close').onclick = () => warn.remove();
+                    setTimeout(() => { warn.style.transition = 'opacity 400ms'; warn.style.opacity = '0'; setTimeout(() => warn.remove(), 500); }, 7000);
+                }
+            } catch (ex) { console.warn('maisPJe: erro ao mostrar aviso FGTS', ex); }
+        });
         $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
         $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
         $('ignorar-inss').onchange = (e) => {

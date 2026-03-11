@@ -581,7 +581,8 @@
                     }
 
                     if (subsidiariasComPeriodo.length > 0) {
-                        subsidiariasComPeriodo.forEach((sub) => {
+                        subsidiariasComPeriodo.forEach((sub, idx) => {
+                            const letra = String.fromCharCode(65 + idx); // A, B, C...
                             const periodoLabel = sub.periodo === 'integral' ? 'Cálculo Específico' : sub.periodo;
 
                             let dadosExtra = null;
@@ -600,10 +601,12 @@
                             const idSubPlanilha = sub.idPlanilha || idPlanilha;
                             const comPlaceholder = !sub.idPlanilha;
 
+                            const label = `${letra} - (${bold(sub.nome)}) - Responsável subsidiária pelo período (${periodoLabel}):`;
+
                             appendBaseAteAntesPericiais({
                                 idCalculo: idSubPlanilha,
                                 usarPlaceholder: comPlaceholder,
-                                reclamadaLabel: `Reclamada ${bold(sub.nome)} (Subsidiária - ${periodoLabel}):`,
+                                reclamadaLabel: label,
                                 dadosOverride: dadosExtra
                             });
                         });

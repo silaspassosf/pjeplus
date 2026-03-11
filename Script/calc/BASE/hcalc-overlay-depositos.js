@@ -151,8 +151,7 @@
         }
 
         function atualizarVisibilidadeDepositoPrincipal(idx) {
-            const tipoResp = $('resp-tipo')?.value || 'unica';
-            const isSolidaria = tipoResp === 'solidarias';
+            const isSolidaria = document.getElementById('resp-solidarias')?.checked || false;
 
             const principalRow = $(`dep-principal-row-${idx}`);
             const solidariaInfo = $(`dep-solidaria-info-${idx}`);

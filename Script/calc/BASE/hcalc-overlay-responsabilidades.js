@@ -231,15 +231,24 @@
         }
 
         function initEventHandlers() {
-            $('resp-tipo').onchange = (e) => {
-                $('resp-sub-opcoes').classList.toggle('hidden', e.target.value !== 'subsidiarias');
+            const respSubs = document.getElementById('resp-subsidiarias');
+            const respSol = document.getElementById('resp-solidarias');
 
+            const updateRespOptions = () => {
+                const isSubs = respSubs && respSubs.checked;
+                // Mostrar opcoes adicionais para subsidiarias
+                $('resp-sub-opcoes').classList.toggle('hidden', !isSubs);
+
+                // Atualizar visibilidade dos depósitos principais
                 window.hcalcState.depositosRecursais.forEach(d => {
                     if (!d.removed && typeof window.hcalcAtualizarVisibilidadeDepositoPrincipal === 'function') {
                         window.hcalcAtualizarVisibilidadeDepositoPrincipal(d.idx);
                     }
                 });
             };
+
+            if (respSubs) respSubs.addEventListener('change', updateRespOptions);
+            if (respSol) respSol.addEventListener('change', updateRespOptions);
 
             $('resp-diversos').onchange = (e) => {
                 const fieldset = $('resp-diversos-fieldset');
@@ -349,27 +358,29 @@
             );
 
             const nomesPrincipais = [principalSelecionada, ...principaisParciais.map(p => p.nome)];
-            const txtPrincipais = formatarLista(nomesPrincipais);
-            const verboPrin = nomesPrincipais.length > 1 ? 'são devedoras principais' : 'é devedora principal';
+            const nomesPrincipaisUnicos = Array.from(new Set(nomesPrincipais.filter(n => n)));
+            const txtPrincipais = formatarLista(nomesPrincipaisUnicos);
 
-            let textoIntroStr = `${txtPrincipais} ${verboPrin}`;
+            const subsInt = subsidiariasIntegrais || [];
+            const subsDiv = subsidiariasComPeriodo || [];
 
-            if (subsidiariasIntegrais.length > 0) {
-                const txtSubsInt = formatarLista(subsidiariasIntegrais);
-                const verboSubInt = subsidiariasIntegrais.length > 1 ? 'são subsidiárias' : 'é subsidiária';
-                textoIntroStr += `, ${txtSubsInt} ${verboSubInt} pelo período integral do contrato`;
+            const paragrafos = [];
+
+            if (nomesPrincipaisUnicos.length > 0) {
+                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras principais/solidárias: ${txtPrincipais}. Portanto, apenas estas respondem pelo montante neste ato.</p>`);
             }
 
-            if (subsidiariasComPeriodo.length > 0) {
-                const txtSubsDiv = formatarLista(subsidiariasComPeriodo.map(s => s.nome));
-                const verboSubDiv = subsidiariasComPeriodo.length > 1 ? 'são subsidiárias' : 'é subsidiária';
-                const verboTratadas = subsidiariasComPeriodo.length > 1 ? 'sendo tratadas' : 'sendo tratada';
-                textoIntroStr += `. Já ${txtSubsDiv} ${verboSubDiv} por período diverso, ${verboTratadas} em item próprio a seguir`;
+            if (subsInt.length > 0) {
+                const txtSubsInt = formatarLista(subsInt);
+                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras subsidiárias pelo período integral do contrato: ${txtSubsInt}.</p>`);
             }
 
-            textoIntroStr += `. Portanto, os valores neste momento são devidos apenas pelas principais.`;
+            if (subsDiv.length > 0) {
+                const txtSubsDiv = formatarLista(subsDiv.map(s => s.nome || s));
+                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras subsidiárias por período parcial do contrato: ${txtSubsDiv} — serão tratadas em item próprio a seguir.</p>`);
+            }
 
-            const textoIntro = `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${textoIntroStr}</p>`;
+            const textoIntro = paragrafos.join('');
 
             return {
                 textoIntro,

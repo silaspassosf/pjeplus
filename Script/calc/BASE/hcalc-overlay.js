@@ -511,9 +511,9 @@
                         </div>
                     </div>
                     <div class="row" id="row-fgts-radios" style="margin-top:4px;">
-                        <div class="col" id="fgts-radios" style="flex: 0 0 auto; display:flex; gap:10px; align-items:center;">
-                            <label style="margin:0; font-size:11px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
-                            <label style="margin:0; font-size:11px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
+                        <div class="col" id="fgts-radios" style="flex: 0 0 auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                            <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:11px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
+                            <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:11px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
                         </div>
                     </div>
                     <div class="row hidden" id="col-juros-val">
@@ -1515,7 +1515,7 @@
 
                         const msg = document.createElement('div');
                         msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                        msg.textContent = 'Conferir se o FGTS foi de fato depositado. E deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+                        msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
 
                         const actions = document.createElement('div');
                         actions.style.cssText = 'text-align:right;';
@@ -1559,7 +1559,7 @@
 
                             const msg = document.createElement('div');
                             msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                            msg.textContent = 'Conferir se o FGTS foi de fato depositado. E deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+                            msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
 
                             const actions = document.createElement('div');
                             actions.style.cssText = 'text-align:right;';

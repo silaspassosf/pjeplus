@@ -10,21 +10,29 @@
         } = deps;
 
         function aplicarEstiloRecuperacaoJudicial() {
-            const temRecJudicial = $('resp-rec-judicial')?.checked || false;
+            // Ler quais reclamadas principais estão com RJ marcada
+            const rjMap = new Map();
+            document.querySelectorAll('#resp-principais-dinamico-container .resp-item').forEach(item => {
+                const isRj = item.querySelector('.chk-rec-judicial-item')?.checked;
+                rjMap.set(item.dataset.nome, isRj);
+            });
 
             document.querySelectorAll('.intimacao-row').forEach(row => {
                 const checkbox = row.querySelector('.chk-parte-principal');
                 if (checkbox && checkbox.checked) {
+                    const nomeStr = checkbox.dataset.nome;
+                    const temRecJudicial = rjMap.get(nomeStr) || false;
+
                     const nomeDiv = row.querySelector('div[title]');
                     if (nomeDiv) {
                         if (temRecJudicial) {
                             nomeDiv.style.textDecoration = 'line-through';
                             nomeDiv.style.color = '#999';
-                            nomeDiv.title = `${checkbox.dataset.nome} (Em Recuperação Judicial/Falência - sem intimação para pagamento)`;
+                            nomeDiv.title = `${nomeStr} (Em Recuperação Judicial/Falência - sem intimação para pagamento)`;
                         } else {
                             nomeDiv.style.textDecoration = 'none';
                             nomeDiv.style.color = '#333';
-                            nomeDiv.title = checkbox.dataset.nome;
+                            nomeDiv.title = nomeStr;
                         }
                     }
                 }
@@ -47,51 +55,108 @@
         function atualizarDropdownsPlanilhas() {
             const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
 
-            // Principais podem vir das checkboxes de partes ou do novo bloco de principais
+            // Principals are now in the dynamic container + timeline checkboxes
             const principaisSet = new Set();
             document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
-            document.querySelectorAll('#resp-principais-container .chk-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-principais-dinamico-container .resp-item').forEach(item => principaisSet.add(item.dataset.nome));
 
-            // Subsidiarias integrais marcadas também contam como usadas (não aparecerão nas listas)
+            // Integral Subsidiaries
             const subsidiariasIntegraisSelecionadas = new Set();
-            document.querySelectorAll('#resp-subsidiarias-integral-container .chk-subs-int:checked').forEach(chk => subsidiariasIntegraisSelecionadas.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .resp-item').forEach(item => subsidiariasIntegraisSelecionadas.add(item.dataset.nome));
 
-            // Reclamadas já escolhidas nos blocos diversos
-            const jaUsadas = new Set([...principaisSet, ...subsidiariasIntegraisSelecionadas]);
+            // Diverse Periods
+            const diversasSelecionadas = new Set();
             document.querySelectorAll('#resp-diversos-container .periodo-reclamada').forEach(sel => {
                 if (sel && sel.selectedOptions) {
-                    Array.from(sel.selectedOptions).forEach(opt => { if (opt.value) jaUsadas.add(opt.value); });
+                    Array.from(sel.selectedOptions).forEach(opt => { if (opt.value) diversasSelecionadas.add(opt.value); });
                 } else if (sel && sel.value) {
-                    jaUsadas.add(sel.value);
+                    diversasSelecionadas.add(sel.value);
                 }
             });
 
-            // Atualiza cada select (multi) mantendo seleções atuais
-            document.querySelectorAll('#resp-diversos-container .periodo-reclamada').forEach(select => {
-                const current = Array.from(select.selectedOptions).map(o => o.value);
-                select.innerHTML = '';
-                todasReclamadas.forEach(rec => {
-                    const opt = document.createElement('option');
-                    opt.value = rec;
-                    opt.textContent = rec;
-                    if (current.includes(rec)) opt.selected = true;
-                    if (!jaUsadas.has(rec) || current.includes(rec)) select.appendChild(opt);
-                });
-            });
+            const jaUsadas = new Set([...principaisSet, ...subsidiariasIntegraisSelecionadas, ...diversasSelecionadas]);
 
-            document.querySelectorAll('.periodo-reclamada').forEach(select => {
+            // Function to rebuild a single select element
+            const rebuildSelect = (selectEl, defaultOptionText, excludedSet) => {
+                if (!selectEl) return;
+                const current = selectEl.value;
+                selectEl.innerHTML = `<option value="">${defaultOptionText}</option>`;
+                todasReclamadas.forEach(rec => {
+                    if (!excludedSet.has(rec) || current === rec) {
+                        const opt = document.createElement('option');
+                        opt.value = rec;
+                        opt.textContent = rec;
+                        if (current === rec) opt.selected = true;
+                        selectEl.appendChild(opt);
+                    }
+                });
+            };
+
+            // Rebuild the "add" dropdowns
+            rebuildSelect($('sel-add-principal'), 'Adicionar devedora principal...', jaUsadas);
+            rebuildSelect($('sel-add-subs-int'), 'Adicionar subsidiária integral...', jaUsadas);
+
+            // Rebuild "diversas" multiselects
+            document.querySelectorAll('#resp-diversos-container .periodo-reclamada').forEach(select => {
                 const currentSelected = Array.from(select.selectedOptions).map(o => o.value);
                 select.innerHTML = '';
                 todasReclamadas.forEach(rec => {
                     const opt = document.createElement('option');
                     opt.value = rec;
                     opt.textContent = rec;
-                    if (currentSelected.indexOf(rec) !== -1) opt.selected = true;
-                    // disable options already chosen in other selectors
+                    if (currentSelected.includes(rec)) opt.selected = true;
+                    // Disable instead of hide for multi-selects to keep visibility consistent
                     if (!opt.selected && jaUsadas.has(rec)) opt.disabled = true;
                     select.appendChild(opt);
                 });
             });
+        }
+
+        function adicionarItemLista(containerId, nome, isPrincipal = false) {
+            const container = $(containerId);
+            if (!container) return;
+
+            // Check if already exists
+            const existing = Array.from(container.querySelectorAll('.resp-item')).find(el => el.dataset.nome === nome);
+            if (existing) return;
+
+            const div = document.createElement('div');
+            div.className = 'resp-item row';
+            div.dataset.nome = nome;
+            div.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:6px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:4px;';
+
+            const txtColor = isPrincipal ? '#b45309' : '#0284c7';
+
+            let extraHtml = '';
+            if (isPrincipal) {
+                // For principals, add "Recuperação Judicial" checkbox specific to this company
+                extraHtml = `<label style="font-size:11px; margin-left:10px; display:flex; align-items:center; gap:4px; color:#6b7280; white-space:nowrap;"><input type="checkbox" class="chk-rec-judicial-item" data-nome="${nome}"> Rec. Jud/Falência</label>`;
+            }
+
+            div.innerHTML = `
+                <div style="display:flex; align-items:center; flex:1; overflow:hidden;">
+                    <span style="font-weight:600; font-size:12px; color:${txtColor}; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${nome}">${nome}</span>
+                    ${extraHtml}
+                </div>
+                <button type="button" class="btn-action btn-remover-item" style="background:#ef4444; padding:2px 6px; font-size:10px; margin-left:8px;">❌ Rem</button>
+            `;
+
+            div.querySelector('.btn-remover-item').onclick = () => {
+                div.remove();
+                atualizarDropdownsPlanilhas();
+                if (typeof queueOverlayDraftSave === 'function') queueOverlayDraftSave();
+            };
+
+            const chkRj = div.querySelector('.chk-rec-judicial-item');
+            if (chkRj) {
+                chkRj.addEventListener('change', () => {
+                    aplicarEstiloRecuperacaoJudicial();
+                    if (typeof queueOverlayDraftSave === 'function') queueOverlayDraftSave();
+                });
+            }
+
+            container.appendChild(div);
+            atualizarDropdownsPlanilhas();
         }
 
         function adicionarLinhaPeridoDiverso() {
@@ -110,15 +175,15 @@
             div.style.backgroundColor = '#f5f5f5';
             div.style.borderRadius = '4px';
 
-                const jaUsadas = new Set();
-                // Marcar como usadas as reclamadas marcadas como principais (tanto partes quanto bloco de principais)
-                document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
-                document.querySelectorAll('#resp-principais-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
-                // Marcar as já escolhidas em outros periodos
-                document.querySelectorAll('.periodo-reclamada').forEach(select => {
-                    if (select && select.selectedOptions) Array.from(select.selectedOptions).forEach(o => { if (o.value) jaUsadas.add(o.value); });
-                    else if (select && select.value) jaUsadas.add(select.value);
-                });
+            const jaUsadas = new Set();
+            document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-principais-dinamico-container .resp-item').forEach(item => jaUsadas.add(item.dataset.nome));
+            document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .resp-item').forEach(item => jaUsadas.add(item.dataset.nome));
+
+            document.querySelectorAll('.periodo-reclamada').forEach(select => {
+                if (select && select.selectedOptions) Array.from(select.selectedOptions).forEach(o => { if (o.value) jaUsadas.add(o.value); });
+                else if (select && select.value) jaUsadas.add(select.value);
+            });
 
             let selectOptions = '<option value="">Selecione a reclamada...</option>';
             reclamadas.forEach(rec => {
@@ -261,43 +326,64 @@
                 });
             };
 
-            if (respSubs) respSubs.addEventListener('change', updateRespOptions);
-            if (respSol) respSol.addEventListener('change', updateRespOptions);
+            const radRespIntegral = $('resp-integral');
+            const radRespDiversos = $('resp-diversos');
 
-            $('resp-diversos').onchange = (e) => {
+            const handleRadiosRespTipo = () => {
                 const fieldset = $('resp-diversos-fieldset');
-                const container = $('resp-diversos-container');
-                const selectPrincipal = $('resp-devedora-principal');
-                const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-
-                if (e.target.checked) {
+                if (radRespDiversos && radRespDiversos.checked) {
                     fieldset.classList.remove('hidden');
 
-                    selectPrincipal.innerHTML = '';
-                    reclamadas.forEach((rec, idx) => {
-                        const opt = document.createElement('option');
-                        opt.value = rec;
-                        opt.textContent = rec;
-                        if (idx === 0) opt.selected = true;
-                        selectPrincipal.appendChild(opt);
-                    });
-
-                    if (container.children.length === 0) {
-                        adicionarLinhaPeridoDiverso();
+                    // Auto-add first reclamada as principal if none exists
+                    const containerPrincipais = $('resp-principais-dinamico-container');
+                    if (containerPrincipais && containerPrincipais.children.length === 0) {
+                        const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+                        if (reclamadas.length > 0) {
+                            adicionarItemLista('resp-principais-dinamico-container', reclamadas[0], true);
+                        }
                     }
                 } else {
                     fieldset.classList.add('hidden');
-                    container.innerHTML = '';
                 }
             };
 
-            $('resp-devedora-principal').onchange = () => {
-                atualizarDropdownsReclamadas();
-            };
+            if (radRespIntegral) radRespIntegral.addEventListener('change', handleRadiosRespTipo);
+            if (radRespDiversos) radRespDiversos.addEventListener('change', handleRadiosRespTipo);
 
-            $('resp-rec-judicial').onchange = () => {
-                aplicarEstiloRecuperacaoJudicial();
-            };
+            if ($('btn-add-principal')) {
+                $('btn-add-principal').onclick = () => {
+                    const sel = $('sel-add-principal');
+                    if (sel.value) {
+                        adicionarItemLista('resp-principais-dinamico-container', sel.value, true);
+                        sel.value = '';
+                    }
+                };
+            }
+
+            if ($('btn-add-subs-int')) {
+                $('btn-add-subs-int').onclick = () => {
+                    const sel = $('sel-add-subs-int');
+                    if (sel.value) {
+                        adicionarItemLista('resp-subsidiarias-integral-dinamico-container', sel.value, false);
+                        sel.value = '';
+                    }
+                };
+            }
+
+            if ($('chk-nao-ha-subs-int')) {
+                $('chk-nao-ha-subs-int').onchange = (e) => {
+                    const checked = e.target.checked;
+                    const divAdd = $('div-add-subs-int');
+                    if (divAdd) {
+                        divAdd.style.opacity = checked ? '0.5' : '1';
+                        divAdd.style.pointerEvents = checked ? 'none' : 'auto';
+                    }
+                    if (checked) {
+                        $('resp-subsidiarias-integral-dinamico-container').innerHTML = '';
+                        atualizarDropdownsPlanilhas();
+                    }
+                };
+            }
 
             $('btn-adicionar-periodo').onclick = (e) => {
                 e.preventDefault();
@@ -330,10 +416,20 @@
             const linhasPeriodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]'));
             if (linhasPeriodos.length === 0) return null;
 
+            const isDiversos = document.getElementById('resp-diversos')?.checked;
+
             const periodoCompleto = window.hcalcState.planilhaExtracaoData?.periodoCalculo || '';
             const principaisSelecionadas = Array.from(document.querySelectorAll('.chk-parte-principal:checked')).map(chk => chk.dataset.nome).filter(Boolean);
-            const principaisParciais = []; // não há mais opção de marcar per-row como principal
+            const principaisParciais = [];
             const subsidiariasComPeriodo = [];
+
+            // Adicionar principais adicionais do bloco dinamico
+            if (isDiversos) {
+                document.querySelectorAll('#resp-principais-dinamico-container .resp-item').forEach(item => {
+                    const nome = item.dataset.nome;
+                    if (!principaisSelecionadas.includes(nome)) principaisSelecionadas.push(nome);
+                });
+            }
 
             linhasPeriodos.forEach((linha) => {
                 const idx = linha.id.replace('periodo-diverso-', '');
@@ -358,10 +454,23 @@
             });
 
             const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-            const principaisNomes = new Set([...principaisSelecionadas, ...principaisParciais.map(p => p.nome)]);
+            const principaisNomes = new Set([...principaisSelecionadas]);
             const subsidiariasComPeriodoNomes = new Set(subsidiariasComPeriodo.map(s => s.nome));
 
-            const subsidiariasIntegrais = todasReclamadas.filter(nome => !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome));
+            let subsidiariasIntegrais = [];
+
+            if (isDiversos) {
+                const naoHaSubsInt = document.getElementById('chk-nao-ha-subs-int')?.checked;
+                if (!naoHaSubsInt) {
+                    // Extract from the integral dynamic block
+                    document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .resp-item').forEach(item => {
+                        subsidiariasIntegrais.push(item.dataset.nome);
+                    });
+                }
+            } else {
+                // Modo "Todas pelo período integral": todas as reclamadas menos as principais são subsidiárias integrais
+                subsidiariasIntegrais = todasReclamadas.filter(nome => !principaisNomes.has(nome));
+            }
 
             const nomesPrincipaisUnicos = Array.from(new Set(principaisSelecionadas.filter(n => n)));
             const txtPrincipais = formatarLista(nomesPrincipaisUnicos);

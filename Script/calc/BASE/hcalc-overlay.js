@@ -533,22 +533,6 @@
                     </div>
                 </div>
 
-                <div style="padding: 8px; border: 1px dashed #d9d9d9; border-radius: 4px; margin-bottom: 6px; background: #fff;">
-                    <label style="display:block; margin-bottom: 5px; color:#00509e; font-size: 12px;">2) INSS (Autor e Reclamada) e IR</label>
-                    <div class="row" style="margin-bottom: 0;">
-                        <div class="col">
-                            <label>INSS - Desconto (Reclamante)</label>
-                            <input type="text" id="val-inss-rec" class="coleta-input" placeholder="R$ INSS Reclamante (Desconto)">
-                        </div>
-                        <div class="col">
-                            <label>INSS - Total da Empresa (Reclamada)</label>
-                            <input type="text" id="val-inss-total" class="coleta-input" placeholder="R$ INSS Total / Reclamada">
-                        </div>
-                    </div>
-                    <div class="row" style="margin-top: 5px;">
-                        <div class="col">
-                            <label><input type="checkbox" id="ignorar-inss"> Não há INSS</label>
-                            <small style="color: #666; display: block;">*INSS Reclamada = Subtração automática se PJeCalc marcado.</small>
                         </div>
                         <div class="col">
                             <label>Imposto de Renda</label>
@@ -652,33 +636,53 @@
                     <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:8px;"><input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias</label>
                     <input type="hidden" id="resp-unica-flag" value="false">
                 </div>
-                <div class="row" style="margin-top: 10px;">
-                    <label><input type="checkbox" id="resp-rec-judicial"> Recuperação Judicial/Falência (direciona execução, sem intimação prévia)</label>
-                </div>
-                <div id="resp-sub-opcoes" class="row">
-                    <label><input type="checkbox" id="resp-integral" checked> Responde pelo período total</label>
-                    <label style="margin-left: 15px;"><input type="checkbox" id="resp-diversos"> Períodos Diversos (Gera estrutura para preencher)</label>
+                <div id="resp-sub-opcoes" class="row" style="margin-top: 10px; flex-direction: column; gap: 8px;">
+                    <label style="display:flex; align-items:center; gap: 6px;"><input type="radio" name="rad-resp-tipo" id="resp-integral" value="integral" checked> Todas pelo período integral</label>
+                    <label style="display:flex; align-items:center; gap: 6px;"><input type="radio" name="rad-resp-tipo" id="resp-diversos" value="diversos"> Há períodos diversos</label>
                 </div>
             </fieldset>
 
             <!-- SEÇÃO 6.1: PERÍODOS DIVERSOS (Dinâmico) -->
             <fieldset id="resp-diversos-fieldset" class="hidden">
-                <legend>Períodos Diversos - Cálculos Separados por Reclamada</legend>
+                <legend>Detalhamento de Responsabilidades (Períodos Diversos)</legend>
+                
                 <div class="row" style="margin-bottom: 15px;">
                     <div class="col">
-                        <label style="font-weight: bold;">Devedora Principal</label>
-                        <select id="resp-devedora-principal" style="width: 100%; padding: 8px;">
-                            <option value="">Selecione a devedora principal...</option>
-                        </select>
-                        <small style="color: #666; display: block; margin-top: 5px;">*Padrão: primeira reclamada</small>
+                        <label style="font-weight: bold; color: #b45309;">1. Devedoras Principais</label>
+                        <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                            <select id="sel-add-principal" style="padding: 6px; flex: 1;">
+                                <option value="">Adicionar devedora principal...</option>
+                            </select>
+                            <button type="button" class="btn-action" id="btn-add-principal">+</button>
+                        </div>
                     </div>
                 </div>
+
+                <div class="row" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
+                    <div class="col">
+                        <label style="font-weight: bold; color: #0284c7;">2. Subsidiárias (Período Integral)</label>
+                        <label style="display:block; margin:6px 0 10px 0;"><input type="checkbox" id="chk-nao-ha-subs-int"> Não há (não preencher esta lista)</label>
+                        <div id="resp-subsidiarias-integral-dinamico-container" style="padding:0; display:flex; flex-direction:column; gap:6px;"></div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;" id="div-add-subs-int">
+                            <select id="sel-add-subs-int" style="padding: 6px; flex: 1;">
+                                <option value="">Adicionar subsidiária integral...</option>
+                            </select>
+                            <button type="button" class="btn-action" id="btn-add-subs-int">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row" style="margin-bottom: 10px; font-weight: bold; color: #059669;">
+                    <label>3. Subsidiárias (Período Diverso)</label>
+                </div>
                 <div class="row" style="margin-bottom: 15px; font-size: 13px; color: #555;">
-                    <label>Preencha período e planilha para cada reclamada com responsabilidade diversa (subsidiária por período):</label>
+                    <label>Crie blocos por planilha/período e selecione as subsidiárias correspondentes.</label>
                 </div>
                 <div id="resp-diversos-container"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Período Diverso</button>
+                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Bloco de Período Diverso</button>
             </fieldset>
+
 
             <!-- Links de Sentença e Acórdão -->
             <fieldset style="border: none; padding: 8px 0; margin: 8px 0;">

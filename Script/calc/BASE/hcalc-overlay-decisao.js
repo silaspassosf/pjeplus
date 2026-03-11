@@ -581,30 +581,49 @@
                     }
 
                     if (subsidiariasComPeriodo.length > 0) {
-                        subsidiariasComPeriodo.forEach((sub, idx) => {
-                            const letra = String.fromCharCode(65 + idx); // A, B, C...
-                            const periodoLabel = sub.periodo === 'integral' ? 'Cálculo Específico' : sub.periodo;
+                        // agrupar subsidiárias pelo idPlanilha (ou 'principal' quando usarMesmaPlanilha)
+                        const grupos = {};
+                        subsidiariasComPeriodo.forEach((sub) => {
+                            const chave = sub.idPlanilha || (sub.usarMesmaPlanilha ? 'principal' : ('noid_' + (sub.idPlanilha || '')));
+                            if (!grupos[chave]) {
+                                grupos[chave] = { idPlanilha: sub.idPlanilha || '', usarMesmaPlanilha: !!sub.usarMesmaPlanilha, nomes: [], periodo: sub.periodo || '', entradas: [] };
+                            }
+                            grupos[chave].nomes.push(sub.nome);
+                            if (!grupos[chave].periodo) grupos[chave].periodo = sub.periodo || '';
+                            grupos[chave].entradas.push(sub);
+                        });
+
+                        const formatarListaSimples = (itens) => {
+                            if (!itens || itens.length === 0) return '';
+                            if (itens.length === 1) return itens[0];
+                            if (itens.length === 2) return `${itens[0]} e ${itens[1]}`;
+                            return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+                        };
+
+                        const chaves = Object.keys(grupos);
+                        chaves.forEach((chave, gidx) => {
+                            const grupo = grupos[chave];
+                            const letra = String.fromCharCode(65 + gidx);
+                            const periodoLabel = grupo.periodo === 'integral' || !grupo.periodo ? 'Cálculo Específico' : grupo.periodo;
+                            const nomesLabel = formatarListaSimples(grupo.nomes.map(n => n));
 
                             let dadosExtra = null;
-                            if (sub.idPlanilha && window.hcalcState?.planilhasDisponiveis) {
+                            const idSubPlanilha = (grupo.entradas.find(e => e.idPlanilha && e.idPlanilha.length) || {}).idPlanilha || (grupo.usarMesmaPlanilha ? idPlanilha : '');
+                            if (idSubPlanilha && window.hcalcState?.planilhasDisponiveis) {
                                 const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find((planilha) => {
-                                    if (planilha.id && planilha.id === sub.idPlanilha) return true;
-                                    if (planilha.idPlanilha && planilha.idPlanilha === sub.idPlanilha) return true;
-                                    if (planilha.dados && planilha.dados.idPlanilha && planilha.dados.idPlanilha === sub.idPlanilha) return true;
+                                    if (planilha.id && planilha.id === idSubPlanilha) return true;
+                                    if (planilha.idPlanilha && planilha.idPlanilha === idSubPlanilha) return true;
+                                    if (planilha.dados && planilha.dados.idPlanilha && planilha.dados.idPlanilha === idSubPlanilha) return true;
                                     return false;
                                 });
-                                if (planilhaEncontrada) {
-                                    dadosExtra = planilhaEncontrada.dados || planilhaEncontrada;
-                                }
+                                if (planilhaEncontrada) dadosExtra = planilhaEncontrada.dados || planilhaEncontrada;
                             }
 
-                            const idSubPlanilha = sub.idPlanilha || idPlanilha;
-                            const comPlaceholder = !sub.idPlanilha;
-
-                            const label = `${letra} - (${bold(sub.nome)}) - Responsável subsidiária pelo período (${periodoLabel}):`;
+                            const comPlaceholder = !idSubPlanilha;
+                            const label = `${letra} - (${bold(nomesLabel)}) - Responsável subsidiária pelo período (${periodoLabel}):`;
 
                             appendBaseAteAntesPericiais({
-                                idCalculo: idSubPlanilha,
+                                idCalculo: idSubPlanilha || idPlanilha,
                                 usarPlaceholder: comPlaceholder,
                                 reclamadaLabel: label,
                                 dadosOverride: dadosExtra

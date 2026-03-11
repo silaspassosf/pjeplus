@@ -647,12 +647,10 @@
             <!-- SEÇÃO 6: RESPONSABILIDADE -->
             <fieldset>
                 <legend>Responsabilidade</legend>
-                <div class="row">
-                    <select id="resp-tipo">
-                        <option value="unica">Reclamada Única</option>
-                        <option value="solidarias">Devedoras Solidárias</option>
-                        <option value="subsidiarias" selected>Devedoras Subsidiárias</option>
-                    </select>
+                <div class="row" style="display:flex;gap:12px;align-items:center;">
+                    <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:8px;"><input type="checkbox" id="resp-solidarias"> Devedoras Solidárias</label>
+                    <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:8px;"><input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias</label>
+                    <input type="hidden" id="resp-unica-flag" value="false">
                 </div>
                 <div class="row" style="margin-top: 10px;">
                     <label><input type="checkbox" id="resp-rec-judicial"> Recuperação Judicial/Falência (direciona execução, sem intimação prévia)</label>
@@ -676,7 +674,7 @@
                     </div>
                 </div>
                 <div class="row" style="margin-bottom: 15px; font-size: 13px; color: #555;">
-                    <label>Preencha período, planilha e tipo (Principal/Subsidiária) para cada reclamada com responsabilidade diversa:</label>
+                    <label>Preencha período e planilha para cada reclamada com responsabilidade diversa (subsidiária por período):</label>
                 </div>
                 <div id="resp-diversos-container"></div>
                 <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Período Diverso</button>

@@ -56,9 +56,9 @@
 
         function atualizarDropdownsReclamadas() {
             const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-            const principalIntegral = $('resp-devedora-principal')?.value || '';
 
-            const jaUsadas = new Set([principalIntegral]);
+            const jaUsadas = new Set();
+            document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
             document.querySelectorAll('.periodo-reclamada').forEach(select => {
                 if (select.value) jaUsadas.add(select.value);
             });
@@ -95,10 +95,14 @@
             div.style.backgroundColor = '#f5f5f5';
             div.style.borderRadius = '4px';
 
-            const jaUsadas = new Set([principalIntegral]);
-            document.querySelectorAll('.periodo-reclamada').forEach(select => {
-                if (select.value) jaUsadas.add(select.value);
-            });
+                const jaUsadas = new Set();
+                // Marcar como usadas as reclamadas marcadas como principais
+                document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => {
+                    jaUsadas.add(chk.dataset.nome);
+                });
+                document.querySelectorAll('.periodo-reclamada').forEach(select => {
+                    if (select.value) jaUsadas.add(select.value);
+                });
 
             let selectOptions = '<option value="">Selecione a reclamada...</option>';
             reclamadas.forEach(rec => {
@@ -114,13 +118,7 @@
                         ${selectOptions}
                     </select>
                 </div>
-                <div style="margin-bottom: 10px;">
-                    <label style="font-weight: bold;">Tipo de Responsabilidade</label>
-                    <div style="display: flex; gap: 15px;">
-                        <label><input type="radio" name="periodo-tipo-${idx}" class="periodo-tipo" data-idx="${idx}" value="subsidiaria" checked> Subsidiária</label>
-                        <label><input type="radio" name="periodo-tipo-${idx}" class="periodo-tipo" data-idx="${idx}" value="principal"> Principal (Período Parcial)</label>
-                    </div>
-                </div>
+                    
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <div style="flex: 1;">
                         <label>Período (vazio = integral)</label>
@@ -316,9 +314,9 @@
             const linhasPeriodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]'));
             if (linhasPeriodos.length === 0) return null;
 
-            const principalSelecionada = $('resp-devedora-principal')?.value || '1';
             const periodoCompleto = window.hcalcState.planilhaExtracaoData?.periodoCalculo || '';
-            const principaisParciais = [];
+            const principaisSelecionadas = Array.from(document.querySelectorAll('.chk-parte-principal:checked')).map(chk => chk.dataset.nome).filter(Boolean);
+            const principaisParciais = []; // não há mais opção de marcar per-row como principal
             const subsidiariasComPeriodo = [];
 
             linhasPeriodos.forEach((linha) => {
@@ -326,39 +324,27 @@
                 const nomeRec = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`)?.value || '';
                 const periodoTexto = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`)?.value || '';
                 const idPlanilhaManual = document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '';
-                const tipoRadio = document.querySelector(`input[name="periodo-tipo-${idx}"]:checked`)?.value || 'principal';
 
                 const planilhaSel = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal';
                 const usarMesmaPlanilha = planilhaSel === 'principal';
                 const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
                 const periodoTotalCheckbox = document.querySelector(`.periodo-total[data-idx="${idx}"]`);
                 let isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
-                // If user explicitly marked 'Período Total', treat as integral
                 if (periodoTotalCheckbox && periodoTotalCheckbox.checked) isPeriodoIntegral = true;
-                // If the selected planilha is an extra planilha (not 'principal'), consider it a diverso period
                 if (!usarMesmaPlanilha) isPeriodoIntegral = false;
 
                 if (nomeRec && !isPeriodoIntegral) {
-                    if (tipoRadio === 'principal') {
-                        principaisParciais.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
-                    } else {
-                        subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
-                    }
+                    subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
                 }
             });
 
-            const principaisNomes = new Set([principalSelecionada, ...principaisParciais.map(p => p.nome)]);
+            const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+            const principaisNomes = new Set([...principaisSelecionadas, ...principaisParciais.map(p => p.nome)]);
             const subsidiariasComPeriodoNomes = new Set(subsidiariasComPeriodo.map(s => s.nome));
-            const todasReclamadas = Array.from(document.querySelectorAll('.chk-parte-principal'))
-                .map(chk => chk.getAttribute('data-nome'))
-                .filter(n => n);
 
-            const subsidiariasIntegrais = todasReclamadas.filter(nome =>
-                !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome)
-            );
+            const subsidiariasIntegrais = todasReclamadas.filter(nome => !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome));
 
-            const nomesPrincipais = [principalSelecionada, ...principaisParciais.map(p => p.nome)];
-            const nomesPrincipaisUnicos = Array.from(new Set(nomesPrincipais.filter(n => n)));
+            const nomesPrincipaisUnicos = Array.from(new Set(principaisSelecionadas.filter(n => n)));
             const txtPrincipais = formatarLista(nomesPrincipaisUnicos);
 
             const subsInt = subsidiariasIntegrais || [];
@@ -384,12 +370,12 @@
 
             return {
                 textoIntro,
-                principalIntegral: principalSelecionada,
+                principalIntegral: nomesPrincipaisUnicos[0] || '',
                 principaisParciais,
                 subsidiariasIntegrais,
                 subsidiariasComPeriodo,
                 todasPrincipais: [
-                    { nome: principalSelecionada, periodo: 'integral', idPlanilha: '' },
+                    ...nomesPrincipaisUnicos.map(n => ({ nome: n, periodo: 'integral', idPlanilha: '' })),
                     ...principaisParciais
                 ]
             };

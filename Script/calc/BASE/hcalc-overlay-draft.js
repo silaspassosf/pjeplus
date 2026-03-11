@@ -131,7 +131,7 @@
                 const idx = linha.id.replace('periodo-diverso-', '');
                 return {
                     reclamada: document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`)?.value || '',
-                    tipo: document.querySelector(`input[name="periodo-tipo-${idx}"]:checked`)?.value || 'subsidiaria',
+                    tipo: 'subsidiaria',
                     periodo: document.querySelector(`.periodo-periodo[data-idx="${idx}"]`)?.value || '',
                     idCalculo: document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '',
                     planilha: document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal'
@@ -225,7 +225,6 @@
 
                     (draft.periodos || []).forEach((periodo, idx) => {
                         const selRec = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`);
-                        const radioTipo = document.querySelector(`input[name="periodo-tipo-${idx}"][value="${periodo.tipo}"]`);
                         const inpPeriodo = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`);
                         const inpId = document.querySelector(`.periodo-id[data-idx="${idx}"]`);
                         const selPlanilha = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`);
@@ -239,7 +238,6 @@
                             }
                             selRec.value = periodo.reclamada;
                         }
-                        if (radioTipo) radioTipo.checked = true;
                         if (inpPeriodo) inpPeriodo.value = periodo.periodo || '';
                         if (inpId) inpId.value = periodo.idCalculo || '';
                         if (selPlanilha) selPlanilha.value = periodo.planilha || 'principal';

@@ -311,7 +311,10 @@
                     }
                 }
 
-                const temRecJudicial = $('resp-rec-judicial')?.checked || false;
+                const passivoCount = (window.hcalcPartesData?.passivo || []).length;
+                const temRecJudicial = document.querySelector('#resp-principais-dinamico-container .chk-principal-rec:checked') !== null
+                    || (passivoCount === 1 && document.getElementById('resp-rec-judicial-unica')?.checked)
+                    || document.querySelector('#resp-subsidiarias-integral-dinamico-container .chk-subs-int-rec:checked') !== null;
                 if (temRecJudicial) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
                 }

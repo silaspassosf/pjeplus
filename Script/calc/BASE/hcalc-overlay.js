@@ -499,26 +499,27 @@
                             <input type="text" id="val-credito" class="coleta-input" placeholder="R$ Crédito Principal">
                         </div>
                     </div>
-                    <div class="row" style="align-items: center; gap: 10px; margin-bottom: 5px;">
+                    <div class="row row-fgts-block" style="align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-top: 6px;">
+                        <div class="col col-fgts-chk" style="flex: 0 0 auto;">
+                            <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">FGTS</label>
+                            <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="checkbox" id="calc-fgts" checked> FGTS apurado separado?</label>
+                        </div>
+                        <div class="col" id="row-fgts-valor" style="flex: 0 0 auto; display: flex; align-items: flex-end; gap: 16px;">
+                            <div class="col" id="col-fgts-val" style="flex: 0 0 auto;">
+                                <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">Valor FGTS Separado</label>
+                                <input type="text" id="val-fgts" class="coleta-input" placeholder="R$ FGTS" style="width: 140px; box-sizing: border-box;">
+                            </div>
+                            <div class="col" id="fgts-radios" style="flex: 0 0 auto;">
+                                <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">Situação</label>
+                                <div style="display: flex; gap: 12px; align-items: center; min-height: 28px;">
+                                    <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
+                                    <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col" style="flex: 0 0 auto;">
-                            <label><input type="checkbox" id="calc-fgts" checked> FGTS apurado separado?</label>
-                        </div>
-                    </div>
-                    <div class="row" id="row-fgts-valor">
-                        <div class="col" id="col-fgts-val" style="flex: 0 0 auto;">
-                            <label style="font-size: 11px; margin-bottom: 2px;">Valor FGTS Separado</label>
-                            <input type="text" id="val-fgts" class="coleta-input" placeholder="R$ FGTS" style="width: 140px;">
-                        </div>
-                    </div>
-                    <div class="row" id="row-fgts-radios" style="margin-top:4px;">
-                        <div class="col" id="fgts-radios" style="flex: 0 0 auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                            <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:11px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
-                            <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:11px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
-                        </div>
-                    </div>
-                    <div class="row" style="margin-top:6px;">
-                        <div class="col" style="flex: 0 0 auto;">
-                            <label style="font-size:11px; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="calc-fgts-alvara"> Dispensa imotivada? (Alvará pela Secretaria)</label>
+                            <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">&nbsp;</label>
+                            <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="checkbox" id="calc-fgts-alvara"> Dispensa imotivada? (Alvará pela Secretaria)</label>
                         </div>
                     </div>
                     <div class="row hidden" id="col-juros-val">
@@ -652,8 +653,8 @@
                     <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:8px;"><input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias</label>
                     <input type="hidden" id="resp-unica-flag" value="false">
                 </div>
-                <div class="row" style="margin-top: 10px;">
-                    <label><input type="checkbox" id="resp-rec-judicial"> Recuperação Judicial/Falência (direciona execução, sem intimação prévia)</label>
+                <div id="resp-rec-judicial-unica-row" class="hidden" style="margin-top: 8px;">
+                    <label><input type="checkbox" id="resp-rec-judicial-unica"> Rec. Judicial/Falência (reclamada única)</label>
                 </div>
                 <div id="resp-sub-opcoes" class="row">
                     <label><input type="checkbox" id="resp-integral" checked> Responde pelo período total</label>
@@ -684,13 +685,14 @@
                             </select>
                             <button type="button" class="btn-action" id="btn-add-principal">+</button>
                         </div>
-                        <small style="color:#666; display:block; margin-top:6px;">Cada principal terá checkbox de Recuperação Judicial/Falência individual.</small>
+                        <small style="color:#666; display:block; margin-top:6px;">Marque Rec. Judicial/Falência por empresa na lista acima.</small>
                     </div>
                 </div>
 
                 <div class="row" style="margin-bottom: 12px;">
                     <div class="col">
                         <label style="font-weight: bold; color: #0284c7;">2. Subsidiárias (Período Integral)</label>
+                        <small style="color:#666; display:block; margin-bottom:6px;">A primeira da lista é a principal; marque Rec. Judicial/Falência por empresa.</small>
                         <label style="display:block; margin:6px 0 10px 0;"><input type="checkbox" id="chk-nao-ha-subs-int"> Não há (não preencher esta lista)</label>
                         <div id="resp-subsidiarias-integral-dinamico-container" style="padding:0; display:flex; flex-direction:column; gap:6px;"></div>
                         <div id="div-add-subs-int" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">

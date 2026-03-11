@@ -10,15 +10,16 @@
         } = deps;
 
         function aplicarEstiloRecuperacaoJudicial() {
-            // now handled per-principal checkbox inside #resp-principais-container
+            const passivo = window.hcalcPartesData?.passivo?.length || 0;
+            const recJudicialUnica = passivo === 1 && document.getElementById('resp-rec-judicial-unica')?.checked;
             document.querySelectorAll('.intimacao-row').forEach(row => {
                 const checkbox = row.querySelector('.chk-parte-principal');
                 const nomeDiv = row.querySelector('div[title]');
                 if (!checkbox || !nomeDiv) return;
                 const nome = checkbox.dataset.nome;
-                // check if this name is marked as recJud in the principais list
-                const recChk = document.querySelector(`#resp-principais-container .principal-item[data-nome="${CSS.escape(nome)}"] .chk-principal-rec`);
-                const temRecJudicial = recChk ? recChk.checked : false;
+                const recChkPrincipal = document.querySelector(`#resp-principais-dinamico-container .principal-item[data-nome="${CSS.escape(nome)}"] .chk-principal-rec`);
+                const recChkSubsInt = document.querySelector(`#resp-subsidiarias-integral-dinamico-container .subs-item[data-nome="${CSS.escape(nome)}"] .chk-subs-int-rec`);
+                const temRecJudicial = (recChkPrincipal && recChkPrincipal.checked) || (recChkSubsInt && recChkSubsInt.checked) || recJudicialUnica;
                 if (temRecJudicial) {
                     nomeDiv.style.textDecoration = 'line-through';
                     nomeDiv.style.color = '#999';
@@ -50,11 +51,11 @@
             // Principais podem vir das checkboxes de partes ou do novo bloco de principais
             const principaisSet = new Set();
             document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
-            document.querySelectorAll('#resp-principais-container .chk-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
 
             // Subsidiarias integrais marcadas também contam como usadas (não aparecerão nas listas)
             const subsidiariasIntegraisSelecionadas = new Set();
-            document.querySelectorAll('#resp-subsidiarias-integral-container .chk-subs-int:checked').forEach(chk => subsidiariasIntegraisSelecionadas.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .chk-subs-int:checked').forEach(chk => subsidiariasIntegraisSelecionadas.add(chk.dataset.nome));
 
             // Reclamadas já escolhidas nos blocos diversos
             const jaUsadas = new Set([...principaisSet, ...subsidiariasIntegraisSelecionadas]);
@@ -138,7 +139,7 @@
                 const jaUsadas = new Set();
                 // Marcar como usadas as reclamadas marcadas como principais (tanto partes quanto bloco de principais)
                 document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
-                document.querySelectorAll('#resp-principais-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+                document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
                 // Marcar as já escolhidas em outros periodos
                 document.querySelectorAll('.periodo-reclamada').forEach(select => {
                     if (select && select.selectedOptions) Array.from(select.selectedOptions).forEach(o => { if (o.value) jaUsadas.add(o.value); });
@@ -313,9 +314,18 @@
                 atualizarDropdownsReclamadas();
             };
 
-            $('resp-rec-judicial').onchange = () => {
-                aplicarEstiloRecuperacaoJudicial();
-            };
+            // Rec. Judicial/Falência por principal (item 1): aplicar estilo nas intimações ao mudar
+            const containerPrincipais = document.getElementById('resp-principais-dinamico-container');
+            if (containerPrincipais) {
+                containerPrincipais.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('chk-principal-rec')) {
+                        aplicarEstiloRecuperacaoJudicial();
+                        queueOverlayDraftSave();
+                    }
+                });
+            }
+            const recJudUnicaEl = document.getElementById('resp-rec-judicial-unica');
+            if (recJudUnicaEl) recJudUnicaEl.addEventListener('change', () => { aplicarEstiloRecuperacaoJudicial(); queueOverlayDraftSave(); });
 
             $('btn-adicionar-periodo').onclick = (e) => {
                 e.preventDefault();
@@ -338,7 +348,7 @@
                 div.style.display = 'flex';
                 div.style.alignItems = 'center';
                 div.style.gap = '8px';
-                div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type=\"checkbox\" class=\"chk-principal\" data-nome=\"${nome}\"> <span>${nome}</span></label><label style=\"font-size:11px;\"><input type=\"checkbox\" class=\"chk-principal-rec\"> Recuperação/Juízo</label><button type=\"button\" class=\"btn-remove-principal btn-action\" style=\"background:#d32f2f;padding:4px 8px;\">Remover</button>`;
+                div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type=\"checkbox\" class=\"chk-principal\" data-nome=\"${nome}\"> <span>${nome}</span></label><label style=\"font-size:11px;\"><input type=\"checkbox\" class=\"chk-principal-rec\"> Rec. Judicial/Falência</label><button type=\"button\" class=\"btn-remove-principal btn-action\" style=\"background:#d32f2f;padding:4px 8px;\">Remover</button>`;
                 principaisContainer.appendChild(div);
                 const removeBtn = div.querySelector('.btn-remove-principal');
                 removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
@@ -377,10 +387,11 @@
                 div.style.display = 'flex';
                 div.style.alignItems = 'center';
                 div.style.gap = '8px';
-                div.innerHTML = `<label style=\"flex:1; display:flex; gap:8px; align-items:center;\"><input type=\"checkbox\" class=\"chk-subs-int\" data-nome=\"${nome}\"> <span>${nome}</span></label><button type=\"button\" class=\"btn-remove-subs btn-action\" style=\"background:#d32f2f;padding:4px 8px;\">Remover</button>`;
+                div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-subs-int" data-nome="${nome}"> <span>${nome}</span><span class="subs-principal-badge" style="display:none;font-size:10px;color:#b45309;margin-left:4px;">Principal</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-subs-int-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-subs btn-action" style="background:#d32f2f;padding:4px 8px;">Remover</button>`;
                 subsIntContainer.appendChild(div);
                 const removeBtn = div.querySelector('.btn-remove-subs');
-                removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                removeBtn.onclick = () => { div.remove(); atualizarPrincipalBadgeSubsInt(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                atualizarPrincipalBadgeSubsInt();
                 atualizarDropdownsPlanilhas();
                 queueOverlayDraftSave();
             }
@@ -397,6 +408,24 @@
                     document.getElementById('div-add-subs-int').classList.toggle('hidden', hide);
                     queueOverlayDraftSave();
                 };
+            }
+
+            function atualizarPrincipalBadgeSubsInt() {
+                const container = document.getElementById('resp-subsidiarias-integral-dinamico-container');
+                if (!container) return;
+                container.querySelectorAll('.subs-item').forEach((el, i) => {
+                    const badge = el.querySelector('.subs-principal-badge');
+                    if (badge) badge.style.display = i === 0 ? '' : 'none';
+                });
+            }
+
+            if (subsIntContainer) {
+                subsIntContainer.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('chk-subs-int-rec')) {
+                        aplicarEstiloRecuperacaoJudicial();
+                        queueOverlayDraftSave();
+                    }
+                });
             }
         }
 
@@ -426,11 +455,16 @@
 
             const periodoCompleto = window.hcalcState.planilhaExtracaoData?.periodoCalculo || '';
             // Principais: read from dynamic principais container
-            const principaisSelecionadas = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .principal-item')).map(item => {
+            let principaisSelecionadas = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .principal-item')).map(item => {
                 const nome = item.dataset.nome;
                 const recChk = item.querySelector('.chk-principal-rec');
                 return { nome: nome, recJud: !!(recChk && recChk.checked) };
             }).filter(p => p.nome);
+            // Consolidar: quando "subsidiárias período diverso" está ativo, a devedora principal (select) faz parte do item 1
+            const valorDevedoraPrincipal = $('resp-devedora-principal')?.value?.trim() || '';
+            if (valorDevedoraPrincipal && !principaisSelecionadas.some(p => p.nome === valorDevedoraPrincipal)) {
+                principaisSelecionadas = [{ nome: valorDevedoraPrincipal, recJud: false }, ...principaisSelecionadas];
+            }
             const principaisParciais = []; // reserved for compatibility
             const subsidiariasComPeriodo = [];
 

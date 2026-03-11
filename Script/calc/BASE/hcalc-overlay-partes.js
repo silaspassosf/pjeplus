@@ -177,6 +177,9 @@
                 respFieldset.classList.remove('hidden');
             }
 
+            const recJudUnicaRow = $('resp-rec-judicial-unica-row');
+            if (recJudUnicaRow) recJudUnicaRow.classList.toggle('hidden', reclamadas.length !== 1);
+
             const depDepositante = $('dep-depositante');
             if (depDepositante && reclamadas.length > 0) {
                 if (reclamadas.length === 1) {

@@ -1,0 +1,7 @@
+869: updateHighlight
+1376: updateHighlight();
+1503: updateHighlight();
+1592: $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
+1596: updateHighlight();
+1748: function updateHighlight(currentId = null) {
+1784: updateHighlight(id);

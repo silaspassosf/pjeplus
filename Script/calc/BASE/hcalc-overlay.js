@@ -701,11 +701,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="row" style="margin-bottom: 15px; font-size: 13px; color: #555;">
-                    <label>Preencha período e planilha para cada reclamada com responsabilidade diversa (subsidiária por período):</label>
-                </div>
+                <div style="margin-top: 15px; font-weight: bold; color: #059669;">3- Subsidiárias com período diverso</div>
                 <div id="resp-diversos-container"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Período Diverso</button>
+                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Planilha</button>
             </fieldset>
 
             <!-- Links de Sentença e Acórdão -->

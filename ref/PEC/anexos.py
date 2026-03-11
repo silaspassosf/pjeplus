@@ -1,0 +1,1458 @@
+import os
+import re
+import time
+import types
+import pyperclip
+from typing import Optional, Dict, Any, Callable, Union, List
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+
+# Imports do Fix
+from Fix.core import (
+    aguardar_e_clicar,
+    selecionar_opcao,
+    preencher_campo,
+    safe_click,
+    wait_for_clickable,
+    wait_for_visible,
+)
+from Fix.utils import (
+    inserir_html_no_editor_apos_marcador,
+    obter_ultimo_conteudo_clipboard,
+    executar_coleta_parametrizavel,
+    inserir_link_ato_validacao,
+)
+
+# Imports dos módulos refatorados - ATOS
+from atos import (
+    fluxo_cls,
+    ato_judicial,
+    comunicacao_judicial,
+    mov,
+    idpj,
+    make_ato_wrapper,
+    make_comunicacao_wrapper,
+    selecionar_opcao_select
+)
+
+# Imports dos módulos refatorados - PEC
+from PEC import (
+    analisar_documentos_pos_carta,
+    aplicar_filtro_xs,
+    carregar_progresso_pec,
+    extrair_numero_processo_pec,
+    indexar_processo_atual_gigs,
+    marcar_processo_executado_pec,
+    navegar_para_atividades,
+    processo_ja_executado_pec,
+    salvar_progresso_pec,
+    verificar_acesso_negado_pec
+)
+from PEC.processamento import (
+    executar_fluxo_novo,
+    executar_acao,
+    processar_processo_pec_individual
+)
+# Nota: Alguns imports de PEC.regras podem causar import circular - usar apenas quando necessário
+
+# Imports dos módulos refatorados - MANDADO (imports locais para evitar circular)
+# Estes são importados apenas quando necessário dentro das funções
+# from Mandado import (
+#     iniciar_fluxo,
+#     main,
+#     navegacao,
+#     setup_driver
+# )
+# from Mandado.processamento import (
+#     fluxo_mandado,
+#     processar_argos
+# )
+# from Mandado.regras import (
+#     aplicar_regras_argos
+# )
+# from Mandado.utils import (
+#     fechar_intimacao  # Removido para evitar circular import
+# )
+
+# Imports dos módulos refatorados - PRAZO (removidos - causam import circular)
+# from Prazo.loop import loop_prazo, ciclo1, ciclo2
+# from Prazo.p2b_fluxo import fluxo_pz
+from Prazo.p2b_fluxo_helpers import (
+    _processar_regras_gerais
+)
+from Prazo.p2b_core import (
+    carregar_progresso_p2b,
+    salvar_progresso_p2b,
+    processo_ja_executado_p2b,
+    marcar_processo_executado_p2b
+)
+
+# ====================================================
+# EXTRATOR DE NÚMERO DE PROCESSO DA PÁGINA PJE
+# ====================================================
+def extrair_numero_processo_da_pagina(driver, debug: bool = True) -> Optional[str]:
+    """
+    Tenta extrair o número do processo do cabeçalho da página PJe.
+    Se não encontrar, tenta clicar no ícone de copiar e ler do clipboard do sistema (se pyperclip disponível).
+    Retorna o número do processo como string ou None.
+    """
+    try:
+        # 1. Tenta extrair do cabeçalho
+        try:
+            el = driver.find_element(By.CSS_SELECTOR, 'span.texto-numero-processo')
+            numero = el.text.strip()
+            if numero:
+                if debug:
+                    print(f'[EXTRATOR] Número de processo encontrado no cabeçalho: {numero}')
+                return numero
+        except Exception as e:
+            if debug:
+                print(f'[EXTRATOR] Não encontrou no cabeçalho: {e}')
+        # 2. Tenta clicar no ícone de copiar e ler do clipboard
+        try:
+            icone = driver.find_element(By.CSS_SELECTOR, 'i.far.fa-copy.fa-lg')
+            driver.execute_script('arguments[0].click();', icone)
+            time.sleep(0.2)
+            try:
+                numero = pyperclip.paste().strip()
+                if numero:
+                    if debug:
+                        print(f'[EXTRATOR] Número de processo obtido via clipboard: {numero}')
+                    return numero
+            except ImportError:
+                if debug:
+                    print('[EXTRATOR] pyperclip não disponível para ler clipboard')
+        except Exception as e:
+            if debug:
+                print(f'[EXTRATOR] Não conseguiu clicar no ícone de copiar: {e}')
+    except Exception as e:
+        if debug:
+            print(f'[EXTRATOR] Erro geral: {e}')
+    return None
+# ====================================================
+# WRAPPER ESPECÍFICO: CARTA (JUNTADA DE E-CARTA)
+# ====================================================
+
+# ====================================================
+# WRAPPER ESPECÍFICO: CARTA (JUNTADA DE E-CARTA)
+# ====================================================
+def carta_wrapper(
+    driver,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+    ecarta_html: Optional[str] = None
+) -> bool:
+    """
+    Wrapper específico para juntada de e-carta.
+    Busca o conteúdo do clipboard.txt para o processo e insere no editor via editor_insert.
+    Parâmetros fixos conforme padrão do fluxo:
+      tipo: Certidão
+      descricao: Rastreamentos e-Carta
+      modelo: xs carta
+      assinar: nao
+      sigilo: nao
+      substituir_link: True
+    """
+    conteudo = obter_ultimo_conteudo_clipboard(numero_processo, debug=debug)
+    
+    # Se ecarta_html for fornecido, usar ele diretamente (já é HTML formatado)
+    if ecarta_html is not None:
+        conteudo = ecarta_html
+        
+    def inserir_fn(driver, numero_processo=None, debug=True):
+        # Usar substituir_marcador_por_conteudo que é mais robusto para CKEditor
+        print(f"[CARTA] Inserindo conteúdo HTML: {len(conteudo or '')} caracteres")
+        return substituir_marcador_por_conteudo(
+            driver=driver,
+            conteudo_customizado=conteudo or '',
+            debug=True,
+            marcador='--'
+        )
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo='Certidão',
+        descricao='Rastreamentos e-Carta',
+        modelo='xs carta',
+        assinar='nao',
+        sigilo='nao',
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )
+# ====================================================
+def consulta_wrapper(
+    driver,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+    tipo: str = 'Certidão',
+    descricao: str = 'Consulta SISBAJUD',
+    modelo: str = 'xteim',
+    assinar: str = 'nao',
+    sigilo: str = 'sim'
+) -> bool:
+    """Wrapper SISBAJUD positivo (renomeado para consulta)."""
+    return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
+                                    assinar, sigilo, 'SISB', numero_processo, debug)
+
+# ====================================================
+# SISBAJUD WRAPPERS
+# ====================================================
+
+def wrapper_bloqneg(
+    driver,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+    tipo: str = 'Certidão',
+    descricao: str = 'Consulta sisbajud NEGATIVA',
+    modelo: str = 'xjsisbneg',
+    assinar: str = 'nao',
+    sigilo: str = 'nao'
+) -> bool:
+    """Wrapper SISBAJUD negativo."""
+    return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
+                                    assinar, sigilo, 'BLOQNEG', numero_processo, debug)
+
+def wrapper_parcial(
+    driver,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+    tipo: str = 'Certidão',
+    descricao: str = 'Consulta sisbajud POSITIVA',
+    modelo: str = 'XSISBPARCIAL',
+    assinar: str = 'nao',
+    sigilo: str = 'nao'
+) -> bool:
+    """Wrapper SISBAJUD parcial."""
+    return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
+                                    assinar, sigilo, 'PARCIAL', numero_processo, debug)
+
+# ====================================================
+# UTILITÁRIOS DE FORMATAÇÃO
+# ====================================================
+
+def formatar_conteudo_ecarta(html_table):
+    """
+    Formata o conteúdo HTML extraído do e-carta para inserção adequada no editor.
+    """
+    return html_table
+
+# ====================================================
+# HELPERS PARA CONSOLIDAÇÃO DE DUPLICAÇÕES SISBAJUD
+# ====================================================
+
+def _obter_conteudo_relatorio_sisbajud(numero_processo: Optional[str] = None, debug: bool = True) -> Optional[str]:
+    """Obtém conteúdo do relatório SISBAJUD do clipboard.txt centralizado."""
+    try:
+        # Buscar do clipboard pelo número do processo
+        conteudo = obter_ultimo_conteudo_clipboard(numero_processo, debug=debug)
+        
+        if conteudo:
+            if debug:
+                print(f'[SISB] ✅ Relatório obtido do clipboard: {len(conteudo)} caracteres')
+            return conteudo
+        else:
+            if debug:
+                print(f'[SISB] ⚠️ Nenhum conteúdo encontrado no clipboard para processo: {numero_processo}')
+            return None
+            
+    except Exception as e:
+        if debug: print(f'[SISB] ❌ Erro: {e}')
+        return None
+
+
+def _wrapper_sisbajud_generico(
+    driver,
+    tipo: str,
+    descricao: str,
+    modelo: str,
+    assinar: str,
+    sigilo: str,
+    prefixo_log: str,
+    numero_processo: Optional[str] = None,
+    debug: bool = True
+) -> bool:
+    """Wrapper genérico para SISBAJUD usando as funções já definidas."""
+    def inserir_fn(driver, numero_processo=numero_processo, debug=True):
+        # Buscar conteúdo do clipboard pelo número do processo
+        conteudo = _obter_conteudo_relatorio_sisbajud(numero_processo=numero_processo, debug=debug)
+        if not conteudo:
+            if debug:
+                print(f'[{prefixo_log}] ❌ Conteúdo do relatório não disponível para processo: {numero_processo}')
+            return False
+
+        if debug:
+            print(f'[{prefixo_log}] Inserindo: {conteudo[:200]}...')
+
+        # CORREÇÃO: Usar a mesma lógica robusta da PEC carta
+        # Em vez de inserir_html_no_editor_apos_marcador com modo='replace'
+        # Usar substituir_marcador_por_conteudo que é mais confiável
+        return substituir_marcador_por_conteudo(
+            driver=driver,
+            conteudo_customizado=conteudo,
+            debug=debug,
+            marcador='--'
+        )
+
+    if debug:
+        print(f'[{prefixo_log}] Iniciando juntada com modelo: {modelo}')
+
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo=tipo,
+        descricao=descricao,
+        modelo=modelo,
+        assinar=assinar,
+        sigilo=sigilo,
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )
+
+
+
+def wrapper_juntada_geral(
+    driver,
+    tipo: str = 'Certidão',
+    descricao: Optional[str] = None,
+    sigilo: str = 'nao',
+    modelo: Optional[str] = None,
+    inserir_conteudo: Optional[Callable] = None,
+    assinar: str = 'nao',
+    coleta_conteudo: Optional[str] = None,
+    substituir_link: bool = False,
+    debug: bool = True
+) -> bool:
+    """
+    Wrapper geral para juntada automática, sequencial e parametrizado, inspirado em ato_judicial de atos.py.
+    Permite criar wrappers específicos apenas repassando os parâmetros desejados.
+    """
+    # Guard clause: validar driver
+    if not driver:
+        if debug:
+            print('[WRAPPER_JUNTADA_GERAL] ✗ Driver inválido')
+        return False
+
+    if debug:
+        print('[WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...')
+
+    # Passos para abrir tela de juntada
+    try:
+    # 1. Clicar no menu lateral usando função consolidada
+    # Note: Fix.aguardar_e_clicar uses parameter name `log` not `debug`.
+        if not aguardar_e_clicar(driver, 'i.fa.fa-bars.icone-botao-menu', log=debug):
+            if debug:
+                print('[WRAPPER_JUNTADA_GERAL][ERRO] Falha ao clicar no menu lateral')
+            return False
+        if debug:
+            print('[JUNTADA][DEBUG] Menu lateral clicado.')
+
+    # 2. Clicar em "Anexar Documentos" usando função consolidada
+    # Note: Fix.aguardar_e_clicar uses parameter name `log` not `debug`.
+        if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', log=debug):
+            if debug:
+                print('[WRAPPER_JUNTADA_GERAL][ERRO] Falha ao clicar em "Anexar Documentos"')
+            return False
+        if debug:
+            print('[JUNTADA][DEBUG] Botão "Anexar Documentos" clicado.')
+
+        # Trocar para nova aba se necessário
+        all_windows = driver.window_handles
+        if len(all_windows) > 1:
+            driver.switch_to.window(all_windows[-1])
+            if debug:
+                print(f'[JUNTADA][DEBUG] Mudou para nova aba: {all_windows[-1]}')
+        else:
+            if debug:
+                print('[JUNTADA][ERRO] Nova aba de anexar não detectada.')
+
+        # 3. Aguardar interface de anexar aparecer
+        if not wait_for_visible(driver, 'input[aria-label="Tipo de Documento"]', timeout=10):
+            if debug:
+                print('[WRAPPER_JUNTADA_GERAL][ERRO] Interface de anexar não detectada')
+            return False
+
+        if debug:
+            print(f'[JUNTADA][DEBUG] Interface de anexar detectada: {driver.current_url}')
+    except Exception as e:
+        if debug:
+            print(f'[JUNTADA][ERRO] Falha ao abrir tela de juntada: {type(e).__name__}: {str(e)[:100]}')
+        return False
+
+    # Coleta opcional - guard clause interna
+    if coleta_conteudo:
+        numero_processo = extrair_numero_processo_da_url(driver)
+        if numero_processo:
+            try:
+                print(f'[WRAPPER_JUNTADA_GERAL][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo}')
+                executar_coleta_parametrizavel(driver, numero_processo, coleta_conteudo, debug=debug)
+            except Exception as e:
+                if debug:
+                    print(f'[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Falha ao executar coleta opcional: {e}')
+        else:
+            if debug:
+                print('[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Número do processo não identificado')
+
+    # 1. Cria juntador
+    juntador = create_juntador(driver)
+    configuracao = {
+        'tipo': tipo,
+        'descricao': descricao if descricao else 'Juntada automática',
+        'sigilo': sigilo,
+        'modelo': modelo,
+        'inserir_conteudo': inserir_conteudo,
+        'assinar': assinar,
+        'coleta_conteudo': coleta_conteudo,
+    }
+    # 2. Executa juntada principal
+    resultado = False
+    if hasattr(juntador, 'executar_juntada'):
+        resultado = juntador.executar_juntada(configuracao, substituir_link=substituir_link)
+    else:
+        if debug:
+            print('[WRAPPER_JUNTADA_GERAL][ERRO] Objeto juntador não possui método executar_juntada')
+        return False
+
+    if resultado:
+        if debug:
+            print('[WRAPPER_JUNTADA_GERAL] ✓ Juntada automática concluída com sucesso!')
+    else:
+        if debug:
+            print('[WRAPPER_JUNTADA_GERAL] ✗ Juntada automática falhou ou foi pulada')
+    return resultado
+# ====================================================
+# UTILITÁRIOS DE FORMATAÇÃO
+# ====================================================
+
+
+
+def create_juntador(driver) -> Any:
+    """Cria um objeto simples com driver e métodos vinculados aos helpers existentes."""
+    ns = types.SimpleNamespace(driver=driver)
+    # Bind helpers
+    try:
+        ns._escolher_opcao_gigs = types.MethodType(globals().get('_escolher_opcao_gigs'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_input_gigs = types.MethodType(globals().get('_preencher_input_gigs'), ns)
+    except Exception:
+        pass
+    try:
+        ns._clicar_elemento_gigs = types.MethodType(globals().get('_clicar_elemento_gigs'), ns)
+    except Exception:
+        pass
+    try:
+        ns._selecionar_modelo_gigs = types.MethodType(globals().get('_selecionar_modelo_gigs'), ns)
+    except Exception:
+        pass
+    # Bind flows
+    ns.executar_juntada_ate_editor = types.MethodType(executar_juntada_ate_editor, ns)
+    try:
+        ns.executar_juntada = types.MethodType(globals().get('executar_juntada'), ns)
+    except Exception:
+        pass
+    # Bind decomposed helpers for executar_juntada
+    try:
+        ns._executar_coleta_opcional = types.MethodType(globals().get('_executar_coleta_opcional'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_tipo = types.MethodType(globals().get('_preencher_tipo'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_descricao = types.MethodType(globals().get('_preencher_descricao'), ns)
+    except Exception:
+        pass
+    try:
+        ns._configurar_sigilo = types.MethodType(globals().get('_configurar_sigilo'), ns)
+    except Exception:
+        pass
+    try:
+        ns._selecionar_e_inserir_modelo = types.MethodType(globals().get('_selecionar_e_inserir_modelo'), ns)
+    except Exception:
+        pass
+    try:
+        ns._inserir_conteudo_customizado = types.MethodType(globals().get('_inserir_conteudo_customizado'), ns)
+    except Exception:
+        pass
+    try:
+        ns._salvar_documento = types.MethodType(globals().get('_salvar_documento'), ns)
+    except Exception:
+        pass
+    try:
+        ns._assinar_se_necessario = types.MethodType(globals().get('_assinar_se_necessario'), ns)
+    except Exception:
+        pass
+    # Bind decomposed helpers for executar_juntada_ate_editor
+    try:
+        ns._abrir_interface_anexacao = types.MethodType(globals().get('_abrir_interface_anexacao'), ns)
+    except Exception:
+        pass
+    try:
+        ns._preencher_campos_basicos = types.MethodType(globals().get('_preencher_campos_basicos'), ns)
+    except Exception:
+        pass
+    try:
+        ns._inserir_modelo = types.MethodType(globals().get('_inserir_modelo'), ns)
+    except Exception:
+        pass
+    return ns
+
+def executar_juntada_ate_editor(self, configuracao: Dict[str, Any]) -> bool:
+    """
+    Executa a juntada até o ponto em que o editor está disponível e o modelo foi inserido,
+    mas NÃO clica em Salvar. Retorna True se sucesso, False se falha.
+
+    Orquestra: validação → abrir interface → preencher campos → inserir modelo
+    """
+    # Guard clause: validar parâmetros
+    if not self or not hasattr(self, 'driver') or not self.driver:
+        print('[JUNTADA] ✗ Instância ou driver inválido')
+        return False
+
+    if not configuracao:
+        print('[JUNTADA] ✗ Configuração não fornecida')
+        return False
+
+    driver = self.driver
+    modelo = configuracao.get('modelo', '').strip().upper()
+
+    # Guard clause: validar modelo
+    if modelo == 'PDF':
+        print('[JUNTADA][ERRO] Não faz sentido juntar PDF nesse fluxo!')
+        return False
+
+    print('[JUNTADA][DEBUG] Executando juntada até o editor estar pronto')
+
+    try:
+        # 1. Abrir interface de anexação
+        if not self._abrir_interface_anexacao():
+            return False
+
+        # 2. Preencher campos básicos
+        if not self._preencher_campos_basicos(configuracao):
+            return False
+
+        # 3. Inserir modelo e verificar editor
+        if not self._inserir_modelo(configuracao):
+            return False
+
+        print('[JUNTADA][DEBUG] ✓ Editor disponível para manipulação')
+        return True
+
+    except Exception as e:
+        print(f'[JUNTADA][ERRO] Erro ao executar juntada até o editor: {e}')
+        return False
+
+def executar_juntada(self, configuracao: Dict[str, Any], substituir_link: bool = False) -> bool:
+    """
+    Orquestra juntada automática de anexos.
+
+    Fluxo: validação → coleta → tipo → descrição → sigilo → modelo → inserção → salvar → assinar
+    """
+    # Guard clause: validar parâmetros
+    if not self or not hasattr(self, 'driver') or not self.driver:
+        print('[JUNTADA] ✗ Instância ou driver inválido')
+        return False
+
+    if not configuracao:
+        print('[JUNTADA] ✗ Configuração não fornecida')
+        return False
+
+    driver = self.driver
+    print(f'[JUNTADA][DEBUG] Iniciando juntada com configuração: {configuracao}')
+
+    # 1. Coleta opcional
+    if not self._executar_coleta_opcional(configuracao):
+        print('[JUNTADA] ⚠️ Coleta falhou mas prosseguindo...')
+
+    # 2. Preencher tipo
+    if not self._preencher_tipo(configuracao):
+        return False
+
+    # 3. Preencher descrição
+    if not self._preencher_descricao(configuracao):
+        return False
+
+    # 4. Configurar sigilo
+    if not self._configurar_sigilo(configuracao):
+        return False
+
+    # 5. Selecionar modelo
+    if not self._selecionar_e_inserir_modelo(configuracao):
+        return False
+
+    # 6. Inserir conteúdo customizado
+    if not self._inserir_conteudo_customizado(configuracao, substituir_link):
+        return False
+
+    # 7. Salvar documento
+    if not self._salvar_documento():
+        return False
+
+    # 8. Assinar se necessário
+    if not self._assinar_se_necessario(configuracao):
+        return False
+
+    print('[JUNTADA][OK] Juntada concluída com sucesso!')
+    return True
+
+def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> bool:
+    """Implementa escolherOpcaoTeste do gigs-plugin.js"""
+    try:
+        driver = self.driver
+        
+        # 1. Encontra o campo
+        campo = driver.find_element(By.CSS_SELECTOR, seletor)
+        
+        # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
+        parent_element = campo.find_element(By.XPATH, '../..')
+        driver.execute_script("arguments[0].click();", parent_element)
+        time.sleep(1)
+        
+        # 3. Aguarda opções aparecerem e clica na desejada
+        wait = WebDriverWait(driver, 10)
+        opcoes = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option[role='option']")))
+        
+        for opcao in opcoes:
+            if valor.lower() in opcao.text.lower():
+                driver.execute_script("arguments[0].click();", opcao)
+                print(f'[JUNTADA][DEBUG] {nome_campo} selecionado: {valor}')
+                return True
+        
+        print(f'[JUNTADA][ERRO] Opção "{valor}" não encontrada em {nome_campo}')
+        return False
+        
+    except Exception as e:
+        print(f'[JUNTADA][ERRO] Falha ao selecionar {nome_campo}: {e}')
+        return False
+
+def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bool:
+    """Implementa preencherInput do gigs-plugin.js"""
+    try:
+        driver = self.driver
+        
+        # Encontra o elemento
+        campo = driver.find_element(By.CSS_SELECTOR, seletor)
+        
+        # Implementa exatamente como no gigs-plugin.js usando JavaScript
+        resultado = driver.execute_script("""
+            const elemento = arguments[0];
+            const valor = arguments[1];
+            
+            // Focus no elemento (JavaScript, não WebElement)
+            elemento.focus();
+            
+            // Define valor usando Object.getOwnPropertyDescriptor (padrão GIGS)
+            Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(elemento, valor);
+            
+            // Dispara eventos exatos do GIGS
+            function triggerEvent(el, eventType) {
+                const event = new Event(eventType, {bubbles: true, cancelable: true});
+                el.dispatchEvent(event);
+            }
+            
+            triggerEvent(elemento, 'input');
+            triggerEvent(elemento, 'change');
+            triggerEvent(elemento, 'dateChange');
+            triggerEvent(elemento, 'keyup');
+            
+            // Simula Enter (padrão GIGS)
+            const enterEvent = new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true});
+            elemento.dispatchEvent(enterEvent);
+            
+            // Blur no elemento
+            elemento.blur();
+            
+            return true;
+        """, campo, valor)
+        
+        print(f'[JUNTADA][DEBUG] {nome_campo} preenchido: {valor}')
+        return True
+        
+    except Exception as e:
+        print(f'[JUNTADA][ERRO] Falha ao preencher {nome_campo}: {e}')
+        return False
+
+def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
+    """Implementa clicarBotao do gigs-plugin.js com múltiplas tentativas"""
+    try:
+        driver = self.driver
+        
+        # Lista de seletores alternativos para botão Salvar
+        if 'Salvar' in nome_elemento:
+            seletores = [
+                'button[aria-label="Salvar"]',
+            'button[mat-raised-button][color="primary"][aria-label="Salvar"]',
+            'button.mat-raised-button.mat-primary[aria-label="Salvar"]',
+            'button.mat-focus-indicator.mat-raised-button.mat-button-base.mat-primary[aria-label="Salvar"]',
+            'button:contains("Salvar")',
+            '[aria-label="Salvar"]'
+        ]
+        # Lista de seletores alternativos para botão Assinar
+        elif 'Assinar' in nome_elemento:
+            seletores = [
+                'button[aria-label="Assinar documento e juntar ao processo"]',
+                'button.mat-fab[aria-label="Assinar documento e juntar ao processo"]',
+                'button.mat-focus-indicator.mat-fab.mat-button-base.mat-accent[aria-label="Assinar documento e juntar ao processo"]',
+                'button[mat-fab].mat-accent[aria-label="Assinar documento e juntar ao processo"]',
+                'button.mat-fab .fa-pen-nib',
+                'button:contains("Assinar")',
+                '[aria-label*="Assinar"]'
+            ]
+        else:
+            seletores = [seletor]
+        
+        for i, sel in enumerate(seletores):
+            try:
+                print(f'[JUNTADA][DEBUG] Tentando seletor {i + 1}: {sel}')
+                
+                # Tenta encontrar o elemento
+                if ':contains(' in sel:
+                    # Para seletores com :contains, usar JavaScript
+                    elemento = driver.execute_script("""
+                        const buttons = document.querySelectorAll('button');
+                        return Array.from(buttons).find(btn => 
+                            btn.textContent.trim().toLowerCase().includes('salvar') ||
+                            btn.getAttribute('aria-label') === 'Salvar'
+                        );
+                    """)
+                else:
+                    elementos = driver.find_elements(By.CSS_SELECTOR, sel)
+                    elemento = elementos[0] if elementos else None
+                
+                if elemento:
+                    print(f'[JUNTADA][DEBUG] Elemento encontrado com seletor {i + 1}: {sel}')
+                    
+                    # Múltiplas tentativas de clique
+                    for tentativa in range(3):
+                        try:
+                            # Scroll para o elemento
+                            driver.execute_script("arguments[0].scrollIntoView(true);", elemento)
+                            time.sleep(0.5)
+                            
+                            # Verifica se elemento é clicável
+                            if elemento.is_enabled() and elemento.is_displayed():
+                                # Tenta clique JavaScript
+                                driver.execute_script("arguments[0].click();", elemento)
+                                print(f'[JUNTADA][DEBUG] ✅ Clique realizado: {nome_elemento} (seletor {i+1}, tentativa {tentativa + 1})')
+                                return True
+                            else:
+                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {elemento.is_enabled()}, visible: {elemento.is_displayed()})')
+                            
+                        except Exception as e:
+                            if tentativa < 2:  # Não é a última tentativa
+                                print(f'[JUNTADA][DEBUG] Tentativa {tentativa + 1} falhou para {nome_elemento}: {e}')
+                                time.sleep(1)
+                            else:
+                                print(f'[JUNTADA][AVISO] Todas as tentativas falharam para {nome_elemento} com seletor {sel}: {e}')
+                else:
+                    print(f'[JUNTADA][DEBUG] Elemento não encontrado com seletor {i + 1}: {sel}')
+                    
+            except Exception as e:
+                if i < len(seletores) - 1:  # Não é o último seletor
+                    print(f'[JUNTADA][DEBUG] Seletor {i + 1} "{sel}" falhou: {e}')
+                    continue
+                else:
+                    print(f'[JUNTADA][ERRO] Último seletor "{sel}" falhou: {e}')
+        
+        print(f'[JUNTADA][ERRO] Todos os seletores falharam para {nome_elemento}')
+        return False
+        
+    except Exception as e:
+        print(f'[JUNTADA][ERRO] Falha geral ao clicar {nome_elemento}: {e}')
+        return False
+
+def _selecionar_modelo_gigs(self, modelo: str) -> bool:
+    """Seleciona e insere o modelo exatamente como em comunicacao_judicial (atos.py)."""
+    try:
+        driver = self.driver
+        wait = WebDriverWait(driver, 15)
+
+        print(f'[JUNTADA][DEBUG] Selecionando modelo (modo atos.py): {modelo}')
+
+        # 1) Preenche filtro como em atos.py (focus + value + eventos + ENTER)
+        campo_filtro_modelo = driver.find_element(By.CSS_SELECTOR, '#inputFiltro')
+        driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
+        driver.execute_script('arguments[0].value = arguments[1];', campo_filtro_modelo, modelo)
+        for ev in ['input', 'change', 'keyup']:
+            driver.execute_script('var evt = new Event(arguments[1], {bubbles:true}); arguments[0].dispatchEvent(evt);', campo_filtro_modelo, ev)
+        campo_filtro_modelo.send_keys(Keys.ENTER)
+        print('[JUNTADA][DEBUG] Filtro aplicado e ENTER enviado')
+
+        # 2) Clica no item destacado .nodo-filtrado (sem fallback para evitar modelo errado)
+        seletor_item_filtrado = '.nodo-filtrado'
+        nodo = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_item_filtrado)))
+        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', nodo)
+        driver.execute_script('arguments[0].click();', nodo)
+        print('[JUNTADA][DEBUG] Clique em nodo-filtrado realizado')
+
+        # 3) Aguarda preview e localiza botão Inserir (seletor de atos.py)
+        seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
+        btn_inserir = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn_inserir)))
+        time.sleep(0.6)
+
+        # 4) Inserir com tecla ESPAÇO (padrão MaisPje)
+        btn_inserir.send_keys(Keys.SPACE)
+        print('[JUNTADA][DEBUG] Modelo inserido pressionando ESPAÇO (padrão atos.py)')
+
+        # 5) Pequeno aguardo para o editor receber o conteúdo
+        time.sleep(2)
+        return True
+    except Exception as e:
+        print(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo (modo atos.py): {e}')
+        return False
+
+# ====================================================
+# HELPERS PARA DECOMPOSIÇÃO DE executar_juntada()
+# ====================================================
+
+def _executar_coleta_opcional(self, configuracao: Dict[str, Any]) -> bool:
+    """Executa coleta de conteúdo se configurada."""
+    coleta_conteudo = configuracao.get('coleta_conteudo')
+    if not coleta_conteudo:
+        return True  # Não é erro não ter coleta
+
+    numero_processo_atual = extrair_numero_processo_da_url(self.driver)
+    if not numero_processo_atual:
+        print('[JUNTADA][COLETA][WARN] Número do processo não identificado')
+        return True  # Não falha por não conseguir extrair número
+
+    try:
+        print(f'[JUNTADA][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo_atual}')
+        executar_coleta_parametrizavel(self.driver, numero_processo_atual, coleta_conteudo, debug=True)
+        return True
+    except Exception as e:
+        print(f'[JUNTADA][COLETA][WARN] Falha ao executar coleta opcional: {e}')
+        return True  # Coleta opcional não deve falhar a juntada
+
+
+def _preencher_tipo(self, configuracao: Dict[str, Any]) -> bool:
+    """Preenche Tipo de Documento."""
+    tipo = configuracao.get('tipo', 'Certidão')
+    return self._escolher_opcao_gigs('input[aria-label="Tipo de Documento"]', tipo, 'Tipo de Documento')
+
+
+def _preencher_descricao(self, configuracao: Dict[str, Any]) -> bool:
+    """Preenche Descrição."""
+    descricao = configuracao.get('descricao', '')
+    if not descricao:
+        return True  # Descrição opcional
+    return self._preencher_input_gigs('input[aria-label="Descrição"]', descricao, 'Descrição')
+
+
+def _configurar_sigilo(self, configuracao: Dict[str, Any]) -> bool:
+    """Configura sigilo se necessário."""
+    sigilo = configuracao.get('sigilo', 'nao').lower()
+    if 'sim' in sigilo:
+        return self._clicar_elemento_gigs('input[name="sigiloso"]', 'Sigilo')
+    return True  # Não é erro não configurar sigilo
+
+
+def _selecionar_e_inserir_modelo(self, configuracao: Dict[str, Any]) -> bool:
+    """Seleciona e insere modelo no editor."""
+    modelo = configuracao.get('modelo', '')
+    if not modelo:
+        return True  # Modelo opcional
+    return self._selecionar_modelo_gigs(modelo)
+
+
+def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir_link: bool = False) -> bool:
+    """Insere conteúdo customizado ou substitui link."""
+    try:
+        inserir_conteudo = configuracao.get('inserir_conteudo')
+        if inserir_conteudo:
+            print('[JUNTADA][INSERIR] Executando inserção de conteúdo no editor...')
+            inserir_fn = inserir_conteudo
+            if isinstance(inserir_conteudo, str):
+                try:
+                    if inserir_conteudo.lower() in ('link_ato', 'link_ato_validacao'):
+                        inserir_fn = inserir_link_ato_validacao
+                except Exception as _e:
+                    print(f"[JUNTADA][INSERIR][WARN] Não foi possível resolver função por string: {inserir_conteudo} -> {_e}")
+
+            # Número do processo: priorizar dadosatuais.json (número CNJ) em vez de ID da URL
+            numero_processo_atual = None
+            try:
+                import json
+                from pathlib import Path
+                dados_path = Path('dadosatuais.json')
+                if dados_path.exists():
+                    dados = json.loads(dados_path.read_text(encoding='utf-8'))
+                    numero = dados.get('numero')
+                    if isinstance(numero, list) and numero:
+                        numero_processo_atual = numero[0]
+                    elif isinstance(numero, str) and numero.strip():
+                        numero_processo_atual = numero.strip()
+                    if numero_processo_atual:
+                        print(f'[JUNTADA][INSERIR] Número do processo (CNJ): {numero_processo_atual}')
+            except Exception as e:
+                print(f'[JUNTADA][INSERIR][WARN] Erro ao ler dadosatuais.json: {e}')
+            
+            # Fallback: extrair da URL se não conseguiu do JSON
+            if not numero_processo_atual:
+                numero_processo_atual = extrair_numero_processo_da_url(self.driver)
+                print(f'[JUNTADA][INSERIR][WARN] Usando ID da URL como fallback: {numero_processo_atual}')
+
+            ok = False
+            try:
+                ok = inserir_fn(driver=self.driver, numero_processo=numero_processo_atual, debug=True)
+            except TypeError as te:
+                try:
+                    ok = inserir_fn(self.driver, numero_processo_atual)
+                except Exception as e2:
+                    try:
+                        ok = inserir_fn(self.driver)
+                    except Exception as e3:
+                        print(f"[JUNTADA][INSERIR][ERRO] Todas as tentativas de chamada falharam: {e3}")
+                        return False
+
+            print(f"[JUNTADA][INSERIR] Resultado da inserção: {'✓' if ok else '✗'}")
+            return ok
+
+        elif substituir_link:
+            # Compat: caminho antigo de substituição
+            print('[JUNTADA][DEBUG] Aguardando modelo carregar para substituir link...')
+            time.sleep(3)
+            if not substituir_marcador_por_conteudo(self.driver, debug=True):
+                print('[JUNTADA][ERRO] Falha na substituição do link!')
+                return False
+            print('[JUNTADA][DEBUG] Aguardando processamento da substituição...')
+            time.sleep(2)
+            return True
+
+        return True  # Não é erro não ter conteúdo para inserir
+
+    except Exception as e:
+        print(f"[JUNTADA][INSERIR][WARN] Erro durante inserção opcional: {e}")
+        return False
+
+
+def _salvar_documento(self) -> bool:
+    """Salva documento com retry."""
+    print('[JUNTADA] Salvando documento final...')
+    if not self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento'):
+        print('[JUNTADA][ERRO] Falha no salvamento principal!')
+        return False
+
+    # Aguardar processamento
+    print('[JUNTADA] Aguardando processamento do salvamento...')
+    time.sleep(2)
+
+    # Verificar se salvamento foi efetivo
+    try:
+        salvar_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
+        if salvar_btn.is_enabled():
+            print('[JUNTADA][WARN] Documento ainda não salvo, tentando novamente...')
+            self.driver.execute_script("arguments[0].click();", salvar_btn)
+            time.sleep(2)
+    except:
+        print('[JUNTADA][INFO] Botão Salvar não disponível - documento já salvo')
+
+    return True
+
+
+def _assinar_se_necessario(self, configuracao: Dict[str, Any]) -> bool:
+    """Assina documento se configurado."""
+    if configuracao.get('assinar', 'nao').lower() == 'sim':
+        print('[JUNTADA][DEBUG] Aguardando 3 segundos após salvamento antes de assinar...')
+        time.sleep(3)
+        return self._clicar_elemento_gigs('button[aria-label="Assinar documento e juntar ao processo"]', 'Assinar')
+    return True  # Não é erro não assinar
+
+# ====================================================
+# HELPERS PARA DECOMPOSIÇÃO DE executar_juntada_ate_editor()
+# ====================================================
+
+def _abrir_interface_anexacao(self) -> bool:
+    """Abre a interface de anexação de documentos."""
+    driver = self.driver
+    print('[JUNTADA][DEBUG] Abrindo interface de anexação...')
+
+    # 1. Clique no menu (ícone hambúrguer)
+    print('[JUNTADA][DEBUG] Clicando no menu hambúrguer...')
+    if not aguardar_e_clicar(driver, 'i[class*="fa-bars"].icone-botao-menu', 'Menu hambúrguer'):
+        return False
+    time.sleep(1)
+
+    # 2. Clique em "Anexar Documentos"
+    print('[JUNTADA][DEBUG] Clicando em "Anexar documentos"...')
+    if not aguardar_e_clicar(driver, 'button[aria-label="Anexar Documentos"]', 'Anexar documentos'):
+        return False
+    time.sleep(2)
+
+    # 3. Aguarda nova aba/janela e muda para ela
+    print('[JUNTADA][DEBUG] Mudando para aba de anexação...')
+    all_windows = driver.window_handles
+    if len(all_windows) > 1:
+        driver.switch_to.window(all_windows[-1])
+        if not wait_for_visible(driver, '/anexar', 'URL de anexação'):
+            print('[JUNTADA][AVISO] URL não contém /anexar, mas prosseguindo...')
+    else:
+        print('[JUNTADA][DEBUG] Nova aba não detectada, prosseguindo na mesma aba...')
+
+    time.sleep(3)
+    return True
+
+
+def _preencher_campos_basicos(self, configuracao: Dict[str, Any]) -> bool:
+    """Preenche os campos básicos: tipo, descrição e sigilo."""
+    driver = self.driver
+    # Tipo de Documento
+    tipo = configuracao.get('tipo', 'Certidão')
+    print(f'[JUNTADA][DEBUG] Preenchendo Tipo de Documento: {tipo}')
+    if not selecionar_opcao(driver, 'input[aria-label="Tipo de Documento"]', tipo, 'Tipo de Documento'):
+        return False
+
+    # Descrição
+    descricao = configuracao.get('descricao', '')
+    if descricao:
+        print(f'[JUNTADA][DEBUG] Preenchendo Descrição: {descricao}')
+        if not preencher_campo(driver, 'input[aria-label="Descrição"]', descricao, 'Descrição'):
+            return False
+
+    # Sigilo
+    sigilo = configuracao.get('sigilo', 'nao').lower()
+    if 'sim' in sigilo:
+        print('[JUNTADA][DEBUG] Ativando sigilo')
+        if not aguardar_e_clicar(driver, 'input[name="sigiloso"]', 'Sigilo'):
+            return False
+
+    return True
+
+
+def _inserir_modelo(self, configuracao: Dict[str, Any]) -> bool:
+    """Insere o modelo no editor e verifica se foi carregado."""
+    driver = self.driver
+    modelo_original = configuracao.get('modelo', '')
+    if modelo_original:
+        print(f'[JUNTADA][DEBUG] Selecionando e inserindo modelo: {modelo_original}')
+        if not self._selecionar_modelo_gigs(modelo_original):
+            return False
+        print('[JUNTADA][DEBUG] Aguardando modelo ser inserido no editor...')
+        time.sleep(3)
+
+    print('[JUNTADA][DEBUG] Verificando se editor está disponível após inserção do modelo...')
+
+    seletores_editor = [
+        'div[aria-label="Conteúdo principal. Alt+F10 para acessar a barra de tarefas"].area-conteudo.ck.ck-content.ck-editor__editable',
+        '.area-conteudo.ck.ck-content.ck-editor__editable.ck-rounded-corners.ck-editor__editable_inline',
+        '.area-conteudo.ck-editor__editable[contenteditable="true"]',
+        '.ck-editor__editable[contenteditable="true"]',
+        'div.fr-element[contenteditable="true"]',
+        '[contenteditable="true"]'
+    ]
+
+    editor_encontrado = None
+    for i, seletor in enumerate(seletores_editor):
+        try:
+            elementos = driver.find_elements(By.CSS_SELECTOR, seletor)
+            print(f'[JUNTADA][DEBUG] Seletor {i+1} "{seletor}": {len(elementos)} elementos')
+            if elementos:
+                editor_encontrado = elementos[0]
+                print(f'[JUNTADA][DEBUG] ✓ Editor encontrado com seletor: {seletor}')
+                print(f'[JUNTADA][DEBUG] Editor visível: {editor_encontrado.is_displayed()}')
+                print(f'[JUNTADA][DEBUG] Editor habilitado: {editor_encontrado.is_enabled()}')
+                conteudo = editor_encontrado.get_attribute('innerHTML')
+                print(f'[JUNTADA][DEBUG] Conteúdo do editor (primeiros 200 chars): {conteudo[:200]}...')
+                if 'marker-yellow' in conteudo and 'link' in conteudo:
+                    print('[JUNTADA][DEBUG] ✓ Editor contém termo "link" marcado em amarelo!')
+                elif conteudo.strip() and len(conteudo) > 100:
+                    print('[JUNTADA][DEBUG] ✓ Editor contém conteúdo do modelo inserido')
+                else:
+                    print('[JUNTADA][AVISO] Editor parece vazio - modelo pode não ter sido inserido')
+                break
+        except Exception as e:
+            print(f'[JUNTADA][DEBUG] Erro com seletor {i+1}: {e}')
+            continue
+
+    if not editor_encontrado:
+        print('[JUNTADA][ERRO] Nenhum editor encontrado com os seletores disponíveis!')
+        return False
+
+    print('[JUNTADA][DEBUG] ✓ Editor disponível para manipulação')
+    return True
+
+# ====================================================
+# UTILITÁRIOS DE EDITOR
+# ====================================================
+
+def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str] = None, debug: bool = True, marcador: str = "--") -> bool:
+    """
+    Função melhorada para localizar marcador (ex: "--") e colar conteúdo após ele.
+    Usa a mesma lógica robusta do editor_insert.py para maior compatibilidade.
+    Simula ação manual: clique no final da linha + Ctrl+V
+    Args:
+        driver: Selenium WebDriver
+        debug: Se deve exibir logs
+        conteudo_customizado: Conteúdo específico para usar (se None, usa clipboard/arquivo)
+        marcador: Texto a ser localizado (padrão: "--")
+    """
+    if debug:
+        print(f"[SUBST_MARCADOR] Iniciando colagem após marcador '{marcador}'...")
+
+    try:
+        # 1. Determina qual conteúdo usar
+        conteudo_para_usar = None
+        fonte_conteudo = ""
+
+        if conteudo_customizado:
+            conteudo_para_usar = conteudo_customizado
+            fonte_conteudo = "conteudo_customizado"
+            if debug:
+                print(f"[SUBST_MARCADOR] Usando conteúdo customizado: {len(conteudo_customizado)} chars")
+        else:
+            # Carrega conteúdo do clipboard/arquivo
+            def carregar_clipboard_arquivo():
+                try:
+                    # Procurar clipboard.txt na pasta PEC
+                    clipboard_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "clipboard.txt")
+                    if os.path.exists(clipboard_file):
+                        with open(clipboard_file, 'r', encoding='utf-8') as f:
+                            content = f.read().strip()
+                        if debug:
+                            print(f"[SUBST_MARCADOR] Carregado do arquivo: {len(content)} chars")
+                        return content
+                    return None
+                except Exception as e:
+                    if debug:
+                        print(f"[SUBST_MARCADOR] Erro ao carregar arquivo: {e}")
+                    return None
+
+            conteudo_para_usar = carregar_clipboard_arquivo()
+            fonte_conteudo = "clipboard_arquivo"
+
+        if not conteudo_para_usar:
+            print("[SUBST_MARCADOR] ✗ Nenhum conteúdo disponível para colar")
+            return False
+
+        # 2. Usar a lógica robusta do editor_insert.py
+        # IMPORTANTE: Esta é uma adaptação da função inserir_html_no_editor_apos_marcador
+        # que funciona muito melhor que o JavaScript inline anterior
+
+        # Primeiro, encontrar o editor
+        sels = [
+            '.ck-editor__editable[contenteditable="true"]',
+            '.ck-content[contenteditable="true"]',
+            'div[role="textbox"][contenteditable="true"]',
+        ]
+
+        editable = None
+        for sel in sels:
+            try:
+                el = driver.find_element(By.CSS_SELECTOR, sel)
+                if el and el.is_displayed() and el.is_enabled():
+                    editable = el
+                    if debug:
+                        print(f"[SUBST_MARCADOR] Editor encontrado por seletor: {sel}")
+                    break
+            except Exception:
+                continue
+
+        if not editable:
+            print("[SUBST_MARCADOR] ✗ Editor CKEditor não encontrado na página")
+            return False
+
+        # Foco e rolagem
+        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
+        time.sleep(0.2)
+        try:
+            editable.click()
+        except Exception:
+            driver.execute_script('arguments[0].focus();', editable)
+        time.sleep(0.1)
+
+        # Limpar caracteres problemáticos e escapar para JavaScript
+        html_content_clean = (conteudo_para_usar
+                             .replace('\x00', '')  # Remove null bytes
+                             .replace('\r', '')    # Remove carriage returns
+                             .strip())             # Remove espaços extras
+
+        # Escape mais robusto para JavaScript - evita problemas com innerHTML
+        html_escaped = (html_content_clean
+                       .replace('\\', '\\\\')      # Escape backslashes primeiro
+                       .replace('`', '\\`')        # Escape backticks (template literals)
+                       .replace('$', '\\$')        # Escape dollar signs (template literals)
+                       .replace('"', '\\"')        # Escape aspas duplas
+                       .replace('\n', '\\n')       # Escape quebras de linha
+                       .replace('\t', '\\t'))      # Escape tabs
+
+        # Escape do marcador de forma similar
+        marcador_escaped = (marcador
+                           .replace('\\', '\\\\')
+                           .replace('`', '\\`')
+                           .replace('$', '\\$')
+                           .replace('"', '\\"')
+                           .replace('\n', '\\n'))
+
+        # DEPURAÇÃO REAL - verificar HTML antes da execução
+        html_antes = driver.execute_script("return arguments[0].innerHTML;", editable)
+        texto_antes = driver.execute_script("return arguments[0].innerText || arguments[0].textContent || '';", editable)
+        print(f"[DEBUG] HTML ANTES: {html_antes}")
+        print(f"[DEBUG] TEXTO ANTES: {texto_antes}")
+        print(f"[DEBUG] Contém marcador '{marcador}' no HTML? {marcador in html_antes}")
+        print(f"[DEBUG] Contém marcador '{marcador}' no TEXTO? {marcador in texto_antes}")
+
+        # IMPLEMENTAÇÃO ROBUSTA BASEADA NO editor_insert.py
+        script_ckeditor = f"""
+        console.log('[SUBST_MARCADOR] === USANDO LÓGICA ROBUSTA DO EDITOR_INSERT ===');
+
+        let editor = arguments[0];
+        let htmlContent = arguments[1];
+        let marcador = arguments[2];
+        let fonte = arguments[3];
+
+        try {{
+            // 1. Tentar encontrar a instância do CKEditor
+            let ckInstance = null;
+
+            // Método 1: Via elemento pai
+            if (editor.ckeditorInstance) {{
+                ckInstance = editor.ckeditorInstance;
+                console.log('[SUBST_MARCADOR] ✓ CKEditor via ckeditorInstance');
+            }}
+
+            // Método 2: Via global CKEDITOR
+            if (!ckInstance && window.CKEDITOR) {{
+                for (let instanceName in window.CKEDITOR.instances) {{
+                    let instance = window.CKEDITOR.instances[instanceName];
+                    if (instance.element && instance.element.$ === editor) {{
+                        ckInstance = instance;
+                        console.log('[SUBST_MARCADOR] ✓ CKEditor via CKEDITOR.instances');
+                        break;
+                    }}
+                }}
+            }}
+
+            // Método 3: Via CKEditor 5 (novo)
+            if (!ckInstance) {{
+                let ckEditor = editor.closest('.ck-editor');
+                if (ckEditor && ckEditor.ckeditorInstance) {{
+                    ckInstance = ckEditor.ckeditorInstance;
+                    console.log('[SUBST_MARCADOR] ✓ CKEditor 5 via closest');
+                }}
+            }}
+
+            if (ckInstance) {{
+                console.log('[SUBST_MARCADOR] Usando API CKEditor');
+                let htmlOriginal = ckInstance.getData();
+                console.log('[SUBST_MARCADOR] HTML via getData:', htmlOriginal.substring(0, 100));
+
+                if (htmlOriginal.includes(marcador)) {{
+                    // TENTATIVA: Usar insertHtml se disponível, senão setData
+                    if (ckInstance.insertHtml) {{
+                        console.log('[SUBST_MARCADOR] Tentando insertHtml para preservar formatação...');
+                        // Primeiro posicionar cursor no marcador de forma simples
+                        let pos = htmlOriginal.indexOf(marcador);
+                        if (pos !== -1) {{
+                            // Calcular posição aproximada e tentar inserir
+                            ckInstance.insertHtml(htmlContent, 'unfiltered_html');
+                            console.log('[SUBST_MARCADOR] ✓ insertHtml usado');
+                            return {{ sucesso: true, metodo: 'ckeditor_insertHtml' }};
+                        }}
+                    }}
+
+                    // Fallback: setData original
+                    let novoHtml = htmlOriginal.replace(marcador, htmlContent);
+                    ckInstance.setData(novoHtml);
+                    console.log('[SUBST_MARCADOR] ✓ setData() executado');
+                    return {{ sucesso: true, metodo: 'ckeditor_api' }};
+                }} else {{
+                    console.error('[SUBST_MARCADOR] Marcador não encontrado via API');
+                }}
+            }} else {{
+                console.log('[SUBST_MARCADOR] CKEditor API não encontrada, usando DOM direto');
+
+                // Fallback: DOM direto com foco
+                editor.focus();
+
+                let htmlOriginal = editor.innerHTML;
+                if (htmlOriginal.includes(marcador)) {{
+                    let novoHtml = htmlOriginal.replace(marcador, htmlContent);
+                    editor.innerHTML = novoHtml;
+
+                    // Forçar eventos de mudança
+                    editor.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    editor.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    editor.dispatchEvent(new Event('keyup', {{ bubbles: true }}));
+
+                    // Forçar blur/focus para CKEditor detectar
+                    editor.blur();
+                    setTimeout(() => editor.focus(), 10);
+
+                    console.log('[SUBST_MARCADOR] ✓ DOM direto + eventos');
+                    return {{ sucesso: true, metodo: 'dom_direto_com_eventos' }};
+                }}
+            }}
+
+            return {{ sucesso: false, erro: 'Nenhum método funcionou' }};
+
+        }} catch (e) {{
+            console.error('[SUBST_MARCADOR] Erro:', e);
+            return {{ sucesso: false, erro: e.message }};
+        }}
+        """
+
+        # Executar o script com API do CKEditor
+        resultado = driver.execute_script(script_ckeditor, editable, html_content_clean, marcador, fonte_conteudo)
+
+        # Em vez de sleeps fixes, aguardar até que o HTML seja atualizado ou o marcador seja removido
+        try:
+            def _condicao_html(drv):
+                try:
+                    cur = drv.execute_script("return arguments[0].innerHTML;", editable) or ''
+                    # Se o HTML já contém o conteúdo que inserimos, considerar sucesso
+                    if html_content_clean in cur:
+                        return True
+                    # Ou se o marcador foi removido, também considerar sucesso
+                    if marcador not in cur:
+                        return True
+                    return False
+                except Exception:
+                    return False
+
+            WebDriverWait(driver, 3, poll_frequency=0.2).until(_condicao_html)
+        except Exception:
+            # Timeout expirado sem detectar alteração significativa
+            if debug:
+                try:
+                    html_depois = driver.execute_script("return arguments[0].innerHTML;", editable)
+                    print(f"[DEBUG] HTML DEPOIS (partial): {html_depois[:300]}")
+                except Exception:
+                    print('[DEBUG] Não foi possível ler HTML DEPOIS')
+
+        if debug:
+            print(f"[SUBST_MARCADOR] Resultado do script: {resultado}")
+
+        if resultado and isinstance(resultado, dict) and resultado.get('sucesso'):
+            if debug:
+                print(f'[SUBST_MARCADOR] ✅ HTML inserido com sucesso via método: {resultado.get("metodo")}')
+
+            # Verificar se marcador foi removido (apenas para log)
+            try:
+                html_final = driver.execute_script("return arguments[0].innerHTML;", editable)
+                marcador_removido = marcador not in (html_final or '')
+            except Exception:
+                marcador_removido = False
+
+            if debug:
+                print(f'[SUBST_MARCADOR] Verificação final: marcador removido = {marcador_removido}')
+
+            return True
+        else:
+            erro = resultado.get('erro', 'Erro desconhecido') if resultado and isinstance(resultado, dict) else 'Script retornou None ou formato inesperado'
+            if debug:
+                print(f'[SUBST_MARCADOR] ❌ Falha na inserção: {erro}')
+            return False
+
+    except Exception as e:
+        if debug:
+            print(f"[SUBST_MARCADOR] ✗ Erro geral: {e}")
+        return False
+
+
+# ===== NOVAS FUNÇÕES PARA SISTEMA PARAMETRIZÁVEL =====
+
+def salvar_conteudo_clipboard(conteudo: str, numero_processo: str, tipo_conteudo: str = "generico", debug: bool = True) -> bool:
+    """
+    Salva conteúdo no clipboard.txt em formato simplificado: apenas PROCESSO e CONTEÚDO.
+
+    Observação: O parâmetro tipo_conteudo é mantido para compatibilidade, mas não é mais
+    persistido no arquivo. O histórico permanece por entradas sequenciais.
+
+    Args:
+        conteudo: O conteúdo a ser salvo
+        numero_processo: Número do processo (obrigatório)
+        tipo_conteudo: Tipo do conteúdo (informativo)
+        debug: Se deve exibir logs
+    """
+    if debug:
+        print(f"[CLIPBOARD] Salvando conteúdo tipo '{tipo_conteudo}'...")
+
+    try:
+        # Validar número do processo
+        if not numero_processo:
+            raise ValueError("Número do processo é obrigatório e deve ser fornecido pela função chamadora")
+
+        # Preparar o registro (formato novo: somente PROCESSO + CONTEÚDO)
+        separador = "=" * 50
+        registro = (
+            "\n" +
+            separador + "\n" +
+            f"PROCESSO: {numero_processo}\n" +
+            separador + "\n" +
+            f"{conteudo}\n" +
+            separador + "\n\n"
+        )
+
+        # Salvar no arquivo (modo append para manter histórico)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        clipboard_file = os.path.join(base_dir, "clipboard.txt")
+        os.makedirs(base_dir, exist_ok=True)
+        with open(clipboard_file, 'a', encoding='utf-8', newline='') as f:
+            f.write(registro)
+            f.flush()
+
+        if debug:
+            print(f"[CLIPBOARD] ✅ Conteúdo salvo: {len(conteudo)} chars")
+            print(f"[CLIPBOARD] ✅ Processo: {numero_processo}")
+            print(f"[CLIPBOARD] ✅ Tipo (informativo): {tipo_conteudo}")
+            print(f"[CLIPBOARD] ✅ Arquivo: {clipboard_file}")
+
+        return True
+
+    except Exception as e:
+        if debug:
+            try:
+                print(f"[CLIPBOARD] ✗ Erro ao salvar: {e}")
+                print(f"[CLIPBOARD] CWD: {os.getcwd()}")
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                print(f"[CLIPBOARD] Destino esperado: {os.path.join(base_dir, 'clipboard.txt')}")
+            except Exception:
+                pass
+        return False
+
+
+def extrair_numero_processo_da_url(driver) -> str:
+    """
+    Extrai o número do processo da URL atual.
+
+    Args:
+        driver: Selenium WebDriver
+
+    Returns:
+        str: Número do processo ou identificação alternativa
+    """
+    try:
+        url_atual = driver.current_url
+
+        # Padrões para diferentes URLs do PJe
+        padroes = [
+            r'processo/(\d+)',           # /processo/123456
+            r'processoTrfId=(\d+)',      # ?processoTrfId=123456
+            r'numeroProcesso=(\d+)',     # ?numeroProcesso=123456
+            r'idProcesso=(\d+)',         # ?idProcesso=123456
+        ]
+
+        for padrao in padroes:
+            match = re.search(padrao, url_atual)
+            if match:
+                return match.group(1)
+
+        # Se não encontrou por regex, tenta extrair da URL
+        if 'pje' in url_atual.lower():
+            partes = url_atual.split('/')
+            for parte in partes:
+                if parte.isdigit() and len(parte) > 6:  # Assume número do processo > 6 dígitos
+                    return parte
+
+        return f"URL_{hash(url_atual) % 10000}"  # Fallback: hash da URL
+
+    except Exception as e:
+        return f"ERRO_{str(e)[:20]}"

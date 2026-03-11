@@ -153,38 +153,31 @@
             });
 
             div.innerHTML = `
-                <div style="margin-bottom: 10px;">
-                    <label style="font-weight: bold;">Devedoras (selecione todas que pertencem a este período)</label>
-                    <select multiple size="4" class="periodo-reclamada" data-idx="${idx}" style="width: 100%; padding: 8px;">
-                        ${selectOptions}
-                    </select>
-                </div>
-                    
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <div style="flex: 1;">
-                        <label>Período (vazio = integral)</label>
-                        <input type="text" class="periodo-periodo" data-idx="${idx}" placeholder="Deixe vazio para período integral" style="width: 100%; padding: 8px;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: bold; margin-right: 10px;">Planilha ${idx+1}</span>
+                    <div style="flex: 1; display: flex; gap: 8px; align-items: center;">
+                        <select class="periodo-planilha-select" data-idx="${idx}" style="flex: 1; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
+                            <option value="principal">📋 Mesma planilha principal</option>
+                        </select>
+                        <button type="button" class="btn-carregar-planilha-extra btn-action" data-idx="${idx}" style="font-size: 11px; padding: 6px 10px; background: #7c3aed;">📄 Carregar Nova</button>
+                        <input type="file" class="input-planilha-extra-pdf" data-idx="${idx}" accept=".pdf" style="display: none;">
                     </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <div style="flex: 1;">
                         <label>ID Cálculo Separado</label>
                         <input type="text" class="periodo-id" data-idx="${idx}" placeholder="ID #XXXX" style="width: 100%; padding: 8px;">
                     </div>
+                    <div style="flex: 1;">
+                        <label>Período (vazio = integral)</label>
+                        <input type="text" class="periodo-periodo" data-idx="${idx}" placeholder="Deixe vazio para período integral" style="width: 100%; padding: 8px;">
+                    </div>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <label style="font-weight: bold; font-size: 12px;">Planilha desta Devedora</label>
-                    <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
-                        <select class="periodo-planilha-select" data-idx="${idx}"
-                                style="flex: 1; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="principal">📋 Mesma planilha principal</option>
-                        </select>
-                        <button type="button" class="btn-carregar-planilha-extra btn-action"
-                                data-idx="${idx}"
-                                style="font-size: 11px; padding: 6px 10px; white-space: nowrap; background: #7c3aed;">
-                            📄 Carregar Nova
-                        </button>
-                        <input type="file" class="input-planilha-extra-pdf" data-idx="${idx}"
-                               accept=".pdf" style="display: none;">
-                    </div>
+                    <label style="font-weight: bold;">Reclamadas Subsidiárias que respondem ao período da planilha ${idx+1}:</label>
+                    <select multiple size="4" class="periodo-reclamada" data-idx="${idx}" style="width: 100%; padding: 8px;">
+                        ${selectOptions}
+                    </select>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
                     <label><input type="checkbox" class="periodo-total" data-idx="${idx}"> Período Total</label>

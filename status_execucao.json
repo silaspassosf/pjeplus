@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "timestamp": "2026-03-10T03:33:33.798009",
+    "versao": "2.0",
+    "session_id": "sess_c78485b5f8dc4cec"
+  },
+  "execution": {
+    "status": "EM_PROGRESSO",
+    "inicio": "2026-03-10T03:28:25.966703",
+    "duracao_segundos": 307,
+    "modulo_ativo": null,
+    "pode_retomar": true
+  },
+  "modulos": {
+    "PRAZO_PROCESSAMENTO_FLUXO": {
+      "status": "COMPLETO",
+      "processados": 5,
+      "total": 0,
+      "tempo_decorrido_segundos": 307,
+      "erros": 0,
+      "checkpoint": {
+        "ultimo_item": "processamento_completo",
+        "timestamp": "2026-03-10T03:33:33.796850",
+        "proximo": null,
+        "contexto": {}
+      },
+      "detalhes": {},
+      "percentual": 0.0
+    }
+  },
+  "resumo_global": {
+    "total_modulos": 1,
+    "completos": 1,
+    "em_progresso": 0,
+    "pausados": 0,
+    "falhados": 0,
+    "percentual_global": 0,
+    "tempo_total_segundos": 307,
+    "tempo_restante_estimado_segundos": 0
+  },
+  "logs": [
+    {
+      "timestamp": "2026-03-09T14:28:53.467660",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-09T14:29:57.158822",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-09T14:30:14.989884",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-09T14:36:17.115347",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-09T23:37:26.378752",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-10T03:25:09.986220",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-10T03:28:25.967258",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-10T03:33:33.797706",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    }
+  ]
+}

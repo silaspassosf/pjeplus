@@ -1,0 +1,361 @@
+﻿
+
+==================================================
+PROCESSO: 1000235-44.2015.5.02.0712
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000235-44.2015.5.02.0712</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>24/02/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 16.126,73 (dezesseis mil  e cento e vinte e seis reais e setenta e três centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CENTRO DE FORMACAO DE CONDUTORES INTER NOVA CONQUISTA LTDA - [08.009.015]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>SOLANGE GONCALVES SILVA DUARTE - [205.204.218-09]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000938-65.2016.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000938-65.2016.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>24/02/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 72.949,75 (setenta e dois mil  e novecentos e quarenta e nove reais e setenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>EDSON PEREIRA SALDANHA - [253.897.238-80]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000215-02.2023.5.02.0703
+==================================================
+    Id Pje: 3f1e3e7
+    Rastreamento: Indisponível
+    Destinatário: FRANCISCO ROQUE MACEDO DOS SANTOS
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+--------------------------------------------------
+
+    Id Pje: f3ffce0
+    Rastreamento: Indisponível
+    Destinatário: FRANCISCO ROQUE MACEDO DOS SANTOS
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+--------------------------------------------------
+
+    Id Pje: ec1742c
+    Rastreamento: Indisponível
+    Destinatário: FRANCISCO ROQUE MACEDO DOS SANTOS
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+==================================================
+
+
+==================================================
+PROCESSO: 1000295-92.2025.5.02.0703
+==================================================
+    Id Pje: c7a1f44
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH021289999BR
+    Destinatário: FERNANDO TORRES DE SOUSA
+    Data do envio: 19/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+
+Prazo: 8 dias (30/01/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001628-16.2024.5.02.0703
+==================================================
+    Id Pje: 1696e1e
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH021281774BR
+    Destinatário: DAVID JHONATAS DOS SANTOS PINTO
+    Data do envio: 19/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+
+Prazo: 8 dias (30/01/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000350-60.2023.5.02.0041
+==================================================
+    Id Pje: 731ba0d
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ959520408BR
+    Destinatário: JACQUES LUCIO DE MOREIRA E NUNES
+    Data do envio: 12/12/2025
+    Data da entrega: 15/01/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: f61cc4b
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ959520425BR
+    Destinatário: JACQUES LUCIO DE MOREIRA E NUNES
+    Data do envio: 12/12/2025
+    Data da entrega: 05/01/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 420b319
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ959520411BR
+    Destinatário: JACQUES LUCIO DE MOREIRA E NUNES
+    Data do envio: 12/12/2025
+    Data da entrega: 30/12/2025
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1000215-02.2023.5.02.0703
+==================================================
+    Id Pje: 3f1e3e7
+    Rastreamento: Indisponível
+    Destinatário: FRANCISCO ROQUE MACEDO DOS SANTOS
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+--------------------------------------------------
+
+    Id Pje: f3ffce0
+    Rastreamento: Indisponível
+    Destinatário: FRANCISCO ROQUE MACEDO DOS SANTOS
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+--------------------------------------------------
+
+    Id Pje: ec1742c
+    Rastreamento: Indisponível
+    Destinatário: FRANCISCO ROQUE MACEDO DOS SANTOS
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+==================================================
+
+
+==================================================
+PROCESSO: 1000295-92.2025.5.02.0703
+==================================================
+    Id Pje: c7a1f44
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH021289999BR
+    Destinatário: FERNANDO TORRES DE SOUSA
+    Data do envio: 19/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+
+Prazo: 8 dias (30/01/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001628-16.2024.5.02.0703
+==================================================
+    Id Pje: 1696e1e
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH021281774BR
+    Destinatário: DAVID JHONATAS DOS SANTOS PINTO
+    Data do envio: 19/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+
+Prazo: 8 dias (30/01/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 6094959
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26012315302556200000439218705?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000235-44.2015.5.02.0712
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000235-44.2015.5.02.0712</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>01/03/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 16.126,73 (dezesseis mil  e cento e vinte e seis reais e setenta e três centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CENTRO DE FORMACAO DE CONDUTORES INTER NOVA CONQUISTA LTDA - [08.009.015]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>JOAL CAVALCANTE DUARTE - [116.767.968-78]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>SOLANGE GONCALVES SILVA DUARTE - [205.204.218-09]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000938-65.2016.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000938-65.2016.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>01/03/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 72.949,75 (setenta e dois mil  e novecentos e quarenta e nove reais e setenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>EDSON PEREIRA SALDANHA - [253.897.238-80]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1001044-12.2025.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1001044-12.2025.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>01/03/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 37.927,01 (trinta e sete mil  e novecentos e vinte e sete reais e um centavo)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>EKOPLAN SERVICOS DE JARDINAGEM E PAISAGISMO LTDA - [08.310.648]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1001278-28.2024.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1001278-28.2024.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>01/03/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 32.099,88 (trinta e dois mil  e noventa e nove reais e oitenta e oito centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>SOULMARX IMPORTACAO E EXPORTACAO DE TECNOLOGIA COMERCIAL LTDA - [43.195.943]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>LEANDRO DOS SANTOS SOUZA - [322.603.568-18]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000436-82.2023.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000436-82.2023.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>01/03/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 68.979,44 (sessenta e oito mil  e novecentos e setenta e nove reais e quarenta e quatro centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>RICARDO BITTENCOURT DE OLIVEIRA - [362.304.388-52]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>HEBROM FACILITY SERVICOS E MANUTENCOES LTDA - [13.010.200]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>HEBROM SERVICOS ESPECIAIS E SISTEMAS ELETRONICOS LTDA - [10.615.677]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>MORIAH SERVICOS ESPECIAIS LTDA - [25.037.234]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>HEBROM MULTISERVICOS LTDA - [33.379.725]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000750-62.2022.5.02.0703
+==================================================
+    Id Pje: 1f4d3b0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827734BR
+    Destinatário: LIDIMA MAO-DE-OBRA TEMPORARIA LTDA
+    Data do envio: 21/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+--------------------------------------------------
+
+    Id Pje: 7a867e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827748BR
+    Destinatário: ADARGA SERVICOS DE SEGURANCA E VIGILANCIA LTDA - EPP
+    Data do envio: 21/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+--------------------------------------------------
+
+    Id Pje: bede825
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827751BR
+    Destinatário: JACQUELINE SOLANAS MUNHOZ
+    Data do envio: 21/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+--------------------------------------------------
+
+    Id Pje: c826ca0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022827725BR
+    Destinatário: LIDIMA TERCEIRIZACAO DE SERVICOS LTDA
+    Data do envio: 21/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+
+Prazo: 15 dias (11/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000348-15.2021.5.02.0703
+==================================================
+    Id Pje: 79a86eb
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022240303BR
+    Destinatário: MARCOS ANTONIO DOS SANTOS
+    Data do envio: 20/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+--------------------------------------------------
+
+    Id Pje: fd1610a
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH022240294BR
+    Destinatário: MARCOS ANTONIO DOS SANTOS
+    Data do envio: 20/01/2026
+    Data da entrega: Indisponível
+    Status: Não disponível
+
+Prazo: 8 dias (30/01/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001044-12.2025.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 37.927,01 (trinta e sete mil  e novecentos e vinte e sete reais e um centavo)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>EKOPLAN SERVICOS DE JARDINAGEM E PAISAGISMO LTDA - [08.310.648]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000202-18.2014.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 54.432,45 (cinquenta e quatro mil  e quatrocentos e trinta e dois reais e quarenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>FABIO ANNIBALE SOARES DE MELO - [008.020.648-41]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CORNELIA KRIEMANN - [088.562.848-98]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>METALZUL INDUSTRIA METALURGICA E COMERCIO LIMITADA - [62.689.864]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1001278-28.2024.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 32.099,88 (trinta e dois mil  e noventa e nove reais e oitenta e oito centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>LEANDRO DOS SANTOS SOUZA - [322.603.568-18]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000202-18.2014.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 54.432,45 (cinquenta e quatro mil  e quatrocentos e trinta e dois reais e quarenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>FABIO ANNIBALE SOARES DE MELO - [008.020.648-41]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CORNELIA KRIEMANN - [088.562.848-98]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>METALZUL INDUSTRIA METALURGICA E COMERCIO LIMITADA - [62.689.864]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000202-18.2014.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 54.432,45 (cinquenta e quatro mil  e quatrocentos e trinta e dois reais e quarenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>FABIO ANNIBALE SOARES DE MELO - [008.020.648-41]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CORNELIA KRIEMANN - [088.562.848-98]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>METALZUL INDUSTRIA METALURGICA E COMERCIO LIMITADA - [62.689.864]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000202-18.2014.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 54.432,45 (cinquenta e quatro mil  e quatrocentos e trinta e dois reais e quarenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>FABIO ANNIBALE SOARES DE MELO - [008.020.648-41]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CORNELIA KRIEMANN - [088.562.848-98]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>METALZUL INDUSTRIA METALURGICA E COMERCIO LIMITADA - [62.689.864]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000202-18.2014.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>03 MAR 2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 54.432,45 (cinquenta e quatro mil  e quatrocentos e trinta e dois reais e quarenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>FABIO ANNIBALE SOARES DE MELO - [008.020.648-41]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>CORNELIA KRIEMANN - [088.562.848-98]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>METALZUL INDUSTRIA METALURGICA E COMERCIO LIMITADA - [62.689.864]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000231-82.2025.5.02.0703
+==================================================
+    Id Pje: a28636a
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ964610724BR
+    Destinatário: MARIZA JANUARIO DA SILVA
+    Data do envio: 18/12/2025
+    Data da entrega: 21/01/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (02/02/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000960-11.2025.5.02.0703
+==================================================
+    Id Pje: a49be44
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ964592566BR
+    Destinatário: AMANDA FRASSON GUANDALINI
+    Data do envio: 18/12/2025
+    Data da entrega: 09/01/2026
+    Status: Objeto devolvido ao remetente
+--------------------------------------------------
+
+    Id Pje: 3eebef9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ964592570BR
+    Destinatário: FERNANDO GUANDALINI
+    Data do envio: 18/12/2025
+    Data da entrega: 12/01/2026
+    Status: Objeto entregue ao destinatário
+==================================================
+
+
+==================================================
+PROCESSO: 1001667-13.2024.5.02.0703
+==================================================
+    Id Pje: 8d94c78
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YQ964690767BR
+    Destinatário: GRACIELE PAULA SANTANA MIGLIO
+    Data do envio: 18/12/2025
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+
+Prazo: 8 dias (29/01/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 6559370
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26012912472332600000440357812?instancia=1
+==================================================
+

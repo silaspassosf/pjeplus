@@ -510,6 +510,12 @@
                             <input type="text" id="val-fgts" class="coleta-input" placeholder="R$ FGTS" style="width: 140px;">
                         </div>
                     </div>
+                    <div class="row" id="row-fgts-radios" style="margin-top:4px;">
+                        <div class="col" id="fgts-radios" style="flex: 0 0 auto; display:flex; gap:10px; align-items:center;">
+                            <label style="margin:0; font-size:11px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
+                            <label style="margin:0; font-size:11px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
+                        </div>
+                    </div>
                     <div class="row hidden" id="col-juros-val">
                         <div class="col">
                             <label>Juros</label>
@@ -752,6 +758,34 @@
         // Inserir HTML limpo
         document.body.insertAdjacentHTML('beforeend', htmlModal);
         dbg('Overlay HTML inserido no DOM.');
+
+        // Heurística leve: tentar detectar Id de planilha em anchors/codes visíveis
+        try {
+            if (!window.hcalcState) window.hcalcState = {};
+            if (!window.hcalcState.planilhaExtracaoData) {
+                const rx = /Documento_([A-Za-z0-9]+)\.pdf/i;
+                const candidates = Array.from(document.querySelectorAll('a, code, span'));
+                for (const el of candidates) {
+                    try {
+                        const txt = (el.textContent || el.innerText || '') + ' ' + (el.getAttribute && el.getAttribute('title') || '');
+                        const m = txt.match(rx);
+                        if (m) {
+                            window.hcalcState.planilhaExtracaoData = { idPlanilha: m[1], sucesso: true };
+                            window.hcalcState.planilhaCarregada = true;
+                            dbg('[hcalc] detectIdFromPage -> found planilha id=', m[1]);
+                            // Atualizar resumo visual se API disponível
+                            if (typeof window.hcalcAtualizarResumoPlanilha === 'function') {
+                                window.hcalcAtualizarResumoPlanilha(window.hcalcState.planilhaExtracaoData);
+                            }
+                            // Atualizar botão visual se presente
+                            const b = document.getElementById('btn-abrir-homologacao');
+                            if (b) { b.textContent = '✓ Dados Extraídos'; b.style.background = '#10b981'; }
+                            break;
+                        }
+                    } catch (e) { /* ignore per-item */ }
+                }
+            }
+        } catch (e) { dbg('[hcalc] detectIdFromPage failed', e); }
 
         // Registrar listener do botão de limpeza forçada
         try {
@@ -1502,6 +1536,51 @@
                 }
             } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS (BASE)', ex); }
         };
+        // Adicionar listener para mudanças no tipo de FGTS (ex.: usuário marca 'depositado' depois)
+        try {
+            document.querySelectorAll('input[name="fgts-tipo"]').forEach(r => {
+                r.addEventListener('change', (ev) => {
+                    try {
+                        const val = ev.target.value;
+                        if (val === 'depositado' && $('calc-fgts') && $('calc-fgts').checked) {
+                            // Reusar código do modal definido acima
+                            if (document.getElementById('maisPje_fgts_modal_overlay')) return;
+                            const overlay = document.createElement('div');
+                            overlay.id = 'maisPje_fgts_modal_overlay';
+                            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
+
+                            const box = document.createElement('div');
+                            box.id = 'maisPje_fgts_modal_box';
+                            box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
+
+                            const title = document.createElement('div');
+                            title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
+                            title.textContent = 'Atenção';
+
+                            const msg = document.createElement('div');
+                            msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
+                            msg.textContent = 'Conferir se o FGTS foi de fato depositado. E deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+
+                            const actions = document.createElement('div');
+                            actions.style.cssText = 'text-align:right;';
+                            const ok = document.createElement('button');
+                            ok.id = 'maisPje_fgts_modal_ok';
+                            ok.textContent = 'OK';
+                            ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
+
+                            actions.appendChild(ok);
+                            box.appendChild(title);
+                            box.appendChild(msg);
+                            box.appendChild(actions);
+                            overlay.appendChild(box);
+                            document.body.appendChild(overlay);
+
+                            ok.addEventListener('click', () => overlay.remove());
+                        }
+                    } catch (ex) { console.warn('maisPJe: erro no fgts-tipo change handler', ex); }
+                });
+            });
+        } catch (e) { /* ignore */ }
         $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
         $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
         $('ignorar-inss').onchange = (e) => {

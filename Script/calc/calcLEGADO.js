@@ -2409,7 +2409,7 @@
 
                     const msg = document.createElement('div');
                     msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                    msg.textContent = 'Conferir se o FGTS foi de fato depositado. Ele deve ser lançado como desconto na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+                    msg.textContent = 'Conferir se o FGTS foi de fato depositado. E deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
 
                     const actions = document.createElement('div');
                     actions.style.cssText = 'text-align:right;';

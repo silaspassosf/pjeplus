@@ -10,23 +10,23 @@
         } = deps;
 
         function aplicarEstiloRecuperacaoJudicial() {
-            const temRecJudicial = $('resp-rec-judicial')?.checked || false;
-
+            // now handled per-principal checkbox inside #resp-principais-container
             document.querySelectorAll('.intimacao-row').forEach(row => {
                 const checkbox = row.querySelector('.chk-parte-principal');
-                if (checkbox && checkbox.checked) {
-                    const nomeDiv = row.querySelector('div[title]');
-                    if (nomeDiv) {
-                        if (temRecJudicial) {
-                            nomeDiv.style.textDecoration = 'line-through';
-                            nomeDiv.style.color = '#999';
-                            nomeDiv.title = `${checkbox.dataset.nome} (Em Recuperação Judicial/Falência - sem intimação para pagamento)`;
-                        } else {
-                            nomeDiv.style.textDecoration = 'none';
-                            nomeDiv.style.color = '#333';
-                            nomeDiv.title = checkbox.dataset.nome;
-                        }
-                    }
+                const nomeDiv = row.querySelector('div[title]');
+                if (!checkbox || !nomeDiv) return;
+                const nome = checkbox.dataset.nome;
+                // check if this name is marked as recJud in the principais list
+                const recChk = document.querySelector(`#resp-principais-container .principal-item[data-nome="${CSS.escape(nome)}"] .chk-principal-rec`);
+                const temRecJudicial = recChk ? recChk.checked : false;
+                if (temRecJudicial) {
+                    nomeDiv.style.textDecoration = 'line-through';
+                    nomeDiv.style.color = '#999';
+                    nomeDiv.title = `${nome} (Em Recuperação Judicial/Falência - sem intimação para pagamento)`;
+                } else {
+                    nomeDiv.style.textDecoration = 'none';
+                    nomeDiv.style.color = '#333';
+                    nomeDiv.title = nome;
                 }
             });
         }
@@ -92,6 +92,31 @@
                     select.appendChild(opt);
                 });
             });
+
+            // Also update quick-add selects for principais and subsidiarias integrais
+            const selAddPrincipal = document.getElementById('sel-add-principal');
+            const selAddSubsInt = document.getElementById('sel-add-subs-int');
+            const used = new Set(jaUsadas);
+
+            if (selAddPrincipal) {
+                const cur = selAddPrincipal.value || '';
+                selAddPrincipal.innerHTML = '<option value="">Adicionar devedora principal...</option>';
+                todasReclamadas.forEach(rec => {
+                    if (!used.has(rec) || rec === cur) {
+                        const o = document.createElement('option'); o.value = rec; o.textContent = rec; selAddPrincipal.appendChild(o);
+                    }
+                });
+            }
+
+            if (selAddSubsInt) {
+                const cur2 = selAddSubsInt.value || '';
+                selAddSubsInt.innerHTML = '<option value="">Adicionar subsidiária integral...</option>';
+                todasReclamadas.forEach(rec => {
+                    if (!used.has(rec) || rec === cur2) {
+                        const o = document.createElement('option'); o.value = rec; o.textContent = rec; selAddSubsInt.appendChild(o);
+                    }
+                });
+            }
         }
 
         function adicionarLinhaPeridoDiverso() {
@@ -304,6 +329,82 @@
                 adicionarLinhaPeridoDiverso();
                 queueOverlayDraftSave();
             };
+
+            // --- Principais quick-add
+            const selAddPrincipal = document.getElementById('sel-add-principal');
+            const btnAddPrincipal = document.getElementById('btn-add-principal');
+            const principaisContainer = document.getElementById('resp-principais-dinamico-container');
+
+            function addPrincipal(nome) {
+                if (!nome) return;
+                // avoid duplicates
+                if (principaisContainer.querySelector(`.principal-item[data-nome="${CSS.escape(nome)}"]`)) return;
+                const div = document.createElement('div');
+                div.className = 'principal-item';
+                div.dataset.nome = nome;
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '8px';
+                div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type=\"checkbox\" class=\"chk-principal\" data-nome=\"${nome}\"> <span>${nome}</span></label><label style=\"font-size:11px;\"><input type=\"checkbox\" class=\"chk-principal-rec\"> Recuperação/Juízo</label><button type=\"button\" class=\"btn-remove-principal btn-action\" style=\"background:#d32f2f;padding:4px 8px;\">Remover</button>`;
+                principaisContainer.appendChild(div);
+                const removeBtn = div.querySelector('.btn-remove-principal');
+                removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                // update dropdowns
+                atualizarDropdownsPlanilhas();
+                queueOverlayDraftSave();
+            }
+
+            if (btnAddPrincipal && selAddPrincipal) {
+                btnAddPrincipal.onclick = (e) => {
+                    e.preventDefault();
+                    const nome = selAddPrincipal.value;
+                    if (nome) addPrincipal(nome);
+                };
+            }
+
+            // Auto-add first reclamada if none exist
+            try {
+                const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+                if (reclamadas.length && principaisContainer && principaisContainer.children.length === 0) {
+                    addPrincipal(reclamadas[0]);
+                }
+            } catch (e) { /* ignore */ }
+
+            // --- Subsidiarias integrais quick-add
+            const selAddSubsInt = document.getElementById('sel-add-subs-int');
+            const btnAddSubsInt = document.getElementById('btn-add-subs-int');
+            const subsIntContainer = document.getElementById('resp-subsidiarias-integral-dinamico-container');
+
+            function addSubsInt(nome) {
+                if (!nome) return;
+                if (subsIntContainer.querySelector(`.subs-item[data-nome="${CSS.escape(nome)}"]`)) return;
+                const div = document.createElement('div');
+                div.className = 'subs-item';
+                div.dataset.nome = nome;
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '8px';
+                div.innerHTML = `<label style=\"flex:1; display:flex; gap:8px; align-items:center;\"><input type=\"checkbox\" class=\"chk-subs-int\" data-nome=\"${nome}\"> <span>${nome}</span></label><button type=\"button\" class=\"btn-remove-subs btn-action\" style=\"background:#d32f2f;padding:4px 8px;\">Remover</button>`;
+                subsIntContainer.appendChild(div);
+                const removeBtn = div.querySelector('.btn-remove-subs');
+                removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                atualizarDropdownsPlanilhas();
+                queueOverlayDraftSave();
+            }
+
+            if (btnAddSubsInt && selAddSubsInt) {
+                btnAddSubsInt.onclick = (e) => { e.preventDefault(); const nome = selAddSubsInt.value; if (nome) addSubsInt(nome); };
+            }
+
+            const chkNaoHaSubsInt = document.getElementById('chk-nao-ha-subs-int');
+            if (chkNaoHaSubsInt) {
+                chkNaoHaSubsInt.onchange = (e) => {
+                    const hide = e.target.checked;
+                    document.getElementById('resp-subsidiarias-integral-dinamico-container').classList.toggle('hidden', hide);
+                    document.getElementById('div-add-subs-int').classList.toggle('hidden', hide);
+                    queueOverlayDraftSave();
+                };
+            }
         }
 
         return {
@@ -331,8 +432,13 @@
             if (linhasPeriodos.length === 0) return null;
 
             const periodoCompleto = window.hcalcState.planilhaExtracaoData?.periodoCalculo || '';
-            const principaisSelecionadas = Array.from(document.querySelectorAll('.chk-parte-principal:checked')).map(chk => chk.dataset.nome).filter(Boolean);
-            const principaisParciais = []; // não há mais opção de marcar per-row como principal
+            // Principais: read from dynamic principais container
+            const principaisSelecionadas = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .principal-item')).map(item => {
+                const nome = item.dataset.nome;
+                const recChk = item.querySelector('.chk-principal-rec');
+                return { nome: nome, recJud: !!(recChk && recChk.checked) };
+            }).filter(p => p.nome);
+            const principaisParciais = []; // reserved for compatibility
             const subsidiariasComPeriodo = [];
 
             linhasPeriodos.forEach((linha) => {
@@ -358,12 +464,14 @@
             });
 
             const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-            const principaisNomes = new Set([...principaisSelecionadas, ...principaisParciais.map(p => p.nome)]);
+            const principaisNomes = new Set(principaisSelecionadas.map(p => p.nome));
             const subsidiariasComPeriodoNomes = new Set(subsidiariasComPeriodo.map(s => s.nome));
 
-            const subsidiariasIntegrais = todasReclamadas.filter(nome => !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome));
+            // Subsidiarias integrais: those added in the integral container and checked
+            const subsIntFromDom = Array.from(document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item')).map(el => el.dataset.nome);
+            const subsidiariasIntegrais = subsIntFromDom.filter(nome => nome && !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome));
 
-            const nomesPrincipaisUnicos = Array.from(new Set(principaisSelecionadas.filter(n => n)));
+            const nomesPrincipaisUnicos = Array.from(new Set(principaisSelecionadas.map(p => p.nome).filter(n => n)));
             const txtPrincipais = formatarLista(nomesPrincipaisUnicos);
 
             const subsInt = subsidiariasIntegrais || [];
@@ -391,12 +499,13 @@
                 textoIntro,
                 principalIntegral: nomesPrincipaisUnicos[0] || '',
                 principaisParciais,
-                subsidiariasIntegrais,
-                subsidiariasComPeriodo,
+                subsidiariasIntegrais: subsInt,
+                subsidiariasComPeriodo: subsDiv,
                 todasPrincipais: [
                     ...nomesPrincipaisUnicos.map(n => ({ nome: n, periodo: 'integral', idPlanilha: '' })),
                     ...principaisParciais
-                ]
+                ],
+                principaisComRecJud: principaisSelecionadas.filter(p => p.recJud)
             };
         }
 

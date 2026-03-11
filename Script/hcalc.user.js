@@ -10,16 +10,16 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js
 
 // ====== REFATORADO (LOAD MODULAR) ======
-// carregar módulos refatorados (overlay dividido)
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-core.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-pdf.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-prep.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-draft.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-depositos.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-responsabilidades.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-partes.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=308&t=202603111930
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=308&t=202603111930
+// carregar módulos refatorados (overlay dividido) — PINNED ao commit 0d926e8
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-core.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-pdf.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-prep.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-overlay-draft.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-overlay-depositos.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-overlay-responsabilidades.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-overlay-partes.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-overlay-decisao.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/0d926e8/Script/calc/BASE/hcalc-overlay.js
 
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com

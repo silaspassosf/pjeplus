@@ -1739,14 +1739,20 @@
         // ==========================================
         // 4. LÓGICA DE NAVEGAÇÃO "COLETA INTELIGENTE"
         // ==========================================
-        const orderSequence = [
+        var orderSequence = [
             'val-id', 'val-data', 'val-credito', 'val-fgts',
             'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
         ];
 
         function updateHighlight(currentId = null) {
-            orderSequence.forEach((id) => $(id).classList.remove('highlight'));
-            const visibleInputs = orderSequence.filter((id) => !$(id).classList.contains('hidden'));
+            orderSequence.forEach((id) => {
+                const el = $(id);
+                if (el) el.classList.remove('highlight');
+            });
+            const visibleInputs = orderSequence.filter((id) => {
+                const el = $(id);
+                return el && !el.classList.contains('hidden');
+            });
             if (visibleInputs.length === 0) return;
             let nextIndex = 0;
             if (currentId) {
@@ -1758,24 +1764,35 @@
                 }
             }
             const nextInputId = visibleInputs[nextIndex];
-            $(nextInputId).classList.add('highlight');
-            $(nextInputId).focus();
+            const nextEl = $(nextInputId);
+            if (nextEl) {
+                nextEl.classList.add('highlight');
+                nextEl.focus();
+            }
             atualizarStatusProximoCampo(nextInputId);
         }
 
-        orderSequence.forEach((id) => {
-            const el = $(id);
-            el.addEventListener('paste', () => {
-                setTimeout(() => {
-                    el.value = el.value.trim();
-                    updateHighlight(id);
-                }, 10);
+        // Delay attaching to ensure DOM is ready and IDs exist
+        setTimeout(() => {
+            orderSequence.forEach((id) => {
+                const el = $(id);
+                if (el) {
+                    el.addEventListener('paste', () => {
+                        setTimeout(() => {
+                            el.value = el.value.trim();
+                            updateHighlight(id);
+                        }, 10);
+                    });
+                    el.addEventListener('focus', () => {
+                        orderSequence.forEach((i) => {
+                            const ii = $(i);
+                            if (ii) ii.classList.remove('highlight');
+                        });
+                        el.classList.add('highlight');
+                    });
+                }
             });
-            el.addEventListener('focus', () => {
-                orderSequence.forEach((i) => $(i).classList.remove('highlight'));
-                el.classList.add('highlight');
-            });
-        });
+        }, 500);
 
         // ==========================================
         // 5. FUNÇÕES AUXILIARES DE CÁLCULO E TEXTO

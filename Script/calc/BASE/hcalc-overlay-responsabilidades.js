@@ -322,7 +322,12 @@
                 const planilhaSel = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal';
                 const usarMesmaPlanilha = planilhaSel === 'principal';
                 const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
-                const isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
+                const periodoTotalCheckbox = document.querySelector(`.periodo-total[data-idx="${idx}"]`);
+                let isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
+                // If user explicitly marked 'Período Total', treat as integral
+                if (periodoTotalCheckbox && periodoTotalCheckbox.checked) isPeriodoIntegral = true;
+                // If the selected planilha is an extra planilha (not 'principal'), consider it a diverso period
+                if (!usarMesmaPlanilha) isPeriodoIntegral = false;
 
                 if (nomeRec && !isPeriodoIntegral) {
                     if (tipoRadio === 'principal') {

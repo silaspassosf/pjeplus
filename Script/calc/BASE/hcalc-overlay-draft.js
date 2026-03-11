@@ -205,7 +205,7 @@
                     else el.value = cfg.value ?? '';
                 });
 
-                ['resp-tipo', 'calc-fgts', 'ignorar-inss', 'irpf-tipo', 'chk-hon-reu', 'chk-perito-conh', 'custas-origem', 'resp-rec-judicial'].forEach((id) => {
+                ['resp-tipo', 'calc-fgts', 'ignorar-inss', 'irpf-tipo', 'chk-hon-reu', 'chk-perito-conh', 'custas-origem'].forEach((id) => {
                     const el = $(id);
                     if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
                 });

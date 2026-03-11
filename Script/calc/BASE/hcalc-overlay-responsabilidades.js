@@ -29,6 +29,14 @@
                     nomeDiv.title = nome;
                 }
             });
+            // Sync hidden compatibility checkbox so legacy code still finds a single flag
+            try {
+                const hidden = document.getElementById('resp-rec-judicial');
+                if (hidden) {
+                    const anyRec = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .chk-principal-rec')).some(c => c.checked);
+                    hidden.checked = !!anyRec;
+                }
+            } catch (e) { /* ignore */ }
         }
 
         function atualizarDropdownsReclamadas() {
@@ -117,6 +125,17 @@
                     }
                 });
             }
+
+            // Update group reclamada selects for planilha-diverso groups
+            document.querySelectorAll('.grupo-reclamada-select').forEach(select => {
+                const cur = select.value || '';
+                select.innerHTML = '<option value="">Adicionar reclamada...</option>';
+                todasReclamadas.forEach(rec => {
+                    if (!used.has(rec) || rec === cur) {
+                        const o = document.createElement('option'); o.value = rec; o.textContent = rec; select.appendChild(o);
+                    }
+                });
+            });
         }
 
         function adicionarLinhaPeridoDiverso() {
@@ -320,15 +339,125 @@
                 atualizarDropdownsReclamadas();
             };
 
-            $('resp-rec-judicial').onchange = () => {
-                aplicarEstiloRecuperacaoJudicial();
-            };
+            // recovery is now per-principal; per-item checkboxes call aplicarEstiloRecuperacaoJudicial
 
             $('btn-adicionar-periodo').onclick = (e) => {
                 e.preventDefault();
                 adicionarLinhaPeridoDiverso();
                 queueOverlayDraftSave();
             };
+
+            // --- Planilha-grupo (Subsidiarias com periodo diverso)
+            const btnAddPlanilhaDiv = document.getElementById('btn-add-planilha-diverso');
+            const containerPlanilhas = document.getElementById('resp-subsidiarias-diverso-container');
+
+            function adicionarGrupoPlanilha(dados) {
+                const idx = containerPlanilhas.children.length;
+                const rowId = `grupo-planilha-${idx}`;
+                const div = document.createElement('div');
+                div.id = rowId;
+                div.className = 'grupo-card';
+                div.style.padding = '12px';
+                div.style.background = '#f8fafc';
+                div.style.border = '1px solid #e6edf3';
+                div.style.borderRadius = '6px';
+
+                const planilhasOpts = (window.hcalcState.planilhasDisponiveis || []).map(p => `<option value="${p.id}">${p.label}</option>`).join('');
+                const html = `
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                        <select class="grupo-planilha-select" data-idx="${idx}" style="flex:1;padding:6px;">
+                            <option value="principal">📋 Planilha principal</option>
+                            ${planilhasOpts}
+                        </select>
+                        <button type="button" class="btn-carregar-planilha-grupo btn-action" data-idx="${idx}" style="padding:6px;background:#7c3aed;color:#fff;">📄 Carregar</button>
+                        <button type="button" class="btn-remove-grupo btn-action" data-idx="${idx}" style="padding:6px;background:#d32f2f;color:#fff;">Remover</button>
+                    </div>
+                    <div style="display:flex;gap:8px;margin-bottom:8px;">
+                        <input type="text" class="grupo-id" data-idx="${idx}" placeholder="ID (preenchido após análise)" style="flex:1;padding:6px;">
+                        <input type="text" class="grupo-periodo" data-idx="${idx}" placeholder="Período (preenchido após análise)" style="flex:1;padding:6px;">
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+                        <select class="grupo-reclamada-select" data-idx="${idx}" style="flex:1;padding:6px;"></select>
+                        <button type="button" class="btn-add-reclamada-grupo btn-action" data-idx="${idx}" style="padding:6px;background:#10b981;color:#fff;">+</button>
+                    </div>
+                    <div class="grupo-reclamadas-list" data-idx="${idx}" style="display:flex;flex-direction:column;gap:6px;"></div>
+                `;
+                div.innerHTML = html;
+                containerPlanilhas.appendChild(div);
+
+                const selPlan = div.querySelector('.grupo-planilha-select');
+                const selRec = div.querySelector('.grupo-reclamada-select');
+                const btnAddRec = div.querySelector('.btn-add-reclamada-grupo');
+                const list = div.querySelector('.grupo-reclamadas-list');
+                const btnRemove = div.querySelector('.btn-remove-grupo');
+                const btnCarregar = div.querySelector('.btn-carregar-planilha-grupo');
+                const idInp = div.querySelector('.grupo-id');
+                const perInp = div.querySelector('.grupo-periodo');
+
+                selPlan.onchange = (e) => {
+                    const val = e.target.value;
+                    const pd = val === 'principal' ? window.hcalcState.planilhaExtracaoData : (window.hcalcState.planilhasDisponiveis || []).find(p => p.id === val)?.dados;
+                    if (pd) {
+                        if (pd.idPlanilha) idInp.value = pd.idPlanilha;
+                        if (pd.periodoCalculo) perInp.value = pd.periodoCalculo;
+                    }
+                    atualizarDropdownsPlanilhas();
+                    queueOverlayDraftSave();
+                };
+
+                btnAddRec.onclick = (e) => {
+                    e.preventDefault();
+                    const nome = selRec.value;
+                    if (!nome) return;
+                    if (Array.from(list.children).some(c => c.dataset.nome === nome)) return;
+                    const it = document.createElement('div');
+                    it.dataset.nome = nome;
+                    it.style.display = 'flex';
+                    it.style.alignItems = 'center';
+                    it.style.justifyContent = 'space-between';
+                    it.innerHTML = `<span>${nome}</span><button type="button" class="btn-remove-rec btn-action" style="background:#d32f2f;color:#fff;padding:4px 8px;">Remover</button>`;
+                    list.appendChild(it);
+                    it.querySelector('.btn-remove-rec').onclick = () => { it.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                    atualizarDropdownsPlanilhas();
+                    queueOverlayDraftSave();
+                };
+
+                btnRemove.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+
+                btnCarregar.onclick = () => {
+                    // trigger loading UI in same way as other loaders (open file input if present)
+                    const input = document.createElement('input');
+                    input.type = 'file'; input.accept = '.pdf'; input.style.display = 'none';
+                    input.onchange = async (ev) => {
+                        const file = ev.target.files[0];
+                        if (!file) return;
+                        try {
+                            const loaded = await carregarPDFJSSeNecessario();
+                            if (!loaded) throw new Error('PDF.js não disponível');
+                            const dados = await processarPlanilhaPDF(file);
+                            if (!dados.sucesso) throw new Error(dados.erro || 'Erro desconhecido');
+                            if (dados.idPlanilha) idInp.value = dados.idPlanilha;
+                            if (dados.periodoCalculo) perInp.value = dados.periodoCalculo;
+                            const extraId = `extra_grp_${idx}`;
+                            registrarPlanilhaDisponivel(extraId, `${dados.idPlanilha || 'Extra'} (Grupo ${idx+1})`, dados);
+                            selPlan.value = extraId;
+                            atualizarDropdownsPlanilhas();
+                            queueOverlayDraftSave();
+                        } catch (err) {
+                            alert('Erro ao processar planilha: ' + err.message);
+                        }
+                    };
+                    document.body.appendChild(input);
+                    input.click();
+                };
+
+                // populate reclamada select
+                atualizarDropdownsPlanilhas();
+            }
+
+            if (btnAddPlanilhaDiv) {
+                btnAddPlanilhaDiv.onclick = (e) => { e.preventDefault(); adicionarGrupoPlanilha(); };
+            }
 
             // --- Principais quick-add
             const selAddPrincipal = document.getElementById('sel-add-principal');
@@ -349,6 +478,10 @@
                 principaisContainer.appendChild(div);
                 const removeBtn = div.querySelector('.btn-remove-principal');
                 removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                const recChkEl = div.querySelector('.chk-principal-rec');
+                if (recChkEl) {
+                    recChkEl.onchange = () => { aplicarEstiloRecuperacaoJudicial(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+                }
                 // update dropdowns
                 atualizarDropdownsPlanilhas();
                 queueOverlayDraftSave();
@@ -458,6 +591,24 @@
 
                 nomesRec.forEach((nomeRec) => {
                     if (nomeRec && !isPeriodoIntegral) {
+                        subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
+                    }
+                });
+            });
+
+            // Additionally, read planilha-group cards for subsidiarias com periodo diverso
+            document.querySelectorAll('#resp-subsidiarias-diverso-container .grupo-card').forEach((card) => {
+                const idx = card.id.replace('grupo-planilha-', '');
+                const periodoTexto = card.querySelector(`.grupo-periodo[data-idx="${idx}"]`)?.value || '';
+                const idPlanilhaManual = card.querySelector(`.grupo-id[data-idx="${idx}"]`)?.value || '';
+                const planilhaSel = card.querySelector(`.grupo-planilha-select[data-idx="${idx}"]`)?.value || 'principal';
+                const usarMesmaPlanilha = planilhaSel === 'principal';
+                const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
+
+                const list = Array.from(card.querySelectorAll('.grupo-reclamadas-list > div')).map(d => d.dataset.nome).filter(Boolean);
+                list.forEach((nomeRec) => {
+                    if (nomeRec && !(!periodoTexto)) {
+                        // only treat as periodo diverso if periodoTexto is present
                         subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
                     }
                 });

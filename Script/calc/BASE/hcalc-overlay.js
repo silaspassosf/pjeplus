@@ -614,6 +614,18 @@
                             <input type="text" id="val-custas" class="coleta-input" placeholder="R$ Custas">
                         </div>
                         <div class="col" style="flex: 0 0 140px;">
+
+                    <!-- SEÇÃO 3: Subsidiárias (Período Diverso) - agrupadas por planilha -->
+                    <div class="row" style="margin-bottom: 12px;">
+                        <div class="col">
+                            <label style="font-weight: bold; color: #0b5ea3;">3. Subsidiárias com período diverso</label>
+                            <div style="font-size:12px;color:#666;margin-top:6px;">Cada grupo abaixo corresponde a uma planilha (clique em "Adicionar planilha" para criar um novo grupo).</div>
+                            <div id="resp-subsidiarias-diverso-container" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;"></div>
+                            <div style="margin-top:8px;">
+                                <button type="button" id="btn-add-planilha-diverso" class="btn-action" style="background:#10b981;padding:6px 10px;">+ Adicionar planilha</button>
+                            </div>
+                        </div>
+                    </div>
                             <label>Status</label>
                             <select id="custas-status">
                                 <option value="devidas" selected>Devidas</option>
@@ -652,8 +664,9 @@
                     <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:8px;"><input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias</label>
                     <input type="hidden" id="resp-unica-flag" value="false">
                 </div>
-                <div class="row" style="margin-top: 10px;">
-                    <label><input type="checkbox" id="resp-rec-judicial"> Recuperação Judicial/Falência (direciona execução, sem intimação prévia)</label>
+                <!-- per-principal 'Recuperação' moved to Principais list -->
+                <div style="display:none;">
+                    <input type="checkbox" id="resp-rec-judicial">
                 </div>
                 <div id="resp-sub-opcoes" class="row">
                     <label><input type="checkbox" id="resp-integral" checked> Responde pelo período total</label>

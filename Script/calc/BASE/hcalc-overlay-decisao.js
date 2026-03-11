@@ -311,9 +311,13 @@
                     }
                 }
 
-                const temRecJudicial = $('resp-rec-judicial')?.checked || false;
+                // Determine recovery judicial flag from per-principal configuration
+                const dadosResp = (responsabilidadesTextoApi && responsabilidadesTextoApi.gerarTextoResponsabilidades)
+                    ? responsabilidadesTextoApi.gerarTextoResponsabilidades()
+                    : null;
+                const temRecJudicial = !!(dadosResp && Array.isArray(dadosResp.principaisComRecJud) && dadosResp.principaisComRecJud.length > 0);
                 if (temRecJudicial) {
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência da devedora principal, direciono a execução neste ato.</p>`;
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Considerando o notório estado de insolvência de parte das devedoras principais, direciono a execução neste ato.</p>`;
                 }
 
                 if ($('chk-deposito').checked) {

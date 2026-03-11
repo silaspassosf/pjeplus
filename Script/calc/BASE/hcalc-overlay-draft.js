@@ -175,7 +175,7 @@
                 staticFields,
                 namedRadios,
                 periodosEnabled: !!$('resp-diversos')?.checked,
-                principalResponsavel: $('resp-devedora-principal')?.value || '',
+                principalResponsavel: document.querySelector('#resp-principais-dinamico-container .principal-item')?.dataset.nome || '',
                 periodos,
                 depositosEnabled: !!$('chk-deposito')?.checked,
                 depositos,
@@ -215,14 +215,11 @@
                     $('resp-diversos').dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                if (draft.periodosEnabled && $('resp-devedora-principal')) {
-                    $('resp-devedora-principal').value = draft.principalResponsavel || $('resp-devedora-principal').value;
-                    $('resp-devedora-principal').dispatchEvent(new Event('change', { bubbles: true }));
-
+                if (draft.periodosEnabled) {
                     const container = $('resp-diversos-container');
                     if (container) container.innerHTML = '';
                     (draft.periodos || []).forEach(() => adicionarLinhaPeridoDiverso());
-
+                }
                     (draft.periodos || []).forEach((periodo, idx) => {
                         const selRec = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`);
                         const inpPeriodo = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`);

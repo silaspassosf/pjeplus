@@ -122,7 +122,7 @@
         function adicionarLinhaPeridoDiverso() {
             const container = $('resp-diversos-container');
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-            const principalIntegral = $('resp-devedora-principal')?.value || '';
+            const principalIntegral = document.querySelector('#resp-principais-dinamico-container .principal-item')?.dataset.nome || '';
             const idx = container.children.length;
             const rowId = `periodo-diverso-${idx}`;
             const numeroDevedora = idx + 2;
@@ -285,21 +285,10 @@
             $('resp-diversos').onchange = (e) => {
                 const fieldset = $('resp-diversos-fieldset');
                 const container = $('resp-diversos-container');
-                const selectPrincipal = $('resp-devedora-principal');
                 const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
 
                 if (e.target.checked) {
                     fieldset.classList.remove('hidden');
-
-                    selectPrincipal.innerHTML = '';
-                    reclamadas.forEach((rec, idx) => {
-                        const opt = document.createElement('option');
-                        opt.value = rec;
-                        opt.textContent = rec;
-                        if (idx === 0) opt.selected = true;
-                        selectPrincipal.appendChild(opt);
-                    });
-
                     if (container.children.length === 0) {
                         adicionarLinhaPeridoDiverso();
                     }
@@ -307,10 +296,6 @@
                     fieldset.classList.add('hidden');
                     container.innerHTML = '';
                 }
-            };
-
-            $('resp-devedora-principal').onchange = () => {
-                atualizarDropdownsReclamadas();
             };
 
             $('resp-rec-judicial').onchange = () => {

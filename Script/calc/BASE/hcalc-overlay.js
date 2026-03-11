@@ -664,15 +664,6 @@
             <!-- SEÇÃO 6.1: PERÍODOS DIVERSOS (Dinâmico) -->
             <fieldset id="resp-diversos-fieldset" class="hidden">
                 <legend>Períodos Diversos - Cálculos Separados por Reclamada</legend>
-                <div class="row" style="margin-bottom: 15px;">
-                    <div class="col">
-                        <label style="font-weight: bold;">Devedora Principal</label>
-                        <select id="resp-devedora-principal" style="width: 100%; padding: 8px;">
-                            <option value="">Selecione a devedora principal...</option>
-                        </select>
-                        <small style="color: #666; display: block; margin-top: 5px;">*Padrão: primeira reclamada</small>
-                    </div>
-                </div>
                 <!-- NOVOS BLOCOS: Principais / Subsidiarias Integral -->
                 <div class="row" style="margin-bottom: 12px;">
                     <div class="col">

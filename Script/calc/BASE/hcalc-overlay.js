@@ -252,6 +252,63 @@
         dbg('initializeOverlay iniciado.');
         window.__hcalcOverlayInitialized = true;
 
+        // INICIALIZAÇÃO DA SEQUÊNCIA DE ORDEM DE COLETA (movido para topo devido a hoisted calls de updateHighlight)
+        var orderSequence = (window.hcalcOrderSequence && Array.isArray(window.hcalcOrderSequence)) ? window.hcalcOrderSequence : [
+            'val-id', 'val-data', 'val-credito', 'val-fgts',
+            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
+        ];
+
+        // Função para destacar/avançar foco entre campos — definida cedo para uso por controllers
+        function updateHighlight(currentId = null) {
+            orderSequence.forEach((id) => {
+                const el = $(id);
+                if (el) el.classList.remove('highlight');
+            });
+            const visibleInputs = orderSequence.filter((id) => {
+                const el = $(id);
+                return el && !el.classList.contains('hidden');
+            });
+            if (visibleInputs.length === 0) return;
+            let nextIndex = 0;
+            if (currentId) {
+                const currentIndex = visibleInputs.indexOf(currentId);
+                if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
+                    nextIndex = currentIndex + 1;
+                } else if (currentIndex === visibleInputs.length - 1) {
+                    return;
+                }
+            }
+            const nextInputId = visibleInputs[nextIndex];
+            const nextEl = $(nextInputId);
+            if (nextEl) {
+                nextEl.classList.add('highlight');
+                nextEl.focus();
+            }
+            if (typeof atualizarStatusProximoCampo === 'function') atualizarStatusProximoCampo(nextInputId);
+        }
+
+        // Delay para ligar listeners nos inputs da sequência - garante DOM pronto
+        setTimeout(() => {
+            orderSequence.forEach((id) => {
+                const el = $(id);
+                if (el) {
+                    el.addEventListener('paste', () => {
+                        setTimeout(() => {
+                            el.value = el.value.trim();
+                            try { updateHighlight(id); } catch (e) { dbg('updateHighlight failed on paste', e); }
+                        }, 10);
+                    });
+                    el.addEventListener('focus', () => {
+                        orderSequence.forEach((i) => {
+                            const ii = $(i);
+                            if (ii) ii.classList.remove('highlight');
+                        });
+                        el.classList.add('highlight');
+                    });
+                }
+            });
+        }, 500);
+
         // ==========================================
         // 1. ESTILOS DO OVERLAY E BOTÃO (v1.9 - UI Compacta)
         // ==========================================
@@ -1738,62 +1795,10 @@
 
         // ==========================================
         // 4. LÓGICA DE NAVEGAÇÃO "COLETA INTELIGENTE"
+        // (variável orderSequence inicializada no topo)
         // ==========================================
-        // Use shared sequence from hcalc-core if present, otherwise fallback to default
-        var orderSequence = window.hcalcOrderSequence || [
-            'val-id', 'val-data', 'val-credito', 'val-fgts',
-            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
-        ];
 
-        function updateHighlight(currentId = null) {
-            orderSequence.forEach((id) => {
-                const el = $(id);
-                if (el) el.classList.remove('highlight');
-            });
-            const visibleInputs = orderSequence.filter((id) => {
-                const el = $(id);
-                return el && !el.classList.contains('hidden');
-            });
-            if (visibleInputs.length === 0) return;
-            let nextIndex = 0;
-            if (currentId) {
-                const currentIndex = visibleInputs.indexOf(currentId);
-                if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
-                    nextIndex = currentIndex + 1;
-                } else if (currentIndex === visibleInputs.length - 1) {
-                    return;
-                }
-            }
-            const nextInputId = visibleInputs[nextIndex];
-            const nextEl = $(nextInputId);
-            if (nextEl) {
-                nextEl.classList.add('highlight');
-                nextEl.focus();
-            }
-            atualizarStatusProximoCampo(nextInputId);
-        }
-
-        // Delay attaching to ensure DOM is ready and IDs exist
-        setTimeout(() => {
-            orderSequence.forEach((id) => {
-                const el = $(id);
-                if (el) {
-                    el.addEventListener('paste', () => {
-                        setTimeout(() => {
-                            el.value = el.value.trim();
-                            updateHighlight(id);
-                        }, 10);
-                    });
-                    el.addEventListener('focus', () => {
-                        orderSequence.forEach((i) => {
-                            const ii = $(i);
-                            if (ii) ii.classList.remove('highlight');
-                        });
-                        el.classList.add('highlight');
-                    });
-                }
-            });
-        }, 500);
+        
 
         // ==========================================
         // 5. FUNÇÕES AUXILIARES DE CÁLCULO E TEXTO

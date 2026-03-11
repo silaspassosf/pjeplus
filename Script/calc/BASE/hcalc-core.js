@@ -134,14 +134,6 @@
         configurable: true
     });
 
-    // Sequência de ordem de campos (disponível globalmente para módulos que gerenciam foco)
-    if (!window.hcalcOrderSequence) {
-        window.hcalcOrderSequence = [
-            'val-id', 'val-data', 'val-credito', 'val-fgts',
-            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
-        ];
-    }
-
     // ==========================================
     // MONITOR DE NAVEGAÇÃO SPA
     // ==========================================

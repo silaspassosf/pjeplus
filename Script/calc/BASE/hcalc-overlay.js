@@ -533,6 +533,22 @@
                     </div>
                 </div>
 
+                <div style="padding: 8px; border: 1px dashed #d9d9d9; border-radius: 4px; margin-bottom: 6px; background: #fff;">
+                    <label style="display:block; margin-bottom: 5px; color:#00509e; font-size: 12px;">2) INSS (Autor e Reclamada) e IR</label>
+                    <div class="row" style="margin-bottom: 0;">
+                        <div class="col">
+                            <label>INSS - Desconto (Reclamante)</label>
+                            <input type="text" id="val-inss-rec" class="coleta-input" placeholder="R$ INSS Reclamante (Desconto)">
+                        </div>
+                        <div class="col">
+                            <label>INSS - Total da Empresa (Reclamada)</label>
+                            <input type="text" id="val-inss-total" class="coleta-input" placeholder="R$ INSS Total / Reclamada">
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top: 5px;">
+                        <div class="col">
+                            <label><input type="checkbox" id="ignorar-inss"> Não há INSS</label>
+                            <small style="color: #666; display: block;">*INSS Reclamada = Subtração automática se PJeCalc marcado.</small>
                         </div>
                         <div class="col">
                             <label>Imposto de Renda</label>
@@ -636,53 +652,33 @@
                     <label style="font-size:12px;margin:0;display:flex;align-items:center;gap:8px;"><input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias</label>
                     <input type="hidden" id="resp-unica-flag" value="false">
                 </div>
-                <div id="resp-sub-opcoes" class="row" style="margin-top: 10px; flex-direction: column; gap: 8px;">
-                    <label style="display:flex; align-items:center; gap: 6px;"><input type="radio" name="rad-resp-tipo" id="resp-integral" value="integral" checked> Todas pelo período integral</label>
-                    <label style="display:flex; align-items:center; gap: 6px;"><input type="radio" name="rad-resp-tipo" id="resp-diversos" value="diversos"> Há períodos diversos</label>
+                <div class="row" style="margin-top: 10px;">
+                    <label><input type="checkbox" id="resp-rec-judicial"> Recuperação Judicial/Falência (direciona execução, sem intimação prévia)</label>
+                </div>
+                <div id="resp-sub-opcoes" class="row">
+                    <label><input type="checkbox" id="resp-integral" checked> Responde pelo período total</label>
+                    <label style="margin-left: 15px;"><input type="checkbox" id="resp-diversos"> Períodos Diversos (Gera estrutura para preencher)</label>
                 </div>
             </fieldset>
 
             <!-- SEÇÃO 6.1: PERÍODOS DIVERSOS (Dinâmico) -->
             <fieldset id="resp-diversos-fieldset" class="hidden">
-                <legend>Detalhamento de Responsabilidades (Períodos Diversos)</legend>
-                
+                <legend>Períodos Diversos - Cálculos Separados por Reclamada</legend>
                 <div class="row" style="margin-bottom: 15px;">
                     <div class="col">
-                        <label style="font-weight: bold; color: #b45309;">1. Devedoras Principais</label>
-                        <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
-                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                            <select id="sel-add-principal" style="padding: 6px; flex: 1;">
-                                <option value="">Adicionar devedora principal...</option>
-                            </select>
-                            <button type="button" class="btn-action" id="btn-add-principal">+</button>
-                        </div>
+                        <label style="font-weight: bold;">Devedora Principal</label>
+                        <select id="resp-devedora-principal" style="width: 100%; padding: 8px;">
+                            <option value="">Selecione a devedora principal...</option>
+                        </select>
+                        <small style="color: #666; display: block; margin-top: 5px;">*Padrão: primeira reclamada</small>
                     </div>
-                </div>
-
-                <div class="row" style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed #ccc;">
-                    <div class="col">
-                        <label style="font-weight: bold; color: #0284c7;">2. Subsidiárias (Período Integral)</label>
-                        <label style="display:block; margin:6px 0 10px 0;"><input type="checkbox" id="chk-nao-ha-subs-int"> Não há (não preencher esta lista)</label>
-                        <div id="resp-subsidiarias-integral-dinamico-container" style="padding:0; display:flex; flex-direction:column; gap:6px;"></div>
-                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;" id="div-add-subs-int">
-                            <select id="sel-add-subs-int" style="padding: 6px; flex: 1;">
-                                <option value="">Adicionar subsidiária integral...</option>
-                            </select>
-                            <button type="button" class="btn-action" id="btn-add-subs-int">+</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row" style="margin-bottom: 10px; font-weight: bold; color: #059669;">
-                    <label>3. Subsidiárias (Período Diverso)</label>
                 </div>
                 <div class="row" style="margin-bottom: 15px; font-size: 13px; color: #555;">
-                    <label>Crie blocos por planilha/período e selecione as subsidiárias correspondentes.</label>
+                    <label>Preencha período e planilha para cada reclamada com responsabilidade diversa (subsidiária por período):</label>
                 </div>
                 <div id="resp-diversos-container"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Bloco de Período Diverso</button>
+                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Período Diverso</button>
             </fieldset>
-
 
             <!-- Links de Sentença e Acórdão -->
             <fieldset style="border: none; padding: 8px 0; margin: 8px 0;">
@@ -862,61 +858,6 @@
         }
 
         window.hcalcAtualizarResumoPlanilha = atualizarResumoPlanilha;
-        // Ensure orderSequence and updateHighlight are available early
-        var orderSequence = (window.hcalcOrderSequence && Array.isArray(window.hcalcOrderSequence)) ? window.hcalcOrderSequence : [
-            'val-id', 'val-data', 'val-credito', 'val-fgts',
-            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
-        ];
-
-        function updateHighlight(currentId = null) {
-            try {
-                orderSequence.forEach((id) => {
-                    const el = document.getElementById(id);
-                    if (el) el.classList.remove('highlight');
-                });
-                const visibleInputs = orderSequence.filter((id) => {
-                    const el = document.getElementById(id);
-                    return el && !el.classList.contains('hidden');
-                });
-                if (visibleInputs.length === 0) return;
-                let nextIndex = 0;
-                if (currentId) {
-                    const currentIndex = visibleInputs.indexOf(currentId);
-                    if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
-                        nextIndex = currentIndex + 1;
-                    } else if (currentIndex === visibleInputs.length - 1) {
-                        return;
-                    }
-                }
-                const nextInputId = visibleInputs[nextIndex];
-                const nextEl = document.getElementById(nextInputId);
-                if (nextEl) {
-                    nextEl.classList.add('highlight');
-                    try { nextEl.focus(); } catch (e) { /* ignore focus errors */ }
-                }
-                if (typeof atualizarStatusProximoCampo === 'function') atualizarStatusProximoCampo(nextInputId);
-            } catch (e) { dbg('updateHighlight error', e); }
-        }
-
-        // attach lightweight paste/focus handlers defensively
-        setTimeout(() => {
-            orderSequence.forEach((id) => {
-                const el = document.getElementById(id);
-                if (!el) return;
-                if (!el.__hcalcBoundHighlight) {
-                    el.__hcalcBoundHighlight = true;
-                    el.addEventListener('paste', () => {
-                        setTimeout(() => {
-                            try { el.value = el.value.trim(); updateHighlight(id); } catch (e) { dbg('paste handler err', e); }
-                        }, 10);
-                    });
-                    el.addEventListener('focus', () => {
-                        try { orderSequence.forEach((i) => { const ii = document.getElementById(i); if (ii) ii.classList.remove('highlight'); }); el.classList.add('highlight'); } catch (e) {}
-                    });
-                }
-            });
-        }, 500);
-
         const draftController = overlayDraftApi.createController({
             $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
             adicionarDepositoRecursal, adicionarPagamentoAntecipado,
@@ -1505,114 +1446,99 @@
         }
 
         // Handler do botão Reload (recarregar planilha)
-        if ($('btn-reload-planilha')) {
-            $('btn-reload-planilha').onclick = () => {
-                const inputFile = $('input-planilha-pdf');
-                if (inputFile) inputFile.click();
-            };
-        }
+        $('btn-reload-planilha').onclick = () => {
+            const inputFile = $('input-planilha-pdf');
+            inputFile.click();
+        };
 
-        if ($('btn-fechar')) {
-            $('btn-fechar').onclick = (e) => {
-                e.preventDefault();  // Previne scroll indesejado
+        $('btn-fechar').onclick = (e) => {
+            e.preventDefault();  // Previne scroll indesejado
+            const modal = $('homologacao-modal');
+            const overlay = $('homologacao-overlay');
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'all';
+            modal.dataset.ghost = 'false';
+            overlay.style.display = 'none';
+            overlay.style.pointerEvents = 'none';
+            // LIMPAR REFERÊNCIAS DOM: v1.8 usa método centralizado
+            window.hcalcState.resetPrep();
+            console.log('[hcalc] Estado resetado via hcalcState.resetPrep()');
+        };
+        $('homologacao-overlay').onclick = (e) => {
+            if (e.target.id === 'homologacao-overlay') {
+                // Não fecha — torna transparente e "fantasma"
                 const modal = $('homologacao-modal');
                 const overlay = $('homologacao-overlay');
-                if (modal) {
+                const isGhost = modal.dataset.ghost === 'true';
+                if (isGhost) {
+                    // Segundo clique fora: volta ao normal
                     modal.style.opacity = '1';
                     modal.style.pointerEvents = 'all';
-                    modal.dataset.ghost = 'false';
-                }
-                if (overlay) {
-                    overlay.style.display = 'none';
                     overlay.style.pointerEvents = 'none';
+                    modal.dataset.ghost = 'false';
+                } else {
+                    // Primeiro clique fora: vira fantasma
+                    modal.style.opacity = '0.25';
+                    modal.style.transition = 'opacity 0.3s';
+                    modal.style.pointerEvents = 'none';
+                    // Mantém overlay transparente para detectar clique de retorno
+                    overlay.style.pointerEvents = 'all';
+                    modal.dataset.ghost = 'true';
                 }
-                // LIMPAR REFERÊNCIAS DOM: v1.8 usa método centralizado
-                window.hcalcState.resetPrep();
-                console.log('[hcalc] Estado resetado via hcalcState.resetPrep()');
-            };
-        }
-        
-        if ($('homologacao-overlay')) {
-            $('homologacao-overlay').onclick = (e) => {
-                if (e.target.id === 'homologacao-overlay') {
-                    // Não fecha — torna transparente e "fantasma"
-                    const modal = $('homologacao-modal');
-                    const overlay = $('homologacao-overlay');
-                    if (!modal || !overlay) return;
-                    
-                    const isGhost = modal.dataset.ghost === 'true';
-                    if (isGhost) {
-                        // Segundo clique fora: volta ao normal
-                        modal.style.opacity = '1';
-                        modal.style.pointerEvents = 'all';
-                        overlay.style.pointerEvents = 'none';
-                        modal.dataset.ghost = 'false';
-                    } else {
-                        // Primeiro clique fora: vira fantasma
-                        modal.style.opacity = '0.25';
-                        modal.style.transition = 'opacity 0.3s';
-                        modal.style.pointerEvents = 'none';
-                        // Mantém overlay transparente para detectar clique de retorno
-                        overlay.style.pointerEvents = 'all';
-                        modal.dataset.ghost = 'true';
+            }
+        };
+
+        $('calc-origem').onchange = (e) => { $('col-pjc').classList.toggle('hidden', e.target.value !== 'pjecalc'); };
+        $('calc-autor').onchange = (e) => { $('col-esclarecimentos').classList.toggle('hidden', e.target.value !== 'perito'); };
+        $('calc-esclarecimentos').onchange = (e) => { $('calc-peca-perito').classList.toggle('hidden', !e.target.checked); };
+
+        $('calc-fgts').onchange = (e) => {
+            const isChecked = e.target.checked;
+            $('fgts-radios').classList.toggle('hidden', !isChecked);
+            $('row-fgts-valor').classList.toggle('hidden', !isChecked);
+            updateHighlight();
+
+            try {
+                // Se FGTS separado e marcado como 'depositado', exibir modal bloqueante
+                if (isChecked) {
+                    const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
+                    if (fgtsTipo === 'depositado') {
+                        if (document.getElementById('maisPje_fgts_modal_overlay')) return;
+                        const overlay = document.createElement('div');
+                        overlay.id = 'maisPje_fgts_modal_overlay';
+                        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
+
+                        const box = document.createElement('div');
+                        box.id = 'maisPje_fgts_modal_box';
+                        box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
+
+                        const title = document.createElement('div');
+                        title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
+                        title.textContent = 'Atenção';
+
+                        const msg = document.createElement('div');
+                        msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
+                        msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+
+                        const actions = document.createElement('div');
+                        actions.style.cssText = 'text-align:right;';
+                        const ok = document.createElement('button');
+                        ok.id = 'maisPje_fgts_modal_ok';
+                        ok.textContent = 'OK';
+                        ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
+
+                        actions.appendChild(ok);
+                        box.appendChild(title);
+                        box.appendChild(msg);
+                        box.appendChild(actions);
+                        overlay.appendChild(box);
+                        document.body.appendChild(overlay);
+
+                        ok.addEventListener('click', () => overlay.remove());
                     }
                 }
-            };
-        }
-
-        if ($('calc-origem')) $('calc-origem').onchange = (e) => { if ($('col-pjc')) $('col-pjc').classList.toggle('hidden', e.target.value !== 'pjecalc'); };
-        if ($('calc-autor')) $('calc-autor').onchange = (e) => { if ($('col-esclarecimentos')) $('col-esclarecimentos').classList.toggle('hidden', e.target.value !== 'perito'); };
-        if ($('calc-esclarecimentos')) $('calc-esclarecimentos').onchange = (e) => { if ($('calc-peca-perito')) $('calc-peca-perito').classList.toggle('hidden', !e.target.checked); };
-
-        if ($('calc-fgts')) {
-            $('calc-fgts').onchange = (e) => {
-                const isChecked = e.target.checked;
-                if ($('fgts-radios')) $('fgts-radios').classList.toggle('hidden', !isChecked);
-                if ($('row-fgts-valor')) $('row-fgts-valor').classList.toggle('hidden', !isChecked);
-                updateHighlight();
-
-                try {
-                    // Se FGTS separado e marcado como 'depositado', exibir modal bloqueante
-                    if (isChecked) {
-                        const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
-                        if (fgtsTipo === 'depositado') {
-                            if (document.getElementById('maisPje_fgts_modal_overlay')) return;
-                            const overlay = document.createElement('div');
-                            overlay.id = 'maisPje_fgts_modal_overlay';
-                            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
-
-                            const box = document.createElement('div');
-                            box.id = 'maisPje_fgts_modal_box';
-                            box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
-
-                            const title = document.createElement('div');
-                            title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
-                            title.textContent = 'Atenção';
-
-                            const msg = document.createElement('div');
-                            msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                            msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
-
-                            const actions = document.createElement('div');
-                            actions.style.cssText = 'text-align:right;';
-                            const ok = document.createElement('button');
-                            ok.id = 'maisPje_fgts_modal_ok';
-                            ok.textContent = 'OK';
-                            ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
-
-                            actions.appendChild(ok);
-                            box.appendChild(title);
-                            box.appendChild(msg);
-                            box.appendChild(actions);
-                            overlay.appendChild(box);
-                            document.body.appendChild(overlay);
-
-                            ok.addEventListener('click', () => overlay.remove());
-                        }
-                    }
-                } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS (BASE)', ex); }
-            };
-        }
+            } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS (BASE)', ex); }
+        };
         // Adicionar listener para mudanças no tipo de FGTS (ex.: usuário marca 'depositado' depois)
         try {
             document.querySelectorAll('input[name="fgts-tipo"]').forEach(r => {
@@ -1658,16 +1584,14 @@
                 });
             });
         } catch (e) { /* ignore */ }
-        if ($('calc-indice')) $('calc-indice').onchange = (e) => { if ($('col-juros-val')) $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
-        if ($('ignorar-hon-autor')) $('ignorar-hon-autor').onchange = (e) => { if ($('val-hon-autor')) $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
-        if ($('ignorar-inss')) {
-            $('ignorar-inss').onchange = (e) => {
-                if ($('val-inss-rec')) $('val-inss-rec').classList.toggle('hidden', e.target.checked);
-                if ($('val-inss-total')) $('val-inss-total').classList.toggle('hidden', e.target.checked);
-                updateHighlight();
-            };
-        }
-        if ($('irpf-tipo')) $('irpf-tipo').onchange = (e) => { if ($('irpf-campos')) $('irpf-campos').classList.toggle('hidden', e.target.value === 'isento'); };
+        $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
+        $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
+        $('ignorar-inss').onchange = (e) => {
+            $('val-inss-rec').classList.toggle('hidden', e.target.checked);
+            $('val-inss-total').classList.toggle('hidden', e.target.checked);
+            updateHighlight();
+        };
+        $('irpf-tipo').onchange = (e) => { $('irpf-campos').classList.toggle('hidden', e.target.value === 'isento'); };
 
         responsabilidadesController.initEventHandlers();
 
@@ -1683,47 +1607,39 @@
             return responsabilidadesController.adicionarLinhaPeridoDiverso();
         }
 
-        if ($('chk-hon-reu')) {
-            $('chk-hon-reu').onchange = (e) => {
-                // Lógica invertida: marcado = "Não há" = esconde campos
-                if ($('hon-reu-campos')) $('hon-reu-campos').classList.toggle('hidden', e.target.checked);
-            };
-        }
+        $('chk-hon-reu').onchange = (e) => {
+            // Lógica invertida: marcado = "Não há" = esconde campos
+            $('hon-reu-campos').classList.toggle('hidden', e.target.checked);
+        };
 
         // Controlar exibição de campo percentual vs valor
         document.querySelectorAll('input[name="rad-hon-reu-tipo"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 const isPercentual = e.target.value === 'percentual';
-                if ($('hon-reu-perc-campo')) $('hon-reu-perc-campo').classList.toggle('hidden', !isPercentual);
-                if ($('hon-reu-valor-campo')) $('hon-reu-valor-campo').classList.toggle('hidden', isPercentual);
+                $('hon-reu-perc-campo').classList.toggle('hidden', !isPercentual);
+                $('hon-reu-valor-campo').classList.toggle('hidden', isPercentual);
             });
         });
 
-        if ($('chk-perito-conh')) {
-            $('chk-perito-conh').onchange = (e) => { if ($('perito-conh-campos')) $('perito-conh-campos').classList.toggle('hidden', !e.target.checked); };
-        }
+        $('chk-perito-conh').onchange = (e) => { $('perito-conh-campos').classList.toggle('hidden', !e.target.checked); };
 
         // CORREÇÃO 4: Event listener simplificado - guard interno em preencherDepositosAutomaticos
-        if ($('chk-deposito')) {
-            $('chk-deposito').onchange = (e) => {
-                // Toggle visibilidade
-                if ($('deposito-campos')) $('deposito-campos').classList.toggle('hidden', !e.target.checked);
+        $('chk-deposito').onchange = (e) => {
+            // Toggle visibilidade
+            $('deposito-campos').classList.toggle('hidden', !e.target.checked);
 
-                // Preencher automaticamente se marcado (safe: tem guard para jaTemCampos)
-                if (e.target.checked) {
-                    preencherDepositosAutomaticos();
-                }
-            };
-        }
+            // Preencher automaticamente se marcado (safe: tem guard para jaTemCampos)
+            if (e.target.checked) {
+                preencherDepositosAutomaticos();
+            }
+        };
 
-        if ($('chk-pag-antecipado')) {
-            $('chk-pag-antecipado').onchange = (e) => {
-                if ($('pag-antecipado-campos')) $('pag-antecipado-campos').classList.toggle('hidden', !e.target.checked);
-                if (e.target.checked && window.hcalcState.pagamentosAntecipados.length === 0) {
-                    adicionarPagamentoAntecipado(); // Adiciona primeiro pagamento automaticamente
-                }
-            };
-        }
+        $('chk-pag-antecipado').onchange = (e) => {
+            $('pag-antecipado-campos').classList.toggle('hidden', !e.target.checked);
+            if (e.target.checked && window.hcalcState.pagamentosAntecipados.length === 0) {
+                adicionarPagamentoAntecipado(); // Adiciona primeiro pagamento automaticamente
+            }
+        };
 
         // Event listeners para radios de tipo de liberação
         document.querySelectorAll('input[name="lib-tipo"]').forEach(radio => {
@@ -1735,7 +1651,7 @@
         });
 
         document.getElementsByName('rad-intimacao').forEach((rad) => {
-            rad.onchange = (e) => { if ($('intimacao-mandado-campos')) $('intimacao-mandado-campos').classList.toggle('hidden', e.target.value === 'diario'); };
+            rad.onchange = (e) => { $('intimacao-mandado-campos').classList.toggle('hidden', e.target.value === 'diario'); };
         });
 
         // ==========================================
@@ -1762,8 +1678,8 @@
         window.hcalcAtualizarVisibilidadeDepositoPrincipal = atualizarVisibilidadeDepositoPrincipal;
 
         // Bind dos botões de adicionar
-        if ($('btn-add-deposito')) $('btn-add-deposito').onclick = adicionarDepositoRecursal;
-        if ($('btn-add-pagamento')) $('btn-add-pagamento').onclick = adicionarPagamentoAntecipado;
+        $('btn-add-deposito').onclick = adicionarDepositoRecursal;
+        $('btn-add-pagamento').onclick = adicionarPagamentoAntecipado;
 
         // Máscara de data DD/MM/YYYY para campos de data
         const aplicarMascaraData = (input) => {
@@ -1786,13 +1702,11 @@
         });
 
         // Toggle origem custas: Sentença vs Acórdão
-        if ($('custas-origem')) {
-            $('custas-origem').onchange = (e) => {
-                const isAcordao = e.target.value === 'acordao';
-                if ($('custas-data-col')) $('custas-data-col').classList.toggle('hidden', isAcordao);
-                if ($('custas-acordao-col')) $('custas-acordao-col').classList.toggle('hidden', !isAcordao);
-            };
-        }
+        $('custas-origem').onchange = (e) => {
+            const isAcordao = e.target.value === 'acordao';
+            $('custas-data-col').classList.toggle('hidden', isAcordao);
+            $('custas-acordao-col').classList.toggle('hidden', !isAcordao);
+        };
 
         const ordemCopiaLabels = {
             'val-id': '1) Id da Planilha',
@@ -1818,7 +1732,46 @@
         // readTimelineBasic / extractDataFromTimelineItem / getTimelineItems
         // now handled by window.executarPrep()
 
-        // (navigation highlight logic is initialized earlier to avoid race conditions)
+        // ==========================================
+        // 4. LÓGICA DE NAVEGAÇÃO "COLETA INTELIGENTE"
+        // ==========================================
+        const orderSequence = [
+            'val-id', 'val-data', 'val-credito', 'val-fgts',
+            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
+        ];
+
+        function updateHighlight(currentId = null) {
+            orderSequence.forEach((id) => $(id).classList.remove('highlight'));
+            const visibleInputs = orderSequence.filter((id) => !$(id).classList.contains('hidden'));
+            if (visibleInputs.length === 0) return;
+            let nextIndex = 0;
+            if (currentId) {
+                const currentIndex = visibleInputs.indexOf(currentId);
+                if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
+                    nextIndex = currentIndex + 1;
+                } else if (currentIndex === visibleInputs.length - 1) {
+                    return;
+                }
+            }
+            const nextInputId = visibleInputs[nextIndex];
+            $(nextInputId).classList.add('highlight');
+            $(nextInputId).focus();
+            atualizarStatusProximoCampo(nextInputId);
+        }
+
+        orderSequence.forEach((id) => {
+            const el = $(id);
+            el.addEventListener('paste', () => {
+                setTimeout(() => {
+                    el.value = el.value.trim();
+                    updateHighlight(id);
+                }, 10);
+            });
+            el.addEventListener('focus', () => {
+                orderSequence.forEach((i) => $(i).classList.remove('highlight'));
+                el.classList.add('highlight');
+            });
+        });
 
         // ==========================================
         // 5. FUNÇÕES AUXILIARES DE CÁLCULO E TEXTO

@@ -84,7 +84,10 @@
                 }
 
                 if (fgtsSeparado) {
-                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
+                    // Apenas adicionar liberação automática se o usuário marcar a checkbox de dispensa imotivada
+                    if ($('calc-fgts-alvara') && $('calc-fgts-alvara').checked) {
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Após o recolhimento do FGTS pela reclamada, deverá a Secretaria providenciar a liberação ao autor, por meio de expedição de alvará, ante o término do contrato de forma imotivada.</p>`;
+                    }
                 }
 
                 if (!usarPlaceholder && $('calc-origem').value === 'pjecalc' && !$('calc-pjc').checked) {

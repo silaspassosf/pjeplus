@@ -516,6 +516,11 @@
                             <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:11px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
                         </div>
                     </div>
+                    <div class="row" style="margin-top:6px;">
+                        <div class="col" style="flex: 0 0 auto;">
+                            <label style="font-size:11px; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="calc-fgts-alvara"> Dispensa imotivada? (Alvará pela Secretaria)</label>
+                        </div>
+                    </div>
                     <div class="row hidden" id="col-juros-val">
                         <div class="col">
                             <label>Juros</label>

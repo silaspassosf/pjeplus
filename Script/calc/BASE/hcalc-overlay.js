@@ -1185,8 +1185,14 @@
                     if ($('val-custas') && !window.hcalcState.planilhaExtracaoData?.custas) {
                         $('val-custas').value = prep.sentenca.custas;
                     }
-                    // Sempre usa sentença como padrão
-                    if (custasStatusEl) custasStatusEl.value = 'devidas';
+                    // Sempre usa sentença como padrão, salvo se houver recurso da reclamada
+                    if (custasStatusEl) {
+                        if (prep.recursosPassivo && prep.recursosPassivo.length > 0) {
+                            custasStatusEl.value = 'pagas';
+                        } else {
+                            custasStatusEl.value = 'devidas';
+                        }
+                    }
                     if (custasOrigemEl) custasOrigemEl.value = 'sentenca';
                     // ATENÇÃO: Não sobrepõe data se planilha já preencheu
                     if ($('custas-data-origem') && prep.sentenca.data && !window.hcalcState.planilhaExtracaoData?.custas) {
@@ -1325,16 +1331,6 @@
                 restoreOverlayDraft();
                 $('homologacao-overlay').style.display = 'flex';
                 dbg('Overlay exibido para o usuario.');
-
-                // Fallback: tentar clipboard se não tem ID da planilha
-                if (!window.hcalcState.planilhaExtracaoData?.idPlanilha) {
-                    try {
-                        const txt = await navigator.clipboard.readText();
-                        if (txt && txt.trim().length > 0) {
-                            $('val-id').value = txt.trim();
-                        }
-                    } catch (e) { console.warn('Clipboard ignorado ou bloqueado', e); }
-                }
 
                 updateHighlight();
             } catch (e) {

@@ -407,10 +407,10 @@
                             const ids = grupo.depositos.map((deposito) => `${bold(deposito.dId)}`);
                             const idsTexto = ids.length > 1 ? `Ids ${formatarLista(ids)}` : `Id ${ids[0]}`;
 
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Há depósito${grupo.depositos.length > 1 ? 's' : ''} recursal${grupo.depositos.length > 1 ? 's' : ''} da devedora ${grupo.natureza} (${grupo.depositante} ${idsTexto}) via ${grupo.banco}.</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${grupo.depositos.length > 1 ? 'Há depósitos recursais' : 'Há depósito recursal'} da devedora ${grupo.natureza} (${grupo.depositante} ${idsTexto}) via ${grupo.banco}.</p>`;
 
                             if (grupo.todosGarantia && grupo.natureza === 'principal') {
-                                text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Tratando-se de seguro garantia, não há liberação imediata de valores nesta oportunidade.</p>`;
+                                // Seguro garantia: apenas mencionado acima, sem frase adicional sobre liberação
                             } else if (!grupo.todosGarantia) {
                                 const depsLiberaveis = grupo.depositos.filter((deposito) => deposito.deveLiberarDeposito && deposito.isDepositoJudicial);
 
@@ -430,11 +430,11 @@
 
                                         houveLibecaoDetalhada = true;
                                         gerarLiberacaoDetalhada({
-                                            depositoInfo: `o${depsDetalhados.length > 1 ? 's' : ''} depósito${depsDetalhados.length > 1 ? 's' : ''} recursal${depsDetalhados.length > 1 ? 'is' : ''} (${listaDeps} via ${grupo.banco})`
+                                            depositoInfo: `${depsDetalhados.length > 1 ? 'os depósitos recursais' : 'o depósito recursal'} (${listaDeps} via ${grupo.banco})`
                                         });
                                     }
                                 } else {
-                                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Por ora, não há liberação automática do${grupo.depositos.length > 1 ? 's' : ''} depósito${grupo.depositos.length > 1 ? 's' : ''} recursal${grupo.depositos.length > 1 ? 'is' : ''} informado${grupo.depositos.length > 1 ? 's' : ''}.</p>`;
+                                    // Não imprimir frase sobre liberação automática — apenas mencionar o depósito (já impresso acima)
                                 }
                             }
                         });

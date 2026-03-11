@@ -145,6 +145,21 @@ def configurar_recovery_driver(criar_driver_func, login_func):
     logger.info("Configuração de recuperação automática ativada")
 
 
+# Compatibilidade: finalizar_driver usado em vários pontos do código legado
+def finalizar_driver(driver, log=True):
+    """Fecha o driver de forma segura (compatibilidade com API antiga).
+
+    Delegates to `fechar_driver_safely` in `utils_drivers`.
+    """
+    try:
+        from .utils_drivers import fechar_driver_safely as _impl
+        return _impl(driver)
+    except Exception as e:
+        if log:
+            logger.info(f'[UTILS] finalizar_driver falhou: {e}')
+        return False
+
+
 def verificar_e_tratar_acesso_negado_global(driver):
     """
     Verifica automaticamente se driver está em /acesso-negado e tenta recuperar.

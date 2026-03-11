@@ -12,6 +12,7 @@ from Fix.core import preencher_multiplos_campos
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import re
+import time
 from datetime import datetime, timedelta
 from Fix.core import safe_click_no_scroll
 

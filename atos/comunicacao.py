@@ -141,13 +141,29 @@ def make_comunicacao_wrapper(
                     pass
 
         # Construir kwargs a serem repassados para comunicacao_judicial
-        if destinatarios_param == 'informado' and not observacao:
+        # Se o modo for 'informado' — primeiro garantir que os dados do processo
+        # estejam disponíveis (populando dadosatuais.json), depois extrair a
+        # observação dos GIGS. Isso permite que a comparação entre observação
+        # e os dados do processo seja feita com os dados já carregados.
+        dados_processo_wrapper = None
+        if destinatarios_param == 'informado':
+            try:
+                from Fix.extracao_processo import extrair_dados_processo
+                logger.info('[COMUNICACAO][ORQUESTRA] Extraindo dados do processo ANTES da leitura da observação (informado)')
+                dados_processo_wrapper = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
+                logger.info(f"[COMUNICACAO][ORQUESTRA] extrair_dados_processo retornou tipo={type(dados_processo_wrapper)}; reu_count={len(dados_processo_wrapper.get('reu', [])) if isinstance(dados_processo_wrapper, dict) else 'N/A'}")
+            except Exception as e:
+                logger.info(f"[COMUNICACAO][ORQUESTRA][WARN] Falha ao extrair dados antes da observação: {e}")
+
             observacao_gigs = _extrair_observacao_gigs_vencida_xs_pec(driver, debug=debug)
             if observacao_gigs:
                 observacao = observacao_gigs
             else:
-                logger.info('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo')
-                destinatarios_param = 'polo_passivo'
+                if not observacao or not (isinstance(observacao, str) and observacao.strip()):
+                    logger.info('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo')
+                    destinatarios_param = 'polo_passivo'
+                else:
+                    logger.info('[COMUNICACAO][GIGS] Observação fornecida será usada para seleção de destinatários')
 
         call_kwargs = {
             'driver': driver,
@@ -216,7 +232,8 @@ def make_comunicacao_wrapper(
                 log=logger.info if debug else None,
                 observacao=observacao,
                 numero_processo=numero_processo,
-                terceiro=call_kwargs.get('terceiro', False)
+                terceiro=call_kwargs.get('terceiro', False),
+                dados_processo=dados_processo_wrapper
             )
 
             # 3.5. AGUARDAR destinatários serem adicionados à tabela (CRÍTICO!)
@@ -225,7 +242,7 @@ def make_comunicacao_wrapper(
             
             # Modos que usam CLIQUE NO BOTÃO (têm spinner): polo_passivo, polo_ativo, primeiro
             # NÃO incluir 'extraido'/'informado' - eles só clicar botão se fallback
-            aguardar_spinner = destinatarios_param in ['polo_passivo', 'polo_passivo_2x', 'polo_ativo', 'primeiro']
+            aguardar_spinner = destinatarios_param in ['polo_passivo', 'polo_passivo_2x', 'polo_ativo']
             
             if aguardar_destinatarios:
                 logger.info("[COMUNICACAO][ORQUESTRA] Aguardando destinatários serem adicionados à tabela...")

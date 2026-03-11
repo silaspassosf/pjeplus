@@ -1,56 +1,50 @@
 {
   "numero": [
-    "1001602-18.2024.5.02.0703"
+    "1000820-74.2025.5.02.0703"
   ],
-  "id": 6519982,
+  "id": 7246360,
   "autor": [
     {
-      "nome": "RENE COMPERE",
-      "cpfcnpj": "07173507111",
+      "nome": "JOSE APARECIDO MENDES",
+      "cpfcnpj": "85256706691",
       "advogado": {
-        "nome": "DANIEL PELISSARI TINTI",
-        "cpf": "30448022885",
-        "oab": "SP281779"
+        "nome": "PEDRO SILVA ARAUJO",
+        "cpf": "37699033825",
+        "oab": "SP449964"
       }
     }
   ],
   "reu": [
     {
-      "nome": "EDERSON L. F. SOUZA - SOUZA & POSSIDONE CONSTRUTORA",
-      "cpfcnpj": "36443670000120"
+      "nome": "LAURA GOMES DA SILVA - EPP",
+      "cpfcnpj": "23281679000130",
+      "advogado": {
+        "nome": "ANDERSON SANTOS OLIVEIRA",
+        "cpf": "33921449839",
+        "oab": "SP421657"
+      }
     },
     {
-      "nome": "KALLAS INCORPORACOES E CONSTRUCOES S/A.",
-      "cpfcnpj": "09146451000106",
-      "advogado": {
-        "nome": "GILBERTO FERREIRA DA COSTA",
-        "cpf": "17602774876",
-        "oab": "SP182438"
-      }
+      "nome": "LAURA GOMES DA SILVA",
+      "cpfcnpj": "18467299800"
     }
   ],
-  "terceiro": [
-    {
-      "nome": "CAIXA ECONÔMICA FEDERAL"
-    }
-  ],
-  "divida": {
-    "valor": "R$ 69.528,92",
-    "data": "01/02/2026"
-  },
+  "terceiro": [],
+  "divida": {},
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "27/09/2024",
+  "dtAutuacao": "16/05/2025",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 64840.01,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

@@ -862,6 +862,61 @@
         }
 
         window.hcalcAtualizarResumoPlanilha = atualizarResumoPlanilha;
+        // Ensure orderSequence and updateHighlight are available early
+        var orderSequence = (window.hcalcOrderSequence && Array.isArray(window.hcalcOrderSequence)) ? window.hcalcOrderSequence : [
+            'val-id', 'val-data', 'val-credito', 'val-fgts',
+            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
+        ];
+
+        function updateHighlight(currentId = null) {
+            try {
+                orderSequence.forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.classList.remove('highlight');
+                });
+                const visibleInputs = orderSequence.filter((id) => {
+                    const el = document.getElementById(id);
+                    return el && !el.classList.contains('hidden');
+                });
+                if (visibleInputs.length === 0) return;
+                let nextIndex = 0;
+                if (currentId) {
+                    const currentIndex = visibleInputs.indexOf(currentId);
+                    if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
+                        nextIndex = currentIndex + 1;
+                    } else if (currentIndex === visibleInputs.length - 1) {
+                        return;
+                    }
+                }
+                const nextInputId = visibleInputs[nextIndex];
+                const nextEl = document.getElementById(nextInputId);
+                if (nextEl) {
+                    nextEl.classList.add('highlight');
+                    try { nextEl.focus(); } catch (e) { /* ignore focus errors */ }
+                }
+                if (typeof atualizarStatusProximoCampo === 'function') atualizarStatusProximoCampo(nextInputId);
+            } catch (e) { dbg('updateHighlight error', e); }
+        }
+
+        // attach lightweight paste/focus handlers defensively
+        setTimeout(() => {
+            orderSequence.forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (!el.__hcalcBoundHighlight) {
+                    el.__hcalcBoundHighlight = true;
+                    el.addEventListener('paste', () => {
+                        setTimeout(() => {
+                            try { el.value = el.value.trim(); updateHighlight(id); } catch (e) { dbg('paste handler err', e); }
+                        }, 10);
+                    });
+                    el.addEventListener('focus', () => {
+                        try { orderSequence.forEach((i) => { const ii = document.getElementById(i); if (ii) ii.classList.remove('highlight'); }); el.classList.add('highlight'); } catch (e) {}
+                    });
+                }
+            });
+        }, 500);
+
         const draftController = overlayDraftApi.createController({
             $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
             adicionarDepositoRecursal, adicionarPagamentoAntecipado,
@@ -1736,46 +1791,7 @@
         // readTimelineBasic / extractDataFromTimelineItem / getTimelineItems
         // now handled by window.executarPrep()
 
-        // ==========================================
-        // 4. LÓGICA DE NAVEGAÇÃO "COLETA INTELIGENTE"
-        // ==========================================
-        const orderSequence = [
-            'val-id', 'val-data', 'val-credito', 'val-fgts',
-            'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
-        ];
-
-        function updateHighlight(currentId = null) {
-            orderSequence.forEach((id) => $(id).classList.remove('highlight'));
-            const visibleInputs = orderSequence.filter((id) => !$(id).classList.contains('hidden'));
-            if (visibleInputs.length === 0) return;
-            let nextIndex = 0;
-            if (currentId) {
-                const currentIndex = visibleInputs.indexOf(currentId);
-                if (currentIndex !== -1 && currentIndex < visibleInputs.length - 1) {
-                    nextIndex = currentIndex + 1;
-                } else if (currentIndex === visibleInputs.length - 1) {
-                    return;
-                }
-            }
-            const nextInputId = visibleInputs[nextIndex];
-            $(nextInputId).classList.add('highlight');
-            $(nextInputId).focus();
-            atualizarStatusProximoCampo(nextInputId);
-        }
-
-        orderSequence.forEach((id) => {
-            const el = $(id);
-            el.addEventListener('paste', () => {
-                setTimeout(() => {
-                    el.value = el.value.trim();
-                    updateHighlight(id);
-                }, 10);
-            });
-            el.addEventListener('focus', () => {
-                orderSequence.forEach((i) => $(i).classList.remove('highlight'));
-                el.classList.add('highlight');
-            });
-        });
+        // (navigation highlight logic is initialized earlier to avoid race conditions)
 
         // ==========================================
         // 5. FUNÇÕES AUXILIARES DE CÁLCULO E TEXTO

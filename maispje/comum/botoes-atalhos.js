@@ -370,6 +370,8 @@ function getAtalhosNovaAba() {
                 }
 
             }
+            ,
+            condicao_adicionar: () => false
         })
     };
     return atalhos;

@@ -211,7 +211,10 @@ def salvar_cookies_sessao(driver: WebDriver, caminho_arquivo: Optional[str] = No
             return False
 
         if not caminho_arquivo:
-            pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
+            # Usar a raiz do repositório (duas pastas acima deste arquivo) para
+            # garantir que os cookies sejam salvos no diretório do projeto PjePlus
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+            pasta = os.path.join(repo_root, 'cookies_sessoes')
             os.makedirs(pasta, exist_ok=True)
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             info = f'_{info_extra}' if info_extra else ''
@@ -234,7 +237,10 @@ def salvar_cookies_sessao(driver: WebDriver, caminho_arquivo: Optional[str] = No
 def carregar_cookies_sessao(driver: WebDriver, max_idade_horas: int = 24) -> bool:
     """Carrega cookies de sessão mais recentes e válidos automaticamente"""
     try:
-        pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
+        # Localizar a pasta de cookies na raiz do repositório (garante consistência
+        # independentemente do CWD atual ao executar scripts de outros projetos)
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        pasta = os.path.join(repo_root, 'cookies_sessoes')
         if not os.path.exists(pasta):
             logger.info('[COOKIES] Pasta de cookies não encontrada.')
             return False

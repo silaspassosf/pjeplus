@@ -2,6 +2,7 @@ import time
 import re
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from Fix.log import logger
 
 from .core import aguardar_e_verificar_aba, aguardar_e_clicar
@@ -45,7 +46,21 @@ def abrir_minutas(driver, debug=False):
             raise Exception('Página travou no carregamento (spinner)')
 
         WebDriverWait(driver, 20).until(lambda d: '/minutas' in d.current_url)
-        WebDriverWait(driver, 20).until(lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5)
+
+        # Quick check: if 'Tipo de Expediente' (ou botões suficientes) não aparecer em 3s, refresh na aba e tentar novamente
+        try:
+            WebDriverWait(driver, 3).until(
+                lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5
+            )
+        except TimeoutException:
+            logger.info('[MINUTAS] Elemento esperado não encontrado rápido; recarregando aba e tentando novamente')
+            try:
+                driver.refresh()
+            except Exception as e_ref:
+                logger.info(f'[MINUTAS] Falha ao refresh da aba: {e_ref}')
+            WebDriverWait(driver, 20).until(
+                lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5
+            )
         return True
 
     except Exception as url_error:
@@ -77,6 +92,16 @@ def abrir_minutas(driver, debug=False):
                 raise Exception('Página travou no carregamento (spinner)')
 
         WebDriverWait(driver, 20).until(lambda d: '/minutas' in d.current_url or 'Tipo de Expediente' in d.page_source)
+        # Quick refresh attempt if UI parts not present shortly after load
+        try:
+            WebDriverWait(driver, 3).until(lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5)
+        except TimeoutException:
+            logger.info('[MINUTAS][FALLBACK] Elemento esperado não encontrado rápido; recarregando aba e tentando novamente')
+            try:
+                driver.refresh()
+            except Exception as e_ref2:
+                logger.info(f'[MINUTAS][FALLBACK] Falha ao refresh da aba: {e_ref2}')
+            WebDriverWait(driver, 20).until(lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5)
         if debug:
             logger.info('[MINUTAS] Tela de minutas carregada com sucesso')
         return True

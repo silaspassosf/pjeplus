@@ -566,8 +566,9 @@ def executar_prazo(driver) -> Dict[str, Any]:
         
         # Executar fluxo_pz (P2B)
         print("[PRAZO] Executando p2b_fluxo...")
-        resetar_driver(driver)
-        
+        # Não resetar o driver aqui: reset limpo quebra o contexto/aba atual
+        # resetar_driver(driver)
+
         fluxo_pz(driver)  # fluxo_pz não retorna valor
         print("[PRAZO]  p2b_fluxo concluído")
         print("[PRAZO]  Mdulo Prazo completo")

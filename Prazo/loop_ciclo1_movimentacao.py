@@ -201,12 +201,12 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
     """Seleciona destino usando abordagem direta (Gabarito)."""
     if opcao_destino == 'Cumprimento de providências':
         return _ciclo1_movimentar_destino_providencias(driver)
-
-    logger.info(f"[DEBUG] Iniciando seleção de destino: '{opcao_destino}'")
+    logger.info(f"[CICLO1/DESTINO] Selecionando destino: '{opcao_destino}' (overlay-only)")
     try:
         if not pausar_confirmacao('CICLO1/DESTINO_ABRIR_DROPDOWN', f'Abrir dropdown para destino={opcao_destino}'):
             return False
-        # Abrir dropdown
+
+        # Abrir dropdown usando os seletores conhecidos
         if not clicar_com_multiplos_seletores(
             driver,
             'CICLO1/DESTINO_DROPDOWN',
@@ -219,13 +219,14 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
             return False
         time.sleep(1.2)
 
-        # Selecionar opção
-        overlay = WebDriverWait(driver, 5).until(
+        # Procurar opção dentro do overlay e clicar (comportamento legado)
+        overlay = WebDriverWait(driver, 6).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
         )
         opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
-        logger.info(f"[SELETOR][CICLO1/DESTINO_OPCAO] Vencedor: by={By.XPATH} seletor={opcao_xpath}")
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
+        time.sleep(0.2)
         driver.execute_script("arguments[0].click();", opcao_elemento)
         time.sleep(1.0)
 
@@ -242,7 +243,7 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
             timeout=10
         ):
             return False
-        logger.info(f"[LOOP_PRAZO] ✅ Destino '{opcao_destino}' processado.")
+        logger.info(f"[LOOP_PRAZO] ✅ Destino '{opcao_destino}' processado (legacy overlay flow).")
         return True
     except Exception as e:
         logger.info(f"[LOOP_PRAZO][ERRO] Falha ao movimentar para {opcao_destino}: {e}")

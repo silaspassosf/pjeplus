@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 import re
 from typing import Optional, Callable, List, Tuple, Any
-from .helpers import gerar_regex_geral
+from .helpers import gerar_regex_geral, normalizar_texto
 
 # ===== CACHE GLOBAL PARA REGRAS DE AÇÃO =====
 # Inicializado como None - será preenchido na primeira chamada de get_cached_rules()
@@ -149,7 +149,8 @@ def determinar_acoes_por_observacao(observacao: str) -> List[Any]:
     Retorna lista de funções, ou [] se nenhuma regra corresponder.
     Usa cache global de regras (construído apenas uma vez).
     """
-    observacao_lower = observacao.lower()
+    # Normalizar observação: remover acentos e converter para minúscula
+    observacao_lower = normalizar_texto(observacao)
     regras = get_cached_rules()
     acoes: List[Any] = []
     minuta_ja_detectada = False  # Flag para não adicionar minuta padrão após 60

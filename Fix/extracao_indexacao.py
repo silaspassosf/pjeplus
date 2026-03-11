@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
 
 from Fix.log import logger
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
@@ -352,6 +354,18 @@ def trocar_para_nova_aba(driver: WebDriver, aba_lista_original: str) -> Optional
                             if '/detalhe' in current_url.lower() and _ATOS_CORE_AVAILABLE:
                                 if not verificar_carregamento_detalhe(driver, timeout_inicial=2.0, max_tentativas=3, log=True):
                                     logger.warning('[ABAS][ALERTA] Falha no carregamento da página /detalhe, mas continuando...')
+                            # Se não temos o helper ATOS_CORE ou ainda assim a página não carregou, aplicar refresh rápido
+                            if '/detalhe' in (current_url or '').lower():
+                                try:
+                                    # checagem rápida: conteúdo mínimo presente em 3s
+                                    WebDriverWait(driver, 3).until(lambda d: len(d.page_source or '') > 200 or 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 3)
+                                except TimeoutException:
+                                    logger.info('[ABAS][ALERTA] /detalhe não apresentou conteúdo rápido; recarregando aba e aguardando')
+                                    try:
+                                        driver.refresh()
+                                    except Exception as e_ref:
+                                        logger.info(f'[ABAS][ALERTA] Falha ao refresh da aba: {e_ref}')
+                                    WebDriverWait(driver, 15).until(lambda d: len(d.page_source or '') > 200 or 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 3)
                         except Exception as e:
                             logger.error(f'[ABAS][ALERTA] Erro na verificação de carregamento: {e}')
                         

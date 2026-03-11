@@ -27,6 +27,9 @@ __author__ = "Sistema PJePlus - Refatoração IA"
 from selenium.webdriver.remote.webdriver import WebDriver
 from typing import Dict, Any
 from .loop_base import pausar_confirmacao
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
     """Função wrapper que executa o fluxo completo de prazo (ciclo1 + ciclo2)"""
@@ -38,7 +41,14 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
             return {"sucesso": False, "erro": "Abortado pelo usuário em navegar painel 14"}
         logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 14: {url_lista}')
         driver.get(url_lista)
-        time.sleep(2.5)
+        # Espera dinâmica: aguardar elemento chave do painel de atividades
+        try:
+            WebDriverWait(driver, 12).until(
+                EC.presence_of_element_located((By.XPATH, "//span[contains(text(), 'Fase processual')]") )
+            )
+            logger.info('[LOOP_PRAZO] Elemento "Fase processual" presente - prosseguindo')
+        except Exception:
+            logger.info('[LOOP_PRAZO] Timeout aguardando elemento "Fase processual" - prosseguindo mesmo assim')
 
         # FASE 1: Loop para ciclo1 (Análise)
         logger.info("[LOOP_PRAZO] Fase 1: Processando processos no painel 14")

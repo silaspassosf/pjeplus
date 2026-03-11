@@ -2,6 +2,7 @@ from Fix.core import safe_click_no_scroll
 import re
 import json
 import unicodedata
+import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -22,7 +23,7 @@ def _carregar_dadosatuais_local(caminho='dadosatuais.json'):
             return json.load(f)
     except Exception:
         return {}
-def _montar_destinatarios_por_observacao(observacao, dados_processo):
+def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False):
     if not observacao or not isinstance(dados_processo, dict):
         return []
 
@@ -43,6 +44,12 @@ def _montar_destinatarios_por_observacao(observacao, dados_processo):
         if len(t) >= 3 and t not in stopwords
     ]
 
+    if debug:
+        try:
+            logger.info(f"[DESTINATARIOS][DEBUG] Tokens alvo extraídos da observação: {tokens_alvo}")
+        except Exception:
+            pass
+
     if not tokens_alvo:
         return []
 
@@ -59,7 +66,14 @@ def _montar_destinatarios_por_observacao(observacao, dados_processo):
             continue
 
         tokens_nome = set(re.findall(r'[a-z0-9]+', nome_norm))
-        if any(token in tokens_nome for token in tokens_alvo):
+        match_found = any(token in tokens_nome for token in tokens_alvo)
+        if debug:
+            try:
+                logger.info(f"[DESTINATARIOS][DEBUG] Comparando parte='{nome}' tokens_nome={list(tokens_nome)} match={match_found}")
+            except Exception:
+                pass
+
+        if match_found:
             chave = (nome_norm, re.sub(r'\D', '', doc or ''))
             if chave in vistos:
                 continue
@@ -251,7 +265,7 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
         if debug:
             logger.info(f"[DESTINATARIOS][ERRO] {e}")
         return False
-def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, observacao=None, numero_processo=None):
+def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, observacao=None, numero_processo=None, dados_processo=None):
     if log is None:
         def log(_msg):
             return None
@@ -377,15 +391,41 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             log(f'[DESTINATARIOS][ERRO] Falha no modo extraido: {e}')
 
     elif destinatarios == 'informado':
-        log('[DESTINATARIOS] OPÇÃO INFORMADO: extraindo dados e cruzando nomes da observação')
+        log('[DESTINATARIOS] OPÇÃO INFORMADO: cruzando observação com dados do processo')
         try:
-            from Fix.extracao_processo import extrair_dados_processo
-
-            dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
+            # Se o chamador já forneceu dados_processo (extraídos previamente),
+            # utilizá-los; caso contrário, tentar extrair/ler localmente.
             if not dados_processo:
-                dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
+                try:
+                    from Fix.extracao_processo import extrair_dados_processo
+                    log('[DESTINATARIOS] Nenhum dados_processo fornecido: executando extrair_dados_processo()')
+                    dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
+                except Exception as ee:
+                    log(f'[DESTINATARIOS][WARN] Falha ao extrair dados via API/local: {ee} - tentando carregar dadosatuais.json localmente')
+                    dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
+
+            # Informar quantidade de partes disponíveis para matching
+            try:
+                reu_count = len((dados_processo or {}).get('reu', []))
+            except Exception:
+                reu_count = 'N/A'
+            log(f'[DESTINATARIOS] Dados do processo prontos para matching (reu_count={reu_count})')
+
+            # Log detalhado dos tokens extraídos da observação (útil para depuração)
+            if debug:
+                try:
+                    logger.info(f"[DESTINATARIOS][DEBUG] Observação bruta: {observacao}")
+                except Exception:
+                    pass
 
             candidatos = _montar_destinatarios_por_observacao(observacao, dados_processo)
+
+            if debug:
+                try:
+                    logger.info(f"[DESTINATARIOS][DEBUG] Candidatos extraídos a partir da observação: {json.dumps(candidatos, ensure_ascii=False)}")
+                except Exception:
+                    pass
+
             _selecionar_por_lista(candidatos, 'observação', fallback_polo_passivo=True)
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha no modo informado: {e}')

@@ -128,12 +128,32 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
         logger.info('[NAVEGAÇÃO] Navegando para Conclusão ao Magistrado...')
 
         # Aguardar botões de transição
+        botoes_presentes = True
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
             )
         except Exception:
+            botoes_presentes = False
             logger.warning('[NAVEGAÇÃO] Botões de transição não carregaram')
+            # Fallback rápido: aguardar 2s e dar refresh para tentar recuperar os botões
+            try:
+                logger.info('[NAVEGAÇÃO] Tentando refresh rápido em 2s para recarregar botões...')
+                time.sleep(2)
+                try:
+                    driver.refresh()
+                except Exception as rerr:
+                    logger.debug(f'[NAVEGAÇÃO] Refresh falhou: {rerr}')
+                try:
+                    WebDriverWait(driver, 6).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-botoes-transicao button'))
+                    )
+                    botoes_presentes = True
+                    logger.info('[NAVEGAÇÃO] Botões detectados após refresh rápido')
+                except Exception:
+                    logger.warning('[NAVEGAÇÃO] Refresh rápido não recarregou os botões')
+            except Exception:
+                pass
 
         # Tentar clique direto em "Conclusão ao Magistrado"
         btn_conclusao_encontrado = False

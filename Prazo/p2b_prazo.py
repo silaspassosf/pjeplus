@@ -10,6 +10,7 @@ from typing import Optional, Tuple, List, Any, Dict
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 # Importar sistema de progresso
 from Fix.progress import registrar_modulo, atualizar, completar
@@ -51,6 +52,12 @@ def fluxo_prazo(driver: WebDriver) -> None:
     atualizar('PRAZO_PROCESSAMENTO_FLUXO', item_atual='navegacao_atividades')
     # 2. Aplicar filtro xs
     aplicar_filtro_atividades_xs(driver, apenas_filtro=True)
+
+    # Esperar linhas estáveis na lista antes de indexar (evita latência por carregamento assíncrono)
+    try:
+        _wait_linhas_estaveis(driver, selector='tr.cdk-drag', timeout=12)
+    except Exception:
+        logger.debug('[FLUXO_PRAZO] _wait_linhas_estaveis falhou ou timeou; prosseguindo mesmo assim')
 
     # Atualizar progresso - filtro aplicado
     atualizar('PRAZO_PROCESSAMENTO_FLUXO', item_atual='filtro_aplicado')
@@ -170,6 +177,33 @@ def aplicar_filtro_atividades_xs(driver: WebDriver, apenas_filtro: bool = False)
 
 
 # ===== HELPERS PRIVADOS: FLUXO_PRAZO =====
+
+def _wait_linhas_estaveis(driver: WebDriver, selector: str = 'tr.cdk-drag', timeout: int = 10, interval: float = 0.5, stability_rounds: int = 2) -> bool:
+    """
+    Aguarda até que a contagem de elementos CSS indicada esteja estável por N iterações.
+
+    Retorna True se a contagem estabilizar antes do timeout, False caso contrário.
+    """
+    end = time.time() + timeout
+    last_count = -1
+    stable = 0
+    while time.time() < end:
+        try:
+            count = len(driver.find_elements(By.CSS_SELECTOR, selector))
+        except Exception:
+            count = 0
+        if count == last_count:
+            stable += 1
+            if stable >= stability_rounds:
+                logger.info(f'[FLUXO_PRAZO] Linhas estáveis detectadas: {count}')
+                return True
+        else:
+            stable = 0
+            last_count = count
+        time.sleep(interval)
+    logger.info(f'[FLUXO_PRAZO] Timeout aguardando linhas estáveis; última contagem {last_count}')
+    return False
+
 
 def _indexar_processos_lista(driver: WebDriver) -> List[Tuple[str, Any]]:
     """

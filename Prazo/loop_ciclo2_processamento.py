@@ -64,6 +64,28 @@ def _ciclo2_movimentar_lote(driver: WebDriver, opcao_destino: str, ha_mais: bool
         logger.error('[CICLO2] Falha ao aguardar tela movimentação')
         return False
 
+    # Em ciclo2, garantir que o dropdown de destino esteja visível/clicável
+    if opcao_destino == 'Cumprimento de providências':
+        try:
+            # Tentar clique forçado no opener do mat-select para forçar o overlay
+            opener = None
+            try:
+                opener = driver.find_element(By.CSS_SELECTOR, "mat-select[formcontrolname='destino']")
+            except Exception:
+                try:
+                    opener = driver.find_element(By.CSS_SELECTOR, 'div.mat-select-arrow-wrapper')
+                except Exception:
+                    opener = None
+
+            if opener:
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opener)
+                time.sleep(0.2)
+                driver.execute_script("arguments[0].click();", opener)
+                time.sleep(0.6)
+                logger.info('[CICLO2] Clique forçado no opener do dropdown de destino (providências)')
+        except Exception as e:
+            logger.info(f'[CICLO2] Falha ao forçar clique no opener do dropdown: {e}')
+
     if not _ciclo1_movimentar_destino(driver, opcao_destino):
         logger.error(f'[CICLO2] Falha ao selecionar destino "{opcao_destino}"')
         return False

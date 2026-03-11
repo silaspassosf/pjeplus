@@ -291,3 +291,121 @@ PROCESSO: 1000350-60.2023.5.02.0041
 Prazo: 15 dias (19/03/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: 1001652-08.2024.5.02.0036
+==================================================
+    Id Pje: bc7696c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483972BR
+    Destinatário: PHOENIX ENGENHARIA E CONSULTORIA LTDA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 5d05202
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483969BR
+    Destinatário: MANOEL MESSIAS BARBOSA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Saída para entrega cancelada
+
+Prazo: 15 dias (11/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001127-96.2023.5.02.0703
+==================================================
+    Id Pje: 7183300
+    Rastreamento: Carta Simples
+    Destinatário: DN CONSTRUCOES LTDA - ME
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Sem rastreio
+--------------------------------------------------
+
+    Id Pje: 63478e7
+    Rastreamento: Indisponível
+    Destinatário: NATANAEL SOUZA SILVA
+    Data do envio: Indisponível
+    Data da entrega: Indisponível
+    Status: Objeto rejeitado
+==================================================
+
+
+==================================================
+PROCESSO: 1000462-51.2021.5.02.0703
+==================================================
+    Id Pje: 448a51a
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH062612524BR
+    Destinatário: ERIKA ROSSETTO DA CUNHA
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+--------------------------------------------------
+
+    Id Pje: d22b4c6
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH062612538BR
+    Destinatário: ERIKA ROSSETTO DA CUNHA
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 6a7dc72
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH062612541BR
+    Destinatário: LUIZ JOSE FERES
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+--------------------------------------------------
+
+    Id Pje: b9cf310
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH062612555BR
+    Destinatário: LUIZ JOSE FERES
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+--------------------------------------------------
+
+    Id Pje: 9d3a718
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH062612569BR
+    Destinatário: EDUARDO GONCALVES DE LIRA
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 442c669
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH062612572BR
+    Destinatário: EDUARDO GONCALVES DE LIRA
+    Data do envio: 26/02/2026
+    Data da entrega: 04/03/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (25/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001374-77.2023.5.02.0703
+==================================================
+    Id Pje: 9121bdb
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH063682212BR
+    Destinatário: FEDERACOOP - FEDERACAO DE NEGOCIOS DAS COOPERATIVAS DO ESTADO DE SAO PAULO
+    Data do envio: 26/02/2026
+    Data da entrega: 03/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: ba678d6
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH063682226BR
+    Destinatário: FEDERACOOP - FEDERACAO DE NEGOCIOS DAS COOPERATIVAS DO ESTADO DE SAO PAULO
+    Data do envio: 26/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+
+Prazo: 15 dias (24/03/2026)
+==================================================
+

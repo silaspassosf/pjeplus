@@ -615,17 +615,7 @@
                         </div>
                         <div class="col" style="flex: 0 0 140px;">
 
-                    <!-- SEÇÃO 3: Subsidiárias (Período Diverso) - agrupadas por planilha -->
-                    <div class="row" style="margin-bottom: 12px;">
-                        <div class="col">
-                            <label style="font-weight: bold; color: #0b5ea3;">3. Subsidiárias com período diverso</label>
-                            <div style="font-size:12px;color:#666;margin-top:6px;">Cada grupo abaixo corresponde a uma planilha (clique em "Adicionar planilha" para criar um novo grupo).</div>
-                            <div id="resp-subsidiarias-diverso-container" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;"></div>
-                            <div style="margin-top:8px;">
-                                <button type="button" id="btn-add-planilha-diverso" class="btn-action" style="background:#10b981;padding:6px 10px;">+ Adicionar planilha</button>
-                            </div>
-                        </div>
-                    </div>
+                    
                             <label>Status</label>
                             <select id="custas-status">
                                 <option value="devidas" selected>Devidas</option>
@@ -714,11 +704,11 @@
                         </div>
                     </div>
                 </div>
-                <div class="row" style="margin-bottom: 15px; font-size: 13px; color: #555;">
-                    <label>Preencha período e planilha para cada reclamada com responsabilidade diversa (subsidiária por período):</label>
+                <!-- 3. Subsidiárias com período diverso (agrupadas por planilha) -->
+                <div id="resp-subsidiarias-diverso-container" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;"></div>
+                <div style="margin-top:8px;">
+                    <button type="button" id="btn-add-planilha-diverso" class="btn-action" style="background:#10b981;padding:10px 14px;font-weight:bold;">Planilha da(s) reclamada(s)</button>
                 </div>
-                <div id="resp-diversos-container"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo" style="margin-top: 10px;">+ Adicionar Período Diverso</button>
             </fieldset>
 
             <!-- Links de Sentença e Acórdão -->

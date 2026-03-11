@@ -1505,99 +1505,114 @@
         }
 
         // Handler do botão Reload (recarregar planilha)
-        $('btn-reload-planilha').onclick = () => {
-            const inputFile = $('input-planilha-pdf');
-            inputFile.click();
-        };
+        if ($('btn-reload-planilha')) {
+            $('btn-reload-planilha').onclick = () => {
+                const inputFile = $('input-planilha-pdf');
+                if (inputFile) inputFile.click();
+            };
+        }
 
-        $('btn-fechar').onclick = (e) => {
-            e.preventDefault();  // Previne scroll indesejado
-            const modal = $('homologacao-modal');
-            const overlay = $('homologacao-overlay');
-            modal.style.opacity = '1';
-            modal.style.pointerEvents = 'all';
-            modal.dataset.ghost = 'false';
-            overlay.style.display = 'none';
-            overlay.style.pointerEvents = 'none';
-            // LIMPAR REFERÊNCIAS DOM: v1.8 usa método centralizado
-            window.hcalcState.resetPrep();
-            console.log('[hcalc] Estado resetado via hcalcState.resetPrep()');
-        };
-        $('homologacao-overlay').onclick = (e) => {
-            if (e.target.id === 'homologacao-overlay') {
-                // Não fecha — torna transparente e "fantasma"
+        if ($('btn-fechar')) {
+            $('btn-fechar').onclick = (e) => {
+                e.preventDefault();  // Previne scroll indesejado
                 const modal = $('homologacao-modal');
                 const overlay = $('homologacao-overlay');
-                const isGhost = modal.dataset.ghost === 'true';
-                if (isGhost) {
-                    // Segundo clique fora: volta ao normal
+                if (modal) {
                     modal.style.opacity = '1';
                     modal.style.pointerEvents = 'all';
-                    overlay.style.pointerEvents = 'none';
                     modal.dataset.ghost = 'false';
-                } else {
-                    // Primeiro clique fora: vira fantasma
-                    modal.style.opacity = '0.25';
-                    modal.style.transition = 'opacity 0.3s';
-                    modal.style.pointerEvents = 'none';
-                    // Mantém overlay transparente para detectar clique de retorno
-                    overlay.style.pointerEvents = 'all';
-                    modal.dataset.ghost = 'true';
                 }
-            }
-        };
-
-        $('calc-origem').onchange = (e) => { $('col-pjc').classList.toggle('hidden', e.target.value !== 'pjecalc'); };
-        $('calc-autor').onchange = (e) => { $('col-esclarecimentos').classList.toggle('hidden', e.target.value !== 'perito'); };
-        $('calc-esclarecimentos').onchange = (e) => { $('calc-peca-perito').classList.toggle('hidden', !e.target.checked); };
-
-        $('calc-fgts').onchange = (e) => {
-            const isChecked = e.target.checked;
-            $('fgts-radios').classList.toggle('hidden', !isChecked);
-            $('row-fgts-valor').classList.toggle('hidden', !isChecked);
-            updateHighlight();
-
-            try {
-                // Se FGTS separado e marcado como 'depositado', exibir modal bloqueante
-                if (isChecked) {
-                    const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
-                    if (fgtsTipo === 'depositado') {
-                        if (document.getElementById('maisPje_fgts_modal_overlay')) return;
-                        const overlay = document.createElement('div');
-                        overlay.id = 'maisPje_fgts_modal_overlay';
-                        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
-
-                        const box = document.createElement('div');
-                        box.id = 'maisPje_fgts_modal_box';
-                        box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
-
-                        const title = document.createElement('div');
-                        title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
-                        title.textContent = 'Atenção';
-
-                        const msg = document.createElement('div');
-                        msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
-                        msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
-
-                        const actions = document.createElement('div');
-                        actions.style.cssText = 'text-align:right;';
-                        const ok = document.createElement('button');
-                        ok.id = 'maisPje_fgts_modal_ok';
-                        ok.textContent = 'OK';
-                        ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
-
-                        actions.appendChild(ok);
-                        box.appendChild(title);
-                        box.appendChild(msg);
-                        box.appendChild(actions);
-                        overlay.appendChild(box);
-                        document.body.appendChild(overlay);
-
-                        ok.addEventListener('click', () => overlay.remove());
+                if (overlay) {
+                    overlay.style.display = 'none';
+                    overlay.style.pointerEvents = 'none';
+                }
+                // LIMPAR REFERÊNCIAS DOM: v1.8 usa método centralizado
+                window.hcalcState.resetPrep();
+                console.log('[hcalc] Estado resetado via hcalcState.resetPrep()');
+            };
+        }
+        
+        if ($('homologacao-overlay')) {
+            $('homologacao-overlay').onclick = (e) => {
+                if (e.target.id === 'homologacao-overlay') {
+                    // Não fecha — torna transparente e "fantasma"
+                    const modal = $('homologacao-modal');
+                    const overlay = $('homologacao-overlay');
+                    if (!modal || !overlay) return;
+                    
+                    const isGhost = modal.dataset.ghost === 'true';
+                    if (isGhost) {
+                        // Segundo clique fora: volta ao normal
+                        modal.style.opacity = '1';
+                        modal.style.pointerEvents = 'all';
+                        overlay.style.pointerEvents = 'none';
+                        modal.dataset.ghost = 'false';
+                    } else {
+                        // Primeiro clique fora: vira fantasma
+                        modal.style.opacity = '0.25';
+                        modal.style.transition = 'opacity 0.3s';
+                        modal.style.pointerEvents = 'none';
+                        // Mantém overlay transparente para detectar clique de retorno
+                        overlay.style.pointerEvents = 'all';
+                        modal.dataset.ghost = 'true';
                     }
                 }
-            } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS (BASE)', ex); }
-        };
+            };
+        }
+
+        if ($('calc-origem')) $('calc-origem').onchange = (e) => { if ($('col-pjc')) $('col-pjc').classList.toggle('hidden', e.target.value !== 'pjecalc'); };
+        if ($('calc-autor')) $('calc-autor').onchange = (e) => { if ($('col-esclarecimentos')) $('col-esclarecimentos').classList.toggle('hidden', e.target.value !== 'perito'); };
+        if ($('calc-esclarecimentos')) $('calc-esclarecimentos').onchange = (e) => { if ($('calc-peca-perito')) $('calc-peca-perito').classList.toggle('hidden', !e.target.checked); };
+
+        if ($('calc-fgts')) {
+            $('calc-fgts').onchange = (e) => {
+                const isChecked = e.target.checked;
+                if ($('fgts-radios')) $('fgts-radios').classList.toggle('hidden', !isChecked);
+                if ($('row-fgts-valor')) $('row-fgts-valor').classList.toggle('hidden', !isChecked);
+                updateHighlight();
+
+                try {
+                    // Se FGTS separado e marcado como 'depositado', exibir modal bloqueante
+                    if (isChecked) {
+                        const fgtsTipo = document.querySelector('input[name="fgts-tipo"]:checked')?.value || 'devido';
+                        if (fgtsTipo === 'depositado') {
+                            if (document.getElementById('maisPje_fgts_modal_overlay')) return;
+                            const overlay = document.createElement('div');
+                            overlay.id = 'maisPje_fgts_modal_overlay';
+                            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
+
+                            const box = document.createElement('div');
+                            box.id = 'maisPje_fgts_modal_box';
+                            box.style.cssText = 'background:#ffffff;padding:18px;border-radius:8px;max-width:620px;color:#222;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:sans-serif;line-height:1.35;';
+
+                            const title = document.createElement('div');
+                            title.style.cssText = 'font-weight:700;margin-bottom:8px;font-size:15px;color:#333';
+                            title.textContent = 'Atenção';
+
+                            const msg = document.createElement('div');
+                            msg.style.cssText = 'margin-bottom:14px;font-size:13px;color:#333';
+                            msg.textContent = 'Se depositado, o valor deve estar diretamente lançado na planilha geral, e não contabilizado no valor bruto devido ao reclamante.';
+
+                            const actions = document.createElement('div');
+                            actions.style.cssText = 'text-align:right;';
+                            const ok = document.createElement('button');
+                            ok.id = 'maisPje_fgts_modal_ok';
+                            ok.textContent = 'OK';
+                            ok.style.cssText = 'padding:8px 14px;background:#007bff;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600';
+
+                            actions.appendChild(ok);
+                            box.appendChild(title);
+                            box.appendChild(msg);
+                            box.appendChild(actions);
+                            overlay.appendChild(box);
+                            document.body.appendChild(overlay);
+
+                            ok.addEventListener('click', () => overlay.remove());
+                        }
+                    }
+                } catch (ex) { console.warn('maisPJe: erro ao mostrar modal FGTS (BASE)', ex); }
+            };
+        }
         // Adicionar listener para mudanças no tipo de FGTS (ex.: usuário marca 'depositado' depois)
         try {
             document.querySelectorAll('input[name="fgts-tipo"]').forEach(r => {
@@ -1643,14 +1658,16 @@
                 });
             });
         } catch (e) { /* ignore */ }
-        $('calc-indice').onchange = (e) => { $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
-        $('ignorar-hon-autor').onchange = (e) => { $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
-        $('ignorar-inss').onchange = (e) => {
-            $('val-inss-rec').classList.toggle('hidden', e.target.checked);
-            $('val-inss-total').classList.toggle('hidden', e.target.checked);
-            updateHighlight();
-        };
-        $('irpf-tipo').onchange = (e) => { $('irpf-campos').classList.toggle('hidden', e.target.value === 'isento'); };
+        if ($('calc-indice')) $('calc-indice').onchange = (e) => { if ($('col-juros-val')) $('col-juros-val').classList.toggle('hidden', e.target.value !== 'tr'); };
+        if ($('ignorar-hon-autor')) $('ignorar-hon-autor').onchange = (e) => { if ($('val-hon-autor')) $('val-hon-autor').classList.toggle('hidden', e.target.checked); updateHighlight(); };
+        if ($('ignorar-inss')) {
+            $('ignorar-inss').onchange = (e) => {
+                if ($('val-inss-rec')) $('val-inss-rec').classList.toggle('hidden', e.target.checked);
+                if ($('val-inss-total')) $('val-inss-total').classList.toggle('hidden', e.target.checked);
+                updateHighlight();
+            };
+        }
+        if ($('irpf-tipo')) $('irpf-tipo').onchange = (e) => { if ($('irpf-campos')) $('irpf-campos').classList.toggle('hidden', e.target.value === 'isento'); };
 
         responsabilidadesController.initEventHandlers();
 
@@ -1666,39 +1683,47 @@
             return responsabilidadesController.adicionarLinhaPeridoDiverso();
         }
 
-        $('chk-hon-reu').onchange = (e) => {
-            // Lógica invertida: marcado = "Não há" = esconde campos
-            $('hon-reu-campos').classList.toggle('hidden', e.target.checked);
-        };
+        if ($('chk-hon-reu')) {
+            $('chk-hon-reu').onchange = (e) => {
+                // Lógica invertida: marcado = "Não há" = esconde campos
+                if ($('hon-reu-campos')) $('hon-reu-campos').classList.toggle('hidden', e.target.checked);
+            };
+        }
 
         // Controlar exibição de campo percentual vs valor
         document.querySelectorAll('input[name="rad-hon-reu-tipo"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 const isPercentual = e.target.value === 'percentual';
-                $('hon-reu-perc-campo').classList.toggle('hidden', !isPercentual);
-                $('hon-reu-valor-campo').classList.toggle('hidden', isPercentual);
+                if ($('hon-reu-perc-campo')) $('hon-reu-perc-campo').classList.toggle('hidden', !isPercentual);
+                if ($('hon-reu-valor-campo')) $('hon-reu-valor-campo').classList.toggle('hidden', isPercentual);
             });
         });
 
-        $('chk-perito-conh').onchange = (e) => { $('perito-conh-campos').classList.toggle('hidden', !e.target.checked); };
+        if ($('chk-perito-conh')) {
+            $('chk-perito-conh').onchange = (e) => { if ($('perito-conh-campos')) $('perito-conh-campos').classList.toggle('hidden', !e.target.checked); };
+        }
 
         // CORREÇÃO 4: Event listener simplificado - guard interno em preencherDepositosAutomaticos
-        $('chk-deposito').onchange = (e) => {
-            // Toggle visibilidade
-            $('deposito-campos').classList.toggle('hidden', !e.target.checked);
+        if ($('chk-deposito')) {
+            $('chk-deposito').onchange = (e) => {
+                // Toggle visibilidade
+                if ($('deposito-campos')) $('deposito-campos').classList.toggle('hidden', !e.target.checked);
 
-            // Preencher automaticamente se marcado (safe: tem guard para jaTemCampos)
-            if (e.target.checked) {
-                preencherDepositosAutomaticos();
-            }
-        };
+                // Preencher automaticamente se marcado (safe: tem guard para jaTemCampos)
+                if (e.target.checked) {
+                    preencherDepositosAutomaticos();
+                }
+            };
+        }
 
-        $('chk-pag-antecipado').onchange = (e) => {
-            $('pag-antecipado-campos').classList.toggle('hidden', !e.target.checked);
-            if (e.target.checked && window.hcalcState.pagamentosAntecipados.length === 0) {
-                adicionarPagamentoAntecipado(); // Adiciona primeiro pagamento automaticamente
-            }
-        };
+        if ($('chk-pag-antecipado')) {
+            $('chk-pag-antecipado').onchange = (e) => {
+                if ($('pag-antecipado-campos')) $('pag-antecipado-campos').classList.toggle('hidden', !e.target.checked);
+                if (e.target.checked && window.hcalcState.pagamentosAntecipados.length === 0) {
+                    adicionarPagamentoAntecipado(); // Adiciona primeiro pagamento automaticamente
+                }
+            };
+        }
 
         // Event listeners para radios de tipo de liberação
         document.querySelectorAll('input[name="lib-tipo"]').forEach(radio => {
@@ -1710,7 +1735,7 @@
         });
 
         document.getElementsByName('rad-intimacao').forEach((rad) => {
-            rad.onchange = (e) => { $('intimacao-mandado-campos').classList.toggle('hidden', e.target.value === 'diario'); };
+            rad.onchange = (e) => { if ($('intimacao-mandado-campos')) $('intimacao-mandado-campos').classList.toggle('hidden', e.target.value === 'diario'); };
         });
 
         // ==========================================
@@ -1737,8 +1762,8 @@
         window.hcalcAtualizarVisibilidadeDepositoPrincipal = atualizarVisibilidadeDepositoPrincipal;
 
         // Bind dos botões de adicionar
-        $('btn-add-deposito').onclick = adicionarDepositoRecursal;
-        $('btn-add-pagamento').onclick = adicionarPagamentoAntecipado;
+        if ($('btn-add-deposito')) $('btn-add-deposito').onclick = adicionarDepositoRecursal;
+        if ($('btn-add-pagamento')) $('btn-add-pagamento').onclick = adicionarPagamentoAntecipado;
 
         // Máscara de data DD/MM/YYYY para campos de data
         const aplicarMascaraData = (input) => {
@@ -1761,11 +1786,13 @@
         });
 
         // Toggle origem custas: Sentença vs Acórdão
-        $('custas-origem').onchange = (e) => {
-            const isAcordao = e.target.value === 'acordao';
-            $('custas-data-col').classList.toggle('hidden', isAcordao);
-            $('custas-acordao-col').classList.toggle('hidden', !isAcordao);
-        };
+        if ($('custas-origem')) {
+            $('custas-origem').onchange = (e) => {
+                const isAcordao = e.target.value === 'acordao';
+                if ($('custas-data-col')) $('custas-data-col').classList.toggle('hidden', isAcordao);
+                if ($('custas-acordao-col')) $('custas-acordao-col').classList.toggle('hidden', !isAcordao);
+            };
+        }
 
         const ordemCopiaLabels = {
             'val-id': '1) Id da Planilha',

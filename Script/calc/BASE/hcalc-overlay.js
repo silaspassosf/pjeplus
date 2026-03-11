@@ -673,6 +673,34 @@
                         <small style="color: #666; display: block; margin-top: 5px;">*Padrão: primeira reclamada</small>
                     </div>
                 </div>
+                <!-- NOVOS BLOCOS: Principais / Subsidiarias Integral -->
+                <div class="row" style="margin-bottom: 12px;">
+                    <div class="col">
+                        <label style="font-weight: bold; color: #b45309;">1. Devedoras Principais</label>
+                        <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                            <select id="sel-add-principal" style="padding: 6px; flex: 1;">
+                                <option value="">Adicionar devedora principal...</option>
+                            </select>
+                            <button type="button" class="btn-action" id="btn-add-principal">+</button>
+                        </div>
+                        <small style="color:#666; display:block; margin-top:6px;">Cada principal terá checkbox de Recuperação Judicial/Falência individual.</small>
+                    </div>
+                </div>
+
+                <div class="row" style="margin-bottom: 12px;">
+                    <div class="col">
+                        <label style="font-weight: bold; color: #0284c7;">2. Subsidiárias (Período Integral)</label>
+                        <label style="display:block; margin:6px 0 10px 0;"><input type="checkbox" id="chk-nao-ha-subs-int"> Não há (não preencher esta lista)</label>
+                        <div id="resp-subsidiarias-integral-dinamico-container" style="padding:0; display:flex; flex-direction:column; gap:6px;"></div>
+                        <div id="div-add-subs-int" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                            <select id="sel-add-subs-int" style="padding: 6px; flex: 1;">
+                                <option value="">Adicionar subsidiária integral...</option>
+                            </select>
+                            <button type="button" class="btn-action" id="btn-add-subs-int">+</button>
+                        </div>
+                    </div>
+                </div>
                 <div class="row" style="margin-bottom: 15px; font-size: 13px; color: #555;">
                     <label>Preencha período e planilha para cada reclamada com responsabilidade diversa (subsidiária por período):</label>
                 </div>

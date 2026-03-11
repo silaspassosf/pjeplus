@@ -1739,7 +1739,8 @@
         // ==========================================
         // 4. LÓGICA DE NAVEGAÇÃO "COLETA INTELIGENTE"
         // ==========================================
-        var orderSequence = [
+        // Use shared sequence from hcalc-core if present, otherwise fallback to default
+        var orderSequence = window.hcalcOrderSequence || [
             'val-id', 'val-data', 'val-credito', 'val-fgts',
             'val-inss-rec', 'val-inss-total', 'val-hon-autor', 'val-custas'
         ];

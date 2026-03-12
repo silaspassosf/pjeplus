@@ -170,12 +170,23 @@
 
             aplicarRegrasPeritosDetectados(peritos);
 
-            const respFieldset = document.querySelector('fieldset #resp-tipo')?.closest('fieldset');
-            if (reclamadas.length <= 1 && respFieldset) {
-                respFieldset.classList.add('hidden');
-            } else if (reclamadas.length > 1 && respFieldset) {
-                respFieldset.classList.remove('hidden');
-            }
+            // Localiza o fieldset de Responsabilidade de forma robusta e oculta quando houver
+            // apenas 1 reclamada (Devedora Única)
+            try {
+                let respFieldset = null;
+                const candidate = document.getElementById('resp-subsidiarias') || document.getElementById('resp-solidarias') || document.getElementById('resp-principais-fieldset');
+                if (candidate) respFieldset = candidate.closest('fieldset');
+                if (!respFieldset) {
+                    Array.from(document.querySelectorAll('fieldset')).forEach(f => {
+                        const lg = f.querySelector('legend');
+                        if (lg && /Responsabilidade/i.test(lg.textContent)) respFieldset = f;
+                    });
+                }
+                if (respFieldset) {
+                    if (reclamadas.length <= 1) respFieldset.classList.add('hidden');
+                    else respFieldset.classList.remove('hidden');
+                }
+            } catch (e) { /* ignore */ }
 
             const recJudUnicaRow = $('resp-rec-judicial-unica-row');
             if (recJudUnicaRow) recJudUnicaRow.classList.toggle('hidden', reclamadas.length !== 1);
@@ -208,6 +219,9 @@
                     if (solFieldset) solFieldset.classList.remove('hidden');
                 }
             } catch (e) { /* ignore */ }
+
+            // Notificar outras seções que o estado "Devedora Única" mudou
+            try { window.dispatchEvent(new CustomEvent('hcalc:devedora-unica-changed', { detail: { unica: reclamadas.length === 1 } })); } catch (e) { /* ignore */ }
 
             const depDepositante = $('dep-depositante');
             if (depDepositante && reclamadas.length > 0) {

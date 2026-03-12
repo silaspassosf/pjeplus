@@ -733,7 +733,7 @@
                             </select>
                             <button type="button" class="btn-action" id="btn-add-principal">+</button>
                         </div>
-                        <small style="color:#666; display:block; margin-top:6px;">Marque Rec. Judicial/Falência por empresa na lista acima.</small>
+                        <small id="resp-principais-note" style="color:#666; display:block; margin-top:6px;">Marque Rec. Judicial/Falência por empresa na lista acima.</small>
                     </div>
                 </div>
             </fieldset>
@@ -1010,6 +1010,87 @@
         const responsabilidadesTextoApi = window.hcalcOverlayResponsabilidades.createTextApi({
             $,
             bold
+        });
+
+        // Atualiza marcações quando a condição "Devedora Única" muda
+        window.addEventListener('hcalc:devedora-unica-changed', (ev) => {
+            try {
+                const unica = ev && ev.detail && ev.detail.unica;
+                const note = document.getElementById('resp-principais-note');
+                if (note) {
+                    note.textContent = unica ? 'Devedora Única detectada — opções subsidiárias/solidárias desabilitadas.' : 'Marque Rec. Judicial/Falência por empresa na lista acima.';
+                }
+
+                // Atualizar títulos de depósitos existentes e aplicar visibilidade/lock
+                try {
+                    const deps = window.hcalcState?.depositosRecursais || [];
+                    deps.forEach(d => {
+                        try {
+                            const title = document.getElementById(`dep-title-${d.idx}`);
+                            if (title) {
+                                const reclamadasNow = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+                                title.textContent = `Depósito Recursal #${d.idx + 1}` + (reclamadasNow.length === 1 ? ' (Única)' : '');
+                            }
+                            if (typeof window.hcalcAtualizarVisibilidadeDepositoPrincipal === 'function') {
+                                window.hcalcAtualizarVisibilidadeDepositoPrincipal(d.idx);
+                            }
+                        } catch (inner) { /* ignore per-dep */ }
+                    });
+                } catch (ex) { /* ignore */ }
+
+                // Mostrar/ocultar resumo 'Devedora Única' e sincronizar checkbox Rec. Judicial
+                try {
+                    let respFieldset = null;
+                    const candidate = document.getElementById('resp-subsidiarias') || document.getElementById('resp-solidarias') || document.getElementById('resp-principais-fieldset');
+                    if (candidate) respFieldset = candidate.closest('fieldset');
+                    if (!respFieldset) {
+                        Array.from(document.querySelectorAll('fieldset')).forEach(f => {
+                            const lg = f.querySelector('legend');
+                            if (lg && /Responsabilidade/i.test(lg.textContent)) respFieldset = f;
+                        });
+                    }
+
+                    const existingSummary = document.getElementById('resp-unica-summary');
+                    if (unica) {
+                        // criar/atualizar summary
+                        const nome = window.hcalcPartesData?.passivo?.[0]?.nome || '(reclamada)';
+                        if (!existingSummary) {
+                            const s = document.createElement('div');
+                            s.id = 'resp-unica-summary';
+                            s.style.cssText = 'padding:8px;margin-bottom:8px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;';
+                            const containerRef = document.getElementById('resp-principais-fieldset');
+                            if (containerRef && containerRef.parentElement) containerRef.parentElement.insertBefore(s, containerRef);
+                        }
+                        const sum = document.getElementById('resp-unica-summary');
+                        if (sum) {
+                            const recChecked = document.getElementById('resp-rec-judicial-unica')?.checked ? 'checked' : '';
+                            sum.innerHTML = `<strong style="color:#b45309;">Devedora Única:</strong> <span style="margin-left:8px;font-weight:600">${nome}</span> <label style="margin-left:12px;font-size:12px"><input type="checkbox" id="resp-unica-summary-rec" ${recChecked}> Rec. Judicial/Falência</label>`;
+                            const chk = document.getElementById('resp-unica-summary-rec');
+                            if (chk) {
+                                chk.onchange = (e) => {
+                                    const target = document.getElementById('resp-rec-judicial-unica');
+                                    if (target) { target.checked = e.target.checked; target.dispatchEvent(new Event('change', { bubbles: true })); }
+                                };
+                            }
+                        }
+                        if (respFieldset) respFieldset.classList.add('hidden');
+
+                        // Garantir selects de depósitos travados/selecionados
+                        try {
+                            const nome = window.hcalcPartesData?.passivo?.[0]?.nome;
+                            if (nome) {
+                                Array.from(document.querySelectorAll('[id^="dep-depositante-"]')).forEach(s => { try { s.value = nome; s.disabled = true; } catch(e){} });
+                            }
+                        } catch (e) { /* ignore */ }
+                    } else {
+                        if (existingSummary) existingSummary.remove();
+                        if (respFieldset) respFieldset.classList.remove('hidden');
+                        // reabilitar selects de depósitos
+                        Array.from(document.querySelectorAll('[id^="dep-depositante-"]')).forEach(s => { try { s.disabled = false; } catch(e){} });
+                    }
+                } catch (e) { /* ignore */ }
+
+            } catch (e) { /* ignore */ }
         });
 
         // ==========================================

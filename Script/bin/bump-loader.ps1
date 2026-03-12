@@ -36,7 +36,11 @@ $content = [regex]::Replace($content, '(\b\.js\?v=)(\d+)', {
 
 # 3) update t= to current timestamp
 $now = Get-Date -Format yyyyMMddHHmm
-$content = [regex]::Replace($content, '(\bt=)(\d{10,})', "`$1$now")
+# Use a MatchEvaluator to avoid replacement-string ambiguity (e.g. $1 followed by digits)
+$content = [regex]::Replace($content, '(\bt=)(\d{10,})', {
+  param($m)
+  return $m.Groups[1].Value + $now
+})
 
 # Write back
 Set-Content -Path $file -Value $content -Encoding UTF8

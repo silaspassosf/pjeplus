@@ -1014,6 +1014,21 @@
         const isNomeRogerio = partesController.isNomeRogerio;
         partesController.scheduleRefreshDetectedPartes();
 
+        // After partes data is detected, ensure the first passivo is added as principal
+        setTimeout(() => {
+            try {
+                const passivo = window.hcalcPartesData?.passivo || [];
+                if (passivo.length > 0 && responsabilidadesController && typeof responsabilidadesController.addPrincipal === 'function') {
+                    const container = document.getElementById('resp-principais-dinamico-container');
+                    if (container && container.children.length === 0) {
+                        responsabilidadesController.addPrincipal(passivo[0].nome);
+                        // update dropdowns in case they depend on this
+                        try { responsabilidadesController && typeof responsabilidadesController.updateDropdowns === 'function' && responsabilidadesController.updateDropdowns(); } catch(_) {}
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }, 800);
+
         // ==========================================
         // FASE 1: Sistema de Fases do Botão
         // ==========================================

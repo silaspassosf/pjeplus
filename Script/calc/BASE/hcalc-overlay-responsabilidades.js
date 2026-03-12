@@ -48,9 +48,8 @@
         function atualizarDropdownsPlanilhas() {
             const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
 
-            // Principais podem vir das checkboxes de partes ou do novo bloco de principais
+            // Principais podem vir do bloco de principais dinâmico (não ler checkboxes de Intimações)
             const principaisSet = new Set();
-            document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
             document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => principaisSet.add(chk.dataset.nome));
 
             // Subsidiarias integrais marcadas também contam como usadas (não aparecerão nas listas)
@@ -140,7 +139,6 @@
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
             const jaUsadas = new Set();
             // Marcar como usadas as reclamadas marcadas como principais e solidárias integrais
-            document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
             document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
             document.querySelectorAll('#resp-solidarias-integral-dinamico-container .chk-sol-int:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
             document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .chk-subs-int:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));

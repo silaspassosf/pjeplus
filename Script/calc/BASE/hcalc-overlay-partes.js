@@ -201,6 +201,9 @@
             }
 
             construirSecaoIntimacoes();
+
+            // sinaliza que as partes foram atualizadas para que outras seções possam reagir
+            try { window.dispatchEvent(new CustomEvent('hcalc:partes-refreshed')); } catch (e) { console.error('[hcalc] dispatch partes-refreshed falhou', e); }
         }
 
         function getProcessIdFromUrl() {

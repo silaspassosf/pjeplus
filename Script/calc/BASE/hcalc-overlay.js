@@ -1014,20 +1014,28 @@
         const isNomeRogerio = partesController.isNomeRogerio;
         partesController.scheduleRefreshDetectedPartes();
 
-        // After partes data is detected, ensure the first passivo is added as principal
-        setTimeout(() => {
+        // Aguarda os dados das partes carregarem para atualizar dropdowns e injetar a Principal
+        window.addEventListener('hcalc:partes-refreshed', () => {
             try {
                 const passivo = window.hcalcPartesData?.passivo || [];
+
+                // 1. Atualiza os dropdowns vazios agora que temos os dados
+                if (responsabilidadesController && typeof responsabilidadesController.atualizarDropdownsPlanilhas === 'function') {
+                    responsabilidadesController.atualizarDropdownsPlanilhas();
+                }
+
+                // 2. Injeta a primeira reclamada como Principal automaticamente
                 if (passivo.length > 0 && responsabilidadesController && typeof responsabilidadesController.addPrincipal === 'function') {
                     const container = document.getElementById('resp-principais-dinamico-container');
-                    if (container && container.children.length === 0) {
+                    const draftIsRestoring = overlayDraftApi && typeof overlayDraftApi.isRestoring === 'function' ? overlayDraftApi.isRestoring() : false;
+
+                    // Só injeta se estiver vazio e não estiver restaurando um rascunho
+                    if (container && container.children.length === 0 && !draftIsRestoring) {
                         responsabilidadesController.addPrincipal(passivo[0].nome);
-                        // update dropdowns in case they depend on this
-                        try { responsabilidadesController && typeof responsabilidadesController.updateDropdowns === 'function' && responsabilidadesController.updateDropdowns(); } catch(_) {}
                     }
                 }
-            } catch (e) { /* ignore */ }
-        }, 800);
+            } catch (e) { console.error('[hcalc] Erro no auto-add principal:', e); }
+        });
 
         // ==========================================
         // FASE 1: Sistema de Fases do Botão

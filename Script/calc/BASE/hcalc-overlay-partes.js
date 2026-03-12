@@ -180,6 +180,35 @@
             const recJudUnicaRow = $('resp-rec-judicial-unica-row');
             if (recJudUnicaRow) recJudUnicaRow.classList.toggle('hidden', reclamadas.length !== 1);
 
+            // Se houver apenas 1 reclamada, travar como Devedora Única: marcar flag, esconder/opcionais
+            try {
+                const respUnicaFlag = $('resp-unica-flag');
+                const chkSubs = $('resp-subsidiarias');
+                const chkSol = $('resp-solidarias');
+                const subOpcoes = $('resp-sub-opcoes');
+                const solOpcoes = $('resp-sol-opcoes');
+                const subsFieldset = $('resp-subsidiarias-integral-fieldset');
+                const solFieldset = $('resp-solidarias-integral-fieldset');
+
+                if (reclamadas.length === 1) {
+                    if (respUnicaFlag) respUnicaFlag.value = 'true';
+                    if (chkSubs) { chkSubs.checked = false; chkSubs.disabled = true; }
+                    if (chkSol) { chkSol.checked = false; chkSol.disabled = true; }
+                    if (subOpcoes) subOpcoes.classList.add('hidden');
+                    if (solOpcoes) solOpcoes.classList.add('hidden');
+                    if (subsFieldset) subsFieldset.classList.add('hidden');
+                    if (solFieldset) solFieldset.classList.add('hidden');
+                } else {
+                    if (respUnicaFlag) respUnicaFlag.value = 'false';
+                    if (chkSubs) { chkSubs.disabled = false; }
+                    if (chkSol) { chkSol.disabled = false; }
+                    if (subOpcoes) subOpcoes.classList.remove('hidden');
+                    if (solOpcoes) solOpcoes.classList.remove('hidden');
+                    if (subsFieldset) subsFieldset.classList.remove('hidden');
+                    if (solFieldset) solFieldset.classList.remove('hidden');
+                }
+            } catch (e) { /* ignore */ }
+
             const depDepositante = $('dep-depositante');
             if (depDepositante && reclamadas.length > 0) {
                 if (reclamadas.length === 1) {

@@ -144,7 +144,9 @@
                         limpar.style.background = '#ef4444';
                         limpar.style.color = '#fff';
                         limpar.style.border = 'none';
-                        limpar.style.padding = '8px 10px';
+                        // reduzir largura horizontal do botão vermelho: menos padding e não esticar
+                        limpar.style.padding = '6px 8px';
+                        limpar.style.alignSelf = 'flex-end';
                         limpar.style.borderRadius = '6px';
                         limpar.style.cursor = 'pointer';
                         limpar.style.fontSize = '12px';
@@ -324,7 +326,7 @@
         #resumo-extracao-card {
             width: 260px;
             background: #f8f9fa;
-            border: 2px solid #f97316;
+            border: 2px solid #10b981;
             border-radius: 8px;
             padding: 0;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -337,7 +339,7 @@
         #resumo-extracao-card h4 {
             margin: 0;
             padding: 12px 14px;
-            border-bottom: 1px solid #f97316;
+            border-bottom: 1px solid #10b981;
             cursor: pointer;
             user-select: none;
             display: flex;
@@ -345,9 +347,9 @@
             align-items: center;
             font-size: 14px;
             color: #fff;
-            background: #f97316;
+            background: #10b981;
         }
-        #resumo-extracao-card h4:hover { background: #ea580c; }
+        #resumo-extracao-card h4:hover { background: #059669; }
         #resumo-body {
             padding: 10px 12px;
             display: none;
@@ -438,9 +440,6 @@
             <div id="resumo-body">
                 <div id="resumo-conteudo"></div>
                 <button id="btn-reload-planilha" type="button">🔄 Recarregar PDF</button>
-            </div>
-            <div style="padding: 0 12px 12px 12px;">
-                <button id="btn-force-clear-overlay" type="button">🧹 Limpar dados e recomeçar</button>
             </div>
         </div>
        
@@ -677,11 +676,11 @@
                         </div>
                         <div id="resp-sub-opcoes" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
                             <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="radio" name="rad-sub-tipo" id="resp-sub-integral" checked> Responde pelo período total
+                                <input type="checkbox" id="resp-sub-integral" checked> Período Integral
                             </label>
                             <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="radio" name="rad-sub-tipo" id="resp-sub-diversos" style="margin-top:2px;">
-                                <span>Períodos Diversos (Gera estrutura para preencher)</span>
+                                <input type="checkbox" id="resp-sub-diversos" style="margin-top:2px;">
+                                <span>Período Diverso</span>
                             </label>
                         </div>
                     </div>
@@ -698,11 +697,11 @@
                         </div>
                         <div id="resp-sol-opcoes" class="hidden" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
                             <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="radio" name="rad-sol-tipo" id="resp-sol-integral" checked> Responde pelo período total
+                                <input type="checkbox" id="resp-sol-integral" checked> Período Integral
                             </label>
                             <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="radio" name="rad-sol-tipo" id="resp-sol-diversos" style="margin-top:2px;">
-                                <span>Períodos Diversos (Gera estrutura para preencher)</span>
+                                <input type="checkbox" id="resp-sol-diversos" style="margin-top:2px;">
+                                <span>Período Diverso</span>
                             </label>
                         </div>
                     </div>
@@ -948,6 +947,15 @@
         const modalEl = $('homologacao-modal');
         dbg('Binding de eventos iniciado.');
 
+        // Dispatch seguro: tenta MouseEvent com opções, se falhar remove `view` ou cai para `el.click()`
+        function safeDispatch(el, type, opts) {
+            try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
+            catch (e) {
+                try { const safeOpts = Object.assign({}, opts || {}); if ('view' in safeOpts) delete safeOpts.view; el.dispatchEvent(new MouseEvent(type, safeOpts)); return true; }
+                catch (e2) { try { el.click(); return true; } catch (e3) {} try { const ev = document.createEvent('MouseEvents'); ev.initMouseEvent(type, !!(opts && opts.bubbles), !!(opts && opts.cancelable), window, 0,0,0,0,0,false,false,false,false,0,null); el.dispatchEvent(ev); return true; } catch (e4) {} }
+            return false;
+        }
+
         function atualizarResumoPlanilha(dados) {
             const resumoCard = $('resumo-extracao-card');
             const resumoConteudo = $('resumo-conteudo');
@@ -1010,13 +1018,29 @@
         // ==========================================
         $('btn-abrir-homologacao').onclick = async () => {
             const btn = $('btn-abrir-homologacao');
-            const inputFile = $('input-planilha-pdf');
 
-            dbg('btn-abrir-homologacao clicked - planilhaCarregada=', !!(window.hcalcState && window.hcalcState.planilhaCarregada), 'planilhaExtracaoData=', window.hcalcState && window.hcalcState.planilhaExtracaoData);
+            dbg('btn-abrir-homologacao clicked - intent: restaurar rascunho (sem abrir seletor)');
 
-            if (!window.hcalcState.planilhaCarregada) {
-                dbg('FASE 1: Clique em Carregar Planilha');
-                inputFile.click();
+            // Tentar carregar rascunho salvo via API de draft
+            try {
+                const raw = overlayDraftApi && typeof overlayDraftApi.loadRaw === 'function' ? overlayDraftApi.loadRaw(warn) : null;
+                if (raw && raw.state) {
+                    dbg('Rascunho encontrado — restaurando e exibindo overlay');
+                    try { restoreOverlayDraft(); } catch (e) { dbg('[hcalc] restoreOverlayDraft falhou', e); }
+                    try { $('homologacao-overlay').style.display = 'flex'; } catch (e) { /* ignore */ }
+                    try { updateHighlight(); } catch (e) { /* ignore */ }
+                    return;
+                }
+            } catch (e) {
+                dbg('[hcalc] erro ao verificar rascunho salvo', e);
+            }
+
+            // Se não houver rascunho, mas já existirem dados de planilha no state, abrir overlay normalmente
+            if (window.hcalcState && window.hcalcState.planilhaCarregada) {
+                dbg('Nenhum rascunho, porém planilha já carregada — prosseguindo com geração normal');
+            } else {
+                // Não abrir seletor de arquivo automaticamente — informar o usuário
+                alert('Nenhum rascunho salvo encontrado. Carregue a planilha primeiro (pelo botão de carregar planilha).');
                 return;
             }
 
@@ -1147,9 +1171,9 @@
                                                         alvo = Array.from(links).find(l => l.textContent.includes(ax.id));
                                                     }
                                                     alvo = alvo || links[axIdx] || links[0];
-                                                    if (alvo) alvo.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+                                                    if (alvo) safeDispatch(alvo, 'click', { bubbles: true, cancelable: true });
                                                 } else if (ax.elemento && ax.elemento.isConnected) {
-                                                    ax.elemento.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+                                                    safeDispatch(ax.elemento, 'click', { bubbles: true, cancelable: true });
                                                 }
                                             } catch (e3) { console.error('[hcalc] Erro ao clicar no anexo:', e3); }
                                         }, 600);

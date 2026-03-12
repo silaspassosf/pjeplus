@@ -785,9 +785,33 @@
             || item.querySelector('a.tl-documento[role="button"]:not([target])')
             || item.querySelector('a.tl-documento:not([target])');
         if (previewLink) {
-            try { previewLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+            try { safeDispatch(previewLink, 'click', { bubbles: true, cancelable: true }); }
             catch (_) { try { previewLink.click(); } catch (_2) { } }
         }
+    }
+
+    // Dispatch seguro de MouseEvent: tenta criar MouseEvent, e em falha re-tenta sem `view` ou cai para `el.click()`
+    function safeDispatch(el, type, opts) {
+        try {
+            el.dispatchEvent(new MouseEvent(type, opts || {}));
+            return true;
+        } catch (e) {
+            try {
+                const safeOpts = Object.assign({}, opts || {});
+                if ('view' in safeOpts) delete safeOpts.view;
+                el.dispatchEvent(new MouseEvent(type, safeOpts));
+                return true;
+            } catch (e2) {
+                try { el.click(); return true; } catch (e3) { /* swallow */ }
+                try {
+                    const ev = document.createEvent('MouseEvents');
+                    ev.initMouseEvent(type, !!(opts && opts.bubbles), !!(opts && opts.cancelable), window, 0, 0,0,0,0,false,false,false,false,0,null);
+                    el.dispatchEvent(ev);
+                    return true;
+                } catch (e4) { /* swallow */ }
+            }
+        }
+        return false;
     }
 
     // Recaptura elemento da timeline pelo href (evita guardar referências DOM)
@@ -823,7 +847,7 @@
             let anexoLinks = anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]');
 
             if ((!anexoLinks || anexoLinks.length === 0) && toggle) {
-                try { toggle.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch (e) { }
+                try { safeDispatch(toggle, 'click', { bubbles: true }); } catch (e) { }
                 await sleep(350);
                 anexoLinks = anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]');
             }
@@ -1981,11 +2005,11 @@
                                         e.stopPropagation();
                                         const axIdx = parseInt(axItem.dataset.axIdx, 10);
                                         const ax = dep.anexos[axIdx];
-                                        if (ax && ax.elemento) {
+                                            if (ax && ax.elemento) {
                                             const closeBtns = document.querySelectorAll('button[aria-label="Fechar"], .mat-dialog-close, button.ui-dialog-titlebar-close');
                                             closeBtns.forEach(b => { try { b.click(); } catch (e) { } });
                                             setTimeout(() => {
-                                                try { ax.elemento.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+                                                try { safeDispatch(ax.elemento, 'click', { bubbles: true }); }
                                                 catch (err) { err('Erro ao clicar no anexo:', err); }
                                             }, 300);
                                         }

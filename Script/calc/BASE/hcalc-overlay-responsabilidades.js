@@ -290,6 +290,15 @@
 
             div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-principal" data-nome="${nome}"> <span>${nome}</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-principal-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-principal btn-action" style="${removeStyle}">Remover</button>`;
             principaisContainer.appendChild(div);
+            // Se for o primeiro item, marcar automaticamente como principal
+            try {
+                const chk = div.querySelector('.chk-principal');
+                if (chk && isFirst) {
+                    chk.checked = true;
+                    // garantir que dropdowns e estilos reflitam a seleção
+                    if (typeof atualizarDropdownsPlanilhas === 'function') atualizarDropdownsPlanilhas();
+                }
+            } catch (e) { /* ignore */ }
             const removeBtn = div.querySelector('.btn-remove-principal');
             removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
             // update dropdowns

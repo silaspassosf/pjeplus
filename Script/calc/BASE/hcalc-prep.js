@@ -289,9 +289,18 @@
             || item.querySelector('a.tl-documento[role="button"]:not([target])')
             || item.querySelector('a.tl-documento:not([target])');
         if (previewLink) {
-            try { previewLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }
+            try { safeDispatch(previewLink, 'click', { bubbles: true, cancelable: true }); }
             catch (_) { try { previewLink.click(); } catch (_2) { } }
         }
+    }
+
+    // Dispatch seguro local para este arquivo (evita erro quando UIEventInit.view é problemático)
+    function safeDispatch(el, type, opts) {
+        try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
+        catch (e) {
+            try { const safeOpts = Object.assign({}, opts || {}); if ('view' in safeOpts) delete safeOpts.view; el.dispatchEvent(new MouseEvent(type, safeOpts)); return true; }
+            catch (e2) { try { el.click(); return true; } catch (e3) {} try { const ev = document.createEvent('MouseEvents'); ev.initMouseEvent(type, !!(opts && opts.bubbles), !!(opts && opts.cancelable), window, 0,0,0,0,0,false,false,false,false,0,null); el.dispatchEvent(ev); return true; } catch (e4) {} }
+        return false;
     }
 
     // Recaptura elemento da timeline pelo href (evita guardar referências DOM)
@@ -334,7 +343,7 @@
             let anexoLinks = anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]');
 
             if ((!anexoLinks || anexoLinks.length === 0) && toggle) {
-                try { toggle.dispatchEvent(new MouseEvent('click', { bubbles: true })); } catch (e) { }
+                try { safeDispatch(toggle, 'click', { bubbles: true }); } catch (e) { }
                 await sleep(350);
                 anexoLinks = anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]');
             }

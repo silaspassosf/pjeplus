@@ -154,18 +154,15 @@
 
                         limpar.addEventListener('click', (e) => {
                             e.preventDefault();
-                            try {
-                                if (overlayDraftApi && typeof overlayDraftApi.clear === 'function') overlayDraftApi.clear();
-                            } catch (err) { console.warn('[hcalc] falha ao limpar rascunho', err); }
-                            try { if (window.hcalcState && typeof window.hcalcState.resetPrep === 'function') window.hcalcState.resetPrep(); } catch (err) { console.warn('[hcalc] resetPrep falhou', err); }
-                            // Restaurar botão ao estado inicial e abrir seletor
-                            btn.textContent = '\uD83D\uDCC4 Carregar Planilha';
-                            btn.style.background = '#00509e';
-                            btn.style.color = '#fff';
-                            const input = document.getElementById('input-planilha-pdf');
-                            if (input) input.click();
-                            // remover o próprio botão limpar
-                            try { limpar.remove(); } catch (e) { }
+                            if (confirm('Tem certeza que deseja limpar todos os dados salvos deste processo?')) {
+                                try {
+                                    if (overlayDraftApi && typeof overlayDraftApi.clear === 'function') overlayDraftApi.clear();
+                                } catch (err) { console.warn('[hcalc] falha ao limpar rascunho', err); }
+                                try { if (window.hcalcState && typeof window.hcalcState.resetPrep === 'function') window.hcalcState.resetPrep(); } catch (err) { console.warn('[hcalc] resetPrep falhou', err); }
+                                
+                                // Recarregar a página para garantir a limpeza completa da memória e interface
+                                window.location.reload();
+                            }
                         });
                     }
                     // atualizar texto do botão principal se planilha carregada

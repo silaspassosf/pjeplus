@@ -289,7 +289,7 @@ def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
                 
                 # Pequena pausa entre fechamentos para estabilidade
                 if fechou_aba:
-                    time.sleep(0.5)
+                    time.sleep(0.1)
             
             # SEGUNDO PASSE: Se ainda houver abas extras, tentar fechar novamente
             try:

@@ -358,24 +358,14 @@ def _aplicar_filtros(driver: WebDriver) -> bool:
         bool: True se filtros aplicados com sucesso
     """
     try:
-        # 1. Aplicar filtro xs na descrição PRIMEIRO
-        from PEC.core_navegacao import aplicar_filtro_xs
-        logger.info("[FLUXO_NOVO] Aplicando filtro 'xs' na descrição...")
-        if not aplicar_filtro_xs(driver):
-            logger.warning("[FLUXO_NOVO]  Falha ao aplicar filtro xs, continuando...")
-        
-        # Aguardar tabela recarregar após filtro xs
-        import time
-        time.sleep(2)
-        
-        # 2. Aplicar filtro 100 itens por página
-        logger.info("[FLUXO_NOVO] Aplicando filtro 100 itens...")
+        # Aplicar apenas o filtro 100 itens por página (não aplicar filtro 'xs' na lista)
+        logger.info("[FLUXO_NOVO] Aplicando filtro 100 itens (sem filtro 'xs')...")
         from Fix.core import aplicar_filtro_100
         if aplicar_filtro_100(driver):
             WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'table tbody tr'))
             )
-            logger.info("[FLUXO_NOVO]  Filtros aplicados com sucesso")
+            logger.info("[FLUXO_NOVO]  Filtro 100 aplicado com sucesso")
 
         return True
 

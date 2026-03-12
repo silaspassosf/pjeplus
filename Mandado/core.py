@@ -131,15 +131,15 @@ def _aguardar_estabilizacao_pos_processo(driver: WebDriver, timeout: float = 6.0
                     _ = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class, tr.cdk-drag')
                 except Exception:
                     pass
-                time.sleep(0.35)
+                time.sleep(0.1)
                 return True
         except Exception:
             pass
 
-        time.sleep(0.25)
+        time.sleep(0.05)
 
     # fallback não-bloqueante: pequena pausa extra para reduzir corrida
-    time.sleep(0.5)
+    time.sleep(0.2)
     logger.warning('[FLUXO][POS] Timeout de estabilização pós-processo; seguindo com buffer de segurança')
     return True
 

@@ -45,7 +45,7 @@ function initMain() {
             if (event.data?.type === 'WORKER_DONE') {
                 console.log('[MAIN] Worker concluiu. Limpeza + hover...');
                 showToast('F7: Expediente concluído. Limpando...', '#ff9800');
-                await runCleanup();
+                await startCleanupIfNeeded();
                 showToast('F7: Movimentar -> ag pz-', '#673ab7');
                 await hoverAndClickTarget('#maisPJe_bt_detalhes_movimentar', 'ag pz-');
             }
@@ -60,7 +60,7 @@ function initMain() {
             if (data.type === 'WORKER_DONE') {
                 console.log('[MAIN][FALLBACK] Worker concluiu. Limpeza + hover...');
                 showToast('F7: Expediente concluído. Limpando...', '#ff9800');
-                await runCleanup();
+                await startCleanupIfNeeded();
                 showToast('F7: Movimentar -> ag pz-', '#673ab7');
                 await hoverAndClickTarget('#maisPJe_bt_detalhes_movimentar', 'ag pz-');
             }
@@ -74,7 +74,7 @@ function initMain() {
             if (e.key === 'F6') {
                 e.preventDefault();
                 showToast('F6: Iniciando limpeza...', '#ff9800');
-                await runCleanup();
+                await startCleanupIfNeeded();
             } else if (e.key === 'F7') {
                 e.preventDefault();
                 showToast('F7: Abrindo aba de expediente...', '#673ab7');
@@ -111,10 +111,10 @@ function initMain() {
 
     // Teclas F6 / F7
     reg.on(document, 'keydown', async e => {
-        if (e.key === 'F6') {
+            if (e.key === 'F6') {
             e.preventDefault();
             showToast('F6: Iniciando limpeza...', '#ff9800');
-            await runCleanup();
+            await startCleanupIfNeeded();
         } else if (e.key === 'F7') {
             e.preventDefault();
             showToast('F7: Abrindo aba de expediente...', '#673ab7');
@@ -605,6 +605,20 @@ async function runCleanup() {
             showToast('Nenhuma atividade para limpar.', '#2196f3');
         }
     });
+}
+
+// Ensure cleanup runs exclusively and callers can await shared promise
+function startCleanupIfNeeded() {
+    if (!PJeState.atalhos) PJeState.atalhos = {};
+    if (PJeState.atalhos._cleanupPromise) return PJeState.atalhos._cleanupPromise;
+    PJeState.atalhos._cleanupPromise = (async () => {
+        try {
+            await runCleanup();
+        } finally {
+            PJeState.atalhos._cleanupPromise = null;
+        }
+    })();
+    return PJeState.atalhos._cleanupPromise;
 }
 
 // ─── EXPEDIENTE FLOW ─────────────────────────────────────────────

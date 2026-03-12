@@ -132,16 +132,25 @@
                 namedRadios[radio.name] = radio.value;
             });
 
-            const periodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]')).map((linha) => {
-                const idx = linha.id.replace('periodo-diverso-', '');
-                return {
-                    reclamada: document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`)?.value || '',
-                    tipo: 'subsidiaria',
-                    periodo: document.querySelector(`.periodo-periodo[data-idx="${idx}"]`)?.value || '',
-                    idCalculo: document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '',
-                    planilha: document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal'
-                };
-            });
+            const extractPeriodos = (containerId, tipoVal) => {
+                return Array.from(document.querySelectorAll(`${containerId} .periodo-linha`)).map((linha) => {
+                    const selRec = linha.querySelector(`.periodo-reclamada`);
+                    const reclamadas = selRec ? Array.from(selRec.selectedOptions).map(o => o.value).filter(Boolean) : [];
+                    return {
+                        reclamadas: reclamadas,
+                        reclamada: reclamadas.length ? reclamadas[0] : '', // Retrocompat
+                        tipo: tipoVal,
+                        periodo: linha.querySelector(`.periodo-periodo`)?.value || '',
+                        idCalculo: linha.querySelector(`.periodo-id`)?.value || '',
+                        planilha: linha.querySelector(`.periodo-planilha-select`)?.value || 'principal'
+                    };
+                });
+            };
+
+            const periodos = [
+                ...extractPeriodos('#resp-sol-diversos-container', 'sol'),
+                ...extractPeriodos('#resp-sub-diversos-container', 'sub')
+            ];
 
             // Capture new dynamic lists
             const principais = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .principal-item')).map(item => ({
@@ -152,6 +161,11 @@
             const subsInt = Array.from(document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item')).map(item => ({
                 nome: item.dataset.nome || '',
                 recJud: !!item.querySelector('.chk-subs-int-rec')?.checked
+            }));
+
+            const solInt = Array.from(document.querySelectorAll('#resp-solidarias-integral-dinamico-container .sol-item')).map(item => ({
+                nome: item.dataset.nome || '',
+                recJud: !!item.querySelector('.chk-sol-int-rec')?.checked
             }));
 
             const depositos = window.hcalcState.depositosRecursais
@@ -181,7 +195,7 @@
             }));
 
             saveRaw({
-                version: 1,
+                version: 2,
                 savedAt: new Date().toISOString(),
                 state: {
                     planilhaExtracaoData: window.hcalcState.planilhaExtracaoData,
@@ -193,6 +207,7 @@
                 periodosEnabled: !!$('resp-diversos')?.checked,
                 principais,
                 subsInt,
+                solInt,
                 periodos,
                 depositosEnabled: !!$('chk-deposito')?.checked,
                 depositos,
@@ -232,54 +247,85 @@
                     $('resp-diversos').dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                if (draft.periodosEnabled) {
+                if (draft.principais && draft.principais.length > 0 && respApi && respApi.addPrincipal) {
                     const containerPrincipais = $('resp-principais-dinamico-container');
                     if (containerPrincipais) containerPrincipais.innerHTML = '';
-                    if (draft.principais && draft.principais.length > 0 && respApi && respApi.addPrincipal) {
-                        draft.principais.forEach(p => {
-                            respApi.addPrincipal(p.nome);
-                            setTimeout(() => {
-                                const chk = document.querySelector(`.principal-item[data-nome="${CSS.escape(p.nome)}"] .chk-principal-rec`);
-                                if (chk) chk.checked = !!p.recJud;
-                            }, 50);
-                        });
-                    }
+                    draft.principais.forEach(p => {
+                        respApi.addPrincipal(p.nome);
+                        setTimeout(() => {
+                            const chk = document.querySelector(`.principal-item[data-nome="${CSS.escape(p.nome)}"] .chk-principal-rec`);
+                            if (chk) chk.checked = !!p.recJud;
+                        }, 50);
+                    });
+                }
 
+                if (draft.subsInt && draft.subsInt.length > 0 && respApi && respApi.addSubsInt) {
                     const containerSubsInt = $('resp-subsidiarias-integral-dinamico-container');
                     if (containerSubsInt) containerSubsInt.innerHTML = '';
-                    if (draft.subsInt && draft.subsInt.length > 0 && respApi && respApi.addSubsInt) {
-                        draft.subsInt.forEach(s => {
-                            respApi.addSubsInt(s.nome);
-                            setTimeout(() => {
-                                const chk = document.querySelector(`.subs-item[data-nome="${CSS.escape(s.nome)}"] .chk-subs-int-rec`);
-                                if (chk) chk.checked = !!s.recJud;
-                            }, 50);
-                        });
-                    }
-
-                    const container = $('resp-diversos-container');
-                    if (container) container.innerHTML = '';
-                    (draft.periodos || []).forEach(() => adicionarLinhaPeridoDiverso());
-
-                    (draft.periodos || []).forEach((periodo, idx) => {
-                        const selRec = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`);
-                        const inpPeriodo = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`);
-                        const inpId = document.querySelector(`.periodo-id[data-idx="${idx}"]`);
-                        const selPlanilha = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`);
-
-                        if (selRec && periodo.reclamada) {
-                            if (!Array.from(selRec.options).some((opt) => opt.value === periodo.reclamada)) {
-                                const opt = document.createElement('option');
-                                opt.value = periodo.reclamada;
-                                opt.textContent = periodo.reclamada;
-                                selRec.appendChild(opt);
-                            }
-                            selRec.value = periodo.reclamada;
-                        }
-                        if (inpPeriodo) inpPeriodo.value = periodo.periodo || '';
-                        if (inpId) inpId.value = periodo.idCalculo || '';
-                        if (selPlanilha) selPlanilha.value = periodo.planilha || 'principal';
+                    draft.subsInt.forEach(s => {
+                        respApi.addSubsInt(s.nome);
+                        setTimeout(() => {
+                            const chk = document.querySelector(`.subs-item[data-nome="${CSS.escape(s.nome)}"] .chk-subs-int-rec`);
+                            if (chk) chk.checked = !!s.recJud;
+                        }, 50);
                     });
+                }
+
+                if (draft.solInt && draft.solInt.length > 0 && respApi && respApi.addSolInt) {
+                    const containerSolInt = $('resp-solidarias-integral-dinamico-container');
+                    if (containerSolInt) containerSolInt.innerHTML = '';
+                    draft.solInt.forEach(s => {
+                        respApi.addSolInt(s.nome);
+                        setTimeout(() => {
+                            const chk = document.querySelector(`.sol-item[data-nome="${CSS.escape(s.nome)}"] .chk-sol-int-rec`);
+                            if (chk) chk.checked = !!s.recJud;
+                        }, 50);
+                    });
+                }
+
+                if (draft.periodos && window.adicionarLinhaPeridoDiverso) {
+                    const cSol = $('resp-sol-diversos-container');
+                    const cSub = $('resp-sub-diversos-container');
+                    if (cSol) cSol.innerHTML = '';
+                    if (cSub) cSub.innerHTML = '';
+
+                    draft.periodos.forEach((periodo) => window.adicionarLinhaPeridoDiverso(periodo.tipo || 'sub'));
+
+                    // Because adicionarLinhaPeridoDiverso generates IDs using Date.now(), we just read them sequentially per tipo.
+                    const updatePeriods = (tipoVal) => {
+                        const linhas = Array.from(document.querySelectorAll(`#resp-${tipoVal}-diversos-container .periodo-linha`));
+                        const origPeriodos = draft.periodos.filter(p => (tipoVal === 'sol' ? p.tipo === 'sol' : p.tipo !== 'sol'));
+                        
+                        linhas.forEach((linha, i) => {
+                            const periodo = origPeriodos[i];
+                            if (!periodo) return;
+                            const selRec = linha.querySelector(`.periodo-reclamada`);
+                            const inpPeriodo = linha.querySelector(`.periodo-periodo`);
+                            const inpId = linha.querySelector(`.periodo-id`);
+                            const selPlanilha = linha.querySelector(`.periodo-planilha-select`);
+
+                            if (selRec) {
+                                const reclamadasToSelect = periodo.reclamadas || [periodo.reclamada];
+                                reclamadasToSelect.forEach(r => {
+                                    if (!r) return;
+                                    if (!Array.from(selRec.options).some(opt => opt.value === r)) {
+                                        const opt = document.createElement('option');
+                                        opt.value = r; opt.textContent = r;
+                                        selRec.appendChild(opt);
+                                    }
+                                    Array.from(selRec.options).forEach(opt => {
+                                        if (reclamadasToSelect.includes(opt.value)) opt.selected = true;
+                                    });
+                                });
+                            }
+                            if (inpPeriodo) inpPeriodo.value = periodo.periodo || '';
+                            if (inpId) inpId.value = periodo.idCalculo || '';
+                            if (selPlanilha) selPlanilha.value = periodo.planilha || 'principal';
+                        });
+                    };
+
+                    updatePeriods('sub');
+                    updatePeriods('sol');
                 }
 
                 if ($('chk-deposito')) {

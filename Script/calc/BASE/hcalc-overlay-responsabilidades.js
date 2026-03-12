@@ -120,13 +120,31 @@
             }
         }
 
-        function adicionarLinhaPeridoDiverso() {
-            const container = $('resp-diversos-container');
+        function adicionarLinhaPeridoDiverso(tipo = 'sub') {
+            const isSol = tipo === 'sol';
+            const containerId = isSol ? 'resp-sol-diversos-container' : 'resp-sub-diversos-container';
+            const container = $(containerId);
+            if (!container) return;
+
+            const idx = Date.now(); // use timestamp as unique ID to prevent clashes
+            const rowId = `periodo-diverso-${tipo}-${idx}`;
+            
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.className = `periodo-linha periodo-${tipo}`;
+            div.style.padding = '8px';
+            div.style.border = '1px solid #e5e7eb';
+            div.style.borderRadius = '5px';
+            div.style.background = '#fff';
+
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
             const jaUsadas = new Set();
-            // Marcar como usadas as reclamadas marcadas como principais (tanto partes quanto bloco de principais)
+            // Marcar como usadas as reclamadas marcadas como principais e solidárias integrais
             document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
             document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-solidarias-integral-dinamico-container .chk-sol-int:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .chk-subs-int:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+            
             // Marcar as já escolhidas em outros periodos
             document.querySelectorAll('.periodo-reclamada').forEach(select => {
                 if (select && select.selectedOptions) Array.from(select.selectedOptions).forEach(o => { if (o.value) jaUsadas.add(o.value); });
@@ -140,11 +158,13 @@
                 }
             });
 
+            const lblReclamada = isSol ? 'Reclamadas Solidárias' : 'Reclamadas Subsidiárias';
+
             div.innerHTML = `
                 <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: bold; margin-right: 10px;">Planilha ${idx+1}</span>
+                    <span style="font-weight: bold; margin-right: 10px; color: ${isSol ? '#d97706' : '#334155'};">Planilha ${isSol ? 'Solidária' : 'Subsidiária'}</span>
                     <div style="flex: 1; display: flex; gap: 8px; align-items: center;">
-                        <select class="periodo-planilha-select" data-idx="${idx}" style="flex: 1; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
+                        <select class="periodo-planilha-select" data-idx="${idx}" data-tipo="${tipo}" style="flex: 1; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
                             <option value="principal">📋 Mesma planilha principal</option>
                         </select>
                         <button type="button" class="btn-carregar-planilha-extra btn-action" data-idx="${idx}" style="font-size: 11px; padding: 6px 10px; background: #7c3aed;">📄 Carregar Nova</button>
@@ -162,8 +182,8 @@
                     </div>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <label style="font-weight: bold;">Reclamadas Subsidiárias que respondem ao período da planilha ${idx+1}:</label>
-                    <select multiple size="4" class="periodo-reclamada" data-idx="${idx}" style="width: 100%; padding: 8px;">
+                    <label style="font-weight: bold;">${lblReclamada} que respondem ao período da planilha acima:</label>
+                    <select multiple size="4" class="periodo-reclamada" data-idx="${idx}" data-tipo="${tipo}" style="width: 100%; padding: 8px;">
                         ${selectOptions}
                     </select>
                 </div>
@@ -193,6 +213,7 @@
             const selectReclamada = div.querySelector(`.periodo-reclamada[data-idx="${idx}"]`);
             selectReclamada.onchange = () => {
                 atualizarDropdownsReclamadas();
+                queueOverlayDraftSave();
             };
 
             const selectPlanilha = div.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`);
@@ -206,6 +227,7 @@
                 if (!pd) return;
                 if (pd.idPlanilha && idInput) idInput.value = pd.idPlanilha;
                 if (pd.periodoCalculo && periodoInput) periodoInput.value = pd.periodoCalculo;
+                queueOverlayDraftSave();
             };
 
             const btnCarregar = div.querySelector(`.btn-carregar-planilha-extra[data-idx="${idx}"]`);
@@ -233,7 +255,7 @@
                     if (dados.periodoCalculo && periodoInput) periodoInput.value = dados.periodoCalculo;
 
                     const extraId = `extra_${idx}`;
-                    const extraLabel = `${dados.idPlanilha || 'Extra'} (Dev.${idx + 2})`;
+                    const extraLabel = `${dados.idPlanilha || 'Extra'} (${isSol ? 'Sol' : 'Sub'})`;
                     registrarPlanilhaDisponivel(extraId, extraLabel, dados);
 
                     selectPlanilha.value = extraId;
@@ -312,42 +334,101 @@
             queueOverlayDraftSave();
         }
 
+        function addSolInt(nome) {
+            const container = document.getElementById('resp-solidarias-integral-dinamico-container');
+            if (!nome || !container) return;
+            if (container.querySelector(`.sol-item[data-nome="${CSS.escape(nome)}"]`)) return;
+            const div = document.createElement('div');
+            div.className = 'sol-item';
+            div.dataset.nome = nome;
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '8px';
+            div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-sol-int" data-nome="${nome}"> <span>${nome}</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-sol-int-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-sol btn-action" style="background:#d32f2f;padding:4px 8px;">Remover</button>`;
+            container.appendChild(div);
+            const removeBtn = div.querySelector('.btn-remove-sol');
+            removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+            atualizarDropdownsPlanilhas();
+            queueOverlayDraftSave();
+        }
+
         function initEventHandlers() {
             const respSubs = document.getElementById('resp-subsidiarias');
             const respSol = document.getElementById('resp-solidarias');
 
-            const updateRespOptions = () => {
+            const radSubInt = document.getElementById('resp-sub-integral');
+            const radSubDiv = document.getElementById('resp-sub-diversos');
+            const radSolInt = document.getElementById('resp-sol-integral');
+            const radSolDiv = document.getElementById('resp-sol-diversos');
+
+            const updateVisibility = () => {
                 const isSubs = respSubs && respSubs.checked;
-                // Mostrar opcoes adicionais para subsidiarias
-                $('resp-sub-opcoes').classList.toggle('hidden', !isSubs);
+                const isSol = respSol && respSol.checked;
 
-                // Atualizar visibilidade dos depósitos principais
-                window.hcalcState.depositosRecursais.forEach(d => {
-                    if (!d.removed && typeof window.hcalcAtualizarVisibilidadeDepositoPrincipal === 'function') {
-                        window.hcalcAtualizarVisibilidadeDepositoPrincipal(d.idx);
-                    }
-                });
-            };
+                const subDiv = radSubDiv && radSubDiv.checked;
+                const solDiv = radSolDiv && radSolDiv.checked;
 
-            if (respSubs) respSubs.addEventListener('change', updateRespOptions);
-            if (respSol) respSol.addEventListener('change', updateRespOptions);
+                const subInt = radSubInt && radSubInt.checked;
+                const solInt = radSolInt && radSolInt.checked;
 
-            $('resp-diversos').onchange = (e) => {
-                const fieldset = $('resp-diversos-fieldset');
-                const container = $('resp-diversos-container');
-                const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+                // Sub-options appear if main checkbox is checked
+                const subOpcoes = document.getElementById('resp-sub-opcoes');
+                if (subOpcoes) subOpcoes.classList.toggle('hidden', !isSubs);
 
-                if (e.target.checked) {
-                    fieldset.classList.remove('hidden');
+                const solOpcoes = document.getElementById('resp-sol-opcoes');
+                if (solOpcoes) solOpcoes.classList.toggle('hidden', !isSol);
 
-                    if (container.children.length === 0) {
-                        adicionarLinhaPeridoDiverso();
-                    }
-                } else {
-                    fieldset.classList.add('hidden');
-                    container.innerHTML = '';
+                // Lower UI blocks
+                const fsSubInt = document.getElementById('resp-subsidiarias-integral-fieldset');
+                if (fsSubInt) fsSubInt.classList.toggle('hidden', !(isSubs && subInt));
+
+                const fsSubDiv = document.getElementById('resp-subsidiarias-diversos-fieldset');
+                if (fsSubDiv) fsSubDiv.classList.toggle('hidden', !(isSubs && subDiv));
+                
+                const fsSolInt = document.getElementById('resp-solidarias-integral-fieldset');
+                if (fsSolInt) fsSolInt.classList.toggle('hidden', !(isSol && solInt));
+
+                const fsSolDiv = document.getElementById('resp-solidarias-diversos-fieldset');
+                if (fsSolDiv) fsSolDiv.classList.toggle('hidden', !(isSol && solDiv));
+
+                // Auto-add first row if empty and newly shown
+                const subContainer = document.getElementById('resp-sub-diversos-container');
+                if (isSubs && subDiv && subContainer && subContainer.children.length === 0) {
+                    adicionarLinhaPeridoDiverso('sub');
                 }
+                const solContainer = document.getElementById('resp-sol-diversos-container');
+                if (isSol && solDiv && solContainer && solContainer.children.length === 0) {
+                    adicionarLinhaPeridoDiverso('sol');
+                }
+
+                // Clean up hidden containers so their values don't leak into generation text
+                if (!(isSubs && subDiv) && subContainer) subContainer.innerHTML = '';
+                if (!(isSol && solDiv) && solContainer) solContainer.innerHTML = '';
+
+                // Call existing depósitos update
+                if (window.hcalcState && window.hcalcState.depositosRecursais) {
+                    window.hcalcState.depositosRecursais.forEach(d => {
+                        if (!d.removed && typeof window.hcalcAtualizarVisibilidadeDepositoPrincipal === 'function') {
+                            window.hcalcAtualizarVisibilidadeDepositoPrincipal(d.idx);
+                        }
+                    });
+                }
+
+                queueOverlayDraftSave();
             };
+
+            if (respSubs) respSubs.addEventListener('change', updateVisibility);
+            if (respSol) respSol.addEventListener('change', updateVisibility);
+            if (radSubInt) radSubInt.addEventListener('change', updateVisibility);
+            if (radSubDiv) radSubDiv.addEventListener('change', updateVisibility);
+            if (radSolInt) radSolInt.addEventListener('change', updateVisibility);
+            if (radSolDiv) radSolDiv.addEventListener('change', updateVisibility);
+            
+            const btnAddSub = document.getElementById('btn-adicionar-periodo-sub');
+            if (btnAddSub) btnAddSub.onclick = (e) => { e.preventDefault(); adicionarLinhaPeridoDiverso('sub'); queueOverlayDraftSave(); };
+
+            const btnAddSol = document.getElementById('btn-adicionar-periodo-sol');
+            if (btnAddSol) btnAddSol.onclick = (e) => { e.preventDefault(); adicionarLinhaPeridoDiverso('sol'); queueOverlayDraftSave(); };
 
             // Rec. Judicial/Falência por principal (item 1): aplicar estilo nas intimações ao mudar
             const containerPrincipais = document.getElementById('resp-principais-dinamico-container');
@@ -359,19 +440,13 @@
                     }
                 });
             }
+            
             const recJudUnicaEl = document.getElementById('resp-rec-judicial-unica');
             if (recJudUnicaEl) recJudUnicaEl.addEventListener('change', () => { aplicarEstiloRecuperacaoJudicial(); queueOverlayDraftSave(); });
-
-            $('btn-adicionar-periodo').onclick = (e) => {
-                e.preventDefault();
-                adicionarLinhaPeridoDiverso();
-                queueOverlayDraftSave();
-            };
 
             // --- Principais quick-add
             const selAddPrincipal = document.getElementById('sel-add-principal');
             const btnAddPrincipal = document.getElementById('btn-add-principal');
-
             if (btnAddPrincipal && selAddPrincipal) {
                 btnAddPrincipal.onclick = (e) => {
                     e.preventDefault();
@@ -388,11 +463,9 @@
                 }
             } catch (e) { /* ignore */ }
 
-            // --- Subsidiarias integrais quick-add
+            // --- Subsidiárias integrais quick-add
             const selAddSubsInt = document.getElementById('sel-add-subs-int');
             const btnAddSubsInt = document.getElementById('btn-add-subs-int');
-            const subsIntContainer = document.getElementById('resp-subsidiarias-integral-dinamico-container');
-
             if (btnAddSubsInt && selAddSubsInt) {
                 btnAddSubsInt.onclick = (e) => { e.preventDefault(); const nome = selAddSubsInt.value; if (nome) addSubsInt(nome); };
             }
@@ -406,7 +479,7 @@
                     queueOverlayDraftSave();
                 };
             }
-
+            const subsIntContainer = document.getElementById('resp-subsidiarias-integral-dinamico-container');
             if (subsIntContainer) {
                 subsIntContainer.addEventListener('change', (e) => {
                     if (e.target.classList.contains('chk-subs-int-rec')) {
@@ -415,10 +488,37 @@
                     }
                 });
             }
+
+            // --- Solidárias integrais quick-add
+            const selAddSolInt = document.getElementById('sel-add-sol-int');
+            const btnAddSolInt = document.getElementById('btn-add-sol-int');
+            if (btnAddSolInt && selAddSolInt) {
+                btnAddSolInt.onclick = (e) => { e.preventDefault(); const nome = selAddSolInt.value; if (nome) addSolInt(nome); };
+            }
+
+            const chkNaoHaSolInt = document.getElementById('chk-nao-ha-sol-int');
+            if (chkNaoHaSolInt) {
+                chkNaoHaSolInt.onchange = (e) => {
+                    const hide = e.target.checked;
+                    document.getElementById('resp-solidarias-integral-dinamico-container').classList.toggle('hidden', hide);
+                    document.getElementById('div-add-sol-int').classList.toggle('hidden', hide);
+                    queueOverlayDraftSave();
+                };
+            }
+            const solIntContainer = document.getElementById('resp-solidarias-integral-dinamico-container');
+            if (solIntContainer) {
+                solIntContainer.addEventListener('change', (e) => {
+                    if (e.target.classList.contains('chk-sol-int-rec')) {
+                        aplicarEstiloRecuperacaoJudicial();
+                        queueOverlayDraftSave();
+                    }
+                });
+            }
             
             return {
                 addPrincipal,
-                addSubsInt
+                addSubsInt,
+                addSolInt
             };
         }
 
@@ -430,7 +530,8 @@
             atualizarDropdownsPlanilhas,
             adicionarLinhaPeridoDiverso,
             addPrincipal: exposedApi.addPrincipal,
-            addSubsInt: exposedApi.addSubsInt
+            addSubsInt: exposedApi.addSubsInt,
+            addSolInt: exposedApi.addSolInt
         };
     }
 
@@ -447,60 +548,86 @@
         }
 
         function gerarTextoResponsabilidades() {
-            const linhasPeriodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]'));
-            if (linhasPeriodos.length === 0) return null;
+            const linhasSol = Array.from(document.querySelectorAll('#resp-sol-diversos-container [id^="periodo-diverso-sol-"]'));
+            const linhasSub = Array.from(document.querySelectorAll('#resp-sub-diversos-container [id^="periodo-diverso-sub-"]'));
 
             const periodoCompleto = window.hcalcState.planilhaExtracaoData?.periodoCalculo || '';
-            // Principais: read from dynamic principais container
+            
+            // Principais
             let principaisSelecionadas = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .principal-item')).map(item => {
                 const nome = item.dataset.nome;
                 const recChk = item.querySelector('.chk-principal-rec');
                 return { nome: nome, recJud: !!(recChk && recChk.checked) };
             }).filter(p => p.nome);
 
-            const principaisParciais = []; // reserved for compatibility
-            const subsidiariasComPeriodo = [];
-
-            linhasPeriodos.forEach((linha) => {
-                const idx = linha.id.replace('periodo-diverso-', '');
-                const selectEl = document.querySelector(`.periodo-reclamada[data-idx="${idx}"]`);
-                const nomesRec = selectEl ? Array.from(selectEl.selectedOptions).map(o => o.value).filter(Boolean) : [];
-                const periodoTexto = document.querySelector(`.periodo-periodo[data-idx="${idx}"]`)?.value || '';
-                const idPlanilhaManual = document.querySelector(`.periodo-id[data-idx="${idx}"]`)?.value || '';
-
-                const planilhaSel = document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal';
-                const usarMesmaPlanilha = planilhaSel === 'principal';
-                const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
-                const periodoTotalCheckbox = document.querySelector(`.periodo-total[data-idx="${idx}"]`);
-                let isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
-                if (periodoTotalCheckbox && periodoTotalCheckbox.checked) isPeriodoIntegral = true;
-                if (!usarMesmaPlanilha) isPeriodoIntegral = false;
-
-                nomesRec.forEach((nomeRec) => {
-                    if (nomeRec && !isPeriodoIntegral) {
-                        subsidiariasComPeriodo.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
-                    }
-                });
+            // Solidarias Integrais act as Principals
+            Array.from(document.querySelectorAll('#resp-solidarias-integral-dinamico-container .sol-item')).forEach(item => {
+                const nome = item.dataset.nome;
+                if (!nome) return;
+                const recChk = item.querySelector('.chk-sol-int-rec');
+                // Only push if not already explicitly in Principais
+                if (!principaisSelecionadas.some(p => p.nome === nome)) {
+                    principaisSelecionadas.push({ nome, recJud: !!(recChk && recChk.checked) });
+                }
             });
 
-            const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-            const principaisNomes = new Set(principaisSelecionadas.map(p => p.nome));
-            const subsidiariasComPeriodoNomes = new Set(subsidiariasComPeriodo.map(s => s.nome));
+            const principaisParciais = [];
+            const subsidiariasComPeriodo = [];
 
-            // Subsidiarias integrais: those added in the integral container and checked
-            const subsIntFromDom = Array.from(document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item')).map(el => el.dataset.nome);
-            const subsidiariasIntegrais = subsIntFromDom.filter(nome => nome && !principaisNomes.has(nome) && !subsidiariasComPeriodoNomes.has(nome));
+            const processarLinhas = (linhas, arrayDestino, isPrincipalParcial) => {
+                linhas.forEach((linha) => {
+                    const selectEl = linha.querySelector(`.periodo-reclamada`);
+                    const nomesRec = selectEl ? Array.from(selectEl.selectedOptions).map(o => o.value).filter(Boolean) : [];
+                    const periodoTexto = linha.querySelector(`.periodo-periodo`)?.value || '';
+                    const idPlanilhaManual = linha.querySelector(`.periodo-id`)?.value || '';
+
+                    const planilhaSel = linha.querySelector(`.periodo-planilha-select`)?.value || 'principal';
+                    const usarMesmaPlanilha = planilhaSel === 'principal';
+                    const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
+                    const periodoTotalCheckbox = linha.querySelector(`.periodo-total`);
+                    
+                    let isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
+                    if (periodoTotalCheckbox && periodoTotalCheckbox.checked) isPeriodoIntegral = true;
+                    if (!usarMesmaPlanilha) isPeriodoIntegral = false;
+
+                    nomesRec.forEach((nomeRec) => {
+                        if (nomeRec && !isPeriodoIntegral) {
+                            arrayDestino.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
+                        } else if (nomeRec && isPeriodoIntegral && isPrincipalParcial) {
+                            // If it's Solidary and marked integral due to lack of diverse period info
+                            if (!principaisSelecionadas.some(p => p.nome === nomeRec)) {
+                                principaisSelecionadas.push({ nome: nomeRec, recJud: false }); 
+                            }
+                        }
+                    });
+                });
+            };
+
+            processarLinhas(linhasSol, principaisParciais, true);
+            processarLinhas(linhasSub, subsidiariasComPeriodo, false);
 
             const nomesPrincipaisUnicos = Array.from(new Set(principaisSelecionadas.map(p => p.nome).filter(n => n)));
-            const txtPrincipais = formatarLista(nomesPrincipaisUnicos);
+            const principalsSet = new Set(nomesPrincipaisUnicos);
+            const subsComPeriodoSet = new Set(subsidiariasComPeriodo.map(s => s.nome));
+            
+            // Subsidiarias integrais
+            const subsIntFromDom = Array.from(document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item')).map(el => el.dataset.nome);
+            const subsidiariasIntegrais = subsIntFromDom.filter(nome => nome && !principalsSet.has(nome) && !subsComPeriodoSet.has(nome));
 
+            const txtPrincipais = formatarLista(nomesPrincipaisUnicos);
             const subsInt = subsidiariasIntegrais || [];
             const subsDiv = subsidiariasComPeriodo || [];
+            const solDiv = principaisParciais || [];
 
             const paragrafos = [];
 
             if (nomesPrincipaisUnicos.length > 0) {
                 paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras principais/solidárias: ${txtPrincipais}. Portanto, apenas estas respondem pelo montante neste ato.</p>`);
+            }
+
+            if (solDiv.length > 0) {
+                const txtSolDiv = formatarLista(solDiv.map(s => s.nome || s));
+                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras solidárias por período parcial do contrato: ${txtSolDiv} — serão tratadas em item próprio a seguir.</p>`);
             }
 
             if (subsInt.length > 0) {
@@ -518,12 +645,12 @@
             return {
                 textoIntro,
                 principalIntegral: nomesPrincipaisUnicos[0] || '',
-                principaisParciais,
+                principaisParciais: solDiv,
                 subsidiariasIntegrais: subsInt,
                 subsidiariasComPeriodo: subsDiv,
                 todasPrincipais: [
                     ...nomesPrincipaisUnicos.map(n => ({ nome: n, periodo: 'integral', idPlanilha: '' })),
-                    ...principaisParciais
+                    ...solDiv
                 ],
                 principaisComRecJud: principaisSelecionadas.filter(p => p.recJud)
             };

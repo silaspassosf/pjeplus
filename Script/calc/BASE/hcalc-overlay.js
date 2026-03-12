@@ -521,27 +521,29 @@
                             <input type="text" id="val-credito" class="coleta-input" placeholder="R$ Crédito Principal">
                         </div>
                     </div>
-                    <div class="row row-fgts-block" style="align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-top: 6px;">
-                        <div class="col col-fgts-chk" style="flex: 0 0 auto;">
-                            <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">FGTS</label>
-                            <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="checkbox" id="calc-fgts" checked> FGTS apurado separado?</label>
-                        </div>
-                        <div class="col" id="row-fgts-valor" style="flex: 0 0 auto; display: flex; align-items: flex-end; gap: 16px;">
-                            <div class="col" id="col-fgts-val" style="flex: 0 0 auto;">
-                                <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">Valor FGTS Separado</label>
+                    <div class="row row-fgts-block" style="align-items: flex-start; margin-top: 6px;">
+                        <div class="col" style="flex: 0 0 140px;">
+                            <label style="font-size: 11px; font-weight: bold; margin-bottom: 3px; color: #555; display: block;">FGTS</label>
+                            <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; height: 28px;">
+                                <input type="checkbox" id="calc-fgts" checked> Apurado separado?
+                            </label>
+                            <div id="row-fgts-valor" style="margin-top: 6px;">
+                                <label style="font-size: 11px; font-weight: bold; margin-bottom: 3px; color: #555; display: block;">Valor FGTS Separado</label>
                                 <input type="text" id="val-fgts" class="coleta-input" placeholder="R$ FGTS" style="width: 140px; box-sizing: border-box;">
                             </div>
-                            <div class="col" id="fgts-radios" style="flex: 0 0 auto;">
-                                <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">Situação</label>
-                                <div style="display: flex; gap: 12px; align-items: center; min-height: 28px;">
-                                    <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
-                                    <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
-                                </div>
-                            </div>
                         </div>
-                        <div class="col" style="flex: 0 0 auto;">
-                            <label class="fgts-label" style="font-size: 12px; margin-bottom: 4px; display: block;">&nbsp;</label>
-                            <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;"><input type="checkbox" id="calc-fgts-alvara"> Dispensa imotivada? (Alvará pela Secretaria)</label>
+                        <div class="col" id="fgts-opcoes" style="flex: 1; padding-top: 17px;">
+                            <div style="display: flex; align-items: center; gap: 15px; height: 28px; flex-wrap: wrap;">
+                                <div id="fgts-radios" style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="font-size: 11px; font-weight: bold; margin: 0; color: #555;">Situação:</label>
+                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
+                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
+                                </div>
+                                <div style="width: 1px; height: 16px; background: #ccc;"></div>
+                                <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;">
+                                    <input type="checkbox" id="calc-fgts-alvara"> Dispensa imotivada? (Alvará)
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="row hidden" id="col-juros-val">
@@ -1663,7 +1665,7 @@
 
         $('calc-fgts').onchange = (e) => {
             const isChecked = e.target.checked;
-            $('fgts-radios').classList.toggle('hidden', !isChecked);
+            $('fgts-opcoes').classList.toggle('hidden', !isChecked);
             $('row-fgts-valor').classList.toggle('hidden', !isChecked);
             updateHighlight();
 

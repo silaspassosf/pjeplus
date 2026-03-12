@@ -1,0 +1,18 @@
+#!/bin/sh
+# pre-commit hook: bump userscript loader and stage changes
+set -e
+
+# Prefer python3, fallback to python
+if command -v python3 >/dev/null 2>&1; then
+  PY=python3
+elif command -v python >/dev/null 2>&1; then
+  PY=python
+else
+  echo "Python not found; skipping bump-loader." >&2
+  exit 0
+fi
+
+${PY} Script/bin/bump_loader.py --apply || ${PY} Script/bin/bump_loader.py --apply
+git add Script/hcalc.user.js
+
+exit 0

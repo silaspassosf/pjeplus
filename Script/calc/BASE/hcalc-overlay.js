@@ -320,7 +320,7 @@
         #resumo-extracao-card {
             width: 260px;
             background: #f8f9fa;
-            border: 2px solid #10b981;
+            border: 2px solid #f97316;
             border-radius: 8px;
             padding: 0;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -332,18 +332,18 @@
         }
         #resumo-extracao-card h4 {
             margin: 0;
-            padding: 10px 12px;
-            border-bottom: 1px solid #10b981;
+            padding: 12px 14px;
+            border-bottom: 1px solid #f97316;
             cursor: pointer;
             user-select: none;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 13px;
-            color: #16a34a;
-            background: #f0fdf4;
+            font-size: 14px;
+            color: #fff;
+            background: #f97316;
         }
-        #resumo-extracao-card h4:hover { background: #dcfce7; }
+        #resumo-extracao-card h4:hover { background: #ea580c; }
         #resumo-body {
             padding: 10px 12px;
             display: none;
@@ -356,18 +356,30 @@
             border: 1px solid #e5e7eb;
             font-size: 12px;
         }
-        .resumo-item strong { color: #16a34a; }
+        .resumo-item strong { color: #ea580c; }
         #btn-reload-planilha {
             margin-top: 8px;
             width: 100%;
-            padding: 5px 10px;
+            padding: 6px 10px;
             font-size: 11px;
             border-radius: 4px;
-            border: 1px solid #10b981;
+            border: 1px solid #f97316;
             background: #fff;
-            color: #10b981;
+            color: #f97316;
             cursor: pointer;
         }
+        #btn-reload-planilha:hover { background: #fff7ed; }
+        #btn-force-clear-overlay {
+            width: 100%;
+            padding: 8px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: none;
+            background: #ef4444;
+            color: #fff;
+            cursor: pointer;
+        }
+        #btn-force-clear-overlay:hover { background: #dc2626; }
         #btn-reload-planilha:hover { background: #10b981; color: white; }
 
         /* Recursos com anexos — integrado de rec.js v1.0 */
@@ -421,7 +433,10 @@
             </h4>
             <div id="resumo-body">
                 <div id="resumo-conteudo"></div>
-                <button id="btn-reload-planilha">🔄 Recarregar PDF</button>
+                <button id="btn-reload-planilha" type="button">🔄 Recarregar PDF</button>
+            </div>
+            <div style="padding: 0 12px 12px 12px;">
+                <button id="btn-force-clear-overlay" type="button">🧹 Limpar dados e recomeçar</button>
             </div>
         </div>
        
@@ -429,7 +444,6 @@
             <div class="modal-header">
                 <h2>Assistente de Homologação</h2>
                 <div>
-                    <button id="btn-force-clear-overlay" type="button" style="margin-right:8px;background:#ef4444;color:#fff;border:none;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:12px;">🧹 Limpar e carregar nova planilha</button>
                     <button class="btn-close" id="btn-fechar">X Fechar</button>
                 </div>
             </div>

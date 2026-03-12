@@ -250,6 +250,68 @@
             };
         }
 
+        // Definidas no escopo do controller para serem acessíveis externamente (Drafts)
+        function addPrincipal(nome) {
+            const principaisContainer = document.getElementById('resp-principais-dinamico-container');
+            if (!nome || !principaisContainer) return;
+            // avoid duplicates
+            if (principaisContainer.querySelector(`.principal-item[data-nome="${CSS.escape(nome)}"]`)) return;
+            const div = document.createElement('div');
+            div.className = 'principal-item';
+            div.dataset.nome = nome;
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '8px';
+            
+            const isFirst = principaisContainer.children.length === 0;
+            const removeStyle = isFirst ? 'display:none;' : 'background:#d32f2f;padding:4px 8px;';
+
+            div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-principal" data-nome="${nome}"> <span>${nome}</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-principal-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-principal btn-action" style="${removeStyle}">Remover</button>`;
+            principaisContainer.appendChild(div);
+            const removeBtn = div.querySelector('.btn-remove-principal');
+            removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
+            // update dropdowns
+            atualizarDropdownsPlanilhas();
+            queueOverlayDraftSave();
+        }
+
+        function addSubsInt(nome) {
+            const subsIntContainer = document.getElementById('resp-subsidiarias-integral-dinamico-container');
+            if (!nome || !subsIntContainer) return;
+            if (subsIntContainer.querySelector(`.subs-item[data-nome="${CSS.escape(nome)}"]`)) return;
+            const div = document.createElement('div');
+            div.className = 'subs-item';
+            div.dataset.nome = nome;
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '8px';
+            div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-subs-int" data-nome="${nome}"> <span>${nome}</span><span class="subs-principal-badge" style="display:none;font-size:10px;color:#b45309;margin-left:4px;">Principal</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-subs-int-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-subs btn-action" style="background:#d32f2f;padding:4px 8px;">Remover</button>`;
+            subsIntContainer.appendChild(div);
+            const removeBtn = div.querySelector('.btn-remove-subs');
+            removeBtn.onclick = () => { 
+                div.remove(); 
+                // Função local para atualizar os badges
+                const container = document.getElementById('resp-subsidiarias-integral-dinamico-container');
+                if (container) {
+                    container.querySelectorAll('.subs-item').forEach((el, i) => {
+                        const badge = el.querySelector('.subs-principal-badge');
+                        if (badge) badge.style.display = i === 0 ? '' : 'none';
+                    });
+                }
+                atualizarDropdownsPlanilhas(); 
+                queueOverlayDraftSave(); 
+            };
+            
+            // Atualizar os badges diretamente após adicionar
+            subsIntContainer.querySelectorAll('.subs-item').forEach((el, i) => {
+                const badge = el.querySelector('.subs-principal-badge');
+                if (badge) badge.style.display = i === 0 ? '' : 'none';
+            });
+            
+            atualizarDropdownsPlanilhas();
+            queueOverlayDraftSave();
+        }
+
         function initEventHandlers() {
             const respSubs = document.getElementById('resp-subsidiarias');
             const respSol = document.getElementById('resp-solidarias');

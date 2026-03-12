@@ -1040,8 +1040,8 @@
             if (window.hcalcState && window.hcalcState.planilhaCarregada) {
                 dbg('Nenhum rascunho, porém planilha já carregada — prosseguindo com geração normal');
             } else {
-                // Não abrir seletor de arquivo automaticamente — informar o usuário
-                alert('Nenhum rascunho salvo encontrado. Carregue a planilha primeiro (pelo botão de carregar planilha).');
+                // Se não há rascunho nem planilha carregada, abrir o seletor de arquivo
+                try { document.getElementById('input-planilha-pdf').click(); } catch (e) { alert('Nenhum rascunho salvo encontrado. Carregue a planilha primeiro (pelo botão de carregar planilha).'); }
                 return;
             }
 

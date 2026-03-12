@@ -622,31 +622,25 @@ async function runExpedienteFlow() {
 }
 
 async function hoverAndClickTarget(menuSelector, buttonLabel) {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
     const triggerEl = document.querySelector(menuSelector);
-    if (!triggerEl) {
-        showToast(`Menu não encontrado! (${menuSelector})`, '#f44336');
-        return;
-    }
+    if (!triggerEl) { showToast(`Menu não encontrado! (${menuSelector})`, '#f44336'); return; }
     const opts = { bubbles: true, cancelable: true, view: window };
-    triggerEl.dispatchEvent(new MouseEvent('mouseover', opts));
+    triggerEl.dispatchEvent(new MouseEvent('mouseover',  opts));
     triggerEl.dispatchEvent(new MouseEvent('mouseenter', opts));
-    triggerEl.dispatchEvent(new MouseEvent('mousemove', opts));
+    triggerEl.dispatchEvent(new MouseEvent('mousemove',  opts));
     const container = await esperarElemento('maispjecontaineraa', 3000);
-    if (!container) {
-        showToast('Timeout: Menu MaisPJe não abriu!', '#f44336');
-        return;
-    }
-    await sleep(250);
+    if (!container) { showToast('Timeout: Menu MaisPJe não abriu!', '#f44336'); return; }
+    await wait(250);
     const labelLower = buttonLabel.toLowerCase();
     const alvo = Array.from(container.querySelectorAll('button, div, span, a')).find(el => {
-        const name = (el.getAttribute('name') || '').toLowerCase();
+        const name  = (el.getAttribute('name') || '').toLowerCase();
         const texto = (el.textContent || '').toLowerCase();
         return texto.trim() === labelLower || name === labelLower || texto.includes(labelLower);
     });
     if (alvo) {
-        alvo.style.border = '2px solid red';
-        alvo.style.boxShadow = '0 0 10px red';
-        await sleep(150);
+        alvo.style.border = '2px solid red'; alvo.style.boxShadow = '0 0 10px red';
+        await wait(150);
         alvo.querySelector('.mat-button-wrapper')?.click();
         alvo.click();
         showToast(`Ação disparada: ${buttonLabel}`, '#4caf50');

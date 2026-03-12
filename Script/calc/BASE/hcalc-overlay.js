@@ -68,23 +68,28 @@
             const s = document.createElement('style');
             s.id = 'hcalc-btn-style';
             s.innerText = `
-        #btn-abrir-homologacao {
+        #hcalc-floating-wrap {
             position: fixed; bottom: 20px; right: 20px; z-index: 99999;
+            display: flex; flex-direction: column; gap: 6px; align-items: stretch;
+        }
+        #btn-abrir-homologacao {
             background: #00509e; color: white; border: none; border-radius: 6px;
             padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.3); width: 100%;
         }
         #btn-abrir-homologacao:hover { background: #003d7a; }`;
             document.head.appendChild(s);
         }
 
-        // Injeta APENAS botão + input file (sem overlay)
+        // Injeta container + botão + input file (sem overlay)
         document.body.insertAdjacentHTML(
             'beforeend',
             `
-            <button id="btn-abrir-homologacao" type="button">
-                \uD83D\uDCC4 Carregar Planilha
-            </button>
+            <div id="hcalc-floating-wrap">
+                <button id="btn-abrir-homologacao" type="button">
+                    \uD83D\uDCC4 Carregar Planilha
+                </button>
+            </div>
             <input
                 id="input-planilha-pdf"
                 type="file"
@@ -135,15 +140,17 @@
                         limpar = document.createElement('button');
                         limpar.id = 'btn-limpar-rascunho';
                         limpar.type = 'button';
-                        limpar.textContent = '🧹 Limpar dados e recomeçar';
-                        limpar.style.marginLeft = '8px';
+                        limpar.textContent = '🧹 Limpar dados';
                         limpar.style.background = '#ef4444';
                         limpar.style.color = '#fff';
                         limpar.style.border = 'none';
                         limpar.style.padding = '8px 10px';
                         limpar.style.borderRadius = '6px';
                         limpar.style.cursor = 'pointer';
-                        btn.insertAdjacentElement('afterend', limpar);
+                        limpar.style.fontSize = '12px';
+                        limpar.style.fontWeight = 'bold';
+                        limpar.style.boxShadow = '0 3px 5px rgba(0,0,0,0.3)';
+                        document.getElementById('hcalc-floating-wrap').appendChild(limpar);
 
                         limpar.addEventListener('click', (e) => {
                             e.preventDefault();

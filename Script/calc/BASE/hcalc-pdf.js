@@ -141,54 +141,44 @@
             loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
             pdf = await loadingTask.promise;
 
-            // Extrair texto da página 1 e página 2 (se necessário)
+            // Extrair texto iterando páginas até encontrar o marcador padrão
             const LIMITE_MARCADOR = /Crit[ée]rio de C[aá]lculo e Fundamenta[çc][aã]o Legal/i;
             let textoCompleto = '';
             let textosBrutos = [];
 
-            // PÁGINA 1
-            page = await pdf.getPage(1);
-            let textContent = await page.getTextContent();
-            let textosPagina1 = textContent.items.map(item => item.str.trim());
-            let textoPagina1 = textosPagina1.filter(str => str !== "").join(' ');
+            // Varre todas as páginas (ou até encontrar o marcador) - alguns PDFs têm a seção padrão em páginas posteriores
+            const paginasTextos = [];
+            let marcadorEncontrado = false;
+            for (let p = 1; p <= pdf.numPages; p++) {
+                try {
+                    page = await pdf.getPage(p);
+                    const textContent = await page.getTextContent();
+                    const textosPagina = textContent.items.map(item => item.str.trim());
+                    const textoPagina = textosPagina.filter(str => str !== "").join(' ');
 
-            // Verificar se tem o marcador limite na página 1
-            const posLimite1 = textoPagina1.search(LIMITE_MARCADOR);
-            if (posLimite1 !== -1) {
-                // Limite encontrado na página 1 - usar só até ele
-                textoCompleto = textoPagina1.substring(0, posLimite1);
-                textosBrutos = textosPagina1;
-                console.log('[HCalc] Usando apenas página 1 (limite encontrado)');
-            } else {
-                // Limite não encontrado - tentar página 2
-                textoCompleto = textoPagina1;
-                textosBrutos = textosPagina1;
+                    paginasTextos.push(textoPagina);
+                    textosBrutos = textosBrutos.concat(textosPagina);
 
-                if (pdf.numPages >= 2) {
-                    console.log('[HCalc] Limite não encontrado na pág 1 - buscando pág 2...');
-                    try {
-                        page.cleanup();
-                        page = await pdf.getPage(2);
-                        textContent = await page.getTextContent();
-                        let textosPagina2 = textContent.items.map(item => item.str.trim());
-                        let textoPagina2 = textosPagina2.filter(str => str !== "").join(' ');
-
-                        // Verificar limite na página 2
-                        const posLimite2 = textoPagina2.search(LIMITE_MARCADOR);
-                        if (posLimite2 !== -1) {
-                            // Limite encontrado - adicionar só até ele
-                            textoCompleto += ' ' + textoPagina2.substring(0, posLimite2);
-                            console.log('[HCalc] Adicionada página 2 até limite');
-                        } else {
-                            // Sem limite na pág 2 - adicionar tudo
-                            textoCompleto += ' ' + textoPagina2;
-                            console.log('[HCalc] Adicionada página 2 completa (sem limite)');
-                        }
-                        textosBrutos = [...textosPagina1, ...textosPagina2];
-                    } catch (err) {
-                        console.warn('[HCalc] Erro ao ler página 2:', err.message);
+                    // Verificar marcador nesta página
+                    if (textoPagina.search(LIMITE_MARCADOR) !== -1) {
+                        // Concatena tudo até o ponto do marcador na página atual
+                        const pos = textoPagina.search(LIMITE_MARCADOR);
+                        const prefixo = textoPagina.substring(0, pos);
+                        textoCompleto = paginasTextos.slice(0, -1).join(' ') + ' ' + prefixo;
+                        marcadorEncontrado = true;
+                        dbg('[HCalc] Marcador encontrado na página', p);
+                        break;
                     }
+                } catch (err) {
+                    console.warn('[HCalc] Erro ao ler página', p, err && err.message);
                 }
+            }
+
+            if (!marcadorEncontrado) {
+                // Se não encontrou o marcador, usa o texto concatenado das primeiras 2 páginas (fallback)
+                textoCompleto = paginasTextos.slice(0, Math.min(2, paginasTextos.length)).join(' ');
+                textosBrutos = textosBrutos.slice(0, Math.min(textosBrutos.length, paginasTextos.length * 200));
+                dbg('[HCalc] Marcador não encontrado; usando concat das primeiras 2 páginas como fallback');
             }
 
             // Regex otimizadas (copiadas de ext.js v4.2)

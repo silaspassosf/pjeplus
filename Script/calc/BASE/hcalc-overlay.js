@@ -664,32 +664,42 @@
                 <legend>Responsabilidade</legend>
                 
                 <div style="display:flex; flex-direction:row; align-items:flex-start; gap:20px;">
-                    <!-- COLUNA ESQUERDA: SOLIDÁRIAS -->
-                    <div style="flex:1;">
-                        <div class="row" style="margin-bottom:8px;">
-                            <label style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <input type="checkbox" id="resp-solidarias"> Devedoras Solidárias
+                    <!-- COLUNA ESQUERDA: SUBSIDIÁRIAS -->
+                    <div style="flex:1; display:flex; flex-direction:column;">
+                        <div style="margin-bottom:8px;">
+                            <label style="font-weight:bold; font-size:13px; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
+                                <input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias
                             </label>
                         </div>
-                        <div id="resp-sol-opcoes" class="row hidden" style="display:flex; flex-direction:column; gap:6px; padding-left:20px;">
-                            <label><input type="radio" name="rad-sol-tipo" id="resp-sol-integral" checked> Responde pelo período total</label>
-                            <label><input type="radio" name="rad-sol-tipo" id="resp-sol-diversos"> Períodos Diversos (Gera estrutura para preencher)</label>
+                        <div id="resp-sub-opcoes" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
+                            <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
+                                <input type="radio" name="rad-sub-tipo" id="resp-sub-integral" checked> Responde pelo período total
+                            </label>
+                            <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
+                                <input type="radio" name="rad-sub-tipo" id="resp-sub-diversos" style="margin-top:2px;">
+                                <span>Períodos Diversos (Gera estrutura para preencher)</span>
+                            </label>
                         </div>
                     </div>
 
                     <!-- DIVISOR VERTICAL -->
                     <div style="width:1px; background:#e5e7eb; align-self:stretch;"></div>
 
-                    <!-- COLUNA DIREITA: SUBSIDIÁRIAS -->
-                    <div style="flex:1;">
-                        <div class="row" style="margin-bottom:8px;">
-                            <label style="font-weight:bold; font-size:13px; display:flex; align-items:center; gap:8px;">
-                                <input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias
+                    <!-- COLUNA DIREITA: SOLIDÁRIAS -->
+                    <div style="flex:1; display:flex; flex-direction:column;">
+                        <div style="margin-bottom:8px;">
+                            <label style="font-weight:bold; font-size:13px; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
+                                <input type="checkbox" id="resp-solidarias"> Devedoras Solidárias
                             </label>
                         </div>
-                        <div id="resp-sub-opcoes" class="row" style="display:flex; flex-direction:column; gap:6px; padding-left:20px;">
-                            <label><input type="radio" name="rad-sub-tipo" id="resp-sub-integral" checked> Responde pelo período total</label>
-                            <label><input type="radio" name="rad-sub-tipo" id="resp-sub-diversos"> Períodos Diversos (Gera estrutura para preencher)</label>
+                        <div id="resp-sol-opcoes" class="hidden" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
+                            <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
+                                <input type="radio" name="rad-sol-tipo" id="resp-sol-integral" checked> Responde pelo período total
+                            </label>
+                            <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
+                                <input type="radio" name="rad-sol-tipo" id="resp-sol-diversos" style="margin-top:2px;">
+                                <span>Períodos Diversos (Gera estrutura para preencher)</span>
+                            </label>
                         </div>
                     </div>
                 </div>

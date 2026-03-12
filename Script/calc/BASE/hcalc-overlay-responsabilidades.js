@@ -123,28 +123,15 @@
         function adicionarLinhaPeridoDiverso() {
             const container = $('resp-diversos-container');
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-            const principalIntegral = $('resp-devedora-principal')?.value || '';
-            const idx = container.children.length;
-            const rowId = `periodo-diverso-${idx}`;
-            const numeroDevedora = idx + 2;
-
-            const div = document.createElement('div');
-            div.id = rowId;
-            div.className = 'row';
-            div.style.marginBottom = '15px';
-            div.style.padding = '12px';
-            div.style.backgroundColor = '#f5f5f5';
-            div.style.borderRadius = '4px';
-
-                const jaUsadas = new Set();
-                // Marcar como usadas as reclamadas marcadas como principais (tanto partes quanto bloco de principais)
-                document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
-                document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
-                // Marcar as já escolhidas em outros periodos
-                document.querySelectorAll('.periodo-reclamada').forEach(select => {
-                    if (select && select.selectedOptions) Array.from(select.selectedOptions).forEach(o => { if (o.value) jaUsadas.add(o.value); });
-                    else if (select && select.value) jaUsadas.add(select.value);
-                });
+            const jaUsadas = new Set();
+            // Marcar como usadas as reclamadas marcadas como principais (tanto partes quanto bloco de principais)
+            document.querySelectorAll('.chk-parte-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+            document.querySelectorAll('#resp-principais-dinamico-container .chk-principal:checked').forEach(chk => jaUsadas.add(chk.dataset.nome));
+            // Marcar as já escolhidas em outros periodos
+            document.querySelectorAll('.periodo-reclamada').forEach(select => {
+                if (select && select.selectedOptions) Array.from(select.selectedOptions).forEach(o => { if (o.value) jaUsadas.add(o.value); });
+                else if (select && select.value) jaUsadas.add(select.value);
+            });
 
             let selectOptions = '<option value="">Selecione a reclamada...</option>';
             reclamadas.forEach(rec => {
@@ -286,20 +273,10 @@
             $('resp-diversos').onchange = (e) => {
                 const fieldset = $('resp-diversos-fieldset');
                 const container = $('resp-diversos-container');
-                const selectPrincipal = $('resp-devedora-principal');
                 const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
 
                 if (e.target.checked) {
                     fieldset.classList.remove('hidden');
-
-                    selectPrincipal.innerHTML = '';
-                    reclamadas.forEach((rec, idx) => {
-                        const opt = document.createElement('option');
-                        opt.value = rec;
-                        opt.textContent = rec;
-                        if (idx === 0) opt.selected = true;
-                        selectPrincipal.appendChild(opt);
-                    });
 
                     if (container.children.length === 0) {
                         adicionarLinhaPeridoDiverso();
@@ -308,10 +285,6 @@
                     fieldset.classList.add('hidden');
                     container.innerHTML = '';
                 }
-            };
-
-            $('resp-devedora-principal').onchange = () => {
-                atualizarDropdownsReclamadas();
             };
 
             // Rec. Judicial/Falência por principal (item 1): aplicar estilo nas intimações ao mudar
@@ -336,26 +309,6 @@
             // --- Principais quick-add
             const selAddPrincipal = document.getElementById('sel-add-principal');
             const btnAddPrincipal = document.getElementById('btn-add-principal');
-            const principaisContainer = document.getElementById('resp-principais-dinamico-container');
-
-            function addPrincipal(nome) {
-                if (!nome) return;
-                // avoid duplicates
-                if (principaisContainer.querySelector(`.principal-item[data-nome="${CSS.escape(nome)}"]`)) return;
-                const div = document.createElement('div');
-                div.className = 'principal-item';
-                div.dataset.nome = nome;
-                div.style.display = 'flex';
-                div.style.alignItems = 'center';
-                div.style.gap = '8px';
-                div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type=\"checkbox\" class=\"chk-principal\" data-nome=\"${nome}\"> <span>${nome}</span></label><label style=\"font-size:11px;\"><input type=\"checkbox\" class=\"chk-principal-rec\"> Rec. Judicial/Falência</label><button type=\"button\" class=\"btn-remove-principal btn-action\" style=\"background:#d32f2f;padding:4px 8px;\">Remover</button>`;
-                principaisContainer.appendChild(div);
-                const removeBtn = div.querySelector('.btn-remove-principal');
-                removeBtn.onclick = () => { div.remove(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
-                // update dropdowns
-                atualizarDropdownsPlanilhas();
-                queueOverlayDraftSave();
-            }
 
             if (btnAddPrincipal && selAddPrincipal) {
                 btnAddPrincipal.onclick = (e) => {
@@ -368,7 +321,7 @@
             // Auto-add first reclamada if none exist
             try {
                 const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
-                if (reclamadas.length && principaisContainer && principaisContainer.children.length === 0) {
+                if (reclamadas.length && containerPrincipais && containerPrincipais.children.length === 0) {
                     addPrincipal(reclamadas[0]);
                 }
             } catch (e) { /* ignore */ }
@@ -377,24 +330,6 @@
             const selAddSubsInt = document.getElementById('sel-add-subs-int');
             const btnAddSubsInt = document.getElementById('btn-add-subs-int');
             const subsIntContainer = document.getElementById('resp-subsidiarias-integral-dinamico-container');
-
-            function addSubsInt(nome) {
-                if (!nome) return;
-                if (subsIntContainer.querySelector(`.subs-item[data-nome="${CSS.escape(nome)}"]`)) return;
-                const div = document.createElement('div');
-                div.className = 'subs-item';
-                div.dataset.nome = nome;
-                div.style.display = 'flex';
-                div.style.alignItems = 'center';
-                div.style.gap = '8px';
-                div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-subs-int" data-nome="${nome}"> <span>${nome}</span><span class="subs-principal-badge" style="display:none;font-size:10px;color:#b45309;margin-left:4px;">Principal</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-subs-int-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-subs btn-action" style="background:#d32f2f;padding:4px 8px;">Remover</button>`;
-                subsIntContainer.appendChild(div);
-                const removeBtn = div.querySelector('.btn-remove-subs');
-                removeBtn.onclick = () => { div.remove(); atualizarPrincipalBadgeSubsInt(); atualizarDropdownsPlanilhas(); queueOverlayDraftSave(); };
-                atualizarPrincipalBadgeSubsInt();
-                atualizarDropdownsPlanilhas();
-                queueOverlayDraftSave();
-            }
 
             if (btnAddSubsInt && selAddSubsInt) {
                 btnAddSubsInt.onclick = (e) => { e.preventDefault(); const nome = selAddSubsInt.value; if (nome) addSubsInt(nome); };
@@ -410,15 +345,6 @@
                 };
             }
 
-            function atualizarPrincipalBadgeSubsInt() {
-                const container = document.getElementById('resp-subsidiarias-integral-dinamico-container');
-                if (!container) return;
-                container.querySelectorAll('.subs-item').forEach((el, i) => {
-                    const badge = el.querySelector('.subs-principal-badge');
-                    if (badge) badge.style.display = i === 0 ? '' : 'none';
-                });
-            }
-
             if (subsIntContainer) {
                 subsIntContainer.addEventListener('change', (e) => {
                     if (e.target.classList.contains('chk-subs-int-rec')) {
@@ -427,13 +353,22 @@
                     }
                 });
             }
+            
+            return {
+                addPrincipal,
+                addSubsInt
+            };
         }
+
+        const exposedApi = initEventHandlers();
 
         return {
             initEventHandlers,
             aplicarEstiloRecuperacaoJudicial,
             atualizarDropdownsPlanilhas,
-            adicionarLinhaPeridoDiverso
+            adicionarLinhaPeridoDiverso,
+            addPrincipal: exposedApi.addPrincipal,
+            addSubsInt: exposedApi.addSubsInt
         };
     }
 
@@ -460,11 +395,7 @@
                 const recChk = item.querySelector('.chk-principal-rec');
                 return { nome: nome, recJud: !!(recChk && recChk.checked) };
             }).filter(p => p.nome);
-            // Consolidar: quando "subsidiárias período diverso" está ativo, a devedora principal (select) faz parte do item 1
-            const valorDevedoraPrincipal = $('resp-devedora-principal')?.value?.trim() || '';
-            if (valorDevedoraPrincipal && !principaisSelecionadas.some(p => p.nome === valorDevedoraPrincipal)) {
-                principaisSelecionadas = [{ nome: valorDevedoraPrincipal, recJud: false }, ...principaisSelecionadas];
-            }
+
             const principaisParciais = []; // reserved for compatibility
             const subsidiariasComPeriodo = [];
 
@@ -536,10 +467,6 @@
             };
         }
 
-        return {
-            formatarLista,
-            gerarTextoResponsabilidades
-        };
     }
 
     window.hcalcOverlayResponsabilidades = { createController, createTextApi };

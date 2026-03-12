@@ -39,18 +39,75 @@ function initMain() {
     reg.channel(channel);
 
     // Escutar resposta do worker
-    reg.on(channel, 'message', async event => {
-        if (event.data?.type === 'WORKER_DONE') {
-            console.log('[MAIN] Worker concluiu. Limpeza + hover...');
-            showToast('F7: Expediente concluído. Limpando...', '#ff9800');
-            await runCleanup();
-            showToast('F7: Movimentar -> ag pz-', '#673ab7');
-            await hoverAndClickTarget('#maisPJe_bt_detalhes_movimentar', 'ag pz-');
-        }
-        if (event.data?.type === 'WORKER_ERROR') {
-            showToast(`F7 Worker erro: ${event.data.message}`, '#f44336');
-        }
-    });
+    // Prefer registry-based binding. Se não existir, usar fallback direto no channel/document.
+    if (reg && typeof reg.on === 'function') {
+        reg.on(channel, 'message', async event => {
+            if (event.data?.type === 'WORKER_DONE') {
+                console.log('[MAIN] Worker concluiu. Limpeza + hover...');
+                showToast('F7: Expediente concluído. Limpando...', '#ff9800');
+                await runCleanup();
+                showToast('F7: Movimentar -> ag pz-', '#673ab7');
+                await hoverAndClickTarget('#maisPJe_bt_detalhes_movimentar', 'ag pz-');
+            }
+            if (event.data?.type === 'WORKER_ERROR') {
+                showToast(`F7 Worker erro: ${event.data.message}`, '#f44336');
+            }
+        });
+    } else {
+        // Fallback direto: some environments (scripts) não expõem o registry
+        channel.addEventListener('message', async (event) => {
+            const data = event.data || {};
+            if (data.type === 'WORKER_DONE') {
+                console.log('[MAIN][FALLBACK] Worker concluiu. Limpeza + hover...');
+                showToast('F7: Expediente concluído. Limpando...', '#ff9800');
+                await runCleanup();
+                showToast('F7: Movimentar -> ag pz-', '#673ab7');
+                await hoverAndClickTarget('#maisPJe_bt_detalhes_movimentar', 'ag pz-');
+            }
+            if (data.type === 'WORKER_ERROR') {
+                showToast(`F7 Worker erro: ${data.message}`, '#f44336');
+            }
+        });
+
+        // Fallback para teclas (document) caso registry.on não esteja presente
+        document.addEventListener('keydown', async e => {
+            if (e.key === 'F6') {
+                e.preventDefault();
+                showToast('F6: Iniciando limpeza...', '#ff9800');
+                await runCleanup();
+            } else if (e.key === 'F7') {
+                e.preventDefault();
+                showToast('F7: Abrindo aba de expediente...', '#673ab7');
+                await runExpedienteFlow();
+            } else if (e.key === 'F8') {
+                e.preventDefault();
+                const allowedF8 = /https:\/\/pje\.trt2\.jus\.br\/pjekz\/gigs\/relatorios\/atividades/.test(window.location.href);
+                if (!allowedF8) {
+                    showToast('F8: atalho disponível apenas em Gigs → Relatórios → Atividades.', '#f44336');
+                    return;
+                }
+                showToast('F8: Iniciando arquivamento (varrendo tabela da página)...', '#607d8b');
+                try {
+                    let linhas = buscarLinhasDoTipo();
+                    if (!linhas || linhas.length === 0) {
+                        showToast('F8: Nenhuma linha com "Escolher/Tipo" encontrada na página.', '#f44336');
+                        return;
+                    }
+                    for (let i = 0; i < linhas.length; i++) {
+                        const row = linhas[i];
+                        const resumo = (row.textContent || '').trim().split('\n').map(s => s.trim()).filter(Boolean).slice(0,2).join(' | ');
+                        showToast(`F8: Processando linha ${i+1}/${linhas.length}: ${resumo}`, '#607d8b');
+                        await processRowArquivamento(row);
+                        await sleep(800);
+                    }
+                    showToast('F8: Arquivamento em todas as linhas concluído.', '#4caf50');
+                } catch (err) {
+                    console.error('[F8] Erro:', err);
+                    showToast(`F8 erro: ${err.message || err}`, '#f44336');
+                }
+            }
+        });
+    }
 
     // Teclas F6 / F7
     reg.on(document, 'keydown', async e => {

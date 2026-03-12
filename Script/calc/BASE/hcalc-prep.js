@@ -589,7 +589,7 @@
     // ==========================================
     // NOTIFICAÇÕES EDITAL
     // ==========================================
-    async function buscarPartesEdital(editaisItems, passivo) {
+    async function buscarPartesEdital(editaisItems, passivo, abortSignal) {
         // Regra maior: se há apenas uma reclamada e há edital, é ela.
         if (passivo.length === 1) {
             return [passivo[0].nome];
@@ -608,7 +608,26 @@
             }
             await sleep(600);
 
-            const resHtml = await lerHtmlOriginal(6000, signal, signal);
+            // #region agent log
+            fetch('http://127.0.0.1:7803/ingest/28b8f51b-bfb8-4f41-93f6-1611c83e87d0', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Debug-Session-Id': '6b8a26'
+                },
+                body: JSON.stringify({
+                    sessionId: '6b8a26',
+                    runId: 'pre-fix',
+                    hypothesisId: 'H1',
+                    location: 'hcalc-prep.js:611',
+                    message: 'buscarPartesEdital antes de lerHtmlOriginal',
+                    data: { hasAbortSignal: !!abortSignal, editaisCount: editaisItems.length },
+                    timestamp: Date.now()
+                })
+            }).catch(() => { });
+            // #endregion agent log
+
+            const resHtml = await lerHtmlOriginal(6000, abortSignal);
             fecharViewer();
             await sleep(300);
 
@@ -790,7 +809,31 @@
             const passivoArray = Array.isArray(partesSafe.passivo) ? partesSafe.passivo : [];
             if (timeline.editais.length > 0 && passivoArray.length > 0) {
                 console.log('[prep.js] Buscando partes intimadas nos editais...');
-                prepResult.partesIntimadasEdital = await buscarPartesEdital(timeline.editais, passivoArray);
+
+                // #region agent log
+                fetch('http://127.0.0.1:7803/ingest/28b8f51b-bfb8-4f41-93f6-1611c83e87d0', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Debug-Session-Id': '6b8a26'
+                    },
+                    body: JSON.stringify({
+                        sessionId: '6b8a26',
+                        runId: 'pre-fix',
+                        hypothesisId: 'H1',
+                        location: 'hcalc-prep.js:791',
+                        message: 'executarPrep chamando buscarPartesEdital',
+                        data: {
+                            editaisCount: timeline.editais.length,
+                            passivoCount: passivoArray.length,
+                            hasAbortController: !!window.hcalcState.abortController
+                        },
+                        timestamp: Date.now()
+                    })
+                }).catch(() => { });
+                // #endregion agent log
+
+                prepResult.partesIntimadasEdital = await buscarPartesEdital(timeline.editais, passivoArray, signal);
                 console.log('[prep.js] Partes intimadas por edital:', prepResult.partesIntimadasEdital);
             }
 

@@ -664,20 +664,11 @@
 
             <!-- SEÇÃO 6.1: PERÍODOS DIVERSOS (Dinâmico) -->
             <fieldset id="resp-diversos-fieldset" class="hidden">
-                <legend>Períodos Diversos - Cálculos Separados por Reclamada</legend>
-                <div class="row" style="margin-bottom: 15px;">
-                    <div class="col">
-                        <label style="font-weight: bold;">Devedora Principal</label>
-                        <select id="resp-devedora-principal" style="width: 100%; padding: 8px;">
-                            <option value="">Selecione a devedora principal...</option>
-                        </select>
-                        <small style="color: #666; display: block; margin-top: 5px;">*Padrão: primeira reclamada</small>
-                    </div>
-                </div>
                 <!-- NOVOS BLOCOS: Principais / Subsidiarias Integral -->
                 <div class="row" style="margin-bottom: 12px;">
                     <div class="col">
                         <label style="font-weight: bold; color: #b45309;">1. Devedoras Principais</label>
+                        <small style="color:#666; display:block; margin-bottom:6px;">A primeira da lista é a Devedora Principal (automática).</small>
                         <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
                         <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
                             <select id="sel-add-principal" style="padding: 6px; flex: 1;">
@@ -903,6 +894,12 @@
             carregarPDFJSSeNecessario,
             processarPlanilhaPDF
         });
+        
+        draftController.setResponsabilidadesApi({
+            addPrincipal: responsabilidadesController.addPrincipal,
+            addSubsInt: responsabilidadesController.addSubsInt
+        });
+
         const responsabilidadesTextoApi = window.hcalcOverlayResponsabilidades.createTextApi({
             $,
             bold

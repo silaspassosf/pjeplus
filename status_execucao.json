@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-03-10T03:33:33.798009",
+    "timestamp": "2026-03-12T14:05:46.702754",
     "versao": "2.0",
     "session_id": "sess_c78485b5f8dc4cec"
   },
   "execution": {
     "status": "EM_PROGRESSO",
-    "inicio": "2026-03-10T03:28:25.966703",
-    "duracao_segundos": 307,
+    "inicio": "2026-03-12T14:02:48.503801",
+    "duracao_segundos": 178,
     "modulo_ativo": null,
     "pode_retomar": true
   },
@@ -16,11 +16,11 @@
       "status": "COMPLETO",
       "processados": 5,
       "total": 0,
-      "tempo_decorrido_segundos": 307,
+      "tempo_decorrido_segundos": 178,
       "erros": 0,
       "checkpoint": {
         "ultimo_item": "processamento_completo",
-        "timestamp": "2026-03-10T03:33:33.796850",
+        "timestamp": "2026-03-12T14:05:46.701805",
         "proximo": null,
         "contexto": {}
       },
@@ -35,7 +35,7 @@
     "pausados": 0,
     "falhados": 0,
     "percentual_global": 0,
-    "tempo_total_segundos": 307,
+    "tempo_total_segundos": 178,
     "tempo_restante_estimado_segundos": 0
   },
   "logs": [
@@ -90,6 +90,34 @@
     },
     {
       "timestamp": "2026-03-10T03:33:33.797706",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-11T12:39:57.297376",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-11T12:46:11.080788",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-12T14:02:48.504113",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-12T14:05:46.702500",
       "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
       "nivel": "INFO",
       "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",

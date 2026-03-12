@@ -101,6 +101,11 @@
 
         let saveDraftTimer = null;
         let restoringDraft = false;
+        let respApi = null;
+
+        function setResponsabilidadesApi(api) {
+            respApi = api;
+        }
 
         function queueSave() {
             if (restoringDraft) return;
@@ -137,6 +142,17 @@
                     planilha: document.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`)?.value || 'principal'
                 };
             });
+
+            // Capture new dynamic lists
+            const principais = Array.from(document.querySelectorAll('#resp-principais-dinamico-container .principal-item')).map(item => ({
+                nome: item.dataset.nome || '',
+                recJud: !!item.querySelector('.chk-principal-rec')?.checked
+            }));
+
+            const subsInt = Array.from(document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item')).map(item => ({
+                nome: item.dataset.nome || '',
+                recJud: !!item.querySelector('.chk-subs-int-rec')?.checked
+            }));
 
             const depositos = window.hcalcState.depositosRecursais
                 .filter((dep) => !dep.removed && $(`deposito-item-${dep.idx}`))
@@ -175,7 +191,8 @@
                 staticFields,
                 namedRadios,
                 periodosEnabled: !!$('resp-diversos')?.checked,
-                principalResponsavel: $('resp-devedora-principal')?.value || '',
+                principais,
+                subsInt,
                 periodos,
                 depositosEnabled: !!$('chk-deposito')?.checked,
                 depositos,
@@ -215,9 +232,30 @@
                     $('resp-diversos').dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                if (draft.periodosEnabled && $('resp-devedora-principal')) {
-                    $('resp-devedora-principal').value = draft.principalResponsavel || $('resp-devedora-principal').value;
-                    $('resp-devedora-principal').dispatchEvent(new Event('change', { bubbles: true }));
+                if (draft.periodosEnabled) {
+                    const containerPrincipais = $('resp-principais-dinamico-container');
+                    if (containerPrincipais) containerPrincipais.innerHTML = '';
+                    if (draft.principais && draft.principais.length > 0 && respApi && respApi.addPrincipal) {
+                        draft.principais.forEach(p => {
+                            respApi.addPrincipal(p.nome);
+                            setTimeout(() => {
+                                const chk = document.querySelector(`.principal-item[data-nome="${CSS.escape(p.nome)}"] .chk-principal-rec`);
+                                if (chk) chk.checked = !!p.recJud;
+                            }, 50);
+                        });
+                    }
+
+                    const containerSubsInt = $('resp-subsidiarias-integral-dinamico-container');
+                    if (containerSubsInt) containerSubsInt.innerHTML = '';
+                    if (draft.subsInt && draft.subsInt.length > 0 && respApi && respApi.addSubsInt) {
+                        draft.subsInt.forEach(s => {
+                            respApi.addSubsInt(s.nome);
+                            setTimeout(() => {
+                                const chk = document.querySelector(`.subs-item[data-nome="${CSS.escape(s.nome)}"] .chk-subs-int-rec`);
+                                if (chk) chk.checked = !!s.recJud;
+                            }, 50);
+                        });
+                    }
 
                     const container = $('resp-diversos-container');
                     if (container) container.innerHTML = '';
@@ -321,7 +359,8 @@
             save,
             restore,
             clear: () => clearRaw(warn),
-            isRestoring: () => restoringDraft
+            isRestoring: () => restoringDraft,
+            setResponsabilidadesApi
         };
     }
 

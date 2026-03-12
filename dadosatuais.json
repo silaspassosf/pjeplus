@@ -1,52 +1,57 @@
 {
   "numero": [
-    "1000820-74.2025.5.02.0703"
+    "1001047-98.2024.5.02.0703"
   ],
-  "id": 7246360,
+  "id": 6267193,
   "autor": [
     {
-      "nome": "JOSE APARECIDO MENDES",
-      "cpfcnpj": "85256706691",
+      "nome": "JEFFERSON SANTOS DE SOUZA",
+      "cpfcnpj": "44384476825",
       "advogado": {
-        "nome": "PEDRO SILVA ARAUJO",
-        "cpf": "37699033825",
-        "oab": "SP449964"
+        "nome": "FLAVIO LUIZ ALVARENGA TAVARES",
+        "cpf": "06946689666",
+        "oab": "SP322624"
       }
     }
   ],
   "reu": [
     {
-      "nome": "LAURA GOMES DA SILVA - EPP",
-      "cpfcnpj": "23281679000130",
+      "nome": "FORT WORK SERVICOS TERCEIRIZADOS LTDA",
+      "cpfcnpj": "12615287000143",
       "advogado": {
-        "nome": "ANDERSON SANTOS OLIVEIRA",
-        "cpf": "33921449839",
-        "oab": "SP421657"
+        "nome": "ANTONIO GUSTAVO MARQUES",
+        "cpf": "27164395837",
+        "oab": "SP210741"
       }
     },
     {
-      "nome": "LAURA GOMES DA SILVA",
-      "cpfcnpj": "18467299800"
+      "nome": "ANDRE RICARDO NASCIMENTO",
+      "cpfcnpj": "30395799830"
     }
   ],
-  "terceiro": [],
-  "divida": {},
+  "terceiro": [
+    {
+      "nome": "ROGERIO APARECIDO ROSA"
+    }
+  ],
+  "divida": {
+    "valor": "R$ 6.314,27",
+    "data": "01/01/2026"
+  },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "16/05/2025",
+  "dtAutuacao": "27/06/2024",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
-    "requerProcessoReferenciaCodigo": "NE",
-    "controlaValorCausa": true,
+    "id": 116,
+    "codigo": "156",
+    "descricao": "Cumprimento de sentença",
+    "sigla": "CumSen",
+    "requerProcessoReferenciaCodigo": "OB",
+    "controlaValorCausa": false,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
     "ativo": true,
-    "idClasseJudicialPai": 323,
+    "idClasseJudicialPai": 115,
     "possuiFilhos": false
   },
   "labelFaseProcessual": "Execução",

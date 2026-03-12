@@ -158,10 +158,15 @@
                             e.preventDefault();
                             if (confirm('Tem certeza que deseja limpar todos os dados salvos deste processo?')) {
                                 try {
-                                    if (overlayDraftApi && typeof overlayDraftApi.clear === 'function') overlayDraftApi.clear();
+                                    // Prefer clearRaw on the module or the global helper that always exists
+                                    if (overlayDraftApi && typeof overlayDraftApi.clearRaw === 'function') {
+                                        overlayDraftApi.clearRaw();
+                                    } else if (typeof window.hcalcClearOverlayDraft === 'function') {
+                                        window.hcalcClearOverlayDraft();
+                                    }
                                 } catch (err) { console.warn('[hcalc] falha ao limpar rascunho', err); }
                                 try { if (window.hcalcState && typeof window.hcalcState.resetPrep === 'function') window.hcalcState.resetPrep(); } catch (err) { console.warn('[hcalc] resetPrep falhou', err); }
-                                
+
                                 // Recarregar a página para garantir a limpeza completa da memória e interface
                                 window.location.reload();
                             }

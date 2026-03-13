@@ -770,10 +770,18 @@
             // Depósitos recursais = recursos passivo (só se tem acórdão)
             if (timeline.acordaos.length > 0) {
                 // Excluir itens cuja classificação de anexos indicou 'Custas'
+                const excluded = [];
                 const recs = (timeline.recursosPassivo || []).filter(r => {
                     const anexos = r.anexos || [];
-                    return !anexos.some(a => (a.tipo || '').toLowerCase() === 'custas');
+                    const isCustas = anexos.some(a => (a.tipo || '').toLowerCase() === 'custas');
+                    if (isCustas) excluded.push({ texto: r.texto, anexos });
+                    return !isCustas;
                 });
+
+                // Debug: listar recursos excluídos por serem 'Custas' (visível quando HCALC_DEBUG=true)
+                if (excluded.length > 0) {
+                    excluded.forEach(ex => dbg('prep: exclui recurso como Custas:', ex.texto, ex.anexos.map(a => a.tipo)));
+                }
 
                 prepResult.depositos = recs.map(r => ({
                     tipo: r.tipoRec,

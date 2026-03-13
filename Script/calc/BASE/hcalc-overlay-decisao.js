@@ -559,11 +559,8 @@
                 }
             };
 
-            const linhasPeriodos = Array.from(document.querySelectorAll('#resp-sub-diversos-container .periodo-linha, #resp-sol-diversos-container .periodo-linha'));
-            const chkSubDiv = $('resp-sub-diversos');
-            const chkSolDiv = $('resp-sol-diversos');
-            const isDiversosMarcado = (chkSubDiv && chkSubDiv.checked) || (chkSolDiv && chkSolDiv.checked);
-            const usarDuplicacao = isDiversosMarcado && linhasPeriodos.length > 0;
+            // Validação robusta: se o array de períodos tiver dados, força a exibição do bloco, ignorando bugs visuais do DOM
+            const usarDuplicacao = (subsidiariasComPeriodo.length > 0 || principaisParciais.length > 0);
 
             if (usarDuplicacao && passivoTotal > 1) {
                 const dadosResp = responsabilidadesTextoApi.gerarTextoResponsabilidades();
@@ -592,15 +589,14 @@
                     }
 
                     if (subsidiariasComPeriodo.length > 0) {
-                        // Agrupar subsidiárias pelo idPlanilha ou pelo próprio período para evitar mescla indevida
+                        // Agrupar subsidiárias apenas pelo idPlanilha exato (agora gerado de forma única na API de texto)
                         const grupos = {};
                         subsidiariasComPeriodo.forEach((sub) => {
-                            const chave = sub.idPlanilha ? sub.idPlanilha : (sub.usarMesmaPlanilha ? 'principal' : `noid_${sub.periodo || Math.random()}`);
+                            const chave = sub.idPlanilha;
                             if (!grupos[chave]) {
-                                grupos[chave] = { idPlanilha: sub.idPlanilha || '', usarMesmaPlanilha: !!sub.usarMesmaPlanilha, nomes: [], periodo: sub.periodo || '', entradas: [] };
+                                grupos[chave] = { idPlanilha: sub.idPlanilha, usarMesmaPlanilha: false, nomes: [], periodo: sub.periodo || '', entradas: [] };
                             }
                             grupos[chave].nomes.push(sub.nome);
-                            if (!grupos[chave].periodo) grupos[chave].periodo = sub.periodo || '';
                             grupos[chave].entradas.push(sub);
                         });
 

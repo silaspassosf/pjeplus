@@ -764,7 +764,7 @@
             <fieldset id="resp-solidarias-diversos-fieldset" class="hidden" style="background: #fff8eb;">
                 <legend style="background: #f59e0b; color: #fff; padding: 2px 8px; border-radius: 4px;">Solidárias - Períodos Diversos</legend>
                 <div id="resp-sol-diversos-container" style="display:flex;flex-direction:column;gap:10px;"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo-sol" style="margin-top:10px; background:#f59e0b;">+ Adicionar Planilha Solidária</button>
+                <button type="button" class="btn-action" id="btn-adicionar-periodo-sol" style="margin-top:10px; background:#f59e0b;">+ Adicionar Planilha de período diverso</button>
             </fieldset>
 
             <!-- SEÇÃO 6.4: SUBSIDIÁRIAS INTEGRAIS -->
@@ -793,7 +793,7 @@
             <fieldset id="resp-subsidiarias-diversos-fieldset" class="hidden" style="background: #f1f5f9;">
                 <legend style="background: #64748b; color: #fff; padding: 2px 8px; border-radius: 4px;">Subsidiárias - Períodos Diversos</legend>
                 <div id="resp-sub-diversos-container" style="display:flex;flex-direction:column;gap:10px;"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo-sub" style="margin-top:10px; background:#64748b;">+ Adicionar Planilha Subsidiária</button>
+                <button type="button" class="btn-action" id="btn-adicionar-periodo-sub" style="margin-top:10px; background:#64748b;">+ Adicionar Planilha de período diverso</button>
             </fieldset>
 
             <!-- Links de Sentença e Acórdão -->

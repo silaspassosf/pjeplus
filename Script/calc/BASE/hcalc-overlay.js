@@ -704,7 +704,7 @@
                         </div>
                         <div id="resp-sol-opcoes" class="hidden" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
                             <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="checkbox" id="resp-sol-integral" checked> Período Integral
+                                <input type="checkbox" id="resp-sol-integral"> Período Integral
                             </label>
                             <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
                                 <input type="checkbox" id="resp-sol-diversos" style="margin-top:2px;">

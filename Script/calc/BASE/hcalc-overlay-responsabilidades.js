@@ -202,7 +202,6 @@
 
             // no-op: quick-add select handled below (periodo-reclamada-select)
 
-            const selectPlanilha = div.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`);
             atualizarDropdownsPlanilhas();
 
             // Lista visual de reclamadas para este período e botão de adicionar
@@ -233,17 +232,6 @@
                 };
             }
 
-            selectPlanilha.onchange = (e) => {
-                const val = e.target.value;
-                const pd = val === 'principal'
-                    ? window.hcalcState.planilhaExtracaoData
-                    : (window.hcalcState.planilhasDisponiveis || []).find(p => p.id === val)?.dados;
-                if (!pd) return;
-                if (pd.idPlanilha && idInput) idInput.value = pd.idPlanilha;
-                if (pd.periodoCalculo && periodoInput) periodoInput.value = pd.periodoCalculo;
-                queueOverlayDraftSave();
-            };
-
             const btnCarregar = div.querySelector(`.btn-carregar-planilha-extra[data-idx="${idx}"]`);
             const inputExtra = div.querySelector(`.input-planilha-extra-pdf[data-idx="${idx}"]`);
 
@@ -271,8 +259,6 @@
                     const extraId = `extra_${idx}`;
                     const extraLabel = `${dados.idPlanilha || 'Extra'} (${isSol ? 'Sol' : 'Sub'})`;
                     registrarPlanilhaDisponivel(extraId, extraLabel, dados);
-
-                    selectPlanilha.value = extraId;
 
                     btnCarregar.textContent = '✓ Analisada';
                     btnCarregar.style.background = '#10b981';

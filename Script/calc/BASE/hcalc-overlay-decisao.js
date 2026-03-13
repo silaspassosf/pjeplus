@@ -322,7 +322,10 @@
                 if ($('chk-deposito').checked) {
                     const passivoDetectado = (window.hcalcPartesData?.passivo || []).map((parte) => parte?.nome).filter(Boolean);
                     const primeiraReclamada = passivoDetectado[0] || '';
-                    const tipoRespAtual = $('resp-tipo')?.value || 'unica';
+                    let tipoRespAtual = 'unica';
+                    if ($('resp-subsidiarias')?.checked) tipoRespAtual = 'subsidiarias';
+                    if ($('resp-solidarias')?.checked) tipoRespAtual = 'solidarias';
+                    if ($('resp-unica-flag')?.value === 'true') tipoRespAtual = 'unica';
 
                     const depositosValidos = window.hcalcState.depositosRecursais
                         .filter((deposito) => !deposito.removed)
@@ -498,12 +501,14 @@
                     const grpDiario = [];
                     const grpMandado = [];
                     const grpEdital = [];
-                    const isSubsidiaria = $('resp-tipo')?.value === 'subsidiarias';
+                    const isSubsidiaria = $('resp-subsidiarias')?.checked;
                     const principaisSet = new Set();
 
                     if (isSubsidiaria) {
-                        document.querySelectorAll('.chk-parte-principal:checked').forEach((chk) => {
-                            principaisSet.add(chk.getAttribute('data-nome'));
+                        // Ler do container oficial de principais para não conflitar com intimações
+                        document.querySelectorAll('#resp-principais-dinamico-container .principal-item').forEach((item) => {
+                            const nome = item.getAttribute('data-nome');
+                            if (nome) principaisSet.add(nome);
                         });
                     }
 
@@ -554,8 +559,11 @@
                 }
             };
 
-            const linhasPeriodos = Array.from(document.querySelectorAll('#resp-diversos-container [id^="periodo-diverso-"]'));
-            const usarDuplicacao = $('resp-diversos').checked && linhasPeriodos.length > 0;
+            const linhasPeriodos = Array.from(document.querySelectorAll('#resp-sub-diversos-container .periodo-linha, #resp-sol-diversos-container .periodo-linha'));
+            const chkSubDiv = $('resp-sub-diversos');
+            const chkSolDiv = $('resp-sol-diversos');
+            const isDiversosMarcado = (chkSubDiv && chkSubDiv.checked) || (chkSolDiv && chkSolDiv.checked);
+            const usarDuplicacao = isDiversosMarcado && linhasPeriodos.length > 0;
 
             if (usarDuplicacao && passivoTotal > 1) {
                 const dadosResp = responsabilidadesTextoApi.gerarTextoResponsabilidades();
@@ -663,19 +671,24 @@
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
                 if (passivoTotal > 1) {
-                    if ($('resp-tipo').value === 'solidarias') {
+                    let tipoRespDecisao = 'unica';
+                    if ($('resp-subsidiarias')?.checked) tipoRespDecisao = 'subsidiarias';
+                    if ($('resp-solidarias')?.checked) tipoRespDecisao = 'solidarias';
+
+                    if (tipoRespDecisao === 'solidarias') {
                         text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Declaro que as reclamadas respondem de forma solidária pela presente execução.</p>`;
-                    } else if ($('resp-tipo').value === 'subsidiarias' && $('resp-integral').checked) {
+                    } else if (tipoRespDecisao === 'subsidiarias' && $('resp-sub-integral')?.checked) {
                         const principais = [];
                         const subsidiarias = [];
 
-                        document.querySelectorAll('.chk-parte-principal').forEach((chk) => {
-                            const nome = chk.getAttribute('data-nome');
-                            if (chk.checked) {
-                                principais.push(nome);
-                            } else {
-                                subsidiarias.push(nome);
-                            }
+                        document.querySelectorAll('#resp-principais-dinamico-container .principal-item').forEach((item) => {
+                            const nome = item.getAttribute('data-nome');
+                            if (nome) principais.push(nome);
+                        });
+
+                        document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item').forEach((item) => {
+                            const nome = item.getAttribute('data-nome');
+                            if (nome) subsidiarias.push(nome);
                         });
 
                         if (principais.length > 0 && subsidiarias.length > 0) {

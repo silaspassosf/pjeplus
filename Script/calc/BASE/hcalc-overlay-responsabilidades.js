@@ -411,6 +411,12 @@
                 const fsSolDiv = document.getElementById('resp-solidarias-diversos-fieldset');
                 if (fsSolDiv) fsSolDiv.classList.toggle('hidden', !(isSol && solDiv));
 
+                // When an area is hidden, clear its dynamic container so values don't remain hidden
+                const subsIntDyn = document.getElementById('resp-subsidiarias-integral-dinamico-container');
+                if (!(isSubs && subInt) && subsIntDyn) subsIntDyn.innerHTML = '';
+                const solIntDyn = document.getElementById('resp-solidarias-integral-dinamico-container');
+                if (!(isSol && solInt) && solIntDyn) solIntDyn.innerHTML = '';
+
                 // Auto-add first row if empty and newly shown
                 const subContainer = document.getElementById('resp-sub-diversos-container');
                 if (isSubs && subDiv && subContainer && subContainer.children.length === 0) {
@@ -535,6 +541,9 @@
                 });
             }
             
+            // Ensure UI reflects current checkbox states immediately
+            try { updateVisibility(); aplicarEstiloRecuperacaoJudicial(); } catch (e) { /* ignore */ }
+
             return {
                 addPrincipal,
                 addSubsInt,

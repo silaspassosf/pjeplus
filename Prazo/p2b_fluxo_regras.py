@@ -114,8 +114,7 @@ def _definir_regras_processamento() -> List[Tuple]:
          'gigs', '1/Ana Lucia do A/Argos', ato_pesqliq_callback),
 
         # REGRA DE BAIXA/AGUARDE-SE (Conjunto específico que chama checar_prox)
-        ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se', 'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão', 'sob pena de preclusão']],
-         'checar_prox', None, None),
+        # MOVIDA: agora definida ao final da lista para ser testada apenas se nenhuma outra regra bater
 
         # REGRA DE PENHORA
         ([gerar_regex_geral('Defiro a penhora no rosto dos autos')],
@@ -144,6 +143,10 @@ def _definir_regras_processamento() -> List[Tuple]:
         # REGRA DE INSTAURADO EM FACE
         ([gerar_regex_geral('instaurado em face')],
          None, None, 'idpj'),
+
+        # REGRA DE BAIXA/AGUARDE-SE (Conjunto que chama checar_prox)
+        ([gerar_regex_geral(k) for k in ['determinar cancelamento/baixa', 'deixo de receber o Agravo', 'quanto à petição', 'art. 112 do CPC', 'comunique-se por Edital', 'Aguarde-se', 'mantenho o despacho', 'mantenho a decisão', 'edital de intimação de decisão', 'sob pena de preclusão', 'embargos de declaração'] ],
+         'checar_prox', None, None),
     ]
 
 
@@ -203,15 +206,20 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
 
     pass
 
+    regra_encontrada = False
     for idx, (keywords, tipo_acao, params, acao_sec) in enumerate(regras):
         for regex in keywords:
             match = regex.search(texto_normalizado)
             if match:
-                # Log da regra encontrada
-                pass
-                pass
-                pass
-                pass
+                # Log da regra encontrada (pattern, tipo e snippet do texto)
+                try:
+                    span = match.span()
+                    start = max(0, span[0] - 40)
+                    end = min(len(texto_normalizado), span[1] + 40)
+                    snippet = texto_normalizado[start:end].replace('\n', ' ')
+                    logger.info('[FLUXO_PZ] Regra casou: pattern=%s tipo_acao=%s span=%s snippet=%s', regex.pattern, tipo_acao, span, snippet[:180])
+                except Exception:
+                    logger.info('[FLUXO_PZ] Regra casou: pattern=%s tipo_acao=%s', getattr(regex, 'pattern', str(regex)), tipo_acao)
                 acao_definida = tipo_acao
                 parametros_acao = params
                 acao_secundaria = acao_sec
@@ -221,16 +229,14 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
                     from Prazo.p2b_core import checar_prox
                     # Obter itens da timeline para checar_prox
                     itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-                    pass
                     prox_doc_encontrado, prox_doc_link, prox_doc_idx = checar_prox(driver, itens, doc_idx, regras, texto_normalizado)
                     if prox_doc_encontrado and prox_doc_link:
-                        pass
                         # Retornar os valores encontrados para que o fluxo continue com o próximo documento
                         return prox_doc_encontrado, prox_doc_link, prox_doc_idx
-                    else:
-                        pass
+                # Marcar que encontramos uma regra e interromper busca (primeira correspondência em ordem de precedência)
+                regra_encontrada = True
                 break
-        if acao_definida:
+        if regra_encontrada:
             break
 
     # Log se nenhuma regra foi encontrada

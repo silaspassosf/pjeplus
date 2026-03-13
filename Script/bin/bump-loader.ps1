@@ -9,9 +9,13 @@
   It prints the new version and updated lines.
 #>
 
-$file = "Script/hcalc.user.js"
+$scriptDir = $PSScriptRoot
+# repo root is two levels up from Script/bin -> <repo-root>
+$repoRoot = Split-Path -Parent (Split-Path -Parent $scriptDir)
+$file = Join-Path $repoRoot 'Script\hcalc.user.js'
+
 if (-not (Test-Path $file)) {
-    Write-Error "File not found: $file"; exit 1
+  Write-Error "File not found: $file"; exit 1
 }
 
 $content = Get-Content -Raw -Path $file

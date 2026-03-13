@@ -250,6 +250,7 @@ def _extrair_via_pdf_viewer(driver: WebDriver, timeout: int, debug: bool = False
             lambda d: pdf_object.get_attribute("data") is not None
         )
 
+        # Tentar obter todo o texto garantindo que todas as páginas sejam carregadas
         js_script = """
         try {
             var pdfObject = document.querySelector('object[type="application/pdf"]') || document.querySelector('object.conteudo-pdf');
@@ -258,6 +259,24 @@ def _extrair_via_pdf_viewer(driver: WebDriver, timeout: int, debug: bool = False
             if (!pdfDoc) return null;
             var v = pdfDoc.querySelector('#viewer');
             if (!v) return null;
+
+            // Se houver páginas individuais, rolar por cada uma para forçar render
+            var pages = v.querySelectorAll('.page');
+            if (pages && pages.length > 0) {
+                for (var i = 0; i < pages.length; i++) {
+                    try {
+                        pages[i].scrollIntoView({block: 'center'});
+                    } catch(e) {}
+                }
+            } else {
+                // fallback: rolar o viewer inteiro
+                try { v.scrollTop = v.scrollHeight; } catch(e) {}
+            }
+
+            // Aguarda um pouco para que renderizações lazy sejam concluídas
+            var start = Date.now();
+            while (Date.now() - start < 800) { /* busy wait breve */ }
+
             var text = v.textContent || '';
             return (text && text.trim().length > 100) ? text.trim() : null;
         } catch(e) { return null; }
@@ -284,6 +303,14 @@ def _extrair_via_iframe(driver: WebDriver, timeout: int, debug: bool = False) ->
         for iframe in iframes:
             try:
                 driver.switch_to.frame(iframe)
+                # Tentar rolar o body/iframe para garantir carregamento de todas as seções
+                try:
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", driver.find_element(By.TAG_NAME, 'body'))
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                    time.sleep(0.2)
+                except Exception:
+                    pass
+
                 texto = driver.find_element(By.TAG_NAME, "body").text
                 driver.switch_to.default_content()
                 if texto and len(texto.strip()) > 100:

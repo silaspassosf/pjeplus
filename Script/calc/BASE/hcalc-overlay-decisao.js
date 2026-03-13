@@ -17,6 +17,15 @@
 
         function handleGravar() {
             dbg('Clique em Gravar Decisao detectado.');
+            
+            // Centralizando a função de formatação para evitar qualquer erro de escopo (ReferenceError)
+            const formatarLista = (itens) => {
+                if (!itens || itens.length === 0) return '';
+                if (itens.length === 1) return itens[0];
+                if (itens.length === 2) return `${itens[0]} e ${itens[1]}`;
+                return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+            };
+
             let text = `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Vistos.</p>`;
             let houveDepositoDireto = false;
             let houveLibecaoDetalhada = false;
@@ -591,9 +600,16 @@
                             const idParaUsar = prin.usarMesmaPlanilha || !prin.idPlanilha ? idPlanilha : prin.idPlanilha;
                             const usarPlaceholder = !prin.usarMesmaPlanilha && !prin.idPlanilha;
 
+                            // Garante que a Solidária puxe os valores monetários da sua própria planilha!
+                            let dadosOverridePrin = null;
+                            if (!prin.usarMesmaPlanilha && prin.idPlanilha) {
+                                dadosOverridePrin = (window.hcalcState.planilhasDisponiveis || []).find(p => p.dados && p.dados.idPlanilha === prin.idPlanilha)?.dados;
+                            }
+
                             appendBaseAteAntesPericiais({
                                 idCalculo: idParaUsar,
                                 usarPlaceholder,
+                                dadosOverride: dadosOverridePrin,
                                 reclamadaLabel: `Reclamada ${bold(prin.nome)} (${prin.periodo}):`
                             });
                         });
@@ -601,6 +617,14 @@
 
                     if (subsDiv.length > 0) {
                         const grupos = {};
+                        
+                        // Função auxiliar para formatar a lista de empresas (Ex: "Empresa A, Empresa B e Empresa C")
+                        const formatarLista = (itens) => {
+                            if (!itens || itens.length === 0) return '';
+                            if (itens.length === 1) return itens[0];
+                            if (itens.length === 2) return `${itens[0]} e ${itens[1]}`;
+                            return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
+                        };
                         
                         // Agrupa as empresas que pertencem ao mesmo ID de Planilha
                         subsDiv.forEach((sub, idx) => {
@@ -615,13 +639,16 @@
                             // Busca os dados da planilha extraída na memória
                             let pData = (window.hcalcState.planilhasDisponiveis || []).find(p => p.dados && p.dados.idPlanilha === grupo.idPlanilha)?.dados;
                             
-                            const vCred = formatMoney(pData ? pData.verbas : 0);
-                            const vFgts = formatMoney(pData ? pData.fgts : 0);
-                            const vInssR = formatMoney(pData ? pData.inssAutor : 0);
-                            const vInssE = formatMoney(pData ? pData.inssTotal : 0);
+                            // Correção Crítica: parseMoney antes do formatMoney impede o crash TypeError
+                            const vCred = formatMoney(parseMoney(pData ? pData.verbas : '0'));
+                            const vFgts = formatMoney(parseMoney(pData ? pData.fgts : '0'));
+                            const vInssR = formatMoney(parseMoney(pData ? pData.inssAutor : '0'));
+                            const vInssE = formatMoney(parseMoney(pData ? pData.inssTotal : '0'));
                             const temCustasPlanilha = pData && pData.custas && parseMoney(pData.custas) > 0;
                             
                             const periodoLabel = grupo.periodo ? ` (${grupo.periodo})` : '';
+                            
+                            // Agora a função formatarLista é global e funcionará sem erros
                             const nomesFormatados = formatarLista(grupo.nomes);
                             const labelIdPlanilha = grupo.idPlanilha && grupo.idPlanilha.includes('SemID') ? 'Aguardando ID...' : (grupo.idPlanilha || 'Aguardando ID...');
                             

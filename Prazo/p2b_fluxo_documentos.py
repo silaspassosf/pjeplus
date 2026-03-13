@@ -115,17 +115,22 @@ def _extrair_com_extrair_direto(driver: WebDriver) -> Optional[str]:
     extrair_direto = m['extrair_direto']
     
     try:
+        # Não ativar debug detalhado do cabeçalho aqui (evita logs verbosos)
         logger.info('[FLUXO_PZ] Tentando extração DIRETA com extrair_direto...')
-        resultado_direto = extrair_direto(driver, timeout=10, debug=True, formatar=True)
+        resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=True)
 
         if resultado_direto and resultado_direto.get('sucesso'):
             if resultado_direto.get('conteudo'):
-                texto = resultado_direto['conteudo'].lower()
-                logger.info('[FLUXO_PZ]  Extração DIRETA bem-sucedida')
+                raw = resultado_direto['conteudo']
+                texto = raw.lower()
+                snippet = ' '.join(raw.strip().splitlines())[:200]
+                logger.info('[FLUXO_PZ]  Extração DIRETA bem-sucedida (snippet=%s...)', snippet)
                 return texto
             elif resultado_direto.get('conteudo_bruto'):
-                texto = resultado_direto['conteudo_bruto'].lower()
-                logger.info('[FLUXO_PZ]  Extração DIRETA bem-sucedida (bruto)')
+                raw = resultado_direto['conteudo_bruto']
+                texto = raw.lower()
+                snippet = ' '.join(raw.strip().splitlines())[:200]
+                logger.info('[FLUXO_PZ]  Extração DIRETA bem-sucedida (bruto snippet=%s...)', snippet)
                 return texto
 
     except Exception as e_direto:

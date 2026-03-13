@@ -69,6 +69,16 @@ def fluxo_pz(driver: WebDriver) -> None:
         texto_normalizado = normalizar_texto(texto)
         resultado_checagem = _processar_regras_gerais(driver, texto_normalizado, doc_idx)
 
+        # Log resultado das regras: indicar se checar_prox encontrou próximo documento
+        if resultado_checagem and len(resultado_checagem) == 3:
+            prox_doc, prox_link, prox_idx = resultado_checagem
+            if prox_doc and prox_link:
+                logger.info('[FLUXO_PZ] Regras: checar_prox encontrou próximo documento (idx=%s)', prox_idx)
+            else:
+                logger.info('[FLUXO_PZ] Regras: checar_prox acionado mas nenhum próximo documento retornado')
+        else:
+            logger.info('[FLUXO_PZ] Regras: nenhuma checagem_prox acionada (verificar logs de regras para ações secundárias)')
+
         # Se checar_prox encontrou um próximo documento, continuar processando
         if resultado_checagem and len(resultado_checagem) == 3:
             prox_doc, prox_link, prox_idx = resultado_checagem

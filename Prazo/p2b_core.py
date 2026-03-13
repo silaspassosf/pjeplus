@@ -268,8 +268,9 @@ def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[
             raw_text = link.text or ''
             doc_text = unicodedata.normalize('NFD', raw_text).encode('ascii', 'ignore').decode('ascii').lower()
 
-            # Verificar se é documento relevante (despacho, decisão, sentença, conclusão)
-            if not re.search(r'despacho|decisao|decisão|sentenca|sentença|conclusao|conclusão', doc_text):
+            # Verificar se é documento relevante (despacho, decisão, sentença, conclusão, embargos de declaração)
+            # Apenas a frase exata normalizada 'embargos de declaracao' deve ser considerada
+            if not re.search(r'despacho|decisao|decisão|sentenca|sentença|conclusao|conclusão|embargos de declaracao', doc_text):
                 continue
 
             # Verificar magistrados (otavio ou mariana)

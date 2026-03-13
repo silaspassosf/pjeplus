@@ -670,7 +670,7 @@
             </fieldset>
 
             <!-- SEÇÃO 6: RESPONSABILIDADE -->
-            <fieldset>
+            <fieldset id="fieldset-responsabilidade-opcoes">
                 <legend>Responsabilidade</legend>
                 
                 <div style="display:flex; flex-direction:row; align-items:flex-start; gap:20px;">
@@ -1142,28 +1142,18 @@
 
             dbg('btn-abrir-homologacao clicked - intent: restaurar rascunho (sem abrir seletor)');
 
-            // Tentar carregar rascunho salvo via API de draft
-            try {
-                const raw = overlayDraftApi && typeof overlayDraftApi.loadRaw === 'function' ? overlayDraftApi.loadRaw(warn) : null;
-                if (raw && raw.state) {
-                    dbg('Rascunho encontrado — restaurando e exibindo overlay');
-                    try { restoreOverlayDraft(); } catch (e) { dbg('[hcalc] restoreOverlayDraft falhou', e); }
-                    try { $('homologacao-overlay').style.display = 'flex'; } catch (e) { /* ignore */ }
-                    try { updateHighlight(); } catch (e) { /* ignore */ }
-                    return;
-                }
-            } catch (e) {
-                dbg('[hcalc] erro ao verificar rascunho salvo', e);
-            }
+            // Valida se o sistema tem dados extraídos ou um rascunho salvo antes de prosseguir
+            const raw = overlayDraftApi && typeof overlayDraftApi.loadRaw === 'function' ? overlayDraftApi.loadRaw(warn) : null;
+            const hasDraft = raw && raw.state;
+            const hasPlanilha = window.hcalcState && window.hcalcState.planilhaCarregada;
 
-            // Se não houver rascunho, mas já existirem dados de planilha no state, abrir overlay normalmente
-            if (window.hcalcState && window.hcalcState.planilhaCarregada) {
-                dbg('Nenhum rascunho, porém planilha já carregada — prosseguindo com geração normal');
-            } else {
-                // Se não há rascunho nem planilha carregada, abrir o seletor de arquivo
+            if (!hasDraft && !hasPlanilha) {
                 try { document.getElementById('input-planilha-pdf').click(); } catch (e) { alert('Nenhum rascunho salvo encontrado. Carregue a planilha primeiro (pelo botão de carregar planilha).'); }
                 return;
             }
+            
+            // ATENÇÃO: O script agora segue a execução para forçar o executarPrep() a extrair recursos e Links,
+            // e o draft será restaurado adequadamente depois que a UI estiver montada.
 
             dbg('FASE 3: Clique em Gerar Homologação');
             try {
@@ -1860,6 +1850,32 @@
         $('irpf-tipo').onchange = (e) => { $('irpf-campos').classList.toggle('hidden', e.target.value === 'isento'); };
 
         responsabilidadesController.initEventHandlers();
+
+        // Garantir visibilidade correta dos fieldsets integrais: ambos PAI e FILHO devem estar marcados
+        function enforceIntegralVisibility() {
+            try {
+                if ($('resp-subsidiarias-integral-fieldset')) {
+                    const isSubAtiva = $('resp-subsidiarias') && $('resp-subsidiarias').checked;
+                    const isSubIntAtiva = $('resp-sub-integral') && $('resp-sub-integral').checked;
+                    $('resp-subsidiarias-integral-fieldset').classList.toggle('hidden', !(isSubAtiva && isSubIntAtiva));
+                }
+
+                if ($('resp-solidarias-integral-fieldset')) {
+                    const isSolAtiva = $('resp-solidarias') && $('resp-solidarias').checked;
+                    const isSolIntAtiva = $('resp-sol-integral') && $('resp-sol-integral').checked;
+                    $('resp-solidarias-integral-fieldset').classList.toggle('hidden', !(isSolAtiva && isSolIntAtiva));
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // Escutar mudanças relevantes para manter sincronização (pais e filhos)
+        ['resp-subsidiarias','resp-sub-integral','resp-solidarias','resp-sol-integral'].forEach(id => {
+            const el = $(id);
+            if (el) el.addEventListener('change', enforceIntegralVisibility);
+        });
+
+        // Estado inicial
+        enforceIntegralVisibility();
 
         function aplicarEstiloRecuperacaoJudicial() {
             return responsabilidadesController.aplicarEstiloRecuperacaoJudicial();

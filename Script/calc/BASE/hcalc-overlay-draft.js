@@ -208,6 +208,7 @@
                 subsInt,
                 solInt,
                 periodos,
+                planilhasDisponiveis: window.hcalcState.planilhasDisponiveis || [],
                 depositosEnabled: !!$('chk-deposito')?.checked,
                 depositos,
                 pagamentosEnabled: !!$('chk-pag-antecipado')?.checked,
@@ -222,6 +223,9 @@
 
             restoringDraft = true;
             try {
+                if (draft.planilhasDisponiveis) {
+                    window.hcalcState.planilhasDisponiveis = draft.planilhasDisponiveis;
+                }
                 if (draft.state?.planilhaExtracaoData) {
                     window.hcalcState.planilhaExtracaoData = draft.state.planilhaExtracaoData;
                     window.hcalcState.planilhaCarregada = !!draft.state.planilhaCarregada;
@@ -299,8 +303,21 @@
 
                     // Because adicionarLinhaPeridoDiverso generates IDs using Date.now(), we just read them sequentially per tipo.
                     const updatePeriods = (tipoVal) => {
-                        const linhas = Array.from(document.querySelectorAll(`#resp-${tipoVal}-diversos-container .periodo-linha`));
                         const origPeriodos = draft.periodos.filter(p => (tipoVal === 'sol' ? p.tipo === 'sol' : p.tipo !== 'sol'));
+                        const containerId = `#resp-${tipoVal}-diversos-container`;
+                        const btnAddId = tipoVal === 'sol' ? 'btn-adicionar-periodo-sol' : 'btn-adicionar-periodo-sub';
+                        const btnAdd = $(btnAddId);
+                        
+                        // O segredo: Clicar no botão invisivelmente para recriar o HTML vazio antes de preenchê-lo
+                        if (btnAdd) {
+                            const container = $(containerId.replace('#', ''));
+                            if (container) container.innerHTML = ''; // Limpa antes de recriar
+                            for (let j = 0; j < origPeriodos.length; j++) {
+                                btnAdd.click();
+                            }
+                        }
+
+                        const linhas = Array.from(document.querySelectorAll(`${containerId} .periodo-linha`));
                         
                         linhas.forEach((linha, i) => {
                             const periodo = origPeriodos[i];

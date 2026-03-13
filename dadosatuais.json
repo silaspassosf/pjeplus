@@ -1,52 +1,52 @@
 {
   "numero": [
-    "1001047-98.2024.5.02.0703"
+    "1001168-92.2025.5.02.0703"
   ],
-  "id": 6267193,
+  "id": 7474234,
   "autor": [
     {
-      "nome": "JEFFERSON SANTOS DE SOUZA",
-      "cpfcnpj": "44384476825",
+      "nome": "LENILDO PEREIRA DA SILVA",
+      "cpfcnpj": "18467033878",
       "advogado": {
-        "nome": "FLAVIO LUIZ ALVARENGA TAVARES",
-        "cpf": "06946689666",
-        "oab": "SP322624"
+        "nome": "MARCO AUGUSTO DE ARGENTON E QUEIROZ",
+        "cpf": "24959983809",
+        "oab": "SP163741"
       }
     }
   ],
   "reu": [
     {
-      "nome": "FORT WORK SERVICOS TERCEIRIZADOS LTDA",
-      "cpfcnpj": "12615287000143",
+      "nome": "TOSHINORI NISHIMURA CABELEIREIRO",
+      "cpfcnpj": "47434683000159",
       "advogado": {
-        "nome": "ANTONIO GUSTAVO MARQUES",
-        "cpf": "27164395837",
-        "oab": "SP210741"
+        "nome": "ROGERIO ANTONIO NUNES DOS SANTOS",
+        "cpf": "22549135814",
+        "oab": "SP281926"
       }
     },
     {
-      "nome": "ANDRE RICARDO NASCIMENTO",
-      "cpfcnpj": "30395799830"
-    }
-  ],
-  "terceiro": [
+      "nome": "TOSHINORI NISHIMURA",
+      "cpfcnpj": "04905393868"
+    },
     {
-      "nome": "ROGERIO APARECIDO ROSA"
+      "nome": "JANETE SATIE SATO NISHIMURA",
+      "cpfcnpj": "28961299875"
     }
   ],
+  "terceiro": [],
   "divida": {
-    "valor": "R$ 6.314,27",
-    "data": "01/01/2026"
+    "valor": "R$ 15.506,81",
+    "data": "01/09/2025"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "27/06/2024",
+  "dtAutuacao": "08/07/2025",
   "classeJudicial": {
-    "id": 116,
-    "codigo": "156",
-    "descricao": "Cumprimento de sentença",
-    "sigla": "CumSen",
+    "id": 117,
+    "codigo": "157",
+    "descricao": "Cumprimento Provisório de Sentença",
+    "sigla": "CumPrSe",
     "requerProcessoReferenciaCodigo": "OB",
     "controlaValorCausa": false,
     "podeIncluirAutoridade": false,

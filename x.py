@@ -563,12 +563,17 @@ def executar_prazo(driver) -> Dict[str, Any]:
             return resultado_loop
         
         print("[PRAZO]  loop_prazo concludo")
-        
+
+        # Preparar driver para executar P2B: garantir navegação/reset mínimo
+        try:
+            print("[PRAZO] Preparando driver para p2b (reset/navegacao)...")
+            resetar_driver(driver)
+            time.sleep(2)
+        except Exception as e:
+            print(f"[PRAZO] Aviso: falha ao resetar driver antes do p2b: {e}")
+
         # Executar fluxo_pz (P2B)
         print("[PRAZO] Executando p2b_fluxo...")
-        # Não resetar o driver aqui: reset limpo quebra o contexto/aba atual
-        # resetar_driver(driver)
-
         fluxo_pz(driver)  # fluxo_pz não retorna valor
         print("[PRAZO]  p2b_fluxo concluído")
         print("[PRAZO]  Mdulo Prazo completo")
@@ -632,6 +637,14 @@ def executar_p2b(driver) -> Dict[str, Any]:
     inicio = datetime.now()
     
     try:
+        # Preparar driver para executar P2B: garantir navegação/reset mínimo
+        try:
+            print("[P2B] Preparando driver para fluxo_prazo (reset/navegacao)...")
+            resetar_driver(driver)
+            time.sleep(2)
+        except Exception as e:
+            print(f"[P2B] Aviso: falha ao resetar driver antes do fluxo_prazo: {e}")
+
         # Executar apenas fluxo_prazo (processamento individual)
         print("[P2B] Executando fluxo_prazo...")
         fluxo_prazo(driver)  # fluxo_prazo não retorna valor

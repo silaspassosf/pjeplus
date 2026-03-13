@@ -150,7 +150,7 @@
                     <button type="button" class="btn-remover-periodo" data-idx="${idx}" data-row-id="${rowId}" style="margin-left: auto; background: transparent; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 14px;" title="Remover Período">✖</button>
                 </div>
                 
-                <div style="display: flex; gap: 10px; margin-bottom: 12px; background: #f9fafb; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                <div id="info-planilha-${idx}" style="display: none; gap: 10px; margin-bottom: 12px; background: #f9fafb; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
                     <div style="flex: 1;">
                         <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">ID da Planilha</label>
                         <input type="text" class="periodo-id" data-idx="${idx}" placeholder="Automático ao analisar PDF" style="width: 100%; border: none; background: transparent; font-weight: bold; color: #111827; padding: 0;" readonly>
@@ -159,22 +159,15 @@
                         <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">Período Apurado</label>
                         <input type="text" class="periodo-periodo" data-idx="${idx}" placeholder="Automático ao analisar PDF" style="width: 100%; border: none; background: transparent; font-weight: bold; color: #111827; padding: 0;" readonly>
                     </div>
-                    <div style="flex: 1;">
-                        <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">Planilha</label>
-                        <select class="periodo-planilha-select" data-idx="${idx}" style="width:100%; padding:6px; border:1px solid #d1d5db; border-radius:4px; background:#fff;">
-                            <option value="principal">Planilha Principal</option>
-                        </select>
-                        <div class="periodo-planilha-info" style="margin-top:6px; font-size:11px; color:#065f46;"></div>
-                    </div>
                 </div>
 
                 <div style="margin-bottom: 4px;">
                     <div class="periodo-reclamadas-list" data-idx="${idx}" style="display:flex; flex-direction:column; gap:4px; margin-bottom:6px;"></div>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                        <select class="periodo-reclamada-select" data-idx="${idx}" style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px; align-items: stretch;">
+                        <select class="periodo-reclamada-select" data-idx="${idx}" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
                             <option value="">Selecione a reclamada...</option>
                         </select>
-                        <button type="button" class="btn-add-reclamada-periodo btn-action" data-idx="${idx}" style="padding: 6px 12px; font-size: 12px; background: #10b981;">Adicionar reclamada neste período</button>
+                        <button type="button" class="btn-add-reclamada-periodo btn-action" data-idx="${idx}" style="padding: 8px 12px; font-size: 12px; background: #10b981;">Adicionar reclamada neste período</button>
                     </div>
                 </div>
             `;
@@ -194,14 +187,7 @@
             const periodoInput = div.querySelector(`.periodo-periodo[data-idx="${idx}"]`);
             const idInput = div.querySelector(`.periodo-id[data-idx="${idx}"]`);
 
-            if (window.hcalcState.planilhaExtracaoData) {
-                const pd = window.hcalcState.planilhaExtracaoData;
-                if (periodoInput && pd.periodoCalculo) periodoInput.value = pd.periodoCalculo;
-                if (idInput && pd.idPlanilha) idInput.value = pd.idPlanilha;
-            }
-
-            // no-op: quick-add select handled below (periodo-reclamada-select)
-
+            // Não preencher automaticamente com a planilha principal — somente mostrar após análise do PDF
             atualizarDropdownsPlanilhas();
 
             // Lista visual de reclamadas para este período e botão de adicionar
@@ -255,6 +241,10 @@
 
                     if (dados.idPlanilha && idInput) idInput.value = dados.idPlanilha;
                     if (dados.periodoCalculo && periodoInput) periodoInput.value = dados.periodoCalculo;
+                    
+                    // Exibe a caixa de dados que estava oculta
+                    const infoDiv = div.querySelector(`#info-planilha-${idx}`);
+                    if (infoDiv) infoDiv.style.display = 'flex';
 
                     const extraId = `extra_${idx}`;
                     const extraLabel = `${dados.idPlanilha || 'Extra'} (${isSol ? 'Sol' : 'Sub'})`;

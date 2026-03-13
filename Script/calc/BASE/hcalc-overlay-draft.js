@@ -323,11 +323,10 @@
                             if (inpPeriodo) inpPeriodo.value = periodo.periodo || '';
                             if (inpId) {
                                 inpId.value = periodo.idCalculo || '';
-                                if (periodo.idCalculo && infoBox) {
-                                    infoBox.innerHTML = `#${i + 1} [${periodo.idCalculo}]`;
-                                    infoBox.style.background = '#d1fae5';
-                                    infoBox.style.color = '#065f46';
-                                    infoBox.style.borderColor = '#10b981';
+                                // Exibe a caixa caso existam dados salvos no rascunho
+                                const infoDiv = linha.querySelector('[id^="info-planilha-"]');
+                                if (infoDiv && (periodo.idCalculo || periodo.periodo)) {
+                                    infoDiv.style.display = 'flex';
                                 }
                             }
                         });

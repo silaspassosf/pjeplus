@@ -559,8 +559,15 @@
                 }
             };
 
-            // Validação robusta: se o array de períodos tiver dados, força a exibição do bloco, ignorando bugs visuais do DOM
-            const usarDuplicacao = (subsidiariasComPeriodo.length > 0 || principaisParciais.length > 0);
+            const chkSubDiv = $('resp-sub-diversos');
+            const chkSolDiv = $('resp-sol-diversos');
+            const isDiversosMarcado = (chkSubDiv && chkSubDiv.checked) || (chkSolDiv && chkSolDiv.checked);
+            
+            const subsDiv = subsidiariasComPeriodo || [];
+            const princParc = principaisParciais || [];
+            
+            // Força a entrada no bloco de períodos diversos se houver dados no array extraído da interface
+            const usarDuplicacao = isDiversosMarcado && (subsDiv.length > 0 || princParc.length > 0);
 
             if (usarDuplicacao && passivoTotal > 1) {
                 const dadosResp = responsabilidadesTextoApi.gerarTextoResponsabilidades();
@@ -588,53 +595,44 @@
                         });
                     }
 
-                    if (subsidiariasComPeriodo.length > 0) {
-                        // Agrupar subsidiárias apenas pelo idPlanilha exato (agora gerado de forma única na API de texto)
+                    if (subsDiv.length > 0) {
                         const grupos = {};
-                        subsidiariasComPeriodo.forEach((sub) => {
-                            const chave = sub.idPlanilha;
+                        
+                        // Agrupa as empresas que pertencem ao mesmo ID de Planilha
+                        subsDiv.forEach((sub, idx) => {
+                            const chave = sub.idPlanilha || `noid_${idx}`;
                             if (!grupos[chave]) {
-                                grupos[chave] = { idPlanilha: sub.idPlanilha, usarMesmaPlanilha: false, nomes: [], periodo: sub.periodo || '', entradas: [] };
+                                grupos[chave] = { idPlanilha: sub.idPlanilha, usarMesmaPlanilha: false, nomes: [], periodo: sub.periodo || '' };
                             }
                             grupos[chave].nomes.push(sub.nome);
-                            grupos[chave].entradas.push(sub);
                         });
 
-                        const formatarListaSimples = (itens) => {
-                            if (!itens || itens.length === 0) return '';
-                            if (itens.length === 1) return itens[0];
-                            if (itens.length === 2) return `${itens[0]} e ${itens[1]}`;
-                            return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
-                        };
-
-                        const chaves = Object.keys(grupos);
-                        chaves.forEach((chave, gidx) => {
-                            const grupo = grupos[chave];
-                            const letra = String.fromCharCode(65 + gidx);
-                            const periodoLabel = grupo.periodo === 'integral' || !grupo.periodo ? 'Cálculo Específico' : grupo.periodo;
-                            const nomesLabel = formatarListaSimples(grupo.nomes.map(n => n));
-
-                            let dadosExtra = null;
-                            const idSubPlanilha = (grupo.entradas.find(e => e.idPlanilha && e.idPlanilha.length) || {}).idPlanilha || (grupo.usarMesmaPlanilha ? idPlanilha : '');
-                            if (idSubPlanilha && window.hcalcState?.planilhasDisponiveis) {
-                                const planilhaEncontrada = window.hcalcState.planilhasDisponiveis.find((planilha) => {
-                                    if (planilha.id && planilha.id === idSubPlanilha) return true;
-                                    if (planilha.idPlanilha && planilha.idPlanilha === idSubPlanilha) return true;
-                                    if (planilha.dados && planilha.dados.idPlanilha && planilha.dados.idPlanilha === idSubPlanilha) return true;
-                                    return false;
-                                });
-                                if (planilhaEncontrada) dadosExtra = planilhaEncontrada.dados || planilhaEncontrada;
-                            }
-
-                            const comPlaceholder = !idSubPlanilha;
-                            const label = `${letra} - (${bold(nomesLabel)}) - Responsável subsidiária pelo período (${periodoLabel}):`;
-
-                            appendBaseAteAntesPericiais({
-                                idCalculo: idSubPlanilha || idPlanilha,
-                                usarPlaceholder: comPlaceholder,
-                                reclamadaLabel: label,
-                                dadosOverride: dadosExtra
-                            });
+                        Object.values(grupos).forEach((grupo, index) => {
+                            // Busca os dados da planilha extraída na memória
+                            let pData = (window.hcalcState.planilhasDisponiveis || []).find(p => p.dados && p.dados.idPlanilha === grupo.idPlanilha)?.dados;
+                            
+                            const vCred = formatMoney(pData ? pData.verbas : 0);
+                            const vFgts = formatMoney(pData ? pData.fgts : 0);
+                            const vInssR = formatMoney(pData ? pData.inssAutor : 0);
+                            const vInssE = formatMoney(pData ? pData.inssTotal : 0);
+                            const temCustasPlanilha = pData && pData.custas && parseMoney(pData.custas) > 0;
+                            
+                            const periodoLabel = grupo.periodo ? ` (${grupo.periodo})` : '';
+                            const nomesFormatados = formatarLista(grupo.nomes);
+                            const labelIdPlanilha = grupo.idPlanilha && grupo.idPlanilha.includes('SemID') ? 'Aguardando ID...' : (grupo.idPlanilha || 'Aguardando ID...');
+                            
+                            htmlTabelas += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt; margin-top:15px;">${bold(`II - DO PERÍODO DIVERSO${periodoLabel} / SUBSIDIÁRIA`)}</p>`;
+                            htmlTabelas += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">O montante abaixo refere-se exclusivamente ao período de responsabilidade de <strong>${nomesFormatados}</strong>:</p>`;
+                            htmlTabelas += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${'<strong>ID da Planilha (Período Diverso):</strong>'} ${labelIdPlanilha}</p>`;
+                            
+                            // Desenha a tabela com os valores da planilha extra
+                            htmlTabelas += `<table style="width:80%; margin: 10px auto; border-collapse: collapse; font-size: 11pt;" border="1">`;
+                            htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>Crédito Líquido</strong></td><td style="padding: 4px 8px; text-align:right;">${vCred}</td></tr>`;
+                            if (parseMoney(vFgts) > 0) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>FGTS Separado</strong></td><td style="padding: 4px 8px; text-align:right;">${vFgts}</td></tr>`;
+                            if (parseMoney(vInssR) > 0) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>INSS Reclamante</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssR}</td></tr>`;
+                            if (parseMoney(vInssE) > 0) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>INSS Empresa</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssE}</td></tr>`;
+                            if (temCustasPlanilha) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>Custas</strong></td><td style="padding: 4px 8px; text-align:right;">${formatMoney(pData.custas)}</td></tr>`;
+                            htmlTabelas += `</table>`;
                         });
                     }
                 }

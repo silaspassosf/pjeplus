@@ -569,21 +569,21 @@
                     const nomesRec = Array.from(itensLista).map(item => item.dataset.nome).filter(Boolean);
                     
                     const periodoTexto = linha.querySelector(`.periodo-periodo`)?.value || '';
-                    // Gera um ID virtual caso a planilha não tenha ID extraído, para evitar mesclar blocos indevidamente
-                    const idPlanilhaFinal = linha.querySelector(`.periodo-id`)?.value || `SemID-${Math.random().toString(36).substring(2, 7)}`;
+                    const idPlanilhaManual = linha.querySelector(`.periodo-id`)?.value || '';
+                    const idPlanilhaFinal = idPlanilhaManual || `SemID-${Math.random().toString(36).substring(2, 7)}`;
 
-                    // Planilha diversa é sempre uma planilha separada agora
+                    // Planilha diversa é sempre uma planilha separada
                     const usarMesmaPlanilha = false; 
-                    const isPeriodoIntegral = false; // Período total foi removido do contexto
 
+                    // Salva cada empresa listada no array destino
                     nomesRec.forEach((nomeRec) => {
-                        if (nomeRec && !isPeriodoIntegral) {
-                            arrayDestino.push({ nome: nomeRec, periodo: periodoTexto, idPlanilha: idPlanilhaFinal, usarMesmaPlanilha });
-                        } else if (nomeRec && isPeriodoIntegral && isPrincipalParcial) {
-                            // If it's Solidary and marked integral due to lack of diverse period info
-                            if (!principaisSelecionadas.some(p => p.nome === nomeRec)) {
-                                principaisSelecionadas.push({ nome: nomeRec, recJud: false }); 
-                            }
+                        if (nomeRec) {
+                            arrayDestino.push({ 
+                                nome: nomeRec, 
+                                periodo: periodoTexto, 
+                                idPlanilha: idPlanilhaFinal, 
+                                usarMesmaPlanilha: usarMesmaPlanilha 
+                            });
                         }
                     });
                 });

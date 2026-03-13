@@ -255,11 +255,27 @@
             // Recurso Ordinário / Recurso de Revista (polo passivo + anexo)
             if ((tipoDoc === 'recurso ordinario' || tipoDoc === 'recurso de revista'
                 || tipoDoc.includes('recurso ordinario') || tipoDoc.includes('recurso de revista'))
-                && isPoloPassivoNoItem(item) && hasAnexoNoItem(item)) {
+                && hasAnexoNoItem(item)) {
                 const tipoRec = tipoDoc.includes('revista') ? 'RR' : 'RO';
                 const depositante = nomePassivoDoItem(item);
-                resultado.recursosPassivo.push({ ...base, tipoRec, depositante, _itemRef: item });
-                return;
+
+                // Permitir recursos que não mostram o ícone de polo passivo
+                // quando já foi detectado pelo menos um acórdão na timeline.
+                // Nesse caso aceitamos itens cujo nome de parte (normalizado)
+                // corresponde a alguma parte do passivo detectado.
+                const poloPassivo = isPoloPassivoNoItem(item);
+                const acordaoVisto = resultado.acordaos && resultado.acordaos.length > 0;
+                let accept = poloPassivo;
+                if (!accept && acordaoVisto) {
+                    const passivoNames = (window.hcalcPartesData?.passivo || []).map(p => normalizeText(p.nome || ''));
+                    const nomeNorm = normalizeText(depositante || '');
+                    if (nomeNorm && passivoNames.includes(nomeNorm)) accept = true;
+                }
+
+                if (accept) {
+                    resultado.recursosPassivo.push({ ...base, tipoRec, depositante, _itemRef: item });
+                    return;
+                }
             }
 
             // Honorários Periciais AJ-JT - CAPTURA ID
@@ -761,6 +777,18 @@
                     depositante: r.depositante || '',
                     anexos: r.anexos || []
                 }));
+
+                // Ordenar depósitos por data (mais antigos primeiro)
+                function _dateToTs(dstr) {
+                    if (!dstr) return 0;
+                    const parts = dstr.split('/');
+                    if (parts.length < 3) return 0;
+                    const dia = parseInt(parts[0], 10);
+                    const mes = parseInt(parts[1], 10) - 1;
+                    const ano = parseInt(parts[2], 10);
+                    return new Date(ano, mes, dia).getTime();
+                }
+                prepResult.depositos.sort((a, b) => _dateToTs(a.data) - _dateToTs(b.data));
             }
 
             // ── ETAPA 2: AJ-JT — só se tem perito de conhecimento ──

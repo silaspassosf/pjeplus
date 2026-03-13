@@ -563,21 +563,21 @@
             const chkSolDiv = $('resp-sol-diversos');
             const isDiversosMarcado = (chkSubDiv && chkSubDiv.checked) || (chkSolDiv && chkSolDiv.checked);
             
-            // Precompute responsabilidades text data so principaisParciais is available
+            // Precompute responsabilidades text data
             const respDados = (responsabilidadesTextoApi && responsabilidadesTextoApi.gerarTextoResponsabilidades)
                 ? responsabilidadesTextoApi.gerarTextoResponsabilidades()
                 : null;
-            const principaisParciais = (respDados && respDados.principaisParciais) || [];
-            const princParc = principaisParciais || [];
+                
+            // Extrai as variáveis corretamente ANTES da validação
+            const princParc = (respDados && respDados.principaisParciais) || [];
+            const subsDiv = (respDados && respDados.subsidiariasComPeriodo) || [];
             
             // Força a entrada no bloco de períodos diversos se houver dados no array extraído da interface
             const usarDuplicacao = isDiversosMarcado && (subsDiv.length > 0 || princParc.length > 0);
 
             if (usarDuplicacao && passivoTotal > 1) {
                 if (respDados) {
-                    const { textoIntro, todasPrincipais, subsidiariasComPeriodo } = respDados;
-                    // Atualiza subsDiv com os dados extraídos pela API de responsabilidades
-                    subsDiv = subsidiariasComPeriodo || [];
+                    const { textoIntro, todasPrincipais } = respDados;
 
                     appendBaseAteAntesPericiais({
                         idCalculo: idPlanilha,

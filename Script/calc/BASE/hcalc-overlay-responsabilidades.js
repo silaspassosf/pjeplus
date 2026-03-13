@@ -657,6 +657,10 @@
             };
         }
 
+        // RETORNO DA API DE TEXTO QUE HAVIA SIDO APAGADO:
+        return {
+            gerarTextoResponsabilidades
+        };
     }
 
     window.hcalcOverlayResponsabilidades = { createController, createTextApi };

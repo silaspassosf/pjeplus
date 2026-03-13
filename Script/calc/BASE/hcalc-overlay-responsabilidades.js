@@ -569,7 +569,8 @@
                     const nomesRec = Array.from(itensLista).map(item => item.dataset.nome).filter(Boolean);
                     
                     const periodoTexto = linha.querySelector(`.periodo-periodo`)?.value || '';
-                    const idPlanilhaFinal = linha.querySelector(`.periodo-id`)?.value || '';
+                    // Gera um ID virtual caso a planilha não tenha ID extraído, para evitar mesclar blocos indevidamente
+                    const idPlanilhaFinal = linha.querySelector(`.periodo-id`)?.value || `SemID-${Math.random().toString(36).substring(2, 7)}`;
 
                     // Planilha diversa é sempre uma planilha separada agora
                     const usarMesmaPlanilha = false; 
@@ -603,20 +604,6 @@
             const subsInt = subsidiariasIntegrais || [];
             const subsDiv = subsidiariasComPeriodo || [];
             const solDiv = principaisParciais || [];
-
-            // Proteção contra falha silenciosa se não houver principal selecionada
-            if (nomesPrincipaisUnicos.length === 0) {
-                return {
-                    textoIntro: '',
-                    principalIntegral: '',
-                    principaisParciais: solDiv,
-                    subsidiariasIntegrais: subsInt,
-                    subsidiariasComPeriodo: subsDiv,
-                    todasPrincipais: solDiv,
-                    principaisComRecJud: [],
-                    subsIntComRecJud: []
-                };
-            }
 
             const paragrafos = [];
 

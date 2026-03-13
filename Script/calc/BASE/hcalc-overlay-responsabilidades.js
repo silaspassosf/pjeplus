@@ -193,11 +193,7 @@
                 if (idInput && pd.idPlanilha) idInput.value = pd.idPlanilha;
             }
 
-            const selectReclamada = div.querySelector(`.periodo-reclamada[data-idx="${idx}"]`);
-            selectReclamada.onchange = () => {
-                atualizarDropdownsReclamadas();
-                queueOverlayDraftSave();
-            };
+            // no-op: quick-add select handled below (periodo-reclamada-select)
 
             const selectPlanilha = div.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`);
             atualizarDropdownsPlanilhas();

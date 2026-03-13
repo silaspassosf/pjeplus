@@ -56,40 +56,22 @@
             const subsidiariasIntegraisSelecionadas = new Set();
             document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .chk-subs-int:checked').forEach(chk => subsidiariasIntegraisSelecionadas.add(chk.dataset.nome));
 
-            // Reclamadas já escolhidas nos blocos diversos
+            // Reclamadas já escolhidas nos blocos diversos (lendo a nova lista de divs)
             const jaUsadas = new Set([...principaisSet, ...subsidiariasIntegraisSelecionadas]);
-            document.querySelectorAll('#resp-diversos-container .periodo-reclamada').forEach(sel => {
-                if (sel && sel.selectedOptions) {
-                    Array.from(sel.selectedOptions).forEach(opt => { if (opt.value) jaUsadas.add(opt.value); });
-                } else if (sel && sel.value) {
-                    jaUsadas.add(sel.value);
-                }
+            document.querySelectorAll('.periodo-reclamadas-list .reclamada-item').forEach(item => {
+                if (item.dataset.nome) jaUsadas.add(item.dataset.nome);
             });
 
-            // Atualiza cada select (multi) mantendo seleções atuais
-            document.querySelectorAll('#resp-diversos-container .periodo-reclamada').forEach(select => {
-                const current = Array.from(select.selectedOptions).map(o => o.value);
-                select.innerHTML = '';
+            // Atualiza os dropdowns de Quick Add (.periodo-reclamada-select)
+            document.querySelectorAll('.periodo-reclamada-select').forEach(select => {
+                select.innerHTML = '<option value="">Selecione a reclamada...</option>';
                 todasReclamadas.forEach(rec => {
-                    const opt = document.createElement('option');
-                    opt.value = rec;
-                    opt.textContent = rec;
-                    if (current.includes(rec)) opt.selected = true;
-                    if (!jaUsadas.has(rec) || current.includes(rec)) select.appendChild(opt);
-                });
-            });
-
-            document.querySelectorAll('.periodo-reclamada').forEach(select => {
-                const currentSelected = Array.from(select.selectedOptions).map(o => o.value);
-                select.innerHTML = '';
-                todasReclamadas.forEach(rec => {
-                    const opt = document.createElement('option');
-                    opt.value = rec;
-                    opt.textContent = rec;
-                    if (currentSelected.indexOf(rec) !== -1) opt.selected = true;
-                    // disable options already chosen in other selectors
-                    if (!opt.selected && jaUsadas.has(rec)) opt.disabled = true;
-                    select.appendChild(opt);
+                    if (!jaUsadas.has(rec)) {
+                        const opt = document.createElement('option');
+                        opt.value = rec;
+                        opt.textContent = rec;
+                        select.appendChild(opt);
+                    }
                 });
             });
 
@@ -583,19 +565,15 @@
 
             const processarLinhas = (linhas, arrayDestino, isPrincipalParcial) => {
                 linhas.forEach((linha) => {
-                    const selectEl = linha.querySelector(`.periodo-reclamada`);
-                    const nomesRec = selectEl ? Array.from(selectEl.selectedOptions).map(o => o.value).filter(Boolean) : [];
-                    const periodoTexto = linha.querySelector(`.periodo-periodo`)?.value || '';
-                    const idPlanilhaManual = linha.querySelector(`.periodo-id`)?.value || '';
-
-                    const planilhaSel = linha.querySelector(`.periodo-planilha-select`)?.value || 'principal';
-                    const usarMesmaPlanilha = planilhaSel === 'principal';
-                    const idPlanilhaFinal = usarMesmaPlanilha ? '' : (planilhaSel || idPlanilhaManual);
-                    const periodoTotalCheckbox = linha.querySelector(`.periodo-total`);
+                    const itensLista = linha.querySelectorAll('.periodo-reclamadas-list .reclamada-item');
+                    const nomesRec = Array.from(itensLista).map(item => item.dataset.nome).filter(Boolean);
                     
-                    let isPeriodoIntegral = !periodoTexto || periodoTexto === periodoCompleto;
-                    if (periodoTotalCheckbox && periodoTotalCheckbox.checked) isPeriodoIntegral = true;
-                    if (!usarMesmaPlanilha) isPeriodoIntegral = false;
+                    const periodoTexto = linha.querySelector(`.periodo-periodo`)?.value || '';
+                    const idPlanilhaFinal = linha.querySelector(`.periodo-id`)?.value || '';
+
+                    // Planilha diversa é sempre uma planilha separada agora
+                    const usarMesmaPlanilha = false; 
+                    const isPeriodoIntegral = false; // Período total foi removido do contexto
 
                     nomesRec.forEach((nomeRec) => {
                         if (nomeRec && !isPeriodoIntegral) {

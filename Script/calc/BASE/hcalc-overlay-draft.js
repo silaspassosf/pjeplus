@@ -134,15 +134,14 @@
 
             const extractPeriodos = (containerId, tipoVal) => {
                 return Array.from(document.querySelectorAll(`${containerId} .periodo-linha`)).map((linha) => {
-                    const selRec = linha.querySelector(`.periodo-reclamada`);
-                    const reclamadas = selRec ? Array.from(selRec.selectedOptions).map(o => o.value).filter(Boolean) : [];
+                    const itensLista = linha.querySelectorAll('.periodo-reclamadas-list .reclamada-item');
+                    const reclamadas = Array.from(itensLista).map(item => item.dataset.nome).filter(Boolean);
                     return {
                         reclamadas: reclamadas,
-                        reclamada: reclamadas.length ? reclamadas[0] : '', // Retrocompat
                         tipo: tipoVal,
                         periodo: linha.querySelector(`.periodo-periodo`)?.value || '',
                         idCalculo: linha.querySelector(`.periodo-id`)?.value || '',
-                        planilha: linha.querySelector(`.periodo-planilha-select`)?.value || 'principal'
+                        planilha: 'nova'
                     };
                 });
             };
@@ -299,28 +298,38 @@
                         linhas.forEach((linha, i) => {
                             const periodo = origPeriodos[i];
                             if (!periodo) return;
-                            const selRec = linha.querySelector(`.periodo-reclamada`);
+                            const listRec = linha.querySelector(`.periodo-reclamadas-list`);
                             const inpPeriodo = linha.querySelector(`.periodo-periodo`);
                             const inpId = linha.querySelector(`.periodo-id`);
-                            const selPlanilha = linha.querySelector(`.periodo-planilha-select`);
+                            const infoBox = linha.querySelector(`.periodo-planilha-info`);
 
-                            if (selRec) {
-                                const reclamadasToSelect = periodo.reclamadas || [periodo.reclamada];
-                                reclamadasToSelect.forEach(r => {
-                                    if (!r) return;
-                                    if (!Array.from(selRec.options).some(opt => opt.value === r)) {
-                                        const opt = document.createElement('option');
-                                        opt.value = r; opt.textContent = r;
-                                        selRec.appendChild(opt);
-                                    }
-                                    Array.from(selRec.options).forEach(opt => {
-                                        if (reclamadasToSelect.includes(opt.value)) opt.selected = true;
-                                    });
+                            if (listRec && periodo.reclamadas) {
+                                periodo.reclamadas.forEach(nome => {
+                                    if (!nome) return;
+                                    const item = document.createElement('div');
+                                    item.className = 'reclamada-item';
+                                    item.dataset.nome = nome;
+                                    item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#e0f2fe; padding:4px 8px; border:1px solid #bae6fd; border-radius:4px; font-size:11px; font-weight:bold; color:#0369a1;';
+                                    item.innerHTML = `<span>${nome}</span> <button type="button" class="btn-action" style="background:#ef4444; padding:2px 6px; font-size:10px;">X</button>`;
+                                    item.querySelector('button').onclick = () => {
+                                        item.remove();
+                                        if (window.hcalcAtualizarDropdownsPlanilhas) window.hcalcAtualizarDropdownsPlanilhas();
+                                        queueSave();
+                                    };
+                                    listRec.appendChild(item);
                                 });
                             }
+
                             if (inpPeriodo) inpPeriodo.value = periodo.periodo || '';
-                            if (inpId) inpId.value = periodo.idCalculo || '';
-                            if (selPlanilha) selPlanilha.value = periodo.planilha || 'principal';
+                            if (inpId) {
+                                inpId.value = periodo.idCalculo || '';
+                                if (periodo.idCalculo && infoBox) {
+                                    infoBox.innerHTML = `#${i + 1} [${periodo.idCalculo}]`;
+                                    infoBox.style.background = '#d1fae5';
+                                    infoBox.style.color = '#065f46';
+                                    infoBox.style.borderColor = '#10b981';
+                                }
+                            }
                         });
                     };
 

@@ -592,10 +592,10 @@
                     }
 
                     if (subsidiariasComPeriodo.length > 0) {
-                        // agrupar subsidiárias pelo idPlanilha (ou 'principal' quando usarMesmaPlanilha)
+                        // Agrupar subsidiárias pelo idPlanilha ou pelo próprio período para evitar mescla indevida
                         const grupos = {};
                         subsidiariasComPeriodo.forEach((sub) => {
-                            const chave = sub.idPlanilha || (sub.usarMesmaPlanilha ? 'principal' : ('noid_' + (sub.idPlanilha || '')));
+                            const chave = sub.idPlanilha ? sub.idPlanilha : (sub.usarMesmaPlanilha ? 'principal' : `noid_${sub.periodo || Math.random()}`);
                             if (!grupos[chave]) {
                                 grupos[chave] = { idPlanilha: sub.idPlanilha || '', usarMesmaPlanilha: !!sub.usarMesmaPlanilha, nomes: [], periodo: sub.periodo || '', entradas: [] };
                             }

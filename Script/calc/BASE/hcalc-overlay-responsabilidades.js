@@ -604,6 +604,20 @@
             const subsDiv = subsidiariasComPeriodo || [];
             const solDiv = principaisParciais || [];
 
+            // Proteção contra falha silenciosa se não houver principal selecionada
+            if (nomesPrincipaisUnicos.length === 0) {
+                return {
+                    textoIntro: '',
+                    principalIntegral: '',
+                    principaisParciais: solDiv,
+                    subsidiariasIntegrais: subsInt,
+                    subsidiariasComPeriodo: subsDiv,
+                    todasPrincipais: solDiv,
+                    principaisComRecJud: [],
+                    subsIntComRecJud: []
+                };
+            }
+
             const paragrafos = [];
 
             if (nomesPrincipaisUnicos.length > 0) {
@@ -634,10 +648,12 @@
                 subsidiariasIntegrais: subsInt,
                 subsidiariasComPeriodo: subsDiv,
                 todasPrincipais: [
-                    ...nomesPrincipaisUnicos.map(n => ({ nome: n, periodo: 'integral', idPlanilha: '' })),
+                    // Adiciona flag usarMesmaPlanilha para evitar que a principal receba R$XXX no texto
+                    ...nomesPrincipaisUnicos.map(n => ({ nome: n, periodo: 'integral', idPlanilha: '', usarMesmaPlanilha: true })),
                     ...solDiv
                 ],
-                principaisComRecJud: principaisSelecionadas.filter(p => p.recJud)
+                principaisComRecJud: principaisSelecionadas.filter(p => p.recJud).map(p => p.nome),
+                subsIntComRecJud: Array.from(document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item .chk-subs-int-rec:checked')).map(chk => chk.closest('.subs-item')?.dataset?.nome).filter(Boolean)
             };
         }
 

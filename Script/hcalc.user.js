@@ -1,8 +1,8 @@
 ﻿// ==UserScript==
-// @name         HomologaÃ§Ã£o de CÃ¡lculos
+// @name         Homologação de Cálculos
 // @namespace    http://tampermonkey.net/
 // @version      3.1.15
-// @description  Assistente de homologaÃ§Ã£o PJe-Calc
+// @description  Assistente de homologação PJe-Calc
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
 // @updateURL    https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/hcalc.user.js

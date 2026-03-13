@@ -1365,12 +1365,12 @@
                     }
                 }
 
-                // Se tem recurso da reclamada → custas já pagas
-                if (prep.recursosPassivo && prep.recursosPassivo.length > 0) {
+                // Se tem recurso da reclamada ou depósitos detectados → custas já pagas
+                if ((prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0)) {
                     const custasStatusEl = $('custas-status');
                     if (custasStatusEl) {
                         custasStatusEl.value = 'pagas';
-                        console.log('[hcalc] Recurso da reclamada detectado! Custas marcadas como pagas.');
+                        console.log('[hcalc] Recurso/depósito detectado! Custas marcadas como pagas.');
                     }
                 }
 
@@ -1489,13 +1489,13 @@
                         $('val-custas').value = prep.sentenca.custas;
                     }
                     // Sempre usa sentença como padrão, salvo se houver recurso da reclamada
-                    if (custasStatusEl) {
-                        if (prep.recursosPassivo && prep.recursosPassivo.length > 0) {
-                            custasStatusEl.value = 'pagas';
-                        } else {
-                            custasStatusEl.value = 'devidas';
+                        if (custasStatusEl) {
+                            if ((prep.recursosPassivo && prep.recursosPassivo.length > 0) || (prep.depositos && prep.depositos.length > 0)) {
+                                custasStatusEl.value = 'pagas';
+                            } else {
+                                custasStatusEl.value = 'devidas';
+                            }
                         }
-                    }
                     if (custasOrigemEl) custasOrigemEl.value = 'sentenca';
                     // ATENÇÃO: Não sobrepõe data se planilha já preencheu
                     if ($('custas-data-origem') && prep.sentenca.data && !window.hcalcState.planilhaExtracaoData?.custas) {

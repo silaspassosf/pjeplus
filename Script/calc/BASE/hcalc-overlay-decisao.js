@@ -636,11 +636,11 @@
                             if (parseMoney(vInssR) > 0) text += `<tr><td style="padding: 4px 8px;"><strong>INSS Reclamante</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssR}</td></tr>`;
                             if (parseMoney(vInssE) > 0) text += `<tr><td style="padding: 4px 8px;"><strong>INSS Empresa</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssE}</td></tr>`;
                             if (temCustasPlanilha) text += `<tr><td style="padding: 4px 8px;"><strong>Custas</strong></td><td style="padding: 4px 8px; text-align:right;">${formatMoney(pData.custas)}</td></tr>`;
-                            text += `</table>`;
+                            text += `</table><br>`;
                         });
                     }
                 }
-            }
+
                 appendDisposicoesFinais();
             } else {
                 let introTxt = '';

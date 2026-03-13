@@ -236,9 +236,13 @@
                     else el.value = cfg.value ?? '';
                 });
 
-                ['resp-tipo', 'calc-fgts', 'ignorar-inss', 'irpf-tipo', 'chk-hon-reu', 'chk-perito-conh', 'custas-origem',
-                 // responsibility-related checkboxes: ensure visibility sync on restore
-                 'resp-subsidiarias', 'resp-solidarias', 'resp-sub-integral', 'resp-sub-diversos', 'resp-sol-integral', 'resp-sol-diversos', 'chk-nao-ha-subs-int', 'chk-nao-ha-sol-int', 'resp-rec-judicial-unica'
+                [
+                 // Dispara os eventos dos Filhos primeiro
+                 'resp-sub-integral', 'resp-sub-diversos', 'resp-sol-integral', 'resp-sol-diversos',
+                 // Dispara os Pais por último para garantir que a ocultação global seja respeitada
+                 'resp-subsidiarias', 'resp-solidarias', 
+                 'chk-nao-ha-subs-int', 'chk-nao-ha-sol-int', 'resp-rec-judicial-unica',
+                 'calc-fgts', 'ignorar-inss', 'irpf-tipo', 'chk-hon-reu', 'chk-perito-conh', 'custas-origem'
                 ].forEach((id) => {
                     const el = $(id);
                     if (el) el.dispatchEvent(new Event('change', { bubbles: true }));

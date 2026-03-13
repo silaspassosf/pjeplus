@@ -563,17 +563,21 @@
             const chkSolDiv = $('resp-sol-diversos');
             const isDiversosMarcado = (chkSubDiv && chkSubDiv.checked) || (chkSolDiv && chkSolDiv.checked);
             
-            const subsDiv = subsidiariasComPeriodo || [];
+            // Precompute responsabilidades text data so principaisParciais is available
+            const respDados = (responsabilidadesTextoApi && responsabilidadesTextoApi.gerarTextoResponsabilidades)
+                ? responsabilidadesTextoApi.gerarTextoResponsabilidades()
+                : null;
+            const principaisParciais = (respDados && respDados.principaisParciais) || [];
             const princParc = principaisParciais || [];
             
             // Força a entrada no bloco de períodos diversos se houver dados no array extraído da interface
             const usarDuplicacao = isDiversosMarcado && (subsDiv.length > 0 || princParc.length > 0);
 
             if (usarDuplicacao && passivoTotal > 1) {
-                const dadosResp = responsabilidadesTextoApi.gerarTextoResponsabilidades();
-
-                if (dadosResp) {
-                    const { textoIntro, todasPrincipais, subsidiariasComPeriodo } = dadosResp;
+                if (respDados) {
+                    const { textoIntro, todasPrincipais, subsidiariasComPeriodo } = respDados;
+                    // Atualiza subsDiv com os dados extraídos pela API de responsabilidades
+                    subsDiv = subsidiariasComPeriodo || [];
 
                     appendBaseAteAntesPericiais({
                         idCalculo: idPlanilha,
@@ -582,7 +586,7 @@
                         textoResponsabilidade: textoIntro
                     });
 
-                    if (todasPrincipais.length > 1) {
+                    if (todasPrincipais && todasPrincipais.length > 1) {
                         todasPrincipais.slice(1).forEach((prin) => {
                             const idParaUsar = prin.usarMesmaPlanilha || !prin.idPlanilha ? idPlanilha : prin.idPlanilha;
                             const usarPlaceholder = !prin.usarMesmaPlanilha && !prin.idPlanilha;
@@ -621,22 +625,22 @@
                             const nomesFormatados = formatarLista(grupo.nomes);
                             const labelIdPlanilha = grupo.idPlanilha && grupo.idPlanilha.includes('SemID') ? 'Aguardando ID...' : (grupo.idPlanilha || 'Aguardando ID...');
                             
-                            htmlTabelas += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt; margin-top:15px;">${bold(`II - DO PERÍODO DIVERSO${periodoLabel} / SUBSIDIÁRIA`)}</p>`;
-                            htmlTabelas += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">O montante abaixo refere-se exclusivamente ao período de responsabilidade de <strong>${nomesFormatados}</strong>:</p>`;
-                            htmlTabelas += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${'<strong>ID da Planilha (Período Diverso):</strong>'} ${labelIdPlanilha}</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt; margin-top:15px;">${bold(`II - DO PERÍODO DIVERSO${periodoLabel} / SUBSIDIÁRIA`)}</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">O montante abaixo refere-se exclusivamente ao período de responsabilidade de <strong>${nomesFormatados}</strong>:</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${'<strong>ID da Planilha (Período Diverso):</strong>'} ${labelIdPlanilha}</p>`;
                             
                             // Desenha a tabela com os valores da planilha extra
-                            htmlTabelas += `<table style="width:80%; margin: 10px auto; border-collapse: collapse; font-size: 11pt;" border="1">`;
-                            htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>Crédito Líquido</strong></td><td style="padding: 4px 8px; text-align:right;">${vCred}</td></tr>`;
-                            if (parseMoney(vFgts) > 0) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>FGTS Separado</strong></td><td style="padding: 4px 8px; text-align:right;">${vFgts}</td></tr>`;
-                            if (parseMoney(vInssR) > 0) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>INSS Reclamante</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssR}</td></tr>`;
-                            if (parseMoney(vInssE) > 0) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>INSS Empresa</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssE}</td></tr>`;
-                            if (temCustasPlanilha) htmlTabelas += `<tr><td style="padding: 4px 8px;"><strong>Custas</strong></td><td style="padding: 4px 8px; text-align:right;">${formatMoney(pData.custas)}</td></tr>`;
-                            htmlTabelas += `</table>`;
+                            text += `<table style="width:80%; margin: 10px auto; border-collapse: collapse; font-size: 11pt;" border="1">`;
+                            text += `<tr><td style="padding: 4px 8px;"><strong>Crédito Líquido</strong></td><td style="padding: 4px 8px; text-align:right;">${vCred}</td></tr>`;
+                            if (parseMoney(vFgts) > 0) text += `<tr><td style="padding: 4px 8px;"><strong>FGTS Separado</strong></td><td style="padding: 4px 8px; text-align:right;">${vFgts}</td></tr>`;
+                            if (parseMoney(vInssR) > 0) text += `<tr><td style="padding: 4px 8px;"><strong>INSS Reclamante</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssR}</td></tr>`;
+                            if (parseMoney(vInssE) > 0) text += `<tr><td style="padding: 4px 8px;"><strong>INSS Empresa</strong></td><td style="padding: 4px 8px; text-align:right;">${vInssE}</td></tr>`;
+                            if (temCustasPlanilha) text += `<tr><td style="padding: 4px 8px;"><strong>Custas</strong></td><td style="padding: 4px 8px; text-align:right;">${formatMoney(pData.custas)}</td></tr>`;
+                            text += `</table>`;
                         });
                     }
                 }
-
+            }
                 appendDisposicoesFinais();
             } else {
                 let introTxt = '';

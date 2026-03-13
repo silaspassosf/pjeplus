@@ -140,36 +140,35 @@
 
             const lblReclamada = isSol ? 'Reclamadas Solidárias' : 'Reclamadas Subsidiárias';
 
+            const num = container.querySelectorAll('.periodo-linha').length + 1;
+
             div.innerHTML = `
-                <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: bold; margin-right: 10px; color: ${isSol ? '#d97706' : '#334155'};">Planilha ${isSol ? 'Solidária' : 'Subsidiária'}</span>
-                    <div style="flex: 1; display: flex; gap: 8px; align-items: center;">
-                        <select class="periodo-planilha-select" data-idx="${idx}" data-tipo="${tipo}" style="flex: 1; padding: 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
-                            <option value="principal">📋 Mesma planilha principal</option>
+                <div style="display: flex; align-items: center; margin-bottom: 10px; gap: 8px;">
+                    <span class="periodo-title" style="font-weight: bold; font-size: 13px; color: ${isSol ? '#d97706' : '#334155'};">Período Diverso #${num}</span>
+                    <button type="button" class="btn-carregar-planilha-extra btn-action" data-idx="${idx}" style="font-size: 11px; padding: 4px 10px; background: #0ea5e9;">📄 Carregar planilha do período</button>
+                    <input type="file" class="input-planilha-extra-pdf" data-idx="${idx}" accept=".pdf" style="display: none;">
+                    <button type="button" class="btn-remover-periodo" data-idx="${idx}" data-row-id="${rowId}" style="margin-left: auto; background: transparent; border: none; color: #ef4444; font-weight: bold; cursor: pointer; font-size: 14px;" title="Remover Período">✖</button>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 12px; background: #f9fafb; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">ID da Planilha</label>
+                        <input type="text" class="periodo-id" data-idx="${idx}" placeholder="Automático ao analisar PDF" style="width: 100%; border: none; background: transparent; font-weight: bold; color: #111827; padding: 0;" readonly>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">Período Apurado</label>
+                        <input type="text" class="periodo-periodo" data-idx="${idx}" placeholder="Automático ao analisar PDF" style="width: 100%; border: none; background: transparent; font-weight: bold; color: #111827; padding: 0;" readonly>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 4px;">
+                    <div class="periodo-reclamadas-list" data-idx="${idx}" style="display:flex; flex-direction:column; gap:4px; margin-bottom:6px;"></div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <select class="periodo-reclamada-select" data-idx="${idx}" style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+                            <option value="">Selecione a reclamada...</option>
                         </select>
-                        <button type="button" class="btn-carregar-planilha-extra btn-action" data-idx="${idx}" style="font-size: 11px; padding: 6px 10px; background: #7c3aed;">📄 Carregar Nova</button>
-                        <input type="file" class="input-planilha-extra-pdf" data-idx="${idx}" accept=".pdf" style="display: none;">
+                        <button type="button" class="btn-add-reclamada-periodo btn-action" data-idx="${idx}" style="padding: 6px 12px; font-size: 12px; background: #10b981;">Adicionar reclamada neste período</button>
                     </div>
-                </div>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <div style="flex: 1;">
-                        <label>ID Cálculo Separado</label>
-                        <input type="text" class="periodo-id" data-idx="${idx}" placeholder="ID #XXXX" style="width: 100%; padding: 8px;">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>Período (vazio = integral)</label>
-                        <input type="text" class="periodo-periodo" data-idx="${idx}" placeholder="Deixe vazio para período integral" style="width: 100%; padding: 8px;">
-                    </div>
-                </div>
-                <div style="margin-bottom: 10px;">
-                    <label style="font-weight: bold;">${lblReclamada} que respondem ao período da planilha acima:</label>
-                    <select multiple size="4" class="periodo-reclamada" data-idx="${idx}" data-tipo="${tipo}" style="width: 100%; padding: 8px;">
-                        ${selectOptions}
-                    </select>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
-                    <label><input type="checkbox" class="periodo-total" data-idx="${idx}"> Período Total</label>
-                    <button type="button" class="btn-remover-periodo btn-action" data-idx="${idx}" data-row-id="${rowId}" style="padding: 8px; margin-left: auto; background: #d32f2f;">Remover</button>
                 </div>
             `;
             container.appendChild(div);
@@ -177,7 +176,11 @@
             const btnRemover = div.querySelector(`.btn-remover-periodo[data-idx="${idx}"]`);
             btnRemover.onclick = () => {
                 document.getElementById(rowId).remove();
-                atualizarDropdownsReclamadas();
+                // Renumerar planilhas
+                container.querySelectorAll('.periodo-linha').forEach((linha, i) => {
+                    linha.querySelector('.periodo-title').textContent = `Período Diverso #${i + 1}`;
+                });
+                atualizarDropdownsPlanilhas();
                 queueOverlayDraftSave();
             };
 

@@ -356,8 +356,11 @@
                         if ($(`dep-principal-${idx}`)) $(`dep-principal-${idx}`).checked = dep.principal !== false;
                         const radio = document.querySelector(`input[name="rad-dep-lib-${idx}"][value="${dep.liberacao || 'reclamante'}"]`);
                         if (radio) radio.checked = true;
-                        if ($(`dep-tipo-${idx}`)) $(`dep-tipo-${idx}`).dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        // INVERSÃO: Dispara o evento de 'principal' primeiro para definir a visibilidade base,
+                        // e depois o de 'tipo' para que o Seguro Garantia possa ocultar a linha corretamente se necessário.
                         if ($(`dep-principal-${idx}`)) $(`dep-principal-${idx}`).dispatchEvent(new Event('change', { bubbles: true }));
+                        if ($(`dep-tipo-${idx}`)) $(`dep-tipo-${idx}`).dispatchEvent(new Event('change', { bubbles: true }));
                     });
                 }
 

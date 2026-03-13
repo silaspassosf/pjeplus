@@ -31,53 +31,57 @@
 
             for (const deposito of prep.depositos) {
                 console.log('[AUTO-DEPOSITOS] processamento de recurso encontrado:', deposito);
-                const anexosRelevantes = (deposito.anexos || []).filter(ax =>
-                    ax.tipo === 'Depósito' || ax.tipo === 'Garantia' || ax.tipo === 'Custas'
+                
+                // 1. Filtra os anexos: aceita apenas Depósito ou Garantia (NUNCA Custas)
+                const anexosValidos = (deposito.anexos || []).filter(ax => 
+                    ax.tipo === 'Depósito' || ax.tipo === 'Garantia'
                 );
 
-                const tiposUnicos = {};
-                anexosRelevantes.forEach(ax => {
-                    if (!tiposUnicos[ax.tipo]) {
-                        tiposUnicos[ax.tipo] = ax;
+                let anexoEscolhido = null;
+
+                if (anexosValidos.length > 0) {
+                    // 2. Regras de Preferência (Tie-breaker)
+                    // Preferência 1: Depósito com nome específico da guia
+                    const depositoPreferencial = anexosValidos.find(ax => 
+                        ax.tipo === 'Depósito' && 
+                        /(guia de dep[oó]sito recursal|guia de dep[oó]sito judicial)/i.test(ax.texto || '')
+                    );
+                    
+                    // Preferência 2: Qualquer outro Depósito
+                    const qualquerDeposito = anexosValidos.find(ax => ax.tipo === 'Depósito');
+                    
+                    // Preferência 3: Seguro Garantia
+                    const garantia = anexosValidos.find(ax => ax.tipo === 'Garantia');
+
+                    anexoEscolhido = depositoPreferencial || qualquerDeposito || garantia;
+                }
+
+                // 3. Cria EXATAMENTE UMA linha para este recurso
+                adicionarDepositoRecursal();
+                const idx = window.hcalcState.nextDepositoIdx - 1;
+
+                // Preenche o nome da reclamada (sempre preenche, mesmo se não achar anexo válido)
+                const depositanteSelect = $(`dep-depositante-${idx}`);
+                if (depositanteSelect) {
+                    depositanteSelect.value = deposito.depositante || '';
+                }
+
+                // 4. Se encontrou um anexo campeão, preenche os dados dele
+                if (anexoEscolhido) {
+                    const tipoSelect = $(`dep-tipo-${idx}`);
+                    const idInput = $(`dep-id-${idx}`);
+
+                    if (tipoSelect) {
+                        tipoSelect.value = anexoEscolhido.tipo === 'Depósito' ? 'bb' : 'garantia';
+                        tipoSelect.dispatchEvent(new Event('change', { bubbles: true }));
                     }
-                });
-                const anexosConsolidados = Object.values(tiposUnicos);
 
-                if (anexosConsolidados.length > 0) {
-                    for (const anexo of anexosConsolidados) {
-                        adicionarDepositoRecursal();
-                        const idx = window.hcalcState.nextDepositoIdx - 1;
-
-                        const tipoSelect = $(`dep-tipo-${idx}`);
-                        const depositanteSelect = $(`dep-depositante-${idx}`);
-                        const idInput = $(`dep-id-${idx}`);
-
-                        if (tipoSelect) {
-                            tipoSelect.value = anexo.tipo === 'Depósito' ? 'bb' : 'garantia';
-                            tipoSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                            console.log('[AUTO-DEPOSITOS] set tipoSelect for idx', idx, '->', tipoSelect.value);
-                        }
-
-                        if (depositanteSelect) {
-                            depositanteSelect.value = deposito.depositante;
-                            console.log('[AUTO-DEPOSITOS] set depositante for idx', idx, '->', depositanteSelect.value);
-                        }
-
-                        if (idInput) {
-                            idInput.value = anexo.id || '';
-                            console.log('[AUTO-DEPOSITOS] set idInput for idx', idx, '->', idInput.value);
-                        }
+                    if (idInput) {
+                        idInput.value = anexoEscolhido.id || '';
                     }
-                    console.log('[AUTO-DEPOSITOS]', anexosConsolidados.length, 'depósito(s) consolidado(s) de', deposito.depositante);
+                    console.log('[AUTO-DEPOSITOS] 1 anexo consolidado escolhido:', anexoEscolhido);
                 } else {
-                    console.warn('[AUTO-DEPOSITOS] Recurso sem anexos para', deposito.depositante, '— criando linha sem ID');
-                    adicionarDepositoRecursal();
-                    const idx = window.hcalcState.nextDepositoIdx - 1;
-                    const depositanteSelect = $(`dep-depositante-${idx}`);
-                    if (depositanteSelect) {
-                        depositanteSelect.value = deposito.depositante || '';
-                        console.log('[AUTO-DEPOSITOS] created row without anexos, set depositante for idx', idx, '->', depositanteSelect.value);
-                    }
+                    console.warn('[AUTO-DEPOSITOS] Recurso sem anexos válidos (Depósito/Garantia) para', deposito.depositante, '— criada linha apenas com o nome');
                 }
             }
         }

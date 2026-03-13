@@ -202,6 +202,34 @@
             const selectPlanilha = div.querySelector(`.periodo-planilha-select[data-idx="${idx}"]`);
             atualizarDropdownsPlanilhas();
 
+            // Lista visual de reclamadas para este período e botão de adicionar
+            const listContainer = div.querySelector(`.periodo-reclamadas-list[data-idx="${idx}"]`);
+            const selectReclamada = div.querySelector(`.periodo-reclamada-select[data-idx="${idx}"]`);
+            if (selectReclamada) selectReclamada.innerHTML = `${selectOptions}`;
+            const btnAddReclamada = div.querySelector(`.btn-add-reclamada-periodo[data-idx="${idx}"]`);
+            if (btnAddReclamada) {
+                btnAddReclamada.onclick = () => {
+                    const nome = selectReclamada.value;
+                    if (!nome) return;
+                    // avoid duplicates in this period
+                    if (Array.from(listContainer.querySelectorAll('.reclamada-item')).some(it => it.dataset.nome === nome)) return;
+                    const item = document.createElement('div');
+                    item.className = 'reclamada-item';
+                    item.dataset.nome = nome;
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+                    item.style.padding = '4px 6px';
+                    item.style.borderRadius = '4px';
+                    item.innerHTML = `<span>${nome}</span><button type="button" class="btn-remove-reclamada" style="background:transparent;border:none;color:#ef4444;font-weight:bold;cursor:pointer;">✖</button>`;
+                    listContainer.appendChild(item);
+                    const rem = item.querySelector('.btn-remove-reclamada');
+                    rem.onclick = () => { item.remove(); atualizarDropdownsReclamadas(); queueOverlayDraftSave(); };
+                    atualizarDropdownsReclamadas();
+                    queueOverlayDraftSave();
+                };
+            }
+
             selectPlanilha.onchange = (e) => {
                 const val = e.target.value;
                 const pd = val === 'principal'

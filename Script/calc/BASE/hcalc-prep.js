@@ -339,10 +339,12 @@
         // Exceções absolutas: se tiver essas palavras, é anexo comum
         if (/jurisprudência|jurisprudencia|sentença|sentenca|isenção|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
 
-        // PRIORIDADE 1: GRU/Custas (mesmo que tenha "depósito recursal" junto)
-        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 1 };
-        // PRIORIDADE 2: Depósito recursal
-        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 2 };
+        // PRIORIDADE: Preferir identificar Depósito recursal antes de classificar como Custas.
+        // Alguns anexos mencionam ambas palavras; considerando a importância do depósito recursal
+        // para o fluxo, priorizamos sua detecção.
+        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 1 };
+        // GRU/Custas ficam em seguida
+        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 2 };
         // PRIORIDADE 3: Garantia
         if (/garantia|seguro|susep|apólice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
         // PRIORIDADE 4: Outros anexos
@@ -379,6 +381,10 @@
                     anexos.push({ texto, id, tipo, ordem, elemento: anexo });
                 });
                 anexos.sort((a, b) => a.ordem - b.ordem);
+                // Log de depuração para auxiliar identificação de anexos (visível no console)
+                try {
+                    console.log('[prep] anexos extraídos:', anexos.map(a => ({ id: a.id, tipo: a.tipo, texto: a.texto ? a.texto.slice(0,80) : '' })));
+                } catch (e) { /* ignore */ }
             }
         } catch (error) {
             err('Erro ao extrair anexos:', error);

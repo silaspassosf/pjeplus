@@ -1122,6 +1122,15 @@
                         responsabilidadesController.addPrincipal(passivo[0].nome);
                     }
                 }
+
+                // Se o checkbox de depósitos já estiver marcado (ex.: prep marcou antes das partes chegarem),
+                // garantir que os depósitos sejam preenchidos agora que as partes estão disponíveis.
+                try {
+                    const chkDep = document.getElementById('chk-deposito');
+                    if (chkDep && chkDep.checked && typeof preencherDepositosAutomaticos === 'function') {
+                        preencherDepositosAutomaticos();
+                    }
+                } catch (e) { /* ignore */ }
             } catch (e) { console.error('[hcalc] Erro no auto-add principal:', e); }
         });
 
@@ -1163,6 +1172,10 @@
                 const prep = await executarPrep(partesData, peritosConh);
 
                 window.hcalcLastPrepResult = prep;
+                console.log('[INICIALIZAÇÃO] executarPrep retornou prep:', {
+                    depositosCount: Array.isArray(prep?.depositos) ? prep.depositos.length : 0,
+                    depositosSample: (prep?.depositos || []).slice(0,5)
+                });
                 window.hcalcPrepResult = prep;
 
                 window.hcalcTimelineData = {

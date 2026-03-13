@@ -7,7 +7,7 @@
         function preencherDepositosAutomaticos() {
             const prep = window.hcalcLastPrepResult;
             if (!prep || !prep.depositos || prep.depositos.length === 0) {
-                console.log('[AUTO-DEPOSITOS] Sem dados de prep');
+                console.log('[AUTO-DEPOSITOS] Sem dados de prep', { prepPresent: !!prep, depositosLength: prep?.depositos?.length });
                 return;
             }
 
@@ -27,9 +27,10 @@
             window.hcalcState.nextDepositoIdx = 0;
             window.hcalcState.depositosRecursais = [];
 
-            console.log('[AUTO-DEPOSITOS] Iniciando preenchimento com', prep.depositos.length, 'recursos');
+            console.log('[AUTO-DEPOSITOS] Iniciando preenchimento com', prep.depositos.length, 'recursos', { depositos: prep.depositos });
 
             for (const deposito of prep.depositos) {
+                console.log('[AUTO-DEPOSITOS] processamento de recurso encontrado:', deposito);
                 const anexosRelevantes = (deposito.anexos || []).filter(ax =>
                     ax.tipo === 'Depósito' || ax.tipo === 'Garantia' || ax.tipo === 'Custas'
                 );
@@ -54,14 +55,17 @@
                         if (tipoSelect) {
                             tipoSelect.value = anexo.tipo === 'Depósito' ? 'bb' : 'garantia';
                             tipoSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            console.log('[AUTO-DEPOSITOS] set tipoSelect for idx', idx, '->', tipoSelect.value);
                         }
 
                         if (depositanteSelect) {
                             depositanteSelect.value = deposito.depositante;
+                            console.log('[AUTO-DEPOSITOS] set depositante for idx', idx, '->', depositanteSelect.value);
                         }
 
                         if (idInput) {
                             idInput.value = anexo.id || '';
+                            console.log('[AUTO-DEPOSITOS] set idInput for idx', idx, '->', idInput.value);
                         }
                     }
                     console.log('[AUTO-DEPOSITOS]', anexosConsolidados.length, 'depósito(s) consolidado(s) de', deposito.depositante);
@@ -72,6 +76,7 @@
                     const depositanteSelect = $(`dep-depositante-${idx}`);
                     if (depositanteSelect) {
                         depositanteSelect.value = deposito.depositante || '';
+                        console.log('[AUTO-DEPOSITOS] created row without anexos, set depositante for idx', idx, '->', depositanteSelect.value);
                     }
                 }
             }
@@ -81,6 +86,8 @@
             const idx = window.hcalcState.nextDepositoIdx++;
             const container = $('depositos-container');
             const reclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+
+            console.log('[AUTO-DEPOSITOS] adicionarDepositoRecursal called, idx will be', idx, 'reclamadas:', reclamadas);
 
             const depositoDiv = document.createElement('div');
             depositoDiv.id = `deposito-item-${idx}`;
@@ -94,7 +101,7 @@
 
             depositoDiv.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <strong style="font-size: 11px; color: #666;">Depósito Recursal #${idx + 1}</strong>
+                    <strong id="dep-title-${idx}" style="font-size: 11px; color: #666;">Depósito Recursal #${idx + 1}</strong>
                     <button type="button" id="btn-remover-dep-${idx}" style="padding: 2px 8px; font-size: 10px; color: #dc2626; background: #fee; border: 1px solid #fca; border-radius: 3px; cursor: pointer;">✕ Remover</button>
                 </div>
                 <div class="row">
@@ -121,6 +128,13 @@
             `;
 
             container.appendChild(depositoDiv);
+
+            // Se houver apenas uma reclamadas detectada, indicar no título que é a "Única"
+            try {
+                const titleEl = document.getElementById(`dep-title-${idx}`);
+                const reclamadasNow = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+                if (titleEl) titleEl.textContent = `Depósito Recursal #${idx + 1}` + (reclamadasNow.length === 1 ? ' (Única)' : '');
+            } catch (e) { /* ignore */ }
 
             const tipoEl = $(`dep-tipo-${idx}`);
             const principalEl = $(`dep-principal-${idx}`);
@@ -152,20 +166,31 @@
 
         function atualizarVisibilidadeDepositoPrincipal(idx) {
             const isSolidaria = document.getElementById('resp-solidarias')?.checked || false;
+            const isUnica = document.getElementById('resp-unica-flag')?.value === 'true';
 
             const principalRow = $(`dep-principal-row-${idx}`);
             const solidariaInfo = $(`dep-solidaria-info-${idx}`);
             const principalChk = $(`dep-principal-${idx}`);
 
-            if (principalRow && solidariaInfo) {
-                if (isSolidaria) {
-                    principalRow.classList.add('hidden');
-                    solidariaInfo.classList.remove('hidden');
-                    if (principalChk) principalChk.checked = true;
-                } else {
-                    principalRow.classList.remove('hidden');
-                    solidariaInfo.classList.add('hidden');
-                }
+            if (!principalRow || !solidariaInfo) return;
+
+            // Devedora Única tem precedência: esconder escolha e travar como principal
+            if (isUnica) {
+                principalRow.classList.add('hidden');
+                solidariaInfo.classList.remove('hidden');
+                if (principalChk) { principalChk.checked = true; principalChk.disabled = true; }
+                return;
+            }
+
+            // Caso contrário, comportamento normal com base na marcação de solidárias
+            if (isSolidaria) {
+                principalRow.classList.add('hidden');
+                solidariaInfo.classList.remove('hidden');
+                if (principalChk) { principalChk.checked = true; principalChk.disabled = false; }
+            } else {
+                principalRow.classList.remove('hidden');
+                solidariaInfo.classList.add('hidden');
+                if (principalChk) principalChk.disabled = false;
             }
         }
 

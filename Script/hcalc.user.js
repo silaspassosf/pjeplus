@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         HomologaÃ§Ã£o de CÃ¡lculos
 // @namespace    http://tampermonkey.net/
-// @version      3.1.32
+// @version      3.1.33
 // @description  Assistente de homologaÃ§Ã£o PJe-Calc
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*

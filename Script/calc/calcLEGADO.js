@@ -818,9 +818,14 @@
     // Classificação por tipo de anexo
     function classificarAnexo(textoAnexo) {
         const t = textoAnexo.toLowerCase();
-        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 1 };
-        if (/garantia|seguro|susep/.test(t)) return { tipo: 'Garantia', ordem: 2 };
-        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 3 };
+        // Exceções absolutas
+        if (/jurisprudência|jurisprudencia|sentença|sentenca|isenção|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
+        // PRIORIDADE 1: GRU/Custas (custas nunca serão depósito recursal)
+        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 1 };
+        // PRIORIDADE 2: Depósito recursal
+        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 2 };
+        // PRIORIDADE 3: Garantia
+        if (/garantia|seguro|susep|apólice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
         return { tipo: 'Anexo', ordem: 4 };
     }
 
@@ -1225,7 +1230,12 @@
 
             // Depósitos recursais = recursos passivo (só se tem acórdão)
             if (timeline.acordaos.length > 0) {
-                prepResult.depositos = timeline.recursosPassivo.map(r => ({
+                const recs = (timeline.recursosPassivo || []).filter(r => {
+                    const anexos = r.anexos || [];
+                    return !anexos.some(a => (a.tipo || '').toLowerCase() === 'custas');
+                });
+
+                prepResult.depositos = recs.map(r => ({
                     tipo: r.tipoRec,
                     texto: r.texto,
                     href: r.href,

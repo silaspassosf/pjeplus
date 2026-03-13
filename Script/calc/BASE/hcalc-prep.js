@@ -769,7 +769,13 @@
 
             // Depósitos recursais = recursos passivo (só se tem acórdão)
             if (timeline.acordaos.length > 0) {
-                prepResult.depositos = timeline.recursosPassivo.map(r => ({
+                // Excluir itens cuja classificação de anexos indicou 'Custas'
+                const recs = (timeline.recursosPassivo || []).filter(r => {
+                    const anexos = r.anexos || [];
+                    return !anexos.some(a => (a.tipo || '').toLowerCase() === 'custas');
+                });
+
+                prepResult.depositos = recs.map(r => ({
                     tipo: r.tipoRec,
                     texto: r.texto,
                     href: r.href,

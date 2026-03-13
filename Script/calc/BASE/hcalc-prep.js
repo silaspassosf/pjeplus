@@ -252,30 +252,18 @@
                 return;
             }
 
-            // Recurso Ordinário / Recurso de Revista (polo passivo + anexo)
+            // Recurso Ordinário / Recurso de Revista (Coleta bruta para filtro cronológico posterior)
             if ((tipoDoc === 'recurso ordinario' || tipoDoc === 'recurso de revista'
                 || tipoDoc.includes('recurso ordinario') || tipoDoc.includes('recurso de revista'))
                 && hasAnexoNoItem(item)) {
+
                 const tipoRec = tipoDoc.includes('revista') ? 'RR' : 'RO';
                 const depositante = nomePassivoDoItem(item);
-
-                // Permitir recursos que não mostram o ícone de polo passivo
-                // quando já foi detectado pelo menos um acórdão na timeline.
-                // Nesse caso aceitamos itens cujo nome de parte (normalizado)
-                // corresponde a alguma parte do passivo detectado.
                 const poloPassivo = isPoloPassivoNoItem(item);
-                const acordaoVisto = resultado.acordaos && resultado.acordaos.length > 0;
-                let accept = poloPassivo;
-                if (!accept && acordaoVisto) {
-                    const passivoNames = (window.hcalcPartesData?.passivo || []).map(p => normalizeText(p.nome || ''));
-                    const nomeNorm = normalizeText(depositante || '');
-                    if (nomeNorm && passivoNames.includes(nomeNorm)) accept = true;
-                }
+                const temReclamada = poloPassivo || (depositante && depositante !== 'Reclamada não identificada');
 
-                if (accept) {
-                    resultado.recursosPassivo.push({ ...base, tipoRec, depositante, _itemRef: item });
-                    return;
-                }
+                resultado.recursosPassivo.push({ ...base, tipoRec, depositante, temReclamada, _itemRef: item });
+                return;
             }
 
             // Honorários Periciais AJ-JT - CAPTURA ID
@@ -753,10 +741,36 @@
                 honAjJt: timeline.honAjJt.length
             });
 
-            // ── ETAPA 1.5: Enriquecer recursos com anexos (integrado rec.js) ──
-            if (timeline.recursosPassivo.length > 0) {
-                dbg('prep', 'Extraindo anexos de', timeline.recursosPassivo.length, 'recursos...');
-                for (const rec of timeline.recursosPassivo) {
+            // Mapear acórdãos e editais para resultado
+            prepResult.acordaos = timeline.acordaos.map(a => ({ data: a.data, href: a.href, id: a.id }));
+            prepResult.editais = timeline.editais.map(e => ({ data: e.data, href: e.href }));
+
+            // ── ETAPA 1.5: Filtrar recursos e Enriquecer com anexos ──
+            const acordaosIdx = timeline.acordaos.map(a => a.idx);
+            // Na timeline (descendente), o acórdão cronologicamente "mais antigo" tem o MAIOR idx.
+            const oldestAcordaoIdx = acordaosIdx.length > 0 ? Math.max(...acordaosIdx) : -1;
+
+            const recsFiltrados = [];
+            for (const r of timeline.recursosPassivo) {
+                // Se o recurso tem idx MENOR que o acórdão, ele apareceu ACIMA (ocorreu DEPOIS do acórdão).
+                const ocorreuDepoisDoAcordao = oldestAcordaoIdx !== -1 && r.idx < oldestAcordaoIdx;
+
+                if (ocorreuDepoisDoAcordao) {
+                    // Cronologicamente DEPOIS do acórdão: Basta Nome + Anexos (já validados na coleta)
+                    recsFiltrados.push(r);
+                } else {
+                    // Cronologicamente ANTES do acórdão (ou se não houver acórdão): Precisa Nome + Reclamada + Anexos
+                    if (r.temReclamada) {
+                        recsFiltrados.push(r);
+                    } else {
+                        dbg('prep: recurso descartado (Antes do acórdão e sem reclamada detectada)', r.texto);
+                    }
+                }
+            }
+
+            if (recsFiltrados.length > 0) {
+                dbg('prep', 'Extraindo anexos de', recsFiltrados.length, 'recursos...');
+                for (const rec of recsFiltrados) {
                     if (rec._itemRef) {
                         rec.anexos = await extrairAnexosDoItem(rec._itemRef);
                         delete rec._itemRef;
@@ -766,50 +780,31 @@
                 }
                 dbg('prep', 'Anexos extraídos');
             }
-            // Garantir limpeza de _itemRef mesmo se não processou
+
+            // Garantir limpeza de referências DOM para evitar vazamento de memória
             timeline.recursosPassivo.forEach(r => { delete r._itemRef; });
 
-            // Mapear acórdãos e editais para resultado
-            prepResult.acordaos = timeline.acordaos.map(a => ({ data: a.data, href: a.href, id: a.id }));
-            prepResult.editais = timeline.editais.map(e => ({ data: e.data, href: e.href }));
+            // Populando depósitos sem NENHUM filtro restritivo de "Custas"
+            prepResult.depositos = recsFiltrados.map(r => ({
+                tipo: r.tipoRec,
+                texto: r.texto,
+                href: r.href,
+                data: r.data,
+                depositante: r.depositante || '',
+                anexos: r.anexos || []
+            }));
 
-            // Depósitos recursais = recursos passivo (só se tem acórdão)
-            if (timeline.acordaos.length > 0) {
-                // Excluir itens cuja classificação de anexos indicou 'Custas'
-                const excluded = [];
-                const recs = (timeline.recursosPassivo || []).filter(r => {
-                    const anexos = r.anexos || [];
-                    const isCustas = anexos.some(a => (a.tipo || '').toLowerCase() === 'custas');
-                    if (isCustas) excluded.push({ texto: r.texto, anexos });
-                    return !isCustas;
-                });
-
-                // Debug: listar recursos excluídos por serem 'Custas' (visível quando HCALC_DEBUG=true)
-                if (excluded.length > 0) {
-                    excluded.forEach(ex => dbg('prep: exclui recurso como Custas:', ex.texto, ex.anexos.map(a => a.tipo)));
-                }
-
-                prepResult.depositos = recs.map(r => ({
-                    tipo: r.tipoRec,
-                    texto: r.texto,
-                    href: r.href,
-                    data: r.data,
-                    depositante: r.depositante || '',
-                    anexos: r.anexos || []
-                }));
-
-                // Ordenar depósitos por data (mais antigos primeiro)
-                function _dateToTs(dstr) {
-                    if (!dstr) return 0;
-                    const parts = dstr.split('/');
-                    if (parts.length < 3) return 0;
-                    const dia = parseInt(parts[0], 10);
-                    const mes = parseInt(parts[1], 10) - 1;
-                    const ano = parseInt(parts[2], 10);
-                    return new Date(ano, mes, dia).getTime();
-                }
-                prepResult.depositos.sort((a, b) => _dateToTs(a.data) - _dateToTs(b.data));
+            // Ordenar depósitos por data (mais antigos primeiro)
+            function _dateToTs(dstr) {
+                if (!dstr) return 0;
+                const parts = dstr.split('/');
+                if (parts.length < 3) return 0;
+                const dia = parseInt(parts[0], 10);
+                const mes = parseInt(parts[1], 10) - 1;
+                const ano = parseInt(parts[2], 10);
+                return new Date(ano, mes, dia).getTime();
             }
+            prepResult.depositos.sort((a, b) => _dateToTs(a.data) - _dateToTs(b.data));
 
             // ── ETAPA 2: AJ-JT — só se tem perito de conhecimento ──
             // ORDEM INVERTIDA: AJ-JT antes de sentença para manter sentença selecionada

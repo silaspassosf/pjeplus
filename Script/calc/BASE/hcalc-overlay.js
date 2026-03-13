@@ -1186,7 +1186,8 @@
 
                 const labelDeposito = $('label-chk-deposito');
                 if (labelDeposito) {
-                    labelDeposito.style.textDecoration = prep.acordaos.length === 0 ? 'line-through' : 'none';
+                    // Riscar apenas se não houver acórdão E também não houver depósito válido encontrado
+                    labelDeposito.style.textDecoration = (prep.acordaos.length === 0 && prep.depositos.length === 0) ? 'line-through' : 'none';
                 }
 
                 const linkSentencaContainer = $('link-sentenca-container');
@@ -1373,9 +1374,9 @@
                     }
                 }
 
-                // Depósito recursal: visível se tem acórdãos
+                // Depósito recursal: visível se tem acórdãos OU se encontrou depósitos válidos
                 const fieldsetDeposito = $('fieldset-deposito');
-                if (prep.acordaos.length === 0) {
+                if (prep.acordaos.length === 0 && prep.depositos.length === 0) {
                     if (fieldsetDeposito) fieldsetDeposito.classList.add('hidden');
                 } else {
                     if (fieldsetDeposito) fieldsetDeposito.classList.remove('hidden');

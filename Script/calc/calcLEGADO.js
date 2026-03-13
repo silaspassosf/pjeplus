@@ -751,23 +751,11 @@
             // Recurso Ordinário / Recurso de Revista (polo passivo + anexo)
             if ((tipoDoc === 'recurso ordinario' || tipoDoc === 'recurso de revista'
                 || tipoDoc.includes('recurso ordinario') || tipoDoc.includes('recurso de revista'))
-                && hasAnexoNoItem(item)) {
+                && isPoloPassivoNoItem(item) && hasAnexoNoItem(item)) {
                 const tipoRec = tipoDoc.includes('revista') ? 'RR' : 'RO';
                 const depositante = nomePassivoDoItem(item);
-
-                const poloPassivo = isPoloPassivoNoItem(item);
-                const acordaoVisto = resultado.acordaos && resultado.acordaos.length > 0;
-                let accept = poloPassivo;
-                if (!accept && acordaoVisto) {
-                    const passivoNames = (window.hcalcPartesData?.passivo || []).map(p => normalizeText(p.nome || ''));
-                    const nomeNorm = normalizeText(depositante || '');
-                    if (nomeNorm && passivoNames.includes(nomeNorm)) accept = true;
-                }
-
-                if (accept) {
-                    resultado.recursosPassivo.push({ ...base, tipoRec, depositante, _itemRef: item });
-                    return;
-                }
+                resultado.recursosPassivo.push({ ...base, tipoRec, depositante, _itemRef: item });
+                return;
             }
 
             // Honorários Periciais AJ-JT - CAPTURA ID
@@ -818,14 +806,9 @@
     // Classificação por tipo de anexo
     function classificarAnexo(textoAnexo) {
         const t = textoAnexo.toLowerCase();
-        // Exceções absolutas
-        if (/jurisprudência|jurisprudencia|sentença|sentenca|isenção|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
-        // PRIORIDADE 1: GRU/Custas (custas nunca serão depósito recursal)
-        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 1 };
-        // PRIORIDADE 2: Depósito recursal
-        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 2 };
-        // PRIORIDADE 3: Garantia
-        if (/garantia|seguro|susep|apólice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
+        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 1 };
+        if (/garantia|seguro|susep/.test(t)) return { tipo: 'Garantia', ordem: 2 };
+        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 3 };
         return { tipo: 'Anexo', ordem: 4 };
     }
 
@@ -1230,12 +1213,7 @@
 
             // Depósitos recursais = recursos passivo (só se tem acórdão)
             if (timeline.acordaos.length > 0) {
-                const recs = (timeline.recursosPassivo || []).filter(r => {
-                    const anexos = r.anexos || [];
-                    return !anexos.some(a => (a.tipo || '').toLowerCase() === 'custas');
-                });
-
-                prepResult.depositos = recs.map(r => ({
+                prepResult.depositos = timeline.recursosPassivo.map(r => ({
                     tipo: r.tipoRec,
                     texto: r.texto,
                     href: r.href,
@@ -1243,18 +1221,6 @@
                     depositante: r.depositante || '',
                     anexos: r.anexos || []
                 }));
-
-                // Ordenar depósitos por data (mais antigos primeiro)
-                function _dateToTs(dstr) {
-                    if (!dstr) return 0;
-                    const parts = dstr.split('/');
-                    if (parts.length < 3) return 0;
-                    const dia = parseInt(parts[0], 10);
-                    const mes = parseInt(parts[1], 10) - 1;
-                    const ano = parseInt(parts[2], 10);
-                    return new Date(ano, mes, dia).getTime();
-                }
-                prepResult.depositos.sort((a, b) => _dateToTs(a.data) - _dateToTs(b.data));
             }
 
             // ── ETAPA 2: AJ-JT — só se tem perito de conhecimento ──

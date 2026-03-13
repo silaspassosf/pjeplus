@@ -159,6 +159,13 @@
                         <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">Período Apurado</label>
                         <input type="text" class="periodo-periodo" data-idx="${idx}" placeholder="Automático ao analisar PDF" style="width: 100%; border: none; background: transparent; font-weight: bold; color: #111827; padding: 0;" readonly>
                     </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; color: #6b7280; margin-bottom: 2px; display: block;">Planilha</label>
+                        <select class="periodo-planilha-select" data-idx="${idx}" style="width:100%; padding:6px; border:1px solid #d1d5db; border-radius:4px; background:#fff;">
+                            <option value="principal">Planilha Principal</option>
+                        </select>
+                        <div class="periodo-planilha-info" style="margin-top:6px; font-size:11px; color:#065f46;"></div>
+                    </div>
                 </div>
 
                 <div style="margin-bottom: 4px;">

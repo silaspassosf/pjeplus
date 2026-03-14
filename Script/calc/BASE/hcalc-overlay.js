@@ -1461,7 +1461,7 @@
                     // ou acrescentar nomes manualmente separados por '|'.
                     const peritoNomeEl = $('val-perito-nome');
                     const etiqueta = prep.sentenca.honorariosPericiais
-                        .map(h => (h.nome ? h.nome : 'Detectado em sentença'))
+                        .map(h => (h.nome ? h.nome : 'Detectado em sentença — revisar'))
                         .join(' | ');
                     if (peritoNomeEl && !peritoNomeEl.value) {
                         peritoNomeEl.value = etiqueta;

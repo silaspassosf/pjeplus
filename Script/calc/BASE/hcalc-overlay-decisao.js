@@ -398,20 +398,22 @@
                     } else {
                         const grupos = {};
                         depositosValidos.forEach((dep) => {
-                            const chave = `${dep.depositanteResolvida}|${dep.naturezaDevedora}|${dep.bancoTxt}`;
-                            if (!grupos[chave]) {
-                                grupos[chave] = {
-                                    depositante: dep.depositanteResolvida,
-                                    natureza: dep.naturezaDevedora,
-                                    banco: dep.bancoTxt,
-                                    depositos: [],
-                                    todosGarantia: true,
-                                    todosLiberacaoDireta: true
-                                };
-                            }
-                            grupos[chave].depositos.push(dep);
-                            if (dep.isDepositoJudicial) grupos[chave].todosGarantia = false;
-                            if (dep.liberacao !== 'reclamante') grupos[chave].todosLiberacaoDireta = false;
+                            // Agrupar por depositante + natureza (ignorar banco para unir várias entradas da mesma parte)
+                            const chave = `${dep.depositanteResolvida}|${dep.naturezaDevedora}`;
+                                if (!grupos[chave]) {
+                                    grupos[chave] = {
+                                        depositante: dep.depositanteResolvida,
+                                        natureza: dep.naturezaDevedora,
+                                        bancos: new Set(),
+                                        depositos: [],
+                                        todosGarantia: true,
+                                        todosLiberacaoDireta: true
+                                    };
+                                }
+                                grupos[chave].depositos.push(dep);
+                                grupos[chave].bancos.add(dep.bancoTxt);
+                                if (dep.isDepositoJudicial) grupos[chave].todosGarantia = false;
+                                if (dep.liberacao !== 'reclamante') grupos[chave].todosLiberacaoDireta = false;
                         });
 
                         const formatarLista = (itens) => {
@@ -424,8 +426,10 @@
                         Object.values(grupos).forEach((grupo) => {
                             const ids = grupo.depositos.map((deposito) => `${bold(deposito.dId)}`);
                             const idsTexto = ids.length > 1 ? `Ids ${formatarLista(ids)}` : `Id ${ids[0]}`;
+                            const bancosArr = Array.from(grupo.bancos || []).filter(Boolean);
+                            const bancosTexto = bancosArr.length > 1 ? formatarLista(bancosArr) : (bancosArr[0] || '');
 
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${grupo.depositos.length > 1 ? 'Há depósitos recursais' : 'Há depósito recursal'} da devedora ${grupo.natureza} (${grupo.depositante} ${idsTexto}) via ${grupo.banco}.</p>`;
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${grupo.depositos.length > 1 ? 'Há depósitos recursais' : 'Há depósito recursal'} da devedora ${grupo.natureza} (${grupo.depositante} ${idsTexto})${bancosTexto ? ' via ' + bancosTexto : ''}.</p>`;
 
                             if (grupo.todosGarantia && grupo.natureza === 'principal') {
                                 // Seguro garantia: apenas mencionado acima, sem frase adicional sobre liberação
@@ -438,8 +442,11 @@
 
                                     if (depsDiretos.length > 0) {
                                         houveDepositoDireto = true;
-                                        const txtPlural = depsDiretos.length > 1 ? 'os depósitos recursais' : 'o depósito recursal';
-                                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Libere-se ${txtPlural} em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
+                                        if (depsDiretos.length > 1) {
+                                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Liberem-se os depósitos recursais em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
+                                        } else {
+                                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Libere-se o depósito recursal em favor do reclamante. Após, apure-se o remanescente devido.</p>`;
+                                        }
                                     }
 
                                     if (depsDetalhados.length > 0) {

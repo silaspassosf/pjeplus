@@ -1436,7 +1436,7 @@
                     const match = prep.pericia.peritosComAjJt[0];
                     if (peritoTipoEl) peritoTipoEl.value = 'trt';
                     if (peritoValorEl) peritoValorEl.value = match.idAjJt || '';
-                } else if (prep.sentenca.honorariosPericiais.length > 0) {
+                } else if (prep.sentenca.honorariosPericiais.length > 0 && (!(window.hcalcPeritosConhecimentoDetectados || []).length)) {
                     // Honorários periciais na sentença (casos antigos onde o perito
                     // não aparece na busca de partes). Preenche campos e marca a
                     // seção de perícia para permitir edição manual adicional.

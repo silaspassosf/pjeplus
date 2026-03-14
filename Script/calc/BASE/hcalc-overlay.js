@@ -1437,7 +1437,9 @@
                     if (peritoTipoEl) peritoTipoEl.value = 'trt';
                     if (peritoValorEl) peritoValorEl.value = match.idAjJt || '';
                 } else if (prep.sentenca.honorariosPericiais.length > 0) {
-                    // Honorários periciais na sentença
+                    // Honorários periciais na sentença (casos antigos onde o perito
+                    // não aparece na busca de partes). Preenche campos e marca a
+                    // seção de perícia para permitir edição manual adicional.
                     const hon = prep.sentenca.honorariosPericiais[0];
                     if (hon.trt && peritoTipoEl) {
                         peritoTipoEl.value = 'trt';
@@ -1445,6 +1447,32 @@
                     // Sempre preencher valor se detectado
                     if (peritoValorEl && !peritoValorEl.value) {
                         peritoValorEl.value = 'R$' + hon.valor;
+                    }
+
+                    // Marcar a checkbox e expor campos de perícia de conhecimento
+                    const chkPeritoConh = $('chk-perito-conh');
+                    if (chkPeritoConh) {
+                        chkPeritoConh.checked = true;
+                        chkPeritoConh.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+
+                    // Preencher o campo de nomes com um marcador informando
+                    // que foi detectado na sentença; o usuário pode editar
+                    // ou acrescentar nomes manualmente separados por '|'.
+                    const peritoNomeEl = $('val-perito-nome');
+                    const etiqueta = prep.sentenca.honorariosPericiais
+                        .map(h => (h.nome ? h.nome : 'Detectado em sentença'))
+                        .join(' | ');
+                    if (peritoNomeEl && !peritoNomeEl.value) {
+                        peritoNomeEl.value = etiqueta;
+                    }
+
+                    // Atualiza a variável detectada global para que o gerador
+                    // de decisão utilize esse nome automaticamente.
+                    try {
+                        window.hcalcPeritosConhecimentoDetectados = etiqueta.split('|').map(s => s.trim()).filter(Boolean);
+                    } catch (e) {
+                        console.warn('[hcalc] falha ao setar peritos detectados:', e);
                     }
                 }
                 // Data da sentença no campo de data do perito

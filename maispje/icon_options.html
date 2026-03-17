@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<link rel="stylesheet" href="../maisPje_icones.css" />
+		<style>
+			
+			body{
+				margin: 0px;
+				font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+				font-size: 12px;
+				color: #545454;
+				background-color: #f2f2f2;
+				overflow: hidden;	
+			}
+			
+			.categorias{
+				border-bottom: 1px solid #e1ddd8;
+				display: flex;
+				align-items: center;
+				justify-content: left;
+			}
+			
+			.categorias ul {
+				margin-top: 10px;
+				margin-bottom: 10px;
+				list-style: none;
+				padding-left: 3px;
+			}
+			
+			.categorias li {
+				text-align: center;
+				width: 180px;
+			}
+			
+			.logo {
+				font-family: fantasy;
+				font-weight: bold;
+				font-size: 16px;
+				font-variant: small-caps;
+				display: flex;
+				align-items: flex-start;
+				color: #3d3f3f;
+			}
+			
+			#versao {
+				font-size: 12px;
+			}
+			
+			#menu {
+				cursor: pointer;
+				position: relative;
+				left: 2px;
+				top: 2px;
+				font-size: 14px;
+			}
+			
+			.atalhos {
+				
+			}
+			
+			.atalhos li {
+				display: flex;
+				padding: 5px 10px;
+				background-image: linear-gradient(to right, #f7f7f7 , #e0e0e0);				
+				border: 1px solid #f2f2f2;
+				border-top-left-radius: 15px;
+				border-bottom-left-radius: 15px;
+				margin-top:-1px;
+				margin-left:-1px;
+				box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px;
+			}
+			
+			.atalhos li:hover {
+				/* background: lightgrey;				 */
+				background: #2195f348;
+				cursor: pointer;
+			}
+			
+			a {
+				color: #545454;
+				text-align: center;
+				margin-bottom: 1px;				
+				display: inline-block;
+				width: 100%;
+				height:	100%;
+			}
+			
+			a:link, a:visited {
+				text-decoration: none
+			}
+			
+			a:hover {
+				text-decoration: none;
+			}
+
+			a:active {
+				text-decoration: none
+			}
+			
+			.switch {
+				position: relative;
+				display: inline-block;
+				width: 360px;
+				height: 20px;
+				margin-left: 5px;
+			}
+			
+			.switch input {
+				opacity: 0;
+				width: 0;
+				height: 0;
+			}
+			
+			.switch span {
+				text-align: center;
+				line-height: 1.5;
+			}
+
+			.slider {
+				position: absolute;
+				cursor: pointer;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background-color: #ccc;
+				transition: .4s;
+				border: 1px solid #545454;
+			}
+
+			.slider:before {
+				position: absolute;
+				content: "";
+				height: 14px;
+				width: 14px;
+				left: 2px;
+				bottom: 2px;
+				background-color: white;
+				transition: .4s;
+			}
+
+			input:checked + .slider {
+				background-color: #2196F3;
+			}
+
+			input:checked + .slider:before {
+				transform: translateX(340px);
+			}
+
+			.slider.round {
+				border-radius: 34px;
+			}
+
+			.slider.round:before {
+				border-radius: 50%;
+			}
+			
+		</style>		
+	</head>
+
+	<body>
+		<form>
+			<nav class="categorias" style="margin-top: 5px; height: 30px;">
+				<div class="logo" style="width: 22px; padding-bottom: 2px;"><i class="icone box-open t20"></i></div>
+				<div class="logo">
+					<span style="padding: 0 2px 0 0;"><i class="icone plus t12"></i></span>
+					<span><img src="icons/logo-pje.png" style="width: auto; height: 16px;padding-top: 2px;"></span>							
+				</div>
+				<div class="logo" style="width: 100%; display: block;">
+					<span id="versao" style="padding: 0 0 0 15px; float: right;">versao</span>
+				</div>
+			</nav>
+			<nav style="height: 30px;">
+				<label class="switch">
+					<input type="checkbox" id="gigsLigarDesligar">
+					<span class="slider round"></span>
+				</label>
+				<span id="menu" title="Configurações"><i id="opcoes" class="icone cog2 t25 spin" style="vertical-align: middle;"></i></span>
+			</nav>
+			<div style="display:grid;grid-template-columns: 1fr 1fr; height: 470px; width: 400px;">
+				<div style="padding:5px;">
+					<nav class="categorias" style="height: 420px;align-items:start;">
+						<ul>
+							<li><b>DETALHES DO PROCESSO</b></li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsAbrirGigs" id="gigsAbrirGigs">
+								<label for="gigsAbrirGigs">Abrir GIGS</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsAbrirTarefas" id="gigsAbrirTarefas">
+								<label for="gigsAbrirTarefas">Abrir TAREFAS</label>
+							</li>														
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsOcultarChips" id="gigsOcultarChips">
+								<label for="gigsOcultarChips">Ocultar Chips</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsOcultarLembretes" id="gigsOcultarLembretes">
+								<label for="gigsOcultarLembretes">Recolher Lembretes</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsTirarSomLembretes" id="gigsTirarSomLembretes">
+								<label for="gigsTirarSomLembretes">Silenciar Lembretes</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsCriarMenu" id="gigsCriarMenu">
+								<label for="gigsCriarMenu">Guardar dados processo</label>
+							</li>
+							<li style="text-align: left;margin-left:10px;padding:3px 0 0 3px;background-color:rgb(231, 231, 231);border-top-left-radius: 5px;border-top-right-radius: 5px;">
+								<input type="checkbox" name="gigsCriarMenuGuardarNumeroProcesso" id="gigsCriarMenuGuardarNumeroProcesso">
+								<label for="gigsCriarMenuGuardarNumeroProcesso">copiar n. processo</label>
+							</li>
+							<li style="text-align: left;margin-left:10px;padding:0 0 3px 3px;background-color:rgb(231, 231, 231);border-bottom-left-radius: 5px;border-bottom-right-radius: 5px;">
+								<input type="checkbox" name="gigsCriarMenuAbrirPainelCopiaECola" id="gigsCriarMenuAbrirPainelCopiaECola">
+								<label for="gigsCriarMenuAbrirPainelCopiaECola">Abrir Painel Copia e Cola</label>
+							</li>
+							<li style="text-align: left;padding-top: 10px;">
+								<input type="checkbox" name="sanearAJG" id="sanearAJG">
+								<label for="sanearAJG">Sanear AJG</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsPesquisaDeDocumentos" id="gigsPesquisaDeDocumentos">
+								<label for="gigsPesquisaDeDocumentos">Pesquisar Documento</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="mapeamentoDeIDs" id="mapeamentoDeIDs">
+								<label for="mapeamentoDeIDs">Mapear Ids</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="guiaPersonalizadaDetalhes" id="guiaPersonalizadaDetalhes">
+								<label for="guiaPersonalizadaDetalhes">Guia Personalizada</label>
+							</li>							
+							<li style="text-align: left;">
+								<input type="checkbox" name="ocultarPublicacoesDJEN" id="ocultarPublicacoesDJEN">
+								<label for="ocultarPublicacoesDJEN">Ocultar Publicações DJEN</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="ocultarDocumentosExcluidos" id="ocultarDocumentosExcluidos">
+								<label for="ocultarDocumentosExcluidos">Ocultar Doctos Excluídos</label>
+							</li>
+							<li style="padding-top: 15px;"><b>APRECIAR PETIÇÕES</b></li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsApreciarPeticoes" id="gigsApreciarPeticoes">
+								<label for="gigsApreciarPeticoes">ao abrir detalhes</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsApreciarPeticoes2" id="gigsApreciarPeticoes2">
+								<label for="gigsApreciarPeticoes2">na AA Despacho</label>
+							</li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsApreciarPeticoes3" id="gigsApreciarPeticoes3">
+								<label for="gigsApreciarPeticoes3">na AA Movimentações</label>
+							</li>
+
+						</ul>						
+					</nav>
+					<nav class="categorias" style="height: 50px;border: none;">
+						<ul>
+							<li><b>TAREFAS DO PROCESSO</b></li>
+							<li style="text-align: left;">
+								<input type="checkbox" name="gigsAbrirDetalhes" id="gigsAbrirDetalhes">
+								<label for="gigsAbrirDetalhes">Abrir DETALHES</label>
+							</li>
+						</ul>
+					</nav>
+				</div>
+				<div>
+					<nav class="categorias" style="border: none;align-items: initial;overflow-x: hidden;overflow-y: hidden;height: 470px;">
+						<ul id="atalhosPlugin" class="atalhos" style="overflow-y: scroll;overflow-x: hidden; margin:0;">
+							<li style="background-image:none;border:0;cursor: auto;box-shadow:none;margin-top:-1px;margin-left:-1px;"><b>ATALHOS</b></li>
+						</ul>
+					</nav>
+				</div>
+			</div>
+		</form>		
+		<script src="comum/item-checkbox-menu.js"></script>
+		<script src="icon_options.js"></script>
+	</body>
+</html>

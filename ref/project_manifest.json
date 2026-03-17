@@ -1,0 +1,611 @@
+{
+  "project": {
+    "name": "PJePlus",
+    "description": "Automação de workflows PJe (Processo Judicial Eletrônico)",
+    "language": "Python",
+    "version": "3.11+",
+    "created": "2026-01-29",
+    "status": "refactoring"
+  },
+  "statistics": {
+    "total_files": 63,
+    "total_lines": 39000,
+    "files_over_500_lines": 21,
+    "files_over_1500_lines": 9,
+    "largest_file": {
+      "path": "SISB/helpers.py",
+      "lines": 3551
+    },
+    "problematic_files_percentage": 33
+  },
+  "modules": {
+    "Fix": {
+      "path": "Fix/",
+      "type": "foundation",
+      "responsibility": "Selenium utilities and PJe core functions",
+      "status": "critical_refactoring_needed",
+      "public_api": "Fix/__init__.py",
+      "entry_points": [
+        "aguardar_e_clicar",
+        "safe_click",
+        "criar_driver_PC",
+        "preencher_campo",
+        "selecionar_opcao",
+        "com_retry",
+        "buscar_seletor_robusto"
+      ],
+      "dependencies": {
+        "external": [
+          "selenium.webdriver",
+          "selenium.webdriver.common.by",
+          "selenium.webdriver.support.ui",
+          "selenium.webdriver.support.expected_conditions"
+        ],
+        "internal": []
+      },
+      "used_by": [
+        "Prazo",
+        "PEC",
+        "SISB",
+        "Mandado",
+        "atos"
+      ],
+      "tags": [
+        "selenium",
+        "webdriver",
+        "pje-core",
+        "utilities"
+      ],
+      "files": {
+        "core.py": {
+          "lines": 2915,
+          "status": "critical",
+          "responsibilities": [
+            "selenium_base_operations",
+            "driver_creation",
+            "session_management",
+            "navigation_filters",
+            "document_extraction",
+            "authentication",
+            "gigs_creation"
+          ],
+          "refactoring_plan": {
+            "target_structure": {
+              "selenium_base/": [
+                "wait_operations.py",
+                "element_interaction.py",
+                "retry_logic.py",
+                "smart_selection.py"
+              ],
+              "drivers/": [
+                "factory.py",
+                "config_pc.py",
+                "config_vt.py",
+                "lifecycle.py"
+              ],
+              "session/": [
+                "cookies_manager.py",
+                "session_validator.py",
+                "auth.py"
+              ],
+              "navigation/": [
+                "filters.py",
+                "phase_filter.py",
+                "url_helpers.py"
+              ]
+            },
+            "estimated_files": 31,
+            "estimated_total_lines": 4500,
+            "max_lines_per_file": 250
+          }
+        },
+        "extracao.py": {
+          "lines": 2127,
+          "status": "critical",
+          "responsibilities": [
+            "document_extraction",
+            "bndt_operations",
+            "gigs_operations",
+            "indexing"
+          ]
+        },
+        "utils.py": {
+          "lines": 2013,
+          "status": "critical",
+          "responsibilities": [
+            "general_utilities",
+            "formatters",
+            "parsers",
+            "form_helpers"
+          ]
+        },
+        "variaveis.py": {
+          "lines": 897,
+          "status": "moderate",
+          "responsibilities": [
+            "constants",
+            "configuration",
+            "global_variables"
+          ]
+        }
+      }
+    },
+    "Prazo": {
+      "path": "Prazo/",
+      "type": "workflow",
+      "responsibility": "Automação de análise e processamento de prazos processuais",
+      "status": "moderate_refactoring_needed",
+      "public_api": "Prazo/__init__.py",
+      "entry_points": [
+        "executar_loop_principal",
+        "fluxo_prazo",
+        "fluxo_prov",
+        "aplicar_filtro_atividades_xs"
+      ],
+      "dependencies": {
+        "external": [
+          "selenium"
+        ],
+        "internal": [
+          "Fix",
+          "atos"
+        ]
+      },
+      "tags": [
+        "prazos",
+        "batch",
+        "decisao",
+        "gigs"
+      ],
+      "files": {
+        "loop.py": {
+          "lines": 1253,
+          "status": "moderate"
+        },
+        "p2b_fluxo_helpers.py": {
+          "lines": 902,
+          "status": "moderate"
+        },
+        "prov.py": {
+          "lines": 750,
+          "status": "moderate"
+        }
+      }
+    },
+    "PEC": {
+      "path": "PEC/",
+      "type": "workflow",
+      "responsibility": "Análise e triagem de petições eletrônicas",
+      "status": "critical_refactoring_needed",
+      "issues": [
+        "code_duplication_pet2_vs_pet_novo"
+      ],
+      "public_api": "PEC/__init__.py",
+      "entry_points": [
+        "executar_analise",
+        "analisar_competencia",
+        "gerar_relatorio"
+      ],
+      "dependencies": {
+        "external": [
+          "selenium",
+          "PyPDF2"
+        ],
+        "internal": [
+          "Fix",
+          "atos"
+        ]
+      },
+      "tags": [
+        "peticao",
+        "analise",
+        "competencia",
+        "emenda"
+      ],
+      "files": {
+        "pet2.py": {
+          "lines": 1690,
+          "status": "critical",
+          "note": "DUPLICATED - 80% overlap with pet_novo.py"
+        },
+        "pet_novo.py": {
+          "lines": 1626,
+          "status": "critical",
+          "note": "DUPLICATED - newer version, should consolidate"
+        },
+        "processamento.py": {
+          "lines": 1622,
+          "status": "critical"
+        },
+        "regras.py": {
+          "lines": 1615,
+          "status": "critical"
+        },
+        "anexos.py": {
+          "lines": 1284,
+          "status": "moderate"
+        },
+        "carta.py": {
+          "lines": 990,
+          "status": "moderate"
+        }
+      },
+      "refactoring_plan": {
+        "target_structure": {
+          "ingestion/": [
+            "pdf_reader.py",
+            "text_extractor.py",
+            "metadata_parser.py"
+          ],
+          "analysis/": [
+            "competence_checker.py",
+            "party_extractor.py",
+            "value_extractor.py"
+          ],
+          "rules/": [
+            "territorial_rules.py",
+            "document_rules.py",
+            "emendation_rules.py"
+          ],
+          "decisions/": [
+            "decision_engine.py",
+            "approval_handler.py",
+            "rejection_handler.py"
+          ],
+          "output/": [
+            "report_generator.py",
+            "minute_generator.py"
+          ]
+        },
+        "estimated_files": 32,
+        "estimated_total_lines": 5500
+      }
+    },
+    "SISB": {
+      "path": "SISB/",
+      "type": "integration",
+      "responsibility": "Integração com SISBAJUD",
+      "status": "critical_refactoring_needed",
+      "public_api": "SISB/__init__.py",
+      "entry_points": [
+        "executar_sisb",
+        "extrair_dados_bloqueios_processados",
+        "gerar_relatorio_bloqueios_processados",
+        "gerar_relatorio_bloqueios_conciso"
+      ],
+      "dependencies": {
+        "external": [
+          "selenium",
+          "requests"
+        ],
+        "internal": [
+          "Fix"
+        ]
+      },
+      "tags": [
+        "sisbajud",
+        "bloqueio",
+        "judicial",
+        "api"
+      ],
+      "files": {
+        "helpers.py": {
+          "lines": 3551,
+          "status": "critical_highest_priority",
+          "note": "LARGEST FILE IN PROJECT",
+          "responsibilities": [
+            "form_validation",
+            "data_extraction",
+            "data_transformation",
+            "business_rules",
+            "ui_interaction",
+            "formatting_parsing",
+            "api_communication"
+          ],
+          "refactoring_plan": {
+            "target_structure": {
+              "validation/": [
+                "cnpj_validator.py",
+                "cpf_validator.py",
+                "account_validator.py",
+                "value_validator.py"
+              ],
+              "extraction/": [
+                "table_extractor.py",
+                "text_extractor.py",
+                "entity_extractor.py"
+              ],
+              "transformation/": [
+                "normalizer.py",
+                "formatter.py",
+                "converter.py"
+              ],
+              "business_rules/": [
+                "sisbajud_rules.py",
+                "account_rules.py",
+                "batch_rules.py"
+              ],
+              "ui_interaction/": [
+                "form_filler.py",
+                "button_clicker.py",
+                "modal_handler.py"
+              ],
+              "api/": [
+                "sisbajud_api.py",
+                "response_parser.py"
+              ]
+            },
+            "estimated_files": 38,
+            "estimated_total_lines": 5800
+          }
+        },
+        "utils.py": {
+          "lines": 1490,
+          "status": "critical"
+        },
+        "processamento.py": {
+          "lines": 1480,
+          "status": "critical"
+        },
+        "core.py": {
+          "lines": 1107,
+          "status": "moderate"
+        }
+      }
+    },
+    "atos": {
+      "path": "atos/",
+      "type": "library",
+      "responsibility": "Wrappers para atos judiciais e comunicações",
+      "status": "moderate_refactoring_needed",
+      "public_api": "atos/__init__.py",
+      "entry_points": [
+        "ato_judicial",
+        "comunicacao_judicial",
+        "mov",
+        "mov_simples",
+        "visibilidade_sigilosos"
+      ],
+      "dependencies": {
+        "external": [
+          "selenium"
+        ],
+        "internal": [
+          "Fix"
+        ]
+      },
+      "tags": [
+        "ato",
+        "minuta",
+        "comunicacao",
+        "judicial"
+      ],
+      "files": {
+        "judicial.py": {
+          "lines": 1695,
+          "status": "critical"
+        },
+        "comunicacao.py": {
+          "lines": 1386,
+          "status": "moderate"
+        },
+        "movimentos.py": {
+          "lines": 1092,
+          "status": "moderate"
+        },
+        "wrappers_ato.py": {
+          "lines": 418,
+          "status": "ok"
+        }
+      }
+    },
+    "Mandado": {
+      "path": "Mandado/",
+      "type": "workflow",
+      "responsibility": "Processamento de mandados judiciais",
+      "status": "moderate_refactoring_needed",
+      "public_api": "Mandado/__init__.py",
+      "entry_points": [
+        "executar_mandado",
+        "processar_argos",
+        "aplicar_regras_argos",
+        "retirar_sigilo"
+      ],
+      "dependencies": {
+        "external": [
+          "selenium"
+        ],
+        "internal": [
+          "Fix",
+          "atos"
+        ]
+      },
+      "tags": [
+        "mandado",
+        "oficial-justica",
+        "argos",
+        "pesquisa-patrimonial"
+      ],
+      "files": {
+        "processamento.py": {
+          "lines": 1138,
+          "status": "moderate"
+        },
+        "utils.py": {
+          "lines": 690,
+          "status": "moderate"
+        },
+        "regras.py": {
+          "lines": 420,
+          "status": "ok"
+        }
+      }
+    }
+  },
+  "conventions": {
+    "file_naming": {
+      "prefixes": {
+        "val_": "Validador",
+        "ext_": "Extrator",
+        "trans_": "Transformador",
+        "ui_": "Interface UI",
+        "api_": "Cliente API",
+        "rule_": "Regra de negócio",
+        "flow_": "Fluxo/Workflow",
+        "util_": "Utilitário"
+      },
+      "suffixes": {
+        "_validator": "Arquivo de validação",
+        "_extractor": "Arquivo de extração",
+        "_handler": "Arquivo manipulador",
+        "_manager": "Arquivo gerenciador",
+        "_factory": "Arquivo factory",
+        "_client": "Cliente de API"
+      }
+    },
+    "function_naming": "verbo_substantivo_contexto",
+    "max_lines_per_file": 300,
+    "target_lines_per_file": 150,
+    "docstring_format": {
+      "module": "@module, @responsibility, @depends_on, @used_by, @entry_points, @tags",
+      "function": "Google-style with type hints"
+    }
+  },
+  "refactoring": {
+    "strategy": "incremental_with_backward_compatibility",
+    "phases": [
+      {
+        "phase": 1,
+        "name": "Preparação",
+        "duration_days": "1-2",
+        "status": "in_progress",
+        "tasks": [
+          "Criar INDEX.md",
+          "Criar project_manifest.json",
+          "Criar README.md por módulo",
+          "Documentar arquitetura atual",
+          "Criar templates de docstring"
+        ]
+      },
+      {
+        "phase": 2,
+        "name": "Módulo Fix",
+        "duration_days": "3-5",
+        "status": "planned",
+        "priority": "critical",
+        "tasks": [
+          "Criar estrutura de pastas granular",
+          "Extrair funções de core.py",
+          "Extrair funções de extracao.py",
+          "Extrair funções de utils.py",
+          "Atualizar Fix/__init__.py",
+          "Executar testes de regressão"
+        ]
+      },
+      {
+        "phase": 3,
+        "name": "Módulo SISB",
+        "duration_days": "3-5",
+        "status": "planned",
+        "priority": "critical",
+        "tasks": [
+          "Separar helpers.py em 8 pastas",
+          "Refatorar utils.py, processamento.py, core.py",
+          "Atualizar SISB/__init__.py",
+          "Testes de regressão"
+        ]
+      },
+      {
+        "phase": 4,
+        "name": "Módulo PEC",
+        "duration_days": "4-6",
+        "status": "planned",
+        "priority": "critical",
+        "tasks": [
+          "Consolidar pet2.py + pet_novo.py",
+          "Separar processamento.py e regras.py",
+          "Refatorar anexos.py",
+          "Atualizar PEC/__init__.py",
+          "Testes de regressão"
+        ]
+      },
+      {
+        "phase": 5,
+        "name": "Módulos Prazo, Mandado, atos",
+        "duration_days": "2-3 each",
+        "status": "planned",
+        "priority": "moderate"
+      },
+      {
+        "phase": 6,
+        "name": "Validação Final",
+        "duration_days": "2-3",
+        "status": "planned"
+      }
+    ],
+    "total_estimated_days": "15-25"
+  },
+  "metrics": {
+    "current": {
+      "files_over_500_lines": 21,
+      "files_over_500_lines_percentage": 33,
+      "average_lines_per_file": 620,
+      "max_lines_per_file": 3551,
+      "code_duplication_percentage": 18,
+      "ai_localization_time_minutes": "5-10",
+      "ai_context_tokens": "8000-12000"
+    },
+    "target": {
+      "files_over_500_lines": 0,
+      "files_over_500_lines_percentage": 0,
+      "average_lines_per_file": 150,
+      "max_lines_per_file": 300,
+      "code_duplication_percentage": 5,
+      "ai_localization_time_seconds": "30-60",
+      "ai_context_tokens": "2000-3000"
+    },
+    "improvement": {
+      "token_reduction_percentage": 75,
+      "time_reduction_percentage": 90,
+      "problematic_files_reduction_percentage": 100
+    }
+  },
+  "navigation_system": {
+    "type": "hybrid",
+    "components": [
+      {
+        "name": "INDEX.md",
+        "purpose": "Global navigation map",
+        "location": "project_root",
+        "benefits": "Fast global search, minimal tokens"
+      },
+      {
+        "name": "README.md",
+        "purpose": "Module-level documentation",
+        "location": "each_module",
+        "benefits": "Local context, detailed structure"
+      },
+      {
+        "name": "Docstrings",
+        "purpose": "Inline documentation",
+        "location": "each_file",
+        "benefits": "Always up-to-date, code-level context"
+      }
+    ]
+  },
+  "ai_optimization": {
+    "benefits": [
+      "90% reduction in code localization time",
+      "75% reduction in context tokens",
+      "Instant function lookup via INDEX.md",
+      "Clear responsibility boundaries",
+      "Easy to update and maintain"
+    ],
+    "usage_instructions": [
+      "Always consult INDEX.md first (50 tokens)",
+      "Navigate directly to indicated file (500 tokens)",
+      "Read only the specific file needed",
+      "Avoid random file exploration"
+    ]
+  }
+}

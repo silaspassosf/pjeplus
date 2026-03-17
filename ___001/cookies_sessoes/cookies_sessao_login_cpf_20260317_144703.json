@@ -1,0 +1,70 @@
+[
+  {
+    "name": "ASSINADOR_PJE",
+    "value": "PJEOFFICE",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": false,
+    "httpOnly": false,
+    "sameSite": "None"
+  },
+  {
+    "name": "MO",
+    "value": "PJEOFFICE",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": false,
+    "httpOnly": false,
+    "sameSite": "None"
+  },
+  {
+    "name": "sso_refresh_token",
+    "value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI4ZmViYjJiOS0zYmIzLTQzZmItYTMxMS0xMjJmMmNlODIwNGUifQ.eyJleHAiOjE3NzM3OTg0MDksImlhdCI6MTc3Mzc2OTYwOSwianRpIjoiNjJmMTEwZDYtZWU2Ni00MjBhLTk5MzUtOTJlYzhiZDJkMTU2IiwiaXNzIjoiaHR0cHM6Ly9zc28uY2xvdWQucGplLmp1cy5ici9hdXRoL3JlYWxtcy9wamUiLCJhdWQiOiJodHRwczovL3Nzby5jbG91ZC5wamUuanVzLmJyL2F1dGgvcmVhbG1zL3BqZSIsInN1YiI6IjAzNDcwZGMxLTg2ZGQtNDRhOS1hNTE5LTI5NGE0OTE5OTBlNCIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwamUtdHJ0Mi0xZyIsInNlc3Npb25fc3RhdGUiOiI5MzkxZTgwNS03ZmRkLTQ4ODAtYjQwZC1iNjM3MjhkZDI5MjkiLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiOTM5MWU4MDUtN2ZkZC00ODgwLWI0MGQtYjYzNzI4ZGQyOTI5In0.-kY6aFIeVc_nS6JTmmZd2KbK0KkG3ShmNZp8eouWBTc",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": true,
+    "httpOnly": true,
+    "expiry": 1808329623,
+    "sameSite": "Strict"
+  },
+  {
+    "name": "access_token",
+    "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiJhMmI5OThmZC00MjdhLTQzMGUtYTc5ZS1iNGMzOWQ2MWRhMzUiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc3Mzc2OTYwOSwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc3Mzc3MzIwOSwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiVVNVQVJJTyIsImlkIjo2Nzg4MzksImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJub21lIjoiU0lMQVMgUEFTU09TIEZFUlJFSVJBIiwicGVyZmlsIjoyMDY4MjAsInBhcGVsIjp7ImlkIjo1Mzk5LCJub21lIjoiU2VjcmV0w6FyaW8gZGUgQXVkacOqbmNpYSIsImlkZW50aWZpY2Fkb3IiOiJTRUNSRVRBUklPIn0sInBhcGVsS3oiOnsiaWQiOjIzLCJub21lIjoiU2Vydmlkb3IiLCJpZGVudGlmaWNhZG9yIjoiU0VSVklET1IifSwibG9jYWxpemFjYW8iOnsiaWQiOjQsImRlc2NyaWNhbyI6IkNvbnRyb2xlIGRlIEF1ZGnDqm5jaWEifSwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJzaWQiOiJiZWM1NDQwYi1lZjhjLTQyYjYtYWMyNi0zNTk1YTRhNWY1ZTgiLCJvcmdhb0p1bGdhZG9yIjp7ImlkIjoxODcsImRlc2NyaWNhbyI6IjPCqiBWYXJhIGRvIFRyYWJhbGhvIGRlIFPDo28gUGF1bG8gLSBab25hIFN1bCJ9LCJvcmlnZW0iOiJUUlQyIiwib3RwUGVyc2lzdGlkbyI6ZmFsc2V9",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": true,
+    "httpOnly": false,
+    "expiry": 1773773223,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "access_token_footer",
+    "value": "Jy6BaXs73vopDXkiRAgouFdN4YN7X0uX8LmZIU5SUFIlmkJulX3OHOF9LYouRqrVuGNn35h8Icz-iwBsHj3pgQ",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": true,
+    "httpOnly": true,
+    "expiry": 1773773223,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "Xsrf-Token",
+    "value": "473517707B009FE35F56620E519057040619F9365F2EADF9D913CBEC816E23BA6695F2CFA9131DFDC463AF030ABFD516A124",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": true,
+    "httpOnly": false,
+    "expiry": 1773798423,
+    "sameSite": "Strict"
+  },
+  {
+    "name": "refresh_token",
+    "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiI3NWJlNTNhNC1iZWU1LTQ1YWEtOGZjYy03MDlkNWYxOGQ5ZjEiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc3Mzc2OTYwOSwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc3MzgxMjgwOSwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiUkVGUkVTSF9UT0tFTiIsImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJwZXJmaWwiOjIwNjgyMCwic2lkIjoiYmVjNTQ0MGItZWY4Yy00MmI2LWFjMjYtMzU5NWE0YTVmNWU4IiwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJvcmlnZW0iOiJUUlQyIn0.88zB5R_3XgH_2o8taC-DM861oIFY-ddWmweQNJNBcSpHbUbJC2AQWNBG5O41cKu0c2cU6nzqZPx7KHPH_rTBeA",
+    "path": "/",
+    "domain": "pje.trt2.jus.br",
+    "secure": true,
+    "httpOnly": true,
+    "expiry": 1773812823,
+    "sameSite": "Lax"
+  }
+]

@@ -1,0 +1,74 @@
+menu-arrastavel{
+	position:fixed;
+	top:90%;
+	left:90%;
+	cursor:grab;
+	z-index:1000000000000;
+}
+
+menu-arrastavel conteudo{
+	display:flex;
+	align-items:center;
+	justify-content:center;
+}
+
+menu-arrastavel alternador,
+menu-arrastavel quinzinho-botao
+{
+	border-radius:50%;
+	box-shadow:0px 2px 3px rgba(var(--quinzinho-cor-preto),0.3);
+	display:block;
+	opacity:0.8;
+}
+
+menu-arrastavel alternador{
+	background:
+		var(--quinzinho-icone-branco) no-repeat center / 80% 80%,
+		rgba(var(--quinzinho-cor-primaria),1)
+	;
+	border:2px solid rgba(var(--quinzinho-cor-branco),0.5);
+	width:40px;
+	height:40px;
+	opacity:1;
+	transform:rotate(360deg);
+	transition:all 0.5s ease;
+	z-index:1000000000001;
+}
+
+menu-arrastavel quinzinho-botao{
+	border:2px solid rgba(var(--quinzinho-cor-branco),0.5);
+	cursor:pointer;
+	height:35px;
+	position:absolute;
+	transition:all 0.6s ease;
+	width:35px;
+}
+
+menu-arrastavel quinzinho-botao:hover{
+	opacity:1;
+}
+
+menu-arrastavel alternador:active,
+menu-arrastavel quinzinho-botao:active
+{
+	transition:none;
+	opacity:0.5;
+}
+
+menu-arrastavel.aberto alternador{
+	transform: rotate(0deg);
+}
+
+menu-arrastavel.aberto quinzinho-botao{
+	transform:translateY(calc(var(--posicao) * 43px * var(--direcao)));
+}
+
+area-de-arrasto{
+	display:none;
+	height:100%;
+	left:0;
+	position:absolute;
+	top:0;
+	width:100%;
+	z-index:999999999999;
+}

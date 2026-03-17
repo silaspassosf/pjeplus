@@ -1,0 +1,141 @@
+# SISB/utils.py
+# Contém funções auxiliares e utilitários para a automação do SISBAJUD.
+
+import time
+import random
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException
+
+# ===================== CONFIGURAÇÕES E STATS GLOBAIS =====================
+
+# Armazena configurações de delays
+_DELAY_CONFIG = {
+    'default': 0.5,
+    'form_fill': 1.0,
+    'navigation': 3.0,
+    'click': 0.3,
+}
+
+# Configuração global SISBAJUD
+SISBAJUD_CONFIG = {
+    'human_simulation': False,
+    'skip_loops_delay': False,
+    'retry_attempts': 3,
+    'retry_backoff_base': 1.5,
+    'min_delay_between_actions': 1.5,
+    'max_delay_between_actions': 3.0,
+    'min_delay_between_clicks': 0.8,
+    'max_delay_between_clicks': 1.5,
+    'delay_after_navigation': 3.0,
+    'delay_after_form_fill': 2.0,
+}
+
+# Stats globais
+SISBAJUD_STATS = {
+    'consecutive_errors': 0,
+    'total_actions': 0,
+    'rate_limit_detected': False
+}
+
+# ===================== FUNÇÕES DE DELAY =====================
+
+def time_sleep(delay_name='default', base_delay=None):
+    """
+    Wrapper para time.sleep() que aceita nomes de delays e base_delay customizável.
+    """
+    if base_delay is not None:
+        time.sleep(base_delay)
+    else:
+        delay_value = _DELAY_CONFIG.get(delay_name, _DELAY_CONFIG['default'])
+        time.sleep(delay_value)
+
+# ===================== FUNÇÕES DE SIMULAÇÃO HUMANA E AÇÕES SEGURAS =====================
+
+def simulate_human_movement(driver, element=None):
+    """
+    Simula movimento humano de mouse (OTIMIZADO para SISBAJUD)
+    Desabilitado por padrão para evitar excesso de requisições
+    """
+    if not SISBAJUD_CONFIG.get('human_simulation', False):
+        return
+    
+    try:
+        if element:
+            driver.execute_script("arguments[0].scrollIntoView({behavior: 'auto', block: 'center', inline: 'center'});", element)
+            time_sleep(base_delay=random.uniform(0.1, 0.3))
+    except Exception:
+        pass
+
+def safe_click(driver, element, delay_type='click'):
+    """
+    Clique seguro com delay e simulação humana
+    """
+    try:
+        time_sleep(delay_type)
+        element.click()
+        print('[SISB_UTILS] ✅ Clique realizado com sucesso')
+        SISBAJUD_STATS['consecutive_errors'] = 0
+        SISBAJUD_STATS['rate_limit_detected'] = False
+        return True
+    except Exception as e:
+        print(f'[SISB_UTILS] ❌ Erro no clique: {e}')
+        SISBAJUD_STATS['consecutive_errors'] += 1
+        return False
+
+def safe_execute_script(driver, script, *args, delay_type='default'):
+    """
+    Execução segura de JavaScript com delay e tratamento de erro
+    """
+    try:
+        time_sleep(delay_type)
+        result = driver.execute_script(script, *args)
+        print('[SISB_UTILS] ✅ Script executado com sucesso')
+        SISBAJUD_STATS['consecutive_errors'] = 0
+        SISBAJUD_STATS['rate_limit_detected'] = False
+        return result
+    except Exception as e:
+        print(f'[SISB_UTILS] ❌ Erro na execução do script: {e}')
+        SISBAJUD_STATS['consecutive_errors'] += 1
+        return None
+
+def safe_navigate(driver, url, delay_type='navigation'):
+    """
+    Navegação segura com delay e tratamento de erro
+    """
+    try:
+        time_sleep(delay_type)
+        driver.get(url)
+        print(f'[SISB_UTILS] ✅ Navegação para {url} realizada com sucesso')
+        SISBAJUD_STATS['consecutive_errors'] = 0
+        SISBAJUD_STATS['rate_limit_detected'] = False
+        return True
+    except Exception as e:
+        print(f'[SISB_UTILS] ❌ Erro na navegação: {e}')
+        SISBAJUD_STATS['consecutive_errors'] += 1
+        return False
+
+def with_retry(func, *args, **kwargs):
+    """
+    Executa função com retry e backoff exponencial
+    """
+    max_attempts = SISBAJUD_CONFIG.get('retry_attempts', 3)
+    
+    for attempt in range(max_attempts):
+        try:
+            result = func(*args, **kwargs)
+            if result:
+                return result
+        except Exception as e:
+            print(f'[SISB_UTILS] Tentativa {attempt + 1}/{max_attempts} falhou: {e}')
+            
+            if attempt < max_attempts - 1:
+                backoff_time = SISBAJUD_CONFIG.get('retry_backoff_base', 1.5) ** attempt
+                backoff_time += random.uniform(0, 1)
+                print(f'[SISB_UTILS] Aguardando {backoff_time:.2f}s antes da próxima tentativa...')
+                time_sleep(base_delay=backoff_time)
+            else:
+                print(f'[SISB_UTILS] ❌ Todas as tentativas falharam para: {func.__name__}')
+                
+    return None

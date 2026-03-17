@@ -1,0 +1,1764 @@
+"""
+SISB Utils - Funções auxiliares consolidadas para SISBAJUD
+Refatoração do s.py seguindo padrões do projeto PjePlus
+"""
+
+import time
+import re
+import os
+import json
+from datetime import datetime, timedelta
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+
+# Imports do Fix para funções consolidadas
+from Fix.core import safe_click as safe_click_fix, aguardar_e_clicar as aguardar_e_clicar_fix
+from Fix.utils import formatar_moeda_brasileira, _log_info, _log_error
+
+# Constantes consolidadas
+SISBAJUD_URLS = {
+    'base': 'https://sisbajud.cnj.jus.br',
+    'login': 'https://sisbajud.cnj.jus.br/login',
+    'teimosinha': 'https://sisbajud.cnj.jus.br/teimosinha',
+    'minuta_cadastrar': 'https://sisbajud.cnj.jus.br/sisbajudweb/pages/minuta/cadastrar'
+}
+
+TIMEOUTS = {
+    'elemento_padrao': 10,
+    'elemento_rapido': 5,
+    'elemento_lento': 20,
+    'pagina_carregar': 30,
+    'script_executar': 15
+}
+
+SELECTORS = {
+    'input_juiz': 'input[placeholder*="Juiz"]',
+    'input_processo': 'input[placeholder="Número do Processo"]',
+    'input_cpf': 'input[placeholder*="CPF"]',
+    'input_nome_autor': 'input[placeholder="Nome do autor/exequente da ação"]',
+    'botao_consultar': 'button.mat-fab.mat-primary',
+    'botao_salvar': 'button.mat-fab.mat-primary mat-icon.fa-save',
+    'tabela_ordens': 'table.mat-table',
+    'cabecalho_tabela': 'th.cdk-column-sequencial'
+}
+
+def criar_js_otimizado() -> str:
+    """
+    JavaScript otimizado consolidado para todas as operações SISBAJUD.
+    Substitui múltiplas funções de JavaScript espalhadas pelo código.
+
+    Returns:
+        str: Código JavaScript consolidado
+    """
+    return """
+    // ===== JAVASCRIPT OTIMIZADO CONSOLIDADO =====
+
+    // Configurações globais
+    const CONFIG = {
+        timeout: 5000,
+        retryDelay: 500,
+        maxRetries: 3
+    };
+
+    // Sistema de observação de mutações para elementos dinâmicos
+    class ElementObserver {
+        constructor() {
+            this.observers = new Map();
+        }
+
+        observe(selector, callback, timeout = CONFIG.timeout) {
+            return new Promise((resolve, reject) => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    resolve(element);
+                    return;
+                }
+
+                const observer = new MutationObserver((mutations) => {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        observer.disconnect();
+                        resolve(element);
+                    }
+                });
+
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+
+                setTimeout(() => {
+                    observer.disconnect();
+                    reject(new Error(`Elemento não encontrado: ${selector}`));
+                }, timeout);
+            });
+        }
+
+        disconnectAll() {
+            this.observers.forEach(observer => observer.disconnect());
+            this.observers.clear();
+        }
+    }
+
+    const elementObserver = new ElementObserver();
+
+    // Funções utilitárias consolidadas
+    function esperarElemento(seletor, timeout = CONFIG.timeout) {
+        return elementObserver.observe(seletor, null, timeout);
+    }
+
+    function esperarElementos(seletor, timeout = CONFIG.timeout) {
+        return new Promise((resolve) => {
+            const elements = document.querySelectorAll(seletor);
+            if (elements.length > 0) {
+                resolve(Array.from(elements));
+                return;
+            }
+
+            const observer = new MutationObserver(() => {
+                const elements = document.querySelectorAll(seletor);
+                if (elements.length > 0) {
+                    observer.disconnect();
+                    resolve(Array.from(elements));
+                }
+            });
+
+            observer.observe(document.body, { childList: true, subtree: true });
+            setTimeout(() => {
+                observer.disconnect();
+                resolve([]);
+            }, timeout);
+        });
+    }
+
+    async function esperarOpcoes(seletor, timeout = 3000) {
+        return new Promise((resolve) => {
+            const elements = document.querySelectorAll(seletor);
+            if (elements.length > 0) {
+                resolve(elements);
+                return;
+            }
+
+            const observer = new MutationObserver(() => {
+                const elements = document.querySelectorAll(seletor);
+                if (elements.length > 0) {
+                    observer.disconnect();
+                    resolve(elements);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            setTimeout(() => {
+                observer.disconnect();
+                resolve([]);
+            }, timeout);
+        });
+    }
+
+    function triggerEvent(elemento, tipo) {
+        if ('createEvent' in document) {
+            const evento = document.createEvent('HTMLEvents');
+            evento.initEvent(tipo, false, true);
+            elemento.dispatchEvent(evento);
+        }
+    }
+
+    function safeClick(elemento) {
+        try {
+            elemento.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            elemento.click();
+            return true;
+        } catch (e) {
+            try {
+                elemento.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                return true;
+            } catch (e2) {
+                return false;
+            }
+        }
+    }
+
+    function preencherCampo(seletor, valor, timeout = CONFIG.timeout) {
+        return new Promise(async (resolve) => {
+            try {
+                const elemento = await esperarElemento(seletor, timeout);
+                if (!elemento) {
+                    resolve({ sucesso: false, erro: 'Campo não encontrado' });
+                    return;
+                }
+
+                elemento.focus();
+                elemento.value = '';
+                elemento.value = valor;
+                triggerEvent(elemento, 'input');
+                triggerEvent(elemento, 'change');
+                elemento.blur();
+
+                resolve({ sucesso: true });
+            } catch (e) {
+                resolve({ sucesso: false, erro: e.message });
+            }
+        });
+    }
+
+    function clicarBotao(seletor, timeout = CONFIG.timeout) {
+        return new Promise(async (resolve) => {
+            try {
+                const elemento = await esperarElemento(seletor, timeout);
+                if (!elemento) {
+                    resolve({ sucesso: false, erro: 'Botão não encontrado' });
+                    return;
+                }
+
+                const sucesso = safeClick(elemento);
+                resolve({ sucesso });
+            } catch (e) {
+                resolve({ sucesso: false, erro: e.message });
+            }
+        });
+    }
+
+    // Sistema de logging consolidado
+    const Logger = {
+        log: [],
+        add: function(msg) { this.log.push(msg); },
+        clear: function() { this.log = []; },
+        get: function() { return this.log; }
+    };
+
+    // Exportar funções globais
+    window.SISBAJUD = {
+        esperarElemento,
+        esperarElementos,
+        esperarOpcoes,
+        triggerEvent,
+        safeClick,
+        preencherCampo,
+        clicarBotao,
+        Logger,
+        CONFIG
+    };
+    """
+
+def safe_click(driver, elemento, descricao="elemento", timeout=10):
+    """
+    Clique seguro com fallback para JavaScript.
+    Usa implementação consolidada do Fix.core com compatibilidade SISB.
+
+    Args:
+        driver: WebDriver instance
+        elemento: Elemento a clicar
+        descricao: Descrição para logging
+        timeout: Timeout para operações
+
+    Returns:
+        bool: True se conseguiu clicar
+    """
+    # Adaptar chamada para formato do Fix.core
+    return safe_click_fix(driver, elemento, timeout=timeout, log=False)
+
+def simulate_human_movement(driver, elemento):
+    """
+    Simula movimento humano antes de interagir com elemento.
+    Previne detecção de automação.
+
+    Args:
+        driver: WebDriver instance
+        elemento: Elemento alvo
+    """
+    try:
+        # Pequena pausa antes do movimento
+        time.sleep(0.2)
+
+        # Scroll para o elemento
+        driver.execute_script("""
+            arguments[0].scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'center'
+            });
+        """, elemento)
+
+        # Pausa para simular leitura
+        time.sleep(0.3)
+
+    except Exception as e:
+        print(f"[SISBAJUD] Erro no movimento humano: {e}")
+
+def aguardar_elemento(driver, seletor, timeout=TIMEOUTS['elemento_padrao']):
+    """
+    Aguardar elemento com timeout padronizado.
+    Usa implementação consolidada do Fix.core.
+
+    Args:
+        driver: WebDriver instance
+        seletor: Seletor CSS
+        timeout: Timeout em segundos
+
+    Returns:
+        WebElement or None: Elemento encontrado ou None
+    """
+    from Fix.core import esperar_elemento
+    return esperar_elemento(driver, seletor, timeout=timeout, by=By.CSS_SELECTOR, log=False)
+
+def aguardar_e_clicar(driver, seletor, timeout=TIMEOUTS['elemento_padrao']):
+    """
+    Aguardar elemento e clicar com tratamento de erros consolidado.
+    Usa implementação consolidada do Fix.core.
+
+    Args:
+        driver: WebDriver instance
+        seletor: Seletor CSS
+        timeout: Timeout em segundos
+
+    Returns:
+        bool: True se conseguiu clicar
+    """
+    return aguardar_e_clicar_fix(driver, seletor, timeout=timeout, by=By.CSS_SELECTOR, usar_js=True, log=False)
+
+def escolher_opcao_sisbajud(driver, seletor_input, valor, timeout=TIMEOUTS['elemento_padrao']):
+    """
+    Escolher opção em dropdown do SISBAJUD.
+    Consolidado de múltiplas implementações similares.
+
+    Args:
+        driver: WebDriver instance
+        seletor_input: Seletor do campo input
+        valor: Valor a selecionar
+        timeout: Timeout em segundos
+
+    Returns:
+        bool: True se conseguiu selecionar
+    """
+    try:
+        # Aguardar campo input
+        input_element = aguardar_elemento(driver, seletor_input, timeout)
+        if not input_element:
+            return False
+
+        # Preencher valor
+        input_element.clear()
+        input_element.send_keys(valor)
+        time.sleep(1)  # Aguardar dropdown aparecer
+
+        # Aguardar e clicar na opção
+        opcao_seletor = f'span.mat-option-text:contains("{valor}")'
+        return aguardar_e_clicar(driver, opcao_seletor, 5)
+
+    except Exception as e:
+        print(f"[SISBAJUD] Erro ao escolher opção {valor}: {e}")
+        return False
+
+def extrair_protocolo(driver):
+    """
+    Extrair protocolo da URL atual.
+    Consolidado de múltiplas implementações similares.
+
+    Args:
+        driver: WebDriver instance
+
+    Returns:
+        str or None: Protocolo extraído ou None
+    """
+    try:
+        url = driver.current_url
+        match = re.search(r'/(\d{10,})/', url)
+        return match.group(1) if match else None
+    except Exception as e:
+        print(f"[SISBAJUD] Erro ao extrair protocolo: {e}")
+        return None
+
+def validar_numero_processo(numero):
+    """
+    Validar formato do número do processo.
+
+    Args:
+        numero: Número do processo (string ou list)
+
+    Returns:
+        str or None: Número validado ou None
+    """
+    if isinstance(numero, list) and len(numero) > 0:
+        numero = numero[0]
+    elif not isinstance(numero, str) or not numero.strip():
+        return None
+
+    numero = numero.strip()
+
+    # Validar formato básico (números-três números.números.números.números-números)
+    if not re.match(r'^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$', numero):
+        return None
+
+    return numero
+
+def formatar_valor_monetario(valor_str):
+    """
+    Formatar valor monetário brasileiro para float.
+    Usa implementação consolidada do Fix.utils (formatar_moeda_brasileira).
+
+    Args:
+        valor_str: String com valor (ex: "R$ 1.234,56")
+
+    Returns:
+        float: Valor formatado ou 0.0 se erro
+    """
+    try:
+        # Usar função consolidada do Fix
+        valor_formatado = formatar_moeda_brasileira(valor_str)
+        # Converter de string formatada para float
+        if isinstance(valor_formatado, str) and 'R$' in valor_formatado:
+            # Remove formatação e converte
+            valor_limpo = valor_formatado.replace('R$', '').replace('.', '').replace(',', '.').strip()
+            return float(valor_limpo)
+        return 0.0
+    except:
+        return 0.0
+
+def calcular_data_limite(dias_atras=15):
+    """
+    Calcular data limite para filtros (hoje - dias_atras).
+
+    Args:
+        dias_atras: Dias para subtrair da data atual
+
+    Returns:
+        datetime: Data limite calculada
+    """
+    return datetime.now() - timedelta(days=dias_atras)
+
+def criar_timestamp():
+    """
+    Criar timestamp formatado para logging.
+
+    Returns:
+        str: Timestamp no formato [HH:MM:SS]
+    """
+    return datetime.now().strftime("[%H:%M:%S]")
+
+def log_sisbajud(mensagem, nivel="INFO"):
+    """
+    Logging padronizado para SISBAJUD.
+    Usa implementação consolidada do Fix.utils.
+
+    Args:
+        mensagem: Mensagem a logar
+        nivel: Nível do log (INFO, ERROR, WARNING, etc.)
+    """
+    timestamp = criar_timestamp()
+    msg_com_timestamp = f"[SISBAJUD]{timestamp} [{nivel}] {mensagem}"
+
+    if nivel.upper() == "ERROR":
+        _log_error(msg_com_timestamp)
+    else:
+        _log_info(msg_com_timestamp)
+
+def registrar_erro_minuta(numero_processo, erro, contexto, continuar=False):
+    """
+    Registrar erro de minuta de forma padronizada.
+
+    Args:
+        numero_processo: Número do processo
+        erro: Exceção ou mensagem de erro
+        contexto: Contexto onde ocorreu o erro
+        continuar: Se deve continuar processamento
+    """
+    mensagem = f"Erro em {contexto}: {str(erro)}"
+    log_sisbajud(mensagem, "ERROR")
+
+    if not continuar:
+        log_sisbajud(f"Interrompendo processamento do processo {numero_processo}", "ERROR")
+        raise erro
+
+def carregar_dados_processo():
+    """
+    Carrega os dados do processo do arquivo dadosatuais.json no projeto
+    Com cache TTL de 5 minutos para evitar leituras repetidas
+    """
+    try:
+        project_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        dados_path = os.path.join(project_path, 'dadosatuais.json')
+        
+        if not os.path.exists(dados_path):
+            print(f'[SISBAJUD] Arquivo de dados não encontrado: {dados_path}')
+            return None
+        
+        with open(dados_path, 'r', encoding='utf-8') as f:
+            dados = json.load(f)
+        
+        print('[SISBAJUD] Dados do processo carregados com sucesso')
+        return dados
+    except Exception as e:
+        print(f'[SISBAJUD][ERRO] Falha ao carregar dados do processo: {e}')
+        return None
+
+# ===== FUNÇÕES CONSOLIDADAS AVANÇADAS =====
+
+def mutation_observer_script():
+    """
+    JavaScript para MutationObserver otimizado.
+    Substitui polling por observação eficiente de mudanças no DOM.
+
+    Returns:
+        str: Código JavaScript do MutationObserver
+    """
+    return """
+    class MutationObserverManager {
+        constructor() {
+            this.observers = new Map();
+            this.timeouts = new Map();
+        }
+
+        observe(selector, callback, options = {}) {
+            const config = {
+                timeout: 10000,
+                checkInterval: 100,
+                ...options
+            };
+
+            return new Promise((resolve, reject) => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    resolve(element);
+                    return;
+                }
+
+                const observer = new MutationObserver((mutations) => {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        observer.disconnect();
+                        resolve(element);
+                    }
+                });
+
+                observer.observe(document.body, {{
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['style', 'class']
+                }});
+
+                // Timeout fallback
+                const timeoutId = setTimeout(() => {
+                    observer.disconnect();
+                    reject(new Error(`Elemento não encontrado: ${selector}`));
+                }, config.timeout);
+
+                this.observers.set(selector, observer);
+                this.timeouts.set(selector, timeoutId);
+            });
+        }
+
+        disconnect(selector) {
+            const observer = this.observers.get(selector);
+            if (observer) {
+                observer.disconnect();
+                this.observers.delete(selector);
+            }
+
+            const timeoutId = this.timeouts.get(selector);
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                this.timeouts.delete(selector);
+            }
+        }
+
+        disconnectAll() {
+            this.observers.forEach(observer => observer.disconnect());
+            this.observers.clear();
+
+            this.timeouts.forEach(timeoutId => clearTimeout(timeoutId));
+            this.timeouts.clear();
+        }
+    }
+
+    // Instância global
+    window.MutationObserverManager = new MutationObserverManager();
+    """
+
+def rate_limiting_manager():
+    """
+    Gerenciador de rate limiting para evitar detecção de automação.
+
+    Returns:
+        str: Código JavaScript para rate limiting
+    """
+    return """
+    class RateLimiter {
+        constructor() {
+            this.actions = [];
+            this.maxActionsPerMinute = 30;
+            this.cooldownMs = 2000; // 2 segundos entre ações pesadas
+            this.lastActionTime = 0;
+        }
+
+        async throttle() {
+            const now = Date.now();
+            const timeSinceLastAction = now - this.lastActionTime;
+
+            if (timeSinceLastAction < this.cooldownMs) {
+                const waitTime = this.cooldownMs - timeSinceLastAction;
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+
+            this.lastActionTime = Date.now();
+        }
+
+        async checkRateLimit() {
+            const now = Date.now();
+            const oneMinuteAgo = now - 60000;
+
+            // Limpar ações antigas
+            this.actions = this.actions.filter(time => time > oneMinuteAgo);
+
+            if (this.actions.length >= this.maxActionsPerMinute) {
+                const waitTime = 60000 - (now - this.actions[0]);
+                console.log(`Rate limit atingido. Aguardando ${waitTime/1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                return this.checkRateLimit(); // Recursão para verificar novamente
+            }
+
+            this.actions.push(now);
+        }
+
+        async executeWithRateLimit(action) {
+            await this.checkRateLimit();
+            await this.throttle();
+
+            try {
+                return await action();
+            } catch (error) {
+                console.error('Erro na ação com rate limiting:', error);
+                throw error;
+            }
+        }
+    }
+
+    // Instância global
+    window.RateLimiter = new RateLimiter();
+    """
+
+def advanced_dom_manipulator():
+    """
+    Manipulador avançado de DOM com estratégias anti-detecção.
+
+    Returns:
+        str: Código JavaScript para manipulação avançada de DOM
+    """
+    return """
+    class DOMManipulator {
+        constructor() {
+            this.eventTypes = ['input', 'change', 'blur', 'focus'];
+            this.humanDelays = {
+                typing: { min: 50, max: 150 },
+                clicking: { min: 100, max: 300 },
+                navigation: { min: 500, max: 1500 }
+            };
+        }
+
+        async typeHuman(element, text) {
+            for (let i = 0; i < text.length; i++) {
+                element.value += text[i];
+                element.dispatchEvent(new Event('input', { bubbles: true }));
+
+                const delay = this.humanDelays.typing.min +
+                    Math.random() * (this.humanDelays.typing.max - this.humanDelays.typing.min);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+            element.dispatchEvent(new Event('change', { bubbles: true }));
+            element.blur();
+        }
+
+        async clickHuman(element) {
+            const delay = this.humanDelays.clicking.min +
+                Math.random() * (this.humanDelays.clicking.max - this.humanDelays.clicking.min);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            element.click();
+        }
+
+        async selectOption(selectElement, optionText) {
+            // Abrir dropdown
+            await this.clickHuman(selectElement);
+
+            // Aguardar opções
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Encontrar e clicar na opção
+            const options = document.querySelectorAll('mat-option[role="option"]');
+            for (let option of options) {
+                if (option.textContent.trim().toLowerCase().includes(optionText.toLowerCase())) {
+                    await this.clickHuman(option);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        async waitForStability(element, timeout = 5000) {
+            return new Promise((resolve) => {
+                let lastState = element.outerHTML;
+                let stableCount = 0;
+                const requiredStable = 3;
+
+                const checkStability = () => {
+                    const currentState = element.outerHTML;
+                    if (currentState === lastState) {
+                        stableCount++;
+                        if (stableCount >= requiredStable) {
+                            resolve(true);
+                            return;
+                        }
+                    } else {
+                        stableCount = 0;
+                        lastState = currentState;
+                    }
+
+                    setTimeout(checkStability, 200);
+                };
+
+                setTimeout(() => resolve(false), timeout);
+                checkStability();
+            });
+        }
+    }
+
+    // Instância global
+    window.DOMManipulator = new DOMManipulator();
+    """
+
+def consolidated_js_framework():
+    """
+    Framework JavaScript consolidado com todas as funcionalidades.
+
+    Returns:
+        str: Framework JavaScript completo
+    """
+    # Construir o JavaScript sem usar f-string para evitar problemas com {{}}
+    js_parts = [
+        mutation_observer_script(),
+        rate_limiting_manager(),
+        advanced_dom_manipulator(),
+        """
+        // Framework consolidado SISBAJUD
+        window.SISBAJUD_Framework = {
+            init: function() {
+                console.log('SISBAJUD Framework inicializado');
+                return true;
+            },
+
+            // Método unificado para operações seguras
+            executeSafe: async function(operation, options = {}) {
+                const config = {
+                    useRateLimit: true,
+                    useHumanBehavior: true,
+                    ...options
+                };
+
+                const action = async () => {
+                    if (config.useHumanBehavior) {
+                        // Adicionar comportamento humano
+                        await new Promise(resolve => setTimeout(resolve,
+                            100 + Math.random() * 200));
+                    }
+                    return await operation();
+                };
+
+                if (config.useRateLimit) {
+                    return await window.RateLimiter.executeWithRateLimit(action);
+                } else {
+                    return await action();
+                }
+            },
+
+            // Cleanup
+            cleanup: function() {
+                if (window.MutationObserverManager) {
+                    window.MutationObserverManager.disconnectAll();
+                }
+                console.log('SISBAJUD Framework limpo');
+            }
+        };
+
+        // Inicialização automática
+        window.SISBAJUD_Framework.init();
+        """
+    ]
+
+    return "\n".join(js_parts)
+
+def aplicar_rate_limiting(driver, acao):
+    """
+    Aplica rate limiting a uma ação do Selenium.
+
+    Args:
+        driver: WebDriver instance
+        acao: Função a ser executada com rate limiting
+
+    Returns:
+        Resultado da ação
+    """
+    # Injetar rate limiter se não estiver presente
+    driver.execute_script(rate_limiting_manager())
+
+    # Executar ação com rate limiting
+    script = """
+    return window.RateLimiter.executeWithRateLimit(async () => {
+        // Ação será definida dinamicamente
+        return await arguments[0]();
+    });
+    """
+
+    return driver.execute_script(script, acao)
+
+def detectar_captcha(driver):
+    """
+    Detecta presença de CAPTCHA na página.
+
+    Args:
+        driver: WebDriver instance
+
+    Returns:
+        bool: True se CAPTCHA detectado
+    """
+    try:
+        indicadores_captcha = [
+            'recaptcha',
+            'captcha',
+            'verify human',
+            'robot',
+            'automated'
+        ]
+
+        page_text = driver.find_element(By.TAG_NAME, 'body').text.lower()
+
+        for indicador in indicadores_captcha:
+            if indicador in page_text:
+                return True
+
+        # Verificar elementos específicos
+        captcha_selectors = [
+            '.recaptcha',
+            '#recaptcha',
+            '[class*="captcha"]',
+            '[id*="captcha"]'
+        ]
+
+        for selector in captcha_selectors:
+            try:
+                driver.find_element(By.CSS_SELECTOR, selector)
+                return True
+            except:
+                continue
+
+        return False
+
+    except Exception:
+        return False
+
+def anti_detection_measures(driver):
+    """
+    Aplica medidas anti-detecção de automação.
+
+    Args:
+        driver: WebDriver instance
+    """
+    try:
+        # Definir propriedades navigator para parecer navegador real
+        driver.execute_script("""
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined,
+        });
+
+        // Simular plugins
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [
+                { name: 'Chrome PDF Plugin', description: 'Portable Document Format', filename: 'internal-pdf-viewer' },
+                { name: 'Chrome PDF Viewer', description: '', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai' }
+            ],
+        });
+
+        // Simular languages
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['pt-BR', 'pt', 'en-US', 'en'],
+        });
+        """)
+
+        # Adicionar headers HTTP simulados
+        driver.execute_cdp_cmd('Network.setUserAgentOverride', {
+            'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        })
+
+    except Exception as e:
+        log_sisbajud(f"Erro ao aplicar medidas anti-detecção: {e}", "WARNING")
+
+def smart_wait(driver, condition, timeout=TIMEOUTS['elemento_padrao'], interval=0.5):
+    """
+    Espera inteligente com detecção de CAPTCHA e erros.
+
+    Args:
+        driver: WebDriver instance
+        condition: Função de condição
+        timeout: Timeout máximo
+        interval: Intervalo entre verificações
+
+    Returns:
+        WebElement or None: Elemento encontrado ou None
+    """
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            # Verificar CAPTCHA
+            if detectar_captcha(driver):
+                log_sisbajud("CAPTCHA detectado! Aguardando intervenção manual...", "WARNING")
+                time.sleep(30)  # Aguardar intervenção
+                continue
+
+            result = condition()
+            if result:
+                return result
+
+        except Exception as e:
+            log_sisbajud(f"Erro durante smart_wait: {e}", "WARNING")
+
+        time.sleep(interval)
+
+    return None
+
+# ===== HELPERS PARA FUNÇÃO INICIAR_SISBAJUD =====
+
+def _extrair_dados_pje(driver_pje):
+    """
+    Helper para extrair dados do processo PJe.
+
+    Args:
+        driver_pje: Driver do PJe
+
+    Returns:
+        dict or None: Dados extraídos do processo
+    """
+    try:
+        print('[SISBAJUD] Extraindo dados do processo PJe...')
+        from Fix import extrair_dados_processo
+        processo_dados_extraidos = extrair_dados_processo(driver_pje)
+        if processo_dados_extraidos:
+            # Corrigir para usar o campo correto do dadosatuais.json
+            numero_lista = processo_dados_extraidos.get("numero", [])
+            numero_display = numero_lista[0] if numero_lista else "N/A"
+            print(f'[SISBAJUD] ✅ Dados extraídos: {numero_display}')
+            salvar_dados_processo_temp()
+            return processo_dados_extraidos
+        else:
+            print('[SISBAJUD] ⚠️ Não foi possível extrair dados do processo')
+            return None
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao extrair dados do PJe: {e}')
+        return None
+
+def _criar_driver_sisbajud():
+    """
+    Helper para criar driver Firefox SISBAJUD.
+
+    Returns:
+        WebDriver or None: Driver SISBAJUD criado
+    """
+    try:
+        print('[SISBAJUD] Criando driver Firefox SISBAJUD...')
+        driver = driver_sisbajud()
+        if not driver:
+            print('[SISBAJUD] ❌ Falha ao criar driver')
+            return None
+        return driver
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao criar driver SISBAJUD: {e}')
+        return None
+
+def _realizar_login(driver):
+    """
+    Helper para realizar login automatizado no SISBAJUD.
+
+    Args:
+        driver: Driver SISBAJUD
+
+    Returns:
+        bool: True se login bem-sucedido
+    """
+    try:
+        # Tentativa: recarregar cookies específicos do SISBAJUD
+        cookie_restored = False
+        try:
+            from bacen import carregar_cookies_sisbajud
+            try:
+                if carregar_cookies_sisbajud(driver):
+                    print('[SISBAJUD] ✅ Cookies SISBAJUD carregados com sucesso; pulando etapa de login.')
+                    return True
+            except Exception:
+                cookie_restored = False
+        except Exception:
+            cookie_restored = False
+
+        # Importações necessárias
+        try:
+            from driver_config import criar_driver_sisb, criar_driver_sisb_notebook, salvar_cookies_sessao, salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
+        except Exception:
+            criar_driver_sisb = None
+            criar_driver_sisb_notebook = None
+            salvar_cookies_sessao = None
+            salvar_cookies_sisbajud = None
+            SALVAR_COOKIES_AUTOMATICO = False
+
+        # Tentar carregar cookies específicos do SISBAJUD
+        if not cookie_restored and salvar_cookies_sisbajud:
+            try:
+                if salvar_cookies_sisbajud(driver):
+                    print('[SISBAJUD] ✅ Cookies SISBAJUD carregados com sucesso; pulando etapa de login.')
+                    return True
+            except Exception:
+                pass
+
+        # Se ainda não temos sessão, tentar login automático SISBAJUD
+        try:
+            print('[SISBAJUD] Tentando login automático SISBAJUD (função interna)...')
+            if login_automatico_sisbajud(driver):
+                # Salvar cookies gerados pelo login automático, se configurado
+                try:
+                    if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
+                        salvar_cookies_sisbajud(driver, info_extra='login_automatico_sisbajud')
+                except Exception:
+                    pass
+                return True
+            else:
+                print('[SISBAJUD] Login automático SISBAJUD falhou, seguindo para login manual...')
+        except Exception as e:
+            print(f'[SISBAJUD] Erro no login automático SISBAJUD: {e}')
+
+        # Se ainda não logado, fallback para login manual SISBAJUD
+        try:
+            print('[SISBAJUD] Aguardando login MANUAL SISBAJUD...')
+            if login_manual_sisbajud(driver):
+                # Salvar cookies após login manual SISBAJUD (se permitido)
+                try:
+                    if SALVAR_COOKIES_AUTOMATICO and salvar_cookies_sisbajud:
+                        salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
+                        print('[SISBAJUD] ✅ Cookies SISBAJUD salvos após login manual')
+                except Exception as e:
+                    print(f'[SISBAJUD] ⚠️ Falha ao salvar cookies SISBAJUD: {e}')
+                return True
+            else:
+                print('[SISBAJUD] ❌ Login manual SISBAJUD falhou ou expirou')
+        except Exception as e:
+            print(f'[SISBAJUD] Erro durante login manual SISBAJUD: {e}')
+
+        return False
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro durante login: {e}')
+        return False
+
+def _navegar_minuta(driver):
+    """
+    Helper para navegar para a página /minuta e clicar em Nova Minuta.
+
+    Args:
+        driver: Driver SISBAJUD
+
+    Returns:
+        bool: True se navegação bem-sucedida
+    """
+    try:
+        # Aguardar explicitamente pela URL /minuta
+        minuta_indicator = 'sisbajud.cnj.jus.br/minuta'
+        url_timeout = 120
+        inicio_url = time.time()
+        url_ready = False
+        while time.time() - inicio_url < url_timeout:
+            try:
+                current = driver.current_url.lower()
+                if minuta_indicator in current:
+                    print('[SISBAJUD] ✅ URL /minuta detectada')
+                    url_ready = True
+                    break
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+        if not url_ready:
+            print('[SISBAJUD] ⚠️ Timeout aguardando a URL https://sisbajud.cnj.jus.br/minuta após login')
+            return False
+
+        # Após detectar a URL específica, aguardar 2 segundos e clicar em Nova Minuta
+        print('[SISBAJUD] ✅ URL /minuta confirmada, aguardando 2 segundos...')
+        time.sleep(2)
+
+        # Maximizar janela rapidamente
+        try:
+            driver.maximize_window()
+            print('[SISBAJUD] ✅ Janela maximizada')
+        except Exception as e:
+            print(f'[SISBAJUD] ⚠️ Não foi possível maximizar a janela: {e}')
+
+        # Clicar automaticamente em "Nova Minuta"
+        print('[SISBAJUD] Clicando automaticamente no botão "Nova Minuta"...')
+        script = """
+        var botaoNova = document.querySelector('button.mat-fab.mat-primary .fa-plus');
+        if (!botaoNova) {
+            botaoNova = document.querySelector('button.mat-fab.mat-primary');
+        }
+        if (botaoNova) {
+            // Se for ícone, clica no botão pai
+            if (botaoNova.tagName === 'MAT-ICON') {
+                botaoNova = botaoNova.closest('button');
+            }
+            botaoNova.click();
+            return true;
+        }
+        return false;
+        """
+
+        sucesso = driver.execute_script(script)
+        if sucesso:
+            print('[SISBAJUD] ✅ Botão "Nova Minuta" clicado automaticamente')
+            time.sleep(1)  # Aguardar navegação
+            return True
+        else:
+            print('[SISBAJUD] ⚠️ Botão "Nova Minuta" não encontrado, será necessário navegar manualmente')
+            return False
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro durante navegação para minuta: {e}')
+        return False
+
+# ===== HELPERS PARA FUNÇÃO MINUTA_BLOQUEIO =====
+
+def _validar_dados(dados_processo):
+    """
+    Helper para validar dados do processo necessários para minuta de bloqueio.
+
+    Args:
+        dados_processo: Dados do processo
+
+    Returns:
+        bool: True se dados válidos
+    """
+    try:
+        if not dados_processo:
+            print('[SISBAJUD] ❌ Dados do processo não disponíveis')
+            return False
+
+        # Verificar campos obrigatórios
+        numero_lista = dados_processo.get('numero', [])
+        if not numero_lista:
+            print('[SISBAJUD] ❌ Número do processo não encontrado')
+            return False
+
+        reus = dados_processo.get('reu', [])
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado')
+            return False
+
+        print('[SISBAJUD] ✅ Dados do processo validados')
+        return True
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao validar dados: {e}')
+        return False
+
+def _preencher_campos_iniciais(driver, dados_processo, prazo_dias):
+    """
+    Helper para preencher campos iniciais da minuta de bloqueio.
+
+    Args:
+        driver: Driver SISBAJUD
+        dados_processo: Dados do processo
+        prazo_dias: Prazo em dias
+
+    Returns:
+        str or None: Data limite formatada ou None se erro
+    """
+    try:
+        # Valores hardcoded (equivalentes às preferências do gigs.py)
+        juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
+        vara = dados_processo.get('sisbajud', {}).get('vara', '30006')
+        numero_lista = dados_processo.get('numero', [])
+        numero_processo = numero_lista[0] if numero_lista else ''
+
+        # CPF/CNPJ e nome do autor
+        cpf_cnpj_autor = ''
+        nome_autor = ''
+        if dados_processo.get('autor') and len(dados_processo['autor']) > 0:
+            cpf_cnpj_autor = dados_processo['autor'][0].get('cpfcnpj', '')
+            nome_autor = dados_processo['autor'][0].get('nome', '')
+        elif dados_processo.get('reu') and len(dados_processo['reu']) > 0:
+            cpf_cnpj_autor = dados_processo['reu'][0].get('cpfcnpj', '')
+            nome_autor = dados_processo['reu'][0].get('nome', '')
+
+        # Extrair valor da dívida se disponível
+        valor_divida = ''
+        if dados_processo.get('divida') and dados_processo['divida'].get('valor'):
+            valor_divida = dados_processo['divida']['valor'].replace('R$', '').replace('.', '').replace(',', '.').strip()
+            print(f'[SISBAJUD] Valor da dívida extraído: {valor_divida}')
+
+        cpf_cnpj_limpo = cpf_cnpj_autor.replace('.', '').replace('-', '').replace('/', '')
+        if prazo_dias not in [30, 60]:
+            print(f'[SISBAJUD] ⚠️ Prazo inválido ({prazo_dias} dias). Usando padrão de 30 dias.')
+            prazo_dias = 30
+
+        # Calcular data
+        numdias = prazo_dias
+        hoje = datetime.now()
+        data_fim = hoje + timedelta(days=numdias + 2)
+
+        print(f'[SISBAJUD] Prazo configurado: {prazo_dias} dias (+ 2 dias extras)')
+        print(f'[SISBAJUD] Data calculada: {data_fim.strftime("%d/%m/%Y")}')
+
+        ano = data_fim.year
+        mes_d = data_fim.month - 1  # Month index (0-11 como no JS)
+        dia_d = data_fim.day
+
+        meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho",
+                 "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+        # SCRIPT ÚNICO - Preenche TODOS os campos (1-8) em uma única requisição
+        script_unico_campos = f"""
+        {criar_js_otimizado()}
+
+        async function preencherMinutaCompleta() {{
+            let log = [];
+
+            try {{
+                // Aguardar página carregar completamente
+                log.push('0. Aguardando carregamento da página...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // 1. JUIZ SOLICITANTE
+                log.push('1. Preenchendo Juiz...');
+                let juizInput = await esperarElemento('input[placeholder*="Juiz"]', 5000);
+                if (juizInput) {{
+                    juizInput.focus();
+                    juizInput.value = '{juiz}';
+                    triggerEvent(juizInput, 'input');
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.toLowerCase().includes('{juiz.lower()}')) {{
+                            opcao.click();
+                            log.push('✅ Juiz: {juiz}');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }} else {{
+                    log.push('❌ Campo juiz não encontrado');
+                    return {{sucesso: false, msg: 'Campo juiz não encontrado', log: log}};
+                }}
+
+                // 2. VARA/JUÍZO
+                log.push('2. Preenchendo Vara...');
+                let varaSelect = await esperarElemento('mat-select[name*="varaJuizoSelect"]', 3000);
+                if (varaSelect) {{
+                    varaSelect.focus();
+                    varaSelect.click();
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.includes('{vara}')) {{
+                            opcao.click();
+                            log.push('✅ Vara: {vara}');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 3. NÚMERO DO PROCESSO
+                log.push('3. Preenchendo Número Processo...');
+                let numeroInput = await esperarElemento('input[placeholder="Número do Processo"]', 3000);
+                if (numeroInput) {{
+                    numeroInput.focus();
+                    numeroInput.value = '{numero_processo}';
+                    triggerEvent(numeroInput, 'input');
+                    numeroInput.blur();
+                    log.push('✅ Processo: {numero_processo}');
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 4. TIPO DE AÇÃO
+                log.push('4. Preenchendo Tipo Ação...');
+                let acaoSelect = await esperarElemento('mat-select[name*="acao"]', 3000);
+                if (acaoSelect) {{
+                    acaoSelect.focus();
+                    acaoSelect.click();
+
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    let opcoes = await esperarOpcoes('mat-option[role="option"]', 3000);
+                    for (let opcao of opcoes) {{
+                        if (opcao.textContent.includes('Ação Trabalhista')) {{
+                            opcao.click();
+                            log.push('✅ Ação: Trabalhista');
+                            break;
+                        }}
+                    }}
+                    await new Promise(resolve => setTimeout(resolve, 800));
+                }}
+
+                // 5. CPF/CNPJ DO AUTOR
+                log.push('5. Preenchendo CPF/CNPJ Autor...');
+                let cpfInput = await esperarElemento('input[placeholder*="CPF"]', 3000);
+                if (cpfInput) {{
+                    cpfInput.focus();
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    cpfInput.value = '{cpf_cnpj_limpo}';
+                    triggerEvent(cpfInput, 'input');
+                    cpfInput.blur();
+                    log.push('✅ CPF/CNPJ Autor: {cpf_cnpj_limpo}');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }}
+
+                // 6. NOME DO AUTOR
+                log.push('6. Preenchendo Nome Autor...');
+                let nomeInput = await esperarElemento('input[placeholder="Nome do autor/exequente da ação"]', 3000);
+                if (nomeInput) {{
+                    nomeInput.focus();
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                    nomeInput.value = '{nome_autor}';
+                    triggerEvent(nomeInput, 'input');
+                    nomeInput.blur();
+                    log.push('✅ Nome Autor: {nome_autor}');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }}
+
+                // 7. VALOR DA DÍVIDA
+                log.push('7. Preenchendo Valor da Dívida...');
+                if ('{valor_divida}') {{
+                    let valorInput = await esperarElemento('input[placeholder*="Valor"]', 3000);
+                    if (!valorInput) {{
+                        valorInput = await esperarElemento('input.mat-input-element[formcontrolname*="valor"]', 2000);
+                    }}
+                    if (valorInput) {{
+                        valorInput.focus();
+                        await new Promise(resolve => setTimeout(resolve, 250));
+                        valorInput.value = '{valor_divida}';
+                        triggerEvent(valorInput, 'input');
+                        triggerEvent(valorInput, 'change');
+                        valorInput.blur();
+                        log.push('✅ Valor da Dívida: R$ {valor_divida}');
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }} else {{
+                        log.push('⚠️ Campo valor da dívida não encontrado');
+                    }}
+                }} else {{
+                    log.push('⚠️ Valor da dívida não disponível nos dados');
+                }}
+
+                // 8. TEIMOSINHA
+                log.push('8. Selecionando Teimosinha...');
+                let radios = document.querySelectorAll('mat-radio-button');
+                for (let radio of radios) {{
+                    if (radio.textContent.includes('Repetir a ordem')) {{
+                        let label = radio.querySelector('label');
+                        if (label) {{
+                            label.click();
+                            log.push('✅ Teimosinha: Repetir ordem');
+                            break;
+                        }}
+                    }}
+                }}
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 9. CALENDÁRIO - LÓGICA COMPLETA DO SISB.PY
+                log.push('9. Configurando Calendário...');
+
+                // Abrir calendário
+                let btnCalendario = await esperarElemento('button[aria-label="Open calendar"]', 3000);
+                if (!btnCalendario) {{
+                    return {{sucesso: false, msg: 'Botão calendário não encontrado', log: log}};
+                }}
+                btnCalendario.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Abrir seleção mês/ano
+                let btnMesAno = await esperarElemento('mat-calendar button[aria-label="Choose month and year"]', 3000);
+                if (!btnMesAno) {{
+                    return {{sucesso: false, msg: 'Seleção mês/ano não encontrada', log: log}};
+                }}
+                btnMesAno.click();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Selecionar ano
+                let anoCell = await esperarElemento('mat-calendar td[aria-label="{ano}"]', 3000);
+                if (!anoCell) {{
+                    return {{sucesso: false, msg: 'Ano {ano} não encontrado', log: log}};
+                }}
+                anoCell.click();
+                log.push('✅ Ano: {ano}');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Selecionar mês (lógica exata sisb.py com loop)
+                let meses = {meses};
+                let mesAtual = {mes_d};
+                let diaD = {dia_d};
+                let mesEncontrado = false;
+
+                while (mesAtual >= 0) {{
+                    let mesStr = meses[mesAtual] + ' de {ano}';
+                    let mesCell = document.querySelector('mat-calendar td[aria-label="' + mesStr + '"]');
+                    if (mesCell && !mesCell.getAttribute('aria-disabled')) {{
+                        mesCell.click();
+                        log.push('✅ Mês: ' + mesStr);
+                        mesEncontrado = true;
+                        break;
+                    }}
+                    mesAtual--;
+                    diaD = 31;
+                }}
+
+                if (!mesEncontrado) {{
+                    return {{sucesso: false, msg: 'Nenhum mês disponível', log: log}};
+                }}
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Selecionar dia (lógica exata sisb.py com loop)
+                let mesFinalStr = meses[mesAtual] + ' de {ano}';
+                let diaEncontrado = false;
+
+                while (diaD > 0) {{
+                    let diaStr = diaD + ' de ' + mesFinalStr;
+                    let diaCell = document.querySelector('mat-calendar td[aria-label="' + diaStr + '"]');
+                    if (diaCell && !diaCell.getAttribute('aria-disabled')) {{
+                        diaCell.click();
+                        log.push('✅ Dia: ' + diaD);
+                        diaEncontrado = true;
+                        break;
+                    }}
+                    diaD--;
+                }}
+
+                if (!diaEncontrado) {{
+                    return {{sucesso: false, msg: 'Nenhum dia disponível', log: log}};
+                }}
+
+                let dataFinal = diaD + '/' + (mesAtual + 1) + '/{ano}';
+                log.push('✅ Data final: ' + dataFinal);
+
+                return {{sucesso: true, msg: 'Campos preenchidos com sucesso', log: log, data_final: dataFinal}};
+
+            }} catch(e) {{
+                return {{sucesso: false, msg: 'Erro: ' + e.message, log: log}};
+            }}
+        }}
+
+        return preencherMinutaCompleta().then(arguments[arguments.length - 1]);
+        """
+
+        # Executar SCRIPT ÚNICO
+        print('[SISBAJUD] Executando preenchimento otimizado (1 requisição)...')
+        resultado_campos = driver.execute_async_script(script_unico_campos)
+
+        if resultado_campos and resultado_campos.get('sucesso'):
+            print('[SISBAJUD] ✅ TODOS OS CAMPOS PREENCHIDOS (script único)')
+            if resultado_campos.get('log'):
+                for msg in resultado_campos['log']:
+                    print(f'[SISBAJUD] {msg}')
+            data_limite_str = resultado_campos.get('data_final', data_fim.strftime('%d/%m/%Y'))
+            print(f'[SISBAJUD] ✅ Data final configurada: {data_limite_str}')
+            return data_limite_str
+        else:
+            msg_erro = resultado_campos.get('msg') if resultado_campos else 'Erro desconhecido'
+            print(f'[SISBAJUD] ❌ Falha no preenchimento: {msg_erro}')
+            if resultado_campos and resultado_campos.get('log'):
+                for msg in resultado_campos['log']:
+                    print(f'[SISBAJUD] {msg}')
+            return None
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao preencher campos iniciais: {e}')
+        return None
+
+def _processar_reus_otimizado(driver, reus):
+    """
+    Helper para processar réus de forma otimizada.
+
+    Args:
+        driver: Driver SISBAJUD
+        reus: Lista de réus
+
+    Returns:
+        dict: Resultado do processamento
+    """
+    try:
+        if not reus:
+            print('[SISBAJUD] ❌ Nenhum réu encontrado')
+            return {'sucesso': False, 'msg': 'Nenhum réu encontrado'}
+
+        print(f'[SISBAJUD] Total de réus: {len(reus)}')
+
+        # Preparar lista de réus para processar
+        lista_reus_js = []
+        for reu in reus:
+            cpf_cnpj = reu.get('cpfcnpj', '')
+            if cpf_cnpj:
+                cpf_cnpj_limpo = ''.join(filter(str.isdigit, cpf_cnpj))
+                # Para bloqueio, sempre usar apenas raiz do CNPJ
+                if len(cpf_cnpj_limpo) == 14:
+                    cpf_cnpj_limpo = cpf_cnpj_limpo[:8]
+                lista_reus_js.append({
+                    'cpfcnpj': cpf_cnpj_limpo,
+                    'nome': reu.get('nome', '')
+                })
+
+        # SCRIPT ÚNICO que processa TODOS os réus
+        script_processar_reus = f"""
+        {criar_js_otimizado()}
+
+        async function processarTodosReus() {{
+            let reus = {lista_reus_js};
+            let log = [];
+            let reusAdicionados = 0;
+            let reusRemovidos = 0;
+
+            try {{
+                for (let i = 0; i < reus.length; i++) {{
+                    let reu = reus[i];
+                    log.push('\\n=== RÉU ' + (i+1) + '/' + reus.length + ' ===');
+                    log.push('Adicionando: ' + reu.nome + ' (' + reu.cpfcnpj + ')');
+
+                    // 1. Buscar campo CPF
+                    let cpfInput = await esperarElemento('input[placeholder="CPF/CNPJ do réu/executado"]', 3000);
+                    if (!cpfInput) {{
+                        cpfInput = await esperarElemento('input.mat-input-element[cpfcnpjmask]', 2000);
+                    }}
+                    if (!cpfInput) {{
+                        log.push('❌ Campo CPF não encontrado');
+                        continue;
+                    }}
+
+                    // 2. Preencher CPF/CNPJ
+                    cpfInput.focus();
+                    cpfInput.value = '';
+                    await new Promise(resolve => setTimeout(resolve, 400));
+
+                    cpfInput.value = reu.cpfcnpj;
+                    triggerEvent(cpfInput, 'input');
+                    triggerEvent(cpfInput, 'change');
+
+                    // 3. Aguardar e clicar no botão adicionar
+                    await new Promise(resolve => setTimeout(resolve, 800));
+
+                    let btnAdicionar = document.querySelector('button.btn-adicionar.mat-mini-fab');
+                    if (!btnAdicionar) {{
+                        btnAdicionar = document.querySelector('button mat-icon.fa-plus-square');
+                        if (btnAdicionar) btnAdicionar = btnAdicionar.closest('button');
+                    }}
+
+                    if (!btnAdicionar || btnAdicionar.disabled) {{
+                        log.push('❌ Botão adicionar não disponível');
+                        continue;
+                    }}
+
+                    btnAdicionar.click();
+                    log.push('✅ Réu adicionado, aguardando processamento...');
+
+                    // 4. Aguardar processamento (CRÍTICO)
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    // 5. VERIFICAR CONTAS
+                    let tabelaLinhas = document.querySelectorAll('tr.mat-row');
+                    if (tabelaLinhas.length > 0) {{
+                        let ultimaLinha = tabelaLinhas[tabelaLinhas.length - 1];
+                        let celulaRelacionamentos = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
+
+                        if (celulaRelacionamentos) {{
+                            let botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
+                            if (botaoRelacionamentos) {{
+                                let qtde = botaoRelacionamentos.textContent.trim();
+
+                                if (qtde === '0') {{
+                                    log.push('⚠️ Réu sem contas - REMOVENDO...');
+
+                                    // 6. REMOVER RÉU SEM CONTAS
+                                    let botaoMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
+                                    if (botaoMenu) {{
+                                        botaoMenu.click();
+                                        await new Promise(resolve => setTimeout(resolve, 500));
+
+                                        let botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
+                                        if (botaoExcluir) {{
+                                            botaoExcluir.closest('button').click();
+                                            log.push('✅ Réu removido (0 contas)');
+                                            reusRemovidos++;
+                                            await new Promise(resolve => setTimeout(resolve, 800));
+                                        }}
+                                    }}
+                                }} else {{
+                                    log.push('✅ Réu possui ' + qtde + ' conta(s) - MANTIDO');
+                                    reusAdicionados++;
+                                }}
+                            }}
+                        }}
+                    }}
+
+                    // 7. Delay entre réus
+                    if (i < reus.length - 1) {{
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    }}
+                }}
+
+                return {{
+                    sucesso: true,
+                    log: log,
+                    adicionados: reusAdicionados,
+                    removidos: reusRemovidos
+                }};
+
+            }} catch(e) {{
+                return {{
+                    sucesso: false,
+                    msg: 'Erro: ' + e.message,
+                    log: log,
+                    adicionados: reusAdicionados,
+                    removidos: reusRemovidos
+                }};
+            }}
+        }}
+
+        return processarTodosReus().then(arguments[arguments.length - 1]);
+        """
+
+        # Executar processamento de TODOS os réus em 1 requisição
+        print('[SISBAJUD] Processando réus (1 requisição otimizada)...')
+        resultado_reus = driver.execute_async_script(script_processar_reus)
+
+        if resultado_reus:
+            if resultado_reus.get('log'):
+                for msg in resultado_reus['log']:
+                    print(f'[SISBAJUD] {msg}')
+
+            adicionados = resultado_reus.get('adicionados', 0)
+            removidos = resultado_reus.get('removidos', 0)
+            print(f'\n[SISBAJUD] ✅ Réus processados: {adicionados} adicionados, {removidos} removidos')
+
+            if resultado_reus.get('sucesso'):
+                return {
+                    'sucesso': True,
+                    'adicionados': adicionados,
+                    'removidos': removidos
+                }
+            else:
+                print(f"[SISBAJUD] ⚠️ Processamento com avisos: {resultado_reus.get('msg', '')}")
+                return {
+                    'sucesso': False,
+                    'msg': resultado_reus.get('msg', ''),
+                    'adicionados': adicionados,
+                    'removidos': removidos
+                }
+        else:
+            print('[SISBAJUD] ❌ Falha no processamento de réus')
+            return {'sucesso': False, 'msg': 'Falha no processamento de réus'}
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao processar réus: {e}')
+        return {'sucesso': False, 'msg': str(e)}
+
+def _salvar_minuta(driver):
+    """
+    Helper para salvar a minuta.
+
+    Args:
+        driver: Driver SISBAJUD
+
+    Returns:
+        bool: True se salvou com sucesso
+    """
+    try:
+        print('[SISBAJUD] Salvando Minuta...')
+
+        script_salvar = """
+        // Buscar botão de salvar com seletor específico
+        var btnSalvar = document.querySelector('button.mat-fab.mat-primary mat-icon.fa-save');
+        if (btnSalvar) {
+            btnSalvar.closest('button').click();
+            return true;
+        }
+
+        // Fallback: buscar por qualquer botão com ícone de save
+        var btnFallback = document.querySelector('button mat-icon.fa-save');
+        if (btnFallback) {
+            btnFallback.closest('button').click();
+            return true;
+        }
+
+        // Fallback 2: buscar por texto "Salvar"
+        var buttons = document.querySelectorAll('button');
+        for (var i = 0; i < buttons.length; i++) {
+            if (buttons[i].textContent.includes('Salvar')) {
+                buttons[i].click();
+                return true;
+            }
+        }
+
+        return false;
+        """
+
+        salvou = driver.execute_script(script_salvar)
+        if salvou:
+            print('[SISBAJUD] ✅ Botão Salvar clicado')
+
+            # Aguardar confirmação do salvamento
+            print('[SISBAJUD] Aguardando confirmação do salvamento...')
+            time.sleep(3)
+
+            # Verificar se foi salvo
+            script_verificar_salvamento = """
+            // Buscar botão "Alterar" como confirmação
+            var btnAlterar = document.querySelector('button mat-icon.fa-edit');
+            if (btnAlterar) {
+                var btnTexto = btnAlterar.closest('button');
+                if (btnTexto && btnTexto.textContent.includes('Alterar')) {
+                    return 'SALVO_COM_SUCESSO';
+                }
+            }
+
+            // Verificar se ainda está na página de edição
+            var btnSalvar = document.querySelector('button mat-icon.fa-save');
+            if (btnSalvar) {
+                return 'AINDA_EDITANDO';
+            }
+
+            return 'STATUS_DESCONHECIDO';
+            """
+
+            status_salvamento = driver.execute_script(script_verificar_salvamento)
+
+            if status_salvamento == 'SALVO_COM_SUCESSO':
+                print('[SISBAJUD] ✅ Minuta salva com sucesso! Botão "Alterar" detectado.')
+                return True
+            elif status_salvamento == 'AINDA_EDITANDO':
+                print('[SISBAJUD] ⚠️ Minuta ainda em modo de edição - pode não ter salvado')
+                return False
+            else:
+                print('[SISBAJUD] ⚠️ Status de salvamento desconhecido')
+                return False
+        else:
+            print('[SISBAJUD] ❌ Falha ao clicar no botão Salvar')
+            return False
+
+    except Exception as e:
+        print(f'[SISBAJUD] ❌ Erro ao salvar minuta: {e}')
+        return False
+
+# NOTA: A função _gerar_relatorio_minuta foi removida deste arquivo.
+# Use helpers._gerar_relatorio_minuta (para processar_ordens) ou
+# processamento._gerar_relatorio_minuta (para minuta_bloqueio)

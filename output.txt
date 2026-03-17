@@ -1,0 +1,5 @@
+1743: var orderSequence = (window.hcalcOrderSequence && Array.isArray(window.hcalcOrderSequence)) ? window.hcalcOrderSequence : [
+1749: orderSequence.forEach((id) => {
+1753: const visibleInputs = orderSequence.filter((id) => {
+1778: orderSequence.forEach((id) => {
+1788: orderSequence.forEach((i) => {

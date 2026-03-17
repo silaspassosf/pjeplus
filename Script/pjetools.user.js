@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.0.10
+// @version      2.0.11
 // @description  Suite de ferramentas para PJe (Lista + Atalhos + Infojud)
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
@@ -20,7 +20,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=223
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=223
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=224
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=224
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=225
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=224
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=224
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=224
@@ -49,12 +49,22 @@
     if (isSisbajud) return;
 
     if (isMinutas) {
-        if (new URLSearchParams(location.search).get('maispje_worker') === '1') {
-            if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
-            document.documentElement.setAttribute('data-pjetools-worker', '1');
-            window.addEventListener('load', () =>
-                setTimeout(() => window.runWorker && window.runWorker(), 2000));
-        }
+        // Bloqueio de execução múltipla
+        if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
+        document.documentElement.setAttribute('data-pjetools-worker', '1');
+
+        console.log('[Loader] Iniciando Worker Infojud...');
+        
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                // Chama a função exposta no infojud.js refatorado
+                if (typeof window.runInfojudWorker === 'function') {
+                    window.runInfojudWorker();
+                } else {
+                    console.error('[Loader] Falha: Módulo Infojud não responde.');
+                }
+            }, 2500); // Aguarda carregamento do Angular/PJe
+        });
         return;
     }
 

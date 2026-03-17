@@ -220,11 +220,20 @@ def executar_lista_sisbajud_por_abas(driver_pje, lista_sisbajud):
                     if "60" in observacao_lower:
                         prazo_dias = 60
                     
+                    # Detectar se a observação é 'teimosinha' -> não protocolar automaticamente
+                    is_teimosinha = False
+                    try:
+                        if observacao_lower and any(k in observacao_lower for k in ['teimosinha', 't2']):
+                            is_teimosinha = True
+                    except Exception:
+                        is_teimosinha = False
+
                     resultado = minuta_bloqueio(
                         driver=driver_sisbajud,
-                        dados_processo=dados_processo, 
+                        dados_processo=dados_processo,
                         driver_pje=driver_pje,
-                        log=True
+                        log=True,
+                        protocolar=not is_teimosinha
                     )
                     
                     if resultado and resultado.get('status') == 'sucesso':

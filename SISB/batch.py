@@ -326,14 +326,32 @@ def _processar_grupo(
                     continue
             
             if driver_sisbajud is None:
-                from .core import iniciar_sisbajud
-                driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje, extrair_dados=False)
-                
-                if not driver_sisbajud:
+                # Validar conexão do driver PJE antes de iniciar SISBAJUD
+                try:
+                    from Fix.abas import validar_conexao_driver
+                    conex_ok = validar_conexao_driver(driver_pje, 'SISB_INIT', numero_processo)
+                    if conex_ok == "FATAL" or not conex_ok:
+                        logger.error(f"[SISBAJUD_LOTE] Driver PJE inválido antes de iniciar SISBAJUD for {numero_processo}: {conex_ok}")
+                        raise Exception(f"RESTART_SISB: driver PJE inválido antes de iniciar SISBAJUD for {numero_processo}")
+                except Exception as e_valid:
+                    logger.error(f"[SISBAJUD_LOTE] Validação do driver PJE falhou: {e_valid}")
+                    # Garantir foco na aba da lista e continuar
                     try:
                         if aba_lista_pje in driver_pje.window_handles:
                             driver_pje.switch_to.window(aba_lista_pje)
-                            
+                    except Exception:
+                        pass
+                    resultados['erro'] += 1
+                    continue
+
+                from .core import iniciar_sisbajud
+                driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje, extrair_dados=False)
+
+                if not driver_sisbajud:
+                    logger.error(f"[SISBAJUD_LOTE] iniciar_sisbajud retornou None para {numero_processo}")
+                    try:
+                        if aba_lista_pje in driver_pje.window_handles:
+                            driver_pje.switch_to.window(aba_lista_pje)
                             for handle in list(driver_pje.window_handles):
                                 if handle != aba_lista_pje:
                                     try:
@@ -341,16 +359,41 @@ def _processar_grupo(
                                         driver_pje.close()
                                     except:
                                         pass
-                            
                             driver_pje.switch_to.window(aba_lista_pje)
                     except:
                         pass
-                    
                     resultados['erro'] += 1
                     continue
+
+                # Validar driver SISBAJUD recém-criado
+                try:
+                    from Fix.abas import validar_conexao_driver
+                    ok_sisb = validar_conexao_driver(driver_sisbajud, 'SISB_DRIVER', numero_processo)
+                    if ok_sisb == "FATAL" or not ok_sisb:
+                        logger.error(f"[SISBAJUD_LOTE] Driver SISBAJUD inválido após criação for {numero_processo}: {ok_sisb}")
+                        try:
+                            driver_sisbajud.quit()
+                        except:
+                            pass
+                        resultados['erro'] += 1
+                        continue
+                except Exception:
+                    # Se a validação falhar por qualquer motivo, prosseguir com cautela
+                    pass
                 
-            driver_sisbajud.get(URL_MINUTA)
-            time.sleep(1)
+            try:
+                driver_sisbajud.get(URL_MINUTA)
+                time.sleep(1)
+            except Exception as e_get:
+                logger.error(f"[SISBAJUD_LOTE] Falha ao navegar para {URL_MINUTA}: {e_get}")
+                # Se navegar ao SISBAJUD falhar, tentar recuperar foco no PJE e continuar
+                try:
+                    if aba_lista_pje in driver_pje.window_handles:
+                        driver_pje.switch_to.window(aba_lista_pje)
+                except Exception:
+                    pass
+                resultados['erro'] += 1
+                continue
 
             # Executar TODAS AS AÇÕES determinadas para este processo
             acoes = proc.get('acoes', [])

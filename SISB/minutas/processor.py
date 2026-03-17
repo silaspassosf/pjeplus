@@ -553,7 +553,18 @@ def _processar_reus_otimizado(driver, reus):
         """
 
         # Executar processamento de TODOS os réus em 1 requisição
-        resultado_reus = driver.execute_async_script(script_processar_reus)
+        # Aumentar timeout de script assíncrono temporariamente (evita ScriptTimeoutError)
+        try:
+            driver.set_script_timeout(120)
+        except Exception:
+            pass
+        try:
+            resultado_reus = driver.execute_async_script(script_processar_reus)
+        finally:
+            try:
+                driver.set_script_timeout(30)
+            except Exception:
+                pass
 
         if resultado_reus:
             if resultado_reus.get('log'):
@@ -1288,8 +1299,8 @@ def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
 
         # Preencher valor
         try:
-            from .. import processamento
-            processamento._configurar_valor(driver, dados_processo)
+            from ..processamento_campos import _configurar_valor
+            _configurar_valor(driver, dados_processo)
             if log:
                 _ = True
         except Exception as e:
@@ -1477,8 +1488,8 @@ def _criar_minuta_agendada(driver, dados_processo, reus_ja_processados, prazo_di
             _ = reus_processados
 
         # 5. Configurar valor
-        from .. import processamento
-        processamento._configurar_valor(driver, dados_processo)
+        from ..processamento_campos import _configurar_valor
+        _configurar_valor(driver, dados_processo)
 
         # 6. MARCAR RADIO "SIM" PARA AGENDAMENTO
 

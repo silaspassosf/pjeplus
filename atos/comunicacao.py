@@ -1,4 +1,4 @@
-﻿import time
+import time
 from Fix.extracao import criar_gigs
 from Fix.log import logger
 from selenium.webdriver.common.by import By
@@ -29,7 +29,7 @@ def _extrair_observacao_gigs_vencida_xs_pec(driver: WebDriver, debug: bool = Fal
                     continue
 
                 texto_lower = texto_descricao.lower()
-                if 'xs' not in texto_lower or 'pec' not in texto_lower:
+                if 'xs' not in texto_lower:
                     continue
 
                 if texto_lower.startswith('prazo:'):
@@ -93,6 +93,7 @@ def make_comunicacao_wrapper(
     coleta_conteudo: Optional[Callable] = None,
     inserir_conteudo: Optional[Callable] = None,
     cliques_polo_passivo: int = 1,
+    cliques_informado: int = 2,
     destinatarios: str = 'extraido',
     mudar_expediente: Optional[bool] = None,
     checar_sp: Optional[bool] = None,
@@ -160,8 +161,8 @@ def make_comunicacao_wrapper(
                 observacao = observacao_gigs
             else:
                 if not observacao or not (isinstance(observacao, str) and observacao.strip()):
-                    logger.info('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo')
-                    destinatarios_param = 'polo_passivo'
+                    logger.info('[COMUNICACAO][GIGS][WARN] Observação não localizada para informado - fallback polo passivo 2x')
+                    destinatarios_param = 'polo_passivo_2x'
                 else:
                     logger.info('[COMUNICACAO][GIGS] Observação fornecida será usada para seleção de destinatários')
 
@@ -228,6 +229,7 @@ def make_comunicacao_wrapper(
                 driver=driver,
                 destinatarios=destinatarios_param,
                 cliques_polo_passivo=call_kwargs.get('cliques_polo_passivo', 1),
+                cliques_informado=cliques_informado,
                 debug=debug,
                 log=logger.info if debug else None,
                 observacao=observacao,

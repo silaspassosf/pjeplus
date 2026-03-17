@@ -113,8 +113,8 @@ def _criar_minuta_agendada(driver, dados_processo, reus_ja_processados, prazo_di
         from .minutas_reus import _processar_reus_otimizado
         _processar_reus_otimizado(driver, dados_processo.get('reu', []))
 
-        from .. import processamento
-        processamento._configurar_valor(driver, dados_processo)
+        from ..processamento_campos import _configurar_valor
+        _configurar_valor(driver, dados_processo)
 
         script_marcar_sim = """
         var radioInputs = document.querySelectorAll('input[type="radio"][name^="mat-radio-group"]');

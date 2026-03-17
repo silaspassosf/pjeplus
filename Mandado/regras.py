@@ -195,23 +195,35 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
     if not reus:
         return []
 
-    # 1) Contexto focal da decisão IDPJ: inclusão de sócios no polo passivo
-    # Ex.: "... incluir os sócios ... no polo passivo ..."
+    # 1) Contexto focal da decisão IDPJ: priorizar parágrafo de providências
+    # Ex.: "Providencie a Secretaria da Vara retificação da autuação...".
+    # Isso evita detectar nomes que aparecem no cabeçalho do documento.
     contexto_focal = ''
-    padroes_focais = [
-        r'incluir os socios .*? no polo passivo',
-        r'inclua se .*? no polo passivo',
-        r'incluir os socios .*? em obediencia a ordem',
-    ]
 
-    for padrao in padroes_focais:
-        try:
-            m = re.search(padrao, texto_norm, flags=re.IGNORECASE)
-            if m:
-                contexto_focal = m.group(0)
-                break
-        except Exception:
-            continue
+    # Prioridade: parágrafo que inicia com "Providencie a Secretaria" (ou variações)
+    try:
+        m2 = re.search(r'providencie a secretaria.*?(?:\n\s*\n|$)', texto_norm, flags=re.IGNORECASE | re.DOTALL)
+        if m2:
+            contexto_focal = m2.group(0)
+    except Exception:
+        contexto_focal = ''
+
+    # Se não encontrou o parágrafo de providências, tenta padrões clássicos de inclusão
+    if not contexto_focal:
+        padroes_focais = [
+            r'incluir os socios .*? no polo passivo',
+            r'inclua se .*? no polo passivo',
+            r'incluir os socios .*? em obediencia a ordem',
+        ]
+
+        for padrao in padroes_focais:
+            try:
+                m = re.search(padrao, texto_norm, flags=re.IGNORECASE)
+                if m:
+                    contexto_focal = m.group(0)
+                    break
+            except Exception:
+                continue
 
     if debug:
         if contexto_focal:

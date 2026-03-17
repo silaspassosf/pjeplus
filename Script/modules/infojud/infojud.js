@@ -65,6 +65,8 @@
     let filaDocs = [], atual = 0, rodando = false, MODO_EXECUCAO = '', dadosRelatorio = [];
 
     function criarBotoesInfojud() {
+        // Somente injetar botões na aba '/minutas'
+        if (!URL_ATUAL.includes('/minutas')) return;
         if (document.getElementById('god-btn-container')) return;
         const container = document.createElement('div');
         container.id = 'god-btn-container';

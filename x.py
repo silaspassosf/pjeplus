@@ -454,6 +454,7 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
     resultados = {
         "mandado": None,
         "prazo": None,
+        "p2b": None,
         "pec": None,
         "sucesso_geral": False
     }
@@ -473,6 +474,11 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         resetar_driver(driver)
         time.sleep(3)
 
+        # 2.1 P2B (atividades) - chamado apenas no bloco completo
+        resultados["p2b"] = executar_p2b(driver)
+        resetar_driver(driver)
+        time.sleep(3)
+
         # 3. PEC
         resultados["pec"] = executar_pec(driver)
         
@@ -480,6 +486,7 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         todos_sucesso = all([
             resultados["mandado"].get("sucesso", False),
             resultados["prazo"].get("sucesso", False),
+            resultados["p2b"].get("sucesso", False),
             resultados["pec"].get("sucesso", False)
         ])
         
@@ -564,19 +571,8 @@ def executar_prazo(driver) -> Dict[str, Any]:
         
         print("[PRAZO]  loop_prazo concludo")
 
-        # Preparar driver para executar P2B: garantir navegação/reset mínimo
-        try:
-            print("[PRAZO] Preparando driver para p2b (reset/navegacao)...")
-            resetar_driver(driver)
-            time.sleep(2)
-        except Exception as e:
-            print(f"[PRAZO] Aviso: falha ao resetar driver antes do p2b: {e}")
-
-        # Executar fluxo_pz (P2B)
-        print("[PRAZO] Executando p2b_fluxo...")
-        fluxo_pz(driver)  # fluxo_pz não retorna valor
-        print("[PRAZO]  p2b_fluxo concluído")
-        print("[PRAZO]  Mdulo Prazo completo")
+        # Finalizar apenas o módulo Prazo (não executar P2B aqui)
+        print("[PRAZO]  Módulo Prazo completo (sem P2B nesta opção)")
         
         tempo = (datetime.now() - inicio).total_seconds()
         

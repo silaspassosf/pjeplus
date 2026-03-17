@@ -133,7 +133,18 @@ def _processar_reus_otimizado(driver, dados_processo):
         return processarTodosReus().then(arguments[arguments.length - 1]);
         """
 
-        resultado = driver.execute_async_script(script_reus)
+        # Aumentar timeout de script assíncrono temporariamente (evita ScriptTimeoutError)
+        try:
+            driver.set_script_timeout(120)
+        except Exception:
+            pass
+        try:
+            resultado = driver.execute_async_script(script_reus)
+        finally:
+            try:
+                driver.set_script_timeout(30)
+            except Exception:
+                pass
 
         if resultado and resultado.get('sucesso'):
             adicionados = resultado.get('adicionados', 0)

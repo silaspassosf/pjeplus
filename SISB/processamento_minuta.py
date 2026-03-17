@@ -15,7 +15,7 @@ from .utils import (
 
 def minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje=None, driver_created=False, manter_driver_aberto=False):
     """
-    Cria minuta de bloqueio no SISBAJUD - versão refatorada e otimizada.
+    DEPRECATED: Cria minuta de bloqueio no SISBAJUD - versão refatorada e otimizada.
     Agora inclui execução automática de juntada no PJE após criação da minuta.
 
     Args:
@@ -76,10 +76,7 @@ def minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje=None,
         from .processamento_relatorios import _gerar_relatorio_minuta
         dados_relatorio = _gerar_relatorio_minuta(driver_sisbajud, dados_processo)
 
-        # 9. EXTRAIR PROTOCOLO
-        protocolo = extrair_protocolo(driver_sisbajud)
-
-        # 10. EXECUTAR JUNTADA NO PJE (se driver_pje fornecido)
+        # 9. EXECUTAR JUNTADA NO PJE (se driver_pje fornecido)
         juntada_executada = False
         if driver_pje:
             log_sisbajud("Executando juntada automática no PJE...")
@@ -95,16 +92,11 @@ def minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje=None,
             except Exception as e:
                 log_sisbajud(f" Erro na execução da juntada: {e}")
 
-        # 11. FINALIZAR
-        from .processamento_relatorios import _finalizar_minuta
-        _finalizar_minuta(driver_sisbajud, driver_pje, driver_created)
-
         log_sisbajud(" MINUTA DE BLOQUEIO CRIADA COM SUCESSO")
 
         return {
             'status': 'sucesso',
             'dados_minuta': {
-                'protocolo': protocolo,
                 'tipo': 'bloqueio',
                 'repeticao': 'sim',
                 'quantidade_reus': len(dados_processo.get('reu', [])),

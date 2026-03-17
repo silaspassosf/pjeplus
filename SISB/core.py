@@ -45,6 +45,9 @@ except Exception:
         criar_driver_sisb = None
 from . import helpers
 from . import processamento
+# Importar função diretamente do módulo de campos para evitar depender
+# do namespace `processamento` em tempo de execução.
+from .processamento_campos import _configurar_valor
 from . import utils
 
 # Função auxiliar para simulação humana (extraída de sisb.py)
@@ -490,7 +493,7 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
     return None
 
 
-def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fechar_driver=True, prazo_dias=None):
+def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fechar_driver=True, prazo_dias=None, protocolar=True):
     """
     Orquestra a criação de minuta de bloqueio no SISBAJUD:
     0. Extrair dados do processo (se necessário) e verificar valor
@@ -614,7 +617,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         resultado['reus_processados'] = reus_processados
 
         # 5. Configurar valor da execução
-        processamento._configurar_valor(driver, dados_processo)
+        _configurar_valor(driver, dados_processo)
 
         # 6. Salvar minuta
         minuta_salva = helpers._salvar_minuta(driver)
@@ -640,11 +643,13 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         except Exception as e:
             _ = e
         
-        minuta_protocolada = helpers._protocolar_minuta(
-            driver=driver,
-            protocolo_minuta=protocolo_minuta,
-            log=log
-        )
+        minuta_protocolada = False
+        if protocolar:
+            minuta_protocolada = helpers._protocolar_minuta(
+                driver=driver,
+                protocolo_minuta=protocolo_minuta,
+                log=log
+            )
         
         resultado['minuta_protocolada'] = minuta_protocolada
         if minuta_protocolada and log:

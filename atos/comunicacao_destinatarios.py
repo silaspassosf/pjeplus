@@ -17,6 +17,16 @@ def _normalizar_nome_para_match(nome):
     nome_norm = normalizar_string(nome)
     return re.sub(r'\s+', ' ', nome_norm).strip()
 
+def _partial_name_match(nome_norm, texto_norm, min_tokens=2):
+    try:
+        tokens = [t for t in re.findall(r'[a-z0-9]+', nome_norm) if len(t) >= 3]
+        if len(tokens) < min_tokens:
+            return False
+        found = sum(1 for t in tokens if t in texto_norm)
+        return found >= min_tokens
+    except Exception:
+        return False
+
 def _carregar_dadosatuais_local(caminho='dadosatuais.json'):
     try:
         with open(caminho, 'r', encoding='utf-8') as f:
@@ -202,10 +212,23 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                         continue
                 if btn_seta:
                     try:
-                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_seta)
+                        # Prefer to click the closest ancestor button if the selector
+                        # returned an inner element (e.g., an <i> icon). This ensures
+                        # the click targets the actual interactive control.
+                        clickable = driver.execute_script("return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];", btn_seta)
+                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
+                        try:
+                            tname = getattr(clickable, 'tag_name', None)
+                        except Exception:
+                            tname = None
+                        if debug:
+                            try:
+                                logger.info(f"[DESTINATARIOS][DEBUG] Usando elemento clicavel: {tname}")
+                            except Exception:
+                                pass
                         for _ in range(qtd_cliques):
                             time.sleep(0.3)
-                            driver.execute_script('arguments[0].click();', btn_seta)
+                            driver.execute_script('arguments[0].click();', clickable)
                     except Exception:
                         try:
                             for _ in range(qtd_cliques):
@@ -222,7 +245,8 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
             for linha in linhas:
                 try:
                     texto_linha = linha.text or ''
-                    if nome_alvo_norm and nome_alvo_norm in normalizar_string(texto_linha):
+                    texto_norm = normalizar_string(texto_linha)
+                    if nome_alvo_norm and (nome_alvo_norm in texto_norm or _partial_name_match(nome_alvo_norm, texto_norm)):
                         seletores_seta = [
                             'button[mattooltip*="acrescentar"]',
                             'button[aria-label*="acrescentar"]',
@@ -241,10 +265,23 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                                 continue
                         if btn_seta:
                             try:
-                                driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_seta)
+                                clickable = driver.execute_script(
+                                    "return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];",
+                                    btn_seta
+                                )
+                                driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
+                                try:
+                                    tname = getattr(clickable, 'tag_name', None)
+                                except Exception:
+                                    tname = None
+                                if debug:
+                                    try:
+                                        logger.info(f"[DESTINATARIOS][DEBUG] Usando elemento clicavel: {tname}")
+                                    except Exception:
+                                        pass
                                 for _ in range(qtd_cliques):
                                     time.sleep(0.3)
-                                    driver.execute_script('arguments[0].click();', btn_seta)
+                                    driver.execute_script('arguments[0].click();', clickable)
                             except Exception:
                                 try:
                                     for _ in range(qtd_cliques):
@@ -252,9 +289,18 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                                         time.sleep(0.2)
                                 except Exception:
                                     pass
+                        else:
                             if debug:
+                                try:
+                                    logger.info(f"[DESTINATARIOS][DEBUG] Nome correspondeu mas nenhuma seta encontrada para: {nome_alvo}")
+                                except Exception:
+                                    pass
+                        if debug:
+                            try:
                                 logger.info(f"[DESTINATARIOS]  Parte selecionada via nome: {nome_alvo}")
-                            return True
+                            except Exception:
+                                pass
+                        return True
                 except Exception:
                     continue
 
@@ -265,16 +311,24 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
         if debug:
             logger.info(f"[DESTINATARIOS][ERRO] {e}")
         return False
-def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, observacao=None, numero_processo=None, dados_processo=None):
+def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, cliques_informado=2, observacao=None, numero_processo=None, dados_processo=None):
     if log is None:
-        def log(_msg):
-            return None
+        def log(_msg): return None
 
     qtd_seta = 2 if str(cliques_polo_passivo).strip().lower() in ('2', '2x') else 1
+    qtd_informado = 2 if str(cliques_informado).strip().lower() in ('2', '2x') else 1
 
-    def _selecionar_por_lista(lista_destinatarios, origem_log, fallback_polo_passivo=False):
+    def _selecionar_por_lista(lista_destinatarios, origem_log, fallback_polo_passivo=False, qtd_seta_override=None):
         selecionados = 0
-        _clicar_polo_passivo(driver, log)
+        
+        # 1. GARANTE ABERTURA DO PAINEL E AGUARDA O RENDER DO PJE (CRÍTICO)
+        try:
+            _clicar_polo_passivo(driver, log)
+            time.sleep(1) # Aguarda animação e lazy loading das linhas do painel
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
+
+        qtd_cliques = qtd_seta_override if qtd_seta_override is not None else qtd_seta
 
         if not lista_destinatarios:
             log(f'[DESTINATARIOS][WARN] Lista de destinatários vazia ({origem_log})')
@@ -283,165 +337,119 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 log('[DESTINATARIOS] Fallback polo passivo aplicado')
             return 0
 
-        for destinatario_info in lista_destinatarios:
-            if selecionar_destinatario_por_documento(driver, destinatario_info, debug=debug, qtd_cliques=qtd_seta):
-                selecionados += 1
-                time.sleep(0.3)
+        for dest in lista_destinatarios:
+            # 2. PADRONIZA AS CHAVES DO DICIONÁRIO (Cache vs Informado)
+            info_padrao = dest
+            if isinstance(dest, dict):
+                nome = dest.get('nome') or dest.get('nome_oficial') or dest.get('nome_identificado')
+                doc = dest.get('cpfcnpj') or dest.get('cpfCnpj') or dest.get('documento')
+                
+                info_padrao = {
+                    'nome_alvo': nome,
+                    'nome_oficial': nome,
+                    'documento': doc,
+                    'documento_normalizado': re.sub(r'\D', '', str(doc)) if doc else ''
+                }
 
+            try:
+                if selecionar_destinatario_por_documento(driver, info_padrao, debug=debug, qtd_cliques=qtd_cliques):
+                    selecionados += 1
+                    time.sleep(0.3)
+            except Exception as e:
+                log(f'[DESTINATARIOS][ERRO] Exceção ao tentar selecionar {info_padrao.get("nome_alvo")} : {e}')
+
+        # 3. VERIFICAÇÃO FINAL E FALLBACK
         if selecionados == 0:
             log(f'[DESTINATARIOS][WARN] Nenhum destinatário selecionado ({origem_log})')
             if fallback_polo_passivo:
                 _clicar_botao_polo_passivo(driver, log)
-                log('[DESTINATARIOS] Fallback polo passivo aplicado')
+                log('[DESTINATARIOS] Fallback polo passivo aplicado (botão geral)')
         else:
             log(f'[DESTINATARIOS] {selecionados} destinatário(s) selecionado(s) via {origem_log}')
+            
         return selecionados
+
+    # ================= ROTEAMENTO PRINCIPAL =================
 
     if destinatarios is None:
         log('[DESTINATARIOS] Parâmetro None - pulando seleção')
 
     elif isinstance(destinatarios, list):
         log('[DESTINATARIOS] Lista explícita recebida via override')
-        selecionados = 0
-        for destinatario_info in destinatarios:
-            if selecionar_destinatario_por_documento(driver, destinatario_info, debug=debug):
-                selecionados += 1
-                time.sleep(0.3)
-        if selecionados == 0:
-            log('[DESTINATARIOS][WARN] Lista explícita sem seleção - fallback polo passivo (1x)')
-            try:
-                _clicar_polo_passivo(driver, log)
-            except Exception as e:
-                log(f'[DESTINATARIOS][ERRO] Falha no fallback polo passivo: {e}')
-
-    elif destinatarios == 'polo_ativo':
-        log('[DESTINATARIOS] OPÇÃO 3: Clicando no polo ativo (1x)')
-        try:
-            btn_polo_ativo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloAtivo"]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_polo_ativo)
-            log('[DESTINATARIOS]  Polo ativo selecionado')
-        except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo ativo: {e}')
-
-    elif destinatarios == 'polo_passivo':
-        log(f'[DESTINATARIOS] Clicando no polo passivo ({cliques_polo_passivo}x com intervalo 2s)')
-        try:
-            btn_polo_passivo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
-            )
-
-            for i in range(cliques_polo_passivo):
-                driver.execute_script("arguments[0].click();", btn_polo_passivo)
-                log(f'[DESTINATARIOS]  Polo passivo - clique {i+1}')
-                if i < cliques_polo_passivo - 1:  # Não espera após o último clique
-                    time.sleep(2)
-
-        except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo ({cliques_polo_passivo}x): {e}')
-
-    elif destinatarios == 'terceiros':
-        log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados / outros participantes')
-        try:
-            # Tentar o seletor padrão (btnIntimarSomenteTerceirosInteressados)
-            try:
-                btn_terceiro = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]'))
-                )
-                driver.execute_script("arguments[0].click();", btn_terceiro)
-            except Exception:
-                # Fallback: tentar o ícone de terceiros especificado pelo usuário
-                log('[DESTINATARIOS] Botão padrão não encontrado. Tentando ícone fa-user pec-polo-outros-partes-processo...')
-                btn_icone = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo'))
-                )
-                driver.execute_script("arguments[0].click();", btn_icone)
-            
-            log('[DESTINATARIOS]  Terceiros selecionados')
-        except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
-
-    elif destinatarios == 'polo_passivo_2x':  # Mantém compatibilidade
-        log('[DESTINATARIOS] OPÇÃO 2: Clicando no polo passivo (2x com intervalo 2s)')
-        try:
-            btn_polo_passivo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
-            )
-
-            driver.execute_script("arguments[0].click();", btn_polo_passivo)
-            log('[DESTINATARIOS]  Polo passivo - primeiro clique')
-
-            time.sleep(2)
-
-            driver.execute_script("arguments[0].click();", btn_polo_passivo)
-            log('[DESTINATARIOS]  Polo passivo - segundo clique')
-
-        except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo (2x): {e}')
+        # Agora a lista explícita também garante a expansão do painel antes da busca
+        _selecionar_por_lista(destinatarios, 'lista explícita', fallback_polo_passivo=True)
 
     elif destinatarios == 'extraido':
-        log('[DESTINATARIOS] OPÇÃO EXTRAIDO: carregando destinatários extraídos em cache')
+        log('[DESTINATARIOS] OPÇÃO EXTRAIDO: carregando destinatários em cache')
         try:
             from Fix.extracao_processo import carregar_destinatarios_cache
             cache = carregar_destinatarios_cache() or {}
             lista_destinatarios = cache.get('destinatarios', []) or []
-            _selecionar_por_lista(lista_destinatarios, 'cache')
+            _selecionar_por_lista(lista_destinatarios, 'cache', fallback_polo_passivo=True, qtd_seta_override=2)
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha no modo extraido: {e}')
 
     elif destinatarios == 'informado':
         log('[DESTINATARIOS] OPÇÃO INFORMADO: cruzando observação com dados do processo')
         try:
-            # Se o chamador já forneceu dados_processo (extraídos previamente),
-            # utilizá-los; caso contrário, tentar extrair/ler localmente.
             if not dados_processo:
                 try:
                     from Fix.extracao_processo import extrair_dados_processo
-                    log('[DESTINATARIOS] Nenhum dados_processo fornecido: executando extrair_dados_processo()')
                     dados_processo = extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=debug)
-                except Exception as ee:
-                    log(f'[DESTINATARIOS][WARN] Falha ao extrair dados via API/local: {ee} - tentando carregar dadosatuais.json localmente')
+                except Exception:
                     dados_processo = _carregar_dadosatuais_local('dadosatuais.json')
 
-            # Informar quantidade de partes disponíveis para matching
-            try:
-                reu_count = len((dados_processo or {}).get('reu', []))
-            except Exception:
-                reu_count = 'N/A'
-            log(f'[DESTINATARIOS] Dados do processo prontos para matching (reu_count={reu_count})')
-
-            # Log detalhado dos tokens extraídos da observação (útil para depuração)
-            if debug:
-                try:
-                    logger.info(f"[DESTINATARIOS][DEBUG] Observação bruta: {observacao}")
-                except Exception:
-                    pass
-
             candidatos = _montar_destinatarios_por_observacao(observacao, dados_processo)
-
-            if debug:
-                try:
-                    logger.info(f"[DESTINATARIOS][DEBUG] Candidatos extraídos a partir da observação: {json.dumps(candidatos, ensure_ascii=False)}")
-                except Exception:
-                    pass
-
-            _selecionar_por_lista(candidatos, 'observação', fallback_polo_passivo=True)
+            _selecionar_por_lista(candidatos, 'observação', fallback_polo_passivo=False, qtd_seta_override=qtd_informado)
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha no modo informado: {e}')
 
-    elif destinatarios == 'primeiro':
-        log('[DESTINATARIOS] OPÇÃO ESPECIAL: Primeiro destinatário (pec_excluiargos)')
+    elif destinatarios == 'polo_ativo':
+        log('[DESTINATARIOS] OPÇÃO: Clicando no polo ativo')
+        try:
+            btn_polo_ativo = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloAtivo"]'))
+            )
+            driver.execute_script("arguments[0].click();", btn_polo_ativo)
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo ativo: {e}')
+
+    elif destinatarios in ('polo_passivo', 'polo_passivo_2x'):
+        cliques = cliques_polo_passivo if destinatarios == 'polo_passivo' else 2
+        log(f'[DESTINATARIOS] Clicando no polo passivo ({cliques}x)')
+        try:
+            btn_polo_passivo = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
+            )
+            for i in range(cliques):
+                driver.execute_script("arguments[0].click();", btn_polo_passivo)
+                if i < cliques - 1: time.sleep(2)
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
+
+    elif destinatarios == 'terceiros':
+        log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados')
+        try:
+            try:
+                btn_terceiro = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]'))
+                )
+            except Exception:
+                btn_terceiro = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo'))
+                )
+            driver.execute_script("arguments[0].click();", btn_terceiro)
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
     else:
-        log('[DESTINATARIOS] OPÇÃO 1 (PADRÃO): Clicando no polo passivo (1x)')
+        log('[DESTINATARIOS] OPÇÃO PADRÃO: Clicando no polo passivo (1x)')
         try:
             btn_polo_passivo = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
             )
             driver.execute_script("arguments[0].click();", btn_polo_passivo)
-            log('[DESTINATARIOS]  Polo passivo selecionado')
         except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
+            log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo padrão: {e}')
 
     if terceiro:
         log('[DESTINATARIOS] FLAG terceiro=True: Adicionando terceiros interessados')
@@ -450,143 +458,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomenteTerceirosInteressados"]'))
             )
             driver.execute_script("arguments[0].click();", btn_terceiro)
-            log('[DESTINATARIOS]  Terceiros interessados adicionados')
         except Exception as e:
             log(f'[DESTINATARIOS][WARN] Falha ao adicionar terceiros: {e}')
-
-    elif destinatarios == 'primeiro':
-        log('[DESTINATARIOS] OPÇÃO ESPECIAL: Primeiro destinatário (pec_excluiargos)')
-        try:
-            _clicar_polo_passivo(driver, log)
-            time.sleep(0.5)
-
-            primeira_seta = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]//button[@aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."][1]'))
-            )
-            driver.execute_script("arguments[0].click();", primeira_seta)
-            log('[DESTINATARIOS]  Primeira seta (primeiro destinatário) clicada')
-            time.sleep(1)
-
-            btn_alterar_endereco = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Alterar endereço"]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_alterar_endereco)
-            log('[DESTINATARIOS]  Botão Alterar endereço clicado')
-            time.sleep(0.5)
-
-            try:
-                log('[DESTINATARIOS] 3. Buscando tribunal nos endereços disponíveis...')
-                try:
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, '.pec-consulta-enderecos'))
-                    )
-                    log('[DESTINATARIOS] 3a. Formulário de consulta de endereços detectado')
-                except Exception:
-                    log('[DESTINATARIOS] 3a. Formulário de consulta de endereços não apareceu')
-                    raise Exception('Consulta não apareceu')
-
-                try:
-                    WebDriverWait(driver, 3).until(
-                        EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Nenhum resultado encontrado')]"))
-                    )
-                    log('[DESTINATARIOS] 3b. Snack-bar detectado: "Nenhum resultado encontrado" -> incluir tribunal via CEP')
-
-                    log('[DESTINATARIOS] 3c. Digitando CEP 01302906 no campo inputCep')
-                    campo_cep = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input#inputCep'))
-                    )
-                    campo_cep.clear()
-                    for char in '01302906':
-                        campo_cep.send_keys(char)
-                        time.sleep(0.1)
-                    time.sleep(1)
-
-                    log('[DESTINATARIOS] 3d. Clicando na opção do tribunal TRT2 São Paulo')
-                    opcao_tribunal = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), '01302-906')]"))
-                    )
-                    opcao_tribunal.click()
-                    log('[DESTINATARIOS]  Opção do tribunal selecionada')
-                    time.sleep(0.5)
-
-                    log('[DESTINATARIOS] 3e. Clicando no botão Salvar das alterações')
-                    btn_salvar_alteracoes = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salva as alterações"]'))
-                    )
-                    btn_salvar_alteracoes.click()
-                    log('[DESTINATARIOS]  Alterações salvas')
-                    time.sleep(0.5)
-
-                    log('[DESTINATARIOS] 3f. Clicando no botão fechar para fechar endereços')
-                    btn_fechar = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
-                    )
-                    btn_fechar.click()
-                    log('[DESTINATARIOS]  Janela de endereços fechada')
-                except Exception:
-                    log('[DESTINATARIOS] 3b. Nenhum snack-bar - buscando tribunal na tabela de endereços')
-                    try:
-                        WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'table[name="Endereços do destinatário no sistema"]'))
-                        )
-
-                        linhas_tribunal = driver.find_elements(By.XPATH,
-                            "//td[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tribunal')]"
-                        )
-                        if linhas_tribunal:
-                            log('[DESTINATARIOS] 3c. Encontrado endereço do tribunal, clicando na seta')
-                            linha_tribunal = linhas_tribunal[0].find_element(By.XPATH, './ancestor::tr')
-                            seta_tribunal = linha_tribunal.find_element(By.CSS_SELECTOR, 'button[aria-label="Selecionar endereço"]')
-                            seta_tribunal.click()
-                            log('[DESTINATARIOS]  Endereço do tribunal selecionado')
-                            time.sleep(0.5)
-
-                            log('[DESTINATARIOS] 3d. Clicando no botão fechar para fechar endereços')
-                            btn_fechar = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
-                            )
-                            btn_fechar.click()
-                            log('[DESTINATARIOS]  Janela de endereços fechada')
-                        else:
-                            log('[DESTINATARIOS] 3c. Nenhum endereço do tribunal encontrado na tabela - incluindo tribunal via CEP')
-
-                            log('[DESTINATARIOS] 3d. Digitando CEP 01302906 no campo inputCep')
-                            campo_cep = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'input#inputCep'))
-                            )
-                            campo_cep.clear()
-                            for char in '01302906':
-                                campo_cep.send_keys(char)
-                                time.sleep(0.1)
-                            time.sleep(1)
-
-                            log('[DESTINATARIOS] 3e. Clicando na opção do tribunal TRT2')
-                            opcao_tribunal = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), '01302-906')]"))
-                            )
-                            opcao_tribunal.click()
-                            log('[DESTINATARIOS]  Tribunal selecionado')
-                            time.sleep(0.5)
-
-                            log('[DESTINATARIOS] 3f. Clicando em Salvar alterações')
-                            btn_salvar_alteracoes = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salva as alterações"]'))
-                            )
-                            btn_salvar_alteracoes.click()
-                            log('[DESTINATARIOS]  Alterações salvas')
-                            time.sleep(0.5)
-
-                            log('[DESTINATARIOS] 3g. Fechando janela de endereços')
-                            btn_fechar = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-window-close.btn-fechar'))
-                            )
-                            btn_fechar.click()
-                            log('[DESTINATARIOS]  Janela fechada')
-                    except Exception as e:
-                        log(f'[DESTINATARIOS] Erro ao processar endereços: {e}')
-            except Exception as tribunal_err:
-                log(f'[DESTINATARIOS] Aviso: Não foi possível adicionar tribunal: {tribunal_err}')
-        except Exception as e:
-            log(f'[DESTINATARIOS][ERRO] Falha ao selecionar primeiro destinatário: {e}')
 
     return True

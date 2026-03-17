@@ -291,8 +291,8 @@ def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
         time.sleep(0.3)
 
         try:
-            from .. import processamento
-            processamento._configurar_valor(driver, dados_processo)
+            from ..processamento_campos import _configurar_valor
+            _configurar_valor(driver, dados_processo)
         except Exception as e:
             if log:
                 logger.error(f'[SISBAJUD][COPIA]  Erro ao configurar valor: {e}')

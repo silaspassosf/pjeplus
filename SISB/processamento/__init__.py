@@ -19,9 +19,9 @@ from .minutas_campos import _preencher_campos_iniciais
 from .minutas_reus import _processar_reus_otimizado
 from .minutas_salvar import _salvar_minuta
 from .minutas_relatorio import _gerar_relatorio_minuta
-from .minutas_protocolo import _protocolar_minuta
-from .minutas_copia import _criar_minuta_agendada_por_copia
-from .minutas_agendada import _criar_minuta_agendada
+# Funções deprecated: _protocolar_minuta, _criar_minuta_agendada_por_copia,
+# _criar_minuta_agendada foram movidas para minutas_deprecated.py
+from . import minutas_deprecated  # noqa: F401 — mantido para referência
 from ..processamento_minuta import minuta_bloqueio_refatorada
 from ..processamento_ordens_processamento import _processar_ordem
 
@@ -50,9 +50,7 @@ __all__ = [
     '_processar_reus_otimizado',
     '_salvar_minuta',
     '_gerar_relatorio_minuta',
-    '_protocolar_minuta',
-    '_criar_minuta_agendada_por_copia',
-    '_criar_minuta_agendada',
+    'minutas_deprecated',
     'minuta_bloqueio_refatorada',
     '_processar_ordem',
 ]

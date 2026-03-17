@@ -62,10 +62,10 @@ logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 # ============================================================================
 
 # URL para navegar após login (caso de teste solicitado)
-URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/3524536/detalhe"
+URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/6019203/detalhe/"
 
 # Dados adicionais (se necessário para testes)
-NUMERO_PROCESSO = "3524536"
+NUMERO_PROCESSO = "6019203"
 
 
 # ============================================================================
@@ -224,31 +224,31 @@ def executar_testes(driver_pje):
     TESTE ISOLADO: Execução de `pec_decisao` (wrapper) no processo já aberto
     """
     print("\n" + "=" * 80)
-    print("TESTE ISOLADO: pec_decisao")
+    print("TESTE ISOLADO: pec_idpj")
     print("=" * 80)
 
     try:
-        from atos.wrappers_pec import pec_excluiargos
+        from atos.wrappers_pec import pec_idpj
         import time
 
-        print("\n[1/1] Executando pec_excluiargos (wrapper) com timing detalhado...")
+        print("\n[1/1] Executando pec_idpj (wrapper) com timing detalhado...")
         print("-" * 80)
 
         inicio_total = time.time()
         try:
-            print(f"[PEC_EXCLUIARGOS] Iniciando processo {NUMERO_PROCESSO}...")
-            resultado = pec_excluiargos(driver_pje, numero_processo=NUMERO_PROCESSO, debug=True)
+            print(f"[PEC_IDPJ] Iniciando processo {NUMERO_PROCESSO}...")
+            resultado = pec_idpj(driver_pje, numero_processo=NUMERO_PROCESSO, debug=True)
             tempo_total = time.time() - inicio_total
 
             print("-" * 80)
-            print(f"[PEC_EXCLUIARGOS] Resultado: {resultado}")
-            print(f"[PEC_EXCLUIARGOS] Tempo total: {tempo_total:.2f}s")
+            print(f"[PEC_IDPJ] Resultado: {resultado}")
+            print(f"[PEC_IDPJ] Tempo total: {tempo_total:.2f}s")
 
             if resultado:
-                print("✅ pec_excluiargos executado com sucesso")
+                print("✅ pec_idpj executado com sucesso")
                 return True
             else:
-                print("⚠️ pec_excluiargos retornou False")
+                print("⚠️ pec_idpj retornou False")
                 return False
 
         except Exception as e:

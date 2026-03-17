@@ -1,13 +1,13 @@
 {
   "metadata": {
-    "timestamp": "2026-03-13T17:19:40.628709",
+    "timestamp": "2026-03-17T18:21:26.826840",
     "versao": "2.0",
     "session_id": "sess_c78485b5f8dc4cec"
   },
   "execution": {
     "status": "EM_PROGRESSO",
-    "inicio": "2026-03-13T17:18:52.550802",
-    "duracao_segundos": 48,
+    "inicio": "2026-03-17T18:15:28.198792",
+    "duracao_segundos": 358,
     "modulo_ativo": null,
     "pode_retomar": true
   },
@@ -16,11 +16,11 @@
       "status": "COMPLETO",
       "processados": 5,
       "total": 0,
-      "tempo_decorrido_segundos": 48,
+      "tempo_decorrido_segundos": 358,
       "erros": 0,
       "checkpoint": {
         "ultimo_item": "processamento_completo",
-        "timestamp": "2026-03-13T17:19:40.627310",
+        "timestamp": "2026-03-17T18:21:26.824977",
         "proximo": null,
         "contexto": {}
       },
@@ -35,7 +35,7 @@
     "pausados": 0,
     "falhados": 0,
     "percentual_global": 0,
-    "tempo_total_segundos": 48,
+    "tempo_total_segundos": 358,
     "tempo_restante_estimado_segundos": 0
   },
   "logs": [
@@ -216,6 +216,62 @@
     },
     {
       "timestamp": "2026-03-13T17:19:40.628416",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-15T20:41:56.744551",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-15T20:48:02.490899",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-17T13:19:13.961487",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-17T13:25:19.721295",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-17T14:47:07.809584",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-17T14:51:47.018041",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-17T18:15:28.199341",
+      "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
+      "nivel": "INFO",
+      "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO iniciado com 0 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-03-17T18:21:26.826489",
       "modulo": "PRAZO_PROCESSAMENTO_FLUXO",
       "nivel": "INFO",
       "mensagem": "Módulo PRAZO_PROCESSAMENTO_FLUXO finalizado: 5/0",

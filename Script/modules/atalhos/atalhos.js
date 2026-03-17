@@ -639,10 +639,20 @@ async function hoverAndClickTarget(menuSelector, buttonLabel) {
     const wait = (ms) => new Promise(r => setTimeout(r, ms));
     const triggerEl = document.querySelector(menuSelector);
     if (!triggerEl) { showToast(`Menu não encontrado! (${menuSelector})`, '#f44336'); return; }
+    // dispatch seguro: tenta MouseEvent com `view`, se falhar remove `view` e tenta novamente
+    function safeDispatch(el, type, opts) {
+        try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
+        catch (e) {
+            try { const safeOpts = Object.assign({}, opts || {}); if ('view' in safeOpts) delete safeOpts.view; el.dispatchEvent(new MouseEvent(type, safeOpts)); return true; }
+            catch (e2) { try { el.click(); return true; } catch (e3) {} }
+        }
+        return false;
+    }
+
     const opts = { bubbles: true, cancelable: true, view: window };
-    triggerEl.dispatchEvent(new MouseEvent('mouseover',  opts));
-    triggerEl.dispatchEvent(new MouseEvent('mouseenter', opts));
-    triggerEl.dispatchEvent(new MouseEvent('mousemove',  opts));
+    safeDispatch(triggerEl, 'mouseover',  opts);
+    safeDispatch(triggerEl, 'mouseenter', opts);
+    safeDispatch(triggerEl, 'mousemove',  opts);
     const container = await esperarElemento('maispjecontaineraa', 3000);
     if (!container) { showToast('Timeout: Menu MaisPJe não abriu!', '#f44336'); return; }
     await wait(250);

@@ -1276,7 +1276,8 @@ def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
         
         # Preencher valor
         try:
-            processamento._configurar_valor(driver, dados_processo)
+            from .processamento_campos import _configurar_valor
+            _configurar_valor(driver, dados_processo)
             if log:
                 pass
         except Exception as e:

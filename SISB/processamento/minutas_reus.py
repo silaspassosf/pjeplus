@@ -83,14 +83,25 @@ def _processar_reus_otimizado(driver, reus):
                     if (tabelaLinhas.length > 0) {{
                         let ultimaLinha = tabelaLinhas[tabelaLinhas.length - 1];
                         let celulaRelacionamentos = ultimaLinha.querySelector('td.mat-column-qtdeRelacionamentos');
+                        let celulaIdentificacao = ultimaLinha.querySelector('td.mat-column-identificacao');
+                        
+                        let nomeNaTabela = '';
+                        if (celulaIdentificacao) {{
+                            nomeNaTabela = celulaIdentificacao.textContent.toUpperCase();
+                        }}
+                        let emRecuperacao = nomeNaTabela.includes('RECUPERAÇÃO JUDICIAL') || nomeNaTabela.includes('RECUPERACAO JUDICIAL') || nomeNaTabela.includes('RECUPERCAO JUDICIAL');
 
                         if (celulaRelacionamentos) {{
                             let botaoRelacionamentos = celulaRelacionamentos.querySelector('button .mat-button-wrapper');
-                            if (botaoRelacionamentos) {{
-                                let qtde = botaoRelacionamentos.textContent.trim();
+                            if (botaoRelacionamentos || emRecuperacao) {{
+                                let qtde = botaoRelacionamentos ? botaoRelacionamentos.textContent.trim() : '0';
 
-                                if (qtde === '0') {{
-                                    log.push('Reu sem contas - removendo...');
+                                if (qtde === '0' || emRecuperacao) {{
+                                    if (emRecuperacao) {{
+                                        log.push('Reu em recuperacao judicial - removendo...');
+                                    }} else {{
+                                        log.push('Reu sem contas - removendo...');
+                                    }}
                                     let botaoMenu = ultimaLinha.querySelector('button.mat-menu-trigger');
                                     if (botaoMenu) {{
                                         botaoMenu.click();
@@ -99,7 +110,7 @@ def _processar_reus_otimizado(driver, reus):
                                         let botaoExcluir = document.querySelector('button.mat-menu-item mat-icon.fa-trash-alt');
                                         if (botaoExcluir) {{
                                             botaoExcluir.closest('button').click();
-                                            log.push('Reu removido (0 contas)');
+                                            log.push(emRecuperacao ? 'Reu removido (recuperacao judicial)' : 'Reu removido (0 contas)');
                                             reusRemovidos++;
                                             await new Promise(resolve => setTimeout(resolve, 800));
                                         }}
@@ -138,7 +149,18 @@ def _processar_reus_otimizado(driver, reus):
         return processarTodosReus().then(arguments[arguments.length - 1]);
         """
 
-        resultado_reus = driver.execute_async_script(script_processar_reus)
+        # Aumentar timeout de script assíncrono temporariamente (evita ScriptTimeoutError)
+        try:
+            driver.set_script_timeout(120)
+        except Exception:
+            pass
+        try:
+            resultado_reus = driver.execute_async_script(script_processar_reus)
+        finally:
+            try:
+                driver.set_script_timeout(30)
+            except Exception:
+                pass
 
         if resultado_reus:
             if resultado_reus.get('log'):

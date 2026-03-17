@@ -102,7 +102,6 @@ def _build_action_rules() -> List[Tuple[List, Any]]:
         ([gerar_regex_geral(k) for k in ['meios']], [(_attr(_fix_ext, 'bndt'), {'inclusao': True}), _attr(_jud, 'ato_meios')]),
         ([gerar_regex_geral(k) for k in ['pec aud']], _attr(_wraps_pec, 'pec_editalaud')),
         ([gerar_regex_geral(k) for k in ['pec cp', 'xs pec cp']], _attr(_wraps_pec, 'pec_cpgeral')),
-        ([gerar_regex_geral(k) for k in ['xs dec reg']], _attr(_wraps_pec, 'pec_decisao')),
         ([gerar_regex_geral(k) for k in ['xs edital']], _attr(_wraps_pec, 'pec_editaldec')),
         ([gerar_regex_geral(k) for k in ['pec edital', 'xs pec edital']], _attr(_wraps_pec, 'pec_editaldec')),
         ([gerar_regex_geral(k) for k in ['pec dec', 'xs pec dec']], _attr(_wraps_pec, 'pec_decisao')),

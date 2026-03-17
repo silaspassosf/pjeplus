@@ -1,57 +1,54 @@
 {
   "numero": [
-    "1001168-92.2025.5.02.0703"
+    "1000432-11.2024.5.02.0703"
   ],
-  "id": 7474234,
+  "id": 6019203,
   "autor": [
     {
-      "nome": "LENILDO PEREIRA DA SILVA",
-      "cpfcnpj": "18467033878",
+      "nome": "DANIEL APARECIDO DOS SANTOS",
+      "cpfcnpj": "32231883805",
       "advogado": {
-        "nome": "MARCO AUGUSTO DE ARGENTON E QUEIROZ",
-        "cpf": "24959983809",
-        "oab": "SP163741"
+        "nome": "JOSE VICENTE DE SOUZA",
+        "cpf": "03999755865",
+        "oab": "SP109144"
       }
     }
   ],
   "reu": [
     {
-      "nome": "TOSHINORI NISHIMURA CABELEIREIRO",
-      "cpfcnpj": "47434683000159",
+      "nome": "OS CARIOCAS DELIVERY SERVICOS EXPRESSOS LTDA",
+      "cpfcnpj": "47485023000105",
       "advogado": {
-        "nome": "ROGERIO ANTONIO NUNES DOS SANTOS",
-        "cpf": "22549135814",
-        "oab": "SP281926"
+        "nome": "ERICK JUAN FONSECA",
+        "cpf": "46375650810",
+        "oab": "SP507217"
       }
     },
     {
-      "nome": "TOSHINORI NISHIMURA",
-      "cpfcnpj": "04905393868"
-    },
-    {
-      "nome": "JANETE SATIE SATO NISHIMURA",
-      "cpfcnpj": "28961299875"
+      "nome": "VAGNER MOREIRA DOS SANTOS NASCIMENTO",
+      "cpfcnpj": "11321174705"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": "R$ 15.506,81",
-    "data": "01/09/2025"
+    "valor": "R$ 67.752,06",
+    "data": "03/03/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "08/07/2025",
+  "dtAutuacao": "22/03/2024",
   "classeJudicial": {
-    "id": 117,
-    "codigo": "157",
-    "descricao": "Cumprimento Provisório de Sentença",
-    "sigla": "CumPrSe",
-    "requerProcessoReferenciaCodigo": "OB",
-    "controlaValorCausa": false,
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
-    "idClasseJudicialPai": 115,
+    "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
   "labelFaseProcessual": "Execução",

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 """
 
 # Arquivo movido de PEC/anexos.py → PEC/anexos/core.py
-from .core import substituir_marcador_por_conteudo
+from .core import substituir_marcador_por_conteudo, salvar_conteudo_clipboard
 from .anexos_wrappers import consulta_wrapper, wrapper_bloqneg, wrapper_parcial, carta_wrapper
 
 __all__ = [
@@ -22,4 +22,5 @@ __all__ = [
 	'wrapper_bloqneg',
 	'wrapper_parcial',
 	'carta_wrapper',
+	'salvar_conteudo_clipboard',
 ]

@@ -623,3 +623,204 @@ PROCESSO: 1001827-72.2023.5.02.0703
 Prazo: 15 dias (31/03/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: 1000382-48.2025.5.02.0703
+==================================================
+    Id Pje: 9739324
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH075256755BR
+    Destinatário: VERA LUCIA RABELO DE OLIVEIRA
+    Data do envio: 05/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Endereço incorreto
+--------------------------------------------------
+
+    Id Pje: 22bd713
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH075256747BR
+    Destinatário: EUSEBIO RODRIGUES DE OLIVEIRA
+    Data do envio: 05/03/2026
+    Data da entrega: 12/03/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (07/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000951-49.2025.5.02.0703
+==================================================
+    Id Pje: c8d37b9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH073458070BR
+    Destinatário: GABRIELA OHANA ARAUJO
+    Data do envio: 04/03/2026
+    Data da entrega: 09/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: fde26ff
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH073458049BR
+    Destinatário: WILLIAM DE TARSO ARAUJO
+    Data do envio: 04/03/2026
+    Data da entrega: 12/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 65ca52a
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH073458066BR
+    Destinatário: GABRIELA OHANA ARAUJO
+    Data do envio: 04/03/2026
+    Data da entrega: 10/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 8a57fb8
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH073458083BR
+    Destinatário: DAVID OLIVEIRA BENTO
+    Data do envio: 04/03/2026
+    Data da entrega: 10/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 8cb7a7c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH073458052BR
+    Destinatário: WILLIAM DE TARSO ARAUJO
+    Data do envio: 04/03/2026
+    Data da entrega: 10/03/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (07/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001353-33.2025.5.02.0703
+==================================================
+    Id Pje: 975f218
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH075256565BR
+    Destinatário: JOSE EFROMOVICH
+    Data do envio: 05/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+--------------------------------------------------
+
+    Id Pje: a4e3d6c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH075256588BR
+    Destinatário: JOSE EFROMOVICH
+    Data do envio: 05/03/2026
+    Data da entrega: 16/03/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (09/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001652-08.2024.5.02.0036
+==================================================
+    Id Pje: bc7696c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483972BR
+    Destinatário: PHOENIX ENGENHARIA E CONSULTORIA LTDA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 5d05202
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483969BR
+    Destinatário: MANOEL MESSIAS BARBOSA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Saída para entrega cancelada
+
+Prazo: 15 dias (11/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000091-87.2021.5.02.0703
+==================================================
+    Id Pje: dd41743
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH074000475BR
+    Destinatário: VITOR SIQUEIRA
+    Data do envio: 04/03/2026
+    Data da entrega: 13/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: b6d226c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH074000484BR
+    Destinatário: VITOR SIQUEIRA
+    Data do envio: 04/03/2026
+    Data da entrega: 13/03/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (25/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000835-43.2025.5.02.0703
+==================================================
+    Id Pje: c1f3f43
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH076565152BR
+    Destinatário: GERMAN EFROMOVICH
+    Data do envio: 06/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+--------------------------------------------------
+
+    Id Pje: 6d71612
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH076565149BR
+    Destinatário: GERMAN EFROMOVICH
+    Data do envio: 06/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+--------------------------------------------------
+
+    Id Pje: 687842e
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH076565166BR
+    Destinatário: JOSE EFROMOVICH
+    Data do envio: 06/03/2026
+    Data da entrega: 17/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 1fc6112
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH076565170BR
+    Destinatário: JOSE EFROMOVICH
+    Data do envio: 06/03/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (10/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-47.2020.5.02.0703
+==================================================
+    Id Pje: 7a1887f
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH076565210BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 06/03/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: cdc02aa
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH076565223BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 06/03/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+
+Prazo: 15 dias (27/03/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26022711565212400000445773752?instancia=1
+==================================================
+

@@ -1,17 +1,12 @@
 {
-  "numero_processo": "ATUAL",
+  "numero_processo": "1000432-11.2024.5.02.0703",
   "destinatarios": [
     {
-      "nome": "ALEMAO RESTAURANTE E PIZZARIA LTDA",
-      "cpfcnpj": "49557870000155",
-      "tipo": "reu"
-    },
-    {
-      "nome": "ALEMAO PIZZARIA E RESTAURANTE LTDA",
-      "cpfcnpj": "52540501000164",
+      "nome": "VAGNER MOREIRA DOS SANTOS NASCIMENTO",
+      "cpfcnpj": "11321174705",
       "tipo": "reu"
     }
   ],
   "origem": "argos_idpj_decisao",
-  "timestamp": "2026-03-07T12:02:15.881851"
+  "timestamp": "2026-03-17T18:25:44.226714"
 }

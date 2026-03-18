@@ -184,7 +184,7 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
                             except Exception:
                                 pass
                         # Usar WebDriverWait ao invés de time.sleep
-                        from Fix.waiters import wait_for_page_load
+                        from Fix.core import wait_for_page_load
                         wait_for_page_load(driver, timeout=5)
                         try:
                             texto_mandado_ant_result = extrair_direto(driver, timeout=10, debug=True, formatar=True)

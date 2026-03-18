@@ -23,41 +23,54 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
             linhas_tabela = linhas_prontas
             total_linhas = len(linhas_tabela)
         else:
-            # Aguardar spinner/modal de carregamento desaparecer (otimizado)
-            log('[COMUNICACAO] Verificando spinner/modal rapidamente...')
+            # Aguardar spinner/modal de carregamento desaparecer (observer nativo preferido)
+            log('[COMUNICACAO] Verificando spinner/modal rapidamente (observer)...')
             t_spinner = time.perf_counter()
-            from Fix.utils_sleep import aguardar_loading_sumir
-            
-            # Seletores comuns de loading/spinner no PJe
-            seletores_loading = '.loading-spinner, .mat-progress-spinner, .cdk-overlay-backdrop, .modal-backdrop, .loading-overlay'
-            
-            # Timeout reduzido drasticamente
-            if not aguardar_loading_sumir(driver, seletor_loading=seletores_loading, timeout=3):
-                log('[COMUNICACAO][WARN] Spinner ainda presente, prosseguindo mesmo assim')
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                seletores_loading = '.loading-spinner, .mat-progress-spinner, .cdk-overlay-backdrop, .modal-backdrop, .loading-overlay'
+                ok_spinner = aguardar_renderizacao_nativa(driver, seletores_loading, modo='sumir', timeout=3)
+            except Exception:
+                ok_spinner = False
+
+            if not ok_spinner:
+                log('[COMUNICACAO][WARN] Spinner ainda presente ou observer indisponível, prosseguindo mesmo assim')
             else:
                 tempo_spinner = time.perf_counter() - t_spinner
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Spinner sumiu em {tempo_spinner:.3f}s')
 
-            # Aguardar destinatários aparecerem (otimizado)
-            log('[COMUNICACAO] Aguardando destinatários aparecerem...')
+            # Aguardar destinatários aparecerem (observer preferido)
+            log('[COMUNICACAO] Aguardando destinatários aparecerem (observer)...')
             t_dest = time.perf_counter()
-            max_espera = 5  # Reduzido de 10s para 5s
-            tempo_espera = 0
-            while tempo_espera < max_espera:
-                linhas_tabela = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
-                if len(linhas_tabela) > 0:
-                    break
-                time.sleep(0.2)  # Reduzido de 0.5s
-                tempo_espera += 0.2
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                ok_rows = aguardar_renderizacao_nativa(driver, 'tbody.cdk-drop-list tr.cdk-drag', modo='aparecer', timeout=5)
+            except Exception:
+                ok_rows = False
 
-            if tempo_espera >= max_espera:
-                log('[COMUNICACAO][WARN] Timeout aguardando destinatários, prosseguindo mesmo assim')
-                return False
+            if not ok_rows:
+                # Fallback: quick polling
+                max_espera = 5
+                tempo_espera = 0
+                while tempo_espera < max_espera:
+                    linhas_tabela = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
+                    if len(linhas_tabela) > 0:
+                        break
+                    time.sleep(0.2)
+                    tempo_espera += 0.2
+
+                if tempo_espera >= max_espera:
+                    log('[COMUNICACAO][WARN] Timeout aguardando destinatários, prosseguindo mesmo assim')
+                    return False
+                else:
+                    tempo_dest = time.perf_counter() - t_dest
+                    if debug:
+                        log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (polling fallback)')
             else:
                 tempo_dest = time.perf_counter() - t_dest
                 if debug:
-                    log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s')
+                    log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (observer)')
 
             # Aguardar estabilização rápida (simplificada)
             log('[COMUNICACAO] Verificação rápida de estabilização...')
@@ -324,6 +337,83 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
             log('[COMUNICACAO] Visibilidade extra aplicada por sigilo positivo.')
         except Exception as e:
             log(f"[COMUNICACAO][ERRO] Falha ao aplicar visibilidade extra: {e}")
+
+    # Verificar confirmação explícita de salvamento (snackbar ou mudança de botão)
+    try:
+        # Prefer observer waiting for snackbar
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            ok_snack = aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=6)
+        except Exception:
+            ok_snack = False
+
+        if ok_snack:
+            log('[COMUNICACAO] Confirmação via snackbar detectada (observer).')
+        else:
+            # Fallback: existing predicate-based wait for snackbar or Alterar button
+            from selenium.webdriver.support.ui import WebDriverWait
+            def _salvo_ok(drv):
+                try:
+                    snacks = drv.find_elements(By.XPATH, "//simple-snack-bar")
+                    for s in snacks:
+                        txt = (s.text or '').lower()
+                        if 'minuta' in txt and 'salva' in txt:
+                            return True
+                    spans = drv.find_elements(By.XPATH, "//span[contains(normalize-space(.), 'Alterar')]")
+                    for sp in spans:
+                        try:
+                            btn = sp.find_element(By.XPATH, './ancestor::button[1]')
+                            if btn.is_displayed() and btn.is_enabled():
+                                return True
+                        except Exception:
+                            continue
+                except Exception:
+                    return False
+                return False
+
+            try:
+                WebDriverWait(driver, 6).until(_salvo_ok)
+                log('[COMUNICACAO] Confirmação visual de salvamento detectada (fallback).')
+            except Exception:
+                log('[COMUNICACAO][WARN] Não foi possível confirmar visualmente o salvamento da minuta. Tentando retry imediato...')
+                try:
+                    # localizar botão Salvar novamente e tentar um clique de retry
+                    btn_salvar_retry = None
+                    spans_retry = driver.find_elements(By.XPATH, "//span[contains(@class, 'mat-button-wrapper') and normalize-space(text())='Salvar']")
+                    for span in spans_retry:
+                        try:
+                            btn = span.find_element(By.XPATH, './ancestor::button[1]')
+                            if btn.is_displayed() and btn.is_enabled():
+                                btn_salvar_retry = btn
+                                break
+                        except Exception:
+                            continue
+
+                    if btn_salvar_retry:
+                        try:
+                            driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_salvar_retry)
+                            driver.execute_script('arguments[0].click();', btn_salvar_retry)
+                        except Exception:
+                            pass
+
+                    # nova espera por confirmação (observer preferred)
+                    try:
+                        ok_snack = aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=6)
+                    except Exception:
+                        ok_snack = False
+
+                    if ok_snack:
+                        log('[COMUNICACAO] Confirmação visual de salvamento detectada após retry (observer).')
+                    else:
+                        try:
+                            WebDriverWait(driver, 6).until(_salvo_ok)
+                            log('[COMUNICACAO] Confirmação visual de salvamento detectada após retry (fallback).')
+                        except Exception:
+                            log('[COMUNICACAO][ERRO] Retry de salvamento não confirmou o sucesso.')
+                except Exception as e_retry:
+                    log(f'[COMUNICACAO][ERRO] Falha no retry de salvamento: {e_retry}')
+    except Exception as final_e:
+        log(f'[COMUNICACAO][ERRO] Erro ao verificar confirmação de salvamento: {final_e}')
 
     log('Comunicação processual finalizada.')
     return True

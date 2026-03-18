@@ -1,52 +1,52 @@
 {
   "numero": [
-    "1000432-11.2024.5.02.0703"
+    "1001090-35.2024.5.02.0703"
   ],
-  "id": 6019203,
+  "id": 6283693,
   "autor": [
     {
-      "nome": "DANIEL APARECIDO DOS SANTOS",
-      "cpfcnpj": "32231883805",
+      "nome": "DANILO SANTANA DE LIMA",
+      "cpfcnpj": "41528705831",
       "advogado": {
-        "nome": "JOSE VICENTE DE SOUZA",
-        "cpf": "03999755865",
-        "oab": "SP109144"
+        "nome": "FABIO LUIS PINTER CARDOSO",
+        "cpf": "39145467862",
+        "oab": "SP472857"
       }
     }
   ],
   "reu": [
     {
-      "nome": "OS CARIOCAS DELIVERY SERVICOS EXPRESSOS LTDA",
-      "cpfcnpj": "47485023000105",
-      "advogado": {
-        "nome": "ERICK JUAN FONSECA",
-        "cpf": "46375650810",
-        "oab": "SP507217"
-      }
+      "nome": "USA CONFORTO CALCADOS LTDA",
+      "cpfcnpj": "41179327000150"
     },
     {
-      "nome": "VAGNER MOREIRA DOS SANTOS NASCIMENTO",
-      "cpfcnpj": "11321174705"
+      "nome": "DJANARI MARLENE DE LIMA CANTIDIO",
+      "cpfcnpj": "33441563816"
+    },
+    {
+      "nome": "DALANA SUL COMERCIO DE CALCADOS LTDA",
+      "cpfcnpj": "48401036000103"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": "R$ 67.752,06",
-    "data": "03/03/2026"
+    "valor": "R$ 12.114,67",
+    "data": "01/08/2025"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "22/03/2024",
+  "dtAutuacao": "05/07/2024",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 64840.01,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

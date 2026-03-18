@@ -642,6 +642,12 @@ def ato_judicial(
                     });
                     document.body.style.overflow = 'visible';
                 """)
+                # Use native observer to ensure overlays are gone (best-effort)
+                try:
+                    from Fix.core import aguardar_renderizacao_nativa
+                    aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=3)
+                except Exception:
+                    pass
                 
                 # Gravar prazos (usar safe_click_no_scroll em vez de scrollIntoView + click)
                 logger.info('[ATO][PRAZO] Gravando prazos...')

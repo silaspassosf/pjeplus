@@ -4,6 +4,7 @@ from Fix.log import logger
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
 from .comunicacao_preenchimento import executar_preenchimento_minuta
@@ -223,9 +224,9 @@ def make_comunicacao_wrapper(
                 log=logger.info if debug else None
             )
 
-            # 3. Selecionar destinatários (1 clique apenas)
+            # 3. Selecionar destinatários
             logger.info("[COMUNICACAO][ORQUESTRA] Selecionando destinatários")
-            selecionar_destinatarios(
+            resultado_selecao = selecionar_destinatarios(
                 driver=driver,
                 destinatarios=destinatarios_param,
                 cliques_polo_passivo=call_kwargs.get('cliques_polo_passivo', 1),
@@ -238,54 +239,55 @@ def make_comunicacao_wrapper(
                 dados_processo=dados_processo_wrapper
             )
 
-            # 3.5. AGUARDAR destinatários serem adicionados à tabela (CRÍTICO!)
-            # Modos que precisam aguardar: todos exceto None
-            aguardar_destinatarios = destinatarios_param is not None and destinatarios_param != ''
-            
-            # Modos que usam CLIQUE NO BOTÃO (têm spinner): polo_passivo, polo_ativo, primeiro
-            # NÃO incluir 'extraido'/'informado' - eles só clicar botão se fallback
-            aguardar_spinner = destinatarios_param in ['polo_passivo', 'polo_passivo_2x', 'polo_ativo']
-            
-            if aguardar_destinatarios:
-                logger.info("[COMUNICACAO][ORQUESTRA] Aguardando destinatários serem adicionados à tabela...")
-                from Fix.utils_sleep import aguardar_loading_sumir
-                
-                # DETECTAR spinner APENAS se for modo com clique
-                if aguardar_spinner:
-                    logger.info("[COMUNICACAO][ORQUESTRA] Aguardando spinner de carregamento após seleção...")
-                    
-                    # Spinner que SEMPRE aparece após clique no polo passivo
-                    spinner_polo_passivo = 'div[class*="container-loading"] mat-progress-spinner'
-                    
-                    try:
-                        # Verificar se o spinner aparece rapidamente
-                        spinner_element = WebDriverWait(driver, 2).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, spinner_polo_passivo))
-                        )
-                        logger.info("[COMUNICACAO][SPINNER] Spinner de carregamento detectado após polo passivo")
-                        
-                        # Aguardar o spinner específico sumir (timeout reduzido para não quebrar sessão)
-                        aguardar_loading_sumir(driver, seletor_loading=spinner_polo_passivo, timeout=3)
-                        logger.info("[COMUNICACAO][SPINNER] Spinner de carregamento sumiu")
-                        
-                    except Exception as e:
-                        logger.info(f"[COMUNICACAO][SPINNER] Spinner específico não detectado ({str(e)[:50]}...) - prosseguindo")
-                
-                # Aguardar destinatários na tabela (reduzido para evitar timeout de sessão)
-                max_espera_dest = 5 if destinatarios_param in ['extraido', 'informado'] else 10
-                tempo_espera = 0
-                while tempo_espera < max_espera_dest:
-                    linhas_tabela = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
-                    if len(linhas_tabela) > 0:
-                        logger.info(f"[COMUNICACAO][ORQUESTRA] {len(linhas_tabela)} destinatário(s) adicionado(s) à tabela")
-                        break
-                    time.sleep(0.5)
-                    tempo_espera += 0.5
-                
-                if tempo_espera >= max_espera_dest:
-                    logger.warning("[COMUNICACAO][ORQUESTRA] Timeout aguardando destinatários na tabela")
+            # 3.5. Validar seleção e aguardar renderização da tabela
+            if destinatarios_param is not None and destinatarios_param != '':
+                # aceitar formato de retorno antigo para compatibilidade
+                status = None
+                count = 0
+                if isinstance(resultado_selecao, dict):
+                    status = resultado_selecao.get('status')
+                    count = int(resultado_selecao.get('count', 0) or 0)
                 else:
-                    logger.info(f"[COMUNICACAO][ORQUESTRA] Destinatários confirmados na tabela em {tempo_espera:.1f}s")
+                    if isinstance(resultado_selecao, int):
+                        status = 'ok' if resultado_selecao > 0 else 'empty'
+                        count = resultado_selecao
+                    else:
+                        status = 'geral'
+
+                if status == 'ok' and count > 0:
+                    logger.info(f"[COMUNICACAO][ORQUESTRA] Status: {count} destinatário(s) selecionado(s) pelo módulo.")
+                elif status == 'empty':
+                    logger.info("[COMUNICACAO][ORQUESTRA] Status: Nenhum destinatário validado. Fallback acionado internamente.")
+                else:
+                    logger.info(f"[COMUNICACAO][ORQUESTRA] Status: {status} selection route concluded.")
+
+                # Aguarda a renderização dos cards na tabela — preferir observer nativo
+                if status in ('ok', 'fallback', 'geral') or count > 0:
+                    try:
+                        try:
+                            from Fix.core import aguardar_renderizacao_nativa as _observer_wait
+                            ok_render = _observer_wait(driver, 'tbody.cdk-drop-list tr.cdk-drag', modo='aparecer', timeout=10)
+                        except Exception:
+                            ok_render = False
+
+                        if ok_render:
+                            logger.info("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (observer).")
+                        else:
+                            # Fallback: WebDriverWait (legacy)
+                            try:
+                                WebDriverWait(driver, 10).until(
+                                    EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'))
+                                )
+                                logger.info("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (WebDriverWait fallback).")
+                            except TimeoutException:
+                                logger.warning("[COMUNICACAO][ORQUESTRA] Timeout: Tabela não renderizou os destinatários.")
+
+                        try:
+                            driver.execute_script("return window.requestAnimationFrame(function(){});")
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        logger.debug(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
 
             # 4. Alterar meio de expedição se necessário
             if endereco_tipo == 'correios':

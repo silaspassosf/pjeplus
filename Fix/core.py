@@ -44,6 +44,29 @@ def wait_for_clickable(driver: WebDriver, selector: str, timeout: int = 10, by: 
     from Fix.selenium_base.wait_operations import wait_for_clickable as _impl
     return _impl(driver, selector, timeout=timeout, by=by)
 
+def wait_for_page_load(driver, timeout: int = 30) -> bool:
+    """
+    Aguarda página carregar completamente.
+
+    Args:
+        driver: WebDriver Selenium
+        timeout: Tempo máximo de espera em segundos
+
+    Returns:
+        bool: True se página carregou
+
+    Raises:
+        TimeoutException: Se timeout expirar
+    """
+    try:
+        WebDriverWait(driver, timeout).until(
+            lambda d: d.execute_script("return document.readyState") == "complete"
+        )
+        return True
+    except TimeoutException:
+        logger.warning(f"Página não carregou em {timeout}s")
+        raise
+
 def buscar_seletor_robusto(driver: WebDriver, textos: List[str], contexto: Optional[WebElement] = None, timeout: int = 5, log: bool = False) -> Optional[WebElement]:
     """Wrapper para Fix.selenium_base.retry_logic.buscar_seletor_robusto."""
     from Fix.selenium_base.retry_logic import buscar_seletor_robusto as _impl

@@ -2,6 +2,58 @@
 
 > **Nota:** Este arquivo serve como mapa técnico do projeto. Use Ctrl+F para buscar funções específicas.
 
+---
+
+## 📊 Análise de Uso de Funções (Atualizado: 2026-01-30)
+
+**Total de Funções Analisadas:** 821  
+**Funções Sem Uso Detectadas:** 252 (30.7%)  
+**Funções Ativas:** 569 (69.3%)
+
+### Distribuição por Módulo
+
+| Módulo | Total | Sem Uso | % Sem Uso | Status |
+|--------|-------|---------|-----------|--------|
+| **Fix/** | 252 | 144 | 57.1% | ⚠️ Refatoração necessária |
+| **SISB/** | 126 | 38 | 30.2% | ✅ Aceitável |
+| **atos/** | 89 | 21 | 23.6% | ✅ Bom |
+| **PEC/** | 134 | 19 | 14.2% | ✅ Ótimo |
+| **Prazo/** | 87 | 19 | 21.8% | ✅ Bom |
+| **Mandado/** | 45 | 11 | 24.4% | ✅ Bom |
+| **Peticao/** | 88 | 0 | 0% | ✅ Excelente |
+
+### 🎯 Ações Recomendadas
+
+**✅ REMOVER IMEDIATAMENTE:**
+- `SISB/s_orquestrador.py` - Funções legacy (3 funções)
+- `Fix/waiters.py` - Duplicado de wait_operations.py (10 funções)
+
+**⚠️ AVALIAR PARA REMOÇÃO:**
+- `Fix/utils_angular.py` - Módulo Angular não usado (11 funções)
+- `Fix/headless_helpers.py` - Modo headless não ativo (5 funções)
+- `Fix/session_pool.py` - Pool não implementado (5 funções)
+- `SISB/performance.py` - Otimizações futuras (16 funções)
+
+**📝 MANTER/DOCUMENTAR:**
+- `Fix/debug_interativo.py` - Útil para troubleshooting (10 funções)
+- `Fix/converters.py` - Utilitários podem ser úteis (6 funções)
+- Arquivos de teste em `PEC/test_*.py`
+
+### 🔧 Problemas Técnicos Detectados
+
+**Encoding BOM (U+FEFF):** 7 arquivos
+- Fix/extracao.py, Fix/utils.py, SISB/processamento_ordens.py
+
+**Encoding UTF-16:** 2 arquivos
+- atos/judicial_bloqueios.py, atos/judicial_wrappers.py
+
+**Erros de Sintaxe:** 2 arquivos
+- PEC/petjs.py, PEC/test_leitura_real.py
+
+> 📄 **Relatório Completo:** Ver `RELATORIO_FUNCOES_SEM_USO.md` para detalhes
+
+---
+
 ## 🧭 Principais Pontos de Entrada
 
 | Arquivo | Função | Descrição |

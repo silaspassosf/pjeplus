@@ -5,7 +5,7 @@ from Fix import esperar_elemento, indexar_e_processar_lista
 from Fix.log import logger
 from Fix.progress import registrar_modulo, atualizar, completar
 from Fix.monitoramento_progresso_unificado import executar_com_monitoramento_unificado
-from Fix.waiters import wait_for_page_load
+from Fix.core import wait_for_page_load
 
 from .processamento_argos import processar_argos
 from .processamento_outros import fluxo_mandados_outros

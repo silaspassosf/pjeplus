@@ -63,26 +63,6 @@ from .performance import (
 
 from selenium.webdriver.remote.webelement import WebElement
 
-def criar_js_otimizado_legacy() -> str:
-    """
-    Função legacy para compatibilidade.
-    Redireciona para implementação otimizada.
-    """
-    return criar_js_otimizado()
-
-def iniciar_sisbajud_legacy(driver_pje: Optional[WebDriver] = None) -> Optional[WebDriver]:
-    """
-    Função legacy para compatibilidade.
-    Redireciona para implementação modular.
-    """
-    return iniciar_sisbajud(driver_pje=driver_pje)
-
-def minuta_bloqueio_legacy(driver_sisbajud, dados_processo, driver_pje=None, driver_created=False):
-    """
-    Função legacy para compatibilidade.
-    Redireciona para implementação modular.
-    """
-    return minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje, driver_created)
 
 # ===== ORQUESTRADOR PRINCIPAL =====
 

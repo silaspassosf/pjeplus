@@ -100,6 +100,21 @@ def verificar_carregamento_pagina(
         time.sleep(timeout_spinner)
         
         try:
+            # Quick observer-based check (avoid polling when possible)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa as _observer_wait
+                _sel = 'mat-progress-spinner, mat-spinner, .mat-progress-spinner, .loading-spinner, .loading-overlay, .modal-backdrop, .cdk-overlay-backdrop'
+                _ok = _observer_wait(driver, _sel, modo='sumir', timeout=timeout_spinner)
+            except Exception:
+                _ok = False
+
+            if _ok:
+                try:
+                    if driver.execute_script("return document.readyState") == "complete":
+                        return True
+                except Exception:
+                    return True
+
             # Verificação rápida via JavaScript com timeout implícito do driver
             status = driver.execute_script(JS_CHECK_LOADING)
             
@@ -222,6 +237,27 @@ def verificar_carregamento_detalhe(
     for tentativa in range(1, max_tentativas + 1):
         time.sleep(timeout_inicial)
         
+        # Quick observer-based check for detalhe filter
+        try:
+            from Fix.core import aguardar_renderizacao_nativa as _observer_wait
+            SELECTOR_JOINED = ', '.join(FILTRO_SELECTORS)
+            try:
+                _found = _observer_wait(driver, SELECTOR_JOINED, modo='aparecer', timeout=timeout_inicial)
+            except Exception:
+                _found = False
+            if _found:
+                try:
+                    if driver.execute_script("return document.readyState") == "complete":
+                        return True
+                    else:
+                        time.sleep(1)
+                        if driver.execute_script("return document.readyState") == "complete":
+                            return True
+                except Exception:
+                    return True
+        except Exception:
+            pass
+
         # Verifica se a URL contém /detalhe
         try:
             current_url = driver.current_url or ''

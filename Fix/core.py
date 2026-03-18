@@ -150,6 +150,19 @@ def js_base():
     from Fix.selenium_base.element_interaction import js_base as _impl
     return _impl()
 
+
+def aguardar_renderizacao_nativa(driver: WebDriver, seletor: str, modo: str = "aparecer", timeout: int = 10) -> bool:
+    """
+    Wrapper para Fix.utils_observer.aguardar_renderizacao_nativa — injeta
+    um MutationObserver no browser e espera por mudanças no DOM.
+    """
+    try:
+        from Fix.utils_observer import aguardar_renderizacao_nativa as _impl
+        return _impl(driver, seletor, modo=modo, timeout=timeout)
+    except Exception as e:
+        logger.warning(f"[core][OBSERVER] Falha ao usar aguardar_renderizacao_nativa: {e}")
+        return False
+
 # =============================
 # FUNÇÕES CONSOLIDADAS PARAMETRIZÁVEIS
 # =============================

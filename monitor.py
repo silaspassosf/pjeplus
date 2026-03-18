@@ -399,6 +399,70 @@ class MonitorSession:
                 pass
         self._patched.clear()
 
+
+# -----------------------------------------------------------------------------
+# Fallback helper (template)
+# -----------------------------------------------------------------------------
+def tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=None):
+    """Template helper para o Smart Finder.
+
+    Recebe o `driver` e um contexto/valor original (normalmente o seletor
+    que falhou). Tenta uma lista curta de seletores heurísticos e retorna
+    uma tupla `(elemento, novo_seletor)` em caso de sucesso, ou `(None, None)`.
+
+    Esta função é intencionalmente simples — ela serve como ponto de extensão
+    para implementações mais avançadas (ML/heurísticas/varredura em arquivos
+    de histórico). A ideia é que a função busque elementos por texto visível
+    ou por variações XPath/CSS comuns.
+    """
+    from selenium.common.exceptions import NoSuchElementException
+    import logging
+
+    logger = logging.getLogger(__name__)
+    orig = contexto_ou_valor_antigo or ''
+    orig_text = str(orig).strip()
+
+    # Build candidate selectors (simple heuristics)
+    candidates = []
+    if orig_text:
+        candidates.append(orig_text)
+        # text-based xpath
+        safe = orig_text.replace('"', '\\"')
+        candidates.append(f"//*[contains(normalize-space(.), \"{safe}\")]")
+        candidates.append(f"//button[contains(normalize-space(.), \"{safe}\")]")
+        candidates.append(f"//a[contains(normalize-space(.), \"{safe}\")]")
+        candidates.append(f"//input[@placeholder=\"{safe}\"]")
+        candidates.append(f"//label[contains(normalize-space(.), \"{safe}\")]//following::input[1]")
+
+    # fallbacks: generic interactive elements
+    candidates.extend([
+        "button",
+        "input[type=submit]",
+        "a[role=button]",
+    ])
+
+    seen = set()
+    for s in candidates:
+        if not s:
+            continue
+        if s in seen:
+            continue
+        seen.add(s)
+        try:
+            if s.strip().startswith('//'):
+                el = driver.find_element('xpath', s)
+            else:
+                el = driver.find_element('css selector', s)
+            logger.info('monitor.tentar_encontrar_fallback: found with %s', s)
+            return el, s
+        except NoSuchElementException:
+            continue
+        except Exception:
+            continue
+
+    logger.info('monitor.tentar_encontrar_fallback: no candidate found for %s', orig_text)
+    return None, None
+
         for logger, level in self._logger_levels:
             logger.setLevel(level)
         self._logger_levels.clear()

@@ -41,6 +41,7 @@ from Fix.utils import login_cpf
 from Mandado.core import navegacao as mandado_navegacao, iniciar_fluxo_robusto as mandado_fluxo
 from Prazo import loop_prazo, fluxo_pz, fluxo_prazo
 from PEC.processamento import executar_fluxo_novo as pec_fluxo
+from Fix.smart_finder import injetar_smart_finder_global
 
 # ============================================================================
 # CONFIGURAES GLOBAIS
@@ -393,6 +394,13 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
             finalizar_driver_fix(driver)
             return None
         
+        # Injecao do Smart Finder (Cache + Auto-Healing)
+        try:
+            injetar_smart_finder_global(driver)
+        except Exception:
+            # Não falhar se smart finder não puder ser ativado
+            pass
+
         print(" Driver criado e logado com sucesso")
         return driver
         

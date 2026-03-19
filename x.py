@@ -814,6 +814,7 @@ def configurar_logging(driver_type: DriverType):
 
 def main():
     """Funo principal"""
+    global skip_finalizar
     
     #  NOVO: Inicializar otimizaes
     try:

@@ -7,7 +7,7 @@ usando os módulos especializados para navegação, conclusão, modelos,
 prazos e bloqueios.
 """
 
-from Fix.core import aguardar_e_clicar, esperar_elemento, safe_click, safe_click_no_scroll, logger, esperar_url_conter, preencher_multiplos_campos
+from Fix.core import aguardar_e_clicar, esperar_elemento, safe_click, safe_click_no_scroll, logger, esperar_url_conter, preencher_multiplos_campos, medir_tempo
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
@@ -44,6 +44,7 @@ from .judicial_utils import (
 )
 
 
+@medir_tempo('fluxo_cls')
 def fluxo_cls(
     driver: WebDriver,
     conclusao_tipo: str,
@@ -225,62 +226,70 @@ def fluxo_cls(
         else:
             ja_em_conclusao = False
 
-        # ===== PASSO 1: ABRIR TAREFA DO PROCESSO (se necessário) =====
+        # ===== PASSO 1: ABRIR TAREFA DO PROCESSO (apenas se estivermos em /detalhe) =====
         ja_em_minutar = False
         if not ja_em_conclusao:
-            logger.info('[CLS] Passo 1: Abrindo tarefa do processo...')
-            timing_tarefa_inicio = time.time()
-            sucesso, ja_em_minutar = abrir_tarefa_processo(driver)
-            timing_tarefa = time.time() - timing_tarefa_inicio
-            logger.info(f'[CLS][TIMING][ABRIR_TAREFA] {timing_tarefa:.3f}s sucesso={sucesso}')
-            
-            if not sucesso:
-                logger.error('[CLS] Falha ao abrir tarefa do processo')
-                timing_total = time.time() - timing_inicio
-                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao abrir tarefa')
-                return False
-            
-            # Se já está em /minutar após abrir tarefa, pular navegação e transição
-            if ja_em_minutar:
-                # Abertura da tarefa pode ter levado diretamente a /assinar, /minutar ou /conclusao
-                current = (driver.current_url or '').lower()
-                if '/assinar' in current:
-                    logger.info('[CLS] ✅ Já em /assinar após abrir tarefa - ato cumprido')
+            current = (driver.current_url or '').lower()
+            # Se estivermos em /detalhe, é necessário clicar em 'Abrir tarefa do processo'
+            if '/detalhe' in current:
+                logger.info('[CLS] Passo 1: Estamos em /detalhe — abrindo tarefa do processo...')
+                timing_tarefa_inicio = time.time()
+                sucesso, ja_em_minutar = abrir_tarefa_processo(driver)
+                timing_tarefa = time.time() - timing_tarefa_inicio
+                logger.info(f'[CLS][TIMING][ABRIR_TAREFA] {timing_tarefa:.3f}s sucesso={sucesso}')
+
+                if not sucesso:
+                    logger.error('[CLS] Falha ao abrir tarefa do processo')
                     timing_total = time.time() - timing_inicio
-                    logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /assinar após abrir tarefa)')
-                    return True
-                elif '/minutar' in current:
-                    logger.info('[CLS] ✅ Já em /minutar após abrir tarefa - fluxo CLS concluído')
-                    focar_campo_minutar_se_necessario(driver)
-                    timing_total = time.time() - timing_inicio
-                    logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
-                    return True
-                elif '/conclusao' in current:
-                    logger.info('[CLS] Detectado /conclusao após abrir tarefa — executando tipo de conclusão para transicionar a /minutar')
-                    # Escolher o tipo de conclusão e aguardar transição para minutar
-                    try:
-                        if not escolher_tipo_conclusao(driver, conclusao_tipo):
-                            logger.error(f'[CLS] Falha ao escolher tipo de conclusão após abrir tarefa: {conclusao_tipo}')
-                            timing_total = time.time() - timing_inicio
-                            logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao escolher tipo conclusão')
-                            return False
-                        if not aguardar_transicao_minutar(driver):
-                            logger.error('[CLS] Falha na transição para minutar após escolher tipo de conclusão')
-                            timing_total = time.time() - timing_inicio
-                            logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha na transição minutar')
-                            return False
+                    logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao abrir tarefa')
+                    return False
+
+                # Se já está em /minutar após abrir tarefa, pular navegação e transição
+                if ja_em_minutar:
+                    # Abertura da tarefa pode ter levado diretamente a /assinar, /minutar ou /conclusao
+                    current_after = (driver.current_url or '').lower()
+                    if '/assinar' in current_after:
+                        logger.info('[CLS] ✅ Já em /assinar após abrir tarefa - ato cumprido')
+                        timing_total = time.time() - timing_inicio
+                        logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
+                        return True
+                    elif '/minutar' in current_after:
+                        logger.info('[CLS] ✅ Já em /minutar após abrir tarefa - fluxo CLS concluído')
                         focar_campo_minutar_se_necessario(driver)
                         timing_total = time.time() - timing_inicio
-                        logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (transicionado para /minutar após conclusão)')
+                        logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
                         return True
-                    except Exception as e:
-                        logger.error(f'[CLS][ERRO CRÍTICO] Exceção ao processar /conclusao após abrir tarefa: {e}')
-                        import traceback
-                        logger.error(traceback.format_exc())
-                        return False
-                else:
-                    # Estado inesperado — continuar o fluxo padrão
-                    logger.info(f'[CLS] Estado inesperado após abrir tarefa: {current} — continuando fluxo')
+                    elif '/conclusao' in current_after:
+                        logger.info('[CLS] Detectado /conclusao após abrir tarefa — executando tipo de conclusão para transicionar a /minutar')
+                        # Escolher o tipo de conclusão e aguardar transição para minutar
+                        try:
+                            if not escolher_tipo_conclusao(driver, conclusao_tipo):
+                                logger.error(f'[CLS] Falha ao escolher tipo de conclusão após abrir tarefa: {conclusao_tipo}')
+                                timing_total = time.time() - timing_inicio
+                                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha ao escolher tipo conclusão')
+                                return False
+                            if not aguardar_transicao_minutar(driver):
+                                logger.error('[CLS] Falha na transição para minutar após escolher tipo de conclusão')
+                                timing_total = time.time() - timing_inicio
+                                logger.info(f'[CLS][TIMING][ERRO] {timing_total:.3f}s falha na transição minutar')
+                                return False
+                            focar_campo_minutar_se_necessario(driver)
+                            timing_total = time.time() - timing_inicio
+                            logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (transicionado para /minutar após conclusão)')
+                            return True
+                        except Exception as e:
+                            logger.error(f'[CLS][ERRO CRÍTICO] Exceção ao processar /conclusao após abrir tarefa: {e}')
+                            import traceback
+                            logger.error(traceback.format_exc())
+                            return False
+                    else:
+                        # Estado inesperado — continuar o fluxo padrão
+                        logger.info(f'[CLS] Estado inesperado após abrir tarefa: {current_after} — continuando fluxo')
+            else:
+                # Se não estamos em /detalhe, presumimos que já estamos na aba da tarefa do processo
+                logger.info('[CLS] Não estamos em /detalhe — assumindo que já estamos na aba da tarefa do processo (não clicar em Abrir tarefa)')
+                sucesso = True
+                ja_em_minutar = ('/minutar' in current)
 
         # ===== PASSO 2: LIMPAR OVERLAYS =====
         logger.info('[CLS] Passo 2: Limpando overlays...')
@@ -907,18 +916,11 @@ def ato_judicial(
         # ===== INTIMAR (se necessário na aba destinatários) =====
         sigilo_ativado = False
 
+        # Intimação: o PJe normalmente já traz a intimação marcada por padrão.
+        # Não marcar explicitamente para evitar cliques redundantes e logs "Marcando intimação".
+        # Apenas registrar estado informativo em debug.
         if intimar_ativado:
-            logger.info('[ATO][INTIMAR] Marcando intimação...')
-            try:
-                checkbox_intimar = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-checkbox#intimar'))
-                )
-                if not checkbox_intimar.is_selected():
-                    checkbox_intimar.click()
-                logger.info('[ATO][INTIMAR]  Intimação marcada')
-            except Exception as e:
-                logger.error(f'[ATO][INTIMAR]  Erro ao marcar intimação: {e}')
-                # Não interrompe o fluxo
+            logger.debug('[ATO][INTIMAR] Intimação permanece marcada por padrão (nenhuma ação realizada)')
 
         # ===== GRAVAR/SALVAR FINAL =====
         # Se tem movimento, o SALVAR é feito após confirmar movimento
@@ -997,6 +999,19 @@ def ato_judicial(
         logger.info('=' * 60)
         logger.info('ATO JUDICIAL - CONCLUÍDO COM SUCESSO')
         logger.info('=' * 60)
+        # Centralizar execução da visibilidade quando aplicável
+        try:
+            if sigilo_ativado:
+                logger.info('[ATO][VISIBILIDADE] Sigilo ativado — executando visibilidade canônica')
+                try:
+                    executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=debug)
+                    logger.info('[ATO][VISIBILIDADE] Execução da visibilidade concluída')
+                except Exception as e:
+                    logger.error(f'[ATO][VISIBILIDADE] Falha ao executar visibilidade: {e}')
+        except Exception:
+            # Não permitir que falha na visibilidade quebre o fluxo principal
+            pass
+
         timing_total = time.time() - timing_inicio
         logger.info(f'[ATO][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
         return True, sigilo_ativado

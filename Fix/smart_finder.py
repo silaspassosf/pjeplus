@@ -135,6 +135,13 @@ def _tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=None):
         candidates.append(f"//input[@placeholder=\"{safe}\"]")
         candidates.append(f"//label[contains(normalize-space(.), \"{safe}\")]//following::input[1]")
 
+        # PJe-aware attribute heuristics: match Angular Material and accessibility attributes
+        pje_attrs = ['mattooltip', 'aria-label', 'placeholder', 'name', 'title']
+        for attr in pje_attrs:
+            candidates.append(f'*[{attr}*="{safe}"]')
+            candidates.append(f'button[{attr}*="{safe}"]')
+            candidates.append(f'input[{attr}*="{safe}"]')
+            candidates.append(f'img[{attr}*="{safe}"]')
     candidates.extend([
         "button",
         "input[type=submit]",

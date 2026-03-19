@@ -896,3 +896,25 @@ PROCESSO: 1001090-35.2024.5.02.0703
 Prazo: 8 dias (26/03/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: 1001652-08.2024.5.02.0036
+==================================================
+    Id Pje: bc7696c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483972BR
+    Destinatário: PHOENIX ENGENHARIA E CONSULTORIA LTDA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Objeto postado
+--------------------------------------------------
+
+    Id Pje: 5d05202
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH050483969BR
+    Destinatário: MANOEL MESSIAS BARBOSA
+    Data do envio: 16/02/2026
+    Data da entrega: Indisponível
+    Status: Saída para entrega cancelada
+
+Prazo: 15 dias (11/03/2026)
+==================================================
+

@@ -48,6 +48,20 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
     _start_geral = time_module.time()
 
     try:
+        # inicializar metricas leves no driver
+        try:
+            if not hasattr(driver, '_sisb_metrics') or driver._sisb_metrics is None:
+                driver._sisb_metrics = {
+                    'start_time': time_module.time(),
+                    'last_action_time': time_module.time(),
+                    'actions': 0,
+                    'transfers': 0,
+                    'desbloqueios': 0,
+                    'js_calls': 0,
+                    'errors': 0
+                }
+        except Exception:
+            pass
         if log:
             print(f"[SISBAJUD] [ORDEM] Processando ordem {ordem['sequencial']} (tipo: {tipo_fluxo}) +0.0s")
             print(f"[SISBAJUD] [ORDEM] 📍 URL atual: {driver.current_url}")
@@ -208,8 +222,15 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
                 if log:
                     print(f"[SISBAJUD] [ORDEM] ✅ Dados extraídos e registrados no relatório")
 
-                # Voltar para lista de ordens
-                driver.back()
+                # Voltar para lista de ordens usando navegação interna (evita reload completo)
+                try:
+                    from .navegacao import _voltar_para_lista_ordens_serie
+                    _voltar_para_lista_ordens_serie(driver, log)
+                except Exception:
+                    try:
+                        driver.back()
+                    except Exception:
+                        pass
                 time_module.sleep(0.5)
 
                 return True
@@ -217,12 +238,16 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
             except Exception as e_ext:
                 if log:
                     print(f"[SISBAJUD] [ORDEM] ⚠️ Erro ao extrair dados: {e_ext}")
-                # Tentar voltar mesmo com erro
+                # Tentar voltar para lista de ordens mesmo com erro
                 try:
-                    driver.back()
-                    time_module.sleep(0.5)
-                except:
-                    pass
+                    from .navegacao import _voltar_para_lista_ordens_serie
+                    _voltar_para_lista_ordens_serie(driver, log)
+                except Exception:
+                    try:
+                        driver.back()
+                    except Exception:
+                        pass
+                time_module.sleep(0.5)
                 return False
 
 
@@ -233,6 +258,12 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
             print(f"[SISBAJUD] [ORDEM] \u25b6 JS async: processando /desdobrar (tipo={tipo_fluxo})...")
 
         driver.set_script_timeout(90)
+
+        # registrar chamada JS async (vai incrementar quando executado)
+        try:
+            driver._sisb_metrics['js_calls'] += 1
+        except Exception:
+            pass
 
         JS_DESDOBRAR = """
 var texto_acao = arguments[0];
@@ -449,6 +480,8 @@ var waitFor = async function(selector, timeoutMs, intervalMs) {
 
         if log:
             print(f"[SISBAJUD] \u2705 Ordem {sequencial} conclu\u00edda em {time_module.time()-_start_geral:.1f}s")
+        # pequena pausa reativa para evitar bursts imediatos de requisicoes
+        time_module.sleep(0.5)
         return True
 
     except Exception as e:

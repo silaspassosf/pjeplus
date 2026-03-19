@@ -291,9 +291,8 @@ def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[
 
 
 def ato_pesqliq_callback(driver):
-    """Callback para ato_pesqliq - será implementado em atos.py."""
-    from atos import ato_pesqliq
-    return ato_pesqliq(driver)
+    # removido: função stub movida/considerada desnecessária
+    raise RuntimeError('ato_pesqliq_callback was removed; call atos.ato_pesqliq directly')
 
 
 # ===== DATACLASSES =====

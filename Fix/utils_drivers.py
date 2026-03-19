@@ -135,6 +135,61 @@ def fechar_driver_safely(driver):
         logger.error(f"Erro ao fechar driver: {e}")
         return False
 
+
+def fechar_driver_imediato(driver, kill_processes: bool = True):
+    """Fecha o driver de forma imediata, forçando encerramento de processos.
+
+    Tenta `driver.quit()` e, se necessário, mata processos do geckodriver/firefox
+    para evitar retries HTTP (urllib3) demorados durante teardown.
+    """
+    try:
+        if not driver:
+            # Ainda assim, tentar limpar temporários
+            limpar_temp_selenium()
+            return True
+
+        # Primeiro tentar fechamento gracioso
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+        # Tentar matar o processo associado ao serviço (se existir)
+        try:
+            service = getattr(driver, 'service', None)
+            proc = getattr(service, 'process', None)
+            pid = None
+            if proc is not None:
+                pid = getattr(proc, 'pid', None)
+            if pid:
+                if os.name == 'nt':
+                    subprocess.run(['taskkill', '/F', '/PID', str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    subprocess.run(['kill', '-9', str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Matar por nome (fallback)
+            if kill_processes:
+                if os.name == 'nt':
+                    subprocess.run(['taskkill', '/F', '/IM', 'geckodriver.exe'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(['taskkill', '/F', '/IM', 'firefox.exe'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                else:
+                    subprocess.run(['pkill', '-f', 'geckodriver'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.run(['pkill', '-f', 'firefox'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            # Não falhar caso não seja possível matar processos
+            pass
+
+        # Limpeza final de temporários
+        try:
+            limpar_temp_selenium()
+        except Exception:
+            pass
+
+        return True
+    except Exception as e:
+        logger.error(f"fechar_driver_imediato falhou: {e}")
+        return False
+
 def limpar_temp_selenium():
     """Limpa os arquivos temporários do Selenium de forma segura"""
     import os

@@ -19,6 +19,11 @@ def _lazy_import():
         from atos.wrappers_mov import mov_arquivar
         from atos.wrappers_ato import ato_sobrestamento, ato_pesqliq, ato_180, ato_calc2, ato_prev, ato_meios, ato_idpj
         from atos import pec_excluiargos
+        # PEC anexos wrappers
+        try:
+            from PEC.anexos.anexos_wrappers import retifidpj_wrapper
+        except Exception:
+            retifidpj_wrapper = None
         
         _modules_cache.update({
             'aguardar_e_clicar': aguardar_e_clicar,
@@ -38,6 +43,7 @@ def _lazy_import():
             'ato_meios': ato_meios,
             'ato_idpj': ato_idpj,
             'pec_excluiargos': pec_excluiargos,
+            'retifidpj_wrapper': retifidpj_wrapper,
         })
     
     return _modules_cache

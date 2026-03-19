@@ -106,3 +106,36 @@ def wrapper_parcial(
     """Wrapper SISBAJUD parcial."""
     return _wrapper_sisbajud_generico(driver, tipo, descricao, modelo,
                                     assinar, sigilo, 'PARCIAL', numero_processo, debug)
+
+
+def retifidpj_wrapper(
+    driver: WebDriver,
+    numero_processo: Optional[str] = None,
+    debug: bool = True,
+) -> bool:
+    """
+    Wrapper para juntada de retificação quando IDPJ foi indeferido.
+
+    Parâmetros padrão:
+      tipo: Certidão
+      descricao: Retificação - IDPJ indeferido
+      modelo: retifidpj
+      assinar: nao
+      sigilo: nao
+    """
+    def inserir_fn(driver: WebDriver, numero_processo: Optional[str] = None, debug: bool = True) -> bool:
+        # Não insere conteúdo adicional; usa modelo padrão
+        return True
+
+    return wrapper_juntada_geral(
+        driver=driver,
+        tipo='Certidão',
+        descricao='Retificação - IDPJ indeferido',
+        modelo='retifidpj',
+        assinar='nao',
+        sigilo='nao',
+        inserir_conteudo=inserir_fn,
+        coleta_conteudo=None,
+        substituir_link=False,
+        debug=debug
+    )

@@ -1,5 +1,9 @@
 from .loop_base import *
 from .loop_ciclo1 import _ciclo1_abrir_suitcase, _ciclo1_aguardar_movimentacao_lote, _ciclo1_movimentar_destino
+from Fix.smart_finder import SmartFinder
+
+# Instantiate once for reuse
+_SF = SmartFinder()
 
 
 def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
@@ -10,15 +14,21 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde'))
         )
         driver.execute_script("arguments[0].click();", tag_verde)
-        time.sleep(0.8)
 
-        # Clique botão "Atividade"
-        btns = driver.find_elements(By.CSS_SELECTOR, "button.mat-menu-item")
-        for btn in btns:
-            if "Atividade" in btn.text:
-                driver.execute_script("arguments[0].click();", btn)
-                break
-        time.sleep(1.2)
+        # Clique botão "Atividade" — usar SmartFinder para localizar opção de menu mais rápido
+        btn_atividade = _SF.find(driver, 'ciclo2_btn_atividade', [
+            "//button[contains(normalize-space(.), 'Atividade')]",
+            "button.mat-menu-item"
+        ])
+        if btn_atividade:
+            driver.execute_script("arguments[0].click();", btn_atividade)
+        else:
+            # fallback: buscar via text scan (mais custoso)
+            btns = driver.find_elements(By.CSS_SELECTOR, "button.mat-menu-item")
+            for btn in btns:
+                if "Atividade" in (btn.text or ''):
+                    driver.execute_script("arguments[0].click();", btn)
+                    break
 
         # Preencher observação
         campo_obs = WebDriverWait(driver, 10).until(
@@ -27,7 +37,8 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         campo_obs.click()
         campo_obs.clear()
         campo_obs.send_keys('xs')
-        time.sleep(0.6)
+        # esperar até que o textarea contenha o texto (sincronização mínima)
+        WebDriverWait(driver, 6).until(lambda d: 'xs' in campo_obs.get_attribute('value'))
 
         # Salvar
         spans = driver.find_elements(By.CSS_SELECTOR, "button.mat-raised-button span")
@@ -36,17 +47,16 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
             return False
         btn_pai = btn_salvar.find_element(By.XPATH, "..")
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_pai)
-        time.sleep(0.5)
         driver.execute_script("arguments[0].click();", btn_pai)
 
-        # Verificar fechamento do modal
-        time.sleep(1.2)
-        modais = driver.find_elements(By.CSS_SELECTOR, "mat-dialog-container")
-        if modais:
-            logger.error('[CICLO2][XS] Modal ainda aberto após Salvar')
-            return False
-
-        time.sleep(2.0)
+        # Verificar fechamento do modal via espera explícita
+        try:
+            WebDriverWait(driver, 10).until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'mat-dialog-container')))
+        except Exception:
+            modais = driver.find_elements(By.CSS_SELECTOR, "mat-dialog-container")
+            if modais:
+                logger.error('[CICLO2][XS] Modal ainda aberto após Salvar')
+                return False
         logger.info('[CICLO2][XS] ✅ Atividade xs criada')
         return True
     except Exception as e:
@@ -64,34 +74,41 @@ def _ciclo2_movimentar_lote(driver: WebDriver, opcao_destino: str, ha_mais: bool
         logger.error('[CICLO2] Falha ao aguardar tela movimentação')
         return False
 
-    # Em ciclo2, garantir que o dropdown de destino esteja visível/clicável
-    if opcao_destino == 'Cumprimento de providências':
-        try:
-            # Tentar clique forçado no opener do mat-select para forçar o overlay
-            opener = None
-            try:
-                opener = driver.find_element(By.CSS_SELECTOR, "mat-select[formcontrolname='destino']")
-            except Exception:
-                try:
-                    opener = driver.find_element(By.CSS_SELECTOR, 'div.mat-select-arrow-wrapper')
-                except Exception:
-                    opener = None
-
-            if opener:
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opener)
-                time.sleep(0.2)
-                driver.execute_script("arguments[0].click();", opener)
-                time.sleep(0.6)
-                logger.info('[CICLO2] Clique forçado no opener do dropdown de destino (providências)')
-        except Exception as e:
-            logger.info(f'[CICLO2] Falha ao forçar clique no opener do dropdown: {e}')
-
+    # Reutilizar a lógica robusta do ciclo1 para selecionar destino (inclui retries)
     if not _ciclo1_movimentar_destino(driver, opcao_destino):
         logger.error(f'[CICLO2] Falha ao selecionar destino "{opcao_destino}"')
         return False
 
-    driver.get("https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos")
-    time.sleep(3)
+    # Em vez de forçar um reload completo, voltar graciosamente para a lista
+    # usando o mesmo método do ciclo1, que demonstrou ser mais rápido/estável.
+    import time as _time
+    _t0 = _time.perf_counter()
+    try:
+        # _ciclo1_retornar_lista faz history.back() e limpa overlays
+        from .loop_ciclo1_movimentacao import _ciclo1_retornar_lista
+        _ciclo1_retornar_lista(driver)
+        # aguardar a tabela da lista reaparecer
+        try:
+            WebDriverWait(driver, 12).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
+        except Exception:
+            try:
+                WebDriverWait(driver, 12).until(EC.presence_of_element_located((By.XPATH, "//span[contains(text(), 'Fase processual')]")))
+            except Exception:
+                pass
+    except Exception as e:
+        logger.info(f'[CICLO2] Retorno para a lista via history.back() falhou, fallback para driver.get: {e}')
+        try:
+            driver.get("https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos")
+            WebDriverWait(driver, 12).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
+        except Exception:
+            pass
+
+    _t1 = _time.perf_counter()
+    try:
+        logger.info(f'[LATENCIA][DETALHE] CICLO2_NAV_PAINEL8: {(_t1-_t0)*1000:.1f}ms')
+    except Exception:
+        pass
+
     logger.info(f'[CICLO2] ✅ Lote movimentado ({opcao_destino})')
     return True
 
@@ -169,7 +186,11 @@ def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumpriment
         # Desselecionar todos antes de começar nova iteração
         try:
             driver.execute_script("document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
-            time.sleep(0.6)
+            # aguardar até que não haja checkboxes marcados (sincronização mínima)
+            try:
+                WebDriverWait(driver, 6).until(lambda d: len(d.execute_script("return document.querySelectorAll('mat-checkbox input[type=\\\"checkbox\\\"]:checked').length")) == 0)
+            except Exception:
+                pass
         except:
             pass
 
@@ -201,7 +222,11 @@ def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumpriment
             return True
 
         # Continuar loop (selecionou exatamente 20, pode haver mais)
-        time.sleep(2)
+        # Pequena espera de estabilização opcional, mas muito menor que sleep(2)
+        try:
+            WebDriverWait(driver, 3).until(lambda d: True)
+        except Exception:
+            pass
 
 
 def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências') -> Union[bool, str]:

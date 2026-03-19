@@ -178,7 +178,23 @@ def _processar_item_pec(driver: WebDriver, processo_info: dict[str, any], contex
             return False
 
         time.sleep(2)
-        print(f"[BUCKET:{nome_bucket}] Executando ação: {acao_nome}")
+        def _format_item(item):
+            # item can be callable, (func, dict), or nested list
+            try:
+                if callable(item):
+                    return getattr(item, '_wrapper_id', getattr(item, '__name__', str(item)))
+                if isinstance(item, (list, tuple)) and len(item) == 2 and callable(item[0]) and isinstance(item[1], dict):
+                    func = item[0]
+                    return getattr(func, '_wrapper_id', getattr(func, '__name__', str(func)))
+                if isinstance(item, (list, tuple)):
+                    parts = [_format_item(x) for x in item]
+                    return '[' + ', '.join(parts) + ']'
+                return str(item)
+            except Exception:
+                return str(item)
+
+        readable_acao = _format_item(acoes if acoes else acao_principal)
+        print(f"[BUCKET:{nome_bucket}] Executando ação: {readable_acao} | observacao: {observacao}")
         acao_exec = acoes if acoes else acao_principal
         resultado_processo = executar_acao_pec(driver, acao_exec, numero_processo=numero_processo, observacao=observacao, debug=True)
 

@@ -918,3 +918,32 @@ PROCESSO: 1001652-08.2024.5.02.0036
 Prazo: 15 dias (11/03/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: 1001175-02.2016.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1001175-02.2016.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>18/05/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 124.604,26 (cento e vinte e quatro mil  e seiscentos e quatro reais e vinte e seis centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>ACOFLAN DISTRIBUIDOR DE CONEXOES E FLANGES LTDA - [02.083.628]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>MARCIO RIBEIRO MARTINS - [101.322.898-73]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>AGUINALDO DE PAULA MARTINS - [337.173.548-68]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>FLACON CONEXOES DE ACO LTDA - [49.467.962]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>MARIA DE FATIMA MONTEIRO - [074.738.158-57]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>COSMO RIBEIRO MARTINS - [247.745.758-60]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000091-87.2021.5.02.0703
+==================================================
+    Id Pje: dd41743
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH074000475BR
+    Destinatário: VITOR SIQUEIRA
+    Data do envio: 04/03/2026
+    Data da entrega: 13/03/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: b6d226c
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH074000484BR
+    Destinatário: VITOR SIQUEIRA
+    Data do envio: 04/03/2026
+    Data da entrega: 13/03/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (25/03/2026)
+==================================================
+

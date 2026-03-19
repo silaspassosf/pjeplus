@@ -9,6 +9,8 @@ Este arquivo foi separado para evitar dependências circulares entre módulos.
 
 import logging
 from typing import Dict, Any, Callable, List
+import threading
+import queue
 
 logger = logging.getLogger(__name__)
 
@@ -66,15 +68,43 @@ def executar_processamento_iterativo_com_corte_em_erro_critico(
         logger.info(f'[{nome_modulo}] Processando {idx+1}/{len(lista_itens)}: {item_id}')
 
         try:
-            # Executar função de processamento do item
-            resultado = funcao_processamento_item(driver, item)
+            # Executar função de processamento do item com timeout para evitar bloqueio
+            result_queue = queue.Queue()
 
-            if resultado:
-                processados += 1
-                logger.info(f'[{nome_modulo}] Item {item_id} processado com sucesso')
-            else:
+            def _run_item():
+                try:
+                    res = funcao_processamento_item(driver, item)
+                    result_queue.put(('ok', res))
+                except Exception as ex:
+                    result_queue.put(('exc', ex))
+
+            t = threading.Thread(target=_run_item, daemon=True)
+            t.start()
+
+            # timeout por item (segundos) - evita que um item trave toda a sequência
+            ITEM_TIMEOUT = 60
+            try:
+                kind, payload = result_queue.get(timeout=ITEM_TIMEOUT)
+            except queue.Empty:
                 erros += 1
-                logger.error(f'[{nome_modulo}] Falha no processamento de {item_id}')
+                logger.error(f'[{nome_modulo}] Timeout ({ITEM_TIMEOUT}s) ao processar {item_id} - interrompendo para evitar bloqueio')
+                interrompido_por_erro_critico = True
+                break
+
+            if kind == 'exc':
+                erros += 1
+                error_msg = str(payload)
+                logger.error(f'[{nome_modulo}] Erro geral no processamento de {item_id}: {error_msg}')
+                # DETECÇÃO DE ERROS CRÍTICOS será avaliada abaixo
+                error_msg = error_msg
+            else:
+                resultado = payload
+                if resultado:
+                    processados += 1
+                    logger.info(f'[{nome_modulo}] Item {item_id} processado com sucesso')
+                else:
+                    erros += 1
+                    logger.error(f'[{nome_modulo}] Falha no processamento de {item_id}')
 
         except Exception as e:
             erros += 1

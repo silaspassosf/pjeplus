@@ -381,8 +381,19 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
             if processado_com_sucesso and numero_processo:
                 # Usar função de progresso com o número correto (da lista)
                 progresso_atual = carregar_progresso()
-                marcar_processo_executado(numero_processo, progresso_atual)
-                logger.info(f'[PROGRESSO] Processo {numero_processo} marcado como executado')
+                try:
+                    if not processo_ja_executado(numero_processo, progresso_atual):
+                        marcar_processo_executado(numero_processo, progresso_atual)
+                        logger.info(f'[PROGRESSO] Processo {numero_processo} marcado como executado')
+                    else:
+                        logger.info(f'[PROGRESSO] Processo {numero_processo} já estava marcado como executado')
+                except Exception as e:
+                    # Em caso de erro no progresso, tentar marcar e seguir em frente
+                    try:
+                        marcar_processo_executado(numero_processo, progresso_atual)
+                        logger.info(f'[PROGRESSO] Processo {numero_processo} marcado como executado (fallback)')
+                    except Exception:
+                        logger.info(f'[PROGRESSO] Falha ao marcar processo {numero_processo} no progresso')
             
             logger.info('[FLUXO] Processo concluído, retornando à lista')
     logger.info('[FLUXO] Filtro de mandados devolvidos já garantido na navegação. Iniciando processamento...')
@@ -426,10 +437,10 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
             'processos': processed
         }
 
-    # 3) Executar indexador normalmente
+    # 3) Executar indexador normalmente usando o monitor unificado para pular itens
     success = False
     try:
-        result_indexador = indexar_e_processar_lista(driver, fluxo_callback)
+        result_indexador = indexar_e_processar_lista(driver, fluxo_callback, tipo_execucao='mandado')
         logger.info(f'[FLUXO] indexar_e_processar_lista returned: {result_indexador}')
         success = bool(result_indexador)
     except Exception as e:

@@ -64,9 +64,15 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         logger.info('[ARGOS][ETAPA 2] Tratando anexos especiais infojud (sigilo + visibilidade)...')
         anexos_info = tratar_anexos_argos(driver, documentos_sequenciais, log=log)
         if not anexos_info:
-            logger.info('[ARGOS][ETAPA 2][ERRO] Falha no processamento de anexos - abortando fluxo')
-            return False
-        logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
+            logger.info('[ARGOS][ETAPA 2][AVISO] Nenhum anexo especial encontrado ou processamento não crítico; prosseguindo sem anexos')
+            anexos_info = {
+                'tem_anexos': False,
+                'resultado_sisbajud': None,
+                'sigilo_anexos': {},
+                'executados': []
+            }
+        else:
+            logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
         # === ETAPA 3: SISBAJUD - EXTRAIR DOCUMENTO PDF + REGRAS ===
         logger.info('[ARGOS][ETAPA 3] SISBAJUD - Extraindo documento PDF e aplicando regras...')

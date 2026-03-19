@@ -1,42 +1,47 @@
 {
   "numero": [
-    "1000044-89.2016.5.02.0703"
+    "1000091-87.2021.5.02.0703"
   ],
-  "id": 762433,
+  "id": 3848398,
   "autor": [
     {
-      "nome": "JOSE THARLES ROSENO SANTOS FERREIRA",
-      "cpfcnpj": "37114599862",
+      "nome": "TATIANE MARIA DA CONCEICAO",
+      "cpfcnpj": "38622137813",
       "advogado": {
-        "nome": "TAMIRIS DA SILVA SANTOS",
-        "cpf": "39833507808",
-        "oab": "SP374847"
+        "nome": "GERALDO HENRIQUE LIMA SANTOS",
+        "cpf": "22226935860",
+        "oab": "SP454094"
       }
     }
   ],
   "reu": [
     {
-      "nome": "E M SERVICOS LTDA - ME",
-      "cpfcnpj": "03297797000129"
+      "nome": "ASSOCIACAO ASSISTENCIA SOCIAL TRANSFORMACAO",
+      "cpfcnpj": "17938726000172",
+      "advogado": {
+        "nome": "VALERIA NEPOMUCENO BITTENCOURT",
+        "cpf": "27140544808",
+        "oab": "SP314900"
+      }
     },
     {
-      "nome": "EDISON OLIVEIRA DUARTE",
-      "cpfcnpj": "07111024818"
-    },
-    {
-      "nome": "MARIUZA APARECIDA VICENTINI DUARTE",
-      "cpfcnpj": "11507271875"
+      "nome": "VITOR SIQUEIRA",
+      "cpfcnpj": "02302864964"
     }
   ],
-  "terceiro": [],
+  "terceiro": [
+    {
+      "nome": "MUNICIPIO DE SAO PAULO"
+    }
+  ],
   "divida": {
-    "valor": "R$ 18.132,43",
-    "data": "19/03/2024"
+    "valor": "R$ 73.391,74",
+    "data": "01/09/2024"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "15/01/2016",
+  "dtAutuacao": "03/02/2021",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

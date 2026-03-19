@@ -243,12 +243,16 @@ def executar_acao_pec(
                         func = item[0]
                         extra_kwargs = item[1].copy()
                         logger.info(f"[PEC_EXEC]   ({j}/{len(raw)}) -> {_get_func_label(func)}")
-                        if not _executar_funcao(func, extra_kwargs):
+                        ok = _executar_funcao(func, extra_kwargs)
+                        if not ok:
+                            logger.info(f"[PEC_EXEC]   ({j}/{len(raw)}) -> {_get_func_label(func)} RETORNOU False")
                             resultado = False
                             break
                     elif callable(item):
                         logger.info(f"[PEC_EXEC]   ({j}/{len(raw)}) -> {_get_func_label(item)}")
-                        if not _executar_funcao(item):
+                        ok = _executar_funcao(item)
+                        if not ok:
+                            logger.info(f"[PEC_EXEC]   ({j}/{len(raw)}) -> {_get_func_label(item)} RETORNOU False")
                             resultado = False
                             break
                     else:

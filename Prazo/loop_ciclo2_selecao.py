@@ -15,9 +15,16 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
             # Usar SmartFinder para detectar o mat-select mais rapidamente
             el = _SF.find(driver, 'ciclo2_mat_select_combobox', ["mat-select[role='combobox']", "//mat-select"])
             if not el:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select[role='combobox']"))
-                )
+                # Prefer waiting for the stable total-registros indicator (shows "X - Y de Z")
+                try:
+                    WebDriverWait(driver, 10).until(
+                        lambda d: d.find_elements(By.CSS_SELECTOR, 'span.total-registros') and d.find_element(By.CSS_SELECTOR, 'span.total-registros').text.strip()
+                    )
+                except Exception:
+                    # Fallback: esperar mat-select quando total-registros não estiver presente
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select[role='combobox']"))
+                    )
         except Exception:
             # fallback leve
             WebDriverWait(driver, 5)

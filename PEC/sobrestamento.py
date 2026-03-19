@@ -196,7 +196,11 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
                     try: def_chip(driver, numero_processo=numero_processo, observacao=observacao, chips_para_remover=chips_padrao, debug=debug, timeout=timeout)
                     except: pass
                     ok_gigs = False
-                    try: ok_gigs = criar_gigs(driver, -1, '', 'xs rosto', detalhe=True)
+                    try:
+                        # criar GIGS para 'xs rosto' com 1 dia antes de movimentar
+                        ok_gigs = criar_gigs(driver, 1, '', 'xs rosto', detalhe=True)
+                    except Exception:
+                        ok_gigs = False
                     except: pass
                     try:
                         if mov_sob(driver, numero_processo, "sob 1", debug=debug): return True

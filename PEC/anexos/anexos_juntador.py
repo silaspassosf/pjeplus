@@ -262,14 +262,41 @@ def executar_juntada(self: types.SimpleNamespace, configuracao: Dict[str, Any], 
 
     # 0. Garantir interface de anexacao aberta
     try:
-        if not driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
-            if not self._abrir_interface_anexacao():
-                return False
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'))
-        )
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                if not driver.find_elements(By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'):
+                    if not self._abrir_interface_anexacao():
+                        return False
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Tipo de Documento"]'))
+                )
+                # sucesso
+                break
+            except Exception as inner_e:
+                # última tentativa -> log e falha
+                if attempt == max_retries - 1:
+                    logger.error(f'[JUNTADA][ERRO] Interface de anexacao nao detectada apos {max_retries} tentativas: {inner_e}')
+                    return False
+                # senão, tentar recarregar a página e reabrir a interface
+                try:
+                    logger.info('[JUNTADA][WARN] Interface nao detectada — recarregando a pagina e tentando novamente')
+                    try:
+                        driver.refresh()
+                    except Exception:
+                        pass
+                    time.sleep(1.2)
+                    # tentar abrir novamente a interface (ex: menu -> anexar)
+                    try:
+                        self._abrir_interface_anexacao()
+                    except Exception:
+                        pass
+                    time.sleep(0.8)
+                    continue
+                except Exception:
+                    return False
     except Exception as e:
-        logger.error(f'[JUNTADA][ERRO] Interface de anexacao nao detectada: {e}')
+        logger.error(f'[JUNTADA][ERRO] Erro ao garantir interface de anexacao: {e}')
         return False
 
     # 1. Coleta opcional

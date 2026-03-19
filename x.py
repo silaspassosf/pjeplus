@@ -28,6 +28,7 @@ import os
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 from enum import Enum
+import signal
 
 # Selenium imports
 from selenium import webdriver
@@ -767,7 +768,9 @@ def configurar_logging(driver_type: DriverType):
     headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
     vt_mode = driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS]
     
-    # Suprimir logs de Selenium/urllib3 se headless
+    # Suprimir logs ruidosos do urllib3.connectionpool sempre (evita flood no terminal)
+    # e reduzir logs do Selenium quando em headless
+    logging.getLogger('urllib3.connectionpool').disabled = True
     if headless:
         logging.getLogger('selenium').setLevel(logging.WARNING)
         logging.getLogger('urllib3').setLevel(logging.WARNING)
@@ -806,6 +809,34 @@ def configurar_logging(driver_type: DriverType):
     root_logger.addHandler(console_handler)
     
     return log_file, tee
+
+
+def safe_immediate_shutdown(driver, tee_output=None, reason=None):
+    """Força shutdown imediato: suprime logs ruidosos, finaliza driver e sai do processo.
+
+    Usa `finalizar_driver_imediato_fix` (que mata processos) e `os._exit(0)` para liberar o terminal
+    imediatamente — isso evita flood de mensagens de `urllib3.connectionpool` durante teardown.
+    """
+    try:
+        import logging as _logging
+        try:
+            _logging.getLogger('urllib3.connectionpool').disabled = True
+            _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
+        except Exception:
+            pass
+        try:
+            # tentar finalizar de forma imediata (mata geckodriver/firefox)
+            finalizar_driver_imediato_fix(driver)
+        except Exception:
+            pass
+        try:
+            if tee_output:
+                tee_output.close()
+        except Exception:
+            pass
+    finally:
+        # Saída imediata sem executar handlers adicionais
+        os._exit(0)
 
 
 # ============================================================================
@@ -897,19 +928,17 @@ def main():
                 print("=" * 80)
                 
             except KeyboardInterrupt:
-                print("\n Interrompido (Ctrl+C)")
+                # Usuário pediu interrupção — forçar shutdown imediato
+                print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
                 try:
-                    import logging as _logging
-                    _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
+                    safe_immediate_shutdown(driver, tee_output, reason='KeyboardInterrupt')
                 except Exception:
-                    pass
-                try:
-                    # Tentar finalizar imediatamente para evitar retries HTTP longos
-                    finalizar_driver_imediato_fix(driver)
-                except Exception:
-                    pass
-                # Marcar para pular finalizadores posteriores
-                skip_finalizar = True
+                    # Caso safe_immediate_shutdown falhe, garantir que chamamos finalizador imediato
+                    try:
+                        finalizar_driver_imediato_fix(driver)
+                    except Exception:
+                        pass
+                    os._exit(0)
             except Exception as e:
                 print(f" Erro: {e}")
                 import traceback
@@ -933,7 +962,15 @@ def main():
             break
     
     except KeyboardInterrupt:
-        print("\n Interrompido pelo usurio")
+        print("\n Interrompido pelo usurio — finalizando imediatamente")
+        try:
+            safe_immediate_shutdown(driver, tee_output, reason='OuterKeyboardInterrupt')
+        except Exception:
+            try:
+                finalizar_driver_imediato_fix(driver)
+            except Exception:
+                pass
+            os._exit(0)
     except Exception as e:
         print(f" Erro fatal: {e}")
         import traceback

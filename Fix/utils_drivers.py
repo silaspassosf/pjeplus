@@ -128,6 +128,11 @@ def verificar_driver_ativo(driver):
 def fechar_driver_safely(driver):
     """Fecha o driver de forma segura"""
     try:
+        # Evita flood de logs durante o teardown (ex.: urllib3.connectionpool)
+        try:
+            logging.getLogger('urllib3.connectionpool').disabled = True
+        except Exception:
+            pass
         if driver:
             driver.quit()
         return True
@@ -143,6 +148,12 @@ def fechar_driver_imediato(driver, kill_processes: bool = True):
     para evitar retries HTTP (urllib3) demorados durante teardown.
     """
     try:
+        # Suprimir logs ruidosos que aparecem quando o geckodriver/firefox é morto
+        try:
+            logging.getLogger('urllib3.connectionpool').disabled = True
+            logging.getLogger('urllib3').setLevel(logging.WARNING)
+        except Exception:
+            pass
         if not driver:
             # Ainda assim, tentar limpar temporários
             limpar_temp_selenium()

@@ -1,4 +1,5 @@
 import time
+import unicodedata
 from typing import Optional, Any, Tuple
 
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -110,6 +111,8 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
             cabecalho = driver.find_element(By.CSS_SELECTOR, ".cabecalho-conteudo .mat-card-title")
             
         titulo_documento = cabecalho.text.lower()
+        if log:
+            logger.info(f"[MANDADOS][OUTROS] Cabeçalho detectado: {cabecalho.text}")
         
         eh_certidao_oficial = any(p in titulo_documento for p in [
             "certidão de oficial",
@@ -128,7 +131,17 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
         return
     
     def analise_padrao(texto):
-        texto_lower = texto.lower()        
+        # Diagnostic: confirmar entrada em analise_padrao
+        logger.info('[MANDADOS][OUTROS] ENTER analise_padrao()')
+        # Normalizar texto removendo acentos para facilitar matching
+        try:
+            texto_norm = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+        except Exception as e:
+            logger.info(f'[MANDADOS][OUTROS] analise_padrao: falha na normalizacao: {e}')
+            texto_norm = texto
+        texto_lower = texto_norm.lower()
+        if log:
+            logger.info(f"[MANDADOS][OUTROS] Texto (normalizado) para análise (len={len(texto_lower)}):\n{texto_lower[:800]}\n---Fim do documento---")
         
         padrao_positivo = any(p in texto_lower for p in [
             "citei", 
@@ -171,6 +184,7 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
         elif padrao_negativo:
             if log:
                 logger.info("Padrão de mandado NEGATIVO encontrado no texto.")  # NOVA REGRA: localizar mandado anterior na timeline, extrair conteúdo e, se contiver 'penhora', chamar ato_meios
+                logger.info('[MANDADOS][OUTROS] padrao_negativo detectado — invocando ultimo_mdd()')
                 autor_ant, elemento_ant = ultimo_mdd(driver, log=log)
                 if elemento_ant:
                     try:
@@ -214,16 +228,34 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
         else:
             pass
     try:
-        texto_result = extrair_direto(driver, timeout=10, debug=log, formatar=True)
-    except Exception:
+        # ALWAYS emit a short diagnostic log before attempting extraction
+        logger.info('[MANDADOS][OUTROS] Invocando extrair_direto() (debug ON para diagnóstico)')
+        texto_result = extrair_direto(driver, timeout=10, debug=True, formatar=True)
+        logger.info(f'[MANDADOS][OUTROS] extrair_direto returned (diagnostic): {bool(texto_result and texto_result.get("sucesso"))}')
+    except Exception as e:
+        logger.error(f'[MANDADOS][OUTROS] extrair_direto falhou: {e}')
         texto_result = None
 
     if not texto_result or not texto_result.get('sucesso'):
+        if log:
+            logger.info('[MANDADOS][OUTROS] extrair_direto não retornou conteúdo; usando extrair_documento() fallback')
         texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
         texto = texto_tuple[0] if texto_tuple and texto_tuple[0] else None
     else:
         texto = texto_result.get('conteudo', '')
+    # Diagnostic: confirmar atribuição de texto
+    logger.info(f'[MANDADOS][OUTROS] Texto atribuído len={len(texto) if texto else 0}')
     if not texto:
         if log:
             logger.error("[MANDADOS][OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
         return
+    if log:
+        logger.info(f"[MANDADOS][OUTROS] Texto extraído (primeiros 200 chars): {texto[:200].replace('\n',' ')}")
+    logger.info('[MANDADOS][OUTROS] Chamando analise_padrao()')
+    # Analisar o texto extraído e executar ações padrão (positivo/negativo/cancelamento)
+    try:
+        analise_padrao(texto)
+    except Exception as e:
+        if log:
+            logger.error(f"[MANDADOS][OUTROS][ERRO] Falha na análise padrão: {e}")
+    return

@@ -99,7 +99,7 @@ def fluxo_mandado(driver):
             return False
 
     try:
-        sucesso_fluxo = bool(indexar_e_processar_lista(driver, fluxo_callback))
+        sucesso_fluxo = bool(indexar_e_processar_lista(driver, fluxo_callback, tipo_execucao='mandado'))
         # Completar módulo com sucesso
         completar('MANDADO_PROCESSAMENTO', sucesso=sucesso_fluxo)
     except Exception as e:

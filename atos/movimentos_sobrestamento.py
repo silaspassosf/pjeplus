@@ -180,6 +180,19 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         except Exception:
             time.sleep(0.8)
 
+        # Guard: só executar este movimento se a aba da tarefa indicar a página
+        # de sobrestamento em estado 'aguardandofinal'. Caso contrário, tornar
+        # o movimento um no-op e retornar True para não bloquear fluxos que
+        # dependem de mov_sob quando este não é aplicável.
+        try:
+            current = (driver.current_url or '')
+            if '/sobrestamento/aguardandofinal' not in current:
+                log_msg(f" URL atual '{current}' não é sobrestamento/aguardandofinal; pulando mov_sob (no-op)")
+                return True
+        except Exception:
+            # Se não for possível verificar a URL, continuar com o fluxo normal
+            log_msg(' Não foi possível verificar a URL atual; prosseguindo com mov_sob')
+
         # ===== ETAPA 2: LOCALIZAR O BOTÃO DE CALENDÁRIO NA ABA DA TAREFA =====
         log_msg("2. Localizando botão de calendário na aba da tarefa...")
         btn_calendario = None

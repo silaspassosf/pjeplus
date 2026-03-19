@@ -1,6 +1,8 @@
 import time
+import re
 
 from Fix.log import logger
+from Fix.monitoramento_progresso_unificado import carregar_progresso_unificado
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 from .extracao_indexacao import (
     _indexar_tentar_reindexar,
@@ -123,7 +125,7 @@ def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback
     return "SUCESSO"
 
 
-def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True):
+def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela', max_processos=None, log=True, tipo_execucao: str = None):
     """
     Processa lista de processos com tratamento robusto de conexão e abas.
     Estratégia: reindexa a lista completa antes de cada processamento para lidar com listas dinâmicas.
@@ -143,6 +145,31 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
         if not processos_iniciais:
             logger.info('[FLUXO] Nenhum processo encontrado para processar')
             return False
+
+        # Se informado, usar o monitor de progresso para eliminar processos já executados
+        if tipo_execucao:
+            try:
+                progresso = carregar_progresso_unificado(tipo_execucao, suppress_load_log=True)
+                executados = progresso.get('processos_executados', []) or []
+                executados_set = set(executados)
+                executados_digits = set([re.sub(r'\D', '', e) for e in executados_set if e])
+
+                def _is_executado(pid: str) -> bool:
+                    if not pid:
+                        return False
+                    if pid in executados_set:
+                        return True
+                    pid_digits = re.sub(r'\D', '', pid)
+                    return pid_digits in executados_digits
+
+                processos_filtrados = [(pid, linha) for (pid, linha) in processos_iniciais if not _is_executado(pid)]
+                skipped = len(processos_iniciais) - len(processos_filtrados)
+                if skipped:
+                    logger.info(f'[FLUXO] {skipped} processos pulados (já executados) via progresso {tipo_execucao}')
+                processos_iniciais = processos_filtrados
+            except Exception as e:
+                logger.info(f'[FLUXO][AVISO] Falha ao filtrar processos via progresso: {e}')
+
         logger.info(f'[FLUXO] {len(processos_iniciais)} processos encontrados para processamento')
     except Exception as e:
         logger.info(f'[FLUXO][ERRO] Falha ao indexar lista inicial: {e}')
@@ -176,4 +203,10 @@ def indexar_e_processar_lista(driver, callback, seletor_btn=None, modo='tabela',
 
     # Relatório final
     logger.info(f'[FLUXO]  Processamento concluído: {processados} sucesso, {erros} erros')
+
+    # Se detectamos um fatal (ex.: driver fechado), abortar imediatamente para liberar terminal
+    if fatal:
+        logger.error('[FLUXO][FATAL] Detected fatal driver state — aborting process to free terminal')
+        raise SystemExit('Driver context fatal - aborting')
+
     return processados > 0

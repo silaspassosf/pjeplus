@@ -493,7 +493,7 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
     return None
 
 
-def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fechar_driver=True, prazo_dias=None, protocolar=True):
+def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fechar_driver=True, prazo_dias=None, protocolar=False):
     """
     Orquestra a criação de minuta de bloqueio no SISBAJUD:
     0. Extrair dados do processo (se necessário) e verificar valor
@@ -627,35 +627,11 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
             return resultado
 
         # 6.1 PROTOCOLAR/ASSINAR MINUTA
-        # Após salvar, estamos na página da minuta (botão "Alterar" presente)
-        # Agora vamos protocolar antes de gerar relatório
-        if log:
-            logger.info('\n[SISBAJUD]  Protocolando primeira minuta...')
-        
-        # Extrair protocolo da URL para log
-        protocolo_minuta = None
-        try:
-            import re
-            url = driver.current_url
-            match = re.search(r'/(\d{10,})/', url)
-            if match:
-                protocolo_minuta = match.group(1)
-        except Exception as e:
-            _ = e
-        
+        # REMOVIDO: passo de protocolar/assinar foi desativado (pulamos essa fase)
         minuta_protocolada = False
-        if protocolar:
-            minuta_protocolada = helpers._protocolar_minuta(
-                driver=driver,
-                protocolo_minuta=protocolo_minuta,
-                log=log
-            )
-        
-        resultado['minuta_protocolada'] = minuta_protocolada
-        if minuta_protocolada and log:
-            logger.info('[SISBAJUD]  Primeira minuta protocolada com sucesso')
-        elif log:
-            logger.info('[SISBAJUD]  Primeira minuta não foi protocolada (continuando com fluxo)')
+        resultado['minuta_protocolada'] = False
+        if log:
+            logger.info('[SISBAJUD]  Passo 6.1 (protocolar/assinar) foi removido - continuando fluxo')
 
         # 6.2 Gerar relatório (para juntada posterior manual/automática)
         relatorio_gerado = helpers._gerar_relatorio_minuta(driver, numero_processo)
@@ -1230,5 +1206,6 @@ def minuta_bloqueio_60(driver, dados_processo=None, driver_pje=None, log=True, f
         driver_pje=driver_pje,
         log=log,
         fechar_driver=fechar_driver,
-        prazo_dias=60
+        prazo_dias=60,
+        protocolar=False
     )

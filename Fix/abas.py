@@ -26,11 +26,18 @@ def is_browsing_context_discarded_error(error_message: str) -> bool:
     if not error_message:
         return False
     error_str = str(error_message).lower()
-    return ('browsing context has been discarded' in error_str or 
-            'no such window' in error_str or 
-            'nosuchwindowerror' in error_str or
-            'session not created' in error_str or
-            'invalid session id' in error_str)
+    # Mensagens conhecidas que indicam que a sessão/driver foi encerrado
+    fatal_signals = [
+        'browsing context has been discarded',
+        'no such window',
+        'nosuchwindowerror',
+        'session not created',
+        'invalid session id',
+        'tried to run command without establishing a connection',
+        'tried to run command'  # fallback catch-all for this specific driver error
+    ]
+
+    return any(sig in error_str for sig in fatal_signals)
 
 def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[str] = None):
     """

@@ -12,11 +12,15 @@ import os
 import time
 import glob
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Configurações de cookies
 USAR_COOKIES_AUTOMATICO = True
 SALVAR_COOKIES_AUTOMATICO = USAR_COOKIES_AUTOMATICO
-COOKIES_DIR = r"D:\PjePlus\___001\cookies_sessoes"
+# Default: project-level `cookies_sessoes` directory. Can be overridden
+# by environment variable `PJE_COOKIES_DIR` for devs who need a custom path.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+COOKIES_DIR = os.environ.get('PJE_COOKIES_DIR', str(PROJECT_ROOT / 'cookies_sessoes'))
 
 def carregar_cookies_sessao(driver, max_idade_horas=24):
     """Carrega o arquivo mais recente de cookies e valida se ainda e valido."""

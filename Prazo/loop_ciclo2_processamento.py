@@ -1,6 +1,7 @@
 from .loop_base import *
 from .loop_ciclo1 import _ciclo1_abrir_suitcase, _ciclo1_aguardar_movimentacao_lote, _ciclo1_movimentar_destino
 from Fix.smart_finder import SmartFinder
+from Fix.core import aguardar_renderizacao_nativa
 
 # Instantiate once for reuse
 _SF = SmartFinder()
@@ -10,10 +11,15 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
     """Cria atividade 'xs' para processos selecionados."""
     try:
         # Clique tag verde
-        tag_verde = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde'))
-        )
-        driver.execute_script("arguments[0].click();", tag_verde)
+        try:
+            aguardar_renderizacao_nativa(driver, "i.fa.fa-tag.icone.texto-verde", timeout=10)
+            tag_verde = driver.find_element(By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde')
+            driver.execute_script("arguments[0].click();", tag_verde)
+        except Exception:
+            tag_verde = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-tag.icone.texto-verde'))
+            )
+            driver.execute_script("arguments[0].click();", tag_verde)
 
         # Clique botão "Atividade" — usar SmartFinder para localizar opção de menu mais rápido
         btn_atividade = _SF.find(driver, 'ciclo2_btn_atividade', [
@@ -31,9 +37,13 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                     break
 
         # Preencher observação
-        campo_obs = WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, "textarea[formcontrolname='observacao']"))
-        )
+        try:
+            aguardar_renderizacao_nativa(driver, "textarea[formcontrolname='observacao']", timeout=10)
+            campo_obs = driver.find_element(By.CSS_SELECTOR, "textarea[formcontrolname='observacao']")
+        except Exception:
+            campo_obs = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "textarea[formcontrolname='observacao']"))
+            )
         campo_obs.click()
         campo_obs.clear()
         campo_obs.send_keys('xs')
@@ -49,9 +59,9 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_pai)
         driver.execute_script("arguments[0].click();", btn_pai)
 
-        # Verificar fechamento do modal via espera explícita
+        # Verificar fechamento do modal via espera baseada em observer
         try:
-            WebDriverWait(driver, 10).until(EC.invisibility_of_element_located((By.CSS_SELECTOR, 'mat-dialog-container')))
+            aguardar_renderizacao_nativa(driver, 'mat-dialog-container', modo='sumir', timeout=10)
         except Exception:
             modais = driver.find_elements(By.CSS_SELECTOR, "mat-dialog-container")
             if modais:
@@ -89,17 +99,17 @@ def _ciclo2_movimentar_lote(driver: WebDriver, opcao_destino: str, ha_mais: bool
         _ciclo1_retornar_lista(driver)
         # aguardar a tabela da lista reaparecer
         try:
-            WebDriverWait(driver, 12).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
+            aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=12)
         except Exception:
             try:
-                WebDriverWait(driver, 12).until(EC.presence_of_element_located((By.XPATH, "//span[contains(text(), 'Fase processual')]")))
+                aguardar_renderizacao_nativa(driver, "//span[contains(text(), 'Fase processual')]", timeout=12)
             except Exception:
                 pass
     except Exception as e:
         logger.info(f'[CICLO2] Retorno para a lista via history.back() falhou, fallback para driver.get: {e}')
         try:
             driver.get("https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos")
-            WebDriverWait(driver, 12).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
+            aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=12)
         except Exception:
             pass
 
@@ -156,7 +166,10 @@ def ciclo2_processar_livres_apenas_uma_vez(driver: WebDriver, opcao_destino: str
                     }
                 });
             """)
-            time.sleep(0.6)
+            try:
+                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+            except Exception:
+                pass
         except:
             pass
 
@@ -188,7 +201,7 @@ def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumpriment
             driver.execute_script("document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
             # aguardar até que não haja checkboxes marcados (sincronização mínima)
             try:
-                WebDriverWait(driver, 6).until(lambda d: len(d.execute_script("return document.querySelectorAll('mat-checkbox input[type=\\\"checkbox\\\"]:checked').length")) == 0)
+                aguardar_renderizacao_nativa(driver, "mat-checkbox input[type=\"checkbox\"]:checked", modo='sumir', timeout=6)
             except Exception:
                 pass
         except:
@@ -222,9 +235,9 @@ def ciclo2_loop_providencias(driver: WebDriver, opcao_destino: str = 'Cumpriment
             return True
 
         # Continuar loop (selecionou exatamente 20, pode haver mais)
-        # Pequena espera de estabilização opcional, mas muito menor que sleep(2)
+        # Pequena espera de estabilização opcional, baseada no indicador de total de registros
         try:
-            WebDriverWait(driver, 3).until(lambda d: True)
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=3)
         except Exception:
             pass
 

@@ -43,13 +43,19 @@ class SmartFinder:
 
     def _save_cache_bg(self, key: str, selector: str):
         def _save():
-            with self._lock:
-                self._cache[key] = selector
-                try:
-                    salvar_cache(self._cache)
-                    learn_logger.info('CACHE_UPDATE %s -> %s', key, selector)
-                except Exception:
-                    learn_logger.exception('CACHE_SAVE_ERROR')
+                # Do not persist transient/selectors related to progress bars or loading indicators
+                sel_low = selector.lower() if selector else ''
+                transient_indicators = ['mat-progress', 'progress-bar', 'progress', 'mat-progress-bar-fill']
+                if any(ind in sel_low for ind in transient_indicators):
+                    learn_logger.info('SKIP_CACHE_TRANSIENT %s -> %s', key, selector)
+                    return
+                with self._lock:
+                    self._cache[key] = selector
+                    try:
+                        salvar_cache(self._cache)
+                        learn_logger.info('CACHE_UPDATE %s -> %s', key, selector)
+                    except Exception:
+                        learn_logger.exception('CACHE_SAVE_ERROR')
 
         t = threading.Thread(target=_save, daemon=True)
         t.start()
@@ -108,13 +114,18 @@ def injetar_smart_finder_global(driver):
                 try:
                     elemento, novo_seletor = _tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=value)
                     if elemento and novo_seletor:
-                        learn_logger.info('FALLBACK_FOUND %s -> %s', chave_busca, novo_seletor)
-                        cache_local = carregar_cache()
-                        cache_local[chave_busca] = novo_seletor
-                        try:
-                            salvar_cache(cache_local)
-                        except Exception:
-                            learn_logger.exception('CACHE_SAVE_ERROR_BG')
+                        # Avoid caching transient selectors (progress bars/loading) learned via fallback
+                        ns_low = novo_seletor.lower()
+                        if any(ind in ns_low for ind in ('mat-progress', 'progress-bar', 'progress', 'mat-progress-bar-fill')):
+                            learn_logger.info('SKIP_FALLBACK_TRANSIENT %s -> %s', chave_busca, novo_seletor)
+                        else:
+                            learn_logger.info('FALLBACK_FOUND %s -> %s', chave_busca, novo_seletor)
+                            cache_local = carregar_cache()
+                            cache_local[chave_busca] = novo_seletor
+                            try:
+                                salvar_cache(cache_local)
+                            except Exception:
+                                learn_logger.exception('CACHE_SAVE_ERROR_BG')
                 except Exception:
                     learn_logger.exception('FALLBACK_ERROR_BG')
 

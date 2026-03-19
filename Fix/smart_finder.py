@@ -1,15 +1,27 @@
 import json
 import threading
 import logging
+import time
+import os
 from pathlib import Path
 from typing import List, Optional
 
 # Cache file at project root
+import json
+import threading
+import logging
+import time
+from pathlib import Path
+from selenium.common.exceptions import NoSuchElementException
+
+# ---------------------------------------------------------
+# 1. Configurações Iniciais e de Ficheiros
+# ---------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ARQUIVO_CACHE = PROJECT_ROOT / 'aprendizado_seletores.json'
 LEARN_LOG = PROJECT_ROOT / 'monitor_aprendizado.log'
 
-# Learning logger (isolated)
+# Isolamento do Logger de aprendizagem
 learn_logger = logging.getLogger('monitor_aprendizado')
 if not learn_logger.handlers:
     fh = logging.FileHandler(LEARN_LOG, encoding='utf-8')
@@ -18,175 +30,139 @@ if not learn_logger.handlers:
     learn_logger.setLevel(logging.INFO)
 
 
-def carregar_cache():
-    try:
-        if ARQUIVO_CACHE.exists():
-            return json.loads(ARQUIVO_CACHE.read_text(encoding='utf-8'))
-    except Exception:
-        pass
-    return {}
-
-
-def salvar_cache(cache: dict):
-    try:
-        ARQUIVO_CACHE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding='utf-8')
-    except Exception:
-        learn_logger.exception('ERRO_SALVAR_CACHE')
-
-
+# ---------------------------------------------------------
+# 2. Classe Principal Otimizada
+# ---------------------------------------------------------
 class SmartFinder:
-    """Cache-backed selector finder with background updates and isolated learning log."""
+    """
+    Sistema inteligente de busca de seletores com cache e fallback.
+    Otimizado para não causar lentidão no loop principal do orquestrador.
+    """
+    def __init__(self, driver):
+        self.driver = driver
+        self.cache = self._carregar_cache()
+        self.lock = threading.Lock()
+        
+        # Dicionário para evitar repetir fallbacks pesados seguidos (Cooldown)
+        # Formato: {'by_value': timestamp_da_ultima_falha}
+        self._fallback_cooldown = {}
 
-    def __init__(self):
-        self._lock = threading.Lock()
-        self._cache = carregar_cache()
-
-    def _save_cache_bg(self, key: str, selector: str):
-        def _save():
-                # Do not persist transient/selectors related to progress bars or loading indicators
-                sel_low = selector.lower() if selector else ''
-                transient_indicators = ['mat-progress', 'progress-bar', 'progress', 'mat-progress-bar-fill']
-                if any(ind in sel_low for ind in transient_indicators):
-                    learn_logger.info('SKIP_CACHE_TRANSIENT %s -> %s', key, selector)
-                    return
-                with self._lock:
-                    self._cache[key] = selector
-                    try:
-                        salvar_cache(self._cache)
-                        learn_logger.info('CACHE_UPDATE %s -> %s', key, selector)
-                    except Exception:
-                        learn_logger.exception('CACHE_SAVE_ERROR')
-
-        t = threading.Thread(target=_save, daemon=True)
-        t.start()
-
-    def find(self, driver, key: str, candidates: List[str]):
-        """Try cache first, then candidates; update cache on success."""
-        cached = self._cache.get(key)
+    def _carregar_cache(self):
+        """Lê o histórico de seletores já aprendidos do disco."""
         try:
-            if cached:
-                if cached.strip().startswith('//'):
-                    return driver.find_element('xpath', cached)
-                return driver.find_element('css selector', cached)
-        except Exception:
+            if ARQUIVO_CACHE.exists():
+                return json.loads(ARQUIVO_CACHE.read_text(encoding='utf-8'))
+        except Exception as e:
+            learn_logger.error(f"Erro ao carregar cache: {e}")
+        return {}
+
+    def _salvar_cache(self):
+        """
+        Guarda o cache no ficheiro em segundo plano (Thread).
+        Isso impede que a operação de Input/Output atrase a automação principal.
+        """
+        def gravar():
+            with self.lock:
+                try:
+                    ARQUIVO_CACHE.write_text(json.dumps(self.cache, indent=2, ensure_ascii=False), encoding='utf-8')
+                except Exception as e:
+                    learn_logger.error(f"Erro ao salvar cache: {e}")
+        
+        threading.Thread(target=gravar, daemon=True).start()
+
+    def find_element(self, by, value, enable_fallback=True):
+        """
+        Busca o elemento na página. 
+        Se enable_fallback for False, não executa a busca pesada. Ideal para loops de espera (waits).
+        """
+        chave_cache = f"{by}_{value}"
+
+        # PASSO A: Tentativa Rápida - Usar o Cache aprendido anteriormente
+        if chave_cache in self.cache:
+            cached_by, cached_val = self.cache[chave_cache]
+            try:
+                el = self.driver.find_element(cached_by, cached_val)
+                return el, cached_val
+            except NoSuchElementException:
+                pass
+
+        # PASSO B: Tentativa Normal - Usar o seletor original
+        try:
+            el = self.driver.find_element(by, value)
+            
+            # Se encontrou e não estava no cache, guardamos para ser instantâneo da próxima vez
+            if chave_cache not in self.cache:
+                self._atualizar_cache(chave_cache, by, value)
+            return el, value
+        except NoSuchElementException:
             pass
 
-        for s in candidates:
+        # PASSO C: Proteções de Desempenho
+        # 1. Se estamos num loop rápido de sondagem, devolvemos None sem travar.
+        if not enable_fallback:
+            return None, None
+            
+        agora = time.time()
+        # 2. Cooldown: Se falhou há menos de 5 segundos, não repete a pesquisa profunda.
+        if chave_cache in self._fallback_cooldown and (agora - self._fallback_cooldown[chave_cache] < 5):
+            return None, None
+
+        # PASSO D: Fallback Heurístico (Busca Pesada)
+        learn_logger.info(f"Iniciando fallback heuristico para: {value}")
+        el, novo_by, novo_valor = self._gerar_e_testar_candidatos(value)
+
+        if el:
+            learn_logger.info(f"FALLBACK_FOUND {chave_cache} -> {novo_by}={novo_valor}")
+            self._atualizar_cache(chave_cache, novo_by, novo_valor)
+            return el, novo_valor
+        else:
+            # Regista a falha no cooldown para não encravar os próximos 5 segundos
+            self._fallback_cooldown[chave_cache] = agora
+            return None, None
+
+    def _atualizar_cache(self, chave, by, value):
+        """Atualiza a memória RAM e chama a gravação assíncrona."""
+        with self.lock:
+            self.cache[chave] = (by, value)
+        self._salvar_cache()
+
+    def _gerar_e_testar_candidatos(self, original_value):
+        """
+        Gera hipóteses inteligentes de seletores para encontrar o elemento perdido.
+        """
+        candidates = []
+        safe = original_value.replace('"', "'")
+
+        # HEURÍSTICA DE PROTEÇÃO: 
+        # Se o seletor parece estrutural (ex: classes do Angular Material), 
+        # NÃO procurar por texto (normalize-space), pois isso gera falsos positivos.
+        if "mat-" not in safe and "container" not in safe:
+            candidates.append(('xpath', f"//a[contains(normalize-space(.), \"{safe}\")]"))
+            candidates.append(('xpath', f"//button[contains(normalize-space(.), \"{safe}\")]"))
+            candidates.append(('xpath', f"//input[@placeholder=\"{safe}\"]"))
+            candidates.append(('xpath', f"//label[contains(normalize-space(.), \"{safe}\")]//following::input[1]"))
+
+        # Atributos específicos e frequentes no PJe
+        pje_attrs = ['mattooltip', 'aria-label', 'placeholder', 'name', 'title']
+        for attr in pje_attrs:
+            candidates.append(('css selector', f'*[{attr}*="{safe}"]'))
+            candidates.append(('css selector', f'button[{attr}*="{safe}"]'))
+            candidates.append(('css selector', f'input[{attr}*="{safe}"]'))
+            candidates.append(('css selector', f'img[{attr}*="{safe}"]'))
+
+        # Testar candidatos de forma limpa
+        vistos = set()
+        for c_by, c_val in candidates:
+            if c_val in vistos:
+                continue
+            vistos.add(c_val)
+            
             try:
-                if s.strip().startswith('//'):
-                    el = driver.find_element('xpath', s)
-                else:
-                    el = driver.find_element('css selector', s)
-                try:
-                    self._save_cache_bg(key, s)
-                except Exception:
-                    pass
-                return el
+                el = self.driver.find_element(c_by, c_val)
+                # Só assume que encontrou se o elemento estiver visível no ecrã
+                if el.is_displayed():
+                    return el, c_by, c_val
             except Exception:
                 continue
 
-        learn_logger.info('NOT_FOUND %s candidates=%d', key, len(candidates))
-        return None
-
-
-def injetar_smart_finder_global(driver):
-    """Replace driver.find_element with a smart wrapper using SmartFinder."""
-    original_find_element = driver.find_element
-    sf = SmartFinder()
-
-    def smart_find_element(by, value):
-        cache = carregar_cache()
-        chave_busca = f"{by}_{value}"
-
-        # 1. Try cache
-        if chave_busca in cache:
-            try:
-                return original_find_element(by, cache[chave_busca])
-            except Exception:
-                pass
-
-        # 2. Try original
-        try:
-            return original_find_element(by, value)
-        except Exception as e:
-            # 3. Fallback heuristics SHOULD run asynchronously to avoid blocking
-            def _fallback_bg():
-                try:
-                    elemento, novo_seletor = _tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=value)
-                    if elemento and novo_seletor:
-                        # Avoid caching transient selectors (progress bars/loading) learned via fallback
-                        ns_low = novo_seletor.lower()
-                        if any(ind in ns_low for ind in ('mat-progress', 'progress-bar', 'progress', 'mat-progress-bar-fill')):
-                            learn_logger.info('SKIP_FALLBACK_TRANSIENT %s -> %s', chave_busca, novo_seletor)
-                        else:
-                            learn_logger.info('FALLBACK_FOUND %s -> %s', chave_busca, novo_seletor)
-                            cache_local = carregar_cache()
-                            cache_local[chave_busca] = novo_seletor
-                            try:
-                                salvar_cache(cache_local)
-                            except Exception:
-                                learn_logger.exception('CACHE_SAVE_ERROR_BG')
-                except Exception:
-                    learn_logger.exception('FALLBACK_ERROR_BG')
-
-            try:
-                t = threading.Thread(target=_fallback_bg, daemon=True)
-                t.start()
-            except Exception:
-                learn_logger.exception('FALLBACK_THREAD_ERROR')
-            # Re-raise original exception so caller flow is not stalled
-            raise e
-
-    driver.find_element = smart_find_element
-    learn_logger.info('Smart Finder ativado no driver')
-
-
-def _tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=None):
-    """Embedded heuristic fallback — returns (element, selector) or (None, None)."""
-    from selenium.common.exceptions import NoSuchElementException
-    orig = contexto_ou_valor_antigo or ''
-    orig_text = str(orig).strip()
-
-    candidates = []
-    if orig_text:
-        candidates.append(orig_text)
-        safe = orig_text.replace('"', '\\"')
-        candidates.append(f"//*[contains(normalize-space(.), \"{safe}\")]")
-        candidates.append(f"//button[contains(normalize-space(.), \"{safe}\")]")
-        candidates.append(f"//a[contains(normalize-space(.), \"{safe}\")]")
-        candidates.append(f"//input[@placeholder=\"{safe}\"]")
-        candidates.append(f"//label[contains(normalize-space(.), \"{safe}\")]//following::input[1]")
-
-        # PJe-aware attribute heuristics: match Angular Material and accessibility attributes
-        pje_attrs = ['mattooltip', 'aria-label', 'placeholder', 'name', 'title']
-        for attr in pje_attrs:
-            candidates.append(f'*[{attr}*="{safe}"]')
-            candidates.append(f'button[{attr}*="{safe}"]')
-            candidates.append(f'input[{attr}*="{safe}"]')
-            candidates.append(f'img[{attr}*="{safe}"]')
-    candidates.extend([
-        "button",
-        "input[type=submit]",
-        "a[role=button]",
-    ])
-
-    seen = set()
-    for s in candidates:
-        if not s or s in seen:
-            continue
-        seen.add(s)
-        try:
-            if s.strip().startswith('//'):
-                el = driver.find_element('xpath', s)
-            else:
-                el = driver.find_element('css selector', s)
-            return el, s
-        except NoSuchElementException:
-            continue
-        except Exception:
-            continue
-
-    return None, None
-
-
-__all__ = ['SmartFinder', 'injetar_smart_finder_global']
+        return None, None, None

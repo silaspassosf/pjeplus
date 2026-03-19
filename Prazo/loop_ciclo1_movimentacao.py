@@ -36,7 +36,11 @@ def _ciclo1_marcar_todas(driver: WebDriver) -> str:
             return "error"
             
         logger.info("[CICLO1/MARCAR_TODAS] Clique executado, aguardando efeito...")
-        time.sleep(1)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+        except Exception:
+            time.sleep(1)
         
         # Validar checkboxes marcados
         marcados = driver.execute_script(
@@ -179,7 +183,11 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
             # Clicar em Movimentar
             if not pausar_confirmacao('CICLO1/PROVIDENCIAS_MOVIMENTAR', 'Clique no botão Movimentar'):
                 return False
-            time.sleep(2)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
+            except Exception:
+                time.sleep(2)
             if not clicar_com_multiplos_seletores(
                 driver,
                 'CICLO1/PROVIDENCIAS_BOTAO_MOVIMENTAR',
@@ -217,7 +225,11 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
             timeout=10
         ):
             return False
-        time.sleep(1.2)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.2)
+        except Exception:
+            time.sleep(1.2)
 
         # Procurar opção dentro do overlay e clicar (comportamento legado)
         overlay = WebDriverWait(driver, 6).until(
@@ -226,9 +238,17 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
         opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
-        time.sleep(0.2)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=0.3)
+        except Exception:
+            time.sleep(0.3)
         driver.execute_script("arguments[0].click();", opcao_elemento)
-        time.sleep(1.0)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
+        except Exception:
+            time.sleep(1.0)
 
         # Clicar em Movimentar
         if not pausar_confirmacao('CICLO1/DESTINO_MOVIMENTAR', 'Clique no botão Movimentar'):
@@ -256,7 +276,11 @@ def _ciclo1_retornar_lista(driver: WebDriver) -> None:
             return
         logger.info("[DEBUG] Retornando para a lista de processos...")
         driver.execute_script("window.history.back();")
-        time.sleep(2)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
+        except Exception:
+            time.sleep(2)
         # Garantir fechamento de modais se sobrarem
         driver.execute_script("document.querySelectorAll('.cdk-overlay-backdrop').forEach(e => e.click())")
     except Exception as e:

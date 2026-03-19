@@ -102,18 +102,29 @@ def injetar_smart_finder_global(driver):
         # 2. Try original
         try:
             return original_find_element(by, value)
-        except Exception:
-            # 3. Fallback heuristics
+        except Exception as e:
+            # 3. Fallback heuristics SHOULD run asynchronously to avoid blocking
+            def _fallback_bg():
+                try:
+                    elemento, novo_seletor = _tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=value)
+                    if elemento and novo_seletor:
+                        learn_logger.info('FALLBACK_FOUND %s -> %s', chave_busca, novo_seletor)
+                        cache_local = carregar_cache()
+                        cache_local[chave_busca] = novo_seletor
+                        try:
+                            salvar_cache(cache_local)
+                        except Exception:
+                            learn_logger.exception('CACHE_SAVE_ERROR_BG')
+                except Exception:
+                    learn_logger.exception('FALLBACK_ERROR_BG')
+
             try:
-                elemento, novo_seletor = _tentar_encontrar_fallback(driver, contexto_ou_valor_antigo=value)
-                if elemento and novo_seletor:
-                    learn_logger.info('FALLBACK_FOUND %s -> %s', chave_busca, novo_seletor)
-                    cache[chave_busca] = novo_seletor
-                    salvar_cache(cache)
-                    return elemento
+                t = threading.Thread(target=_fallback_bg, daemon=True)
+                t.start()
             except Exception:
-                learn_logger.exception('FALLBACK_ERROR')
-            raise
+                learn_logger.exception('FALLBACK_THREAD_ERROR')
+            # Re-raise original exception so caller flow is not stalled
+            raise e
 
     driver.find_element = smart_find_element
     learn_logger.info('Smart Finder ativado no driver')

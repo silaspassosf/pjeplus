@@ -198,7 +198,7 @@ def _processar_item_pec(driver: WebDriver, processo_info: dict[str, any], contex
         acao_exec = acoes if acoes else acao_principal
 
         # Watchdog: detecta stalls longos na execução da ação e registra stacktrace para diagnóstico
-        import threading, time, sys, traceback
+        import threading, sys, traceback
         watchdog_active = {'running': True}
 
         def _watchdog():

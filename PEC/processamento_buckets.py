@@ -196,7 +196,37 @@ def _processar_item_pec(driver: WebDriver, processo_info: dict[str, any], contex
         readable_acao = _format_item(acoes if acoes else acao_principal)
         print(f"[BUCKET:{nome_bucket}] Executando ação: {readable_acao} | observacao: {observacao}")
         acao_exec = acoes if acoes else acao_principal
-        resultado_processo = executar_acao_pec(driver, acao_exec, numero_processo=numero_processo, observacao=observacao, debug=True)
+
+        # Watchdog: detecta stalls longos na execução da ação e registra stacktrace para diagnóstico
+        import threading, time, sys, traceback
+        watchdog_active = {'running': True}
+
+        def _watchdog():
+            timeout = 25.0
+            time.sleep(timeout)
+            if watchdog_active.get('running'):
+                try:
+                    print(f"[WATCHDOG] Ação demorando mais de {timeout}s para {numero_processo} - gerando stacktrace de threads")
+                    frames = sys._current_frames()
+                    out_path = os.path.join(LOG_DIR, f'watchdog_{numero_processo.replace("/", "_")}.log')
+                    with open(out_path, 'w', encoding='utf-8') as fh:
+                        for tid, frame in frames.items():
+                            fh.write(f"\n# ThreadID: {tid}\n")
+                            traceback.print_stack(frame, file=fh)
+                    print(f"[WATCHDOG] Stacktrace salvo em {out_path}")
+                except Exception as e:
+                    print(f"[WATCHDOG] Falha ao gerar stacktrace: {e}")
+
+        try:
+            t_watch = threading.Thread(target=_watchdog, daemon=True)
+            t_watch.start()
+        except Exception:
+            t_watch = None
+
+        try:
+            resultado_processo = executar_acao_pec(driver, acao_exec, numero_processo=numero_processo, observacao=observacao, debug=True)
+        finally:
+            watchdog_active['running'] = False
 
         # Resultado
         if resultado_processo:

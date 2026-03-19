@@ -11,11 +11,11 @@ Menu 1: Selecionar Ambiente/Driver
   - D: VT + Headless (2b.py)
 
 Menu 2: Selecionar Fluxo de Execuo
-  - A: Bloco Completo (Mandado  Prazo  PEC)
-  - B: Mandado Isolado
-  - C: Prazo Isolado
-  - D: PEC Isolado
-  - E: P2B Isolado
+    - A: Bloco Completo (Mandado  Prazo  PEC)
+    - B: Mandado Isolado
+    - C: Prazo Isolado
+    - D: P2B Isolado
+    - E: PEC Isolado
 
 Autor: Sistema PJEPlus
 Data: 04/12/2025
@@ -36,7 +36,7 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 
 # Imports dos mdulos refatorados
-from Fix.core import finalizar_driver as finalizar_driver_fix
+from Fix.core import finalizar_driver as finalizar_driver_fix, finalizar_driver_imediato as finalizar_driver_imediato_fix
 from Fix.utils import login_cpf
 from Mandado.core import navegacao as mandado_navegacao, iniciar_fluxo_robusto as mandado_fluxo
 from Prazo import loop_prazo, fluxo_pz, fluxo_prazo
@@ -58,6 +58,8 @@ if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
 TIMESTAMP = datetime.now().strftime('%Y%m%d_%H%M%S')
+# Flag para pular finalização lenta quando já usamos o finalizador imediato (Ctrl+C)
+skip_finalizar = False
 
 
 class DriverType(Enum):
@@ -400,6 +402,23 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
         except Exception:
             # Não falhar se smart finder não puder ser ativado
             pass
+        # Verificação rápida: testar se o cache do SmartFinder é gravável
+        try:
+            from Fix.smart_finder import carregar_cache, salvar_cache
+            cache = carregar_cache() or {}
+            test_key = '__SMARTFINDER_Writable_Test__'
+            if test_key not in cache:
+                try:
+                    cache[test_key] = True
+                    salvar_cache(cache)
+                    # remover o marcador imediatamente
+                    cache.pop(test_key, None)
+                    salvar_cache(cache)
+                except Exception:
+                    # Não falhar a criação do arquivo de cache
+                    pass
+        except Exception:
+            pass
 
         print(" Driver criado e logado com sucesso")
         return driver
@@ -579,16 +598,21 @@ def executar_prazo(driver) -> Dict[str, Any]:
         
         print("[PRAZO]  loop_prazo concludo")
 
-        # Finalizar apenas o módulo Prazo (não executar P2B aqui)
-        print("[PRAZO]  Módulo Prazo completo (sem P2B nesta opção)")
-        
+        # Executar também o P2B como parte do Prazo Isolado
+        print("[PRAZO]  Executando P2B (atividades) como parte do Prazo Isolado...")
+        resultado_p2b = executar_p2b(driver)
+        resultado_p2b = normalizar_resultado(resultado_p2b)
+
         tempo = (datetime.now() - inicio).total_seconds()
-        
+
+        sucesso_geral = resultado_loop.get('sucesso', False) and resultado_p2b.get('sucesso', False)
+
         return {
-            'sucesso': True,
-            'status': 'SUCESSO',
+            'sucesso': sucesso_geral,
+            'status': 'SUCESSO' if sucesso_geral else 'PARCIAL',
             'tempo': tempo,
-            'loop_prazo': resultado_loop
+            'loop_prazo': resultado_loop,
+            'p2b': resultado_p2b
         }
         
     except Exception as e:
@@ -717,8 +741,8 @@ def menu_execucao() -> Optional[str]:
     print("\n  A - Bloco Completo (Mandado  Prazo  PEC)")
     print("  B - Mandado Isolado")
     print("  C - Prazo Isolado")
-    print("  D - PEC Isolado")
-    print("  E - P2B Isolado")
+    print("  D - P2B Isolado")
+    print("  E - PEC Isolado")
     print("  X - Cancelar")
     print("=" * 80)
     
@@ -853,9 +877,9 @@ def main():
                 elif fluxo == "C":
                     resultado = executar_prazo(driver)
                 elif fluxo == "D":
-                    resultado = executar_pec(driver)
-                elif fluxo == "E":
                     resultado = executar_p2b(driver)
+                elif fluxo == "E":
+                    resultado = executar_pec(driver)
                 
                 tempo_total = (datetime.now() - inicio).total_seconds()
                 
@@ -873,6 +897,18 @@ def main():
                 
             except KeyboardInterrupt:
                 print("\n Interrompido (Ctrl+C)")
+                try:
+                    import logging as _logging
+                    _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
+                except Exception:
+                    pass
+                try:
+                    # Tentar finalizar imediatamente para evitar retries HTTP longos
+                    finalizar_driver_imediato_fix(driver)
+                except Exception:
+                    pass
+                # Marcar para pular finalizadores posteriores
+                skip_finalizar = True
             except Exception as e:
                 print(f" Erro: {e}")
                 import traceback
@@ -880,9 +916,12 @@ def main():
             
             finally:
                 if driver:
-                    print("\n Finalizando driver...")
-                    finalizar_driver_fix(driver)
+                    if not skip_finalizar:
+                        print("\n Finalizando driver...")
+                        finalizar_driver_fix(driver)
                     driver = None
+                # reset flag para próxima iteração
+                skip_finalizar = False
             
             # Fechar log
             if tee_output:
@@ -902,7 +941,8 @@ def main():
     finally:
         if driver:
             try:
-                finalizar_driver_fix(driver)
+                if not skip_finalizar:
+                    finalizar_driver_fix(driver)
             except:
                 pass
         if tee_output:

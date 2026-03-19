@@ -1,3 +1,3 @@
-# Última execução P2B: 2026-03-18 00:12:32.580372
-# Script: D:\PjePlus\x.py
+# Última execução P2B: 2026-03-19 01:10:56.845437
+# Script: D:\PjePlus\tmp_run_rule_sim.py
 # Argumentos: 

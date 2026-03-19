@@ -1,6 +1,10 @@
 from .loop_base import *
 from .loop_helpers import _extrair_numero_processo_da_linha
 from .loop_api import _verificar_processos_xs_paralelo
+from Fix.smart_finder import SmartFinder
+
+# Reuse SmartFinder instance
+_SF = SmartFinder()
 
 
 def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
@@ -8,16 +12,24 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
     try:
         # Aguardar lista carregar
         try:
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select[role='combobox']"))
-            )
-            time.sleep(1.5)
-        except Exception:
-            time.sleep(2)
+            try:
+                # Usar SmartFinder para detectar o mat-select mais rapidamente
+                el = _SF.find(driver, 'ciclo2_mat_select_combobox', ["mat-select[role='combobox']", "//mat-select"])
+                if not el:
+                    WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select[role='combobox']"))
+                    )
+            except Exception:
+                # fallback leve
+                WebDriverWait(driver, 5)
         
         if not aplicar_filtro_100(driver):
             return False
-        time.sleep(1)
+        # aguardar aplicação do filtro — checar presença de linhas
+        try:
+            WebDriverWait(driver, 6).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')) > 0)
+        except Exception:
+            pass
 
         if not filtrofases(
             driver, 
@@ -26,7 +38,10 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
             seletor_tarefa='Tarefa do processo'
         ):
             return False
-        time.sleep(2)
+        try:
+            WebDriverWait(driver, 6).until(lambda d: 'Fase processual' in d.page_source or len(d.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag'))>0)
+        except Exception:
+            pass
 
         return True
     except Exception as e:
@@ -45,14 +60,25 @@ def _ciclo2_processar_livres(driver: WebDriver, client: Optional['PjeApiClient']
         Total de processos livres selecionados
     """
     try:
+        import time as _time
+        _t0 = _time.perf_counter()
         selecionados_livres = driver.execute_script(SCRIPT_SELECAO_LIVRES)
+        _t1 = _time.perf_counter()
+        try:
+            logger.info(f'[LATENCIA][DETALHE] SCRIPT_SELECAO_LIVRES: {(_t1-_t0)*1000:.1f}ms')
+        except Exception:
+            pass
         
         if selecionados_livres > 0:
             logger.info(f'[CICLO2][LIVRES] ✅ {selecionados_livres} livre(s) selecionado(s)')
         else:
             logger.info('[CICLO2][LIVRES] Nenhum livre encontrado')
         
-        time.sleep(1.5)
+        # aguardar estabilização rápida do DOM (se necessário)
+        try:
+            WebDriverWait(driver, 4).until(lambda d: True)
+        except Exception:
+            pass
         return selecionados_livres
 
     except Exception as e:
@@ -64,9 +90,19 @@ def _ciclo2_selecionar_nao_livres(driver: WebDriver, max_processos: int = 20) ->
     """Seleciona processos não-livres via JavaScript."""
     try:
         driver.execute_script("document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
-        time.sleep(0.6)
+        try:
+            WebDriverWait(driver, 4).until(lambda d: len(d.execute_script("return document.querySelectorAll('mat-checkbox input[type=\\\"checkbox\\\"]:checked').length")) == 0)
+        except Exception:
+            pass
 
+        import time as _time
+        _t0 = _time.perf_counter()
         resultado = driver.execute_script(SCRIPT_SELECAO_NAO_LIVRES, max_processos)
+        _t1 = _time.perf_counter()
+        try:
+            logger.info(f'[LATENCIA][DETALHE] SCRIPT_SELECAO_NAO_LIVRES: {(_t1-_t0)*1000:.1f}ms')
+        except Exception:
+            pass
         selecionados = resultado['selecionados']
         total_nao_livres = resultado['totalNaoLivres']
 

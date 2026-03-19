@@ -55,6 +55,11 @@ def _executar_transferencia(driver, ordem, tipo_fluxo, log, valor_parcial, resul
             resultado['detalhes']['dados_bloqueios']['ordens_com_erro_bloqueio'].append(erro_item)
             if log:
                 logger.info(f'[SISBAJUD] Erro adicionado a lista: {erro_item}')
+            try:
+                if hasattr(driver, '_sisb_metrics') and driver._sisb_metrics is not None:
+                    driver._sisb_metrics['errors'] += 1
+            except Exception:
+                pass
             return False, True
 
         erro = f"CRITICO: Impossivel processar ordem {ordem.get('sequencial')}"
@@ -96,6 +101,11 @@ def _executar_desbloqueio(driver, ordem, log, resultado):
         if log:
             logger.info(f'[SISBAJUD] {erro}')
         resultado['erros'].append(erro)
+        try:
+            if hasattr(driver, '_sisb_metrics') and driver._sisb_metrics is not None:
+                driver._sisb_metrics['errors'] += 1
+        except Exception:
+            pass
         return False
 
     return True

@@ -39,6 +39,7 @@ from .utils_drivers import (
     criar_driver_firefox, criar_driver_PC, criar_driver_VT,
     criar_driver_notebook, criar_driver_sisb_pc, criar_driver_sisb_notebook,
     configurar_driver_avancado, verificar_driver_ativo, fechar_driver_safely,
+    fechar_driver_imediato,
     _obter_caminhos_ahk, limpar_temp_selenium
 )
 from .utils_collect import (

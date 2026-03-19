@@ -1,5 +1,6 @@
 import logging
 import time
+from Fix.core import wait_for_page_load
 
 from selenium.webdriver.common.by import By
 
@@ -23,18 +24,26 @@ def _navegar_e_extrair_ordens_serie(driver, serie, log=True):
             logger.info(f"[SISBAJUD] Navegando para detalhes da serie {id_serie}")
 
         url_serie = f"https://sisbajud.cnj.jus.br/teimosinha/{id_serie}/detalhes"
-        driver.get(url_serie)
-        time.sleep(3)
-
+        # evitar reload completo se ja estamos na pagina correta
         if f"/{id_serie}/detalhes" not in driver.current_url:
+            driver.get(url_serie)
+            try:
+                wait_for_page_load(driver, timeout=10)
+            except Exception:
+                # fallback de curto sleep para compatibilidade
+                time.sleep(3)
+        else:
             if log:
-                logger.info(f"[SISBAJUD] URL atual nao corresponde a serie: {driver.current_url}")
-            return []
+                logger.info(f"[SISBAJUD] Ja estamos na pagina da serie {id_serie}, evitando driver.get")
 
         if log:
             logger.info(f"[SISBAJUD] Navegacao direta bem-sucedida para serie {id_serie}")
 
-        time.sleep(2)
+        # Espera reativa: aguardar carregamento mínimo antes de extrair ordens
+        try:
+            wait_for_page_load(driver, timeout=6)
+        except Exception:
+            time.sleep(1)
 
         from .ordens_dados import _extrair_ordens_da_serie
         ordens = _extrair_ordens_da_serie(driver, log)

@@ -1,52 +1,51 @@
 {
   "numero": [
-    "1001090-35.2024.5.02.0703"
+    "1000044-89.2016.5.02.0703"
   ],
-  "id": 6283693,
+  "id": 762433,
   "autor": [
     {
-      "nome": "DANILO SANTANA DE LIMA",
-      "cpfcnpj": "41528705831",
+      "nome": "JOSE THARLES ROSENO SANTOS FERREIRA",
+      "cpfcnpj": "37114599862",
       "advogado": {
-        "nome": "FABIO LUIS PINTER CARDOSO",
-        "cpf": "39145467862",
-        "oab": "SP472857"
+        "nome": "TAMIRIS DA SILVA SANTOS",
+        "cpf": "39833507808",
+        "oab": "SP374847"
       }
     }
   ],
   "reu": [
     {
-      "nome": "USA CONFORTO CALCADOS LTDA",
-      "cpfcnpj": "41179327000150"
+      "nome": "E M SERVICOS LTDA - ME",
+      "cpfcnpj": "03297797000129"
     },
     {
-      "nome": "DJANARI MARLENE DE LIMA CANTIDIO",
-      "cpfcnpj": "33441563816"
+      "nome": "EDISON OLIVEIRA DUARTE",
+      "cpfcnpj": "07111024818"
     },
     {
-      "nome": "DALANA SUL COMERCIO DE CALCADOS LTDA",
-      "cpfcnpj": "48401036000103"
+      "nome": "MARIUZA APARECIDA VICENTINI DUARTE",
+      "cpfcnpj": "11507271875"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": "R$ 12.114,67",
-    "data": "01/08/2025"
+    "valor": "R$ 18.132,43",
+    "data": "19/03/2024"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "05/07/2024",
+  "dtAutuacao": "15/01/2016",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

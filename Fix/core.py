@@ -24,6 +24,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 import re, time, datetime, json, pyperclip, logging
 from pathlib import Path
+from contextlib import contextmanager
 from .log import logger, _log_info, _log_error, _audit
 
 # Variáveis de compatibilidade para logs antigos
@@ -199,6 +200,20 @@ def finalizar_driver(driver, log=True):
     from Fix.utils import finalizar_driver as _impl
     return _impl(driver, log=log)
 
+
+def finalizar_driver_imediato(driver, log=True):
+    """Wrapper que delega para o fechamento imediato do driver.
+
+    Mantém compatibilidade com código que espera `finalizar_driver_*` no core.
+    """
+    try:
+        from Fix.utils import fechar_driver_imediato as _impl
+        return _impl(driver)
+    except Exception as e:
+        if log:
+            logger.info(f'[CORE] finalizar_driver_imediato falhou: {e}')
+        return False
+
 # =========================
 # EXTRAÇÃO DIRETA DE DOCUMENTOS PJE
 # =========================
@@ -338,4 +353,53 @@ def sleep(ms):
     """Wrapper para Fix.utils.sleep."""
     from Fix.utils import sleep as _impl
     return _impl(ms)
+
+
+# -------------------------
+# Instrumentação de tempo
+# -------------------------
+TIME_ENABLED = os.getenv('PJEPLUS_TIME', '0').lower() in ('1', 'true', 'on')
+
+@contextmanager
+def tempo_execucao(label: str = None):
+    """Context manager para medir tempo de execução de um bloco.
+
+    Ativado quando a variável de ambiente `PJEPLUS_TIME` for verdadeira.
+    """
+    if not TIME_ENABLED:
+        yield
+        return
+    start = time.time()
+    try:
+        yield
+    finally:
+        elapsed = time.time() - start
+        logger.info('[TEMPO] %s: %.3fs', label or 'execucao', elapsed)
+
+
+def medir_tempo(label: str = None):
+    """Decorator simples para medir tempo de funções de alto nível.
+
+    Usage:
+        @medir_tempo('nome')
+        def func(...):
+            ...
+    """
+    def _decorator(func):
+        def _wrapper(*args, **kwargs):
+            if not TIME_ENABLED:
+                return func(*args, **kwargs)
+            start = time.time()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                elapsed = time.time() - start
+                logger.info('[TEMPO] %s.%s: %.3fs', func.__name__, label or func.__name__, elapsed)
+        try:
+            _wrapper.__name__ = func.__name__
+            _wrapper.__doc__ = func.__doc__
+        except Exception:
+            pass
+        return _wrapper
+    return _decorator
 

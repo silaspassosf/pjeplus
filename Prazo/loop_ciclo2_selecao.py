@@ -2,6 +2,7 @@ from .loop_base import *
 from .loop_helpers import _extrair_numero_processo_da_linha
 from .loop_api import _verificar_processos_xs_paralelo
 from Fix.smart_finder import SmartFinder
+from Fix.core import aguardar_renderizacao_nativa
 
 # Reuse SmartFinder instance
 _SF = SmartFinder()
@@ -17,14 +18,10 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
             if not el:
                 # Prefer waiting for the stable total-registros indicator (shows "X - Y de Z")
                 try:
-                    WebDriverWait(driver, 10).until(
-                        lambda d: d.find_elements(By.CSS_SELECTOR, 'span.total-registros') and d.find_element(By.CSS_SELECTOR, 'span.total-registros').text.strip()
-                    )
+                    aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=10)
                 except Exception:
                     # Fallback: esperar mat-select quando total-registros não estiver presente
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select[role='combobox']"))
-                    )
+                    aguardar_renderizacao_nativa(driver, "mat-select[role='combobox']", timeout=10)
         except Exception:
             # fallback leve
             WebDriverWait(driver, 5)
@@ -33,7 +30,7 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
             return False
         # aguardar aplicação do filtro — checar presença de linhas
         try:
-            WebDriverWait(driver, 6).until(lambda d: len(d.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')) > 0)
+            aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=6)
         except Exception:
             pass
 
@@ -45,7 +42,7 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
         ):
             return False
         try:
-            WebDriverWait(driver, 6).until(lambda d: 'Fase processual' in d.page_source or len(d.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag'))>0)
+            aguardar_renderizacao_nativa(driver, 'tr.cdk-drag', timeout=6)
         except Exception:
             pass
 
@@ -82,7 +79,7 @@ def _ciclo2_processar_livres(driver: WebDriver, client: Optional['PjeApiClient']
         
         # aguardar estabilização rápida do DOM (se necessário)
         try:
-            WebDriverWait(driver, 4).until(lambda d: True)
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=4)
         except Exception:
             pass
         return selecionados_livres

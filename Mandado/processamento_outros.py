@@ -1,6 +1,7 @@
 import time
 import unicodedata
 from typing import Optional, Any, Tuple
+import os
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
@@ -10,6 +11,10 @@ from Fix.abas import validar_conexao_driver
 from Fix.log import logger
 
 from atos import ato_meios, ato_edital
+
+# Controla se o fluxo de "outros" pode automaticamente invocar atos
+# Defina a variável de ambiente PJE_ALLOW_MANDADO_ATOS=1 para permitir
+ALLOW_MANDADO_ATOS = os.environ.get('PJE_ALLOW_MANDADO_ATOS', '0').lower() in ('1', 'true', 'yes', 'y')
 
 
 def ultimo_mdd(driver: WebDriver, log: bool = True) -> Tuple[Optional[str], Optional[Any]]:
@@ -206,21 +211,53 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
                             texto_mandado_ant_result = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
                         texto_mandado_ant = texto_mandado_ant_result.get('conteudo', '') if texto_mandado_ant_result and texto_mandado_ant_result.get('sucesso') else None
                         if texto_mandado_ant and 'penhora' in texto_mandado_ant.lower():
-                            ato_meios(driver)
+                            if not ALLOW_MANDADO_ATOS:
+                                logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados (PJE_ALLOW_MANDADO_ATOS=0) — pulando ato_meios()')
+                            else:
+                                logger.info('[MANDADOS][OUTROS] Invocando ato_meios() (do mandado anterior)')
+                                try:
+                                    ato_meios(driver)
+                                    logger.info('[MANDADOS][OUTROS] ato_meios() retornou')
+                                except Exception as e:
+                                    logger.error(f'[MANDADOS][OUTROS] erro em ato_meios(): {e}')
                     except Exception as e:
                         if log:
                             logger.error(f"Falha ao processar mandado anterior: {e}")
             # Verifica se contém "penhora de bens" no texto
             if "penhora de bens" in texto_lower:
-                ato_meios(driver)
+                if not ALLOW_MANDADO_ATOS:
+                    logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_meios() (penhora de bens)')
+                else:
+                    logger.info('[MANDADOS][OUTROS] Invocando ato_meios() (penhora de bens)')
+                    try:
+                        ato_meios(driver)
+                        logger.info('[MANDADOS][OUTROS] ato_meios() retornou')
+                    except Exception as e:
+                        logger.error(f'[MANDADOS][OUTROS] erro em ato_meios(): {e}')
             elif "deixei de penhorar" in texto_lower:
-                ato_meios(driver)
+                if not ALLOW_MANDADO_ATOS:
+                    logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_meios() (deixei de penhorar)')
+                else:
+                    logger.info('[MANDADOS][OUTROS] Invocando ato_meios() (deixei de penhorar)')
+                    try:
+                        ato_meios(driver)
+                        logger.info('[MANDADOS][OUTROS] ato_meios() retornou')
+                    except Exception as e:
+                        logger.error(f'[MANDADOS][OUTROS] erro em ato_meios(): {e}')
             else:
                 # Busca último mandado na timeline
                 autor, elemento = ultimo_mdd(driver, log=log)
                 if autor:
                     if 'silas passos' in autor.lower():
-                        ato_edital(driver)
+                        if not ALLOW_MANDADO_ATOS:
+                            logger.info('[MANDADOS][OUTROS] atos automáticos desabilitados — pulando ato_edital()')
+                        else:
+                            logger.info('[MANDADOS][OUTROS] Invocando ato_edital()')
+                            try:
+                                ato_edital(driver)
+                                logger.info('[MANDADOS][OUTROS] ato_edital() retornou')
+                            except Exception as e:
+                                logger.error(f'[MANDADOS][OUTROS] erro em ato_edital(): {e}')
                     else:
                         pass
                 else:
@@ -255,6 +292,7 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
     # Analisar o texto extraído e executar ações padrão (positivo/negativo/cancelamento)
     try:
         analise_padrao(texto)
+        logger.info('[MANDADOS][OUTROS] analise_padrao returned')
     except Exception as e:
         if log:
             logger.error(f"[MANDADOS][OUTROS][ERRO] Falha na análise padrão: {e}")

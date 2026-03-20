@@ -40,7 +40,11 @@ def ciclo3(driver: WebDriver) -> bool:
         # 1. Navegação
         logger.info(f"[CICLO3] Navegando para painel 6: {URL_PAINEL_CUMPRIMENTO}")
         driver.get(URL_PAINEL_CUMPRIMENTO)
-        time.sleep(3)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=3)
+        except Exception:
+            time.sleep(3)
         
         # 2. Aplicar filtro 100
         logger.info("[CICLO3] Aplicando filtro 100...")
@@ -51,7 +55,11 @@ def ciclo3(driver: WebDriver) -> bool:
             logger.error(f"[CICLO3] Erro ao aplicar filtro 100: {e}")
             return False
         
-        time.sleep(2)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
+        except Exception:
+            time.sleep(2)
 
         # 3. Selecionar livres: percorrer todas as páginas após aplicar filtro 100
         logger.info("[CICLO3] Selecionando processos livres (sem GIGS) em todas as páginas...")
@@ -87,7 +95,11 @@ def ciclo3(driver: WebDriver) -> bool:
                 try:
                     btn_next = driver.find_element(By.CSS_SELECTOR, 'mat-paginator button[aria-label="Próxima página"]')
                     driver.execute_script('arguments[0].click();', btn_next)
-                    time.sleep(1)
+                    try:
+                        from Fix.core import aguardar_renderizacao_nativa
+                        aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+                    except Exception:
+                        time.sleep(1)
                 except Exception:
                     logger.info("[CICLO3] Não foi possível navegar para próxima página (ou última página atingida)")
 

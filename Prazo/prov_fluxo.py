@@ -122,7 +122,11 @@ def navegacao_prov(driver: WebDriver) -> bool:
     try:
         logger.info("\n[PROV]  Navegando para painel de processos...")
         driver.get(URL_PAINEL)
-        time.sleep(3)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=3)
+        except Exception:
+            time.sleep(3)
         
         logger.info("[PROV]  Aplicando APENAS filtro 100 (sem processos)...")
         from Fix.core import aplicar_filtro_100
@@ -134,7 +138,11 @@ def navegacao_prov(driver: WebDriver) -> bool:
             logger.info(f"[PROV]  Erro ao aplicar filtro 100: {e}")
             return False
         
-        time.sleep(2)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
+        except Exception:
+            time.sleep(2)
         logger.info("[PROV]  Navegação e filtro concluídos")
         return True
         
@@ -250,7 +258,11 @@ def aplicar_xs_e_registrar(driver: WebDriver, progresso: Dict[str, Any]) -> Dict
         # NOTA: A atividade XS já foi criada em _ciclo2_processar_livres()
         # Aqui apenas registramos no histórico permanente
         
-        time.sleep(1)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+        except Exception:
+            time.sleep(1)
         
         # Obter processos selecionados (via tabela)
         logger.info("[PROV]  Extraindo números dos processos selecionados...")

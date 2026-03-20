@@ -41,7 +41,11 @@ def _selecionar_processos_por_gigs_aj_jt(driver: WebDriver, client: 'PjeApiClien
                 processos_com_gigs
             )
             logger.info(f'[CICLO2][GIGS-AJ-JT] ✅ {selecionados} processo(s) com AJ-JT selecionado(s)')
-            time.sleep(1.5)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.5)
+            except Exception:
+                time.sleep(1.5)
             return selecionados
 
         logger.info('[CICLO2][GIGS-AJ-JT] ℹ️ Nenhum processo com atividade AJ-JT encontrado')

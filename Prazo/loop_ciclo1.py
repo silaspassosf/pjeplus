@@ -44,7 +44,11 @@ def ciclo1(driver: WebDriver, opcao_destino: str = 'Análise') -> Union[bool, st
     # Se houver apenas 1 processo, o PJE não mostra o botão batch (suitcase)
     qtd_processos = 0
     try:
-        time.sleep(1)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+        except Exception:
+            time.sleep(1)
         processos = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class')
         qtd_processos = len(processos)
         logger.info(f'[CICLO1]  Detectados {qtd_processos} processo(s) na lista')

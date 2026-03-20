@@ -1,3 +1,7 @@
 {
-  "css selector_button[mattooltip=\"Abre a tarefa do processo\"]": "button[mattooltip=\"Abre a tarefa do processo\"]"
+  "css selector_button[mattooltip=\"Abre a tarefa do processo\"]": "button[mattooltip=\"Abre a tarefa do processo\"]",
+  "ciclo2_mat_select_combobox": "mat-select[role='combobox']",
+  "css selector_.mat-progress-bar-primary.mat-progress-bar-fill": "//*[contains(normalize-space(.), \".mat-progress-bar-primary.mat-progress-bar-fill\")]",
+  "ciclo2_btn_atividade": "//button[contains(normalize-space(.), 'Atividade')]",
+  "css selector_mat-dialog-container": "mat-dialog-container"
 }

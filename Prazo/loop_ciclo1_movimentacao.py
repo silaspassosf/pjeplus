@@ -114,7 +114,11 @@ def _ciclo1_abrir_suitcase(driver: WebDriver) -> bool:
     try:
         if com_retry(_tentar_abrir_suitcase, max_tentativas=3, backoff_base=1.5, log=True):
             logger.info("[DEBUG] Suitcase aberto após retry.")
-            time.sleep(1)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+            except Exception:
+                time.sleep(1)
             return True
         else:
             logger.info("[LOOP_PRAZO] Todas as tentativas de abrir suitcase falharam")
@@ -135,7 +139,11 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
             logger.info(f"[LOOP_PRAZO][ERRO] URL inesperada após suitcase: {driver.current_url}")
             return False
         logger.info(f"[LOOP_PRAZO] Na tela de movimentação em lote: {driver.current_url}")
-        time.sleep(1.2)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.2)
+        except Exception:
+            time.sleep(1.2)
         return True
     except Exception as e:
         logger.info(f"[LOOP_PRAZO][ERRO] URL de movimentacao-lote não carregou: {e}")
@@ -162,7 +170,11 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
             timeout=10
         ):
             return False
-        time.sleep(1.5)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=1.5)
+        except Exception:
+            time.sleep(1.5)
 
         # Buscar opção
         overlay = WebDriverWait(driver, 5).until(
@@ -173,9 +185,17 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
         logger.info(f"[SELETOR][CICLO1/PROVIDENCIAS_OPCAO] Vencedor: by={By.XPATH} seletor={opcao_xpath}")
         
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
-        time.sleep(0.3)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=0.3)
+        except Exception:
+            time.sleep(0.3)
         driver.execute_script("arguments[0].click();", opcao_elemento)
-        time.sleep(1.0)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
+        except Exception:
+            time.sleep(1.0)
         return True
 
     try:

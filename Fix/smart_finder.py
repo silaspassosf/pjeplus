@@ -5,14 +5,9 @@ import time
 import os
 from pathlib import Path
 from typing import List, Optional
+from selenium.common.exceptions import NoSuchElementException
 
 # Cache file at project root
-import json
-import threading
-import logging
-import time
-from pathlib import Path
-from selenium.common.exceptions import NoSuchElementException
 
 # ---------------------------------------------------------
 # 1. Configurações Iniciais e de Ficheiros
@@ -38,7 +33,7 @@ class SmartFinder:
     Sistema inteligente de busca de seletores com cache e fallback.
     Otimizado para não causar lentidão no loop principal do orquestrador.
     """
-    def __init__(self, driver):
+    def __init__(self, driver=None):
         self.driver = driver
         self.cache = self._carregar_cache()
         self.lock = threading.Lock()
@@ -46,6 +41,38 @@ class SmartFinder:
         # Dicionário para evitar repetir fallbacks pesados seguidos (Cooldown)
         # Formato: {'by_value': timestamp_da_ultima_falha}
         self._fallback_cooldown = {}
+
+    def set_driver(self, driver):
+        """Set driver post-construction for compatibility."""
+        self.driver = driver
+
+    # Compatibility wrapper: maintain legacy API `find(driver, key, candidates)`
+    def find(self, driver, key: str, candidates: list):
+        """Compatibility: try cache then candidates (css/xpath strings), return element or None."""
+        cache_key = key
+        # Try cache
+        if cache_key in self.cache:
+            cached_by, cached_val = self.cache[cache_key]
+            try:
+                return driver.find_element(cached_by, cached_val)
+            except Exception:
+                pass
+
+        # Try provided candidates
+        for s in candidates:
+            try:
+                if s.strip().startswith('//'):
+                    el = driver.find_element('xpath', s)
+                else:
+                    el = driver.find_element('css selector', s)
+                # Save learned selector
+                self._atualizar_cache(cache_key, 'css selector' if not s.strip().startswith('//') else 'xpath', s)
+                return el
+            except Exception:
+                continue
+
+        # Not found
+        return None
 
     def _carregar_cache(self):
         """Lê o histórico de seletores já aprendidos do disco."""
@@ -166,3 +193,50 @@ class SmartFinder:
                 continue
 
         return None, None, None
+
+
+def injetar_smart_finder_global(driver):
+    """Backward-compatible shim: attach SmartFinder and wrap driver.find_element.
+
+    Behavior:
+    - Try original `find_element` first.
+    - If original fails, try cached selector quickly (no heavy fallback).
+    - If still not found, spawn background learning attempt (non-blocking) and re-raise original exception.
+    """
+    try:
+        original_find = driver.find_element
+    except Exception:
+        original_find = None
+    sf = SmartFinder(driver)
+
+    def smart_find_element(by, value):
+        try:
+            return original_find(by, value)
+        except Exception as orig_exc:
+            try:
+                el, _ = sf.find_element(by, value, enable_fallback=False)
+                if el:
+                    return el
+            except Exception:
+                pass
+
+            def _bg():
+                try:
+                    sf.find_element(by, value, enable_fallback=True)
+                except Exception:
+                    pass
+
+            try:
+                t = threading.Thread(target=_bg, daemon=True)
+                t.start()
+            except Exception:
+                learn_logger.exception('FALLBACK_THREAD_ERROR_SHIM')
+
+            raise orig_exc
+
+    driver.find_element = smart_find_element
+    setattr(driver, 'smart_finder', sf)
+    learn_logger.info('Smart Finder shim injected on driver')
+
+
+__all__ = ['SmartFinder', 'injetar_smart_finder_global']

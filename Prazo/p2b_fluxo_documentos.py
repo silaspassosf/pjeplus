@@ -90,7 +90,11 @@ def _extrair_texto_documento(driver: WebDriver, doc_link: Any) -> Optional[str]:
         Texto extraído ou None se falhar
     """
     doc_link.click()
-    time.sleep(2)
+    try:
+        from Fix.core import aguardar_renderizacao_nativa
+        aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
+    except Exception:
+        time.sleep(2)
 
     # Estratégia 1: extrair_direto (otimizada)
     texto = _extrair_com_extrair_direto(driver)

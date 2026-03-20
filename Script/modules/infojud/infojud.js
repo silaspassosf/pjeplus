@@ -2,6 +2,13 @@
 (function () {
     'use strict';
 
+    // ── Shim de GM APIs para execução via loader (page context) ──────
+    const _gmSet    = (k, v) => localStorage.setItem(k, String(v));
+    const _gmGet    = (k, d = null) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
+    const _gmOpenTab = (url, _opts) => window.open(url, '_blank');
+    // ────────────────────────────────────────────────────────────────
+    'use strict';
+
     // Configurações e URLs
     const URL_ATUAL = window.location.href;
     const URL_BASE_CNPJ = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI=';
@@ -93,7 +100,7 @@
         filaDocs = [...new Set(spans.map(s => apenasNumeros(s.textContent)).filter(n => n.length === 11 || n.length === 14))];
         if (!filaDocs.length) return alert('Nenhum CPF/CNPJ encontrado na página!');
         rodando = true; atual = 0;
-        localStorage.setItem('GOD_STATUS', 'STANDBY');
+        _gmSet('GOD_STATUS', 'STANDBY');
         processarFila();
     }
 
@@ -104,8 +111,8 @@
         }
         const doc = filaDocs[atual];
         const url = doc.length === 11 ? URL_BASE_CPF + doc : URL_BASE_CNPJ + doc;
-        localStorage.setItem('GOD_TIPO_ORIGEM', doc.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
-        GM_openInTab(url, { active: true, insert: true });
+        _gmSet('GOD_TIPO_ORIGEM', doc.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
+        _gmOpenTab(url, { active: true, insert: true });
         // Lógica de monitoramento de sinais do GM_getValue continua aqui...
     }
 
@@ -115,8 +122,8 @@
     if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         setTimeout(() => {
             const label = Array.from(document.querySelectorAll('td')).find(td => td.textContent.includes('CPF do responsável'));
-            if (label) GM_openInTab(URL_BASE_CPF + apenasNumeros(label.nextElementSibling.textContent), { active: true });
-            else localStorage.setItem('GOD_STATUS', 'PULAR_' + Date.now());
+            if (label) _gmOpenTab(URL_BASE_CPF + apenasNumeros(label.nextElementSibling.textContent), { active: true });
+            else _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
         }, 800);
     } 
     else if (URL_ATUAL.includes('detalheNICPF.asp')) {
@@ -140,8 +147,8 @@
                     d.numero = nIdx > -1 ? tokens[nIdx] : 'S/N';
                     d.rua = nIdx > -1 ? tokens.slice(0, nIdx).join(' ') : d.endRaw;
 
-                    localStorage.setItem('GOD_DADOS_CAPTURA', JSON.stringify(d));
-                    localStorage.setItem('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
+                    _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(d));
+                    _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
                     
                     mostrarNotificacao("DADOS CARREGADOS!"); 
                     console.log("[Infojud] Extração concluída. Aba mantida aberta conforme solicitado.");
@@ -191,7 +198,7 @@
                 if (oldR) oldR.remove();
 
                 rodandoLocal = true; atualLocal = 0; ultimoProcessadoLocal = '';
-                GM_setValue('GOD_STATUS', 'STANDBY');
+                _gmSet('GOD_STATUS', 'STANDBY');
 
                 console.log(`[GOD] Iniciando Modo: ${MODO_EXECUCAO_LOCAL}`);
                 monitorarSinaisLocal();
@@ -211,11 +218,11 @@
                 if (linha) { linha.style.backgroundColor = '#fff9c4'; linha.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
 
                 if (doc.length === 11) {
-                    GM_setValue('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
-                    GM_openInTab(URL_BASE_CPF + doc, { active: true, insert: true });
+                    _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
+                    _gmOpenTab(URL_BASE_CPF + doc, { active: true, insert: true });
                 } else {
-                    GM_setValue('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
-                    GM_openInTab(URL_BASE_CNPJ + doc, { active: true, insert: true });
+                    _gmSet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
+                    _gmOpenTab(URL_BASE_CNPJ + doc, { active: true, insert: true });
                 }
             }
 
@@ -229,7 +236,7 @@
 
             function monitorarSinaisLocal() {
                 if (!rodandoLocal) return;
-                const status = GM_getValue('GOD_STATUS', '');
+                const status = _gmGet('GOD_STATUS', '');
 
                 if (status.startsWith('DADOS_PRONTOS_')) {
                     const id = status.split('_')[2];
@@ -277,7 +284,7 @@
                     const linha = encontrarLinhaPorDocLocal(docAtual); if (!linha) throw new Error('Linha não encontrada');
                     const btnEnvelope = linha.querySelector('.fa-envelope'); if (!btnEnvelope) throw new Error('Envelope sumiu');
 
-                    const d = JSON.parse(GM_getValue('GOD_DADOS_CAPTURA', '{}'));
+                    const d = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}'));
                     const nomes = (d.nome || '').split(' '); const nomeFmt = nomes.length > 1 ? `${nomes[0]} ${nomes[1]}` : nomes[0];
                     const linhaRel = `(${nomeFmt}) - (${d.cep}) - (${d.rua || ''} ${d.numero || 'S/N'}) - (${d.complemento || ''})`;
                     dadosRelatorioLocal.push(linhaRel.replace(/\s+/g, ' '));

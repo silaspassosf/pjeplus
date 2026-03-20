@@ -1,33 +1,18 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.0.14
-// @description  Suite de ferramentas para PJe (Lista + Atalhos + Infojud)
+// @version      2.1.0
+// @description  Suite de ferramentas para PJe
 // @author       Silas
-// @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
-// @match        https://pje.trt2.jus.br/pjekz/processo/*/comunicacoesprocessuais/minutas*
-// @match        https://pje.trt2.jus.br/pjekz/pagamento/*/cadastro*
+// ── PJe (cobre todas as rotas com um único match)
+// @match        https://pje.trt2.jus.br/pjekz/*
+// @match        https://pje1g.trt2.jus.br/pjekz/*
+// ── Externos (domínios distintos mantidos individuais)
 // @match        https://sisbajud.cnj.jus.br/*
 // @match        https://sisbajud.pdpj.jus.br/*
-// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp*
-// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp*
-// @match        https://pje.trt2.jus.br/pjekz/obrigacao-pagar/*/cadastro*
-// @match        https://pje.trt2.jus.br/pjekz/obrigacao-pagar/*/inclusao*
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js?v=224
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js?v=226
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js?v=224
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js?v=224
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js?v=223
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js?v=224
+// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
+// ── Único require: o loader (bumpar só ele ao adicionar módulos)
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/loader.js?v=1
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab

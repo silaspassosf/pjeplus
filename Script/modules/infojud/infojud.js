@@ -122,8 +122,14 @@
     if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         setTimeout(() => {
             const label = Array.from(document.querySelectorAll('td')).find(td => td.textContent.includes('CPF do responsável'));
-            if (label) _gmOpenTab(URL_BASE_CPF + apenasNumeros(label.nextElementSibling.textContent), { active: true });
-            else _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
+            if (label) {
+                const cpf = apenasNumeros(label.nextElementSibling.textContent);
+                window.opener?.postMessage({ type: 'GOD_CNPJ_CPF', cpf: cpf }, 'https://pje.trt2.jus.br');
+                try { window.close(); } catch (e) {}
+            } else {
+                window.opener?.postMessage({ type: 'GOD_PULAR' }, 'https://pje.trt2.jus.br');
+                try { window.close(); } catch (e) {}
+            }
         }, 800);
     } 
     else if (URL_ATUAL.includes('detalheNICPF.asp')) {
@@ -235,20 +241,29 @@
             }
 
             function monitorarSinaisLocal() {
-                                window.addEventListener('message', function handler(ev) {
-                                    if (!rodandoLocal) return;
-                                    if (ev.origin !== 'https://cav.receita.fazenda.gov.br') return;
+                window.addEventListener('message', function handler(ev) {
+                    if (!rodandoLocal) return;
+                    if (ev.origin !== 'https://cav.receita.fazenda.gov.br') return;
 
-                                    if (ev.data?.type === 'GOD_DADOS_PRONTOS') {
-                                        _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(ev.data.dados));
-                                        aplicarLogicaMasterLocal();
-                                    } else if (ev.data?.type === 'GOD_PULAR') {
-                                        const linha = encontrarLinhaPorDocLocal(filaDocsLocal[atualLocal]);
-                                        if (linha) linha.style.backgroundColor = '#ffccbc';
-                                        atualLocal++;
-                                        setTimeout(processarProximoLocal, 1000);
-                                    }
-                                });
+                    if (ev.data?.type === 'GOD_DADOS_PRONTOS') {
+                        _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(ev.data.dados));
+                        aplicarLogicaMasterLocal();
+                    } else if (ev.data?.type === 'GOD_PULAR') {
+                        const linha = encontrarLinhaPorDocLocal(filaDocsLocal[atualLocal]);
+                        if (linha) linha.style.backgroundColor = '#ffccbc';
+                        atualLocal++;
+                        setTimeout(processarProximoLocal, 1000);
+                    } else if (ev.data?.type === 'GOD_CNPJ_CPF') {
+                        const cpf = (ev.data.cpf || '').replace(/\D/g, '');
+                        if (cpf.length === 11) {
+                            console.log('[GOD] Recebido CPF de CNPJ:', cpf);
+                            _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
+                            _gmOpenTab(URL_BASE_CPF + cpf, { active: true, insert: true });
+                        } else {
+                            console.warn('[GOD] CPF inválido recebido de CNPJ:', ev.data.cpf);
+                        }
+                    }
+                });
             }
 
             async function verificarExistenciaNaTabelaLocal(d) {

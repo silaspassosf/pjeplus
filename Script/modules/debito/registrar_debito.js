@@ -164,7 +164,7 @@ async function preencherMonetario(input, valorBR) {
     var ch = apenasDigitos[i];
     input.dispatchEvent(new KeyboardEvent('keydown',  { key: ch, bubbles: true, cancelable: true }));
     input.dispatchEvent(new KeyboardEvent('keypress', { key: ch, bubbles: true, cancelable: true, charCode: ch.charCodeAt(0) }));
-    set.call(input, input.value + ch);
+    // REMOVIDO: set.call(input, input.value + ch)
     input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ch }));
     input.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
     await _utils.sleep(30);

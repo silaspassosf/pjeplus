@@ -59,33 +59,21 @@
             'modules/debito/registrar_debito.js',
         ];
 
-        async function loadScript(base, cb, path) {
+        // Carrega todos os módulos diretamente, sem loader
+        for (const path of MODULES) {
             try {
-                const res  = await fetch(base + path + cb);
+                const res = await fetch(BASE + path + CB);
                 if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + path);
                 const code = await res.text();
-
-                // Injeta o código diretamente no window real da página
-                await new Promise((resolve) => {
-                    const s = document.createElement('script');
-                    s.textContent = code;
-                    document.head.appendChild(s);
-                    resolve();
-                });
-
-                console.log('[PJeLoader] ✓', path);
+                const s = document.createElement('script');
+                s.textContent = code;
+                document.head.appendChild(s);
+                console.log('[PJeTools] ✓', path);
             } catch (e) {
-                console.error('[PJeLoader] ✗', path, e.message || e);
+                console.error('[PJeTools] ✗', path, e.message || e);
             }
         }
-
-        for (const path of MODULES) {
-            // load sequentially to respect dependencies
-            // eslint-disable-next-line no-await-in-loop
-            await loadScript(BASE, CB, path);
-        }
-
-        console.log('[PJeLoader] ✅ Módulos carregados.');
+        console.log('[PJeTools] ✅ Módulos carregados.');
 
         // ── Roteamento (só roda DEPOIS de tudo carregado)
         const isMinutas  = url.includes('/comunicacoesprocessuais/minutas');

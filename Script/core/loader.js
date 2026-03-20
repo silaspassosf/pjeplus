@@ -5,7 +5,7 @@
 (async function () {
 
   const BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-  const CB   = '?cb=' + Date.now(); // cache-bust — sempre fresh
+  const CB   = '?cb=' + (Date.now()+1); // cache-bust — sempre fresh
 
   // ── Ordem de carregamento importa (dependências primeiro) ────────────────
   const MODULES = [

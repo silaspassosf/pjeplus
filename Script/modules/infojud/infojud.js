@@ -124,7 +124,8 @@
             const label = Array.from(document.querySelectorAll('td')).find(td => td.textContent.includes('CPF do responsável'));
             if (label) {
                 const cpf = apenasNumeros(label.nextElementSibling.textContent);
-                window.opener?.postMessage({ type: 'GOD_CNPJ_CPF', cpf: cpf }, 'https://pje.trt2.jus.br');
+                const d = { cpf: cpf, fromCnpj: true };
+                window.opener?.postMessage({ type: 'GOD_DADOS_PRONTOS', dados: d }, 'https://pje.trt2.jus.br');
                 mostrarNotificacao('CPF extraído com sucesso (CNPJ)');
             } else {
                 window.opener?.postMessage({ type: 'GOD_PULAR' }, 'https://pje.trt2.jus.br');
@@ -246,8 +247,17 @@
                     if (ev.origin !== 'https://cav.receita.fazenda.gov.br') return;
 
                     if (ev.data?.type === 'GOD_DADOS_PRONTOS') {
-                        _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(ev.data.dados));
-                        aplicarLogicaMasterLocal();
+                        const d = ev.data.dados || {};
+                        // Se veio somente CPF pelo CNPJ, usa como base e continua no PJe
+                        if (d.fromCnpj && d.cpf) {
+                            _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
+                            _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(d));
+                            console.log('[GOD] CNPJ->CPF recebido, processando no PJe sem abrir CPF.');
+                            aplicarLogicaMasterLocal();
+                        } else {
+                            _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(d));
+                            aplicarLogicaMasterLocal();
+                        }
                     } else if (ev.data?.type === 'GOD_PULAR') {
                         const linha = encontrarLinhaPorDocLocal(filaDocsLocal[atualLocal]);
                         if (linha) linha.style.backgroundColor = '#ffccbc';

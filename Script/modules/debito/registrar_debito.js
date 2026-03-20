@@ -141,34 +141,39 @@
   }
 
   // FIX 3: cola o valor exatamente como extraído (ex: "1.624.491,78"), sem converter para float.
-  // Remove apenas o prefixo "R$" se presente.
-  // Usa document.execCommand('insertText') para acionar pipeline nativo do browser
-  async function preencherMonetario(input, valorBR) {
-    if (!input || !valorBR) return;
-    var valor = valorBR.replace(/R\$\s*/g, '').trim();
+// FIX 3 — Estratégia C (KeyboardEvent char a char) — única que habilita Salvar
+async function preencherMonetario(input, valorBR) {
+  if (!input || !valorBR) return;
 
-    input.focus();
-    await _utils.sleep(60);
+  // Remove R$, pontos de milhar e vírgula decimal — envia só dígitos
+  // A currency mask do PJe formata automaticamente enquanto digita
+  var apenasDigitos = valorBR.replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '').trim();
 
-    // Seleciona e apaga conteúdo atual
-    try { input.select(); } catch (e) {}
-    try { document.execCommand('selectAll', false, null); } catch (e) {}
-    try { document.execCommand('delete', false, null); } catch (e) {}
-    await _utils.sleep(40);
+  var set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
 
-    // Insere texto via pipeline nativo do browser → currencymask + Angular detectam normalmente
-    try { document.execCommand('insertText', false, valor); } catch (e) {
-      // fallback para browsers que não suportem execCommand
-      var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-      setter.call(input, valor);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    await _utils.sleep(60);
+  input.focus();
+  await _utils.sleep(80);
 
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new Event('blur',   { bubbles: true }));
-    await _utils.sleep(60);
+  // Limpa campo
+  set.call(input, '');
+  input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+  await _utils.sleep(40);
+
+  // Digita dígito por dígito simulando teclado real
+  for (var i = 0; i < apenasDigitos.length; i++) {
+    var ch = apenasDigitos[i];
+    input.dispatchEvent(new KeyboardEvent('keydown',  { key: ch, bubbles: true, cancelable: true }));
+    input.dispatchEvent(new KeyboardEvent('keypress', { key: ch, bubbles: true, cancelable: true, charCode: ch.charCodeAt(0) }));
+    set.call(input, input.value + ch);
+    input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ch }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: ch, bubbles: true }));
+    await _utils.sleep(30);
   }
+
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(new Event('blur',   { bubbles: true }));
+  await _utils.sleep(60);
+}
 
   function inputPorPlaceholder(ph) {
     return document.querySelector('input[data-placeholder="' + ph + '"]');
@@ -300,18 +305,7 @@
         else console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + ph + '"');
       }
 
-      // Trigger Angular no campo crédito
-      var inputCredito = inputPorPlaceholder('Crédito do demandante');
-      if (inputCredito && inputCredito.value) {
-        inputCredito.focus();
-        await _utils.sleep(150);
-        var v = inputCredito.value;
-        preencherInput(inputCredito, v.slice(0, -1));
-        await _utils.sleep(150);
-        preencherInput(inputCredito, v);
-        inputCredito.dispatchEvent(new Event('blur', { bubbles: true }));
-        await _utils.sleep(150);
-      }
+      // ... bloco removido: Trigger Angular ...
 
       // Há mais blocos?
       if (idx + 1 < total) {

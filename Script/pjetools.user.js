@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.0.12
+// @version      2.0.13
 // @description  Suite de ferramentas para PJe (Lista + Atalhos + Infojud)
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
@@ -11,8 +11,11 @@
 // @match        https://sisbajud.pdpj.jus.br/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp*
+// @match        https://pje.trt2.jus.br/pjekz/obrigacao-pagar/*/cadastro*
+// @match        https://pje.trt2.jus.br/pjekz/obrigacao-pagar/*/inclusao*
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js?v=223
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js?v=223
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js?v=223
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js?v=223
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js?v=223
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js?v=223
@@ -44,6 +47,7 @@
     const isMinutas = url.includes('/comunicacoesprocessuais/minutas');
     const isPagamento = url.includes('/pagamento/') && url.includes('/cadastro');
     const isDetalhe = /\/processo\/\d+\/detalhe/.test(url);
+    const isObrigacao = url.includes('/obrigacao-pagar/');
 
     if (isReceita) return;
     if (isSisbajud) return;
@@ -69,6 +73,24 @@
     }
 
     if (isPagamento) return;
+    if (isObrigacao) {
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                try {
+                    if (/\/obrigacao-pagar\/\d+\/cadastro/.test(url)) {
+                        if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.onCadastro === 'function') {
+                            window.PjeRegistrarDebito.onCadastro();
+                        }
+                    } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(url)) {
+                        if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.onInclusao === 'function') {
+                            window.PjeRegistrarDebito.onInclusao();
+                        }
+                    }
+                } catch (e) { console.error('[Loader] erro ao iniciar PjeRegistrarDebito:', e); }
+            }, 600);
+        });
+        return;
+    }
     if (!isDetalhe) return;
 
     // ── Detalhe: registrar SPA monitor uma vez e inicializar ──────

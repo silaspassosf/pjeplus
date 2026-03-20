@@ -93,7 +93,7 @@
         filaDocs = [...new Set(spans.map(s => apenasNumeros(s.textContent)).filter(n => n.length === 11 || n.length === 14))];
         if (!filaDocs.length) return alert('Nenhum CPF/CNPJ encontrado na página!');
         rodando = true; atual = 0;
-        GM_setValue('GOD_STATUS', 'STANDBY');
+        localStorage.setItem('GOD_STATUS', 'STANDBY');
         processarFila();
     }
 
@@ -104,7 +104,7 @@
         }
         const doc = filaDocs[atual];
         const url = doc.length === 11 ? URL_BASE_CPF + doc : URL_BASE_CNPJ + doc;
-        GM_setValue('GOD_TIPO_ORIGEM', doc.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
+        localStorage.setItem('GOD_TIPO_ORIGEM', doc.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
         GM_openInTab(url, { active: true, insert: true });
         // Lógica de monitoramento de sinais do GM_getValue continua aqui...
     }
@@ -116,7 +116,7 @@
         setTimeout(() => {
             const label = Array.from(document.querySelectorAll('td')).find(td => td.textContent.includes('CPF do responsável'));
             if (label) GM_openInTab(URL_BASE_CPF + apenasNumeros(label.nextElementSibling.textContent), { active: true });
-            else GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
+            else localStorage.setItem('GOD_STATUS', 'PULAR_' + Date.now());
         }, 800);
     } 
     else if (URL_ATUAL.includes('detalheNICPF.asp')) {
@@ -140,8 +140,8 @@
                     d.numero = nIdx > -1 ? tokens[nIdx] : 'S/N';
                     d.rua = nIdx > -1 ? tokens.slice(0, nIdx).join(' ') : d.endRaw;
 
-                    GM_setValue('GOD_DADOS_CAPTURA', JSON.stringify(d));
-                    GM_setValue('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
+                    localStorage.setItem('GOD_DADOS_CAPTURA', JSON.stringify(d));
+                    localStorage.setItem('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
                     
                     mostrarNotificacao("DADOS CARREGADOS!"); 
                     console.log("[Infojud] Extração concluída. Aba mantida aberta conforme solicitado.");

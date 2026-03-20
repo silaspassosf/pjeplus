@@ -7,6 +7,7 @@ Mantém wrappers atuais (mov_sob, mov_aud) + nova navegação inteligente
 """
 
 from .movimentos import mov, mov_simples
+from .movimentos_fluxo import movimentar_inteligente
 from selenium.webdriver.common.by import By
 
 
@@ -16,7 +17,8 @@ from selenium.webdriver.common.by import By
 
 def mov_arquivar(driver, debug=False):
     """Movimento: Arquivar o processo - com espera extra para carregamento da página"""
-    result = mov(driver, "button[aria-label='Arquivar o processo']", debug=debug)
+    # Preferir movimentar_inteligente por rótulo ao invés de seletor CSS
+    result = movimentar_inteligente(driver, 'Arquivar o processo', timeout=10)
     if result:
         # Aguardar carregamento da página após arquivar
         logger.info('[MOV_ARQUIVAR] Aguardando carregamento da página após arquivar...')
@@ -31,24 +33,15 @@ def mov_exec(driver, debug=False):
 
     # Ativar debug para depuração
     debug = True
-    selectors = [
-        "button[aria-label='Iniciar execução']",
-        "button[aria-label='Iniciar a execução']",
-        "button[aria-label*='Iniciar execução']",
-        "//button[contains(text(),'Iniciar execução')]",
-        "//button[contains(.//span, 'Iniciar execução')]",
-    ]
-
-    # Tentar apenas uma vez - se não encontrar "Iniciar execução", é porque não está disponível
-    for sel in selectors:
+    # Tentar mover por rótulo 'Iniciar execução'
+    destinos = ['Iniciar execução']
+    for destino in destinos:
         try:
-            ok = mov_simples(driver, sel, debug=debug)
+            ok = movimentar_inteligente(driver, destino, timeout=8)
             if ok:
                 return True
         except Exception:
             continue
-
-    # Se chegou aqui, "Iniciar execução" não está disponível - retornar False para executar ato_pesqliq
     return False
 
 
@@ -67,7 +60,8 @@ def mov_aud(driver, debug=False):
 
     for sel in selectors:
         try:
-            ok = mov(driver, sel, debug=debug)
+            # tentar mover por rótulo equivalente
+            ok = movimentar_inteligente(driver, 'Aguardando audiência', timeout=8)
             if ok:
                 return True
         except Exception:
@@ -75,7 +69,7 @@ def mov_aud(driver, debug=False):
 
     # Fallback: try a more generic aria-label exact match (may fail harmlessly)
     try:
-        return mov(driver, "button[aria-label='Aguardando audiência']", debug=debug)
+        return movimentar_inteligente(driver, 'Aguardando audiência', timeout=8)
     except Exception:
         return False
 

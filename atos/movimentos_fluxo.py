@@ -8,6 +8,44 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 
 
+def _localizar_botao_tarefa(driver: WebDriver, timeout: int = 8):
+    """Tentativa robusta de localizar o botão 'Abrir tarefa do processo'.
+    Retorna WebElement ou None.
+    """
+    from selenium.webdriver.common.by import By
+    try:
+        # 1) seletor canônico
+        btn = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout)
+        if btn:
+            return btn
+    except Exception:
+        pass
+
+    try:
+        # 2) busca robusta por textos/atributos (maisPje style)
+        textos = ['Abre a tarefa do processo', 'Abrir tarefa', 'tarefa do processo', 'tarefa']
+        el = buscar_seletor_robusto(driver, textos, timeout=timeout)
+        if el:
+            return el
+    except Exception:
+        pass
+
+    try:
+        # 3) tentativas por seletores alternativos
+        alt = ["button[mattooltip*='tarefa']", "button[aria-label*='tarefa']", "button[title*='tarefa']"]
+        for s in alt:
+            try:
+                el = driver.find_element(By.CSS_SELECTOR, s)
+                if el and el.is_displayed():
+                    return el
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    return None
+
+
 def mov_simples(
     driver: WebDriver,
     seletor_alvo: str,
@@ -56,7 +94,7 @@ def mov_simples(
 
         # ===== ETAPA 2: ABRIR TAREFA DO PROCESSO =====
         log_debug("Procurando botão 'Abrir tarefa do processo'...")
-        btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout//2)
+        btn_abrir_tarefa = _localizar_botao_tarefa(driver, timeout=max(2, timeout//2))
         if not btn_abrir_tarefa:
             logger.error(f'[MOV_SIMPLES][ERRO] Botão "Abrir tarefa do processo" não encontrado!')
             return False
@@ -75,9 +113,9 @@ def mov_simples(
             except Exception:
                 log_debug("Não foi possível capturar nome da tarefa")
 
-        # Clica na tarefa
+        # Clica na tarefa (usar estratégia sem scroll/dispatchEvent)
         abas_antes = set(driver.window_handles)
-        click_resultado = safe_click(driver, btn_abrir_tarefa)
+        click_resultado = safe_click_no_scroll(driver, btn_abrir_tarefa, log=debug)
 
         if not click_resultado:
             logger.error(f'[MOV_SIMPLES][ERRO] Falha no clique do botão da tarefa')
@@ -251,7 +289,7 @@ def mov(
             
             # ===== ETAPA 2: ABRIR TAREFA DO PROCESSO =====
             log_debug("Procurando botão 'Abrir tarefa do processo'...")
-            btn_abrir_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=timeout//2)
+            btn_abrir_tarefa = _localizar_botao_tarefa(driver, timeout=max(2, timeout//2))
             if not btn_abrir_tarefa:
                 logger.error(f'[MOV][ERRO] Tentativa {tentativa}: Botão "Abrir tarefa do processo" não encontrado!')
                 if tentativa == 2:
@@ -272,9 +310,9 @@ def mov(
                 except Exception:
                     log_debug("Não foi possível capturar nome da tarefa")
             
-            # Clica na tarefa
+            # Clica na tarefa (usar dispatchEvent/sem scroll)
             abas_antes = set(driver.window_handles)
-            click_resultado = safe_click(driver, btn_abrir_tarefa)
+            click_resultado = safe_click_no_scroll(driver, btn_abrir_tarefa, log=debug)
             
             if not click_resultado:
                 logger.error(f'[MOV][ERRO] Tentativa {tentativa}: Falha no clique do botão da tarefa')
@@ -334,3 +372,108 @@ def mov(
             continue
     
     return False
+
+
+def _remover_acentos(texto: str) -> str:
+    import unicodedata
+    if not texto:
+        return ''
+    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+
+
+def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15) -> bool:
+    from selenium.webdriver.common.by import By
+    import time
+
+    def log(msg):
+        try:
+            print(msg)
+        except Exception:
+            pass
+
+    try:
+        tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=3)
+        tarefa_text = tarefa_el.text if tarefa_el else None
+        if not tarefa_text:
+            el = buscar_seletor_robusto(driver, ['titulo-tarefa', 'pje-cabecalho-tarefa', 'tarefa'], timeout=3)
+            tarefa_text = el.text if el else 'Análise'
+
+        tarefa_norm = _remover_acentos((tarefa_text or '').lower())
+        destino_norm = _remover_acentos((destino or '').lower())
+        if '?' in destino:
+            destino_norm = destino_norm.replace('?', '') + ' ' + tarefa_norm
+
+        log(f"[MOV_INT] tarefa='{tarefa_text}' destino='{destino}'")
+
+        if destino_norm and destino_norm in tarefa_norm:
+            if ultimo_lance:
+                try:
+                    btn = esperar_elemento(driver, 'button', texto=ultimo_lance, timeout=3)
+                    if btn:
+                        safe_click_no_scroll(driver, btn)
+                except Exception:
+                    pass
+            if chip:
+                try:
+                    safe_click_no_scroll(driver, esperar_elemento(driver, 'button[aria-label="Incluir Chip Amarelo"]', timeout=2))
+                except Exception:
+                    pass
+            if responsavel:
+                try:
+                    buscar_seletor_robusto(driver, ['Abrir o GIGS', 'GIGS'], timeout=2)
+                except Exception:
+                    pass
+            return True
+
+        if 'elaborar' in tarefa_norm or 'assinar' in tarefa_norm:
+            log('[MOV_INT] tarefa de elaborar/assinar - abortando')
+            return False
+
+        if 'analise' in tarefa_norm:
+            try:
+                bt = esperar_elemento(driver, 'button', texto=destino, timeout=max(5, timeout//2))
+                if not bt:
+                    time.sleep(1)
+                    bt = esperar_elemento(driver, 'button', texto=destino, timeout=5)
+                if bt and bt.is_enabled():
+                    safe_click_no_scroll(driver, bt)
+                    if ultimo_lance:
+                        try:
+                            ult = esperar_elemento(driver, 'button', texto=ultimo_lance, timeout=3)
+                            if ult:
+                                safe_click_no_scroll(driver, ult)
+                        except Exception:
+                            pass
+                    if chip:
+                        try:
+                            safe_click_no_scroll(driver, esperar_elemento(driver, 'button[aria-label="Incluir Chip Amarelo"]', timeout=2))
+                        except Exception:
+                            pass
+                    if responsavel:
+                        try:
+                            gg = buscar_seletor_robusto(driver, ['Abrir o GIGS', 'GIGS'], timeout=2)
+                            if gg:
+                                safe_click_no_scroll(driver, gg)
+                        except Exception:
+                            pass
+                    return True
+                return False
+            except Exception:
+                return False
+
+        try:
+            btn_analise = buscar_seletor_robusto(driver, ['Análise', 'analise'], timeout=4)
+            if btn_analise:
+                safe_click_no_scroll(driver, btn_analise)
+                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=6)
+                return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout)
+        except Exception:
+            pass
+
+        return False
+    except Exception as e:
+        try:
+            logger.error(f'[MOV_INT][ERRO] {e}')
+        except Exception:
+            pass
+        return False

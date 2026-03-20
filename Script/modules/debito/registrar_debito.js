@@ -1,14 +1,12 @@
 // registrar_debito.js
 // Módulo PJeTools — Registrar Débito (Obrigação a Pagar)
-// Integração com painel/orquestrador: chamar PjeRegistrarDebito.executar()
-// Auto-init em /obrigacao-pagar/*/cadastro e /obrigacao-pagar/*/inclusao
 
 (function () {
   'use strict';
 
+  // localStorage para sobreviver à nova aba
   const STORAGE_KEY = 'pje_registrar_debito';
 
-  // ── Utilitários: reutiliza PjeLibParser se carregado, senão define localmente ──
   const _utils = (window.PjeLibParser && window.PjeLibParser.utils) || {
     parseMoney: function (v) {
       if (!v) return 0;
@@ -21,37 +19,45 @@
     sleep: function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   };
 
-  // ── Padrões de extração ────────────────────────────────────────────────────────
+  // ── Padrões de extração ────────────────────────────────────────────────────
+  // Usam [\s\S]{0,60} para tolerar quebras de linha do PDF (texto extraído em colunas)
   const RE = {
     dataCalculo:      /atualizados?\s+para\s+(\d{2}\/\d{2}\/\d{4})/i,
-    credito:          /crédito\s+do\s+(?:autor|reclamante|demandante)\s+em\s+R\$\s*([\d.,]+)/i,
-    fgts:             /R\$\s*([\d.,]+)\s*(?:relativo\s+ao\s+)?FGTS/i,
-    inssReclamante:   /cota\s+do\s+reclamante\)?[^R\n]*R\$\s*([\d.,]+)/i,
-    inssReclamada:    /cota-parte\s+no\s+INSS[^R\n]*R\$\s*([\d.,]+)/i,
-    honAdvReclamada:  /honorários\s+advocatícios\s+sucumbenciais\s+pela\s+reclamada[^R\n]*R\$\s*([\d.,]+)/i,
-    honAdvReclamante: /honorários\s+sucumbenciais\s+pelo\s+(?:autor|reclamante)[^R\n]*R\$\s*([\d.,]+)/i,
-    custas:           /custas\s+(?:processuais)?[^R\n]*fixadas?\s+em\s+R\$\s*([\d.,]+)/i,
-    honTecnicos:      /honorários\s+técnicos[^R\n]*(?:em|de)\s+R\$\s*([\d.,]+)/i,
-    honMedicos:       /honorários\s+médicos[^R\n]*R\$\s*([\d.,]+)/i,
-    honContabeis:     /honorários\s+contábeis[^R\n]*R\$\s*([\d.,]+)/i,
-    honConhecimento:  /honorários\s+(?:da\s+fase\s+de\s+)?conhecimento[^R\n]*R\$\s*([\d.,]+)/i,
+    credito:          /crédito\s+do\s+(?:autor|reclamante|demandante)[\s\S]{0,30}?R\$\s*([\d.,]+)/i,
+    fgts:             /R\$\s*([\d.,]+)[\s\S]{0,30}?FGTS|FGTS[\s\S]{0,60}?R\$\s*([\d.,]+)/i,
+    inssReclamante:   /cota\s+do\s+reclamante[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    inssReclamada:    /cota-parte\s+no\s+INSS[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honAdvReclamada:  /honorários\s+advocatícios\s+sucumbenciais\s+pela\s+reclamada[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honAdvReclamante: /honorários\s+sucumbenciais\s+pelo\s+(?:autor|reclamante)[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    custas:           /custas[\s\S]{0,60}?fixadas?\s+em\s+R\$\s*([\d.,]+)/i,
+    honTecnicos:      /honorários\s+técnicos[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honMedicos:       /honorários\s+médicos[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honContabeis:     /honorários\s+contábeis[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honConhecimento:  /honorários[\s\S]{0,30}?fase\s+de\s+conhecimento[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
   };
 
-  // ── Extração de dados da decisão ───────────────────────────────────────────────
   function extrairDados(texto) {
+    // Normaliza texto do PDF (remove pipes de coluna, colapsa espaços extras)
+    var txt = texto
+      .replace(/ \| /g, ' ')
+      .replace(/[ \t]{2,}/g, ' ');
+
     function m(re) {
-      var match = texto.match(re);
-      return match ? match[1].trim() : null;
+      var match = txt.match(re);
+      if (!match) return null;
+      // RE.fgts tem dois grupos de captura
+      var val = match[1] || match[2];
+      return val ? val.trim() : null;
     }
 
-    var inssRec  = m(RE.inssReclamante);
-    var inssRcd  = m(RE.inssReclamada);
+    var inssRec = m(RE.inssReclamante);
+    var inssRcd = m(RE.inssReclamada);
     var inssTotal = (inssRec || inssRcd)
       ? _utils.formatMoney(_utils.parseMoney(inssRec) + _utils.parseMoney(inssRcd))
       : null;
 
-    var honAdvRcd  = m(RE.honAdvReclamada);   // pago pela reclamada → crédito do autor
-    var honAdvRec  = m(RE.honAdvReclamante);  // pago pelo reclamante → crédito do réu
+    var honAdvRcd = m(RE.honAdvReclamada);
+    var honAdvRec = m(RE.honAdvReclamante);
     var honAdvTotal = (honAdvRcd || honAdvRec)
       ? _utils.formatMoney(_utils.parseMoney(honAdvRcd) + _utils.parseMoney(honAdvRec))
       : null;
@@ -64,24 +70,24 @@
     ].reduce(function (a, b) { return a + b; }, 0);
 
     return {
-      dataCalculo:   m(RE.dataCalculo),
-      credito:       m(RE.credito),
-      fgts:          m(RE.fgts),
-      inss:          inssTotal,
-      inssDetalhes:  { reclamante: inssRec, reclamada: inssRcd },
-      honAdv:        honAdvTotal,
-      honAdvDetalhes:{ autor: honAdvRcd, reu: honAdvRec },
-      custas:        m(RE.custas),
-      honPericiais:  somaPericiais > 0 ? _utils.formatMoney(somaPericiais) : null,
+      dataCalculo:    m(RE.dataCalculo),
+      credito:        m(RE.credito),
+      fgts:           m(RE.fgts),
+      inss:           inssTotal,
+      inssDetalhes:   { reclamante: inssRec, reclamada: inssRcd },
+      honAdv:         honAdvTotal,
+      honAdvDetalhes: { autor: honAdvRcd, reu: honAdvRec },
+      custas:         m(RE.custas),
+      honPericiais:   somaPericiais > 0 ? _utils.formatMoney(somaPericiais) : null,
     };
   }
 
-  // ── Persistência entre navegações SPA ────────────────────────────────────────
-  function salvar(dados)   { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dados)); }
-  function carregar()      { try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY)); } catch (e) { return null; } }
-  function limpar()        { sessionStorage.removeItem(STORAGE_KEY); }
+  // ── Persistência — localStorage (sobrevive à nova aba) ──────────────────────
+  function salvar(dados)  { localStorage.setItem(STORAGE_KEY, JSON.stringify(dados)); }
+  function carregar()     { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; } }
+  function limpar()       { localStorage.removeItem(STORAGE_KEY); }
 
-  // ── Helpers DOM ───────────────────────────────────────────────────────────────
+  // ── Helpers DOM ──────────────────────────────────────────────────────────────
   function aguardar(seletor, timeout) {
     timeout = timeout || 8000;
     return new Promise(function (resolve, reject) {
@@ -92,22 +98,10 @@
         if (found) { obs.disconnect(); resolve(found); }
       });
       obs.observe(document.body, { childList: true, subtree: true });
-      setTimeout(function () { obs.disconnect(); reject(new Error('Timeout aguardar: ' + seletor)); }, timeout);
+      setTimeout(function () { obs.disconnect(); reject(new Error('Timeout: ' + seletor)); }, timeout);
     });
   }
 
-  function aguardarUrl(pattern, timeout) {
-    timeout = timeout || 10000;
-    return new Promise(function (resolve, reject) {
-      if (pattern.test(window.location.href)) return resolve();
-      var iv = setInterval(function () {
-        if (pattern.test(window.location.href)) { clearInterval(iv); resolve(); }
-      }, 200);
-      setTimeout(function () { clearInterval(iv); reject(new Error('Timeout URL')); }, timeout);
-    });
-  }
-
-  // ── Preenchimento de input (Angular-safe) ─────────────────────────────────────
   function preencherInput(input, valor) {
     if (!input || valor === null || valor === undefined) return;
     var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
@@ -117,7 +111,6 @@
     });
   }
 
-  // currencymask espera float numérico: "1.624.491,78" → "1624491.78"
   function preencherMonetario(input, valorBR) {
     if (!input || !valorBR) return;
     var numerico = valorBR.replace(/\./g, '').replace(',', '.');
@@ -128,54 +121,69 @@
     return document.querySelector('input[data-placeholder="' + ph + '"]');
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PASSO 1 — Extrair decisão + navegar para /cadastro
-  // Chamado pelo painel quando em /processo/[id]/detalhe
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── PASSO 1 — Extrair + abrir /cadastro em nova aba ────────────────────────
   async function executar() {
-    var url     = window.location.href;
+    var url = window.location.href;
     var idMatch = url.match(/\/processo\/(\d+)\/detalhe/);
-    if (!idMatch) {
-      console.error('[PjeRegistrarDebito] Execute em /processo/[id]/detalhe.');
-      return;
-    }
+    if (!idMatch) { console.error('[PjeRegistrarDebito] Execute em /processo/[id]/detalhe.'); return; }
     var processoId = idMatch[1];
 
-    if (typeof window.pjeExtrair !== 'function') {
-      console.error('[PjeRegistrarDebito] window.pjeExtrair não disponível — verifique se extrair.js está carregado.');
+    // Verifica se há documento aberto no viewer
+    var obj = document.querySelector('object.conteudo-pdf');
+    if (!obj) {
+      alert('⚠️ Abra um documento no visualizador antes de clicar em Débito.\n\nClique no documento de homologação na timeline e tente novamente.');
       return;
     }
 
-    console.log('[PjeRegistrarDebito] ⏳ Extraindo documento ativo...');
-    var extractor = (typeof window.PjeExtrair === 'function') ? window.PjeExtrair : ((typeof window.pjeExtrair === 'function') ? window.pjeExtrair : null);
-    if (!extractor) {
-      console.error('[PjeRegistrarDebito] ❌ Extrator não disponível — verifique se core/extrair.js foi carregado.');
+    var extractor = window.pjeExtrair || window.PjeExtrair;
+    if (typeof extractor !== 'function') {
+      console.error('[PjeRegistrarDebito] pjeExtrair não disponível.');
       return;
     }
-    // solicitar explicitamente o object viewer quando possível
-    var res = await extractor({ selector: 'object.conteudo-pdf', timeout: 2000 }).catch(function (e) { return { sucesso: false, erro: e && e.message ? e.message : String(e) }; });
+
+    console.log('[PjeRegistrarDebito] ⏳ Extraindo...');
+    var res = await extractor().catch(function (e) {
+      return { sucesso: false, erro: e && e.message ? e.message : String(e) };
+    });
 
     if (!res.sucesso) {
       console.error('[PjeRegistrarDebito] ❌ Falha na extração:', res.erro);
+      alert('❌ Falha na extração:\n' + res.erro + '\n\nVerifique se o documento está aberto no visualizador.');
       return;
     }
 
-    var dados = extrairDados(res.conteudo_bruto || res.conteudo);
+    // Log do texto extraído para debug
+    var textoRaw = res.conteudo_bruto || res.conteudo || '';
+    console.log('[PjeRegistrarDebito] 📄 Texto extraído (' + textoRaw.length + ' chars):');
+    console.log(textoRaw.substring(0, 800));
+
+    var dados = extrairDados(textoRaw);
     dados._processoId = processoId;
 
     console.log('[PjeRegistrarDebito] ✅ Dados extraídos:', dados);
+
+    // Aviso se nenhum valor foi encontrado
+    var algumValor = dados.credito || dados.fgts || dados.inss || dados.honAdv || dados.honPericiais;
+    if (!algumValor) {
+      var continuar = confirm(
+        '⚠️ Nenhum valor monetário foi extraído do documento.\n\n' +
+        'Verifique no console (F12) o texto extraído.\n\n' +
+        'Deseja abrir a página de cadastro mesmo assim?'
+      );
+      if (!continuar) return;
+    }
+
     salvar(dados);
 
-    window.location.href = 'https://pje.trt2.jus.br/pjekz/obrigacao-pagar/' + processoId + '/cadastro';
+    // Abre em nova aba (não navega da aba atual)
+    var urlCadastro = 'https://pje.trt2.jus.br/pjekz/obrigacao-pagar/' + processoId + '/cadastro';
+    window.open(urlCadastro, '_blank');
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PASSO 2 — Selecionar partes + clicar Próximo
-  // URL: /obrigacao-pagar/[id]/cadastro
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── PASSO 2 — /cadastro: marcar partes + avançar ────────────────────────────
   async function onCadastro() {
     var dados = carregar();
-    if (!dados) { console.warn('[PjeRegistrarDebito] Sem estado em sessão — abortando.'); return; }
+    if (!dados) { console.warn('[PjeRegistrarDebito] Sem dados em localStorage.'); return; }
 
     try {
       await aguardar('table.t-class', 8000);
@@ -203,7 +211,19 @@
       if (!btnProximo) { console.error('[PjeRegistrarDebito] Botão Próximo não encontrado.'); return; }
       btnProximo.click();
 
-      await aguardarUrl(/\/obrigacao-pagar\/\d+\/inclusao/, 10000);
+      // Aguarda navegação SPA para /inclusao
+      var timeout = 10000;
+      var started = Date.now();
+      await new Promise(function (resolve, reject) {
+        var iv = setInterval(function () {
+          if (/\/obrigacao-pagar\/\d+\/inclusao/.test(window.location.href)) {
+            clearInterval(iv); resolve();
+          } else if (Date.now() - started > timeout) {
+            clearInterval(iv); reject(new Error('Timeout esperando /inclusao'));
+          }
+        }, 200);
+      });
+
       await _utils.sleep(600);
       await onInclusao();
 
@@ -212,25 +232,20 @@
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // PASSO 3 — Preencher campos + exibir card de resumo
-  // URL: /obrigacao-pagar/[id]/inclusao
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── PASSO 3 — /inclusao: preencher campos ───────────────────────────────────
   async function onInclusao() {
     var dados = carregar();
-    if (!dados) { console.warn('[PjeRegistrarDebito] Sem estado em sessão — abortando.'); return; }
+    if (!dados) { console.warn('[PjeRegistrarDebito] Sem dados em localStorage.'); return; }
 
     try {
       await aguardar('input[data-placeholder="Crédito do demandante"]', 8000);
       await _utils.sleep(400);
 
-      // Data do Cálculo
       if (dados.dataCalculo) {
         var inputData = inputPorPlaceholder('Data do Cálculo');
         if (inputData) preencherInput(inputData, dados.dataCalculo);
       }
 
-      // Campos monetários → mapeamento placeholder : valor extraído
       var mapa = [
         ['Crédito do demandante',      dados.credito],
         ['Contribuição Previdenciária', dados.inss],
@@ -246,9 +261,9 @@
         var input = inputPorPlaceholder(placeholder);
         if (input) {
           preencherMonetario(input, valor);
-          await _utils.sleep(120);
+          await _utils.sleep(150);
         } else {
-          console.warn('[PjeRegistrarDebito] Campo "' + placeholder + '" não encontrado na página.');
+          console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + placeholder + '"');
         }
       }
 
@@ -261,9 +276,7 @@
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Card de resumo — centro-inferior da página
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Card de resumo ───────────────────────────────────────────────────────────
   function _mostrarCard(dados) {
     var id = 'pje-debito-resumo-card';
     var existing = document.getElementById(id);
@@ -273,35 +286,34 @@
       if (!valor) return '';
       return '<tr>'
         + '<td style="color:#a6adc8;padding:4px 14px 4px 0;font-size:12px;white-space:nowrap">' + label + '</td>'
-        + '<td style="font-weight:700;font-size:13px;padding:4px 0;color:#cdd6f4">R$ ' + valor + '</td>'
-        + '<td style="color:#6c7086;font-size:11px;padding:4px 0 4px 10px">' + (detalhe || '') + '</td>'
+        + '<td style="font-weight:700;font-size:13px;color:#cdd6f4">R$ ' + valor + '</td>'
+        + '<td style="color:#6c7086;font-size:11px;padding-left:10px">' + (detalhe || '') + '</td>'
         + '</tr>';
     }
 
-    var inssDetalhe = dados.inssDetalhes
-      ? ('Rec: ' + (dados.inssDetalhes.reclamante || '—') + ' · Rcd: ' + (dados.inssDetalhes.reclamada || '—'))
+    var inssD = dados.inssDetalhes
+      ? 'Rec: ' + (dados.inssDetalhes.reclamante || '—') + ' · Rcd: ' + (dados.inssDetalhes.reclamada || '—')
       : '';
-    var honAdvDetalhe = dados.honAdvDetalhes
-      ? ('Autor: ' + (dados.honAdvDetalhes.autor || '—') + ' · Réu: ' + (dados.honAdvDetalhes.reu || '—'))
+    var honD = dados.honAdvDetalhes
+      ? 'Autor: ' + (dados.honAdvDetalhes.autor || '—') + ' · Réu: ' + (dados.honAdvDetalhes.reu || '—')
       : '';
 
     var html = '<div id="' + id + '" style="'
       + 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
       + 'background:#1e1e2e;color:#cdd6f4;border-radius:10px;'
       + 'box-shadow:0 6px 28px rgba(0,0,0,.55);padding:16px 22px;'
-      + 'z-index:99999;min-width:400px;font-family:sans-serif;'
-      + 'border:1px solid #313244;">'
+      + 'z-index:99999;min-width:400px;font-family:sans-serif;border:1px solid #313244;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
       +   '<span style="font-weight:700;font-size:14px;color:#cba6f7">📋 Débito Registrado</span>'
       +   '<span style="color:#6c7086;font-size:11px">' + (dados.dataCalculo || '') + '</span>'
       +   '<button onclick="document.getElementById(\'' + id + '\').remove()" '
-      +     'style="background:none;border:none;color:#6c7086;cursor:pointer;font-size:17px;line-height:1;padding:0 2px;margin-left:12px">✕</button>'
+      +     'style="background:none;border:none;color:#6c7086;cursor:pointer;font-size:17px;margin-left:12px">✕</button>'
       + '</div>'
       + '<table style="width:100%;border-collapse:collapse">'
       +   row('Crédito Principal', dados.credito)
       +   row('FGTS',              dados.fgts)
-      +   row('INSS',              dados.inss,        inssDetalhe)
-      +   row('Hon. Advocatícios', dados.honAdv,      honAdvDetalhe)
+      +   row('INSS',              dados.inss,        inssD)
+      +   row('Hon. Advocatícios', dados.honAdv,      honD)
       +   row('Custas',            dados.custas)
       +   row('Hon. Periciais',    dados.honPericiais)
       + '</table>'
@@ -310,16 +322,22 @@
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
-  // autoInit removed: orquestrador centraliza chamadas para onCadastro/onInclusao
+  // ── Auto-init nas páginas de obrigacao-pagar ─────────────────────────────────
+  (function autoInit() {
+    var url = window.location.href;
+    if (/\/obrigacao-pagar\/\d+\/cadastro/.test(url)) {
+      setTimeout(onCadastro, 1500);
+    } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(url)) {
+      setTimeout(onInclusao, 1500);
+    }
+  })();
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // API Pública
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── API Pública ───────────────────────────────────────────────────────────────
   window.PjeRegistrarDebito = {
-    executar:     executar,    // chamar do painel em /detalhe
-    onCadastro:   onCadastro,  // chamada explícita pelo orquestrador se necessário
-    onInclusao:   onInclusao,  // chamada explícita pelo orquestrador se necessário
-    extrairDados: extrairDados // utilitário de teste/debug
+    executar:     executar,
+    onCadastro:   onCadastro,
+    onInclusao:   onInclusao,
+    extrairDados: extrairDados
   };
 
   console.log('[PjeRegistrarDebito] ✅ Módulo carregado.');

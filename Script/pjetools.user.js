@@ -60,7 +60,15 @@
                 const res  = await fetch(base + path + cb);
                 if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + path);
                 const code = await res.text();
-                new Function(code)();
+
+                // Injeta o código diretamente no window real da página
+                await new Promise((resolve) => {
+                    const s = document.createElement('script');
+                    s.textContent = code;
+                    document.head.appendChild(s);
+                    resolve();
+                });
+
                 console.log('[PJeLoader] ✓', path);
             } catch (e) {
                 console.error('[PJeLoader] ✗', path, e.message || e);

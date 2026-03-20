@@ -23,12 +23,17 @@
 
 (async function () {
     'use strict';
-    // Inline dynamic loader: carrega módulos em runtime (cache-bust automático)
     if (window.self !== window.top) return;
 
     const url = window.location.href;
+
+    const isReceita  = url.includes('cav.receita.fazenda.gov.br');
+    const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
     const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
 
+    if (isReceita || isSisbajud) return;
+
+    // ── Carrega módulos ANTES de qualquer roteamento
     if (isPjeDomain) {
         const BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
         const CB   = '?cb=' + Date.now();
@@ -50,102 +55,78 @@
             'modules/debito/registrar_debito.js',
         ];
 
-        async function loadScript(path) {
+        async function loadScript(base, cb, path) {
             try {
-                const res = await fetch(BASE + path + CB);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const res  = await fetch(base + path + cb);
+                if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + path);
                 const code = await res.text();
-                const fn = new Function(code);
-                fn();
-                console.log('[PJeLoader] loaded:', path);
+                new Function(code)();
+                console.log('[PJeLoader] ✓', path);
             } catch (e) {
-                console.error('[PJeLoader] Falha ao carregar:', path, e);
+                console.error('[PJeLoader] ✗', path, e.message || e);
             }
         }
 
-        // Carrega em série para respeitar dependências
         for (const path of MODULES) {
-            // pequeno await para evitar throttling em alguns ambientes
-            // e garantir ordem determinística
+            // load sequentially to respect dependencies
             // eslint-disable-next-line no-await-in-loop
-            await loadScript(path);
+            await loadScript(BASE, CB, path);
         }
 
-        console.log('[PJeLoader] ✅ Todos os módulos carregados.');
-    }
+        console.log('[PJeLoader] ✅ Módulos carregados.');
 
-    const isReceita = url.includes('cav.receita.fazenda.gov.br');
-    const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
-    const isMinutas = url.includes('/comunicacoesprocessuais/minutas');
-    const isPagamento = url.includes('/pagamento/') && url.includes('/cadastro');
-    const isDetalhe = /\/processo\/\d+\/detalhe/.test(url);
-    const isObrigacao = url.includes('/obrigacao-pagar/');
+        // ── Roteamento (só roda DEPOIS de tudo carregado)
+        const isMinutas  = url.includes('/comunicacoesprocessuais/minutas');
+        const isDetalhe  = /\/processo\/\d+\/detalhe/.test(url);
+        const isObrigacao = url.includes('/obrigacao-pagar/');
 
-    if (isReceita) return;
-    if (isSisbajud) return;
+        if (isMinutas) {
+            if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
+            document.documentElement.setAttribute('data-pjetools-worker', '1');
+            console.log('[Loader] Iniciando Worker Infojud...');
+            window.addEventListener('load', () => setTimeout(() => {
+                window.runInfojudWorker && window.runInfojudWorker();
+            }, 2500));
+            return;
+        }
 
-    if (isMinutas) {
-        // Bloqueio de execução múltipla
-        if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
-        document.documentElement.setAttribute('data-pjetools-worker', '1');
-
-        console.log('[Loader] Iniciando Worker Infojud...');
-        
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                // Chama a função exposta no infojud.js refatorado
-                if (typeof window.runInfojudWorker === 'function') {
-                    window.runInfojudWorker();
-                } else {
-                    console.error('[Loader] Falha: Módulo Infojud não responde.');
-                }
-            }, 2500); // Aguarda carregamento do Angular/PJe
-        });
-        return;
-    }
-
-    if (isPagamento) return;
-    if (isObrigacao) {
-        window.addEventListener('load', () => {
+        if (isObrigacao) {
             setTimeout(() => {
                 try {
                     if (/\/obrigacao-pagar\/\d+\/cadastro/.test(url)) {
-                        if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.onCadastro === 'function') {
-                            window.PjeRegistrarDebito.onCadastro();
-                        }
+                        window.PjeRegistrarDebito && window.PjeRegistrarDebito.onCadastro && window.PjeRegistrarDebito.onCadastro();
                     } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(url)) {
-                        if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.onInclusao === 'function') {
-                            window.PjeRegistrarDebito.onInclusao();
-                        }
+                        window.PjeRegistrarDebito && window.PjeRegistrarDebito.onInclusao && window.PjeRegistrarDebito.onInclusao();
                     }
                 } catch (e) { console.error('[Loader] erro ao iniciar PjeRegistrarDebito:', e); }
-            }, 600);
-        });
-        return;
-    }
-    if (!isDetalhe) return;
+            }, 1500);
+            return;
+        }
 
-    // ── Detalhe: registrar SPA monitor uma vez e inicializar ──────
-    if (!window.__pjeToolsLoaded) {
-        window.__pjeToolsLoaded = true;
+        if (!isDetalhe) return;
 
-        window.monitorarSPA && window.monitorarSPA(() => {
-            window.PJeState && window.PJeState.dispose();
-            setTimeout(() => {
-                if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
-                    bootDetalhe();
-                }
-            }, 300);
-        });
-    }
+        // ── Detalhe: registrar SPA monitor uma vez e inicializar
+        if (!window.__pjeToolsLoaded) {
+            window.__pjeToolsLoaded = true;
 
-    bootDetalhe();
+            window.monitorarSPA && window.monitorarSPA(() => {
+                window.PJeState && window.PJeState.dispose();
+                setTimeout(() => {
+                    if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
+                        bootDetalhe();
+                    }
+                }, 300);
+            });
+        }
 
-    function bootDetalhe() {
-        if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
-        if (!window.PJeState || window.PJeState._iniciado) return;
-        window.PJeState._iniciado = true;
-        window.inicializarPainel && window.inicializarPainel();
-        window.initAtalhos && window.initAtalhos();
+        bootDetalhe();
+
+        function bootDetalhe() {
+            if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
+            if (!window.PJeState || window.PJeState._iniciado) return;
+            window.PJeState._iniciado = true;
+            window.inicializarPainel && window.inicializarPainel();
+            window.initAtalhos && window.initAtalhos();
+        }
     }
 })();

@@ -1,4 +1,4 @@
-// Refatorado: Infojud + UI discreta + exposicao para Loader
+// Refatorado: Infojud + UI discreta + exposicao para PJe (via userscript)
 (function () {
     'use strict';
 
@@ -159,7 +159,7 @@
     }
 
     // =================================================================================
-    // INTEGRAÇÃO: EXPOSIÇÃO PARA O LOADER (Módulo PJe completo)
+    // INTEGRAÇÃO: EXPOSIÇÃO PARA O USERSCRIPT (Módulo PJe completo)
     // =================================================================================
     if (URL_ATUAL.includes('pje.trt2.jus.br')) {
         window.runInfojudWorker = function runInfojudWorker() {

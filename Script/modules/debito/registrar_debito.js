@@ -67,9 +67,24 @@
       ? _utils.formatMoney(_utils.parseMoney(honAdvRcd) + _utils.parseMoney(honAdvRec))
       : null;
 
-    var somaPericiais = isPrimeiro
-      ? [m(RE.honTecnicos), m(RE.honMedicos), m(RE.honContabeis), m(RE.honConhecimento)]
-          .reduce(function (a, v) { return a + _utils.parseMoney(v); }, 0)
+    var periciaisList = [];
+    if (isPrimeiro) {
+      var perRegexes = [RE.honTecnicos, RE.honMedicos, RE.honContabeis, RE.honConhecimento];
+      perRegexes.forEach(function (r) {
+        var match = txt.match(r);
+        if (!match) return;
+        // obter primeiro grupo com valor
+        var val = null; for (var i = 1; i < match.length; i++) { if (match[i]) { val = match[i].trim(); break; } }
+        if (!val) return;
+        var idx = txt.search(r);
+        var ctx = txt.substr(Math.max(0, idx - 20), 140).toLowerCase();
+        // Ignorar se o contexto indicar que foi pago pelo TRT ou pelo reclamante
+        if (/pago[s]? pelo trt|pelo trt|pago[s]? pelo reclamante|pelo reclamante|somente o reclamante/i.test(ctx)) return;
+        periciaisList.push(val);
+      });
+    }
+    var somaPericiais = periciaisList.length
+      ? periciaisList.map(function (v) { return _utils.parseMoney(v); }).reduce(function (a, b) { return a + b; }, 0)
       : 0;
 
     return {
@@ -82,6 +97,7 @@
       honAdvDetalhes: { autor: honAdvRcd, reu: honAdvRec },
       custas:         isPrimeiro ? m(RE.custas) : null,
       honPericiais:   somaPericiais > 0 ? _utils.formatMoney(somaPericiais) : null,
+      honPericiaisDetalhes: periciaisList.length ? periciaisList : null,
     };
   }
 
@@ -355,7 +371,7 @@
     }
 
     var inssD = dados.inssDetalhes
-      ? 'Autor: ' + (dados.inssDetalhes.reclamante || '—') + ' · Rcd: ' + (dados.inssDetalhes.reclamada || '—')
+      ? 'Autor: ' + (dados.inssDetalhes.reclamante || '—') + ' + Réu: ' + (dados.inssDetalhes.reclamada || '—')
       : '';
     var honD = dados.honAdvDetalhes
       ? 'Autor: ' + (dados.honAdvDetalhes.autor || '—') + ' · Réu: ' + (dados.honAdvDetalhes.reu || '—')
@@ -378,10 +394,10 @@
       + '<table style="width:100%;border-collapse:collapse">'
       +   row('Crédito Principal', dados.credito)
       +   row('FGTS',              dados.fgts)
-      +   row('INSS (total)',       dados.inss, inssD)
-      +   row('Hon. Advocatícios', dados.honAdv, honD)
-      +   row('Custas',            dados.custas)
-      +   row('Hon. Periciais',    dados.honPericiais)
+      +   row('INSS',               dados.inss, inssD)
+      +   row('Hon. Advocatícios',  dados.honAdv, honD)
+      +   row('Custas',             dados.custas)
+      +   row('Hon. Periciais',    (dados.honPericiais ? (dados.honPericiais + (dados.honPericiaisDetalhes ? ' [' + dados.honPericiaisDetalhes.join(' + ') + ']' : '') ) : null) )
       + '</table>'
       + '</div>'
     );

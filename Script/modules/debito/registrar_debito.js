@@ -235,11 +235,12 @@
       }
 
       var mapa = [
-        ['Crédito do demandante',      dados.credito],
-        ['Contribuição Previdenciária', dados.inss],
-        ['Custas',                      dados.custas],
-        ['Honorários Advocatícios',     dados.honAdv],
-        ['Honorários Periciais',        dados.honPericiais],
+        ['Crédito do demandante',       dados.credito],
+        ['Outras Obrigações Pecuniárias', dados.fgts],
+        ['Contribuição Previdenciária',  dados.inss],
+        ['Custas',                       dados.custas],
+        ['Honorários Advocatícios',      dados.honAdv],
+        ['Honorários Periciais',         dados.honPericiais],
       ];
 
       for (var i = 0; i < mapa.length; i++) {
@@ -253,6 +254,26 @@
         } else {
           console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + placeholder + '"');
         }
+      }
+
+      // Forçar reconhecimento do Angular: simula edição humana no campo de crédito
+      var inputCredito = inputPorPlaceholder('Crédito do demandante');
+      if (inputCredito && inputCredito.value) {
+        inputCredito.focus();
+        await _utils.sleep(150);
+
+        var valorAtual = inputCredito.value;
+        var ultimoChar = valorAtual.slice(-1);
+        var semUltimo  = valorAtual.slice(0, -1);
+
+        // Apaga último caractere
+        preencherInput(inputCredito, semUltimo);
+        await _utils.sleep(150);
+
+        // Redigita
+        preencherInput(inputCredito, valorAtual);
+        inputCredito.dispatchEvent(new Event('blur', { bubbles: true }));
+        await _utils.sleep(150);
       }
 
       _mostrarCard(dados);

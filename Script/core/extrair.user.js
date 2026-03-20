@@ -147,4 +147,35 @@
 
   window.PjeExtrair = window.pjeExtrair;
 
+// Injeta um botão de teste na página de detalhe para acionar a extração manualmente
+(function injectButton(){
+  try {
+    if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
+    if (document.getElementById('pjeextrair-standalone-btn')) return;
+    // Aguarda curto período para garantir que o DOM principal esteja pronto
+    setTimeout(() => {
+      try {
+        const btn = document.createElement('button');
+        btn.id = 'pjeextrair-standalone-btn';
+        btn.textContent = '🔎 Extrair Documento';
+        btn.style.cssText = 'position:fixed;bottom:120px;right:20px;z-index:9999999;' +
+          'background:#17a2b8;color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18);font-weight:600;';
+        btn.onclick = async function () {
+          btn.disabled = true; btn.textContent = 'Extraindo...';
+          try {
+            const res = await window.PjeExtrair();
+            console.log('[PjeExtrairStandalone] resultado:', res);
+            alert('Extração: ' + (res.sucesso ? 'OK' : 'ERRO') + (res.erro ? '\n' + res.erro : ''));
+          } catch (e) {
+            console.error('[PjeExtrairStandalone] erro:', e);
+            alert('Erro na extração: ' + (e && e.message ? e.message : String(e)));
+          }
+          btn.disabled = false; btn.textContent = '🔎 Extrair Documento';
+        };
+        document.body.appendChild(btn);
+      } catch (e) { console.error('[PjeExtrairStandalone] inject append error', e); }
+    }, 800);
+  } catch (e) { console.error('[PjeExtrairStandalone] inject error', e); }
+})();
+
 })();

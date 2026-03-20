@@ -25,6 +25,9 @@
     'use strict';
     if (window.self !== window.top) return;
 
+    // W = window real da página (unsafeWindow quando disponível)
+    const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+
     const url = window.location.href;
 
     const isReceita  = url.includes('cav.receita.fazenda.gov.br');
@@ -93,7 +96,7 @@
             document.documentElement.setAttribute('data-pjetools-worker', '1');
             console.log('[Loader] Iniciando Worker Infojud...');
             window.addEventListener('load', () => setTimeout(() => {
-                window.runInfojudWorker && window.runInfojudWorker();
+                W.runInfojudWorker && W.runInfojudWorker();
             }, 2500));
             return;
         }
@@ -102,9 +105,9 @@
             setTimeout(() => {
                 try {
                     if (/\/obrigacao-pagar\/\d+\/cadastro/.test(url)) {
-                        window.PjeRegistrarDebito && window.PjeRegistrarDebito.onCadastro && window.PjeRegistrarDebito.onCadastro();
+                        W.PjeRegistrarDebito?.onCadastro();
                     } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(url)) {
-                        window.PjeRegistrarDebito && window.PjeRegistrarDebito.onInclusao && window.PjeRegistrarDebito.onInclusao();
+                        W.PjeRegistrarDebito?.onInclusao();
                     }
                 } catch (e) { console.error('[Loader] erro ao iniciar PjeRegistrarDebito:', e); }
             }, 1500);
@@ -118,7 +121,7 @@
             window.__pjeToolsLoaded = true;
 
             window.monitorarSPA && window.monitorarSPA(() => {
-                window.PJeState && window.PJeState.dispose();
+                W.PJeState && W.PJeState.dispose();
                 setTimeout(() => {
                     if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
                         bootDetalhe();
@@ -131,10 +134,10 @@
 
         function bootDetalhe() {
             if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
-            if (!window.PJeState || window.PJeState._iniciado) return;
-            window.PJeState._iniciado = true;
-            window.inicializarPainel && window.inicializarPainel();
-            window.initAtalhos && window.initAtalhos();
+            if (!W.PJeState || W.PJeState._iniciado) return;
+            W.PJeState._iniciado = true;
+            W.inicializarPainel && W.inicializarPainel();
+            W.initAtalhos && W.initAtalhos();
         }
     }
 })();

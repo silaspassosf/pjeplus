@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.5
+// @version      2.1.6
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -20,6 +20,21 @@
 // @grant        window.close
 // @grant        unsafeWindow
 // @run-at       document-idle
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/utils.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/state.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/extrair.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.timeline.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.check.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.edital.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/lista/lista.pgto.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/atalhos/atalhos.worker.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/ui/painel.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/infojud/infojud.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/core.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/relatorios.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/sisbajud/sisbajud.js
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/modules/debito/registrar_debito.js
 // ==/UserScript==
 
 (async function () {
@@ -35,10 +50,11 @@
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');
     const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
 
-    if (isReceita || isSisbajud) return;
+    // (No match da Receita, content scripts já estão via @require em header)
+    if (isSisbajud) return;
 
-    // ── Carrega módulos ANTES de qualquer roteamento
-    if (isPjeDomain) {
+    // ── Roteamento (roda depois de todos os @require carregados)
+    if (isPjeDomain || isReceita) {
         const BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
         const CB   = '?cb=' + Date.now();
         const MODULES = [

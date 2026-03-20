@@ -20,20 +20,19 @@
 
   // ── Padrões de extração ────────────────────────────────────────────────────
   const RE = {
-    dataCalculo: /atualizados?\s+para\s+(\d{2}\/\d{2}\/\d{4})/i,
+    // FIX: Tolerância a quebras de linha e espaços entre "atualizado" e a data
+    dataCalculo: /atualizad[\s\S]{0,60}?(\d{2}\/\d{2}\/\d{4})/i,
+    
+    // FIX: Plano B - Procura uma data até 100 caracteres antes ou depois da palavra INSS
+    dataCalculoFallback: /inss[\s\S]{0,100}?(\d{2}\/\d{2}\/\d{4})|(\d{2}\/\d{2}\/\d{4})[\s\S]{0,100}?inss/i,
+
     credito:     /crédito\s+do\s+(?:autor|reclamante|demandante)[\s\S]{0,30}?R\$\s*([\d.,]+)/i,
     fgts:        /R\$\s*([\d.,]+)[\s\S]{0,30}?FGTS|FGTS[\s\S]{0,60}?R\$\s*([\d.,]+)/i,
-
-    // FIX 1: captura tanto "(cota do reclamante)" quanto "descontos previdenciários (cota do reclamante)"
     inssReclamante: /\(cota\s+do\s+reclamante\)[\s\S]{0,100}?R\$\s*([\d.,]+)/i,
     inssReclamada:  /cota-parte\s+no\s+INSS[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
-
     honAdvReclamada:  /honorários\s+advocatícios\s+sucumbenciais\s+pela\s+reclamada[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
     honAdvReclamante: /honorários\s+sucumbenciais\s+pelo\s+(?:autor|reclamante)[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
-
-    // FIX 2: captura "Custas de R$X" E "Custas fixadas em R$X"
     custas: /custas\s+de\s+R\$\s*([\d.,]+)|custas[\s\S]{0,60}?fixadas?\s+em\s+R\$\s*([\d.,]+)/i,
-
     honTecnicos:    /honorários\s+técnicos[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
     honMedicos:     /honorários\s+médicos[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
     honContabeis:   /honorários\s+contábeis[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
@@ -87,8 +86,11 @@
       ? periciaisList.map(function (v) { return _utils.parseMoney(v); }).reduce(function (a, b) { return a + b; }, 0)
       : 0;
 
+    // Tenta achar a data pela palavra 'atualizado', se não achar, usa o fallback do 'INSS'
+    var dataCalc = m(RE.dataCalculo) || m(RE.dataCalculoFallback);
+
     return {
-      dataCalculo:    m(RE.dataCalculo),
+      dataCalculo:    dataCalc,
       credito:        m(RE.credito),
       fgts:           m(RE.fgts),
       inss:           inssTotal,
@@ -274,149 +276,115 @@ async function preencherMonetario(input, valorBR) {
     var estado = carregar();
     if (!estado || !estado.blocos) { console.warn('[PjeRegistrarDebito] Sem dados.'); return; }
 
-    var idx    = estado.blocoAtual || 0;
     var blocos = estado.blocos;
-    var dados  = blocos[idx];
-    var total  = blocos.length;
+    // Guardamos os blocos globalmente para os botões poderem acessar depois
+    window._pjeDebitoBlocos = blocos; 
 
     try {
       await aguardar('input[data-placeholder="Crédito do demandante"]', 8000);
       await _utils.sleep(400);
 
-      if (dados.dataCalculo) {
-        var inputData = inputPorPlaceholder('Data do Cálculo');
-        if (inputData) { preencherInput(inputData, dados.dataCalculo); await _utils.sleep(150); }
-      }
+      // Preenche APENAS o primeiro bloco automaticamente ao carregar a página
+      await _preencherCampos(blocos[0]);
 
-      var mapa = [
-        ['Crédito do demandante',         dados.credito],
-        ['Outras Obrigações Pecuniárias',  dados.fgts],
-        ['Contribuição Previdenciária',    dados.inss],
-        ['Custas',                         dados.custas],
-        ['Honorários Advocatícios',        dados.honAdv],
-        ['Honorários Periciais',           dados.honPericiais],
-      ];
+      // Mostra a interface unificada com o aviso e todos os blocos
+      _mostrarPainelResumo(blocos);
 
-      for (var i = 0; i < mapa.length; i++) {
-        var ph  = mapa[i][0], val = mapa[i][1];
-        if (!val) continue;
-        var inp = inputPorPlaceholder(ph);
-        if (inp) { await preencherMonetario(inp, val); await _utils.sleep(80); }
-        else console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + ph + '"');
-      }
-
-      // ... bloco removido: Trigger Angular ...
-
-      // Há mais blocos?
-      if (idx + 1 < total) {
-        // Atualiza índice e avisa o usuário
-        estado.blocoAtual = idx + 1;
-        salvar(estado);
-
-        _mostrarCardAviso(idx + 1, total);
-
-        // Aguarda botão Salvar ficar desabilitado (novo painel aberto pelo usuário)
-        await _aguardarSalvarDesabilitado();
-        await _utils.sleep(500);
-
-        // Preenche próximo bloco recursivamente
-        await onInclusao();
-
-      } else {
-        // Último bloco
-        _mostrarCard(dados, idx + 1, total);
-        limpar();
-        console.log('[PjeRegistrarDebito] ✅ Todos os ' + total + ' blocos preenchidos.');
-      }
+      // Limpa o storage, pois os dados já estão salvos na tela e na variável global
+      limpar();
+      console.log('[PjeRegistrarDebito] ✅ Painel carregado.');
 
     } catch (e) { console.error('[PjeRegistrarDebito] Erro em onInclusao:', e); }
   }
 
-  // ── Card de resumo ─────────────────────────────────────────────────────────────
-  // Card de aviso multi-bloco
-  function _mostrarCardAviso(proximoIdx, total) {
-    var id = 'pje-debito-aviso-card';
-    var el = document.getElementById(id);
-    if (el) el.remove();
-
-    var registrados = proximoIdx; // já preencheu até aqui
-    var restam      = total - proximoIdx;
-    var msg = registrados + ' cálculo(s) registrado(s). '
-      + (restam > 0
-          ? 'Clique em <b>Incluir Obrigação</b> para adicionar o próximo responsável.'
-          : 'Todos os cálculos registrados — finalizado.');
-
-    document.body.insertAdjacentHTML('beforeend',
-      '<div id="' + id + '" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
-      + 'background:#1e1e2e;color:#cdd6f4;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,.55);'
-      + 'padding:16px 22px;z-index:99999;min-width:400px;font-family:sans-serif;border:1px solid #fab387;">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:16px">'
-      +   '<span style="font-size:13px;color:#fab387">⚠️ Cálculos diversos detectados</span>'
-      +   '<button onclick="document.getElementById(\'' + id + '\').remove()" '
-      +     'style="background:none;border:none;color:#6c7086;cursor:pointer;font-size:17px">✕</button>'
-      + '</div>'
-      + '<p style="margin:10px 0 0;font-size:13px;line-height:1.5">' + msg + '</p>'
-      + '</div>'
-    );
-  }
-
-  // Aguarda botão Salvar ficar disabled (indica novo painel aberto)
-  function _aguardarSalvarDesabilitado(timeout) {
-    timeout = timeout || 30000;
-    return new Promise(function (resolve, reject) {
-      var started = Date.now();
-      var iv = setInterval(function () {
-        var btn = document.querySelector('button[name="salvar"]');
-        if (btn && btn.disabled) { clearInterval(iv); resolve(); }
-        if (Date.now() - started > timeout) { clearInterval(iv); reject(new Error('Timeout salvar disabled')); }
-      }, 300);
-    });
-  }
-  function _mostrarCard(dados, numAtual, total) {
-    var id = 'pje-debito-resumo-card';
-    var el = document.getElementById(id);
-    if (el) el.remove();
-
-    function row(label, valor, detalhe) {
-      if (!valor) return '';
-      return '<tr>'
-        + '<td style="color:#a6adc8;padding:4px 14px 4px 0;font-size:12px;white-space:nowrap">' + label + '</td>'
-        + '<td style="font-weight:700;font-size:13px;color:#cdd6f4">R$ ' + valor + '</td>'
-        + '<td style="color:#6c7086;font-size:11px;padding-left:10px">' + (detalhe || '') + '</td>'
-        + '</tr>';
+  // Lógica de preenchimento isolada para ser reusada pelos botões
+  async function _preencherCampos(dados) {
+    if (dados.dataCalculo) {
+      var inputData = inputPorPlaceholder('Data do Cálculo');
+      if (inputData) { preencherInput(inputData, dados.dataCalculo); await _utils.sleep(150); }
     }
 
-    var inssD = dados.inssDetalhes
-      ? 'Autor: ' + (dados.inssDetalhes.reclamante || '—') + ' + Réu: ' + (dados.inssDetalhes.reclamada || '—')
-      : '';
-    var honD = dados.honAdvDetalhes
-      ? 'Autor: ' + (dados.honAdvDetalhes.autor || '—') + ' · Réu: ' + (dados.honAdvDetalhes.reu || '—')
-      : '';
+    var mapa = [
+      ['Crédito do demandante',         dados.credito],
+      ['Outras Obrigações Pecuniárias',  dados.fgts],
+      ['Contribuição Previdenciária',    dados.inss],
+      ['Custas',                         dados.custas],
+      ['Honorários Advocatícios',        dados.honAdv],
+      ['Honorários Periciais',           dados.honPericiais],
+    ];
 
-    var titulo = total > 1
-      ? '📋 Débito Registrado (' + (numAtual || 1) + '/' + total + ')'
-      : '📋 Débito Registrado';
+    for (var i = 0; i < mapa.length; i++) {
+      var ph  = mapa[i][0], val = mapa[i][1];
+      if (!val) continue;
+      var inp = inputPorPlaceholder(ph);
+      if (inp) { await preencherMonetario(inp, val); await _utils.sleep(80); }
+      else console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + ph + '"');
+    }
+  }
 
-    document.body.insertAdjacentHTML('beforeend',
-      '<div id="' + id + '" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
-      + 'background:#1e1e2e;color:#cdd6f4;border-radius:10px;box-shadow:0 6px 28px rgba(0,0,0,.55);'
-      + 'padding:16px 22px;z-index:99999;min-width:420px;font-family:sans-serif;border:1px solid #313244;">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-      +   '<span style="font-weight:700;font-size:14px;color:#cba6f7">' + titulo + '</span>'
-      +   '<span style="color:#6c7086;font-size:11px">' + (dados.dataCalculo || '') + '</span>'
-      +   '<button onclick="document.getElementById(\'' + id + '\').remove()" '
-      +     'style="background:none;border:none;color:#6c7086;cursor:pointer;font-size:17px;margin-left:12px">✕</button>'
-      + '</div>'
-      + '<table style="width:100%;border-collapse:collapse">'
-      +   row('Crédito Principal', dados.credito)
-      +   row('FGTS',              dados.fgts)
-      +   row('INSS',               dados.inss, inssD)
-      +   row('Hon. Advocatícios',  dados.honAdv, honD)
-      +   row('Custas',             dados.custas)
-      +   row('Hon. Periciais',    (dados.honPericiais ? (dados.honPericiais + (dados.honPericiaisDetalhes ? ' [' + dados.honPericiaisDetalhes.join(' + ') + ']' : '') ) : null) )
-      + '</table>'
-      + '</div>'
-    );
+  // ── Painel Unificado de Resumo ────────────────────────────────────────────────
+  function _mostrarPainelResumo(blocos) {
+    var id = 'pje-debito-painel-resumo';
+    var el = document.getElementById(id);
+    if (el) el.remove();
+
+    var temVarios = blocos.length > 1;
+
+    // Container principal fixo no canto superior direito (para não cobrir os inputs centrais)
+    var html = '<div id="' + id + '" style="position:fixed;top:20px;right:30px;width:340px;'
+             + 'background:#1e1e2e;color:#cdd6f4;border-radius:8px;box-shadow:0 6px 28px rgba(0,0,0,.6);'
+             + 'z-index:99999;font-family:sans-serif;border:1px solid #313244;display:flex;flex-direction:column;max-height:90vh;">';
+
+    // CABEÇALHO / AVISO (Colado no topo)
+    html += '<div style="background:' + (temVarios ? '#fab387' : '#cba6f7') + ';color:#11111b;padding:12px 16px;border-radius:7px 7px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+          +   '<span style="font-weight:bold;font-size:14px;">'
+          +     (temVarios ? '⚠️ ' + blocos.length + ' Cálculos Detectados' : '📋 Débito Extraído')
+          +   '</span>'
+          +   '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:none;border:none;color:#11111b;cursor:pointer;font-size:16px;font-weight:bold;">✕</button>'
+          + '</div>';
+
+    // CONTEÚDO SCROLLÁVEL COM OS CARDS
+    html += '<div style="padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">';
+
+    blocos.forEach(function(dados, i) {
+      var inssD = dados.inssDetalhes ? ('Aut: ' + (dados.inssDetalhes.reclamante || '—') + ' | Réu: ' + (dados.inssDetalhes.reclamada || '—')) : '';
+      var honD = dados.honAdvDetalhes ? ('Aut: ' + (dados.honAdvDetalhes.autor || '—') + ' | Réu: ' + (dados.honAdvDetalhes.reu || '—')) : '';
+
+      function makeRow(label, valor, detalhe) {
+        if (!valor) return '';
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;border-bottom:1px solid #313244;padding-bottom:2px;">'
+             + '<span style="color:#a6adc8;">' + label + '</span>'
+             + '<span style="font-weight:bold;">R$ ' + valor + '</span>'
+             + '</div>'
+             + (detalhe ? '<div style="font-size:10px;color:#6c7086;text-align:right;margin-top:-2px;margin-bottom:6px;">' + detalhe + '</div>' : '');
+      }
+
+      // CARD DO BLOCO
+      html += '<div style="background:#181825;padding:12px;border-radius:6px;border:1px solid #45475a;">';
+      html += '<div style="font-weight:bold;font-size:13px;color:#89b4fa;margin-bottom:10px;">Bloco ' + (i + 1) + (i === 0 ? ' (Preenchido)' : '') + '</div>';
+
+      if (dados.dataCalculo) html += makeRow('Data', dados.dataCalculo);
+      html += makeRow('Principal', dados.credito);
+      html += makeRow('FGTS', dados.fgts);
+      html += makeRow('INSS', dados.inss, inssD);
+      html += makeRow('Honorários', dados.honAdv, honD);
+      html += makeRow('Custas', dados.custas);
+      var pDetalhes = dados.honPericiaisDetalhes ? ' [' + dados.honPericiaisDetalhes.join(' + ') + ']' : '';
+      html += makeRow('Periciais', dados.honPericiais, pDetalhes);
+
+      // BOTÃO DE INSERIR APENAS PARA OS PRÓXIMOS BLOCOS
+      if (i > 0) {
+         html += '<button onclick="window.PjeRegistrarDebito.acionarPreenchimento(this, ' + i + ')" '
+               + 'style="margin-top:10px;width:100%;padding:8px;background:#a6e3a1;color:#11111b;border:none;border-radius:4px;font-weight:bold;cursor:pointer;font-size:12px;transition:0.2s;">'
+               + '⬇️ Inserir Valores na Tela'
+               + '</button>';
+      }
+
+      html += '</div>';
+    });
+
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
   }
 
   // ── Auto-init ─────────────────────────────────────────────────────────────────
@@ -433,8 +401,20 @@ async function preencherMonetario(input, valorBR) {
     onInclusao:   onInclusao,
     extrairBlocos: extrairBlocos,
     extrairDadosDoPart: extrairDadosDoPart,
-    // compat: manter `extrairDados` como alias retornando blocos
-    extrairDados: extrairBlocos
+    extrairDados: extrairBlocos,
+    
+    // NOVO: Função chamada pelos botões "Inserir Valores" do painel
+    acionarPreenchimento: async function(btn, idx) {
+      if (!window._pjeDebitoBlocos) return;
+      btn.innerText = '⏳ Preenchendo...';
+      btn.style.opacity = '0.7';
+      btn.disabled = true;
+
+      await _preencherCampos(window._pjeDebitoBlocos[idx]);
+
+      btn.innerText = '✅ Valores Inseridos';
+      btn.style.background = '#89b4fa';
+    }
   };
 
   console.log('[PjeRegistrarDebito] ✅ Módulo carregado.');

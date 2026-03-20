@@ -5,29 +5,21 @@
 (async function () {
 
   const BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-  const CB   = '?cb=' + (Date.now()+1); // cache-bust — sempre fresh
+  const CB   = '?cb=' + (Date.now()+2); // cache-bust — sempre fresh
+  const isReceita = window.location.href.includes('cav.receita.fazenda.gov.br');
 
-  // ── Ordem de carregamento importa (dependências primeiro) ────────────────
-  const MODULES = [
-    // Core (sempre carregados)
-    'core/utils.js',
-    'core/state.js',
-    'core/extrair.js',
-
-    // Módulos PJe — carregados em runtime pelo loader
-    'modules/lista/lista.timeline.js',
-    'modules/lista/lista.check.js',
-    'modules/lista/lista.edital.js',
-    'modules/lista/lista.pgto.js',
-    'modules/atalhos/atalhos.js',
-    'modules/atalhos/atalhos.worker.js',
-    'ui/painel.js',
-    'modules/infojud/infojud.js',
-    'modules/sisbajud/core.js',
-    'modules/sisbajud/relatorios.js',
-    'modules/sisbajud/sisbajud.js',
-    'modules/debito/registrar_debito.js',
-  ];
+  const MODULES = isReceita
+    ? ['modules/infojud/infojud.js']
+    : [
+        'core/utils.js', 'core/state.js', 'core/extrair.js',
+        'modules/lista/lista.timeline.js', 'modules/lista/lista.check.js',
+        'modules/lista/lista.edital.js',   'modules/lista/lista.pgto.js',
+        'modules/atalhos/atalhos.js',      'modules/atalhos/atalhos.worker.js',
+        'ui/painel.js',
+        'modules/infojud/infojud.js',
+        'modules/sisbajud/core.js', 'modules/sisbajud/relatorios.js', 'modules/sisbajud/sisbajud.js',
+        'modules/debito/registrar_debito.js',
+      ];
 
   async function loadScript(path) {
     try {

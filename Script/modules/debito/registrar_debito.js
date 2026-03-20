@@ -142,23 +142,32 @@
 
   // FIX 3: cola o valor exatamente como extraído (ex: "1.624.491,78"), sem converter para float.
   // Remove apenas o prefixo "R$" se presente.
-  // Agora simula digitação caractere-a-caractere para que componentes Angular com mask aceitem o valor.
+  // Usa document.execCommand('insertText') para acionar pipeline nativo do browser
   async function preencherMonetario(input, valorBR) {
     if (!input || !valorBR) return;
     var valor = valorBR.replace(/R\$\s*/g, '').trim();
-    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    // start empty
-    setter.call(input, '');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    // digita caractere a caractere
-    for (var i = 0; i < valor.length; i++) {
-      setter.call(input, valor.slice(0, i + 1));
-      ['input', 'keyup'].forEach(function (evt) { input.dispatchEvent(new Event(evt, { bubbles: true })); });
-      await _utils.sleep(30);
-    }
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.dispatchEvent(new Event('blur', { bubbles: true }));
+
+    input.focus();
+    await _utils.sleep(60);
+
+    // Seleciona e apaga conteúdo atual
+    try { input.select(); } catch (e) {}
+    try { document.execCommand('selectAll', false, null); } catch (e) {}
+    try { document.execCommand('delete', false, null); } catch (e) {}
     await _utils.sleep(40);
+
+    // Insere texto via pipeline nativo do browser → currencymask + Angular detectam normalmente
+    try { document.execCommand('insertText', false, valor); } catch (e) {
+      // fallback para browsers que não suportem execCommand
+      var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, valor);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await _utils.sleep(60);
+
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new Event('blur',   { bubbles: true }));
+    await _utils.sleep(60);
   }
 
   function inputPorPlaceholder(ph) {

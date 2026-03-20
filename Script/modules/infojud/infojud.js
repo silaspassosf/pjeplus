@@ -235,22 +235,20 @@
             }
 
             function monitorarSinaisLocal() {
-                if (!rodandoLocal) return;
-                const status = _gmGet('GOD_STATUS', '');
+                                window.addEventListener('message', function handler(ev) {
+                                    if (!rodandoLocal) return;
+                                    if (ev.origin !== 'https://cav.receita.fazenda.gov.br') return;
 
-                if (status.startsWith('DADOS_PRONTOS_')) {
-                    const id = status.split('_')[2];
-                    if (id !== ultimoProcessadoLocal) { ultimoProcessadoLocal = id; aplicarLogicaMasterLocal(); }
-                } else if (status.startsWith('PULAR_')) {
-                    const id = status.split('_')[1];
-                    if (id !== ultimoProcessadoLocal) {
-                        ultimoProcessadoLocal = id;
-                        const linha = encontrarLinhaPorDocLocal(filaDocsLocal[atualLocal]);
-                        if (linha) linha.style.backgroundColor = '#ffccbc';
-                        atualLocal++; setTimeout(processarProximoLocal, 1000);
-                    }
-                }
-                setTimeout(monitorarSinaisLocal, 500);
+                                    if (ev.data?.type === 'GOD_DADOS_PRONTOS') {
+                                        _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(ev.data.dados));
+                                        aplicarLogicaMasterLocal();
+                                    } else if (ev.data?.type === 'GOD_PULAR') {
+                                        const linha = encontrarLinhaPorDocLocal(filaDocsLocal[atualLocal]);
+                                        if (linha) linha.style.backgroundColor = '#ffccbc';
+                                        atualLocal++;
+                                        setTimeout(processarProximoLocal, 1000);
+                                    }
+                                });
             }
 
             async function verificarExistenciaNaTabelaLocal(d) {

@@ -52,8 +52,10 @@
           if (emTabela) { acc.push(""); emTabela = false; }
           if (!linha.trim()) { if (acc[acc.length - 1] !== "") acc.push(""); return acc; }
           var up = linha.toUpperCase();
-          if (linha.length < 100 && /PLANILHA|DEMONSTRATIVO|RESUMO|CRÉDITO|DÉBITO/.test(up))
-            return acc.push("\n=== " + linha.trim() + " ===");
+          if (linha.length < 100 && /PLANILHA|DEMONSTRATIVO|RESUMO|CRÉDITO|DÉBITO/.test(up)) {
+            acc.push("\n=== " + linha.trim() + " ===");
+            return acc;
+          }
           acc.push(linha.trim());
         }
         return acc;

@@ -1,8 +1,7 @@
 'use strict';
 
-// Guard global: se não for /detalhe, nem registra nada
+// Painel: registra funções mesmo quando o script carrega fora da rota /detalhe
 (function () {
-    if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
 
     window.CSS_PAINEL = `
     .pjetools-destaque        { outline:3px solid #007bff!important; background:#e7f3ff!important; transition:.3s; }

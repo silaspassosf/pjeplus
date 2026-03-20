@@ -125,10 +125,10 @@
             if (label) {
                 const cpf = apenasNumeros(label.nextElementSibling.textContent);
                 window.opener?.postMessage({ type: 'GOD_CNPJ_CPF', cpf: cpf }, 'https://pje.trt2.jus.br');
-                try { window.close(); } catch (e) {}
+                mostrarNotificacao('CPF extraído com sucesso (CNPJ)');
             } else {
                 window.opener?.postMessage({ type: 'GOD_PULAR' }, 'https://pje.trt2.jus.br');
-                try { window.close(); } catch (e) {}
+                mostrarNotificacao('CNPJ não tem CPF disponível, pulando');
             }
         }, 800);
     } 

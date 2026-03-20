@@ -5,8 +5,9 @@
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
-// @match        https://pje.trt2.jus.br/pjekz/*
-// @match        https://pje1g.trt2.jus.br/pjekz/*
+// @match        https://pje.trt2.jus.br/*
+// @match        https://pje1g.trt2.jus.br/*
+// @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
 // ── Externos (domínios distintos mantidos individuais)
 // @match        https://sisbajud.cnj.jus.br/*
 // @match        https://sisbajud.pdpj.jus.br/*

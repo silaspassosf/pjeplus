@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.0
+// @version      2.1.1
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -12,7 +12,7 @@
 // @match        https://sisbajud.pdpj.jus.br/*
 // @match        https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/*
 // ── Único require: o loader (bumpar só ele ao adicionar módulos)
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/core/loader.js?v=1
+// (loader injetado inline — remove dependência externa)
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab
@@ -23,10 +23,56 @@
 
 (async function () {
     'use strict';
-
+    // Inline dynamic loader: carrega módulos em runtime (cache-bust automático)
     if (window.self !== window.top) return;
 
     const url = window.location.href;
+    const isPjeDomain = url.includes('pje.trt2.jus.br') || url.includes('pje1g.trt2.jus.br');
+
+    if (isPjeDomain) {
+        const BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
+        const CB   = '?cb=' + Date.now();
+        const MODULES = [
+            'core/utils.js',
+            'core/state.js',
+            'core/extrair.js',
+            'modules/lista/lista.timeline.js',
+            'modules/lista/lista.check.js',
+            'modules/lista/lista.edital.js',
+            'modules/lista/lista.pgto.js',
+            'modules/atalhos/atalhos.js',
+            'modules/atalhos/atalhos.worker.js',
+            'ui/painel.js',
+            'modules/infojud/infojud.js',
+            'modules/sisbajud/core.js',
+            'modules/sisbajud/relatorios.js',
+            'modules/sisbajud/sisbajud.js',
+            'modules/debito/registrar_debito.js',
+        ];
+
+        async function loadScript(path) {
+            try {
+                const res = await fetch(BASE + path + CB);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const code = await res.text();
+                const fn = new Function(code);
+                fn();
+                console.log('[PJeLoader] loaded:', path);
+            } catch (e) {
+                console.error('[PJeLoader] Falha ao carregar:', path, e);
+            }
+        }
+
+        // Carrega em série para respeitar dependências
+        for (const path of MODULES) {
+            // pequeno await para evitar throttling em alguns ambientes
+            // e garantir ordem determinística
+            // eslint-disable-next-line no-await-in-loop
+            await loadScript(path);
+        }
+
+        console.log('[PJeLoader] ✅ Todos os módulos carregados.');
+    }
 
     const isReceita = url.includes('cav.receita.fazenda.gov.br');
     const isSisbajud = url.includes('sisbajud.cnj.jus.br') || url.includes('sisbajud.pdpj.jus.br');

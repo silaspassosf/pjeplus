@@ -88,7 +88,14 @@
         if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
         criarPainel([
             { id: 'btnCheck', texto: '🔎 Check', bg: '#007bff', fn: executarCheck, titulo: 'Relatório de Medidas' },
-            { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' }
+            { id: 'btnEdital', texto: '📣 Edital', bg: '#28a745', fn: executarEdital, titulo: 'Relatório de Editais' },
+            { id: 'btnDebito', texto: '💵 Débito', bg: '#17a2b8', fn: function () {
+                    if (window.PjeRegistrarDebito && typeof window.PjeRegistrarDebito.executar === 'function') {
+                        window.PjeRegistrarDebito.executar();
+                    } else {
+                        showToast('Módulo Débito não carregado', '#dc3545', 3000);
+                    }
+                }, titulo: 'Registrar débito' }
         ]);
     };
 })();

@@ -142,10 +142,23 @@
 
   // FIX 3: cola o valor exatamente como extraído (ex: "1.624.491,78"), sem converter para float.
   // Remove apenas o prefixo "R$" se presente.
-  function preencherMonetario(input, valorBR) {
+  // Agora simula digitação caractere-a-caractere para que componentes Angular com mask aceitem o valor.
+  async function preencherMonetario(input, valorBR) {
     if (!input || !valorBR) return;
     var valor = valorBR.replace(/R\$\s*/g, '').trim();
-    preencherInput(input, valor);
+    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    // start empty
+    setter.call(input, '');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    // digita caractere a caractere
+    for (var i = 0; i < valor.length; i++) {
+      setter.call(input, valor.slice(0, i + 1));
+      ['input', 'keyup'].forEach(function (evt) { input.dispatchEvent(new Event(evt, { bubbles: true })); });
+      await _utils.sleep(30);
+    }
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new Event('blur', { bubbles: true }));
+    await _utils.sleep(40);
   }
 
   function inputPorPlaceholder(ph) {
@@ -274,7 +287,7 @@
         var ph  = mapa[i][0], val = mapa[i][1];
         if (!val) continue;
         var inp = inputPorPlaceholder(ph);
-        if (inp) { preencherMonetario(inp, val); await _utils.sleep(200); }
+        if (inp) { await preencherMonetario(inp, val); await _utils.sleep(80); }
         else console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + ph + '"');
       }
 

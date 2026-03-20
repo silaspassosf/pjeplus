@@ -60,8 +60,9 @@
       ? _utils.formatMoney(_utils.parseMoney(inssRec) + _utils.parseMoney(inssRcd))
       : null;
 
-    var honAdvRcd = isPrimeiro ? m(RE.honAdvReclamada)  : null;
-    var honAdvRec = isPrimeiro ? m(RE.honAdvReclamante) : null;
+    // Honorários advocatícios devem ser extraídos de TODOS os blocos
+    var honAdvRcd = m(RE.honAdvReclamada);
+    var honAdvRec = m(RE.honAdvReclamante);
     var honAdvTotal = (honAdvRcd || honAdvRec)
       ? _utils.formatMoney(_utils.parseMoney(honAdvRcd) + _utils.parseMoney(honAdvRec))
       : null;

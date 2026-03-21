@@ -79,8 +79,31 @@
   async function extrair(opts = {}) {
     var rootDoc = (opts.containerDocument && opts.containerDocument.nodeType === 9) ? opts.containerDocument : document;
 
-    // resolve element: prefer explicit element, then selector, then default object
-    var el = opts.element || (opts.selector && rootDoc.querySelector(opts.selector)) || rootDoc.querySelector("object.conteudo-pdf");
+  // ── NOVO: Editor HTML direto (documento não assinado) ───────────────
+  // Ativo quando não há <object class="conteudo-pdf"> no DOM
+  // e o conteúdo está em mat-card.container-html no próprio documento
+  var editorHtml = rootDoc.querySelector('mat-card.container-html mat-card-content.conteudo-html')
+                || rootDoc.querySelector('mat-card.container-html');
+
+  if (editorHtml && !opts.forcePdf) {
+    var bruto   = (editorHtml.innerText || editorHtml.textContent || '').trim();
+    var idx     = bruto.search(/CONCLUS[AÃ]O/i);
+    var fatiado = idx !== -1 ? bruto.slice(idx) : bruto;
+
+    if (fatiado.length < 50)
+      return { sucesso: false, tipo: 'html-editor', erro: 'conteúdo vazio ou muito curto' };
+
+    var conteudo = formatar(fatiado, 'html');
+    return {
+      sucesso:        true,
+      tipo:           'html-editor',
+      conteudo:       conteudo,
+      conteudo_bruto: fatiado,
+      chars:          conteudo.length
+    };
+  }
+  // ── fim bloco editor html direto ────────────────────────────────────
+
     if (!el) return { sucesso: false, erro: "elemento de visualização (object.conteudo-pdf) não encontrado" };
 
     var inner = el.contentDocument || (el.contentWindow && el.contentWindow.document);

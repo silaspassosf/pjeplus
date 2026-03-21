@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe - Extrator Universal (standalone)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  Versão standalone para testes: expõe window.pjeExtrair() e permite testes isolados
 // @match        https://pje.trt2.jus.br/*
 // @match        https://pje1g.trt2.jus.br/*

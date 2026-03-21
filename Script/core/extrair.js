@@ -82,8 +82,27 @@
   // ── NOVO: Editor HTML direto (documento não assinado) ───────────────
   // Ativo quando não há <object class="conteudo-pdf"> no DOM
   // e o conteúdo está em mat-card.container-html no próprio documento
-  var editorHtml = rootDoc.querySelector('mat-card.container-html mat-card-content.conteudo-html')
-                || rootDoc.querySelector('mat-card.container-html');
+  var _candidatos = [
+    ...rootDoc.querySelectorAll('div#documento pje-historico-scroll-documento mat-card.container-html mat-card-content.conteudo-html')
+  ];
+
+  if (!_candidatos.length) {
+    _candidatos = [
+      ...rootDoc.querySelectorAll('mat-card.container-html mat-card-content.conteudo-html')
+    ];
+  }
+
+  if (!_candidatos.length) {
+    _candidatos = [
+      ...rootDoc.querySelectorAll('mat-card.container-html')
+    ];
+  }
+
+  var editorHtml = _candidatos.reduce(function (best, el) {
+    if (!el) return best;
+    if (!best) return el;
+    return (el.innerText || el.textContent || '').length > (best.innerText || best.textContent || '').length ? el : best;
+  }, null);
 
   if (editorHtml && !opts.forcePdf) {
     var bruto   = (editorHtml.innerText || editorHtml.textContent || '').trim();

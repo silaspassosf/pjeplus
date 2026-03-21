@@ -123,6 +123,9 @@
   }
   // ── fim bloco editor html direto ────────────────────────────────────
 
+    // ✅ Define o elemento de visualização do PDF/HTML
+    var el = rootDoc.querySelector('object.conteudo-pdf, iframe.conteudo-pdf');
+
     if (!el) return { sucesso: false, erro: "elemento de visualização (object.conteudo-pdf) não encontrado" };
 
     var inner = el.contentDocument || (el.contentWindow && el.contentWindow.document);

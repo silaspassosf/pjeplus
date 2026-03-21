@@ -188,9 +188,12 @@ async function preencherMonetario(input, valorBR) {
     if (!idMatch) { console.error('[PjeRegistrarDebito] Execute em /processo/[id]/detalhe.'); return; }
     var processoId = idMatch[1];
 
-    var obj = document.querySelector('object.conteudo-pdf');
-    if (!obj) {
-      alert('⚠️ Abra um documento no visualizador antes de clicar em Débito.\n\nClique no documento de homologação na timeline e tente novamente.');
+    // Trava de segurança atualizada: procura o PDF ou a nova classe da Minuta
+    var objPdf = document.querySelector('object.conteudo-pdf');
+    var objMinuta = document.querySelector('mat-card.container-html, .visualizador-html');
+
+    if (!objPdf && !objMinuta) {
+      alert('⚠️ Abra um documento (PDF ou Minuta) no visualizador antes de clicar em Débito.\n\nClique no documento de homologação na timeline e tente novamente.');
       return;
     }
 

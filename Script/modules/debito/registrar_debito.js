@@ -32,11 +32,11 @@
     inssReclamada:  /cota[\s-]*parte\s+no\s+INSS[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
     honAdvReclamada:  /honorários\s+advocatícios\s+(?:sucumbenciais\s+)?pela\s+reclamada[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
     honAdvReclamante: /honorários\s+sucumbenciais\s+pelo\s+(?:autor|reclamante)[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
-    custas: /custas\s+de\s+R\$\s*([\d.,]+)|custas[\s\S]{0,60}?fixadas?\s+em\s+R\$\s*([\d.,]+)/i,
+    custas: /custas\s+de\s*(?:\|\s*)?R\$\s*([\d.,]+)(?:\s*\|)?/i,
     honTecnicos:    /honorários\s+(?:periciais\s+)?técnicos[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
     honMedicos:     /honorários\s+médicos[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
-    honContabeis:   /honorários\s+contábeis[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
-    honConhecimento:/honorários[\s\S]{0,30}?fase\s+de\s+conhecimento[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honContabeis:   /honorários\s+(?:periciais\s+)?contábeis[\s\S]{0,80}?R\$\s*([\d.,]+)/i,
+    honConhecimento:/honorários\s+periciais\s+da\s+fase\s+de\s+conhecimento[\s\S]{0,200}?R\$\s*([\d.,]+)/i,
   };
 
   // Renomeado: extrairDadosDoPart(txt, isPrimeiro)
@@ -110,7 +110,37 @@
     var partes = txt.split(/(?=HOMOLOGO)/i).filter(function (p) { return /HOMOLOGO/i.test(p); });
     if (partes.length === 0) return [extrairDadosDoPart(txt, true)];
 
-    return partes.map(function (parte, idx) { return extrairDadosDoPart(parte, idx === 0); });
+    var blocos = partes.map(function (parte, idx) { return extrairDadosDoPart(parte, idx === 0); });
+
+    // --- Extrai custas e honorários periciais do texto completo ---
+    var primeiroBloco = blocos[0];
+
+    var custasMatch = txt.match(RE.custas);
+    if (custasMatch && custasMatch[1]) {
+      primeiroBloco.custas = custasMatch[1];
+    }
+
+    var periciaisTotal = 0;
+    var periciaisDetalhes = [];
+
+    var contabeisMatch = txt.match(RE.honContabeis);
+    if (contabeisMatch && contabeisMatch[1]) {
+      periciaisTotal += _utils.parseMoney(contabeisMatch[1]);
+      periciaisDetalhes.push(contabeisMatch[1]);
+    }
+
+    var conhecimentoMatch = txt.match(RE.honConhecimento);
+    if (conhecimentoMatch && conhecimentoMatch[1]) {
+      periciaisTotal += _utils.parseMoney(conhecimentoMatch[1]);
+      periciaisDetalhes.push(conhecimentoMatch[1]);
+    }
+
+    if (periciaisTotal > 0) {
+      primeiroBloco.honPericiais = _utils.formatMoney(periciaisTotal);
+      primeiroBloco.honPericiaisDetalhes = periciaisDetalhes;
+    }
+
+    return blocos;
   }
 
   // ── Persistência ─────────────────────────────────────────────────────────────

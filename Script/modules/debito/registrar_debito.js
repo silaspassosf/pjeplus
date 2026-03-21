@@ -1,6 +1,5 @@
 // registrar_debito.js
 // Módulo PJeTools — Registrar Débito (Obrigação a Pagar)
-
 (function () {
   'use strict';
 
@@ -332,9 +331,22 @@ async function preencherMonetario(input, valorBR) {
 
   // Lógica de preenchimento isolada para ser reusada pelos botões
   async function _preencherCampos(dados) {
+    console.log('[PjeRegistrarDebito] Iniciando preenchimento dos campos', dados);
+
+    if (!dados || typeof dados !== 'object') {
+      console.error('[PjeRegistrarDebito] dados inválidos em _preencherCampos:', dados);
+      throw new Error('dados inválidos para _preencherCampos');
+    }
+
     if (dados.dataCalculo) {
       var inputData = inputPorPlaceholder('Data do Cálculo');
-      if (inputData) { preencherInput(inputData, dados.dataCalculo); await _utils.sleep(150); }
+      if (inputData) {
+        console.log('[PjeRegistrarDebito] Preenchendo data:', dados.dataCalculo);
+        preencherInput(inputData, dados.dataCalculo);
+        await _utils.sleep(150);
+      } else {
+        console.warn('[PjeRegistrarDebito] Campo "Data do Cálculo" não encontrado');
+      }
     }
 
     var mapa = [
@@ -347,12 +359,20 @@ async function preencherMonetario(input, valorBR) {
     ];
 
     for (var i = 0; i < mapa.length; i++) {
-      var ph  = mapa[i][0], val = mapa[i][1];
+      var ph  = mapa[i][0];
+      var val = mapa[i][1];
       if (!val) continue;
       var inp = inputPorPlaceholder(ph);
-      if (inp) { await preencherMonetario(inp, val); await _utils.sleep(80); }
-      else console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + ph + '"');
+      if (inp) {
+        console.log('[PjeRegistrarDebito] Preenchendo ' + ph + ': ' + val);
+        await preencherMonetario(inp, val);
+        await _utils.sleep(80);
+      } else {
+        console.warn('[PjeRegistrarDebito] Campo não encontrado: "' + ph + '"');
+      }
     }
+
+    console.log('[PjeRegistrarDebito] Preenchimento finalizado');
   }
 
   // ── Painel Unificado de Resumo ────────────────────────────────────────────────
@@ -435,18 +455,42 @@ async function preencherMonetario(input, valorBR) {
     extrairBlocos: extrairBlocos,
     extrairDadosDoPart: extrairDadosDoPart,
     extrairDados: extrairBlocos,
-    
-    // NOVO: Função chamada pelos botões "Inserir Valores" do painel
+
     acionarPreenchimento: async function(btn, idx) {
-      if (!window._pjeDebitoBlocos) return;
+      console.log(`[PjeRegistrarDebito] Botão clicado para bloco ${idx}`);
+      if (!window._pjeDebitoBlocos) {
+        console.error('[PjeRegistrarDebito] _pjeDebitoBlocos não definido');
+        alert('Erro: blocos não disponíveis. Recarregue a página.');
+        return;
+      }
+
+      const dadosBloco = window._pjeDebitoBlocos[idx];
+      if (!dadosBloco) {
+        console.error(`[PjeRegistrarDebito] Dados do bloco ${idx} não encontrados`);
+        btn.innerText = '❌ Bloco não encontrado';
+        return;
+      }
+
+      console.log('[PjeRegistrarDebito] Dados a preencher:', dadosBloco);
       btn.innerText = '⏳ Preenchendo...';
       btn.style.opacity = '0.7';
       btn.disabled = true;
 
-      await _preencherCampos(window._pjeDebitoBlocos[idx]);
-
-      btn.innerText = '✅ Valores Inseridos';
-      btn.style.background = '#89b4fa';
+      try {
+        await _preencherCampos(dadosBloco);
+        btn.innerText = '✅ Valores Inseridos';
+        btn.style.background = '#89b4fa';
+        console.log(`[PjeRegistrarDebito] Preenchimento concluído para bloco ${idx}`);
+      } catch (err) {
+        console.error(`[PjeRegistrarDebito] Erro no preenchimento:`, err);
+        btn.innerText = '❌ Erro';
+        btn.style.background = '#f38ba8';
+        setTimeout(function () {
+          btn.innerText = '⬇️ Tentar Novamente';
+          btn.style.background = '#a6e3a1';
+          btn.disabled = false;
+        }, 2000);
+      }
     }
   };
 

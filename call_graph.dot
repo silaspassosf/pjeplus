@@ -1,0 +1,333 @@
+digraph G {
+    graph [rankdir=TB, ranksep=0.5, layout=dot, clusterrank="local"];
+    subgraph "cluster_G" {
+
+        graph [style="filled,rounded", fillcolor="#80808018", label=""];
+        "_git_push" [label="_git_push", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="0"];
+        "_import_check" [label="_import_check", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="1"];
+        "analyze_unused_fixed" [label="analyze_unused_fixed", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="2"];
+        "aud" [label="aud", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="3"];
+        "dom" [label="dom", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="4"];
+        "f" [label="f", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="5"];
+        "f2" [label="f2", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="6"];
+        "limp" [label="limp", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="7"];
+        "log" [label="log", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="8"];
+        "selector_learning" [label="selector_learning", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="9"];
+        "server" [label="server", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="10"];
+        "tmp_run_rule_sim" [label="tmp_run_rule_sim", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="11"];
+        "utilitarios_processamento" [label="utilitarios_processamento", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="12"];
+        "x" [label="x", style="filled", fillcolor="#ffffffb2", fontcolor="#000000", group="13"];
+        subgraph "cluster_analyze_unused_fixed" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="analyze_unused_fixed"];
+            "analyze_unused_fixed__FunctionAnalyzer" [label="FunctionAnalyzer\n(d:\PjePlus\analyze_unused_fixed.py:20)", style="filled", fillcolor="#fef4ccb2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__main" [label="main\n(d:\PjePlus\analyze_unused_fixed.py:234)", style="filled", fillcolor="#fef4ccb2", fontcolor="#000000", group="2"];
+        }
+        subgraph "cluster_analyze_unused_fixed__FunctionAnalyzer" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="analyze_unused_fixed.FunctionAnalyzer"];
+            "analyze_unused_fixed__FunctionAnalyzer____init__" [label="__init__\n(d:\PjePlus\analyze_unused_fixed.py:21)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer___guess_reason" [label="_guess_reason\n(d:\PjePlus\analyze_unused_fixed.py:204)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__extract_functions_ast" [label="extract_functions_ast\n(d:\PjePlus\analyze_unused_fixed.py:47)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__find_unused_functions" [label="find_unused_functions\n(d:\PjePlus\analyze_unused_fixed.py:143)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__find_usages_in_file" [label="find_usages_in_file\n(d:\PjePlus\analyze_unused_fixed.py:67)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__generate_report" [label="generate_report\n(d:\PjePlus\analyze_unused_fixed.py:171)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__is_private_function" [label="is_private_function\n(d:\PjePlus\analyze_unused_fixed.py:32)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__scan_project" [label="scan_project\n(d:\PjePlus\analyze_unused_fixed.py:94)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__should_ignore_function" [label="should_ignore_function\n(d:\PjePlus\analyze_unused_fixed.py:36)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+            "analyze_unused_fixed__FunctionAnalyzer__should_ignore_path" [label="should_ignore_path\n(d:\PjePlus\analyze_unused_fixed.py:27)", style="filled", fillcolor="#ffea99b2", fontcolor="#000000", group="2"];
+        }
+        subgraph "cluster_aud" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="aud"];
+            "aud___abrir_nova_aba" [label="_abrir_nova_aba\n(d:\PjePlus\aud.py:909)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__acao_bucket_a" [label="acao_bucket_a\n(d:\PjePlus\aud.py:62)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__agrupar_em_buckets" [label="agrupar_em_buckets\n(d:\PjePlus\aud.py:774)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__carregar_progresso_aud" [label="carregar_progresso_aud\n(d:\PjePlus\aud.py:41)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__coletar_lista_processos" [label="coletar_lista_processos\n(d:\PjePlus\aud.py:662)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__criar_driver_e_logar" [label="criar_driver_e_logar\n(d:\PjePlus\aud.py:621)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__desmarcar_100" [label="desmarcar_100\n(d:\PjePlus\aud.py:937)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__executar_acoes_por_bucket" [label="executar_acoes_por_bucket\n(d:\PjePlus\aud.py:1131)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__indexar_e_processar_lista_aud" [label="indexar_e_processar_lista_aud\n(d:\PjePlus\aud.py:201)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__marcar_aud" [label="marcar_aud\n(d:\PjePlus\aud.py:1036)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__marcar_processo_executado_aud" [label="marcar_processo_executado_aud\n(d:\PjePlus\aud.py:55)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__processo_ja_executado_aud" [label="processo_ja_executado_aud\n(d:\PjePlus\aud.py:49)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__reindexar_linha_js" [label="reindexar_linha_js\n(d:\PjePlus\aud.py:838)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__remarcar_100_pos_aud" [label="remarcar_100_pos_aud\n(d:\PjePlus\aud.py:998)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__run_aud" [label="run_aud\n(d:\PjePlus\aud.py:1138)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+            "aud__salvar_progresso_aud" [label="salvar_progresso_aud\n(d:\PjePlus\aud.py:45)", style="filled", fillcolor="#f4feccb2", fontcolor="#000000", group="3"];
+        }
+        subgraph "cluster_aud__indexar_e_processar_lista_aud" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="aud.indexar_e_processar_lista_aud"];
+            "aud__indexar_e_processar_lista_aud__acao_bucket_b" [label="acao_bucket_b\n(d:\PjePlus\aud.py:357)", style="filled", fillcolor="#eaff99b2", fontcolor="#000000", group="3"];
+            "aud__indexar_e_processar_lista_aud__acao_bucket_c" [label="acao_bucket_c\n(d:\PjePlus\aud.py:446)", style="filled", fillcolor="#eaff99b2", fontcolor="#000000", group="3"];
+            "aud__indexar_e_processar_lista_aud__acao_bucket_d" [label="acao_bucket_d\n(d:\PjePlus\aud.py:485)", style="filled", fillcolor="#eaff99b2", fontcolor="#000000", group="3"];
+            "aud__indexar_e_processar_lista_aud__processar_bucket" [label="processar_bucket\n(d:\PjePlus\aud.py:269)", style="filled", fillcolor="#eaff99b2", fontcolor="#000000", group="3"];
+            "aud__indexar_e_processar_lista_aud__processar_resultados_bucket" [label="processar_resultados_bucket\n(d:\PjePlus\aud.py:581)", style="filled", fillcolor="#eaff99b2", fontcolor="#000000", group="3"];
+        }
+        subgraph "cluster_aud__indexar_e_processar_lista_aud__acao_bucket_b" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="aud.indexar_e_processar_lista_aud.acao_bucket_b"];
+            "aud__indexar_e_processar_lista_aud__acao_bucket_b__responsavel_confirmado" [label="responsavel_confirmado\n(d:\PjePlus\aud.py:392)", style="filled", fillcolor="#e0ff65b2", fontcolor="#000000", group="3"];
+        }
+        subgraph "cluster_aud__indexar_e_processar_lista_aud__acao_bucket_d" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="aud.indexar_e_processar_lista_aud.acao_bucket_d"];
+            "aud__indexar_e_processar_lista_aud__acao_bucket_d__responsavel_confirmado" [label="responsavel_confirmado\n(d:\PjePlus\aud.py:520)", style="filled", fillcolor="#e0ff65b2", fontcolor="#000000", group="3"];
+        }
+        subgraph "cluster_dom" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="dom"];
+            "dom___gerenciar_abas_apos_processo_dom" [label="_gerenciar_abas_apos_processo_dom\n(d:\PjePlus\dom.py:810)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__callback_bucket2" [label="callback_bucket2\n(d:\PjePlus\dom.py:338)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__create_driver_and_login" [label="create_driver_and_login\n(d:\PjePlus\dom.py:52)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__execute_list_with_bucket2_callback" [label="execute_list_with_bucket2_callback\n(d:\PjePlus\dom.py:568)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__has_dom_eletronico_reminder" [label="has_dom_eletronico_reminder\n(d:\PjePlus\dom.py:243)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__is_processo_100_digital" [label="is_processo_100_digital\n(d:\PjePlus\dom.py:328)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__main" [label="main\n(d:\PjePlus\dom.py:872)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__navigate_to_activities_and_filter" [label="navigate_to_activities_and_filter\n(d:\PjePlus\dom.py:503)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__navigate_to_list" [label="navigate_to_list\n(d:\PjePlus\dom.py:66)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+            "dom__processar_processo_dom" [label="processar_processo_dom\n(d:\PjePlus\dom.py:656)", style="filled", fillcolor="#e0feccb2", fontcolor="#000000", group="4"];
+        }
+        subgraph "cluster_dom__execute_list_with_bucket2_callback" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="dom.execute_list_with_bucket2_callback"];
+            "dom__execute_list_with_bucket2_callback__processar_item_dom" [label="processar_item_dom\n(d:\PjePlus\dom.py:610)", style="filled", fillcolor="#c1ff99b2", fontcolor="#000000", group="4"];
+        }
+        subgraph "cluster_dom__has_dom_eletronico_reminder" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="dom.has_dom_eletronico_reminder"];
+            "dom__has_dom_eletronico_reminder__callback_bucket1" [label="callback_bucket1\n(d:\PjePlus\dom.py:263)", style="filled", fillcolor="#c1ff99b2", fontcolor="#000000", group="4"];
+        }
+        subgraph "cluster_f" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="f"];
+            "f__criar_driver_pc_visivel" [label="criar_driver_pc_visivel\n(d:\PjePlus\f.py:84)", style="filled", fillcolor="#ccfeccb2", fontcolor="#000000", group="5"];
+            "f__criar_driver_vt_visivel" [label="criar_driver_vt_visivel\n(d:\PjePlus\f.py:136)", style="filled", fillcolor="#ccfeccb2", fontcolor="#000000", group="5"];
+            "f__executar_testes" [label="executar_testes\n(d:\PjePlus\f.py:222)", style="filled", fillcolor="#ccfeccb2", fontcolor="#000000", group="5"];
+            "f__main" [label="main\n(d:\PjePlus\f.py:274)", style="filled", fillcolor="#ccfeccb2", fontcolor="#000000", group="5"];
+        }
+        subgraph "cluster_f2" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="f2"];
+            "f2__executar_teste_obter_texto" [label="executar_teste_obter_texto\n(d:\PjePlus\f2.py:25)", style="filled", fillcolor="#ccfee0b2", fontcolor="#000000", group="6"];
+        }
+        subgraph "cluster_limp" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="limp"];
+            "limp__limpar_pyc" [label="limpar_pyc\n(d:\PjePlus\limp.py:27)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__limpar_pycache" [label="limpar_pycache\n(d:\PjePlus\limp.py:13)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__limpar_pylance_cache_seguro" [label="limpar_pylance_cache_seguro\n(d:\PjePlus\limp.py:95)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__limpar_pyo" [label="limpar_pyo\n(d:\PjePlus\limp.py:42)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__limpar_pytest_cache" [label="limpar_pytest_cache\n(d:\PjePlus\limp.py:57)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__limpar_python_logs_vscode" [label="limpar_python_logs_vscode\n(d:\PjePlus\limp.py:71)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__limpar_vscode_workspace_storage" [label="limpar_vscode_workspace_storage\n(d:\PjePlus\limp.py:111)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+            "limp__main" [label="main\n(d:\PjePlus\limp.py:126)", style="filled", fillcolor="#ccfef4b2", fontcolor="#000000", group="7"];
+        }
+        subgraph "cluster_selector_learning" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="selector_learning"];
+            "selector_learning__SelectorLearning" [label="SelectorLearning\n(d:\PjePlus\selector_learning.py:20)", style="filled", fillcolor="#cce0feb2", fontcolor="#000000", group="9"];
+            "selector_learning__get_learning_stats" [label="get_learning_stats\n(d:\PjePlus\selector_learning.py:256)", style="filled", fillcolor="#cce0feb2", fontcolor="#000000", group="9"];
+            "selector_learning__get_recommended_selectors" [label="get_recommended_selectors\n(d:\PjePlus\selector_learning.py:251)", style="filled", fillcolor="#cce0feb2", fontcolor="#000000", group="9"];
+            "selector_learning__report_selector_result" [label="report_selector_result\n(d:\PjePlus\selector_learning.py:245)", style="filled", fillcolor="#cce0feb2", fontcolor="#000000", group="9"];
+            "selector_learning__save_learning_db" [label="save_learning_db\n(d:\PjePlus\selector_learning.py:261)", style="filled", fillcolor="#cce0feb2", fontcolor="#000000", group="9"];
+            "selector_learning__use_best_selector" [label="use_best_selector\n(d:\PjePlus\selector_learning.py:266)", style="filled", fillcolor="#cce0feb2", fontcolor="#000000", group="9"];
+        }
+        subgraph "cluster_selector_learning__SelectorLearning" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="selector_learning.SelectorLearning"];
+            "selector_learning__SelectorLearning____init__" [label="__init__\n(d:\PjePlus\selector_learning.py:31)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning____new__" [label="__new__\n(d:\PjePlus\selector_learning.py:25)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning___calculate_score" [label="_calculate_score\n(d:\PjePlus\selector_learning.py:101)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning___load" [label="_load\n(d:\PjePlus\selector_learning.py:50)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning___save" [label="_save\n(d:\PjePlus\selector_learning.py:79)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning__force_save" [label="force_save\n(d:\PjePlus\selector_learning.py:235)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning__get_recommendations" [label="get_recommendations\n(d:\PjePlus\selector_learning.py:188)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning__get_stats" [label="get_stats\n(d:\PjePlus\selector_learning.py:219)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+            "selector_learning__SelectorLearning__report_result" [label="report_result\n(d:\PjePlus\selector_learning.py:143)", style="filled", fillcolor="#99c1ffb2", fontcolor="#000000", group="9"];
+        }
+        subgraph "cluster_server" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="server"];
+            "server__CORSRequestHandler" [label="CORSRequestHandler\n(d:\PjePlus\server.py:17)", style="filled", fillcolor="#ccccfeb2", fontcolor="#000000", group="10"];
+            "server__main" [label="main\n(d:\PjePlus\server.py:29)", style="filled", fillcolor="#ccccfeb2", fontcolor="#000000", group="10"];
+        }
+        subgraph "cluster_server__CORSRequestHandler" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="server.CORSRequestHandler"];
+            "server__CORSRequestHandler__do_OPTIONS" [label="do_OPTIONS\n(d:\PjePlus\server.py:24)", style="filled", fillcolor="#9999ffb2", fontcolor="#000000", group="10"];
+            "server__CORSRequestHandler__end_headers" [label="end_headers\n(d:\PjePlus\server.py:18)", style="filled", fillcolor="#9999ffb2", fontcolor="#000000", group="10"];
+        }
+        subgraph "cluster_tmp_run_rule_sim" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="tmp_run_rule_sim"];
+            "tmp_run_rule_sim__make_stub" [label="make_stub\n(d:\PjePlus\tmp_run_rule_sim.py:11)", style="filled", fillcolor="#e0ccfeb2", fontcolor="#000000", group="11"];
+        }
+        subgraph "cluster_tmp_run_rule_sim__make_stub" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="tmp_run_rule_sim.make_stub"];
+            "tmp_run_rule_sim__make_stub__fn" [label="fn\n(d:\PjePlus\tmp_run_rule_sim.py:12)", style="filled", fillcolor="#c199ffb2", fontcolor="#000000", group="11"];
+        }
+        subgraph "cluster_utilitarios_processamento" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="utilitarios_processamento"];
+            "utilitarios_processamento__executar_processamento_iterativo_com_corte_em_erro_critico" [label="executar_processamento_iterativo_com_corte_em_erro_critico\n(d:\PjePlus\utilitarios_processamento.py:18)", style="filled", fillcolor="#f4ccfeb2", fontcolor="#000000", group="12"];
+        }
+        subgraph "cluster_utilitarios_processamento__executar_processamento_iterativo_com_corte_em_erro_critico" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="utilitarios_processamento.executar_processamento_iterativo_com_corte_em_erro_critico"];
+            "utilitarios_processamento__executar_processamento_iterativo_com_corte_em_erro_critico___run_item" [label="_run_item\n(d:\PjePlus\utilitarios_processamento.py:74)", style="filled", fillcolor="#ea99ffb2", fontcolor="#000000", group="12"];
+        }
+        subgraph "cluster_x" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="x"];
+            "x__DriverType" [label="DriverType\n(d:\PjePlus\x.py:66)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__TeeOutput" [label="TeeOutput\n(d:\PjePlus\x.py:78)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__configurar_logging" [label="configurar_logging\n(d:\PjePlus\x.py:765)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__criar_driver_pc" [label="criar_driver_pc\n(d:\PjePlus\x.py:102)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__criar_driver_vt" [label="criar_driver_vt\n(d:\PjePlus\x.py:162)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__criar_e_logar_driver" [label="criar_e_logar_driver\n(d:\PjePlus\x.py:374)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__executar_bloco_completo" [label="executar_bloco_completo\n(d:\PjePlus\x.py:480)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__executar_mandado" [label="executar_mandado\n(d:\PjePlus\x.py:539)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__executar_p2b" [label="executar_p2b\n(d:\PjePlus\x.py:660)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__executar_pec" [label="executar_pec\n(d:\PjePlus\x.py:626)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__executar_prazo" [label="executar_prazo\n(d:\PjePlus\x.py:582)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__main" [label="main\n(d:\PjePlus\x.py:846)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__menu_ambiente" [label="menu_ambiente\n(d:\PjePlus\x.py:701)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__menu_execucao" [label="menu_execucao\n(d:\PjePlus\x.py:737)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__normalizar_resultado" [label="normalizar_resultado\n(d:\PjePlus\x.py:438)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__resetar_driver" [label="resetar_driver\n(d:\PjePlus\x.py:449)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+            "x__safe_immediate_shutdown" [label="safe_immediate_shutdown\n(d:\PjePlus\x.py:814)", style="filled", fillcolor="#feccf4b2", fontcolor="#000000", group="13"];
+        }
+        subgraph "cluster_x__TeeOutput" {
+
+            graph [style="filled,rounded", fillcolor="#80808018", label="x.TeeOutput"];
+            "x__TeeOutput____init__" [label="__init__\n(d:\PjePlus\x.py:80)", style="filled", fillcolor="#ff99eab2", fontcolor="#000000", group="13"];
+            "x__TeeOutput__close" [label="close\n(d:\PjePlus\x.py:93)", style="filled", fillcolor="#ff99eab2", fontcolor="#000000", group="13"];
+            "x__TeeOutput__flush" [label="flush\n(d:\PjePlus\x.py:89)", style="filled", fillcolor="#ff99eab2", fontcolor="#000000", group="13"];
+            "x__TeeOutput__write" [label="write\n(d:\PjePlus\x.py:84)", style="filled", fillcolor="#ff99eab2", fontcolor="#000000", group="13"];
+        }
+    }
+        "analyze_unused_fixed" -> "analyze_unused_fixed__main" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__extract_functions_ast" -> "analyze_unused_fixed__FunctionAnalyzer__should_ignore_function" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__generate_report" -> "analyze_unused_fixed__FunctionAnalyzer___guess_reason" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__generate_report" -> "analyze_unused_fixed__FunctionAnalyzer__find_unused_functions" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__scan_project" -> "analyze_unused_fixed__FunctionAnalyzer____init__" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__scan_project" -> "analyze_unused_fixed__FunctionAnalyzer__extract_functions_ast" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__scan_project" -> "analyze_unused_fixed__FunctionAnalyzer__find_usages_in_file" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__scan_project" -> "analyze_unused_fixed__FunctionAnalyzer__should_ignore_path" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__FunctionAnalyzer__should_ignore_function" -> "analyze_unused_fixed__FunctionAnalyzer__is_private_function" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__main" -> "analyze_unused_fixed__FunctionAnalyzer" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__main" -> "analyze_unused_fixed__FunctionAnalyzer____init__" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__main" -> "analyze_unused_fixed__FunctionAnalyzer__generate_report" [style="solid",  color="#000000"];
+        "analyze_unused_fixed__main" -> "analyze_unused_fixed__FunctionAnalyzer__scan_project" [style="solid",  color="#000000"];
+        "aud" -> "aud__run_aud" [style="solid",  color="#000000"];
+        "aud__acao_bucket_a" -> "aud__desmarcar_100" [style="solid",  color="#000000"];
+        "aud__acao_bucket_a" -> "aud__marcar_aud" [style="solid",  color="#000000"];
+        "aud__acao_bucket_a" -> "aud__remarcar_100_pos_aud" [style="solid",  color="#000000"];
+        "aud__desmarcar_100" -> "aud___abrir_nova_aba" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__acao_bucket_a" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__agrupar_em_buckets" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__carregar_progresso_aud" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__coletar_lista_processos" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__indexar_e_processar_lista_aud__acao_bucket_b" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__indexar_e_processar_lista_aud__acao_bucket_c" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__indexar_e_processar_lista_aud__acao_bucket_d" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__indexar_e_processar_lista_aud__processar_bucket" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__indexar_e_processar_lista_aud__processar_resultados_bucket" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud" -> "aud__processo_ja_executado_aud" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud__acao_bucket_b" -> "aud__indexar_e_processar_lista_aud__acao_bucket_b__responsavel_confirmado" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud__acao_bucket_d" -> "aud__indexar_e_processar_lista_aud__acao_bucket_d__responsavel_confirmado" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud__processar_bucket" -> "aud__reindexar_linha_js" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud__processar_resultados_bucket" -> "aud__carregar_progresso_aud" [style="solid",  color="#000000"];
+        "aud__indexar_e_processar_lista_aud__processar_resultados_bucket" -> "aud__marcar_processo_executado_aud" [style="solid",  color="#000000"];
+        "aud__marcar_aud" -> "aud___abrir_nova_aba" [style="solid",  color="#000000"];
+        "aud__run_aud" -> "aud__criar_driver_e_logar" [style="solid",  color="#000000"];
+        "aud__run_aud" -> "aud__indexar_e_processar_lista_aud" [style="solid",  color="#000000"];
+        "dom" -> "dom__main" [style="solid",  color="#000000"];
+        "dom" -> "x__resetar_driver" [style="solid",  color="#000000"];
+        "dom___gerenciar_abas_apos_processo_dom" -> "x__TeeOutput__close" [style="solid",  color="#000000"];
+        "dom__callback_bucket2" -> "dom__callback_bucket2" [style="solid",  color="#000000"];
+        "dom__callback_bucket2" -> "dom__has_dom_eletronico_reminder" [style="solid",  color="#000000"];
+        "dom__callback_bucket2" -> "dom__is_processo_100_digital" [style="solid",  color="#000000"];
+        "dom__create_driver_and_login" -> "x__DriverType" [style="solid",  color="#000000"];
+        "dom__create_driver_and_login" -> "x__criar_e_logar_driver" [style="solid",  color="#000000"];
+        "dom__execute_list_with_bucket2_callback" -> "dom__execute_list_with_bucket2_callback__processar_item_dom" [style="solid",  color="#000000"];
+        "dom__execute_list_with_bucket2_callback" -> "dom__navigate_to_activities_and_filter" [style="solid",  color="#000000"];
+        "dom__execute_list_with_bucket2_callback" -> "utilitarios_processamento__executar_processamento_iterativo_com_corte_em_erro_critico" [style="solid",  color="#000000"];
+        "dom__execute_list_with_bucket2_callback__processar_item_dom" -> "dom__processar_processo_dom" [style="solid",  color="#000000"];
+        "dom__has_dom_eletronico_reminder" -> "dom__has_dom_eletronico_reminder__callback_bucket1" [style="solid",  color="#000000"];
+        "dom__has_dom_eletronico_reminder" -> "x__TeeOutput__close" [style="solid",  color="#000000"];
+        "dom__main" -> "dom__create_driver_and_login" [style="solid",  color="#000000"];
+        "dom__main" -> "dom__execute_list_with_bucket2_callback" [style="solid",  color="#000000"];
+        "dom__main" -> "dom__navigate_to_activities_and_filter" [style="solid",  color="#000000"];
+        "dom__processar_processo_dom" -> "dom___gerenciar_abas_apos_processo_dom" [style="solid",  color="#000000"];
+        "dom__processar_processo_dom" -> "dom__callback_bucket2" [style="solid",  color="#000000"];
+        "f" -> "f__main" [style="solid",  color="#000000"];
+        "f2" -> "f2__executar_teste_obter_texto" [style="solid",  color="#000000"];
+        "f__main" -> "f__criar_driver_pc_visivel" [style="solid",  color="#000000"];
+        "f__main" -> "f__criar_driver_vt_visivel" [style="solid",  color="#000000"];
+        "f__main" -> "f__executar_testes" [style="solid",  color="#000000"];
+        "limp" -> "limp__main" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_pyc" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_pycache" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_pylance_cache_seguro" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_pyo" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_pytest_cache" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_python_logs_vscode" [style="solid",  color="#000000"];
+        "limp__main" -> "limp__limpar_vscode_workspace_storage" [style="solid",  color="#000000"];
+        "selector_learning" -> "selector_learning__SelectorLearning" [style="solid",  color="#000000"];
+        "selector_learning" -> "selector_learning__SelectorLearning____init__" [style="solid",  color="#000000"];
+        "selector_learning__SelectorLearning____init__" -> "selector_learning__SelectorLearning___load" [style="solid",  color="#000000"];
+        "selector_learning__SelectorLearning__force_save" -> "selector_learning__SelectorLearning___save" [style="solid",  color="#000000"];
+        "selector_learning__SelectorLearning__report_result" -> "selector_learning__SelectorLearning____init__" [style="solid",  color="#000000"];
+        "selector_learning__SelectorLearning__report_result" -> "selector_learning__SelectorLearning___calculate_score" [style="solid",  color="#000000"];
+        "selector_learning__SelectorLearning__report_result" -> "selector_learning__SelectorLearning___save" [style="solid",  color="#000000"];
+        "selector_learning__get_learning_stats" -> "selector_learning__SelectorLearning__get_stats" [style="solid",  color="#000000"];
+        "selector_learning__get_recommended_selectors" -> "selector_learning__SelectorLearning__get_recommendations" [style="solid",  color="#000000"];
+        "selector_learning__report_selector_result" -> "selector_learning__SelectorLearning__report_result" [style="solid",  color="#000000"];
+        "selector_learning__save_learning_db" -> "selector_learning__SelectorLearning__force_save" [style="solid",  color="#000000"];
+        "selector_learning__use_best_selector" -> "selector_learning__get_recommended_selectors" [style="solid",  color="#000000"];
+        "selector_learning__use_best_selector" -> "selector_learning__report_selector_result" [style="solid",  color="#000000"];
+        "server" -> "server__main" [style="solid",  color="#000000"];
+        "server__CORSRequestHandler__do_OPTIONS" -> "server__CORSRequestHandler__end_headers" [style="solid",  color="#000000"];
+        "server__main" -> "server__CORSRequestHandler" [style="solid",  color="#000000"];
+        "tmp_run_rule_sim" -> "tmp_run_rule_sim__make_stub" [style="solid",  color="#000000"];
+        "tmp_run_rule_sim__make_stub" -> "tmp_run_rule_sim__make_stub__fn" [style="solid",  color="#000000"];
+        "utilitarios_processamento__executar_processamento_iterativo_com_corte_em_erro_critico" -> "utilitarios_processamento__executar_processamento_iterativo_com_corte_em_erro_critico___run_item" [style="solid",  color="#000000"];
+        "x" -> "x__main" [style="solid",  color="#000000"];
+        "x__TeeOutput__flush" -> "x__TeeOutput__flush" [style="solid",  color="#000000"];
+        "x__TeeOutput__write" -> "x__TeeOutput__write" [style="solid",  color="#000000"];
+        "x__configurar_logging" -> "x__DriverType" [style="solid",  color="#000000"];
+        "x__configurar_logging" -> "x__TeeOutput" [style="solid",  color="#000000"];
+        "x__configurar_logging" -> "x__TeeOutput____init__" [style="solid",  color="#000000"];
+        "x__criar_e_logar_driver" -> "x__DriverType" [style="solid",  color="#000000"];
+        "x__criar_e_logar_driver" -> "x__criar_driver_pc" [style="solid",  color="#000000"];
+        "x__criar_e_logar_driver" -> "x__criar_driver_vt" [style="solid",  color="#000000"];
+        "x__executar_bloco_completo" -> "x__executar_mandado" [style="solid",  color="#000000"];
+        "x__executar_bloco_completo" -> "x__executar_p2b" [style="solid",  color="#000000"];
+        "x__executar_bloco_completo" -> "x__executar_pec" [style="solid",  color="#000000"];
+        "x__executar_bloco_completo" -> "x__executar_prazo" [style="solid",  color="#000000"];
+        "x__executar_bloco_completo" -> "x__resetar_driver" [style="solid",  color="#000000"];
+        "x__executar_mandado" -> "x__normalizar_resultado" [style="solid",  color="#000000"];
+        "x__executar_p2b" -> "x__resetar_driver" [style="solid",  color="#000000"];
+        "x__executar_pec" -> "x__normalizar_resultado" [style="solid",  color="#000000"];
+        "x__executar_prazo" -> "x__executar_p2b" [style="solid",  color="#000000"];
+        "x__executar_prazo" -> "x__normalizar_resultado" [style="solid",  color="#000000"];
+        "x__main" -> "x__TeeOutput__close" [style="solid",  color="#000000"];
+        "x__main" -> "x__configurar_logging" [style="solid",  color="#000000"];
+        "x__main" -> "x__criar_e_logar_driver" [style="solid",  color="#000000"];
+        "x__main" -> "x__executar_bloco_completo" [style="solid",  color="#000000"];
+        "x__main" -> "x__executar_mandado" [style="solid",  color="#000000"];
+        "x__main" -> "x__executar_p2b" [style="solid",  color="#000000"];
+        "x__main" -> "x__executar_pec" [style="solid",  color="#000000"];
+        "x__main" -> "x__executar_prazo" [style="solid",  color="#000000"];
+        "x__main" -> "x__menu_ambiente" [style="solid",  color="#000000"];
+        "x__main" -> "x__menu_execucao" [style="solid",  color="#000000"];
+        "x__main" -> "x__safe_immediate_shutdown" [style="solid",  color="#000000"];
+        "x__menu_ambiente" -> "x__DriverType" [style="solid",  color="#000000"];
+        "x__resetar_driver" -> "x__TeeOutput__close" [style="solid",  color="#000000"];
+        "x__safe_immediate_shutdown" -> "x__TeeOutput__close" [style="solid",  color="#000000"];
+    }

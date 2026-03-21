@@ -16,10 +16,6 @@ Este documento descreve o plano sistemático para identificar, classificar e rem
 
 ### 🟡 MÉDIA PRIORIDADE - Investigar e Decidir
 
-#### Wrappers não utilizados
-- `atos\wrappers_pec.py` → `wrapper_pec_ord_com_domicilio`, `wrapper_pec_sum_com_domicilio`
-- Verificar se há planos futuros para esses wrappers
-
 #### Getters/Setters órfãos
 - `PEC\matcher.py` → `get_cached_rules`, `get_action_rules`
 - `PEC\sisbajud_driver.py` → `get_or_create_driver_sisbajud`
@@ -162,8 +158,8 @@ def find_function_references(func_name, search_path="."):
 
 ## 7. Critérios de Aceitação
 
-- [ ] Todos os arquivos de backup foram removidos
-- [ ] Funções de teste não utilizadas foram excluídas
+- [x] Todos os arquivos de backup foram removidos
+- [x] Funções de teste não utilizadas foram excluídas
 - [ ] Funções duplicadas foram consolidadas
 - [ ] Funções obsoletas foram marcadas com `@deprecated`
 - [ ] Sistema de monitoramento foi implementado para funções duvidosas

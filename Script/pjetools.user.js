@@ -55,40 +55,7 @@
 
     // ── Roteamento (roda depois de todos os @require carregados)
     if (isPjeDomain || isReceita) {
-        const BASE = 'https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/';
-        const CB   = '?cb=' + Date.now();
-        const MODULES = [
-            'core/utils.js',
-            'core/state.js',
-            'core/extrair.js',
-            'modules/lista/lista.timeline.js',
-            'modules/lista/lista.check.js',
-            'modules/lista/lista.edital.js',
-            'modules/lista/lista.pgto.js',
-            'modules/atalhos/atalhos.js',
-            'modules/atalhos/atalhos.worker.js',
-            'ui/painel.js',
-            'modules/sisbajud/core.js',
-            'modules/sisbajud/relatorios.js',
-            'modules/sisbajud/sisbajud.js',
-            'modules/debito/registrar_debito.js',
-        ];
-
-        // Carrega todos os módulos diretamente, sem loader
-        for (const path of MODULES) {
-            try {
-                const res = await fetch(BASE + path + CB);
-                if (!res.ok) throw new Error('HTTP ' + res.status + ' — ' + path);
-                const code = await res.text();
-                const s = document.createElement('script');
-                s.textContent = code;
-                document.head.appendChild(s);
-                console.log('[PJeTools] ✓', path);
-            } catch (e) {
-                console.error('[PJeTools] ✗', path, e.message || e);
-            }
-        }
-        console.log('[PJeTools] ✅ Módulos carregados.');
+        // Dynamic loader removed: all modules must be provided via @require in the userscript header.
 
         // ── Roteamento (só roda DEPOIS de tudo carregado)
         const isMinutas  = url.includes('/comunicacoesprocessuais/minutas');

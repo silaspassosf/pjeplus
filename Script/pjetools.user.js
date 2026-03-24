@@ -88,9 +88,9 @@
             setTimeout(() => {
                 try {
                     if (/\/obrigacao-pagar\/\d+\/cadastro/.test(url)) {
-                        W.PjeRegistrarDebito?.onCadastro();
+                        window.PjeRegistrarDebito?.onCadastro();
                     } else if (/\/obrigacao-pagar\/\d+\/inclusao/.test(url)) {
-                        W.PjeRegistrarDebito?.onInclusao();
+                        window.PjeRegistrarDebito?.onInclusao();
                     }
                 } catch (e) { console.error('[Loader] erro ao iniciar PjeRegistrarDebito:', e); }
             }, 1500);
@@ -104,7 +104,7 @@
             window.__pjeToolsLoaded = true;
 
             window.monitorarSPA && window.monitorarSPA(() => {
-                W.PJeState && W.PJeState.dispose();
+                window.PJeState && window.PJeState.dispose();
                 setTimeout(() => {
                     if (/\/processo\/\d+\/detalhe/.test(window.location.href)) {
                         bootDetalhe();
@@ -117,10 +117,12 @@
 
         function bootDetalhe() {
             if (!/\/processo\/\d+\/detalhe/.test(window.location.href)) return;
-            if (!W.PJeState || W.PJeState._iniciado) return;
-            W.PJeState._iniciado = true;
-            W.inicializarPainel && W.inicializarPainel();
-            W.initAtalhos && W.initAtalhos();
+            // FIX: módulos registrados via @require expõem suas funções no sandbox `window`,
+            // portanto chamamos `window.*` aqui em vez de `W` (unsafeWindow).
+            if (!window.PJeState || window.PJeState._iniciado) return;
+            window.PJeState._iniciado = true;
+            window.inicializarPainel && window.inicializarPainel();
+            window.initAtalhos && window.initAtalhos();
         }
     }
 })();

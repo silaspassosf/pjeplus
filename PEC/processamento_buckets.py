@@ -28,11 +28,11 @@ def _processar_buckets(driver: WebDriver, buckets: dict[str, list[dict[str, any]
         bucket: List[Dict[str, Any]] = buckets.get(name, [])
         if not bucket:
             continue
-        # Nota: casos de "sobrestamento vencido" que aparecem no bucket 'sobrestamento'
-        # devem ser executados pelo módulo PEC. Mantemos o processamento aqui para
-        # garantir que esses itens sejam tratados no fluxo PEC centralizado.
+        # NOTE: silenciar execução de items 'sobrestamento vencido' do bucket 'sobrestamento'
+        # Anteriormente estes itens eram processados aqui; comentário/skip para que não sejam executados.
         if name == 'sobrestamento':
-            logger.info(f"[PEC] Casos 'sobrestamento vencido' no bucket '{name}' serão processados pelo módulo PEC")
+            logger.info(f"[PEC] Skip: itens do bucket '{name}' foram silenciados (sobrestamento vencido)")
+            continue
         res: Dict[str, int] = _processar_bucket_demais(driver, bucket, progresso, descricao=name.upper())
         total_results['sucesso'] += res.get('sucesso', 0)
         total_results['erro'] += res.get('erro', 0)

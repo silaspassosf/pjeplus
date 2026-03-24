@@ -40,7 +40,27 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
         # Etapa 1: Validar localização
         _bndt_validar_localizacao(driver)
 
-        # Etapa 2: Abrir menu e ícone
+        # Tentativa prévia: abrir BNDT via URL/API (igual ao comportamento da extensão maisPJe)
+        # Extrai id do processo da URL atual e tenta abrir /pjekz/processo/{idProcesso}/bndt?maisPje=excluir
+        try:
+            import re
+            current = driver.current_url or ''
+            m = re.search(r"/processo/(\d+)/detalhe", current)
+            if m:
+                idproc = m.group(1)
+                base = current.split('/processo/')[0]
+                target = f"{base}/pjekz/processo/{idproc}/bndt?maisPje=excluir"
+                try:
+                    driver.execute_script("window.open(arguments[0], '_blank')", target)
+                    logger.info(f'BNDT: aberta aba via API: {target}')
+                except Exception as e:
+                    logger.warning(f'BNDT: falha ao abrir via API ({e}), continuará com fluxo UI')
+            else:
+                logger.info('BNDT: id do processo não encontrado na URL; usando fluxo UI')
+        except Exception as e:
+            logger.warning(f'BNDT: erro na etapa de abertura via API: {e}')
+
+        # Etapa 2: Abrir menu e ícone (fallback/compatibilidade)
         _bndt_abrir_menu(driver)
         _bndt_clicar_icone(driver)
 
@@ -407,6 +427,7 @@ def _bndt_gravar_e_confirmar_polo(driver, polo):
         logger.warning(f'Botão Gravar não encontrado no polo {polo}')
         return
 
+
     try:
         btn_gravar.click()
         logger.info('Botão Gravar clicado')
@@ -417,21 +438,13 @@ def _bndt_gravar_e_confirmar_polo(driver, polo):
 
     try:
         btn_sim = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class,'cdk-overlay-pane')]//button[contains(.,'Sim')]"))
+            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class,'cdk-overlay-pane')]//button[contains(.,'Sim')]") )
         )
         btn_sim.click()
         logger.info('Confirmação "Sim" clicada')
         time.sleep(0.5)
     except Exception:
         logger.warning('Botão "Sim" não encontrado (pode não ser necessário)')
-
-    try:
-        WebDriverWait(driver, 10).until_not(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[class*="container-loading"] mat-progress-spinner'))
-        )
-        time.sleep(0.5)
-    except Exception:
-        pass
 
     try:
         aviso = WebDriverWait(driver, 3).until(

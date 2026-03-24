@@ -546,107 +546,116 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
 
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
-            return None, None, None
+            return None, None
 
         timing_busca_itens = time.time() - timing_start
         if log:
             logger.info(f'[ARGOS][TIMING][BUSCA_ITENS] {timing_busca_itens:.3f}s encontrados={len(itens)} itens')
 
-        # Localizar índice da primeira planilha (se houver)
+        # DEBUG: registrar contagem e planilha (se presente)
         planilha_idx = None
-        for i, it in enumerate(itens):
-            try:
-                link = it.find_element(By.CSS_SELECTOR, 'a.tl-documento')
-                txt = (link.text or '').lower()
-                if 'planilha de atualização' in txt or 'planilha de atuali' in txt:
-                    planilha_idx = i
-                    break
-            except Exception:
-                continue
+        try:
+            for i, it in enumerate(itens):
+                try:
+                    link = it.find_element(By.CSS_SELECTOR, 'a.tl-documento')
+                    txt = (link.text or '').lower()
+                    if 'planilha de atualização' in txt or 'planilha de atuali' in txt:
+                        planilha_idx = i
+                        break
+                except Exception:
+                    continue
+        except Exception:
+            planilha_idx = None
 
-        # Definir range de busca
-        if planilha_idx is not None:
-            search_range = range(0, planilha_idx)
-        else:
-            search_range = range(0, len(itens))
+        # Para evitar rangos vazios quando uma planilha ocupa o topo, sempre
+        # iterar a partir do item mais recente (índice 0) até o fim da timeline.
+        # Isso prioriza o documento mais recente (primeiro candidato válido).
+        start_idx = 0
+        max_idx = len(itens)
+        search_range = range(start_idx, max_idx)
 
-        # Buscar candidatos
-        candidates = []
+        if log:
+            logger.info(f'[ARGOS][DEBUG] itens={len(itens)} planilha_idx={planilha_idx} start_idx={start_idx} max_idx={max_idx}')
+
+        # Iterar diretamente pela timeline do mais recente para o mais antigo
+        timing_candidatos = None
+        documentos_testados = 0
         for idx in search_range:
             if idx in ignorar_indices:
                 continue
-                
+
             try:
                 item = itens[idx]
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-                doc_text = (link.text or '').lower()
-                
-                # Aceita APENAS despacho, decisão, sentença ou conclusão
-                if re.search(r'^(despacho|decisão|sentença|conclusão)', doc_text.strip()):
-                    candidates.append((idx, doc_text))
-                    
-            except Exception:
-                continue
+                doc_text = (link.text or '').strip().lower()
 
-        if not candidates:
-            return None, None, None
+                # Aceitar candidatos que contenham qualquer indicador de despacho/decisão/sentença/conclusão
+                if not re.search(r'(despacho|decis|senten|conclus)', doc_text):
+                    continue
 
-        timing_candidatos = time.time() - timing_start
-        if log:
-            logger.info(f"[ARGOS][TIMING][CANDIDATOS] {timing_candidatos:.3f}s encontrados={len(candidates)} documentos")
-
-        # Iterar pelos candidatos até encontrar um que contenha uma REGRA ARGOS
-        for idx, doc_text in candidates:
-            try:
-                timing_candidato = time.time() - timing_start
                 if log:
-                    logger.info(f'[ARGOS][TIMING][CANDIDATO_{idx}][START] {timing_candidato:.3f}s tipo={doc_text}')
-                item = itens[idx]
-                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                    if timing_candidatos is None:
+                        timing_candidatos = time.time() - timing_start
+                    logger.info(f"[ARGOS][TIMING][CANDIDATO] {timing_candidatos:.3f}s idx={idx} tipo={doc_text}")
+
+                # Contador para diagnóstico — incrementa quando um candidato é testado
+                documentos_testados += 1
+
                 # checar cabeçalho antes do clique
                 _checar_cabecalho(driver, f'antes_click_idx_{idx}')
 
-                # Clicar diretamente COM dispatchEvent (estratégia robusta gigs-plugin)
-                # NÃO usar scrollIntoView - causa layout shifts
                 from Fix.core import safe_click_no_scroll
                 timing_antes_click = time.time() - timing_start
                 if not safe_click_no_scroll(driver, link, log=log):
                     if log:
                         logger.warning(f"[ARGOS][CLIQUE][idx_{idx}] Falha ao clicar")
                     continue
-                
+
                 timing_depois_click = time.time() - timing_start
                 if log:
                     logger.info(f"[ARGOS][CLIQUE][idx_{idx}] metodo='dispatchEvent' tempo={timing_depois_click - timing_antes_click:.3f}s")
-                
+
                 time.sleep(1)
-                # checar cabeçalho após o clique / navegação
                 _checar_cabecalho(driver, f'apos_click_idx_{idx}')
 
-                # Extrair o texto REAL do documento usando a função robusta do Fix
-                # Essa função lé diretamente do painel ativo sem abrir modais
                 _checar_cabecalho(driver, f'before_extrair_idx_{idx}')
                 timing_antes_extracao = time.time() - timing_start
                 extracao_res = extrair_direto(driver, debug=True)
                 texto = extracao_res.get('conteudo')
                 timing_depois_extracao = time.time() - timing_start
-                
+
                 if log:
                     logger.info(f'[ARGOS][EXTRACAO][idx_{idx}] tempo={timing_depois_extracao - timing_antes_extracao:.3f}s metodo={extracao_res.get("metodo")} sucesso={extracao_res.get("sucesso")} tamanho={len(texto) if texto else 0}')
-                
+
                 if not texto:
                     if log:
                         logger.warning(f'[ARGOS][DOC] Extração de conteúdo via extrair_direto falhou para candidato #{idx}. Tentando item.text como fallback.')
                     texto = item.text
-                
-                # === RETORNA DOCUMENTO ENCONTRADO
-                timing_total = time.time() - timing_start
-                if log:
-                    logger.info(f"[ARGOS][TIMING][SUCESSO] {timing_total:.3f}s documento encontrado idx={idx}")
-                
-                # Retorna o candidato com o texto extraído
-                return texto, ('despacho' if 'despacho' in doc_text else 'decisão'), idx
-                
+
+                texto_lower = (texto or '').lower()
+
+                # Verificar se o texto extraído contém alguma das REGRAS_ARGOS
+                encontrou_regra = any(regra in texto_lower for regra in REGRAS_ARGOS)
+                if encontrou_regra:
+                    timing_total = time.time() - timing_start
+                    if log:
+                        logger.info(f"[ARGOS][TIMING][SUCESSO] {timing_total:.3f}s documento encontrado idx={idx}")
+                    # atualizar índice persistente para próxima chamada
+                    try:
+                        driver._argos_doc_idx = idx
+                    except Exception:
+                        pass
+                    return texto, ('despacho' if 'despacho' in doc_text else 'decisão')
+                else:
+                    if log:
+                        logger.info(f"[ARGOS][DOC][{idx}] regras ARGOS não aplicadas para candidato")
+                    # marcar índice como ignorado e continuar buscando
+                    try:
+                        ignorar_indices.append(idx)
+                    except Exception:
+                        pass
+                    continue
+
             except Exception as e:
                 if log:
                     logger.error(f'[ARGOS][DOC] Erro ao processar candidato #{idx}: {e}')
@@ -655,12 +664,12 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
         # === NÃO ENCONTROU DOCUMENTO
         timing_nenhum = time.time() - timing_start
         if log:
-            logger.info(f'[ARGOS][TIMING][NENHUM] {timing_nenhum:.3f}s nenhum documento ARGOS encontrado')
+            logger.info(f'[ARGOS][TIMING][NENHUM] {timing_nenhum:.3f}s nenhum documento ARGOS encontrado documentos_testados={documentos_testados}')
 
-        return None, None, None
+        return None, None
 
     except Exception as e:
         timing_erro = time.time() - timing_start
         if log:
             logger.error(f'[ARGOS][TIMING][ERRO] {timing_erro:.3f}s erro geral: {e}')
-        return None, None, None
+        return None, None

@@ -1,44 +1,45 @@
 {
   "numero": [
-    "1001571-61.2025.5.02.0703"
+    "1001815-18.2025.5.02.0047"
   ],
-  "id": 7707229,
+  "id": 7887538,
   "autor": [
     {
-      "nome": "PAULO JOSE TEIXEIRA DA CRUZ",
-      "cpfcnpj": "09381394520",
+      "nome": "ANA PAULA CARNEIRO FERREIRA",
+      "cpfcnpj": "47746129870",
       "advogado": {
-        "nome": "ROSELI FREITAS DE JESUS CASTRO",
-        "cpf": "29589876803",
-        "oab": "SP354276"
+        "nome": "RAFAEL DE OLIVEIRA VIANA",
+        "cpf": "29544756841",
+        "oab": "SP297654"
       }
     }
   ],
   "reu": [
     {
-      "nome": "ANDERSON RODRIGO DE MELO CONSTRUCOES E MANUTENCAO LTDA",
-      "cpfcnpj": "32846533000185"
+      "nome": "BIG QUALITY SERVICOS - EIRELI",
+      "cpfcnpj": "05586168000144",
+      "advogado": {
+        "nome": "LUIZ ROBERTO BARBOSA DOS SANTOS",
+        "cpf": "62567888853",
+        "oab": "SP261926"
+      }
     }
   ],
   "terceiro": [],
-  "divida": {
-    "valor": "R$ 11.496,73",
-    "data": "01/12/2025"
-  },
+  "divida": {},
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "10/09/2025",
+  "dtAutuacao": "27/10/2025",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

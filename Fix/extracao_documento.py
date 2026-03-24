@@ -285,8 +285,11 @@ def _extrair_formatar_texto(texto_bruto: str, debug: bool = False) -> str:
         return texto_bruto or ''
 
 
-def extrair_pdf(driver: WebDriver, timeout: int = 15, debug: bool = False) -> Optional[str]:
-    """Compat shim: extrai especificamente PDF (retorna texto formatado)"""
+def extrair_pdf(driver: WebDriver, timeout: int = 15, debug: bool = False, log: bool = False) -> Optional[str]:
+    """Compat shim: extrai especificamente PDF (retorna texto formatado).
+    Aceita o parâmetro legado `log` para compatibilidade (mapeado para `debug`)."""
+    # aceitar ambos: `debug` ou legado `log` (priorizar `debug` se True)
+    debug = debug or log
     res = extrair_direto(driver, timeout=timeout, debug=debug, formatar=True)
     if not res or not res.get('sucesso'):
         return None

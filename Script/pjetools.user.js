@@ -68,7 +68,6 @@
             'modules/atalhos/atalhos.js',
             'modules/atalhos/atalhos.worker.js',
             'ui/painel.js',
-            'modules/infojud/infojud.js',
             'modules/sisbajud/core.js',
             'modules/sisbajud/relatorios.js',
             'modules/sisbajud/sisbajud.js',

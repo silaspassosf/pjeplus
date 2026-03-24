@@ -142,7 +142,7 @@
             processarProximo();
         }
 
-        function processarProximo() {
+        async function processarProximo() {
             // marca que esta aba PJe está pronta para recebimento de foco
             _gmSet('GOD_PJE_PRONTA', '1');
             if (atual >= filaDocs.length) {
@@ -160,6 +160,10 @@
                 linha.scrollIntoView({block: 'center', behavior: 'smooth'});
             }
 
+            // Jitter para evitar requests sequenciais rápidos (mitiga bloqueio da Receita)
+            const jitter = 800 + Math.floor(Math.random() * 1200); // 800ms - 2000ms
+            await wait(jitter);
+
             if (doc.length === 11) {
                 _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
                 _gmOpenTab(URL_BASE_CPF + doc, { active: true, insert: true });
@@ -167,6 +171,9 @@
                 _gmSet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
                 _gmOpenTab(URL_BASE_CNPJ + doc, { active: true, insert: true });
             }
+
+            // marca timestamp da última abertura para o watchdog
+            try { window.__ultimaAberturaAba = Date.now(); } catch (e) {}
         }
 
         function encontrarLinhaPorDoc(docNumerico) {
@@ -179,13 +186,23 @@
 
         function monitorarSinais() {
             if (!rodando) return;
-            const status = _gmGet('GOD_STATUS', '');
+            const status = _gmGet('GOD_STATUS', '') || '';
+            const agora = Date.now();
+
+            // Watchdog: se passou muito tempo desde a última abertura de aba sem resposta, pula
+            if (!window.__ultimaAberturaAba) window.__ultimaAberturaAba = 0;
+            if (status === 'STANDBY' && window.__ultimaAberturaAba && (agora - window.__ultimaAberturaAba) > 30000) {
+                console.warn('[Infojud] Watchdog: timeout aguardando e-CAC. Pulando.');
+                _gmSet('GOD_STATUS', 'PULAR_' + agora);
+                window.__ultimaAberturaAba = agora;
+            }
 
             if (status.startsWith('DADOS_PRONTOS_')) {
                 const id = status.split('_')[2];
                 if (id !== ultimoProcessado) {
                     ultimoProcessado = id;
-                    // garantir foco na aba PJe antes de manipular o DOM
+                    // limpa sinal imediatamente para evitar reentrância
+                    _gmSet('GOD_STATUS', 'PROCESSANDO');
                     try { window.focus(); } catch (e) {}
                     setTimeout(() => aplicarLogicaMaster(), 300);
                 }

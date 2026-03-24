@@ -389,7 +389,8 @@ def _processar_bucket_generico(driver: Any, processos: List[Dict[str, Any]], pro
         nome_modulo=f"PEC_{nome_bucket}",
         lista_itens=processos,
         funcao_processamento_item=processar_item_pec,
-        max_tentativas_recuperacao=2
+        max_tentativas_recuperacao=2,
+        stop_on_critical=False
     )
 
     # Converter formato de retorno da função utilitária para o formato esperado

@@ -2,10 +2,20 @@
 (function () {
     'use strict';
 
-    // ── Compatibilidade de contexto para GM APIs ──────
-    const _gmSet = (k, v) => localStorage.setItem(k, String(v));
-    const _gmGet = (k, d = null) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
-    const _gmOpenTab = (url, _opts) => window.open(url, '_blank');
+    // ── APIs de storage: usa GM_setValue/getValue reais (cross-origin no TM)
+    // Fallback para localStorage apenas se GM não disponível (contexto fora do TM)
+    const _gmSet = (typeof GM_setValue !== 'undefined')
+        ? (k, v) => GM_setValue(k, String(v))
+        : (k, v) => localStorage.setItem(k, String(v));
+
+    const _gmGet = (typeof GM_getValue !== 'undefined')
+        ? (k, d = null) => { const v = GM_getValue(k, d); return v !== null && v !== undefined ? v : d; }
+        : (k, d = null) => { const v = localStorage.getItem(k); return v !== null ? v : d; };
+
+    // GM_openInTab abre com foco e mantém referência; fallback para window.open
+    const _gmOpenTab = (typeof GM_openInTab !== 'undefined')
+        ? (url, opts) => GM_openInTab(url, opts)
+        : (url, _opts) => window.open(url, '_blank');
     // ────────────────────────────────────────────────────────────────
 
     // contexto de execução real da página (unsafeWindow quando disponível)
@@ -166,10 +176,10 @@
 
             if (doc.length === 11) {
                 _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
-                _gmOpenTab(URL_BASE_CPF + doc, { active: true, insert: true });
+                _gmOpenTab(URL_BASE_CPF + doc, { active: false, insert: true });
             } else {
                 _gmSet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
-                _gmOpenTab(URL_BASE_CNPJ + doc, { active: true, insert: true });
+                _gmOpenTab(URL_BASE_CNPJ + doc, { active: false, insert: true });
             }
 
             // marca timestamp da última abertura para o watchdog
@@ -432,6 +442,10 @@
     // O orquestrador não monitora essas rotas ativamente para comandos,
     // então a lógica roda automaticamente aqui.
     // =================================================================================
+    if (URL_ATUAL.includes('detalheNICNPJ.asp') || URL_ATUAL.includes('detalheNICPF.asp')) {
+        console.log('[Infojud] Módulo ativo na aba e-CAC:', URL_ATUAL);
+    }
+
     if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         if (document.body.innerText.includes('Nenhum registro') || document.body.innerText.includes('Erro')) {
             _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
@@ -444,11 +458,11 @@
             const tds = Array.from(document.querySelectorAll('td'));
             const labelCpf = tds.find(td => td.textContent.includes('CPF do responsável'));
             const cpf = labelCpf ? apenasNumeros(labelCpf.nextElementSibling?.textContent) : null;
-            if (cpf && cpf.length === 11) {
-                mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1');
-                // abre CPF; a aba filha deverá devolver foco ao PJe quando terminar
-                _gmOpenTab(URL_BASE_CPF + cpf, { active: true, insert: true });
-            } else {
+                if (cpf && cpf.length === 11) {
+                    mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1');
+                    // abre CPF; a aba filha deverá devolver foco ao PJe quando terminar
+                    _gmOpenTab(URL_BASE_CPF + cpf, { active: false, insert: true });
+                } else {
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
                 mostrarNotificacao('Nenhum CPF Elegível Encontrado.', '#ffc107', true);
                 try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}

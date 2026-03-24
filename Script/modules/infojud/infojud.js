@@ -8,6 +8,8 @@
     const _gmOpenTab = (url, _opts) => window.open(url, '_blank');
     // ────────────────────────────────────────────────────────────────
 
+    // contexto de execução real da página (unsafeWindow quando disponível)
+    const _win = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
     const URL_ATUAL = window.location.href;
     const URL_BASE_CNPJ = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI=';
     const URL_BASE_CPF = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp?NI=';
@@ -84,12 +86,16 @@
     }
 
     // =================================================================================
-    // PARTE 1: EXPOSIÇÃO PARA O PJE TOOLS (Módulo PJe)
+    // PARTE 1: EXPOSIÇÃO PARA O PJE TOOLS (O Orquestrador chama esta função)
     // =================================================================================
-    window.runInfojudWorker = function() {
-        if (!URL_ATUAL.includes('pje.trt2.jus.br') || !URL_ATUAL.includes('/minutas')) return;
-        
-        console.log('[Infojud] runInfojudWorker orquestrado pelo PJeTools.');
+    // FIX #1: registrar no contexto real da página para que o orquestrador (unsafeWindow) ache
+    _win.runInfojudWorker = function() {
+        // FIX #2: ler a URL no momento da chamada (SPA pode ter navegado desde o carregamento)
+        const URL_ATUAL_LOCAL = window.location.href;
+        if (!(URL_ATUAL_LOCAL.includes('pje.trt2.jus.br') || URL_ATUAL_LOCAL.includes('pje1g.trt2.jus.br'))) return;
+        if (!URL_ATUAL_LOCAL.includes('/minutas')) return;
+
+        console.log('[Infojud] Worker orquestrado pelo PJeTools com sucesso.');
 
         let filaDocs = [];
         let atual = 0;
@@ -395,12 +401,14 @@
             });
         }
 
-        // Auto-inicializa a UI da Worker
+        // Desenha os botões na tela quando o orquestrador mandar rodar
         criarBotoesInfojud();
     };
 
     // =================================================================================
     // PARTE 2: AUTO-EXECUÇÃO RECEITA FEDERAL (e-CAC)
+    // O orquestrador não monitora essas rotas ativamente para comandos,
+    // então a lógica roda automaticamente aqui.
     // =================================================================================
     if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         if (document.body.innerText.includes('Nenhum registro') || document.body.innerText.includes('Erro')) {

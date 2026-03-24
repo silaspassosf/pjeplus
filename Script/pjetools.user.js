@@ -63,13 +63,19 @@
         const isObrigacao = url.includes('/obrigacao-pagar/');
 
         if (isMinutas) {
-            if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
-            document.documentElement.setAttribute('data-pjetools-worker', '1');
+            // FIX #3: usar flag em memória por sessão para evitar persistência entre navegações SPA
+            if (window.__infojudWorkerRodando) return;
+            window.__infojudWorkerRodando = true;
             console.log('[Loader] Iniciando Worker Infojud...');
-            
-            // Remoção do 'load' event. Chama o worker diretamente após 1.5s
+
             setTimeout(() => {
-                if (W.runInfojudWorker) W.runInfojudWorker();
+                if (W.runInfojudWorker) {
+                    W.runInfojudWorker();
+                } else {
+                    console.error('[Loader] runInfojudWorker não encontrado no window! Verifique o @require do infojud.js.');
+                }
+                // liberar para próximas navegações SPA
+                window.__infojudWorkerRodando = false;
             }, 1500);
             return;
         }

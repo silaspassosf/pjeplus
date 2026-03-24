@@ -20,7 +20,8 @@ def executar_processamento_iterativo_com_corte_em_erro_critico(
     nome_modulo: str,
     lista_itens,
     funcao_processamento_item,
-    max_tentativas_recuperacao: int = 2
+    max_tentativas_recuperacao: int = 2,
+    stop_on_critical: bool = True
 ) -> Dict[str, Any]:
     """
     Executa processamento iterativo com interrupção automática em erros críticos.
@@ -88,8 +89,13 @@ def executar_processamento_iterativo_com_corte_em_erro_critico(
             except queue.Empty:
                 erros += 1
                 logger.error(f'[{nome_modulo}] Timeout ({ITEM_TIMEOUT}s) ao processar {item_id} - interrompendo para evitar bloqueio')
-                interrompido_por_erro_critico = True
-                break
+                if stop_on_critical:
+                    interrompido_por_erro_critico = True
+                    break
+                else:
+                    # registrar e continuar com próximo item
+                    logger.warning(f'[{nome_modulo}] Continuando após timeout em {item_id} (stop_on_critical=False)')
+                    continue
 
             if kind == 'exc':
                 erros += 1
@@ -129,10 +135,15 @@ def executar_processamento_iterativo_com_corte_em_erro_critico(
             ]
 
             if any(critico in error_msg for critico in erros_criticos):
-                logger.error(f'[{nome_modulo}] ERRO CRÍTICO detectado - interrompendo processamento para evitar poluição do log')
+                logger.error(f'[{nome_modulo}] ERRO CRÍTICO detectado: {error_msg}')
                 logger.error(f'[{nome_modulo}] Último erro crítico: {error_msg}')
-                interrompido_por_erro_critico = True
-                break
+                if stop_on_critical:
+                    logger.error(f'[{nome_modulo}] Interrompendo processamento por erro crítico')
+                    interrompido_por_erro_critico = True
+                    break
+                else:
+                    logger.warning(f'[{nome_modulo}] Continuando após erro crítico em {item_id} (stop_on_critical=False)')
+                    continue
 
             continue
 

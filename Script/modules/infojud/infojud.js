@@ -143,6 +143,8 @@
         }
 
         function processarProximo() {
+            // marca que esta aba PJe está pronta para recebimento de foco
+            _gmSet('GOD_PJE_PRONTA', '1');
             if (atual >= filaDocs.length) {
                 mostrarNotificacao("Ciclo Infojud Finalizado!", '#28a745', true);
                 salvarGeralFinal();
@@ -183,12 +185,15 @@
                 const id = status.split('_')[2];
                 if (id !== ultimoProcessado) {
                     ultimoProcessado = id;
-                    aplicarLogicaMaster();
+                    // garantir foco na aba PJe antes de manipular o DOM
+                    try { window.focus(); } catch (e) {}
+                    setTimeout(() => aplicarLogicaMaster(), 300);
                 }
             } else if (status.startsWith('PULAR_')) {
                 const id = status.split('_')[1];
                 if (id !== ultimoProcessado) {
                     ultimoProcessado = id;
+                    try { window.focus(); } catch (e) {}
                     const linha = encontrarLinhaPorDoc(filaDocs[atual]);
                     if (linha) linha.style.backgroundColor = '#ffccbc';
                     atual++;
@@ -414,6 +419,8 @@
         if (document.body.innerText.includes('Nenhum registro') || document.body.innerText.includes('Erro')) {
             _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
             mostrarNotificacao('Falha: Nenhum registro. Aguarde ou feche manualmente.', '#dc3545', true);
+            // tenta devolver foco ao PJe para que ele prossiga
+            try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
             return;
         }
         setTimeout(() => {
@@ -422,10 +429,12 @@
             const cpf = labelCpf ? apenasNumeros(labelCpf.nextElementSibling?.textContent) : null;
             if (cpf && cpf.length === 11) {
                 mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1');
+                // abre CPF; a aba filha deverá devolver foco ao PJe quando terminar
                 _gmOpenTab(URL_BASE_CPF + cpf, { active: true, insert: true });
             } else {
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
                 mostrarNotificacao('Nenhum CPF Elegível Encontrado.', '#ffc107', true);
+                try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
             }
         }, 800);
     } 
@@ -474,7 +483,10 @@
                     _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(d));
                     _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
 
-                    mostrarNotificacao('DADOS OK! Retorne ao PJe (Aba continuará aberta)', '#28a745', true);
+                    mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', true);
+
+                    // Devolver foco ao PJe (percorre opener -> opener.opener)
+                    _devolverFocoPJe();
                 } else {
                     throw new Error('Dados incompletos');
                 }
@@ -482,8 +494,35 @@
                 console.error(e);
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
                 mostrarNotificacao('Erro na Leitura da Receita. Pulando no PJe.', '#dc3545', true);
+                _devolverFocoPJe();
             }
         }, 1000);
+    }
+
+    // ── Auxiliar: percorre cadeia de openers até encontrar a aba PJe e foca nela
+    function _devolverFocoPJe() {
+        try {
+            if (window.opener && !window.opener.closed) {
+                const op = window.opener;
+                try {
+                    if (op.location && op.location.href && (op.location.href.includes('pje.trt2.jus.br') || op.location.href.includes('pje1g.trt2.jus.br'))) {
+                        op.focus(); return;
+                    }
+                } catch (e) { /* cross-origin may block reading location */ }
+
+                if (op.opener && !op.opener.closed) {
+                    try {
+                        const pje = op.opener;
+                        if (pje.location && pje.location.href && (pje.location.href.includes('pje.trt2.jus.br') || pje.location.href.includes('pje1g.trt2.jus.br'))) {
+                            pje.focus(); return;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+
+                // fallback: focus opener
+                try { op.focus(); } catch (e) {}
+            }
+        } catch (e) { /* ignore */ }
     }
 
 })();

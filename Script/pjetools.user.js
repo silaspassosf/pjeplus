@@ -55,6 +55,10 @@
 
     // ── Roteamento (roda depois de todos os @require carregados)
     if (isPjeDomain || isReceita) {
+
+        // Se for Receita Federal (e-CAC), não roteamos aqui — o módulo carregado via @require
+        // já executa sua Parte 2 quando a aba do e-CAC abre. Permitimos que o módulo aja.
+        if (isReceita) return;
         // Dynamic loader removed: all modules must be provided via @require in the userscript header.
 
         // ── Roteamento (só roda DEPOIS de tudo carregado)

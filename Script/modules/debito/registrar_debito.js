@@ -427,7 +427,7 @@ async function preencherMonetario(input, valorBR) {
 
       // BOTÃO DE INSERIR APENAS PARA OS PRÓXIMOS BLOCOS
       if (i > 0) {
-         html += '<button onclick="window.PjeRegistrarDebito.acionarPreenchimento(this, ' + i + ')" '
+         html += '<button data-debito-bloco="' + i + '" '
                + 'style="margin-top:10px;width:100%;padding:8px;background:#a6e3a1;color:#11111b;border:none;border-radius:4px;font-weight:bold;cursor:pointer;font-size:12px;transition:0.2s;">'
                + '⬇️ Inserir Valores na Tela'
                + '</button>';
@@ -438,6 +438,14 @@ async function preencherMonetario(input, valorBR) {
 
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // FIX: event delegation no sandbox — sem dependência de unsafeWindow
+    document.querySelectorAll('[data-debito-bloco]').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+            var idx = parseInt(btn.getAttribute('data-debito-bloco'));
+            await window.PjeRegistrarDebito.acionarPreenchimento(btn, idx);
+        });
+    });
   }
 
   // ── Auto-init ─────────────────────────────────────────────────────────────────

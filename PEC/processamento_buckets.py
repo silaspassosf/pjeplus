@@ -1,10 +1,16 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import os
 import time
 from typing import Optional, Dict, List, Any
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import StaleElementReferenceException
+
+# Garantir pasta de logs para watchdog
+LOG_DIR = 'logs_execucao'
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR, exist_ok=True)
 
 from utilitarios_processamento import executar_processamento_iterativo_com_corte_em_erro_critico
 

@@ -72,7 +72,7 @@ def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug:
         return None
 
 
-def inicar_exec(driver):
+def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     """Helper: cria duas GIGS padrão e roteia por fase.
 
     Comportamento reduzido (simplificado):
@@ -104,6 +104,9 @@ def inicar_exec(driver):
         pass
 
     try:
+        # texto_normalizado pode ser fornecido pelo chamador; usar apenas para logs
+        if texto_normalizado:
+            logger.debug('[FLUXO_PZ] inicar_exec recebido texto_normalizado (comprimento=%d)', len(texto_normalizado))
         fase = obter_fase_processual(driver)
     except Exception as e:
         logger.debug('[FLUXO_PZ] inicar_exec: falha ao obter fase: %s', e)

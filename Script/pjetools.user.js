@@ -66,9 +66,11 @@
             if (document.documentElement.hasAttribute('data-pjetools-worker')) return;
             document.documentElement.setAttribute('data-pjetools-worker', '1');
             console.log('[Loader] Iniciando Worker Infojud...');
-            window.addEventListener('load', () => setTimeout(() => {
-                W.runInfojudWorker && W.runInfojudWorker();
-            }, 2500));
+            
+            // Remoção do 'load' event. Chama o worker diretamente após 1.5s
+            setTimeout(() => {
+                if (W.runInfojudWorker) W.runInfojudWorker();
+            }, 1500);
             return;
         }
 

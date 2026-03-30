@@ -127,8 +127,9 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
     Returns:
         dict com status de cada etapa e documentos processados
     """
+    from core.resultado_execucao import ResultadoExecucao
     if not documentos_sequenciais:
-        return {'sucesso': False, 'etapa_erro': 'nenhum_documento'}
+        return ResultadoExecucao(sucesso=False, status='FALHA', erro='nenhum_documento', detalhes={'etapa_erro': 'nenhum_documento'})
     
     resultado = {
         'sucesso': True,

@@ -487,11 +487,16 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
     if log:
         status_sisbajud = resultado_sisbajud if resultado_sisbajud else f"SEM SISBAJUD ({motivo})"
     
-    return {
-        'executados': executados,
-        'resultado_sisbajud': resultado_sisbajud,
-        'found_sigilo': found_sigilo,
-        'sigilo_anexos': sigilo_anexos,
-        'sigiloso': any_sigilo,
-        'tem_anexos': tem_anexos
-    }
+    from core.resultado_execucao import ResultadoExecucao
+    return ResultadoExecucao(
+        sucesso=True,
+        status='OK',
+        detalhes={
+            'executados': executados,
+            'resultado_sisbajud': resultado_sisbajud,
+            'found_sigilo': found_sigilo,
+            'sigilo_anexos': sigilo_anexos,
+            'sigiloso': any_sigilo,
+            'tem_anexos': tem_anexos
+        }
+    )

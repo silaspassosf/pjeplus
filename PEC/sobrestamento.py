@@ -123,7 +123,11 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             # Clica no documento
             try:
                 # scroll into view para garantir que está visível
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", doc_link)
+                from pathlib import Path
+                from Fix.scripts import carregar_js
+                SCRIPTS_DIR = Path(__file__).parent / "scripts"
+                script_scroll = carregar_js("scroll_into_view_instant.js", SCRIPTS_DIR)
+                driver.execute_script(script_scroll, doc_link)
                 time.sleep(0.5)
                 doc_link.click()
                 time.sleep(3)  # Aguarda carregar o preview

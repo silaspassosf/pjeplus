@@ -386,6 +386,7 @@ def _selecionar_por_lista(driver, lista_destinatarios, origem_log, log, fallback
 
 
 def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False, log=None, cliques_polo_passivo=1, cliques_informado=2, observacao=None, numero_processo=None, dados_processo=None):
+    from core.resultado_execucao import ResultadoExecucao
     if log is None:
         def log(_msg):
             return None
@@ -397,7 +398,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     # Roteamento principal
     if destinatarios is None:
         log('[DESTINATARIOS] Parâmetro None - pulando seleção')
-        return {'status': 'skip', 'count': 0}
+        return ResultadoExecucao(sucesso=False, status='skip', detalhes={'count': 0})
 
     if isinstance(destinatarios, list):
         log('[DESTINATARIOS] Lista explícita recebida via override')
@@ -412,7 +413,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             return _selecionar_por_lista(driver, lista_destinatarios, 'cache', log, fallback_polo_passivo=True, qtd_seta_override=2, debug=debug, qtd_cliques_fallback=qtd_cliques_fallback)
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha no modo extraido: {e}')
-            return {'status': 'error', 'count': 0, 'details': str(e)}
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios == 'informado':
         log('[DESTINATARIOS] OPÇÃO INFORMADO: cruzando observação com dados do processo')
@@ -428,7 +429,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             return _selecionar_por_lista(driver, candidatos, 'observação', log, fallback_polo_passivo=True, qtd_seta_override=qtd_informado, debug=debug, qtd_cliques_fallback=qtd_cliques_fallback)
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha no modo informado: {e}')
-            return {'status': 'error', 'count': 0, 'details': str(e)}
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios == 'polo_ativo':
         log('[DESTINATARIOS] OPÇÃO: Clicando no polo ativo')
@@ -437,10 +438,10 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloAtivo"]'))
             )
             driver.execute_script("arguments[0].click();", btn_polo_ativo)
-            return {'status': 'geral', 'count': 0}
+            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo ativo: {e}')
-            return {'status': 'error', 'count': 0, 'details': str(e)}
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios in ('polo_passivo', 'polo_passivo_2x'):
         cliques = cliques_polo_passivo if destinatarios == 'polo_passivo' else 2
@@ -455,10 +456,10 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                 except Exception:
                     pass
                 driver.execute_script("arguments[0].click();", btn_polo_passivo)
-            return {'status': 'geral', 'count': 0}
+            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
-            return {'status': 'error', 'count': 0, 'details': str(e)}
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     if destinatarios == 'terceiros':
         log('[DESTINATARIOS] OPÇÃO TERCEIROS: Clicando em terceiros interessados')
@@ -472,10 +473,10 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa.fa-user.pec-polo-outros-partes-processo'))
                 )
             driver.execute_script("arguments[0].click();", btn_terceiro)
-            return {'status': 'geral', 'count': 0}
+            return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
-            return {'status': 'error', 'count': 0, 'details': str(e)}
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
     # opção padrão: clicar polo passivo 1x
     log('[DESTINATARIOS] OPÇÃO PADRÃO: Clicando no polo passivo (1x)')
@@ -484,7 +485,7 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
         )
         driver.execute_script("arguments[0].click();", btn_polo_passivo)
-        return {'status': 'geral', 'count': 0}
+        return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo padrão: {e}')
-        return {'status': 'error', 'count': 0, 'details': str(e)}
+        return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})

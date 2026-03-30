@@ -143,8 +143,9 @@ def login_automatico_direto(driver):
 
 def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True):
     """Login automático por CPF/senha - OTIMIZADO: usa preencher_multiplos_campos()"""
-    cpf = cpf or os.environ.get('PJE_SILAS')
-    senha = senha or os.environ.get('PJE_SENHA')
+    import keyring
+    cpf = cpf or keyring.get_password('pjeplus', 'PJE_USER')
+    senha = senha or keyring.get_password('pjeplus', 'PJE_SENHA')
     from .utils_cookies import verificar_e_aplicar_cookies, salvar_cookies_sessao, USAR_COOKIES_AUTOMATICO
 
     try:

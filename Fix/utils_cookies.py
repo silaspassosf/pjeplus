@@ -81,12 +81,34 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
             except Exception:
                 pass
 
-        if 'acesso-negado' in driver.current_url.lower():
-            logger.warning('[COOKIES] Acesso negado apos aplicar cookies; limpando cookies.')
+        # Detectar acesso negado por URL, título ou conteúdo da página
+        current_url = driver.current_url or ''
+        page_title = ''
+        page_source = ''
+        try:
+            page_title = driver.title or ''
+        except Exception:
+            page_title = ''
+        try:
+            page_source = (driver.page_source or '').lower()
+        except Exception:
+            page_source = ''
+
+        if ('acesso-negado' in current_url.lower()
+                or 'access-denied' in current_url.lower()
+                or 'acesso negado' in page_title.lower()
+                or 'acesso negado' in page_source
+                or 'access denied' in page_title.lower()
+                or 'access denied' in page_source):
+            logger.warning('[COOKIES] Acesso negado apos aplicar cookies; limpando cookies e resetando navegação.')
             try:
                 driver.delete_all_cookies()
             except Exception as e:
                 logger.warning(f"[COOKIES] Erro ao apagar cookies: {e}")
+            try:
+                driver.get('https://pje.trt2.jus.br/primeirograu/')
+            except Exception:
+                pass
             return False
 
         if 'login' in driver.current_url.lower():

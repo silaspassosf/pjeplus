@@ -1,3 +1,5 @@
+
+from Fix.exceptions import DriverFatalError, NavegacaoError
 import logging
 logger = logging.getLogger(__name__)
 
@@ -54,7 +56,7 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
     try:
         if not hasattr(driver, 'session_id') or driver.session_id is None:
             logger.error(f'[{contexto}][CONEXÃO][ERRO] Driver não possui session_id válido')
-            return False
+            raise DriverFatalError(f'Driver sem session_id válido (contexto: {contexto})')
         try:
             # Teste 1: Verificar se podemos acessar current_url
             try:
@@ -73,10 +75,10 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                             f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{url_err}\n{traceback.format_exc()}\n\n")
                     except Exception as logerr:
                         logger.error(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
-                    return "FATAL"
+                    raise DriverFatalError(f'Contexto do navegador descartado ao acessar URL (contexto: {contexto})')
                 else:
                     logger.error(f'[{contexto}][CONEXÃO][ERRO] Falha ao acessar URL atual: {url_err}')
-                    return False
+                    raise NavegacaoError(f'Falha ao acessar URL atual (contexto: {contexto}): {url_err}')
             # Teste 2: Verificar se podemos acessar window_handles
             try:
                 window_handles = driver.window_handles
@@ -93,10 +95,10 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                             f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{handles_err}\n{traceback.format_exc()}\n\n")
                     except Exception as logerr:
                         logger.error(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
-                    return "FATAL"
+                    raise DriverFatalError(f'Contexto do navegador descartado ao acessar handles (contexto: {contexto})')
                 else:
                     logger.error(f'[{contexto}][CONEXÃO][ERRO] Falha ao acessar handles: {handles_err}')
-                    return False
+                    raise NavegacaoError(f'Falha ao acessar handles (contexto: {contexto}): {handles_err}')
             # Se ambos os testes passaram, o driver está OK
             # Log reduzido - apenas em debug
             if contexto and 'DEBUG' in contexto.upper():
@@ -115,10 +117,10 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                         f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{connection_test_err}\n{traceback.format_exc()}\n\n")
                 except Exception as logerr:
                     logger.error(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
-                return "FATAL"
+                raise DriverFatalError(f'Contexto do navegador descartado no teste de conexão (contexto: {contexto})')
             else:
                 logger.error(f'[{contexto}][CONEXÃO][ERRO] Falha no teste de conexão: {connection_test_err}')
-                return False
+                raise NavegacaoError(f'Falha no teste de conexão (contexto: {contexto}): {connection_test_err}')
     except Exception as validation_err:
         if is_browsing_context_discarded_error(validation_err):
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -132,10 +134,10 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
                     f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{validation_err}\n{traceback.format_exc()}\n\n")
             except Exception as logerr:
                 logger.error(f'[LOG][ERRO] Falha ao registrar erro fatal em arquivo: {logerr}')
-            return "FATAL"
+            raise DriverFatalError(f'Contexto do navegador descartado na validação final (contexto: {contexto})')
         else:
             logger.error(f'[{contexto}][CONEXÃO][ERRO] Falha na validação de conexão: {validation_err}')
-            return False
+            raise NavegacaoError(f'Falha na validação de conexão (contexto: {contexto}): {validation_err}')
 
 def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
     """
@@ -151,45 +153,38 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
     """
     try:
         # Verificar se o driver está conectado
-        if not validar_conexao_driver(driver, "ABAS"):
-            logger.error('[ABAS][ERRO] Driver não está conectado ao tentar trocar de aba')
-            return None
+        validar_conexao_driver(driver, "ABAS")
             
         # Obter lista atual de abas
         try:
             abas = driver.window_handles
             if not abas:
                 logger.error('[ABAS][ERRO] Nenhuma aba disponível')
-                return None
-                
+                raise NavegacaoError('Nenhuma aba disponível')
             if len(abas) == 1 and abas[0] == aba_lista_original:
                 logger.error('[ABAS][ERRO] Apenas a aba original está disponível, nenhuma nova aba foi aberta')
-                return None
-                
+                raise NavegacaoError('Apenas a aba original está disponível, nenhuma nova aba foi aberta')
             # Mostrar informação útil das abas ao invés de IDs longos
             if len(abas) > 1:
                 try:
                     aba_atual = driver.current_window_handle
                     outras_abas = [h for h in abas if h != aba_lista_original]
                     pass
-                except:
+                except Exception:
                     pass
         except Exception as e:
             logger.error(f'[ABAS][ERRO] Falha ao obter lista de abas: {e}')
-            return None
+            raise NavegacaoError(f'Falha ao obter lista de abas: {e}')
             
         # Tentar trocar para uma aba diferente da original
         for h in abas:
             if h != aba_lista_original:
                 try:
                     driver.switch_to.window(h)
-                    # Verificar se realmente trocamos de aba
                     atual_handle = driver.current_window_handle
                     if atual_handle == h:
-                        # Log simplificado com URL útil
                         try:
                             url_atual = driver.current_url
-                            # Extrair parte útil da URL
                             from urllib.parse import urlparse
                             parsed = urlparse(url_atual)
                             path_parts = parsed.path.strip('/').split('/')
@@ -205,13 +200,11 @@ def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
                 except Exception as e:
                     logger.error(f'[ABAS][ERRO] Erro ao trocar para aba {h[:8]}...: {e}')
                     continue
-                    
-        # Se chegou aqui, não conseguiu trocar para nenhuma nova aba
         logger.error('[ABAS][ERRO] Não foi possível trocar para nenhuma nova aba')
-        return None
+        raise NavegacaoError('Não foi possível trocar para nenhuma nova aba')
     except Exception as e:
         logger.error(f'[ABAS][ERRO] Erro geral ao tentar trocar de aba: {e}')
-        return None
+        raise NavegacaoError(f'Erro geral ao tentar trocar de aba: {e}')
 
 def forcar_fechamento_abas_extras(driver, aba_lista_original: str):
     """

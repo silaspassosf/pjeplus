@@ -1,3 +1,5 @@
+from Fix.scripts import carregar_js
+from pathlib import Path
 import logging
 import os
 logger = logging.getLogger(__name__)
@@ -606,58 +608,15 @@ def _salvar_minuta(driver):
         bool: True se salvou com sucesso
     """
     try:
-        script_salvar = """
-        // Buscar botão de salvar com seletor específico
-        var btnSalvar = document.querySelector('button.mat-fab.mat-primary mat-icon.fa-save');
-        if (btnSalvar) {
-            btnSalvar.closest('button').click();
-            return true;
-        }
-
-        // Fallback: buscar por qualquer botão com ícone de save
-        var btnFallback = document.querySelector('button mat-icon.fa-save');
-        if (btnFallback) {
-            btnFallback.closest('button').click();
-            return true;
-        }
-
-        // Fallback 2: buscar por texto "Salvar"
-        var buttons = document.querySelectorAll('button');
-        for (var i = 0; i < buttons.length; i++) {
-            if (buttons[i].textContent.includes('Salvar')) {
-                buttons[i].click();
-                return true;
-            }
-        }
-
-        return false;
-        """
-
+        SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
+        script_salvar = carregar_js("salvar_minuta.js", SCRIPTS_DIR)
         salvou = driver.execute_script(script_salvar)
         if salvou:
             # Aguardar confirmação do salvamento
             time.sleep(3)
 
             # Verificar se foi salvo
-            script_verificar_salvamento = """
-            // Buscar botão "Alterar" como confirmação
-            var btnAlterar = document.querySelector('button mat-icon.fa-edit');
-            if (btnAlterar) {
-                var btnTexto = btnAlterar.closest('button');
-                if (btnTexto && btnTexto.textContent.includes('Alterar')) {
-                    return 'SALVO_COM_SUCESSO';
-                }
-            }
-
-            // Verificar se ainda está na página de edição
-            var btnSalvar = document.querySelector('button mat-icon.fa-save');
-            if (btnSalvar) {
-                return 'AINDA_EDITANDO';
-            }
-
-            return 'STATUS_DESCONHECIDO';
-            """
-
+            script_verificar_salvamento = carregar_js("verificar_salvamento_minuta.js", SCRIPTS_DIR)
             status_salvamento = driver.execute_script(script_verificar_salvamento)
 
             if status_salvamento == 'SALVO_COM_SUCESSO':
@@ -763,77 +722,36 @@ def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
         
         # 1. Localizar e clicar no botão "Protocolar"
         try:
-            # Tentar encontrar pelo texto "Protocolar" no span com mat-icon de martelo
-            script_encontrar_botao = """
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const protocoloBtn = buttons.find(btn => {
-                const spans = btn.querySelectorAll('span.mat-button-wrapper');
-                return Array.from(spans).some(span => {
-                    const hasIcon = span.querySelector('mat-icon.fa-gavel');
-                    const hasText = span.textContent.includes('Protocolar');
-                    return hasIcon || hasText;
-                });
-            });
-            if (protocoloBtn) {
-                protocoloBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
-                return true;
-            }
-            return false;
-            """
-            
+            SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
+            script_encontrar_botao = carregar_js("encontrar_botao_protocolar.js", SCRIPTS_DIR)
             encontrado = driver.execute_script(script_encontrar_botao)
-            
             if not encontrado:
                 return False
-            
-            time.sleep(0.5)
-            
-            # Clicar no botão
-            script_clicar = """
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const protocoloBtn = buttons.find(btn => {
-                const spans = btn.querySelectorAll('span.mat-button-wrapper');
-                return Array.from(spans).some(span => {
-                    const hasIcon = span.querySelector('mat-icon.fa-gavel');
-                    const hasText = span.textContent.includes('Protocolar');
-                    return hasIcon || hasText;
-                });
-            });
-            if (protocoloBtn) {
-                protocoloBtn.click();
-                return true;
-            }
-            return false;
-            """
-            
+            from Fix.utils import sleep_fixed
+            sleep_fixed(0.5)
+            script_clicar = carregar_js("clicar_botao_protocolar.js", SCRIPTS_DIR)
             clicado = driver.execute_script(script_clicar)
-            
             if not clicado:
                 return False
-            
         except Exception as e:
             if log:
                 logger.error(f'[SISBAJUD][PROTOCOLO]  Erro ao clicar no botão "Protocolar": {e}')
             return False
-        
         # 3. Aguardar modal de senha aparecer
-        time.sleep(1)
-        
+        sleep_fixed(1)
         # 4. Localizar e preencher campo de senha
         try:
             # Encontrar o campo de senha
             campo_senha = driver.find_element(By.CSS_SELECTOR, 'input[type="password"][formcontrolname="senha"]')
-            
-            # Scroll e foco no campo
-            driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", campo_senha)
-            time.sleep(0.3)
-            
+            # Scroll e foco no campo usando JS externo
+            script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
+            driver.execute_script(script_scroll, campo_senha)
+            from Fix.utils import sleep_fixed
+            sleep_fixed(0.3)
             campo_senha.click()
-            time.sleep(0.3)
-            
+            sleep_fixed(0.3)
             # Digitar a senha de forma humanizada (igual ao login)
             senha = os.environ.get('BP_PASS', '')
-
             import random
             for i, char in enumerate(senha):
                 # Simular erro de digitação (5% chance)
@@ -873,107 +791,35 @@ def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
             
             encontrado = driver.execute_script(script_confirmar)
             
-            if not encontrado:
-                # Fallback: qualquer botão com texto "Confirmar"
-                script_confirmar_alt = """
-                const buttons = Array.from(document.querySelectorAll('button'));
-                const confirmBtn = buttons.find(btn => btn.textContent.includes('Confirmar'));
-                if (confirmBtn) {
-                    confirmBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
-                    return true;
-                }
-                return false;
-                """
-                encontrado = driver.execute_script(script_confirmar_alt)
-            
-            if not encontrado:
-                return False
-            
-            time.sleep(0.3)
-            
-            # Clicar no botão
-            script_clicar = """
-            const buttons = Array.from(document.querySelectorAll('button[type="submit"][color="primary"]'));
-            let confirmBtn = buttons.find(btn => {
-                const wrapper = btn.querySelector('span.mat-button-wrapper');
-                return wrapper && wrapper.textContent.trim() === 'Confirmar';
-            });
-            
-            // Fallback se não encontrar o botão específico
-            if (!confirmBtn) {
-                const allButtons = Array.from(document.querySelectorAll('button'));
-                confirmBtn = allButtons.find(btn => btn.textContent.includes('Confirmar'));
-            }
-            
-            if (confirmBtn) {
-                confirmBtn.click();
-                return true;
-            }
-            return false;
-            """
-            
-            clicado = driver.execute_script(script_clicar)
-            
-            if clicado:
-                # Aguardar processamento
-                time.sleep(2)
-                
-                # Verificar sucesso pela presença do botão "Copiar Dados para Nova Ordem"
-                script_verificar_sucesso = """
-                const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
-                if (buttons.length > 0) {
-                    return true;
-                }
-                // Fallback: procurar por botão com mat-icon fa-copy e texto "Copiar Dados"
-                const allButtons = Array.from(document.querySelectorAll('button'));
-                const copyBtn = allButtons.find(btn => {
-                    const icon = btn.querySelector('mat-icon.fa-copy');
-                    const text = btn.textContent;
-                    return icon && text.includes('Copiar Dados');
-                });
-                return copyBtn !== undefined;
-                """
-                
-                # Tentar verificar com retry (até 5 segundos)
-                sucesso_verificado = False
-                for tentativa in range(10):  # 10 x 0.5s = 5 segundos
-                    try:
-                        sucesso_verificado = driver.execute_script(script_verificar_sucesso)
-                        if sucesso_verificado:
-                            break
-                    except Exception as e:
-                        _ = e
-                    time.sleep(0.5)
-                
-                if sucesso_verificado:
-                    return True
+            # 5. Aguardar e clicar no botão de confirmação
+            sleep_fixed(0.6)
+            try:
+                script_confirmar = carregar_js("confirmar_minuta.js", SCRIPTS_DIR)
+                clicado = driver.execute_script(script_confirmar)
+                if clicado:
+                    # Aguardar processamento
+                    sleep_fixed(2)
+                    # Verificar sucesso pela presença do botão "Copiar Dados para Nova Ordem"
+                    script_verificar_sucesso = carregar_js("verificar_sucesso_minuta.js", SCRIPTS_DIR)
+                    sucesso_verificado = False
+                    for tentativa in range(10):  # 10 x 0.5s = 5 segundos
+                        try:
+                            sucesso_verificado = driver.execute_script(script_verificar_sucesso)
+                            if sucesso_verificado:
+                                break
+                        except Exception as e:
+                            _ = e
+                        sleep_fixed(0.5)
+                    if sucesso_verificado:
+                        return True
+                    else:
+                        return False
                 else:
                     return False
-            else:
+            except Exception as e:
+                if log:
+                    logger.error(f'[SISBAJUD][PROTOCOLO]  Erro ao confirmar: {e}')
                 return False
-                
-        except Exception as e:
-            if log:
-                logger.error(f'[SISBAJUD][PROTOCOLO]  Erro ao confirmar: {e}')
-            return False
-        
-    except Exception as e:
-        if log:
-            logger.error(f'[SISBAJUD][PROTOCOLO]  Erro ao protocolar minuta: {e}')
-            import traceback
-            logger.exception("Erro detectado")
-        return False
-
-
-def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
-    """
-    Cria segunda minuta agendada usando o botão "Copiar Dados para Nova Ordem".
-    (Implementação completa das linhas 1018-1357)
-    """
-    try:
-        # 1. Clicar no botão "Copiar Dados para Nova Ordem"
-
-        script_copiar = """
         const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
         if (buttons.length > 0) {
             buttons[0].scrollIntoView({behavior: 'smooth', block: 'center'});
@@ -996,55 +842,21 @@ def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
         encontrado = driver.execute_script(script_copiar)
         if encontrado == 'not_found':
             return None
-
-        time.sleep(0.5)
-
-        # Clicar no botão
-        script_clicar_copiar = """
-        const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
-        if (buttons.length > 0) {
-            buttons[0].click();
-            return true;
-        }
-        const allButtons = Array.from(document.querySelectorAll('button'));
-        const copyBtn = allButtons.find(btn => {
-            const icon = btn.querySelector('mat-icon.fa-copy');
-            const text = btn.textContent;
-            return icon && text.includes('Copiar Dados');
-        });
-        if (copyBtn) {
-            copyBtn.click();
-            return true;
-        }
-        return false;
-        """
-
-        clicado = driver.execute_script(script_clicar_copiar)
+        from Fix.utils import sleep_fixed
+        SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
+        sleep_fixed(0.5)
+        script_copiar = carregar_js("copiar_dados_nova_ordem.js", SCRIPTS_DIR)
+        clicado = driver.execute_script(script_copiar)
         if not clicado:
             return None
-
         # 2. Aguardar modal e confirmar
-        time.sleep(0.8)
-
-        script_confirmar = """
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const confirmBtn = buttons.find(btn => {
-            const wrapper = btn.querySelector('span.mat-button-wrapper');
-            return wrapper && wrapper.textContent.trim() === 'Confirmar';
-        });
-        if (confirmBtn) {
-            confirmBtn.click();
-            return true;
-        }
-        return false;
-        """
-
+        sleep_fixed(0.8)
+        script_confirmar = carregar_js("confirmar_copiar_ordem.js", SCRIPTS_DIR)
         confirmado = driver.execute_script(script_confirmar)
         if not confirmado:
             return None
-
         # 3. Aguardar e verificar URL /copiar-ordem
-        time.sleep(1)
+        sleep_fixed(1)
 
         url_atual = driver.current_url
         if '/copiar-ordem' not in url_atual:
@@ -1054,40 +866,9 @@ def _criar_minuta_agendada_por_copia(driver, dados_processo, log=True):
 
         # 4. Marcar radio SIM para agendamento (usando JavaScript direto)
 
-        # Usar JavaScript direto para clicar no radio SIM (estratégia validada)
-        js_radio_sim = """
-        try {
-            // Encontrar o radio SIM dentro do card "Dados básicos da ordem"
-            var cards = Array.from(document.querySelectorAll('mat-card'));
-            var cardDados = cards.find(card => {
-                var title = card.querySelector('mat-card-title');
-                return title && title.textContent.includes('Dados básicos da ordem');
-            });
-
-            if (!cardDados) {
-                return 'card_not_found';
-            }
-
-            // Encontrar o radio SIM dentro do card
-            var radioSim = cardDados.querySelector('mat-radio-button[id="mat-radio-46"]');
-            if (!radioSim) {
-                return 'radio_not_found';
-            }
-
-            // Clicar no label do radio
-            var label = radioSim.querySelector('label');
-            if (label) {
-                label.click();
-                return 'clicked';
-            } else {
-                return 'label_not_found';
-            }
-        } catch (e) {
-            return 'error: ' + e.message;
-        }
-        """
-
-        resultado_radio = driver.execute_script(js_radio_sim)
+        # Usar JavaScript externo para clicar no radio SIM
+        script_radio_sim = carregar_js("radio_sim.js", SCRIPTS_DIR)
+        resultado_radio = driver.execute_script(script_radio_sim)
 
         if resultado_radio == 'clicked':
             _ = resultado_radio

@@ -88,6 +88,7 @@ try {
 
 
 def _extrair_objeto_pje(driver: WebDriver, timeout: int = 8, debug: bool = False) -> Dict[str, Optional[str]]:
+    from core.resultado_execucao import ResultadoExecucao
     try:
         WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "object.conteudo-pdf"))
@@ -95,18 +96,18 @@ def _extrair_objeto_pje(driver: WebDriver, timeout: int = 8, debug: bool = False
     except Exception:
         if debug:
             logger.info('[EXTRACAO_OBJ] object.conteudo-pdf não presente')
-        return {'tipo': None, 'texto': None, 'erro': 'object_not_found'}
+        return ResultadoExecucao(sucesso=False, status='FALHA', erro='object_not_found', detalhes={'tipo': None, 'texto': None}).to_dict()
 
     try:
         # execute_async_script espera que o JS invoque o callback
         resultado = driver.execute_async_script(_JS_EXTRAIR_OBJECT)
         if not resultado:
-            return {'tipo': None, 'texto': None}
+            return ResultadoExecucao(sucesso=False, status='FALHA', detalhes={'tipo': None, 'texto': None}).to_dict()
         return resultado
     except Exception as e:
         if debug:
             logger.exception(f'[EXTRACAO_OBJ] erro exec js: {e}')
-        return {'tipo': None, 'texto': None, 'erro': str(e)}
+        return ResultadoExecucao(sucesso=False, status='FALHA', erro=str(e), detalhes={'tipo': None, 'texto': None}).to_dict()
 
 
 def _formatar_html(texto: str) -> str:

@@ -546,7 +546,7 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
 
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
-            return None, None
+            return None, None, None
 
         timing_busca_itens = time.time() - timing_start
         if log:
@@ -645,7 +645,7 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
                         driver._argos_doc_idx = idx
                     except Exception:
                         pass
-                    return texto, ('despacho' if 'despacho' in doc_text else 'decisão')
+                    return texto, ('despacho' if 'despacho' in doc_text else 'decisão'), idx
                 else:
                     if log:
                         logger.info(f"[ARGOS][DOC][{idx}] regras ARGOS não aplicadas para candidato")
@@ -666,10 +666,10 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
         if log:
             logger.info(f'[ARGOS][TIMING][NENHUM] {timing_nenhum:.3f}s nenhum documento ARGOS encontrado documentos_testados={documentos_testados}')
 
-        return None, None
+        return None, None, None
 
     except Exception as e:
         timing_erro = time.time() - timing_start
         if log:
             logger.error(f'[ARGOS][TIMING][ERRO] {timing_erro:.3f}s erro geral: {e}')
-        return None, None
+        return None, None, None

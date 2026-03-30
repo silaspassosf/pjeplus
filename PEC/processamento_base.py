@@ -75,6 +75,189 @@ def processar_processo_pec_individual(driver):
         if not numero_processo:
             print("[PEC_INDIVIDUAL] ❌ Não foi possível extrair número do processo")
             return False
+
+
+        # =====================================================================
+        # TESTE – API GIGS + BUCKETS PEC (reutiliza regras existentes)
+        # =====================================================================
+
+
+        def _acaonome_para_bucket_pec(acaonome: str) -> str:
+            """
+            Mesma lógica de classificação usada por indexarecriarbucketsunico.
+            Centralizada aqui para não duplicar.
+            """
+            SISBAJUD = {"minutabloqueio", "minutabloqueio60", "processarordemsisbajud", "processarordemsisbajudwrapper"}
+            CARTA    = {"carta", "analisardocumentosposcarta"}
+            SOB      = {"movsob", "defchip", "movaud"}
+            SOBREST  = {"defsob"}
+
+            name = (acaonome or "").lower()
+
+            if name in SISBAJUD:
+                return "sisbajud"
+            if name in CARTA:
+                return "carta"
+            if name in SOB:
+                return "sob"
+            if name in SOBREST:
+                return "sobrestamento"
+            if name.startswith("pec"):
+                return "comunicacoes"
+            return "outros"
+
+
+        def _resolver_acaonome(acaofunc) -> str:
+            """
+            Extrai o nome canônico da ação — mesmo algoritmo do indexarecriarbucketsunico.
+            Trata função direta, lista de funções e wrappers pecord/pecsum/pecsigilo.
+            """
+            import inspect
+            try:
+                from atos.comunicacao import pecord, pecsum, pecsigilo
+                _WRAPPERS = {id(pecord): "pecord", id(pecsum): "pecsum", id(pecsigilo): "pecsigilo"}
+            except Exception:
+                _WRAPPERS = {}
+
+            # Se for callable simples
+            if callable(acaofunc):
+                return _WRAPPERS.get(id(acaofunc), getattr(acaofunc, "__name__", "unknown"))
+
+            # Se for lista/tupla de ações, tentar resolver primeiro elemento relevante
+            if isinstance(acaofunc, (list, tuple)):
+                for func in acaofunc:
+                    if func is None or not callable(func):
+                        continue
+                    nome = _WRAPPERS.get(id(func), getattr(func, "__name__", ""))
+                    if not nome:
+                        continue
+                    # Detectar SISBAJUD via nome ou código-fonte
+                    try:
+                        if "bloqueio" in nome or "sisb" in nome.lower():
+                            return "minutabloqueio"
+                        src = inspect.getsource(func)
+                        src_l = src.lower()
+                        if "processarbloqueios" in src_l or "sisb" in src_l or "bloqueio" in src_l:
+                            return "minutabloqueio"
+                    except Exception:
+                        pass
+                    return nome
+                return "unknown"
+
+            return str(acaofunc) if acaofunc else "unknown"
+
+
+        def testar_api_gigs_e_buckets_pec(
+            driver,
+            lista_processos: list,
+            filtrar_concluidos: bool = True,
+        ) -> dict:
+            """
+            Diagnóstico manual: chama a API GIGS para cada processo da lista,
+            aplica `determinar_acoes_por_observacao` (regras reais do PEC) e agrupa
+            os resultados nos mesmos buckets usados pelo fluxo de produção.
+
+            Uso:
+                from PEC.processamento_base import testar_api_gigs_e_buckets_pec
+                buckets = testar_api_gigs_e_buckets_pec(driver, ["0000000-00.0000.5.02.0000"])
+
+            Args:
+                driver            WebDriver já autenticado no PJe.
+                lista_processos   Lista de números CNJ a testar.
+                filtrar_concluidos  Se True, ignora atividades com status CONCLUÍDO/CANCELADO.
+
+            Returns:
+                Dict[bucket_name, List[Dict]] — processos agrupados por bucket.
+            """
+            # Import dinâmico para evitar custo em carregamento normal do módulo
+            from Fix.variaveis import session_from_driver, PjeApiClient, obter_gigs_com_fase
+            # usar a função já importada no topo do módulo
+            # determinar_acoes_por_observacao
+
+            sess, trt = session_from_driver(driver, grau=1)
+            client = PjeApiClient(sess, trt)
+
+            buckets: dict = {
+                "sisbajud": [],
+                "carta": [],
+                "sob": [],
+                "sobrestamento": [],
+                "comunicacoes": [],
+                "outros": [],
+                "sem_acao": [],       # observacao reconhecida mas sem regra mapeada
+                "sem_observacao": [], # atividade sem campo observacao
+            }
+
+            STATUS_IGNORADOS = ("CONCLU", "CANCELA")
+
+            print(f"PEC_TESTE_API: {len(lista_processos)} processo(s) para testar")
+
+            for numero in lista_processos:
+                try:
+                    dados = obter_gigs_com_fase(client, numero)
+                    if not dados:
+                        print(f"PEC_TESTE_API: {numero} → sem dados GIGS")
+                        continue
+
+                    atividades = dados.get("atividadesgigs") or []
+                    if not atividades:
+                        print(f"PEC_TESTE_API: {numero} → lista atividadesgigs vazia")
+                        continue
+
+                    for ativ in atividades:
+                        status   = (ativ.get("statusAtividade") or "").upper()
+                        obs_raw  = (ativ.get("observacao") or "").strip()
+                        dataprazo = ativ.get("dataPrazo") or ""
+
+                        if filtrar_concluidos and any(s in status for s in STATUS_IGNORADOS):
+                            continue
+
+                        info = {
+                            "numero": numero,
+                            "observacao": obs_raw,
+                            "status": status,
+                            "dataPrazo": dataprazo,
+                        }
+
+                        if not obs_raw:
+                            buckets["sem_observacao"].append(info)
+                            print(f"PEC_TESTE_API: {numero} → sem observacao (status={status})")
+                            continue
+
+                        acoes = determinar_acoes_por_observacao(obs_raw)
+
+                        if not acoes:
+                            buckets["sem_acao"].append(info)
+                            print(f"PEC_TESTE_API: {numero} → obs={obs_raw!r} → SEM REGRA")
+                            continue
+
+                        # determinar_acoes_por_observacao retorna lista/tupla ou callable(s)
+                        first = acoes[0] if isinstance(acoes, (list, tuple)) and acoes else acoes
+                        acaonome = _resolver_acaonome(first)
+                        bucket   = _acaonome_para_bucket_pec(acaonome)
+                        buckets[bucket].append(info)
+                        print(
+                            f"PEC_TESTE_API: {numero} → bucket={bucket} "
+                            f"acao={acaonome} status={status} "
+                            f"dataPrazo={dataprazo} obs={obs_raw[:80]}"
+                        )
+
+                except Exception as e:
+                    print(f"PEC_TESTE_API: ERRO em {numero}: {e}")
+                    continue
+
+            print("\nPEC_TESTE_API: ── RESUMO ──")
+            total = sum(len(v) for v in buckets.values())
+            for nome, itens in buckets.items():
+                if not itens:
+                    continue
+                print(f"  {nome.upper():15s} {len(itens):>3} atividades")
+                for proc in itens[:3]:
+                    obs_curta = proc["observacao"][:60]
+                    print(f"    · {proc['numero']} {obs_curta}")
+            print(f"  {'TOTAL':15s} {total:>3}")
+
+            return buckets
         
         # 2. Indexar processo atual para obter observação
         processo_atual = indexar_processo_atual_gigs(driver)

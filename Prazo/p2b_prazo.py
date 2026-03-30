@@ -102,30 +102,34 @@ def executar_prazo_com_otimizacoes(driver, wait_pool: ElementWaitPool) -> Dict[s
         # Usar CriteriaMatcher para buscar prazo ativo
         encontrado, dados_prazo = criteria_matcher.buscar_prazo_ativo(max_paginas=20)
 
+        from core.resultado_execucao import ResultadoExecucao
         if encontrado:
             logger.info("[PRAZO OTIMIZADO] Prazo ativo encontrado - executando fluxo_pz")
             # Se encontrou prazo ativo, executar fluxo_pz
             resultado_pz = fluxo_pz(driver)
-            return {
-                "sucesso": True,
-                "tipo": "prazo_ativo_encontrado",
-                "dados_prazo": dados_prazo,
-                "resultado_pz": resultado_pz
-            }
+            return ResultadoExecucao(
+                sucesso=True,
+                status='OK',
+                detalhes={
+                    "tipo": "prazo_ativo_encontrado",
+                    "dados_prazo": dados_prazo,
+                    "resultado_pz": resultado_pz
+                }
+            )
         else:
             logger.info("[PRAZO OTIMIZADO] Nenhum prazo ativo encontrado")
-            return {
-                "sucesso": True,
-                "tipo": "nenhum_prazo_ativo",
-                "dados_prazo": None
-            }
+            return ResultadoExecucao(
+                sucesso=True,
+                status='OK',
+                detalhes={
+                    "tipo": "nenhum_prazo_ativo",
+                    "dados_prazo": None
+                }
+            )
 
     except Exception as e:
         logger.error(f"[PRAZO OTIMIZADO] Erro: {e}")
-        return {
-            "sucesso": False,
-            "erro": str(e)
-        }
+        return ResultadoExecucao(sucesso=False, status='FALHA', erro=str(e))
 
 # ===== NOVA FUNÇÃO: Navegação painel atividades + filtro xs =====
 def aplicar_filtro_atividades_xs(driver: WebDriver, apenas_filtro: bool = False) -> None:

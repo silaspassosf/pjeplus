@@ -173,14 +173,24 @@ class CriteriaMatcher:
                 'timestamp_extracao': self._timestamp_atual()
             }
 
-            return {
-                'prazos': prazos,
-                'metadados': metadados
-            }
+            from core.resultado_execucao import ResultadoExecucao
+            return ResultadoExecucao(
+                sucesso=True,
+                status='OK',
+                detalhes={
+                    'prazos': prazos,
+                    'metadados': metadados
+                }
+            )
 
         except Exception as e:
             logger.warning(f"Erro ao extrair dados da página: {e}")
-            return {'prazos': [], 'metadados': {}}
+            return ResultadoExecucao(
+                sucesso=False,
+                status='FALHA',
+                erro=str(e),
+                detalhes={'prazos': [], 'metadados': {}}
+            )
 
     def _extrair_prazos_tabela(self) -> list:
         """

@@ -1,3 +1,5 @@
+
+from Fix.exceptions import TimeoutFluxoError
 import logging
 logger = logging.getLogger(__name__)
 
@@ -162,7 +164,7 @@ def aguardar_renderizacao_nativa(driver: WebDriver, seletor: str, modo: str = "a
         return _impl(driver, seletor, modo=modo, timeout=timeout)
     except Exception as e:
         logger.warning(f"[core][OBSERVER] Falha ao usar aguardar_renderizacao_nativa: {e}")
-        return False
+        raise TimeoutFluxoError(f'Falha ao aguardar renderizacao nativa: {e}', timeout)
 
 # =============================
 # FUNÇÕES CONSOLIDADAS PARAMETRIZÁVEIS
@@ -212,7 +214,7 @@ def finalizar_driver_imediato(driver, log=True):
     except Exception as e:
         if log:
             logger.info(f'[CORE] finalizar_driver_imediato falhou: {e}')
-        return False
+        raise TimeoutFluxoError(f'Falha ao finalizar driver imediatamente: {e}', 0)
 
 # =========================
 # EXTRAÇÃO DIRETA DE DOCUMENTOS PJE

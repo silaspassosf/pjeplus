@@ -427,15 +427,13 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f'[FLUXO][ALERTA] Reindex tentativa {attempt+1} falhou: {e}')
 
+    from core.resultado_execucao import ResultadoExecucao
     if not processos_indexados:
         logger.warning('[FLUXO][ERRO] Lista de mandados está vazia após tentativas — abortando processamento de Mandado')
         progresso_after = carregar_progresso()
         count_after = len(progresso_after.get('processos_executados', []))
         processed = max(0, count_after - count_before)
-        return {
-            'sucesso': False,
-            'processos': processed
-        }
+        return ResultadoExecucao(sucesso=False, processos=processed)
 
     # 3) Executar indexador normalmente usando o monitor unificado para pular itens
     success = False
@@ -451,10 +449,7 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
     count_after = len(progresso_after.get('processos_executados', []))
     processed = max(0, count_after - count_before)
 
-    return {
-        'sucesso': success,
-        'processos': processed
-    }
+    return ResultadoExecucao(sucesso=success, processos=processed)
 
 # 3. Funções de Processamento
 

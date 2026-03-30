@@ -380,12 +380,18 @@ def credencial(
         elif tipo_login_upper == 'CPF':
             # Login por CPF/senha
             from Fix.utils import login_cpf
-            
-            # Usar valores padrão se não fornecidos
-            if not cpf:
-                cpf = os.environ.get('PJE_SILAS')
-            if not senha:
-                senha = os.environ.get('PJE_SENHA')
+            # Selecionar credenciais pelo tipo de driver (SISB vs PJe)
+            if tipo_driver_lower in ('sisb_pc', 'sisb_notebook'):
+                if not cpf:
+                    cpf = os.environ.get('SISB_USER')
+                if not senha:
+                    senha = os.environ.get('SISB_SENHA')
+            else:
+                # Usar valores padrão se não fornecidos (PJe)
+                if not cpf:
+                    cpf = os.environ.get('PJESILAS')
+                if not senha:
+                    senha = os.environ.get('PJESENHA')
             
             sucesso_login = login_cpf(
                 driver,
@@ -448,11 +454,11 @@ def verificar_e_aplicar_cookies(driver: WebDriver) -> bool:
                     password_field: WebElement = driver.find_element(By.NAME, 'password')
                     submit_button: WebElement = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
                     username_field.clear()
-                    username_field.send_keys(os.environ.get('PJE_SILAS', ''))
+                    username_field.send_keys(os.environ.get('PJESILAS') or '')
                     time.sleep(0.3)
 
                     password_field.clear()
-                    password_field.send_keys(os.environ.get('PJE_SENHA', ''))
+                    password_field.send_keys(os.environ.get('PJESENHA') or '')
                     time.sleep(0.3)
 
                     submit_button.click()

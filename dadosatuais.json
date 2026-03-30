@@ -1,36 +1,47 @@
 {
   "numero": [
-    "1001815-18.2025.5.02.0047"
+    "1000815-16.2016.5.02.0720"
   ],
-  "id": 7887538,
+  "id": 996645,
   "autor": [
     {
-      "nome": "ANA PAULA CARNEIRO FERREIRA",
-      "cpfcnpj": "47746129870",
+      "nome": "AMICES MACIEL CORREIA",
+      "cpfcnpj": "04415343503",
       "advogado": {
-        "nome": "RAFAEL DE OLIVEIRA VIANA",
-        "cpf": "29544756841",
-        "oab": "SP297654"
+        "nome": "DEJAIR DE ASSIS SOUZA",
+        "cpf": "17095373884",
+        "oab": "SP257340"
       }
     }
   ],
   "reu": [
     {
-      "nome": "BIG QUALITY SERVICOS - EIRELI",
-      "cpfcnpj": "05586168000144",
+      "nome": "ATLANTICO SUL SEGURANCA E VIGILANCIA LTDA",
+      "cpfcnpj": "05164958000131",
       "advogado": {
-        "nome": "LUIZ ROBERTO BARBOSA DOS SANTOS",
-        "cpf": "62567888853",
-        "oab": "SP261926"
+        "nome": "SAMARA CRISTINE GRAMACHO LOPES",
+        "cpf": "35302927888",
+        "oab": "SP293309"
       }
+    },
+    {
+      "nome": "SIMONE ALEXANDRA BARBIERI POMPEU",
+      "cpfcnpj": "15313283855"
     }
   ],
-  "terceiro": [],
-  "divida": {},
+  "terceiro": [
+    {
+      "nome": "PRO-BRASIL SERVICOS EM RECUPERACAO DE EMPRESAS EIRELI"
+    }
+  ],
+  "divida": {
+    "valor": "R$ 220.981,30",
+    "data": "01/12/2025"
+  },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "27/10/2025",
+  "dtAutuacao": "16/05/2016",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",
@@ -44,7 +55,7 @@
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Liquidação",
+  "labelFaseProcessual": "Execução",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

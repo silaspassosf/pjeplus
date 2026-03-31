@@ -280,11 +280,10 @@ def main():
         print("F.PY - SCRIPT DE TESTE RÁPIDO")
         print("=" * 80)
         
-        # 1. ESCOLHER DRIVER (PJE) - DEFAULT PARA PC
-        print("\n[1/3] Escolha o tipo de driver PJE: (default P)")
-        # opção VT comentada por padrão
-        # print("  [V] VT (máquina específica)")
-        print("  [P] PC (padrão)")
+        # 1. ESCOLHER DRIVER (PJE) - DEFAULT PARA VT
+        print("\n[1/3] Escolha o tipo de driver PJE: (default V)")
+        print("  [V] VT (padrão)")
+        # print("  [P] PC (opcional)")
 
         # allow non-interactive choice via env var or CLI arg for automated runs
         escolha = None
@@ -292,9 +291,9 @@ def main():
             escolha = sys.argv[1].strip().upper()
         if not escolha:
             escolha = os.environ.get('F_CHOICE', '').strip().upper()
-        # se nada fornecido, usar PC por padrão (P)
+        # se nada fornecido, usar VT por padrão (V)
         if not escolha:
-            escolha = 'P'
+            escolha = 'V'
         
         if escolha == 'V':
             driver_pje = criar_driver_vt_visivel()
@@ -308,25 +307,34 @@ def main():
         print("\n[2/3] Fazendo login no PJE...")
         sucesso_login = login_cpf(driver_pje)
         if not sucesso_login:
-            print("❌ Falha no login")
-            return False
+            print("[LOGIN] Primeira tentativa falhou (cookies ou sessão expirada). Limpando cookies e resetando navegação...")
+            try:
+                driver_pje.delete_all_cookies()
+            except Exception:
+                pass
+            try:
+                driver_pje.get("https://pje.trt2.jus.br/primeirograu/")
+                time.sleep(1.5)
+            except Exception:
+                pass
+            print("[LOGIN] Tentando login manual novamente...")
+            sucesso_login = login_cpf(driver_pje)
+            if not sucesso_login:
+                print("❌ Falha no login (mesmo após retry)")
+                return False
         print("✅ Login PJE concluído")
-        
-        # 3. NAVEGAR PARA PROCESSO
-        print(f"\n[3/3] Navegando para processo: {URL_NAVEGACAO}")
-        driver_pje.get(URL_NAVEGACAO)
-        time.sleep(2)
-        print("✅ Processo aberto no PJE")
-        
-        # 4. EXECUTAR TESTES
-        resultado = executar_testes(driver_pje)
-        
-        # 5. AGUARDAR ANTES DE FECHAR
+
+        # === TESTE API GIGS/BUCKETS PEC ===
+        try:
+            from PEC.processamento_base import testar_api_gigs_e_buckets_pec
+            print("[TESTE] Chamando testar_api_gigs_e_buckets_pec (descobre processos via Relatório GIGS)...")
+            testar_api_gigs_e_buckets_pec(driver_pje)
+        except Exception as e:
+            print(f"[TESTE] Erro ao testar API GIGS/BUCKETS PEC: {e}")
         print("\n" + "=" * 80)
-        print("TESTES CONCLUÍDOS - Pressione Enter para fechar o browser...")
+        print("TESTE CONCLUÍDO - Pressione Enter para fechar o browser...")
         input()
-        
-        return resultado is not None
+        return True
         
     except KeyboardInterrupt:
         print("\n\n⚠️ Execução interrompida pelo usuário (Ctrl+C)")

@@ -1,5 +1,10 @@
+
 import logging
 logger = logging.getLogger(__name__)
+try:
+    from PEC.anexos import salvar_conteudo_clipboard
+except ImportError:
+    salvar_conteudo_clipboard = None
 
 """
 Fix.utils_collect_content - Coleta de conteudo por JS/CSS e transcricao.
@@ -125,18 +130,15 @@ def coletar_conteudo_formatado_documento(driver, numero_processo: str = None, de
         except Exception as e_fechar:
             log_msg(f" Aviso: nao foi possivel fechar modal: {e_fechar}")
 
-        try:
-            from PEC.anexos import salvar_conteudo_clipboard
-
+        if salvar_conteudo_clipboard is not None:
             sucesso = salvar_conteudo_clipboard(texto_formatado, numero_processo or "atual", "conteudo_formatado", debug)
             if sucesso:
                 log_msg(" Conteudo formatado salvo no clipboard interno")
             return sucesso
-        except ImportError:
+        else:
             log_msg(" Modulo PEC.anexos nao disponivel para salvar no clipboard")
             try:
                 import pyperclip
-
                 pyperclip.copy(texto_formatado)
                 log_msg(" Conteudo copiado para clipboard do sistema (fallback)")
                 return True
@@ -169,11 +171,9 @@ def coletar_conteudo_js(driver, numero_processo: str, codigo_js: str, tipo_conte
 
             log_msg(f" Conteudo extraido: {conteudo[:100]}...")
 
-            try:
-                from PEC.anexos import salvar_conteudo_clipboard
-
+            if salvar_conteudo_clipboard is not None:
                 return salvar_conteudo_clipboard(conteudo, numero_processo, tipo_conteudo, debug)
-            except ImportError:
+            else:
                 log_msg(" Modulo PEC.anexos nao disponivel")
                 return True
         else:
@@ -206,11 +206,9 @@ def coletar_elemento_css(driver, numero_processo: str, seletor_css: str, tipo_co
                 log_msg(" Texto do elemento extraido")
 
             if conteudo:
-                try:
-                    from PEC.anexos import salvar_conteudo_clipboard
-
+                if salvar_conteudo_clipboard is not None:
                     return salvar_conteudo_clipboard(conteudo, numero_processo, tipo_conteudo, debug)
-                except ImportError:
+                else:
                     log_msg(" Modulo PEC.anexos nao disponivel")
                     return True
             else:

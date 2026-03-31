@@ -1,4 +1,5 @@
-﻿"""
+﻿from Fix.utils_tempo import medir_tempo
+"""
 judicial_fluxo.py - Fluxos principais de atos judiciais
 ======================================================
 
@@ -7,7 +8,11 @@ usando os módulos especializados para navegação, conclusão, modelos,
 prazos e bloqueios.
 """
 
-from Fix.core import aguardar_e_clicar, esperar_elemento, safe_click, safe_click_no_scroll, logger, esperar_url_conter, preencher_multiplos_campos, medir_tempo
+from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
+from Fix.selenium_base.element_interaction import safe_click
+from Fix.selenium_base.wait_operations import esperar_elemento, esperar_url_conter
+from Fix.selenium_base.element_interaction import preencher_multiplos_campos
+from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs

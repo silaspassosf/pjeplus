@@ -13,8 +13,11 @@ Autor: Sistema PJEPlus
 Data: 04/12/2025
 """
 
+
 import sys
 import os
+import logging
+import traceback
 
 # Imports dos módulos refatorados (ajuste de path para Prazo/)
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -48,9 +51,7 @@ if __name__ == "__main__":
         else:
             sys.exit(1)
     except Exception as e:
-        import logging
         logger = logging.getLogger(__name__)
         logger.error(f"\n Erro fatal não capturado: {e}")
-        import traceback
         logger.exception("Erro detectado")
         sys.exit(1)

@@ -1,4 +1,6 @@
-﻿"""
+﻿# Reexportar criar_botoes_detalhes de Fix.documents.buttons
+from Fix.documents.buttons import criar_botoes_detalhes
+"""
 Fix.utils - Wrapper de compatibilidade para módulos especializados.
 
 Este arquivo foi convertido para wrapper durante a refatoração modular.
@@ -31,7 +33,7 @@ from .utils_login import (
     login_cpf, exibir_configuracao_ativa, login_pc
 )
 from .utils_cookies import (
-    verificar_e_aplicar_cookies, salvar_cookies_sessao,
+    verificar_e_aplicar_cookies, salvar_cookies_sessao, carregar_cookies_sessao,
     limpar_cookies_antigos, listar_cookies_salvos, USAR_COOKIES_AUTOMATICO, COOKIES_DIR,
     SimpleConfig, config
 )

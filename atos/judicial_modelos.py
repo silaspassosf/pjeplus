@@ -7,12 +7,14 @@ de tipos de conclusão no editor de atos judiciais.
 """
 
 import time
-from Fix.core import aguardar_e_clicar, safe_click, logger, esperar_url_conter
+from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
+from Fix.selenium_base.element_interaction import safe_click
+from Fix.selenium_base.wait_operations import esperar_url_conter
+from Fix.log import logger
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import ElementClickInterceptedException
-from Fix.core import safe_click_no_scroll
 
 from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver

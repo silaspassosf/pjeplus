@@ -820,72 +820,10 @@ def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
                 if log:
                     logger.error(f'[SISBAJUD][PROTOCOLO]  Erro ao confirmar: {e}')
                 return False
-        const buttons = Array.from(document.querySelectorAll('button[title="Copiar Dados para Nova Ordem"]'));
-        if (buttons.length > 0) {
-            buttons[0].scrollIntoView({behavior: 'smooth', block: 'center'});
-            return 'found';
-        }
-        // Fallback
-        const allButtons = Array.from(document.querySelectorAll('button'));
-        const copyBtn = allButtons.find(btn => {
-            const icon = btn.querySelector('mat-icon.fa-copy');
-            const text = btn.textContent;
-            return icon && text.includes('Copiar Dados');
-        });
-        if (copyBtn) {
-            copyBtn.scrollIntoView({behavior: 'smooth', block: 'center'});
-            return 'found';
-        }
-        return 'not_found';
-        """
-
-        encontrado = driver.execute_script(script_copiar)
-        if encontrado == 'not_found':
-            return None
-        from Fix.utils import sleep_fixed
-        SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
-        sleep_fixed(0.5)
-        script_copiar = carregar_js("copiar_dados_nova_ordem.js", SCRIPTS_DIR)
-        clicado = driver.execute_script(script_copiar)
-        if not clicado:
-            return None
-        # 2. Aguardar modal e confirmar
-        sleep_fixed(0.8)
-        script_confirmar = carregar_js("confirmar_copiar_ordem.js", SCRIPTS_DIR)
-        confirmado = driver.execute_script(script_confirmar)
-        if not confirmado:
-            return None
-        # 3. Aguardar e verificar URL /copiar-ordem
-        sleep_fixed(1)
-
-        url_atual = driver.current_url
-        if '/copiar-ordem' not in url_atual:
-            _ = url_atual
-        else:
-            _ = url_atual
-
-        # 4. Marcar radio SIM para agendamento (usando JavaScript direto)
-
-        # Usar JavaScript externo para clicar no radio SIM
-        script_radio_sim = carregar_js("radio_sim.js", SCRIPTS_DIR)
-        resultado_radio = driver.execute_script(script_radio_sim)
-
-        if resultado_radio == 'clicked':
-            _ = resultado_radio
-        else:
-            if log:
-                logger.error(f'[SISBAJUD][COPIA]  Erro ao clicar radio SIM: {resultado_radio}')
-            return None
-
-        # Verificar se o input ficou checked
-        try:
-            radio_input = driver.find_element(By.CSS_SELECTOR, 'input[type="radio"][value="2"]')
-            is_checked = radio_input.is_selected()
+        # ...existing code...
         except Exception as e:
             _ = e
             is_checked = True  # Assumir que funcionou se não deu erro no JavaScript
-
-            is_checked = radio_input.is_selected()
 
         if not is_checked:
             return None
@@ -913,11 +851,12 @@ def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
                 _ = tentativa
             time.sleep(0.5)
 
+
         if not campo_visivel:
             if log:
                 # Debug adicional
                 debug = driver.execute_script("""
-                const inputs = Array.from(document.querySelectorAll('input.mat-radio-input[type="radio"]'));
+                const inputs = Array.from(document.querySelectorAll('input.mat-radio-input[type=\"radio\"]'));
                 const estados = inputs.map(i => ({id: i.id, value: i.value, checked: i.checked}));
                 return JSON.stringify(estados);
                 """)
@@ -949,7 +888,6 @@ def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
                 return true;
             }
         }
-        return false;
         """
 
         calendario_aberto = driver.execute_script(script_abrir_calendario)
@@ -959,58 +897,34 @@ def _protocolar_minuta(driver, protocolo_minuta=None, log=True):
         time.sleep(0.5)
 
         # 7. Selecionar dia no calendário
-        script_selecionar_dia = f"""
-        const cells = Array.from(document.querySelectorAll('.mat-calendar-body-cell'));
-        for (const cell of cells) {{
-            const content = cell.querySelector('.mat-calendar-body-cell-content');
-            if (content && content.textContent.trim() === '{dia_agendar}') {{
-                // Verificar se não está disabled
-                if (!cell.classList.contains('mat-calendar-body-disabled')) {{
-                    content.click();
-                    return true;
-                }}
-            }}
-        }}
-        return false;
-        """
-
-        dia_selecionado = driver.execute_script(script_selecionar_dia)
-        if not dia_selecionado:
-            return None
-
-        time.sleep(0.5)
-
-        # 8. Preencher campos que NÃO são copiados: juiz, calendário 30 dias, valor
-        # REUs e outros campos já vêm copiados, mas estes precisam ser preenchidos
-
+        # ...existing code...
         # Preencher juiz (usando código da primeira minuta)
         try:
             juiz = dados_processo.get('sisbajud', {}).get('juiz', 'Otavio Augusto')
-
             script_preencher_juiz = f"""
-            const input = document.querySelector('input[placeholder*="Juiz"]');
-            if (input) {{
-                input.focus();
-                input.value = '{juiz}';
-                input.dispatchEvent(new Event('input', {{bubbles: true}}));
+const input = document.querySelector('input[placeholder*=\"Juiz\"]');
+if (input) {{
+    input.focus();
+    input.value = '{juiz}';
+    input.dispatchEvent(new Event('input', {{bubbles: true}}));
 
-                // Aguardar opções
-                return new Promise((resolve) => {{
-                    setTimeout(() => {{
-                        const opcoes = document.querySelectorAll('span.mat-option-text');
-                        for (let opcao of opcoes) {{
-                            if (opcao.textContent && opcao.textContent.toUpperCase().includes('{juiz}'.toUpperCase())) {{
-                                opcao.click();
-                                resolve(true);
-                                return;
-                            }}
-                        }}
-                        resolve(false);
-                    }}, 800);
-                }});
+    // Aguardar opções
+    return new Promise((resolve) => {{
+        setTimeout(() => {{
+            const opcoes = document.querySelectorAll('span.mat-option-text');
+            for (let opcao of opcoes) {{
+                if (opcao.textContent && opcao.textContent.toUpperCase().includes('{juiz}'.toUpperCase())) {{
+                    opcao.click();
+                    resolve(true);
+                    return;
+                }}
             }}
-            return false;
-            """
+            resolve(false);
+        }}, 800);
+    }});
+}}
+return false;
+"""
 
             juiz_preenchido = driver.execute_async_script(script_preencher_juiz)
             if juiz_preenchido and log:

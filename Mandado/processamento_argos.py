@@ -76,15 +76,22 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
 
         # === ETAPA 3: SISBAJUD - EXTRAIR DOCUMENTO PDF + REGRAS ===
         logger.info('[ARGOS][ETAPA 3] SISBAJUD - Extraindo documento PDF e aplicando regras...')
-        resultado_sisbajud = anexos_info.get('resultado_sisbajud', None)
-        sigilo_anexos = anexos_info.get('sigilo_anexos', {})
-        executados = anexos_info.get('executados', [])
+        # Compatibilidade: ResultadoExecucao ou dict
+        if hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
+            resultado_sisbajud = anexos_info.detalhes.get('resultado_sisbajud', None)
+            sigilo_anexos = anexos_info.detalhes.get('sigilo_anexos', {})
+            executados = anexos_info.detalhes.get('executados', [])
+            tem_anexos = anexos_info.detalhes.get('tem_anexos', False)
+        else:
+            resultado_sisbajud = anexos_info.get('resultado_sisbajud', None)
+            sigilo_anexos = anexos_info.get('sigilo_anexos', {})
+            executados = anexos_info.get('executados', [])
+            tem_anexos = anexos_info.get('tem_anexos', False)
 
         if resultado_sisbajud:
             logger.info(f'[ARGOS][ETAPA 3]  SISBAJUD processado: {resultado_sisbajud}')
         else:
             logger.info('[ARGOS][ETAPA 3][AVISO] SISBAJUD não encontrado nos anexos')
-        tem_anexos = anexos_info.get('tem_anexos', False)
         if not tem_anexos and resultado_sisbajud is None:
             ato_meios(driver, debug=log)
             return True

@@ -5,25 +5,16 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
-from Fix import (
-    login_pc,
-    safe_click,
-    esperar_elemento,
-    criar_gigs,
-    aplicar_filtro_100,
-    limpar_temp_selenium,
-    buscar_seletor_robusto,
-    preencher_campos_prazo,
-    esperar_url_conter,
-    buscar_documentos_sequenciais,
-    indexar_e_processar_lista,
-    extrair_dados_processo,
-    carregar_destinatarios_cache,
-    aguardar_e_clicar,
-    selecionar_opcao,
-    preencher_campo,
-    com_retry
-)
+from Fix.utils import login_pc
+from Fix.selenium_base.element_interaction import safe_click, preencher_campos_prazo
+from Fix.selenium_base.wait_operations import esperar_elemento, esperar_url_conter
+from Fix.selenium_base.retry_logic import buscar_seletor_robusto, com_retry
+from Fix.selenium_base.click_operations import aguardar_e_clicar
+from Fix.selenium_base import selecionar_opcao, preencher_campo
+from Fix.gigs import criar_gigs
+from Fix.navigation import aplicar_filtro_100
+from Fix.utils import limpar_temp_selenium
+from Fix.documents import buscar_documentos_sequenciais, indexar_e_processar_lista, extrair_dados_processo, carregar_destinatarios_cache
 import os
 import logging
 import time

@@ -1,4 +1,5 @@
-from Fix.core import safe_click_no_scroll, aguardar_renderizacao_nativa
+from Fix.selenium_base.click_operations import safe_click_no_scroll
+from Fix.utils_observer import aguardar_renderizacao_nativa
 import re
 import json
 import unicodedata

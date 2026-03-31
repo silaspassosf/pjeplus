@@ -7,17 +7,17 @@ Fix.utils_driver_legacy - Helpers legados de driver e navegacao.
 Extraido do monolito Fix/utils.py para manter o shim fino.
 """
 
+
 import time
 from selenium.webdriver.common.by import By
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from Fix.variaveis import GECKODRIVER_PATH
 
 
 def obter_driver_padronizado(headless=False):
     """Retorna um driver Firefox padronizado para TRT2."""
-    from selenium import webdriver
-    from selenium.webdriver.firefox.options import Options
-    from selenium.webdriver.firefox.service import Service
-    from Fix.variaveis import GECKODRIVER_PATH
-
     profile_path = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
     firefox_binary = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
     options = Options()

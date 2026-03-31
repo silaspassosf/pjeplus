@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 """
 
 # Importar todos os drivers
+
 from .lifecycle import (
     criar_driver_PC,
     criar_driver_VT,
@@ -19,6 +20,7 @@ from .lifecycle import (
     criar_driver_sisb_notebook,
     finalizar_driver,
     _matar_zumbis_geckodriver,
+    driver_session,
 )
 
 __all__ = [
@@ -33,6 +35,8 @@ __all__ = [
 
     # Lifecycle
     'finalizar_driver',
+    'driver_session',
 
     # Utilitários
-    '_matar_zumbis_geckodriver',]
+    '_matar_zumbis_geckodriver',
+]

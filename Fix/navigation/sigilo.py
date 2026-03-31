@@ -7,6 +7,7 @@ Fix.navigation.sigilo - Módulo de controle de sigilo e visibilidade de document
 Parte da refatoração do Fix/core.py para melhor granularidade IA.
 """
 
+
 import time
 import re
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -15,6 +16,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import ElementClickInterceptedException
+from Fix.headless_helpers import limpar_overlays_headless
 
 
 def visibilidade_sigilosos(driver: WebDriver, polo: str = 'ativo', log: bool = True) -> bool:
@@ -25,9 +27,8 @@ def visibilidade_sigilosos(driver: WebDriver, polo: str = 'ativo', log: bool = T
     try:
         #  OTIMIZADO: Limpar overlays antes de buscar documento
         try:
-            from Fix.headless_helpers import limpar_overlays_headless
             limpar_overlays_headless(driver)
-        except ImportError:
+        except Exception:
             pass
 
         # 1. Seleciona o último documento sigiloso na timeline

@@ -419,6 +419,8 @@ def buscar_documentos_polo_ativo(
     except Exception as e:
         return []
 
+from Fix.extracao import extrair_direto, extrair_documento
+
 def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices: Optional[List[int]] = None) -> Tuple[Optional[str], Optional[str], Optional[int]]:
     """
     Busca documento (decisão/despacho) que contenha REGRAS ARGOS.
@@ -452,13 +454,6 @@ def buscar_documento_argos(driver: WebDriver, log: bool = True, ignorar_indices:
         - Aceita apenas despacho, decisão, sentença ou conclusão
         - Valida conteúdo do documento contra regras ARGOS
     """
-    # Importar localmente para evitar import circular
-    try:
-        from Fix.extracao import extrair_direto, extrair_documento
-    except Exception:
-        logger.error('[ARGOS][DOC][ERRO] Módulo Fix.extracao não disponível')
-        return None, None, None
-    
     ignorar_indices = ignorar_indices or []
     
     # Regras ARGOS que o documento deve conter

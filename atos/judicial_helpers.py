@@ -1,4 +1,5 @@
-from Fix.core import safe_click, logger
+from Fix.selenium_base.element_interaction import safe_click
+from Fix.log import logger
 from Fix.extracao import bndt
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver

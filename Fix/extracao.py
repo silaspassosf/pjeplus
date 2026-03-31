@@ -51,25 +51,29 @@ from .extracao_analise import analise_argos, tratar_anexos_argos, analise_outros
 from .extracao_processo import salvar_destinatarios_cache, carregar_destinatarios_cache
 
 
+
+from .extracao_indexacao import abrir_detalhes_processo as _abrir_detalhes_processo_impl
+
 def abrir_detalhes_processo(driver: WebDriver, *args: Any, **kwargs: Any) -> bool:
     """Compatibility wrapper: opens detalhes/processo if implementation exists elsewhere.
     Falls back to no-op returning False if not available.
     """
     try:
-        from .extracao_indexacao import abrir_detalhes_processo as _impl
-        return _impl(driver, *args, **kwargs)
+        return _abrir_detalhes_processo_impl(driver, *args, **kwargs)
     except Exception:
         return False
 
 
+
+from .extracao_indexacao_fluxo import indexar_e_processar_lista as _indexar_e_processar_lista_impl
+from Fix.log import logger as _logger
+
 def indexar_e_processar_lista(driver: WebDriver, callback: Callable, *args: Any, **kwargs: Any) -> bool:
     """Compatibility wrapper for the legacy indexar_e_processar_lista fluxo."""
     try:
-        from .extracao_indexacao_fluxo import indexar_e_processar_lista as _impl
-        return _impl(driver, callback, *args, **kwargs)
+        return _indexar_e_processar_lista_impl(driver, callback, *args, **kwargs)
     except Exception as e:
         # Não engolir exceções silenciosamente — registrar e retornar False
-        from Fix.log import logger as _logger
         _logger.exception(f'[EXTRACAO_WRAP] Falha ao chamar indexar_e_processar_lista: {e}')
         return False
 

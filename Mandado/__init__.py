@@ -14,10 +14,8 @@ Uso:
 """
 
 from .core import (
-    setup_driver,
     navegacao,
     iniciar_fluxo_robusto,
-    main,
 )
 
 from .processamento import (
@@ -25,6 +23,13 @@ from .processamento import (
     fluxo_mandados_outros,
     ultimo_mdd,
     fluxo_mandado,
+)
+from .processamento_api import (
+    obter_mandados_devolvidos,
+    processar_mandado_detalhe,
+    processar_mandados_devolvidos_api,
+    _gigs_sem_prazo_via_js,
+    testar_api_gigs_sem_prazo,
 )
 
 from .regras import (
@@ -52,6 +57,11 @@ __all__ = [
     'fluxo_mandados_outros',
     'ultimo_mdd',
     'fluxo_mandado',
+    'obter_mandados_devolvidos',
+    'processar_mandado_detalhe',
+    'processar_mandados_devolvidos_api',
+    '_gigs_sem_prazo_via_js',
+    'testar_api_gigs_sem_prazo',
     # regras
     'aplicar_regras_argos',
     # utils

@@ -53,6 +53,7 @@ from .drivers import (
     criar_driver_sisb_pc,
     criar_driver_sisb_notebook,
     finalizar_driver,
+    driver_session,
 )
 
 # session: Cookies e autenticação
@@ -178,6 +179,7 @@ __all__ = [
     # Core - Drivers
     'criar_driver_PC', 'criar_driver_VT', 'criar_driver_notebook',
     'criar_driver_sisb_pc', 'criar_driver_sisb_notebook', 'finalizar_driver',
+    'driver_session',
     # Core - Cookies/Sessão
     'salvar_cookies_sessao', 'carregar_cookies_sessao', 'verificar_e_aplicar_cookies',
     # Core - Filtros e navegação

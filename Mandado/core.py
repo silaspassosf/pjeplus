@@ -144,14 +144,6 @@ def _aguardar_estabilizacao_pos_processo(driver: WebDriver, timeout: float = 6.0
     return True
 
 
-def setup_driver() -> Optional[WebDriver]:
-    """Setup inicial do driver"""
-    driver = criar_driver_PC(headless=False)
-    if not driver:
-        logger.info('[ERRO] Falha ao iniciar o driver.')
-        return None
-    return driver
-
 # 2. Funções de Navegação
 
 def navegacao(driver: WebDriver) -> bool:
@@ -427,15 +419,13 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f'[FLUXO][ALERTA] Reindex tentativa {attempt+1} falhou: {e}')
 
+    from core.resultado_execucao import ResultadoExecucao
     if not processos_indexados:
         logger.warning('[FLUXO][ERRO] Lista de mandados está vazia após tentativas — abortando processamento de Mandado')
         progresso_after = carregar_progresso()
         count_after = len(progresso_after.get('processos_executados', []))
         processed = max(0, count_after - count_before)
-        return {
-            'sucesso': False,
-            'processos': processed
-        }
+        return ResultadoExecucao(sucesso=False, processos=processed)
 
     # 3) Executar indexador normalmente usando o monitor unificado para pular itens
     success = False
@@ -451,14 +441,12 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
     count_after = len(progresso_after.get('processos_executados', []))
     processed = max(0, count_after - count_before)
 
-    return {
-        'sucesso': success,
-        'processos': processed
-    }
+    return ResultadoExecucao(sucesso=success, processos=processed)
 
 # 3. Funções de Processamento
 
-def main(tipo_driver='PC', tipo_login='CPF', headless=False) -> None:
+# main() removido — fluxo standalone substituído por processar_mandados_devolvidos_api (processamento_api.py)
+def _main_legado(tipo_driver='PC', tipo_login='CPF', headless=False) -> None:
     """Função principal que coordena todo o fluxo do programa com controle de sessão.
     
     Args:

@@ -11,7 +11,8 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
     Analisa documentos após execução de carta para observação "xs pz carta".
     Busca até 4 documentos (sentença, decisão ou despacho) e aplica regras específicas.
     """
-    from Fix import extrair_documento, criar_gigs
+    from Fix.extracao import extrair_documento
+from Fix.gigs import criar_gigs
 
     def log_msg(msg):
         if debug:
@@ -49,7 +50,11 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
                 log_msg(f"Documento relevante encontrado: {doc_text}")
 
                 try:
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", link)
+                    from pathlib import Path
+                    from Fix.scripts import carregar_js
+                    SCRIPTS_DIR = Path(__file__).parent / "scripts"
+                    script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
+                    driver.execute_script(script_scroll, link)
                     time.sleep(0.5)
 
                     link.click()

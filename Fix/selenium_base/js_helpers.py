@@ -1,5 +1,10 @@
+
 import logging
 logger = logging.getLogger(__name__)
+try:
+    from SISB.utils import criar_js_otimizado
+except ImportError:
+    criar_js_otimizado = None
 
 """
 @module: Fix.selenium_base.js_helpers
@@ -30,12 +35,10 @@ def js_base() -> str:
         elemento = driver.execute_async_script(script)
     """
     # Usar implementação mais avançada do SISB se disponível
-    try:
-        from SISB.utils import criar_js_otimizado
+    if criar_js_otimizado is not None:
         return criar_js_otimizado()
-    except ImportError:
-        # Fallback para implementação original
-        return """
+    # Fallback para implementação original
+    return """
         function esperarElemento(seletor, timeout = 5000) {
             return new Promise(resolve => {
                 let elemento = document.querySelector(seletor);

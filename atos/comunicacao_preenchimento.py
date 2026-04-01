@@ -4,7 +4,7 @@ import unicodedata
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from Fix.core import aguardar_e_clicar, safe_click_no_scroll
+from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.log import logger
 from typing import Optional, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver

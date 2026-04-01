@@ -1,13 +1,22 @@
+
 import logging
-logger = logging.getLogger(__name__)
-
-"""Análise de sobrestamento vencido - função def_sob (extraída de PEC/regras.py)."""
-
 import re
 import time
 import unicodedata
 from typing import Any
 from selenium.webdriver.common.by import By
+from Fix.extracao import extrair_direto, extrair_documento, extrair_pdf, criar_gigs
+from atos.movimentos import def_chip, mov_sob, mov_fimsob
+from atos.judicial import ato_fal, ato_prov, ato_termoS
+from Fix.selectors_pje import BTN_TAREFA_PROCESSO
+from Fix.selenium_base import esperar_elemento, safe_click
+from Fix.extracao import bndt
+from pathlib import Path
+from Fix.scripts import carregar_js
+
+logger = logging.getLogger(__name__)
+
+"""Análise de sobrestamento vencido - função def_sob (extraída de PEC/regras.py)."""
 
 
 def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = False, timeout: int = 10) -> bool:
@@ -52,22 +61,25 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
     def log_msg(msg):
         if debug:
             logger.info(f"[DEF_SOB] {msg}")
-    
+
     # Log inicial SEMPRE exibido
     logger.info(f"[DEF_SOB] ▶ Iniciando análise sobrestamento: {numero_processo}")
     log_msg(f"Observação: {observacao}")
-    
+
     try:
-        # Imports pesados apenas quando necessário
-        from Fix.extracao import extrair_direto, extrair_documento, extrair_pdf, criar_gigs
-        from atos.movimentos import def_chip, mov_sob, mov_fimsob
-        from atos.judicial import ato_fal, ato_prov, ato_termoS
-        from Fix.selectors_pje import BTN_TAREFA_PROCESSO
-        from Fix import esperar_elemento, safe_click, bndt
-        
+        # ===== ETAPA 0: ABRIR TAREFA DO PROCESSO =====
+        log_msg("0. Abrindo tarefa do processo...")
+        btn_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
+        if not btn_tarefa:
+            logger.error("[DEF_SOB] ❌ Botão tarefa do processo não encontrado")
+            return False
+        if not safe_click(driver, btn_tarefa):
+            logger.error("[DEF_SOB] ❌ Falha ao clicar no botão tarefa do processo")
+            return False
+
         # ===== ETAPA 1: ENCONTRAR E ITERAR DECISÕES =====
         log_msg("1. Selecionando decisões na timeline...")
-        
+
         # Procura itens da timeline
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
@@ -123,7 +135,9 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             # Clica no documento
             try:
                 # scroll into view para garantir que está visível
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", doc_link)
+                SCRIPTS_DIR = Path(__file__).parent / "scripts"
+                script_scroll = carregar_js("scroll_into_view_instant.js", SCRIPTS_DIR)
+                driver.execute_script(script_scroll, doc_link)
                 time.sleep(0.5)
                 doc_link.click()
                 time.sleep(3)  # Aguarda carregar o preview

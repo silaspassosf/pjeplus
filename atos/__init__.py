@@ -17,6 +17,7 @@ from .comunicacao import (
 from .movimentos import mov
 from .wrappers_ato import (
     ato_meios,
+    ato_reitmeios,
     ato_ratif,
     ato_100,
     ato_unap,
@@ -83,6 +84,7 @@ __all__ = [
     'make_comunicacao_wrapper',
     'mov',
     'ato_meios',
+    'ato_reitmeios',
     'ato_100',
     'ato_unap',
     'ato_crda',

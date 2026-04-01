@@ -1,11 +1,8 @@
 from .loop_base import *
 from .loop_helpers import _extrair_numero_processo_da_linha
 from .loop_api import _verificar_processos_xs_paralelo
-from Fix.smart_finder import SmartFinder
+from Fix.smart_finder import buscar
 from Fix.core import aguardar_renderizacao_nativa
-
-# Reuse SmartFinder instance
-_SF = SmartFinder()
 
 
 def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
@@ -13,8 +10,8 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
     try:
         # Aguardar lista carregar
         try:
-            # Usar SmartFinder para detectar o mat-select mais rapidamente
-            el = _SF.find(driver, 'ciclo2_mat_select_combobox', ["mat-select[role='combobox']", "//mat-select"])
+            # Usar buscar() para detectar o mat-select mais rapidamente
+            el = buscar(driver, 'ciclo2_mat_select_combobox', ["mat-select[role='combobox']", "//mat-select"])
             if not el:
                 # Prefer waiting for the stable total-registros indicator (shows "X - Y de Z")
                 try:

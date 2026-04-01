@@ -103,7 +103,11 @@ def criar_driver_vt(headless=False):
         driver = webdriver.Firefox(options=options, service=service)
         driver.implicitly_wait(10)
         driver.maximize_window()
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        from pathlib import Path
+        from Fix.scripts import carregar_js
+        SCRIPTS_DIR = Path(__file__).parent / "scripts"
+        script_undefine = carregar_js("undefine_webdriver.js", SCRIPTS_DIR)
+        driver.execute_script(script_undefine)
         
         logger.info("[DRIVER_VT]  Driver criado")
         return driver

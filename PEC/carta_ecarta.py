@@ -15,9 +15,22 @@ def _texto_e_correio(texto):
     if not texto:
         return False
     upper = texto.upper()
-    if 'NAO APAGAR NENHUM CARACTERE' not in upper:
-        return False
-    return 'VIA ECARTA REG' in upper or 'VIA ECARTA AR' in upper
+    # Indicadores primários de eCarta/Correio
+    if 'VIA ECARTA REG' in upper or 'VIA ECARTA AR' in upper or 'VIA ECARTA' in upper or 'E-CARTA' in upper or 'ECARTA' in upper:
+        return True
+
+    # Indicador alternativo: padrão de código de rastreamento dos Correios (ex: XX999999999BR)
+    try:
+        if re.search(r"[A-Z]{2}\d{9}BR", texto, re.IGNORECASE):
+            return True
+    except Exception:
+        pass
+
+    # Se a frase de instrução rígida estiver presente junto com qualquer menção a eCarta, considerar correio
+    if 'NAO APAGAR NENHUM CARACTERE' in upper and ('ECARTA' in upper or 'E-CARTA' in upper or 'VIA ECARTA' in upper):
+        return True
+
+    return False
 
 
 def _extrair_texto_completo(driver, log):
@@ -489,7 +502,11 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                         break
 
                     try:
-                        driver.execute_script('arguments[0].scrollIntoView({block:"center"});', prev_btn)
+                        from pathlib import Path
+                        from Fix.scripts import carregar_js
+                        SCRIPTS_DIR = Path(__file__).parent / "scripts"
+                        script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
+                        driver.execute_script(script_scroll, prev_btn)
                         driver.execute_script('arguments[0].click();', prev_btn)
                         time.sleep(2)
                         pagina_atual += 1
@@ -505,7 +522,11 @@ def coletar_tabela_ecarta(driver, process_number, intimation_ids, log=True):
                         link_cls = (last_page_link.get_attribute('class') or '')
                         if 'ui-state-disabled' not in link_cls:
                             try:
-                                driver.execute_script('arguments[0].scrollIntoView({block:"center"});', last_page_link)
+                                from pathlib import Path
+                                from Fix.scripts import carregar_js
+                                SCRIPTS_DIR = Path(__file__).parent / "scripts"
+                                script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
+                                driver.execute_script(script_scroll, last_page_link)
                                 driver.execute_script('arguments[0].click();', last_page_link)
                                 time.sleep(2)
                                 pagina_atual += 1

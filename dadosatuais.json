@@ -1,49 +1,81 @@
 {
   "numero": [
-    "1001571-61.2025.5.02.0703"
+    "1001352-63.2016.5.02.0703"
   ],
-  "id": 7707229,
+  "id": 1121142,
   "autor": [
     {
-      "nome": "PAULO JOSE TEIXEIRA DA CRUZ",
-      "cpfcnpj": "09381394520",
+      "nome": "TAYNA SANTOS RIBEIRO",
+      "cpfcnpj": "46855306837",
       "advogado": {
-        "nome": "ROSELI FREITAS DE JESUS CASTRO",
-        "cpf": "29589876803",
-        "oab": "SP354276"
+        "nome": "KELLY NASCIMENTO GONCALVES",
+        "cpf": "23121377809",
+        "oab": "SP362929"
       }
     }
   ],
   "reu": [
     {
-      "nome": "ANDERSON RODRIGO DE MELO CONSTRUCOES E MANUTENCAO LTDA",
-      "cpfcnpj": "32846533000185"
+      "nome": "FPW COMERCIO DE ALIMENTOS LTDA. - EPP",
+      "cpfcnpj": "18826143000112",
+      "advogado": {
+        "nome": "SANDERLEI SANTOS SAPUCAIA",
+        "cpf": "13422163859",
+        "oab": "SP179252"
+      }
+    },
+    {
+      "nome": "CAMANBE COMERCIO DE ALIMENTOS LTDA - EPP",
+      "cpfcnpj": "17758044000188"
+    },
+    {
+      "nome": "JULIO JOSE FARIA",
+      "cpfcnpj": "75395126791"
+    },
+    {
+      "nome": "LUCYMEIRE GONCALVES DELGADO FARIA",
+      "cpfcnpj": "08443833769"
+    },
+    {
+      "nome": "FPJ COMERCIO DE ALIMENTOS EIRELI - EPP",
+      "cpfcnpj": "20997788000160"
+    },
+    {
+      "nome": "YVONE COMERCIO DE ALIMENTOS LTDA - EPP",
+      "cpfcnpj": "14315095000147"
+    },
+    {
+      "nome": "RAFFAINE COMERCIO DE ALIMENTOS LTDA - ME",
+      "cpfcnpj": "10511206000130"
     }
   ],
-  "terceiro": [],
+  "terceiro": [
+    {
+      "nome": "SOLARPRIME FRANCHISING LTDA"
+    }
+  ],
   "divida": {
-    "valor": "R$ 11.496,73",
-    "data": "01/12/2025"
+    "valor": "R$ 437,45",
+    "data": "24/11/2025"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "10/09/2025",
+  "dtAutuacao": "15/07/2016",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Liquidação",
+  "labelFaseProcessual": "Execução",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

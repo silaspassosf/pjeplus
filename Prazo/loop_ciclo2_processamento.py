@@ -1,10 +1,7 @@
 from .loop_base import *
 from .loop_ciclo1 import _ciclo1_abrir_suitcase, _ciclo1_aguardar_movimentacao_lote, _ciclo1_movimentar_destino
-from Fix.smart_finder import SmartFinder
+from Fix.smart_finder import buscar
 from Fix.core import aguardar_renderizacao_nativa
-
-# Instantiate once for reuse
-_SF = SmartFinder()
 
 
 def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
@@ -21,8 +18,8 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
             )
             driver.execute_script("arguments[0].click();", tag_verde)
 
-        # Clique botão "Atividade" — usar SmartFinder para localizar opção de menu mais rápido
-        btn_atividade = _SF.find(driver, 'ciclo2_btn_atividade', [
+        # Clique botão "Atividade" — usar buscar() para localizar opção de menu mais rápido
+        btn_atividade = buscar(driver, 'ciclo2_btn_atividade', [
             "//button[contains(normalize-space(.), 'Atividade')]",
             "button.mat-menu-item"
         ])

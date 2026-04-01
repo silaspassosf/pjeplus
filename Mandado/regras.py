@@ -54,24 +54,11 @@ def _lazy_import_mandado_regras():
     global _mandado_regras_modules_cache
     
     if not _mandado_regras_modules_cache:
-        from Fix import (
-            navegar_para_tela,
-            extrair_pdf,
-            analise_outros,
-            extrair_documento,
-            criar_gigs,
-            esperar_elemento,
-            aguardar_e_clicar,
-            buscar_seletor_robusto,
-            limpar_temp_selenium,
-            indexar_e_processar_lista,
-            extrair_dados_processo,
-            buscar_documento_argos,
-            buscar_mandado_autor,
-            buscar_ultimo_mandado,
-            extrair_destinatarios_decisao,
-            configurar_recovery_driver,
-        )
+        from Fix.core import navegar_para_tela, buscar_seletor_robusto, buscar_documento_argos
+        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, buscar_mandado_autor, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
+        from Fix.gigs import criar_gigs
+        from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
+        from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
         
         _mandado_regras_modules_cache.update({
             'navegar_para_tela': navegar_para_tela,
@@ -95,12 +82,9 @@ def _lazy_import_mandado_regras():
     return _mandado_regras_modules_cache
 
 # Módulos Locais (mantidos leves)
-from Fix import (
-    verificar_e_tratar_acesso_negado_global,
-    handle_exception_with_recovery,
-    preencher_campo,
-    salvar_destinatarios_cache,
-)
+from Fix.core import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
+from Fix.selenium_base import preencher_campo
+from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit
 from Prazo.p2b_core import checar_prox
@@ -685,7 +669,7 @@ def aplicar_regras_argos(
                     fim_estrategia = time.time()
                     logger.info(f'[ARGOS][REGRAS] Estratégia "{nome_estrategia}" aplicada em {fim_estrategia - inicio_estrategia:.2f}s')
                     logger.info(f'[ARGOS][REGRAS] Tempo total até aplicar regra: {fim_estrategia - inicio_aplicacao:.2f}s')
-                return True
+                break  # Interrompe após primeira regra aplicada
             if debug:
                 fim_estrategia = time.time()
                 logger.info(f'[ARGOS][REGRAS] Estratégia "{nome_estrategia}" sem aplicação ({fim_estrategia - inicio_estrategia:.2f}s)')

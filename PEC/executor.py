@@ -15,7 +15,8 @@ def chamar_funcao_com_assinatura_correta(
     numero_processo: str,
     observacao: str,
     destinatarios_override: Optional[List[Dict[str, Any]]] = None,
-    driver_sisb: Optional[WebDriver] = None
+    driver_sisb: Optional[WebDriver] = None,
+    dados_processo: Optional[Dict[str, Any]] = None
 ) -> bool:
     """
     Helper para chamar função com assinatura correta.
@@ -31,10 +32,13 @@ def chamar_funcao_com_assinatura_correta(
         aceita_debug = 'debug' in params
         aceita_numero_processo = 'numero_processo' in params
         aceita_driver_sisb = 'driver_sisb' in params
+        aceita_dados_processo = 'dados_processo' in params
         
         # Chamar com a assinatura apropriada
         if aceita_driver_sisb and driver_sisb is not None:
             return func(driver, driver_sisb=driver_sisb)
+        if aceita_dados_processo and dados_processo is not None:
+            return func(driver, dados_processo=dados_processo)
         elif aceita_numero_processo and aceita_observacao and aceita_destinatarios:
             # Wrappers de comunicação (pec_ord, pec_sum, pec_decisao, etc.)
             if destinatarios_override is not None:
@@ -141,7 +145,8 @@ def executar_acao_pec(
     numero_processo: Optional[str] = None,
     observacao: Optional[str] = None,
     debug: bool = True,
-    driver_sisb: Optional[Any] = None
+    driver_sisb: Optional[Any] = None,
+    dados_processo: Optional[Dict[str, Any]] = None
 ) -> bool:
     """
     Executa uma ação (função ou lista de funções).
@@ -196,7 +201,8 @@ def executar_acao_pec(
                         numero_processo or '',
                         observacao or '',
                         call_kwargs.get('destinatarios_override'),
-                        driver_sisb
+                        driver_sisb,
+                        call_kwargs.get('dados_processo')
                     )
                     # Normalizar retorno: algumas funções retornam tuplas (success, flag)
                     # Python interpreta tupla vazia como False, mas tupla não-vazia como True

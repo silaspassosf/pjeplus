@@ -506,6 +506,9 @@ if __name__ == '__main__':
 import logging
 logger = logging.getLogger('Fix')
 
+# Alias sem underscore para adoção consistente nos módulos
+getmodulelogger = get_module_logger
+
 # Backward compatibility functions
 def _log_info(msg: str):
     """Função de compatibilidade para logging info."""

@@ -1,7 +1,8 @@
 import time
 import unicodedata
 
-from Fix import esperar_elemento, indexar_e_processar_lista
+from Fix.selenium_base import esperar_elemento
+from Fix.extracao import indexar_e_processar_lista
 from Fix.log import logger
 from Fix.progress import registrar_modulo, atualizar, completar
 from Fix.monitoramento_progresso_unificado import executar_com_monitoramento_unificado

@@ -20,6 +20,7 @@ from .p2b_prazo import fluxo_prazo
 from .loop_ciclo1 import ciclo1
 from .loop_ciclo2_processamento import ciclo2
 from .loop_ciclo3 import ciclo3
+from .fluxo_api import gerar_script_gigs_sem_prazo, testar_gigs_sem_prazo
 
 __version__ = "2.0.0"
 __author__ = "Sistema PJePlus - Refatoração IA"
@@ -33,12 +34,13 @@ from selenium.webdriver.common.by import By
 
 def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
     """Função wrapper que executa o fluxo completo de prazo (ciclo1 + ciclo2)"""
+    from core.resultado_execucao import ResultadoExecucao
     try:
         import time
         # 1. Navegar para Painel Global 14 (Análise)
         url_lista = "https://pje.trt2.jus.br/pjekz/painel/global/14/lista-processos"
         if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL14', f'Navegar para {url_lista}'):
-            return {"sucesso": False, "erro": "Abortado pelo usuário em navegar painel 14"}
+            return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 14")
         logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 14: {url_lista}')
         driver.get(url_lista)
         # Espera dinâmica: aguardar elemento chave do painel de atividades
@@ -66,7 +68,7 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
                 break
             elif resultado_ciclo1 is False:
                 logger.error("[LOOP_PRAZO] Erro crítico no ciclo1.")
-                return {"sucesso": False, "erro": "Falha em ciclo1"}
+                return ResultadoExecucao(sucesso=False, status='FALHA', erro="Falha em ciclo1")
             elif resultado_ciclo1 in ["go_to_ciclo2", "marcar_todas_not_found_but_continue"]:
                 break
             
@@ -76,7 +78,7 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
         # 2. Navegar para Painel Global 8 (Cumprimento de providências)
         url_painel8 = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
         if not pausar_confirmacao('LOOP/NAVEGAR_PAINEL8', f'Navegar para {url_painel8}'):
-            return {"sucesso": False, "erro": "Abortado pelo usuário em navegar painel 8"}
+            return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 8")
         logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 8: {url_painel8}')
         driver.get(url_painel8)
         time.sleep(3)
@@ -89,15 +91,18 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
         logger.info("[LOOP_PRAZO] Fase 3: Executando ciclo 3")
         resultado_ciclo3 = ciclo3(driver)
         
-        return {
-            "sucesso": resultado_ciclo2 is True and resultado_ciclo3 is True,
-            "ciclo1": "concluido",
-            "ciclo2": resultado_ciclo2,
-            "ciclo3": resultado_ciclo3
-        }
+        return ResultadoExecucao(
+            sucesso=resultado_ciclo2 is True and resultado_ciclo3 is True,
+            status='OK',
+            detalhes={
+                "ciclo1": "concluido",
+                "ciclo2": resultado_ciclo2,
+                "ciclo3": resultado_ciclo3
+            }
+        )
     except Exception as e:
         logger.error(f'[LOOP_PRAZO] Erro no wrapper: {e}')
-        return {"sucesso": False, "erro": str(e)}
+        return ResultadoExecucao(sucesso=False, status='FALHA', erro=str(e))
 
 # Alias para compatibilidade
 main = loop_prazo

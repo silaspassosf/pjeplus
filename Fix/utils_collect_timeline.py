@@ -1,5 +1,10 @@
+
 import logging
 logger = logging.getLogger(__name__)
+try:
+    from PEC.anexos import salvar_conteudo_clipboard
+except ImportError:
+    salvar_conteudo_clipboard = None
 
 """
 Fix.utils_collect_timeline - Coleta de link de ato na timeline.
@@ -186,9 +191,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
                     if link_validacao and isinstance(link_validacao, str) and link_validacao.strip():
                         log_msg(f" Link de validacao encontrado: {link_validacao}")
 
-                        try:
-                            from PEC.anexos import salvar_conteudo_clipboard
-
+                        if salvar_conteudo_clipboard is not None:
                             sucesso = salvar_conteudo_clipboard(
                                 conteudo=link_validacao,
                                 numero_processo=str(numero_processo),
@@ -200,7 +203,7 @@ def coletar_link_ato_timeline(driver, numero_processo: str, debug: bool = False)
                                 return True
                             log_msg(f" Falha ao salvar link de validacao de '{tipo_ato}'")
                             return False
-                        except ImportError:
+                        else:
                             log_msg(f" Modulo PEC.anexos nao disponivel, retornando link: {link_validacao}")
                             return True
                     else:

@@ -6,7 +6,8 @@ import os
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 
-from Fix import aguardar_e_clicar, extrair_direto, extrair_documento
+from Fix.selenium_base import aguardar_e_clicar
+from Fix.extracao import extrair_direto, extrair_documento
 from Fix.abas import validar_conexao_driver
 from Fix.log import logger
 

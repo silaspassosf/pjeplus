@@ -112,8 +112,8 @@ def _build_action_rules() -> List[Tuple[List, Any]]:
         ([gerar_regex_geral(k) for k in ['xs sigilo']], _attr(_wraps_pec, 'pec_sigilo')),
         ([gerar_regex_geral(k) for k in ['xs socio']], [(_attr(_fix_ext, 'bndt'), {'inclusao': True}), _attr(_wraps, 'ato_termoS')]),
         ([gerar_regex_geral(k) for k in ['empresa termo', 'empresatermo', 'termoempresa']], [(_attr(_fix_ext, 'bndt'), {'inclusao': True}), _attr(_wraps, 'ato_termoE')]),
-        # PEC Ofício - executado por último no bucket outros
-        ([gerar_regex_geral(k) for k in ['pec oficio', 'pec ofício']], _attr(_oficio, 'oficio')),
+        # PEC Ofício - descontinuado. Levantará sem ação (sem_acao)
+        ([gerar_regex_geral(k) for k in ['pec oficio', 'pec ofício']], None),
         # xs (numero) sozinho = xs sob (numero) - mesmo bucket/ações
         ([re.compile(r'^xs\s+\d+$', re.IGNORECASE)], [_attr(_movmod, 'def_chip'), _attr(_movmod, 'mov_sob')]),
         ([re.compile(r'\bsob\s+\d+', re.IGNORECASE)], [_attr(_movmod, 'def_chip'), _attr(_movmod, 'mov_sob')]),

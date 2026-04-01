@@ -9,7 +9,8 @@ from Fix.extracao import extrair_direto, extrair_documento, extrair_pdf, criar_g
 from atos.movimentos import def_chip, mov_sob, mov_fimsob
 from atos.judicial import ato_fal, ato_prov, ato_termoS
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
-from Fix import esperar_elemento, safe_click, bndt
+from Fix.selenium_base import esperar_elemento, safe_click
+from Fix.extracao import bndt
 from pathlib import Path
 from Fix.scripts import carregar_js
 

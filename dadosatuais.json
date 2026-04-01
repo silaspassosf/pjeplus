@@ -1,47 +1,67 @@
 {
   "numero": [
-    "1000815-16.2016.5.02.0720"
+    "1001352-63.2016.5.02.0703"
   ],
-  "id": 996645,
+  "id": 1121142,
   "autor": [
     {
-      "nome": "AMICES MACIEL CORREIA",
-      "cpfcnpj": "04415343503",
+      "nome": "TAYNA SANTOS RIBEIRO",
+      "cpfcnpj": "46855306837",
       "advogado": {
-        "nome": "DEJAIR DE ASSIS SOUZA",
-        "cpf": "17095373884",
-        "oab": "SP257340"
+        "nome": "KELLY NASCIMENTO GONCALVES",
+        "cpf": "23121377809",
+        "oab": "SP362929"
       }
     }
   ],
   "reu": [
     {
-      "nome": "ATLANTICO SUL SEGURANCA E VIGILANCIA LTDA",
-      "cpfcnpj": "05164958000131",
+      "nome": "FPW COMERCIO DE ALIMENTOS LTDA. - EPP",
+      "cpfcnpj": "18826143000112",
       "advogado": {
-        "nome": "SAMARA CRISTINE GRAMACHO LOPES",
-        "cpf": "35302927888",
-        "oab": "SP293309"
+        "nome": "SANDERLEI SANTOS SAPUCAIA",
+        "cpf": "13422163859",
+        "oab": "SP179252"
       }
     },
     {
-      "nome": "SIMONE ALEXANDRA BARBIERI POMPEU",
-      "cpfcnpj": "15313283855"
+      "nome": "CAMANBE COMERCIO DE ALIMENTOS LTDA - EPP",
+      "cpfcnpj": "17758044000188"
+    },
+    {
+      "nome": "JULIO JOSE FARIA",
+      "cpfcnpj": "75395126791"
+    },
+    {
+      "nome": "LUCYMEIRE GONCALVES DELGADO FARIA",
+      "cpfcnpj": "08443833769"
+    },
+    {
+      "nome": "FPJ COMERCIO DE ALIMENTOS EIRELI - EPP",
+      "cpfcnpj": "20997788000160"
+    },
+    {
+      "nome": "YVONE COMERCIO DE ALIMENTOS LTDA - EPP",
+      "cpfcnpj": "14315095000147"
+    },
+    {
+      "nome": "RAFFAINE COMERCIO DE ALIMENTOS LTDA - ME",
+      "cpfcnpj": "10511206000130"
     }
   ],
   "terceiro": [
     {
-      "nome": "PRO-BRASIL SERVICOS EM RECUPERACAO DE EMPRESAS EIRELI"
+      "nome": "SOLARPRIME FRANCHISING LTDA"
     }
   ],
   "divida": {
-    "valor": "R$ 220.981,30",
-    "data": "01/12/2025"
+    "valor": "R$ 437,45",
+    "data": "24/11/2025"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "16/05/2016",
+  "dtAutuacao": "15/07/2016",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",

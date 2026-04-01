@@ -20,7 +20,9 @@ from .p2b_fluxo_helpers import (
 # Logger local para evitar conflitos
 logger = logging.getLogger(__name__)
 
-from Fix import aguardar_e_clicar, criar_gigs, extrair_direto, extrair_documento
+from Fix.selenium_base import aguardar_e_clicar
+from Fix.gigs import criar_gigs
+from Fix.extracao import extrair_direto, extrair_documento
 from atos.judicial import ato_pesquisas, ato_pesqliq, ato_sobrestamento, idpj
 from atos.wrappers_mov import mov_arquivar
 from PEC.carta import carta

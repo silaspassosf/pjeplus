@@ -3,7 +3,8 @@ import re
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from Fix.log import logger
+from Fix.log import getmodulelogger
+logger = getmodulelogger(__name__)
 
 from .core import aguardar_e_verificar_aba, aguardar_e_clicar
 
@@ -16,6 +17,11 @@ def abrir_minutas(driver, debug=False):
         current_url = driver.current_url
         if debug:
             logger.info(f'[URL] URL atual: {current_url}')
+
+        if '/comunicacoesprocessuais/minutas' in current_url:
+            if debug:
+                logger.info('[URL] Já está na página de minutas; pulando redirecionamento.')
+            return True
 
         match = re.search(r'/processo/(\d+)/detalhe', current_url)
         if not match:
@@ -31,11 +37,16 @@ def abrir_minutas(driver, debug=False):
 
         nova_aba = None
         for tentativa in range(15):
-            time.sleep(0.2)
             abas_apos_abertura = driver.window_handles
             if len(abas_apos_abertura) > len(abas_antes):
                 nova_aba = abas_apos_abertura[-1]
                 break
+            else:
+                # Usar aguardar_renderizacao_nativa ao invés de time.sleep hardcoded
+                try:
+                    aguardar_renderizacao_nativa(driver, timeout=0.5)
+                except Exception:
+                    pass
 
         if not nova_aba:
             raise Exception('Nova aba de minutas não abriu')
@@ -84,7 +95,12 @@ def abrir_minutas(driver, debug=False):
             if novas_abas:
                 nova_aba = novas_abas.pop()
                 break
-            time.sleep(0.3)
+            else:
+                # Usar aguardar_renderizacao_nativa ao invés de time.sleep hardcoded
+                try:
+                    aguardar_renderizacao_nativa(driver, timeout=0.5)
+                except Exception:
+                    pass
 
         if nova_aba:
             driver.switch_to.window(nova_aba)

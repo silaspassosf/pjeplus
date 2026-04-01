@@ -28,6 +28,9 @@ from selenium.webdriver.firefox.service import Service
 
 from Fix.core import finalizar_driver
 from Fix.utils import login_cpf
+from Mandado.core import navegacao as mandado_navegacao, iniciar_fluxo_robusto as mandado_fluxo
+from Mandado.processamento_argos import processar_argos
+from Mandado.processamento_outros import fluxo_mandados_outros
 
 # Configurar logging para capturar logs de Fix.* durante execução do f.py
 logger = logging.getLogger()
@@ -267,6 +270,235 @@ def executar_testes(driver_pje):
         return False
 
 
+def obter_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
+    """Retorna a lista de mandados devolvidos via endpoint interno"""
+    url = ('https://pje.trt2.jus.br/pje-comum-api/api/escaninhos/documentosinternos'
+           f'?mandadosDevolvidos=true&pagina={pagina}&tamanhoPagina={tamanho_pagina}'
+           f'&ordenacaoCrescente={str(ordenacao_crescente).lower()}')
+
+    script = f"""
+        return (async function() {{
+            const url = '{url}';
+            const xsrfCookie = document.cookie.split(';').map(c => c.trim())
+                .find(c => c.toLowerCase().startsWith('xsrf-token='));
+            if (!xsrfCookie) {{ return {{ status: 0, error: 'XSRF_NOT_FOUND' }}; }}
+            const xsrf = xsrfCookie.split('=')[1];
+
+            const response = await fetch(url, {{
+                method: 'GET',
+                credentials: 'include',
+                headers: {{
+                    'Accept': 'application/json',
+                    'X-XSRF-TOKEN': xsrf
+                }}
+            }});
+
+            const text = await response.text();
+            return {{ status: response.status, body: text }};
+        }})();
+    """
+
+    resultado = driver.execute_script(script)
+    status = resultado.get('status')
+
+    if status != 200:
+        raise RuntimeError(f"[MANDADOS] Erro HTTP: {status}, payload: {resultado.get('body')}")
+
+    import json
+    try:
+        data = json.loads(resultado.get('body', '{}'))
+    except Exception as e:
+        raise RuntimeError(f"[MANDADOS] Falha parse JSON: {e}")
+
+    if isinstance(data, dict):
+        processos = data.get('resultado') or data.get('dados') or []
+    elif isinstance(data, list):
+        processos = data
+    else:
+        processos = []
+
+    return processos
+
+
+def test_mandados_devolvidos_api(driver):
+    """Teste direto do endpoint /pje-comum-api/api/escaninhos/documentosinternos"""
+    print("\n[TESTE-MANDADOS] Consultando API de mandados devolvidos...")
+
+    try:
+        processos = obter_mandados_devolvidos(driver)
+    except Exception as e:
+        print(f"[TESTE-MANDADOS] falha: {e}")
+        return False
+
+    print(f"[TESTE-MANDADOS] total de items retornados: {len(processos)}")
+    if processos:
+        print("[TESTE-MANDADOS] Exemplo de item cru:", processos[0])
+
+    for idx, item in enumerate(processos[:30], start=1):
+        processo_obj = item.get('processo') or {}
+        processo_id = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
+        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
+        tipo = (item.get('tipoAtividade') and (item['tipoAtividade'].get('descricao') or item['tipoAtividade'].get('nome')))
+        if not tipo:
+            tipo = (item.get('tipo') or item.get('tipoDeDocumento') or item.get('tipoDocumento'))
+        status = item.get('statusAtividade') or item.get('status') or item.get('situacao')
+
+        print(f"  {idx:02d} - id_processo: {processo_id} - processo: {numero} - tipo: {tipo} - status: {status}")
+
+    return True
+
+
+def obter_gigs_sem_prazo_xs(driver, tamanho_pagina=100):
+    """Busca via API os registros de GIGS sem prazo (XS), usando logic of new fluxo mandado/filtro XS."""
+    from Mandado.processamento_api import testar_api_gigs_sem_prazo
+
+    try:
+        resultado = testar_api_gigs_sem_prazo(driver, tamanho_pagina=tamanho_pagina)
+    except Exception as e:
+        print(f"[P2B] falha ao consultar GIGS sem prazo via API: {e}")
+        return []
+
+    print(f"[P2B] total de GIGS sem prazo (XS) retornados: {len(resultado)}")
+    if resultado:
+        print(f"[P2B] exemplo: {resultado[0]}")
+
+    return resultado
+
+
+def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina=100):
+    """Fluxo de teste p2b: obtém itens XS via endpoint e imprime resumo."""
+    gigs = obter_gigs_sem_prazo_xs(driver, tamanho_pagina=tamanho_pagina)
+    if not gigs:
+        print("[P2B] Nenhum item para processar")
+        return False
+
+    for idx, item in enumerate(gigs, start=1):
+        processo_obj = item.get('processo') or {}
+        id_processo = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
+        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
+        descricao = (item.get('tipoAtividade') or {}).get('descricao') or (item.get('tipoAtividade') or {}).get('nome') or item.get('descricao')
+
+        print(f"  {idx:02d} - id: {id_processo} - numero: {numero} - descricao: {descricao}")
+
+    print("[P2B] Fluxo de processamento p2b (apenas listagem) concluído.")
+    return True
+
+
+def processar_prazo_ciclo2(driver):
+    """Executa apenas o ciclo2 do loop de Prazo (filtro + livres + não-livres + movimentação)."""
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from Prazo.loop_ciclo2_processamento import ciclo2
+
+    # 1. Navegar para painel onde ciclo2 começa (depois do painel 14)
+    painel_ciclo2 = 'https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos'
+    print(f"[PRAZO_CICLO2] Navegando para painel do ciclo2: {painel_ciclo2}")
+    driver.get(painel_ciclo2)
+
+    # Esperar página carregar lista de processos
+    try:
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, "//span[contains(text(), 'Fase processual') or contains(text(), 'Fase processual')]"))
+        )
+    except Exception:
+        print('[PRAZO_CICLO2] Aviso: tempo limite ao aguardar elemento de fase processual; prosseguindo mesmo assim')
+
+    # 2-6. Executar ciclo 2 completo (filtros, seleção, XS, não-livres 20 em 20, movimentação, retorno)
+    print('[PRAZO_CICLO2] Iniciando ciclo2 (filtro + livres + providências)')
+    resultado = ciclo2(driver, opcao_destino='Cumprimento de providências')
+
+    if resultado:
+        print('[PRAZO_CICLO2] Ciclo2 finalizado com sucesso')
+    else:
+        print('[PRAZO_CICLO2] Ciclo2 finalizou com falhas')
+
+    return resultado
+
+
+def processar_mandado_detalhe(driver, numero_processo, id_processo=None):
+    """Abre /processo/{numero}/detalhe/ em nova aba, processa fluxo Mandado e fecha aba."""
+    from Fix.core import wait_for_page_load, esperar_elemento
+
+    if id_processo:
+        detalhe_url = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/detalhe/"
+    else:
+        detalhe_url = f"https://pje.trt2.jus.br/pjekz/processo/{numero_processo}/detalhe/"
+    initial_handle = driver.current_window_handle
+
+    driver.execute_script("window.open(arguments[0], '_blank');", detalhe_url)
+    time.sleep(0.5)
+    new_handle = [h for h in driver.window_handles if h != initial_handle]
+    if not new_handle:
+        print(f"[MANDADOS][ERRO] Não foi possível abrir aba para {numero_processo}")
+        return False
+    new_handle = new_handle[0]
+
+    driver.switch_to.window(new_handle)
+
+    try:
+        wait_for_page_load(driver, timeout=15)
+        cabecalho = esperar_elemento(driver, '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title', timeout=15)
+        if not cabecalho:
+            print(f"[MANDADOS][ERRO] Cabeçalho não encontrado para {numero_processo}")
+            return False
+
+        texto_doc = cabecalho.text or ''
+        texto_lower = texto_doc.lower()
+
+        if any(term in texto_lower for term in ['pesquisa patrimonial', 'argos', 'devolucao de ordem de pesquisa', 'certidao de devolucao', 'certidão de devolução']):
+            print(f"[MANDADOS] ({numero_processo}) identificou fluxo Argos")
+            return processar_argos(driver, log=True)
+
+        if any(term in texto_lower for term in ['oficial de justica', 'certidao de oficial', 'certidão de oficial', 'oficial de justiça']):
+            print(f"[MANDADOS] ({numero_processo}) identificou fluxo Outros")
+            fluxo_mandados_outros(driver, log=False)
+            return True
+
+        print(f"[MANDADOS] ({numero_processo}) tipo não identificado no cabeçalho: {texto_doc[:40]}")
+        return False
+
+    except Exception as e:
+        print(f"[MANDADOS][ERRO] Falha ao processar {numero_processo}: {e}")
+        return False
+
+    finally:
+        try:
+            driver.close()
+        except Exception:
+            pass
+        driver.switch_to.window(initial_handle)
+
+
+def processar_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
+    """Processa mandados devolvidos via API, abrindo um processo por vez no /detalhe/."""
+    mandados = obter_mandados_devolvidos(driver, pagina=pagina, tamanho_pagina=tamanho_pagina, ordenacao_crescente=ordenacao_crescente)
+
+    if not mandados:
+        print('[MANDADOS] Nenhum mandado devolvido encontrado para processar')
+        return False
+
+    print(f"[MANDADOS] Encontrados {len(mandados)} mandados devolvidos (API)")
+
+    sucesso_total = True
+    for idx, item in enumerate(mandados, start=1):
+        processo_obj = item.get('processo') or {}
+        id_processo = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
+        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
+
+        if not id_processo:
+            print(f"[MANDADOS] Aviso: idProcesso não encontrado para item {idx}, pulando")
+            continue
+
+        print(f"  {idx:02d} - idProcesso={id_processo} numeroProcesso={numero}")
+        sucesso = processar_mandado_detalhe(driver, numero, id_processo=id_processo)
+        if not sucesso:
+            print(f"[MANDADOS] Falha ao processar {numero}")
+            sucesso_total = False
+
+    return sucesso_total
+
+
 # ============================================================================
 # EXECUÇÃO PRINCIPAL (NÃO MODIFICAR)
 # ============================================================================
@@ -324,13 +556,19 @@ def main():
                 return False
         print("✅ Login PJE concluído")
 
-        # === TESTE API GIGS/BUCKETS PEC ===
+        # === TESTE PRAZO CICLO2 (P2) ===
         try:
-            from PEC.processamento_base import testar_api_gigs_e_buckets_pec
-            print("[TESTE] Chamando testar_api_gigs_e_buckets_pec (descobre processos via Relatório GIGS)...")
-            testar_api_gigs_e_buckets_pec(driver_pje)
+            print("[PRAZO_CICLO2] Iniciando ciclo2 isolado em Prazo")
+            sucesso_prazo_c2 = processar_prazo_ciclo2(driver_pje)
+            print(f"[PRAZO_CICLO2] Resultado do fluxo: {'sucesso' if sucesso_prazo_c2 else 'falha'}")
+
+            # Caso queira manter o fluxo de GIGS sem prazo XS via API (alternativa):
+            # print("[P2B] Iniciando fluxo de teste GIGS sem prazo XS via API")
+            # sucesso_p2b = processar_gigs_sem_prazo_p2b(driver_pje)
+            # print(f"[P2B] Resultado do fluxo: {'sucesso' if sucesso_p2b else 'falha'}")
+
         except Exception as e:
-            print(f"[TESTE] Erro ao testar API GIGS/BUCKETS PEC: {e}")
+            print(f"[TESTE] Erro ao testar API mandados devolvidos ou processar fluxo: {e}")
         print("\n" + "=" * 80)
         print("TESTE CONCLUÍDO - Pressione Enter para fechar o browser...")
         input()

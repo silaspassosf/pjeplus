@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Any
 from selenium.webdriver.common.by import By
 from Fix.extracao import criar_lembrete_posit
-from Fix import buscar_documentos_polo_ativo
+from Fix.documents import buscar_documentos_polo_ativo
 from atos.movimentos import mov_fimsob, mov_sob
 from atos.judicial import ato_presc
 import traceback

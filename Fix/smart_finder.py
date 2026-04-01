@@ -52,11 +52,14 @@ class SmartFinder:
         cache_key = key
         # Try cache
         if cache_key in self.cache:
-            cached_by, cached_val = self.cache[cache_key]
-            try:
-                return driver.find_element(cached_by, cached_val)
-            except Exception:
-                pass
+            val = self.cache[cache_key]
+            if isinstance(val, (list, tuple)) and len(val) == 2:
+                cached_by, cached_val = val
+                try:
+                    return driver.find_element(cached_by, cached_val)
+                except Exception:
+                    pass
+            # Se inválido, ignora e continua para os candidatos
 
         # Try provided candidates
         for s in candidates:
@@ -239,4 +242,39 @@ def injetar_smart_finder_global(driver):
     learn_logger.info('Smart Finder shim injected on driver')
 
 
-__all__ = ['SmartFinder', 'injetar_smart_finder_global']
+# ---------------------------------------------------------------------------
+# Singleton de módulo — instância compartilhada com cache carregado uma vez
+# ---------------------------------------------------------------------------
+_singleton: 'SmartFinder | None' = None
+
+
+def _get_singleton() -> 'SmartFinder':
+    """Retorna (ou cria) a instância global do SmartFinder sem driver."""
+    global _singleton
+    if _singleton is None:
+        _singleton = SmartFinder()
+    return _singleton
+
+
+def buscar(driver, chave: str, candidatos: list):
+    """
+    Função universal de busca de elementos com cache automático.
+
+    Uso em qualquer módulo:
+        from Fix.smart_finder import buscar
+        el = buscar(driver, 'btn_salvar', ['.salvar-btn', '//button[@aria-label="Salvar"]'])
+
+    Parâmetros:
+        driver     — WebDriver ativo
+        chave      — identificador único para o cache (snake_case descritivo)
+        candidatos — lista de seletores CSS ou XPath (// = xpath, demais = css)
+
+    Retorna o WebElement ou None se não encontrado.
+    Log de aprendizado vai para monitor_aprendizado.log (separado do log principal).
+    """
+    sf = _get_singleton()
+    sf.set_driver(driver)
+    return sf.find(driver, chave, candidatos)
+
+
+__all__ = ['SmartFinder', 'injetar_smart_finder_global', 'buscar']

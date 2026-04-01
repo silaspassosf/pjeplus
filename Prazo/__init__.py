@@ -20,6 +20,7 @@ from .p2b_prazo import fluxo_prazo
 from .loop_ciclo1 import ciclo1
 from .loop_ciclo2_processamento import ciclo2
 from .loop_ciclo3 import ciclo3
+from .fluxo_api import gerar_script_gigs_sem_prazo, testar_gigs_sem_prazo
 
 __version__ = "2.0.0"
 __author__ = "Sistema PJePlus - Refatoração IA"

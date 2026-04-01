@@ -56,24 +56,11 @@ def _lazy_import_mandado():
     global _mandado_modules_cache
     
     if not _mandado_modules_cache:
-        from Fix import (
-            navegar_para_tela,
-            extrair_pdf,
-            analise_outros,
-            extrair_documento,
-            extrair_direto,
-            criar_gigs,
-            esperar_elemento,
-            aguardar_e_clicar,
-            buscar_seletor_robusto,
-            limpar_temp_selenium,
-            indexar_e_processar_lista,
-            extrair_dados_processo,
-            buscar_mandado_autor,
-            buscar_ultimo_mandado,
-            extrair_destinatarios_decisao,
-            configurar_recovery_driver,
-        )
+        from Fix.core import navegar_para_tela, buscar_seletor_robusto
+        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_direto, extrair_dados_processo, buscar_mandado_autor, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
+        from Fix.gigs import criar_gigs
+        from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
+        from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
         
         _mandado_modules_cache.update({
             'navegar_para_tela': navegar_para_tela,
@@ -97,13 +84,10 @@ def _lazy_import_mandado():
     return _mandado_modules_cache
 
 # Módulos Locais (mantidos leves)
-from Fix import (
-    verificar_e_tratar_acesso_negado_global,
-    handle_exception_with_recovery,
-    preencher_campo,
-    salvar_destinatarios_cache,
-    buscar_documentos_sequenciais,
-)
+from Fix.core import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery, buscar_documento_argos
+from Fix.selenium_base import preencher_campo
+from Fix.extracao import salvar_destinatarios_cache
+from Fix.documents import buscar_documentos_sequenciais
 from Fix.core import buscar_documento_argos
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit, extrair_pdf

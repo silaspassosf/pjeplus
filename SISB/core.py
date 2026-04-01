@@ -315,7 +315,7 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
         # 1. Extrair dados do processo PJe (SOMENTE se solicitado explicitamente E driver fornecido)
         if extrair_dados and driver_pje:
             logger.info('[SISBAJUD] Extraindo dados do processo PJe...')
-            from Fix import extrair_dados_processo
+            from Fix.extracao import extrair_dados_processo
             processo_dados_extraidos = extrair_dados_processo(driver_pje)
             if processo_dados_extraidos:
                 # Corrigir para usar o campo correto do dadosatuais.json

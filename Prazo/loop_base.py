@@ -96,7 +96,7 @@ def clicar_com_multiplos_seletores(
             elemento = WebDriverWait(driver, timeout).until(
                 EC.element_to_be_clickable((by, seletor))
             )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)
+            # scrollIntoView removido: não é mais necessário para filtro 100
             if usar_js:
                 driver.execute_script("arguments[0].click();", elemento)
             else:

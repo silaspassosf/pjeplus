@@ -54,7 +54,8 @@ def _lazy_import_mandado_regras():
     global _mandado_regras_modules_cache
     
     if not _mandado_regras_modules_cache:
-        from Fix.core import navegar_para_tela, buscar_seletor_robusto, buscar_documento_argos
+        from Fix.utils import navegar_para_tela
+        from Fix.core import buscar_seletor_robusto, buscar_documento_argos
         from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, buscar_mandado_autor, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
         from Fix.gigs import criar_gigs
         from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
@@ -82,7 +83,7 @@ def _lazy_import_mandado_regras():
     return _mandado_regras_modules_cache
 
 # Módulos Locais (mantidos leves)
-from Fix.core import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
+from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
 from Fix.selenium_base import preencher_campo
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
@@ -660,29 +661,29 @@ def aplicar_regras_argos(
     
     # ===== TENTAR CADA ESTRATÉGIA EM ORDEM =====
     inicio_aplicacao = time.time()
+    regra_aplicada = False
     for nome_estrategia, funcao_estrategia in estrategias_em_uso:
         try:
             if debug:
                 inicio_estrategia = time.time()
             if funcao_estrategia(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug):
+                regra_aplicada = True
                 if debug:
                     fim_estrategia = time.time()
-                    logger.info(f'[ARGOS][REGRAS] Estratégia "{nome_estrategia}" aplicada em {fim_estrategia - inicio_estrategia:.2f}s')
-                    logger.info(f'[ARGOS][REGRAS] Tempo total até aplicar regra: {fim_estrategia - inicio_aplicacao:.2f}s')
+                    logger.info(f'[ARGOS][REGRAS] Estrategia "{nome_estrategia}" aplicada em {fim_estrategia - inicio_estrategia:.2f}s')
+                    logger.info(f'[ARGOS][REGRAS] Tempo total ate aplicar regra: {fim_estrategia - inicio_aplicacao:.2f}s')
                 break  # Interrompe após primeira regra aplicada
             if debug:
                 fim_estrategia = time.time()
-                logger.info(f'[ARGOS][REGRAS] Estratégia "{nome_estrategia}" sem aplicação ({fim_estrategia - inicio_estrategia:.2f}s)')
+                logger.info(f'[ARGOS][REGRAS] Estrategia "{nome_estrategia}" sem aplicacao ({fim_estrategia - inicio_estrategia:.2f}s)')
         except Exception as e:
             if debug:
-                logger.error(f'[ARGOS][REGRAS][ERRO] Estratégia "{nome_estrategia}" falhou: {str(e)[:60]}')
-            # Continua com próxima estratégia
+                logger.error(f'[ARGOS][REGRAS][ERRO] Estrategia "{nome_estrategia}" falhou: {str(e)[:60]}')
             continue
-    
-    # ===== NENHUMA REGRA APLICOU =====
-    if debug:
+
+    if not regra_aplicada and debug:
         fim_aplicacao = time.time()
         logger.info(f'[ARGOS][REGRAS] Nenhuma regra aplicou ({fim_aplicacao - inicio_aplicacao:.2f}s)')
-    return False
+    return regra_aplicada
 # ...existing code...
 

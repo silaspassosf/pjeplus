@@ -1,9 +1,12 @@
 import json
 from pathlib import Path
 
-from Fix.core import wait_for_page_load, esperar_elemento
+from selenium.webdriver.common.by import By
+
+from Fix.core import wait_for_page_load, safe_click_no_scroll, esperar_elemento
 from Fix.log import logger
 from Fix.progress import ProgressoUnificado
+from Fix.utils.observer import aguardar_renderizacao_nativa
 
 from Mandado.processamento_argos import processar_argos
 from Mandado.processamento_outros import fluxo_mandados_outros
@@ -75,6 +78,43 @@ def obter_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_cre
     return processos
 
 
+def _selecionar_doc_via_timeline(driver, log=True):
+    """
+    Localiza e clica na primeira ocorrência relevante da timeline (mais recente).
+    Usa safe_click_no_scroll (dispatchEvent) — independente de scroll.
+    Retorna 'argos', 'outros' ou None se nenhum doc relevante encontrado.
+    Regras espelham classificarItem() de lista.timeline.js.
+    """
+    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    for item in itens:
+        try:
+            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+        except Exception:
+            continue
+
+        low = (link.text or '').lower()
+
+        if 'devolução de ordem' in low or 'devolucao de ordem' in low:
+            tipo = 'argos'
+        elif ('certidão de oficial' in low or 'certidao de oficial' in low
+              or 'oficial de justiça' in low or 'oficial de justica' in low):
+            tipo = 'outros'
+        else:
+            continue
+
+        if log:
+            logger.info(f"[MANDADOS_API] Timeline: primeiro doc relevante tipo={tipo} — '{(link.text or '')[:60]}'")
+
+        if not safe_click_no_scroll(driver, link, log=log):
+            logger.warning(f"[MANDADOS_API] Falha ao clicar doc timeline: '{(link.text or '')[:40]}'")
+            return None
+
+        aguardar_renderizacao_nativa(driver)
+        return tipo
+
+    return None
+
+
 def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None):
     """Navega para /processo/{id}/detalhe/ na aba atual, processa mandado e fecha abas extras."""
     if id_processo:
@@ -89,24 +129,23 @@ def processar_mandado_detalhe(driver, numero_processo=None, id_processo=None):
     try:
         driver.get(detalhe_url)
         wait_for_page_load(driver, timeout=15)
-        cabecalho = esperar_elemento(driver, '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title', timeout=15)
-        if not cabecalho:
-            logger.error(f"[MANDADOS_API] Cabecalho nao encontrado para {id_processo or numero_processo}")
+        timeline_ok = esperar_elemento(driver, 'li.tl-item-container', timeout=15)
+        if not timeline_ok:
+            logger.error(f"[MANDADOS_API] Timeline nao encontrada para {id_processo or numero_processo}")
             return False
 
-        texto_doc = cabecalho.text or ''
-        texto_lower = texto_doc.lower()
+        tipo = _selecionar_doc_via_timeline(driver, log=True)
 
-        if any(term in texto_lower for term in ['pesquisa patrimonial', 'argos', 'devolucao de ordem de pesquisa', 'certidao de devolucao', 'certidão de devolução']):
-            logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Argos")
+        if tipo == 'argos':
+            logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Argos (via timeline)")
             return processar_argos(driver, log=True)
 
-        if any(term in texto_lower for term in ['oficial de justica', 'certidao de oficial', 'certidão de oficial', 'oficial de justiça']):
-            logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Outros")
+        if tipo == 'outros':
+            logger.info(f"[MANDADOS_API] {id_processo or numero_processo} -> Outros (via timeline)")
             fluxo_mandados_outros(driver, log=False)
             return True
 
-        logger.info(f"[MANDADOS_API] Tipo nao mapeado para {id_processo or numero_processo}: '{texto_doc[:60]}' — pulando")
+        logger.info(f"[MANDADOS_API] Tipo nao mapeado para {id_processo or numero_processo} (nenhum doc relevante na timeline) — pulando")
         return 'PULAR'
     except Exception as e:
         logger.error(f"[MANDADOS_API] Erro ao processar {id_processo or numero_processo}: {e}")

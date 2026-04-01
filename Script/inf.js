@@ -1,3 +1,9 @@
+silas.passos@trt2.jus.br <silas.passos@trt2.jus.br>
+	
+qua., 25 de fev., 23:10
+	
+	
+para mim
 // ==UserScript==
 // @name         InfoJud - Dual Mode + Relatório + Check Duplicidade (v17)
 // @namespace    http://tampermonkey.net/
@@ -162,10 +168,10 @@
 
             if (doc.length === 11) {
                 GM_setValue('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
-                GM_openInTab(URL_BASE_CPF + doc, { active: true, insert: true });
+                GM_openInTab(URL_BASE_CPF + doc, { active: false, insert: true });
             } else {
                 GM_setValue('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
-                GM_openInTab(URL_BASE_CNPJ + doc, { active: true, insert: true });
+                GM_openInTab(URL_BASE_CNPJ + doc, { active: false, insert: true });
             }
         }
 
@@ -450,18 +456,20 @@
     else if (URL_ATUAL.includes('detalheNICNPJ.asp')) {
         if (document.body.innerText.includes('Nenhum registro') || document.body.innerText.includes('Erro')) {
             GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
-            setTimeout(() => window.close(), 1000); return;
+            mostrarBadgeOK('Sem registro. Pulando...', '#ffc107');
+            _devolverFocoPJe(); return;
         }
         setTimeout(() => {
             const tds = Array.from(document.querySelectorAll('td'));
             const labelCpf = tds.find(td => td.textContent.includes('CPF do responsável'));
             const cpf = labelCpf ? labelCpf.nextElementSibling?.textContent.replace(/\D/g, '') : null;
             if (cpf && cpf.length === 11) {
-                GM_openInTab(URL_BASE_CPF + cpf, { active: true, insert: true });
-                setTimeout(() => window.close(), 500);
+                mostrarBadgeOK('CNPJ → CPF...', '#0288d1');
+                GM_openInTab(URL_BASE_CPF + cpf, { active: false, insert: true });
             } else {
                 GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
-                setTimeout(() => window.close(), 500);
+                mostrarBadgeOK('Sem CPF elegível. Pulando...', '#ffc107');
+                _devolverFocoPJe();
             }
         }, 800);
     }
@@ -521,17 +529,57 @@
                     GM_setValue('GOD_DADOS_CAPTURA', JSON.stringify(d));
                     GM_setValue('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
 
-                    document.body.innerHTML = '<h1 style="color:green;text-align:center">DADOS OK!</h1>';
-                    setTimeout(() => window.close(), 500);
+                    mostrarBadgeOK('Extração OK ✓ Retornando ao PJe...', '#28a745');
+                    _devolverFocoPJe();
                 } else {
                     throw new Error('Dados incompletos');
                 }
             } catch (e) {
                 console.error(e);
                 GM_setValue('GOD_STATUS', 'PULAR_' + Date.now());
-                setTimeout(() => window.close(), 1000);
+                mostrarBadgeOK('Erro na leitura. Pulando...', '#dc3545');
+                _devolverFocoPJe();
             }
         }, 1000);
+    }
+
+    function mostrarBadgeOK(msg, cor) {
+        cor = cor || '#28a745';
+        var el = document.createElement('div');
+        el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:2147483647;' +
+            'padding:10px 18px;background:' + cor + ';color:white;font-weight:bold;' +
+            'border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.3);' +
+            'font-family:Segoe UI,sans-serif;font-size:14px;transition:opacity 0.5s ease;';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function() {
+            el.style.opacity = '0';
+            setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 500);
+        }, 4000);
+    }
+
+    function _devolverFocoPJe() {
+        try {
+            if (window.opener && !window.opener.closed) {
+                const op = window.opener;
+                try {
+                    if (op.location && op.location.href &&
+                        (op.location.href.includes('pje.trt2.jus.br') || op.location.href.includes('pje1g.trt2.jus.br'))) {
+                        op.focus(); return;
+                    }
+                } catch (e) { /* cross-origin */ }
+                if (op.opener && !op.opener.closed) {
+                    try {
+                        const pje = op.opener;
+                        if (pje.location && pje.location.href &&
+                            (pje.location.href.includes('pje.trt2.jus.br') || pje.location.href.includes('pje1g.trt2.jus.br'))) {
+                            pje.focus(); return;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+                try { op.focus(); } catch (e) {}
+            }
+        } catch (e) { /* ignore */ }
     }
 
     function esperarModal(classe) {

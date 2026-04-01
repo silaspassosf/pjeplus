@@ -14,7 +14,7 @@ SISB Core - Helpers de sessao
 def _extrair_dados_pje(driver_pje):
     """Helper para extrair dados do processo PJe."""
     try:
-        from Fix import extrair_dados_processo
+        from Fix.extracao import extrair_dados_processo
         processo_dados_extraidos = extrair_dados_processo(driver_pje)
         if processo_dados_extraidos:
             numero_lista = processo_dados_extraidos.get("numero", [])

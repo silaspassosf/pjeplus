@@ -198,6 +198,131 @@ def acao_bucket_a(driver, numero_processo, processo_info):
         print(f"[AUD][A] Erro ao executar ações: {e}")
         return False
 
+def obter_processos_triagem_api(driver, numeros=None):
+    """Obtém processos da Triagem Inicial via API (espelhando lógica funcionando de aaa.js).
+
+    Para cada número:
+    1. /pje-comum-api/api/processos?numero={NUM} → id como número
+    2. /pje-comum-api/api/processos/id/{id}/tarefas?maisRecente=true → filtrar "Triagem Inicial"
+    3. /pje-comum-api/api/processos/id/{id} → classeJudicial.sigla + juizoDigital
+    4. /pje-comum-api/api/processos/id/{id}/audiencias?status=M → audiências
+
+    Retorna lista com: numero, id_processo, tarefa, tipo, digital, tem_audiencia, bucket
+    """
+    # 1. Coletar números da tela (DOM) usando seletor correto
+    if not numeros:
+        js_coleta = r"""
+        const rows = document.querySelectorAll(
+            'table[name="Tabela de Atividades"] tbody tr, table[name="Tabela de Processos"] tbody tr'
+        );
+        const set = new Set();
+        rows.forEach(tr => {
+            const m = (tr.innerText || tr.textContent || '').match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/);
+            if (m) set.add(m[0]);
+        });
+        return Array.from(set);
+        """
+        try:
+            numeros = driver.execute_script(js_coleta) or []
+            print(f"[AUD_API] {len(numeros)} números coletados da tela")
+        except Exception as e:
+            print(f"[AUD_API] Erro ao coletar números do DOM: {e}")
+            return []
+
+    if not numeros:
+        print("[AUD_API] Nenhum número encontrado")
+        return []
+
+    # 2. Executar fetch de cada número com 4 chamadas de API conforme aaa.js
+    script = """
+        return (async function() {
+            const numeros = arguments[0];
+            const base = location.origin;
+            const resultado = [];
+
+            for (const numero of numeros) {
+                try {
+                    // call 1: id do processo
+                    const r1 = await fetch(
+                        base + '/pje-comum-api/api/processos?numero=' + encodeURIComponent(numero),
+                        { credentials: 'include' }
+                    );
+                    const idProcesso = await r1.json();
+                    if (!idProcesso || typeof idProcesso !== 'number') {
+                        console.warn('[AUD_API] sem id para', numero, idProcesso);
+                        continue;
+                    }
+
+                    // call 2: tarefas -> filtrar apenas Triagem Inicial (maisRecente=true)
+                    const r2t = await fetch(
+                        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/tarefas?maisRecente=true',
+                        { credentials: 'include' }
+                    );
+                    if (!r2t.ok) {
+                        console.warn('[AUD_API] erro ao consultar tarefas', numero, r2t.status);
+                        continue;
+                    }
+                    const tarefas = await r2t.json();
+                    const tarefasLista = Array.isArray(tarefas) ? tarefas : (tarefas ? [tarefas] : []);
+                    const tarefaTriagem = tarefasLista.find(t =>
+                        String(t.nomeTarefa || t.nome || t.descricao || t.tarefa || '').toLowerCase().includes('triagem inicial')
+                    );
+                    if (!tarefaTriagem) {
+                        console.log('[AUD_API] sem Triagem Inicial, pulando', numero);
+                        continue;
+                    }
+                    const nomeTarefa = tarefaTriagem.nomeTarefa || tarefaTriagem.nome || tarefaTriagem.descricao || tarefaTriagem.tarefa || 'Triagem Inicial';
+
+                    // call 3: dados do processo -> classeJudicial.sigla + juizoDigital
+                    const r2 = await fetch(
+                        base + '/pje-comum-api/api/processos/id/' + idProcesso,
+                        { credentials: 'include' }
+                    );
+                    const proc = await r2.json();
+                    const tipo = ((proc.classeJudicial && proc.classeJudicial.sigla) || proc.classe || '').toUpperCase();
+                    const digital = proc.juizoDigital === true;
+
+                    // call 4: audiencias pendentes
+                    const r3 = await fetch(
+                        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/audiencias?status=M',
+                        { credentials: 'include' }
+                    );
+                    const auds = await r3.json();
+                    const temAud = Array.isArray(auds) && auds.length > 0;
+
+                    // Formar bucket conforme lógica em aaa.js
+                    const bucket = tipo.includes('HTE') ? 'D' : !temAud ? 'A' : digital ? 'B' : 'C';
+
+                    resultado.push({
+                        numero: numero,
+                        id_processo: idProcesso,
+                        tarefa: nomeTarefa,
+                        tipo: tipo,
+                        digital: digital,
+                        tem_audiencia: temAud,
+                        bucket: bucket
+                    });
+
+                    console.log('[AUD_API]', numero, tipo, '| tarefa:', nomeTarefa, '| aud:', temAud, '| digital:', digital, '=>', bucket);
+                } catch (err) {
+                    console.error('[AUD_API] erro', numero, err.message);
+                }
+            }
+
+            return resultado;
+        }).apply(null, [arguments[0]]);
+    """
+
+    try:
+        resultado = driver.execute_script(script, numeros)
+        print(f"[AUD_API] {len(resultado or [])} processos obtidos via API (com Triagem Inicial)")
+        return resultado or []
+    except Exception as e:
+        print(f"[AUD_API] Erro na execução do script: {e}")
+        traceback.print_exc()
+        return []
+
+
 def indexar_e_processar_lista_aud(driver):
     """
     Indexa e processa lista de processos AUD com controle de progresso.
@@ -218,9 +343,9 @@ def indexar_e_processar_lista_aud(driver):
         progresso = carregar_progresso_aud()
         
         # ===== ETAPA 1: INDEXAR TODOS OS PROCESSOS DA LISTA =====
-        print("[AUD] 1. Indexando todos os processos da lista...")
-        
-        lista_processos = coletar_lista_processos(driver)
+        print("[AUD] 1. Indexando todos os processos da lista via API...")
+
+        lista_processos = obter_processos_triagem_api(driver)
         if not lista_processos:
             print("[AUD] ❌ Nenhuma linha encontrada na lista")
             return {"sucesso": False, "erro": "Lista vazia"}

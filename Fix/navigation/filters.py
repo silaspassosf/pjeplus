@@ -39,6 +39,8 @@ DATA: 2025-01-29
 """
 
 import time
+import os
+import datetime
 from typing import List, Optional
 
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -50,143 +52,223 @@ from selenium.webdriver.support import expected_conditions as EC
 from Fix.selenium_base.retry_logic import com_retry
 from Fix.selenium_base.wait_operations import aguardar_e_clicar, _aguardar_loader_painel
 from Fix.selenium_base.js_helpers import js_base
+from Fix.selenium_base.element_interaction import safe_click
+from Fix.utils_observer import aguardar_renderizacao_nativa
 from Fix.log import logger
+
+
+def _dump_debug_snapshot(content: str, label: str) -> None:
+    """Grava um snapshot de depuração em logs_execucao para análise posterior."""
+    try:
+        # gravar em logs_execucao na raiz do projeto (duas pastas acima: Fix/navigation -> Fix -> projeto)
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        logs_dir = os.path.join(base, 'logs_execucao')
+        os.makedirs(logs_dir, exist_ok=True)
+        ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        fname = f'filter100_{label}_{ts}.log'
+        path = os.path.join(logs_dir, fname)
+        with open(path, 'w', encoding='utf-8') as fh:
+            if isinstance(content, bytes):
+                try:
+                    fh.write(content.decode('utf-8', errors='replace'))
+                except Exception:
+                    fh.write(str(content))
+            else:
+                fh.write(str(content))
+        logger.info(f'[FILTRO_LISTA_100] Debug snapshot gravado: {path}')
+    except Exception:
+        logger.exception('[FILTRO_LISTA_100] Falha ao gravar snapshot de depuração')
 
 def aplicar_filtro_100(driver: WebDriver) -> bool:
     """
     Aplica filtro para exibir 100 itens por página no painel global.
-    
-    OTIMIZADO: Usa selecionar_opcao() + com_retry() - 1 requisição vs 8-12 anteriores.
-    
-    Args:
-        driver: WebDriver do Selenium
-    
-    Returns:
-        True se aplicou com sucesso, False caso contrário
-    
-    Exemplo:
-        driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
-        aplicar_filtro_100(driver)
-    
-    Notas:
-        - Usa zoom 50% para facilitar cliques
-        - Retry automático com 3 tentativas
-        - Backoff exponencial base 1.5s
+    Esta versão foi alinhada com a implementação do LEGADO para evitar regressões.
     """
     try:
-        # Zoom out para facilitar cliques
-        driver.execute_script("document.body.style.zoom='50%'")
+        # marcar entrada para depuração
+        try:
+            _dump_debug_snapshot('ENTER aplicar_filtro_100', 'entry')
+        except Exception:
+            pass
+
+        # zoom para facilitar cliques em interfaces com alta densidade
+        try:
+            driver.execute_script("document.body.style.zoom='50%'")
+        except Exception:
+            pass
         time.sleep(0.3)
-        
-        # Função interna para selecionar com múltiplos seletores
+
+        # Verificar estado atual do filtro antes de tentar alteração
+        for selector in [
+            "mat-select[formcontrolname] .mat-select-value-text span",
+            "mat-select[role='combobox'] .mat-select-value-text span",
+        ]:
+            try:
+                value = driver.execute_script(
+                    f"const el = document.querySelector('{selector}'); return el ? el.textContent.trim() : null;"
+                )
+                if value == '100':
+                    logger.info('[FILTRO_LISTA_100] Já está em 100; pular.')
+                    return True
+            except Exception:
+                continue
+
         def _selecionar():
             try:
-                # Buscar dropdown por texto "20"
-                span_20 = driver.find_element(
-                    By.XPATH,
-                    "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']"
-                )
-                mat_select = span_20.find_element(
-                    By.XPATH,
-                    "ancestor::mat-select[@role='combobox']"
-                )
-                mat_select.click()
-                time.sleep(0.5)
-                
-                # Aguardar overlay aparecer
-                overlay = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-                )
-                
-                # Clicar em opção "100"
-                opcao_100 = overlay.find_element(
-                    By.XPATH,
-                    ".//mat-option[.//span[normalize-space(text())='100']]"
-                )
-                opcao_100.click()
-                time.sleep(1)
-                
+                # Tentativa principal: localizar o seletor 20 (legado)
+                mat_select = None
+                try:
+                    span_20 = driver.find_element(
+                        By.XPATH,
+                        "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']"
+                    )
+                    mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
+                except Exception:
+                    pass
+
+                # fallback: localizar mat-select genérico ou paginador
+                if not mat_select:
+                    for css in [
+                        "mat-select[aria-labelledby*='mat-paginator-page']",
+                        "mat-paginator mat-select[id*='mat-select-']",
+                        "mat-select[role='combobox']",
+                        "mat-select[formcontrolname]",
+                        "mat-select",
+                    ]:
+                        try:
+                            mat_select = driver.find_element(By.CSS_SELECTOR, css)
+                            break
+                        except Exception:
+                            mat_select = None
+
+                if not mat_select:
+                    logger.error('[FILTRO_LISTA_100] Não encontrou mat-select para aplicar filtro.')
+                    _dump_debug_snapshot(driver.page_source, 'mat_select_not_found')
+                    return False
+
+                try:
+                    driver.execute_script('arguments[0].scrollIntoView({block:"center",behavior:"instant"})', mat_select)
+                except Exception:
+                    pass
+
+                # abrir dropdown com múltiplas estratégias
+                opened = False
+                try:
+                    mat_select.click()
+                    opened = True
+                except Exception:
+                    pass
+
+                if not opened:
+                    try:
+                        driver.execute_script('arguments[0].click();', mat_select)
+                        opened = True
+                    except Exception:
+                        pass
+
+                if not opened:
+                    try:
+                        clicked = safe_click(driver, mat_select, log=True)
+                        opened = bool(clicked)
+                    except Exception:
+                        opened = False
+
+                if not opened:
+                    logger.error('[FILTRO_LISTA_100] Não conseguiu abrir o mat-select.')
+                    return False
+
+                # Aguardar mat-options renderizarem no overlay (Angular precisa de tempo)
+                # .cdk-overlay-pane existe sempre no DOM; aguardar a presença de mat-option
+                try:
+                    aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane mat-option', timeout=4)
+                except Exception:
+                    pass
+
+                # Aguardar overlay de opções
+                try:
+                    overlay = WebDriverWait(driver, 6).until(
+                        EC.presence_of_element_located(
+                            (By.CSS_SELECTOR, ".mat-select-panel, .cdk-overlay-pane")
+                        )
+                    )
+                except Exception:
+                    try:
+                        overlay = driver.find_element(By.CSS_SELECTOR, '.cdk-overlay-pane')
+                    except Exception:
+                        overlay = None
+
+                if not overlay:
+                    logger.error('[FILTRO_LISTA_100] Overlay do mat-select não apareceu')
+                    return False
+
+                # localizar opção 100
+                opcao_100 = None
+                try:
+                    opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
+                except Exception:
+                    try:
+                        opcao_100 = overlay.find_element(By.XPATH, ".//span[normalize-space(text())='100']/ancestor::mat-option")
+                    except Exception:
+                        opcao_100 = None
+
+                if not opcao_100:
+                    # Fallback: busca por qualquer mat-option contendo 100 no texto
+                    for item in overlay.find_elements(By.XPATH, ".//mat-option"):
+                        try:
+                            if '100' in item.text.strip().split('\n')[0].strip():
+                                opcao_100 = item
+                                break
+                        except Exception:
+                            continue
+
+                if not opcao_100:
+                    logger.error('[FILTRO_LISTA_100] Não encontrou opção 100 no overlay')
+                    logger.debug(f'[FILTRO_LISTA_100] Overlay HTML: {overlay.get_attribute("outerHTML")[:2000]}')
+                    return False
+
+                # clicar na opção 100
+                try:
+                    driver.execute_script('arguments[0].click();', opcao_100)
+                except Exception:
+                    try:
+                        opcao_100.click()
+                    except Exception as e:
+                        logger.error(f'[FILTRO_LISTA_100] Falha ao clicar em opção 100: {e}')
+                        return False
+
+                time.sleep(0.8)
                 return True
-                
+
             except Exception as e:
-                logger.error(f'[FILTRO_LISTA_100][ERRO] Falha ao clicar em 100: {e}')
+                logger.exception(f'[FILTRO_LISTA_100][_selecionar] Erro inesperado: {e}')
                 return False
 
-        # Aplica com retry automático
         resultado = com_retry(_selecionar, max_tentativas=3, backoff_base=1.5, log_enabled=True)
 
         if resultado:
-            pass
+            logger.info('Filtro lista 100 aplicado')
+            try:
+                _dump_debug_snapshot('RESULTADO: OK', 'result_ok')
+            except Exception:
+                pass
         else:
             logger.error('Filtro lista 100 falhou após todas tentativas')
+            try:
+                _dump_debug_snapshot('RESULTADO: FALHA', 'result_fail')
+            except Exception:
+                pass
 
         return resultado
-        
+
     except Exception as e:
-        logger.error(f'[FILTRO_LISTA_100][ERRO] Falha geral: {e}')
+        logger.exception(f'[FILTRO_LISTA_100][ERRO] Falha geral: {e}')
         return False
 
-def filtro_fase(driver: WebDriver) -> bool:
-    """
-    Seleciona fases 'Execução' e 'Liquidação' no filtro global.
-    
-    OTIMIZADO: Usa aguardar_e_clicar() + js_base() - 3 req vs 10-15 anteriores.
-    
-    Args:
-        driver: WebDriver do Selenium
-    
-    Returns:
-        True se aplicou com sucesso, False caso contrário
-    
-    Exemplo:
-        driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
-        filtro_fase(driver)
-    
-    Notas:
-        - Seleciona automaticamente "Execução" e "Liquidação"
-        - Usa JavaScript para seleção rápida
-        - Fecha dropdown com ESC após seleção
-    """
-    try:
-        seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
-        
-        # Abre dropdown com aguardar_e_clicar (MutationObserver)
-        if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
-            logger.error('[FILTRO_FASE][ERRO] Dropdown não encontrado.')
-            return False
-        
-        time.sleep(0.3)
-        
-        # Seleciona ambas fases usando JavaScript (1 requisição)
-        script = f"""
-        {js_base()}
-        
-        const fases = ['Execução', 'Liquidação'];
-        let sucesso = 0;
-        
-        for (const fase of fases) {{
-            const opcao = Array.from(document.querySelectorAll('mat-option span.mat-option-text'))
-                .find(el => el.textContent.trim() === fase);
-            
-            if (opcao && opcao.parentElement) {{
-                opcao.parentElement.click();
-                sucesso++;
-            }}
-        }}
-        
-        return sucesso;
-        """
-        
-        selecionadas = driver.execute_script(script)
-        
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-        time.sleep(0.2)
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f'Falha no filtro de fase: {e}')
-        return False
+
+def filtro_fase(driver: WebDriver, fases_alvo: List[str] = ['liquidação', 'execução'], tarefas_alvo: Optional[List[str]] = None, seletor_tarefa: str = 'Tarefa do processo') -> bool:
+    """Backward-compatible alias para filtrofases."""
+    return filtrofases(driver, fases_alvo=fases_alvo, tarefas_alvo=tarefas_alvo, seletor_tarefa=seletor_tarefa)
+
 
 def filtrofases(
     driver: WebDriver,

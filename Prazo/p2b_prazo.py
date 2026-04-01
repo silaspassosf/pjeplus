@@ -20,7 +20,7 @@ from Fix.element_wait import ElementWaitPool
 from Prazo.criteria_matcher import CriteriaMatcher
 
 from Prazo.p2b_core import carregar_progresso_p2b, marcar_processo_executado_p2b, processo_ja_executado_p2b
-from Fix import indexar_processos, abrir_detalhes_processo, reindexar_linha
+from Fix.extracao import indexar_processos, abrir_detalhes_processo, reindexar_linha
 from Fix.abas import trocar_para_nova_aba
 from Prazo.p2b_fluxo import fluxo_pz
 from utilitarios_processamento import executar_processamento_iterativo_com_corte_em_erro_critico
@@ -135,9 +135,9 @@ def executar_prazo_com_otimizacoes(driver, wait_pool: ElementWaitPool) -> Dict[s
 def aplicar_filtro_atividades_xs(driver: WebDriver, apenas_filtro: bool = False) -> None:
     """Aplica filtro xs no painel de atividades (simplificado)."""
     try:
-        from Fix import aplicar_filtro_100, safe_click, esperar_elemento
+        from Fix.navigation import aplicar_filtro_100
+        from Fix.selenium_base import safe_click, esperar_elemento, aguardar_e_clicar
         from selenium.webdriver.common.by import By
-        from Fix import aguardar_e_clicar
         # Remover chip "Vencidas" se existir (antes do filtro xs)
         chips = driver.find_elements(By.CSS_SELECTOR, 'mat-chip')
         removido = False

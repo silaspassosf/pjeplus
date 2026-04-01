@@ -6,7 +6,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import StaleElementReferenceException
 
-from Fix import aguardar_e_clicar, safe_click
+from Fix.selenium_base import aguardar_e_clicar, safe_click
 from Fix.log import logger
 
 

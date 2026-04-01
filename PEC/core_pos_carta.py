@@ -11,7 +11,8 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
     Analisa documentos após execução de carta para observação "xs pz carta".
     Busca até 4 documentos (sentença, decisão ou despacho) e aplica regras específicas.
     """
-    from Fix import extrair_documento, criar_gigs
+    from Fix.extracao import extrair_documento
+from Fix.gigs import criar_gigs
 
     def log_msg(msg):
         if debug:

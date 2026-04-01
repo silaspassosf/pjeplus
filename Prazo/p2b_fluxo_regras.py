@@ -48,6 +48,8 @@ def _definir_regras_processamento() -> List[Tuple]:
 
         # REGRA DE DESCUMPRIMENTO - executar gigs1, gigs2, ato_pesqliq (sem tentar mov_exec)
         ([gerar_regex_geral('Ante a notícia de descumprimento')], ("criar_gigs[1/Ana Lucia/Argos]", "criar_gigs[1//xs sigilo]", ato_pesqliq)),
+         # REGRA DE RECURSAL - executar gigs1
+        ([gerar_regex_geral('Libere-se o depósito recursal')], ("criar_gigs[-1/Ana Lucia/Alvará recursal]",)),
         # REGRA DE BLOQUEIO / IMPUGNAÇÕES - DEVE VIR ANTES PARA TER PRIORIDADE
         ([gerar_regex_geral(k) for k in [
             'sob pena de bloqueio',

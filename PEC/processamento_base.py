@@ -5,18 +5,49 @@
 
 from typing import Any
 
-from .regras import determinar_acoes_por_observacao
+from Fix.core import aguardar_e_clicar, esperar_elemento
+from Fix.extracao import extrair_dados_processo, abrir_detalhes_processo, trocar_para_nova_aba, reindexar_linha
+from atos import pec_excluiargos
+from .executor import executar_acao
+from .api_client import AtividadePEC, PECAPIClient
+from .classificador import PECClassificador
+from .executor_individual import PECExecutorIndividual
+from .orquestrador import PECOrquestrador, executar_fluxo_novo_simplificado
+
+_pec_modules_cache = {
+    'aguardar_e_clicar': aguardar_e_clicar,
+    'esperar_elemento': esperar_elemento,
+    'extrair_dados_processo': extrair_dados_processo,
+    'abrir_detalhes_processo': abrir_detalhes_processo,
+    'trocar_para_nova_aba': trocar_para_nova_aba,
+    'reindexar_linha': reindexar_linha,
+    'pec_excluiargos': pec_excluiargos,
+}
+
+
+def _lazy_import_pec():
+    """Compatibilidade: retorna cache de módulos PEC (sem lazy import)."""
+    return _pec_modules_cache
 
 
 def _acaonome_para_bucket_pec(acaonome: str) -> str:
     """
-    Mesma lógica de classificação usada por indexarecriarbucketsunico.
-    Centralizada aqui para não duplicar.
+    Lógica de classificação alinhada com agruparembuckets de produção.
+    Fonte: PEC/processamento_indexacao.py — agruparembuckets
     """
-    SISBAJUD = {"minutabloqueio", "minutabloqueio60", "processarordemsisbajud", "processarordemsisbajudwrapper"}
-    CARTA = {"carta", "analisardocumentosposcarta"}
-    SOB = {"movsob", "defchip", "movaud"}
-    SOBREST = {"defsob"}
+    SISBAJUD = {
+        "minuta_bloqueio", "minuta_bloqueio_60",
+        "processar_ordem_sisbajud", "processar_ordem_sisbajud_wrapper",
+    }
+    CARTA = {"carta", "analisar_documentos_pos_carta"}
+    SOB   = {"mov_aud"}
+    SOBREST = {"def_sob", "def_chip", "mov_sob"}
+    COMUNICACOES = {
+        "pec_sigilo", "pec_cpgeral", "pec_excluiargos", "pec_bloqueio",
+        "pec_decisao", "pec_editaldec", "pec_editalidpj", "pec_ord", "pec_sum",
+        "pec_editalaud", "ato_citacao", "ato_intimacao",
+        "wrapper_pec_ord_com_domicilio", "wrapper_pec_sum_com_domicilio",
+    }
 
     name = (acaonome or "").lower()
 
@@ -28,15 +59,26 @@ def _acaonome_para_bucket_pec(acaonome: str) -> str:
         return "sob"
     if name in SOBREST:
         return "sobrestamento"
-    if "comunic" in name:
+    if name in COMUNICACOES or name.startswith("pec_") or "wrapper" in name:
         return "comunicacoes"
     return "outros"
 
 
 def _resolver_acaonome(acaofunc: Any) -> str:
-    """Retorna um nome legível para a ação (aceita callable ou string)."""
-    if not acaofunc:
+    """
+    Retorna nome legível para a ação.
+    Aceita: callable, lista de callables/tuplas, string.
+    """
+    if not acaofunc and acaofunc != 0:
         return ""
+    if isinstance(acaofunc, (list, tuple)):
+        nomes = []
+        for item in acaofunc:
+            if isinstance(item, tuple) and item:
+                item = item[0]
+            if callable(item):
+                nomes.append(getattr(item, "__name__", str(item)))
+        return "+".join(nomes) if nomes else str(acaofunc)
     if callable(acaofunc):
         return getattr(acaofunc, "__name__", str(acaofunc))
     return str(acaofunc)
@@ -53,50 +95,93 @@ def _gigs_vencidos_via_js(driver, tamanho_pagina: int = 100) -> list:
             &filtrarPorDestinatario=false&filtrarPorLocalizacao=false
             &pagina=N&tamanhoPagina=N
     """
-    JS = """
+    JS = f'''
 const callback = arguments[0];
-const xsrf = document.cookie.split(';')
-  .map(c => c.trim()).find(c => c.toLowerCase().startsWith('xsrf-token='))
-  ?.split('=').slice(1).join('=');
+
+const rawCookie = document.cookie.split(';')
+    .map(c => c.trim())
+    .find(c => c.toLowerCase().startsWith('xsrf-token='));
+const xsrf = rawCookie ? rawCookie.split('=').slice(1).join('=') : null;
+
+if (!xsrf) {{
+    callback({{
+        erro: 'XSRF_NOT_FOUND',
+        href: location.href,
+        cookieCount: document.cookie.split(';').filter(c => c.trim()).length,
+        resultado: []
+    }});
+    return;
+}}
+
 const base = location.origin;
 const params = 'filtrarVencidas=true&ordenacaoCrescente=true'
              + '&filtrarPorDestinatario=false&filtrarPorLocalizacao=false';
-const hdrs = { 'Accept': 'application/json', 'X-XSRF-TOKEN': xsrf };
+const hdrs = {{
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'X-XSRF-TOKEN': xsrf
+}};
 
-(async () => {
-  const getPage = async (pagina) => {
-    const r = await fetch(
-      `${base}/pje-gigs-api/api/relatorioatividades/?${params}&pagina=${pagina}&tamanhoPagina=TAMANHO}`,
-      { credentials: 'include', headers: hdrs }
-    );
-    if (!r.ok) return { erro: r.status, resultado: [] };
-    return r.json();
-  };
-  try {
-    const p1 = await getPage(1);
-    if (p1.erro) { callback({ erro: p1.erro, resultado: [] }); return; }
-    let todos = [...(p1.resultado || [])];
-    const total = p1.qtdPaginas || 1;
-    if (total > 1) {
-      const rest = await Promise.all(
-        Array.from({ length: total - 1 }, (_, i) => getPage(i + 2))
-      );
-      rest.forEach(p => todos.push(...(p.resultado || [])));
-    }
-    callback({ qtdPaginas: total, totalRegistros: p1.totalRegistros, resultado: todos });
-  } catch(e) {
-    callback({ erro: e.message, resultado: [] });
-  }
-})();
-""".replace("TAMANHO", str(tamanho_pagina))
+(async () => {{
+    const getPage = async (pagina) => {{
+        const url = `${{base}}/pje-gigs-api/api/relatorioatividades/?${{params}}&pagina=${{pagina}}&tamanhoPagina={tamanho_pagina}`;
+        const r = await fetch(url, {{ credentials: 'include', headers: hdrs }});
+        if (!r.ok) return {{ erro: r.status, url: url, resultado: [] }};
+        return r.json();
+    }};
+    try {{
+        const p1 = await getPage(1);
+        if (p1.erro) {{
+            callback({{ erro: p1.erro, url: p1.url, xsrfLen: xsrf.length, resultado: [] }});
+            return;
+        }}
+        let todos = [...(p1.resultado || [])];
+        const total = p1.qtdPaginas || 1;
+        if (total > 1) {{
+            const rest = await Promise.all(
+                Array.from({{ length: total - 1 }}, (_, i) => getPage(i + 2))
+            );
+            rest.forEach(p => todos.push(...(p.resultado || [])));
+        }}
+        callback({{ qtdPaginas: total, totalRegistros: p1.totalRegistros, resultado: todos }});
+    }} catch(e) {{
+        callback({{ erro: e.message, resultado: [] }});
+    }}
+}})();
+'''
 
-    resultado = driver.execute_async_script(JS)
+    try:
+        driver.set_script_timeout(60)
+        resultado = driver.execute_async_script(JS)
+    finally:
+        try:
+            driver.set_script_timeout(30)
+        except Exception:
+            pass
+
     if not resultado or resultado.get("erro"):
-        print(f"PEC_GIGS_JS: ❌ erro={resultado}")
+        erro = (resultado or {}).get("erro", "sem_resposta")
+        if erro == "XSRF_NOT_FOUND":
+            print(
+                f"PEC_GIGS_JS: ❌ XSRF não encontrado em document.cookie — "
+                f"cookies={resultado.get('cookieCount', 0)}, "
+                f"href={resultado.get('href', '?')}"
+            )
+            print("PEC_GIGS_JS: ⚠  Certifique-se de que o driver está em uma página PJe autenticada.")
+        else:
+            print(
+                f"PEC_GIGS_JS: ❌ HTTP {erro} — "
+                f"url={resultado.get('url', '?')} "
+                f"xsrfLen={resultado.get('xsrfLen', '?')}"
+            )
         return []
+
     total = resultado.get("totalRegistros", 0)
     dados = resultado.get("resultado", [])
-    print(f"PEC_GIGS_JS: {len(dados)}/{total} atividades carregadas")
+    print(
+        f"PEC_GIGS_JS: ✅ {len(dados)}/{total} atividades carregadas "
+        f"({resultado.get('qtdPaginas', 1)} página(s))"
+    )
     return dados
 
 
@@ -121,7 +206,7 @@ def testar_api_gigs_e_buckets_pec(
     tamanho_pagina: int = 100,
 ) -> dict:
     """
-    Busca GIGS vencidos via API REST sem navegação nem cliques.
+    Busca GIGS vencidos via API REST e agrupa em buckets de execução.
 
     Estratégia: execute_async_script injeta fetch com cookies da sessão ativa.
     Endpoint real: GET /pje-gigs-api/api/relatorioatividades/
@@ -132,29 +217,27 @@ def testar_api_gigs_e_buckets_pec(
         buckets = testar_api_gigs_e_buckets_pec(driver)
     """
     buckets: dict = {
-        "sisbajud":      [],
-        "carta":         [],
-        "sob":           [],
-        "sobrestamento": [],
-        "comunicacoes":  [],
-        "outros":        [],
-        "sem_acao":      [],
-        "sem_observacao":[],
+        "sisbajud":       [],
+        "carta":          [],
+        "sob":            [],
+        "sobrestamento":  [],
+        "comunicacoes":   [],
+        "outros":         [],
+        "sem_acao":       [],
+        "sem_observacao": [],
     }
     STATUS_IGNORADOS = ("CONCLU", "CANCELA")
 
     atividades_raw = _gigs_vencidos_via_js(driver, tamanho_pagina)
     if not atividades_raw:
-        print("PEC_TESTE_API: ❌ Nenhuma atividade retornada")
+        print("PEC_GIGS: ❌ Nenhuma atividade retornada")
         return buckets
 
     for ativ_raw in atividades_raw:
         ativ = _extrair_campos_atividade(ativ_raw)
-        numero = ativ["numero"]
-        status = ativ["status"]
+        numero  = ativ["numero"]
+        status  = ativ["status"]
         obs_raw = ativ["observacao"]
-        dataprazo = ativ["dataPrazo"]
-        tipo_gigs = ativ["tipoGigs"]
 
         if filtrar_concluidos and any(s in status for s in STATUS_IGNORADOS):
             continue
@@ -163,52 +246,54 @@ def testar_api_gigs_e_buckets_pec(
             "numero":     numero,
             "observacao": obs_raw,
             "status":     status,
-            "dataPrazo":  dataprazo,
-            "tipoGigs":   tipo_gigs,
+            "dataPrazo":  ativ["dataPrazo"],
+            "acao":       "",
         }
 
         if not obs_raw:
             buckets["sem_observacao"].append(info)
-            print(f"PEC_TESTE_API: {numero} → sem observacao (status={status})")
             continue
 
         acoes = determinar_acoes_por_observacao(obs_raw)
         if not acoes:
             buckets["sem_acao"].append(info)
-            print(f"PEC_TESTE_API: {numero} → obs={obs_raw!r} → SEM REGRA")
             continue
 
-        first = acoes[0] if isinstance(acoes, (list, tuple)) and acoes else acoes
+        first    = acoes[0] if acoes else None
         acaonome = _resolver_acaonome(first)
-        bucket = _acaonome_para_bucket_pec(acaonome)
+        bucket   = _acaonome_para_bucket_pec(acaonome)
+        info["acao"] = acaonome
         buckets[bucket].append(info)
-        print(
-            f"PEC_TESTE_API: {numero} → bucket={bucket} "
-            f"tipo={tipo_gigs} acao={acaonome} status={status} "
-            f"dataPrazo={dataprazo} obs={obs_raw[:80]}"
-        )
 
-    print("\nPEC_TESTE_API: ── RESUMO ──")
-    total = sum(len(v) for v in buckets.values())
-    for nome, itens in buckets.items():
+    # ── saída formatada ───────────────────────────────────────────────────
+    ORDEM = (
+        "sisbajud", "carta", "sob", "sobrestamento",
+        "comunicacoes", "outros", "sem_observacao"
+    )
+    total_acionavel = 0
+    for nome in ORDEM:
+        itens = buckets[nome]
         if not itens:
             continue
-        print(f"  {nome.upper():15s} {len(itens):>3} atividades")
-        for proc in itens[:3]:
-            print(f"    · {proc['numero']} {proc['observacao'][:60]}")
-    print(f"  {'TOTAL':15s} {total:>3}")
+        print(f"\n[{nome.upper()}]")
+        for p in itens:
+            obs = (p["observacao"] or "")[:70]
+            print(f"  {p['numero']} - {obs} - {p['acao'] or '—'}")
+        total_acionavel += len(itens)
+
+    sem_acao_count  = len(buckets["sem_acao"])
+    sem_obs_count   = len(buckets["sem_observacao"])
+    total_geral     = total_acionavel + sem_acao_count + sem_obs_count
+    print(
+        f"\nTotal: {total_geral} GIGS vencidos"
+        f" | acionáveis: {total_acionavel}"
+        f" | sem regra: {sem_acao_count}"
+        f" | sem obs: {sem_obs_count}"
+    )
 
     return buckets
-
-
+    
 def processar_processo_pec_individual(driver):
-    """
-    Callback específico para processar um processo individual no PEC
-    Usado pelo sistema centralizado de retry do PJE.PY
-
-    Esta função foca APENAS na lógica específica do PEC,
-    sem se preocupar com retry, progresso ou navegação para /detalhe
-    """
     from Fix.variaveis import session_from_driver, PjeApiClient, obter_gigs_com_fase
     from PEC.core_navegacao import indexar_processo_atual_gigs
     from PEC.executor import executar_acao_pec
@@ -256,38 +341,7 @@ def processar_processo_pec_individual(driver):
             print(f"[PEC_INDIVIDUAL] ⏭️ Pulando processo (ação não definida)")
             return True
 
-        destinatarios_override = None
-        try:
-            import re
-            m = re.match(r'^(?:pec\s*(?:dec|edital|idpj)\b)\s+(.+)$', observacao.strip(), re.I)
-            if m:
-                nome_cand = m.group(1).strip()
-                nome_cand = re.split(r'[,:\-\(\)]', nome_cand)[0].strip()
-                nome_cand = re.sub(r'^(sr\.?|sra\.?|dr\.?|dra\.?|srta\.?|srta)\s+', '', nome_cand, flags=re.I).strip()
-                if len(nome_cand) >= 3 and re.search('[A-Za-zÀ-ÖØ-öø-ÿ]', nome_cand):
-                    destinatarios_override = {'nome': nome_cand}
-                    print(f"[PEC_INDIVIDUAL][DEST_OVERRIDE] Nome extraído para override: '{nome_cand}'")
-        except Exception as e_parse:
-            print(f"[PEC_INDIVIDUAL][DEST_OVERRIDE][WARN] Falha ao tentar extrair nome da observação: {e_parse}")
-
-        driver_sisb = getattr(driver, '_driver_sisb_compartilhado', None)
-
-        sucesso_acao = executar_acao_pec(
-            driver,
-            acao,
-            numero_processo=numero_processo,
-            observacao=observacao,
-            debug=True,
-            driver_sisb=driver_sisb,
-        )
-
-        if sucesso_acao:
-            print(f"[PEC_INDIVIDUAL] ✅ Ação executada com sucesso")
-            return True
-        else:
-            print(f"[PEC_INDIVIDUAL] ❌ Falha na execução da ação '{acao}'")
-            return False
-
+        # ...existing code...
     except Exception as e:
         print(f"[PEC_INDIVIDUAL] ❌ Erro no processamento: {e}")
         return False

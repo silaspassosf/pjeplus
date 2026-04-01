@@ -1,1 +1,0 @@
-chore: fixes - destinatarios selection, unify prazo utils, update f.py

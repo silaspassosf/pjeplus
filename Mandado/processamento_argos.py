@@ -1,12 +1,8 @@
 import time
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from Fix import (
-    buscar_documentos_sequenciais,
-    extrair_dados_processo,
-    extrair_destinatarios_decisao,
-    salvar_destinatarios_cache,
-)
+from Fix.documents import buscar_documentos_sequenciais
+from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, salvar_destinatarios_cache
 from Fix.core import buscar_documento_argos
 from Fix.log import logger
 from PEC.core import extrair_numero_processo_pec as extrair_numero_processo

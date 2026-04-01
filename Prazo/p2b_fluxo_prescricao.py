@@ -33,7 +33,7 @@ def prescreve(driver):
         # 0. Executa BNDT (exclusão via Fix.bndt)
         pass
         try:
-            from Fix import bndt
+            from Fix.extracao import bndt
             bndt_resultado = bndt(driver, inclusao=False)
         except Exception as e:
             pass

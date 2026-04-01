@@ -437,25 +437,16 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
                     bt = esperar_elemento(driver, 'button', texto=destino, timeout=5)
                 if bt and bt.is_enabled():
                     safe_click_no_scroll(driver, bt)
+                    # último lance, chip e responsavel manejados por helpers
                     if ultimo_lance:
                         try:
-                            ult = esperar_elemento(driver, 'button', texto=ultimo_lance, timeout=3)
-                            if ult:
-                                safe_click_no_scroll(driver, ult)
+                            clicar_ultimo_lance(driver, ultimo_lance)
                         except Exception:
                             pass
-                    if chip:
-                        try:
-                            safe_click_no_scroll(driver, esperar_elemento(driver, 'button[aria-label="Incluir Chip Amarelo"]', timeout=2))
-                        except Exception:
-                            pass
-                    if responsavel:
-                        try:
-                            gg = buscar_seletor_robusto(driver, ['Abrir o GIGS', 'GIGS'], timeout=2)
-                            if gg:
-                                safe_click_no_scroll(driver, gg)
-                        except Exception:
-                            pass
+                    try:
+                        chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                    except Exception:
+                        pass
                     return True
                 return False
             except Exception:
@@ -476,4 +467,96 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             logger.error(f'[MOV_INT][ERRO] {e}')
         except Exception:
             pass
+        return False
+
+
+def clicar_ultimo_lance(driver, texto_ultimo_lance: str, timeout: int = 5) -> bool:
+    """Tenta clicar no último lance indicado pelo texto.
+
+    Retorna True se clicou, False caso contrário.
+    """
+    try:
+        if not texto_ultimo_lance:
+            return False
+        btn = None
+        try:
+            btn = esperar_elemento(driver, 'button', texto=texto_ultimo_lance, timeout=max(2, timeout//2))
+        except Exception:
+            btn = None
+
+        if not btn:
+            # tentar buscar por parcial do texto
+            try:
+                btns = driver.find_elements_by_xpath(f"//button[contains(., '{texto_ultimo_lance}')]")
+                for b in btns:
+                    try:
+                        if b.is_displayed() and b.is_enabled():
+                            btn = b
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        if btn:
+            try:
+                safe_click_no_scroll(driver, btn)
+                return True
+            except Exception:
+                return False
+        return False
+    except Exception:
+        return False
+
+
+def chip_responsavel(driver, chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 5) -> None:
+    """Clica no chip (se solicitado) e tenta abrir seleção de responsável (GIGS) se solicitado.
+
+    Não lança exceções em falhas, apenas tenta realizar as ações.
+    """
+    try:
+        # Chip amarelo padrão
+        if chip:
+            try:
+                el = esperar_elemento(driver, 'button[aria-label="Incluir Chip Amarelo"]', timeout=max(1, timeout//2))
+                if el:
+                    safe_click_no_scroll(driver, el)
+            except Exception:
+                pass
+
+        # Responsável: abrir o GIGS para escolher, se aplicável
+        if responsavel:
+            try:
+                gg = buscar_seletor_robusto(driver, ['Abrir o GIGS', 'GIGS'], timeout=max(1, timeout//2))
+                if gg:
+                    safe_click_no_scroll(driver, gg)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def verificar_minuta_preenchida(driver, timeout: int = 2) -> bool:
+    """Heurística simples para detectar minuta em elaboração.
+
+    Retorna True se identificar sinais de minuta em edição, False caso contrário.
+    """
+    try:
+        # tentar detectar editor de texto/minuta (heurística)
+        possible = ['pje-editor', 'textarea', 'cke_editable', 'editor-minuta']
+        for sel in possible:
+            try:
+                el = esperar_elemento(driver, sel, timeout=timeout)
+                if el:
+                    text = ''
+                    try:
+                        text = el.text or el.get_attribute('value') or ''
+                    except Exception:
+                        text = ''
+                    if text and len(text.strip()) > 5:
+                        return True
+            except Exception:
+                continue
+        return False
+    except Exception:
         return False

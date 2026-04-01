@@ -1,12 +1,12 @@
 {
-  "numero_processo": "1000432-11.2024.5.02.0703",
+  "numero_processo": "1000355-02.2024.5.02.0703",
   "destinatarios": [
     {
-      "nome": "VAGNER MOREIRA DOS SANTOS NASCIMENTO",
-      "cpfcnpj": "11321174705",
+      "nome": "JOAO DOS SANTOS SIMAS",
+      "cpfcnpj": "63245191553",
       "tipo": "reu"
     }
   ],
   "origem": "argos_idpj_decisao",
-  "timestamp": "2026-03-17T18:25:44.226714"
+  "timestamp": "2026-03-31T12:51:03.267487"
 }

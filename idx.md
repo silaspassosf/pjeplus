@@ -25,7 +25,39 @@ Pastas que contêm extensões de terceiros para o Firefox (`maispje/` e `AVJT/`)
 
 ---
 
-## 🛠️ 3. Diretrizes de Otimização e Código Limpo (A Bíblia do PJePlus)
+## � 2b. Artefatos de Infraestrutura (Novos — reta3)
+
+| Arquivo | Papel |
+|---|---|
+| `Fix/exceptions.py` | Hierarquia de exceções tipadas: `PJePlusError`, `DriverFatalError`, `ElementoNaoEncontradoError`, `TimeoutFluxoError`, `NavegacaoError`, `LoginError` |
+| `Fix/scripts/__init__.py` | Loader JS com cache em memória: `carregar_js(nome, pasta)` / `limpar_cache_js()` |
+| `Fix/drivers/lifecycle.py` | `driver_session(tipo, headless)` — context manager que cria e finaliza o driver automaticamente |
+| `Fix/sessionpool.py` | `SessionPool` — reutilização de driver/sessão entre módulos |
+| `Fix/progress.py` | `ProgressoUnificado` — progresso persistido em `status_execucao.json` |
+| `Fix/log.py` | `PJePlusLogger` + `getmodulelogger()` — logger centralizado (sem emoji no texto) |
+| `Fix/smartfinder.py` | `SmartFinder` — busca com cache e fallback heurístico; **usar** `buscar(driver, chave, candidatos)` como ponto único de entrada |
+| `Fix/headlesshelpers.py` | `click_headless_safe`, `wait_and_click_headless`, `limpar_overlays_headless` |
+| `atos/movimentos_fluxo.py` | `movimentar_inteligente(driver, destino)` — único ponto de entrada para movimentação por destino |
+| `Mandado/processamento_api.py` | `processar_mandados_devolvidos_api(driver)` — fluxo Mandado iniciado por API |
+| `Prazo/fluxo_api.py` | `processar_gigs_sem_prazo_p2b(driver)` — fluxo P2B iniciado por API GIGS |
+| `PEC/orquestrador.py` | `executar_fluxo_novo_simplificado(driver)` — fluxo PEC modular iniciado por API |
+
+### Padrões obrigatórios (reta3 — já aplicados)
+
+| Código | Regra |
+|---|---|
+| P1 | Sem wrappers de uma linha em `Fix/core.py` — apenas re-exportações |
+| P2 | Máx 3 níveis de indentação; auxiliares privadas com `_` imediatamente acima |
+| P3 | Infraestrutura levanta exceção tipada de `Fix/exceptions.py`; nunca `return False` silencioso |
+| P4 | Sem `time.sleep()` — usar `aguardar_renderizacao_nativa` (Fix/utils/observer.py) |
+| P5 | JS longo → arquivo `.js` em `scripts/` do módulo; carregado via `carregar_js()` |
+| P6 | Retornos complexos → `@dataclass` (modelo: `SISB/standards.py`) |
+| P7 | Driver via `driver_session()` context manager em orquestradores novos |
+| P8 | Imports sempre no topo do módulo — nunca dentro de função |
+
+---
+
+## �🛠️ 3. Diretrizes de Otimização e Código Limpo (A Bíblia do PJePlus)
 
 A IA que ler este documento deve respeitar as seguintes regras de ouro ao alterar qualquer arquivo do CORE:
 
@@ -81,4 +113,31 @@ Para garantir a futura conteinerização do `x.py` no GitHub Actions:
 
 ***
 **INSTRUÇÃO FINAL PARA A IA:** Ao iniciar a sessão, confirme a leitura do `IDX.md`, compreenda a topologia e aguarde a indicação do usuário sobre qual módulo (ou implantação do `SmartFinder` / Cache) será trabalhado hoje.
+
+---
+
+## 🧠 5. Lições Operacionais (Bugs Críticos — Registro Incremental)
+
+Registro de bugs críticos encontrados em produção com causa raiz e fix. Acrescentar cada novo bug aqui.
+
+| Data | ID | Módulo | Sintoma | Causa Raiz | Fix |
+|---|---|---|---|---|---|
+| 31/03/2026 | #001 | `Fix/navigation/filters.py` | `aplicar_filtro_100` retorna False silenciosamente; não loga nada | `com_retry` chamado com `log=True` mas implementação usa `log_enabled` → TypeError silencioso a cada tentativa | Trocar `log=True` → `log_enabled=True` na linha 244 |
+
+### Regra derivada do Bug #001
+
+**`com_retry` — dois contextos de import:**
+
+```python
+# VIA Fix.core (wrapper público — usar log=True):
+from Fix.core import com_retry
+com_retry(func, max_tentativas=3, log=True)  # ✅ OK
+
+# VIA Fix.selenium_base.retry_logic (implementação direta — usar log_enabled=True):
+from Fix.selenium_base.retry_logic import com_retry
+com_retry(func, max_tentativas=3, log_enabled=True)  # ✅ OK
+com_retry(func, max_tentativas=3, log=True)  # ❌ ERRO SILENCIOSO — não usar
+```
+
+Preferir sempre o import via `Fix.core` para evitar incompatibilidades de parâmetro.
 

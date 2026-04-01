@@ -82,7 +82,10 @@ def ciclo3(driver: WebDriver) -> bool:
         for pagina in range(paginas):
             try:
                 selecionados = driver.execute_script(SCRIPT_SELECAO_LIVRES)
-                if isinstance(selecionados, int) and selecionados > 0:
+                if selecionados == -1:
+                    logger.error(f"[CICLO3] ERRO no script de seleção de livres na página {pagina+1}")
+                    return False
+                elif isinstance(selecionados, int) and selecionados > 0:
                     total_selecionados += selecionados
                     logger.info(f"[CICLO3] Página {pagina+1}: {selecionados} livres selecionados")
                 else:

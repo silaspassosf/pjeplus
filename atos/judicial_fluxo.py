@@ -255,12 +255,12 @@ def fluxo_cls(
                     # Abertura da tarefa pode ter levado diretamente a /assinar, /minutar ou /conclusao
                     current_after = (driver.current_url or '').lower()
                     if '/assinar' in current_after:
-                        logger.info('[CLS] ✅ Já em /assinar após abrir tarefa - ato cumprido')
+                        logger.info('[CLS] Ja em /assinar apos abrir tarefa - ato cumprido')
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
                         return True
                     elif '/minutar' in current_after:
-                        logger.info('[CLS] ✅ Já em /minutar após abrir tarefa - fluxo CLS concluído')
+                        logger.info('[CLS] Ja em /minutar apos abrir tarefa - fluxo CLS concluido')
                         focar_campo_minutar_se_necessario(driver)
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
@@ -570,13 +570,13 @@ def ato_judicial(
                 # Insere modelo com SPACE (como no legado)
                 try:
                     btn_inserir.send_keys(Keys.SPACE)
-                    logger.info('[ATO][MODELO] ✅ Modelo inserido')
+                    logger.info('[ATO][MODELO] Modelo inserido')
                 except StaleElementReferenceException:
                     # Se ficou stale entre encontrar e clicar, tentar uma última vez
                     logger.warning('[ATO][MODELO] Elemento ficou stale, tentando novamente...')
                     btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
                     btn_inserir.send_keys(Keys.SPACE)
-                    logger.info('[ATO][MODELO] ✅ Modelo inserido (2ª tentativa)')
+                    logger.info('[ATO][MODELO] Modelo inserido (2a tentativa)')
                 
                 time.sleep(1.5)
 
@@ -601,7 +601,7 @@ def ato_judicial(
                 EC.element_to_be_clickable((By.XPATH, '//button[contains(@class, "mat-raised-button") and contains(@class, "mat-primary") and contains(., "Salvar") and @aria-label="Salvar"]'))
             )
             safe_click(driver, btn_salvar)
-            logger.info('[ATO][SALVAR] ✅ Clique no botão Salvar realizado!')
+            logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
             # Aguardar transição para aba de destinatários
             time.sleep(1.5)
@@ -736,9 +736,9 @@ def ato_judicial(
                         driver.execute_script('arguments[0].click();', pec_checkbox)
                     
                     time.sleep(0.3)
-                    logger.info(f'[ATO][PEC] ✅ {"Marcado" if marcar_pec_bool else "Desmarcado"}')
+                    logger.info(f'[ATO][PEC] {"Marcado" if marcar_pec_bool else "Desmarcado"}')
                 else:
-                    logger.info(f'[ATO][PEC] ✓ Já está conforme esperado')
+                    logger.info('[ATO][PEC] Ja esta conforme esperado')
                     
             except Exception as e:
                 logger.error(f'[ATO][PEC] ❌ {e}')
@@ -752,11 +752,11 @@ def ato_judicial(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Gravar a intimação/notificação"]'))
             )
             if safe_click_no_scroll(driver, btn_gravar_pec, log=False):
-                logger.info('[ATO][PEC] ✅ Clique em Gravar (intimação) realizado')
+                logger.info('[ATO][PEC] Clique em Gravar (intimacao) realizado')
             else:
                 try:
                     btn_gravar_pec.click()
-                    logger.info('[ATO][PEC] ✅ Clique padrão em Gravar realizado')
+                    logger.info('[ATO][PEC] Clique padrao em Gravar realizado')
                 except Exception as e:
                     logger.debug(f'[ATO][PEC] Falha ao clicar em Gravar via .click(): {e}')
             time.sleep(0.8)
@@ -939,7 +939,7 @@ def ato_judicial(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
                 )
                 btn_salvar.click()
-                logger.info('[ATO][SALVAR] ✅ Ato salvo')
+                logger.info('[ATO][SALVAR] Ato salvo')
                 time.sleep(1.5)
                 # Verifica e reaplica sigilo/PEC caso o save tenha re-renderizado a aba
                 try:
@@ -967,7 +967,7 @@ def ato_judicial(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Gravar a intimação/notificação"]'))
                 )
                 btn_gravar.click()
-                logger.info('[ATO][GRAVAR] ✅ Gravado')
+                logger.info('[ATO][GRAVAR] Gravado')
                 time.sleep(1)
             except Exception as e:
                 logger.error(f'[ATO][GRAVAR] ❌ {e}')

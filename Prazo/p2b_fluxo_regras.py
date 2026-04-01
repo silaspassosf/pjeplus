@@ -31,6 +31,7 @@ def _definir_regras_processamento() -> List[Tuple]:
     ato_meios = m['ato_meios']
     ato_sobrestamento = m['ato_sobrestamento']
     ato_pesqliq = m.get('ato_pesqliq')
+    ato_reitmeios = m.get('ato_reitmeios')
     # wrappers/from PEC
     retifidpj_wrapper = m.get('retifidpj_wrapper')
     pec_excluiargos = m.get('pec_excluiargos')
@@ -45,6 +46,10 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([re.compile(r'A pronúncia da', re.IGNORECASE)],
          (), (), ()),  # prescreve será chamado separadamente
 
+        # REGRA DE DESCUMPRIMENTO - executar gigs1, gigs2, ato_pesqliq (sem tentar mov_exec)
+        ([gerar_regex_geral('Ante a notícia de descumprimento')], ("criar_gigs[1/Ana Lucia/Argos]", "criar_gigs[1//xs sigilo]", ato_pesqliq)),
+         # REGRA DE RECURSAL - executar gigs1
+        ([gerar_regex_geral('Libere-se o depósito recursal')], ("criar_gigs[-1/Ana Lucia/Alvará recursal]",)),
         # REGRA DE BLOQUEIO / IMPUGNAÇÕES - DEVE VIR ANTES PARA TER PRIORIDADE
         ([gerar_regex_geral(k) for k in [
             'sob pena de bloqueio',
@@ -58,6 +63,11 @@ def _definir_regras_processamento() -> List[Tuple]:
 
         # REGRAS DE SOBRESTAMENTO
         ([gerar_regex_geral(k) for k in [
+        'Abre-se, como reiteração',
+        ]],
+         ("criar_gigs[1//xs sob 24]", ato_sobrestamento)),
+
+               ([gerar_regex_geral(k) for k in [
             '05 dias para a apresentação',
             'suspensão da execução, com fluência',
             '05 dias para oferta',
@@ -75,9 +85,9 @@ def _definir_regras_processamento() -> List[Tuple]:
             'remessa ao sobrestamento, com fluência',
             'sob pena de sobrestamento e fluência do prazo prescricional',
         ]],
-         ("criar_gigs[1//xs sob 24]", ato_sobrestamento)),
+         (ato_reitmeios,)),
 
-        # REGRAS DE HOMOLOGAÇÃO
+       # REGRAS DE HOMOLOGAÇÃO
         ([gerar_regex_geral(k) for k in [
             'é revel, não',
             'concorda com homologação',
@@ -105,8 +115,7 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral(k) for k in ['saldo devedor']],
          ("criar_gigs[1//xs saldo]",),),
 
-        # REGRA DE DESCUMPRIMENTO - executar gigs1, gigs2, ato_pesqliq (sem tentar mov_exec)
-        ([gerar_regex_geral('Ante a notícia de descumprimento')], ("criar_gigs[1/Ana Lucia/Argos]", "criar_gigs[1//xs sigilo]", ato_pesqliq)),
+       
 
         # REGRA DE ARQUIVAMENTO
         ([gerar_regex_geral(k) for k in ['arquivem-se os autos', 'remetam-se os autos ao aquivo', 'A pronúncia da prescrição intercorrente se trata', 'Se revê o novo sobrestamento', 'cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']], (mov_arquivar,),),

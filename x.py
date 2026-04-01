@@ -1,3 +1,22 @@
+def _executar_mandado_bloco(driver):
+    resultado = executar_mandado(driver)
+    resetar_driver(driver)
+    return resultado
+
+def _executar_prazo_bloco(driver):
+    resultado = executar_prazo(driver)
+    resetar_driver(driver)
+    return resultado
+
+def _executar_p2b_bloco(driver):
+    resultado = executar_p2b(driver)
+    resetar_driver(driver)
+    return resultado
+
+def _executar_pec_bloco(driver):
+    return executar_pec(driver)
+
+
 """
 x.py - Orquestrador Unificado PJEPlus (100% STANDALONE)
 =========================================================
@@ -39,10 +58,14 @@ from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 # Imports dos mdulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, finalizar_driver_imediato as finalizar_driver_imediato_fix
 from Fix.utils import login_cpf
-from Mandado.core import navegacao as mandado_navegacao, iniciar_fluxo_robusto as mandado_fluxo
-from Prazo import loop_prazo, fluxo_pz, fluxo_prazo
-from PEC.processamento import executar_fluxo_novo as pec_fluxo
+from Prazo import loop_prazo
+from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
 from Fix.smart_finder import injetar_smart_finder_global
+from Mandado.processamento_api import processar_mandados_devolvidos_api
+
+# Otimização de imports (plano_imports_otimizacao.md)
+import traceback
+from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b
 
 # ============================================================================
 # CONFIGURAES GLOBAIS
@@ -124,6 +147,16 @@ def criar_driver_pc(headless=False):
         # Notificaes
         options.set_preference("dom.webnotifications.enabled", False)
         options.set_preference("media.volume_scale", "0.0")
+        
+        # Downloads headless-safe
+        if headless:
+            options.set_preference("browser.download.folderList", 2)
+            options.set_preference("browser.download.manager.showWhenStarting", False)
+            options.set_preference("browser.download.dir", os.path.join(os.path.dirname(__file__), "downloads"))
+            options.set_preference("browser.helperApps.neverAsk.saveToDisk",
+                "application/pdf,application/octet-stream,application/zip,"
+                "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            options.set_preference("pdfjs.disabled", True)
         
         # Anti-throttling
         options.set_preference("dom.min_background_timeout_value", 0)
@@ -486,40 +519,24 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         "pec": None,
         "sucesso_geral": False
     }
-    
     try:
         print("=" * 80)
         print("BLOCO COMPLETO: MANDADO  PRAZO  PEC")
         print("=" * 80)
-        
-        # 1. MANDADO
-        resultados["mandado"] = executar_mandado(driver)
-        resetar_driver(driver)
-        time.sleep(3)
 
-        # 2. PRAZO
-        resultados["prazo"] = executar_prazo(driver)
-        resetar_driver(driver)
-        time.sleep(3)
+        resultados["mandado"] = _executar_mandado_bloco(driver)
+        resultados["prazo"] = _executar_prazo_bloco(driver)
+        resultados["p2b"] = _executar_p2b_bloco(driver)
+        resultados["pec"] = _executar_pec_bloco(driver)
 
-        # 2.1 P2B (atividades) - chamado apenas no bloco completo
-        resultados["p2b"] = executar_p2b(driver)
-        resetar_driver(driver)
-        time.sleep(3)
-
-        # 3. PEC
-        resultados["pec"] = executar_pec(driver)
-        
-        # Verificar sucesso geral
         todos_sucesso = all([
             resultados["mandado"].get("sucesso", False),
             resultados["prazo"].get("sucesso", False),
             resultados["p2b"].get("sucesso", False),
             resultados["pec"].get("sucesso", False)
         ])
-        
         resultados["sucesso_geral"] = todos_sucesso
-        
+
         print("=" * 80)
         print(" RESUMO DO BLOCO COMPLETO:")
         print(f"  Mandado: {'' if resultados['mandado'].get('sucesso', False) else ''}")
@@ -527,9 +544,8 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         print(f"  PEC:     {'' if resultados['pec'].get('sucesso', False) else ''}")
         print(f"  GERAL:   {' SUCESSO' if todos_sucesso else ' FALHAS PARCIAIS'}")
         print("=" * 80)
-        
+
         return resultados
-        
     except Exception as e:
         print(f" Erro no bloco completo: {e}")
         resultados["erro_geral"] = str(e)
@@ -537,46 +553,25 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
 
 
 def executar_mandado(driver) -> Dict[str, Any]:
-    """Mandado Isolado - Processamento de Documentos Internos"""
+    """Mandado Isolado — API (sem navegação DOM inicial)"""
     print("\n" + "=" * 80)
     print(" MANDADO ISOLADO")
     print("=" * 80)
-    
     inicio = datetime.now()
-    
     try:
-        # Navegao especfica do Mandado
-        if not mandado_navegacao(driver):
-            print("[MANDADO]  Falha na navegao")
-            return {
-                "sucesso": False, 
-                "status": "ERRO_NAVEGACAO", 
-                "erro": "Falha ao navegar para documentos internos"
-            }
-        
-        # Executar fluxo principal
-        resultado = mandado_fluxo(driver)
+        resultado = processar_mandados_devolvidos_api(driver)
         resultado = normalizar_resultado(resultado)
-        
         tempo = (datetime.now() - inicio).total_seconds()
         resultado['tempo'] = tempo
-        
         if resultado.get("sucesso"):
-            print(f"[MANDADO]  Concludo - {resultado.get('processos', 0)} processos")
+            print(f"[MANDADO]  Concluído")
         else:
             print(f"[MANDADO]  Falha: {resultado.get('erro', 'Desconhecido')}")
-        
         return resultado
-        
     except Exception as e:
         tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[MANDADO]  Exceo: {e}")
-        return {
-            "sucesso": False, 
-            "status": "ERRO_EXECUCAO", 
-            "erro": str(e),
-            "tempo": tempo
-        }
+        print(f"[MANDADO]  Exceção: {e}")
+        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
 
 
 def executar_prazo(driver) -> Dict[str, Any]:
@@ -624,41 +619,24 @@ def executar_prazo(driver) -> Dict[str, Any]:
 
 
 def executar_pec(driver) -> Dict[str, Any]:
-    """PEC Isolado - Processamento de Execuo"""
+    """PEC Isolado — API modular (sem navegação DOM inicial)"""
     print("\n" + "=" * 80)
     print(" PEC ISOLADO")
     print("=" * 80)
-    
     inicio = datetime.now()
-    
     try:
-        # Executar fluxo PEC
-        resultado = pec_fluxo(driver)
-        resultado = normalizar_resultado(resultado)
-        
+        sucesso = pec_fluxo_api(driver)
         tempo = (datetime.now() - inicio).total_seconds()
-        resultado['tempo'] = tempo
-        
-        if resultado.get("sucesso"):
-            print(f"[PEC]  Concludo - {resultado.get('processos', 0)} processos")
-        else:
-            print(f"[PEC]  Falha: {resultado.get('erro', 'Desconhecido')}")
-        
-        return resultado
-        
+        print(f"[PEC]  {'Concluído' if sucesso else 'Falha'}")
+        return {"sucesso": sucesso, "tempo": tempo}
     except Exception as e:
         tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[PEC]  Exceo: {e}")
-        return {
-            "sucesso": False, 
-            "status": "ERRO_EXECUCAO", 
-            "erro": str(e),
-            "tempo": tempo
-        }
+        print(f"[PEC]  Exceção: {e}")
+        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
 
 
 def executar_p2b(driver) -> Dict[str, Any]:
-    """P2B Isolado (apenas fluxo_prazo)"""
+    """P2B Isolado (API GIGS sem prazo XS + processamento por processo)"""
     print("\n" + "=" * 80)
     print(" P2B ISOLADO")
     print("=" * 80)
@@ -674,17 +652,22 @@ def executar_p2b(driver) -> Dict[str, Any]:
         except Exception as e:
             print(f"[P2B] Aviso: falha ao resetar driver antes do fluxo_prazo: {e}")
 
-        # Executar apenas fluxo_prazo (processamento individual)
-        print("[P2B] Executando fluxo_prazo...")
-        fluxo_prazo(driver)  # fluxo_prazo não retorna valor
+        # Executar API + fluxo de cada processo (substitui lista antiga)
+        print("[P2B] Executando fluxo_prazo via API GIGS sem prazo XS...")
+        from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b
+
+        resultado = processar_gigs_sem_prazo_p2b(driver, tamanho_pagina=100, max_processos=0)
+
         print("[P2B]  Processamento individual concluído")
         
         tempo = (datetime.now() - inicio).total_seconds()
-        
+
+        sucesso = resultado.get('sucesso', False)
         return {
-            'sucesso': True,
-            'status': 'SUCESSO',
+            'sucesso': sucesso,
+            'status': 'SUCESSO' if sucesso else 'FALHA',
             'tempo': tempo,
+            'detalhes': resultado,
         }
         
     except Exception as e:
@@ -749,7 +732,7 @@ def menu_execucao() -> Optional[str]:
     
     while True:
         opcao = input("\n Escolha um fluxo (A/B/C/D/E/X): ").strip().upper()
-        
+
         if opcao == "X":
             return None
         elif opcao in ["A", "B", "C", "D", "E"]:
@@ -856,8 +839,7 @@ def main():
     
     tee_output = None
     log_file = None
-    driver = None
-    
+    from Fix.drivers import driver_session
     try:
         while True:
             # Menu 1: Ambiente
@@ -865,21 +847,19 @@ def main():
             if not resultado_menu:
                 print(" Cancelado")
                 break
-            
+
             driver_type, debug_mode = resultado_menu
-            
-            # Debug mode desabilitado por enquanto
-            debug_mode = False
-            
+            debug_mode = False  # Debug mode desabilitado por enquanto
+
             # Menu 2: Fluxo
             fluxo = menu_execucao()
             if not fluxo:
                 print("Cancelado")
                 continue
-            
+
             # Configurar logging
             log_file, tee_output = configurar_logging(driver_type)
-            
+
             print("\n" + "=" * 80)
             print("ORQUESTRADOR UNIFICADO PJEPlus")
             print("=" * 80)
@@ -888,76 +868,57 @@ def main():
             print(f"  Fluxo: {fluxo}")
             print(f" Log: {log_file}")
             print("=" * 80)
-            
-            # Criar driver
-            driver = criar_e_logar_driver(driver_type)
-            if not driver:
-                print(" Falha ao criar driver")
-                if tee_output:
-                    tee_output.close()
-                continue
-            
-            # Executar fluxo
-            try:
-                inicio = datetime.now()
-                resultado = None
-                
-                if fluxo == "A":
-                    resultado = executar_bloco_completo(driver)
-                elif fluxo == "B":
-                    resultado = executar_mandado(driver)
-                elif fluxo == "C":
-                    resultado = executar_prazo(driver)
-                elif fluxo == "D":
-                    resultado = executar_p2b(driver)
-                elif fluxo == "E":
-                    resultado = executar_pec(driver)
-                
-                tempo_total = (datetime.now() - inicio).total_seconds()
-                
-                # Relatrio final
-                print("\n" + "=" * 80)
-                print(" RELATRIO FINAL")
-                print("=" * 80)
-                if resultado:
-                    if 'sucesso_geral' in resultado:
-                        print(f" Sucesso geral: {resultado['sucesso_geral']}")
-                    elif 'sucesso' in resultado:
-                        print(f" Sucesso: {resultado['sucesso']}")
-                print(f"  Tempo total: {tempo_total:.2f}s")
-                print("=" * 80)
-                
-            except KeyboardInterrupt:
-                # Usuário pediu interrupção — forçar shutdown imediato
-                print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
+
+            # Usar context manager para ciclo de vida do driver
+            driver_type_str = "VT" if driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS] else "PC"
+            headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
+            with driver_session(driver_type_str, headless=headless) as driver:
+                # Login
+                if not login_cpf(driver):
+                    print(" Falha no login")
+                    continue
                 try:
-                    safe_immediate_shutdown(driver, tee_output, reason='KeyboardInterrupt')
-                except Exception:
-                    # Caso safe_immediate_shutdown falhe, garantir que chamamos finalizador imediato
+                    inicio = datetime.now()
+                    resultado = None
+                    if fluxo == "A":
+                        resultado = executar_bloco_completo(driver)
+                    elif fluxo == "B":
+                        resultado = executar_mandado(driver)
+                    elif fluxo == "C":
+                        resultado = executar_prazo(driver)
+                    elif fluxo == "D":
+                        resultado = executar_p2b(driver)
+                    elif fluxo == "E":
+                        resultado = executar_pec(driver)
+                    tempo_total = (datetime.now() - inicio).total_seconds()
+                    # Relatório final
+                    print("\n" + "=" * 80)
+                    print(" RELATRIO FINAL")
+                    print("=" * 80)
+                    if resultado:
+                        if 'sucesso_geral' in resultado:
+                            print(f" Sucesso geral: {resultado['sucesso_geral']}")
+                        elif 'sucesso' in resultado:
+                            print(f" Sucesso: {resultado['sucesso']}")
+                    print(f"  Tempo total: {tempo_total:.2f}s")
+                    print("=" * 80)
+                except KeyboardInterrupt:
+                    print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
                     try:
-                        finalizar_driver_imediato_fix(driver)
+                        safe_immediate_shutdown(driver, tee_output, reason='KeyboardInterrupt')
                     except Exception:
-                        pass
-                    os._exit(0)
-            except Exception as e:
-                print(f" Erro: {e}")
-                import traceback
-                traceback.print_exc()
-            
-            finally:
-                if driver:
-                    if not skip_finalizar:
-                        print("\n Finalizando driver...")
-                        finalizar_driver_fix(driver)
-                    driver = None
-                # reset flag para próxima iteração
-                skip_finalizar = False
-            
+                        try:
+                            finalizar_driver_imediato_fix(driver)
+                        except Exception:
+                            pass
+                        os._exit(0)
+                except Exception as e:
+                    print(f" Erro: {e}")
+                    import traceback
+                    traceback.print_exc()
             # Fechar log
             if tee_output:
                 tee_output.close()
-            
-            # Finalizar após execução
             print("Encerrando")
             break
     

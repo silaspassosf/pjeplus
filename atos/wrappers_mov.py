@@ -1,3 +1,4 @@
+from Fix.exceptions import PJePlusError
 import logging
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,8 @@ def mov_arquivar(driver, debug=False):
     if result:
         # Aguardar carregamento da página após arquivar
         logger.info('[MOV_ARQUIVAR] Aguardando carregamento da página após arquivar...')
-        import time
-        time.sleep(3)  # Espera extra para garantir carregamento completo
+        from Fix.utils import aguardar_pagina_carregar
+        aguardar_pagina_carregar(driver, timeout=10)
     return result
 
 
@@ -40,9 +41,9 @@ def mov_exec(driver, debug=False):
             ok = movimentar_inteligente(driver, destino, timeout=8)
             if ok:
                 return True
-        except Exception:
+        except Exception as e:
             continue
-    return False
+    raise PJePlusError('Falha ao movimentar para Iniciar execução')
 
 
 def mov_aud(driver, debug=False):
@@ -60,18 +61,17 @@ def mov_aud(driver, debug=False):
 
     for sel in selectors:
         try:
-            # tentar mover por rótulo equivalente
             ok = movimentar_inteligente(driver, 'Aguardando audiência', timeout=8)
             if ok:
                 return True
-        except Exception:
+        except Exception as e:
             continue
 
-    # Fallback: try a more generic aria-label exact match (may fail harmlessly)
+    # Fallback: try a more generic aria-label exact match
     try:
         return movimentar_inteligente(driver, 'Aguardando audiência', timeout=8)
-    except Exception:
-        return False
+    except Exception as e:
+        raise PJePlusError('Falha ao movimentar para Aguardando audiência')
 
 
 def mov_prazo(driver, debug=False):

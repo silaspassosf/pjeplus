@@ -6,13 +6,15 @@ Funções para abertura de tarefas, navegação entre estados do PJE,
 limpeza de overlays e transição entre URLs.
 """
 
-from Fix.core import aguardar_e_clicar, safe_click, logger, esperar_url_conter
+from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
+from Fix.selenium_base.element_interaction import safe_click
+from Fix.selenium_base.wait_operations import esperar_url_conter
+from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
-from Fix.core import safe_click_no_scroll
 
 from typing import Optional, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver

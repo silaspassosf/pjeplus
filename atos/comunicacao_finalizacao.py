@@ -324,7 +324,7 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
         # Se der timeout no WebDriverWait, significa que o erro não apareceu, segue a vida normal
         pass
 
-    time.sleep(2)
+    time.sleep(0.3)
     log('[DEBUG] Aguardando processamento do salvamento...')
 
     if gigs_extra:
@@ -343,7 +343,7 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
         # Prefer observer waiting for snackbar
         try:
             from Fix.core import aguardar_renderizacao_nativa
-            ok_snack = aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=6)
+            ok_snack = aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=3)
         except Exception:
             ok_snack = False
 
@@ -372,7 +372,7 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
                 return False
 
             try:
-                WebDriverWait(driver, 6).until(_salvo_ok)
+                WebDriverWait(driver, 3).until(_salvo_ok)
                 log('[COMUNICACAO] Confirmação visual de salvamento detectada (fallback).')
             except Exception:
                 log('[COMUNICACAO][WARN] Não foi possível confirmar visualmente o salvamento da minuta. Tentando retry imediato...')
@@ -406,7 +406,7 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
                         log('[COMUNICACAO] Confirmação visual de salvamento detectada após retry (observer).')
                     else:
                         try:
-                            WebDriverWait(driver, 6).until(_salvo_ok)
+                            WebDriverWait(driver, 3).until(_salvo_ok)
                             log('[COMUNICACAO] Confirmação visual de salvamento detectada após retry (fallback).')
                         except Exception:
                             log('[COMUNICACAO][ERRO] Retry de salvamento não confirmou o sucesso.')

@@ -31,7 +31,7 @@ def navegar_para_atividades(driver):
 def aplicar_filtro_xs(driver):
     """Aplica filtro 'xs' no campo Descrição da Atividade do GIGS."""
     try:
-        from Fix import esperar_elemento
+        from Fix.selenium_base import esperar_elemento
         import time
 
         # Buscar campo de descrição usando aria-label ou data-placeholder

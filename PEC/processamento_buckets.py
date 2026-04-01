@@ -1,10 +1,16 @@
 import logging
 logger = logging.getLogger(__name__)
 
+import os
 import time
 from typing import Optional, Dict, List, Any
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import StaleElementReferenceException
+
+# Garantir pasta de logs para watchdog
+LOG_DIR = 'logs_execucao'
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR, exist_ok=True)
 
 from utilitarios_processamento import executar_processamento_iterativo_com_corte_em_erro_critico
 
@@ -28,6 +34,18 @@ def _processar_buckets(driver: WebDriver, buckets: dict[str, list[dict[str, any]
         bucket: List[Dict[str, Any]] = buckets.get(name, [])
         if not bucket:
             continue
+        # Silenciar apenas os casos 'sobrestamento vencido' dentro do bucket 'sobrestamento'.
+        if name == 'sobrestamento':
+            original_len = len(bucket)
+            def _is_sobrest_vencido(item):
+                obs = (item.get('observacao') or '') if isinstance(item, dict) else ''
+                obs_l = obs.lower()
+                return 'sobrestamento vencido' in obs_l or obs_l.strip() == 'sobrestamento vencido'
+
+            bucket = [it for it in bucket if not _is_sobrest_vencido(it)]
+            skipped = original_len - len(bucket)
+            if skipped > 0:
+                logger.info(f"[PEC] Skipped {skipped} 'sobrestamento vencido' items in bucket '{name}'")
         res: Dict[str, int] = _processar_bucket_demais(driver, bucket, progresso, descricao=name.upper())
         total_results['sucesso'] += res.get('sucesso', 0)
         total_results['erro'] += res.get('erro', 0)
@@ -389,7 +407,8 @@ def _processar_bucket_generico(driver: Any, processos: List[Dict[str, Any]], pro
         nome_modulo=f"PEC_{nome_bucket}",
         lista_itens=processos,
         funcao_processamento_item=processar_item_pec,
-        max_tentativas_recuperacao=2
+        max_tentativas_recuperacao=2,
+        stop_on_critical=False
     )
 
     # Converter formato de retorno da função utilitária para o formato esperado

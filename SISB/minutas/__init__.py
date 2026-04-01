@@ -9,7 +9,6 @@ from .processor import (
     _salvar_minuta,
     _gerar_relatorio_minuta,
     _protocolar_minuta,
-    _criar_minuta_agendada_por_copia,
     _criar_minuta_agendada
 )
 
@@ -20,6 +19,5 @@ __all__ = [
     '_salvar_minuta',
     '_gerar_relatorio_minuta',
     '_protocolar_minuta',
-    '_criar_minuta_agendada_por_copia',
     '_criar_minuta_agendada'
 ]

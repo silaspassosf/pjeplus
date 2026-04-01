@@ -594,7 +594,7 @@ def _tentar_click_javascript(driver: WebDriver, element: WebElement, log: bool) 
 
 def _tentar_click_actionchains(driver: WebDriver, element: WebElement, log: bool) -> bool:
     """
-    Estratégia 3: ActionChains click.
+    Estratégia 3: JS click (headless-safe, substitui ActionChains).
     
     Args:
         driver: WebDriver Selenium
@@ -606,15 +606,14 @@ def _tentar_click_actionchains(driver: WebDriver, element: WebElement, log: bool
     """
     try:
         if log:
-            print(f"[SAFE_CLICK] Tentando click via ActionChains")
-        actions = ActionChains(driver)
-        actions.move_to_element(element).click().perform()
+            print(f"[SAFE_CLICK] Tentando click via JS (headless-safe)")
+        driver.execute_script("arguments[0].scrollIntoView({block:'center',behavior:'instant'}); arguments[0].click();", element)
         if log:
-            print(f"[SAFE_CLICK] Click ActionChains bem sucedido!")
+            print(f"[SAFE_CLICK] Click JS bem sucedido!")
         return True
     except Exception as e:
         if log:
-            print(f"[SAFE_CLICK] Click ActionChains falhou: {str(e)}")
+            print(f"[SAFE_CLICK] Click JS falhou: {str(e)}")
         return False
 
 def _tentar_click_javascript_avancado(driver: WebDriver, element: WebElement, log: bool) -> bool:

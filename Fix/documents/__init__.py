@@ -1,3 +1,5 @@
+from Fix.extracao import carregar_destinatarios_cache
+from Fix.extracao import extrair_dados_processo
 """
 @module: Fix.documents
 @responsibility: Busca e extração de documentos PJe
@@ -15,6 +17,7 @@ from .search import (
     buscar_documentos_polo_ativo,
     buscar_documento_argos
 )
+from Fix.extracao import indexar_e_processar_lista
 from .buttons import criar_botoes_detalhes
 
 __all__ = [
@@ -25,4 +28,7 @@ __all__ = [
     'buscar_documentos_polo_ativo',
     'buscar_documento_argos',
     'criar_botoes_detalhes',
+    'indexar_e_processar_lista',
+    'extrair_dados_processo',
+    'carregar_destinatarios_cache',
 ]

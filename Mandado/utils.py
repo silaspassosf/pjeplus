@@ -43,32 +43,38 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
 )
 
-# Módulos Locais
-from Fix import (
+# Módulos Locais  
+from Fix.core import (
     navegar_para_tela,
+    buscar_seletor_robusto,
+    driver_pc,
+    buscar_documento_argos,
+    verificar_e_tratar_acesso_negado_global,
+    handle_exception_with_recovery,
+)
+from Fix.extracao import (
     extrair_pdf,
     analise_outros,
     extrair_documento,
     criar_gigs,
-    esperar_elemento,
-    aguardar_e_clicar,
-    buscar_seletor_robusto,
-    limpar_temp_selenium,
-    driver_pc,
     indexar_e_processar_lista,
     extrair_dados_processo,
-    buscar_documento_argos,
     buscar_mandado_autor,
     buscar_ultimo_mandado,
     extrair_destinatarios_decisao,
-    configurar_recovery_driver,
-    verificar_e_tratar_acesso_negado_global,
-    handle_exception_with_recovery,
-    preencher_campo,
     salvar_destinatarios_cache,
+)
+from Fix.selenium_base import (
+    esperar_elemento,
+    aguardar_e_clicar,
+    preencher_campo,
     safe_click,
     wait_for_visible,
     sleep,
+)
+from Fix.utils import (
+    limpar_temp_selenium,
+    configurar_recovery_driver,
 )
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit

@@ -211,7 +211,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                 if not opcoes or len(opcoes) == 0:
                     # Fechar dropdown
                     try:
-                        ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                        driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
                     except:
                         continue
                     time.sleep(0.3)
@@ -263,7 +263,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
 
                 # Nenhuma opção encontrada neste dropdown, fechar e prosseguir
                 try:
-                    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                    driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
                     time.sleep(0.3)
                 except:
                     continue
@@ -273,7 +273,7 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                     logger.error(f"[_aplicar_acao]  Erro ao processar dropdown #{idx+1}: {e_dropdown}")
                 # Fechar dropdown para próxima tentativa
                 try:
-                    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+                    driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
                 except:
                     continue
                 time.sleep(0.3)

@@ -3,11 +3,17 @@ logger = logging.getLogger(__name__)
 
 """Análise de prescrição - função def_presc."""
 
+
 import re
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Any
 from selenium.webdriver.common.by import By
+from Fix.extracao import criar_lembrete_posit
+from Fix.documents import buscar_documentos_polo_ativo
+from atos.movimentos import mov_fimsob, mov_sob
+from atos.judicial import ato_presc
+import traceback
 
 
 def def_presc(driver: Any, numero_processo: str, texto_decisao: str, data_decisao_str: Optional[str] = None, debug: bool = False) -> bool:
@@ -51,20 +57,11 @@ def def_presc(driver: Any, numero_processo: str, texto_decisao: str, data_decisa
     log_msg(f"Iniciando análise de prescrição para processo {numero_processo}")
     
     try:
-        # Import pesado apenas quando necessário
-        from Fix.extracao import criar_lembrete_posit
-        from Fix import buscar_documentos_polo_ativo
-        from atos.movimentos import mov_fimsob, mov_sob
-        from atos.judicial import ato_presc
-        
         # Implementação completa da função def_presc (~336 linhas)
         # TODO: Extrair do PEC/regras.py linhas 1169-1504
-        
         log_msg(" Função def_presc em modo placeholder - implementação completa pendente")
         return False
-        
     except Exception as e:
         log_msg(f" Erro geral em def_presc: {e}")
-        import traceback
         logger.exception("Erro detectado")
         return False

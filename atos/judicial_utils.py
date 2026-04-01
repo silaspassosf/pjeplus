@@ -8,13 +8,13 @@ e cria��o de wrappers para atos judiciais.
 
 from Fix.core import logger
 from selenium.webdriver.common.by import By
-from Fix.core import preencher_multiplos_campos
+from Fix.selenium_base.element_interaction import preencher_multiplos_campos
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import re
 import time
 from datetime import datetime, timedelta
-from Fix.core import safe_click_no_scroll
+from Fix.selenium_base.click_operations import safe_click_no_scroll
 
 def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=False, perito_nomes=None):
     """
@@ -117,7 +117,7 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
 
         # Preenche todos os campos de uma vez usando preencher_multiplos_campos
         if campos_prazo:
-            from Fix.core import preencher_multiplos_campos
+            from Fix.selenium_base.element_interaction import preencher_multiplos_campos
             resultado = preencher_multiplos_campos(driver, campos_prazo, log=True)
             if all(resultado.values()):
                 logger.info(f'[PRAZOS] ✅ Todos os {len(campos_prazo)} campos de prazo preenchidos com sucesso')
@@ -149,7 +149,7 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             )
 
             if btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
-                from Fix.core import safe_click_no_scroll
+                from Fix.selenium_base.click_operations import safe_click_no_scroll
                 if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
                     logger.info('[PRAZOS] ✅ Prazos gravados via safe_click_no_scroll')
                 else:

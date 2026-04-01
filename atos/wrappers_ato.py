@@ -23,6 +23,19 @@ ato_meios = make_ato_wrapper(
     Assinar=False
 )
 
+
+ato_reitmeios = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='reiterame',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    Assinar=False,
+    descricao='reiteração de indicação de meios'
+)
+
 ato_100 = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='aud100',

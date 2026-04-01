@@ -38,6 +38,7 @@ except ImportError:
     pass
 
 # Re-exports from .analysis (modulo relativo)
+
 try:
     from .sobrestamento import def_sob
     from .prescricao import def_presc
@@ -47,8 +48,10 @@ try:
         fechar_driver_sisbajud_global,
     )
 except ImportError:
-    # Se os módulos não existirem, fornecer stubs
-    pass
+    def get_or_create_driver_sisbajud(*args, **kwargs):
+        raise NotImplementedError('get_or_create_driver_sisbajud não disponível')
+    def fechar_driver_sisbajud_global(*args, **kwargs):
+        raise NotImplementedError('fechar_driver_sisbajud_global não disponível')
 
 # Aliases para compatibilidade
 _get_or_create_driver_sisbajud = get_or_create_driver_sisbajud

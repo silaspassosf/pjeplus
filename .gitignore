@@ -52,3 +52,7 @@ build/temp/
 *.rar
 *.zip
 *.7z
+.export_hashes.json
+context_dump.md
+.gist_id
+setup_credenciais.py

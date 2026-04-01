@@ -503,9 +503,9 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
 def navigate_to_activities_and_filter(driver):
     """Navegar para atividades e aplicar filtro dom.e (copiado do fluxo prazo)"""
     try:
-        from Fix import aplicar_filtro_100, safe_click, esperar_elemento
+        from Fix.navigation import aplicar_filtro_100
+        from Fix.selenium_base import safe_click, esperar_elemento, aguardar_e_clicar
         from selenium.webdriver.common.by import By
-        from Fix import aguardar_e_clicar
         from selenium.webdriver.common.keys import Keys
 
         # 1. Navegar para painel de atividades
@@ -574,7 +574,7 @@ def execute_list_with_bucket2_callback(driver):
     - aplica delays anti-rate entre itens
     """
     try:
-        from Fix import indexar_processos, abrir_detalhes_processo, reindexar_linha
+        from Fix.extracao import indexar_processos, abrir_detalhes_processo, reindexar_linha
         from Fix.abas import trocar_para_nova_aba
 
         # Verificar se estamos no painel de atividades; preferir esse fluxo
@@ -681,7 +681,7 @@ def processar_processo_dom(driver, proc_id, linha, aba_lista_original):
             logger.debug(f'[DOM] Não foi possível consultar progresso unificado: {_e}')
 
         # Reindexar linha se necessário (cuidar de erros de conexão)
-        from Fix import reindexar_linha
+        from Fix.extracao import reindexar_linha
         try:
             linha.is_displayed()
             linha_atual = linha

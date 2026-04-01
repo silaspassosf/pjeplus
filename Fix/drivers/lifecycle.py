@@ -1,3 +1,39 @@
+# =============================
+# CONTEXT MANAGER PARA DRIVER (reta3.md P7)
+# =============================
+from contextlib import contextmanager
+
+@contextmanager
+def driver_session(driver_type: str, headless: bool = False):
+    """
+    Context manager que cria, entrega e finaliza o driver automaticamente.
+    Uso:
+        with driver_session("PC", headless=True) as driver:
+            login(driver)
+            executar_fluxo(driver)
+        # driver.quit() acontece aqui, mesmo se houver exceção
+    """
+    _criadores = {
+        "PC": lambda: criar_driver_PC(headless=headless),
+        "VT": lambda: criar_driver_VT(headless=headless),
+        "notebook": lambda: criar_driver_notebook(headless=headless),
+        "SISB_PC": lambda: criar_driver_sisb_pc(headless=headless),
+        "SISB_notebook": lambda: criar_driver_sisb_notebook(headless=headless),
+    }
+    if driver_type not in _criadores:
+        raise ValueError(f"Tipo de driver desconhecido: {driver_type}")
+    driver = None
+    try:
+        driver = _criadores[driver_type]()
+        if driver is None:
+            raise RuntimeError(f"Falha ao criar driver do tipo '{driver_type}'")
+        yield driver
+    finally:
+        if driver is not None:
+            try:
+                finalizar_driver(driver)
+            except Exception as e:
+                logger.warning(f"DRIVER:WARN — Falha ao finalizar driver: {e}")
 import logging
 logger = logging.getLogger(__name__)
 

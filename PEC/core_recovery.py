@@ -75,7 +75,7 @@ def reiniciar_driver_e_logar_pje(driver, log=True):
             novo_driver.get(url_atividades)
             time.sleep(4)
             try:
-                from Fix import aplicar_filtro_100
+                from Fix.navigation import aplicar_filtro_100
                 aplicar_filtro_100(novo_driver)
                 time.sleep(1)
             except Exception:

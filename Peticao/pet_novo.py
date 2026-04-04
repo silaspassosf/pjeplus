@@ -1,5 +1,5 @@
-from Fix.log import getmodulelogger
-logger = getmodulelogger(__name__)
+import logging
+logger = logging.getLogger(__name__)
 
 """
 PEC/pet.py - Processamento de Petições (PJe)

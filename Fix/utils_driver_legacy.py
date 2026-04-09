@@ -18,8 +18,10 @@ from Fix.variaveis import GECKODRIVER_PATH
 
 def obter_driver_padronizado(headless=False):
     """Retorna um driver Firefox padronizado para TRT2."""
-    profile_path = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-    firefox_binary = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    from .utils_paths import obter_caminho_perfil_firefox, obter_caminho_firefox_executavel
+
+    profile_path = obter_caminho_perfil_firefox()
+    firefox_binary = obter_caminho_firefox_executavel()
     options = Options()
     if headless:
         options.add_argument('--headless')

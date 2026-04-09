@@ -392,6 +392,40 @@ ato_gen = make_ato_wrapper(
     descricao='Despacho'
 )
 
+ato_naocoaf = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='ere coaf',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='Indefere COAF'
+)
+
+ato_naosimba = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='a - indeferime',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='Indefere Simba'
+)
+
+ato_teim = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='e teimosinha',
+    prazo=None,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    descricao='Teimosinha',
+    intimar=False,
+    sigilo=True
+)
+
 ato_inste = make_ato_wrapper(
     conclusao_tipo='Admissibilidade',
     modelo_nome='instrumento em a',
@@ -402,7 +436,49 @@ ato_inste = make_ato_wrapper(
     marcar_primeiro_destinatario=False,
     descricao='Recebimento de agravo de Instrumento'
 )
+ato_agpetidpj = make_ato_wrapper(
+    conclusao_tipo='Admissibilidade',
+    modelo_nome='o em idpj',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Recebimento de agravo de Petição em IDPJ'
+)
 
+ato_agpet = make_ato_wrapper(
+    conclusao_tipo='Admissibilidade',
+    modelo_nome='recebagp',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Recebimento de agravo de Petição'
+)
+
+ato_adesivo = make_ato_wrapper(
+    conclusao_tipo='Admissibilidade',
+    modelo_nome='recebade',
+    prazo=8,
+    marcar_pec=False,
+    movimento=1059,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Recebimento de Recurso Adesivo'
+)
+
+ato_agpinter = make_ato_wrapper(
+    conclusao_tipo='Admissibilidade',
+    modelo_nome='o interloc',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Não-Recebimento de agravo de Petição'
+)
 #  NOVO: ato_ceju para Habilitação com CEJU
 ato_ceju = make_ato_wrapper(
     conclusao_tipo='Despacho',
@@ -415,7 +491,6 @@ ato_ceju = make_ato_wrapper(
     descricao='Interesse CEJUSC'
 )
 
-#  NOVO: ato_respcalc para Apresentação de Cálculos
 ato_respcalc = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='xrespcalc',
@@ -424,7 +499,7 @@ ato_respcalc = make_ato_wrapper(
     movimento=None,
     gigs=None,
     marcar_primeiro_destinatario=False,
-    descricao='Despacho - Apresentação de Cálculos'
+    descricao='Contestar Cálculos'
 )
 
 #  NOVO: ato_assistente para Admissão de Assistentes
@@ -449,6 +524,50 @@ ato_concor = make_ato_wrapper(
     gigs=None,
     marcar_primeiro_destinatario=False,
     descricao='Informar Concordância'
+)
+
+ato_ccs = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='e ccs',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='defere ccs'
+)
+
+ato_censec = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='e censec',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='defere censec'
+)
+
+ato_serp = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='xserp',
+    prazo=5,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='defere SERP'
+)
+
+ato_conv = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='xconvx',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='despacho'
 )
 
 #  NOVO: ato_prevjud para CAGED (Previdenciário)

@@ -1,13 +1,15 @@
 <!doctype html>
-<html lang='pt-BR'>
+<html lang="pt-BR">
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta charset="utf-8">
+        <title id="maisPje_blob_processoMemoria"> maisPJe - Processo Memória </title>
         <style>
             img { display: none;}
             body {
                 font-family: Open Sans,Arial,Verdana,sans-serif;
             }
-            
+
             ul {
                 list-style-type: none;
                 gap: 5px;
@@ -16,7 +18,7 @@
                 grid-template-columns: repeat(4,auto);
             }
 
-            dadosprocesso {				
+            dadosprocesso {
                 display: grid;
                 outline: 2px solid lightgray;
             }
@@ -35,7 +37,7 @@
                 display: grid;
                 outline: 2px solid #f1b508;
             }
-            
+
             .negrito{
                 font-weight: bold;
             }
@@ -44,26 +46,26 @@
                 font-style: italic;
             }
 
-            .recuado{					
+            .recuado{
                 padding-left: 30px;
             }
 
             .comum {
-                padding: 5px;					
+                padding: 5px;
             }
 
             .selecionavel {
                 cursor:pointer;
-                border: 2px solid white;							
+                border: 2px solid white;
             }
-            
+
             .selecionavel:hover {
                 background: #95959570;
                 display: inline;
                 position: relative;
-                color: #555;					
+                color: #555;
             }
-            
+
             .titulo {
                 font-size: 24px;
                 color: #373a3c;
@@ -151,15 +153,28 @@
                 100%{box-shadow: 20px 0 #0002,-20px 0 #000; background: #000 }
             }
 
-        </style>
-        <title id='maisPje_blob_processoMemoria'> maisPJe - Processo Memória </title>
-	</head>
+            .linkGov {
+                cursor:pointer;
+                background-image: url("icons/ico_rfb.ico");
+                background-repeat: no-repeat;
+                background-size: 16px 16px;
+                background-position: center;
+            }
 
-	<body id='maisPje_blob_processoMemoria_body'>
-        <span class='titulo'>Processo memória - Dados</span><br><br>
-		<script src="../comum/mini-selenium.js"></script>
+            .linkGov:hover {
+                scale: 1.3;
+            }
+
+        </style>
+    </head>
+
+    <body id="maisPje_blob_processoMemoria_body">
+        <span class="titulo">Processo memória - Dados</span><br><br>
+        <script src="../comum/mini-selenium.js"></script>
         <script src="../comum/apis.js"></script>
+		<script src="../comum/storage.js"></script>        
+		<script src="../comum/preferencias.js"></script>
         <script src="popupPainelCopiaECola.js"></script>
         <script src="PJe-Atual/gigs-plugin.js"></script>
-	</body>
+    </body>
 </html>

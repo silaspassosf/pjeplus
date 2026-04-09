@@ -23,17 +23,19 @@ from typing import List, Dict, Any, Optional
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 # Importar do módulo /Fix (novo)
 from Fix.utils import configurar_recovery_driver, handle_exception_with_recovery
 from Fix.abas import validar_conexao_driver, trocar_para_nova_aba
 from Fix.extracao import abrir_detalhes_processo, criar_gigs, extrair_dados_processo
-from Fix.core import preencher_multiplos_campos, aguardar_e_clicar, esperar_elemento, safe_click, preencher_campo
+from Fix.gigs import criar_comentario
+from Fix.core import preencher_multiplos_campos, aguardar_e_clicar, aguardar_renderizacao_nativa, esperar_elemento, safe_click, preencher_campo
+from Fix.headless_helpers import limpar_overlays_headless
+from api.variaveis import PjeApiClient, session_from_driver
+from triagem import triagem_peticao
 
 # Importa sistema unificado de progresso
-from progresso_unificado import ProgressoUnificado
+from Fix.progresso_unificado import ProgressoUnificado
 
 # Instância global do sistema de progresso para AUD
 progresso_sistema = ProgressoUnificado("AUD")
@@ -59,26 +61,109 @@ def marcar_processo_executado_aud(numero_processo, progresso=None, status="SUCES
     return progresso_sistema.marcar_processo_executado(numero_processo, status, detalhes, progresso)
 
 
+_FALHA_CITACAO = {'gigs_obs': [], 'pec_wrappers': [], 'com_domicilio': 0, 'sem_domicilio': 0, 'total': 0, 'sucesso': False}
+
+
+def def_citacao(driver, processo_info: dict) -> dict:
+    """Determina tipo de citação/gigs pelo polo passivo via API.
+
+    base = 'sum' (ATSUM) ou 'ord' (demais).
+    Retorna _FALHA_CITACAO se polo passivo vazio ou API falhar.
+    """
+    import re as _re
+
+    tipo = (processo_info.get('tipo') or '').upper().strip()
+    base = 'sum' if tipo == 'ATSUM' else 'ord'
+
+    try:
+        sessao, trt_host = session_from_driver(driver, grau=1)
+        client = PjeApiClient(sessao, trt_host, grau=1)
+    except Exception as e:
+        print(f"[def_citacao] ERRO cliente API: {e}")
+        return _FALHA_CITACAO
+
+    m = _re.search(r'/processo/(\d+)(?:/|$)', driver.current_url)
+    if not m:
+        print(f"[def_citacao] ERRO: ID nao encontrado na URL")
+        return _FALHA_CITACAO
+    id_processo = m.group(1)
+
+    try:
+        partes_raw = client.partes(id_processo) or {}
+    except Exception as e:
+        print(f"[def_citacao] ERRO partes: {e}")
+        return _FALHA_CITACAO
+
+    passivos = partes_raw.get('PASSIVO') or []
+    total = len(passivos)
+    if total == 0:
+        print("[def_citacao] POLO PASSIVO VAZIO — abortando.")
+        return _FALHA_CITACAO
+
+    com_dom = 0
+    linhas_partes = []
+    for parte in passivos:
+        id_parte = str(
+            parte.get('idPessoa') or parte.get('id') or
+            parte.get('idParticipante') or parte.get('idParte') or ''
+        )
+        nome = parte.get('nome') or parte.get('nomeParte') or '(sem nome)'
+
+        dom_flag = None
+        if id_parte:
+            dom_flag = client.domicilio_eletronico(id_parte)
+        if dom_flag is True:
+            com_dom += 1
+            linhas_partes.append(f"  {nome}: domicilio=SIM (api.domicilio_eletronico)")
+            continue
+        if dom_flag is False:
+            linhas_partes.append(f"  {nome}: domicilio=NAO (api.domicilio_eletronico)")
+            continue
+
+        dom_flag = parte.get('domicilioEletronico') or parte.get('possuiDomicilioEletronico')
+        if dom_flag is True:
+            com_dom += 1
+            linhas_partes.append(f"  {nome}: domicilio=SIM (flag-basica)")
+            continue
+        if dom_flag is False:
+            linhas_partes.append(f"  {nome}: domicilio=NAO (flag-basica)")
+            continue
+
+        linhas_partes.append(f"  {nome}: domicilio=?? (sem flag)")
+
+    sem_dom = total - com_dom
+
+    if sem_dom == 0:
+        gigs_obs, pec_list = [f"xs {base}"], [f"pec_{base}"]
+    elif com_dom == 0:
+        gigs_obs, pec_list = [f"xs {base}c"], [f"pec_{base}c"]
+    else:
+        # Quando há partes com e sem domicílio: criar dois GIGS separados
+        gigs_obs = [f"xs {base}", f"xs {base}c"]
+        pec_list = [f"pec_{base}", f"pec_{base}c"]
+
+    print(f"[def_citacao] {total} passivos | com={com_dom} sem={sem_dom} | gigs={gigs_obs} pec={pec_list}")
+    for l in linhas_partes:
+        print(f"[def_citacao]{l}")
+
+    return {
+        'gigs_obs': gigs_obs,
+        'pec_wrappers': pec_list,
+        'com_domicilio': com_dom,
+        'sem_domicilio': sem_dom,
+        'total': total,
+        'sucesso': True,
+    }
+
+
 def acao_bucket_a(driver, numero_processo, processo_info):
     """Ação para bucket A: marcar audiência para 100% digital."""
     try:
         tipo = (processo_info.get('tipo') or '').upper().strip()
-        tem_100 = bool(processo_info.get('tem_100', False))
+        tem_100 = bool(processo_info.get('digital', processo_info.get('tem_100', False)))
 
-        extrair_dados_processo(driver)
-        numero_formatado = None
-        id_processo = None
-        try:
-            with open('dadosatuais.json', 'r', encoding='utf-8') as f:
-                dados = json.load(f)
-            num_list = dados.get('numero') if isinstance(dados, dict) else None
-            if isinstance(num_list, list) and num_list:
-                numero_formatado = num_list[0]
-            elif isinstance(num_list, str):
-                numero_formatado = num_list
-            id_processo = dados.get('id') if isinstance(dados, dict) else None
-        except Exception as e:
-            print(f"[AUD][A] ❌ Erro ao ler dadosatuais.json: {e}")
+        numero_formatado = processo_info.get('numero')
+        id_processo = str(processo_info.get('id_processo') or '')
         if not numero_formatado or not id_processo:
             print(f"[AUD][A] ❌ Falha ao extrair número/ID do processo {numero_processo}")
             return False
@@ -91,14 +176,20 @@ def acao_bucket_a(driver, numero_processo, processo_info):
             
             # 1) Marcar audiência na pauta
             marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
+            limpar_overlays_headless(driver)
+
+            # 2) Criar GIGS conforme tipo e presença de domicílio eletrônico
+            citacao_a = def_citacao(driver, processo_info)
+            if not citacao_a.get('sucesso', True):  # Parar se polo passivo vazio
+                print(f"[AUD][A] 🛑 Polo passivo vazio — abortando execução de GIGS para {numero_processo}")
+                return False
             
-            # 2) Criar GIGS conforme tipo
-            observacao = "xs sum" if tipo == 'ATSUM' else "xs ord"
-            try:
-                print(f"[AUD][A] Criando GIGS para {numero_processo} (prazo: 1, observacao: {observacao})")
-                criar_gigs(driver, "1", "", observacao)
-            except Exception as e:
-                print(f"[AUD][A] ⚠️ Erro ao criar GIGS: {e}")
+            for obs in citacao_a['gigs_obs']:
+                try:
+                    print(f"[AUD][A] Criando GIGS para {numero_processo} (prazo: 1, observacao: {obs})")
+                    criar_gigs(driver, "1", "", obs)
+                except Exception as e:
+                    print(f"[AUD][A] ⚠️ Erro ao criar GIGS ({obs}): {e}")
 
             # 3) Executar ato_unap
             try:
@@ -140,51 +231,25 @@ def acao_bucket_a(driver, numero_processo, processo_info):
         except Exception:
             pass
 
-        # 5) Pós-audiência: responsável + GIGS + ato_100 (igual bloco 100%)
+        # 5) Pós-audiência: GIGS triagem + ato_100
+        limpar_overlays_headless(driver)
         try:
-            print(f"[AUD][A] Definindo responsável para {numero_processo}")
-            input_responsavel = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]'))
-            )
-            input_responsavel.click()
-            input_responsavel.clear()
-            input_responsavel.send_keys("SILAS")
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
-            )
-            opcao_silas = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]"))
-            )
-            opcao_silas.click()
-            # Garantir que a seleção foi aplicada: desfocar e aguardar atributo preenchido
-            try:
-                driver.execute_script("document.activeElement.blur();")
-            except Exception:
-                pass
-
-            try:
-                WebDriverWait(driver, 5).until(
-                    lambda d: ('SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('aria-label') or '')
-                               or 'SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('value') or ''))
-                )
-                print(f"[AUD][A] ✅ Campo responsável confirmado visivelmente preenchido")
-            except Exception:
-                # Tentar clicar fora como fallback e aguardar mais um pouco
-                try:
-                    body = driver.find_element(By.TAG_NAME, 'body')
-                    body.click()
-                except Exception:
-                    pass
-                time.sleep(1)
+            print(f"[AUD][A] Criando GIGS triagem para {numero_processo}")
+            criar_gigs(driver, "", "", "xs triagem")
         except Exception as e:
-            print(f"[AUD][A] ⚠️ Erro ao definir responsável: {e}")
+            print(f"[AUD][A] ⚠️ Erro ao criar GIGS triagem: {e}")
 
-        try:
-            observacao = "xs sum" if tipo == 'ATSUM' else "xs ord"
-            print(f"[AUD][A] Criando GIGS para {numero_processo} (prazo: 1, observacao: {observacao})")
-            criar_gigs(driver, "1", "", observacao)
-        except Exception as e:
-            print(f"[AUD][A] ⚠️ Erro ao criar GIGS: {e}")
+        citacao_a2 = def_citacao(driver, processo_info)
+        if not citacao_a2.get('sucesso', True):  # Parar se polo passivo vazio
+            print(f"[AUD][A] 🛑 Polo passivo vazio após triagem — abortando GIGS para {numero_processo}")
+            return False
+        
+        for obs in citacao_a2['gigs_obs']:
+            try:
+                print(f"[AUD][A] Criando GIGS para {numero_processo} (prazo: 1, observacao: {obs})")
+                criar_gigs(driver, "1", "", obs)
+            except Exception as e:
+                print(f"[AUD][A] ⚠️ Erro ao criar GIGS ({obs}): {e}")
 
         try:
             from atos import ato_100
@@ -199,126 +264,92 @@ def acao_bucket_a(driver, numero_processo, processo_info):
         return False
 
 def obter_processos_triagem_api(driver, numeros=None):
-    """Obtém processos da Triagem Inicial via API (espelhando lógica funcionando de aaa.js).
+    """Obtém processos da Triagem Inicial lendo exclusivamente o DOM da tabela.
 
-    Para cada número:
-    1. /pje-comum-api/api/processos?numero={NUM} → id como número
-    2. /pje-comum-api/api/processos/id/{id}/tarefas?maisRecente=true → filtrar "Triagem Inicial"
-    3. /pje-comum-api/api/processos/id/{id} → classeJudicial.sigla + juizoDigital
-    4. /pje-comum-api/api/processos/id/{id}/audiencias?status=M → audiências
+    Fonte de cada campo por linha (<tr class="tr-class"> em table[name="Tabela de Processos"]):
+    - numero + tipo : button[aria-label^="Detalhes do Processo - "] → aria-label
+    - tarefa        : span.link.processo span.sr-only (texto após "Abrir a tarefa ")
+    - tem_audiencia : div[role="presentation"].sobrescrito.ng-star-inserted contendo "Audiência em:"
+    - digital       : presença de pje-icone-juizo-digital ou i[aria-label="Juízo 100% Digital"]
+    - bucket        : HTE→D | sem_aud→A | digital→B | else→C
 
     Retorna lista com: numero, id_processo, tarefa, tipo, digital, tem_audiencia, bucket
     """
-    # 1. Coletar números da tela (DOM) usando seletor correto
-    if not numeros:
-        js_coleta = r"""
-        const rows = document.querySelectorAll(
-            'table[name="Tabela de Atividades"] tbody tr, table[name="Tabela de Processos"] tbody tr'
-        );
-        const set = new Set();
-        rows.forEach(tr => {
-            const m = (tr.innerText || tr.textContent || '').match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/);
-            if (m) set.add(m[0]);
-        });
-        return Array.from(set);
-        """
-        try:
-            numeros = driver.execute_script(js_coleta) or []
-            print(f"[AUD_API] {len(numeros)} números coletados da tela")
-        except Exception as e:
-            print(f"[AUD_API] Erro ao coletar números do DOM: {e}")
-            return []
+    TIPOS_VALIDOS = {'ATORD', 'ATSUM', 'ACUM', 'ACCUM', 'HTE'}
 
-    if not numeros:
-        print("[AUD_API] Nenhum número encontrado")
-        return []
+    js_dom = r"""
+    const TIPOS = new Set(['ATORD', 'ATSUM', 'ACUM', 'ACCUM', 'HTE']);
+    const resultado = [];
 
-    # 2. Executar fetch de cada número com 4 chamadas de API conforme aaa.js
-    script = """
-        return (async function() {
-            const numeros = arguments[0];
-            const base = location.origin;
-            const resultado = [];
+    const rows = document.querySelectorAll(
+        'table[name="Tabela de Processos"] tbody tr.tr-class'
+    );
 
-            for (const numero of numeros) {
-                try {
-                    // call 1: id do processo
-                    const r1 = await fetch(
-                        base + '/pje-comum-api/api/processos?numero=' + encodeURIComponent(numero),
-                        { credentials: 'include' }
-                    );
-                    const idProcesso = await r1.json();
-                    if (!idProcesso || typeof idProcesso !== 'number') {
-                        console.warn('[AUD_API] sem id para', numero, idProcesso);
-                        continue;
-                    }
+    for (const tr of rows) {
+        // numero + tipo via botão "Detalhes do Processo - {TIPO} {NUMERO}"
+        const btnDetalhes = tr.querySelector('button[aria-label^="Detalhes do Processo - "]');
+        if (!btnDetalhes) continue;
+        const m = (btnDetalhes.getAttribute('aria-label') || '')
+            .match(/Detalhes do Processo - (\S+)\s+(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/);
+        if (!m) continue;
+        const tipo = m[1].toUpperCase();
+        const numero = m[2];
 
-                    // call 2: tarefas -> filtrar apenas Triagem Inicial (maisRecente=true)
-                    const r2t = await fetch(
-                        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/tarefas?maisRecente=true',
-                        { credentials: 'include' }
-                    );
-                    if (!r2t.ok) {
-                        console.warn('[AUD_API] erro ao consultar tarefas', numero, r2t.status);
-                        continue;
-                    }
-                    const tarefas = await r2t.json();
-                    const tarefasLista = Array.isArray(tarefas) ? tarefas : (tarefas ? [tarefas] : []);
-                    const tarefaTriagem = tarefasLista.find(t =>
-                        String(t.nomeTarefa || t.nome || t.descricao || t.tarefa || '').toLowerCase().includes('triagem inicial')
-                    );
-                    if (!tarefaTriagem) {
-                        console.log('[AUD_API] sem Triagem Inicial, pulando', numero);
-                        continue;
-                    }
-                    const nomeTarefa = tarefaTriagem.nomeTarefa || tarefaTriagem.nome || tarefaTriagem.descricao || tarefaTriagem.tarefa || 'Triagem Inicial';
+        if (!TIPOS.has(tipo)) continue;
 
-                    // call 3: dados do processo -> classeJudicial.sigla + juizoDigital
-                    const r2 = await fetch(
-                        base + '/pje-comum-api/api/processos/id/' + idProcesso,
-                        { credentials: 'include' }
-                    );
-                    const proc = await r2.json();
-                    const tipo = ((proc.classeJudicial && proc.classeJudicial.sigla) || proc.classe || '').toUpperCase();
-                    const digital = proc.juizoDigital === true;
+        // tarefa via span.sr-only dentro de span.link.processo
+        const srOnly = tr.querySelector('span.link.processo span.sr-only');
+        const tarefaRaw = (srOnly ? srOnly.textContent : '').trim();
+        // Remove prefixo "Abrir a tarefa " e sufixo " do processo: " / " do processo:"
+        const tarefaTexto = tarefaRaw
+            .replace(/^Abrir a tarefa\s+/, '')
+            .replace(/\s+do processo:?\s*$/, '')
+            .trim();
+        if (!tarefaTexto.toLowerCase().includes('triagem inicial')) continue;
 
-                    // call 4: audiencias pendentes
-                    const r3 = await fetch(
-                        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/audiencias?status=M',
-                        { credentials: 'include' }
-                    );
-                    const auds = await r3.json();
-                    const temAud = Array.isArray(auds) && auds.length > 0;
-
-                    // Formar bucket conforme lógica em aaa.js
-                    const bucket = tipo.includes('HTE') ? 'D' : !temAud ? 'A' : digital ? 'B' : 'C';
-
-                    resultado.push({
-                        numero: numero,
-                        id_processo: idProcesso,
-                        tarefa: nomeTarefa,
-                        tipo: tipo,
-                        digital: digital,
-                        tem_audiencia: temAud,
-                        bucket: bucket
-                    });
-
-                    console.log('[AUD_API]', numero, tipo, '| tarefa:', nomeTarefa, '| aud:', temAud, '| digital:', digital, '=>', bucket);
-                } catch (err) {
-                    console.error('[AUD_API] erro', numero, err.message);
-                }
+        // tem_audiencia: procurar por todas as divs com sobrescrito e encontrar a que contém "Audiência em:"
+        let temAud = false;
+        const divsAudiencia = tr.querySelectorAll('div[role="presentation"].sobrescrito');
+        for (const div of divsAudiencia) {
+            if (div.textContent.includes('Audiência em:')) {
+                temAud = true;
+                break;
             }
+        }
 
-            return resultado;
-        }).apply(null, [arguments[0]]);
+        // digital: ícone 100% digital presente na linha
+        const digital = !!(
+            tr.querySelector('pje-icone-juizo-digital') ||
+            tr.querySelector('i[aria-label="Juízo 100% Digital"]')
+        );
+
+        // bucket
+        const bucket = tipo === 'HTE' ? 'D' : !temAud ? 'A' : digital ? 'B' : 'C';
+
+        resultado.push({
+            numero: numero,
+            id_processo: null,
+            tarefa: tarefaTexto,
+            tipo: tipo,
+            digital: digital,
+            tem_audiencia: temAud,
+            bucket: bucket
+        });
+
+        console.log('[AUD_DOM]', numero, tipo,
+            '| tarefa:', tarefaTexto,
+            '| aud:', temAud, '| digital:', digital, '=>', bucket);
+    }
+
+    return resultado;
     """
 
     try:
-        resultado = driver.execute_script(script, numeros)
-        print(f"[AUD_API] {len(resultado or [])} processos obtidos via API (com Triagem Inicial)")
+        resultado = driver.execute_script(js_dom)
+        print(f"[AUD_DOM] {len(resultado or [])} processos obtidos via DOM (Triagem Inicial)")
         return resultado or []
     except Exception as e:
-        print(f"[AUD_API] Erro na execução do script: {e}")
+        print(f"[AUD_DOM] Erro na execução do script: {e}")
         traceback.print_exc()
         return []
 
@@ -343,14 +374,25 @@ def indexar_e_processar_lista_aud(driver):
         progresso = carregar_progresso_aud()
         
         # ===== ETAPA 1: INDEXAR TODOS OS PROCESSOS DA LISTA =====
-        print("[AUD] 1. Indexando todos os processos da lista via API...")
+        print("[AUD] 1. Buscando processos via API...")
 
-        lista_processos = obter_processos_triagem_api(driver)
-        if not lista_processos:
-            print("[AUD] ❌ Nenhuma linha encontrada na lista")
+        from apiaud import buscar_lista_triagem, enriquecer_processo, _is_triagem_inicial
+        itens_brutos = buscar_lista_triagem(driver)
+        if not itens_brutos:
+            print("[AUD] ❌ API não retornou itens — verificar sessão ou endpoint")
             return {"sucesso": False, "erro": "Lista vazia"}
-        
-        print(f"[AUD] ✅ Indexados {len(lista_processos)} processos da lista")
+
+        triagem = [i for i in itens_brutos if _is_triagem_inicial(i)]
+        if not triagem:
+            print("[AUD] Campo tarefa não identificou Triagem Inicial — usando todos os itens")
+            triagem = itens_brutos
+
+        lista_processos = [p for p in (enriquecer_processo(i) for i in triagem) if p]
+        if not lista_processos:
+            print("[AUD] ❌ Nenhum processo enriquecido")
+            return {"sucesso": False, "erro": "Lista vazia"}
+
+        print(f"[AUD] ✅ {len(lista_processos)} processos de Triagem Inicial (de {len(itens_brutos)} brutos)")
         
         # ===== ETAPA 2: FILTRAR POR PROGRESSO (JÁ EXECUTADOS) =====
         print("[AUD] 2. Filtrando processos já executados...")
@@ -376,183 +418,122 @@ def indexar_e_processar_lista_aud(driver):
             return {"sucesso": True, "processos_executados": 0, "total_na_lista": len(lista_processos)}
         
         # ===== ETAPA 3: AGRUPAR EM BUCKETS =====
-        print("[AUD] 3. Agrupando em buckets A/B/C...")
-        
-        A, B, C, D = agrupar_em_buckets(processos_pendentes)
-        
+        print("[AUD] 3. Particionando buckets A/B/C/D...")
+
+        A = [p for p in processos_pendentes if p.get('bucket') == 'A']
+        B = [p for p in processos_pendentes if p.get('bucket') == 'B']
+        C = [p for p in processos_pendentes if p.get('bucket') == 'C']
+        D = [p for p in processos_pendentes if p.get('bucket') == 'D']
+
         # Calcular total de processos que passaram pelo filtro de Triagem Inicial
         total_processos_triagem = len(A) + len(B) + len(C) + len(D)
-        
-        print(f"[AUD] Buckets: A={len(A)} B={len(B)} C={len(C)}")
+
+        print(f"[AUD] Buckets: A={len(A)} (sem aud) B={len(B)} (digital+aud) C={len(C)} (nao-digital+aud) D={len(D)} (HTE)")
         
         # ===== ETAPA 4: PROCESSAR BUCKETS =====
         print("[AUD] 4. Processando buckets...")
         
         resultados = {'A': [], 'B': [], 'C': []}
-        aba_lista_original = driver.current_window_handle
-        
         def processar_bucket(bucket, bucket_nome, acao_callback):
-            """Processa um bucket específico abrindo cada processo e executando ação"""
+            """Abre cada processo diretamente por URL e executa a ação correspondente."""
             resultados_bucket = []
-            
+            handle_principal = driver.current_window_handle
+
             for idx, processo_info in enumerate(bucket):
                 numero_processo = processo_info.get('numero')
+                id_processo = processo_info.get('id_processo')
                 print(f"[AUD][{bucket_nome}] Processando {idx+1}/{len(bucket)}: {numero_processo}")
-                
-                # Reindexar linha se necessário
-                linha_atual = processo_info.get('linha')
+
+                if not id_processo:
+                    print(f"[AUD][{bucket_nome}] ❌ id_processo ausente para {numero_processo}")
+                    resultados_bucket.append({'numero': numero_processo, 'acao': f'bucket_{bucket_nome.lower()}', 'ok': False, 'msg': 'id_processo ausente'})
+                    continue
+
                 try:
-                    linha_atual.is_displayed()
-                except:
-                    linha_atual = reindexar_linha_js(driver, numero_processo)
-                    if not linha_atual:
-                        print(f"[AUD][{bucket_nome}] ❌ Não foi possível reindexar linha para {numero_processo}")
-                        resultados_bucket.append({
-                            'numero': numero_processo,
-                            'acao': f'bucket_{bucket_nome.lower()}',
-                            'ok': False,
-                            'msg': 'Falha ao reindexar linha'
-                        })
-                        continue
-                
-                # Abrir detalhes do processo
-                if not abrir_detalhes_processo(driver, linha_atual):
-                    print(f"[AUD][{bucket_nome}] ❌ Botão de detalhes não encontrado para {numero_processo}")
-                    resultados_bucket.append({
-                        'numero': numero_processo,
-                        'acao': f'bucket_{bucket_nome.lower()}',
-                        'ok': False,
-                        'msg': 'Botão de detalhes não encontrado'
-                    })
+                    detalhe_url = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/detalhe/"
+                    driver.get(detalhe_url)
+                    esperar_elemento(driver, 'pje-cabecalho-processo,pje-timeline', by=By.CSS_SELECTOR, timeout=15)
+                except Exception as e:
+                    print(f"[AUD][{bucket_nome}] ❌ Falha ao navegar para detalhe de {numero_processo}: {e}")
+                    resultados_bucket.append({'numero': numero_processo, 'acao': f'bucket_{bucket_nome.lower()}', 'ok': False, 'msg': f'Falha ao navegar: {e}'})
                     continue
-                
-                time.sleep(1)
-                
-                # Trocar para nova aba
-                nova_aba = trocar_para_nova_aba(driver, aba_lista_original)
-                if not nova_aba:
-                    print(f"[AUD][{bucket_nome}] ❌ Nova aba do processo {numero_processo} não foi aberta")
-                    resultados_bucket.append({
-                        'numero': numero_processo,
-                        'acao': f'bucket_{bucket_nome.lower()}',
-                        'ok': False,
-                        'msg': 'Falha ao abrir nova aba'
-                    })
+
+                try:
+                    print(f"[AUD][{bucket_nome}] Executando triagem de {numero_processo}")
+                    processo_info['triagem'] = triagem_peticao(driver)
+                except Exception as e:
+                    processo_info['triagem'] = f"ERRO: falha ao executar triagem: {e}"
+                    print(f"[AUD][{bucket_nome}] ⚠️ Falha ao executar triagem de {numero_processo}: {e}")
+
+                triagem = processo_info.get('triagem')
+                if isinstance(triagem, str) and triagem.startswith('ERRO: ERRO_CRITICO_401'):
+                    print(f"[AUD][{bucket_nome}] 🛑 ERRO CRÍTICO 401 em {numero_processo} — sessão rejeitada, pular sem registrar progresso")
+                    resultados_bucket.append({'numero': numero_processo, 'acao': f'bucket_{bucket_nome.lower()}', 'ok': False, 'msg': triagem})
                     continue
-                
-                time.sleep(2)
-                
-                # Executar ação específica do bucket
+
+                try:
+                    triagem = processo_info.get('triagem')
+                    if triagem:
+                        print(f"[AUD][{bucket_nome}] Registrando comentario da triagem para {numero_processo}")
+                        sucesso_comentario = criar_comentario(driver, triagem)
+                        if not sucesso_comentario:
+                            print(f"[AUD][{bucket_nome}] ⚠️ Comentario da triagem de {numero_processo} pode não ter sido salvo")
+                        limpar_overlays_headless(driver)
+                except Exception as e:
+                    print(f"[AUD][{bucket_nome}] ⚠️ Falha ao registrar comentario da triagem de {numero_processo}: {e}")
+                    print(f"[AUD][{bucket_nome}] triagem tipo={type(triagem).__name__} tamanho={len(triagem) if isinstance(triagem, str) else 'N/A'}")
+                    traceback.print_exc()
+
                 try:
                     sucesso = acao_callback(driver, numero_processo, processo_info)
-                    resultados_bucket.append({
-                        'numero': numero_processo,
-                        'acao': f'bucket_{bucket_nome.lower()}',
-                        'ok': sucesso,
-                        'msg': '' if sucesso else 'Ação falhou'
-                    })
+                    resultados_bucket.append({'numero': numero_processo, 'acao': f'bucket_{bucket_nome.lower()}', 'ok': sucesso, 'msg': '' if sucesso else 'Ação falhou'})
                 except Exception as e:
                     print(f"[AUD][{bucket_nome}] ❌ Erro ao executar ação para {numero_processo}: {e}")
-                    resultados_bucket.append({
-                        'numero': numero_processo,
-                        'acao': f'bucket_{bucket_nome.lower()}',
-                        'ok': False,
-                        'msg': str(e)
-                    })
-                
-                # Voltar para lista e fechar aba extra
+                    resultados_bucket.append({'numero': numero_processo, 'acao': f'bucket_{bucket_nome.lower()}', 'ok': False, 'msg': str(e)})
+
+                # Fechar abas extras abertas durante a ação e retornar ao handle principal
                 try:
-                    if aba_lista_original in driver.window_handles:
-                        driver.switch_to.window(aba_lista_original)
-                        for handle in driver.window_handles:
-                            if handle != aba_lista_original:
-                                try:
-                                    driver.switch_to.window(handle)
-                                    driver.close()
-                                except:
-                                    pass
-                        driver.switch_to.window(aba_lista_original)
+                    for h in list(driver.window_handles):
+                        if h != handle_principal:
+                            try:
+                                driver.switch_to.window(h)
+                                driver.close()
+                            except Exception:
+                                pass
+                    driver.switch_to.window(handle_principal)
                 except Exception as eback:
-                    print(f"[AUD][{bucket_nome}] ⚠️ Erro ao voltar para lista: {eback}")
-                
-                time.sleep(1)
-            
+                    print(f"[AUD][{bucket_nome}] ⚠️ Erro ao limpar abas: {eback}")
+
             return resultados_bucket
         
         def acao_bucket_b(driver, numero_processo, processo_info):
-            """Ação para bucket B: definir responsável + criar gigs específico + ato_100"""
+            """Ação para bucket B: criar gigs triagem + criar gigs específico + ato_100"""
             try:
-                # ===== PRIMEIRA AÇÃO: DEFINIR RESPONSÁVEL =====
-                print(f"[AUD][B] Definindo responsável para {numero_processo}")
-                
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                from selenium.webdriver.common.keys import Keys
-                
+                # ===== PRIMEIRA AÇÃO: GIGS TRIAGEM =====
                 try:
-                    # 1. Localizar e clicar no input de responsável
-                    input_responsavel = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]'))
-                    )
-                    input_responsavel.click()
-                    print(f"[AUD][B] ✅ Input de responsável clicado")
-                    
-                    # 2. Digitar "SILAS"
-                    input_responsavel.clear()
-                    input_responsavel.send_keys("SILAS")
-                    print(f"[AUD][B] ✅ Digitado 'SILAS'")
-                    
-                    # 3. Aguardar e selecionar a opção "SILAS PASSOS FERREIRA"
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
-                    )
-                    
-                    # Encontrar a opção específica
-                    opcao_silas = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]"))
-                    )
-                    opcao_silas.click()
-                    print(f"[AUD][B] ✅ Opção 'SILAS PASSOS FERREIRA' selecionada")
-
-                    def responsavel_confirmado():
-                        label = input_responsavel.get_attribute('aria-label') or ''
-                        value = input_responsavel.get_attribute('value') or ''
-                        return 'SILAS PASSOS FERREIRA' in label or 'SILAS PASSOS FERREIRA' in value
-
-                    driver.execute_script("document.activeElement.blur();")
-
-                    try:
-                        WebDriverWait(driver, 5).until(lambda _driver: responsavel_confirmado())
-                        print(f"[AUD][B] ✅ Responsável confirmado visivelmente preenchido")
-                    except Exception:
-                        try:
-                            body = driver.find_element(By.TAG_NAME, 'body')
-                            body.click()
-                        except Exception:
-                            pass
-                        time.sleep(0.5)
-                        if not responsavel_confirmado():
-                            raise
-                        print(f"[AUD][B] ✅ Responsável confirmado após clicar fora")
-                    print(f"[AUD][B] ✅ Responsável definido: SILAS PASSOS FERREIRA")
-                    
+                    print(f"[AUD][B] Criando GIGS triagem para {numero_processo}")
+                    criar_gigs(driver, "", "", "xs triagem")
                 except Exception as e:
-                    print(f"[AUD][B] ⚠️ Erro ao definir responsável: {e}")
-                    # Continua mesmo se falhar, pois não é crítico
-                
+                    print(f"[AUD][B] ⚠️ Erro ao criar GIGS triagem: {e}")
+
                 # ===== SEGUNDA AÇÃO: CRIAR GIGS =====
+
                 tipo = (processo_info.get('tipo') or '').upper()
                 
-                # Determinar observação baseada no tipo do processo
-                # ATord e Accum -> xs ord
-                # ATsum -> xs sum
-                if tipo == 'ATSUM':
-                    observacao = "xs sum"
-                else:  # ATORD ou ACUM
-                    observacao = "xs ord"
+                # Garantir que qualquer overlay/modal do GIGS triagem foi fechado
+                limpar_overlays_headless(driver)
+
+                # Determinar observação pelo domicílio eletrônico do polo passivo
+                citacao_b = def_citacao(driver, processo_info)
                 
-                print(f"[AUD][B] Criando GIGS para {numero_processo} (prazo: 1, observacao: {observacao})")
-                criar_gigs(driver, "1", "", observacao)
+                # Verificar se polo passivo está vazio
+                if not citacao_b.get('sucesso', True):
+                    print(f"[AUD][B] 🛑 Polo passivo vazio — abortando GIGS para {numero_processo}")
+                    return False
+                
+                for obs in citacao_b['gigs_obs']:
+                    print(f"[AUD][B] Criando GIGS para {numero_processo} (prazo: 1, observacao: {obs})")
+                    criar_gigs(driver, "1", "", obs)
                 
                 # ===== TERCEIRA AÇÃO: EXECUTAR ATO_100 =====
                 try:
@@ -569,106 +550,50 @@ def indexar_e_processar_lista_aud(driver):
                 return False
         
         def acao_bucket_c(driver, numero_processo, processo_info):
-            """Ação para bucket C: pec_ord ou pec_sum + mov_aud"""
+            """Ação para bucket C: pec conforme domicílio eletrônico + mov_aud"""
             try:
-                tipo = (processo_info.get('tipo') or '').upper()
+                from atos import mov_aud
+                from atos.wrappers_pec import pec_ord, pec_sum, pec_ordc, pec_sumc
+                _PEC_MAP = {'pec_ord': pec_ord, 'pec_sum': pec_sum,
+                            'pec_ordc': pec_ordc, 'pec_sumc': pec_sumc}
+
+                citacao_c = def_citacao(driver, processo_info)
                 
-                if tipo == 'ATSUM':
-                    # pec_sum (vem de atos.py que ainda não foi refatorado)
-                    try:
-                        from atos import pec_sum, mov_aud
-                        print(f"[AUD][C] Executando pec_sum para {numero_processo}")
-                        ok = pec_sum(driver, debug=True)
-                        if ok:
-                            # mov_aud após pec_sum
-                            print(f"[AUD][C] Executando mov_aud após pec_sum")
-                            mov_ok = mov_aud(driver, debug=True)
-                            return bool(mov_ok)
-                        return False
-                    except ImportError:
-                        print("[AUD][C] pec_sum não disponível")
-                        return False
-                else:
-                    # pec_ord (default para ATORD ou ACUM) (vem de atos.py que ainda não foi refatorado)
-                    try:
-                        from atos import pec_ord, mov_aud
-                        print(f"[AUD][C] Executando pec_ord para {numero_processo}")
-                        ok = pec_ord(driver, debug=True)
-                        if ok:
-                            # mov_aud após pec_ord
-                            print(f"[AUD][C] Executando mov_aud após pec_ord")
-                            mov_ok = mov_aud(driver, debug=True)
-                            return bool(mov_ok)
-                        return True
-                    except ImportError:
-                        print("[AUD][C] pec_ord não disponível")
-                        return False
+                # Verificar se polo passivo está vazio
+                if not citacao_c.get('sucesso', True):
+                    print(f"[AUD][C] 🛑 Polo passivo vazio — abortando PEC para {numero_processo}")
+                    return False
+                
+                ok = False
+                for pec_nome in citacao_c['pec_wrappers']:
+                    pec_fn = _PEC_MAP.get(pec_nome)
+                    if pec_fn:
+                        print(f"[AUD][C] Executando {pec_nome} para {numero_processo}")
+                        try:
+                            ok = bool(pec_fn(driver, debug=True)) or ok
+                        except Exception as e:
+                            print(f"[AUD][C] ⚠️ Erro em {pec_nome}: {e}")
+
+                if ok:
+                    print(f"[AUD][C] Executando mov_aud para {numero_processo}")
+                    mov_ok = mov_aud(driver, debug=True)
+                    return bool(mov_ok)
+                return ok
             except Exception as e:
                 print(f"[AUD][C] Erro na ação: {e}")
                 return False
         
         def acao_bucket_d(driver, numero_processo, processo_info):
-            """Ação para bucket D: marcar responsável Silas Passos + executar ato_ratif"""
+            """Ação para bucket D: criar gigs triagem + executar ato_ratif"""
             try:
-                # ===== PRIMEIRA AÇÃO: DEFINIR RESPONSÁVEL =====
-                print(f"[AUD][D] Definindo responsável para {numero_processo}")
-                
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                from selenium.webdriver.common.keys import Keys
-                
+                # ===== PRIMEIRA AÇÃO: GIGS TRIAGEM =====
                 try:
-                    # 1. Localizar e clicar no input de responsável
-                    input_responsavel = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]'))
-                    )
-                    input_responsavel.click()
-                    print(f"[AUD][D] ✅ Input de responsável clicado")
-                    
-                    # 2. Digitar "SILAS"
-                    input_responsavel.clear()
-                    input_responsavel.send_keys("SILAS")
-                    print(f"[AUD][D] ✅ Digitado 'SILAS'")
-                    
-                    # 3. Aguardar e selecionar a opção "SILAS PASSOS FERREIRA"
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
-                    )
-                    
-                    # Encontrar a opção específica
-                    opcao_silas = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]"))
-                    )
-                    opcao_silas.click()
-                    print(f"[AUD][D] ✅ Opção 'SILAS PASSOS FERREIRA' selecionada")
-
-                    def responsavel_confirmado():
-                        label = input_responsavel.get_attribute('aria-label') or ''
-                        value = input_responsavel.get_attribute('value') or ''
-                        return 'SILAS PASSOS FERREIRA' in label or 'SILAS PASSOS FERREIRA' in value
-
-                    driver.execute_script("document.activeElement.blur();")
-
-                    try:
-                        WebDriverWait(driver, 5).until(lambda _driver: responsavel_confirmado())
-                        print(f"[AUD][D] ✅ Responsável confirmado visivelmente preenchido")
-                    except Exception:
-                        try:
-                            body = driver.find_element(By.TAG_NAME, 'body')
-                            body.click()
-                        except Exception:
-                            pass
-                        time.sleep(0.5)
-                        if not responsavel_confirmado():
-                            raise
-                        print(f"[AUD][D] ✅ Responsável confirmado após clicar fora")
-                    print(f"[AUD][D] ✅ Responsável definido: SILAS PASSOS FERREIRA")
-                    
+                    print(f"[AUD][D] Criando GIGS triagem para {numero_processo}")
+                    criar_gigs(driver, "", "", "xs triagem")
                 except Exception as e:
-                    print(f"[AUD][D] ⚠️ Erro ao definir responsável: {e}")
-                    # Continua mesmo se falhar, pois não é crítico
-                
-                # ===== SEGUNDA AÇÃO: EXECUTAR ATO_RATIF =====
+                    print(f"[AUD][D] ⚠️ Erro ao criar GIGS triagem: {e}")
+
+                # ===== SEGUNDA AÇÃO: EXECUTAR ATO_RATIF ======
                 try:
                     from xx.atos import ato_ratif
                     print(f"[AUD][D] Executando ato_ratif para {numero_processo}")
@@ -832,11 +757,16 @@ def coletar_lista_processos(driver: WebDriver) -> List[Dict[str, Any]]:
                 tem100 = true;
             }
 
-            // Audiência - pegar toda a coluna principal
+            // Audiência - buscar div.sobrescrito com texto "Audiência em:"
             var aud = '';
-            var tdPrincipal = tr.querySelector('td:nth-child(2)');
-            if (tdPrincipal) {
-                aud = (tdPrincipal.innerText || tdPrincipal.textContent || '').trim();
+            var divAud = tr.querySelector('div.sobrescrito.ng-star-inserted');
+            if (divAud && (divAud.innerText || divAud.textContent || '').includes('Audiência em:')) {
+                aud = (divAud.innerText || divAud.textContent || '').trim();
+            } else {
+                var tdPrincipal = tr.querySelector('td:nth-child(2)');
+                if (tdPrincipal) {
+                    aud = (tdPrincipal.innerText || tdPrincipal.textContent || '').trim();
+                }
             }
 
             // Responsável - baseado no HTML real
@@ -940,21 +870,21 @@ def agrupar_em_buckets(lista: List[Dict[str, Any]]):
         if tipo == 'HTE':
             D.append(item)
             continue
-            
-        audiencia = (item.get('audiencia') or '').strip()
-        tem_aud = False
 
-        # Verificar se tem audiência: presença de "Audiência em:" na string
-        if isinstance(audiencia, str) and 'Audiência em:' in audiencia:
-            tem_aud = True
+        # obter_processos_triagem_api grava 'temaudiencia' (bool)
+        # coletarlistaprocessos legado grava 'audiencia' (str) — fallback
+        tem_aud = bool(item.get('temaudiencia', False))
+        if not tem_aud:
+            audiencia = (item.get('audiencia') or '').strip()
+            if isinstance(audiencia, str) and 'Audiência em' in audiencia:
+                tem_aud = True
 
         if not tem_aud:
             A.append(item)
+        elif item.get('tem_100', False):
+            B.append(item)
         else:
-            if item.get('tem_100', False):
-                B.append(item)
-            else:
-                C.append(item)
+            C.append(item)
 
     print(f"[AUD] Buckets: A={len(A)} (sem audiência) B={len(B)} (com audiência + 100%) C={len(C)} (com audiência + sem 100%) D={len(D)} (HTE)")
     return A, B, C, D

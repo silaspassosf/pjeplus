@@ -12,10 +12,10 @@ function criarFiltro(nome,icone, filtros,color='#333') {
 	  font-size: inherit;
 	`;
 	filtro.setAttribute('aria-label',nome);
-    // filtro.setAttribute('data-tooltip',nome);		
+    // filtro.setAttribute('data-tooltip',nome);
 
 	filtro.setAttribute('aria-pressed',false);
-	filtro.onmouseenter  = function () { 
+	filtro.onmouseenter  = function () {
 		this.style.opacity = '.8';
 		document.querySelector('#maisPje_caixa_de_selecao_filtroTexto').innerText = nome;
 	}
@@ -31,7 +31,7 @@ function criarFiltro(nome,icone, filtros,color='#333') {
 		botoes.forEach(filtro => filtro.setAttribute('aria-pressed',false));
 		filtro.setAttribute('aria-pressed', !estavaPressionado);
 		for (const [pos, item] of document.querySelectorAll('select optgroup').entries()) {
-			if (item.label === nome || estavaPressionado) { 
+			if (item.label === nome || estavaPressionado) {
 				item.style.display = 'revert';
 			} else {
 				item.style.display = 'none';
@@ -56,6 +56,7 @@ function criarFiltrosAA(container) {
 	filtro.appendChild(criarFiltro('DESPACHO','icone gavel t20', filtro));
 	filtro.appendChild(criarFiltro('MOVIMENTOS','icone hand-paper t20', filtro));
 	filtro.appendChild(criarFiltro('CHECKLIST','icone check-solid t20', filtro));
+	filtro.appendChild(criarFiltro('NOMEAR PERITO','icone user-md t20', filtro));
 	filtro.appendChild(criarFiltro('CÁLCULOS DO PROCESSO','icone calculator t20', filtro));
 	filtro.appendChild(criarFiltro('RETIFICAR AUTUAÇÃO','icone pencil-alt t20', filtro));
 	filtro.appendChild(criarFiltro('LANÇAR MOVIMENTOS','icone plus-square t20', filtro));
@@ -70,7 +71,7 @@ function criarFiltrosAA(container) {
 }
 
 /**
- * 
+ *
  * Cria campo de texto que permite digitar o nome de alguma AA para encontrar mais facilmente na lista
  */
 function criarFiltroTextoAAs(selectAcaoAutomatizada) {
@@ -149,7 +150,8 @@ function criarOption(prefixo, texto, acao, aaAtual = '', classe = 'optionAA', es
     }
 	option.value = prefixo + option.value;
 	option.innerText = prefixo + option.innerText;
-	option.classList.add(classe);
+    // option.classList.add(classe);
+    option.className = classe;
 	option.style = estilo;
     if (!!acao) {
         option.onclick = acao;
@@ -160,16 +162,34 @@ function criarOption(prefixo, texto, acao, aaAtual = '', classe = 'optionAA', es
 	return option;
 }
 
+/**
+ *
+ * @param {string} nomeGrupo
+ * @param {string} prefixo
+ * @param {Object} opcoes
+ * @param {function} acao
+ * @param {*} aaAtual
+ * @returns {HTMLOptGroupElement}
+ */
 function criarOptGroup(nomeGrupo, prefixo, opcoes, acao, aaAtual) {
 	const optGroup = document.createElement("optgroup");
 	optGroup.label = nomeGrupo;
 	opcoes?.forEach(item => {
-		let optionAAA = criarOption(prefixo, item.nm_botao || item, acao, aaAtual);
+        let comVinculo = (item.vinculo != 'Nenhum') ? 'optionAA vinculo' : 'optionAA'
+		let optionAAA = criarOption(prefixo, item.nm_botao || item, acao, aaAtual, comVinculo);
+        if (item.vinculo != 'Nenhum') { optionAAA.setAttribute('aavinculo',item.vinculo) }
 		optGroup.appendChild(optionAAA);
 	});
 	return optGroup;
 }
 
+/**
+ *
+ * @param {Preferencias} preferencias
+ * @param {function} acao
+ * @param {*} aaAtual
+ * @returns {HTMLDivElement} container com o select das ações automatizadas
+ */
 function criarSelectAcoesAutomatizadas(preferencias, acao, aaAtual) {
 	function onTeclaSelect(event) {
 		if (event.key === 'Enter') {
@@ -181,7 +201,7 @@ function criarSelectAcoesAutomatizadas(preferencias, acao, aaAtual) {
     selectAcaoAutomatizada.id = "selectAcaoAutomatizada";
 	selectAcaoAutomatizada.onkeyup=onTeclaSelect;
 	selectAcaoAutomatizada.style = 'cursor: pointer; padding: 10px; border: 0; background-color: white; color: rgb(81, 81, 81); min-height: 60vh; min-width: 55vw; font-size:1.125em;';
-	selectAcaoAutomatizada.size = '10';
+	selectAcaoAutomatizada.size = 10;
 	const searchFiltroTexto = criarFiltroTextoAAs(selectAcaoAutomatizada);
 	container.appendChild(searchFiltroTexto);
 
@@ -230,39 +250,59 @@ function criarSelectAcoesAutomatizadas(preferencias, acao, aaAtual) {
 	const optionGR6 = criarOptGroup('CHECKLIST', 'Checklist|', preferencias.aaChecklist, clicarContinuar, aaAtual);
 	selectAcaoAutomatizada.appendChild(optionGR6);
 
+	//monta as acoes automatizadas de Nomear Perito
+	const optionGR7 = criarOptGroup('NOMEAR PERITO', 'Nomear Perito|', preferencias.aaNomearPerito, clicarContinuar, aaAtual);
+	selectAcaoAutomatizada.appendChild(optionGR7);
+
 	//monta as acoes automatizadas de Cálculos
 	let aaItemCalculosDoProcesso = [['botao_abrirPjeCalc', 'Abrir PJeCalc'], ['botao_atualizacaoRapida', 'Atualização Rápida'], ['atualizacaorapidaRPVPrec', 'Atualização Rápida GPREC']];
-	const optionGR11 = criarOptGroup('CÁLCULOS DO PROCESSO', 'CalculosDoProcesso|', aaItemCalculosDoProcesso, clicarContinuar, aaAtual);
-	selectAcaoAutomatizada.appendChild(optionGR11);
+	const optionGR8 = criarOptGroup('CÁLCULOS DO PROCESSO', 'CalculosDoProcesso|', aaItemCalculosDoProcesso, clicarContinuar, aaAtual);
+	selectAcaoAutomatizada.appendChild(optionGR8);
 
 	//monta as acoes automatizadas de Retificar Autuação
 	let aaItemRetificarAutuacao = [['botao_retificar_autuacao_7', 'addAutor'], ['botao_retificar_autuacao_8', 'addRéu'], ['botao_retificar_autuacao_0', 'addUnião'], ['botao_retificar_autuacao_10', 'addMPT'], ['botao_retificar_autuacao_3', 'addLeiloeiro'], ['botao_retificar_autuacao_4', 'addPerito'], ['botao_retificar_autuacao_5', 'addTestemunha'], ['botao_retificar_autuacao_6', 'addTerceiro'], ['botao_retificar_autuacao_100Digital', 'Juízo 100% Digital'], ['botao_retificar_autuacao_tutelaLiminar', 'Pedido de Tutela'], ['botao_retificar_autuacao_Falencia', 'Falência/Rec.Judicial'], ['botao_retificar_autuacao_assunto', 'Assunto'], ['botao_retificar_autuacao_justicaGratuita', 'Justiça Gratuita'], ['botao_retificar_autuacao_associarProcesso', 'Associar Processo']];
-	const optionGR7 = criarOptGroup('RETIFICAR AUTUAÇÃO', 'RetificarAutuação|', aaItemRetificarAutuacao, clicarContinuar, aaAtual);
-	selectAcaoAutomatizada.appendChild(optionGR7);
-
-	//monta as acoes automatizadas de Lançar Movimentos
-	const optionGR8 = criarOptGroup('LANÇAR MOVIMENTOS', 'LançarMovimento|', preferencias.aaLancarMovimentos, clicarContinuar, aaAtual);
-	selectAcaoAutomatizada.appendChild(optionGR8);
-
-	let aaItemMenuDetalhes = ['Concluso ao Magistrado', 'Movimentar Processo', 'Guardar dados das partes', 'Abrir o Gigs', 'Acesso a Terceiros', 'Anexar documentos', 'Audiências e Sessões', 'Download do processo completo', 'BNDT', 'Abrir cálculos do processo', 'Criar Intimação/Expediente', 'Controle de Segredo', 'Abre a tela com os dados financeiros', 'Visualizar intimações/expedientes do processo', 'Histórico de Sigilo', 'Lembretes', 'Lançar movimentos', 'Obrigação de Pagar', 'Pagamento', 'Perícias', 'Quadro de recursos', 'Reprocessar chips do processo', 'Retificar autuação', 'Retirar Valor Histórico', 'Verificar Impedimentos e Suspeições', 'Consultar Domicílio Eletrônico'];
-	const optionGR9 = criarOptGroup('CLICAR EM', 'Clicar em|', aaItemMenuDetalhes, clicarContinuar, aaAtual);
+	const optionGR9 = criarOptGroup('RETIFICAR AUTUAÇÃO', 'RetificarAutuação|', aaItemRetificarAutuacao, clicarContinuar, aaAtual);
 	selectAcaoAutomatizada.appendChild(optionGR9);
 
+	//monta as acoes automatizadas de Lançar Movimentos
+	const optionGR10 = criarOptGroup('LANÇAR MOVIMENTOS', 'LançarMovimento|', preferencias.aaLancarMovimentos, clicarContinuar, aaAtual);
+	selectAcaoAutomatizada.appendChild(optionGR10);
+
+	let aaItemMenuDetalhes = ['Listar Todas','Concluso ao Magistrado', 'Movimentar Processo', 'Guardar dados das partes', 'Abrir o Gigs', 'Acesso a Terceiros', 'Anexar documentos', 'Audiências e Sessões', 'Download do processo completo', 'BNDT', 'Abrir cálculos do processo', 'Criar Intimação/Expediente', 'Controle de Segredo', 'Abre a tela com os dados financeiros', 'Visualizar intimações/expedientes do processo', 'Histórico de Sigilo', 'Lembretes', 'Lançar movimentos', 'Obrigação de Pagar', 'Pagamento', 'Perícias', 'Quadro de recursos', 'Reprocessar chips do processo', 'Retificar autuação', 'Retirar Valor Histórico', 'Verificar Impedimentos e Suspeições', 'Consultar Domicílio Eletrônico','Copiar Número do Processo'];
+	const optionGR11 = criarOptGroup('CLICAR EM', 'Clicar em|', aaItemMenuDetalhes, clicarContinuar, aaAtual);
+	selectAcaoAutomatizada.appendChild(optionGR11);
+
 	//monta as acoes automatizadas de VARIADOS
-	let optionGR10 = document.createElement("optgroup");
-	optionGR10.label = 'VARIADOS';
+	let optionGR12 = document.createElement("optgroup");
+	optionGR12.label = 'VARIADOS';
 	for (const [pos, item] of preferencias.aaVariados.entries()) {
 		const prefixo = ['Atualizar Pagina', 'Fechar Pagina'].includes(item.nm_botao) ?
 			item.nm_botao + '|' : 'Variados|';
 		const optionVAR = criarOption(prefixo, item.nm_botao, clicarContinuar, aaAtual);
-		optionGR10.appendChild(optionVAR);
+		optionGR12.appendChild(optionVAR);
 	}
-	selectAcaoAutomatizada.appendChild(optionGR10);
+	selectAcaoAutomatizada.appendChild(optionGR12);
+
+    selectAcaoAutomatizada.addEventListener('mouseover', function (event) {
+        if (event.target.tagName === 'OPTION') {
+            console.log(event.target.textContent);
+            if (document.getElementById('maisPjeContainerMapaVinculos')) { document.getElementById('maisPjeContainerMapaVinculos').remove() }
+            if (event.target.hasAttribute('aavinculo')) { criarMapaDosVinculos(event.target.textContent,event.target.getAttribute('aavinculo')) }
+        }
+	});
 
 	container.appendChild(selectAcaoAutomatizada);
 	return container;
 }
 
+/**
+ *
+ * @param {Preferencias} preferencias
+ * @param {string} label
+ * @param {*} aaAtual
+ * @param {HTMLElement} [elementoDevolverFoco]
+ * @returns
+ */
 async function criarCaixaDeSelecaoComAAs(preferencias, label, aaAtual = '', elementoDevolverFoco = undefined) {
 	return new Promise(
 		resolver => {
@@ -271,19 +311,20 @@ async function criarCaixaDeSelecaoComAAs(preferencias, label, aaAtual = '', elem
 				resolver(valor);
 			};
 			if (!document.getElementById('maisPje_caixa_de_selecao')) {
-										
+
 				// DESCRIÇÃO: REGRA DO TOOLTIP
 				if (!document.getElementById('maisPje_tooltip_fundo')) {
 					tooltip('fundo', true);
 				}
-				
+
 				let elemento1 = criarPopup('maisPje_caixa_de_selecao', resolveDevolveFoco);
 				let container = document.createElement("div");
 				container.style="height: auto; min-width: 50vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
-				
+
 				const bt_continuar = criarBotaoComCoresPadrao('Salvar');
 				bt_continuar.onclick = function () {
 					resolveDevolveFoco(selectAcaoAutomatizada.value);
+                    if (document.getElementById('maisPjeContainerMapaVinculos')) { document.getElementById('maisPjeContainerMapaVinculos').remove() }
 					document.getElementById('maisPje_caixa_de_selecao').remove();
 				};
 
@@ -296,6 +337,7 @@ async function criarCaixaDeSelecaoComAAs(preferencias, label, aaAtual = '', elem
 
 				const containerSelectAcaoAutomatizada = criarSelectAcoesAutomatizadas(preferencias, () => bt_continuar.click(), aaAtual);
 				const selectAcaoAutomatizada = containerSelectAcaoAutomatizada.querySelector('select');
+				/** @type HTMLElement */
 				const filtroTexto = containerSelectAcaoAutomatizada.querySelector('#maisPje_filtroTexto');
 				container.appendChild(containerSelectAcaoAutomatizada);
 				container.appendChild(bt_continuar);
@@ -309,4 +351,68 @@ async function criarCaixaDeSelecaoComAAs(preferencias, label, aaAtual = '', elem
 		}
 	);
 
+}
+
+function criarMapaDosVinculos(aa_pai,v='Nenhum',descricao='') {
+	return new Promise(resolver => {
+
+		if (v == 'Nenhum') { return resolver(true) }
+
+		let container = document.getElementById('maisPjeContainerMapaVinculos');
+		if (container) { container.remove() }
+		container = document.createElement("div");
+		container.id = "maisPjeContainerMapaVinculos";
+
+		let fundo = document.createElement("div");
+		// fundo.style = 'position: fixed; width: 100%; height: 100%; inset: 0px; background: #008b8ba3 none repeat scroll 0% 0%; z-index: 10000; display: flex; align-items: center; color: rgb(81, 81, 81); font-size: 80px; font-weight: bold; text-align: center;  text-shadow: rgb(0, 0, 0) 1px 1px;flex-direction: column;top: 62vh;';
+		fundo.style = "position: fixed; width: 100%; height: 100%; inset: 0px; background: #000000c4; z-index: 10000; display: flex; align-items: center; color: rgb(81, 81, 81); font-size: 80px; font-weight: bold; text-align: center; text-shadow: rgb(0, 0, 0) 1px 1px; flex-direction: column; top: " + (descricao ? "62%" : "92%") + ";"; //62
+
+        let barra_descricao = document.createElement("div");
+		barra_descricao.style = "overflow-y: auto; opacity: 0.98; text-align: center; color: white; font-size: 14px; height: auto;padding: 28px;text-shadow: none;";
+		barra_descricao.innerText = descricao + '\n\n\nMapeamento dos Vínculos:';
+
+		let barra_mapaVinculos = document.createElement("div");
+		barra_mapaVinculos.style = "overflow-y: auto; opacity: 0.98; text-align: center; color: white;font-size: 14px; margin-top: 15px;";
+
+		let lista = Array.isArray(v) ? v : v.split(',');
+		lista = [aa_pai].concat(lista);//adiciona a própria AA como a primeira da lista
+
+		for (const [pos, vinc] of lista.entries()) {
+
+			if (vinc != 'Nenhum') {
+				let bt = document.createElement("button");
+				bt.name = vinc;
+				bt.className = "mat-raised-button mat-primary ng-star-inserted";
+				bt.style = "margin: 3px; z-index: 5; height: 4vh; border: 2px dashed #957e7e;outline: 2px dashed white; line-height: 30px;";
+				bt.style.backgroundColor = (pos == 0) ? 'cadetblue' : 'burlywood';
+
+				let numero = document.createElement("span");
+				numero.style = "font-size: 20px; color: white; font-weight: bold; text-shadow: #bfbfbf 1px 1px, gray -1px -1px;margin-right: 10px;vertical-align: top;";
+				numero.innerText = pos+1;
+				bt.appendChild(numero);
+
+				let span = document.createElement("span");
+				span.className = "mat-button-wrapper";
+				span.style = "vertical-align: super;"
+				span.innerText = vinc;
+				bt.appendChild(span);
+				barra_mapaVinculos.appendChild(bt);
+
+				if (lista[pos+1] != 'Nenhum') {
+					let separador = document.createElement('i');
+					// separador.className = 'botao-menu-texto fa fa-arrow-right';
+                    separador.className = 'botao-menu-texto';
+                    separador.innerText = '🡆';
+					separador.style = 'color: white; height: 4vh;  display: inline-block; padding: 0px 10px; font-style: normal; font-size: 30px;';
+					barra_mapaVinculos.appendChild(separador);
+				}
+			}
+		}
+
+        if (descricao) { fundo.appendChild(barra_descricao) }
+		fundo.appendChild(barra_mapaVinculos);
+		container.appendChild(fundo);
+		document.body.appendChild(container);
+		resolver(true);
+	});
 }

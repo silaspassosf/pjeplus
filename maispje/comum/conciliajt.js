@@ -1,29 +1,15 @@
 // {"vl_predicao":"1","dt_predicao":"16/12/2023","ds_predicao":"Algum texto descrevendo a predição"}
-/**
- * @typedef {Object} PotencialRest
- * @property {string} vl_predicao - Valor da predição. 
- * @property {string} dt_predicao - Data da predição.
- * @property {string} ds_predicao - Descrição da predição.
- */
-/**
- * @typedef {Object} ConciliaJTConfig
- * @property {string} ads_url - A URL do serviço de anúncios. 
- * @property {boolean} ads_enabled - O status de habilitação do serviço de anúncios.
- * @property {boolean} enabled - O status de habilitação do sistema ConciliaJT.
- * @property {string} url - A URL principal do sistema ConciliaJT.
- */
-
 const NAO_DEFINIDO = 'N/D';
 
 /**
  * Classe que representa um potencial de conciliação do sistema ConciliaJT.
- * 
+ *
  * Esta classe armazena as informações relacionadas a um potencial de conciliação, como a cor, a dica associada, o ícone e a opção de abrir link.
  */
 class PotencialConciliaJT {
     /**
      * Cria uma instância de PotencialConciliaJT.
-     * 
+     *
      * @param {string} potencial - O nome ou descrição do potencial de conciliação.
      * @param {string} cor - A cor associada ao potencial, usada para representar visualmente o estado.
      * @param {string} dica - A descrição adicional sobre o potencial de conciliação.
@@ -52,7 +38,7 @@ class PotencialConciliaJT {
         this.icone = icone;
 
         /**
-         * @property {boolean} abrir_link - Indica se um link deve ser aberto ao clicar no ícone. 
+         * @property {boolean} abrir_link - Indica se um link deve ser aberto ao clicar no ícone.
          * Se `true`, um link será aberto; se `false`, não será.
          */
         this.abrir_link = abrir_link;
@@ -61,64 +47,64 @@ class PotencialConciliaJT {
 const potenciais = new Map();
 
 potenciais.set('N/A', new PotencialConciliaJT(
-    'N/A', "color: dimgray;", 
-    "N/A: Esta classe judicial não possui potencial de acordo computado.", 
+    'N/A', "color: dimgray;",
+    "N/A: Esta classe judicial não possui potencial de acordo computado.",
     "fas fa-thermometer-empty"
 ));
 
 potenciais.set("0", new PotencialConciliaJT(
-    "0", "color: darkred;", 
-    "0: Processo com potencial de acordo muito baixo.", 
+    "0", "color: darkred;",
+    "0: Processo com potencial de acordo muito baixo.",
     "fas fa-thermometer-empty"
 ));
 
 potenciais.set("1", new PotencialConciliaJT(
-    "1", "color: darkred;", 
-    "1: Processo com potencial de acordo baixo.", 
+    "1", "color: darkred;",
+    "1: Processo com potencial de acordo baixo.",
     "fas fa-thermometer-quarter"
 ));
 
 potenciais.set("2", new PotencialConciliaJT(
-    "2", "color: black;", 
-    "2: Processo com potencial de acordo incerto.", 
+    "2", "color: black;",
+    "2: Processo com potencial de acordo incerto.",
     "fas fa-thermometer-half"
 ));
 
 potenciais.set("3", new PotencialConciliaJT(
-    "3", "color: black;", 
-    "3: Processo com potencial de acordo incerto.", 
+    "3", "color: black;",
+    "3: Processo com potencial de acordo incerto.",
     "fas fa-thermometer-half"
 ));
 
 potenciais.set("4", new PotencialConciliaJT(
-    "4", "color: darkgreen;", 
-    "4: Processo com bom potencial de acordo.", 
+    "4", "color: darkgreen;",
+    "4: Processo com bom potencial de acordo.",
     "fas fa-thermometer-three-quarters"
 ));
 
 potenciais.set("5", new PotencialConciliaJT(
-    "5", "color: darkgreen;", 
-    "5: Processo com alto potencial de acordo.", 
+    "5", "color: darkgreen;",
+    "5: Processo com alto potencial de acordo.",
     "fas fa-thermometer-full"
 ));
 
 potenciais.set("nao_habilitado", new PotencialConciliaJT(
-    "nao_habilitado", "color: dimgray;", 
-    "Conheça o projeto Concilia JT.", 
+    "nao_habilitado", "color: dimgray;",
+    "Conheça o projeto Concilia JT.",
     "fas fa-thermometer-empty", true
 ));
 
 // Valor padrão para potenciais desconhecidos
 const defaultPotencial = new PotencialConciliaJT(
-    "default", "color: dimgray;", 
-    "N/D: Este processo não possui avaliação de potencial de acordo.", 
+    "default", "color: dimgray;",
+    "N/D: Este processo não possui avaliação de potencial de acordo.",
     "fas fa-thermometer-empty"
 );
 
 
 /**
  * APRESENTAR O INDICE CONCILIAJT
- * @param {string} nrProcesso 
+ * @param {string} nrProcesso
  * @returns {PotencialConciliaJT} com o potencial daquele processo
  */
 function encontrarPotencial(nrProcesso) {
@@ -132,7 +118,7 @@ function encontrarPotencial(nrProcesso) {
 			if (nrProcesso.length >= 2) {
 				folderPrefix = nrProcesso.slice(-2);
 			}
-			
+
 			const url = preferencias.conciliajt.url + nrProcesso;
 
 			var request = new XMLHttpRequest();
@@ -162,8 +148,8 @@ function encontrarPotencial(nrProcesso) {
 
 /**
  * cria um link com o icone da avaliacao do Concilia JT
- * @param {string} processoNumero 
- * @returns {HTMLAnchorElement} com o link 
+ * @param {string} processoNumero
+ * @returns {Promise<HTMLAnchorElement>} com o link
  */
 async function criarLinkPotencialConciliaJT(processoNumero, fontSize = ' ') {
 	return new Promise(resolve => {
@@ -197,15 +183,24 @@ async function criarLinkPotencialConciliaJT(processoNumero, fontSize = ' ') {
 	});
 }
 
-async function obterUrlsConciliaJT(trt) {
+/**
+ * @param {number} trt
+ * @param {boolean} [forcar]
+ * @returns {Promise<ConfigURLs>}
+ */
+async function obterUrlsConciliaJT(trt, forcar = false) {
     return new Promise(resolve => {
+        if (!trt) {
+            console.info('nao tem TRT definido, não consulta configUrls...')
+            return resolve(undefined);
+        }
 		//CONTROLA A CONSULTA DO ACESSO AO PROJETO CONCILIA PARA APENAS 1 VEZ POR DIA
-		browser.storage.local.get(['verificadorDiario','configURLs'], async function(result) {
+		browser.storage.local.get(['verificadorDiario','configURLs']).then(async function(result) {
 			let hoje = new Date().getDate();
 			let verificador = false;
 			let configBase = result.configURLs; //configurações existentes do storage
-			
-			if (!result.verificadorDiario) {
+
+			if (!result.verificadorDiario || typeof(configBase) == "undefined") {
 				verificador = true;
 			} else {
 				let diaVerificador = result.verificadorDiario;
@@ -214,10 +209,10 @@ async function obterUrlsConciliaJT(trt) {
 				}
 			}
 
-			if (verificador) {
-				
+			if (forcar || verificador) {
+
 				let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
-				
+
 				configBase = await fetch(url).then(function (response) {  //configurações existentes do site
 					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
@@ -228,32 +223,37 @@ async function obterUrlsConciliaJT(trt) {
 					console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 					return response.json();
 				})
-				.then(data=>{
-					console.log(data[trt])
-					return data[trt] || null;
-				})
+				.then(data=> data[trt] || null)
 				.catch(function (err) {
-					console.error('configUrl error', err)
+					console.error('configUrl error', err, data, trt)
 					alert(`maisPJE: erro ao acessar  ${url}`);
 					return null;
 				});
 
 				// console.log(JSON.stringify(configBase))
-				//guarda as novas configurações no storage				
-				await guardarValoresNoStorage(configBase,hoje);
+				//guarda as novas configurações no storage
+				await salvarConfigUrls(configBase,hoje);
 			}
 
 			return resolve(configBase);
-			
+
 		});
-		
+
     });
 }
 
-async function guardarValoresNoStorage(valor1, valor2) {
+/**
+ * @param {ConfigURLs} configuracaoBase
+ * @param {number} dia
+ * @returns {Promise<boolean>}
+ */
+async function salvarConfigUrls(configuracaoBase, dia) {
 	return new Promise(resolve => {
-		let guardarStorage1 = browser.storage.local.set({ 'configURLs': valor1 });
-		let guardarStorage2 = browser.storage.local.set({ 'verificadorDiario': valor2 });
+        if (!configuracaoBase || !dia) { //nao salva se um dos valores não estiver definido
+            return resolve(false);
+        }
+		let guardarStorage1 = browser.storage.local.set({ 'configURLs': configuracaoBase });
+		let guardarStorage2 = browser.storage.local.set({ 'verificadorDiario': dia });
 		Promise.all([guardarStorage1,guardarStorage2]).then(values => {
 			return resolve(true)
 		});
@@ -261,9 +261,8 @@ async function guardarValoresNoStorage(valor1, valor2) {
 }
 
 /**
- * 
- * @param {Number} num_trt 
- * @param {String} grauPJe 
+ * @param {Number} num_trt
+ * @param {GrauUsuario} grauPJe
  * @returns {Promise<ConciliaJTConfig>} configuração do ConciliaJT para o TRT e grau informados.
  */
 async function buscaConfigConciliaJT(num_trt, grauPJe) {
@@ -286,11 +285,11 @@ async function conciLIAnaPauta(linha) {
 	return new Promise(async resolve => {
 		console.log('conciLIAnaPauta')
 		if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
-		
+
 		let el = document.querySelectorAll('td[id="pjextension_coluna_lia"]') || document.querySelectorAll('maisPJe-conciliaJT');
 		if (el) {
 			let limpar = [].map.call(
-				el, 
+				el,
 				function(elemento) {
 					elemento.remove();
 				}
@@ -299,22 +298,22 @@ async function conciLIAnaPauta(linha) {
 
 		console.log('2')
 		let tabela = document.querySelector('pje-data-table[nametabela="Horários do dia"]') || document.querySelector('pje-inteligente-semanal table[role="grid"]');
-		
+
 		if (!tabela) { return resolve(false) }
 
 		console.log('3')
-		
+
 		if (tabela.tagName == "PJE-DATA-TABLE") { //PAUTA TRADICIONAL
-			
-			
-			if (!linha) { return resolve(false) }		
+
+
+			if (!linha) { return resolve(false) }
 			let tbody = tabela.getElementsByTagName('tbody')[0];
 			let tr = tbody.getElementsByTagName('tr');
 			if (!tr) {
 				return resolve(false)
 			}
 			if (preferencias.conciliajt.enabled || preferencias.conciliajt.ads_enabled) { //FIXME: Preciso desse if se já tem outro no inicio do metodo? Se chegou aqui, eh pq essa condicao eh sempre true!
-							
+
 				//INSERE O ICONE DO CONCILIAJT NO CABEÇALHO DA TABELA (APENAS NA PAUTA TRADICIONAL)
 				if (!document.getElementById('pjextension_coluna_lia_cabecalho') && document.querySelector('table[name="Horários do dia"]')) {
 					let tabela = document.querySelector('table[name="Horários do dia"]').firstElementChild.firstElementChild;
@@ -331,7 +330,7 @@ async function conciLIAnaPauta(linha) {
 					th.appendChild(a0);
 					tabela.appendChild(th);
 				}
-				
+
 				let numeroProcesso = await extrairNumeroProcesso(linha.innerText);
 				if (!numeroProcesso) { return resolve(false) }
 
@@ -344,7 +343,7 @@ async function conciLIAnaPauta(linha) {
 			}
 
 			return resolve(true);
-			
+
 		} else { //PAUTA INTELIGENTE
 
 			// if (!preferencias.conciliajt.enabled && !preferencias.conciliajt.ads_enabled) { return }
@@ -353,14 +352,14 @@ async function conciLIAnaPauta(linha) {
 			if (!document.getElementById('maisPje-tooltip-menuAbaixo')) {
 				tooltip('menuAbaixo');
 			}
-			
+
 			let carregamento = await esperarElemento('div[class*="container-loading"] mat-progress-spinner')
 			await esperarDesaparecer(carregamento)
-			
+
 			let linhasTabela = await esperarColecao('table tbody td mat-card div[class*="opcoes-card"]');
-			
+
 			if (!linhasTabela) { return resolve(false) }
-			
+
 			for (const [pos, linha] of linhasTabela.entries()) {
 				// console.log('pos: ' + pos + '   -   ' + linha.parentElement.innerText)
 				if (linha.parentElement.innerText.match(padraoProcesso)) {
@@ -368,18 +367,18 @@ async function conciLIAnaPauta(linha) {
 						let el_concilia = document.createElement("maisPJe-conciliaJT");
 						el_concilia.id = 'maisPJe_container_lia'
 						el_concilia.style = 'margin-left: 10px;font-size: 1.6em;';
-						
+
 						const a = await criarLinkPotencialConciliaJT(processoNumero, "font-size: 1.75rem; ");
 						el_concilia.appendChild(a);
 						linha.appendChild(el_concilia);
 					}
-				
+
 			}
 
 			return resolve(true);
 
 		}
-	
+
 	});
 }
 
@@ -388,38 +387,38 @@ async function conciLIAnaTriagemInicial() {
 	let el = document.querySelectorAll('td[id="maisPje_coluna_lia"]');
 	if (el) {
 		let limpar = [].map.call(
-			el, 
+			el,
 			function(elemento) {
 				elemento.remove();
 			}
 		);
-	}	
+	}
 	// let tabela = await esperarElemento('pje-data-table[nametabela="Tabela de Processos"]');
 	let tabela = await esperarElemento('pje-data-table[nametabela="Tabela de Atividades"],pje-data-table[nametabela="Tabela de Processos"]');
-	
+
 	if (!tabela) {
 		return
 	}
-	
+
 	await esperarElemento('span[class="total-registros"]');
-	
+
 	//DESCRIÇÃO: REGRA DO TOOLTIP
 	if (!document.getElementById('maisPje_tooltip_abaixo')) { tooltip('abaixo') }
-	
+
 	// const linhasTabela = await esperarColecao('table tbody tr');
 	const linhasTabela = await esperarColecao('table[name="Tabela de Atividades"] tbody tr, table[name="Tabela de Processos"] tbody tr');
-	
+
 	if (!linhasTabela) {
 		return
 	}
-	for (const [key, linha] of linhasTabela.entries()) {		
+	for (const [key, linha] of linhasTabela.entries()) {
 		const ancora = linha.querySelector('div[class*="container-icones-processuais"]');
 		if (!ancora.querySelector('#maisPje_coluna_lia')) {
 			let div = document.createElement("div");
 			div.id = "maisPje_coluna_lia";
 			div.style = "margin-left: 10px;";
 			ancora.appendChild(div);
-			const processoNumero = linha.innerText.match(padraoProcesso).join();			
+			const processoNumero = linha.innerText.match(padraoProcesso).join();
 			criarLinkPotencialConciliaJT(processoNumero, " font-size: 1.75rem; ").then((a) => div.replaceChildren(a));
 		}
 	}

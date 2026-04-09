@@ -31,15 +31,17 @@ import time
 from typing import List, Dict, Any
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix.selenium_base import aguardar_e_clicar
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Importar funções de recuperação de acesso negado
-from x import verificar_acesso_negado, executar_com_recuperacao, resetar_driver
+from x import resetar_driver
 # Progresso unificado (evitar reprocessar itens já concluídos)
 from Fix.monitoramento_progresso_unificado import (
     carregar_progresso_unificado,
@@ -252,6 +254,49 @@ def has_dom_eletronico_reminder(driver):
     except Exception:
         return False
 
+
+def checar_empresas(driver) -> str:
+    """Lê o painel de expedientes e retorna nomes de empresas com falha de confirmação."""
+    empresas = []
+    try:
+        if not aguardar_e_clicar(driver, '#botao-menu', timeout=10, log=False):
+            logger.warning('[DOM] checar_empresas: menu nao encontrado')
+            return ''
+        if not aguardar_e_clicar(driver, 'button[aria-label="Expedientes"]', timeout=8, log=False):
+            logger.warning('[DOM] checar_empresas: Expedientes nao encontrado')
+            return ''
+
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'tbody tr'))
+        )
+        rows = driver.find_elements(By.CSS_SELECTOR, 'tbody tr')
+        for row in rows:
+            try:
+                cols = row.find_elements(By.TAG_NAME, 'td')
+                if len(cols) < 2:
+                    continue
+                nome_empresa = cols[0].text.strip()
+                confirmacao = cols[-1].text.strip().lower()
+                if any(token in confirmacao for token in ['expirado', 'automática', 'automatica', 'erro']):
+                    if nome_empresa:
+                        empresas.append(nome_empresa)
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f'[DOM] checar_empresas: erro ao ler painel de expedientes: {e}')
+    finally:
+        try:
+            driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+            time.sleep(0.5)
+        except Exception:
+            pass
+
+    unique_empresas = []
+    for nome in empresas:
+        if nome not in unique_empresas:
+            unique_empresas.append(nome)
+    return ', '.join(unique_empresas)
+
 # def process_bucket1(driver, bucket_items):
     """5.1 Bucket 1: processos sem audiência - def_chip domicilio"""
     logger.info(f'[DOM] Processando Bucket 1: {len(bucket_items)} processos sem audiência')
@@ -352,6 +397,12 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
     result_def_chip = def_chip(driver_detalhes, numero_processo=numero, observacao='Remover ciencia expirado e resposta excedido', chips_para_remover=chips_ciencia_resposta, debug=True)
     logger.info(f'[DOM][B2][CALLBACK] def_chip result: {result_def_chip}')
 
+    # Criar/atualizar GIGS dom.e no detalhe do processo
+    from Fix.extracao import criar_gigs
+    logger.info(f'[DOM][B2][CALLBACK] Gerando GIGS dom.e para {numero}')
+    gigs_result = criar_gigs(driver_detalhes, observacao='dom.e')
+    logger.info(f'[DOM][B2][CALLBACK] GIGS dom.e result: {gigs_result}')
+
     # Verificar acesso negado após def_chip
     try:
         verificar_acesso_negado(driver_detalhes, f"DOM_{numero}_def_chip")
@@ -368,12 +419,16 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
         logger.info(f'[DOM][B2][CALLBACK] Já tem lembrete Dom Eletronico - pulando criação, mas executando PEC')
     else:
         # CRIAR LEMBRETE DOMICELETR se não existe lembrete Dom Eletronico
+        empresas_falha = checar_empresas(driver_detalhes)
+        conteudo_lembrete = 'Ciência negativa Domicilio: Correio enviado:'
+        if empresas_falha:
+            conteudo_lembrete += f' ({empresas_falha})'
         logger.info(f'[DOM][B2][CALLBACK] Criando lembrete DomicEletr')
         from Fix.gigs import criar_lembrete_posit
         lembrete_result = criar_lembrete_posit(
             driver_detalhes,
             titulo="DomicEletr",
-            conteudo="Ciência não confirmada - repetido por correio",
+            conteudo=conteudo_lembrete,
             debug=True
         )
         logger.info(f'[DOM][B2][CALLBACK] Lembrete criado: {lembrete_result}')
@@ -880,10 +935,73 @@ def main():
         return False
 
     try:
-        # 2. Navegar para atividades e aplicar filtros
+        # 2. Navegar para lista de processos
+        logger.info('[DOM] Navegando para lista de processos...')
+        driver.get(LIST_URL)
+        WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody tr.tr-class')))
+        logger.info('[DOM] Navegação concluída')
+
+        # 3. Aplicar filtros de fase e chips
+        logger.info('[DOM] Aplicando filtro de fase: conhecimento')
+        from Fix.core import filtrofases
+        filtrofases(driver, fases_alvo=['conhecimento'])
+        time.sleep(2)
+
+        logger.info('[DOM] Aplicando filtro de chips: domicilio eletronico')
+        def filtro_chips(driver, chips_alvo):
+            chips_mapeamento = {
+                'domicilio eletronico expirado': 'Domicílio Eletrônico - Prazo de Ciência Expirado',
+                'domicilio eletronico expedido': 'Domicílio Eletrônico - Prazo de Resposta Excedido',
+                'domicilio eletronico erro na transmissao': 'Domicílio Eletrônico - Erro na Transmissão'
+            }
+            chips_alvo_mapeados = [chips_mapeamento.get(chip, chip) for chip in chips_alvo]
+            chips_element = None
+            try:
+                chips_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Chips')]")
+            except Exception:
+                seletor = 'span.ng-tns-c82-22.ng-star-inserted'
+                for elem in driver.find_elements(By.CSS_SELECTOR, seletor):
+                    if 'Chips' in elem.text:
+                        chips_element = elem
+                        break
+            if not chips_element:
+                logger.error('[DOM] Elemento chips não encontrado')
+                return False
+            driver.execute_script("arguments[0].click();", chips_element)
+            time.sleep(1)
+            painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
+            painel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, painel_selector)))
+            time.sleep(2)
+            opcoes = painel.find_elements(By.XPATH, ".//mat-option")
+            chips_selecionados = []
+            for chip in chips_alvo_mapeados:
+                for opcao in opcoes:
+                    try:
+                        texto = opcao.text.strip()
+                        if chip in texto and opcao.is_displayed():
+                            driver.execute_script("arguments[0].click();", opcao)
+                            chips_selecionados.append(chip)
+                            time.sleep(0.5)
+                            break
+                    except Exception:
+                        continue
+            try:
+                botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Filtrar"]')
+                driver.execute_script("arguments[0].click();", botao_filtrar)
+                time.sleep(2)
+            except Exception as e:
+                logger.error(f'[DOM] Erro ao clicar filtrar: {e}')
+                return False
+            logger.info(f'[DOM] Chips aplicados: {chips_selecionados}')
+            return len(chips_selecionados) > 0
+
+        filtro_chips(driver, ['domicilio eletronico expirado', 'domicilio eletronico expedido', 'domicilio eletronico erro na transmissao'])
+        time.sleep(2)
+
+        # 5. Navegar para atividades e aplicar filtro dom.e
         navigate_to_activities_and_filter(driver)
 
-        # 3. Executar lista com callback do bucket 2
+        # 6. Executar lista com callback do bucket 2
         execute_list_with_bucket2_callback(driver)
 
         logger.info('[DOM] === EXECUÇÃO CONCLUÍDA COM SUCESSO ===')

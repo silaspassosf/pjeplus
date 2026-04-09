@@ -56,3 +56,4 @@ build/temp/
 context_dump.md
 .gist_id
 setup_credenciais.py
+.aider*

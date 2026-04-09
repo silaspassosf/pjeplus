@@ -46,6 +46,10 @@ class SmartFinder:
         """Set driver post-construction for compatibility."""
         self.driver = driver
 
+    def _is_frio(self, chave: str) -> bool:
+        """Em chave `_frio_`, mantém o seletor estático e não substitui aprendizado automático."""
+        return isinstance(chave, str) and chave.startswith('_frio_')
+
     # Compatibility wrapper: maintain legacy API `find(driver, key, candidates)`
     def find(self, driver, key: str, candidates: list):
         """Compatibility: try cache then candidates (css/xpath strings), return element or None."""
@@ -68,8 +72,10 @@ class SmartFinder:
                     el = driver.find_element('xpath', s)
                 else:
                     el = driver.find_element('css selector', s)
-                # Save learned selector
-                self._atualizar_cache(cache_key, 'css selector' if not s.strip().startswith('//') else 'xpath', s)
+
+                # Save learned selector, exceto para chaves `_frio_` estáticas.
+                if not self._is_frio(cache_key):
+                    self._atualizar_cache(cache_key, 'css selector' if not s.strip().startswith('//') else 'xpath', s)
                 return el
             except Exception:
                 continue
@@ -153,6 +159,9 @@ class SmartFinder:
     def _atualizar_cache(self, chave, by, value):
         """Atualiza a memória RAM e chama a gravação assíncrona."""
         with self.lock:
+            if self._is_frio(chave) and chave in self.cache and self.cache[chave] != (by, value):
+                learn_logger.info(f"Ignorar atualização de seletor frio: {chave}")
+                return
             self.cache[chave] = (by, value)
         self._salvar_cache()
 
@@ -199,17 +208,22 @@ class SmartFinder:
 
 
 def injetar_smart_finder_global(driver):
-    """Backward-compatible shim: attach SmartFinder and wrap driver.find_element.
+    """Backward-compatible shim: wrap driver.find_element e find_elements.
 
     Behavior:
-    - Try original `find_element` first.
-    - If original fails, try cached selector quickly (no heavy fallback).
-    - If still not found, spawn background learning attempt (non-blocking) and re-raise original exception.
+    - find_element: tenta original, se falhar tenta cache rápido, depois dispara
+      fallback em background e re-levanta a exceção original.
+    - find_elements: tenta original; se retornar lista vazia E o seletor estiver
+      em cache como chave conhecida, retenta com o seletor do cache.
+      Isso cobre chamadas do WebDriverWait (EC.element_to_be_clickable etc.)
     """
     try:
         original_find = driver.find_element
+        original_find_elements = driver.find_elements
     except Exception:
         original_find = None
+        original_find_elements = None
+
     sf = SmartFinder(driver)
 
     def smart_find_element(by, value):
@@ -237,7 +251,30 @@ def injetar_smart_finder_global(driver):
 
             raise orig_exc
 
+    def smart_find_elements(by, value):
+        """Intercepta find_elements para cobrir WebDriverWait/EC.*."""
+        result = original_find_elements(by, value)
+        if result:
+            return result
+
+        # Lista vazia: verificar se há seletor aprendido em cache
+        chave_cache = f"{by}_{value}"
+        cached = sf.cache.get(chave_cache)
+        if cached:
+            cached_by, cached_val = cached
+            if (cached_by, cached_val) != (by, value):
+                try:
+                    alt = original_find_elements(cached_by, cached_val)
+                    if alt:
+                        learn_logger.info(f"find_elements cache-hit: {chave_cache} -> {cached_val}")
+                        return alt
+                except Exception:
+                    pass
+
+        return result  # lista vazia original
+
     driver.find_element = smart_find_element
+    driver.find_elements = smart_find_elements
     setattr(driver, 'smart_finder', sf)
     learn_logger.info('Smart Finder shim injected on driver')
 

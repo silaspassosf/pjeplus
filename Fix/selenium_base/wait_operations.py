@@ -325,26 +325,35 @@ def aguardar_e_clicar(
 def esperar_url_conter(driver: WebDriver, substring: str, timeout: int = 10) -> bool:
     """
     Espera até que a URL atual contenha a substring especificada.
-    
+
     Args:
         driver: WebDriver instance
         substring: String a ser encontrada na URL
         timeout: Tempo máximo de espera em segundos (default: 10)
-        
+
     Returns:
         bool: True se encontrou, False se timeout
     """
+    import time as _t
+    deadline = _t.monotonic() + timeout
+    intervalo = 0.2
+    while _t.monotonic() < deadline:
+        try:
+            if substring in driver.current_url:
+                return True
+        except Exception:
+            pass
+        remaining = deadline - _t.monotonic()
+        if remaining <= 0:
+            break
+        _t.sleep(min(intervalo, remaining))
+        intervalo = min(intervalo * 1.5, 0.5)
     try:
-        WebDriverWait(driver, timeout).until(
-            lambda d: substring in d.current_url
-        )
-        return True
-    except TimeoutException:
-        logger.error(f'[URL][ERRO] Timeout esperando URL conter: "{substring}". URL atual: {driver.current_url}')
-        return False
-    except Exception as e:
-        logger.error(f'[URL][ERRO] Erro ao esperar URL: {e}')
-        return False
+        current_url = driver.current_url
+    except Exception:
+        current_url = '<inacessível>'
+    logger.error(f'[URL][ERRO] Timeout esperando URL conter: "{substring}". URL atual: {current_url}')
+    return False
 
 def _aguardar_loader_painel(driver: WebDriver, timeout: int = 10) -> None:
     """Espera loader (mat-progress-bar) sumir antes de seguir."""

@@ -644,17 +644,14 @@ def executar_p2b(driver) -> Dict[str, Any]:
     inicio = datetime.now()
     
     try:
-        # Preparar driver para executar P2B: garantir navegação/reset mínimo
-        try:
-            print("[P2B] Preparando driver para fluxo_prazo (reset/navegacao)...")
-            resetar_driver(driver)
-            time.sleep(2)
-        except Exception as e:
-            print(f"[P2B] Aviso: falha ao resetar driver antes do fluxo_prazo: {e}")
-
         # Executar API + fluxo de cada processo (substitui lista antiga)
         print("[P2B] Executando fluxo_prazo via API GIGS sem prazo XS...")
-        from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b
+        from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
+        atividades = testar_gigs_sem_prazo(driver, tamanho_pagina=100)
+        print(f"[P2B] Processos encontrados: {len(atividades)}")
+        if atividades:
+            numeros_processos = [item.get('processo', {}).get('numero') or item.get('numeroProcesso') or item.get('numero') for item in atividades]
+            print(f"[P2B] Números dos processos: {numeros_processos}")
 
         resultado = processar_gigs_sem_prazo_p2b(driver, tamanho_pagina=100, max_processos=0)
 

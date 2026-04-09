@@ -158,6 +158,10 @@ async function createTable(children) {
    
     tabela.appendChild(tbody);    
     document.body.appendChild(tabela);
+
+    window.addEventListener("beforeunload", function (e) {
+        browser.storage.local.set({'tempAR': ''});
+    });
 }
 
 function inserirLinha(tag, valor='', estilo='') {

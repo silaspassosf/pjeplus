@@ -164,6 +164,9 @@ from .abas import (
     is_browsing_context_discarded_error,
 )
 
+# ===== LOG CLEANER =====
+from .log_cleaner import resumir_excecao, filtrar_log_arquivo, extrair_seletor_dom
+
 __version__ = "2.0.0"
 
 __all__ = [
@@ -214,5 +217,7 @@ __all__ = [
     # Abas
     'validar_conexao_driver', 'trocar_para_nova_aba', 'forcar_fechamento_abas_extras',
     'is_browsing_context_discarded_error',
+    # Log cleaner
+    'resumir_excecao', 'filtrar_log_arquivo', 'extrair_seletor_dom',
 ]
 

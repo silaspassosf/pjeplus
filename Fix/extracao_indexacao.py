@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 
+from Fix.utils_observer import aguardar_renderizacao_nativa
 from Fix.log import logger
 from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
 
@@ -358,14 +359,16 @@ def trocar_para_nova_aba(driver: WebDriver, aba_lista_original: str) -> Optional
                             if '/detalhe' in (current_url or '').lower():
                                 try:
                                     # checagem rápida: conteúdo mínimo presente em 3s
-                                    WebDriverWait(driver, 3).until(lambda d: len(d.page_source or '') > 200 or 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 3)
+                                    if not aguardar_renderizacao_nativa(driver, 'button', 'aparecer', 3):
+                                        raise TimeoutException('Conteúdo mínimo não apareceu rapidamente')
                                 except TimeoutException:
                                     logger.info('[ABAS][ALERTA] /detalhe não apresentou conteúdo rápido; recarregando aba e aguardando')
                                     try:
                                         driver.refresh()
                                     except Exception as e_ref:
                                         logger.info(f'[ABAS][ALERTA] Falha ao refresh da aba: {e_ref}')
-                                    WebDriverWait(driver, 15).until(lambda d: len(d.page_source or '') > 200 or 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 3)
+                                    if not aguardar_renderizacao_nativa(driver, 'button', 'aparecer', 15):
+                                        raise TimeoutException('Conteúdo mínimo não apareceu após refresh')
                         except Exception as e:
                             logger.error(f'[ABAS][ALERTA] Erro na verificação de carregamento: {e}')
                         

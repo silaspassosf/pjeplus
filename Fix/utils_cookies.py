@@ -106,7 +106,7 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
             except Exception as e:
                 logger.warning(f"[COOKIES] Erro ao apagar cookies: {e}")
             try:
-                driver.get('https://pje.trt2.jus.br/primeirograu/')
+                driver.get('https://pje.trt2.jus.br/primeirograu/login.seam')
             except Exception:
                 pass
             return False

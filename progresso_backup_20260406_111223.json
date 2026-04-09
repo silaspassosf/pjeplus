@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "timestamp": "2026-04-02T14:41:15.779757",
+    "versao": "2.0",
+    "session_id": "sess_ad8a1c2add4a4309"
+  },
+  "execution": {
+    "status": "EM_PROGRESSO",
+    "inicio": "2026-04-02T14:40:02.805923",
+    "duracao_segundos": 72,
+    "modulo_ativo": null,
+    "pode_retomar": true
+  },
+  "modulos": {
+    "MANDADO": {
+      "status": "COMPLETO",
+      "processados": 2,
+      "total": 2,
+      "tempo_decorrido_segundos": 72,
+      "erros": 0,
+      "checkpoint": {
+        "ultimo_item": "1002243-69.2025.5.02.0703",
+        "timestamp": "2026-04-02T14:41:15.766479",
+        "proximo": null,
+        "contexto": {}
+      },
+      "detalhes": {},
+      "percentual": 100.0
+    }
+  },
+  "resumo_global": {
+    "total_modulos": 1,
+    "completos": 1,
+    "em_progresso": 0,
+    "pausados": 0,
+    "falhados": 0,
+    "percentual_global": 100.0,
+    "tempo_total_segundos": 72,
+    "tempo_restante_estimado_segundos": 0
+  },
+  "logs": [
+    {
+      "timestamp": "2026-04-01T09:07:58.761220",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO iniciado com 8 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-01T11:07:06.865202",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO iniciado com 8 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-01T11:07:19.464939",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO finalizado: 8/8",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-02T14:40:02.806118",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO iniciado com 2 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-02T14:41:15.779197",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO finalizado: 2/2",
+      "detalhes": {}
+    }
+  ],
+  "p2b": {
+    "processos_executados": [
+      "1000483-03.2016.5.02.0703",
+      "1000619-95.2025.5.02.0052",
+      "1000883-41.2021.5.02.0703",
+      "1001541-31.2022.5.02.0703",
+      "1001941-74.2024.5.02.0703",
+      "1001490-64.2015.5.02.0703",
+      "1000975-77.2025.5.02.0703",
+      "1000236-07.2025.5.02.0703",
+      "1001052-91.2022.5.02.0703",
+      "1000690-84.2025.5.02.0703",
+      "1000908-25.2019.5.02.0703",
+      "1001702-85.2015.5.02.0703",
+      "1001514-43.2025.5.02.0703",
+      "1001715-35.2025.5.02.0703",
+      "1000884-21.2024.5.02.0703",
+      "1001818-42.2025.5.02.0703",
+      "1001861-91.2025.5.02.0601",
+      "1001500-93.2024.5.02.0703"
+    ],
+    "session_active": true,
+    "last_update": "2026-04-02T15:42:07.225062"
+  },
+  "AUD": {
+    "processos_executados": [
+    "
+    ],
+    "session_active": true,
+    "last_update": "2026-04-06T10:43:40.331175"
+  }
+}

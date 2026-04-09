@@ -1,3 +1,170 @@
+# Extração de Texto de Documentos PJe via API
+#
+# Leitura de PDFs diretamente do endpoint `conteudo` da API PJe,
+# sem navegador visível e sem IA — com fallback automático para OCR
+# quando o PDF for escaneado (imagem).
+#
+# ---
+#
+# ## Dependências
+#
+# pip install pdfplumber pytesseract pdf2image requests
+# Também necessário: Tesseract-OCR instalado no sistema
+# Ubuntu/Debian: sudo apt install tesseract-ocr tesseract-ocr-por
+# Windows: https://github.com/UB-Mannheim/tesseract/wiki
+#
+# ---
+#
+# ## Reutilizar Sessão Autenticada do Driver
+#
+# O Firefox do PJePlus já está autenticado. Basta exportar os cookies:
+#
+# import requests
+#
+# def sessao_do_driver(driver) -> requests.Session:
+#     """Cria sessão requests reutilizando cookies ativos do driver."""
+#     sessao = requests.Session()
+#     sessao.headers.update({
+#         'User-Agent': driver.execute_script("return navigator.userAgent;")
+#     })
+#     for cookie in driver.get_cookies():
+#         sessao.cookies.set(cookie['name'], cookie['value'])
+#     return sessao
+#
+# ---
+#
+# ## Extração com Fallback para OCR
+#
+# import io
+# import pdfplumber
+# import pytesseract
+# from pdf2image import convert_from_bytes
+# from PIL import Image
+#
+# LIMIAR_CHARS_POR_PAGINA = 30
+#
+# def _extrair_texto_nativo(pdf_bytes: bytes) -> tuple[str, int]:
+#     textos = []
+#     total = 0
+#     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+#         total = len(pdf.pages)
+#         for pagina in pdf.pages:
+#             t = pagina.extract_text()
+#             if t:
+#                 textos.append(t)
+#     return '\n'.join(textos).strip(), total
+#
+# def _extrair_texto_ocr(pdf_bytes: bytes, lang: str = 'por') -> str:
+#     imagens = convert_from_bytes(pdf_bytes, dpi=300)
+#     textos = []
+#     for i, img in enumerate(imagens):
+#         t = pytesseract.image_to_string(img, lang=lang)
+#         if t.strip():
+#             textos.append(t)
+#         print(f"[OCR] Página {i+1}/{len(imagens)} processada | chars={len(t)}")
+#     return '\n'.join(textos).strip()
+#
+# def _e_pdf_escaneado(texto_nativo: str, total_paginas: int) -> bool:
+#     if total_paginas == 0:
+#         return True
+#     media = len(texto_nativo) / total_paginas
+#     return media < LIMIAR_CHARS_POR_PAGINA
+#
+# def extrair_texto_documento_api(
+#     sessao: requests.Session,
+#     id_processo: str,
+#     id_doc: str,
+#     forcar_ocr: bool = False,
+#     lang_ocr: str = 'por'
+# ) -> dict:
+#     resultado = {
+#         'texto': '',
+#         'metodo': 'erro',
+#         'paginas': 0,
+#         'chars': 0,
+#         'id_doc': id_doc,
+#         'id_processo': id_processo,
+#     }
+#     url = (
+#         f"https://pje.trt2.jus.br/pjekz/api/processos/{id_processo}"
+#         f"/documentos/{id_doc}/conteudo"
+#     )
+#     try:
+#         print(f"[EXTRACAO] Baixando doc={id_doc} processo={id_processo}")
+#         resp = sessao.get(url, timeout=60)
+#         resp.raise_for_status()
+#         content_type = resp.headers.get('Content-Type', '')
+#         if 'pdf' not in content_type:
+#             print(f"[EXTRACAO] Tipo inesperado: {content_type}")
+#             return resultado
+#         pdf_bytes = resp.content
+#         print(f"[EXTRACAO] PDF recebido | tamanho={len(pdf_bytes):,} bytes")
+#         if not forcar_ocr:
+#             texto_nativo, total_paginas = _extrair_texto_nativo(pdf_bytes)
+#             resultado['paginas'] = total_paginas
+#             if not _e_pdf_escaneado(texto_nativo, total_paginas):
+#                 print(f"[EXTRACAO] Método: NATIVO | páginas={total_paginas} | chars={len(texto_nativo)}")
+#                 resultado.update(texto=texto_nativo, metodo='nativo', chars=len(texto_nativo))
+#                 return resultado
+#             print(f"[EXTRACAO] PDF-imagem detectado (média chars/pág baixa) → acionando OCR")
+#         texto_ocr = _extrair_texto_ocr(pdf_bytes, lang=lang_ocr)
+#         resultado.update(texto=texto_ocr, metodo='ocr', chars=len(texto_ocr))
+#         print(f"[EXTRACAO] Método: OCR | chars={len(texto_ocr)}")
+#         return resultado
+#     except Exception as e:
+#         print(f"[EXTRACAO] Erro ao extrair doc {id_doc}: {e}")
+#         return resultado
+#
+# ---
+#
+# ## Iterar Todos os Documentos de um Processo
+#
+# def extrair_todos_documentos(
+#     sessao: requests.Session,
+#     id_processo: str,
+#     documentos: list[dict],
+#     apenas_tipos: list[str] | None = None
+# ) -> list[dict]:
+#     resultados = []
+#     for doc in documentos:
+#         if apenas_tipos and doc.get('tipo') not in apenas_tipos:
+#             continue
+#         print(f"\n[EXTRACAO] → {doc.get('tipo')} | {doc.get('titulo')}")
+#         r = extrair_texto_documento_api(sessao, id_processo, str(doc['id']))
+#         r['tipo'] = doc.get('tipo', '')
+#         r['titulo'] = doc.get('titulo', '')
+#         resultados.append(r)
+#     return resultados
+#
+# ---
+#
+# ## Exemplo de Uso Completo
+#
+# sessao = sessao_do_driver(driver)
+# resultado = extrair_texto_documento_api(sessao, '8463218', '453355283')
+# print(f"Método: {resultado['metodo']}")
+# print(f"Páginas: {resultado['paginas']}")
+# print(f"Chars: {resultado['chars']}")
+# print(resultado['texto'][:500])
+# todos = extrair_todos_documentos(sessao, '8463218', lista_documentos_api)
+# termo = 'horas extras'
+# for doc in todos:
+#     if termo.lower() in doc['texto'].lower():
+#         print(f"✅ '{termo}' encontrado em: {doc['titulo']} ({doc['tipo']})")
+#
+# ---
+#
+# ## Notas Operacionais
+#
+# | Situação | Comportamento |
+# |---|---|
+# | PDF digital (texto embutido) | `pdfplumber` extrai em < 1s |
+# | PDF escaneado (imagem) | OCR com `dpi=300` — ~3-8s por página |
+# | PDF protegido / corrompido | Retorna `metodo='erro'` sem lançar exceção |
+# | `forcar_ocr=True` | Ignora pdfplumber, vai direto ao Tesseract |
+# | Múltiplos idiomas | `lang_ocr='por+eng'` para documentos mistos |
+#
+# Sessão e cookies: os cookies do PJe expiram junto com a sessão do navegador. Se o driver for reiniciado, chame `sessao_do_driver(driver)` novamente antes de fazer novas requisições.
 """
 f.py - Script de Teste Rápido com estrutura fixa
 ===================================================
@@ -18,19 +185,15 @@ import io
 import os
 import time
 import logging
+import re
+import traceback
+from datetime import datetime
+
+from api.variaveis import PjeApiClient, session_from_driver
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
-
-from Fix.core import finalizar_driver
-from Fix.utils import login_cpf
-from Mandado.core import navegacao as mandado_navegacao, iniciar_fluxo_robusto as mandado_fluxo
-from Mandado.processamento_argos import processar_argos
-from Mandado.processamento_outros import fluxo_mandados_outros
 
 # Configurar logging para capturar logs de Fix.* durante execução do f.py
 logger = logging.getLogger()
@@ -60,443 +223,108 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 
+# Flag de controle (idêntico ao x.py)
+skip_finalizar = False
+
 # ============================================================================
 # SEÇÃO 1: CONFIGURAÇÕES DE NAVEGAÇÃO (MODIFICAR AQUI)
 # ============================================================================
 
 # URL para navegar após login (caso de teste solicitado)
-URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/6019203/detalhe/"
-
-# Dados adicionais (se necessário para testes)
-NUMERO_PROCESSO = "6019203"
-
-
-# ============================================================================
-# CONFIGURAÇÕES GLOBAIS (NÃO MODIFICAR)
-# ============================================================================
-
-GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
-if not os.path.exists(GECKODRIVER_PATH):
-    GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'Fix', 'geckodriver.exe')
-
-
-# ============================================================================
-# FUNÇÕES DE CRIAÇÃO DE DRIVER (BASEADAS EM X.PY - NÃO MODIFICAR)
-# ============================================================================
-
-def criar_driver_pc_visivel():
-    """
-    Cria driver Firefox para PC - VISÍVEL
-    Firefox Developer Edition com configurações otimizadas.
-    """
-    print("[DRIVER] 🔧 Criando driver PC (visível)...")
-    
-    try:
-        options = Options()
-        
-        # Configurações de automação
-        options.set_preference("dom.webdriver.enabled", False)
-        options.set_preference('useAutomationExtension', False)
-        options.set_preference("general.useragent.override", 
-                              "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0")
-        
-        # Cache e performance
-        options.set_preference("browser.cache.disk.enable", True)
-        options.set_preference("browser.cache.memory.enable", True)
-        options.set_preference("browser.cache.offline.enable", True)
-        options.set_preference("network.http.use-cache", True)
-        
-        # Notificações
-        options.set_preference("dom.webnotifications.enabled", False)
-        options.set_preference("media.volume_scale", "0.0")
-        
-        # Anti-throttling
-        options.set_preference("dom.min_background_timeout_value", 0)
-        options.set_preference("dom.timeout.throttling_delay", 0)
-        options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-        options.set_preference("page.load.animation.disabled", True)
-        options.set_preference("dom.disable_window_move_resize", False)
-        
-        # Firefox binary
-        options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-        
-        service = Service(executable_path=GECKODRIVER_PATH)
-        driver = webdriver.Firefox(options=options, service=service)
-        driver.implicitly_wait(10)
-        driver.maximize_window()
-        
-        # Ocultar webdriver
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        print("[DRIVER] ✅ Driver PC criado com sucesso")
-        return driver
-        
-    except Exception as e:
-        print(f"[DRIVER] ❌ Erro ao criar driver PC: {e}")
-        raise
-
-
-def criar_driver_vt_visivel():
-    """
-    Cria driver Firefox para VT - VISÍVEL
-    Configurações VT com otimizações de startup.
-    """
-    print("[DRIVER] 🔧 Criando driver VT (visível)...")
-    
-    # Configurações VT
-    FIREFOX_BINARY = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
-    FIREFOX_BINARY_ALT = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
-    
-    # Encontrar binário Firefox
-    firefox_bin = None
-    for bin_path in [FIREFOX_BINARY, FIREFOX_BINARY_ALT]:
-        if os.path.exists(bin_path):
-            firefox_bin = bin_path
-            break
-    
-    if not firefox_bin:
-        print(f"[DRIVER] ❌ Nenhum binário Firefox encontrado")
-        raise Exception("Firefox Developer Edition não encontrado")
-    
-    print(f"[DRIVER] Usando binário: {firefox_bin}")
-    
-    try:
-        options = Options()
-        
-        # Desabilitar extensões para acelerar startup
-        options.add_argument('-no-remote')
-        options.add_argument('-new-instance')
-        
-        options.binary_location = firefox_bin
-        
-        # Anti-automação
-        options.set_preference("dom.webdriver.enabled", False)
-        options.set_preference('useAutomationExtension', False)
-        
-        # Desabilitar extensões
-        options.set_preference("extensions.update.enabled", False)
-        options.set_preference("extensions.update.autoUpdateDefault", False)
-        options.set_preference("xpinstall.enabled", False)
-        
-        # Otimizações de performance
-        options.set_preference("browser.sessionstore.max_tabs_undo", 0)
-        options.set_preference("browser.sessionstore.max_windows_undo", 0)
-        options.set_preference("browser.cache.disk.enable", False)
-        options.set_preference("browser.cache.memory.enable", False)
-        options.set_preference("browser.shell.checkDefaultBrowser", False)
-        options.set_preference("browser.safebrowsing.malware.enabled", False)
-        options.set_preference("browser.safebrowsing.phishing.enabled", False)
-        options.set_preference("browser.safebrowsing.downloads.enabled", False)
-        
-        # Anti-throttling
-        options.set_preference("dom.min_background_timeout_value", 0)
-        options.set_preference("dom.timeout.throttling_delay", 0)
-        options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-        
-        # Performance geral
-        options.set_preference("browser.startup.homepage", "about:blank")
-        options.set_preference("startup.homepage_welcome_url", "about:blank")
-        options.set_preference("browser.startup.page", 0)
-        options.set_preference("datareporting.healthreport.uploadEnabled", False)
-        options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
-        options.set_preference("toolkit.telemetry.enabled", False)
-        
-        service = Service(executable_path=GECKODRIVER_PATH)
-        driver = webdriver.Firefox(service=service, options=options)
-        driver.set_page_load_timeout(60)
-        driver.set_script_timeout(30)
-        driver.implicitly_wait(10)
-        driver.maximize_window()
-        
-        # Ocultar webdriver
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        print("[DRIVER] ✅ Driver VT criado com sucesso")
-        return driver
-    except Exception as e:
-        print(f"[DRIVER] ❌ Erro ao criar driver VT: {e}")
-        raise
+URL_NAVEGACAO = "https://pje.trt2.jus.br/pjekz/processo/8481068/detalhe"
+URL_NAVEGACAO_PAINEL_GLOBAL_8 = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
 
 
 # ============================================================================
 # SEÇÃO 3: FUNÇÕES DE TESTE (MODIFICAR AQUI CONFORME NECESSÁRIO)
 # ============================================================================
 
-def executar_testes(driver_pje):
-    """
-    TESTE ISOLADO: Execução de `pec_decisao` (wrapper) no processo já aberto
-    """
-    print("\n" + "=" * 80)
-    print("TESTE ISOLADO: pec_idpj")
-    print("=" * 80)
+def executar_ciclo3_debug(driver_pje):
+    """DEBUG PRAZO: testa apenas seleção de não-livres e movimentação para providências."""
+    from Prazo.loop_ciclo2_selecao import _ciclo2_aplicar_filtros
+    from Prazo.loop_ciclo2_processamento import ciclo2_loop_providencias
+    from Fix.core import aguardar_renderizacao_nativa
 
+    print("\n[DEBUG] Navegando para painel global 8 (ciclo2)")
+    driver_pje.get(URL_NAVEGACAO_PAINEL_GLOBAL_8)
     try:
-        from atos.wrappers_pec import pec_idpj
-        import time
-
-        print("\n[1/1] Executando pec_idpj (wrapper) com timing detalhado...")
-        print("-" * 80)
-
-        inicio_total = time.time()
-        try:
-            print(f"[PEC_IDPJ] Iniciando processo {NUMERO_PROCESSO}...")
-            resultado = pec_idpj(driver_pje, numero_processo=NUMERO_PROCESSO, debug=True)
-            tempo_total = time.time() - inicio_total
-
-            print("-" * 80)
-            print(f"[PEC_IDPJ] Resultado: {resultado}")
-            print(f"[PEC_IDPJ] Tempo total: {tempo_total:.2f}s")
-
-            if resultado:
-                print("✅ pec_idpj executado com sucesso")
-                return True
-            else:
-                print("⚠️ pec_idpj retornou False")
-                return False
-
-        except Exception as e:
-            tempo_total = time.time() - inicio_total
-            print("-" * 80)
-            print(f"❌ pec_excluiargos FALHOU: {e}")
-            print(f"[PEC_EXCLUIARGOS] Tempo até erro: {tempo_total:.2f}s")
-            import traceback
-            traceback.print_exc()
-            return False
-            
-    except Exception as e:
-        print(f"\n❌ ERRO NO TESTE: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
-def obter_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
-    """Retorna a lista de mandados devolvidos via endpoint interno"""
-    url = ('https://pje.trt2.jus.br/pje-comum-api/api/escaninhos/documentosinternos'
-           f'?mandadosDevolvidos=true&pagina={pagina}&tamanhoPagina={tamanho_pagina}'
-           f'&ordenacaoCrescente={str(ordenacao_crescente).lower()}')
-
-    script = f"""
-        return (async function() {{
-            const url = '{url}';
-            const xsrfCookie = document.cookie.split(';').map(c => c.trim())
-                .find(c => c.toLowerCase().startsWith('xsrf-token='));
-            if (!xsrfCookie) {{ return {{ status: 0, error: 'XSRF_NOT_FOUND' }}; }}
-            const xsrf = xsrfCookie.split('=')[1];
-
-            const response = await fetch(url, {{
-                method: 'GET',
-                credentials: 'include',
-                headers: {{
-                    'Accept': 'application/json',
-                    'X-XSRF-TOKEN': xsrf
-                }}
-            }});
-
-            const text = await response.text();
-            return {{ status: response.status, body: text }};
-        }})();
-    """
-
-    resultado = driver.execute_script(script)
-    status = resultado.get('status')
-
-    if status != 200:
-        raise RuntimeError(f"[MANDADOS] Erro HTTP: {status}, payload: {resultado.get('body')}")
-
-    import json
-    try:
-        data = json.loads(resultado.get('body', '{}'))
-    except Exception as e:
-        raise RuntimeError(f"[MANDADOS] Falha parse JSON: {e}")
-
-    if isinstance(data, dict):
-        processos = data.get('resultado') or data.get('dados') or []
-    elif isinstance(data, list):
-        processos = data
-    else:
-        processos = []
-
-    return processos
-
-
-def test_mandados_devolvidos_api(driver):
-    """Teste direto do endpoint /pje-comum-api/api/escaninhos/documentosinternos"""
-    print("\n[TESTE-MANDADOS] Consultando API de mandados devolvidos...")
-
-    try:
-        processos = obter_mandados_devolvidos(driver)
-    except Exception as e:
-        print(f"[TESTE-MANDADOS] falha: {e}")
-        return False
-
-    print(f"[TESTE-MANDADOS] total de items retornados: {len(processos)}")
-    if processos:
-        print("[TESTE-MANDADOS] Exemplo de item cru:", processos[0])
-
-    for idx, item in enumerate(processos[:30], start=1):
-        processo_obj = item.get('processo') or {}
-        processo_id = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
-        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
-        tipo = (item.get('tipoAtividade') and (item['tipoAtividade'].get('descricao') or item['tipoAtividade'].get('nome')))
-        if not tipo:
-            tipo = (item.get('tipo') or item.get('tipoDeDocumento') or item.get('tipoDocumento'))
-        status = item.get('statusAtividade') or item.get('status') or item.get('situacao')
-
-        print(f"  {idx:02d} - id_processo: {processo_id} - processo: {numero} - tipo: {tipo} - status: {status}")
-
-    return True
-
-
-def obter_gigs_sem_prazo_xs(driver, tamanho_pagina=100):
-    """Busca via API os registros de GIGS sem prazo (XS), usando logic of new fluxo mandado/filtro XS."""
-    from Mandado.processamento_api import testar_api_gigs_sem_prazo
-
-    try:
-        resultado = testar_api_gigs_sem_prazo(driver, tamanho_pagina=tamanho_pagina)
-    except Exception as e:
-        print(f"[P2B] falha ao consultar GIGS sem prazo via API: {e}")
-        return []
-
-    print(f"[P2B] total de GIGS sem prazo (XS) retornados: {len(resultado)}")
-    if resultado:
-        print(f"[P2B] exemplo: {resultado[0]}")
-
-    return resultado
-
-
-def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina=100):
-    """Fluxo de teste p2b: obtém itens XS via endpoint e imprime resumo."""
-    gigs = obter_gigs_sem_prazo_xs(driver, tamanho_pagina=tamanho_pagina)
-    if not gigs:
-        print("[P2B] Nenhum item para processar")
-        return False
-
-    for idx, item in enumerate(gigs, start=1):
-        processo_obj = item.get('processo') or {}
-        id_processo = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
-        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
-        descricao = (item.get('tipoAtividade') or {}).get('descricao') or (item.get('tipoAtividade') or {}).get('nome') or item.get('descricao')
-
-        print(f"  {idx:02d} - id: {id_processo} - numero: {numero} - descricao: {descricao}")
-
-    print("[P2B] Fluxo de processamento p2b (apenas listagem) concluído.")
-    return True
-
-
-def processar_prazo_ciclo2(driver):
-    """Executa apenas o ciclo2 do loop de Prazo (filtro + livres + não-livres + movimentação)."""
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
-    from Prazo.loop_ciclo2_processamento import ciclo2
-
-    # 1. Navegar para painel onde ciclo2 começa (depois do painel 14)
-    painel_ciclo2 = 'https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos'
-    print(f"[PRAZO_CICLO2] Navegando para painel do ciclo2: {painel_ciclo2}")
-    driver.get(painel_ciclo2)
-
-    # Esperar página carregar lista de processos
-    try:
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, "//span[contains(text(), 'Fase processual') or contains(text(), 'Fase processual')]"))
-        )
+        aguardar_renderizacao_nativa(driver_pje, 'span.total-registros', timeout=15)
     except Exception:
-        print('[PRAZO_CICLO2] Aviso: tempo limite ao aguardar elemento de fase processual; prosseguindo mesmo assim')
+        pass
 
-    # 2-6. Executar ciclo 2 completo (filtros, seleção, XS, não-livres 20 em 20, movimentação, retorno)
-    print('[PRAZO_CICLO2] Iniciando ciclo2 (filtro + livres + providências)')
-    resultado = ciclo2(driver, opcao_destino='Cumprimento de providências')
+    print("[DEBUG] Aplicando filtros ciclo2")
+    if not _ciclo2_aplicar_filtros(driver_pje):
+        print("[DEBUG][ERRO] _ciclo2_aplicar_filtros retornou False")
+        return False
 
-    if resultado:
-        print('[PRAZO_CICLO2] Ciclo2 finalizado com sucesso')
-    else:
-        print('[PRAZO_CICLO2] Ciclo2 finalizou com falhas')
-
+    print("[DEBUG] Iniciando ciclo 3: seleção de não-livres + movimentação em lote")
+    resultado = ciclo2_loop_providencias(driver_pje, 'Cumprimento de providências')
+    print(f"[DEBUG] ciclo 3 concluído: {'sucesso' if resultado else 'falha'}")
     return resultado
 
 
-def processar_mandado_detalhe(driver, numero_processo, id_processo=None):
-    """Abre /processo/{numero}/detalhe/ em nova aba, processa fluxo Mandado e fecha aba."""
-    from Fix.core import wait_for_page_load, esperar_elemento
-
-    if id_processo:
-        detalhe_url = f"https://pje.trt2.jus.br/pjekz/processo/{id_processo}/detalhe/"
-    else:
-        detalhe_url = f"https://pje.trt2.jus.br/pjekz/processo/{numero_processo}/detalhe/"
-    initial_handle = driver.current_window_handle
-
-    driver.execute_script("window.open(arguments[0], '_blank');", detalhe_url)
-    time.sleep(0.5)
-    new_handle = [h for h in driver.window_handles if h != initial_handle]
-    if not new_handle:
-        print(f"[MANDADOS][ERRO] Não foi possível abrir aba para {numero_processo}")
-        return False
-    new_handle = new_handle[0]
-
-    driver.switch_to.window(new_handle)
-
-    try:
-        wait_for_page_load(driver, timeout=15)
-        cabecalho = esperar_elemento(driver, '.cabecalho-conteudo .mat-card-title, mat-card-title.mat-card-title', timeout=15)
-        if not cabecalho:
-            print(f"[MANDADOS][ERRO] Cabeçalho não encontrado para {numero_processo}")
-            return False
-
-        texto_doc = cabecalho.text or ''
-        texto_lower = texto_doc.lower()
-
-        if any(term in texto_lower for term in ['pesquisa patrimonial', 'argos', 'devolucao de ordem de pesquisa', 'certidao de devolucao', 'certidão de devolução']):
-            print(f"[MANDADOS] ({numero_processo}) identificou fluxo Argos")
-            return processar_argos(driver, log=True)
-
-        if any(term in texto_lower for term in ['oficial de justica', 'certidao de oficial', 'certidão de oficial', 'oficial de justiça']):
-            print(f"[MANDADOS] ({numero_processo}) identificou fluxo Outros")
-            fluxo_mandados_outros(driver, log=False)
-            return True
-
-        print(f"[MANDADOS] ({numero_processo}) tipo não identificado no cabeçalho: {texto_doc[:40]}")
-        return False
-
-    except Exception as e:
-        print(f"[MANDADOS][ERRO] Falha ao processar {numero_processo}: {e}")
-        return False
-
-    finally:
-        try:
-            driver.close()
-        except Exception:
-            pass
-        driver.switch_to.window(initial_handle)
+def _extrair_id_processo_da_url(url):
+    if not url:
+        return None
+    match = re.search(r"/processo/(\d+)(?:/|$)", url)
+    return match.group(1) if match else None
 
 
-def processar_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
-    """Processa mandados devolvidos via API, abrindo um processo por vez no /detalhe/."""
-    mandados = obter_mandados_devolvidos(driver, pagina=pagina, tamanho_pagina=tamanho_pagina, ordenacao_crescente=ordenacao_crescente)
+def _normalizar_texto_documento(valor):
+    return (valor or '').strip().lower()
 
-    if not mandados:
-        print('[MANDADOS] Nenhum mandado devolvido encontrado para processar')
-        return False
 
-    print(f"[MANDADOS] Encontrados {len(mandados)} mandados devolvidos (API)")
-
-    sucesso_total = True
-    for idx, item in enumerate(mandados, start=1):
-        processo_obj = item.get('processo') or {}
-        id_processo = (processo_obj.get('id') or processo_obj.get('idProcesso') or item.get('idProcesso') or item.get('id'))
-        numero = (processo_obj.get('numero') or processo_obj.get('numeroProcesso') or item.get('numeroProcesso') or item.get('numero'))
-
-        if not id_processo:
-            print(f"[MANDADOS] Aviso: idProcesso não encontrado para item {idx}, pulando")
+def _listar_documentos_timeline(timeline):
+    documentos = []
+    for item in timeline or []:
+        if not isinstance(item, dict):
             continue
+        documentos.append(item)
+        for anexo in item.get('anexos') or []:
+            if isinstance(anexo, dict):
+                documentos.append(anexo)
+    return documentos
 
-        print(f"  {idx:02d} - idProcesso={id_processo} numeroProcesso={numero}")
-        sucesso = processar_mandado_detalhe(driver, numero, id_processo=id_processo)
-        if not sucesso:
-            print(f"[MANDADOS] Falha ao processar {numero}")
-            sucesso_total = False
 
-    return sucesso_total
+def _eh_peticao_inicial(documento):
+    tipo = _normalizar_texto_documento(documento.get('tipo'))
+    titulo = _normalizar_texto_documento(documento.get('titulo'))
+    return 'petição inicial' in tipo or 'peticao inicial' in tipo or 'petição inicial' in titulo or 'peticao inicial' in titulo
+
+
+def _resumir_documento(documento):
+    anexos = documento.get('anexos') or []
+    return {
+        'tipo': documento.get('tipo'),
+        'titulo': documento.get('titulo'),
+        'id': documento.get('id'),
+        'idUnicoDocumento': documento.get('idUnicoDocumento'),
+        'idDocumentoPai': documento.get('idDocumentoPai'),
+        'anexos': len(anexos) if isinstance(anexos, list) else 0,
+    }
+
+
+def _sondar_endpoint_documento(client, id_processo, id_documento, sufixo):
+    url = client._url(f"/pje-comum-api/api/processos/id/{id_processo}/documentos/id/{id_documento}/{sufixo}")
+    resposta = client.sess.get(url, timeout=15)
+    content_type = resposta.headers.get('Content-Type', '')
+    corpo_json = None
+    corpo_texto = ''
+    try:
+        corpo_json = resposta.json()
+    except Exception:
+        corpo_texto = resposta.text or ''
+    return {
+        'url': url,
+        'ok': resposta.ok,
+        'status': resposta.status_code,
+        'content_type': content_type,
+        'json': corpo_json,
+        'texto_inicio': corpo_texto[:500] if corpo_texto else '',
+        'texto_tamanho': len(corpo_texto) if corpo_texto else 0,
+    }
+
+
 
 
 # ============================================================================
@@ -504,94 +332,129 @@ def processar_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao
 # ============================================================================
 
 def main():
-    """Execução principal com escolha de driver"""
-    driver_pje = None
-    
+    """Execução principal - PC em modo headless."""
+    global skip_finalizar
+
+
+# ============================================================================
+# EXECUÇÃO PRINCIPAL (NÃO MODIFICAR)
+# ============================================================================
+
+def main():
+    """Execução principal - PC em modo headless."""
+    global skip_finalizar
+
+    from Fix.drivers import driver_session
+
+
+
+
+
+# ============================================================================
+# EXECUÇÃO PRINCIPAL (NÃO MODIFICAR)
+# ============================================================================
+
+def main():
+    """Execução principal - PC em modo headless."""
+    global skip_finalizar
+
+    from Fix.drivers import driver_session
+    driver = None
+
     try:
         print("=" * 80)
         print("F.PY - SCRIPT DE TESTE RÁPIDO")
         print("=" * 80)
-        
-        # 1. ESCOLHER DRIVER (PJE) - DEFAULT PARA VT
-        print("\n[1/3] Escolha o tipo de driver PJE: (default V)")
-        print("  [V] VT (padrão)")
-        # print("  [P] PC (opcional)")
+        print(f" Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        print(f" Ambiente: PC + Headless")
+        print("=" * 80)
 
-        # allow non-interactive choice via env var or CLI arg for automated runs
-        escolha = None
-        if len(sys.argv) > 1:
-            escolha = sys.argv[1].strip().upper()
-        if not escolha:
-            escolha = os.environ.get('F_CHOICE', '').strip().upper()
-        # se nada fornecido, usar VT por padrão (V)
-        if not escolha:
-            escolha = 'V'
-        
-        if escolha == 'V':
-            driver_pje = criar_driver_vt_visivel()
-        elif escolha == 'P':
-            driver_pje = criar_driver_pc_visivel()
-        else:
-            print(f"❌ Opção inválida: {escolha}")
-            return False
-        
-        # 2. LOGIN PJE
-        print("\n[2/3] Fazendo login no PJE...")
-        sucesso_login = login_cpf(driver_pje)
-        if not sucesso_login:
-            print("[LOGIN] Primeira tentativa falhou (cookies ou sessão expirada). Limpando cookies e resetando navegação...")
+        driver_type_str = "PC"
+        headless = False
+
+        with driver_session(driver_type_str, headless=headless) as driver:
+            # Login
+            from Fix.utils import login_cpf
+            if not login_cpf(driver):
+                print(" Falha no login")
+                return
             try:
-                driver_pje.delete_all_cookies()
-            except Exception:
-                pass
-            try:
-                driver_pje.get("https://pje.trt2.jus.br/primeirograu/")
-                time.sleep(1.5)
-            except Exception:
-                pass
-            print("[LOGIN] Tentando login manual novamente...")
-            sucesso_login = login_cpf(driver_pje)
-            if not sucesso_login:
-                print("❌ Falha no login (mesmo após retry)")
-                return False
-        print("✅ Login PJE concluído")
+                print(f"\n Navegando para: {URL_NAVEGACAO}")
+                driver.get(URL_NAVEGACAO)
 
-        # === TESTE PRAZO CICLO2 (P2) ===
-        try:
-            print("[PRAZO_CICLO2] Iniciando ciclo2 isolado em Prazo")
-            sucesso_prazo_c2 = processar_prazo_ciclo2(driver_pje)
-            print(f"[PRAZO_CICLO2] Resultado do fluxo: {'sucesso' if sucesso_prazo_c2 else 'falha'}")
+                from selenium.webdriver.support.ui import WebDriverWait
+                from selenium.webdriver.support import expected_conditions as EC
+                from selenium.webdriver.common.by import By
 
-            # Caso queira manter o fluxo de GIGS sem prazo XS via API (alternativa):
-            # print("[P2B] Iniciando fluxo de teste GIGS sem prazo XS via API")
-            # sucesso_p2b = processar_gigs_sem_prazo_p2b(driver_pje)
-            # print(f"[P2B] Resultado do fluxo: {'sucesso' if sucesso_p2b else 'falha'}")
+                try:
+                    WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.TAG_NAME, "body"))
+                    )
+                    print(" Página carregada")
+                except Exception as e:
+                    print(f" Aviso: Página pode não ter carregado completamente: {e}")
 
-        except Exception as e:
-            print(f"[TESTE] Erro ao testar API mandados devolvidos ou processar fluxo: {e}")
-        print("\n" + "=" * 80)
-        print("TESTE CONCLUÍDO - Pressione Enter para fechar o browser...")
-        input()
-        return True
-        
+                # Executar triagem completa após login e navegação (seguir fluxo de aud.py)
+                from tr import triagem_peticao
+                from Fix.gigs import criar_comentario
+                
+                processo_info = {}
+                
+                try:
+                    print("\n[TRIAGEM] Executando triagem_peticao(driver)...")
+                    processo_info['triagem'] = triagem_peticao(driver)
+                except Exception as e:
+                    processo_info['triagem'] = f"ERRO: falha ao executar triagem: {e}"
+                    print(f"[TRIAGEM] ⚠️ Falha ao executar triagem: {e}")
+
+                try:
+                    triagem = processo_info.get('triagem')
+                    if triagem:
+                        print(f"\n[TRIAGEM] Resultado da triagem:")
+                        print(triagem)
+                        print(f"\n[TRIAGEM] Registrando comentário da triagem...")
+                        criar_comentario(driver, triagem)
+                        print(f"[TRIAGEM] ✓ Comentário da triagem registrado com sucesso")
+                except Exception as e:
+                    print(f"[TRIAGEM] ⚠️ Falha ao registrar comentário da triagem: {e}")
+                    print(f"[TRIAGEM] triagem tipo={type(triagem).__name__} tamanho={len(triagem) if isinstance(triagem, str) else 'N/A'}")
+                    traceback.print_exc()
+
+                print("\n" + "=" * 80)
+                print("TESTE CONCLUÍDO - encerrando em modo headless...")
+
+            except KeyboardInterrupt:
+                print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
+                try:
+                    import logging as _logging
+                    _logging.getLogger('urllib3.connectionpool').disabled = True
+                    _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
+                    from Fix.core import finalizar_driver_imediato as finalizar_driver_imediato_fix
+                    finalizar_driver_imediato_fix(driver)
+                except Exception:
+                    pass
+                os._exit(0)
+            except Exception as e:
+                print(f" Erro: {e}")
+                traceback.print_exc()
+
     except KeyboardInterrupt:
-        print("\n\n⚠️ Execução interrompida pelo usuário (Ctrl+C)")
-        return False
-        
+        print("\n Interrompido pelo usuário — finalizando imediatamente")
+        try:
+            import logging as _logging
+            _logging.getLogger('urllib3.connectionpool').disabled = True
+            _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
+            from Fix.core import finalizar_driver_imediato as finalizar_driver_imediato_fix
+            finalizar_driver_imediato_fix(driver)
+        except Exception:
+            pass
+        os._exit(0)
     except Exception as e:
-        print(f"\n❌ ERRO FATAL: {e}")
-        import traceback
+        print(f" Erro fatal: {e}")
         traceback.print_exc()
-        return False
-        
     finally:
-        # Fechar driver PJE
-        if driver_pje:
-            try:
-                finalizar_driver(driver_pje)
-                print("\n[CLEANUP] ✅ Driver PJE fechado")
-            except:
-                pass
+        # Driver mantido aberto para inspeção manual
+        pass
 
 
 if __name__ == "__main__":

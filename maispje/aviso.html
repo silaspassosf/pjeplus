@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>Termos de Uso - maisPje</title>
-		<style>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Termos de Uso - maisPje</title>
+        <style>
 			body {
 				font-family: "NunitoSans Regular", "Arial", sans-serif;
 				font-size: 0.8em;
@@ -13,8 +14,8 @@
 				line-height:1.5;
 				background: #ebf0f3;
 			}
-			
-			fieldset {
+
+			main {
 				position: relative;
 				border-radius: 5px;
 				margin-bottom: 10px;
@@ -23,18 +24,18 @@
 				box-shadow: 0 0 0.9em #bbb;
 				padding: 15px;
 			}
-			
+
 			#atencao{
 				font-weight: normal;
 				color: #000;
 				text-align: center;
 				text-shadow: 1px 1px #fff;
 			}
-			
+
 			.categorias{
 				text-align: center;
 			}
-			
+
 			.logo {
 				font-family: fantasy;
 				font-weight: bold;
@@ -54,7 +55,7 @@
 				text-rendering: auto;
 				line-height: 1;
 				cursor: pointer;
-				shape-rendering: crispedges;				
+				shape-rendering: crispedges;
 			}
 
 			.logo-plus {
@@ -130,7 +131,8 @@
 			}
 
 			.decisao {
-				display: flex; 
+                margin-top: 6em;
+				display: flex;
 				justify-content: center;
 				gap: 45px;
 			}
@@ -142,7 +144,7 @@
 				font-size: 20px;
 				background-color: gray;
 				color: #fff;
-				cursor: pointer;	
+				cursor: pointer;
 			}
 
 			#concordo:hover, #concordo:focus {
@@ -152,70 +154,57 @@
 			#naoconcordo:hover, #naoconcordo:focus {
 				background-color: #d70000;
 			}
-		</style>		
-	</head>
+        </style>
+    </head>
 
-	<body>
-			<nav class="categorias">
-				<div class="logo">
-					<span style="padding: 5px 5px 0 0;"><i class="icone logo-box-open"></i></span>
-					<span style="padding: 0 5px 0 0;"><i class="icone logo-plus"></i></span>	
-					<span><img src="icons/logo-pje.png" style="width: auto; height: 32px;padding-top: 10px;"></span>
-				</div>
-				<div>
-					<b>Módulo de Automatizacao Interna de Secretaria</b>
-					<br>
-					Tribunal Regional do Trabalho da 12ª Região - TRT12
-					<br>
-					ft. Fernando de Medeiros Marcon
-				</div>
-			</nav>
-			<fieldset id="atencao" style="margin-top: 30px">
-				<div>
-				<span style="font-size: 2vh;font-weight: bold;">AVISO LEGAL</span>
-				<br /> 
-				<br />
-				<span style="font-style: italic;">LEIA COM ATENÇÃO</span>
-				<br />
-				<br />
-				<div>
-				A extensão maisPJe não faz parte do Processo Judicial Eletrônico sendo apenas um programa que agrega funcionalidades ao sistema.
-				<br />
-				<br />
-				Para isso, trabalhamos com as informações que aparecem na tela do usuário, armazenando-as na memória do navegador para depois utilizá-las preenchendo automaticamente campos na tela e/ou automatizando ações pré-programadas.
-				<br />
-				<br />
-				A extensão armazena dados apenas das aplicações do PJe e dos convênios firmados com a Justiça do Trabalho, não atuando em quaisquer outros sites e serviços.
-				<br />
-				<br />
-				<span style="background-color: #ffa50082;padding: 2px;border: 2px dotted orangered;border-radius: 5px;text-shadow: 1px 1px #ffffff82;">
-				A coleta de dados descrita acima é <b>obrigatória</b> para o funcionamento da extensão. Infelizmente a extensão não funciona sem a coleta de dados da tela do usuário. Caso não concorde, a extensão será desinstalada automaticamente.
-				</span>
-				<br />
-				<br />
-				Sabemos que algumas dessas informações armazenadas pela extensão, como o nome e CPF/CNPJ das partes, são sensíveis e podem ser capturadas por softwares mal-intencionados. Por isso é muito importante manter sempre o antivírus e o firewall do seu computador ligados e atualizados, bem como evitar baixar programas de origem desconhecida.
-				<br />
-				<br />
-				Também é importante conhecer a nossa <a href="https://portal.trt12.jus.br/lgpd/politica-de-privacidade" target="_blank" id="politicaprivacidade">política de privacidade</a>.
-				<br />
-				<br />
-				Por fim, destacamos que a extensão passou por todos os testes de segurança da informação realizados pelo Tribunal Regional do Trabalho da 12ª Região - TRT12 a fim de garantir ao usuário a utilização plena das suas funcionalidades.
-				<br />
-				<br />
-				Ciente dessas informações, você concorda com a nossa política de privacidade e com os termos apresentados?
-				</div>
-				<br />
-				<br />
-				<br />
-				<div class="decisao">
-					<button name="concordo" id="concordo">SIM, concordo</button>
-					<button name="naoconcordo" id="naoconcordo">NÃO, discordo</button>
-				</div>
-				<br />
-				<br /><br />
-								
-			</fieldset>
-			<span style="display: block;width: 100%;text-align: right;font-style: italic;font-size: .7rem;">Os direitos sobre a extensão foram cedidos ao Tribunal Regional do Trabalho da 12ª Região - TRT12.</span>
-			<script src="aviso.js"></script>
-	</body>
+    <body>
+        <header class="categorias">
+            <div class="logo" aria-hidden="true">
+                <span style="padding: 5px 5px 0 0;"><i class="icone logo-box-open"></i></span>
+                <span style="padding: 0 5px 0 0;"><i class="icone logo-plus"></i></span>
+                <span>
+                    <img
+                        alt="PJE"
+                        src="icons/logo-pje.png"
+                        style="width: auto; height: 32px;padding-top: 10px;"
+                    >
+                </span>
+            </div>
+            <div>
+                <h1>Módulo de Automatizacao Interna de Secretaria</h1>
+                <h2>Tribunal Regional do Trabalho da 12ª Região - TRT12</h2>
+            </div>
+        </header>
+        <main id="atencao" style="margin-top: 30px">
+            <div>
+                <h2>AVISO LEGAL</h2>
+                <p style="font-style: italic;">LEIA COM ATENÇÃO</p>
+                <div>
+                    <p>A extensão maisPJe não faz parte do Processo Judicial Eletrônico sendo apenas um programa que agrega funcionalidades ao sistema.</p>
+                    <p>Para isso, trabalhamos com as informações que aparecem na tela do usuário, armazenando-as na memória do navegador para depois utilizá-las preenchendo automaticamente campos na tela e/ou automatizando ações pré-programadas.</p>
+                    <p>A extensão armazena dados apenas das aplicações do PJe e dos convênios firmados com a Justiça do Trabalho, não atuando em quaisquer outros sites e serviços.</p>
+                    <p style="background-color: #ffa50082;padding: 2px;border: 2px dotted orangered;border-radius: 5px;text-shadow: 1px 1px #ffffff82;">
+                        A coleta de dados descrita acima é <b>obrigatória</b> para o funcionamento da extensão. Infelizmente a extensão não funciona sem a coleta de dados da tela do usuário. Caso não concorde, a extensão será desinstalada automaticamente.
+                    </p>
+                    <p>Sabemos que algumas dessas informações armazenadas pela extensão, como o nome e CPF/CNPJ das partes, são sensíveis e podem ser capturadas por softwares mal-intencionados. Por isso é muito importante manter sempre o antivírus e o firewall do seu computador ligados e atualizados, bem como evitar baixar programas de origem desconhecida.</p>
+                    <p><a
+                            href="https://portal.trt12.jus.br/lgpd/politica-de-privacidade"
+                            target="_blank"
+                            id="politicaprivacidade"
+                        >Conheça nossa política de privacidade</a>.</p>
+
+                    <p>Por fim, destacamos que a extensão passou por todos os testes de segurança da informação realizados pelo Tribunal Regional do Trabalho da 12ª Região - TRT12 a fim de garantir ao usuário a utilização plena das suas funcionalidades.</p>
+                    <p>Ciente dessas informações, você concorda com a nossa política de privacidade e com os termos apresentados?</p>
+                </div>
+                <div class="decisao">
+                    <button name="concordo" id="concordo">SIM, concordo</button>
+                    <button name="naoconcordo" id="naoconcordo">NÃO, discordo</button>
+                </div>
+                <br>
+                <br><br>
+            </div>
+        </main>
+        <footer style="display: block;width: 100%;text-align: right;font-style: italic;font-size: .7rem;">Os direitos sobre a extensão foram cedidos ao Tribunal Regional do Trabalho da 12ª Região - TRT12.</footer>
+        <script src="aviso.js"></script>
+    </body>
 </html>

@@ -57,7 +57,8 @@ def _definir_regras_processamento() -> List[Tuple]:
             'fixando o crédito do autor em', 'referente ao principal', 'sob pena de sequestro',
             'comprovar a quitação', 'comprovar o pagamento', 'comprovar recolhimento', 'comprovar recolhimentos',
             'a reclamada para pagamento da parcela pendente',
-            'intime-se a reclamada para pagamento das', 'homologo os calculos'
+            'intime-se a reclamada para pagamento das', 'homologo os calculos',
+            'sob pena de prosseguimento da execução'
         ]],
          (_inicar_exec,),),
 
@@ -115,10 +116,9 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral(k) for k in ['saldo devedor']],
          ("criar_gigs[1//xs saldo]",),),
 
-       
-
-        # REGRA DE ARQUIVAMENTO
-        ([gerar_regex_geral(k) for k in ['arquivem-se os autos', 'remetam-se os autos ao aquivo', 'A pronúncia da prescrição intercorrente se trata', 'Se revê o novo sobrestamento', 'cumprido o acordo homologado', 'julgo extinta a presente execução, nos termos do art. 924']], (mov_arquivar,),),
+        # REGRA DE DESIGNAÇÃO DE PERITO ROGÉRIO
+        ([gerar_regex_geral('designo o expert rogerio')],
+         ("criar_gigs[6//xs prazo]",),),
 
         # REGRA DE BLOQUEIO CONVERTIDO
         ([gerar_regex_geral('bloqueio realizado, ora convertido')], ("criar_gigs[-1//Bruna - Liberação]",)),

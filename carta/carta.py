@@ -409,9 +409,12 @@ def carta(driver, log=True, limite_intimacoes=None):
     
     # 4. Login se necessário
     try:
-        username_field = WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#input_user"))
-        )
+        from Fix.core import aguardar_renderizacao_nativa
+
+        if not aguardar_renderizacao_nativa(driver, '#input_user', 'aparecer', timeout=5):
+            raise TimeoutException('Campo de usuário não apareceu')
+
+        username_field = driver.find_element(By.CSS_SELECTOR, '#input_user')
         if log:
             print("[CARTA] Fazendo login no eCarta...")
         username_field.send_keys("s164283")

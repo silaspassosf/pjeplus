@@ -1,4 +1,5 @@
 var monitores = [];
+/** @type {Partial<Preferencias>} */
 var preferencias = {};
 var aaAnexar_temp = [];
 var aaComunicacao_temp = [];
@@ -6,6 +7,7 @@ var aaAutogigs_temp = [];
 var aaDespacho_temp = [];
 var aaMovimento_temp = [];
 var aaChecklist_temp = [];
+var aaNomearPerito_temp = [];
 var aaVariados_temp = [
 	{id:"Atualizar Timeline",nm_botao:"Atualizar Timeline",descricao:"Ação Automatizada para ATUALIZAR a timeline de documentos da janela DETALHES DO PROCESSO",temporizador:"0",ativar:true},
 	{id:"Atualizar Pagina",nm_botao:"Atualizar Pagina",descricao:"Ação Automatizada para ATUALIZAR a janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
@@ -13,6 +15,7 @@ var aaVariados_temp = [
 	{id:"Apreciar Peticoes",nm_botao:"Apreciar Peticoes",descricao:"Ação Automatizada para apreciar petições na janela DETALHES DO PROCESSO",temporizador:"1",ativar:true},
 	{id:"Atalho F2",nm_botao:"Atalho F2",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F2' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
 	{id:"Atalho F3",nm_botao:"Atalho F3",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F3' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
+	{id:"Atalho F4",nm_botao:"Atalho F4",descricao:"Funcionalidade do Menu KAIZEN: Permite ativar/desativar a criação de uma área na tela para acionar a tecla 'F4' ao repousar o mouse em cima pelo tempo ajustado no 'temporizador'.",temporizador:"2",ativar:true},
 	{id:"SISBAJUD F2",nm_botao:"SISBAJUD F2",descricao:"Funcionalidade SISBAJUD: ativa automaticamente uma minuta de bloqueio de valores sobre o polo passivo no convênio SISBAJUD. A janela do convênio precisa estar aberta e visível.",temporizador:"2",ativar:true},
 	{id:"Assinar Expedientes",nm_botao:"Assinar Expedientes",descricao:"Ação Automatizada que permite assinar os expedientes em lote.",temporizador:"0",ativar:true},
 	{id:"Assinar Documentos",nm_botao:"Assinar Documentos",descricao:"Ação Automatizada que permite assinar em lote documentos pendentes no Anexar Documento.",temporizador:"0",ativar:true},
@@ -30,7 +33,8 @@ var aaVariados_temp = [
 var listaModulo2_temp = [];
 var listaModulo8_temp = [];
 var listaModulo10_temp = [];
-let aaItemMenuDetalhes = ['Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico'];
+var listaModulo11_temp = [];
+let aaItemMenuDetalhes = ['Listar Todas','Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes','Abrir o Gigs','Acesso a Terceiros','Anexar documentos','Audiências e Sessões','Download do processo completo','BNDT','Abrir cálculos do processo','Criar Intimação/Expediente','Controle de Segredo','Abre a tela com os dados financeiros','Visualizar intimações/expedientes do processo','Histórico de Sigilo','Lembretes','Lançar movimentos','Obrigação de Pagar','Pagamento','Perícias','Quadro de recursos','Reprocessar chips do processo','Retificar autuação','Retirar Valor Histórico','Verificar Impedimentos e Suspeições','Consultar Domicílio Eletrônico','Copiar Número do Processo'];
 var filtros_storage = [];
 var mapeadosAADescendentes = false;
 var itensModulo1SemAtalhos = getItensModulo1SemAtalhos(salvarOpcoes)
@@ -38,7 +42,7 @@ itensModulo1SemAtalhos.push(new ItemCheckboxMenu('gigsAbrirDetalhes', salvarOpco
 itensModulo1SemAtalhos.push(new ItemCheckboxMenu('gigsTipoAtencao', salvarOpcoes))
 
 async function iniciar() {
-	opcoesHandler = await browser.storage.local.get(null);
+	const opcoesHandler = await browser.storage.local.get(null);
 	Promise.all([opcoesHandler]).then(async result => {
 		preferencias = result[0];
 
@@ -49,244 +53,13 @@ async function iniciar() {
 		}
 
 		checarVariaveis();
-	});
-}
 
-async function checarVariaveis(restaurar=false) {
-	return new Promise(async resolve => {
-		preferencias.desativarAjusteJanelas = typeof(preferencias.desativarAjusteJanelas) == "undefined" ? true : preferencias.desativarAjusteJanelas;
-		preferencias.videoAtualizacao = typeof(preferencias.videoAtualizacao) == "undefined" ? true : preferencias.videoAtualizacao;
-		preferencias.tarefaResponsavel = typeof(preferencias.tarefaResponsavel) == "undefined" ? "" : preferencias.tarefaResponsavel;
-		preferencias.prazoResponsavel = typeof(preferencias.prazoResponsavel) == "undefined" ? "" : preferencias.prazoResponsavel;
-		preferencias.atividadeResponsavel = typeof(preferencias.atividadeResponsavel) == "undefined" ? "" : preferencias.atividadeResponsavel;
-		preferencias.atalhosPlugin = typeof(preferencias.atalhosPlugin) == "undefined" ? "SISBAJUD:https://sisbajud.cloud.pje.jus.br/|Caged:https://caged.maisemprego.mte.gov.br/caged|CCS:https://www3.bcb.gov.br/ccs/dologin|Celesc:http://consumidor.celesc.com.br:8895/index.php/acesso|Cnib:https://www.indisponibilidade.org.br/autenticacao/|Honor\u00e1rios:http://www2.trt12.jus.br/ajg/intranet/entrada.asp|Intranet:https://intranet.trt12.jus.br/|Renajud:https://renajud.denatran.serpro.gov.br/renajud/login.jsf|Serasajud:https://sitenet05cert.serasa.com.br/SerasaJudicial/default.aspx|Siel:https://apps.tre-sc.jus.br/siel/index.php" : preferencias.atalhosPlugin;
-		preferencias.gigsMonitorDetalhes = typeof(preferencias.gigsMonitorDetalhes) == "undefined" ? 0 : preferencias.gigsMonitorDetalhes;
-		preferencias.gigsMonitorTarefas = typeof(preferencias.gigsMonitorTarefas) == "undefined" ? 0 : preferencias.gigsMonitorTarefas;
-		preferencias.gigsMonitorGigs = typeof(preferencias.gigsMonitorGigs) == "undefined" ? 0 : preferencias.gigsMonitorGigs;
-		preferencias.lista_monitores = typeof(preferencias.lista_monitores) == "undefined" ? [{"left":0,"top":0,"width":0,"height":0}] : preferencias.lista_monitores;
-		preferencias.lista_monitores = preferencias.lista_monitores.length < 1 ? [{"left":0,"top":0,"width":0,"height":0}] : preferencias.lista_monitores;
-		preferencias.gigsAbrirGigs = typeof(preferencias.gigsAbrirGigs) == "undefined" ? 0 : preferencias.gigsAbrirGigs;
-		preferencias.gigsAbrirDetalhes = typeof(preferencias.gigsAbrirDetalhes) == "undefined" ? 0 : preferencias.gigsAbrirDetalhes;
-		preferencias.gigsAbrirTarefas = typeof(preferencias.gigsAbrirTarefas) == "undefined" ? 0 : preferencias.gigsAbrirTarefas;
-		preferencias.gigsApreciarPeticoes = typeof(preferencias.gigsApreciarPeticoes) == "undefined" ? 0 : preferencias.gigsApreciarPeticoes;
-		preferencias.gigsApreciarPeticoes2 = typeof(preferencias.gigsApreciarPeticoes2) == "undefined" ? 0 : preferencias.gigsApreciarPeticoes2;
-		preferencias.gigsApreciarPeticoes3 = typeof(preferencias.gigsApreciarPeticoes3) == "undefined" ? 0 : preferencias.gigsApreciarPeticoes3;
-		preferencias.gigsOcultarChips = typeof(preferencias.gigsOcultarChips) == "undefined" ? 0 : preferencias.gigsOcultarChips;
-		preferencias.gigsOcultarLembretes = typeof(preferencias.gigsOcultarLembretes) == "undefined" ? 0 : preferencias.gigsOcultarLembretes;
-		preferencias.gigsTirarSomLembretes = typeof(preferencias.gigsTirarSomLembretes) == "undefined" ? 0 : preferencias.gigsTirarSomLembretes;		
-		preferencias.gigsCriarMenu = typeof(preferencias.gigsCriarMenu) == "undefined" ? 0 : preferencias.gigsCriarMenu;
-		preferencias.gigsCriarMenuGuardarNumeroProcesso = typeof(preferencias.gigsCriarMenuGuardarNumeroProcesso) == "undefined" ? 0 : preferencias.gigsCriarMenuGuardarNumeroProcesso;
-		preferencias.gigsCriarMenuAbrirPainelCopiaECola = typeof(preferencias.gigsCriarMenuAbrirPainelCopiaECola) == "undefined" ? 0 : preferencias.gigsCriarMenuAbrirPainelCopiaECola;
-		preferencias.sanearAJG = typeof(preferencias.sanearAJG) == "undefined" ? 0 : preferencias.sanearAJG;
-		preferencias.gigsPesquisaDeDocumentos = typeof(preferencias.gigsPesquisaDeDocumentos) == "undefined" ? 0 : preferencias.gigsPesquisaDeDocumentos;
-		preferencias.mapeamentoDeIDs = typeof(preferencias.mapeamentoDeIDs) == "undefined" ? 0 : preferencias.mapeamentoDeIDs;
-		preferencias.guiaPersonalizadaDetalhes = typeof(preferencias.guiaPersonalizadaDetalhes) == "undefined" ? '' : preferencias.guiaPersonalizadaDetalhes;
-		preferencias.ocultarPublicacoesDJEN = typeof(preferencias.ocultarPublicacoesDJEN) == "undefined" ? '' : preferencias.ocultarPublicacoesDJEN;
-		preferencias.ocultarDocumentosExcluidos = typeof(preferencias.ocultarDocumentosExcluidos) == "undefined" ? '' : preferencias.ocultarDocumentosExcluidos;
-		preferencias.gigsTipoAtencao = typeof(preferencias.gigsTipoAtencao) == "undefined" ? 0 : preferencias.gigsTipoAtencao;
-		preferencias.aaAnexar = typeof(preferencias.aaAnexar) == "undefined" ? [] : preferencias.aaAnexar;
-		preferencias.maisPje_velocidade_interacao = typeof(preferencias.maisPje_velocidade_interacao) == "undefined" ? 1 : preferencias.maisPje_velocidade_interacao;
-		preferencias.aaComunicacao = typeof(preferencias.aaComunicacao) == "undefined" ? [] : preferencias.aaComunicacao;
-		preferencias.aaAutogigs = typeof(preferencias.aaAutogigs) == "undefined" ? [] : preferencias.aaAutogigs;
-		preferencias.aaDespacho = typeof(preferencias.aaDespacho) == "undefined" ? [] : preferencias.aaDespacho;
-		preferencias.aaMovimento = typeof(preferencias.aaMovimento) == "undefined" ? [] : preferencias.aaMovimento;
-		preferencias.aaChecklist = typeof(preferencias.aaChecklist) == "undefined" ? [] : preferencias.aaChecklist;		
-		preferencias.aaLancarMovimentos = typeof(preferencias.aaLancarMovimentos) == "undefined" ? [] : preferencias.aaLancarMovimentos;
-		preferencias.aaVariados = typeof(preferencias.aaVariados) == "undefined" ? aaVariados_temp : preferencias.aaVariados;
-		preferencias.meuFiltro = typeof(preferencias.meuFiltro) == "undefined" ? [] : preferencias.meuFiltro;
-		preferencias.filtros_Favoritos = typeof(preferencias.filtros_Favoritos) == "undefined" ? [] : preferencias.filtros_Favoritos;
-		preferencias.modulo5_obterSaldoSIF = typeof(preferencias.modulo5_obterSaldoSIF) == "undefined" ? true : preferencias.modulo5_obterSaldoSIF;
-		preferencias.modulo5_conferirTeimosinhaEmLote = typeof(preferencias.modulo5_conferirTeimosinhaEmLote) == "undefined" ? true : preferencias.modulo5_conferirTeimosinhaEmLote;
-		preferencias.modulo5_juizDaMinuta = typeof(preferencias.modulo5_juizDaMinuta) == "undefined" ? true : preferencias.modulo5_juizDaMinuta;
-		preferencias.modulo5_processosSemAudienciaDesignada = typeof(preferencias.modulo5_processosSemAudienciaDesignada) == "undefined" ? true : preferencias.modulo5_processosSemAudienciaDesignada;
-		preferencias.modulo5_processosSemGigsCadastrado = typeof(preferencias.modulo5_processosSemGigsCadastrado) == "undefined" ? true : preferencias.modulo5_processosSemGigsCadastrado;
-		preferencias.modulo5_processosParadosHaMaisDeXXDias = typeof(preferencias.modulo5_processosParadosHaMaisDeXXDias) == "undefined" ? true : preferencias.modulo5_processosParadosHaMaisDeXXDias;
-		preferencias.modulo5_conferirGarimpoEmLote = typeof(preferencias.modulo5_conferirGarimpoEmLote) == "undefined" ? true : preferencias.modulo5_conferirGarimpoEmLote;
-		preferencias.modulo5_obterConcilia = typeof(preferencias.modulo5_obterConcilia) == "undefined" ? true : preferencias.modulo5_obterConcilia;
-		preferencias.emailAutomatizado = typeof(preferencias.emailAutomatizado) == "undefined" ? new EmailAutomatizado("Processo n. #{processo} (#{tipoDocumento} Id. #{idDocumento})", "Encaminho o(a) #{tipoDocumento} (Id. #{idDocumento}), expedido no processo #{processo}, para ciência ou cumprimento.\n\nO documento poderá ser acessado via internet mediante o seguinte link: #{autenticacao}\n\nAtenciosamente,", "#{servidor}\nDiretor de Secretaria\n#{OJServidor}", false, '') : preferencias.emailAutomatizado;
-		preferencias.emailAutomatizado.destinatario = typeof(preferencias.emailAutomatizado.destinatario) == "undefined" ? false : preferencias.emailAutomatizado.destinatario;
-		preferencias.emailAutomatizado.ignorar = typeof(preferencias.emailAutomatizado.ignorar) == "undefined" ? false : preferencias.emailAutomatizado.ignorar;
-		preferencias.gigsDetalhesLeft = typeof(preferencias.gigsDetalhesLeft) == "undefined" ? window.screen.availLeft : preferencias.gigsDetalhesLeft;
-		preferencias.gigsDetalhesTop = typeof(preferencias.gigsDetalhesTop) == "undefined" ? window.screen.availTop : preferencias.gigsDetalhesTop;
-		preferencias.gigsDetalhesWidth = typeof(preferencias.gigsDetalhesWidth) == "undefined" ? window.screen.availWidth : preferencias.gigsDetalhesWidth;
-		preferencias.gigsDetalhesHeight = typeof(preferencias.gigsDetalhesHeight) == "undefined" ? window.screen.availHeight : preferencias.gigsDetalhesHeight;
-		preferencias.gigsTarefaLeft = typeof(preferencias.gigsTarefaLeft) == "undefined" ? window.screen.availLeft : preferencias.gigsTarefaLeft;
-		preferencias.gigsTarefaTop = typeof(preferencias.gigsTarefaTop) == "undefined" ? window.screen.availTop : preferencias.gigsTarefaTop;
-		preferencias.gigsTarefaWidth = typeof(preferencias.gigsTarefaWidth) == "undefined" ? window.screen.availWidth : preferencias.gigsTarefaWidth;
-		preferencias.gigsTarefaHeight = typeof(preferencias.gigsTarefaHeight) == "undefined" ? window.screen.availHeight : preferencias.gigsTarefaHeight;
-		preferencias.gigsGigsLeft = typeof(preferencias.gigsGigsLeft) == "undefined" ? window.screen.availLeft : preferencias.gigsGigsLeft;
-		preferencias.gigsGigsTop = typeof(preferencias.gigsGigsTop) == "undefined" ? window.screen.availTop : preferencias.gigsGigsTop;
-		preferencias.gigsGigsWidth = typeof(preferencias.gigsGigsWidth) == "undefined" ? window.screen.availWidth : preferencias.gigsGigsWidth;
-		preferencias.gigsGigsHeight = typeof(preferencias.gigsGigsHeight) == "undefined" ? window.screen.availHeight : preferencias.gigsGigsHeight;
-		preferencias.atalhosDetalhes = typeof(preferencias.atalhosDetalhes) == "undefined" ? [true,true,true,false,true,false,true,false,false,true,false,false,true,false,true,false,false,false,true,false,false,true,false,false,true] : preferencias.atalhosDetalhes;
-		preferencias.processo_memoria = typeof(preferencias.processo_memoria) == "undefined" ? "" : preferencias.processo_memoria;
-		preferencias.versao = typeof(preferencias.versao) == "undefined" ? "0" : preferencias.versao;
-		preferencias.versaoPje =  typeof(preferencias.versaoPje) == "undefined" ? "" : preferencias.versaoPje;
-		preferencias.trt = typeof(preferencias.trt) == "undefined" ? "pje.trt12.jus.br" : preferencias.trt; //por padrão reconhece como trt12
-		preferencias.num_trt = extrairTRT(preferencias.trt);
-		preferencias.nm_usuario = typeof(preferencias.nm_usuario) == "undefined" ? "" : preferencias.nm_usuario;
-		preferencias.oj_usuario = typeof(preferencias.oj_usuario) == "undefined" ? "" : preferencias.oj_usuario;
-		preferencias.grau_usuario = typeof(preferencias.grau_usuario) == "undefined" ? "" : preferencias.grau_usuario;
-		preferencias.tempAR = typeof(preferencias.tempAR) == "undefined" ? "" : preferencias.tempAR;
-		preferencias.tempBt = typeof(preferencias.tempBt) == "undefined" ? [] : preferencias.tempBt;
-		preferencias.tempAAEspecial = typeof(preferencias.tempAAEspecial) == "undefined" ? [] : preferencias.tempAAEspecial;
-		preferencias.tempF2 = typeof(preferencias.tempF2) == "undefined" ? "" : preferencias.tempF2;
-		preferencias.tempF3 = typeof(preferencias.tempF2) == "undefined" ? "" : preferencias.tempF3;
-		preferencias.tempAuto = typeof(preferencias.tempAuto) == "undefined" ? 10 : preferencias.tempAuto;
-		preferencias.monitorGIGS = typeof(preferencias.monitorGIGS) == "undefined" ? [] : preferencias.monitorGIGS;
-		preferencias.pjExtension_depositos = typeof(preferencias.pjExtension_depositos) == "undefined" ? [] : preferencias.pjExtension_depositos;
-		preferencias.concordo = typeof(preferencias.concordo) == "undefined" ? false : preferencias.concordo;
-		preferencias.extensaoAtiva = typeof(preferencias.extensaoAtiva) == "undefined" ? false : preferencias.extensaoAtiva;
-		preferencias.modulo2 = typeof(preferencias.modulo2) == "undefined" ? [] : preferencias.modulo2;
-		preferencias.modulo2 = await inserirFaseModulo2();		
-		preferencias.sisbajud = typeof(preferencias.sisbajud) == "undefined" ? {juiz: '', vara: '', cnpjRaiz: '', teimosinha: '', contasalario: '', naorespostas: '', valor_desbloqueio: '', banco_preferido: '', agencia_preferida: '', preencherValor: '', confirmar: '', executarAAaoFinal: '', salvarEprotocolar: ''} : preferencias.sisbajud;
-		preferencias.sisbajud.juiz = typeof(preferencias.sisbajud.juiz) == "undefined" ? "" : preferencias.sisbajud.juiz;
-		preferencias.sisbajud.vara = typeof(preferencias.sisbajud.vara) == "undefined" ? "" : preferencias.sisbajud.vara;
-		preferencias.sisbajud.cnpjRaiz = typeof(preferencias.sisbajud.cnpjRaiz) == "undefined" ? "não" : preferencias.sisbajud.cnpjRaiz;
-		preferencias.sisbajud.teimosinha = typeof(preferencias.sisbajud.teimosinha) == "undefined" ? "nao" : preferencias.sisbajud.teimosinha;
-		preferencias.sisbajud.teimosinha = typeof(preferencias.sisbajud.teimosinha) == "sim" ? "60" : preferencias.sisbajud.teimosinha;
-		preferencias.sisbajud.contasalario = typeof(preferencias.sisbajud.contasalario) == "undefined" ? "não" : preferencias.sisbajud.contasalario;
-		preferencias.sisbajud.naorespostas = typeof(preferencias.sisbajud.naorespostas) == "undefined" ? "Cancelar" : preferencias.sisbajud.naorespostas;
-		preferencias.sisbajud.valor_desbloqueio = typeof(preferencias.sisbajud.valor_desbloqueio) == "undefined" ? "não" : preferencias.sisbajud.valor_desbloqueio;
-		preferencias.sisbajud.banco_preferido = typeof(preferencias.sisbajud.banco_preferido) == "undefined" ? "não" : preferencias.sisbajud.banco_preferido;
-		preferencias.sisbajud.agencia_preferida = typeof(preferencias.sisbajud.agencia_preferida) == "undefined" ? "não" : preferencias.sisbajud.agencia_preferida;
-		preferencias.sisbajud.preencherValor = typeof(preferencias.sisbajud.preencherValor) == "undefined" ? "não" : preferencias.sisbajud.preencherValor;
-		preferencias.sisbajud.confirmar = typeof(preferencias.sisbajud.confirmar) == "undefined" ? "não" : preferencias.sisbajud.confirmar;
-		preferencias.sisbajud.executarAAaoFinal = typeof(preferencias.sisbajud.executarAAaoFinal) == "undefined" ? "Nenhum" : preferencias.sisbajud.executarAAaoFinal;
-		preferencias.sisbajud.salvarEprotocolar = typeof(preferencias.sisbajud.salvarEprotocolar) == "undefined" ? "não" : preferencias.sisbajud.salvarEprotocolar;		
-		preferencias.sisbajud = {juiz: preferencias.sisbajud.juiz, vara: preferencias.sisbajud.vara, cnpjRaiz: preferencias.sisbajud.cnpjRaiz, teimosinha: preferencias.sisbajud.teimosinha, contasalario: preferencias.sisbajud.contasalario, naorespostas: preferencias.sisbajud.naorespostas, valor_desbloqueio: preferencias.sisbajud.valor_desbloqueio, banco_preferido: preferencias.sisbajud.banco_preferido, agencia_preferida: preferencias.sisbajud.agencia_preferida, preencherValor: preferencias.sisbajud.preencherValor, confirmar: preferencias.sisbajud.confirmar, executarAAaoFinal: preferencias.sisbajud.executarAAaoFinal, salvarEprotocolar: preferencias.sisbajud.salvarEprotocolar};
-		preferencias.sisbajud.naorespostas = preferencias.sisbajud.naorespostas == "" ? "Cancelar" : preferencias.sisbajud.naorespostas;
-		
-		//ajustando pq agora perdeu o juiz responsavel
-		preferencias.serasajud = typeof(preferencias.serasajud) == "undefined" ? {foro: "", vara: "", prazo_atendimento: "", aa: "Nenhum"} : preferencias.serasajud;
-		preferencias.serasajud.aa = preferencias.serasajud.aa ? preferencias.serasajud.aa : "Nenhum";
-		preferencias.serasajud = {"foro": preferencias.serasajud.foro, "vara": preferencias.serasajud.vara, "prazo_atendimento": preferencias.serasajud.prazo_atendimento, "aa": preferencias.serasajud.aa}
-		preferencias.prevjud = typeof(preferencias.prevjud) == "undefined" ? {aa: "Nenhum",opt1:false,aa2: "Nenhum"} : preferencias.prevjud;
-		preferencias.prevjud.aa = preferencias.prevjud.aa ? preferencias.prevjud.aa : "Nenhum";
-		preferencias.prevjud.aa2 = preferencias.prevjud.aa2 ? preferencias.prevjud.aa2 : "Nenhum";
-		preferencias.prevjud.opt1 = preferencias.prevjud.opt1 ? preferencias.prevjud.opt1 : false;
-
-		preferencias.renajud = typeof(preferencias.renajud) == "undefined" ? {tipo_restricao: "", comarca: "", tribunal: "", orgao: "", juiz: "", juiz2: ""} : preferencias.renajud;
-		preferencias.zoom_editor = typeof(preferencias.zoom_editor) == "undefined" ? 1 : preferencias.zoom_editor;
-		preferencias.modulo8 = typeof(preferencias.modulo8) == "undefined" ? [] : preferencias.modulo8;
-		preferencias.modulo8_ignorarZero = typeof(preferencias.modulo8_ignorarZero) == "undefined" ? false : preferencias.modulo8_ignorarZero;
-		preferencias.modulo10 = typeof(preferencias.modulo10) == "undefined" ? [] : preferencias.modulo10;
-		preferencias.modulo10_juntadaMidia = typeof(preferencias.modulo10_juntadaMidia) == "undefined" ? [false,''] : preferencias.modulo10_juntadaMidia;
-		preferencias.modulo10_painelCopiaeCola = typeof(preferencias.modulo10_painelCopiaeCola) == "undefined" ? false : preferencias.modulo10_painelCopiaeCola;
-		preferencias.modoLGPD = typeof(preferencias.modoLGPD) == "undefined" ? false : preferencias.modoLGPD;
-		preferencias.modoNoite = typeof(preferencias.modoNoite) == "undefined" ? false : preferencias.modoNoite;
-		preferencias.menu_kaizen = typeof(preferencias.menu_kaizen) == "undefined" ? {principal:{posx:'96%',posy:'92%'},detalhes:{posx:'96%',posy:'92%'},tarefas:{posx:'96%',posy:'92%'},sisbajud:{posx:'93%',posy:'80%'},serasajud:{posx:'93%',posy:'80%'},renajud:{posx:'93%',posy:'80%'},cnib:{posx:'93%',posy:'80%'},ccs:{posx:'93%',posy:'80%'},prevjud:{posx:'93%',posy:'80%'},protestojud:{posx:'93%',posy:'80%'},sniper:{posx:'93%',posy:'80%'},censec:{posx:'93%',posy:'80%'},celesc:{posx:'93%',posy:'80%'},casan:{posx:'93%',posy:'80%'},sigef:{posx:'93%',posy:'80%'},saj:{posx:'93%',posy:'80%'}} : preferencias.menu_kaizen;	
-		preferencias.menu_kaizen.principal = typeof(preferencias.menu_kaizen.principal) == "undefined" ? {posx:'96%',posy:'92%'} : preferencias.menu_kaizen.principal;
-		preferencias.menu_kaizen.detalhes = typeof(preferencias.menu_kaizen.detalhes) == "undefined" ? {posx:'96%',posy:'92%'} : preferencias.menu_kaizen.detalhes;
-		preferencias.menu_kaizen.tarefas = typeof(preferencias.menu_kaizen.tarefas) == "undefined" ? {posx:'96%',posy:'92%'} : preferencias.menu_kaizen.tarefas;
-		preferencias.menu_kaizen.sisbajud = typeof(preferencias.menu_kaizen.sisbajud) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.sisbajud;
-		preferencias.menu_kaizen.serasajud = typeof(preferencias.menu_kaizen.serasajud) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.serasajud;
-		preferencias.menu_kaizen.renajud = typeof(preferencias.menu_kaizen.renajud) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.renajud;
-		preferencias.menu_kaizen.cnib = typeof(preferencias.menu_kaizen.cnib) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.cnib;
-		preferencias.menu_kaizen.ccs = typeof(preferencias.menu_kaizen.ccs) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.ccs;
-		preferencias.menu_kaizen.prevjud = typeof(preferencias.menu_kaizen.prevjud) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.prevjud;
-		preferencias.menu_kaizen.protestojud = typeof(preferencias.menu_kaizen.protestojud) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.protestojud;
-		preferencias.menu_kaizen.sniper = typeof(preferencias.menu_kaizen.sniper) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.sniper;
-		preferencias.menu_kaizen.censec = typeof(preferencias.menu_kaizen.censec) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.censec;
-		preferencias.menu_kaizen.celesc = typeof(preferencias.menu_kaizen.celesc) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.celesc;
-		preferencias.menu_kaizen.casan = typeof(preferencias.menu_kaizen.casan) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.casan;
-		preferencias.menu_kaizen.sigef = typeof(preferencias.menu_kaizen.sigef) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.sigef;
-		preferencias.menu_kaizen.infoseg = typeof(preferencias.menu_kaizen.infoseg) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.infoseg;
-		preferencias.menu_kaizen.ajjt = typeof(preferencias.menu_kaizen.ajjt) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.ajjt;
-		preferencias.menu_kaizen.saj = typeof(preferencias.menu_kaizen.saj) == "undefined" ? {posx:'93%',posy:'80%'} : preferencias.menu_kaizen.saj;
-		preferencias.modulo9 = typeof(preferencias.modulo9) == "undefined" ? {sisbajud:true,renajud:true,cnib:[true,false,false,false,false,'Nenhum','Nenhum',5],serasajud:true,ccs:[true,false,false,false,false,5],crcjud:true,onr:false,gprec:true,ajjt:true,siscondj:[true,10],garimpo:[true,""],sif:[true,10],pjecalc:true,prevjud:true,protestojud:true,sniper:true,censec:true,celesc:true,casan:true,sigef:true,infoseg:true,ecarta:true,saj:true} : preferencias.modulo9;
-		preferencias.modulo9.cnib = Array.isArray(preferencias.modulo9.cnib) ? preferencias.modulo9.cnib : [preferencias.modulo9.cnib,false,false,false,false,'Nenhum','Nenhum',5];
-		
-		preferencias.modulo9.ccs = Array.isArray(preferencias.modulo9.ccs) ? preferencias.modulo9.ccs : [preferencias.modulo9.ccs,false,false,false,false,5,'Nenhum'];
-		preferencias.modulo9.ccs[6] = (preferencias.modulo9.ccs[6] ? preferencias.modulo9.ccs[6] : 'Nenhum');
-		preferencias.modulo9.sif = (preferencias.modulo9.sif[1]) ? preferencias.modulo9.sif : [true,10];
-		preferencias.modulo9.sif = (preferencias.modulo9.sif[2]) ? preferencias.modulo9.sif : [preferencias.modulo9.sif[0],preferencias.modulo9.sif[1],'dia'];
-		preferencias.modulo9.siscondj = (preferencias.modulo9.siscondj) ? preferencias.modulo9.siscondj : [true,10,true];
-		preferencias.modulo9.siscondj[2] = typeof(preferencias.modulo9.siscondj[2]) == "undefined" ? true : preferencias.modulo9.siscondj[2];
-		preferencias.modulo9.gprec = (preferencias.modulo9.gprec[1] ? preferencias.modulo9.gprec : [true,5,false]);
-		preferencias.modulo9.gprec = (!preferencias.modulo9.gprec[2] ? [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],false] : [preferencias.modulo9.gprec[0],preferencias.modulo9.gprec[1],preferencias.modulo9.gprec[2]]);
-		if (!Array.isArray(preferencias.modulo9.ecarta)) { preferencias.modulo9.ecarta = [preferencias.modulo9.ecarta,''] }
-		if (!Array.isArray(preferencias.modulo9.garimpo)) { preferencias.modulo9.garimpo = [preferencias.modulo9.garimpo,''] }
-		preferencias.pesquisaRapidaDeProcessoEmAba = typeof(preferencias.pesquisaRapidaDeProcessoEmAba) == "undefined" ? false : preferencias.pesquisaRapidaDeProcessoEmAba;
-		preferencias.acionarKaizenComClique = typeof(preferencias.acionarKaizenComClique) == "undefined" ? false : preferencias.acionarKaizenComClique;
-		preferencias.kaizenNaHorizontal = typeof(preferencias.kaizenNaHorizontal) == "undefined" ? false : preferencias.kaizenNaHorizontal;
-		preferencias.modulo4PaginaInicial = typeof(preferencias.modulo4PaginaInicial) == "undefined" ? 'nenhum' : preferencias.modulo4PaginaInicial;
-		preferencias.configURLs = typeof(preferencias.configURLs) == "undefined" ? await forcarObterURLs(preferencias.num_trt) : preferencias.configURLs;
-		preferencias.timeline = typeof(preferencias.timeline) == "undefined" ? ['',[]] : preferencias.timeline;
-		preferencias.extrasFecharJanelaExpediente = typeof(preferencias.extrasFecharJanelaExpediente) == "undefined" ? true : preferencias.extrasFecharJanelaExpediente;
-		preferencias.extrasSugerirTipoAoAnexar = typeof(preferencias.extrasSugerirTipoAoAnexar) == "undefined" ? true : preferencias.extrasSugerirTipoAoAnexar;
-		preferencias.extrasSugerirDescricaoAoAnexar = typeof(preferencias.extrasSugerirDescricaoAoAnexar) == "undefined" ? true : preferencias.extrasSugerirDescricaoAoAnexar;
-		preferencias.extrasProcurarExecucao = typeof(preferencias.extrasProcurarExecucao) == "undefined" ? 'SAO' : preferencias.extrasProcurarExecucao;
-		preferencias.saj = typeof(preferencias.saj) == "undefined" ? { vara: "", juiz: "", prazoResposta: "", extratomercantil: "", extratomovimentacao: "", extratomovfinanceira: "", faturacartaocredito: "", propostaaberturaconta: "", contratocambio: "", registrocambio: "", copiacheque: "", saldofgts: "", recebernotificacao: "", email: "", telefone: "" } : preferencias.saj;		
-		preferencias.extrasPrazoEmLote = typeof(preferencias.extrasPrazoEmLote) == "undefined" ? ['0','2','5','8','10','15'] : preferencias.extrasPrazoEmLote;
-		preferencias.atalho = typeof(preferencias.atalho) == "undefined" ? {'painelcopiaecola':''}: preferencias.atalho;
-		preferencias.atalho.painelcopiaecola = typeof(preferencias.atalho.painelcopiaecola) == "undefined" ? '' : preferencias.atalho.painelcopiaecola;
-
-		//verificar velocidade de interação
-		if (parseInt(preferencias.maisPje_velocidade_interacao) > 2.5) {
-			alert('Identificado erro na velocidade de interação!!!\n\nEla foi reajustada para 1 segundo!')
-			preferencias.maisPje_velocidade_interacao = 1;
-		}
-		
-		if (!preferencias.desativarAjusteJanelas) {
-			console.log("...analisando monitores");
-			console.log("      |___________" + preferencias.lista_monitores.length);
-			if (preferencias.lista_monitores.length == 0) { //somente verifica monitores automaticamente se a opção de ajuste estiver desmarcada e a lista de monitores estiver zerada
-				preferencias.lista_monitores = await testarMonitores();
-			}
-		}
-		
-		async function inserirFaseModulo2() {
-			return new Promise(resolve2 => {
-				let lista = [];
-				for (const [pos, item] of preferencias.modulo2.entries()) {
-					if (item.includes('Conhecimento') || item.includes('Liquidação') || item.includes('Execução') || item.includes('Arquivados') || item.includes('Todas')) {
-						lista.push(item);
-					} else {
-						let itemTemp = item.split('|');
-						itemTemp.splice(2, 0, "Todas");
-						let novoItem = itemTemp.toString().replace(/,/g,'|');
-						lista.push(novoItem);
-					}
-				}
-				resolve2(lista);
-			});
-		}
-		
-		// salvando o modulo9.ecarta para aqueles usuarios que não tem a extensão
-		if (typeof(preferencias.modulo9.ecarta) == "undefined") {
-			preferencias.modulo9.ecarta[0] = true;
-			preferencias.modulo9.ecarta[1] = '';
-			await guardarModulo9();
-		}
-		if (typeof(preferencias.modulo9.saj) == "undefined") { 
-			preferencias.modulo9.saj = true; 
-			await guardarModulo9();
-		}
-
-		let guardarStorage = browser.storage.local.set({ 'lista_monitores': preferencias.lista_monitores });
-		Promise.all([guardarStorage]).then(values => {
-			// console.log("ENTROU")
-			if (preferencias.concordo) {
-				mostrarOpcoes(restaurar);
-				resolve(true);
-			} else {
-
-				browser.runtime.sendMessage({tipo: 'permissao'});
-				window.close();
-			}
-			
-		});
-
-		try {
-			let linksPessoaisMenuLateral = browser.storage.local.set({ 'linksMenuLateral': preferencias.linksMenuLateral });
-			Promise.all([linksPessoaisMenuLateral]).then(values => { console.info(values); })
-			
-		} catch (err) {
-			console.error('erro ao tentar salvar links personalizados', err);
+		if ((preferencias?.trt.includes('trt12') || preferencias?.trt.includes('trt9'))
+			&& preferencias?.grau_usuario.includes('segundograu')) {
+			let moduloErec = await esperarElemento('.somenteTRT12');
+			if (moduloErec) { moduloErec.style.display = 'inherit';}
 		}
 	});
-	
 }
 
 function configurarModoLGPD(modoLGPD) {
@@ -295,12 +68,12 @@ function configurarModoLGPD(modoLGPD) {
 	// console.info(botao, icone)
 	if (modoLGPD) {
 		icone.className = 'icone lgpd-on t20';
-		botao.setAttribute('data-tooltip','Modo LGPD Ativado');		
-		botao.setAttribute('aria-pressed','true');		
+		botao.setAttribute('data-tooltip','Modo LGPD Ativado');
+		botao.setAttribute('aria-pressed','true');
 	} else {
 		icone.className = 'icone lgpd-off t20';
 		botao.setAttribute('data-tooltip','Modo LGPD Desativado');
-		botao.setAttribute('aria-pressed','false');		
+		botao.setAttribute('aria-pressed','false');
 	}
 }
 
@@ -310,11 +83,11 @@ function configurarModoNoite(modoNoite) {
 	if (modoNoite) {
 		icone.style.backgroundImage = 'linear-gradient(to top, #3920d5, #3920d57d, gold, gold)';
 		botao.setAttribute('data-tooltip','Modo Noite Ativado');
-		botao.setAttribute('aria-pressed','true');		
+		botao.setAttribute('aria-pressed','true');
 	} else {
 		icone.style.backgroundImage = 'unset';
 		botao.setAttribute('data-tooltip','Modo Noite Desativado');
-		botao.setAttribute('aria-pressed','false');		
+		botao.setAttribute('aria-pressed','false');
 	}
 }
 
@@ -323,9 +96,9 @@ async function mostrarOpcoes(restaurar=false) {
 		console.log("mostrarOpcoes()");
 		limpatela();
 		document.getElementById("versao").innerText = "v. " + chrome.runtime.getManifest().version;
-		
+
 		configurarModoLGPD(preferencias.modoLGPD);
-		
+
 		document.getElementById("modoLGPD").addEventListener('click', function() {
 			preferencias.modoLGPD = (preferencias.modoLGPD) ? false : true;
 			configurarModoLGPD(preferencias.modoLGPD);
@@ -336,7 +109,7 @@ async function mostrarOpcoes(restaurar=false) {
 
 		document.getElementById("modoNoite").addEventListener('click', function() {
 			preferencias.modoNoite = (preferencias.modoNoite) ? false : true;
-			configurarModoNoite(preferencias.modoNoite);	
+			configurarModoNoite(preferencias.modoNoite);
 			salvarOpcoes();
 		});
 
@@ -345,7 +118,7 @@ async function mostrarOpcoes(restaurar=false) {
 			preferencias.desativarAjusteJanelas = document.querySelector('#desativarAjusteJanelas').checked;
 			let var1 = browser.storage.local.set({'desativarAjusteJanelas': preferencias.desativarAjusteJanelas});
 			Promise.all([var1]).then(values => {
-				document.getElementById("overlay").style.display = "flex";	
+				document.getElementById("overlay").style.display = "flex";
 				let Toast = Swal.mixin({
 					toast: true,
 					position: 'center',
@@ -365,15 +138,15 @@ async function mostrarOpcoes(restaurar=false) {
 				})
 			});
 		});
-		
+
 		let divMonitorDetalhes = document.querySelector('#divMonitorDetalhes');
 		let divMonitorTarefas = document.querySelector('#divMonitorTarefas');
 		let divMonitorGigs = document.querySelector('#divMonitorGigs');
-		
+
 		document.getElementById("modulo4PaginaInicial").value = preferencias.modulo4PaginaInicial != null ? preferencias.modulo4PaginaInicial : "nenhum";
 		document.getElementById("modulo4PaginaInicial").addEventListener('focusout', salvarOpcoes);
 		document.getElementById("atalhosPlugin").value = desmontarLinha(preferencias.atalhosPlugin, "|");
-		
+
 		let contador = 0;
 		monitores = preferencias.lista_monitores;
 		for(let monitor of monitores) {
@@ -382,22 +155,22 @@ async function mostrarOpcoes(restaurar=false) {
 			criarOpcaoMonitor(divMonitorGigs, monitor, contador, preferencias.gigsMonitorGigs, 'gigsMonitorGigs');
 			contador = contador + 1;
 		}
-		
+
 		if (document.querySelector('input[id="gigsMonitorDetalhes' + preferencias.gigsMonitorDetalhes + '"]')) {
 			document.querySelector('input[id="gigsMonitorDetalhes' + preferencias.gigsMonitorDetalhes + '"]').checked = true;
 		}
-		
+
 		if (document.querySelector('input[id="gigsMonitorTarefas' + preferencias.gigsMonitorTarefas + '"]')) {
 			document.querySelector('input[id="gigsMonitorTarefas' + preferencias.gigsMonitorTarefas + '"]').checked = true;
 		}
 		if (document.querySelector('input[id="gigsMonitorGigs' + preferencias.gigsMonitorGigs + '"]')) {
 			document.querySelector('input[id="gigsMonitorGigs' + preferencias.gigsMonitorGigs + '"]').checked = true;
 		}
-		
+
 		itensModulo1SemAtalhos.forEach(item => item.configurar(preferencias))
-		
+
 		montarBotoesDetalhes();
-		
+
 		document.getElementById("maisPje_velocidade_interacao").value = preferencias.maisPje_velocidade_interacao;
 		document.getElementById("maisPje_velocidade_interacao_label").innerText = preferencias.maisPje_velocidade_interacao;
 		document.getElementById("maisPje_velocidade_interacao").addEventListener('input', function () {
@@ -405,48 +178,54 @@ async function mostrarOpcoes(restaurar=false) {
 			document.getElementById("maisPje_velocidade_interacao_label").innerText = preferencias.maisPje_velocidade_interacao;
 			salvarOpcoes();
 		});
-		
+
 		aaAnexar_temp = preferencias.aaAnexar;
 		montarBotoesaaAnexar();
 		document.getElementById("aa_anexar_documentos").addEventListener('click', aa_anexar_documentos);
-		
+
 		aaComunicacao_temp = preferencias.aaComunicacao;
 		montarBotoesaaComunicacao();
 		document.getElementById("aa_comunicacao").addEventListener('click', aa_comunicacao);
-		
+
 		aaAutogigs_temp = preferencias.aaAutogigs;
 		montarBotoesaaAutogigs();
 		document.getElementById("aa_autogigs").addEventListener('click', aa_autogigs);
-		
+
 		aaDespacho_temp = preferencias.aaDespacho;
 		montarBotoesaaDespacho();
 		document.getElementById("aa_despacho").addEventListener('click', aa_despacho);
-		
+
 		aaMovimento_temp = preferencias.aaMovimento;
 		montarBotoesaaMovimento();
 		document.getElementById("aa_movimento").addEventListener('click', aa_movimento);
-		
+
 		aaChecklist_temp = preferencias.aaChecklist;
 		montarBotoesaaChecklist();
 		document.getElementById("aa_checklist").addEventListener('click', aa_checklist);
-		
+
+		aaNomearPerito_temp = preferencias.aaNomearPerito;
+		montarBotoesaaNomearPerito();
+		document.getElementById("aa_nomearPerito").addEventListener('click', aa_nomearPerito);
+
 		await ajustarAAVariados(); //pega o que tem na memória e ajusta com os novos casos
 		montarBotoesaaVariados();
-		
-		document.getElementById("aa_imp_anexar_documentos").addEventListener('click', importarAA);		
+
+		document.getElementById("aa_imp_anexar_documentos").addEventListener('click', importarAA);
 		document.getElementById("aa_imp_comunicacao").addEventListener('click', importarAA);
 		document.getElementById("aa_imp_autogigs").addEventListener('click', importarAA);
 		document.getElementById("aa_imp_despacho").addEventListener('click', importarAA);
 		document.getElementById("aa_imp_movimento").addEventListener('click', importarAA);
 		document.getElementById("aa_imp_checklist").addEventListener('click', importarAA);
+		document.getElementById("aa_imp_nomearPerito").addEventListener('click', importarAA);
 
-		document.getElementById("aa_buscar_anexar_documentos").addEventListener('click', buscarAA);		
+		document.getElementById("aa_buscar_anexar_documentos").addEventListener('click', buscarAA);
 		document.getElementById("aa_buscar_comunicacao").addEventListener('click', buscarAA);
 		document.getElementById("aa_buscar_autogigs").addEventListener('click', buscarAA);
 		document.getElementById("aa_buscar_despacho").addEventListener('click', buscarAA);
 		document.getElementById("aa_buscar_movimento").addEventListener('click', buscarAA);
 		document.getElementById("aa_buscar_checklist").addEventListener('click', buscarAA);
-				
+		document.getElementById("aa_buscar_nomearPerito").addEventListener('click', buscarAA);
+
 		if (typeof(preferencias.meuFiltro) != "undefined") {
 			document.querySelector('#meuFiltro0').checked = preferencias.meuFiltro[0];
 			document.querySelector('#meuFiltro0').addEventListener('click', meuFiltroDesmarcar);
@@ -468,8 +247,8 @@ async function mostrarOpcoes(restaurar=false) {
 			document.querySelector('#meuFiltro8').addEventListener('click', meuFiltroDesmarcar);
 			document.querySelector('#meuFiltro9').checked = preferencias.meuFiltro[9];
 			document.querySelector('#meuFiltro9').addEventListener('click', meuFiltroDesmarcar);
-			
-			
+
+
 			document.querySelector('#meuFiltroJT').checked = preferencias.meuFiltro[10];
 			document.querySelector('#meuFiltroJT').onclick = function() {
 				document.querySelector('#meuFiltroJS').checked = false;
@@ -485,7 +264,7 @@ async function mostrarOpcoes(restaurar=false) {
 				document.querySelector('#meuFiltro9').checked = false;
 				salvarOpcoes();
 			}
-			document.querySelector('#meuFiltroJS').checked = preferencias.meuFiltro[11]		
+			document.querySelector('#meuFiltroJS').checked = preferencias.meuFiltro[11]
 			document.querySelector('#meuFiltroJS').onclick = function() {
 				document.querySelector('#meuFiltroJT').checked = false;
 				document.querySelector('#meuFiltro0').checked = false;
@@ -501,7 +280,7 @@ async function mostrarOpcoes(restaurar=false) {
 				salvarOpcoes();
 			}
 		}
-		
+
 		if (typeof(preferencias.filtros_Favoritos) != "undefined") {
 			montarFiltrosFavoritos(document.getElementById('filtros_favoristos_relatorio_GIGS'));
 		}
@@ -510,7 +289,7 @@ async function mostrarOpcoes(restaurar=false) {
 		document.getElementById("corpo_email").value = preferencias.emailAutomatizado.corpo;
 		document.getElementById("assinatura_email").value = preferencias.emailAutomatizado.assinatura;
 		document.getElementById("modulo6_destinatario").checked = preferencias.emailAutomatizado.destinatario;
-		
+
 		if (preferencias.emailAutomatizado.destinatario) {
 			document.getElementById("modulo6_ignorar").value = preferencias.emailAutomatizado.ignorar;
 			document.getElementById("modulo6_ignorar").removeAttribute('disabled');
@@ -536,7 +315,7 @@ async function mostrarOpcoes(restaurar=false) {
 		});
 		document.getElementById("salvarConfig").addEventListener('click', salvarConfig);
 		document.getElementById("recuperarConfig").addEventListener('click', recuperarConfig);
-		
+
 		listaModulo2_temp = preferencias.modulo2;
 		if (preferencias.tarefaResponsavel != "" || preferencias.prazoResponsavel != "" || preferencias.atividadeResponsavel != "") {
 			converter_lista_de_atividades_em_modulo2();
@@ -544,8 +323,8 @@ async function mostrarOpcoes(restaurar=false) {
 		montar_modulo2();
 		document.getElementById("modulo2_criarRegra").addEventListener('click', filtro_Atividades);
 		document.getElementById("importar_modulo2").addEventListener('click', importarModulo2);
-		document.getElementById("exportar_modulo2").addEventListener('click', exportarModulo2);		
-		
+		document.getElementById("exportar_modulo2").addEventListener('click', exportarModulo2);
+
 
 		document.querySelector('span[name="par"]').addEventListener('click', salvarOpcoes);
 		document.querySelector('span[name="impar"]').addEventListener('click', salvarOpcoes);
@@ -558,7 +337,7 @@ async function mostrarOpcoes(restaurar=false) {
 			preferencias.modulo8_ignorarZero = document.querySelector('#modulo8_ignorarZero').checked;
 			let var1 = browser.storage.local.set({'modulo8_ignorarZero': preferencias.modulo8_ignorarZero});
 			Promise.all([var1]).then(values => {
-				document.getElementById("overlay").style.display = "flex";	
+				document.getElementById("overlay").style.display = "flex";
 				let Toast = Swal.mixin({
 					toast: true,
 					position: 'center',
@@ -577,14 +356,14 @@ async function mostrarOpcoes(restaurar=false) {
 					title: 'Salvando...'
 				})
 			});
-		});	
+		});
 		listaModulo8_temp = preferencias.modulo8;
 		if (listaModulo8_temp.length > 0) {
-			await converter_lista_de_magistrados_em_modulo8();			
+			await converter_lista_de_magistrados_em_modulo8();
 			montar_modulo8();
 		}
-		
-		
+
+
 		document.getElementById("modulo8_criarRegra").addEventListener('click', filtro_Magistrado);
 		document.getElementById("convenio_sisbajud").style.backgroundColor = (preferencias.modulo9.sisbajud) ? '#2196F3' : '#b0b0b0';
 		document.getElementById("convenio_sisbajud").addEventListener('click', function(event) {modulo9('sisbajud')});
@@ -632,25 +411,25 @@ async function mostrarOpcoes(restaurar=false) {
 		document.getElementById("convenio_ecarta").addEventListener('click', function(event) {modulo9('ecarta')});
 		document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.ecarta) ? '#2196F3' : '#b0b0b0';
 		document.getElementById("convenio_saj").addEventListener('click', function(event) {modulo9('saj')});
-		
+
 
 		listaModulo10_temp = preferencias.modulo10;
 		await montar_modulo10();
-		
+
 		//modulo10_juntadaMidia
 		if (preferencias.modulo10_juntadaMidia[0]) {
 			document.querySelector('#modulo10_juntadaMidia').checked = true;
 			document.getElementById("modulo10_juntadaMidia").innerText = preferencias.modulo10_juntadaMidia[1] != "" ? 'Ativar Ação Automatizada para anexar depoimentos : ' + preferencias.modulo10_juntadaMidia[1] : "Ativar Ação Automatizada para anexar depoimentos";
-		}		
+		}
 		document.querySelector('#modulo10_juntadaMidia').addEventListener('click', ativarJuntadaDeMidia);
-		
+
 		//modulo10_painelCopiaeCola
 		document.querySelector('#modulo10_painelCopiaeCola').checked = preferencias.modulo10_painelCopiaeCola;
 		document.querySelector('#modulo10_painelCopiaeCola').addEventListener('click', function () {
 			preferencias.modulo10_painelCopiaeCola = document.querySelector('#modulo10_painelCopiaeCola').checked;
 			let var1 = browser.storage.local.set({'modulo10_painelCopiaeCola': preferencias.modulo10_painelCopiaeCola});
 			Promise.all([var1]).then(values => {
-				document.getElementById("overlay").style.display = "flex";	
+				document.getElementById("overlay").style.display = "flex";
 				let Toast = Swal.mixin({
 					toast: true,
 					position: 'center',
@@ -670,45 +449,86 @@ async function mostrarOpcoes(restaurar=false) {
 				})
 			});
 		});
-		
-		document.querySelector('#pesquisaRapidaDeProcessoEmAba').checked = preferencias.pesquisaRapidaDeProcessoEmAba;
-		document.querySelector('#pesquisaRapidaDeProcessoEmAba').addEventListener('click', salvarOpcoes);
 
-		document.querySelector('#acionarKaizenComClique').checked = preferencias.acionarKaizenComClique;
-		document.querySelector('#acionarKaizenComClique').addEventListener('click', salvarOpcoes);
-		
-		document.querySelector('#kaizenNaHorizontal').checked = preferencias.kaizenNaHorizontal;
-		document.querySelector('#kaizenNaHorizontal').addEventListener('click', salvarOpcoes);
-		
+		listaModulo11_temp = preferencias.modulo11;
+		montar_modulo11();
+		document.getElementById("modulo11_criarRegra").addEventListener('click', criarRegra_modulo11);
+
+		//modulo11_AssinarAutomaticamente
+		document.querySelector('#modulo11_AssinarAutomaticamente').checked = preferencias.modulo11_AssinarAutomaticamente;
+		document.querySelector('#modulo11_AssinarAutomaticamente').addEventListener('click', function () {
+			preferencias.modulo11_AssinarAutomaticamente = document.querySelector('#modulo11_AssinarAutomaticamente').checked;
+			let var1 = browser.storage.local.set({'modulo11_AssinarAutomaticamente': preferencias.modulo11_AssinarAutomaticamente});
+			Promise.all([var1]).then(values => {
+				document.getElementById("overlay").style.display = "flex";
+				let Toast = Swal.mixin({
+					toast: true,
+					position: 'center',
+					showConfirmButton: false,
+					timer: 1000,
+					timerProgressBar: false,
+					onOpen: (toast) => {
+						setTimeout(function() {
+							document.getElementById("overlay").style.display = "none";
+						}, 1000)
+					}
+				})
+
+				Toast.fire({
+					icon: 'success',
+					title: 'Salvando...'
+				})
+			});
+		});
+
+		function preencherCampoDasPreferencias(id, valor, acaoSalvar = salvarOpcoes) {
+			/** @type {HTMLInputElement} */
+			const campo = document.querySelector(id);
+			if (!campo) return;
+
+			if (campo.type === 'checkbox') {
+				campo.checked = !!valor;
+				campo.addEventListener('click', acaoSalvar);
+			} else {
+				campo.value = valor;
+				campo.addEventListener('focusout', acaoSalvar);
+			}
+		}
+		preencherCampoDasPreferencias('#pesquisaRapidaDeProcessoEmAba', preferencias.pesquisaRapidaDeProcessoEmAba);
+		preencherCampoDasPreferencias('#acionarKaizenComClique', preferencias.acionarKaizenComClique);
+		preencherCampoDasPreferencias('#kaizenNaHorizontal', preferencias.kaizenNaHorizontal);
+
 		document.querySelector('#zerarPosicoesKaizen').addEventListener('click', zerarPosicoesKaizen);
-		
-		
-		document.querySelector('#fecharJanelaExpediente').checked = preferencias.extrasFecharJanelaExpediente;
-		document.querySelector('#fecharJanelaExpediente').addEventListener('click', salvarOpcoes);
-		document.querySelector('#extrasSugerirDescricaoAoAnexar').checked = preferencias.extrasSugerirDescricaoAoAnexar;
-		document.querySelector('#extrasSugerirDescricaoAoAnexar').addEventListener('click', salvarOpcoes);
-		document.querySelector('#extrasSugerirTipoAoAnexar').checked = preferencias.extrasSugerirTipoAoAnexar;
-		document.querySelector('#extrasSugerirTipoAoAnexar').addEventListener('click', salvarOpcoes);
+		preencherCampoDasPreferencias('#fecharJanelaExpediente', preferencias.extrasFecharJanelaExpediente);
+		preencherCampoDasPreferencias('#extrasSugerirDescricaoAoAnexar', preferencias.extrasSugerirDescricaoAoAnexar);
+		preencherCampoDasPreferencias('#extrasSugerirTipoAoAnexar', preferencias.extrasSugerirTipoAoAnexar);
 
-		document.getElementById("elPzoEmLote0").value = preferencias.extrasPrazoEmLote[0];
-		document.getElementById("elPzoEmLote0").addEventListener('focusout', salvarOpcoes);
-		document.getElementById("elPzoEmLote1").value = preferencias.extrasPrazoEmLote[1];
-		document.getElementById("elPzoEmLote1").addEventListener('focusout', salvarOpcoes);
-		document.getElementById("elPzoEmLote2").value = preferencias.extrasPrazoEmLote[2];
-		document.getElementById("elPzoEmLote2").addEventListener('focusout', salvarOpcoes);
-		document.getElementById("elPzoEmLote3").value = preferencias.extrasPrazoEmLote[3];
-		document.getElementById("elPzoEmLote3").addEventListener('focusout', salvarOpcoes);
-		document.getElementById("elPzoEmLote4").value = preferencias.extrasPrazoEmLote[4];
-		document.getElementById("elPzoEmLote4").addEventListener('focusout', salvarOpcoes);
-		document.getElementById("elPzoEmLote5").value = preferencias.extrasPrazoEmLote[5];
-		document.getElementById("elPzoEmLote5").addEventListener('focusout', salvarOpcoes);
+		preencherCampoDasPreferencias('#modulo10_salaFavorita', preferencias.modulo10_salaFavorita);
 
-		document.getElementById("atalho_painelcopiaecola").value = preferencias?.atalho?.painelcopiaecola;
-		document.getElementById("atalho_painelcopiaecola").addEventListener('focusout', salvarOpcoes);
+		//e-Rec
+		preencherCampoDasPreferencias('#extrasTiposDocumentoProcuracao', preferencias.extrasTiposDocumentoProcuracao);
+		preencherCampoDasPreferencias('#extrasTiposDocumentoCustas', preferencias.extrasTiposDocumentoCustas);
+		preencherCampoDasPreferencias('#extrasTiposDocumentoDepositoRecursal', preferencias.extrasTiposDocumentoDepositoRecursal);
+		preencherCampoDasPreferencias('#extrasTiposDocumentoSentencasAcordao', preferencias.extrasTiposDocumentoSentencasAcordao);
+
+		preencherCampoDasPreferencias('#extrasExibirPreviaDocumentoMouseOver', preferencias.extrasExibirPreviaDocumentoMouseOver);
+		preencherCampoDasPreferencias('#extrasExibirPreviaDocumentoFocus', preferencias.extrasExibirPreviaDocumentoFocus);
+		preencherCampoDasPreferencias('#extrasERecTipoGigsSemTema', preferencias.extrasERecTipoGigsSemTema);
+
+        preencherCampoDasPreferencias('#extrasFocusSempre', preferencias.extrasFocusSempre);
+
+		preencherCampoDasPreferencias('#elPzoEmLote0', preferencias.extrasPrazoEmLote[0]);
+		preencherCampoDasPreferencias('#elPzoEmLote1', preferencias.extrasPrazoEmLote[1]);
+		preencherCampoDasPreferencias('#elPzoEmLote2', preferencias.extrasPrazoEmLote[2]);
+		preencherCampoDasPreferencias('#elPzoEmLote3', preferencias.extrasPrazoEmLote[3]);
+		preencherCampoDasPreferencias('#elPzoEmLote4', preferencias.extrasPrazoEmLote[4]);
+		preencherCampoDasPreferencias('#elPzoEmLote5', preferencias.extrasPrazoEmLote[5]);
+		preencherCampoDasPreferencias('#atalho_painelcopiaecola', preferencias?.atalho?.painelcopiaecola);
+
 
 		document.querySelector('#ProcurarExecucaoSAO').checked = (preferencias.extrasProcurarExecucao.includes('SAO')) ? true : false;
 		document.querySelector('#ProcurarExecucaoSAO').addEventListener('click', function() {
-			
+
 			if (document.querySelector('#ProcurarExecucaoSAO').checked) {
 				preferencias.extrasProcurarExecucao = 'SAO';
 				document.querySelector('#ProcurarExecucaoLocal').checked = false;
@@ -716,11 +536,11 @@ async function mostrarOpcoes(restaurar=false) {
 			} else {
 				document.querySelector('#ProcurarExecucaoSAO').checked = true;
 			}
-			
+
 		});
 		document.querySelector('#ProcurarExecucaoLocal').checked = (preferencias.extrasProcurarExecucao.includes('Local')) ? true : false;
 		document.querySelector('#ProcurarExecucaoLocal').addEventListener('click', function() {
-			
+
 			if (document.querySelector('#ProcurarExecucaoLocal').checked) {
 				preferencias.extrasProcurarExecucao = 'Local';
 				document.querySelector('#ProcurarExecucaoSAO').checked = false;
@@ -728,14 +548,14 @@ async function mostrarOpcoes(restaurar=false) {
 			} else {
 				document.querySelector('#ProcurarExecucaoLocal').checked = true;
 			}
-			
+
 		});
-		
-		
+
+
 		if (mapeadosAADescendentes || restaurar) {
 			await salvarOpcoes();
 		}
-		
+
 		const novidades = await carregarNovidades();
 		montarNovidades(preferencias.videoAtualizacao, novidades);
 
@@ -746,15 +566,15 @@ async function mostrarOpcoes(restaurar=false) {
 async function salvarOpcoes() {
 	return new Promise(async resolve => {
 		console.log("salvando...");
-		document.getElementById("overlay").style.display = "flex";	
-		
+		document.getElementById("overlay").style.display = "flex";
+
 		let monitorDetalhes, monitorTarefas, monitorGigs
 		let tarefaLeft, tarefaTop, tarefaWidth, tarefaHeight, detalhesLeft, detalhesTop, detalhesWidth, detalhesHeight, gigsLeft, gigsTop, gigsWidth, gigsHeight;
 		if (!preferencias.desativarAjusteJanelas) {
 			monitorDetalhes = document.querySelector('input[name="gigsMonitorDetalhes"]:checked')?.value;
 			monitorTarefas = document.querySelector('input[name="gigsMonitorTarefas"]:checked')?.value;
 			monitorGigs = document.querySelector('input[name="gigsMonitorGigs"]:checked')?.value;
-			
+
 			monitorTarefas = (!monitorTarefas) ? '0' : monitorTarefas;
 			tarefaLeft = monitores[monitorTarefas].left;
 			tarefaTop = monitores[monitorTarefas].top;
@@ -773,9 +593,9 @@ async function salvarOpcoes() {
 			gigsWidth = monitores[monitorGigs].width;
 			gigsHeight = monitores[monitorGigs].height;
 		}
-		
+
 		let listaProcessos = [];
-		
+
 		listaProcessos[0] = document.querySelector('#meuFiltro0').checked;
 		listaProcessos[1] = document.querySelector('#meuFiltro1').checked;
 		listaProcessos[2] = document.querySelector('#meuFiltro2').checked;
@@ -788,7 +608,7 @@ async function salvarOpcoes() {
 		listaProcessos[9] = document.querySelector('#meuFiltro9').checked;
 		listaProcessos[10] = document.querySelector('#meuFiltroJT').checked;
 		listaProcessos[11] = document.querySelector('#meuFiltroJS').checked;
-		
+
 		let listaAtalhoDetalhes = [];
 		listaAtalhoDetalhes[0] = document.getElementById('c0').checked;
 		listaAtalhoDetalhes[1] = document.getElementById('c1').checked;
@@ -814,16 +634,17 @@ async function salvarOpcoes() {
 		listaAtalhoDetalhes[21] = document.getElementById('c21').checked;
 		listaAtalhoDetalhes[22] = document.getElementById('c22').checked;
 		listaAtalhoDetalhes[23] = document.getElementById('c23').checked;
-		listaAtalhoDetalhes[24] = document.getElementById('c24').checked;	
+		listaAtalhoDetalhes[24] = document.getElementById('c24').checked;
 		listaAtalhoDetalhes[25] = document.getElementById('c25').checked;
 		listaAtalhoDetalhes[26] = document.getElementById('c26').checked; //PDPJ
 		listaAtalhoDetalhes[27] = document.getElementById('c27').checked;
 		listaAtalhoDetalhes[28] = document.getElementById('c28').checked;
-		listaAtalhoDetalhes[29] = document.getElementById('c29').checked; //wiki vt		
+		listaAtalhoDetalhes[29] = document.getElementById('c29').checked; //wiki vt
 		listaAtalhoDetalhes[30] = document.getElementById('c30').checked; //Domicilio Eletronico
-		
+		listaAtalhoDetalhes[31] = document.getElementById('c31').checked; //EXIBIR TODOS
+
 		aa_eliminarUndefined();
-		
+
 		//modulo 10
 		listaModulo10_temp = [];
 		for (const [pos, item] of document.querySelectorAll('tr[id="lista_modulo10_item"]').entries()) {
@@ -844,10 +665,10 @@ async function salvarOpcoes() {
 		preferencias.extrasPrazoEmLote[4] = document.getElementById("elPzoEmLote4").value;
 		preferencias.extrasPrazoEmLote[5] = document.getElementById("elPzoEmLote5").value;
 
-		preferencias.atalho.painelcopiaecola = document.getElementById("atalho_painelcopiaecola").value;		
-		
+		preferencias.atalho.painelcopiaecola = document.getElementById("atalho_painelcopiaecola").value;
+
 		await browser.storage.local.set({
-			versao: chrome.runtime.getManifest().version,
+			versao: browser.runtime.getManifest().version,
 			...valoresModulo1,
 			gigsMonitorDetalhes: monitorDetalhes,
 			gigsMonitorTarefas: monitorTarefas,
@@ -874,7 +695,7 @@ async function salvarOpcoes() {
 			modulo5_processosSemGigsCadastrado: document.querySelector('#modulo5_filtros_favoritos_semGIGS').checked,
 			modulo5_processosParadosHaMaisDeXXDias: document.querySelector('#modulo5_filtros_favoritos_paradosXXdias').checked,
 			modulo5_conferirGarimpoEmLote: document.querySelector('#modulo5_conferirGarimpoEmLote').checked,
-			modulo5_obterConcilia: document.querySelector('#modulo5_filtros_favoritos_conciliaJT').checked,			
+			modulo5_obterConcilia: document.querySelector('#modulo5_filtros_favoritos_conciliaJT').checked,
 			maisPje_velocidade_interacao: preferencias.maisPje_velocidade_interacao,
 			aaAnexar : aaAnexar_temp,
 			aaComunicacao : aaComunicacao_temp,
@@ -882,6 +703,7 @@ async function salvarOpcoes() {
 			aaDespacho : aaDespacho_temp,
 			aaMovimento : aaMovimento_temp,
 			aaChecklist : aaChecklist_temp,
+			aaNomearPerito : aaNomearPerito_temp,
 			aaLancarMovimentos : preferencias.aaLancarMovimentos,
 			aaVariados : aaVariados_temp,
 			atalhosPlugin : montarAtalhosPlugin(),
@@ -894,6 +716,7 @@ async function salvarOpcoes() {
 			renajud: preferencias.renajud,
 			serasajud: preferencias.serasajud,
 			modulo10: listaModulo10_temp,
+			modulo11: listaModulo11_temp,
 			lista_monitores: monitores,
 			modoLGPD: preferencias.modoLGPD,
 			modoNoite: preferencias.modoNoite,
@@ -901,6 +724,16 @@ async function salvarOpcoes() {
 			pesquisaRapidaDeProcessoEmAba: document.querySelector('#pesquisaRapidaDeProcessoEmAba').checked,
 			acionarKaizenComClique: document.querySelector('#acionarKaizenComClique').checked,
 			kaizenNaHorizontal: document.querySelector('#kaizenNaHorizontal').checked,
+			extrasTiposDocumentoProcuracao: /** @type {HTMLInputElement} */ (document.querySelector('#extrasTiposDocumentoProcuracao'))?.value,
+			modulo10_salaFavorita: /** @type {HTMLInputElement} */ (document.querySelector('#modulo10_salaFavorita'))?.value,
+			extrasTiposDocumentoCustas: document.querySelector('#extrasTiposDocumentoCustas')?.value,
+			extrasTiposDocumentoDepositoRecursal: document.querySelector('#extrasTiposDocumentoDepositoRecursal')?.value,
+			extrasTiposDocumentoSentencasAcordao: document.querySelector('#extrasTiposDocumentoSentencasAcordao')?.value,
+			extrasExibirPreviaDocumentoMouseOver: document.querySelector('#extrasExibirPreviaDocumentoMouseOver')?.checked,
+			extrasExibirPreviaDocumentoFocus: document.querySelector('#extrasExibirPreviaDocumentoFocus').checked,
+			extrasFocusSempre: document.querySelector('#extrasFocusSempre').checked,
+
+			extrasERecTipoGigsSemTema: document.querySelector('#extrasERecTipoGigsSemTema')?.value,
 			extrasFecharJanelaExpediente: document.querySelector('#fecharJanelaExpediente').checked,
 			extrasSugerirTipoAoAnexar: document.querySelector('#extrasSugerirTipoAoAnexar').checked,
 			extrasSugerirDescricaoAoAnexar: document.querySelector('#extrasSugerirDescricaoAoAnexar').checked,
@@ -908,8 +741,8 @@ async function salvarOpcoes() {
 			extrasPrazoEmLote: preferencias.extrasPrazoEmLote,
 			modulo4PaginaInicial: document.getElementById("modulo4PaginaInicial").value,
 			atalho: preferencias.atalho
-		});	
-		
+		});
+
 		const Toast = Swal.mixin({
 			toast: true,
 			position: 'center',
@@ -919,13 +752,13 @@ async function salvarOpcoes() {
 			onOpen: (toast) => {
 				setTimeout(function() {
 					document.getElementById("overlay").style.display = "none";
-					
+
 					let recarregarStorage = browser.storage.local.get(null);
 					Promise.all([recarregarStorage]).then(result => {
 						preferencias = result[0];
 						resolve(true);
 					});
-					
+
 				}, 1000)
 			}
 		})
@@ -934,10 +767,10 @@ async function salvarOpcoes() {
 			icon: 'success',
 			title: 'Salvando...'
 		})
-		
+
 		// browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Informações salvas com sucesso!', icone: '2'});
-	
-		
+
+
 	});
 }
 
@@ -955,12 +788,12 @@ async function zerarPosicoesKaizen() {
 function ajustarAAVariados() {
 	return new Promise(async resolve => {
 		let listaDeIds = preferencias.aaVariados.map((item) => item.id);//pega os ids das AA que eu já tenho
-		
+
 		for (const [pos, obj] of aaVariados_temp.entries()) {
 			// console.log(obj.id + ' == ' + listaDeIds.indexOf(obj.id) + '   : ' + pos)
 			if (listaDeIds.includes(obj.id)) {
-				obj.temporizador = preferencias.aaVariados[listaDeIds.indexOf(obj.id)].temporizador;				
-				obj.ativar = preferencias.aaVariados[listaDeIds.indexOf(obj.id)].ativar;				
+				obj.temporizador = preferencias.aaVariados[listaDeIds.indexOf(obj.id)].temporizador;
+				obj.ativar = preferencias.aaVariados[listaDeIds.indexOf(obj.id)].ativar;
 				if (obj.objeto) {
 					obj.objeto = preferencias.aaVariados[listaDeIds.indexOf(obj.id)].objeto;
 				}
@@ -985,12 +818,12 @@ async function converter_lista_de_atividades_em_modulo2() {
 	if (preferencias.tarefaResponsavel) {
 		preferencias.atividadeResponsavel.concat(preferencias.tarefaResponsavel);
 	}
-	
+
 	//GIGS PRAZOS - versão 2.6.5
 	if (preferencias.prazoResponsavel) {
 		preferencias.atividadeResponsavel.concat(preferencias.prazoResponsavel);;
 	}
-	
+
 	//GIGS ATIVIDADES - versão 2.7.0
 	if (preferencias.atividadeResponsavel) {
 		lista_temp = preferencias.atividadeResponsavel.split('|');
@@ -1007,7 +840,7 @@ async function converter_lista_de_atividades_em_modulo2() {
 				// console.log('      |___ignora');
 			} else {
 				// console.log('      |___' + array1[0] + ' é número? ' + (isNaN(array1[0]) ? "Não" : "Sim"));
-				if (isNaN(array1[0])) { //não é número? 
+				if (isNaN(array1[0])) { //não é número?
 					let linha = array1[0] + '|' + array1[1] + '|0|1|2|3|4|5|6|7|8|9';
 					listaModulo2_temp.push(linha);
 				} else {
@@ -1027,7 +860,7 @@ async function converter_lista_de_atividades_em_modulo2() {
 		}
 	});
 	// console.log(listaModulo2_temp);
-	
+
 	//exclui as antigas variáveis
 	await browser.storage.local.remove('tarefaResponsavel');
 	await browser.storage.local.remove('prazoResponsavel');
@@ -1044,53 +877,53 @@ async function filtro_Atividades() {
 			'<input type="text" id="modulo2_usuario_responsavel" class="swal2-input" placeholder="Nome do usuário responsavel">' +
 			'<span>Fase do Processo:</span><br>' +
 			'<select id="modulo2_fase_processo" class="swal2-select" placeholder="Fase do Processo">' +
-			'<option value="Todas" selected>Todas</option>' + 
-			'<option value="Conhecimento">Conhecimento</option>' + 
-			'<option value="Liquidação">Liquidação</option>' + 
-			'<option value="Execução">Execução</option>' + 
-			'<option value="Arquivados">Arquivados</option>' + 
+			'<option value="Todas" selected>Todas</option>' +
+			'<option value="Conhecimento">Conhecimento</option>' +
+			'<option value="Liquidação">Liquidação</option>' +
+			'<option value="Execução">Execução</option>' +
+			'<option value="Arquivados">Arquivados</option>' +
 			'</select><br><br>' +
 			'<div id="escolherProcessoFinal"><span>Processo final:</span><br><br>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro0" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">0</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
-			'<label class="container">' + 
+			'</label>' +
+			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro1" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">1</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro2" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">2</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro3" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">3</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro4" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">4</span>' +
 			'<span class="checkmark"></span>' +
-			'</label><br>' + 
+			'</label><br>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro5" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">5</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro6" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">6</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro7" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">7</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro8" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">8</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro9" checked><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">9</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<br><br><div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1em; cursor: pointer;">' +
 			'<span id="maisPje_parEimpar" name="par" class="swal2-label spanToogle">Par</span>' +
 			'<span id="maisPje_parEimpar" name="impar"class="swal2-label spanToogle">Ímpar</span>' +
@@ -1103,7 +936,7 @@ async function filtro_Atividades() {
 		cancelButtonText: 'Cancelar',
 		preConfirm: () => {
 			let resposta = (document.getElementById('modulo2_atividade').value == "") ? " " : document.getElementById('modulo2_atividade').value;
-			resposta += "|" + document.getElementById('modulo2_usuario_responsavel').value;			
+			resposta += "|" + document.getElementById('modulo2_usuario_responsavel').value;
 			resposta += "|" + document.getElementById('modulo2_fase_processo').value;
 			if (document.getElementById('modulo2_Filtro0').checked) {
 				resposta += "|" + 0;
@@ -1158,60 +991,60 @@ async function editar_filtro_Atividades(pos) {
 			'<input type="text" id="modulo2_usuario_responsavel" class="swal2-input" placeholder="Nome do usuario responsavel" value="' + item[1] + '">' +
 			'<span>Fase do Processo:</span><br>' +
 			'<select id="modulo2_fase_processo" class="swal2-select" placeholder="Fase do Processo">' +
-			'<option value="Todas" ' + (item[2].includes('Todas') ? 'selected' : '') + '>Todas</option>' + 
-			'<option value="Conhecimento" ' + (item[2].includes('Conhecimento') ? 'selected' : '') + '>Conhecimento</option>' + 
-			'<option value="Liquidação" ' + (item[2].includes('Liquidação') ? 'selected' : '') + '>Liquidação</option>' + 
-			'<option value="Execução" ' + (item[2].includes('Execução') ? 'selected' : '') + '>Execução</option>' + 
-			'<option value="Arquivados" ' + (item[2].includes('Arquivados') ? 'selected' : '') + '>Arquivados</option>' + 
+			'<option value="Todas" ' + (item[2].includes('Todas') ? 'selected' : '') + '>Todas</option>' +
+			'<option value="Conhecimento" ' + (item[2].includes('Conhecimento') ? 'selected' : '') + '>Conhecimento</option>' +
+			'<option value="Liquidação" ' + (item[2].includes('Liquidação') ? 'selected' : '') + '>Liquidação</option>' +
+			'<option value="Execução" ' + (item[2].includes('Execução') ? 'selected' : '') + '>Execução</option>' +
+			'<option value="Arquivados" ' + (item[2].includes('Arquivados') ? 'selected' : '') + '>Arquivados</option>' +
 			'</select><br><br>' +
 			'<div id="escolherProcessoFinal"><span>Processo final:</span><br><br>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro0" ' + (item.includes('0') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">0</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
-			'<label class="container">' + 
+			'</label>' +
+			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro1" ' + (item.includes('1') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">1</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro2" ' + (item.includes('2') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">2</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro3" ' + (item.includes('3') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">3</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro4" ' + (item.includes('4') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">4</span>' +
 			'<span class="checkmark"></span>' +
-			'</label><br>' + 
+			'</label><br>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro5" ' + (item.includes('5') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">5</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro6" ' + (item.includes('6') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">6</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro7" ' + (item.includes('7') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">7</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro8" ' + (item.includes('8') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">8</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo2_Filtro9" ' + (item.includes('9') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">9</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<br><br><div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1em; cursor: pointer;">' +
 			'<span id="maisPje_parEimpar" name="par" class="swal2-label spanToogle">Par</span>' +
 			'<span id="maisPje_parEimpar" name="impar"class="swal2-label spanToogle">Ímpar</span>' +
 			'<span id="maisPje_parEimpar" name="todos" class="swal2-label spanToogle">Todos</span>' +
 			'<span id="maisPje_parEimpar" name="nenhum" class="swal2-label spanToogle">Nenhum</span>' +
 			'</div><br><br></div>',
-			
+
 		showCancelButton: true,
 		focusConfirm: false,
 		confirmButtonText: 'Salvar',
@@ -1267,7 +1100,7 @@ async function montar_modulo2() {
 	let ancora = document.getElementById('lista_modulo2');
 	ancora.textContent = ""; //limpa a tabela
 	let tr_cabecalho = document.createElement("tr");
-	tr_cabecalho.id = "textoItalico";
+	tr_cabecalho.className = "textoItalico";
 	let td_cabecalho_1 = document.createElement("td");
 	td_cabecalho_1.innerText = 'TAREFA';
 	let td_cabecalho_2 = document.createElement("td");
@@ -1277,8 +1110,8 @@ async function montar_modulo2() {
 	let td_cabecalho_4 = document.createElement("td");
 	td_cabecalho_4.innerText = 'PROCESSO FINAL';
 	let td_cabecalho_5 = document.createElement("td");
-	
-	
+
+
 
 	//*********criar botão excluir
 	let div_excluirTodos = document.createElement("div");
@@ -1294,7 +1127,7 @@ async function montar_modulo2() {
 		this.style.setProperty("background-color","darkcyan");
 	};
 	bt_excluirTodos.onclick = function () {
-		
+
 		Swal.fire({
 			title: 'Tem certeza?',
 			text: "",
@@ -1308,12 +1141,12 @@ async function montar_modulo2() {
 				listaModulo2_temp = [];
 				preferencias.modulo2 = listaModulo2_temp;
 				montar_modulo2();
-				salvarOpcoes();	
+				salvarOpcoes();
 			}
 		})
 
 
-		
+
 	};
 	div_excluirTodos.appendChild(document.createElement("span"));
 	div_excluirTodos.appendChild(bt_excluirTodos);
@@ -1334,48 +1167,48 @@ async function montar_modulo2() {
 	let cont = 1;
 	let teste = [].map.call(listaModulo2_temp,function(item) {
 		let regra = item.split('|');
-		
+
 		let tr = document.createElement("tr");
 		tr.style = "height: 2em;";
 		tr.className = 'linha-zebrada';
-		
-		let td1 = document.createElement("td");		
+
+		let td1 = document.createElement("td");
 		td1.style = "font-weight: bold";
-		td1.innerText = "|___Regra " + cont + ":";		
+		td1.innerText = "|___Regra " + cont + ":";
 		tr.appendChild(td1);
-		
+
 		let td2 = document.createElement("td");
-		td2.innerText = regra[0];		
+		td2.innerText = regra[0];
 		tr.appendChild(td2);
-		
-		let td2a = document.createElement("td");	
+
+		let td2a = document.createElement("td");
 		tr.appendChild(td2a);
-		
+
 		let td3 = document.createElement("td");
-		td3.innerText = regra[1];		
+		td3.innerText = regra[1];
 		tr.appendChild(td3);
-		
+
 		let td3a = document.createElement("td");
 		tr.appendChild(td3a);
-		
+
 		let td4 = document.createElement("td");
-		td4.innerText = isNaN(Math.floor(regra[2])) ? regra[2] : 'Todas';		
+		td4.innerText = isNaN(Math.floor(regra[2])) ? regra[2] : 'Todas';
 		tr.appendChild(td4);
-		
+
 		let td4a = document.createElement("td");
 		tr.appendChild(td4a);
-		
+
 		let td5 = document.createElement("td");
 		let var1 = "";
-		
+
 		for (i = 2; i <= regra.length-1; i++) {
 			if (!isNaN(Math.floor(regra[i]))) {
 				var1 += (i < regra.length-1) ? regra[i] + ", " : regra[i];
 			}
 		}
-		td5.innerText = var1;	
+		td5.innerText = var1;
 		tr.appendChild(td5);
-		
+
 		//*********criar botão editar
 		let div_editar = document.createElement("div");
 		div_editar.setAttribute("data-tooltip", "Editar");
@@ -1393,7 +1226,7 @@ async function montar_modulo2() {
 			editar_filtro_Atividades(parseInt(this.getAttribute("pos")))
 		};
 		div_editar.appendChild(bt_editar);
-		
+
 		//*********criar botão excluir
 		let div_excluir = document.createElement("div");
 		div_excluir.setAttribute("data-tooltip", "Excluir");
@@ -1417,7 +1250,7 @@ async function montar_modulo2() {
 
 		//*********criar botão mover pra cima
 		let div_moverPraCima = document.createElement("div");
-		if (cont > 1) {			
+		if (cont > 1) {
 			div_moverPraCima.setAttribute("data-tooltip", "subir posição");
 			let bt_moverPraCima = document.createElement("i");
 			bt_moverPraCima.innerText = "🡅";
@@ -1428,7 +1261,7 @@ async function montar_modulo2() {
 			bt_moverPraCima.onclick = function () {
 				let posAtual = this.getAttribute('pos');
 				let posFutura = parseInt(posAtual) - 1;
-				console.log('posAtual: ' + posAtual + ' - ' + 'posFutura: ' + posFutura);			
+				console.log('posAtual: ' + posAtual + ' - ' + 'posFutura: ' + posFutura);
 				listaModulo2_temp.splice(posFutura, 0, listaModulo2_temp.splice(posAtual, 1)[0]);
 				preferencias.modulo2 = listaModulo2_temp;
 				montar_modulo2();
@@ -1439,7 +1272,7 @@ async function montar_modulo2() {
 
 		//*********criar botão mover pra cima
 		let div_moverPraBaixo = document.createElement("div");
-		if (cont < listaModulo2_temp.length) {			
+		if (cont < listaModulo2_temp.length) {
 			div_moverPraBaixo.setAttribute("data-tooltip", "descer posição");
 			let bt_moverPraBaixo = document.createElement("i");
 			bt_moverPraBaixo.innerText = "🡇";
@@ -1450,7 +1283,7 @@ async function montar_modulo2() {
 			bt_moverPraBaixo.onclick = function () {
 				let posAtual = this.getAttribute('pos');
 				let posFutura = parseInt(posAtual) + 1;
-				console.log('posAtual: ' + posAtual + ' - ' + 'posFutura: ' + posFutura);			
+				console.log('posAtual: ' + posAtual + ' - ' + 'posFutura: ' + posFutura);
 				listaModulo2_temp.splice(posFutura, 0, listaModulo2_temp.splice(posAtual, 1)[0]);
 				preferencias.modulo2 = listaModulo2_temp;
 				montar_modulo2();
@@ -1458,7 +1291,7 @@ async function montar_modulo2() {
 			};
 			div_moverPraBaixo.appendChild(bt_moverPraBaixo);
 		}
-		
+
 		let td6 = document.createElement("td");
 		td6.style = "display: grid;grid-template-columns: 1fr 1fr 1fr 1fr;";
 		td6.appendChild(div_editar);
@@ -1466,16 +1299,16 @@ async function montar_modulo2() {
 		td6.appendChild(div_moverPraCima);
 		td6.appendChild(div_moverPraBaixo);
 		tr.appendChild(td6);
-		
-		ancora.appendChild(tr);		
+
+		ancora.appendChild(tr);
 		cont++;
 	});
-	
+
 	async function excluirRepetidos() {
 		return new Promise(resolve => {
 			let lista = [];
 			for (const [pos, item] of listaModulo2_temp.entries()) {
-				if (lista.indexOf(item) == -1) { 
+				if (lista.indexOf(item) == -1) {
 					lista.push(item);
 				}
 			}
@@ -1494,14 +1327,14 @@ async function converter_lista_de_magistrados_em_modulo8() {
 			if (regra[0] === 'true' || regra[0] === 'false') { //verifica se a regra se enquadra no novo formato
 				//arrumar a regra de orgão julgador cargo.. cada tribunal define uma forma diferente. ex: TRT12 é Juiz Titular, já no TRT4 é JUIZ DO TRABALHO TITULAR
 				if (!regra[12]) { regra[12] = 'TODOS' }
-				if (regra[12].toLowerCase().includes('titular') && regra[12].toLowerCase() != 'titular') { 
+				if (regra[12].toLowerCase().includes('titular') && regra[12].toLowerCase() != 'titular') {
 					console.log('maisPJe.. corrigindo regras MODULO8: orgão Julgador Cargo: ' + regra[12] + ' para titular')
 					regra[12] = 'TITULAR';
-					corrigir = true;			
-				} else if (regra[12].toLowerCase().includes('substituto') && regra[12].toLowerCase() != 'substituto') { 
+					corrigir = true;
+				} else if (regra[12].toLowerCase().includes('substituto') && regra[12].toLowerCase() != 'substituto') {
 					console.log('maisPJe.. corrigindo regras MODULO8: orgão Julgador Cargo: ' + regra[12] + ' para substituto')
 					regra[12] = 'SUBSTITUTO';
-					corrigir = true; 			
+					corrigir = true;
 				}
 				// console.log(regra[0] + '|' + regra[1] + '|' + regra[2] + '|' + regra[3] + '|' + regra[4] + '|' + regra[5] + '|' + regra[6] + '|' + regra[7] + '|' + regra[8] + '|' + regra[9] + '|' + regra[10] + '|' + regra[11] + '|' + regra[12])
 				listaTemp.push(regra[0] + '|' + regra[1] + '|' + regra[2] + '|' + regra[3] + '|' + regra[4] + '|' + regra[5] + '|' + regra[6] + '|' + regra[7] + '|' + regra[8] + '|' + regra[9] + '|' + regra[10] + '|' + regra[11] + '|' + regra[12]);
@@ -1572,14 +1405,14 @@ async function converter_lista_de_magistrados_em_modulo8() {
 				resposta += 'TODOS';
 				listaTemp.push(resposta);
 			}
-			
+
 		});
 
 		if (corrigir) {
 			listaModulo8_temp = listaTemp;
 			preferencias.modulo8 = listaModulo8_temp;
 			let guardarStorage = browser.storage.local.set({ 'modulo8': listaTemp });
-			Promise.all([guardarStorage]).then(values => {			
+			Promise.all([guardarStorage]).then(values => {
 				let Toast = Swal.mixin({
 					toast: true,
 					position: 'bottom-end',
@@ -1595,16 +1428,16 @@ async function converter_lista_de_magistrados_em_modulo8() {
 					icon: 'success',
 					title: 'corrigindo regras MODULO8:ORGÃO JULGADOR CARGO...'
 				})
-				setTimeout(function() {return resolve(true)}, 3000);			
-			});	
-			
+				setTimeout(function() {return resolve(true)}, 3000);
+			});
+
 		} else {
 			listaModulo8_temp = listaTemp;
 			preferencias.modulo8 = listaModulo8_temp;
 			return resolve(true);
 		}
 	});
-	
+
 }
 
 async function filtro_Magistrado() {
@@ -1616,50 +1449,50 @@ async function filtro_Magistrado() {
 			'<br><br>' +
 			'<span>Unidade Judiciária:</span><br>' +
 			'<span style="font-size: .8em;color: red;">preencha este campo APENAS se vc atuar em mais de um órgão Julgador (Vara) e quer definir regras diferentes para cada Juiz de cada órgão. Caso contrário, deixe preenchido a palavra TODOS</span><br>' +
-			'<input type="text" id="modulo8_oj" class="swal2-input" placeholder="Nome do(a) órgão julgador">' + 
-			'<br><br>' + 
+			'<input type="text" id="modulo8_oj" class="swal2-input" placeholder="Nome do(a) órgão julgador">' +
+			'<br><br>' +
 			'<span>Processo Final:</span><br><br>' +
 			'<div id="escolherProcessoFinal" class="destacarToogle" style="padding: 10px;border-radius: .1875em;">' +
 			'<label class="container"' + (preferencias.modulo8_ignorarZero ? ' style="visibility: hidden;" ' : '') + '>' +
 			'<input type="checkbox" id="modulo8_Filtro0" ' + (preferencias.modulo8_ignorarZero ? ' disabled ' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">0</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
-			'<label class="container">' + 
+			'</label>' +
+			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro1"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">1</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro2"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">2</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro3"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">3</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro4"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">4</span>' +
 			'<span class="checkmark"></span>' +
-			'</label><br>' + 
+			'</label><br>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro5"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">5</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro6"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">6</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro7"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">7</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro8"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">8</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro9"><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">9</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<br><br><div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1em; cursor: pointer;">' +
 			'<span id="maisPje_parEimpar" name="par" class="swal2-label spanToogle">Par</span>' +
 			'<span id="maisPje_parEimpar" name="impar"class="swal2-label spanToogle">Ímpar</span>' +
@@ -1668,10 +1501,10 @@ async function filtro_Magistrado() {
 			'</div></div><br>' +
 			'<span>Órgão Julgador Cargo:</span><br><br>' +
 			'<div id="escolherOrgaoJulgadorCargo" class="destacarToogle" style="padding: 10px;border-radius: .1875em;">' +
-			'<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%; border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="TODOS"> TODOS </option>' + 
-				'<option value="TITULAR"> Juiz Titular </option>' + 
-				'<option value="SUBSTITUTO"> Juiz Substituto </option>' + 
+			'<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%; border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="TODOS"> TODOS </option>' +
+				'<option value="TITULAR"> Juiz Titular </option>' +
+				'<option value="SUBSTITUTO"> Juiz Substituto </option>' +
 			'</select>' +
 			'</div></div>',
 		showCancelButton: true,
@@ -1710,7 +1543,7 @@ async function filtro_Magistrado() {
 	});
 
 	if (result) {
-		listaModulo8_temp.push(result);		
+		listaModulo8_temp.push(result);
 		montar_modulo8();
 		salvarOpcoes();
 	}
@@ -1725,52 +1558,52 @@ async function editar_filtro_Magistrado(pos) {
 			'<span>Magistrado(a):</span><br>' +
 			'<input type="text" id="modulo8_magistrado" class="swal2-input" placeholder="Nome do(a) magistrado(a)" value="' + item[10] + '">' +
 			'<br><br>' +
-			'<span>Unidade Judiciária:</span><br>' +			
+			'<span>Unidade Judiciária:</span><br>' +
 			'<span style="font-size: .8em;color: red;">preencha este campo APENAS se vc atuar em mais de um órgão Julgador (Vara) e quer definir regras diferentes para cada Juiz de cada órgão. Caso contrário, deixe preenchido a palavra TODOS</span><br>' +
-			'<input type="text" id="modulo8_oj" class="swal2-input" placeholder="Nome do(a) órgão julgador" value="' + item[11] + '">' + 
-			'<br><br>' + 
+			'<input type="text" id="modulo8_oj" class="swal2-input" placeholder="Nome do(a) órgão julgador" value="' + item[11] + '">' +
+			'<br><br>' +
 			'<span>Processo Final:</span><br><br>' +
 			'<div id="escolherProcessoFinal" class="destacarToogle" style="padding: 10px;border-radius: .1875em;">' +
 			'<label class="container"' + (preferencias.modulo8_ignorarZero ? ' style="visibility: hidden;" ' : '') + '>' +
 			'<input type="checkbox" id="modulo8_Filtro0" ' + (item[0] === 'true' ? 'checked' : '') + ' ' + (preferencias.modulo8_ignorarZero ? ' disabled ' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">0</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
-			'<label class="container">' + 
+			'</label>' +
+			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro1" ' + (item[1] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">1</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro2" ' + (item[2] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">2</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro3" ' + (item[3] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">3</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro4" ' + (item[4] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">4</span>' +
 			'<span class="checkmark"></span>' +
-			'</label><br>' + 
+			'</label><br>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro5" ' + (item[5] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">5</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro6" ' + (item[6] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">6</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro7" ' + (item[7] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">7</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro8" ' + (item[8] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">8</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<label class="container">' +
 			'<input type="checkbox" id="modulo8_Filtro9" ' + (item[9] === 'true' ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-size: 24px;">9</span>' +
 			'<span class="checkmark"></span>' +
-			'</label>' + 
+			'</label>' +
 			'<br><br><div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1em; cursor: pointer;">' +
 			'<span id="maisPje_parEimpar" name="par" class="swal2-label spanToogle">Par</span>' +
 			'<span id="maisPje_parEimpar" name="impar"class="swal2-label spanToogle">Ímpar</span>' +
@@ -1779,10 +1612,10 @@ async function editar_filtro_Magistrado(pos) {
 			'</div></div><br>' +
 			'<span>Órgão Julgador Cargo:</span><br><br>' +
 			'<div id="escolherOrgaoJulgadorCargo" class="destacarToogle" style="padding: 10px;border-radius: .1875em;">' +
-			'<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9; border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="TODOS"> TODOS </option>' + 
-				'<option value="TITULAR"' + (item[12].toLowerCase().includes('titular') ? 'selected' : '')  + '> Juiz Titular </option>' + 
-				'<option value="SUBSTITUTO"' + (item[12].toLowerCase().includes('substituto') ? 'selected' : '')  + '> Juiz Substituto </option>' + 
+			'<select id="modulo8_orgaoJulgadorCargo" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9; border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="TODOS"> TODOS </option>' +
+				'<option value="TITULAR"' + (item[12].toLowerCase().includes('titular') ? 'selected' : '')  + '> Juiz Titular </option>' +
+				'<option value="SUBSTITUTO"' + (item[12].toLowerCase().includes('substituto') ? 'selected' : '')  + '> Juiz Substituto </option>' +
 			'</select>' +
 			'</div></div>',
 		showCancelButton: true,
@@ -1821,7 +1654,7 @@ async function editar_filtro_Magistrado(pos) {
 	});
 
 	if (result) {
-		listaModulo8_temp[pos] = result;		
+		listaModulo8_temp[pos] = result;
 		montar_modulo8();
 		salvarOpcoes();
 	}
@@ -1832,33 +1665,33 @@ function montar_modulo8() {
 	let ancora = document.getElementById('lista_modulo8');
 	ancora.textContent = "";
 	let cont = 1;
-	let teste = [].map.call(listaModulo8_temp,function(item) {		
+	let teste = [].map.call(listaModulo8_temp,function(item) {
 		let regra = item.split('|');
-		
+
 		let tr = document.createElement("tr");
 		tr.style = "height: 2em;";
-		
-		let td1 = document.createElement("td");		
+
+		let td1 = document.createElement("td");
 		td1.style = "font-weight: bold";
-		td1.innerText = "|___Regra " + cont + ":";		
+		td1.innerText = "|___Regra " + cont + ":";
 		tr.appendChild(td1);
-		
+
 		let td2 = document.createElement("td");
-		td2.innerText = regra[10];		
+		td2.innerText = regra[10];
 		tr.appendChild(td2);
 
 		let td10 = document.createElement("td");
-		td10.innerText = regra[12];		
+		td10.innerText = regra[12];
 		tr.appendChild(td10);
-		
+
 		let td3 = document.createElement("td");
-		td3.innerText = regra[11];		
+		td3.innerText = regra[11];
 		tr.appendChild(td3);
-		
+
 		let td4 = document.createElement("td");
-		td4.innerText = "processos final:";		
+		td4.innerText = "processos final:";
 		tr.appendChild(td4);
-		
+
 		let td5 = document.createElement("td");
 		let var1 = "";
 		for (i = 0; i <= 9; i++) {
@@ -1867,9 +1700,9 @@ function montar_modulo8() {
 				var1 += regra[i] === 'true' ? ", " : "";
 			}
 		}
-		td5.innerText = var1;	
+		td5.innerText = var1;
 		tr.appendChild(td5);
-		
+
 		//*********criar botão editar
 		let div_editar = document.createElement("div");
 		div_editar.setAttribute("data-tooltip", "Editar");
@@ -1887,7 +1720,7 @@ function montar_modulo8() {
 			editar_filtro_Magistrado(parseInt(this.getAttribute("pos")))
 		};
 		div_editar.appendChild(bt_editar);
-		
+
 		//*********criar botão excluir
 		let div_excluir = document.createElement("div");
 		div_excluir.setAttribute("data-tooltip", "Excluir");
@@ -1907,23 +1740,23 @@ function montar_modulo8() {
 			salvarOpcoes();
 		};
 		div_excluir.appendChild(bt_excluir);
-		
+
 		let td6 = document.createElement("td");
 		td6.style = "display: inline-flex;";
 		td6.appendChild(div_editar);
 		td6.appendChild(div_excluir);
 		tr.appendChild(td6);
-		
-		ancora.appendChild(tr);		
+
+		ancora.appendChild(tr);
 		cont++;
 	});
 }
 
 //modulo 9
 async function modulo9(convenio) {
-	switch (convenio) {			
+	switch (convenio) {
 		case 'sisbajud':
-			
+
 			//*****ajusta a teimosinha para a configuração de quantos dias quiser 30 e 60 dias
 			let teimosinha = (!preferencias.sisbajud.teimosinha) ? 'nao' : preferencias.sisbajud.teimosinha;
 			if (teimosinha.includes('60')) {
@@ -1952,99 +1785,106 @@ async function modulo9(convenio) {
 				teimosinha = '5';
 			} else {
 				teimosinha = 'nao'
-			}			
+			}
 			//*****
-			
+
 			//desabilita o campo agencia se já estiver preenchido no banco preferido
 			let agenciaDisabled = preferencias.sisbajud.banco_preferido.includes('[') ? true : false;
-			
+
+			aaSisbajud = (preferencias.sisbajud.executarAAaoFinal ? preferencias.sisbajud.executarAAaoFinal : 'Nenhum');
+
 			let { value: resultsisbajud } = await Swal.fire({
 				title: 'SISBAJUD',
 				html:
 					'A extensão traz diversas facilidades no convênio SISBAJUD. Desde a varinha mágica para preenchimento de campos automaticamente, como aplicação de estilos para facilitar a leitura da resposta do convênio. Você também pode utilizar a varinha mágica na tela de requisição de endereço.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.sisbajud ? ' checked ' : '') + '>' +
 					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><div style="display: grid;grid-template-columns: 1fr 1fr;align-items: center;">' +
-					
-					'<span style="font-weight: bold;background-color: #d3d3d350; margin-top: 40px; padding: 15px 0 15px 0;border-top: 2px solid #d3d3d3;">CONFIGURAÇÕES GERAIS</span>' + 
-					'<span style="font-weight: bold;background-color: #d3d3d350; margin-top: 40px; padding: 15px 0 15px 0;text-align: left;border-top: 2px solid #d3d3d3;">: </span>' + 					
-					
-					'<label for="swal-input1" style="font-weight: bold;"> Juiz solicitante da Ordem: </label>' + 
+
+					'<span style="font-weight: bold;background-color: #d3d3d350; margin-top: 40px; padding: 15px 0 15px 0;border-top: 2px solid #d3d3d3;">CONFIGURAÇÕES GERAIS</span>' +
+					'<span style="font-weight: bold;background-color: #d3d3d350; margin-top: 40px; padding: 15px 0 15px 0;text-align: left;border-top: 2px solid #d3d3d3;">: </span>' +
+
+					'<label for="swal-input1" style="font-weight: bold;"> Juiz solicitante da Ordem: </label>' +
 					'<input id="swal-input1" class="swal2-input"" value="' + preferencias.sisbajud.juiz + '" style="margin-bottom: 0;">' +
-					'<span style="font-weight: bold;" aria-hidden="true"> </span>' + 
-					'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para usar a regra do Módulo 8 digite: MODULO8 </span>' + 
-					'<label for="swal-input2" style="font-weight: bold;"> Vara/Juízo da ordem (use o código): </label>' + 
+					'<span style="font-weight: bold;" aria-hidden="true"> </span>' +
+					'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para usar a regra do Módulo 8 digite: MODULO8 </span>' +
+					'<label for="swal-input2" style="font-weight: bold;"> Vara/Juízo da ordem (use o código): </label>' +
 					'<input id="swal-input2" class="swal2-input"" value="' + preferencias.sisbajud.vara + '">' +
-					
-					
-					
-					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;border-top: 2px solid #d3d3d3;">CONFIGURAÇÕES PARA MINUTAS</span>' + 
-					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;text-align: left;border-top: 2px solid #d3d3d3;">: </span>' + 
-					
-					'<label for="swal-input3" style="font-weight: bold;"> Bloqueio sobre o CNPJ Raiz? </label>' +			
-					'<select id="swal-input3" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (preferencias.sisbajud.cnpjRaiz.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (preferencias.sisbajud.cnpjRaiz.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+
+
+
+					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;border-top: 2px solid #d3d3d3;">CONFIGURAÇÕES PARA MINUTAS</span>' +
+					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;text-align: left;border-top: 2px solid #d3d3d3;">: </span>' +
+
+					'<label for="swal-input3" style="font-weight: bold;"> Bloqueio sobre o CNPJ Raiz? </label>' +
+					'<select id="swal-input3" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (preferencias.sisbajud.cnpjRaiz.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (preferencias.sisbajud.cnpjRaiz.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select>' +
-					
-					'<label for="swal-input4" style="font-weight: bold;"> Teimosinha? </label>' +			
-					'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (teimosinha.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="5"' + (teimosinha.includes('5') ? 'selected' : '')  + '> 5 dias </option>' + 
-						'<option value="10"' + (teimosinha.includes('10') ? 'selected' : '')  + '> 10 dias </option>' + 
-						'<option value="15"' + (teimosinha.includes('15') ? 'selected' : '')  + '> 15 dias </option>' + 
-						'<option value="20"' + (teimosinha.includes('20') ? 'selected' : '')  + '> 20 dias </option>' + 
-						'<option value="25"' + (teimosinha.includes('25') ? 'selected' : '')  + '> 25 dias </option>' + 
-						'<option value="30"' + (teimosinha.includes('30') ? 'selected' : '')  + '> 30 dias </option>' + 
-						'<option value="35"' + (teimosinha.includes('35') ? 'selected' : '')  + '> 35 dias </option>' + 
-						'<option value="40"' + (teimosinha.includes('40') ? 'selected' : '')  + '> 40 dias </option>' + 
-						'<option value="45"' + (teimosinha.includes('45') ? 'selected' : '')  + '> 45 dias </option>' + 
-						'<option value="50"' + (teimosinha.includes('50') ? 'selected' : '')  + '> 50 dias </option>' + 
-						'<option value="55"' + (teimosinha.includes('55') ? 'selected' : '')  + '> 55 dias </option>' + 
-						'<option value="60"' + (teimosinha.includes('60') ? 'selected' : '')  + '> 60 dias </option>' + 
+
+					'<label for="swal-input4" style="font-weight: bold;"> Teimosinha? </label>' +
+					'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (teimosinha.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="5"' + (teimosinha.includes('5') ? 'selected' : '')  + '> 5 dias </option>' +
+						'<option value="10"' + (teimosinha.includes('10') ? 'selected' : '')  + '> 10 dias </option>' +
+						'<option value="15"' + (teimosinha.includes('15') ? 'selected' : '')  + '> 15 dias </option>' +
+						'<option value="20"' + (teimosinha.includes('20') ? 'selected' : '')  + '> 20 dias </option>' +
+						'<option value="25"' + (teimosinha.includes('25') ? 'selected' : '')  + '> 25 dias </option>' +
+						'<option value="30"' + (teimosinha.includes('30') ? 'selected' : '')  + '> 30 dias </option>' +
+						'<option value="35"' + (teimosinha.includes('35') ? 'selected' : '')  + '> 35 dias </option>' +
+						'<option value="40"' + (teimosinha.includes('40') ? 'selected' : '')  + '> 40 dias </option>' +
+						'<option value="45"' + (teimosinha.includes('45') ? 'selected' : '')  + '> 45 dias </option>' +
+						'<option value="50"' + (teimosinha.includes('50') ? 'selected' : '')  + '> 50 dias </option>' +
+						'<option value="55"' + (teimosinha.includes('55') ? 'selected' : '')  + '> 55 dias </option>' +
+						'<option value="60"' + (teimosinha.includes('60') ? 'selected' : '')  + '> 60 dias </option>' +
 					'</select>' +
-					
-					'<label for="swal-input5" style="font-weight: bold;"> Penhorar conta-salário? </label>' +			
-					'<select id="swal-input5" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (preferencias.sisbajud.contasalario.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (preferencias.sisbajud.contasalario.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+
+					'<label for="swal-input5" style="font-weight: bold;"> Penhorar conta-salário? </label>' +
+					'<select id="swal-input5" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (preferencias.sisbajud.contasalario.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (preferencias.sisbajud.contasalario.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select>' +
-					
-					'<label for="swal-input11" style="font-weight: bold;"> Preencher o Valor da Execução? </label>' +			
-					'<select id="swal-input11" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (preferencias.sisbajud.preencherValor.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (preferencias.sisbajud.preencherValor.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+
+					'<label for="swal-input11" style="font-weight: bold;"> Preencher o Valor da Execução? </label>' +
+					'<select id="swal-input11" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (preferencias.sisbajud.preencherValor.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (preferencias.sisbajud.preencherValor.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select>' +
-					
-					'<label for="swal-input13" style="font-weight: bold;"> Clicar em Salvar e Protocolar? </label>' +		
-					'<select id="swal-input13" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (preferencias.sisbajud.salvarEprotocolar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (preferencias.sisbajud.salvarEprotocolar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+
+					'<label for="swal-input13" style="font-weight: bold;"> Clicar em Salvar e Protocolar? </label>' +
+					'<select id="swal-input13" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (preferencias.sisbajud.salvarEprotocolar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (preferencias.sisbajud.salvarEprotocolar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select>' +
-					
-					'<label for="swal-input12" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o protocolo da ordem? </label>' +			
-					'<select id="swal-input12" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-					listaAcoesAutomatizadas(preferencias.sisbajud.executarAAaoFinal) + 
-					'</select>' +
-					
-					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;border-top: 2px solid #d3d3d3;">CONFIGURAÇÕES PARA RESPOSTAS</span>' + 
-					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;text-align: left;border-top: 2px solid #d3d3d3;">: </span>' + 
-					
-					'<label for="swal-input6" style="font-weight: bold;"> Não-Respostas? Reiterar ou Cancelar: </label>' + 
+
+
+
+
+
+					'<label for="swal-input12" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o protocolo da ordem? </label>' +
+
+					'<div style="display: grid;grid-template-columns: 5fr 1fr;align-items: center;"><button id="escolherAAVinculoAASISBAJUD" aria-description="Escolher Ação Automatizada para executar após PROTOCOLO da ordem de INCLUSÃO" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					aaSisbajud +
+					'</button><button id="apagar-escolherAAVinculoAASISBAJUD" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada após PROTOCOLO da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>' +
+
+					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;border-top: 2px solid #d3d3d3;">CONFIGURAÇÕES PARA RESPOSTAS</span>' +
+					'<span style="font-weight: bold;background-color: #d3d3d350;padding: 15px 0 15px 0; margin-top: 40px;text-align: left;border-top: 2px solid #d3d3d3;">: </span>' +
+
+					'<label for="swal-input6" style="font-weight: bold;"> Não-Respostas? Reiterar ou Cancelar: </label>' +
 					'<input id="swal-input6" class="swal2-input"" value="' + preferencias.sisbajud.naorespostas + '">' +
-					'<label for="swal-input7" style="font-weight: bold;"> Desbloquear valores abaixo de: </label>' + 
+					'<label for="swal-input7" style="font-weight: bold;"> Desbloquear valores abaixo de: </label>' +
 					'<input id="swal-input7" class="swal2-input"" value="' + preferencias.sisbajud.valor_desbloqueio + '">' +
-					'<label for="swal-input8" style="font-weight: bold;"> Banco preferido (em caso de bloqueio): </label>' + 
+					'<label for="swal-input8" style="font-weight: bold;"> Banco preferido (em caso de bloqueio): </label>' +
 					'<input id="swal-input8" class="swal2-input"" value="' + preferencias.sisbajud.banco_preferido + '" style="margin-bottom: 0;">' +
-					'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para abrir múltipla escolha digite o nome do banco (com a agência entre colchetes), separando as opções com vírgula. Por exemplo: </span>' + 
-					'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;align-self: flex-start;"> BCO DO BRASIL[1234],CAIXA ECONOMICA FEDERAL[9876] </span>' + 
-					'<label for="swal-input9" style="font-weight: bold;"> Agência preferida (em caso de bloqueio): </label>' + 
+					'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para abrir múltipla escolha digite o nome do banco (com a agência entre colchetes), separando as opções com vírgula. Por exemplo: </span>' +
+					'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;align-self: flex-start;"> BCO DO BRASIL[1234],CAIXA ECONOMICA FEDERAL[9876] </span>' +
+					'<label for="swal-input9" style="font-weight: bold;"> Agência preferida (em caso de bloqueio): </label>' +
 					'<input id="swal-input9" class="swal2-input" ' + (agenciaDisabled ? 'disabled style="background-color: #d3d3d350;"' : 'value="' + preferencias.sisbajud.agencia_preferida + '"') + '>' +
-					'<label for="swal-input10" style="font-weight: bold;"> Confirmar Banco e Agência? </label>' +			
-					'<select id="swal-input10" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (preferencias.sisbajud.confirmar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (preferencias.sisbajud.confirmar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+					'<label for="swal-input10" style="font-weight: bold;"> Confirmar Banco e Agência? </label>' +
+					'<select id="swal-input10" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (preferencias.sisbajud.confirmar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (preferencias.sisbajud.confirmar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select>',
-					
+
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
 				width: 800,
@@ -2062,7 +1902,7 @@ async function modulo9(convenio) {
 						document.getElementById('swal-input9').value,
 						document.getElementById('swal-input10').value,
 						document.getElementById('swal-input11').value,
-						document.getElementById('swal-input12').value,
+						document.getElementById('escolherAAVinculoAASISBAJUD').innerText,
 						document.getElementById('swal-input13').value
 					]
 				}
@@ -2072,7 +1912,7 @@ async function modulo9(convenio) {
 				preferencias.modulo9.sisbajud = resultsisbajud[0];
 				await guardarModulo9();
 				document.getElementById("convenio_sisbajud").style.backgroundColor = (preferencias.modulo9.sisbajud) ? '#2196F3' : '#b0b0b0';
-				
+
 				preferencias.sisbajud = {
 					juiz: resultsisbajud[1],
 					vara: resultsisbajud[2],
@@ -2115,17 +1955,17 @@ async function modulo9(convenio) {
 					'A extensão leva a varinha mágica para dentro do RENAJUD. Com isso na tela de inclusão de restrições, ao acioná-la, basta escolher os executados para pesquisa e pronto, a extensão faz a consulta de todos pra você. Ela também preenche o número do processo nas telas de consulta e cancelamento para facilitar a busca.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.renajud ? ' checked ' : '') + '>' +
 					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><div style="display: grid;grid-template-columns: 1fr 1fr;align-items: center;">' +
-					'<label for="swal-input1" style="font-weight: bold;"> Tipo de restrição (Transferência, Licenciamento ou Circulação): </label>' + 
+					'<label for="swal-input1" style="font-weight: bold;"> Tipo de restrição (Transferência, Licenciamento ou Circulação): </label>' +
 					'<input id="swal-input1" class="swal2-input"" value="' + preferencias.renajud.tipo_restricao + '">' +
-					'<label for="swal-input2" style="font-weight: bold;"> Comarca (Renajud Antigo): </label>' + 
+					'<label for="swal-input2" style="font-weight: bold;"> Comarca (Renajud Antigo): </label>' +
 					'<input id="swal-input2" class="swal2-input"" value="' + preferencias.renajud.comarca + '">' +
-					'<label for="swal-input3" style="font-weight: bold;"> Tribunal (Renajud Novo): </label>' + 
+					'<label for="swal-input3" style="font-weight: bold;"> Tribunal (Renajud Novo): </label>' +
 					'<input id="swal-input3" class="swal2-input"" value="' + preferencias.renajud.tribunal + '">' +
-					'<label for="swal-input4" style="font-weight: bold;"> Órgão: </label>' + 
+					'<label for="swal-input4" style="font-weight: bold;"> Órgão: </label>' +
 					'<input id="swal-input4" class="swal2-input"" value="' + preferencias.renajud.orgao + '">' +
-					'<label for="swal-input5" style="font-weight: bold;"> Juiz (Renajud Antigo): </label>' + 
+					'<label for="swal-input5" style="font-weight: bold;"> Juiz (Renajud Antigo): </label>' +
 					'<input id="swal-input5" class="swal2-input"" value="' + preferencias.renajud.juiz + '">' +
-					'<label for="swal-input6" style="font-weight: bold;"> Juiz (Renajud Novo): </label>' + 
+					'<label for="swal-input6" style="font-weight: bold;"> Juiz (Renajud Novo): </label>' +
 					'<input id="swal-input6" class="swal2-input"" value="' + preferencias.renajud.juiz2 + '">',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2147,7 +1987,7 @@ async function modulo9(convenio) {
 				preferencias.modulo9.renajud = resultrenajud[0];
 				await guardarModulo9();
 				document.getElementById("convenio_renajud").style.backgroundColor = (preferencias.modulo9.renajud) ? '#2196F3' : '#b0b0b0';
-				
+
 				preferencias.renajud = {
 					tipo_restricao: resultrenajud[1],
 					comarca: resultrenajud[2],
@@ -2172,60 +2012,79 @@ async function modulo9(convenio) {
 					Toast.fire({
 						icon: 'success',
 						title: 'Informações salvas com sucesso!'
-					})					
+					})
 				});
 			}
 			break
 		case 'cnib':
-			let aaCNIB1 = (preferencias.modulo9.cnib[5] ? preferencias.modulo9.cnib[5] : 'Nenhum');
-			let aaCNIB2 = (preferencias.modulo9.cnib[6] ? preferencias.modulo9.cnib[6] : 'Nenhum');
-			let velCNIB = (preferencias.modulo9.cnib[7] ? preferencias.modulo9.cnib[7] : 5);
+
 			let { value: resultcnib } = await Swal.fire({
 				title: 'CNIB',
 				html:
 					'A extensão leva a varinha mágica para dentro do CNIB. Com isso na tela de inclusão de indisponibilidade, ao acioná-la, basta escolher os executados para pesquisa e pronto, a extensão faz a inclusão de todos pra você. Ela também preenche o número do processo nas telas de consulta e cancelamento para facilitar a busca.<br><br>' +
-					'<input type="checkbox" id="swal2-checkbox0"' + (preferencias.modulo9.cnib[0] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' + 
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;">' + 
-					'<fieldset>' +
-					'<legend style="font-weight: bold;"> NOVA MINUTA:</legend>' + 
-					'<div style="display: grid;grid-template-rows: 1fr 1fr 1fr;grid-gap: 5px;margin-top: 15px;text-align: initial;padding-left: 35%;">' + 
-					'<label><input type="checkbox" id="swal2-checkbox1"' + (preferencias.modulo9.cnib[1] ? ' checked ' : '') + '>prosseguir automaticamente na tela "Enviar Processo"</label>' +
-					'<label><input type="checkbox" id="swal2-checkbox2"' + (preferencias.modulo9.cnib[2] ? ' checked ' : '') + '>escolher "Indisponibilidade Genérica"</label>' +
-					'<label><input type="checkbox" id="swal2-checkbox3"' + (preferencias.modulo9.cnib[3] ? ' checked ' : '') + '>protocolar automaticamente</label>' +
-					'<label><input type="checkbox" id="swal2-checkbox4"' + (preferencias.modulo9.cnib[4] ? ' checked ' : '') + '>copiar o número do protocolo"</label>' +
-					'</div></div><br aria-hidden="true">'+
-					'</fieldset>' +
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no Cnib (em segundos)</label>' + 
-					'<input id="swal-input3" class="swal2-input" style="background-color: white;" value="' + velCNIB + '"></div><br aria-hidden="true">' +
-					'<div style="display: grid;grid-template-columns: auto 2% 40% 3%;align-items: center;margin-top: 15px;text-align: left;">' +
+					'<input type="checkbox" id="swal2-checkbox0"' + (preferencias.modulo9.cnib.ativar ? ' checked ' : '') + '>' +
+					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no Cnib (em segundos)</label>' +
+					'<input id="swal-input3" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.cnib.velocidade + '"></div><br aria-hidden="true">' +
+
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;">' +
+
+					'<fieldset style="background-color: #16800024;">' +
+					'<legend style="font-weight: bold;"> INCLUIR CNIB:</legend>' +
+					'<div style="display: grid;grid-template-rows: 1fr 1fr 1fr;grid-gap: 5px;margin-top: 15px;text-align: initial;padding-left: 35%;">' +
+					'<label><input type="checkbox" id="swal2-checkbox1"' + (preferencias.modulo9.cnib.inclusao[0] ? ' checked ' : '') + '>prosseguir automaticamente na tela "Enviar Processo"</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox2"' + (preferencias.modulo9.cnib.inclusao[1] ? ' checked ' : '') + '>escolher "Indisponibilidade Genérica"</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox3"' + (preferencias.modulo9.cnib.inclusao[2] ? ' checked ' : '') + '>prosseguir automaticamente na tela "Enviar Indisponibilidade"</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox4"' + (preferencias.modulo9.cnib.inclusao[3] ? ' checked ' : '') + '>protocolar automaticamente</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox5"' + (preferencias.modulo9.cnib.inclusao[4] ? ' checked ' : '') + '>copiar o número do protocolo"</label>' +
+					'</div>' +
+					'<div style="display: grid;grid-template-columns: auto 2% 30% 7%;align-items: center;margin-top: 15px;text-align: left;">' +
 					'<span aria-hidden="true" style="font-weight: bold;"> Escolher Ação Automatizada para executar após PROTOCOLO da ordem de INCLUSÃO</span><span aria-hidden="true">:</span>' +
-					'<button id="escolherAAVinculoAACNIB1" aria-description="Escolher Ação Automatizada para executar após PROTOCOLO da ordem de INCLUSÃO" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' + 
-					aaCNIB1 + 
-					'</button><button id="apagar-escolherAAVinculoAACNIB1" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada após PROTOCOLO da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>' + 
-					'<div style="display: grid;grid-template-columns: auto 2% 40% 3%;align-items: center;margin-top: 15px;text-align: left;">' +
-					'<span aria-hidden="true" style="font-weight: bold;"> Escolher Ação Automatizada para executar após PROTOCOLO da ordem de EXCLUSÃO</span><span aria-hidden="true">:</span>' +
-					'<button id="escolherAAVinculoAACNIB2" aria-description="Escolha Ação Automatizada para executar após PROTOCOLO da ordem de EXCLUSÃO" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' + 
-					aaCNIB2 + 
-					'</button>'+
-					'<button id="apagar-escolherAAVinculoAACNIB2"  data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de EXCLUSÃO" aria-label="Remover Ação Automatizada após CONSULTA da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>',
+					'<button id="escolherAAVinculoAACNIB1" aria-description="Escolher Ação Automatizada para executar após PROTOCOLO da ordem de INCLUSÃO" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					(preferencias.modulo9.cnib.inclusao[5] ? preferencias.modulo9.cnib.inclusao[5] : 'Nenhum') +
+					'</button><button id="apagar-escolherAAVinculoAACNIB1" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada após PROTOCOLO da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button>' +
+					'</div><br aria-hidden="true">' +
+					'</fieldset>' +
+
+					'<fieldset style="background-color: #80000024;">' +
+					'<legend style="font-weight: bold;"> EXCLUIR CNIB:</legend>' +
+					'<div style="display: grid;grid-template-rows: 1fr 1fr 1fr;grid-gap: 5px;margin-top: 15px;text-align: initial;padding-left: 35%;">' +
+					'<label>' +
+					'<input type="radio" id="swal2-radio1" name="swal2-radio0"' + (preferencias.modulo9.cnib.exclusao[0] == 1 ? ' checked ' : '') + '>TOTAL' +
+					'<input type="radio" id="swal2-radio2" name="swal2-radio0"' + (preferencias.modulo9.cnib.exclusao[0] == 2 ? ' checked ' : '') + '>PARCIAL' +
+					'<input type="radio" id="swal2-radio3" name="swal2-radio0"' + ((preferencias.modulo9.cnib.exclusao[0] != 1 && preferencias.modulo9.cnib.exclusao[0] != 2) ? ' checked ' : '') + '>QUERO ESCOLHER' +
+					'</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox7"' + (preferencias.modulo9.cnib.exclusao[1] ? ' checked ' : '') + '>prosseguir automaticamente na tela "Enviar Cancelamento"</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox8"' + (preferencias.modulo9.cnib.exclusao[2] ? ' checked ' : '') + '>protocolar automaticamente</label>' +
+					'<label><input type="checkbox" id="swal2-checkbox9"' + (preferencias.modulo9.cnib.exclusao[3] ? ' checked ' : '') + '>copiar o número do protocolo"</label>' +
+					'</div>' +
+					'<div style="display: grid;grid-template-columns: auto 2% 30% 7%;align-items: center;margin-top: 15px;text-align: left;">' +
+					'<span aria-hidden="true" style="font-weight: bold;">Escolher Ação Automatizada para executar após PROTOCOLO da ordem de EXCLUSÃO</span><span aria-hidden="true">:</span>' +
+					'<button id="escolherAAVinculoAACNIB2" aria-description="Escolher Ação Automatizada para executar após PROTOCOLO da ordem de EXCLUSÃO" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					(preferencias.modulo9.cnib.exclusao[4] ? preferencias.modulo9.cnib.exclusao[4] : 'Nenhum') +
+					'</button><button id="apagar-escolherAAVinculoAACNIB2" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de EXCLUSÃO" aria-label="Remover Ação Automatizada após PROTOCOLO da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button>' +
+					'</div><br aria-hidden="true">' +
+					'</fieldset>' +
+
+					'</div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
 				width: 800,
 				preConfirm: () => {
-					return [
-						document.getElementById('swal2-checkbox0').checked,
-						document.getElementById('swal2-checkbox1').checked,
-						document.getElementById('swal2-checkbox2').checked,
-						document.getElementById('swal2-checkbox3').checked,
-						document.getElementById('swal2-checkbox4').checked,
-						document.getElementById('escolherAAVinculoAACNIB1').innerText,
-						document.getElementById('escolherAAVinculoAACNIB2').innerText,
-						document.getElementById('swal-input3').value,
-					]
+
+					let tipoDeExclusao = 0;
+					if (document.getElementById('swal2-radio1').checked) { tipoDeExclusao = 1 }
+					else if (document.getElementById('swal2-radio2').checked) { tipoDeExclusao = 2 }
+
+					return {
+						'ativar':document.getElementById('swal2-checkbox0').checked,
+						'velocidade': document.getElementById('swal-input3').value,
+						'inclusao': [document.getElementById('swal2-checkbox1').checked,document.getElementById('swal2-checkbox2').checked,document.getElementById('swal2-checkbox3').checked,document.getElementById('swal2-checkbox4').checked,document.getElementById('swal2-checkbox5').checked,document.getElementById('escolherAAVinculoAACNIB1').innerText],
+						'exclusao': [tipoDeExclusao,document.getElementById('swal2-checkbox7').checked,document.getElementById('swal2-checkbox8').checked,document.getElementById('swal2-checkbox8').checked,document.getElementById('escolherAAVinculoAACNIB2').innerText],
+					}
 				}
 			});
-			
+
 			if (resultcnib) {
 				preferencias.modulo9.cnib = resultcnib;
 				await guardarModulo9();
@@ -2240,15 +2099,15 @@ async function modulo9(convenio) {
 					'A extensão leva a varinha mágica para dentro do SERASAJUD. Com isso na tela de cadastro de nova ordem, ao acioná-la, basta escolher os executados para pesquisa e pronto, a extensão faz a inclusão de todos pra você. Você também pode utilizar a varinha mágica na tela de requisição de endereço. Ela também preenche o número do processo nas telas de consulta e cancelamento para facilitar a busca.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.serasajud ? ' checked ' : '') + '>' +
 					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><div style="display: grid;grid-template-columns: 1fr 1fr;align-items: center;">' +
-					'<label for="swal-input1" style="font-weight: bold;"> Foro da ordem: </label>' + 
+					'<label for="swal-input1" style="font-weight: bold;"> Foro da ordem: </label>' +
 					'<input id="swal-input1" class="swal2-input"" value="' + preferencias.serasajud.foro + '">' +
-					'<label for="swal-input2" style="font-weight: bold;"> Vara da ordem: </label>' + 
+					'<label for="swal-input2" style="font-weight: bold;"> Vara da ordem: </label>' +
 					'<input id="swal-input2" class="swal2-input"" value="' + preferencias.serasajud.vara + '">' +
-					'<label for="swal-input3" style="font-weight: bold;"> Prazo de Atendimento - Preencha apenas o número (5)dias (3)dias (2)dias (1)dias: </label>' + 
+					'<label for="swal-input3" style="font-weight: bold;"> Prazo de Atendimento - Preencha apenas o número (5)dias (3)dias (2)dias (1)dias: </label>' +
 					'<input id="swal-input3" class="swal2-input"" value="' + preferencias.serasajud.prazo_atendimento + '">'+
 					'<label for="swal-input4" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o protocolo da ordem: </label>' +
-					'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-					listaAcoesAutomatizadas(aaSerasajud) + 
+					'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+					listaAcoesAutomatizadas(aaSerasajud) +
 					'</select></div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2268,7 +2127,7 @@ async function modulo9(convenio) {
 				preferencias.modulo9.serasajud = resultserasajud[0];
 				await guardarModulo9();
 				document.getElementById("convenio_serasajud").style.backgroundColor = (preferencias.modulo9.serasajud) ? '#2196F3' : '#b0b0b0';
-				
+
 				preferencias.serasajud = {
 					foro: resultserasajud[1],
 					vara: resultserasajud[2],
@@ -2302,24 +2161,24 @@ async function modulo9(convenio) {
 				html:
 					'A extensão leva a varinha mágica para dentro do CCS. Com isso na tela de cadastro de nova ordem, ao acioná-la, basta escolher os executados para pesquisa e pronto, a extensão faz a inclusão de todos pra você. Você também pode utilizar a consulta rápida de processo para abrir um processo diretamente no PJe.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox0"' + (preferencias.modulo9.ccs[0] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' + 
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;">' + 
+					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;">' +
 					'<fieldset>' +
-					'<legend style="font-weight: bold;"> Prosseguir Automaticamente:</legend>' + 
-					'<div style="display: grid;grid-template-rows: 1fr 1fr 1fr;grid-gap: 5px;margin-top: 15px;text-align: initial;padding-left: 35%;">' + 
+					'<legend style="font-weight: bold;"> Prosseguir Automaticamente:</legend>' +
+					'<div style="display: grid;grid-template-rows: 1fr 1fr 1fr;grid-gap: 5px;margin-top: 15px;text-align: initial;padding-left: 35%;">' +
 					'<label><input type="checkbox" id="swal2-checkbox1"' + (preferencias.modulo9.ccs[1] ? ' checked ' : '') + '>na tela "Requisitar consulta"</label>' +
 					'<label><input type="checkbox" id="swal2-checkbox2"' + (preferencias.modulo9.ccs[2] ? ' checked ' : '') + '>na tela "Confirmar consulta"</label>' +
 					'<label><input type="checkbox" id="swal2-checkbox3"' + (preferencias.modulo9.ccs[3] ? ' checked ' : '') + '>na tela "Solicitação de detalhamentos"</label>' +
 					'<label><input type="checkbox" id="swal2-checkbox4"' + (preferencias.modulo9.ccs[4] ? ' checked ' : '') + '>na tela "Escolher as contas"</label>' +
 					'</div></div><br aria-hidden="true"><br aria-hidden="true">'+
 					'</fieldset>' +
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no CCS (em segundos)</label>' + 
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no CCS (em segundos)</label>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.ccs[5] + '"></div>' +
 					'<div><label for="swal-input2" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o protocolo da ordem? </label>' +
-					'<select id="swal-input2" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-					listaAcoesAutomatizadas(aaCCS) + 
+					'<select id="swal-input2" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+					listaAcoesAutomatizadas(aaCCS) +
 					'</select></div>',
-					
+
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
 				width: 800,
@@ -2335,7 +2194,7 @@ async function modulo9(convenio) {
 					]
 				}
 			});
-			
+
 			if (resultccs) {
 				preferencias.modulo9.ccs = resultccs;
 				await guardarModulo9();
@@ -2356,7 +2215,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultcrcjud) {
 				preferencias.modulo9.crcjud = resultcrcjud[0];
 				await guardarModulo9();
@@ -2380,7 +2239,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultonr) {
 				preferencias.modulo9.onr = resultonr[0];
 				await guardarModulo9();
@@ -2388,7 +2247,6 @@ async function modulo9(convenio) {
 			}
 			break
 		case 'gprec':
-			
 			let { value: resultgprec } = await Swal.fire({
 				title: 'GPREC',
 				html:
@@ -2396,8 +2254,13 @@ async function modulo9(convenio) {
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.gprec[0] ? ' checked ' : '') + '>' +
 					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' +
 					'<input type="checkbox" id="swal2-checkbox2"' + (preferencias.modulo9.gprec[2] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox2" class="swal2-label"> Registrar valores proporcionais no pagamento</label><br><br>' +  
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label style="font-weight: bold;" for="swal-input1"> Velocidade de Interação no GPREC (em segundos)</label>' + 
+					'<label for="swal2-checkbox2" class="swal2-label"> Registrar valores proporcionais no pagamento</label><br><br>' +
+					'<label for="swal-input0" style="font-weight: bold;"> Na tela de cadastro, escolher qual tipo de requisição? </label>' +
+					'<select id="swal-input0" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="precatorio"' + (preferencias.modulo9.gprec[3].toLowerCase().includes('precatorio') ? 'selected' : '')  + '> Precatório </option>' +
+						'<option value="rpv"' + (preferencias.modulo9.gprec[3].toLowerCase().includes('rpv') ? 'selected' : '')  + '> RPV </option>' +
+					'</select>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label style="font-weight: bold;" for="swal-input1"> Velocidade de Interação no GPREC (em segundos)</label>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.gprec[1] + '"></div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2405,16 +2268,18 @@ async function modulo9(convenio) {
 				preConfirm: () => {
 					return [
 						document.getElementById('swal2-checkbox').checked,
-						document.getElementById('swal-input1').value,						
-						document.getElementById('swal2-checkbox2').checked
+						document.getElementById('swal-input1').value,
+						document.getElementById('swal2-checkbox2').checked,
+						document.getElementById('swal-input0').value,
 					]
 				}
 			});
-			
+
 			if (resultgprec) {
 				preferencias.modulo9.gprec[0] = resultgprec[0];
 				preferencias.modulo9.gprec[1] = resultgprec[1];
 				preferencias.modulo9.gprec[2] = resultgprec[2];
+				preferencias.modulo9.gprec[3] = resultgprec[3];
 				await guardarModulo9();
 				document.getElementById("convenio_gprec").style.backgroundColor = (preferencias.modulo9.gprec) ? '#2196F3' : '#b0b0b0';
 			}
@@ -2433,23 +2298,23 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultajjt) {
 				preferencias.modulo9.ajjt = resultajjt[0];
 				await guardarModulo9();
 				document.getElementById("convenio_ajjt").style.backgroundColor = (preferencias.modulo9.ajjt) ? '#2196F3' : '#b0b0b0';
 			}
-			break			
+			break
 		case 'siscondj':
 			let { value: resultsiscondj } = await Swal.fire({
 				title: 'SISCONDJ',
 				html:
 					'A extensão preenche o número do processo nas telas de consulta para facilitar. Insere o botão de abrir processo no PJe quando da conferência de alvarás expedidos e pendentes de finalização.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.siscondj[0] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' + 
+					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><br><br>' +
 					'<input type="checkbox" id="swal2-checkbox2"' + (preferencias.modulo9.siscondj[2] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox2" class="swal2-label"> Expandir subcontas automaticamente</label><br><br>' + 
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><span style="font-weight: bold;"> Velocidade de Interação no SISCONDJ (em segundos)</span>' + 
+					'<label for="swal2-checkbox2" class="swal2-label"> Expandir subcontas automaticamente</label><br><br>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><span style="font-weight: bold;"> Velocidade de Interação no SISCONDJ (em segundos)</span>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.siscondj[1] + '"></div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2462,7 +2327,7 @@ async function modulo9(convenio) {
 					]
 				}
 			});
-			
+
 			if (resultsiscondj) {
 				preferencias.modulo9.siscondj[0] = resultsiscondj[0];
 				preferencias.modulo9.siscondj[1] = resultsiscondj[1];
@@ -2470,15 +2335,15 @@ async function modulo9(convenio) {
 				await guardarModulo9();
 				document.getElementById("convenio_siscondj").style.backgroundColor = (preferencias.modulo9.siscondj) ? '#2196F3' : '#b0b0b0';
 			}
-			break			
+			break
 		case 'garimpo':
 			let { value: resultgarimpo } = await Swal.fire({
 				title: 'GARIMPO',
 				html:
 					'Ao clicar em "Associar Processo", a extensão automaticamente faz a consulta no PJe por nome do reclamante, eliminando incontáveis cliques. O botão de "Bloquear Processo" agora é acionado com apenas um clique, e ao fazê-lo o número do processo se transforma num link que leva até o processo no PJe.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.garimpo[0] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label>' + 
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><span style="font-weight: bold;"> Endereço do Sistema Garimpo </span>' + 
+					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><span style="font-weight: bold;"> Endereço do Sistema Garimpo </span>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.garimpo[1] + '"></div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2487,7 +2352,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked,document.getElementById('swal-input1').value];
 				}
 			});
-			
+
 			if (resultgarimpo) {
 				preferencias.modulo9.garimpo[0] = resultgarimpo[0];
 				preferencias.modulo9.garimpo[1] = resultgarimpo[1];
@@ -2502,13 +2367,13 @@ async function modulo9(convenio) {
 				html:
 					'Ao expedir ordem eletrônica, a escolha do magistrado ocorre de acordo com as regras estabelecidas no módulo 8. Além de preencher, com os dados guardados na memória do navegador, os campos de tipo de pessoa, nome e documento de acordo com o beneficiário/representante escolhido. A função apenas funciona no modo de criação de novo alvará.<br>Também foi criado o botão "Exibir Alvarás para Conferência" que fica visível no Escaninho > Situação de Alvará. O objetivo da funcionalidade é oferecer ao usuário conferente uma lista de alvarás pendentes de conferência com link direto para o respectivo documento.<br><br>' +
 					'<label for="swal-input2" style="font-weight: bold;"> Data de Atualização do Alvará </label>' +
-					'<select id="swal-input2" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="dia"' + (preferencias.modulo9.sif[2].toLowerCase().includes('dia') ? 'selected' : '')  + '> Data do Dia </option>' + 
-						'<option value="deposito"' + (preferencias.modulo9.sif[2].toLowerCase().includes('deposito') ? 'selected' : '')  + '> Data do Depósito </option>' + 
+					'<select id="swal-input2" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="dia"' + (preferencias.modulo9.sif[2].toLowerCase().includes('dia') ? 'selected' : '')  + '> Data do Dia </option>' +
+						'<option value="deposito"' + (preferencias.modulo9.sif[2].toLowerCase().includes('deposito') ? 'selected' : '')  + '> Data do Depósito </option>' +
 					'</select>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.sif[0] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox" class="swal2-label"> Ativar</<label><br><br>' + 
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no SIF (em segundos)</label>' + 
+					'<label for="swal2-checkbox" class="swal2-label"> Ativar</<label><br><br>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no SIF (em segundos)</label>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.sif[1] + '"></div>',
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2521,7 +2386,7 @@ async function modulo9(convenio) {
 					]
 				}
 			});
-			
+
 			if (resultsif) {
 				preferencias.modulo9.sif[0] = resultsif[0];
 				preferencias.modulo9.sif[1] = resultsif[1];
@@ -2534,7 +2399,7 @@ async function modulo9(convenio) {
 			let { value: resultpjecalc } = await Swal.fire({
 				title: 'pjeCalc',
 				html:
-					'Ao buscar cálculo ou criar novo cálculo, se existir processo na memória, ele será utilizado no preenchimento automático dos campos.<br><br>' +					
+					'Ao buscar cálculo ou criar novo cálculo, se existir processo na memória, ele será utilizado no preenchimento automático dos campos.<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.pjecalc ? ' checked ' : '') + '>' +
 					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label>',
 				focusConfirm: false,
@@ -2544,7 +2409,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultpjecalc) {
 				preferencias.modulo9.pjecalc = resultpjecalc[0];
 				await guardarModulo9();
@@ -2569,13 +2434,13 @@ async function modulo9(convenio) {
 					'</div>' +
 					'<div style="display: grid;grid-template-columns: auto 2% 40% 3%;align-items: center;margin-top: 15px;text-align: left;">' +
 					'<span aria-hidden="true" style="font-weight: bold;"> Escolher Ação Automatizada para executar após PROTOCOLO da ordem</span><span aria-hidden="true">:</span>' +
-					'<button id="escolherAAVinculoAAPrevjud" aria-description="Escolher Ação Automatizada para executar após PROTOCOLO da ordem" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' + 
-					aaPrevjud + 
-					'</button><button id="apagar-escolherAAVinculoAAPrevjud" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem" aria-label="Remover Ação Automatizada após PROTOCOLO da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>' + 
+					'<button id="escolherAAVinculoAAPrevjud" aria-description="Escolher Ação Automatizada para executar após PROTOCOLO da ordem" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					aaPrevjud +
+					'</button><button id="apagar-escolherAAVinculoAAPrevjud" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem" aria-label="Remover Ação Automatizada após PROTOCOLO da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>' +
 					'<div style="display: grid;grid-template-columns: auto 2% 40% 3%;align-items: center;margin-top: 15px;text-align: left;">' +
 					'<span aria-hidden="true" style="font-weight: bold;"> Escolher Ação Automatizada para executar após CONSULTA da ordem</span><span aria-hidden="true">:</span>' +
-					'<button id="escolherAAVinculoAA2Prevjud" aria-description="Escolha Ação Automatizada para executar após CONSULTA da ordem" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' + 
-					aa2Prevjud + 
+					'<button id="escolherAAVinculoAA2Prevjud" aria-description="Escolha Ação Automatizada para executar após CONSULTA da ordem" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					aa2Prevjud +
 					'</button>'+
 					'<button id="apagar-escolherAAVinculoAA2Prevjud"  data-tooltip="Remover Ação Automatizada após CONSULTA da ordem" aria-label="Remover Ação Automatizada após CONSULTA da ordem" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>',
 
@@ -2592,7 +2457,7 @@ async function modulo9(convenio) {
 					];
 				}
 			});
-			
+
 			if (resultprevjud) {
 				preferencias.modulo9.prevjud = resultprevjud[0];
 				await guardarModulo9();
@@ -2638,7 +2503,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultprotestojud) {
 				preferencias.modulo9.protestojud = resultprotestojud[0];
 				await guardarModulo9();
@@ -2659,7 +2524,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultsniper) {
 				preferencias.modulo9.sniper = resultsniper[0];
 				await guardarModulo9();
@@ -2680,7 +2545,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultcensec) {
 				preferencias.modulo9.censec = resultcensec[0];
 				await guardarModulo9();
@@ -2701,7 +2566,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultcelesc) {
 				preferencias.modulo9.celesc = resultcelesc[0];
 				await guardarModulo9();
@@ -2722,7 +2587,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultcasan) {
 				preferencias.modulo9.casan = resultcasan[0];
 				await guardarModulo9();
@@ -2743,7 +2608,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultsigef) {
 				preferencias.modulo9.sigef = resultsigef[0];
 				await guardarModulo9();
@@ -2764,7 +2629,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked];
 				}
 			});
-			
+
 			if (resultinfoseg) {
 				preferencias.modulo9.infoseg = resultinfoseg[0];
 				await guardarModulo9();
@@ -2777,8 +2642,8 @@ async function modulo9(convenio) {
 				html:
 					'A extensão busca o processo automaticamente na tela de "Relatório de Objetos por Processo".<br><br>' +
 					'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.ecarta[0] ? ' checked ' : '') + '>' +
-					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label>' + 
-					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label style="font-weight: bold;" for="swal-input1"> Endereço para consulta de AR </label>' + 
+					'<label for="swal2-checkbox" class="swal2-label"> Ativar</label>' +
+					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label style="font-weight: bold;" for="swal-input1"> Endereço para consulta de AR </label>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.ecarta[1] + '"></div>' +
 					'<div style="display: grid;text-align: left;"><span style="font-weight: normal;font-size: 0.8em;color: cadetblue;">Exemplos de links:</span><br>' +
 					'<div style="display: grid;text-align: left;"><span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"><u>E-Carta impressão:</u> https://pje.trt12.jus.br/eCarta-web/impressaoDetalhesObjeto.xhtml?codigo=  </span><br>' +
@@ -2792,7 +2657,7 @@ async function modulo9(convenio) {
 					return [document.getElementById('swal2-checkbox').checked,document.getElementById('swal-input1').value];
 				}
 			});
-			
+
 			if (resultecarta) {
 				preferencias.modulo9.ecarta[0] = resultecarta[0];
 				preferencias.modulo9.ecarta[1] = resultecarta[1];
@@ -2807,16 +2672,16 @@ async function modulo9(convenio) {
 				'A extensão leva a varinha mágica para dentro do SAJ (AFASTAMENTO DE SIGILO BANCÁRIO). Com isso na tela de cadastro de nova ordem, ao acioná-la, basta escolher os executados para pesquisa e pronto, a extensão faz a inclusão de todos pra você.Ela também preenche o número do processo nas telas de consulta e cancelamento para facilitar a busca.<br><br>' +
 				'<input type="checkbox" id="swal2-checkbox"' + (preferencias.modulo9.saj ? ' checked ' : '') + '>' +
 				'<label for="swal2-checkbox" class="swal2-label"> Ativar</label><div style="display: grid;grid-template-columns: 1fr 1fr;align-items: center;">' +
-				'<label for="swal-input1" style="font-weight: bold;"> Vara da ordem: </label>' + 
+				'<label for="swal-input1" style="font-weight: bold;"> Vara da ordem: </label>' +
 				'<input id="swal-input1" class="swal2-input"" value="' + preferencias.saj.vara + '">' +
-				'<label for="swal-input2" style="font-weight: bold;"> Juiz solicitante da Ordem: </label>' + 
+				'<label for="swal-input2" style="font-weight: bold;"> Juiz solicitante da Ordem: </label>' +
 				'<input id="swal-input2" class="swal2-input"" value="' + preferencias.saj.juiz + '" style="margin-bottom: 0;">' +
-				'<span style="font-weight: bold;" aria-hidden="true"> </span>' + 
-				'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para usar a regra do Módulo 8 digite: MODULO8 </span>' + 
-				'<label for="swal-input3" style="font-weight: bold;"> Prazo da resposta: </label>' + 
+				'<span style="font-weight: bold;" aria-hidden="true"> </span>' +
+				'<span style="font-weight: normal;font-size: 0.8em;color: cadetblue;"> Para usar a regra do Módulo 8 digite: MODULO8 </span>' +
+				'<label for="swal-input3" style="font-weight: bold;"> Prazo da resposta: </label>' +
 				'<input id="swal-input3" class="swal2-input"" value="' + preferencias.saj.prazoResposta + '">' +
-				'<span style="font-weight: bold;"> Informações Solicitadas </span>' + 
-				'<span style="font-weight: bold;" aria-hidden="true"> </span>' + 
+				'<span style="font-weight: bold;"> Informações Solicitadas </span>' +
+				'<span style="font-weight: bold;" aria-hidden="true"> </span>' +
 				'<label for="swal2-extratomercantil" class="swal2-label" style="text-align: right; padding: 20px 0 10px 0;"> Extrato Mercantil </label>' +
 				'<span style="text-align: left; padding: 20px 0 10px 0;"><input type="checkbox" id="swal2-extratomercantil"' + (preferencias.saj.extratomercantil ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-extratomovimentacao" class="swal2-label" style=" padding: 10px 0;text-align: right;"> Extrato de movimentação - Carta-Circular 3454 (Simba)</label>' +
@@ -2837,9 +2702,9 @@ async function modulo9(convenio) {
 				'<span style="text-align: left; padding: 10px 0;"><input type="checkbox" id="swal2-saldofgts"' + (preferencias.saj.saldofgts ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
 				'<label for="swal2-recebernotificacao" class="swal2-label" style="text-align: right;padding: 10px 0 20px 0;"> Receber as notificações de respostas por e-mail</label>' +
 				'<span style="text-align: left; padding: 10px 0 20px 0;"><input type="checkbox" id="swal2-recebernotificacao"' + (preferencias.saj.recebernotificacao ? ' checked ' : '') + ' style="cursor: pointer;height: 25px;width: 25px;"></span>' +
-				'<label for="swal-input4" style="font-weight: bold;"> E-mail institucional: </label>' + 
+				'<label for="swal-input4" style="font-weight: bold;"> E-mail institucional: </label>' +
 				'<input id="swal-input4" class="swal2-input"" value="' + preferencias.saj.email + '">' +
-				'<label for="swal-input5" style="font-weight: bold;"> Telefone para contato: </label>' + 
+				'<label for="swal-input5" style="font-weight: bold;"> Telefone para contato: </label>' +
 				'<input id="swal-input5" class="swal2-input"" value="' + preferencias.saj.telefone + '">' +
 				'</div>',
 				focusConfirm: false,
@@ -2866,12 +2731,12 @@ async function modulo9(convenio) {
 					]
 				}
 			});
-			
+
 			if (resultsaj) {
 				preferencias.modulo9.saj = resultsaj[0];
 				await guardarModulo9();
 				document.getElementById("convenio_saj").style.backgroundColor = (preferencias.modulo9.saj) ? '#2196F3' : '#b0b0b0';
-				
+
 				preferencias.saj = {
 					vara: resultsaj[1],
 					juiz: resultsaj[2],
@@ -2943,10 +2808,10 @@ async function guardarModulo9() {
 async function montar_modulo10() {
 	let ancora = document.getElementById('lista_modulo10');
 	ancora.textContent = "";
-	
+
 	//cabeçalho
 	let trh = document.createElement('tr');
-	trh.id = "textoItalico";
+	trh.className = "textoItalico";
 	trh.style = "font-weight: bold;";
 	let td1h = document.createElement('td');
 	td1h.style = "width: 10vw; text-align: center;";
@@ -2961,16 +2826,16 @@ async function montar_modulo10() {
 	trh.appendChild(td3h);
 	trh.appendChild(td2h);
 	ancora.appendChild(trh);
-	
+
 	for (const [pos, item] of listaModulo10_temp.entries()) {
 		let h = (!item.horario) ? "" : item.horario;
 		let e = (!item.url) ? "" : item.url;
 		let s = (!item.sala) ? "" : item.sala;
 		await inserirlinha(h,s,e);
 	}
-	
+
 	await inserirlinha();
-	
+
 	async function inserirlinha(horario="",sala="",url="",foco=false) {
 		let tr = document.createElement('tr');
 		tr.id = "lista_modulo10_item"
@@ -2985,7 +2850,7 @@ async function montar_modulo10() {
 			salvarOpcoes();
 		});
 		td1.appendChild(input1);
-		
+
 		let td2 = document.createElement('td');
 		let input2 = document.createElement('input');
 		input2.id = "url";
@@ -3009,22 +2874,22 @@ async function montar_modulo10() {
 			salvarOpcoes();
 		});
 		td3.appendChild(input3);
-		
+
 		tr.appendChild(td1);
 		tr.appendChild(td3);
 		tr.appendChild(td2);
 		ancora.appendChild(tr);
-		
+
 		if (foco) {
 			input1.focus();
-		}		
+		}
 	}
 }
 
 async function ativarJuntadaDeMidia() {
 	let inputValue = '';
 	if (document.querySelector('#modulo10_juntadaMidia').checked) {
-		
+
 		const { value: result } = await Swal.fire({
 			inputLabel: "Digite o nome do modelo de certidão que será utilizada para anexar os vídeos(depoimentos)",
 			input: "text",
@@ -3036,20 +2901,20 @@ async function ativarJuntadaDeMidia() {
 				}
 			}
 		});
-		
+
 		if (result) {
 			preferencias.modulo10_juntadaMidia = [true,result];
 		} else {
 			preferencias.modulo10_juntadaMidia = [false,''];
 			document.querySelector('#modulo10_juntadaMidia').checked = false;
-			
+
 		}
 	} else {
 		preferencias.modulo10_juntadaMidia = [false,''];
 	}
-	
-	
-	
+
+
+
 	let var1 = browser.storage.local.set({'modulo10_juntadaMidia': preferencias.modulo10_juntadaMidia});
 	Promise.all([var1]).then(values => {
 		let Toast = Swal.mixin({
@@ -3066,7 +2931,205 @@ async function ativarJuntadaDeMidia() {
 		Toast.fire({
 			icon: 'success',
 			title: 'Informações salvas com sucesso!'
-		})			
+		})
+	});
+}
+
+//modulo 11
+async function montar_modulo11() {
+	// console.log('montar_modulo8: ' + listaModulo8_temp)
+	let ancora = document.getElementById('lista_modulo11');
+	ancora.textContent = "";
+	for (const [pos, item] of listaModulo11_temp.entries()) {
+
+		let tr = document.createElement("tr");
+		tr.className = 'linha-zebrada';
+		tr.style = "display: grid; grid-template-columns: 6% 9% 10% 70% 5%;padding: 5px;";
+
+		let td1 = document.createElement("td");
+		td1.style = "font-weight: bold";
+		td1.innerText = "|___Regra " + (pos+1) + ":";
+		tr.appendChild(td1);
+
+		let td2 = document.createElement("td");
+		td2.style = "text-align: center";
+		td2.innerText = item.cnpj;
+		tr.appendChild(td2);
+
+		let td3 = document.createElement("td");
+		td3.innerText = item.observacao;
+		tr.appendChild(td3);
+
+		let td4 = document.createElement("td");
+		td4.innerText = item.cabecalho;
+		tr.appendChild(td4);
+
+		//*********criar botão editar
+		let div_editar = document.createElement("div");
+		div_editar.setAttribute("data-tooltip", "Editar");
+		let bt_editar = document.createElement("i");
+		bt_editar.className = "icone edit t16";
+		bt_editar.style = "padding: 0 5px 0 5px;"
+		bt_editar.setAttribute("pos",pos);
+		bt_editar.onmouseenter = function() {
+			this.style.setProperty("background-color","rgb(0, 120, 170)");
+			this.parentElement.parentElement.parentElement.style.outline = '2px solid #2778c4';
+		}
+		bt_editar.onmouseleave = function () {
+			this.style.setProperty("background-color","black");
+			this.parentElement.parentElement.parentElement.style.outline = 'none';
+		};
+		bt_editar.onclick = function () {
+			editar_regra_modulo11(parseInt(this.getAttribute("pos")))
+		};
+		div_editar.appendChild(bt_editar);
+
+		//*********criar botão excluir
+		let div_excluir = document.createElement("div");
+		div_excluir.setAttribute("data-tooltip", "Excluir");
+		let bt_excluir = document.createElement("i");
+		bt_excluir.className = "icone trash-alt t16";
+		bt_excluir.style = "padding: 0 5px 0 5px;"
+		bt_excluir.setAttribute("pos",pos);
+		bt_excluir.onmouseenter = function() {
+			this.style.setProperty("background-color","rgb(0, 120, 170)");
+			this.parentElement.parentElement.parentElement.style.outline = '2px solid #2778c4';
+		}
+		bt_excluir.onmouseleave = function (e) {
+			this.style.setProperty("background-color","black");
+			this.parentElement.parentElement.parentElement.style.outline = 'none';
+		};
+		bt_excluir.onclick = function () {
+			listaModulo11_temp.splice(parseInt(this.getAttribute("pos")), 1);
+			montar_modulo11();
+			salvarOpcoes();
+		};
+		div_excluir.appendChild(bt_excluir);
+
+		let td6 = document.createElement("td");
+		td6.style = "display: inline-flex;margin-left: auto;";
+		td6.appendChild(div_editar);
+		td6.appendChild(div_excluir);
+		tr.appendChild(td6);
+
+		ancora.appendChild(tr);
+	}
+}
+
+async function editar_regra_modulo11(pos) {
+	let item = listaModulo11_temp[pos];
+	Swal.fire({
+		title: '    ',
+		html:
+			'<span>CNPJ:</span><br>' +
+			'<input type="text" id="modulo11_cnpjRJ" class="swal2-input" placeholder="00.000.000/0000-00" value="' + item.cnpj + '">' +
+			'<br><br>' +
+			'<span>Observação:</span><br>' +
+			'<input type="text" id="modulo11_observacao" class="swal2-input" value="' + item?.observacao + '">' +
+			'<br><br>' +
+			'<span>Cabeçalho da Certidão:</span><br>' +
+			'<textarea id="modulo11_cabecalhoRJ" class="swal2-textarea" style="height: 40vh;">' + item.cabecalho + '</textarea>',
+		focusConfirm: false,
+		width: 800,
+		confirmButtonText: 'Salvar',
+		preConfirm: () => {
+			let inputCnpj = document.getElementById('modulo11_cnpjRJ').value;
+			let erroFormulario = false;
+			//mascara do input do CNPJ
+			inputCnpj = inputCnpj.replace(/\D/g, "");
+			if (!inputCnpj) {
+				return '';
+			} else if (inputCnpj.length == 14) { //completo sem pontos e traços
+				inputCnpj = inputCnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+				let resposta = {cnpj:inputCnpj,observacao:document.getElementById('modulo11_observacao').value,cabecalho:document.getElementById('modulo11_cabecalhoRJ').value};
+
+				//verificar se o cnpj já existe
+				let listaTemp = [...listaModulo11_temp]
+				listaTemp.splice(pos,1);
+				let existeRegra = listaTemp.find(regra => regra.cnpj == inputCnpj);
+				if (existeRegra) {
+					return 'erro:Já existe regra para este CNPJ!';
+				} else {
+					return resposta;
+				}
+
+			} else { erroFormulario = true }
+
+			if (erroFormulario) {
+				return 'erro:CNPJ inválido!';
+			}
+		}
+	}).then((result) => {
+
+		if (typeof result.value === 'object') {
+			listaModulo11_temp[pos] = result.value;
+			montar_modulo11();
+			salvarOpcoes();
+		} else if (result.value == '' || result.isDismissed || result.isDenied) {
+
+		} else if (result.value.includes('erro:')) {
+			result.value = result.value.replace('erro:','');
+			Swal.fire(result.value, "", "info");
+		}
+	});
+}
+
+async function criarRegra_modulo11() {
+	let cabecalhoRJ = 'Certifico que, para fins de habilitação de créditos perante o Administrador Judicial, Sr. XXX, ';
+	cabecalhoRJ += 'nomeado nos autos da Ação de Recuperação Judicial nº XXX, que tramita na XXX, passa esta Secretaria';
+	cabecalhoRJ += ' a expedir CERTIDÃO DE HABILITAÇÃO DE CRÉDITO, observando os termos do parágrafo único do art. 1º do';
+	cabecalhoRJ += ' Provimento CGJT 01/2012 c/c art. 80 da Consolidação dos Provimentos da Corregedoria-Geral da Justiça';
+	cabecalhoRJ += ' do Trabalho, publicada no dia 24 de fevereiro de 2016.';
+
+	Swal.fire({
+		title: '    ',
+		html:
+			'<span>CNPJ:</span><br>' +
+			'<input type="text" id="modulo11_cnpjRJ" class="swal2-input" placeholder="00.000.000/0000-00" value="">' +
+			'<br><br>' +
+			'<span>Observação:</span><br>' +
+			'<input type="text" id="modulo11_observacao" class="swal2-input" value="">' +
+			'<br><br>' +
+			'<span>Cabeçalho da Certidão:</span><br>' +
+			'<textarea id="modulo11_cabecalhoRJ" class="swal2-textarea" style="height: 40vh;">' + cabecalhoRJ + '</textarea>',
+		focusConfirm: false,
+		width: 800,
+		confirmButtonText: 'Salvar',
+		preConfirm: () => {
+			let inputCnpj = document.getElementById('modulo11_cnpjRJ').value;
+			let erroFormulario = false;
+			//mascara do input do CNPJ
+			inputCnpj = inputCnpj.replace(/\D/g, "");
+			if (!inputCnpj) {
+				return '';
+			} else if (inputCnpj.length == 14) { //completo sem pontos e traços
+				inputCnpj = inputCnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+				let resposta = {cnpj:inputCnpj,observacao:document.getElementById('modulo11_observacao').value,cabecalho:document.getElementById('modulo11_cabecalhoRJ').value};
+				//verificar se o cnpj já existe
+				let existeRegra = listaModulo11_temp.find(regra => regra.cnpj == inputCnpj);
+				if (existeRegra) {
+					return 'erro:Já existe regra para este CNPJ!';
+				} else {
+					return resposta;
+				}
+
+			} else { erroFormulario = true }
+
+			if (erroFormulario) {
+				return 'erro:CNPJ inválido!';
+			}
+		}
+	}).then((result) => {
+		if (typeof result.value === 'object') {
+			listaModulo11_temp.push(result.value);
+			montar_modulo11();
+			salvarOpcoes();
+		} else if (result.value == '' || result.isDismissed || result.isDenied) {
+
+		} else if (result.value.includes('erro:')) {
+			result.value = result.value.replace('erro:','');
+			Swal.fire(result.value, "", "info");
+		}
 	});
 }
 
@@ -3090,38 +3153,30 @@ async function aa_anexar_documentos() {
 		title: 'Descrição (Título)',
 		text: 'Título que aparece na linha do tempo do processo',
 		preConfirm: () => {
-			
+
 			//COMANDO PARA ESCONDER O INPUT DO PRÓXIMO PASSO
-			setTimeout(function() {				
+			setTimeout(function() {
 				document.querySelector('div[class="swal2-content"] input[class="swal2-input"]').style.display = 'none';
 			}, 50);
-			
+
 		}
 	},
 	{
-		// title: 'Sigilo',
-		// input: 'select',
-		// inputOptions: {			
-			// 'Sim': 'Sim',
-			// 'Não': 'Não',
-		// },
-		// inputValue: 'Não',
-			
 		title: 'Sigilo',
 		html:
-		'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 50%;">' + 
-			'<option value="nao" selected> Não </option>' + 
-			'<option value="sim"> Sim </option>' + 
+		'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 50%;">' +
+			'<option value="nao" selected> Não </option>' +
+			'<option value="sim"> Sim </option>' +
 		'</select>' +
-		'<select id="swal-input4-1" class="swal2-select" style="background-color: white;width: 50%;">' + 
-			'<optgroup label="Visibilidade do Documento">' + 
-			'<option value="Nenhum" selected> Nenhum </option>' + 
-			'<option value="Polo Ativo"> Apenas Polo Ativo </option>' + 
-			'<option value="Polo Passivo"> Apenas Polo Passivo </option>' + 			
-			'<option value="Polo Ativo + Polo Passivo"> Polo Ativo + Polo Passivo </option>' + 
-			'<option value="Perito"> Apenas Perito </option>' + 
-			'<option value="Todos"> Polo Ativo + Polo Passivo + Perito </option>' + 
-			'<option value="Perguntar"> Perguntar </option>' + 
+		'<select id="swal-input4-1" class="swal2-select" style="background-color: white;width: 50%;">' +
+			'<optgroup label="Visibilidade do Documento">' +
+			'<option value="Nenhum" selected> Nenhum </option>' +
+			'<option value="Polo Ativo"> Apenas Polo Ativo </option>' +
+			'<option value="Polo Passivo"> Apenas Polo Passivo </option>' +
+			'<option value="Polo Ativo + Polo Passivo"> Polo Ativo + Polo Passivo </option>' +
+			'<option value="Perito"> Apenas Perito </option>' +
+			'<option value="Todos"> Polo Ativo + Polo Passivo + Perito </option>' +
+			'<option value="Perguntar"> Perguntar </option>' +
 			'</optgroup>' +
 		'</select>',
 		preConfirm: () => {
@@ -3129,8 +3184,8 @@ async function aa_anexar_documentos() {
 			let sw4 = document.getElementById('swal-input4').value.toLowerCase();
 			let sw41 = document.getElementById('swal-input4-1').value.toLowerCase();
 			if (sw4.toLowerCase().includes('sim')) {
-				if (!sw4.includes('[') && !sw4.includes(']')) {	
-					switch (sw41) {					
+				if (!sw4.includes('[') && !sw4.includes(']')) {
+					switch (sw41) {
 						case 'nenhum':
 							break;
 						case 'polo ativo':
@@ -3164,7 +3219,7 @@ async function aa_anexar_documentos() {
 	{
 		title: 'Assinar automaticamente',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		}
@@ -3175,12 +3230,12 @@ async function aa_anexar_documentos() {
 			color();
 		}
 	})
-	
+
 	async function color() {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" type="color" value="#3085d6">',
 			focusConfirm: true,
 			preConfirm: () => {
@@ -3229,7 +3284,7 @@ async function aa_comunicacao() {
 	{
 		title: 'Sigilo',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		},
@@ -3242,7 +3297,7 @@ async function aa_comunicacao() {
 	{
 		title: 'Salvar automaticamente',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		}
@@ -3250,7 +3305,7 @@ async function aa_comunicacao() {
 	{
 		title: 'Mover para a Tarefa "Preparar Comunicação/Expediente"?',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		}
@@ -3259,14 +3314,14 @@ async function aa_comunicacao() {
 		if (result.value) {
 			temp = result.value;
 			color();
-		}		
+		}
 	});
-	
+
 	async function color() {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" type="color" value="#D2691E">',
 			focusConfirm: true,
 			preConfirm: () => {
@@ -3276,7 +3331,7 @@ async function aa_comunicacao() {
 			}
 		});
 
-		if (result) {			
+		if (result) {
 			let tipo_prazo = "";
 			if (temp[2] != null) {
 				if (temp[2].toLowerCase().includes('dc')) {
@@ -3289,7 +3344,7 @@ async function aa_comunicacao() {
 				} else {
 					tipo_prazo = "Dias Úteis";
 				}
-			}			
+			}
 			criaBotao_aaComunicacao(aaComunicacao_temp.length, temp[0], temp[1], temp[3], tipo_prazo, temp[2], temp[4], temp[5], temp[6], temp[7], result[0], 'Nenhum', temp[8], 'sim');
 			aaComunicacao_temp.push(new AcaoAutomatizada_aaComunicacao(temp[0], temp[1], temp[3], tipo_prazo, temp[2], temp[4], temp[5], temp[6], temp[7], result[0], 'Nenhum', temp[8], 'sim'));
 			salvarOpcoes();
@@ -3301,12 +3356,12 @@ async function aa_autogigs() {
 	console.log("aa_autogigs");
 	let temp = [];
 	let tipo;
-	
+
 	Swal.fire({
 		title: 'Tipo de Evento',
 		icon: 'question',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 				'Atividade': 'Atividade',
 				'Comentário': 'Comentário',
 				'Chip': 'Chip',
@@ -3318,7 +3373,7 @@ async function aa_autogigs() {
 		inputValidator: (value) => {
 			return new Promise((resolve) => {
 				console.log("Evento: " + value);
-				switch (value) {					
+				switch (value) {
 					case 'Atividade':
 						alertAtividade();
 						break
@@ -3338,8 +3393,8 @@ async function aa_autogigs() {
 			})
 		}
 	});
-	
-	async function alertAtividade() {		
+
+	async function alertAtividade() {
 		Swal.mixin({
 			input: 'text',
 			confirmButtonText: 'Próximo &rarr;',
@@ -3374,7 +3429,7 @@ async function aa_autogigs() {
 		{
 			title: 'Salvar automaticamente',
 			input: 'select',
-			inputOptions: {			
+			inputOptions: {
 				'Sim': 'Sim',
 				'Não': 'Não',
 			}
@@ -3392,7 +3447,7 @@ async function aa_autogigs() {
 			}
 		});
 	}
-	
+
 	async function alertComentario() {
 		tipo = "comentario";
 		Swal.mixin({
@@ -3414,7 +3469,7 @@ async function aa_autogigs() {
 		{
 			title: 'Visibilidade',
 			input: 'select',
-			inputOptions: {			
+			inputOptions: {
 				'LOCAL': 'LOCAL',
 				'RESTRITA': 'RESTRITA',
 				'GLOBAL': 'GLOBAL',
@@ -3427,7 +3482,7 @@ async function aa_autogigs() {
 		{
 			title: 'Salvar automaticamente',
 			input: 'select',
-			inputOptions: {			
+			inputOptions: {
 				'Sim': 'Sim',
 				'Não': 'Não',
 			}
@@ -3439,7 +3494,7 @@ async function aa_autogigs() {
 			}
 		});
 	}
-	
+
 	async function alertChip() {
 		tipo = "chip";
 		Swal.mixin({
@@ -3460,7 +3515,7 @@ async function aa_autogigs() {
 		{
 			title: 'Salvar automaticamente',
 			input: 'select',
-			inputOptions: {			
+			inputOptions: {
 				'Sim': 'Sim',
 				'Não': 'Não',
 			}
@@ -3472,7 +3527,7 @@ async function aa_autogigs() {
 			}
 		});
 	}
-	
+
 	async function alertLembrete() {
 		tipo = "lembrete";
 		Swal.mixin({
@@ -3493,12 +3548,12 @@ async function aa_autogigs() {
 		{
 			title: 'Visibilidade',
 			input: 'select',
-			inputOptions: {			
+			inputOptions: {
 				'LOCAL': 'LOCAL',
 				'PRIVADO': 'PRIVADO',
 				'GLOBAL': 'GLOBAL',
 			}
-		},		
+		},
 		{
 			title: 'Conteúdo do Lembrete',
 			input: 'textarea',
@@ -3506,7 +3561,7 @@ async function aa_autogigs() {
 		{
 			title: 'Salvar automaticamente',
 			input: 'select',
-			inputOptions: {			
+			inputOptions: {
 				'Sim': 'Sim',
 				'Não': 'Não',
 			}
@@ -3539,10 +3594,10 @@ async function aa_autogigs() {
 			}
 		});
 	}
-		
+
 	async function color(tipo) {
 		let var1 = '#aea705';
-		switch (tipo) {					
+		switch (tipo) {
 			case 'prazo':
 				var1 = '#708090'
 				break
@@ -3559,14 +3614,14 @@ async function aa_autogigs() {
 				var1 = '#d9c7a5'
 				break
 			case 'nenhum':
-				var1 = '#CFD0D0'				
+				var1 = '#CFD0D0'
 				break
 		}
-		
+
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" type="color" value="' + var1 + '">',
 			focusConfirm: true,
 			preConfirm: () => {
@@ -3586,7 +3641,7 @@ async function aa_autogigs() {
 				console.log('temp[2]: ' + temp[2]); //visibilidade === prazo
 				console.log('temp[3]: ' + temp[3]); //resp processo === responsavel_processo
 				console.log('temp[4]: ' + temp[4]); //salvar === salvar
-				console.log('temp[5]: ' + result[0]); //cor === cor 
+				console.log('temp[5]: ' + result[0]); //cor === cor
 				//id, nm_botao, tipo, tipo_atividade, prazo, responsavel, responsavel_processo, observacao, salvar, cor, vinculo, visibilidade
 				criaBotao_aaAutogigs(aaAutogigs_temp.length, temp[0], tipo, '', temp[2], '', temp[3], temp[1], temp[4], result[0], 'Nenhum', 'sim');
 				//nm_botao, tipo, tipo_atividade, prazo, responsavel, responsavel_processo, observacao, salvar, cor, vinculo, visibilidade='sim'
@@ -3600,7 +3655,7 @@ async function aa_autogigs() {
 				console.log('temp[2]: ' + temp[2]); //visibilidade === prazo
 				console.log('temp[3]: ' + temp[3]); //conteudo === observacao
 				console.log('temp[4]: ' + temp[4]); //salvar === salvar
-				console.log('temp[5]: ' + result[0]); //cor === cor 
+				console.log('temp[5]: ' + result[0]); //cor === cor
 				criaBotao_aaAutogigs(aaAutogigs_temp.length,temp[0],tipo,temp[1],temp[2],'','',temp[3],temp[4],result[0],'Nenhum','sim');
 				aaAutogigs_temp.push(new AcaoAutomatizada_aaAutogigs(temp[0],tipo,temp[1],temp[2],'','',temp[3],temp[4],result[0],'Nenhum','sim'));
 			} else if (tipo == "nenhum") {
@@ -3613,7 +3668,7 @@ async function aa_autogigs() {
 			}
 		}
 	}
-	
+
 }
 
 async function aa_despacho() {
@@ -3639,7 +3694,7 @@ async function aa_despacho() {
 	{
 		title: 'Sigilo',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		},
@@ -3663,12 +3718,12 @@ async function aa_despacho() {
 			color();
 		}
 	});
-	
+
 	async function color() {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" type="color" value="#228B22">',
 			focusConfirm: true,
 			preConfirm: () => {
@@ -3714,15 +3769,15 @@ async function aa_movimento() {
 	]).then((result) => {
 		if (result.value) {
 			temp = result.value;
-			color();			
+			color();
 		}
 	});
-	
+
 	async function color() {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" type="color" value="#B22222">',
 			focusConfirm: true,
 			preConfirm: () => {
@@ -3740,7 +3795,7 @@ async function aa_movimento() {
 	}
 }
 
-async function aa_checklist() {	
+async function aa_checklist() {
 	let temp = [];
 	Swal.mixin({
 		input: 'text',
@@ -3764,11 +3819,11 @@ async function aa_checklist() {
 	{
 		title: 'Status',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'nenhum': 'nenhum',
 			'negativo': 'negativo',
 			'parcial': 'parcial',
-			'positivo': 'positivo',			
+			'positivo': 'positivo',
 			'perguntar': 'perguntar',
 		},
 		inputValue: 'perguntar',
@@ -3776,7 +3831,7 @@ async function aa_checklist() {
 	{
 		title: 'Alerta',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		},
@@ -3785,7 +3840,7 @@ async function aa_checklist() {
 	{
 		title: 'Salvar automaticamente',
 		input: 'select',
-		inputOptions: {			
+		inputOptions: {
 			'Sim': 'Sim',
 			'Não': 'Não',
 		}
@@ -3793,15 +3848,15 @@ async function aa_checklist() {
 	]).then((result) => {
 		if (result.value) {
 			temp = result.value;
-			color();			
+			color();
 		}
 	});
-	
+
 	async function color() {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" type="color" value="#B22222">',
 			focusConfirm: true,
 			preConfirm: () => {
@@ -3819,12 +3874,98 @@ async function aa_checklist() {
 	}
 }
 
+async function aa_nomearPerito() {
+	let temp = [];
+	Swal.mixin({
+		input: 'text',
+		confirmButtonText: 'Próximo &rarr;',
+		showCancelButton: true,
+		progressSteps: ['1', '2', '3', '4', '5', '6', '7']
+	}).queue([
+	{
+		title: 'Nome do Botão',
+		text: ''
+	},
+	{
+		title: 'Profissão',
+		html: 'Exemplos:<br>CONTADOR<br>ENGENHEIRO<br>MÉDICO CLÍNICO'
+	},
+	{
+		title: 'Nome do Perito',
+		html: 'Se deixar o campo em branco, será utilizado o perito sorteado pelo PJe'
+	},
+	{
+		title: 'Prazo',
+		html: 'Pode ser em número de dias úteis ou uma data.<br>Exemplo: 01/01/2021<br><br><i style="color:cadetblue;">Para dias corridos, acrescente a expressão dc depois do prazo.<br><br>Por exemplo: <b>60dc</b> é igual a 60 dias corridos.</i>'
+	},
+	{
+		title: 'Designar Automaticamente',
+		input: 'select',
+		inputOptions: {
+			'Sim': 'Sim',
+			'Não': 'Não',
+		},
+		inputValue: 'Não',
+	},
+	{
+		title: 'Modelo da Intimação',
+		html: 'Se deixar o campo em branco, será utilizado o modelo próprio do PJe.'
+	},
+	{
+		title: 'Assinar automaticamente',
+		input: 'select',
+		inputOptions: {
+			'Sim': 'Sim',
+			'Não': 'Não',
+		}
+	}
+	]).then((result) => {
+		if (result.value) {
+			temp = result.value;
+			color();
+		}
+	});
+
+	async function color() {
+		const { value: result } = await Swal.fire({
+			title: '    ',
+			html:
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
+			'<input id="swal-input1" class="swal2-input" type="color" value="#B22222">',
+			focusConfirm: true,
+			preConfirm: () => {
+				return [
+					document.getElementById('swal-input1').value
+				]
+			}
+		});
+
+		if (result) {
+            let tipo_prazo = "";
+            let prazo = temp[3]
+            if (prazo.toLowerCase().includes('dc')) {
+                tipo_prazo = "Dias Corridos";
+                prazo = prazo.replace('dc','');
+            } else if (prazo.search("/") > -1) {
+                tipo_prazo = "Data Certa";
+            } else {
+                tipo_prazo = "Dias Úteis";
+            }
+            console.log(prazo + ' : ' + tipo_prazo)
+			// id, nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, visibilidade) {
+			criaBotao_aaNomearPerito(aaNomearPerito_temp.length, temp[0], temp[1].toUpperCase(), temp[2].toUpperCase(), prazo, tipo_prazo, temp[4], temp[5], temp[6], result[0], 'Nenhum', 'sim');
+			aaNomearPerito_temp.push(new AcaoAutomatizada_aaNomearPerito(temp[0], temp[1].toUpperCase(), temp[2].toUpperCase(), prazo, tipo_prazo, temp[4], temp[5], temp[6], result[0], 'Nenhum', 'sim'));
+			salvarOpcoes();
+		}
+	}
+}
+
 async function importarAA() {
-	
+
 	const { value: result } = await Swal.fire({
 		title: '    ',
 		html:
-		'<span style="font-weight: bold;"> IMPORTAR AÇÃO AUTOMATIZADA:</span><br>' + 
+		'<span style="font-weight: bold;"> IMPORTAR AÇÃO AUTOMATIZADA:</span><br>' +
 		'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;">Cole uma configuração em cada campo. É possível importar no máximo cinco ações por vez.</i><br>' +
 		'<br><textarea id="swal-input-importarAA1" placeholder="código da Ação Automatizada 1" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>' +
 		'<br><textarea id="swal-input-importarAA2" placeholder="código da Ação Automatizada 2" class="swal2-input" style="height: 100px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>' +
@@ -3834,11 +3975,11 @@ async function importarAA() {
 		confirmButtonText: 'Importar',
 		focusConfirm: false,
 		preConfirm: async () => {
-			
+
 			let campos = document.querySelectorAll('textarea[id*="swal-input-importarAA"]');
 			let configuracoes = [];
 			[].map.call(campos,function(item) { if (item.value) { configuracoes.push(item.value) } });
-			
+
 			return configuracoes;
 		}
 	});
@@ -3847,7 +3988,7 @@ async function importarAA() {
 		console.log(error.name + " : " + error.message);
 		alert(error.name + " : " + error.message);
 	}
-		
+
 	try {
 		console.log(result)
 		if (result) {
@@ -3855,38 +3996,38 @@ async function importarAA() {
 			let colecao = result;
 			switch (this.id) {
 				case 'aa_imp_anexar_documentos':
-											
-					for (var i = 0; i < colecao.length; i++) {		
-						let temp = JSON.parse(colecao[i]);							
+
+					for (var i = 0; i < colecao.length; i++) {
+						let temp = JSON.parse(colecao[i]);
 						criaBotao_aaAnexar(aaAnexar_temp.length, temp.nm_botao, temp.tipo, temp.descricao, temp.sigilo, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade);
 						aaAnexar_temp.push(new AcaoAutomatizada_aaAnexar(temp.nm_botao, temp.tipo, temp.descricao, temp.sigilo, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade));
-					}						
+					}
 					break;
-					
-				case 'aa_imp_comunicacao':		
-					
-					for (var i = 0; i < colecao.length; i++) {		
+
+				case 'aa_imp_comunicacao':
+
+					for (var i = 0; i < colecao.length; i++) {
 						let temp = JSON.parse(colecao[i]);
-						let tempComandosEspeciais = (!temp.comandosEspeciais) ? '': temp.comandosEspeciais;			
+						let tempComandosEspeciais = (!temp.comandosEspeciais) ? '': temp.comandosEspeciais;
 						criaBotao_aaComunicacao(aaComunicacao_temp.length, temp.nm_botao, temp.tipo, temp.subtipo, temp.tipo_prazo, temp.prazo, temp.descricao, temp.sigilo, temp.modelo, temp.salvar, temp.cor, temp.vinculo, temp.fluxo, temp.visibilidade, tempComandosEspeciais);
 						aaComunicacao_temp.push(new AcaoAutomatizada_aaComunicacao(temp.nm_botao, temp.tipo, temp.subtipo, temp.tipo_prazo, temp.prazo, temp.descricao, temp.sigilo, temp.modelo, temp.salvar, temp.cor, temp.vinculo, temp.fluxo, temp.visibilidade, tempComandosEspeciais));
 					}
 
 					break;
-					
+
 				case 'aa_imp_autogigs':
-				
-					for (var i = 0; i < colecao.length; i++) {		
-						let temp = JSON.parse(colecao[i]);					
+
+					for (var i = 0; i < colecao.length; i++) {
+						let temp = JSON.parse(colecao[i]);
 						criaBotao_aaAutogigs(aaAutogigs_temp.length, temp.nm_botao, temp.tipo, temp.tipo_atividade, temp.prazo, temp.responsavel, temp.responsavel_processo, temp.observacao, temp.salvar, temp.cor, temp.vinculo, temp.visibilidade);
 						aaAutogigs_temp.push(new AcaoAutomatizada_aaAutogigs( temp.nm_botao, temp.tipo, temp.tipo_atividade, temp.prazo, temp.responsavel, temp.responsavel_processo, temp.observacao, temp.salvar, temp.cor, temp.vinculo, temp.visibilidade));
-					}						
+					}
 					break;
-					
+
 				case 'aa_imp_despacho':
-					
+
 					for (var i = 0; i < colecao.length; i++) {
-						
+
 						let temp = JSON.parse(colecao[i]);
 						let tempAssinar = (!temp.assinar) ? 'nao' : temp.assinar;
 						let tempComandosEspeciais = (!temp.comandosEspeciais) ? '': temp.comandosEspeciais;
@@ -3895,25 +4036,33 @@ async function importarAA() {
 					}
 
 					break;
-					
-				case 'aa_imp_movimento':					
-					
-					for (var i = 0; i < colecao.length; i++) {		
-						let temp = JSON.parse(colecao[i]);							
+
+				case 'aa_imp_movimento':
+
+					for (var i = 0; i < colecao.length; i++) {
+						let temp = JSON.parse(colecao[i]);
 						criaBotao_aaMovimento(aaMovimento_temp.length, temp.nm_botao, temp.destino, temp.chip, temp.responsavel, temp.cor, temp.vinculo, temp.visibilidade);
 						aaMovimento_temp.push(new AcaoAutomatizada_aaMovimento(temp.nm_botao, temp.destino, temp.chip, temp.responsavel, temp.cor, temp.vinculo, temp.visibilidade));
-					}						
+					}
 					break;
-					
+
 				case 'aa_imp_checklist':
-					
-					for (var i = 0; i < colecao.length; i++) {		
-						let temp = JSON.parse(colecao[i]);						
+
+					for (var i = 0; i < colecao.length; i++) {
+						let temp = JSON.parse(colecao[i]);
 						criaBotao_aaChecklist(aaChecklist_temp.length, temp.nm_botao, temp.tipo, temp.observacao, temp.estado, temp.alerta, temp.salvar, temp.cor, temp.vinculo, temp.visibilidade);
 						aaChecklist_temp.push(new AcaoAutomatizada_aaChecklist(temp.nm_botao, temp.tipo, temp.observacao, temp.estado, temp.alerta, temp.salvar, temp.cor, temp.vinculo, temp.visibilidade));
-					}						
+					}
 					break;
-					
+
+				case 'aa_imp_nomearPerito':
+					for (var i = 0; i < colecao.length; i++) {
+                        let temp = JSON.parse(colecao[i]);
+                        temp.tipo_prazo = (!temp.tipo_prazo) ? 'Dias Úteis' : temp.tipo_prazo; //corrige as AAs criadas no período de teste quando não existia essa variável
+						criaBotao_aaNomearPerito(aaNomearPerito_temp.length, temp.nm_botao, temp.profissao, temp.perito, temp.prazo, temp.tipo_prazo, temp.designar, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade);
+						aaNomearPerito_temp.push(new AcaoAutomatizada_aaNomearPerito(temp.nm_botao, temp.profissao, temp.perito, temp.prazo, temp.tipo_prazo, temp.designar, temp.modelo, temp.assinar, temp.cor, temp.vinculo, temp.visibilidade));
+					}
+					break;
 			}
 			await salvarOpcoes();
 
@@ -3924,11 +4073,11 @@ async function importarAA() {
 }
 
 async function importarModulo2() {
-	
+
 	const { value: result } = await Swal.fire({
 		title: '    ',
 		html:
-		'<span style="font-weight: bold;"> Importar Configurações do módulo:</span><br>' + 
+		'<span style="font-weight: bold;"> Importar Configurações do módulo:</span><br>' +
 		'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;">Cole a configuração no campo abaixo</i><br>' +
 		'<br><textarea id="swal-input-importarModulo" placeholder="código da configuração" class="swal2-input" style="height: 50vh;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>',
 		confirmButtonText: 'Importar',
@@ -3943,7 +4092,7 @@ async function importarModulo2() {
 		console.log(error.name + " : " + error.message);
 		alert(error.name + " : " + error.message);
 	}
-		
+
 	try {
 		if (result) {
 			console.log(result)
@@ -3975,10 +4124,10 @@ function exportarModulo2() {
 		cancelButtonText: 'Não'
 	}).then((result) => {
 		if (result.value) {
-			copiarDados(listaModulo2_temp);			
+			copiarDados(listaModulo2_temp);
 		}
 	})
-	
+
 	function copiarDados(dados) {
 		var textarea = document.createElement("textarea");
 		textarea.textContent = JSON.stringify(dados);
@@ -3986,7 +4135,7 @@ function exportarModulo2() {
 		textarea.select();
 		document.execCommand("copy");
 		document.body.removeChild(textarea);
-		
+
 		Swal.fire({
 		  position: 'center',
 		  icon: 'success',
@@ -4012,53 +4161,53 @@ async function buscarAA() {
 			confirmButtonText: 'Filtrar'
 		}).then(function (result) {
 			filtrar(result.value);
-		})	
+		})
 	}
-		
+
 	function filtrar(texto) {
 		switch (ancora) {
 			case 'aa_buscar_anexar_documentos':
 				let listaDeAAAnexar_documentos = document.querySelectorAll('a[id*="botao_anexar_documentos_"]');
 				[].map.call(
-					listaDeAAAnexar_documentos, 
+					listaDeAAAnexar_documentos,
 					function(item) {
-						if (texto.length == 0) { 
+						if (texto.length == 0) {
 							item.style.visibility = 'visible'
-						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) { 
+						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) {
 							item.style.visibility = 'hidden'
 						}
 					}
 				);
 				break;
-				
+
 			case 'aa_buscar_comunicacao':
 				let listaDeAAComunicacao = document.querySelectorAll('a[id*="botao_comunicacao_"]');
 				[].map.call(
-					listaDeAAComunicacao, 
+					listaDeAAComunicacao,
 					function(item) {
-						if (texto.length == 0) { 
+						if (texto.length == 0) {
 							item.style.visibility = 'visible'
-						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) { 
+						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) {
 							item.style.visibility = 'hidden'
 						}
 					}
 				);
 				break;
-				
+
 			case 'aa_buscar_autogigs':
-			
+
 				let listaDeAAAutogigs = document.querySelectorAll('a[id*="botao_autogigs_"]');
 				[].map.call(
-					listaDeAAAutogigs, 
+					listaDeAAAutogigs,
 					function(item) {
 						if (texto.length == 0) { //lupa desativada
 							item.style.opacity = '1'
 							item.nextSibling.style.opacity = '1'
-							
-						} else if (item.innerText.toLowerCase().includes(texto.toLowerCase())) { 
+
+						} else if (item.innerText.toLowerCase().includes(texto.toLowerCase())) {
 							item.style.opacity = '1'
 							item.nextSibling.style.opacity = '1'
-							
+
 						} else {
 							item.style.opacity = '0'
 							item.nextSibling.style.opacity = '0'
@@ -4066,52 +4215,52 @@ async function buscarAA() {
 					}
 				);
 				break;
-				
+
 			case 'aa_buscar_despacho':
-				
+
 				let listaDeAADespacho = document.querySelectorAll('a[id*="botao_despacho_"]');
 				[].map.call(
-					listaDeAADespacho, 
+					listaDeAADespacho,
 					function(item) {
-						if (texto.length == 0) { 
+						if (texto.length == 0) {
 							item.style.visibility = 'visible'
-						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) { 
+						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) {
 							item.style.visibility = 'hidden'
 						}
 					}
 				);
 				break;
-				
-			case 'aa_buscar_movimento':					
-				
+
+			case 'aa_buscar_movimento':
+
 				let listaDeAAMovimento = document.querySelectorAll('a[id*="botao_movimento_"]');
 				[].map.call(
-					listaDeAAMovimento, 
+					listaDeAAMovimento,
 					function(item) {
-						if (texto.length == 0) { 
+						if (texto.length == 0) {
 							item.style.visibility = 'visible'
-						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) { 
+						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) {
 							item.style.visibility = 'hidden'
 						}
 					}
 				);
 				break;
-				
+
 			case 'aa_buscar_checklist':
-				
+
 				let listaDeAAChecklist = document.querySelectorAll('a[id*="botao_checklist_"]');
 				[].map.call(
-					listaDeAAChecklist, 
+					listaDeAAChecklist,
 					function(item) {
-						if (texto.length == 0) { 
+						if (texto.length == 0) {
 							item.style.visibility = 'visible'
-						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) { 
+						} else if (!item.innerText.toLowerCase().includes(texto.toLowerCase())) {
 							item.style.visibility = 'hidden'
 						}
 					}
 				);
 				break;
-				
+
 		}
 	}
 }
@@ -4180,6 +4329,8 @@ function montarBotoesDetalhes() {
 		document.getElementById('c29').addEventListener('click', salvarOpcoes);
 		document.getElementById('c30').checked = preferencias.atalhosDetalhes[30];
 		document.getElementById('c30').addEventListener('click', salvarOpcoes);
+		document.getElementById('c31').checked = preferencias.atalhosDetalhes[31];
+		document.getElementById('c31').addEventListener('click', salvarOpcoes);
 	}
 }
 
@@ -4193,17 +4344,17 @@ async function obterVinculosDescendentes(aaPai,v) {
 		t = t.replace("LançarMovimento|Contadoria:retificação","LançarMovimento|para Contadoria:retificação");
 		t = t.replace("LançarMovimento|Contadoria:DeterminaçãoJudicial","LançarMovimento|para Contadoria:DeterminaçãoJudicial");
 		v = t;
-		
+
 		if (v.toString().includes('Nenhum')) { //já foi obtido. Somente uma vez. Regra de transição.
 			// alert('Descendente já obtido')
 			return resolve(v);
 		}
-		let vTemp = v;		
+		let vTemp = v;
 		let tipo = vTemp.split('|')[0];
 		let id = vTemp.split('|')[1]
-		
+
 		let aaTemp;
-		
+
 		if (tipo == 'Anexar') {
 			aaTemp = aaAnexar_temp;
 		} else if (tipo == 'Comunicação') {
@@ -4230,7 +4381,7 @@ async function obterVinculosDescendentes(aaPai,v) {
 			console.debug('erro na obtenção de descendentes (Classificação do Tipo de AA: não encontrada!)');
 			return resolve('Nenhum');
 		}
-		
+
 		let aaDescendente;
 		if (aaPai == id) { //se chamou ele mesmo interrompe para evitar looping
 			console.log('*******(caso1) interrompeu looping na AA ' + id);
@@ -4238,9 +4389,9 @@ async function obterVinculosDescendentes(aaPai,v) {
 		} else {
 			aaDescendente = await obterAA(aaTemp,id);
 		}
-		
+
 		// console.log(id + " vínculo " + aaDescendente);
-		
+
 		if (aaDescendente != ',Nenhum') {
 			// console.log("lista de vínculos mapeados: " + v + "   ----> " + v.includes(aaDescendente));
 			if (v.split(',').includes(aaDescendente)) { //se chamou uma AA que já foi qualificada como descendente interrompe para evitar looping
@@ -4252,11 +4403,11 @@ async function obterVinculosDescendentes(aaPai,v) {
 		}
 		return resolve(v)
 	});
-	
+
 	async function obterAA(lista,id) {
 		return new Promise(async resolve => {
 			let aaEncontrada = ',Nenhum';
-			
+
 			for (const [pos, item] of lista.entries()) {
 				// console.log(id + " == " + item.nm_botao + "  :  " + (item.nm_botao == id))
 				if (item.nm_botao == id) {
@@ -4265,29 +4416,29 @@ async function obterVinculosDescendentes(aaPai,v) {
 					break;
 				}
 			}
-			
+
 			return resolve(aaEncontrada);
 		});
 	}
 }
 
-async function montarBotoesaaAnexar() {	
+async function montarBotoesaaAnexar() {
 	if (typeof(aaAnexar_temp) != "undefined") {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_anexar_documentos");
 		var origem;
-		
+
 		el.addEventListener("dragstart", function(event) {
 			if (event.target.parentElement.id == "botoes_anexar_documentos") {
 				origem = event.target;
 				event.target.removeAttribute("data-tooltip");
 			}
-		}, false);	
-		
-		el.addEventListener("dragover", function(event) {			
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
 			event.preventDefault();
 		}, false);
-		
+
 		el.addEventListener("dragenter", function(event) {
 			if (!origem) {
 				return;
@@ -4306,18 +4457,18 @@ async function montarBotoesaaAnexar() {
 				}
 			}
 		}, false);
-		
+
 		el.addEventListener("dragleave", function(event) {
 			if (event.target.parentElement.id == "botoes_anexar_documentos") {
 				if (event.target.id.search("espaco_botao_anexar_documentos_") > -1) {
-					event.target.style.backgroundColor = "white";				
+					event.target.style.backgroundColor = "white";
 					event.target.className = "";
 					event.target.style.width = ".8em";
 					event.target.style.margin = "";
 				}
 			}
 		}, false);
-		
+
 		document.addEventListener("drop", function(event) {
 			if (!origem) {
 				return;
@@ -4332,16 +4483,16 @@ async function montarBotoesaaAnexar() {
 			}
 			if (event.target.parentElement.id == "botoes_anexar_documentos") {
 				event.preventDefault();
-				
+
 				//retira a marca de posição
-				event.target.style.backgroundColor = "white";				
+				event.target.style.backgroundColor = "white";
 				event.target.className = "";
 				event.target.style.width = ".8em";
 				event.target.style.opacity = "0";
-				
+
 				//pega a posição de destino no Array
 				let pos_destino = parseInt(event.target.id.replace('espaco_botao_anexar_documentos_',''));
-				let pos_origem = parseInt(origem.id.replace('botao_anexar_documentos_',''));				
+				let pos_origem = parseInt(origem.id.replace('botao_anexar_documentos_',''));
 				let verificador = pos_destino - pos_origem;
 				// console.log(pos_origem + " >>> " + pos_destino + " - subtração = " + verificador);
 				if (verificador == 0 || verificador == 1) {
@@ -4350,29 +4501,29 @@ async function montarBotoesaaAnexar() {
 				//faz as alterações necessárias no array de objetos
 				let temp1 = aaAnexar_temp[pos_origem];
 				aaAnexar_temp.splice(pos_origem, 1);
-				
+
 				//insere o botão na nova posição
 				if (pos_origem < pos_destino) {
 					aaAnexar_temp.splice(pos_destino-1, 0, temp1);
 				} else {
 					aaAnexar_temp.splice(pos_destino, 0, temp1);
 				}
-				
+
 				salvarOpcoes();
 				document.getElementById("botoes_anexar_documentos").textContent = '';
 				montarBotoesaaAnexar();
 			}
 			origem = null;
 		}, false);
-		
+
 		let ajustandoLista = [];
 		for (const [pos, item] of aaAnexar_temp.entries()) {
 			let aa = item;
-			
+
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
 			aa = new AcaoAutomatizada_aaAnexar(aa.nm_botao, aa.tipo, aa.descricao, aa.sigilo, aa.modelo, aa.assinar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
 			ajustandoLista.push(aa);
-			
+
 			criaBotao_aaAnexar(pos, aa.nm_botao, aa.tipo, aa.descricao, aa.sigilo, aa.modelo, aa.assinar, aa.cor, aa.vinculo, aa.visibilidade);
 			if (pos == aaAnexar_temp.length-1) {
 				//cria espaçador para o último botão
@@ -4386,23 +4537,23 @@ async function montarBotoesaaAnexar() {
 	}
 }
 
-async function montarBotoesaaComunicacao() {	
+async function montarBotoesaaComunicacao() {
 	if (typeof(aaComunicacao_temp) != "undefined") {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_comunicacao");
 		var origem;
-		
+
 		el.addEventListener("dragstart", function(event) {
 			if (event.target.parentElement.id == "botoes_comunicacao") {
 				origem = event.target;
 				event.target.removeAttribute("data-tooltip");
 			}
-		}, false);	
-		
-		el.addEventListener("dragover", function(event) {			
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
 			event.preventDefault();
 		}, false);
-		
+
 		el.addEventListener("dragenter", function(event) {
 			if (!origem) {
 				return;
@@ -4417,22 +4568,22 @@ async function montarBotoesaaComunicacao() {
 					event.target.style.backgroundColor = origem.style.backgroundColor;
 					event.target.style.opacity = ".5";
 					event.target.style.margin = "0";
-					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";				
+					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";
 				}
 			}
 		}, false);
-		
+
 		el.addEventListener("dragleave", function(event) {
 			if (event.target.parentElement.id == "botoes_comunicacao") {
 				if (event.target.id.search("espaco_botao_comunicacao_") > -1) {
-					event.target.style.backgroundColor = "white";				
+					event.target.style.backgroundColor = "white";
 					event.target.className = "";
 					event.target.style.width = ".8em";
 					event.target.style.opacity = "";
 				}
 			}
 		}, false);
-		
+
 		document.addEventListener("drop", function(event) {
 			if (!origem) {
 				return;
@@ -4447,16 +4598,16 @@ async function montarBotoesaaComunicacao() {
 			}
 			if (event.target.parentElement.id == "botoes_comunicacao") {
 				event.preventDefault();
-				
+
 				//retira a marca de posição
-				event.target.style.backgroundColor = "white";				
+				event.target.style.backgroundColor = "white";
 				event.target.className = "";
 				event.target.style.width = ".8em";
 				event.target.style.opacity = "0";
-				
+
 				//pega a posição de destino no Array
 				let pos_destino = parseInt(event.target.id.replace('espaco_botao_comunicacao_',''));
-				let pos_origem = parseInt(origem.id.replace('botao_comunicacao_',''));				
+				let pos_origem = parseInt(origem.id.replace('botao_comunicacao_',''));
 				let verificador = pos_destino - pos_origem;
 				// console.log(pos_origem + " >>> " + pos_destino + " - subtração = " + verificador);
 				if (verificador == 0 || verificador == 1) {
@@ -4465,26 +4616,26 @@ async function montarBotoesaaComunicacao() {
 				//faz as alterações necessárias no array de objetos
 				let temp1 = aaComunicacao_temp[pos_origem];
 				aaComunicacao_temp.splice(pos_origem, 1);
-				
+
 				//insere o botão na nova posição
 				if (pos_origem < pos_destino) {
 					aaComunicacao_temp.splice(pos_destino-1, 0, temp1);
 				} else {
 					aaComunicacao_temp.splice(pos_destino, 0, temp1);
 				}
-				
+
 				salvarOpcoes();
 				document.getElementById("botoes_comunicacao").textContent = '';
 				montarBotoesaaComunicacao();
 			}
 			origem = null;
 		}, false);
-		
+
 		let ajustandoLista = [];
 		for (const [pos, item] of aaComunicacao_temp.entries()) {
-			let aa = item;			
+			let aa = item;
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
-			
+
 			//insere a visibilidade dentro da AA ajusatando todos as ações
 			//AcaoAutomatizada_aaComunicacao(nm_botao, tipo, subtipo, tipo_prazo, prazo, descricao, sigilo, modelo, salvar, cor, vinculo, fluxo, visibilidade='sim')
 			let tempComandosEspeciais = (!aa.comandosEspeciais) ? '' : aa.comandosEspeciais;
@@ -4507,7 +4658,7 @@ async function montarBotoesaaComunicacao() {
 			aa = new AcaoAutomatizada_aaComunicacao(aa.nm_botao, aa.tipo, aa.subtipo, aa.tipo_prazo, aa.prazo, aa.descricao, aa.sigilo, aa.modelo, aa.salvar, aa.cor, aa.vinculo, aa.fluxo, (!aa.visibilidade?'sim':aa.visibilidade), tempComandosEspeciais);
 
 			ajustandoLista.push(aa);
-			
+
 			criaBotao_aaComunicacao(pos, aa.nm_botao, aa.tipo, aa.subtipo, aa.tipo_prazo, aa.prazo, aa.descricao, aa.sigilo, aa.modelo, aa.salvar, aa.cor, aa.vinculo, aa.fluxo, aa.visibilidade, tempComandosEspeciais);
 			if (pos == aaComunicacao_temp.length-1) {
 				//cria espaçador para o último botão
@@ -4521,23 +4672,23 @@ async function montarBotoesaaComunicacao() {
 	}
 }
 
-async function montarBotoesaaAutogigs() {	
+async function montarBotoesaaAutogigs() {
 	if (typeof(aaAutogigs_temp) != "undefined") {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_autogigs");
 		var origem;
-		
+
 		el.addEventListener("dragstart", function(event) {
 			if (event.target.parentElement.id == "botoes_autogigs") {
 				origem = event.target;
 				event.target.removeAttribute("data-tooltip");
 			}
-		}, false);	
-		
-		el.addEventListener("dragover", function(event) {			
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
 			event.preventDefault();
 		}, false);
-		
+
 		el.addEventListener("dragenter", function(event) {
 			if (!origem) {
 				return;
@@ -4552,22 +4703,22 @@ async function montarBotoesaaAutogigs() {
 					event.target.style.backgroundColor = origem.style.backgroundColor;
 					event.target.style.opacity = ".5";
 					event.target.style.margin = "0";
-					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";				
+					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";
 				}
 			}
 		}, false);
-		
+
 		el.addEventListener("dragleave", function(event) {
 			if (event.target.parentElement.id == "botoes_autogigs") {
 				if (event.target.id.search("espaco_botao_autogigs_") > -1) {
-					event.target.style.backgroundColor = "white";				
+					event.target.style.backgroundColor = "white";
 					event.target.className = "";
 					event.target.style.width = ".8em";
 					event.target.style.opacity = "";
 				}
 			}
 		}, false);
-		
+
 		document.addEventListener("drop", function(event) {
 			if (!origem) {
 				return;
@@ -4582,13 +4733,13 @@ async function montarBotoesaaAutogigs() {
 			}
 			if (event.target.parentElement.id == "botoes_autogigs") {
 				event.preventDefault();
-				
+
 				//retira a marca de posição
-				event.target.style.backgroundColor = "white";				
+				event.target.style.backgroundColor = "white";
 				event.target.className = "";
 				event.target.style.width = ".8em";
 				event.target.style.opacity = "0";
-				
+
 				//pega a posição de destino no Array
 				let pos_destino = parseInt(event.target.id.replace('espaco_botao_autogigs_',''));
 				let pos_origem = parseInt(origem.id.replace('botao_autogigs_',''));
@@ -4599,31 +4750,31 @@ async function montarBotoesaaAutogigs() {
 				//faz as alterações necessárias no array de objetos
 				let temp1 = aaAutogigs_temp[pos_origem];
 				aaAutogigs_temp.splice(pos_origem, 1);
-				
+
 				//insere o botão na nova posição
 				if (pos_origem < pos_destino) {
 					aaAutogigs_temp.splice(pos_destino-1, 0, temp1);
 				} else {
 					aaAutogigs_temp.splice(pos_destino, 0, temp1);
 				}
-				
+
 				salvarOpcoes();
 				document.getElementById("botoes_autogigs").textContent = '';
 				montarBotoesaaAutogigs();
 			}
 			origem = null;
 		}, false);
-		
+
 		let ajustandoLista = [];
 		for (const [pos, item] of aaAutogigs_temp.entries()) {
 			let aa = item;
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
-			
+
 			//insere a visibilidade dentro da AA ajusatando todos as ações
 			//nm_botao, tipo, tipo_atividade, prazo, responsavel, responsavel_processo, observacao, salvar, cor, vinculo, visibilidade=true
 			aa = new AcaoAutomatizada_aaAutogigs(aa.nm_botao, aa.tipo, aa.tipo_atividade, aa.prazo, aa.responsavel, aa.responsavel_processo, aa.observacao, aa.salvar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
 			ajustandoLista.push(aa);
-			
+
 			criaBotao_aaAutogigs(pos, aa.nm_botao, aa.tipo, aa.tipo_atividade, aa.prazo, aa.responsavel, aa.responsavel_processo, aa.observacao, aa.salvar, aa.cor, aa.vinculo, aa.visibilidade);
 			if (pos == aaAutogigs_temp.length-1) {
 				//cria espaçador para o último botão
@@ -4642,18 +4793,18 @@ async function montarBotoesaaDespacho() {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_despacho");
 		var origem, destino;
-		
+
 		el.addEventListener("dragstart", function(event) {
 			if (event.target.parentElement.id == "botoes_despacho") {
 				origem = event.target;
 				event.target.removeAttribute("data-tooltip");
 			}
-		}, false);	
-		
-		el.addEventListener("dragover", function(event) {			
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
 			event.preventDefault();
 		}, false);
-		
+
 		el.addEventListener("dragenter", function(event) {
 			if (!origem) {
 				return;
@@ -4668,22 +4819,22 @@ async function montarBotoesaaDespacho() {
 					event.target.style.backgroundColor = origem.style.backgroundColor;
 					event.target.style.opacity = ".5";
 					event.target.style.margin = "0";
-					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";				
+					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";
 				}
 			}
 		}, false);
-		
+
 		el.addEventListener("dragleave", function(event) {
 			if (event.target.parentElement.id == "botoes_despacho") {
 				if (event.target.id.search("espaco_botao_despacho_") > -1) {
-					event.target.style.backgroundColor = "white";				
+					event.target.style.backgroundColor = "white";
 					event.target.className = "";
 					event.target.style.width = ".8em";
 					event.target.style.opacity = "";
 				}
 			}
 		}, false);
-		
+
 		document.addEventListener("drop", function(event) {
 			if (!origem) {
 				return;
@@ -4698,16 +4849,16 @@ async function montarBotoesaaDespacho() {
 			}
 			if (event.target.parentElement.id == "botoes_despacho") {
 				event.preventDefault();
-				
+
 				//retira a marca de posição
-				event.target.style.backgroundColor = "white";				
+				event.target.style.backgroundColor = "white";
 				event.target.className = "";
 				event.target.style.width = ".8em";
 				event.target.style.opacity = "0";
-				
+
 				//pega a posição de destino no Array
 				let pos_destino = parseInt(event.target.id.replace('espaco_botao_despacho_',''));
-				let pos_origem = parseInt(origem.id.replace('botao_despacho_',''));				
+				let pos_origem = parseInt(origem.id.replace('botao_despacho_',''));
 				let verificador = pos_destino - pos_origem;
 				if (verificador == 0 || verificador == 1) {
 					return
@@ -4715,37 +4866,37 @@ async function montarBotoesaaDespacho() {
 				//faz as alterações necessárias no array de objetos
 				let temp1 = aaDespacho_temp[pos_origem];
 				aaDespacho_temp.splice(pos_origem, 1);
-				
+
 				//insere o botão na nova posição
 				if (pos_origem < pos_destino) {
 					aaDespacho_temp.splice(pos_destino-1, 0, temp1);
 				} else {
 					aaDespacho_temp.splice(pos_destino, 0, temp1);
 				}
-				
+
 				salvarOpcoes();
 				document.getElementById("botoes_despacho").textContent = '';
 				montarBotoesaaDespacho();
 			}
 			origem = null;
 		}, false);
-		
+
 		let ajustandoLista = [];
 		for (const [pos, item] of aaDespacho_temp.entries()) {
 			let aa = item;
-			
+
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
-			
-			//insere a visibilidade dentro da AA ajusatando todos as ações			
+
+			//insere a visibilidade dentro da AA ajusatando todos as ações
 			//AcaoAutomatizada_aaDespacho(nm_botao, tipo, descricao, sigilo, modelo, juiz, responsavel, assinar, cor, vinculo, visibilidade='sim', comandosEspeciais)
-			
+
 			let tempAssinar = (!aa.assinar) ? 'não' : aa.assinar;
 			let tempComandosEspeciais = (!aa.comandosEspeciais) ? '' : aa.comandosEspeciais;
 			tempComandosEspeciais = (tempComandosEspeciais == '[]') ? '' : tempComandosEspeciais;
-			
+
 			if (tempComandosEspeciais) {
 				let padraoComandoEspecial = /(intimar|prazo|enviarpec|movimento)/g;
-				if (tempComandosEspeciais.match(padraoComandoEspecial).length < 4) {
+				if (tempComandosEspeciais?.match(padraoComandoEspecial)?.length < 4) {
 					tempComandosEspeciais = await ajustarComandosEspeciaisDespacho(aa.nm_botao, tempComandosEspeciais); //ajusta os comandos antigos par ao novo padrao
 				}
 			} else {
@@ -4756,10 +4907,10 @@ async function montarBotoesaaDespacho() {
 					tempComandosEspeciais = await ajustarComandosEspeciaisDespacho(aa.nm_botao, tempComandosEspeciais); //ajusta os comandos antigos par ao novo padrao
 				}
 			}
-			
+
 			aa = new AcaoAutomatizada_aaDespacho(aa.nm_botao, aa.tipo, aa.descricao, aa.sigilo, aa.modelo, aa.juiz, aa.responsavel, tempAssinar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade), tempComandosEspeciais);
 			ajustandoLista.push(aa);
-			
+
 			criaBotao_aaDespacho(pos, aa.nm_botao, aa.tipo, aa.descricao, aa.sigilo, aa.modelo, aa.juiz, aa.responsavel, tempAssinar, aa.cor, aa.vinculo, aa.visibilidade, tempComandosEspeciais);
 			if (pos == aaDespacho_temp.length-1) {
 				//cria espaçador para o último botão
@@ -4778,18 +4929,18 @@ async function montarBotoesaaMovimento() {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_movimento");
 		var origem;
-		
+
 		el.addEventListener("dragstart", function(event) {
 			if (event.target.parentElement.id == "botoes_movimento") {
 				origem = event.target;
 				event.target.removeAttribute("data-tooltip");
 			}
-		}, false);	
-		
-		el.addEventListener("dragover", function(event) {			
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
 			event.preventDefault();
 		}, false);
-		
+
 		el.addEventListener("dragenter", function(event) {
 			if (!origem) {
 				return;
@@ -4804,22 +4955,22 @@ async function montarBotoesaaMovimento() {
 					event.target.style.backgroundColor = origem.style.backgroundColor;
 					event.target.style.opacity = ".5";
 					event.target.style.margin = "0";
-					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";			
+					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";
 				}
 			}
 		}, false);
-		
+
 		el.addEventListener("dragleave", function(event) {
 			if (event.target.parentElement.id == "botoes_movimento") {
 				if (event.target.id.search("espaco_botao_movimento_") > -1) {
-					event.target.style.backgroundColor = "white";				
+					event.target.style.backgroundColor = "white";
 					event.target.className = "";
 					event.target.style.width = ".8em";
 					event.target.style.opacity = "";
 				}
 			}
 		}, false);
-		
+
 		document.addEventListener("drop", function(event) {
 			if (!origem) {
 				return;
@@ -4834,13 +4985,13 @@ async function montarBotoesaaMovimento() {
 			}
 			if (event.target.parentElement.id == "botoes_movimento") {
 				event.preventDefault();
-				
+
 				//retira a marca de posição
-				event.target.style.backgroundColor = "white";				
+				event.target.style.backgroundColor = "white";
 				event.target.className = "";
 				event.target.style.width = ".8em";
 				event.target.style.opacity = "0";
-				
+
 				//pega a posição de destino no Array
 				let pos_destino = parseInt(event.target.id.replace('espaco_botao_movimento_',''));
 				let pos_origem = parseInt(origem.id.replace('botao_movimento_',''));
@@ -4851,31 +5002,31 @@ async function montarBotoesaaMovimento() {
 				//faz as alterações necessárias no array de objetos
 				let temp1 = aaMovimento_temp[pos_origem];
 				aaMovimento_temp.splice(pos_origem, 1);
-				
+
 				//insere o botão na nova posição
 				if (pos_origem < pos_destino) {
 					aaMovimento_temp.splice(pos_destino-1, 0, temp1);
 				} else {
 					aaMovimento_temp.splice(pos_destino, 0, temp1);
 				}
-				
+
 				salvarOpcoes();
 				document.getElementById("botoes_movimento").textContent = '';
 				montarBotoesaaMovimento();
 			}
 			origem = null;
 		}, false);
-		
+
 		let ajustandoLista = [];
 		for (const [pos, item] of aaMovimento_temp.entries()) {
 			let aa = item;
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
-			
+
 			//insere a visibilidade dentro da AA ajusatando todos as ações
 			//AcaoAutomatizada_aaMovimento(nm_botao, destino, chip, responsavel, cor, vinculo, visibilidade='sim')
 			aa = new AcaoAutomatizada_aaMovimento(aa.nm_botao, aa.destino, aa.chip, aa.responsavel, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
 			ajustandoLista.push(aa);
-			
+
 			criaBotao_aaMovimento(pos, aa.nm_botao, aa.destino, aa.chip, aa.responsavel, aa.cor, aa.vinculo, aa.visibilidade);
 			if (pos == aaMovimento_temp.length-1) {
 				//cria espaçador para o último botão
@@ -4894,18 +5045,18 @@ async function montarBotoesaaChecklist() {
 		// possibilita mover os botões de lugar arrastando e soltando o elemento
 		let el = document.getElementById("botoes_checklist");
 		var origem;
-		
+
 		el.addEventListener("dragstart", function(event) {
 			if (event.target.parentElement.id == "botoes_checklist") {
 				origem = event.target;
 				event.target.removeAttribute("data-tooltip");
 			}
-		}, false);	
-		
-		el.addEventListener("dragover", function(event) {			
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
 			event.preventDefault();
 		}, false);
-		
+
 		el.addEventListener("dragenter", function(event) {
 			if (!origem) {
 				return;
@@ -4920,22 +5071,22 @@ async function montarBotoesaaChecklist() {
 					event.target.style.backgroundColor = origem.style.backgroundColor;
 					event.target.style.opacity = ".5";
 					event.target.style.margin = "0";
-					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";			
+					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";
 				}
 			}
 		}, false);
-		
+
 		el.addEventListener("dragleave", function(event) {
 			if (event.target.parentElement.id == "botoes_checklist") {
 				if (event.target.id.search("espaco_botao_checklist_") > -1) {
-					event.target.style.backgroundColor = "white";				
+					event.target.style.backgroundColor = "white";
 					event.target.className = "";
 					event.target.style.width = ".8em";
 					event.target.style.opacity = "";
 				}
 			}
 		}, false);
-		
+
 		document.addEventListener("drop", function(event) {
 			if (!origem) {
 				return;
@@ -4950,13 +5101,13 @@ async function montarBotoesaaChecklist() {
 			}
 			if (event.target.parentElement.id == "botoes_checklist") {
 				event.preventDefault();
-				
+
 				//retira a marca de posição
-				event.target.style.backgroundColor = "white";				
+				event.target.style.backgroundColor = "white";
 				event.target.className = "";
 				event.target.style.width = ".8em";
 				event.target.style.opacity = "0";
-				
+
 				//pega a posição de destino no Array
 				let pos_destino = parseInt(event.target.id.replace('espaco_botao_checklist_',''));
 				let pos_origem = parseInt(origem.id.replace('botao_checklist_',''));
@@ -4967,31 +5118,31 @@ async function montarBotoesaaChecklist() {
 				//faz as alterações necessárias no array de objetos
 				let temp1 = aaChecklist_temp[pos_origem];
 				aaChecklist_temp.splice(pos_origem, 1);
-				
+
 				//insere o botão na nova posição
 				if (pos_origem < pos_destino) {
 					aaChecklist_temp.splice(pos_destino-1, 0, temp1);
 				} else {
 					aaChecklist_temp.splice(pos_destino, 0, temp1);
 				}
-				
+
 				salvarOpcoes();
 				document.getElementById("botoes_checklist").textContent = '';
 				montarBotoesaaChecklist();
 			}
 			origem = null;
 		}, false);
-		
+
 		let ajustandoLista = [];
-		for (const [pos, item] of aaChecklist_temp.entries()) {	
+		for (const [pos, item] of aaChecklist_temp.entries()) {
 			let aa = item;
 			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
-			
+
 			//insere a visibilidade dentro da AA ajusatando todos as ações
 			//AcaoAutomatizada_aaChecklist(nm_botao, tipo, observacao, estado, alerta, salvar, cor, vinculo, visibilidade='sim')
 			aa = new AcaoAutomatizada_aaChecklist(aa.nm_botao, aa.tipo, aa.observacao, aa.estado, aa.alerta, aa.salvar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
 			ajustandoLista.push(aa);
-			
+
 			criaBotao_aaChecklist(pos, aa.nm_botao, aa.tipo, aa.observacao, aa.estado, aa.alerta, aa.salvar, aa.cor, aa.vinculo, aa.visibilidade);
 			if (pos == aaChecklist_temp.length-1) {
 				//cria espaçador para o último botão
@@ -5005,11 +5156,126 @@ async function montarBotoesaaChecklist() {
 	}
 }
 
+async function montarBotoesaaNomearPerito() {
+	if (typeof(aaNomearPerito_temp) != "undefined") {
+		// possibilita mover os botões de lugar arrastando e soltando o elemento
+		let el = document.getElementById("botoes_nomearPerito");
+		var origem;
+
+		el.addEventListener("dragstart", function(event) {
+			if (event.target.parentElement.id == "botoes_nomearPerito") {
+				origem = event.target;
+				event.target.removeAttribute("data-tooltip");
+			}
+		}, false);
+
+		el.addEventListener("dragover", function(event) {
+			event.preventDefault();
+		}, false);
+
+		el.addEventListener("dragenter", function(event) {
+			if (!origem) {
+				return;
+			}
+			if (event.target.parentElement.id == "botoes_nomearPerito") {
+				if (event.target.id.search("espaco_botao_nomearPerito_") > -1) {
+					event.target.className = origem.className;
+					event.target.style = origem.style;
+					let largura_ideal = event.target.parentElement.offsetWidth - event.target.getBoundingClientRect().left - 35;
+					let largura_elemento = origem.offsetWidth - 35;
+					event.target.style.width = (largura_elemento > largura_ideal) ? largura_ideal + "px" : largura_elemento + "px";
+					event.target.style.backgroundColor = origem.style.backgroundColor;
+					event.target.style.opacity = ".5";
+					event.target.style.margin = "0";
+					event.target.style.boxShadow = "inset 4px 0px 0px white,inset -4px 0px 0px white";
+				}
+			}
+		}, false);
+
+		el.addEventListener("dragleave", function(event) {
+			if (event.target.parentElement.id == "botoes_nomearPerito") {
+				if (event.target.id.search("espaco_botao_nomearPerito_") > -1) {
+					event.target.style.backgroundColor = "white";
+					event.target.className = "";
+					event.target.style.width = ".8em";
+					event.target.style.opacity = "";
+				}
+			}
+		}, false);
+
+		document.addEventListener("drop", function(event) {
+			if (!origem) {
+				return;
+			}
+			if (event.target.id.search("espaco_botao_nomearPerito_") < 0) {
+				origem = null;
+				return;
+			}
+			if (!event.target.parentElement) {
+				origem = null;
+				return;
+			}
+			if (event.target.parentElement.id == "botoes_nomearPerito") {
+				event.preventDefault();
+
+				//retira a marca de posição
+				event.target.style.backgroundColor = "white";
+				event.target.className = "";
+				event.target.style.width = ".8em";
+				event.target.style.opacity = "0";
+
+				//pega a posição de destino no Array
+				let pos_destino = parseInt(event.target.id.replace('espaco_botao_nomearPerito_',''));
+				let pos_origem = parseInt(origem.id.replace('botao_nomearPerito_',''));
+				let verificador = pos_destino - pos_origem;
+				if (verificador == 0 || verificador == 1) {
+					return
+				}
+				//faz as alterações necessárias no array de objetos
+				let temp1 = aaNomearPerito_temp[pos_origem];
+				aaNomearPerito_temp.splice(pos_origem, 1);
+
+				//insere o botão na nova posição
+				if (pos_origem < pos_destino) {
+					aaNomearPerito_temp.splice(pos_destino-1, 0, temp1);
+				} else {
+					aaNomearPerito_temp.splice(pos_destino, 0, temp1);
+				}
+
+				salvarOpcoes();
+				document.getElementById("botoes_nomearPerito").textContent = '';
+				montarBotoesaaNomearPerito();
+			}
+			origem = null;
+		}, false);
+
+		let ajustandoLista = [];
+		for (const [pos, item] of aaNomearPerito_temp.entries()) {
+            let aa = item;
+            aa.tipo_prazo = (!item.tipo_prazo) ? 'Dias Úteis' : item.tipo_prazo; //corrige as AAs criadas no período de teste quando não existia essa variável
+            aa.vinculo = (!item.vinculo) ? 'Nenhum' : item.vinculo;
+			aa.vinculo = await obterVinculosDescendentes(aa.nm_botao, aa.vinculo); //converto o vínculo antigo, criando a sequencia de vínculos descendentes.
+			aa = new AcaoAutomatizada_aaNomearPerito(aa.nm_botao, aa.profissao, aa.perito, aa.prazo, aa.tipo_prazo, aa.designar, aa.modelo, aa.assinar, aa.cor, aa.vinculo, (!aa.visibilidade?'sim':aa.visibilidade));
+			ajustandoLista.push(aa);
+
+			criaBotao_aaNomearPerito(pos, aa.nm_botao, aa.profissao, aa.perito, aa.prazo, aa.tipo_prazo, aa.designar, aa.modelo, aa.assinar, aa.cor, aa.vinculo, aa.visibilidade);
+			if (pos == aaNomearPerito_temp.length-1) {
+				//cria espaçador para o último botão
+				let espaco = document.createElement("a");
+				espaco.id = "espaco_botao_nomearPerito" + (pos+1);
+				espaco.style = "width: .8em;";
+				el.appendChild(espaco);
+			}
+		}
+		aaNomearPerito_temp = ajustandoLista;
+	}
+}
+
 async function montarBotoesaaVariados() {
 	if (typeof(aaVariados_temp) != "undefined") {
 		let el = document.getElementById("botoes_variados");
-		
-		for (const [pos, item] of aaVariados_temp.entries()) {	
+
+		for (const [pos, item] of aaVariados_temp.entries()) {
 			let aa = item;
 			criaBotao_aaVariados(pos, aa.nm_botao, aa.descricao, aa.temporizador, aa.ativar, aa.objeto);
 			if (pos == aaVariados_temp.length-1) {
@@ -5048,7 +5314,7 @@ function montarFiltrosFavoritos(ancora) {
 	div3.innerText = 'Processos do Gabinete: ';
 	div3.id = 'Processos do Gabinete';
 	ancora.appendChild(div3);
-	
+
 	filtros_storage = preferencias.filtros_Favoritos;
 	let tabelaAtividades, tabelaComentarios, tabelaProcessosGabinete = [];
 	let pos = 0;
@@ -5072,14 +5338,14 @@ function montarFiltrosFavoritos(ancora) {
 	document.querySelector('#modulo5_conferirGarimpoEmLote').checked = preferencias.modulo5_conferirGarimpoEmLote;
 	document.querySelector('#modulo5_conferirGarimpoEmLote').addEventListener('click', salvarOpcoes);
 	document.querySelector('#modulo5_filtros_favoritos_conciliaJT').checked = preferencias.modulo5_obterConcilia;
-	document.querySelector('#modulo5_filtros_favoritos_conciliaJT').addEventListener('click', salvarOpcoes);	
-	
+	document.querySelector('#modulo5_filtros_favoritos_conciliaJT').addEventListener('click', salvarOpcoes);
+
 	function montarBotao(pos, tabela, nome, camposFixos, camposDinamicos) {
 		if (!document.getElementById("maisPje_filtrofavorito_" + tabela + "_" + nome)) {
 			//divisor
 			let divisor = document.createElement("span");
 			divisor.innerText = '|';
-			
+
 			//atalho
 			let botao = document.createElement("button");
 			botao.id = "maisPje_filtrofavorito_" + nome;
@@ -5106,7 +5372,7 @@ function montarFiltrosFavoritos(ancora) {
 			};
 			let botao_span = document.createElement("span");
 			botao_span.innerText = nome;
-			
+
 			botao.appendChild(botao_span);
 			switch (tabela) {
 				case 'Painel_global':
@@ -5128,16 +5394,16 @@ function montarFiltrosFavoritos(ancora) {
 			}
 		}
 	}
-	
+
 	function descreverCampos(tabela, nome, camposFixos, camposDinamicos) {
 		// console.log(JSON.stringify(camposFixos));
 		// console.log(JSON.stringify(camposDinamicos));
 		let resposta = "Tabela: " + (tabela != "" ? tabela : "---") + "\n";
-		
+
 		switch (tabela) {
 			case 'Painel_global':
 				resposta += camposFixos.filtrarSegredoDeJustica ? '- com Segredo de Justiça: Sim\n' : '';
-				resposta += camposFixos.filtrarDocumentosNaoApreciados ? '- com Documentos não Apreciados: Sim\n' : '';		
+				resposta += camposFixos.filtrarDocumentosNaoApreciados ? '- com Documentos não Apreciados: Sim\n' : '';
 				resposta += camposFixos.filtrarPrioridadeProcessual ? '- com Prioridade Processual: Sim\n' : '';
 				resposta += camposFixos.filtrarAssociados ? '- com Processos Associados: Sim\n' : '';
 				resposta += camposFixos.filtrarAlertaProcessual ? '- com Alerta: Sim\n' : '';
@@ -5163,13 +5429,13 @@ function montarFiltrosFavoritos(ancora) {
 				if (camposDinamicos.fpglobal_faseProcessual.toString() != "") {
 					resposta += camposDinamicos.fpglobal_faseProcessual ? '- Fase Processual: ' + camposDinamicos.fpglobal_faseProcessual.toString() + '\n' : '';
 				}
-				
-				resposta += camposDinamicos.fpglobal_naTarefaDesde ? '- Na Tarefa desde: ' + camposDinamicos.fpglobal_naTarefaDesde + '\n' : '';		
+
+				resposta += camposDinamicos.fpglobal_naTarefaDesde ? '- Na Tarefa desde: ' + camposDinamicos.fpglobal_naTarefaDesde + '\n' : '';
 				resposta += camposDinamicos.fpglobal_naTarefaate ? '- Na Tarefa até: ' + camposDinamicos.fpglobal_naTarefaate + '\n' : '';
 				break;
 			case 'Atividades':
 				resposta += camposFixos.filtrarNoPrazo ? '- No Prazo: Sim\n' : '';
-				resposta += camposFixos.filtrarVencidas ? '- Vencidas: Sim\n' : '';		
+				resposta += camposFixos.filtrarVencidas ? '- Vencidas: Sim\n' : '';
 				resposta += camposFixos.filtrarConcluidas ? '- Concluídas: Sim\n' : '';
 				resposta += camposFixos.filtrarAtividadesSemPrazo ? '- Atividades sem prazo: Sim\n' : '';
 				resposta += camposFixos.filtrarAtividadesSemPrazoConcluidas ? '- Atividades sem prazo concluídas: Sim\n' : '';
@@ -5178,7 +5444,19 @@ function montarFiltrosFavoritos(ancora) {
 				if (camposDinamicos.fa_classeJudicial.toString() != "") {
 					resposta += camposDinamicos.fa_classeJudicial ? '- Classe Judicial: ' + camposDinamicos.fa_classeJudicial.toString() + '\n' : '';
 				}
-				resposta += camposDinamicos.fa_data_de ? '- De: ' + camposDinamicos.fa_data_de + '\n' : '';		
+
+				if (camposDinamicos?.fa_tarefa) {
+					if (camposDinamicos?.fa_tarefa?.toString() != "") {
+						resposta += camposDinamicos.fa_tarefa ? '- Tarefa do Processo: ' + camposDinamicos.fa_tarefa.toString() + '\n' : '';
+					}
+				}
+				if (camposDinamicos?.fa_fase) {
+					if (camposDinamicos?.fa_fase?.toString() != "") {
+						resposta += camposDinamicos.fa_fase ? '- Fase do Processo: ' + camposDinamicos.fa_fase.toString() + '\n' : '';
+					}
+				}
+
+				resposta += camposDinamicos.fa_data_de ? '- De: ' + camposDinamicos.fa_data_de + '\n' : '';
 				resposta += camposDinamicos.fa_data_ate ? '- Até: ' + camposDinamicos.fa_data_ate + '\n' : '';
 				if (camposDinamicos.fa_tipo.toString() != "") {
 					resposta += camposDinamicos.fa_tipo ? '- Tipo: ' + camposDinamicos.fa_tipo.toString() + '\n' : '';
@@ -5194,8 +5472,20 @@ function montarFiltrosFavoritos(ancora) {
 				if (camposDinamicos.fc_classeJudicial.toString() != "") {
 					resposta += camposDinamicos.fc_classeJudicial ? '- Classe Judicial: ' + camposDinamicos.fc_classeJudicial.toString() + '\n' : '';
 				}
+
+				if (camposDinamicos?.fc_tarefa) {
+					if (camposDinamicos?.fc_tarefa?.toString() != "") {
+						resposta += camposDinamicos.fc_tarefa ? '- Tarefa do Processo: ' + camposDinamicos.fc_tarefa.toString() + '\n' : '';
+					}
+				}
+				if (camposDinamicos?.fc_fase) {
+					if (camposDinamicos?.fc_fase?.toString() != "") {
+						resposta += camposDinamicos.fc_fase ? '- Fase do Processo: ' + camposDinamicos.fc_fase.toString() + '\n' : '';
+					}
+				}
+
 				resposta += camposDinamicos.fc_descricao ? '- Descrição: ' + camposDinamicos.fc_descricao + '\n' : '';
-				resposta += camposDinamicos.fc_data_de ? '- De: ' + camposDinamicos.fc_data_de + '\n' : '';		
+				resposta += camposDinamicos.fc_data_de ? '- De: ' + camposDinamicos.fc_data_de + '\n' : '';
 				resposta += camposDinamicos.fc_data_ate ? '- Até: ' + camposDinamicos.fc_data_ate + '\n' : '';
 				if (camposDinamicos.fc_autores.toString() != "") {
 					resposta += camposDinamicos.fc_autores ? '- Autores: ' + camposDinamicos.fc_autores.toString() + '\n' : '';
@@ -5203,14 +5493,14 @@ function montarFiltrosFavoritos(ancora) {
 				break;
 			case 'Processos do Gabinete':
 				resposta += camposFixos.filtrarPorPrazo ? '- No Prazo: Sim\n' : '';
-				resposta += camposFixos.filtrarAVencer ? '- A Vencer: Sim\n' : '';		
+				resposta += camposFixos.filtrarAVencer ? '- A Vencer: Sim\n' : '';
 				resposta += camposFixos.filtrarVencidos ? '- Vencidos: Sim\n' : '';
 				resposta += camposFixos.filtrarProcessosSemResponsavel ? '- Sem responsável: Sim\n' : '';
 				resposta += camposFixos.filtrarED ? '- ED: Sim\n' : '';
 				resposta += camposFixos.filtrarSumarissimo ? '- Sumaríssimo: Sim\n' : '';
-				resposta += camposDinamicos.fpg_inicio_data_de ? '- Início De: ' + camposDinamicos.fpg_inicio_data_de + '\n' : '';		
+				resposta += camposDinamicos.fpg_inicio_data_de ? '- Início De: ' + camposDinamicos.fpg_inicio_data_de + '\n' : '';
 				resposta += camposDinamicos.fpg_inicio_data_ate ? '- Início Até: ' + camposDinamicos.fpg_inicio_data_ate + '\n' : '';
-				resposta += camposDinamicos.fpg_fim_data_de ? '- Fim De: ' + camposDinamicos.fpg_fim_data_de + '\n' : '';		
+				resposta += camposDinamicos.fpg_fim_data_de ? '- Fim De: ' + camposDinamicos.fpg_fim_data_de + '\n' : '';
 				resposta += camposDinamicos.fpg_fim_data_ate ? '- Fim Até: ' + camposDinamicos.fpg_fim_data_ate + '\n' : '';
 				if (camposDinamicos.fpg_classeJudicial.toString() != "") {
 					resposta += camposDinamicos.fpg_classeJudicial ? '- Classe Judicial: ' + camposDinamicos.fpg_classeJudicial.toString() + '\n' : '';
@@ -5228,7 +5518,7 @@ function montarFiltrosFavoritos(ancora) {
 }
 
 function desmontarLinha(linha, caracter) {
-	var arr = typeof(linha) == "undefined" ? "" : linha.split(caracter);	
+	var arr = typeof(linha) == "undefined" ? "" : linha.split(caracter);
 	var resultado = "";
 	for(var h = 0; h < arr.length; h++ ){
 		if (arr[h] != "") {
@@ -5238,22 +5528,22 @@ function desmontarLinha(linha, caracter) {
 				resultado += "\n" + arr[h];
 			}
 		}
-	}	
+	}
 	return resultado;
 }
 
 function criaBotao_aaAnexar(id, nm_botao, tipo, descricao, sigilo, modelo, assinar, cor, vinculo, visibilidade) {
-	
+
 	//ajustar o vinculo para um array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
-	
-	let el = document.getElementById("botoes_anexar_documentos");	
+
+	let el = document.getElementById("botoes_anexar_documentos");
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_anexar_documentos_" + id;
 	espaco.style = "width: 0.8em; background-color: white;";
 	el.appendChild(espaco);
-	
+
 	let a = document.createElement("a");
 	a.id = "botao_anexar_documentos_" + id;
 	a.className = "swal2-confirm swal2-styled";
@@ -5273,7 +5563,7 @@ function criaBotao_aaAnexar(id, nm_botao, tipo, descricao, sigilo, modelo, assin
 			modalEditor(document.getElementById("botao_anexar_documentos_" + id), "anexar", id);
 		}
 	};
-	
+
 	//visibilidade
 	if (visibilidade === 'sim') {
 		a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
@@ -5284,30 +5574,30 @@ function criaBotao_aaAnexar(id, nm_botao, tipo, descricao, sigilo, modelo, assin
 		a.style.setProperty('outline-offset','-2px');
 		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
 	}
-	
+
 	el.appendChild(a);
-	
-	//perfumaria	
+
+	//perfumaria
 	if (vinculo.length > 1) {
 		let perfumaria = document.createElement("span");
 		perfumaria.style = "width: 7px; height: 10px; background-color: white; clip-path: polygon(25% 0%, 70% 0%, 40% 35%, 95% 35%, 20% 100%, 40% 55%, 0% 55%); position: relative; right: 5px; margin: 0.6em -0.3em;"
 		el.appendChild(perfumaria);
 	}
-	
+
 }
 
 function criaBotao_aaComunicacao(id, nm_botao, tipo, subtipo, tipo_prazo, prazo, descricao, sigilo, modelo, salvar, cor, vinculo, fluxo, visibilidade, comandosEspeciais) {
 	//ajustar o vinculo para aum array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
-	
+
 	let el = document.getElementById("botoes_comunicacao");
-	
+
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_comunicacao_" + id;
 	espaco.style = "width: .8em; background-color: white;";
 	el.appendChild(espaco);
-	
+
 	let a = document.createElement("a");
 	a.id = "botao_comunicacao_" + id;
 	a.className = "swal2-confirm swal2-styled";
@@ -5316,7 +5606,7 @@ function criaBotao_aaComunicacao(id, nm_botao, tipo, subtipo, tipo_prazo, prazo,
 	a.setAttribute('data-tooltip',"\u00bbTipo: " + (tipo != "" ? tipo : "---") + "\n" + "\u00bbTipo de Prazo: " + (tipo_prazo != "" ? tipo_prazo : "---") + "\n" + "\u00bbPrazo: " + (prazo != "" ? prazo : "---") + "\n" + "\u00bbSubtipo: " + (subtipo != "" ? subtipo : "---") + "\n" + "\u00bbDescrição (Título): " + (descricao != "" ? descricao : "---") + "\n" + "\u00bbSigilo: " + (sigilo != "" ? sigilo : "não") + "\n" + "\u00bbModelo: " + (modelo != "" ? modelo : "---") + "\n" + "\u00bbSalvar? " + (salvar != "" ? salvar : "---") + "\n" + "\u00bbFluxo: " + fluxo + "\n" + "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n" + "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---") + "\n" + "\u00bbComandos Especiais: " + (comandosEspeciais != "" ? comandosEspeciais : "---")); //comandosEspeciais
 	a.innerText = nm_botao;
 	a.onclick = function (e) {
-		
+
 		if (e.ctrlKey) { //ativa/desativa a visibilidade
 			let v = (visibilidade.toLowerCase() == "sim") ? "não" : "sim";
 			aaComunicacao_temp[id] = new AcaoAutomatizada_aaComunicacao(nm_botao, tipo, subtipo, tipo_prazo, prazo, descricao, sigilo, modelo, salvar, cor, vinculo, fluxo, v);
@@ -5326,9 +5616,9 @@ function criaBotao_aaComunicacao(id, nm_botao, tipo, subtipo, tipo_prazo, prazo,
 		} else {
 			modalEditor(document.getElementById("botao_comunicacao_" + id), "comunicacao", id);
 		}
-		
+
 	};
-	
+
 	//visibilidade
 	if (visibilidade === 'sim') {
 		a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
@@ -5338,12 +5628,12 @@ function criaBotao_aaComunicacao(id, nm_botao, tipo, subtipo, tipo_prazo, prazo,
 		a.style.setProperty('outline','2px dashed rgba(255, 255, 255, 1)');
 		a.style.setProperty('outline-offset','-2px');
 		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
-		
+
 	}
-	
+
 	el.appendChild(a);
-	
-	//perfumaria	
+
+	//perfumaria
 	if (vinculo.length > 1) {
 		let perfumaria = document.createElement("span");
 		perfumaria.style = "width: 7px; height: 10px; background-color: white; clip-path: polygon(25% 0%, 70% 0%, 40% 35%, 95% 35%, 20% 100%, 40% 55%, 0% 55%); position: relative; right: 5px; margin: 0.6em -0.3em;"
@@ -5354,23 +5644,23 @@ function criaBotao_aaComunicacao(id, nm_botao, tipo, subtipo, tipo_prazo, prazo,
 function criaBotao_aaAutogigs(id, nm_botao, tipo, tipo_atividade, prazo, responsavel, responsavel_processo, observacao, salvar, cor, vinculo, visibilidade) {
 	//ajustar o vinculo para aum array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
-	
+
 	let el = document.getElementById("botoes_autogigs");
-	
+
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_autogigs_" + id;
 	espaco.style = "width: .8em; background-color: white;";
 	el.appendChild(espaco);
-	
+
 	let a = document.createElement("a");
 	a.id = "botao_autogigs_" + id;
 	a.className = "swal2-confirm swal2-styled";
 	a.draggable = "true";
 	a.style = "background-color: " + cor + "; min-width: 60px; text-align: center; margin: .3125em 0em .3125em 0em;";
-	
+
 	let tt = '';
-	switch (tipo) {					
+	switch (tipo) {
 		case 'comentario':
 			tt = "\u00bbTipo de Evento: Comentário\n\u00bbObservação: " + (observacao != "" ? observacao : "---") + "\n" + "\u00bbVisibilidade do lembrete: " + (prazo != "" ? prazo : "---") + "\n\u00bbResponsável pelo processo: " + (responsavel_processo != "" ? responsavel_processo : "---") + "\n" + "\u00bbSalvar Automaticamente? " + (salvar != "" ? salvar : "---") + "\n" + "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n" + "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---");
 			break;
@@ -5384,14 +5674,14 @@ function criaBotao_aaAutogigs(id, nm_botao, tipo, tipo_atividade, prazo, respons
 			tt = "\u00bbCadeia de Vínculos:\n\n";
 			let espaco = 1;
 			let map1 = [].map.call(
-				vinculo, 
+				vinculo,
 				function(v) {
 					if (v != "Nenhum") {
 						tt += ("    ".repeat(espaco)) + "⨽ " + v + '\n'
 						espaco++;
 					} else {
 						tt += ("    ".repeat(espaco)) + "⨽ Fim" + '\n'
-					}				
+					}
 				}
 			);
 
@@ -5401,36 +5691,36 @@ function criaBotao_aaAutogigs(id, nm_botao, tipo, tipo_atividade, prazo, respons
 		default:
 			tt = "\u00bbTipo de Evento: " + (tipo != "" ? tipo : "---") + "\n\u00bbTipo da Atividade: " + (tipo_atividade != "" ? tipo_atividade : "---") + "\n" + "\u00bbPrazo: " + (prazo != "" ? prazo : "---") + "\n" + "\u00bbResponsável pelo GIGS: " + (responsavel != "" ? responsavel : "---") + "\n" + "\u00bbResponsável pelo processo: " + (responsavel_processo != "" ? responsavel_processo : "---") + "\n" + "\u00bbObservação: " + (observacao != "" ? observacao : "---") + "\n" + "\u00bbSalvar? " + (salvar != "" ? salvar : "---") + "\n" + "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n" + "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---");
 	}
-	
+
 	a.setAttribute('data-tooltip', tt);
 	a.innerText = nm_botao;
 	a.onclick = function (e) {
-		
+
 		if (e.ctrlKey) { //ativa/desativa a visibilidade
 			let v = (visibilidade.toLowerCase() == "sim") ? "não" : "sim";
 			aaAutogigs_temp[id] = new AcaoAutomatizada_aaAutogigs(nm_botao, tipo, tipo_atividade, prazo, responsavel, responsavel_processo, observacao, salvar, cor, vinculo, v);
 			salvarOpcoes();
 			document.getElementById("botoes_autogigs").textContent = '';
 			montarBotoesaaAutogigs();
-			
+
 		} else {
 			modalEditor(document.getElementById("botao_autogigs_" + id), "autogigs", id);
 		}
-		
+
 	};
-	
+
 	if (tipo.toLowerCase() == "preparo") {
 		if (typeof cor === 'undefined') {
 			a.style.setProperty('background-color', 'darkcyan');
 		}
 	}
-	
+
 	if (tipo == 'nenhum') {
 		a.style.removeProperty('background-image');
 		a.style.removeProperty('background-color');
 		a.style.background = 'linear-gradient(135deg, #646464 10px, rgb(140, 140, 140) 11px, #CFD0D0 12px)';
 		a.style.color = '#646464'
-		a.style.setProperty('outline','2px solid #646464');		
+		a.style.setProperty('outline','2px solid #646464');
 	}
 
 	//visibilidade
@@ -5441,7 +5731,7 @@ function criaBotao_aaAutogigs(id, nm_botao, tipo, tipo_atividade, prazo, respons
 			a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
 			a.style.setProperty('background-image','none');
 		}
-		
+
 	} else {
 		a.style.setProperty('outline-offset','-2px');
 		if (tipo == 'nenhum') {
@@ -5449,12 +5739,12 @@ function criaBotao_aaAutogigs(id, nm_botao, tipo, tipo_atividade, prazo, respons
 		} else {
 			a.style.setProperty('outline','2px dashed rgba(255, 255, 255, 1)');
 			a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
-		}		
+		}
 	}
-	
+
 	el.appendChild(a);
-	
-	//perfumaria	
+
+	//perfumaria
 	if (vinculo.length > 1) {
 		let perfumaria = document.createElement("span");
 		if (tipo == 'nenhum') {
@@ -5470,14 +5760,14 @@ function criaBotao_aaAutogigs(id, nm_botao, tipo, tipo_atividade, prazo, respons
 function criaBotao_aaDespacho(id, nm_botao, tipo, descricao, sigilo, modelo, juiz, responsavel, assinar, cor, vinculo, visibilidade, comandosEspeciais) {
 	//ajustar o vinculo para aum array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
-	
-	let el = document.getElementById("botoes_despacho");	
-	
+
+	let el = document.getElementById("botoes_despacho");
+
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_despacho_" + id;
 	espaco.style = "width: .8em; background-color: white;";
-	el.appendChild(espaco);	
+	el.appendChild(espaco);
 
 	let a = document.createElement("a");
 	a.id = "botao_despacho_" + id;
@@ -5487,7 +5777,7 @@ function criaBotao_aaDespacho(id, nm_botao, tipo, descricao, sigilo, modelo, jui
 	a.setAttribute('data-tooltip',"\u00bbTipo: " + (tipo != "" ? tipo : "---") + "\n" + "\u00bbDescrição (Título): " + (descricao != "" ? descricao : "---") + "\n" + "\u00bbSigilo: " + (sigilo != "" ? sigilo : "não") + "\n" + "\u00bbModelo: " + (modelo != "" ? modelo : "---") + "\n" + "\u00bbJuiz: " + (juiz != "" ? juiz : "---") + "\n" + "\u00bbResponsável: " + (responsavel != "" ? responsavel : "---")  + "\n" + "\u00bbEnviar para Assinatura: " + (assinar != "" ? assinar : "não") + "\n" + "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n" + "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---") + "\n" + "\u00bbComandos Especiais: " + (comandosEspeciais != "" ? comandosEspeciais : "---")); //comandosEspeciais
 	a.innerText = nm_botao;
 	a.onclick = function (e) {
-		
+
 		if (e.ctrlKey) { //ativa/desativa a visibilidade
 			let v = visibilidade.toLowerCase();
 			switch (v) {
@@ -5513,24 +5803,24 @@ function criaBotao_aaDespacho(id, nm_botao, tipo, descricao, sigilo, modelo, jui
 			salvarOpcoes();
 			document.getElementById("botoes_despacho").textContent = '';
 			montarBotoesaaDespacho();
-			
+
 		} else {
 			modalEditor(document.getElementById("botao_despacho_" + id), "despacho", id);
 		}
-		
+
 	};
-	
+
 	//aparencia visibilidade
 	if (visibilidade === 'não') {
 		a.style.setProperty('outline','2px dashed rgba(255, 255, 255, 1)');
 		a.style.setProperty('outline-offset','-2px');
-		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');		
+		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
 	} else {
 		a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
 		a.style.setProperty('outline-offset','-2px');
 		a.style.setProperty('background-image','none');
 	}
-	
+
 	el.appendChild(a);
 	//perfumaria visibilidade conhecimento, liquidação e execução
 	if (!visibilidade.includes('sim') && !visibilidade.includes('nao')) {
@@ -5541,7 +5831,7 @@ function criaBotao_aaDespacho(id, nm_botao, tipo, descricao, sigilo, modelo, jui
 			perfumaria.style = "width: 12px; height: 15px; background-color: white; clip-path: polygon(40% 20%, 30% 20%, 30% 70%, 70% 70%, 70% 60%, 40% 60%, 40% 30%, 40% 30%); position: relative; top: 20px;right: 5px; margin: 0.6em -0.5em;z-index: 1;"
 		} else if (visibilidade.includes('execucao')) {
 			perfumaria.style = "width: 12px; height: 15px; background-color: white; clip-path: polygon(70% 20%, 30% 20%, 30% 70%, 70% 70%, 70% 60%, 40% 60%, 40% 50%, 60% 50%, 60% 40%, 40% 40%, 40% 30%, 70% 30%); position: relative; top: 20px; right: 5px; margin: 0.6em -0.5em;z-index: 1;"
-		}		
+		}
 		el.appendChild(perfumaria);
 	}
 	//perfumaria vínculo
@@ -5550,21 +5840,21 @@ function criaBotao_aaDespacho(id, nm_botao, tipo, descricao, sigilo, modelo, jui
 		perfumaria.style = "width: 7px; height: 10px; background-color: white; clip-path: polygon(25% 0%, 70% 0%, 40% 35%, 95% 35%, 20% 100%, 40% 55%, 0% 55%); position: relative; right: 5px; margin: 0.6em -0.3em;"
 		el.appendChild(perfumaria);
 	}
-	
+
 }
 
 function criaBotao_aaMovimento(id, nm_botao, destino, chip, responsavel, cor, vinculo, visibilidade) {
 	//ajustar o vinculo para aum array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
-	
+
 	let el = document.getElementById("botoes_movimento");
-	
+
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_movimento_" + id;
 	espaco.style = "width: .8em; background-color: white;";
-	el.appendChild(espaco);	
-	
+	el.appendChild(espaco);
+
 	let a = document.createElement("a");
 	a.id = "botao_movimento_" + id;
 	a.className = "swal2-confirm swal2-styled";
@@ -5573,20 +5863,20 @@ function criaBotao_aaMovimento(id, nm_botao, destino, chip, responsavel, cor, vi
 	a.setAttribute('data-tooltip',"\u00bbDestino: " + (destino != "" ? destino : "---") + "\n" + "\u00bbLançar Chip: " + (chip != "" ? chip : "---") + "\n" + "\u00bbResponsável pelo Processo: " + (responsavel != "" ? responsavel : "---") + "\n" + "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n" + "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---"));
 	a.innerText = nm_botao;
 	a.onclick = function (e) {
-		
+
 		if (e.ctrlKey) { //ativa/desativa a visibilidade
 			let v = (visibilidade.toLowerCase() == "sim") ? "não" : "sim";
 			aaMovimento_temp[id] = new AcaoAutomatizada_aaMovimento(nm_botao, destino, chip, responsavel, cor, vinculo, v);
 			salvarOpcoes();
 			document.getElementById("botoes_movimento").textContent = '';
 			montarBotoesaaMovimento();
-			
+
 		} else {
 			modalEditor(document.getElementById("botao_movimento_" + id), "movimento", id);
 		}
-		
+
 	};
-	
+
 	//visibilidade
 	if (visibilidade === 'sim') {
 		a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
@@ -5597,10 +5887,10 @@ function criaBotao_aaMovimento(id, nm_botao, destino, chip, responsavel, cor, vi
 		a.style.setProperty('outline-offset','-2px');
 		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
 	}
-	
+
 	el.appendChild(a);
-	
-	//perfumaria	
+
+	//perfumaria
 	if (vinculo.length > 1) {
 		let perfumaria = document.createElement("span");
 		perfumaria.style = "width: 7px; height: 10px; background-color: white; clip-path: polygon(25% 0%, 70% 0%, 40% 35%, 95% 35%, 20% 100%, 40% 55%, 0% 55%); position: relative; right: 5px; margin: 0.6em -0.3em;"
@@ -5611,17 +5901,17 @@ function criaBotao_aaMovimento(id, nm_botao, destino, chip, responsavel, cor, vi
 function criaBotao_aaChecklist(id, nm_botao, tipo, observacao, estado, alerta, salvar, cor, vinculo, visibilidade) {
 	//ajustar o vinculo para um array
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
-	
+
 	let el = document.getElementById("botoes_checklist");
-	
+
 	//(nm_botao, tipo, observacao, estado, alerta, salvar, cor, vinculo)
-	
+
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_checklist_" + id;
 	espaco.style = "width: .8em; background-color: white;";
-	el.appendChild(espaco);	
-	
+	el.appendChild(espaco);
+
 	let a = document.createElement("a");
 	a.id = "botao_checklist_" + id;
 	a.className = "swal2-confirm swal2-styled";
@@ -5630,20 +5920,20 @@ function criaBotao_aaChecklist(id, nm_botao, tipo, observacao, estado, alerta, s
 	a.setAttribute('data-tooltip',"\u00bbTipo: " + (tipo != "" ? tipo : "---") + "\n" + "\u00bbObservação: " + (observacao != "" ? observacao : "---") + "\n" + "\u00bbStatus: " + (estado != "" ? estado : "---") + "\n" + "\u00bbAlerta: " + (alerta != "" ? alerta : "---") + "\n" + "\u00bbSalvar: " + (salvar != "" ? salvar : "---") + "\n" + "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n" + "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---"));
 	a.innerText = nm_botao;
 	a.onclick = function (e) {
-		
+
 		if (e.ctrlKey) { //ativa/desativa a visibilidade
 			let v = (visibilidade.toLowerCase() == "sim") ? "não" : "sim";
 			aaChecklist_temp[id] = new AcaoAutomatizada_aaChecklist(nm_botao, tipo, observacao, estado, alerta, salvar, cor, vinculo, v);
 			salvarOpcoes();
 			document.getElementById("botoes_checklist").textContent = '';
 			montarBotoesaaChecklist();
-			
+
 		} else {
 			modalEditor(document.getElementById("botao_checklist_" + id), "checklist", id);
 		}
-		
+
 	};
-	
+
 	//visibilidade
 	if (visibilidade === 'sim') {
 		a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
@@ -5654,10 +5944,78 @@ function criaBotao_aaChecklist(id, nm_botao, tipo, observacao, estado, alerta, s
 		a.style.setProperty('outline-offset','-2px');
 		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
 	}
-	
+
 	el.appendChild(a);
-	
-	//perfumaria	
+
+	//perfumaria
+	if (vinculo.length > 1) {
+		let perfumaria = document.createElement("span");
+		perfumaria.style = "width: 7px; height: 10px; background-color: white; clip-path: polygon(25% 0%, 70% 0%, 40% 35%, 95% 35%, 20% 100%, 40% 55%, 0% 55%); position: relative; right: 5px; margin: 0.6em -0.3em;"
+		el.appendChild(perfumaria);
+	}
+}
+
+function criaBotao_aaNomearPerito(id, nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, visibilidade) {
+
+	//ajustar o vinculo para um array
+	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(',');
+
+	let el = document.getElementById("botoes_nomearPerito");
+
+	//nome=0,profissao=1,perito=2,prazo=3,tipo_prazo=4,designar=5,modelo=6,sigilo=7,assinar=8
+
+	//cria espaçador entre os botões
+	let espaco = document.createElement("a");
+	espaco.id = "espaco_botao_nomearPerito_" + id;
+	espaco.style = "width: .8em; background-color: white;";
+	el.appendChild(espaco);
+
+	let a = document.createElement("a");
+	a.id = "botao_nomearPerito_" + id;
+	a.className = "swal2-confirm swal2-styled";
+	a.draggable = "true";
+	a.style = "background-color: " + cor + "; min-width: 60px; text-align: center; margin: .3125em 0em .3125em 0em;";
+	let tt = "\u00bbProfissão: " + (profissao != "" ? profissao : "---") + "\n"
+	tt += "\u00bbPerito: " + (perito != "" ? perito : "---") + "\n";
+	tt += "\u00bbPrazo: " + (prazo != "" ? prazo : "---") + "\n";
+    tt += "\u00bbTipo de Prazo: " + (tipo_prazo != "" ? tipo_prazo : "---") + "\n";
+	tt += "\u00bbDesignar: " + (designar != "" ? designar : "---") + "\n";
+	tt += "\u00bbModelo: " + (modelo != "" ? modelo : "---") + "\n";
+	tt += "\u00bbAssinar: " + (assinar != "" ? assinar : "---") + "\n";
+	tt += "\u00bbVínculo: " + (vinculo.length > 2 ? vinculo[0] + ' e outros' : vinculo[0]) + "\n";
+	tt += "\u00bbVisibilidade: " + (visibilidade != "" ? visibilidade : "---");
+	a.setAttribute('data-tooltip', tt);
+
+	a.innerText = nm_botao;
+	a.onclick = function (e) {
+
+		if (e.ctrlKey) { //ativa/desativa a visibilidade
+			let v = (visibilidade.toLowerCase() == "sim") ? "não" : "sim";
+			aaNomearPerito_temp[id] = new AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, v);
+			salvarOpcoes();
+			document.getElementById("botoes_nomearPerito").textContent = '';
+			montarBotoesaaNomearPerito();
+
+		} else {
+			modalEditor(document.getElementById("botao_nomearPerito_" + id), "nomearPerito", id);
+		}
+
+	};
+
+	//visibilidade
+	if (visibilidade === 'sim') {
+		a.style.setProperty('outline','2px solid rgba(0, 0, 0, 0.1)');
+		a.style.setProperty('outline-offset','-2px');
+		a.style.setProperty('background-image','none');
+	} else {
+		a.style.setProperty('outline','2px dashed rgba(255, 255, 255, 1)');
+		a.style.setProperty('outline-offset','-2px');
+		a.style.setProperty('background-image','linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5))');
+	}
+
+	el.appendChild(a);
+
+	//perfumaria
 	if (vinculo.length > 1) {
 		let perfumaria = document.createElement("span");
 		perfumaria.style = "width: 7px; height: 10px; background-color: white; clip-path: polygon(25% 0%, 70% 0%, 40% 35%, 95% 35%, 20% 100%, 40% 55%, 0% 55%); position: relative; right: 5px; margin: 0.6em -0.3em;"
@@ -5667,18 +6025,18 @@ function criaBotao_aaChecklist(id, nm_botao, tipo, observacao, estado, alerta, s
 
 function criaBotao_aaVariados(id, nm_botao, descricao, temporizador, ativar=false, objeto) {
 	let el = document.getElementById("botoes_variados");
-	
+
 	//cria espaçador entre os botões
 	let espaco = document.createElement("a");
 	espaco.id = "espaco_botao_variados_" + id;
 	espaco.style = "width: .8em; background-color: white;";
-	el.appendChild(espaco);	
-	
+	el.appendChild(espaco);
+
 	let a = document.createElement("a");
 	a.id = "botao_variados_" + id
 	a.className = "swal2-confirm swal2-styled";
 	a.draggable = "true";
-	a.style = "background-color: orangered; min-width: 60px; text-align: center; margin: .3125em 0em .3125em 0em;";	
+	a.style = "background-color: orangered; min-width: 60px; text-align: center; margin: .3125em 0em .3125em 0em;";
 	a.style.setProperty('background-image','repeating-linear-gradient(45deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 5px, transparent 5px, transparent 10px)');
 
 	//criar tooltip
@@ -5696,23 +6054,21 @@ function criaBotao_aaVariados(id, nm_botao, descricao, temporizador, ativar=fals
 	a.onclick = function (e) {
 		modalEditorEditar(document.getElementById("botao_variados_" + id), 'variados', id);
 	};
-	
+
 	el.appendChild(a);
 }
 
 function listaAcoesAutomatizadas(vinculo) {
 	vinculo = (typeof(vinculo) == "undefined" || vinculo == "undefined") ? "Nenhum" : vinculo;
-	
-	
 	console.log("vinculo: " + vinculo)
-	
+
 	vinculo = Array.isArray(vinculo) ? vinculo : vinculo.split(','); //converte em string
 	vinculo = vinculo[0];
-	
+
 	let lista = "<option style='background-color: coral;' value='Nenhum'";
 	lista += "Nenhum" == vinculo ? " selected> " : ">";
 	lista += " Nenhum </option>";
-	
+
 	lista += '<optgroup label="Anexar Documentos" style="background-color: lightgray;">';
 	let teste = [].map.call(aaAnexar_temp,function(item) {
 		lista += "<option style='background-color: #d3d3d35e;' value='Anexar|" + item.nm_botao + "'";
@@ -5720,7 +6076,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '<optgroup label="Intimação/Expediente" style="background-color: coral;">';
 	teste = [].map.call(aaComunicacao_temp,function(item) {
 		lista += "<option style='background-color: #ff7f5021;' value='Comunicação|" + item.nm_botao + "'";
@@ -5728,9 +6084,9 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '<optgroup label="AutoGIGS" style="background-color: lightgray;">';
-	teste = [].map.call(aaAutogigs_temp,function(item) {		
+	teste = [].map.call(aaAutogigs_temp,function(item) {
 		if (item.nm_botao.includes('[concluir]')) {
 			lista += "<option style='background-color: #d3d3d35e; color: coral;' value='AutoGigs|" + item.nm_botao + "'";
 			lista += ("AutoGigs|" + item.nm_botao == vinculo) ? " selected> AutoGigs|" + item.nm_botao : " > AutoGigs|" + item.nm_botao;
@@ -5741,7 +6097,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '<optgroup label="Despacho" style="background-color: coral;">';
 	teste = [].map.call(aaDespacho_temp,function(item) {
 		lista += "<option style='background-color: #ff7f5021;' value='Despacho|" + item.nm_botao + "'";
@@ -5749,7 +6105,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '<optgroup label="Movimento" style="background-color: lightgray;">';
 	teste = [].map.call(aaMovimento_temp,function(item) {
 		lista += "<option style='background-color: #d3d3d35e;' value='Movimento|" + item.nm_botao + "'";
@@ -5757,7 +6113,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '<optgroup label="Checklist" style="background-color: coral;">';
 	teste = [].map.call(aaChecklist_temp,function(item) {
 		lista += "<option style='background-color: #ff7f5021;' value='Checklist|" + item.nm_botao + "'";
@@ -5765,7 +6121,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '<optgroup label="Itens de Menu" style="background-color: lightgray;">';
 	teste = [].map.call(aaItemMenuDetalhes,function(item) {
 		lista += "<option style='background-color: #d3d3d35e;' value='Clicar em|" + item + "'";
@@ -5773,7 +6129,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	//AA para RETIFICAR AUTUAÇÃO
 	lista += '<optgroup label="Retificar Autuação" style="background-color: coral;">';
 	let aaItemRetificarAutuacao = [
@@ -5797,7 +6153,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	//AA para LANÇAR MOVIMENTOS
 	lista += '<optgroup label="Lançar Movimento" style="background-color: lightgray;">';
 	teste = [].map.call(preferencias.aaLancarMovimentos,function(item) {
@@ -5806,7 +6162,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		lista += " </option>";
 	});
 	lista += '</optgroup>';
-	
+
 	//AA para VARIADOS
 	lista += '<optgroup label="Variados" style="background-color: coral;">';
 	teste = [].map.call(aaVariados_temp,function(item) {
@@ -5822,7 +6178,7 @@ function listaAcoesAutomatizadas(vinculo) {
 		}
 	});
 	lista += '</optgroup>';
-	
+
 	lista += '</optgroup>';
 	return lista;
 }
@@ -5832,19 +6188,19 @@ function modalEditor(elemento_pai, tipo, id) {
 	let posx = elemento_pai.getBoundingClientRect().left;
 	let largura = elemento_pai.getBoundingClientRect().width;
 	let altura = elemento_pai.getBoundingClientRect().height;
-	
+
 	let cssMenu = 'display: grid; grid-template-rows: repeat(4, 1fr); width: 100%; font-size: 1.3em; background-color: white; position: absolute;top: ' + altura + 'px; cursor: pointer; border-radius: 0 0 3px 3px;box-shadow: 0px 4px 6px 0px rgba(62, 62, 62, 0.72);align-items: center;';
 	let cssItemMenu = 'padding: 0 5px 0 5px;font-style: normal;height: ' + altura + 'px; display: flex; justify-content: center; align-items: center;';
 	let cssItemMenuChamativo = 'padding: 0 5px 0 5px;font-style: normal;height: ' + altura + 'px; display: flex; justify-content: center; align-items: center; border: 1px dashed orangered;background-color: cornsilk;';
-	
+
 	//*******painel base
 	let el = document.body;
 	let painel = document.createElement("div");
-	painel.id = 'painel_' + id;	
+	painel.id = 'painel_' + id;
 	painel.setAttribute("posicao",id);
 	painel.style = 'position: absolute; background-color: rgba(255, 255, 255, 0.77); width: ' + largura + 'px; height: ' + altura + 'px;  z-index: 10000; display: flex; align-items: center; justify-content: center;  text-align: center; top: ' + posy + 'px;left: ' + posx + 'px;box-shadow: rgba(62, 62, 62, 0.72) 0px 4px 6px 0px;';
 	painel.className = 'fade-in';
-	
+
 	//*******janela modal
 	let janela_modal = document.createElement("div");
 	janela_modal.id = 'janela_modal_' + id;
@@ -5853,7 +6209,7 @@ function modalEditor(elemento_pai, tipo, id) {
 	janela_modal.onmouseleave = function (e) {
 		this.parentElement.remove();
 	};
-	
+
 	//*********criar botão editar
 	let bt_editar = document.createElement("div");
 	bt_editar.id = "botao_editar";
@@ -5869,10 +6225,10 @@ function modalEditor(elemento_pai, tipo, id) {
 		modalEditorEditar(elemento_pai, tipo, id);
 		painel.remove();
 	};
-	
+
 	let bt_clonar = document.createElement("div");
 	bt_clonar.id = "botao_clonar";
-	bt_clonar.innerText = "Clonar";	
+	bt_clonar.innerText = "Clonar";
 	bt_clonar.style = cssItemMenu;
 	bt_clonar.onmouseenter = function() {
 		this.style.setProperty("background-color","#e2e2e2");
@@ -5884,11 +6240,11 @@ function modalEditor(elemento_pai, tipo, id) {
 		modalEditorClonar(elemento_pai, tipo, id);
 		painel.remove();
 	};
-	
+
 	//*********criar botão excluir
 	let bt_excluir = document.createElement("div");
 	bt_excluir.id = "botao_excluir";
-	bt_excluir.innerText = "Excluir";	
+	bt_excluir.innerText = "Excluir";
 	bt_excluir.style = cssItemMenu;
 	bt_excluir.onmouseenter = function() {
 		this.style.setProperty("background-color","#e2e2e2");
@@ -5900,11 +6256,11 @@ function modalEditor(elemento_pai, tipo, id) {
 		modalEditorExcluir(elemento_pai, tipo, id);
 		painel.remove();
 	};
-	
+
 	//*********criar botão exportar
 	let bt_exportar = document.createElement("div");
 	bt_exportar.id = "botao_exportar";
-	bt_exportar.innerText = "Exportar";	
+	bt_exportar.innerText = "Exportar";
 	bt_exportar.style = cssItemMenu;
 	bt_exportar.onmouseenter = function() {
 		this.style.setProperty("background-color","#e2e2e2");
@@ -5916,11 +6272,11 @@ function modalEditor(elemento_pai, tipo, id) {
 		modalEditorExportar(elemento_pai, tipo, id);
 		painel.remove();
 	};
-	
+
 	//*********criar botão vínculo
 	let bt_vinculo = document.createElement("div");
 	bt_vinculo.id = "botao_exportar";
-	bt_vinculo.innerText = "Vínculos";	
+	bt_vinculo.innerText = "Vínculos";
 	bt_vinculo.style = cssItemMenuChamativo;
 	bt_vinculo.onmouseenter = function() {
 		this.style.setProperty("background-color","#e2e2e2");
@@ -5932,19 +6288,19 @@ function modalEditor(elemento_pai, tipo, id) {
 		modalEditorVinculo(elemento_pai, tipo, id);
 		painel.remove();
 	};
-	
+
 	janela_modal.appendChild(bt_editar);
 	janela_modal.appendChild(bt_clonar);
 	janela_modal.appendChild(bt_excluir);
 	janela_modal.appendChild(bt_exportar);
 	janela_modal.appendChild(bt_vinculo);
 	painel.appendChild(janela_modal);
-	document.body.appendChild(painel);	
+	document.body.appendChild(painel);
 }
 
 async function modalEditorEditar(elemento_pai, tipo, id) {
 	if (tipo == "anexar") {
-		
+
 		let regraDoSigilo = 0; //nenhum
 		if (aaAnexar_temp[id].sigilo.includes('Polo Ativo') && aaAnexar_temp[id].sigilo.includes('Polo Passivo') && aaAnexar_temp[id].sigilo.includes('Perito')) {
 			regraDoSigilo = 5; //todos
@@ -5958,41 +6314,39 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			regraDoSigilo = 4; //perito
 		}
 
-		console.log(aaAnexar_temp[id].cor)
-		
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[anexos]</b> que irá possibilitar a juntada de vários pdfs na certidão</i></span>' + 
+			'<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[anexos]</b> que irá possibilitar a juntada de vários pdfs na certidão</i></span>' +
 			'<input id="swal-input1" class="swal2-input" value="' + aaAnexar_temp[id].nm_botao + '">' +
 			'<span style="font-weight: bold;"> Tipo de Documento </span>' +
 			'<input id="swal-input2" class="swal2-input" value="' + aaAnexar_temp[id].tipo + '">' +
-			'<span style="font-weight: bold;"> Descrição (Título) </span>' + 
+			'<span style="font-weight: bold;"> Descrição (Título) </span>' +
 			'<input id="swal-input3" class="swal2-input" value="' + aaAnexar_temp[id].descricao + '">' +
-			'<span style="font-weight: bold;"> Sigilo </span><br>' + 
-			'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 49%;border: 1px solid #d9d9d9;border-radius: .1875em 0 0 .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaAnexar_temp[id].sigilo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaAnexar_temp[id].sigilo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Sigilo </span><br>' +
+			'<select id="swal-input4" class="swal2-select" style="background-color: white;width: 49%;border: 1px solid #d9d9d9;border-radius: .1875em 0 0 .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaAnexar_temp[id].sigilo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaAnexar_temp[id].sigilo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select>' +
-			'<select id="swal-input4-1" class="swal2-select" style="background-color: white;width: 49%;border: 1px solid #d9d9d9;border-radius: 0 .1875em .1875em 0;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;border-left: 0;">' + 
-				'<optgroup label="Visibilidade do Documento">' + 
-				'<option value="Nenhum"' + (regraDoSigilo==0 ? 'selected' : '') + '> Nenhum </option>' + 
-				'<option value="Polo Ativo"' + (regraDoSigilo==1 ? 'selected' : '') + '> apenas Polo Ativo </option>' + 
-				'<option value="Polo Passivo"' + (regraDoSigilo==2 ? 'selected' : '') + '> apenas Polo Passivo </option>' + 
-				'<option value="Polo Ativo + Polo Passivo"' + (regraDoSigilo==3 ? 'selected' : '') + '> Polo Ativo + Polo Passivo </option>' + 
-				'<option value="Perito"' + (regraDoSigilo==4 ? 'selected' : '') + '> apenas Perito </option>' + 
-				'<option value="Todos"' + (regraDoSigilo==5 ? 'selected' : '') + '> Polo Ativo + Polo Passivo + Perito </option>' + 
-				'<option value="Perguntar"' + (regraDoSigilo==6 ? 'selected' : '') + '> Perguntar </option>' + 
+			'<select id="swal-input4-1" class="swal2-select" style="background-color: white;width: 49%;border: 1px solid #d9d9d9;border-radius: 0 .1875em .1875em 0;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;border-left: 0;">' +
+				'<optgroup label="Visibilidade do Documento">' +
+				'<option value="Nenhum"' + (regraDoSigilo==0 ? 'selected' : '') + '> Nenhum </option>' +
+				'<option value="Polo Ativo"' + (regraDoSigilo==1 ? 'selected' : '') + '> apenas Polo Ativo </option>' +
+				'<option value="Polo Passivo"' + (regraDoSigilo==2 ? 'selected' : '') + '> apenas Polo Passivo </option>' +
+				'<option value="Polo Ativo + Polo Passivo"' + (regraDoSigilo==3 ? 'selected' : '') + '> Polo Ativo + Polo Passivo </option>' +
+				'<option value="Perito"' + (regraDoSigilo==4 ? 'selected' : '') + '> apenas Perito </option>' +
+				'<option value="Todos"' + (regraDoSigilo==5 ? 'selected' : '') + '> Polo Ativo + Polo Passivo + Perito </option>' +
+				'<option value="Perguntar"' + (regraDoSigilo==6 ? 'selected' : '') + '> Perguntar </option>' +
 				'</optgroup>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Modelo </span>' + 
+			'<span style="font-weight: bold;"> Modelo </span>' +
 			'<input id="swal-input5" class="swal2-input" value="' + aaAnexar_temp[id].modelo + '">' +
-			'<span style="font-weight: bold;"> Assinar </span>' +			
-			'<br><select id="swal-input6" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaAnexar_temp[id].assinar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaAnexar_temp[id].assinar.toLowerCase().toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Assinar </span>' +
+			'<br><select id="swal-input6" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaAnexar_temp[id].assinar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaAnexar_temp[id].assinar.toLowerCase().toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input7" class="swal2-input" type="color" value="' + aaAnexar_temp[id].cor + '">' +
 			'<br><br><label class="container">' +
 			'<input type="checkbox" id="swal-input9" ' + (aaAnexar_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6002,13 +6356,13 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			confirmButtonText: 'Salvar',
 			focusConfirm: false,
 			preConfirm: () => {
-				
+
 				let sw4 = document.getElementById('swal-input4').value.toLowerCase();
 				let sw41 = document.getElementById('swal-input4-1').value.toLowerCase();
-				
+
 				if (sw4.toLowerCase().includes('sim')) {
-					if (!sw4.includes('[') && !sw4.includes(']')) {	
-						switch (sw41) {					
+					if (!sw4.includes('[') && !sw4.includes(']')) {
+						switch (sw41) {
 							case 'nenhum':
 								break;
 							case 'polo ativo':
@@ -6032,7 +6386,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 						}
 					}
 				}
-				
+
 				return [
 					document.getElementById('swal-input1').value,
 					document.getElementById('swal-input2').value,
@@ -6059,53 +6413,53 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Nome do Botão </span>' + 
+			'<span style="font-weight: bold;"> Nome do Botão </span>' +
 			'<input id="swal-inputNomeBotao" class="swal2-input" value="' + aaComunicacao_temp[id].nm_botao + '">' +
 			'<div style="padding: 20px;border: 2px solid darkcyan;border-radius: 6px;margin-bottom: 10px;background-color: gainsboro;">'+
-			'<span style="font-weight: bold;"> Comandos Especiais <br>' + 			
-			'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;">' + 
-			'<br>Clique no botão abaixo para configurações adicionais após a elaboração do expediente<br>' + 			
-			'</u></p></i></span>' + 
-			'</i></span>' + 
-			'<button type="button" id="config_comandosEspeciaisComunicacao" class="swal2-confirm swal2-styled" style="display: inline-block;background-color: darkcyan;padding: 9px 56px;" aria-label="">Configurar</button>' +  
-			'<div style="display: grid;grid-template-columns: 10fr 1fr;align-items: center;">' + 
+			'<span style="font-weight: bold;"> Comandos Especiais <br>' +
+			'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;">' +
+			'<br>Clique no botão abaixo para configurações adicionais após a elaboração do expediente<br>' +
+			'</u></p></i></span>' +
+			'</i></span>' +
+			'<button type="button" id="config_comandosEspeciaisComunicacao" class="swal2-confirm swal2-styled" style="display: inline-block;background-color: darkcyan;padding: 9px 56px;" aria-label="">Configurar</button>' +
+			'<div style="display: grid;grid-template-columns: 10fr 1fr;align-items: center;">' +
 			'<textarea id="swal-input_comandosEspeciais" class="swal2-textarea" style="background-color: white;font-size: 0.8em;" disabled>' + aaComunicacao_temp[id]?.comandosEspeciais + '</textarea>' +
 			'<div id="apagar_config_comandosEspeciaisComunicacao" data-tooltip="Apagar"><i class="icone trash-alt t16" style="padding: 0px 5px; background-color: #545454;pointer-events: none;" pos="0"></i></div></div>' +
 			'</div>' +
 
-			'<span style="font-weight: bold;"> Tipo de Expediente </span>' + 
+			'<span style="font-weight: bold;"> Tipo de Expediente </span>' +
 			'<input id="swal-input2" class="swal2-input" value="' + aaComunicacao_temp[id].tipo + '">' +
-			'<span style="font-weight: bold;"> Tipo de Documento (na elaboração do ato) </span>' + 
+			'<span style="font-weight: bold;"> Tipo de Documento (na elaboração do ato) </span>' +
 			'<input id="swal-input3" class="swal2-input" value="' + aaComunicacao_temp[id].subtipo + '">' +
-			'<span style="font-weight: bold;"> Tipo de Prazo </span>' + 
-			'<br><select id="swal-input99" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="Sem Prazo"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('sem prazo') ? 'selected' : '')  + '> Sem Prazo </option>' + 
-				'<option value="Dias Úteis"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('dias úteis') ? 'selected' : '')  + '> Dias Úteis </option>' + 
-				'<option value="Data Certa"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('data certa') ? 'selected' : '')  + '> Data Certa </option>' + 
-				'<option value="Dias Corridos"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('dias corridos') ? 'selected' : '')  + '> Dias Corridos </option>' + 
+			'<span style="font-weight: bold;"> Tipo de Prazo </span>' +
+			'<br><select id="swal-input99" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="Sem Prazo"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('sem prazo') ? 'selected' : '')  + '> Sem Prazo </option>' +
+				'<option value="Dias Úteis"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('dias úteis') ? 'selected' : '')  + '> Dias Úteis </option>' +
+				'<option value="Data Certa"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('data certa') ? 'selected' : '')  + '> Data Certa </option>' +
+				'<option value="Dias Corridos"' + (aaComunicacao_temp[id].tipo_prazo.toLowerCase().includes('dias corridos') ? 'selected' : '')  + '> Dias Corridos </option>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Prazo </span>' + 
+			'<span style="font-weight: bold;"> Prazo </span>' +
 			'<input id="swal-input4" class="swal2-input" value="' + aaComunicacao_temp[id].prazo + '">' +
-			'<span style="font-weight: bold;"> Descrição (Título) </span>' + 
+			'<span style="font-weight: bold;"> Descrição (Título) </span>' +
 			'<input id="swal-input5" class="swal2-input" value="' + aaComunicacao_temp[id].descricao + '">' +
-			'<span style="font-weight: bold;"> Sigilo </span>' + 
-			'<br><select id="swal-input6" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaComunicacao_temp[id].sigilo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaComunicacao_temp[id].sigilo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Sigilo </span>' +
+			'<br><select id="swal-input6" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaComunicacao_temp[id].sigilo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaComunicacao_temp[id].sigilo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Modelo </span>' + 
+			'<span style="font-weight: bold;"> Modelo </span>' +
 			'<input id="swal-input7" class="swal2-input" value="' + aaComunicacao_temp[id].modelo + '">' +
-			'<span style="font-weight: bold;"> Salvar </span>' + 
-			'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaComunicacao_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaComunicacao_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Salvar </span>' +
+			'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaComunicacao_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaComunicacao_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Mover para a Tarefa "Preparar Comunicação/Expediente" </span>' + 
-			'<br><select id="swal-input11" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaComunicacao_temp[id].fluxo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaComunicacao_temp[id].fluxo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Mover para a Tarefa "Preparar Comunicação/Expediente" </span>' +
+			'<br><select id="swal-input11" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaComunicacao_temp[id].fluxo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaComunicacao_temp[id].fluxo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input9" class="swal2-input" type="color" value="' + aaComunicacao_temp[id].cor + '">' +
 			'<br><br><label class="container">' +
 			'<input type="checkbox" id="swal-input12" ' + (aaComunicacao_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6127,7 +6481,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					document.getElementById('swal-input8').value,
 					document.getElementById('swal-input9').value,
 					document.getElementById('swal-input_vinculo')?.value,
-					document.getElementById('swal-input11').value,					
+					document.getElementById('swal-input11').value,
 					document.getElementById('swal-input12').checked ? "sim" : "não",
 					document.getElementById('swal-input_comandosEspeciais').value, //comandos especiais
 				]
@@ -6135,41 +6489,41 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 		});
 
 		if (result) {
-			
+
 			aaComunicacao_temp[id] = new AcaoAutomatizada_aaComunicacao(result[0], result[1], result[2], result[3], result[4], result[5], result[6], result[7], result[8], result[9], result[10], result[11], result[12], result[13]);
 			salvarOpcoes();
 			document.getElementById("botoes_comunicacao").textContent = '';
 			montarBotoesaaComunicacao();
-		}		
+		}
 	} else if (tipo == "autogigs") {
 		function texto_html() {
 			let var1 = '';
-			switch (aaAutogigs_temp[id].tipo) {					
+			switch (aaAutogigs_temp[id].tipo) {
 				case 'comentario':
-					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar um COMENTÁRIO observando o texto descrito no campo <u>Comentário</u>. <p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer comentário que possua em seu texto a expressão <u>' + aaAutogigs_temp[id].observacao + '</u></p></i></span>' + 
+					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar um COMENTÁRIO observando o texto descrito no campo <u>Comentário</u>. <p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer comentário que possua em seu texto a expressão <u>' + aaAutogigs_temp[id].observacao + '</u></p></i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaAutogigs_temp[id].nm_botao + '">' +
-					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' + 
+					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' +
 					'<input id="swal-input2" class="swal2-input" value="' + aaAutogigs_temp[id].tipo + '">' +
-					'<span style="display: none;"> Tipo de Atividade </span>' + 
+					'<span style="display: none;"> Tipo de Atividade </span>' +
 					'<input id="swal-input3" class="swal2-input" value="' + aaAutogigs_temp[id].tipo_atividade + '" style="display: none;"; disabled>' +
-					'<span style="font-weight: bold;"> Visibilidade do Lembrete </span>' + 
-					'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="LOCAL"' + (aaAutogigs_temp[id].prazo.includes('LOCAL') ? 'selected' : '')  + '> LOCAL </option>' + 
-						'<option value="RESTRITA"' + (aaAutogigs_temp[id].prazo.includes('RESTRITA') ? 'selected' : '')  + '> RESTRITA </option>' + 
-						'<option value="GLOBAL"' + (aaAutogigs_temp[id].prazo.includes('GLOBAL') ? 'selected' : '')  + '> GLOBAL </option>' + 
+					'<span style="font-weight: bold;"> Visibilidade do Lembrete </span>' +
+					'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="LOCAL"' + (aaAutogigs_temp[id].prazo.includes('LOCAL') ? 'selected' : '')  + '> LOCAL </option>' +
+						'<option value="RESTRITA"' + (aaAutogigs_temp[id].prazo.includes('RESTRITA') ? 'selected' : '')  + '> RESTRITA </option>' +
+						'<option value="GLOBAL"' + (aaAutogigs_temp[id].prazo.includes('GLOBAL') ? 'selected' : '')  + '> GLOBAL </option>' +
 					'</select><br>' +
-					'<span style="display: none;"> Responsável pelo GIGS </span>' + 
+					'<span style="display: none;"> Responsável pelo GIGS </span>' +
 					'<input id="swal-input5" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel + '" style="display: none;"; disabled>' +
-					'<span style="font-weight: bold;"> Responsável pelo processo </span>' + 
+					'<span style="font-weight: bold;"> Responsável pelo processo </span>' +
 					'<input id="swal-input6" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel_processo + '">' +
-					'<span style="font-weight: bold;"> Comentário <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita a expressão <b>[perguntar]</b> que interrompe a ação para o usuário informar o que quer preencher no campo</i></span>' + 
+					'<span style="font-weight: bold;"> Comentário <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita a expressão <b>[perguntar]</b> que interrompe a ação para o usuário informar o que quer preencher no campo</i></span>' +
 					'<textarea id="swal-input7" class="swal2-textarea">' + aaAutogigs_temp[id].observacao + '</textarea>' +
-					'<span style="font-weight: bold;"> Salvar </span>' + 
-					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold;"> Salvar </span>' +
+					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select><br>' +
-					'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+					'<span style="font-weight: bold;"> Cor do Botão </span>' +
 					'<input id="swal-input9" class="swal2-input" type="color" value="' + aaAutogigs_temp[id].cor + '">' +
 					'<br><br><label class="container">' +
 					'<input type="checkbox" id="swal-input10" ' + (aaAutogigs_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6178,26 +6532,26 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					'</label>';
 					break
 				case 'chip':
-					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar um CHIP, ou uma lista de CHIPS, observando o indicado no campo <u>CHIP</u>. <p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer CHIP do tipo <u>' + aaAutogigs_temp[id].tipo_atividade + '</u></p></i></span>' + 
+					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar um CHIP, ou uma lista de CHIPS, observando o indicado no campo <u>CHIP</u>. <p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer CHIP do tipo <u>' + aaAutogigs_temp[id].tipo_atividade + '</u></p></i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaAutogigs_temp[id].nm_botao + '">' +
-					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' + 
+					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' +
 					'<input id="swal-input2" class="swal2-input" value="' + aaAutogigs_temp[id].tipo + '">' +
-					'<span style="font-weight: bold;"> CHIP<br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita um ou mais CHIPs desde que separados por vírgula ou a expressão <b>[perguntar]</b> que reliza a pesquisa de chips com base no texto, interrompendo a ação para o usuário selecionar os chips que desejar.</i></i></span>' + 
+					'<span style="font-weight: bold;"> CHIP<br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita um ou mais CHIPs desde que separados por vírgula ou a expressão <b>[perguntar]</b> que reliza a pesquisa de chips com base no texto, interrompendo a ação para o usuário selecionar os chips que desejar.</i></i></span>' +
 					'<input id="swal-input3" class="swal2-input" value="' + aaAutogigs_temp[id].tipo_atividade + '">' +
-					'<span style="display: none;"> Prazo </span>' + 
+					'<span style="display: none;"> Prazo </span>' +
 					'<input id="swal-input4" class="swal2-input" value="' + aaAutogigs_temp[id].prazo + '" style="display: none;"; disabled>' +
-					'<span style="display: none;"> Responsável pelo GIGS </span>' + 
+					'<span style="display: none;"> Responsável pelo GIGS </span>' +
 					'<input id="swal-input5" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel + '" style="display: none;"; disabled>' +
-					'<span style="display: none;"> Responsável pelo processo </span>' + 
+					'<span style="display: none;"> Responsável pelo processo </span>' +
 					'<input id="swal-input6" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel_processo + '" style="display: none;"; disabled>' +
-					'<span style="display: none;"> Observação </span>' + 
+					'<span style="display: none;"> Observação </span>' +
 					'<input id="swal-input7" class="swal2-input" value="' + aaAutogigs_temp[id].observacao + '" style="display: none;"; disabled>' +
-					'<span style="font-weight: bold;"> Salvar </span>' + 
-					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold;"> Salvar </span>' +
+					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select><br>' +
-					'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+					'<span style="font-weight: bold;"> Cor do Botão </span>' +
 					'<input id="swal-input9" class="swal2-input" type="color" value="' + aaAutogigs_temp[id].cor + '">' +
 					'<br><br><label class="container">' +
 					'<input type="checkbox" id="swal-input10" ' + (aaAutogigs_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6208,28 +6562,28 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 				case 'lembrete':
 					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar um LEMBRETE observando a <u>Descrição (Título)</u> e o <u>Conteúdo</u>. <p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer Lembrete com a descrição (Título) <u>' + aaAutogigs_temp[id].tipo_atividade + '</u> que possua em seu texto a expressão <u>' + aaAutogigs_temp[id].observacao + '</u></p></i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaAutogigs_temp[id].nm_botao + '">' +
-					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' + 
+					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' +
 					'<input id="swal-input2" class="swal2-input" value="' + aaAutogigs_temp[id].tipo + '">' +
-					'<span style="font-weight: bold;"> Descrição (Título) </span>' + 
+					'<span style="font-weight: bold;"> Descrição (Título) </span>' +
 					'<input id="swal-input3" class="swal2-input" value="' + aaAutogigs_temp[id].tipo_atividade + '">' +
-					'<span style="font-weight: bold;"> Visibilidade do Lembrete </span>' + 
-					'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="LOCAL"' + (aaAutogigs_temp[id].prazo.includes('LOCAL') ? 'selected' : '')  + '> LOCAL </option>' + 
-						'<option value="PRIVADO"' + (aaAutogigs_temp[id].prazo.includes('PRIVADO') ? 'selected' : '')  + '> PRIVADO </option>' + 
-						'<option value="GLOBAL"' + (aaAutogigs_temp[id].prazo.includes('GLOBAL') ? 'selected' : '')  + '> GLOBAL </option>' + 
+					'<span style="font-weight: bold;"> Visibilidade do Lembrete </span>' +
+					'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="LOCAL"' + (aaAutogigs_temp[id].prazo.includes('LOCAL') ? 'selected' : '')  + '> LOCAL </option>' +
+						'<option value="PRIVADO"' + (aaAutogigs_temp[id].prazo.includes('PRIVADO') ? 'selected' : '')  + '> PRIVADO </option>' +
+						'<option value="GLOBAL"' + (aaAutogigs_temp[id].prazo.includes('GLOBAL') ? 'selected' : '')  + '> GLOBAL </option>' +
 					'</select><br>' +
-					'<span style="display: none;"> Responsável pelo GIGS </span>' + 
+					'<span style="display: none;"> Responsável pelo GIGS </span>' +
 					'<input id="swal-input5" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel + '" style="display: none;"; disabled>' +
-					'<span style="display: none;"> Responsável pelo processo </span>' + 
+					'<span style="display: none;"> Responsável pelo processo </span>' +
 					'<input id="swal-input6" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel_processo + '" style="display: none;"; disabled>' +
-					'<span style="font-weight: bold;"> Conteúdo do lembrete <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita a expressão <b>[perguntar]</b> que interrompe a ação para o usuário informar o que quer preencher no campo</i></span>' + 
+					'<span style="font-weight: bold;"> Conteúdo do lembrete <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita a expressão <b>[perguntar]</b> que interrompe a ação para o usuário informar o que quer preencher no campo</i></span>' +
 					'<textarea id="swal-input7" class="swal2-textarea">' + aaAutogigs_temp[id].observacao + '</textarea>' +
-					'<span style="font-weight: bold;"> Salvar </span>' + 
-					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold;"> Salvar </span>' +
+					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select><br>' +
-					'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+					'<span style="font-weight: bold;"> Cor do Botão </span>' +
 					'<input id="swal-input9" class="swal2-input" type="color" value="' + aaAutogigs_temp[id].cor + '">' +
 					'<br><br><label class="container">' +
 					'<input type="checkbox" id="swal-input10" ' + (aaAutogigs_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6240,15 +6594,15 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 				case 'nenhum':
 					var1 = '<span style="font-weight: bold;"> Nome do Botão Agrupador</span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaAutogigs_temp[id].nm_botao + '">' +
-					'<span style="font-weight: bold; display: none;"> Tipo de Ação Automatizada </span>' + 
+					'<span style="font-weight: bold; display: none;"> Tipo de Ação Automatizada </span>' +
 					'<input id="swal-input2" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].tipo + '">' +
 					'<input id="swal-input3" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].tipo_atividade + '">' +
 					'<input id="swal-input4" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].prazo + '">' +
 					'<input id="swal-input5" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel + '">' +
 					'<input id="swal-input6" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel_processo + '">' +
-					'<input id="swal-input7" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].observacao + '">' +					
+					'<input id="swal-input7" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].observacao + '">' +
 					'<input id="swal-input8" style="display:none;" class="swal2-input" value="' + aaAutogigs_temp[id].salvar + '">' +
-					'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+					'<span style="font-weight: bold;"> Cor do Botão </span>' +
 					'<input id="swal-input9" class="swal2-input" type="color" value="' + aaAutogigs_temp[id].cor + '">' +
 					'<br><br><label class="container">' +
 					'<input type="checkbox" id="swal-input10" ' + (aaAutogigs_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6256,27 +6610,27 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					'<input id="swal-input_vinculo" style="display:none;" value="' + aaAutogigs_temp[id].vinculo + '">' +
 					'</label>';
 					break
-				default:					
-					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar uma ATIVIDADE GIGS observando o <u>Tipo de Atividade</u>, o <u>Responsável pela Atividade</u> e o texto da <u>Observação</u>.<br><br> <span style="background-color: gold;">Agora é possível, numa única Ação Automatizada, configurar o <b>[concluir]</b> com mais de uma <b>ATIVIDADE</b>, <b>RESPONSÁVEL</b> e <b>OBSERVAÇÃO</b>, bastando para isso separar os argumentos com ponto-e-vírgula.. EXPERIMENTE!!</span><br><br><p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer atividade GIGS do tipo <u>' + aaAutogigs_temp[id].tipo_atividade + '</u> que possua em seu texto a expressão <u>' + aaAutogigs_temp[id].observacao + '</u></p></i></span>' + 
+				default:
+					var1 = '<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá finalizar uma ATIVIDADE GIGS observando o <u>Tipo de Atividade</u>, o <u>Responsável pela Atividade</u> e o texto da <u>Observação</u>.<br><br> <span style="background-color: gold;">Agora é possível, numa única Ação Automatizada, configurar o <b>[concluir]</b> com mais de uma <b>ATIVIDADE</b>, <b>RESPONSÁVEL</b> e <b>OBSERVAÇÃO</b>, bastando para isso separar os argumentos com ponto-e-vírgula.. EXPERIMENTE!!</span><br><br><p style="text-align: center;font-style: italic;">Ex: se usada a expressão [concluir] no nome desta ação, ela irá concluir qualquer atividade GIGS do tipo <u>' + aaAutogigs_temp[id].tipo_atividade + '</u> que possua em seu texto a expressão <u>' + aaAutogigs_temp[id].observacao + '</u></p></i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaAutogigs_temp[id].nm_botao + '">' +
-					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' + 
+					'<span style="font-weight: bold;"> Tipo de Ação Automatizada </span>' +
 					'<input id="swal-input2" class="swal2-input" value="' + aaAutogigs_temp[id].tipo + '">' +
-					'<span style="font-weight: bold;"> Tipo de Atividade </span>' + 
+					'<span style="font-weight: bold;"> Tipo de Atividade </span>' +
 					'<input id="swal-input3" class="swal2-input" value="' + aaAutogigs_temp[id].tipo_atividade + '">' +
-					'<span style="font-weight: bold;"> Prazo <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[data_audi]</b> que irá preencher o campo com a data da audiência do processo, ou a expressão <b>[perguntar]</b> que irá abrir uma caixa de diálogo para você preencher com a data desejada.<br><br> <span style="background-color: gold;">quer lançar prazos em dias corridos? Preencha o campo com o número de dias mais a expressão <b>dc</b>. Por exemplo, para lançar 60 dias corridos preencha assim: 60dc</span></i></span>' + 
+					'<span style="font-weight: bold;"> Prazo <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[data_audi]</b> que irá preencher o campo com a data da audiência do processo, ou a expressão <b>[perguntar]</b> que irá abrir uma caixa de diálogo para você preencher com a data desejada.<br><br> <span style="background-color: gold;">quer lançar prazos em dias corridos? Preencha o campo com o número de dias mais a expressão <b>dc</b>. Por exemplo, para lançar 60 dias corridos preencha assim: 60dc</span></i></span>' +
 					'<input id="swal-input4" class="swal2-input" value="' + aaAutogigs_temp[id].prazo + '">' +
-					'<span style="font-weight: bold;"> Responsável pelo GIGS </span>' + 
+					'<span style="font-weight: bold;"> Responsável pelo GIGS </span>' +
 					'<input id="swal-input5" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel + '">' +
-					'<span style="font-weight: bold;"> Responsável pelo processo </span>' + 
+					'<span style="font-weight: bold;"> Responsável pelo processo </span>' +
 					'<input id="swal-input6" class="swal2-input" value="' + aaAutogigs_temp[id].responsavel_processo + '">' +
-					'<span style="font-weight: bold;"> Observação <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita a expressão <b>"perguntar"</b> que interrompe a ação para o usuário informar o que quer preencher no campo</i><br><br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita também as expressões <b>[data_audi]</b> <b>[dados_audi]</b> <b>[link_audi]</b>, que irão ser substituídas no campo observação, respectivamente, pela data da audiência, pelos dados da audiência e pelo link da audiência, se houver.</i><br></span>' + 
+					'<span style="font-weight: bold;"> Observação <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>aceita a expressão <b>"perguntar"</b> que interrompe a ação para o usuário informar o que quer preencher no campo<br><br>aceita também a expressão <b>"clipboard"</b> que substitui a expressão pelo valor que a extensão copiou pra memória (CTRL+C CTRL+V), mas atenção, só vale para os valores que extensão avisa que copiou pra memória, o seu CTRL+C do windows não tem efeito.</i><br><br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita também as expressões <b>[data_audi]</b> <b>[dados_audi]</b> <b>[link_audi]</b>, que irão ser substituídas no campo observação, respectivamente, pela data da audiência, pelos dados da audiência e pelo link da audiência, se houver.</i><br></span>' +
 					'<textarea id="swal-input7" class="swal2-textarea">' + aaAutogigs_temp[id].observacao + '</textarea>' +
-					'<span style="font-weight: bold;"> Salvar </span>' + 
-					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold;"> Salvar </span>' +
+					'<br><select id="swal-input8" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+						'<option value="sim"' + (aaAutogigs_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 					'</select><br>' +
-					'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+					'<span style="font-weight: bold;"> Cor do Botão </span>' +
 					'<input id="swal-input9" class="swal2-input" type="color" value="' + aaAutogigs_temp[id].cor + '">' +
 					'<br><br><label class="container">' +
 					'<input type="checkbox" id="swal-input10" ' + (aaAutogigs_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6299,11 +6653,11 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					document.getElementById('swal-input4').value, //prazo
 					document.getElementById('swal-input5').value, //responsavel
 					document.getElementById('swal-input6').value, //responsavel_processo
-					document.getElementById('swal-input7').value, //observação					
+					document.getElementById('swal-input7').value, //observação
 					document.getElementById('swal-input8').value, //salvar
 					document.getElementById('swal-input9').value, //cor
 					document.getElementById('swal-input_vinculo')?.value, //vinculo
-					document.getElementById('swal-input10').checked ? "sim" : "não", //visibilidade					
+					document.getElementById('swal-input10').checked ? "sim" : "não", //visibilidade
 				]
 			}
 		});
@@ -6318,55 +6672,55 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 	} else if (tipo == "despacho") {
 		const { value: result } = await Swal.fire({
 			title: '    ',
-			html:			
-			'<span style="font-weight: bold;"> Nome do Botão </span>' + 
+			html:
+			'<span style="font-weight: bold;"> Nome do Botão </span>' +
 			'<input id="swal-inputNomeBotao" class="swal2-input" value="' + aaDespacho_temp[id].nm_botao + '">' +
 			'<div style="padding: 20px;border: 2px solid darkcyan;border-radius: 6px;margin-bottom: 10px;background-color: gainsboro;">'+
-			'<span style="font-weight: bold;"> Comandos Especiais <br>' + 			
-			'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;">' + 
-			'<br>Clique no botão abaixo para configurações adicionais após a elaboração da minuta<br>' + 			
-			'</u></p></i></span>' + 
-			'</i></span>' + 
-			'<button type="button" id="config_comandosEspeciaisDespacho" class="swal2-confirm swal2-styled" style="display: inline-block;background-color: darkcyan;padding: 9px 56px;" aria-label="">Configurar</button>' +  
-			'<div style="display: grid;grid-template-columns: 10fr 1fr;align-items: center;">' + 
+			'<span style="font-weight: bold;"> Comandos Especiais <br>' +
+			'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;">' +
+			'<br>Clique no botão abaixo para configurações adicionais após a elaboração da minuta<br>' +
+			'</u></p></i></span>' +
+			'</i></span>' +
+			'<button type="button" id="config_comandosEspeciaisDespacho" class="swal2-confirm swal2-styled" style="display: inline-block;background-color: darkcyan;padding: 9px 56px;" aria-label="">Configurar</button>' +
+			'<div style="display: grid;grid-template-columns: 10fr 1fr;align-items: center;">' +
 			'<textarea id="swal-input_comandosEspeciais" class="swal2-textarea" style="background-color: white;font-size: 0.8em;" disabled>' + aaDespacho_temp[id]?.comandosEspeciais + '</textarea>' +
 			'<div id="apagar_config_comandosEspeciaisDespacho" data-tooltip="Apagar"><i class="icone trash-alt t16" style="padding: 0px 5px; background-color: #545454;pointer-events: none;" pos="0"></i></div></div>' +
 			'</div>' +
 
-			'<span style="font-weight: bold;"> Tipo </span>' + 
+			'<span style="font-weight: bold;"> Tipo </span>' +
 			'<input id="swal-input1" class="swal2-input" value="' + aaDespacho_temp[id].tipo + '">' +
-			'<span style="font-weight: bold;"> Descrição (Título) </span>' + 
+			'<span style="font-weight: bold;"> Descrição (Título) </span>' +
 			'<input id="swal-input2" class="swal2-input" value="' + aaDespacho_temp[id].descricao + '">' +
-			'<span style="font-weight: bold;"> Sigilo </span>' + 
-			'<br><select id="swal-input3" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaDespacho_temp[id].sigilo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaDespacho_temp[id].sigilo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Sigilo </span>' +
+			'<br><select id="swal-input3" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaDespacho_temp[id].sigilo.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaDespacho_temp[id].sigilo.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
-			'<span style="font-weight: bold;"> Modelo </span>' + 
+			'<span style="font-weight: bold;"> Modelo </span>' +
 			'<input id="swal-input4" class="swal2-input" value="' + aaDespacho_temp[id].modelo + '">' +
-			'<span style="font-weight: bold;"> Juiz </span>' + 
+			'<span style="font-weight: bold;"> Juiz </span>' +
 			'<input id="swal-input5" class="swal2-input" value="' + aaDespacho_temp[id].juiz + '">' +
-			'<span style="font-weight: bold;"> Responsável </span>' + 
+			'<span style="font-weight: bold;"> Responsável </span>' +
 			'<input id="swal-input6" class="swal2-input" value="' + aaDespacho_temp[id].responsavel + '">' +
-			'<span style="font-weight: bold;"> Enviar para assinatura <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>somente enviará para assinatura os casos que não exigem lançamento de movimento</i></span>' + 
-			
-			'<br><select id="swal-input7" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaDespacho_temp[id].assinar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaDespacho_temp[id].assinar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
-			'</select><br>' +	
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Enviar para assinatura <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>somente enviará para assinatura os casos que não exigem lançamento de movimento</i></span>' +
+
+			'<br><select id="swal-input7" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaDespacho_temp[id].assinar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaDespacho_temp[id].assinar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
+			'</select><br>' +
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input8" class="swal2-input" type="color" value="' + aaDespacho_temp[id].cor + '">' +
 			'<br><br><label class="container">' +
 
-			'<span style="font-weight: bold;"> Visível na Janela Detalhes? </span>' + 
-			'<br><select id="swal-input9" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
-				'<option value="conhecimento"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('conhecimento') ? 'selected' : '')  + '> apenas na fase Conhecimento </option>' + 
-				'<option value="liquidacao"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('liquidacao') ? 'selected' : '')  + '> apenas na fase Liquidação </option>' + 
-				'<option value="execucao"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('execucao') ? 'selected' : '')  + '> apenas na fase Execução </option>' + 
+			'<span style="font-weight: bold;"> Visível na Janela Detalhes? </span>' +
+			'<br><select id="swal-input9" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
+				'<option value="conhecimento"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('conhecimento') ? 'selected' : '')  + '> apenas na fase Conhecimento </option>' +
+				'<option value="liquidacao"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('liquidacao') ? 'selected' : '')  + '> apenas na fase Liquidação </option>' +
+				'<option value="execucao"' + (aaDespacho_temp[id].visibilidade.toLowerCase().includes('execucao') ? 'selected' : '')  + '> apenas na fase Execução </option>' +
 			'</select><br>' +
-			'<input id="swal-input_vinculo" style="display:none;" value="' + aaDespacho_temp[id].vinculo + '">' +			
+			'<input id="swal-input_vinculo" style="display:none;" value="' + aaDespacho_temp[id].vinculo + '">' +
 			'</label>',
 			confirmButtonText: 'Salvar',
 			focusConfirm: false,
@@ -6380,11 +6734,11 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					document.getElementById('swal-input5').value, //juiz
 					document.getElementById('swal-input6').value, //responsavel
 					document.getElementById('swal-input7').value, //assinar
-					document.getElementById('swal-input8').value, //cor					
-					document.getElementById('swal-input9').value, //visibilidade					
+					document.getElementById('swal-input8').value, //cor
+					document.getElementById('swal-input9').value, //visibilidade
 					document.getElementById('swal-input_vinculo')?.value, //vinculo
 					document.getElementById('swal-input_comandosEspeciais').value, //comandos especiais
-					
+
 				]
 			}
 		});
@@ -6397,19 +6751,19 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			document.getElementById("botoes_despacho").textContent = '';
 			montarBotoesaaDespacho();
 		}
-	} else if (tipo == "movimento") {		
+	} else if (tipo == "movimento") {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Nome do Botão </span>' + 
+			'<span style="font-weight: bold;"> Nome do Botão </span>' +
 			'<input id="swal-input1" class="swal2-input" value="' + aaMovimento_temp[id].nm_botao + '">' +
-			'<span style="font-weight: bold;"> Nome do Nó de destino <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>Aceita as expressões:</p><p><b>[?]</b> : onde "?" deverá ser preenchido com o nome de um botão a ser clicado quando o processo chegar no destino</p><p><b>[parar]</b> : que impedirá o fechamento automático da tarefa, deixando essa ação para o usuário, quando o processo chegar ao seu destino</p><p><b>[cancelar conclusão]</b> : comando especial que cancela a conclusão de processos que estejam na tarefa Elaborar Despacho e que não possuam minuta preenchida.</p><p><b>Sobrestamento[#,*,*,*,*,*,*,...]</b> : onde <b>#</b> deverá ser preenchido com o tipo de sobrestamento a ser escolhido e o <b>*</b>, que poderão ser vários, deverão ser preenchidos com a resposta dos campos que irão aparecendo. Por exemplo: a Reunião da execução exige o campo "número de processo", logo o "*" deverá ser preenchido com um número de processo.</p><p style="text-indent:2.8vw;">Também é possível utilizar no lugar do <b>*</b> as expressões abaixo:</p><p><b>[perguntar]</b> : abre uma caixa de pergunta para o usuário digitar o número do processo referência.</p><p><b>[corrigir data]</b> : abre uma caixa de pergunta para o usuário digitar a data final do sobrestamento.</p><p><b>[Atualizar1ano]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 12 meses</p><p><b>[Atualizar2anos]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 24 meses</p><p><b>[AtualizarDataEspecifica ?]</b> : Este comando atualizará o prazo do sobrestamento para a data <b>?</b>,onde <b>?</b> deverá ser preenchido com uma data fixa, no padrão dd/mm/aaaa, ou em meses, no padrão mm </p><p><b>[AtualizarDataPerguntar]</b> : Este comando atualizará o prazo do sobrestamento para a data preenchida no momento do lançamento</p><p><b>[AtualizarDataPeloGIGS]</b> : Este comando atualizará o prazo do sobrestamento para o prazo encontrado nas atividades GIGS. Se houver mais de um prazo, você deverá escolher o prazo desejado em 5 segundos, senão o primeiro prazo encontrado será utilizado.</p><p style="text-align: left;font-style: italic;"><u>Exemplo 1:</u> Sobrestamento[parar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 2:</u> Sobrestamento[(14971),ADC (362),0000000-00.0000.0.00.0000]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 3:</u>Sobrestamento[Atualizar1ano]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 4:</u> Sobrestamento[AtualizarDataPerguntar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 5:</u> Sobrestamento[AtualizarDataEspecifica 01/01/2024]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 6:</u> Sobrestamento[(50127),perguntar,corrigir data]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 7:</u> Sobrestamento[AtualizarDataEspecifica 06]</p></i></span>' + 
+			'<span style="font-weight: bold;"> Nome do Nó de destino <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left;color: darkcyan;"><br>Aceita as expressões:</p><p><b>[?]</b> : onde "?" deverá ser preenchido com o nome de um botão a ser clicado quando o processo chegar no destino</p><p><b>[parar]</b> : que impedirá o fechamento automático da tarefa, deixando essa ação para o usuário, quando o processo chegar ao seu destino</p><p><b>[cancelar conclusão]</b> : comando especial que cancela a conclusão de processos que estejam na tarefa Elaborar Despacho e que não possuam minuta preenchida.</p><p><b>Sobrestamento[#,*,*,*,*,*,*,...]</b> : onde <b>#</b> deverá ser preenchido com o tipo de sobrestamento a ser escolhido e o <b>*</b>, que poderão ser vários, deverão ser preenchidos com a resposta dos campos que irão aparecendo. Por exemplo: a Reunião da execução exige o campo "número de processo", logo o "*" deverá ser preenchido com um número de processo.</p><p style="text-indent:2.8vw;">Também é possível utilizar no lugar do <b>*</b> as expressões abaixo:</p><p><b>[perguntar]</b> : abre uma caixa de pergunta para o usuário digitar o número do processo referência.</p><p><b>[corrigir data]</b> : abre uma caixa de pergunta para o usuário digitar a data final do sobrestamento.</p><p><b>[Atualizar1ano]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 12 meses</p><p><b>[Atualizar2anos]</b> : Este comando atualizará o prazo do sobrestamento pelo período de 24 meses</p><p><b>[AtualizarDataEspecifica ?]</b> : Este comando atualizará o prazo do sobrestamento para a data <b>?</b>,onde <b>?</b> deverá ser preenchido com uma data fixa, no padrão dd/mm/aaaa, ou em meses, no padrão mm </p><p><b>[AtualizarDataPerguntar]</b> : Este comando atualizará o prazo do sobrestamento para a data preenchida no momento do lançamento</p><p><b>[AtualizarDataPeloGIGS]</b> : Este comando atualizará o prazo do sobrestamento para o prazo encontrado nas atividades GIGS. Se houver mais de um prazo, você deverá escolher o prazo desejado em 5 segundos, senão o primeiro prazo encontrado será utilizado.</p><p style="text-align: left;font-style: italic;"><u>Exemplo 1:</u> Sobrestamento[parar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 2:</u> Sobrestamento[(14971),ADC (362),0000000-00.0000.0.00.0000]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 3:</u>Sobrestamento[Atualizar1ano]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 4:</u> Sobrestamento[AtualizarDataPerguntar]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 5:</u> Sobrestamento[AtualizarDataEspecifica 01/01/2024]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 6:</u> Sobrestamento[(50127),perguntar,corrigir data]</p><p style="text-align: left;font-style: italic;"><u>Exemplo 7:</u> Sobrestamento[AtualizarDataEspecifica 06]</p></i></span>' +
 			'<input id="swal-input2" class="swal2-input" value="' + aaMovimento_temp[id].destino + '">' +
-			'<span style="font-weight: bold;"> Lançar Chip (nome) </span>' + 
+			'<span style="font-weight: bold;"> Lançar Chip (nome) </span>' +
 			'<input id="swal-input3" class="swal2-input" value="' + aaMovimento_temp[id].chip + '">' +
-			'<span style="font-weight: bold;"> Responsável pelo Processo </span>' + 
+			'<span style="font-weight: bold;"> Responsável pelo Processo </span>' +
 			'<input id="swal-input4" class="swal2-input" value="' + aaMovimento_temp[id].responsavel + '">' +
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input5" class="swal2-input" type="color" value="' + aaMovimento_temp[id].cor + '">' +
 			'<br><br><label class="container">' +
 			'<input type="checkbox" id="swal-input7" ' + (aaMovimento_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6441,40 +6795,40 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá "concluir" o Checklist de acordo com o seu nome, alterando o seu status para NENHUM, retirando o ALERTA e adicionando à descrição a expressão "Desativado em dia-de-hoje".<br>Atenção, que o nome do Checklist fica reduzido depois de lançado, <u>VOCÊ DEVE USAR O NOME REDUZIDO</u>.<br><br><p style="text-align: center;font-style: italic;">Ex: o tipo <b>SERASAJUD/SERASA</b> depois de lançado vira <b>Serasa</b></u></p></i></span>' + 
+			'<span style="font-weight: bold;"> Nome do Botão <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>aceita a expressão <b>[concluir]</b> que irá "concluir" o Checklist de acordo com o seu nome, alterando o seu status para NENHUM, retirando o ALERTA e adicionando à descrição a expressão "Desativado em dia-de-hoje".<br>Atenção, que o nome do Checklist fica reduzido depois de lançado, <u>VOCÊ DEVE USAR O NOME REDUZIDO</u>.<br><br><p style="text-align: center;font-style: italic;">Ex: o tipo <b>SERASAJUD/SERASA</b> depois de lançado vira <b>Serasa</b></u></p></i></span>' +
 			'<input id="swal-input1" class="swal2-input" value="' + aaChecklist_temp[id].nm_botao + '">' +
-			'<span style="font-weight: bold;"> Tipo </span>' + 
+			'<span style="font-weight: bold;"> Tipo </span>' +
 			'<input id="swal-input2" class="swal2-input" value="' + aaChecklist_temp[id].tipo + '">' +
-			'<span style="font-weight: bold;"> Observação <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;">(aceita as expressões "perguntar" e "corrigir data")</i></span>' + 
+			'<span style="font-weight: bold;"> Observação <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;">(aceita as expressões "perguntar","corrigir data" e "clipboard")</i></span>' +
 			'<textarea id="swal-input3" class="swal2-textarea">' + aaChecklist_temp[id].observacao + '</textarea>' +
-			'<span style="font-weight: bold;"> Status </span>' + 
-			
-			'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nenhum"' + (aaChecklist_temp[id].estado.includes('nenhum') ? 'selected' : '')  + '> Nenhum </option>' + 
-				'<option value="negativo"' + (aaChecklist_temp[id].estado.includes('negativo') ? 'selected' : '')  + '> Negativo </option>' + 
-				'<option value="parcial"' + (aaChecklist_temp[id].estado.includes('parcial') ? 'selected' : '')  + '> Parcial </option>' + 
-				'<option value="positivo"' + (aaChecklist_temp[id].estado.includes('positivo') ? 'selected' : '')  + '> Positivo </option>' + 
-				'<option value="perguntar"' + (aaChecklist_temp[id].estado.includes('perguntar') ? 'selected' : '')  + '> Perguntar </option>' + 
+			'<span style="font-weight: bold;"> Status </span>' +
+
+			'<br><select id="swal-input4" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nenhum"' + (aaChecklist_temp[id].estado.includes('nenhum') ? 'selected' : '')  + '> Nenhum </option>' +
+				'<option value="negativo"' + (aaChecklist_temp[id].estado.includes('negativo') ? 'selected' : '')  + '> Negativo </option>' +
+				'<option value="parcial"' + (aaChecklist_temp[id].estado.includes('parcial') ? 'selected' : '')  + '> Parcial </option>' +
+				'<option value="positivo"' + (aaChecklist_temp[id].estado.includes('positivo') ? 'selected' : '')  + '> Positivo </option>' +
+				'<option value="perguntar"' + (aaChecklist_temp[id].estado.includes('perguntar') ? 'selected' : '')  + '> Perguntar </option>' +
 			'</select><br>' +
-			
+
 			// '<input id="swal-input4" class="swal2-input" value="' + aaChecklist_temp[id].estado + '">' +
-			'<span style="font-weight: bold;"> Alerta </span>' + 
-			
-			'<br><select id="swal-input5" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaChecklist_temp[id].alerta.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaChecklist_temp[id].alerta.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
-			'</select><br>' +			
-			
-			// '<input id="swal-input5" class="swal2-input" value="' + aaChecklist_temp[id].alerta + '">' +
-			'<span style="font-weight: bold;"> Salvar </span>' + 
-			
-			'<br><select id="swal-input6" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-				'<option value="nao"' + (aaChecklist_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' + 
-				'<option value="sim"' + (aaChecklist_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' + 
+			'<span style="font-weight: bold;"> Alerta </span>' +
+
+			'<br><select id="swal-input5" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaChecklist_temp[id].alerta.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaChecklist_temp[id].alerta.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
 			'</select><br>' +
-			
+
+			// '<input id="swal-input5" class="swal2-input" value="' + aaChecklist_temp[id].alerta + '">' +
+			'<span style="font-weight: bold;"> Salvar </span>' +
+
+			'<br><select id="swal-input6" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaChecklist_temp[id].salvar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaChecklist_temp[id].salvar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
+			'</select><br>' +
+
 			// '<input id="swal-input6" class="swal2-input" value="' + aaChecklist_temp[id].salvar + '">' +
-			'<span style="font-weight: bold;"> Cor do Botão </span>' + 
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
 			'<input id="swal-input7" class="swal2-input" type="color" value="' + aaChecklist_temp[id].cor + '">' +
 			'<br><br><label class="container">' +
 			'<input type="checkbox" id="swal-input9" ' + (aaChecklist_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
@@ -6505,54 +6859,135 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			document.getElementById("botoes_checklist").textContent = '';
 			montarBotoesaaChecklist();
 		}
+	} else if (tipo == "nomearPerito") {
+
+        // if (!aaNomearPerito_temp[id].tipo_prazo) { aaNomearPerito_temp[id].tipo_prazo = 'dias úteis' }
+		const { value: result } = await Swal.fire({
+			title: '    ',
+			html:
+			'<span style="font-weight: bold;"> Nome do Botão </span>' +
+			'<input id="swal-input1" class="swal2-input" value="' + aaNomearPerito_temp[id].nm_botao + '">' +
+			'<span style="font-weight: bold;"> Tipo </span>' +
+			'<input id="swal-input2" class="swal2-input" value="' + aaNomearPerito_temp[id].profissao + '">' +
+			'<span style="font-weight: bold;"> Perito </span>' +
+			'<input id="swal-input3" class="swal2-input" value="' + aaNomearPerito_temp[id].perito + '">' +
+            '<span style="font-weight: bold;"> Prazo </span><br>' +
+            '<span style="font-size: .8em;line-height: .8em;">Pode ser em número de dias úteis, uma data fixa ou dias corridos.<br>Para dias corridos, acrescente a expressão dc depois do prazo.<br><i style="color:cadetblue;">Por exemplo: <b>60dc</b> é igual a 60 dias corridos.<br><b>01/01/2027</b> é um prazo em dia fixo.<br><b>30</b> é igual a 30 dias úteis.<br></i></span>' +
+			'<input id="swal-input4" class="swal2-input" value="' + aaNomearPerito_temp[id].prazo + '">' +
+			'<span style="font-weight: bold;"> Designar </span>' +
+			'<br><select id="swal-input5" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaNomearPerito_temp[id].designar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaNomearPerito_temp[id].designar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
+			'</select><br>' +
+			'<span style="font-weight: bold;"> Modelo </span>' +
+			'<input id="swal-input6" class="swal2-input" value="' + aaNomearPerito_temp[id].modelo + '">' +
+			'<span style="font-weight: bold;"> Assinar </span>' +
+			'<br><select id="swal-input7" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+				'<option value="nao"' + (aaNomearPerito_temp[id].assinar.toLowerCase().includes('nao') ? 'selected' : '')  + '> Não </option>' +
+				'<option value="sim"' + (aaNomearPerito_temp[id].assinar.toLowerCase().includes('sim') ? 'selected' : '')  + '> Sim </option>' +
+			'</select><br>' +
+			'<span style="font-weight: bold;"> Cor do Botão </span>' +
+			'<input id="swal-input8" class="swal2-input" type="color" value="' + aaNomearPerito_temp[id].cor + '">' +
+			'<br><br><label class="container">' +
+			'<input type="checkbox" id="swal-input9" ' + (aaNomearPerito_temp[id].visibilidade.toLowerCase().includes('sim') ? 'checked' : '') + '><span style="position: relative; padding-right: 15px; top: 2px; margin-left: -10px; font-weight: bold;">Visível na Janela Detalhes?</span>' +
+			'</label>',
+			confirmButtonText: 'Salvar',
+			confirmButtonText: 'Salvar',
+			focusConfirm: false,
+			preConfirm: () => {
+				return [
+					document.getElementById('swal-input1').value,
+					document.getElementById('swal-input2').value,
+					document.getElementById('swal-input3').value,
+					document.getElementById('swal-input4').value,
+					document.getElementById('swal-input5').value,
+					document.getElementById('swal-input6').value,
+					document.getElementById('swal-input7').value,
+					document.getElementById('swal-input8').value,
+					document.getElementById('swal-input9').checked ? "sim" : "não"
+				]
+			}
+		});
+
+		if (result) {
+
+            let tipo_prazo = "";
+            let prazo = result[3]
+            if (prazo.toLowerCase().includes('dc')) {
+                tipo_prazo = "Dias Corridos";
+                prazo = prazo.replace('dc','');
+            } else if (prazo.search("/") > -1) {
+                tipo_prazo = "Data Certa";
+            } else {
+                tipo_prazo = "Dias Úteis";
+            }
+            console.log(prazo + ' : ' + tipo_prazo)
+
+			//   new AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, aa.tipo_prazo, designar, modelo, assinar, cor, vinculo, v);
+			aaNomearPerito_temp[id] = new AcaoAutomatizada_aaNomearPerito(result[0], result[1], result[2], prazo, tipo_prazo, result[4], result[5], result[6], result[7], result[8], result[9]);
+			salvarOpcoes();
+			document.getElementById("botoes_nomearPerito").textContent = '';
+			montarBotoesaaNomearPerito();
+		}
 	} else if (tipo == "variados") {
 		function texto_html() {
 			let var1 = '';
 			// console.log(aaVariados_temp[id].nm_botao)
-			switch (aaVariados_temp[id].nm_botao) {					
+			switch (aaVariados_temp[id].nm_botao) {
 				case 'Atalho F2':
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
-					'<span style="font-weight: bold;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
 				case 'Atalho F3':
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
-					'<span style="font-weight: bold;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
+					'</select>';
+					break
+				case 'Atalho F4':
+					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
+					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
+					'<span style="font-weight: bold;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
 				case 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado':
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					'<span style="font-weight: bold;"> Nome ou CPF do Advogado outorgado <br>' + 
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;"> Nome ou CPF do Advogado outorgado <br>' +
 					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* se usar o nome tenha certeza que a pesquisa do PJe resultará em apenas um resultado </i></span>' +
 					'<input id="swal-input2" class="swal2-input" value="' + aaVariados_temp[id].objeto.advogado + '" style="margin: 2px;">' +
-					'<span style="font-weight: bold;"> Nome ou CPF da PARTE outorgante <br>' + 
+					'<span style="font-weight: bold;"> Nome ou CPF da PARTE outorgante <br>' +
 					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* se usar o nome tenha certeza que a pesquisa do PJe resultará em apenas um resultado</i></span>' +
 					'<input id="swal-input3" class="swal2-input" value="' + aaVariados_temp[id].objeto.parte + '" style="margin: 2px;">' +
 					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>Temporizador</i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '" style="margin: 2px;">' +
-					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold; display:none;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
 				case 'Enviar Email':
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					'<span style="font-weight: bold;"> Configurações do Email <br>' + 
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;"> Configurações do Email <br>' +
 					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* é possível utilizar as variáveis do módulo 6</i></span>' +
 					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br><br>Destinatário</i></span>' +
 					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].objeto.destinatario + '" style="margin: 2px;">' +
@@ -6561,54 +6996,54 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>corpo</i></span>' +
 					'<textarea id="swal-input3" class="swal2-textarea" style="margin: 2px;">' + aaVariados_temp[id].objeto.corpo + '</textarea>' +
 					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>Assinatura</i></span>' +
-					'<textarea id="swal-input4" class="swal2-textarea" style="margin: 2px;">' + aaVariados_temp[id].objeto.assinatura + '</textarea>' + 
+					'<textarea id="swal-input4" class="swal2-textarea" style="margin: 2px;">' + aaVariados_temp[id].objeto.assinatura + '</textarea>' +
 					'<i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>Temporizador (em segundos)</i> <br>' +
 					'<i style="font-size: 0.6em;font-weight: normal;font-style: normal;text-align: left; color: darkred;">* Decorrido este tempo, a extensão irá clicar no botão ENVIAR email.</i></span>' +
 					'<input id="swal-input5" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '" style="margin: 2px;">' +
-					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-weight: bold; display:none;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
 				case 'DESPACHO>Rejeitar Prevenção':
 					let modeloRP = aaVariados_temp[id]?.objeto?.modelo ? aaVariados_temp[id].objeto.modelo : '';
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					'<span style="font-weight: bold;">Modelo</span>' + 
-					'<input id="swal-input1" class="swal2-input" value="' + modeloRP + '">' + 
-					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;">Modelo</span>' +
+					'<input id="swal-input1" class="swal2-input" value="' + modeloRP + '">' +
+					'<span style="font-weight: bold; display:none;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
 				case 'DESPACHO>Aceitar Prevenção':
 					// let modeloAP = aaVariados_temp[id]?.objeto?.modelo ? aaVariados_temp[id].objeto.modelo : '';
 					var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					// '<span style="font-weight: bold;">Modelo</span>' + 
-					// '<input id="swal-input1" class="swal2-input" value="' + modeloAP + '">' + 
-					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					// '<span style="font-weight: bold;">Modelo</span>' +
+					// '<input id="swal-input1" class="swal2-input" value="' + modeloAP + '">' +
+					'<span style="font-weight: bold; display:none;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
 					'</select>';
 					break
-				default:					
+				default:
 				var1 = '<span style="font-weight: bold;">' + aaVariados_temp[id].nm_botao + '</span><br><br>' +
-					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' + 
-					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' + 
-					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' + 
-					'<span style="font-weight: bold; display:none;"> Ativar </span>' + 
-					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' + 
-						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' + 
-						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' + 
-					'</select>';				
+					'<span style="font-size: .8em;color: darkcyan;">' + aaVariados_temp[id].descricao + '</span><br><br>' +
+					'<span style="font-weight: bold;"> Temporizador <br><i style="font-size: 0.8em;font-weight: normal;font-style: normal;text-align: left; color: darkcyan;"><br>tempo (em segundos) para executar a ação</i></span>' +
+					'<input id="swal-input1" class="swal2-input" value="' + aaVariados_temp[id].temporizador + '">' +
+					'<span style="font-weight: bold; display:none;"> Ativar </span>' +
+					'<br><select id="swal-input-ativar" class="swal2-select" style=" display:none;background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
+						'<option value="nao"' + (aaVariados_temp[id].ativar ? '' : 'selected')  + '> Não </option>' +
+						'<option value="sim"' + (aaVariados_temp[id].ativar ? 'selected' : '')  + '> Sim </option>' +
+					'</select>';
 			}
 			return var1;
 		}
-		
+
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html: texto_html(),
@@ -6633,13 +7068,13 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 						document.getElementById('swal-input3').value //parte
 					]
 
-				} else {					
+				} else {
 					return [
 						document.getElementById('swal-input1').value,
 						atv
 					]
 				}
-				
+
 			}
 		});
 
@@ -6648,7 +7083,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1], objeto:{destinatario:result[2],titulo:result[3],corpo:result[4],assinatura:result[5]} };
 			} else if (aaVariados_temp[id].nm_botao == 'RETIFICAR AUTUAÇÃO>Cadastrar Advogado') {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: result[0] , ativar: result[1], objeto:{advogado:result[2],parte:result[3]} };
-			} else if (aaVariados_temp[id].nm_botao == 'DESPACHO>Rejeitar Prevenção') {				
+			} else if (aaVariados_temp[id].nm_botao == 'DESPACHO>Rejeitar Prevenção') {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: 0 , ativar: result[1] , objeto:{modelo:result[0]}};
 			} else if (aaVariados_temp[id].nm_botao == 'DESPACHO>Aceitar Prevenção') {
 				aaVariados_temp[id] = {id: aaVariados_temp[id].id, nm_botao: aaVariados_temp[id].nm_botao , descricao: aaVariados_temp[id].descricao , temporizador: 0 , ativar: result[1] , objeto:{modelo:result[0]}};
@@ -6660,7 +7095,7 @@ async function modalEditorEditar(elemento_pai, tipo, id) {
 			montarBotoesaaVariados();
 		}
 	}
-}	
+}
 
 function gerarListaDeVinculos(lista_de_vinculos, tamanho = 10) {
 	let html = '';
@@ -6669,10 +7104,10 @@ function gerarListaDeVinculos(lista_de_vinculos, tamanho = 10) {
 		const index = i + 1;
 		html += '<div style="display: grid;grid-template-columns: 10% 80% 10%;margin: 10px 0;">' +
 				'<span style="font-size: 1.5em;margin: 10px 10px 0 0;color: orangered;font-style: italic;opacity: 0.5;">' + index + '</span>' +
-				'<button id="escolherAAVinculo' + index + '" aria-description="Escolha vínculo' + index + '" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' + 
+				'<button id="escolherAAVinculo' + index + '" aria-description="Escolha vínculo' + index + '" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
 				(lista_de_vinculos[i] ? lista_de_vinculos[i] : 'Nenhum') +
 				'</button>' +
-				
+
 				'<button id="apagar-escolherAAVinculo' + index + '"   data-tooltip="Remover vínculo ' + index + '" aria-label="Remover vínculo ' + index + '" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;">' +
 				'<i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>';
 	}
@@ -6681,9 +7116,9 @@ function gerarListaDeVinculos(lista_de_vinculos, tamanho = 10) {
 }
 
 async function modalEditorVinculo(elemento_pai, tipo, id) {
-	
+
 	let aaComVinculoEspecial;
-	
+
 	if (tipo == "anexar") {
 		aaComVinculoEspecial = aaAnexar_temp[id];
 	} else if (tipo == "comunicacao") {
@@ -6696,10 +7131,12 @@ async function modalEditorVinculo(elemento_pai, tipo, id) {
 		aaComVinculoEspecial = aaMovimento_temp[id];
 	} else if (tipo == "checklist") {
 		aaComVinculoEspecial = aaChecklist_temp[id];
+	} else if (tipo == "nomearPerito") {
+		aaComVinculoEspecial = aaNomearPerito_temp[id];
 	}
-	
+
 	let lista_de_vinculos = Array.isArray(aaComVinculoEspecial.vinculo) ? aaComVinculoEspecial.vinculo : aaComVinculoEspecial.vinculo.split(','); //transformo a string em array
-	
+
 	const { value: result } = await Swal.fire({
 		title: ' EDITAR VÍNCULOS ',
 		html:
@@ -6725,15 +7162,15 @@ async function modalEditorVinculo(elemento_pai, tipo, id) {
 		}
 	});
 
-	
+
 
 	if (result) {
-		
-		
+
+
 		//excluir os Nenhum's
 		let temp = [];
 		for (const [pos, opcao] of result.entries()) {
-			
+
 			if (opcao != "Nenhum") {
 				temp.push(opcao);
 			}
@@ -6741,9 +7178,9 @@ async function modalEditorVinculo(elemento_pai, tipo, id) {
 		}
 		temp.push("Nenhum");
 
-		
+
 		aaComVinculoEspecial.vinculo = temp;
-		
+
 		if (tipo == "anexar") {
 			aaAnexar_temp[id] = aaComVinculoEspecial;
 			salvarOpcoes();
@@ -6774,10 +7211,15 @@ async function modalEditorVinculo(elemento_pai, tipo, id) {
 			salvarOpcoes();
 			document.getElementById("botoes_checklist").textContent = '';
 			montarBotoesaaChecklist();
-		}		
-		
+		} else if (tipo == "nomearPerito") {
+			aaNomearPerito_temp[id] = aaComVinculoEspecial;
+			salvarOpcoes();
+			document.getElementById("botoes_nomearPerito").textContent = '';
+			montarBotoesaaNomearPerito();
+		}
+
 		// console.log(aaComVinculoEspecial)
-		
+
 	}
 }
 
@@ -6890,6 +7332,22 @@ function modalEditorClonar(elemento_pai, tipo, id) {
 				salvarOpcoes();
 				document.getElementById("botoes_checklist").textContent = '';
 				montarBotoesaaChecklist();
+			} else if (tipo == "nomearPerito") {
+				let aa = new AcaoAutomatizada_aaNomearPerito();
+				aa.nm_botao = aaNomearPerito_temp[id].nm_botao ? aaNomearPerito_temp[id].nm_botao : "";
+				aa.profissao = aaNomearPerito_temp[id].profissao ? aaNomearPerito_temp[id].profissao : "";
+				aa.perito = aaNomearPerito_temp[id].perito ? aaNomearPerito_temp[id].perito : "";
+				aa.prazo = aaNomearPerito_temp[id].prazo ? aaNomearPerito_temp[id].prazo : "";
+				aa.designar = aaNomearPerito_temp[id].designar ? aaNomearPerito_temp[id].designar : "";
+				aa.modelo = aaNomearPerito_temp[id].modelo ? aaNomearPerito_temp[id].modelo : "";
+				aa.assinar = aaNomearPerito_temp[id].assinar ? aaNomearPerito_temp[id].assinar : "";
+				aa.cor = aaNomearPerito_temp[id].cor ? aaNomearPerito_temp[id].cor : "";
+				aa.vinculo = aaNomearPerito_temp[id].vinculo ? aaNomearPerito_temp[id].vinculo : "";
+				aa.visibilidade = aaNomearPerito_temp[id].visibilidade ? aaNomearPerito_temp[id].visibilidade : "sim";
+				aaNomearPerito_temp.push(aa);
+				salvarOpcoes();
+				document.getElementById("botoes_nomearPerito").textContent = '';
+				montarBotoesaaNomearPerito();
 			}
 		}
 	})
@@ -6936,6 +7394,11 @@ function modalEditorExcluir(elemento_pai, tipo, id) {
 				salvarOpcoes();
 				document.getElementById("botoes_checklist").textContent = '';
 				montarBotoesaaChecklist();
+			} else if (tipo == "nomearPerito") {
+				aaNomearPerito_temp.splice(id, 1);
+				salvarOpcoes();
+				document.getElementById("botoes_nomearPerito").textContent = '';
+				montarBotoesaaNomearPerito();
 			}
 		}
 	})
@@ -6964,10 +7427,12 @@ function modalEditorExportar(elemento_pai, tipo, id) {
 				 copiarDados(aaMovimento_temp[id]);
 			} else if (tipo == "checklist") {
 				 copiarDados(aaChecklist_temp[id]);
+			} else if (tipo == "nomearPerito") {
+				copiarDados(aaNomearPerito_temp[id]);
 			}
 		}
 	})
-	
+
 	function copiarDados(dados) {
 		var textarea = document.createElement("textarea");
 		textarea.textContent = JSON.stringify(dados);
@@ -6975,7 +7440,7 @@ function modalEditorExportar(elemento_pai, tipo, id) {
 		textarea.select();
 		document.execCommand("copy");
 		document.body.removeChild(textarea);
-		
+
 		Swal.fire({
 		  position: 'center',
 		  icon: 'success',
@@ -6998,7 +7463,7 @@ function aa_eliminarUndefined() {
 		item.cor = (typeof(item.cor) == "undefined" || item.cor == "undefined") ? "" : item.cor;
 		item.vinculo = (typeof(item.vinculo) == "undefined" || item.vinculo == "undefined") ? "Nenhum" : item.vinculo;
 	});
-	
+
 	//aaComunicacao_temp
 	let teste2 = [].map.call(aaComunicacao_temp,function(item) {
 		item.nm_botao = (typeof(item.nm_botao) == "undefined" || item.nm_botao == "undefined") ? "" : item.nm_botao;
@@ -7012,7 +7477,7 @@ function aa_eliminarUndefined() {
 		item.cor = (typeof(item.cor) == "undefined" || item.cor == "undefined") ? "" : item.cor;
 		item.vinculo = (typeof(item.vinculo) == "undefined" || item.vinculo == "undefined") ? "Nenhum" : item.vinculo;
 	});
-	
+
 	//aaAutogigs_temp
 	let teste3 = [].map.call(aaAutogigs_temp,function(item) {
 		item.nm_botao = (typeof(item.nm_botao) == "undefined" || item.nm_botao == "undefined") ? "" : item.nm_botao;
@@ -7026,7 +7491,7 @@ function aa_eliminarUndefined() {
 		item.cor = (typeof(item.cor) == "undefined" || item.cor == "undefined") ? "" : item.cor;
 		item.vinculo = (typeof(item.vinculo) == "undefined" || item.vinculo == "undefined") ? "Nenhum" : item.vinculo;
 	});
-	
+
 	//aaDespacho_temp
 	let teste4 = [].map.call(aaDespacho_temp,function(item) {
 		item.nm_botao = (typeof(item.nm_botao) == "undefined" || item.nm_botao == "undefined") ? "" : item.nm_botao;
@@ -7037,9 +7502,9 @@ function aa_eliminarUndefined() {
 		item.juiz = (typeof(item.juiz) == "undefined" || item.juiz == "undefined") ? "" : item.juiz;
 		item.responsavel = (typeof(item.responsavel) == "undefined" || item.responsavel == "undefined") ? "" : item.responsavel;
 		item.cor = (typeof(item.cor) == "undefined" || item.cor == "undefined") ? "" : item.cor;
-		item.vinculo = (typeof(item.vinculo) == "undefined" || item.vinculo == "undefined") ? "Nenhum" : item.vinculo;	
+		item.vinculo = (typeof(item.vinculo) == "undefined" || item.vinculo == "undefined") ? "Nenhum" : item.vinculo;
 	});
-	
+
 	//aaMovimento_temp
 	let teste5 = [].map.call(aaMovimento_temp,function(item) {
 		item.nm_botao = (typeof(item.nm_botao) == "undefined" || item.nm_botao == "undefined") ? "" : item.nm_botao;
@@ -7049,7 +7514,7 @@ function aa_eliminarUndefined() {
 		item.cor = (typeof(item.cor) == "undefined" || item.cor == "undefined") ? "" : item.cor;
 		item.vinculo = (typeof(item.vinculo) == "undefined" || item.vinculo == "undefined") ? "Nenhum" : item.vinculo;
 	});
-	
+
 	//aaChecklist_temp
 	let teste6 = [].map.call(aaChecklist_temp,function(item) {
 		//(nm_botao, tipo, observacao, estado, alerta, salvar, cor, vinculo)
@@ -7066,18 +7531,18 @@ function aa_eliminarUndefined() {
 
 function atualizaMonitor(ref) {
 	return new Promise(resolver => {
-		//altera a imagem do monitor	
+		//altera a imagem do monitor
 		if (ref.indexOf("gigsMonitorDetalhes") != -1) {
 			let contador = 0;
 			for(let monitor of monitores) {
-				
+
 				let nome_img = "../icons/horizontal-screen";
 				if (Math.floor(monitor.height) > Math.floor(monitor.width)) {
 					nome_img = "../icons/vertical-screen";
 				}
-				
+
 				if (ref.indexOf(contador) == -1) {
-					document.getElementById('img_gigsMonitorDetalhes' + contador).src = nome_img + ".png";				
+					document.getElementById('img_gigsMonitorDetalhes' + contador).src = nome_img + ".png";
 				} else {
 					document.getElementById('img_' + ref).src = nome_img + "_d.png";
 				}
@@ -7086,14 +7551,14 @@ function atualizaMonitor(ref) {
 		} else if (ref.indexOf("gigsMonitorTarefas") != -1) {
 			let contador = 0;
 			for(let monitor of monitores) {
-				
+
 				let nome_img = "../icons/horizontal-screen";
 				if (Math.floor(monitor.height) > Math.floor(monitor.width)) {
 					nome_img = "../icons/vertical-screen";
 				}
-				
+
 				if (ref.indexOf(contador) == -1) {
-					document.getElementById('img_gigsMonitorTarefas' + contador).src = nome_img + ".png";				
+					document.getElementById('img_gigsMonitorTarefas' + contador).src = nome_img + ".png";
 				} else {
 					document.getElementById('img_' + ref).src = nome_img + "_t.png";
 				}
@@ -7102,14 +7567,14 @@ function atualizaMonitor(ref) {
 		} else if (ref.indexOf("gigsMonitorGigs") != -1) {
 			let contador = 0;
 			for(let monitor of monitores) {
-				
+
 				let nome_img = "../icons/horizontal-screen";
 				if (Math.floor(monitor.height) > Math.floor(monitor.width)) {
 					nome_img = "../icons/vertical-screen";
 				}
-				
+
 				if (ref.indexOf(contador) == -1) {
-					document.getElementById('img_gigsMonitorGigs' + contador).src = nome_img + ".png";				
+					document.getElementById('img_gigsMonitorGigs' + contador).src = nome_img + ".png";
 				} else {
 					document.getElementById('img_' + ref).src = nome_img + "_g.png";
 				}
@@ -7123,7 +7588,7 @@ function atualizaMonitor(ref) {
 async function criarOpcaoMonitor(divPai, monitor, contador, monitorSelecionado, nomeOpcao) {
 	let altura = Math.floor(monitor.height / 8);
 	let largura = Math.floor(monitor.width / 8);
-		
+
 	let vertical = false; //200 X 200
 	if (altura > largura) {
 		vertical = true //200 X 250
@@ -7133,27 +7598,27 @@ async function criarOpcaoMonitor(divPai, monitor, contador, monitorSelecionado, 
 		altura = 200;
 		largura = 200;
 	}
-		
+
 	//----criar radio button
 	let radio = document.createElement('input');
-	
+
 	radio.id = nomeOpcao + contador;
 	radio.type = 'radio';
 	radio.name = nomeOpcao;
 	radio.value = contador;
 	radio.class = 'radio';
-	radio.style = 'width: ' + largura + 'px; height: ' + altura + 'px; cursor: pointer;';	
-	radio.onclick = async function() { 
+	radio.style = 'width: ' + largura + 'px; height: ' + altura + 'px; cursor: pointer;';
+	radio.onclick = async function() {
 		await atualizaMonitor(this.id);
 		salvarOpcoes();
 	}
-	
+
 	//----criar imagem do monitor
-	let arquivo = "../icons/horizontal-screen.png";	
+	let arquivo = "../icons/horizontal-screen.png";
 	if (altura > largura) {
 		arquivo = "../icons/vertical-screen.png";
 	}
-	
+
 	//----se for o monitor selecionado ele muda a imagem
 	if(contador == monitorSelecionado) {
 		radio.checked = true;
@@ -7173,20 +7638,20 @@ async function criarOpcaoMonitor(divPai, monitor, contador, monitorSelecionado, 
 			} else if (nomeOpcao == "gigsMonitorGigs") {
 				arquivo = "../icons/horizontal-screen_g.png";
 			}
-		} 
+		}
 	}
-	
+
 	var img = new Image(largura, altura);
 	img.src = arquivo;
 	img.id = "img_" + nomeOpcao + contador;
-	
-	
+
+
 	//----adicionao o radio button e a imagem no div
 	divPai.appendChild(radio);
 	divPai.appendChild(img);
 }
 
-function tutoriais() {	
+function tutoriais() {
 	Swal.fire({
 		title: 'Tutoriais',
 		icon: 'question',
@@ -7225,9 +7690,9 @@ function tutoriais() {
 		showCancelButton: false,
 		showConfirmButton: false
 	});
-	
+
 	document.querySelector('select[class*="swal2-select"]').addEventListener('change', function(event) {
-		switch (event.target.value) {					
+		switch (event.target.value) {
 			case '1':
 				apresentarVideo('Instalação', 'https://www.youtube.com/embed/GHZbC45fAuw');
 				break
@@ -7266,7 +7731,7 @@ function tutoriais() {
 				break
 			case '13':
 				apresentarVideo('Versão 4.6.3', 'https://www.youtube.com/embed/6tU6UuCdGN4');
-				break			
+				break
 			case '14':
 				apresentarVideo('Versão 4.6.3.2 - Baixar documentos (apenas os selecionados)', 'https://www.youtube.com/embed/i_PYDJHtPrk');
 				break
@@ -7308,12 +7773,12 @@ function tutoriais() {
 				break
 		}
 	});
-	
+
 	function apresentarVideo(titulo, endereco) {
 		titulo = titulo.toUpperCase();
 		Swal.fire({
 			title: '<strong>TUTORIAL ' + titulo + '</strong>',
-			
+
 			html: '<iframe width="560" height="315" src="' + endereco + '?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>',
 			width: 800,
 			padding: '3em',
@@ -7321,18 +7786,18 @@ function tutoriais() {
 			showCancelButton: false,
 			showConfirmButton: false,
 			focusConfirm: false
-		});		
+		});
 	}
-	
+
 }
 
 async function testarMonitores() {
 	document.getElementById("overlay").style.display = "flex";
-	
+
 	function sleep(ms) {
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
-	
+
 	function registrarMonitor(janela, listaMonitor, posicao) {
 		console.log("         _________________________________________________");
 		console.log("        |         Monitor Encontrado à " + posicao + "!          ");
@@ -7349,7 +7814,7 @@ async function testarMonitores() {
 		console.log("        |_________________________________________________");
 		listaMonitor.push(params);
 	}
-	
+
 	let listaMonitor = [];
 	//teste de popup habilitado
 	let janelaTeste = window.open('','_blank','top=500, left=0, width=100, height=100');
@@ -7362,21 +7827,21 @@ async function testarMonitores() {
 	} else {
 		janelaTeste.close();
 	}
-	
+
 	await sleep(20);
-	
+
 	console.log('***MaisPje: Testar monitores para a esquerda');
 	let limite_tela = 0; //primeiro monitor o limite da tela à esquerda é zero.
 	let limite_tela_anterior = 0;
 	let posX_anterior = -100;
-	let salto = true;	
-	
+	let salto = true;
+
 	while (true) { //movimenta a janela para o limite da tela e tenta um salto...
 		let janela = window.open('','_blank','top=500, left=' + limite_tela + ', width=100, height=100'); //abre nova janela dando um salto
 		await sleep(20);
-		
+
 		if (salto) {
-			console.log("          tamanho_tela: " + janela.screen.availWidth + "   limite_tela: " + limite_tela + "(" + limite_tela_anterior + ")" + "   posX: " + janela.screenX + "(" + posX_anterior + ")"); 
+			console.log("          tamanho_tela: " + janela.screen.availWidth + "   limite_tela: " + limite_tela + "(" + limite_tela_anterior + ")" + "   posX: " + janela.screenX + "(" + posX_anterior + ")");
 			//verifica se já chegou no limite de monitoresHandler
 			if (posX_anterior == janela.screenX) {
 				janela.close();
@@ -7384,7 +7849,7 @@ async function testarMonitores() {
 			} else {
 				//registra o monitor
 				registrarMonitor(janela, listaMonitor, "esquerda");
-				
+
 				//tenta dar um salto novo
 				posX_anterior = janela.screenX;
 				limite_tela_anterior = limite_tela;
@@ -7401,13 +7866,13 @@ async function testarMonitores() {
 		}
 	}
 	console.log("***fim testes para esquerda");
-	
+
 	console.log('***MaisPje: Testar monitores para a direita');
 	limite_tela = 500; //primeiro monitor o limite da tela à direita é o tamanho da janela, como eu não tenho janela vou começar em 500 e ajustar o salto para false.
 	limite_tela_anterior = 0;
 	posX_anterior = 0;
-	salto = false;	
-	
+	salto = false;
+
 	while (true) { //movimenta a janela para o limite da tela e tenta um salto...
 		let janela = window.open('','_blank','top=500, left=' + limite_tela + ', width=100, height=100'); //abre nova janela dando um salto
 		await sleep(20);
@@ -7421,7 +7886,7 @@ async function testarMonitores() {
 				//registra o monitor
 				console.log("posX_anterior: " + posX_anterior)
 				if (posX_anterior > 500) {registrarMonitor(janela, listaMonitor, "direita")} //esse if serve para ignorar o monitor padrão que já foi cadastrado no teste de monitores à esquerda
-				
+
 				//tenta dar um salto novo
 				posX_anterior = janela.screenX;
 				limite_tela_anterior = limite_tela;
@@ -7438,29 +7903,29 @@ async function testarMonitores() {
 		}
 	}
 	console.log("***fim testes para direita");
-	
+
 	listaMonitor.sort(function(a,b) {
 		return a.left - b.left;
 	});
-	
+
 	document.getElementById("overlay").style.display = "none";
 	console.log("Monitores encontrados: " + listaMonitor.length);
 	return Promise.resolve(listaMonitor);
 }
 
-function gerarItensPopupNovidades(novidades) {  
+function gerarItensPopupNovidades(novidades) {
     const reversedArray = [];
-  
+
     for (let i = novidades.length - 1; i >= 0; i--) {
       const entry = novidades[i];
-  
+
       const formattedDate = entry.date
-  
+
       let changesHtml = '<div><ol>';
 	  let correcaoTemp = [];
 	  let melhoriaTemp = [];
       entry.changes.forEach((change, index) => {
-		
+
 		if (change.includes('Melhoria:')) {
 			change = change.replace('Melhoria:','<span style="opacity: .6;padding: 2px 5px;font-style: normal;background-color: mediumseagreen;color: white;margin-right: 5px;border-radius: 5px;">MELHORIA</span>');
 			melhoriaTemp.push(change);
@@ -7473,8 +7938,8 @@ function gerarItensPopupNovidades(novidades) {
 		}
 
 
-		
-		
+
+
 		// changesHtml += `<li>${change}</li>`;
       });
 
@@ -7488,16 +7953,16 @@ function gerarItensPopupNovidades(novidades) {
 
 
       changesHtml += '</ol></div>';
-  
+
       const item = {
         title: `<strong>Versão ${entry.version}</strong>`,
         html: `<div><b>${formattedDate}</b><br><br></div><div style="text-align: left;"><i>${changesHtml}</i></div>`,
         confirmButtonText: 'Versão anterior &rarr;'
       };
-  
+
       reversedArray.push(item);
     }
-  
+
     return reversedArray;
   }
 
@@ -7525,16 +7990,16 @@ function montarNovidades(autoplay, novidades) {
 			showCancelButton: true,
 			width: '80%'
 		}).queue(novidades).then((result) => {
-			
+
 		})
-		
+
 		let dv = document.createElement("div");
 		dv.style = "position: absolute;top: 10px;right: 10px;";
 		let ck = document.createElement("input");
 		ck.type = "checkbox";
 		ck.id = "novidades_MarcarComoLido";
 		ck.checked = autoplay;
-		
+
 		ck.onclick = function() {
 			///preferencias.videoAtualizacao
 			let var1_urls = browser.storage.local.set({'videoAtualizacao': this.checked});
@@ -7543,32 +8008,33 @@ function montarNovidades(autoplay, novidades) {
 				document.querySelector('button[class*="swal2-cancel"]').click();
 			});
 		}
-		
+
 		dv.appendChild(ck);
 		let sp = document.createElement("label");
 		sp.innerText = 'Marcar como Lido';
 		sp.setAttribute("for", "novidades_MarcarComoLido");
 		dv.appendChild(sp);
 		document.querySelector('div[class*="swal2-popup"]').appendChild(dv);
-	};	
+	};
 	let i = document.createElement("i");
 	i.className = "icone novidades-list t16";
 	i.style = "background-color: white;";
 	span.appendChild(i);
 	elemento_base.parentElement.insertBefore(span, elemento_base);
-		
+
 	if (!autoplay) {setTimeout(function() {span.click()}, 500);}
 }
 
 async function salvarConfig() {
-	
-	let limpar_residuos = browser.storage.local.set({'processo_memoria': '','impressoraVirtual': [],'temp_expediente_especial': '','tempAR': '','tempAuto': '','tempBt': '','tempF2': ''});
+
+	let limpar_residuos = browser.storage.local.set({'processo_memoria': '','impressoraVirtual': [],'temp_expediente_especial': '','tempAR': '','tempAuto': '','tempBt': '','tempF2': '','tempF3': '','tempF4': ''});
 	Promise.all([limpar_residuos]).then(async values => {
-		
+
+		preferencias =	await browser.storage.local.get(null);
 		const { value: result } = await Swal.fire({
 			title: '    ',
 			html:
-			'<span style="font-weight: bold;"> Copie estes dados e salve em um arquivo de texto para recuperá-lo mais tarde. </span><br><br>' + 
+			'<span style="font-weight: bold;"> Copie estes dados e salve em um arquivo de texto para recuperá-lo mais tarde. </span><br><br>' +
 			'<textarea id="swal-input1" class="swal2-input" style="height: 500px;font-family: inherit;line-height: 1.5em;margin:0;">***' + new Date().toLocaleDateString() + '***' + JSON.stringify(preferencias) + '</textarea>',
 			confirmButtonText: 'Copiar',
 			focusConfirm: false,
@@ -7578,7 +8044,7 @@ async function salvarConfig() {
 				]
 			}
 		});
-		
+
 		if (result) {
 			document.getElementById('swal-input1').select();
 			document.execCommand("copy");
@@ -7591,14 +8057,14 @@ async function salvarConfig() {
 			})
 		}
 	});
-	
+
 }
 
 async function recuperarConfig() {
 	const { value: result } = await Swal.fire({
 		title: '    ',
 		html:
-		'<span style="font-weight: bold;"> Cole aqui as configurações para carregá-las.</span><br>' + 
+		'<span style="font-weight: bold;"> Cole aqui as configurações para carregá-las.</span><br>' +
 		'<textarea id="swal-input1" class="swal2-input" style="height: 500px;font-family: inherit;line-height: 1.5em;margin:0;"></textarea>',
 		confirmButtonText: 'Restaurar',
 		focusConfirm: false,
@@ -7608,22 +8074,22 @@ async function recuperarConfig() {
 			return [configuracoes]
 		}
 	});
-	
+
 	let printError = function(error) {
 		console.log(error.name + " : " + error.message);
 		alert(error.name + " : " + error.message);
 	}
-	
+
 	try {
 		if (result) {
 			if (result[0] != "") {
 				let padrao = /[\r\n]/gm;
 				let resultadoSemQuebrasDeLinha = result[0].replace(padrao,'');
 				preferencias = JSON.parse(resultadoSemQuebrasDeLinha);
-				await checarVariaveis(true);				
-			}		
+				await checarVariaveis(true);
+			}
 		}
-	} catch (e) {		
+	} catch (e) {
 		printError(e);
 	}
 }
@@ -7634,7 +8100,7 @@ function limpatela() {
 	document.getElementById("divMonitorTarefas").textContent = '';
 	document.getElementById("botoes_anexar_documentos").textContent = '';
 	document.getElementById("botoes_comunicacao").textContent = '';
-	document.getElementById("botoes_autogigs").textContent = '';	
+	document.getElementById("botoes_autogigs").textContent = '';
 	document.getElementById("botoes_despacho").textContent = '';
 	document.getElementById("botoes_movimento").textContent = '';
 	document.getElementById("botoes_checklist").textContent = '';
@@ -7657,10 +8123,10 @@ function parEimpar(escolha) {
 			teste = '';
 			break;
 	}
-	
-	let ancora = document.querySelectorAll('div[id="escolherProcessoFinal"] label[class="container"]');	
+
+	let ancora = document.querySelectorAll('div[id="escolherProcessoFinal"] label[class="container"]');
 	let map = [].map.call(
-		ancora, 
+		ancora,
 		function(elemento) {
 			if (teste.includes(elemento.innerText)) {
 				elemento.querySelector('input').checked = true;
@@ -7688,10 +8154,10 @@ function modulo5ParEimpar(escolha) {
 			break;
 	}
 	console.log(teste)
-	let ancora = document.querySelectorAll('#modulo5 label[class*="modulo5_parEimpar"]');	
+	let ancora = document.querySelectorAll('#modulo5 label[class*="modulo5_parEimpar"]');
 	let map = [].map.call(
-		ancora, 
-		function(elemento) {			
+		ancora,
+		function(elemento) {
 			console.log(elemento.innerText)
 			console.log(teste.includes(elemento.innerText.trim()))
 			if (teste.includes(elemento.innerText.trim())) {
@@ -7707,17 +8173,17 @@ async function abrirJanelaConfigURLs(configBase) {
 	console.log('abrirJanelaConfigURLs(' + (configBase?'com parametro':'sem parametro') + ')')
 
 	if (configBase) { preferencias.configURLs = configBase }
-	
+
 	console.log(preferencias.configURLs)
-	
+
 	if (!preferencias.configURLs) { return }
-	
+
 	await browser.storage.local.get(['trt','grau_usuario','versaoPje', 'oj_usuario', 'oj_usuarioId'], async function(result){
 		preferencias.trt = result.trt;
 		preferencias.grau_usuario = result.grau_usuario;
-		preferencias.versaoPje = result.versaoPje;		
-		preferencias.oj_usuario = result.oj_usuario;		
-		preferencias.oj_usuarioId = result.oj_usuarioId;		
+		preferencias.versaoPje = result.versaoPje;
+		preferencias.oj_usuario = result.oj_usuario;
+		preferencias.oj_usuarioId = result.oj_usuarioId;
 
 		let urlSiscondj = preferencias.configURLs.urlSiscondj;
 		let urlSAOExecucao = preferencias.configURLs.urlSAOExecucao;
@@ -7727,7 +8193,7 @@ async function abrirJanelaConfigURLs(configBase) {
 		let TRTDescricao = (!preferencias.num_trt) ? 'não identificado' : 'Tribunal Regional do Trabalho da ' + preferencias.num_trt + 'a Região';
 		preferencias.grau_usuario = (!preferencias.grau_usuario) ? 'não identificado' : preferencias.grau_usuario;
 		preferencias.versaoPje = (!preferencias.versaoPje) ? 'não identificado' : preferencias.versaoPje;
-		preferencias.oj_usuario = (!preferencias.oj_usuario) ? 'não identificado' : preferencias.oj_usuario;		
+		preferencias.oj_usuario = (!preferencias.oj_usuario) ? 'não identificado' : preferencias.oj_usuario;
 		preferencias.oj_usuarioId = (!preferencias.oj_usuarioId) ? 'não identificado' : preferencias.oj_usuarioId;
 
 		console.log("   |___ " + preferencias.trt);
@@ -7740,41 +8206,41 @@ async function abrirJanelaConfigURLs(configBase) {
 		console.log("   |___ " + preferencias.configURLs?.linksMenuLateral);
 		console.log("   |___ " + preferencias.oj_usuario);
 		console.log("   |___ " + preferencias.oj_usuarioId);
-		
-		
+
+
 		let { value: result2 } = await Swal.fire({
 			title: 'CONFIGURAÇÕES BÁSICAS',
 			html:
 				'<span style="color:lightgray;">As configurações básicas da extensão maisPJe são obtidas automaticamente na tela de login do PJe, sendo desnecessário qualquer registro prévio.<br><br>SEMPRE desconecte do PJe ao instalar/atualizar a extensão.</span><br><br>' +
 				`<dl style="display: flex; flex-direction: column; gap: 10px; flex-wrap: wrap; height: 20vh; text-align: left;">` +
 				'<div>' +
-				'<dt style="font-weight: normal;">URL padrão</dt>' + 
-				'<dd style="font-weight: normal;color:cadetblue !important;font-style: italic;">' + 
-				`<a href="https://${preferencias.trt}/${preferencias.grau_usuario}" target="_blank" rel="noopener">` + 
-					preferencias.trt + 
+				'<dt style="font-weight: normal;">URL padrão</dt>' +
+				'<dd style="font-weight: normal;color:cadetblue !important;font-style: italic;">' +
+				`<a href="https://${preferencias.trt}/${preferencias.grau_usuario}" target="_blank" rel="noopener">` +
+					preferencias.trt +
 				'</a></dd>' +
 				'</div><div>' +
-				'<dt>Instância</dt>' + 
+				'<dt>Instância</dt>' +
 				'<dd style="font-weight: normal;' + (preferencias.grau_usuario.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.grau_usuario + '</dd>' +
 				'</div><div>' +
-				'<dt>Versão do PJe</dt>' + 
-				'<dd style="font-weight: normal;' + (preferencias.versaoPje.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.versaoPje + '</dd>' + 
+				'<dt>Versão do PJe</dt>' +
+				'<dd style="font-weight: normal;' + (preferencias.versaoPje.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.versaoPje + '</dd>' +
 				'</div><div>' +
-				'<dt>Unidade do usuário</dt>' + 
-				'<dd style="font-weight: normal;' + (preferencias.oj_usuario.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.oj_usuario + '</dd>' + 
+				'<dt>Unidade do usuário</dt>' +
+				'<dd style="font-weight: normal;' + (preferencias.oj_usuario.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.oj_usuario + '</dd>' +
 				'</div><div>' +
-				'<dt>ID da Unidade</dt>' + 
-				'<dd style="font-weight: normal;' + (preferencias.oj_usuarioId.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.oj_usuarioId + '</dd>' + 
+				'<dt>ID da Unidade</dt>' +
+				'<dd style="font-weight: normal;' + (preferencias.oj_usuarioId.includes('não identificado') ? 'color:red;' : 'color:cadetblue;') + 'font-style: italic;">' + preferencias.oj_usuarioId + '</dd>' +
 				'</div>' +
-				'</dl><br>' + 
-				'<label for="swal-input3" style="font-weight: bold;"> Descrição: </label>' + 
+				'</dl><br>' +
+				'<label for="swal-input3" style="font-weight: bold;"> Descrição: </label>' +
 				'<input id="swal-input3" class="swal2-input" value="' + TRTDescricao + '" style="margin: 1vh 0 1vh 0;background-color: #ededed;color: #b3b3b3;" disabled>' +
-				'<label for="swal-input1" style="font-weight: bold;"> Siscondj: </label>' + 
+				'<label for="swal-input1" style="font-weight: bold;"> Siscondj: </label>' +
 				'<input id="swal-input1" class="swal2-input" value="' + urlSiscondj + '" style="margin: 1vh 0 1vh 0;">' +
-				'<label for="swal-input2" style="font-weight: bold;"> SAO Execução: </label>' + 
+				'<label for="swal-input2" style="font-weight: bold;"> SAO Execução: </label>' +
 				'<input id="swal-input2" class="swal2-input" value="' + urlSAOExecucao + '" style="margin: 1vh 0 1vh 0;">' +
 				'<span id="maisPje_configuracoes_basicas_restaurar_span" style="float: right;"><button id="maisPje_configuracoes_basicas_restaurar_a" style="all: unset; font-size: .8em;color: cadetblue;font-style: italic;cursor: pointer;">Restaurar</button></span>',
-				
+
 			focusConfirm: false,
 			confirmButtonText: 'Salvar',
 			width: 800,
@@ -7788,22 +8254,22 @@ async function abrirJanelaConfigURLs(configBase) {
 		});
 
 		if (result2) {
-			
+
 			let var1 = result2[2]
 			let var2 = result2[0];
 			let var3 = var2.substring(8,var2.search('.trt'));
 			let var4 = (result2[1].includes('?maisPje=true')) ? result2[1] : result2[1] + '?maisPje=true' ;
 			var4 = (!result2[1] || result2[1].includes('nenhum')) ? '' : var4;
-			
+
 			preferencias.configURLs = {
 				descricao: var1,
 				urlSiscondj: var2,
 				idSiscondj: var3,
 				urlSAOExecucao: var4
 			};
-			
+
 			let salvando = browser.storage.local.set({'configURLs': preferencias.configURLs});
-			
+
 			Promise.all([salvando]).then(values => {
 				let Toast = Swal.mixin({
 					toast: true,
@@ -7819,7 +8285,7 @@ async function abrirJanelaConfigURLs(configBase) {
 				Toast.fire({
 					icon: 'success',
 					title: 'Informações salvas com sucesso!'
-				})					
+				})
 			});
 		}
 	});
@@ -7829,14 +8295,14 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 	return new Promise(
 		resolver => {
 			if (!document.getElementById('maisPje_caixa_de_checkbox')) {
-										
+
 				// DESCRIÇÃO: REGRA DO TOOLTIP
 				if (!document.getElementById('maisPje_tooltip_fundo')) {
 					tooltip('fundo', true);
 				}
-				
+
 				let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-				
+
 				let elemento1 = document.createElement("div");
 				elemento1.id = 'maisPje_caixa_de_checkbox';
 				elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-size: 24px; font-weight: 500; font-family: "NunitoSans Regular", "Arial", sans-serif; text-align: center; flex-direction: column;';
@@ -7844,19 +8310,19 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 					if (e.target.id == "maisPje_caixa_de_checkbox") {
 						elemento1.remove();
 					}
-				}; //se clicar fora fecha a janela					
-				
+				}; //se clicar fora fecha a janela
+
 				let container = document.createElement("div");
 				container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
-				
+
 				let t = document.createElement("span");
 				t.style = "color: grey; border-bottom: 1px solid lightgrey;";
 				t.innerText = titulo;
 				container.appendChild(t);
-								
+
 				let containerCheboxes = document.createElement("div");
 				containerCheboxes.style = 'cursor: pointer; margin-top: 10px; padding: 10px; background-color: white; color: rgb(81, 81, 81); min-height: 40px;';
-				
+
 				for (const [pos, opcao] of listaDeOpcoes.entries()) {
 					let div = document.createElement("div");
 					div.style = "color: rgba(0, 0, 0, 0.87); margin: 1vh 0px 1vh 40%; text-align: left;display: grid;grid-template-columns: 1fr 10fr;align-items: center;min-height: 5vh;font-size: 20px;";
@@ -7874,9 +8340,9 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 					div.appendChild(lbl);
 					containerCheboxes.appendChild(div);
 				}
-				
+
 				container.appendChild(containerCheboxes);
-				
+
 				let bt_continuar = document.createElement("span");
 				bt_continuar.style = "color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
 				bt_continuar.innerText = "Salvar";
@@ -7898,59 +8364,12 @@ async function criarCaixaCheckBox(listaDeOpcoes=[],resultadoPadrao=[],titulo='Es
 				container.appendChild(bt_continuar);
 				elemento1.appendChild(container);
 				document.body.appendChild(elemento1);
-					
+
 			} else {
 				resolver(null);
 			}
 		}
 	);
-}
-
-async function forcarObterURLs(trt) {
-    return new Promise(async resolve => {
-		console.log('forcarObterURLs()');
-		let url = 'https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json';
-				
-		let configBase = await fetch(url).then(function (response) {  //configurações existentes do site
-			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-			console.log('FETCH: https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json')
-			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-			console.log('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-			console.log('~~~~ obtendo dados do ' + trt + '~~~~')
-			return response.json();
-		})
-		.then(data=>{
-			return data[trt] || null;
-		})
-		.catch(function (err) {
-			alert('maisPJE: erro ao acessar https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json');
-			return null;
-		});							
-			
-
-		// console.log(JSON.stringify(configBase))		
-		//guarda as novas configurações no storage				
-		await guardarValoresNoStorage(configBase);
-		// preferencias.configURLs = configBase;
-		return resolve(configBase);
-		
-    });
-
-
-}
-
-async function guardarValoresNoStorage(valor1) {
-	return new Promise(resolve => {
-		console.log('guardarValoresNoStorage()');
-		let guardarStorage1 = browser.storage.local.set({ 'configURLs': valor1 });
-		Promise.all([guardarStorage1]).then(values => {
-			abrirJanelaConfigURLs(valor1);
-			return resolve(true);
-		});
-	});
 }
 
 async function ajustarComandosEspeciaisDespacho(nomeBotao, comandosExistentes) {
@@ -7969,24 +8388,24 @@ async function ajustarComandosEspeciaisDespacho(nomeBotao, comandosExistentes) {
 			let json = comandosExistentes.split(';').map(elements => JSON.parse(`{"${elements?.split(':')?.join('":"')}"}`));
 			let objeto = Object.create({});
 			let map = [].map.call(
-				json, 
+				json,
 				function(obj) {
-					objeto = { ...objeto, ...obj}				
+					objeto = { ...objeto, ...obj}
 				}
-			);			
+			);
 			opcoes1 = (!objeto.intimar) ? 'não' : objeto.intimar;
 			opcoes2 = (!objeto.prazo) ? '' : objeto.prazo;
 			opcoes3 = (!objeto.enviarpec) ? 'não' : objeto.enviarpec;
 			opcoes4 = (!objeto.movimento) ? 'nenhum' : objeto.movimento;
-		}		
-		
+		}
+
 		let resposta = "[";
 		resposta += "intimar:" + opcoes1 + ";";
 		resposta += "prazo:" + opcoes2 + ";";
 		resposta += "enviarpec:" + opcoes3 + ";";
 		resposta += "movimento:" + opcoes4 + ";";
 		resposta += "]";
-		
+
 		console.log('          |_____ajustado para: ' + resposta);
 		return resolve(resposta);
 	});
@@ -8006,13 +8425,13 @@ async function ajustarComandosEspeciaisComunicacao(nomeBotao, comandosExistentes
 			comandosExistentes = comandosExistentes.replace(/(\[)|(\])/g,''); //tira os colchetes
 			comandosExistentes = comandosExistentes.replace('trt:','autoridade:'); //tira os colchetes
 			let ultimoCaractere = comandosExistentes.slice(-1); ////exclui o ultimo ponto e virgula, caso exista
-			if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }		
-			
-			let trt = 'trt' + preferencias.num_trt;			
+			if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }
+
+			let trt = 'trt' + preferencias.num_trt;
 			opcoes1 = (comandosExistentes.includes('ativo')) ? 'sim' : 'não'; //ativo
 			opcoes2 = (comandosExistentes.includes('passivo')) ? 'sim' : 'não'; //passivo
 			opcoes3 = (comandosExistentes.includes('terceiros')) ? 'sim' : 'não'; //terceiros
-			opcoes4 = (comandosExistentes.includes('assinar')) ? 'sim' : 'não'; //assinar			
+			opcoes4 = (comandosExistentes.includes('assinar')) ? 'sim' : 'não'; //assinar
 			opcoes5 = (comandosExistentes.includes(trt)) ? trt : 'não'; //trt
 			opcoes6 = 'não';
 
@@ -8024,8 +8443,8 @@ async function ajustarComandosEspeciaisComunicacao(nomeBotao, comandosExistentes
 				opcoes6 = autoridadeObtida;
 			}
 
-		}		
-		
+		}
+
 		let resposta = "[";
 		resposta += "ativo:" + opcoes1 + ";";
 		resposta += "passivo:" + opcoes2 + ";";
@@ -8034,7 +8453,7 @@ async function ajustarComandosEspeciaisComunicacao(nomeBotao, comandosExistentes
 		resposta += "trt:" + opcoes5 + ";";
 		resposta += "autoridade:" + opcoes6 + ";";
 		resposta += "]";
-		
+
 		console.log('          |_____ajustado para: ' + resposta);
 		return resolve(resposta);
 
@@ -8045,7 +8464,7 @@ document.addEventListener("DOMContentLoaded", iniciar);
 
 //verificar monitores
 document.getElementById("botao").addEventListener('click', async function(event) {
-	limpatela();	
+	limpatela();
 	preferencias.lista_monitores = await testarMonitores();
 	let contador = 0;
 	monitores = preferencias.lista_monitores;
@@ -8082,7 +8501,7 @@ document.getElementById("modulo6_ignorar").addEventListener('focusout', function
 	salvarOpcoes();
 });
 
-document.body.addEventListener("click", async function (event) {	
+document.body.addEventListener("click", async function (event) {
 	// console.log(event.target.id + ' : ' + event.target.tagName + ' --> ' + event.target.parentElement.id);
 
 	if (event.target.id.includes("escolherAAVinculo") && !event.target.id.includes("apagar")) {
@@ -8095,8 +8514,8 @@ document.body.addEventListener("click", async function (event) {
 		let limparStorage = browser.storage.local.remove('configURLs');
 		Promise.all([limparStorage]).then(async values => {
 			document.querySelector('.swal2-backdrop-show').click();
-			await forcarObterURLs(preferencias.num_trt);
-		});				
+			await obterUrlsConciliaJT(preferencias.num_trt, true);
+		});
 	}
 
 	function onButtonClickById(id, callback) {
@@ -8106,25 +8525,25 @@ document.body.addEventListener("click", async function (event) {
 			callback();
 		}
 	}
-	  
-	onButtonClickById('a#termoDeUso', () => {		
+
+	onButtonClickById('a#termoDeUso', () => {
 		browser.runtime.sendMessage({tipo: 'permissao'});
 		window.close();
 	});
-	
+
 	onButtonClickById('button#configURLs', () => abrirJanelaConfigURLs());
-	
+
 	onButtonClickById('#tutoriais', () => tutoriais());
 
 	if (event.target.id.includes("config_comandosEspeciais")) {
 		if (event.target.id.includes("apagar_")) {
 			event.target.previousSibling.value = '';
 			let nmBotao = document.querySelector('input[id="swal-inputNomeBotao"]');
-			nmBotao.value = nmBotao.value.replace(/\[(.*?)\]/g,'');			
+			nmBotao.value = nmBotao.value.replace(/\[(.*?)\]/g,'');
 			return;
 		}
 
-		let comandosExistentes = event.target.nextSibling.firstElementChild.value;		
+		let comandosExistentes = event.target.nextSibling.firstElementChild.value;
 
 		if (event.target.id.includes('Despacho')) {
 			let opcoes1 = 'não';
@@ -8136,13 +8555,13 @@ document.body.addEventListener("click", async function (event) {
 			if (comandosExistentes) {
 				comandosExistentes = comandosExistentes.replace(/(\[)|(\])/g,''); //tira os colchetes
 				let ultimoCaractere = comandosExistentes.slice(-1); ////exclui o ultimo ponto e virgula, caso exista
-				if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }		
+				if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }
 				let json = comandosExistentes.split(';').map(elements => JSON.parse(`{"${elements?.split(':')?.join('":"')}"}`));
 				let objeto = Object.create({});
 				let map = [].map.call(
-					json, 
+					json,
 					function(obj) {
-						objeto = { ...objeto, ...obj}				
+						objeto = { ...objeto, ...obj}
 					}
 				);
 				console.log(objeto)
@@ -8156,19 +8575,19 @@ document.body.addEventListener("click", async function (event) {
 			opcoes1 = await criarCaixaSelecao(['sim','não'],'Intimar?|Ativa a intimação das partes acerca do Despacho/Decisão/Sentença',opcoes1,'Continuar');
 			if (opcoes1 == 'sim') {
 				opcoes5 = await criarCaixaSelecao(['Todos','Polo Ativo','Polo Passivo','Polo Ativo + Polo Passivo','Perito'],'Destinatário|Escolha o(s) destinatário(s) da intimação:',opcoes5,'Continuar');
-				opcoes2 = await criarCaixaDePergunta('text','Prazo|Digite o prazo da intimação',opcoes2,'digite o número de dias','Continuar');				
+				opcoes2 = await criarCaixaDePergunta('text','Prazo|Digite o prazo da intimação',opcoes2,'digite o número de dias','Continuar');
 			} else {
 				opcoes2 = '';
 			}
 			opcoes3 = await criarCaixaSelecao(['sim','não'],'Enviar para o PEC?|Ativa o encaminhamento do processo para a tarefa PEC após a assinatura do juiz',opcoes3,'Continuar');
 			opcoes4 = await criarCaixaDePergunta('text', 'Movimentos|Lança automaticamente os códigos de movimento.\nNos casos de múltipla escolha separe os códigos por "-":\nExemplo: (12040)-(12037)-(11382)\nNos casos de escolha única que desencadeia novas opções, separe os códigos da sequência com vírgulas:\nExemplo: (196),(7639)',opcoes4,'Exemplo: (196),(7598)','Salvar');
 			opcoes4 = (!opcoes4) ? 'nenhum' : opcoes4;
-			
+
 			let resposta = "[";
 			resposta += "intimar:" + opcoes1 + ";";
 			resposta += "prazo:" + opcoes2 + ";";
 			resposta += "destinatario:" + opcoes5 + ";";
-			resposta += "enviarpec:" + opcoes3 + ";";			
+			resposta += "enviarpec:" + opcoes3 + ";";
 			resposta += "movimento:" + opcoes4 + ";";
 			resposta += "]";
 
@@ -8176,7 +8595,7 @@ document.body.addEventListener("click", async function (event) {
 			return;
 
 		} else if (event.target.id.includes('Comunicacao')) {
-			
+
 			let opcoes1 = 'não';
 			let opcoes2 = 'não';
 			let opcoes3 = 'não';
@@ -8187,16 +8606,16 @@ document.body.addEventListener("click", async function (event) {
 			if (comandosExistentes) {
 				comandosExistentes = comandosExistentes.replace(/(\[)|(\])/g,''); //tira os colchetes
 				let ultimoCaractere = comandosExistentes.slice(-1); ////exclui o ultimo ponto e virgula, caso exista
-				if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }		
+				if (ultimoCaractere == ';') { comandosExistentes = comandosExistentes.slice(0,-1) }
 				let json = comandosExistentes.split(';').map(elements => JSON.parse(`{"${elements?.split(':')?.join('":"')}"}`));
 				let objeto = Object.create({});
 				let map = [].map.call(
-					json, 
+					json,
 					function(obj) {
-						objeto = { ...objeto, ...obj}				
+						objeto = { ...objeto, ...obj}
 					}
 				);
-				
+
 				opcoes1 = objeto.ativo;
 				opcoes2 = objeto.passivo;
 				opcoes3 = objeto.terceiros;
@@ -8216,8 +8635,10 @@ document.body.addEventListener("click", async function (event) {
 			existeopcoes6 = await criarCaixaSelecao(['sim','não'],'Intimar Autoridade?|Seleciona a Autoridade como destinatário após a elaboração do ato agrupado\nDigite o nome da Autoridade que será pesquisada',existeopcoes6,'Continuar');
 			if (existeopcoes6 == 'sim') {
 				opcoes6 = await criarCaixaDePergunta('text', 'Nome da Autoridade',opcoes6,'Exemplo: Vara do Trabalho de Palhoça','Salvar');
+			} else {
+				opcoes6 = 'não';
 			}
-			
+
 			let resposta = "[";
 			resposta += "ativo:" + opcoes1 + ";";
 			resposta += "passivo:" + opcoes2 + ";";
@@ -8229,8 +8650,8 @@ document.body.addEventListener("click", async function (event) {
 
 			document.querySelector('#swal-input_comandosEspeciais').value = resposta;
 			return;
-		}		
-		
+		}
+
 	}
 
 	if (event.target.id.includes("atalhos_emoji")) {
@@ -8238,9 +8659,9 @@ document.body.addEventListener("click", async function (event) {
 		Swal.fire({
 			title: 'EMOJIS - clique para copiar',
 			html:
-				'<div id="copiarEmojis">' + 
+				'<div id="copiarEmojis">' +
 				'Pessoas' +
-				'<br>' + 
+				'<br>' +
 				'<i>😀</i> <i>😃</i> <i>😄</i> <i>😁</i> <i>😆</i> <i>😅</i> <i>🤣</i> <i>😂</i> <i>🥹</i> <i>🙂</i> <i>🙃</i> <i>😉</i> <i>😊</i> <i>😇</i> <i>🥰</i> <i>😍</i> <i>🤩</i> <i>😘</i> <i>😗</i> <i>☺️</i> <i>😚</i> <i>😙</i> <i>🥲</i> <i>😋</i> <i>😛</i> <i>😜</i> <i>🤪</i> <i>😝</i> <i>🤑</i> <i>🤗</i> <i>🫢</i> <i>🤭</i> <i>🤫</i> <i>🤔</i> <i>🙂‍↔️</i> <i>🙂‍↕️</i> <i>🫡</i> <i>🤐</i> <i>🤨</i> <i>😐️</i> <i>😑</i> <i>😶</i> <i>😏</i> <i>😒</i> <i>🙄</i> <i>😬</i> <i>🤥</i> <i>😌</i> <i>😔</i> <i>😪</i> <i>😮‍💨</i> <i>🤤</i> <i>😴</i> <i>😷</i> <i>🤒</i> <i>🤕</i> <i>🤢</i> <i>🤮</i> <i>🤧</i> <i>🫠</i> <i>🥵</i> <i>🥶</i> <i>😶‍🌫️</i> <i>🫥</i> <i>🥴</i> <i>😵‍💫</i> <i>😵</i> <i>🤯</i> <i>🤠</i> <i>🥳</i> <i>🥸</i> <i>😎</i> <i>🤓</i> <i>🧐</i> <i>🫤</i> <i>😕</i> <i>😟</i> <i>🙁</i> <i>☹️</i> <i>😮</i> <i>😯</i> <i>😲</i> <i>😳</i> <i>🫣</i> <i>🥺</i> <i>😦</i> <i>😧</i> <i>😨</i> <i>😰</i> <i>😥</i> <i>😢</i> <i>😭</i> <i>😱</i> <i>😖</i> <i>😣</i> <i>😞</i> <i>😓</i> <i>😩</i> <i>😫</i> <i>🥱</i> <i>😤</i> <i>😡</i> <i>😠</i> <i>🤬</i> <i>😈</i> <i>👿</i> <i>💀</i> <i>☠️</i> <i>💩</i> <i>🤡</i> <i>👹</i> <i>👺</i> <i>👻</i> <i>👽️</i> <i>👾</i> <i>🤖</i> <i>😺</i> <i>😸</i> <i>😹</i> <i>😻</i> <i>😼</i> <i>😽</i> <i>🙀</i> <i>😿</i> <i>😾</i> <i>🙈</i> <i>🙉</i> <i>🙊</i> <i>👋</i> <i>🤚</i> <i>🖐️</i> <i>✋</i> <i>🖖</i> <i>👌</i> <i>🤌</i> <i>🤏</i> <i>✌️</i> <i>🤞</i> <i>🫰</i> <i>🤟</i> <i>🤘</i> <i>🤙</i> <i>👈️</i> <i>👉️</i> <i>👆️</i> <i>🖕</i> <i>👇️</i> <i>☝️</i> <i>🫵</i> <i>👍️</i> <i>👎️</i> <i>✊</i> <i>👊</i> <i>🤛</i> <i>🤜</i> <i>👏</i> <i>🙌</i> <i>👐</i> <i>🫶</i> <i>🤲</i> <i>🫳</i> <i>🫴</i> <i>🫱</i> <i>🫲</i> <i>🤝</i> <i>🙏</i> <i>✍️</i> <i>💅</i> <i>🤳</i> <i>💪</i> <i>🦾</i> <i>🦿</i> <i>🦵</i> <i>🦶</i> <i>👂️</i> <i>🦻</i> <i>👃</i> <i>🧠</i> <i>🫀</i> <i>🫁</i> <i>🦷</i> <i>🦴</i> <i>👀</i> <i>👁️</i> <i>👅</i> <i>👄</i> <i>🫦</i> <i>💋</i> <i>👶</i> <i>🧒</i> <i>👦</i> <i>👧</i> <i>🧑</i> <i>👨</i> <i>👩</i> <i>🧔</i> <i>🧔‍</i> <i>🧔‍</i> <i>🧑‍🦰</i> <i>👨‍🦰</i> <i>👩‍🦰</i> <i>🧑‍🦱</i> <i>👨‍🦱</i> <i>👩‍🦱</i> <i>🧑‍🦳</i> <i>👨‍🦳</i> <i>👩‍🦳</i> <i>🧑‍🦲</i> <i>👨‍🦲</i> <i>👩‍🦲</i> <i>👱</i> <i>👱‍</i> <i>👱‍</i> <i>🧓</i> <i>👴</i> <i>👵</i> <i>🙍</i> <i>🙍‍</i> <i>🙍‍</i> <i>🙎</i> <i>🙎‍</i> <i>🙎‍</i> <i>🙅</i> <i>🙅‍</i> <i>🙅‍</i> <i>🙆</i> <i>🙆‍</i> <i>🙆‍</i> <i>💁</i> <i>💁‍</i> <i>💁‍</i> <i>🙋</i> <i>🙋‍</i> <i>🙋‍</i> <i>🧏</i> <i>🧏‍</i> <i>🧏‍</i> <i>🙇</i> <i>🙇‍</i> <i>🙇‍</i> <i>🤦</i> <i>🤦‍</i> <i>🤦‍</i> <i>🤷</i> <i>🤷‍</i> <i>🤷‍</i> <i>🧑‍⚕️</i> <i>👨‍⚕️</i> <i>👩‍⚕️</i> <i>🧑‍🎓</i> <i>👨‍🎓</i> <i>👩‍🎓</i> <i>🧑‍🏫</i> <i>👨‍🏫</i> <i>👩‍🏫</i> <i>🧑‍⚖️</i> <i>👨‍⚖️</i> <i>👩‍⚖️</i> <i>🧑‍🌾</i> <i>👨‍🌾</i> <i>👩‍🌾</i> <i>🧑‍🍳</i> <i>👨‍🍳</i> <i>👩‍🍳</i> <i>🧑‍🔧</i> <i>👨‍🔧</i> <i>👩‍🔧</i> <i>🧑‍🏭</i> <i>👨‍🏭</i> <i>👩‍🏭</i> <i>🧑‍💼</i> <i>👨‍💼</i> <i>👩‍💼</i> <i>🧑‍🔬</i> <i>👨‍🔬</i> <i>👩‍🔬</i> <i>🧑‍💻</i> <i>👨‍💻</i> <i>👩‍💻</i> <i>🧑‍🎤</i> <i>👨‍🎤</i> <i>👩‍🎤</i> <i>🧑‍🎨</i> <i>👨‍🎨</i> <i>👩‍🎨</i> <i>🧑‍✈️</i> <i>👨‍✈️</i> <i>👩‍✈️</i> <i>🧑‍🚀</i> <i>👨‍🚀</i> <i>👩‍🚀</i> <i>🧑‍🚒</i> <i>👨‍🚒</i> <i>👩‍🚒</i> <i>👮</i> <i>👮‍</i> <i>👮‍</i> <i>🕵️</i> <i>💂</i> <i>💂‍</i> <i>💂‍</i> <i>🥷</i> <i>👷</i> <i>👷‍</i> <i>👷‍</i> <i>🫅</i> <i>🤴</i> <i>👸</i> <i>👳</i> <i>👳‍</i> <i>👳‍</i> <i>👲</i> <i>🧕</i> <i>🤵</i> <i>🤵‍</i> <i>🤵‍</i> <i>👰</i> <i>👰‍</i> <i>👰‍</i> <i>🫄</i> <i>🫃</i> <i>🤰</i> <i>🤱</i> <i>👩‍🍼</i> <i>👨‍🍼</i> <i>🧑‍🍼</i> <i>👼</i> <i>🎅</i> <i>🤶</i> <i>🧑‍🎄</i> <i>🦸</i> <i>🦸‍</i> <i>🦸‍</i> <i>🦹</i> <i>🦹‍</i> <i>🦹‍</i> <i>🧙</i> <i>🧙‍</i> <i>🧙‍</i> <i>🧚</i> <i>🧚‍</i> <i>🧚‍</i> <i>🧛</i> <i>🧛‍</i> <i>🧛‍</i> <i>🧜</i> <i>🧜‍</i> <i>🧜‍</i> <i>🧝</i> <i>🧝‍</i> <i>🧝‍</i> <i>🧞</i> <i>🧞‍</i> <i>🧞‍</i> <i>🧟</i> <i>🧟‍</i> <i>🧟‍</i> <i>🧌</i> <i>💆</i> <i>💆‍</i> <i>💆‍</i> <i>💇</i> <i>💇‍</i> <i>💇‍</i> <i>🚶</i> <i>🚶‍</i> <i>🚶‍</i> <i>🧍</i> <i>🧍‍</i> <i>🧍‍</i> <i>🧎</i> <i>🧎‍</i> <i>🧎‍</i> <i>🧑‍🦯</i> <i>👨‍🦯</i> <i>👩‍🦯</i> <i>🧑‍🦼</i> <i>👨‍🦼</i> <i>👩‍🦼</i> <i>🧑‍🦽</i> <i>👨‍🦽</i> <i>👩‍🦽</i> <i>🏃</i> <i>🏃‍</i> <i>🏃‍</i> <i>🚶‍➡️</i> <i>🚶‍‍➡️</i> <i>🚶‍‍➡️</i> <i>🧎‍➡️</i> <i>🧎‍‍➡️</i> <i>🧎‍‍➡️</i> <i>🧑‍🦯‍➡️</i> <i>👨‍🦯‍➡️</i> <i>👩‍🦯‍➡️</i> <i>🧑‍🦼‍➡️</i> <i>👨‍🦼‍➡️</i> <i>👩‍🦼‍➡️</i> <i>🧑‍🦽‍➡️</i> <i>👨‍🦽‍➡️</i> <i>👩‍🦽‍➡️</i> <i>🏃‍➡️</i> <i>🏃‍‍➡️</i> <i>🏃‍‍➡️</i> <i>💃</i> <i>🕺</i> <i>🕴️</i> <i>👯</i> <i>👯‍</i> <i>👯‍</i> <i>🧖</i> <i>🧖‍</i> <i>🧖‍</i> <i>🧗</i> <i>🧗‍</i> <i>🧗‍</i> <i>🤺</i> <i>🏇</i> <i>⛷️</i> <i>🏂️</i> <i>🏌️</i> <i>🏌️‍</i> <i>🏌️‍</i> <i>🏄️</i> <i>🏄‍</i> <i>🏄‍</i> <i>🚣</i> <i>🚣‍</i> <i>🚣‍</i> <i>🏊️</i> <i>🏊‍</i> <i>🏊‍</i> <i>⛹️</i> <i>⛹️‍</i> <i>⛹️‍</i> <i>🏋️</i> <i>🏋️‍</i> <i>🏋️‍</i> <i>🚴</i> <i>🚴‍</i> <i>🚴‍</i> <i>🚵</i> <i>🚵‍</i> <i>🚵‍</i> <i>🤸</i> <i>🤸‍</i> <i>🤸‍</i> <i>🤼</i> <i>🤼‍</i> <i>🤼‍</i> <i>🤽</i> <i>🤽‍</i> <i>🤽‍</i> <i>🤾</i> <i>🤾‍</i> <i>🤾‍</i> <i>🤹</i> <i>🤹‍</i> <i>🤹‍</i> <i>🧘</i> <i>🧘‍</i> <i>🧘‍</i> <i>🛀</i> <i>🛌</i> <i>🧑‍🤝‍🧑</i> <i>👭</i> <i>👫</i> <i>👬</i> <i>💏</i> <i>👩‍❤️‍💋‍👨</i> <i>👨‍❤️‍💋‍👨</i> <i>👩‍❤️‍💋‍👩</i> <i>💑</i> <i>👩‍❤️‍👨</i> <i>👨‍❤️‍👨</i> <i>👩‍❤️‍👩</i> <i>👪️</i> <i>👨‍👩‍👦</i> <i>👨‍👩‍👧</i> <i>👨‍👩‍👧‍👦</i> <i>👨‍👩‍👦‍👦</i> <i>👨‍👩‍👧‍👧</i> <i>👨‍👨‍👦</i> <i>👨‍👨‍👧</i> <i>👨‍👨‍👧‍👦</i> <i>👨‍👨‍👦‍👦</i> <i>👨‍👨‍👧‍👧</i> <i>👩‍👩‍👦</i> <i>👩‍👩‍👧</i> <i>👩‍👩‍👧‍👦</i> <i>👩‍👩‍👦‍👦</i> <i>👩‍👩‍👧‍👧</i> <i>👨‍👦</i> <i>👨‍👦‍👦</i> <i>👨‍👧</i> <i>👨‍👧‍👦</i> <i>👨‍👧‍👧</i> <i>👩‍👦</i> <i>👩‍👦‍👦</i> <i>👩‍👧</i> <i>👩‍👧‍👦</i> <i>👩‍👧‍👧</i> <i>🗣️</i> <i>👤</i> <i>👥</i> <i>🫂</i> <i>👣</i>'+
 				'<br><br>'+
 				'Animais e Natureza'+
@@ -8279,7 +8700,11 @@ document.body.addEventListener("click", async function (event) {
 				'<br>'+
 				'<i>🏁</i> <i>🚩</i> <i>🎌</i> <i>🏴</i> <i>🏳️</i> <i>🏴‍☠️</i> <i>🇦🇨</i> <i>🇦🇩</i> <i>🇦🇪</i> <i>🇦🇫</i> <i>🇦🇬</i> <i>🇦🇮</i> <i>🇦🇱</i> <i>🇦🇲</i> <i>🇦🇴</i> <i>🇦🇶</i> <i>🇦🇷</i> <i>🇦🇸</i> <i>🇦🇹</i> <i>🇦🇺</i> <i>🇦🇼</i> <i>🇦🇽</i> <i>🇦🇿</i> <i>🇧🇦</i> <i>🇧🇧</i> <i>🇧🇩</i> <i>🇧🇪</i> <i>🇧🇫</i> <i>🇧🇬</i> <i>🇧🇭</i> <i>🇧🇮</i> <i>🇧🇯</i> <i>🇧🇱</i> <i>🇧🇲</i> <i>🇧🇳</i> <i>🇧🇴</i> <i>🇧🇶</i> <i>🇧🇷</i> <i>🇧🇸</i> <i>🇧🇹</i> <i>🇧🇻</i> <i>🇧🇼</i> <i>🇧🇾</i> <i>🇧🇿</i> <i>🇨🇦</i> <i>🇨🇨</i> <i>🇨🇩</i> <i>🇨🇫</i> <i>🇨🇬</i> <i>🇨🇭</i> <i>🇨🇮</i> <i>🇨🇰</i> <i>🇨🇱</i> <i>🇨🇲</i> <i>🇨🇳</i> <i>🇨🇴</i> <i>🇨🇵</i> <i>🇨🇷</i> <i>🇨🇺</i> <i>🇨🇻</i> <i>🇨🇼</i> <i>🇨🇽</i> <i>🇨🇾</i> <i>🇨🇿</i> <i>🇩🇪</i> <i>🇩🇬</i> <i>🇩🇯</i> <i>🇩🇰</i> <i>🇩🇲</i> <i>🇩🇴</i> <i>🇩🇿</i> <i>🇪🇦</i> <i>🇪🇨</i> <i>🇪🇪</i> <i>🇪🇬</i> <i>🇪🇭</i> <i>🇪🇷</i> <i>🇪🇸</i> <i>🇪🇹</i> <i>🇪🇺</i> <i>🇫🇮</i> <i>🇫🇯</i> <i>🇫🇰</i> <i>🇫🇲</i> <i>🇫🇴</i> <i>🇫🇷</i> <i>🇬🇦</i> <i>🇬🇧</i> <i>🇬🇩</i> <i>🇬🇪</i> <i>🇬🇫</i> <i>🇬🇬</i> <i>🇬🇭</i> <i>🇬🇮</i> <i>🇬🇱</i> <i>🇬🇲</i> <i>🇬🇳</i> <i>🇬🇵</i> <i>🇬🇶</i> <i>🇬🇷</i> <i>🇬🇸</i> <i>🇬🇹</i> <i>🇬🇺</i> <i>🇬🇼</i> <i>🇬🇾</i> <i>🇭🇰</i> <i>🇭🇲</i> <i>🇭🇳</i> <i>🇭🇷</i> <i>🇭🇹</i> <i>🇭🇺</i> <i>🇮🇨</i> <i>🇮🇩</i> <i>🇮🇪</i> <i>🇮🇱</i> <i>🇮🇲</i> <i>🇮🇳</i> <i>🇮🇴</i> <i>🇮🇶</i> <i>🇮🇷</i> <i>🇮🇸</i> <i>🇮🇹</i> <i>🇯🇪</i> <i>🇯🇲</i> <i>🇯🇴</i> <i>🇯🇵</i> <i>🇰🇪</i> <i>🇰🇬</i> <i>🇰🇭</i> <i>🇰🇮</i> <i>🇰🇲</i> <i>🇰🇳</i> <i>🇰🇵</i> <i>🇰🇷</i> <i>🇰🇼</i> <i>🇰🇾</i> <i>🇰🇿</i> <i>🇱🇦</i> <i>🇱🇧</i> <i>🇱🇨</i> <i>🇱🇮</i> <i>🇱🇰</i> <i>🇱🇷</i> <i>🇱🇸</i> <i>🇱🇹</i> <i>🇱🇺</i> <i>🇱🇻</i> <i>🇱🇾</i> <i>🇲🇦</i> <i>🇲🇨</i> <i>🇲🇩</i> <i>🇲🇪</i> <i>🇲🇫</i> <i>🇲🇬</i> <i>🇲🇭</i> <i>🇲🇰</i> <i>🇲🇱</i> <i>🇲🇲</i> <i>🇲🇳</i> <i>🇲🇴</i> <i>🇲🇵</i> <i>🇲🇶</i> <i>🇲🇷</i> <i>🇲🇸</i> <i>🇲🇹</i> <i>🇲🇺</i> <i>🇲🇻</i> <i>🇲🇼</i> <i>🇲🇽</i> <i>🇲🇾</i> <i>🇲🇿</i> <i>🇳🇦</i> <i>🇳🇨</i> <i>🇳🇪</i> <i>🇳🇫</i> <i>🇳🇬</i> <i>🇳🇮</i> <i>🇳🇱</i> <i>🇳🇴</i> <i>🇳🇵</i> <i>🇳🇷</i> <i>🇳🇺</i> <i>🇳🇿</i> <i>🇴🇲</i> <i>🇵🇦</i> <i>🇵🇪</i> <i>🇵🇫</i> <i>🇵🇬</i> <i>🇵🇭</i> <i>🇵🇰</i> <i>🇵🇱</i> <i>🇵🇲</i> <i>🇵🇳</i> <i>🇵🇷</i> <i>🇵🇸</i> <i>🇵🇹</i> <i>🇵🇼</i> <i>🇵🇾</i> <i>🇶🇦</i> <i>🇷🇪</i> <i>🇷🇴</i> <i>🇷🇸</i> <i>🇷🇺</i> <i>🇷🇼</i> <i>🇸🇦</i> <i>🇸🇧</i> <i>🇸🇨</i> <i>🇸🇩</i> <i>🇸🇪</i> <i>🇸🇬</i> <i>🇸🇭</i> <i>🇸🇮</i> <i>🇸🇯</i> <i>🇸🇰</i> <i>🇸🇱</i> <i>🇸🇲</i> <i>🇸🇳</i> <i>🇸🇴</i> <i>🇸🇷</i> <i>🇸🇸</i> <i>🇸🇹</i> <i>🇸🇻</i> <i>🇸🇽</i> <i>🇸🇾</i> <i>🇸🇿</i> <i>🇹🇦</i> <i>🇹🇨</i> <i>🇹🇩</i> <i>🇹🇫</i> <i>🇹🇬</i> <i>🇹🇭</i> <i>🇹🇯</i> <i>🇹🇰</i> <i>🇹🇱</i> <i>🇹🇲</i> <i>🇹🇳</i> <i>🇹🇴</i> <i>🇹🇷</i> <i>🇹🇹</i> <i>🇹🇻</i> <i>🇹🇼</i> <i>🇹🇿</i> <i>🇺🇦</i> <i>🇺🇬</i> <i>🇺🇳</i> <i>🇺🇸</i> <i>🇺🇾</i> <i>🇺🇿</i> <i>🇻🇦</i> <i>🇻🇨</i> <i>🇻🇪</i> <i>🇻🇬</i> <i>🇻🇮</i> <i>🇻🇳</i> <i>🇻🇺</i> <i>🇼🇫</i> <i>🇼🇸</i> <i>🇽🇰</i> <i>🇾🇪</i> <i>🇾🇹</i> <i>🇿🇦</i> <i>🇿🇲</i> <i>🇿🇼</i>'+
 				'<br><br>'+
-				'Variações de cores'+
+				'Setas'+
+				'<br>'+
+                '<i>⬀</i> <i>⬁</i> <i>⬂</i> <i>⬃</i> <i>⬄</i> <i>⬅</i> <i>⬆</i> <i>⬇</i> <i>⬈</i> <i>⬉</i> <i>⬊</i> <i>⬋</i> <i>⬌</i> <i>⬍</i> <i>⬎</i> <i>⬏</i> <i>⬐</i> <i>⬑</i> <i>⬒</i> <i>⬓</i> <i>⬔</i> <i>⬕</i> <i>⬖</i> <i>⬗</i> <i>⬘</i> <i>⬙</i> <i>⬚</i> <i>⬝</i> <i>⬞</i> <i>⬟</i> <i>⬠</i> <i>⬡</i> <i>⬢</i> <i>⬣</i> <i>⬤</i> <i>⬥</i> <i>⬦</i> <i>⬧</i> <i>⬨</i> <i>⬩</i> <i>⬪</i> <i>⬫</i> <i>⬬</i> <i>⬭</i> <i>⬮</i> <i>⬯</i> <i>⬰</i> <i>⬱</i> <i>⬲</i> <i>⬳</i> <i>⬴</i> <i>⬵</i> <i>⬶</i> <i>⬷</i> <i>⬸</i> <i>⬹</i> <i>⬺</i> <i>⬻</i> <i>⬼</i> <i>⬽</i> <i>⬾</i> <i>⬿</i> <i>⭀</i> <i>⭁</i> <i>⭂</i> <i>⭃</i> <i>⭄</i> <i>⭅</i> <i>⭆</i> <i>⭇</i> <i>⭈</i> <i>⭉</i> <i>⭊</i> <i>⭋</i> <i>⭌</i> <i>⭍</i> <i>⭎</i> <i>⭏<</i> <i>⭑</i> <i>⭒</i> <i>⭓</i> <i>⭔</i> <i>⭖</i> <i>⭗</i> <i>⭘</i> <i>⭙</i> <i>⭚</i> <i>⭛</i> <i>⭜</i> <i>⭝</i> <i>⭞</i> <i>⭟</i> <i>⭠</i> <i>⭡</i> <i>⭢</i> <i>⭣</i> <i>⭤</i> <i>⭥</i> <i>⭦</i> <i>⭧</i> <i>⭨</i> <i>⭩</i> <i>⭪</i> <i>⭫</i> <i>⭬</i> <i>⭭</i> <i>⭮</i> <i>⭯</i> <i>⭰</i> <i>⭱</i> <i>⭲</i> <i>⭳</i> <i>⭶</i> <i>⭷</i> <i>⭸</i> <i>⭹</i> <i>⭺</i> <i>⭻</i> <i>⭼</i> <i>⭽</i> <i>⭾</i> <i>⭿</i> <i>⮀</i> <i>⮁</i> <i>⮂</i> <i>⮃</i> <i>⮄</i> <i>⮅</i> <i>⮆</i> <i>⮇</i> <i>⮈</i> <i>⮉</i> <i>⮊</i> <i>⮋</i> <i>⮌</i> <i>⮍</i> <i>⮎</i> <i>⮏</i> <i>⮐</i> <i>⮑</i> <i>⮒</i> <i>⮓</i> <i>⮔</i> <i>⮕</i> <i>⮘</i> <i>⮙</i> <i>⮚</i> <i>⮛</i> <i>⮜</i> <i>⮝</i> <i>⮞</i> <i>⮟</i> <i>⮠</i> <i>⮡</i> <i>⮢</i> <i>⮣</i> <i>⮤</i> <i>⮥</i> <i>⮦</i> <i>⮧</i> <i>⮨</i> <i>⮩</i> <i>⮪</i> <i>⮫</i> <i>⮬</i> <i>⮭</i> <i>⮮</i> <i>⮯</i> <i>⮰</i> <i>⮱</i> <i>⮲</i> <i>⮳</i> <i>⮴</i> <i>⮵</i> <i>⮶</i> <i>⮷</i> <i>⮸</i> <i>⮹</i> <i>⮽</i> <i>⮾</i> <i>⮿</i> <i>⯀</i> <i>⯁</i> <i>⯂</i> <i>⯃</i> <i>⯄</i> <i>⯅</i> <i>⯆</i> <i>⯇</i> <i>⯈</i> <i>⯊</i> <i>⯋</i> <i>⯌</i> <i>⯍</i> <i>⯎</i> <i>⯏</i> <i>⯐</i> <i>⯑</i> <i>🠀</i> <i>🠁</i> <i>🠂</i> <i>🠃</i> <i>🠄</i> <i>🠅</i> <i>🠆</i> <i>🠇</i> <i>🠈</i> <i>🠉</i> <i>🠊</i> <i>🠋</i> <i>🠐</i> <i>🠑</i> <i>🠒</i> <i>🠓</i> <i>🠔</i> <i>🠕</i> <i>🠖</i> <i>🠗</i> <i>🠘</i> <i>🠙</i> <i>🠚</i> <i>🠛</i> <i>🠜</i> <i>🠝</i> <i>🠞</i> <i>🠟</i> <i>🠠</i> <i>🠡</i> <i>🠢</i> <i>🠣</i> <i>🠤</i> <i>🠥</i> <i>🠦</i> <i>🠧</i> <i>🠨</i> <i>🠩</i> <i>🠪</i> <i>🠫</i> <i>🠬</i> <i>🠭</i> <i>🠮</i> <i>🠯</i> <i>🠰</i> <i>🠱</i> <i>🠲</i> <i>🠳</i> <i>🠴</i> <i>🠵</i> <i>🠶</i> <i>🠷</i> <i>🠸</i> <i>🠹</i> <i>🠺</i> <i>🠻</i> <i>🠼</i> <i>🠽</i> <i>🠾</i> <i>🠿</i> <i>🡀</i> <i>🡁</i> <i>🡂</i> <i>🡃</i> <i>🡄</i> <i>🡅</i> <i>🡆</i> <i>🡇</i> <i>🡐</i> <i>🡑</i> <i>🡒</i> <i>🡓</i> <i>🡔</i> <i>🡕</i> <i>🡖</i> <i>🡗</i> <i>🡘</i> <i>🡙</i> <i>🡠</i> <i>🡡</i> <i>🡢</i> <i>🡣</i> <i>🡤</i> <i>🡥</i> <i>🡦</i> <i>🡧</i> <i>🡨</i> <i>🡩</i> <i>🡪</i> <i>🡫</i> <i>🡬</i> <i>🡭</i> <i>🡮</i> <i>🡯</i> <i>🡰</i> <i>🡱</i> <i>🡲</i> <i>🡳</i> <i>🡴</i> <i>🡵</i> <i>🡶</i> <i>🡷</i> <i>🡸</i> <i>🡹</i> <i>🡺</i> <i>🡻</i> <i>🡼</i> <i>🡽</i> <i>🡾</i> <i>🡿</i> <i>🢀</i> <i>🢁</i> <i>🢂</i> <i>🢃</i> <i>🢄</i> <i>🢅</i> <i>🢆</i> <i>🢇</i>'+
+                '<br><br>'+
+                'Variações de cores'+
 				'<br>'+
 				'<i>👋🏻</i> <i>🤚🏻</i> <i>🖐🏻</i> <i>✋🏻</i> <i>🖖🏻</i> <i>👌🏻</i> <i>🤌🏻</i> <i>🤏🏻</i> <i>✌🏻</i> <i>🤞🏻</i> <i>🤟🏻</i> <i>🤘🏻</i> <i>🤙🏻</i> <i>👈🏻</i> <i>👉🏻</i> <i>👆🏻</i> <i>🖕🏻</i> <i>👇🏻</i> <i>☝🏻</i> <i>🫵🏻</i> <i>👍🏻</i> <i>👎🏻</i> <i>✊🏻</i> <i>👊🏻</i> <i>🤛🏻</i> <i>🤜🏻</i> <i>👏🏻</i> <i>🙌🏻</i> <i>👐🏻</i> <i>🤲🏻</i> <i>🫱🏻</i> <i>🫲🏻</i> <i>🤝🏻</i> <i>🫳🏻</i> <i>🫴🏻</i> <i>🫸🏻</i> <i>🫷🏻</i> <i>🙏🏻</i> <i>🫰🏻</i> <i>🫶🏻</i> <i>✍🏻</i> <i>💅🏻</i> <i>🤳🏻</i> <i>💪🏻</i> <i>🦵🏻</i> <i>🦶🏻</i> <i>👂🏻</i> <i>🦻🏻</i> <i>👃🏻</i> <i>👶🏻</i> <i>🧒🏻</i> <i>👦🏻</i> <i>👧🏻</i> <i>🧑🏻</i> <i>👱🏻</i> <i>👨🏻</i> <i>🧔🏻</i> <i>🧔🏻‍</i> <i>🧔🏻‍</i> <i>👨🏻‍🦰</i> <i>👨🏻‍🦱</i> <i>👨🏻‍🦳</i> <i>👨🏻‍🦲</i> <i>👩🏻</i> <i>👩🏻‍🦰</i> <i>🧑🏻‍🦰</i> <i>👩🏻‍🦱</i> <i>🧑🏻‍🦱</i> <i>👩🏻‍🦳</i> <i>🧑🏻‍🦳</i> <i>👩🏻‍🦲</i> <i>🧑🏻‍🦲</i> <i>👱🏻‍</i> <i>👱🏻‍</i> <i>🧓🏻</i> <i>👴🏻</i> <i>👵🏻</i> <i>🙍🏻</i> <i>🙍🏻‍</i> <i>🙍🏻‍</i> <i>🙎🏻</i> <i>🙎🏻‍</i> <i>🙎🏻‍</i> <i>🙅🏻</i> <i>🙅🏻‍</i> <i>🙅🏻‍</i> <i>🙆🏻</i> <i>🙆🏻‍</i> <i>🙆🏻‍</i> <i>💁🏻</i> <i>💁🏻‍</i> <i>💁🏻‍</i> <i>🙋🏻</i> <i>🙋🏻‍</i> <i>🙋🏻‍</i> <i>🧏🏻</i> <i>🧏🏻‍</i> <i>🧏🏻‍</i> <i>🙇🏻</i> <i>🙇🏻‍</i> <i>🙇🏻‍</i> <i>🤦🏻</i> <i>🤦🏻‍</i> <i>🤦🏻‍</i> <i>🤷🏻</i> <i>🤷🏻‍</i> <i>🤷🏻‍</i> <i>🧑🏻‍⚕️</i> <i>👨🏻‍⚕️</i> <i>👩🏻‍⚕️</i> <i>🧑🏻‍🎓</i> <i>👨🏻‍🎓</i> <i>👩🏻‍🎓</i> <i>🧑🏻‍🏫</i> <i>👨🏻‍🏫</i> <i>👩🏻‍🏫</i> <i>🧑🏻‍⚖️</i> <i>👨🏻‍⚖️</i> <i>👩🏻‍⚖️</i> <i>🧑🏻‍🌾</i> <i>👨🏻‍🌾</i> <i>👩🏻‍🌾</i> <i>🧑🏻‍🍳</i> <i>👨🏻‍🍳</i> <i>👩🏻‍🍳</i> <i>🧑🏻‍🔧</i> <i>👨🏻‍🔧</i> <i>👩🏻‍🔧</i> <i>🧑🏻‍🏭</i> <i>👨🏻‍🏭</i> <i>👩🏻‍🏭</i> <i>🧑🏻‍💼</i> <i>👨🏻‍💼</i> <i>👩🏻‍💼</i> <i>🧑🏻‍🔬</i> <i>👨🏻‍🔬</i> <i>👩🏻‍🔬</i> <i>🧑🏻‍💻</i> <i>👨🏻‍💻</i> <i>👩🏻‍💻</i> <i>🧑🏻‍🎤</i> <i>👨🏻‍🎤</i> <i>👩🏻‍🎤</i> <i>🧑🏻‍🎨</i> <i>👨🏻‍🎨</i> <i>👩🏻‍🎨</i> <i>🧑🏻‍✈️</i> <i>👨🏻‍✈️</i> <i>👩🏻‍✈️</i> <i>🧑🏻‍🚀</i> <i>👨🏻‍🚀</i> <i>👩🏻‍🚀</i> <i>🧑🏻‍🚒</i> <i>👨🏻‍🚒</i> <i>👩🏻‍🚒</i> <i>👮🏻</i> <i>👮🏻‍</i> <i>👮🏻‍</i> <i>🕵🏻</i> <i>🕵🏻‍</i> <i>🕵🏻‍</i> <i>💂🏻</i> <i>💂🏻‍</i> <i>💂🏻‍</i> <i>🥷🏻</i> <i>👷🏻</i> <i>👷🏻‍</i> <i>👷🏻‍</i> <i>🫅🏻</i> <i>🤴🏻</i> <i>👸🏻</i> <i>👳🏻</i> <i>👳🏻‍</i> <i>👳🏻‍</i> <i>👲🏻</i> <i>🧕🏻</i> <i>🤵🏻</i> <i>🤵🏻‍</i> <i>🤵🏻‍</i> <i>👰🏻</i> <i>👰🏻‍</i> <i>👰🏻‍</i> <i>🫄🏻</i> <i>🫃🏻</i> <i>🤰🏻</i> <i>🧑🏻‍🍼</i> <i>👨🏻‍🍼</i> <i>👩🏻‍🍼</i> <i>🤱🏻</i> <i>👼🏻</i> <i>🎅🏻</i> <i>🤶🏻</i> <i>🧑🏻‍🎄</i> <i>🦸🏻</i> <i>🦸🏻‍</i> <i>🦸🏻‍</i> <i>🦹🏻</i> <i>🦹🏻‍</i> <i>🦹🏻‍</i> <i>🧙🏻</i> <i>🧙🏻‍</i> <i>🧙🏻‍</i> <i>🧚🏻</i> <i>🧚🏻‍</i> <i>🧚🏻‍</i> <i>🧛🏻</i> <i>🧛🏻‍</i> <i>🧛🏻‍</i> <i>🧜🏻</i> <i>🧜🏻‍</i> <i>🧜🏻‍</i> <i>🧝🏻</i> <i>🧝🏻‍</i> <i>🧝🏻‍</i> <i>💆🏻</i> <i>💆🏻‍</i> <i>💆🏻‍</i> <i>💇🏻</i> <i>💇🏻‍</i> <i>💇🏻‍</i> <i>🚶🏻</i> <i>🚶🏻‍</i> <i>🚶🏻‍</i> <i>🧍🏻</i> <i>🧍🏻‍</i> <i>🧍🏻‍</i> <i>🧎🏻</i> <i>🧎🏻‍</i> <i>🧎🏻‍</i> <i>🧑🏻‍🦯</i> <i>👨🏻‍🦯</i> <i>👩🏻‍🦯</i> <i>🧑🏻‍🦼</i> <i>👨🏻‍🦼</i> <i>👩🏻‍🦼</i> <i>🧑🏻‍🦽</i> <i>👨🏻‍🦽</i> <i>👩🏻‍🦽</i> <i>🏃🏻</i> <i>🏃🏻‍</i> <i>🏃🏻‍</i> <i>🚶🏻‍➡️</i> <i>🚶🏻‍‍➡️</i> <i>🚶🏻‍‍➡️</i> <i>🧎🏻‍➡️</i> <i>🧎🏻‍‍➡️</i> <i>🧎🏻‍‍➡️</i> <i>🧑🏻‍🦯‍➡️</i> <i>👨🏻‍🦯‍➡️</i> <i>👩🏻‍🦯‍➡️</i> <i>🧑🏻‍🦼‍➡️</i> <i>👨🏻‍🦼‍➡️</i> <i>👩🏻‍🦼‍➡️</i> <i>🧑🏻‍🦽‍➡️</i> <i>👨🏻‍🦽‍➡️</i> <i>👩🏻‍🦽‍➡️</i> <i>🏃🏻‍➡️</i> <i>🏃🏻‍‍➡️</i> <i>🏃🏻‍‍➡️</i> <i>💃🏻</i> <i>🕺🏻</i> <i>🕴🏻</i> <i>🧖🏻</i> <i>🧖🏻‍</i> <i>🧖🏻‍</i> <i>🧗🏻</i> <i>🧗🏻‍</i> <i>🧗🏻‍</i> <i>🏇🏻</i> <i>🏂🏻</i> <i>🏌🏻</i> <i>🏌🏻‍</i> <i>🏌🏻‍</i> <i>🏄🏻</i> <i>🏄🏻‍</i> <i>🏄🏻‍</i> <i>🚣🏻</i> <i>🚣🏻‍</i> <i>🚣🏻‍</i> <i>🏊🏻</i> <i>🏊🏻‍</i> <i>🏊🏻‍</i> <i>⛹🏻</i> <i>⛹🏻‍</i> <i>⛹🏻‍</i> <i>🏋🏻</i> <i>🏋🏻‍</i> <i>🏋🏻‍</i> <i>🚴🏻</i> <i>🚴🏻‍</i> <i>🚴🏻‍</i> <i>🚵🏻</i> <i>🚵🏻‍</i> <i>🚵🏻‍</i> <i>🤸🏻</i> <i>🤸🏻‍</i> <i>🤸🏻‍</i> <i>🤽🏻</i> <i>🤽🏻‍</i> <i>🤽🏻‍</i> <i>🤾🏻</i> <i>🤾🏻‍</i> <i>🤾🏻‍</i> <i>🤹🏻</i> <i>🤹🏻‍</i> <i>🤹🏻‍</i> <i>🧘🏻</i> <i>🧘🏻‍</i> <i>🧘🏻‍</i> <i>🛀🏻</i> <i>🛌🏻</i> <i>💑🏻</i> <i>💏🏻</i> <i>👫🏻</i> <i>👭🏻</i> <i>👬🏻</i><br>'+
 				'<i>👋🏼</i> <i>🤚🏼</i> <i>🖐🏼</i> <i>✋🏼</i> <i>🖖🏼</i> <i>👌🏼</i> <i>🤌🏼</i> <i>🤏🏼</i> <i>✌🏼</i> <i>🤞🏼</i> <i>🤟🏼</i> <i>🤘🏼</i> <i>🤙🏼</i> <i>👈🏼</i> <i>👉🏼</i> <i>👆🏼</i> <i>🖕🏼</i> <i>👇🏼</i> <i>☝🏼</i> <i>🫵🏼</i> <i>👍🏼</i> <i>👎🏼</i> <i>✊🏼</i> <i>👊🏼</i> <i>🤛🏼</i> <i>🤜🏼</i> <i>👏🏼</i> <i>🙌🏼</i> <i>👐🏼</i> <i>🤲🏼</i> <i>🫱🏼</i> <i>🫲🏼</i> <i>🤝🏼</i> <i>🫳🏼</i> <i>🫴🏼</i> <i>🫸🏼</i> <i>🫷🏼</i> <i>🙏🏼</i> <i>🫰🏼</i> <i>🫶🏼</i> <i>✍🏼</i> <i>💅🏼</i> <i>🤳🏼</i> <i>💪🏼</i> <i>🦵🏼</i> <i>🦶🏼</i> <i>👂🏼</i> <i>🦻🏼</i> <i>👃🏼</i> <i>👶🏼</i> <i>🧒🏼</i> <i>👦🏼</i> <i>👧🏼</i> <i>🧑🏼</i> <i>👱🏼</i> <i>👨🏼</i> <i>🧔🏼</i> <i>🧔🏼‍</i> <i>🧔🏼‍</i> <i>👨🏼‍🦰</i> <i>👨🏼‍🦱</i> <i>👨🏼‍🦳</i> <i>👨🏼‍🦲</i> <i>👩🏼</i> <i>👩🏼‍🦰</i> <i>🧑🏼‍🦰</i> <i>👩🏼‍🦱</i> <i>🧑🏼‍🦱</i> <i>👩🏼‍🦳</i> <i>🧑🏼‍🦳</i> <i>👩🏼‍🦲</i> <i>🧑🏼‍🦲</i> <i>👱🏼‍</i> <i>👱🏼‍</i> <i>🧓🏼</i> <i>👴🏼</i> <i>👵🏼</i> <i>🙍🏼</i> <i>🙍🏼‍</i> <i>🙍🏼‍</i> <i>🙎🏼</i> <i>🙎🏼‍</i> <i>🙎🏼‍</i> <i>🙅🏼</i> <i>🙅🏼‍</i> <i>🙅🏼‍</i> <i>🙆🏼</i> <i>🙆🏼‍</i> <i>🙆🏼‍</i> <i>💁🏼</i> <i>💁🏼‍</i> <i>💁🏼‍</i> <i>🙋🏼</i> <i>🙋🏼‍</i> <i>🙋🏼‍</i> <i>🧏🏼</i> <i>🧏🏼‍</i> <i>🧏🏼‍</i> <i>🙇🏼</i> <i>🙇🏼‍</i> <i>🙇🏼‍</i> <i>🤦🏼</i> <i>🤦🏼‍</i> <i>🤦🏼‍</i> <i>🤷🏼</i> <i>🤷🏼‍</i> <i>🤷🏼‍</i> <i>🧑🏼‍⚕️</i> <i>👨🏼‍⚕️</i> <i>👩🏼‍⚕️</i> <i>🧑🏼‍🎓</i> <i>👨🏼‍🎓</i> <i>👩🏼‍🎓</i> <i>🧑🏼‍🏫</i> <i>👨🏼‍🏫</i> <i>👩🏼‍🏫</i> <i>🧑🏼‍⚖️</i> <i>👨🏼‍⚖️</i> <i>👩🏼‍⚖️</i> <i>🧑🏼‍🌾</i> <i>👨🏼‍🌾</i> <i>👩🏼‍🌾</i> <i>🧑🏼‍🍳</i> <i>👨🏼‍🍳</i> <i>👩🏼‍🍳</i> <i>🧑🏼‍🔧</i> <i>👨🏼‍🔧</i> <i>👩🏼‍🔧</i> <i>🧑🏼‍🏭</i> <i>👨🏼‍🏭</i> <i>👩🏼‍🏭</i> <i>🧑🏼‍💼</i> <i>👨🏼‍💼</i> <i>👩🏼‍💼</i> <i>🧑🏼‍🔬</i> <i>👨🏼‍🔬</i> <i>👩🏼‍🔬</i> <i>🧑🏼‍💻</i> <i>👨🏼‍💻</i> <i>👩🏼‍💻</i> <i>🧑🏼‍🎤</i> <i>👨🏼‍🎤</i> <i>👩🏼‍🎤</i> <i>🧑🏼‍🎨</i> <i>👨🏼‍🎨</i> <i>👩🏼‍🎨</i> <i>🧑🏼‍✈️</i> <i>👨🏼‍✈️</i> <i>👩🏼‍✈️</i> <i>🧑🏼‍🚀</i> <i>👨🏼‍🚀</i> <i>👩🏼‍🚀</i> <i>🧑🏼‍🚒</i> <i>👨🏼‍🚒</i> <i>👩🏼‍🚒</i> <i>👮🏼</i> <i>👮🏼‍</i> <i>👮🏼‍</i> <i>🕵🏼</i> <i>🕵🏼‍</i> <i>🕵🏼‍</i> <i>💂🏼</i> <i>💂🏼‍</i> <i>💂🏼‍</i> <i>🥷🏼</i> <i>👷🏼</i> <i>👷🏼‍</i> <i>👷🏼‍</i> <i>🫅🏼</i> <i>🤴🏼</i> <i>👸🏼</i> <i>👳🏼</i> <i>👳🏼‍</i> <i>👳🏼‍</i> <i>👲🏼</i> <i>🧕🏼</i> <i>🤵🏼</i> <i>🤵🏼‍</i> <i>🤵🏼‍</i> <i>👰🏼</i> <i>👰🏼‍</i> <i>👰🏼‍</i> <i>🫄🏼</i> <i>🫃🏼</i> <i>🤰🏼</i> <i>🧑🏼‍🍼</i> <i>👨🏼‍🍼</i> <i>👩🏼‍🍼</i> <i>🤱🏼</i> <i>👼🏼</i> <i>🎅🏼</i> <i>🤶🏼</i> <i>🧑🏼‍🎄</i> <i>🦸🏼</i> <i>🦸🏼‍</i> <i>🦸🏼‍</i> <i>🦹🏼</i> <i>🦹🏼‍</i> <i>🦹🏼‍</i> <i>🧙🏼</i> <i>🧙🏼‍</i> <i>🧙🏼‍</i> <i>🧚🏼</i> <i>🧚🏼‍</i> <i>🧚🏼‍</i> <i>🧛🏼</i> <i>🧛🏼‍</i> <i>🧛🏼‍</i> <i>🧜🏼</i> <i>🧜🏼‍</i> <i>🧜🏼‍</i> <i>🧝🏼</i> <i>🧝🏼‍</i> <i>🧝🏼‍</i> <i>💆🏼</i> <i>💆🏼‍</i> <i>💆🏼‍</i> <i>💇🏼</i> <i>💇🏼‍</i> <i>💇🏼‍</i> <i>🚶🏼</i> <i>🚶🏼‍</i> <i>🚶🏼‍</i> <i>🧍🏼</i> <i>🧍🏼‍</i> <i>🧍🏼‍</i> <i>🧎🏼</i> <i>🧎🏼‍</i> <i>🧎🏼‍</i> <i>🧑🏼‍🦯</i> <i>👨🏼‍🦯</i> <i>👩🏼‍🦯</i> <i>🧑🏼‍🦼</i> <i>👨🏼‍🦼</i> <i>👩🏼‍🦼</i> <i>🧑🏼‍🦽</i> <i>👨🏼‍🦽</i> <i>👩🏼‍🦽</i> <i>🏃🏼</i> <i>🏃🏼‍</i> <i>🏃🏼‍</i> <i>🚶🏼‍➡️</i> <i>🚶🏼‍‍➡️</i> <i>🚶🏼‍‍➡️</i> <i>🧎🏼‍➡️</i> <i>🧎🏼‍‍➡️</i> <i>🧎🏼‍‍➡️</i> <i>🧑🏼‍🦯‍➡️</i> <i>👨🏼‍🦯‍➡️</i> <i>👩🏼‍🦯‍➡️</i> <i>🧑🏼‍🦼‍➡️</i> <i>👨🏼‍🦼‍➡️</i> <i>👩🏼‍🦼‍➡️</i> <i>🧑🏼‍🦽‍➡️</i> <i>👨🏼‍🦽‍➡️</i> <i>👩🏼‍🦽‍➡️</i> <i>🏃🏼‍➡️</i> <i>🏃🏼‍‍➡️</i> <i>🏃🏼‍‍➡️</i> <i>💃🏼</i> <i>🕺🏼</i> <i>🕴🏼</i> <i>🧖🏼</i> <i>🧖🏼‍</i> <i>🧖🏼‍</i> <i>🧗🏼</i> <i>🧗🏼‍</i> <i>🧗🏼‍</i> <i>🏇🏼</i> <i>🏂🏼</i> <i>🏌🏼</i> <i>🏌🏼‍</i> <i>🏌🏼‍</i> <i>🏄🏼</i> <i>🏄🏼‍</i> <i>🏄🏼‍</i> <i>🚣🏼</i> <i>🚣🏼‍</i> <i>🚣🏼‍</i> <i>🏊🏼</i> <i>🏊🏼‍</i> <i>🏊🏼‍</i> <i>⛹🏼</i> <i>⛹🏼‍</i> <i>⛹🏼‍</i> <i>🏋🏼</i> <i>🏋🏼‍</i> <i>🏋🏼‍</i> <i>🚴🏼</i> <i>🚴🏼‍</i> <i>🚴🏼‍</i> <i>🚵🏼</i> <i>🚵🏼‍</i> <i>🚵🏼‍</i> <i>🤸🏼</i> <i>🤸🏼‍</i> <i>🤸🏼‍</i> <i>🤽🏼</i> <i>🤽🏼‍</i> <i>🤽🏼‍</i> <i>🤾🏼</i> <i>🤾🏼‍</i> <i>🤾🏼‍</i> <i>🤹🏼</i> <i>🤹🏼‍</i> <i>🤹🏼‍</i> <i>🧘🏼</i> <i>🧘🏼‍</i> <i>🧘🏼‍</i> <i>🛀🏼</i> <i>🛌🏼</i> <i>💑🏼</i> <i>💏🏼</i> <i>👫🏼</i> <i>👭🏼</i> <i>👬🏼</i><br>'+
@@ -8292,7 +8717,7 @@ document.body.addEventListener("click", async function (event) {
 		});
 
 	}
-	
+
 	if (event.target.tagName == 'I' && event.target.parentElement.id == "copiarEmojis") {
 		navigator.clipboard.writeText(event.target.innerText);
 		Swal.fire({
@@ -8303,10 +8728,9 @@ document.body.addEventListener("click", async function (event) {
 			timer: 1500
 		  })
 	}
-
-	if (event.target.className.includes("icone question-circle")) {
+	if (event.target.className.includes("icone question-circle") || event.target.className.includes("duvidas")) {
 		let msg = '';
-		
+
 		switch (event.target.id) {
 			case 'modulo1_1':
 				msg = 'Os monitores que aparecem na tela correspondem àqueles que você tem na sua mesa.<br><br>Escolha um monitor (direita, esquerda, etc.) para ser o monitor padrão da janela DETALHES do processo.<br><br>Depois de escolhido, sempre que a janela DETALHES abrir, ela será direcionada para este monitor.';
@@ -8371,8 +8795,12 @@ document.body.addEventListener("click", async function (event) {
 			case 'modulo8':
 				msg = 'Permite que a extensão escolha o magistrado automaticamente, quando aparecer no PJe uma caixa de seleção para este fim.<br><br>Você pode criar regra por <i style="font-style:normal;color: chocolate;">NÚMERO FINAL</i> do processo, por <i style="font-style:normal;color: cadetblue;">UNIDADE JUDICIÁRIA</i> ou por <i style="font-style:normal;color: orangered;">ÓRGÃO JULGADOR CARGO</i>.<br><br>A opção de "ignorar 0 na regra por número final" é ideal para divisão de processos entre três juízes, caso o último numeral seja 0, a regra será aplicada de acordo com o penúltimo numeral, e assim por diante.';
 				break
-			case 'modulo10':
+			case 'modulo10_duvidas':
+			case 'modulo10_duvidas_icone':
 				msg = 'Se você utiliza links fixos de audiência agora é possível deixá-los memorizados para usar quando for incluir um processo em pauta.';
+				break
+			case 'modulo11':
+				msg = 'Crie cabeçalhos personalizados para a Certidão Automatizada de Habilitação de Créditos de acordo com o CNPJ da executada.<br><br>Você encontra essa funcionalidade na janela de <b>Registrar Obrigações de Pagar</b> do PJe.';
 				break
 			default:
 				console.log("sem ajuda");
@@ -8405,20 +8833,20 @@ document.body.addEventListener("click", async function (event) {
 			showCancelButton: false
 		}
 		]).then((result) => {
-			
+
 		})
-	} else if (event.target.className.includes("icone video")) {
+	} else if (event.target.className.includes("icone video") || event.target.className.includes("video-explicativo")) {
 		let video = '';
 		switch (event.target.id) {
 			case 'modulo1_1':
 				video = 'https://www.youtube.com/embed/BvqenHqem4s';
 				break
-			case 'modulo2_1':
-				video = 'https://www.youtube.com/embed/8tLj_3Uy3gU';
-				break
-			case 'modulo3_1':
-				video = 'https://drive.google.com/file/d/1R2nivNisv2Ro-ycquKKKLBtwX2iWdYbP/preview';
-				break
+			// case 'modulo2_1_video':
+			// 	video = 'https://www.youtube.com/embed/8tLj_3Uy3gU';
+			// 	break
+			// case 'modulo3_1':
+			// 	video = 'https://drive.google.com/file/d/1R2nivNisv2Ro-ycquKKKLBtwX2iWdYbP/preview';
+			// 	break
 			case 'modulo4_1':
 				video = 'https://drive.google.com/file/d/19me--CZ-Utl1WQ_hW-zFq513oXEeCFGQ/preview';
 				break
@@ -8441,6 +8869,7 @@ document.body.addEventListener("click", async function (event) {
 				video = 'https://drive.google.com/file/d/1ls27iUBvd7LqwROOW_qmLbMMednSR3eN/preview';
 				break
 			case 'botoes_1':
+			case 'botoes_1_icone':
 				video = 'https://drive.google.com/file/d/1LWaryUZc_HAcBNwC63BEkxY9AiLq-79R/preview';
 				break
 			case 'config_1':
@@ -8449,22 +8878,10 @@ document.body.addEventListener("click", async function (event) {
 			default:
 				console.log("sem ajuda");
 		}
-		let html = '<iframe width="640" height="360" src="' + video + '" frameborder="0" allowfullscreen></iframe>';
-		if (video.includes('youtube')) {
-			html = '<iframe width="560" height="315" src="' + video + '?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
-		}
-		Swal.fire({
-			title: '<strong>Vídeo Tutorial</strong>',
-			html: html,
-			width: 800,
-			padding: '3em',
-			showCloseButton: true,
-			showCancelButton: false,
-			showConfirmButton: false,
-			focusConfirm: false
-		});
+        if (video) {
+            abrirVideo(video);
+        }
 	}
-	
 	//DESCRIÇÃO CRIA AS REGRAS DE SALVAMENTO QUANDO O USUARIO OPTAR PELO POSICIONAMENTO DOS MONITORES
 	// if (event.target.id.search('gigsMonitor') > -1) {
 		// if (document.querySelector('#desativarAjusteJanelas').checked) {
@@ -8476,18 +8893,18 @@ document.body.addEventListener("click", async function (event) {
 			// ).then((result) => {
 				// atualizaMonitor(event.target.id);
 				// salvarOpcoes();
-			// })			
+			// })
 		// } else {
 			// atualizaMonitor(event.target.id);
 			// salvarOpcoes();
 		// }
 	// }
-	
-	
+
+
 	//ATALHOS DE Menu
 	let id_elemento = event.target.id || event.target.parentElement.id
 	if (id_elemento) {
-		
+
 		//eventos do checkbox parEimpar
 		if (id_elemento.includes('maisPje_parEimpar')) {
 			let msg = event.target;
@@ -8501,40 +8918,40 @@ document.body.addEventListener("click", async function (event) {
 			modulo5ParEimpar(msg.getAttribute('name'));
 		}
 
-		
-	
+
+
 		//eventos dos vinculos: lixeira
 		if (id_elemento.includes('apagar-escolherAAVinculo')) {
 			let seletor = id_elemento.replace('apagar-','');
 			document.getElementById(seletor).innerText = "Nenhum";
 		}
 	}
-	
-	
+
+
 });
 
-document.body.addEventListener("mouseover", function (event) {	
+document.body.addEventListener("mouseover", function (event) {
 	let id_elemento = event.target.id || event.target.parentElement.id
 	if (id_elemento) {
-		
-		event.target.addEventListener("mouseout", function (event) {	
-			let ancora = document.querySelectorAll('div[id="escolherProcessoFinal"] label[class="container"]');	
+
+		event.target.addEventListener("mouseout", function (event) {
+			let ancora = document.querySelectorAll('div[id="escolherProcessoFinal"] label[class="container"]');
 			let map = [].map.call(
-				ancora, 
+				ancora,
 				function(elemento) {
 					elemento.style.backgroundColor = "unset";
 				}
 			);
 		});
-		
-		
+
+
 		if (id_elemento.includes('maisPje_parEimpar')) {
 			let escolha = event.target.getAttribute('name');
-			
+
 			let teste = '';
 			switch (escolha) {
 				case 'par':
-					teste = preferencias.modulo8_ignorarZero ? '2,4,6,8' : '0,2,4,6,8';					
+					teste = preferencias.modulo8_ignorarZero ? '2,4,6,8' : '0,2,4,6,8';
 					break;
 				case 'impar':
 					teste = '1,3,5,7,9';
@@ -8546,10 +8963,10 @@ document.body.addEventListener("mouseover", function (event) {
 					teste = '';
 					break;
 			}
-			
-			let ancora = document.querySelectorAll('div[id="escolherProcessoFinal"] label[class="container"]');	
+
+			let ancora = document.querySelectorAll('div[id="escolherProcessoFinal"] label[class="container"]');
 			let map = [].map.call(
-				ancora, 
+				ancora,
 				function(elemento) {
 					if (teste.includes(elemento.innerText)) {
 						elemento.style.backgroundColor = "#ff976e";
@@ -8561,9 +8978,9 @@ document.body.addEventListener("mouseover", function (event) {
 });
 
 document.body.addEventListener("selectionchange", function (event) {
-	if (event.target.id == 'swal-input-importarAA1') { 
-		
-		let conteudo = document.querySelector('#swal-input-importarAA1').value;		
+	if (event.target.id == 'swal-input-importarAA1') {
+
+		let conteudo = document.querySelector('#swal-input-importarAA1').value;
 		let novoConteudo = conteudo.match(/\{.+?\}/g);
 		console.log(novoConteudo.length)
 		console.log(Array.isArray(novoConteudo))
@@ -8658,6 +9075,20 @@ function AcaoAutomatizada_aaChecklist(nm_botao, tipo, observacao, estado, alerta
 	this.visibilidade = visibilidade;
 }
 
+function AcaoAutomatizada_aaNomearPerito(nm_botao, profissao, perito, prazo, tipo_prazo, designar, modelo, assinar, cor, vinculo, visibilidade='sim') {
+	this.nm_botao = nm_botao;
+	this.profissao = profissao;
+	this.perito = perito;
+    this.prazo = prazo;
+    this.tipo_prazo = tipo_prazo;
+    this.designar = designar;
+	this.modelo = modelo;
+	this.assinar = assinar;
+	this.cor = cor;
+	this.vinculo = vinculo;
+	this.visibilidade = visibilidade;
+}
+
 function EmailAutomatizado(titulo, corpo, assinatura) {
 	this.titulo = titulo;
 	this.corpo = corpo;
@@ -8668,12 +9099,12 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 	return new Promise(
 		resolver => {
 			if (!document.getElementById('maisPje_caixa_de_selecao')) {
-										
+
 				// DESCRIÇÃO: REGRA DO TOOLTIP
 				if (!document.getElementById('maisPje_tooltip_fundo')) {
 					tooltip('fundo', true);
 				}
-				
+
 				let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
 				let elemento1 = document.createElement("div");
@@ -8691,7 +9122,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 
 				let div = document.createElement("div");
 				div.style = "color: grey; border-bottom: 1px solid lightgrey; display: grid; grid-template-columns: 93% 6%;margin-bottom: 5px;";
-				let t = titulo.split('|');			
+				let t = titulo.split('|');
 				let spanTitulo = document.createElement("span");
 				spanTitulo.style = "color: grey; font-size:1.4em;";
 				spanTitulo.innerText = t[0];
@@ -8707,17 +9138,17 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				div.appendChild(logo);
 
 				container.appendChild(div);
-				
+
 				if (t[1]) { //subtitulo
 					let spanSubTitulo = document.createElement("span");
 					spanSubTitulo.style = "color: cadetblue;font-style: italic;font-weight: normal;padding: 10px 5px;font-size: 1.1em;";
 					spanSubTitulo.innerText = t[1];
 					container.appendChild(spanSubTitulo);
 				}
-								
+
 				let containerSelect = document.createElement("select");
 				containerSelect.style = 'max-height: 90vh;cursor: pointer; margin-top: 10px; padding: 10px; background-color: white; color: rgb(81, 81, 81); font-size:1.3em;overflow-y: auto;text-align: center;';
-				
+
 				if (multiplaEscolha) {
 					containerSelect.setAttribute('multiple','true');
 					containerSelect.style.minHeight = '80vh';
@@ -8727,7 +9158,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				for (const [pos, opcao] of listaDeOpcoes.entries()) {
 					let option = document.createElement("option");
 					option.id = 'maisPje_selecao_select_' + (pos+1);
-					option.style = 'background-color: white;padding: 10px;border-radius: 5px;';
+					option.style = 'background-color: whitesmoke;padding: 10px;border-radius: 5px;';
 					option.value = opcao;
 					option.innerText = opcao;
 					option.onmouseenter = function () { this.style.filter = 'brightness(.8)' };
@@ -8739,26 +9170,26 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 						//ajusta o select para vir aberto
 						containerSelect.style.border = 'none';
 						containerSelect.setAttribute('size',listaDeOpcoes.length);
-						
-						option.onclick = function () { 
+
+						option.onclick = function () {
 							clearInterval(check);
 							let resposta;
 							if (retornarPosicao) {
-								resposta = pos;								
+								resposta = pos;
 							} else {
-								resposta = this.innerText;								
+								resposta = this.innerText;
 							}
 							document.getElementById('maisPje_caixa_de_selecao').remove();
-							return resolver(resposta);													
+							return resolver(resposta);
 						};
 
 
 					}
 
 					containerSelect.appendChild(option);
-				}				
+				}
 
-				container.appendChild(containerSelect);			
+				container.appendChild(containerSelect);
 
 				if (!nomeBotaoContinuar.includes('Nenhum')) {
 					let bt_continuar = document.createElement("span");
@@ -8774,18 +9205,18 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 						let valores = containerSelect.value;
 						if (multiplaEscolha) {
 							let optSelecionadas = containerSelect.selectedOptions;
-							valores = Array.from(optSelecionadas).map(({ value }) => value);							
+							valores = Array.from(optSelecionadas).map(({ value }) => value);
 						}
 						resolver(valores);
 						document.getElementById('maisPje_caixa_de_selecao').remove();
 					};
 					container.appendChild(bt_continuar);
 				}
-				
+
 				elemento1.appendChild(container);
 				document.body.appendChild(elemento1);
 				containerSelect.click(); //serve para exibir as oipções selecionadas
-					
+
 			} else {
 				resolver(null);
 			}
@@ -8818,7 +9249,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 
 			let div = document.createElement("div");
 			div.style = "color: grey; border-bottom: 1px solid lightgrey; display: grid; grid-template-columns: 93% 6%;margin-bottom: 5px;";
-			let t = titulo.split('|');			
+			let t = titulo.split('|');
 			let spanTitulo = document.createElement("span");
 			spanTitulo.style = "color: grey; font-size:1.4em;";
 			spanTitulo.innerText = t[0];
@@ -8834,14 +9265,14 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 			div.appendChild(logo);
 
 			container.appendChild(div);
-			
+
 			if (t[1]) { //subtitulo
 				let spanSubTitulo = document.createElement("span");
 				spanSubTitulo.style = "color: cadetblue;font-style: italic;font-weight: normal;padding: 10px 5px;font-size: 1.1em;";
 				spanSubTitulo.innerText = t[1];
 				container.appendChild(spanSubTitulo);
 			}
-			
+
 			if (t[2]) { //opcoes
 				let spanOpt = document.createElement("span");
 				spanOpt.style = "text-align: justify;padding-left: 15%;font-weight: bold;color: darkcyan;";
@@ -8849,7 +9280,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 				container.appendChild(spanOpt);
 			}
 
-			let inputTexto;			
+			let inputTexto;
 			if (tipo == 'textarea') {
 				inputTexto = document.createElement("textarea")
 				inputTexto.id = 'maisPje_cxPergunta_inputTexto';
@@ -8865,9 +9296,9 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 			} else if (tipo == 'data') {
 				inputTexto = document.createElement("input");
 				inputTexto.id = 'maisPje_cxPergunta_inputTexto';
-				inputTexto.type = 'date';				
+				inputTexto.type = 'date';
 				inputTexto.style = "font-size: 16px; color: rgba(0,0,0,.87); border-bottom: 1px solid lightgrey; padding: 8px; height: 40px;box-shadow: none;outline: none !important;";
-				
+
 				if (valorAnterior) { inputTexto.value = valorAnterior.split('/').reverse().join('-') }
 				if (placeholder) { inputTexto.placeholder = placeholder.split('/').reverse().join('-')  }
 				inputTexto.onkeypress = function (e) {
@@ -8889,7 +9320,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 					}
 				};
 			}
-			
+
 			container.appendChild(inputTexto);
 
 			let btOk = document.createElement("span");
@@ -8901,7 +9332,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 			btOk.onclick = function () {
 				elemento1.remove();
 				let resposta;
-				if (tipo == 'data') {					
+				if (tipo == 'data') {
 					let dataPreenchida = new Date(inputTexto.value);
 					let dia  =  (dataPreenchida.getDate()+1 + '').padStart(2,'0') + '/';
 					let mes = ((dataPreenchida.getMonth()+1) + '').padStart(2,'0');
@@ -8909,7 +9340,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 					resposta = dia + mes + ano;
 				} else {
 					resposta = inputTexto.value;
-				}				
+				}
 				resolver(resposta);
 			};
 			container.appendChild(btOk);
@@ -8917,9 +9348,9 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 			elemento1.appendChild(container);
 			document.body.appendChild(elemento1);
 
-			//atribui o foco ao input			
+			//atribui o foco ao input
 			let check1 = setInterval(async function() {
-				if (document.activeElement === inputTexto) { 
+				if (document.activeElement === inputTexto) {
 					clearInterval(check1);
 					window.focus(); //primeiro a janela
 					inputTexto.focus();
@@ -8938,5 +9369,24 @@ function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+document.querySelector('button#modulo2_1_video')?.addEventListener('click', () => abrirVideo('https://www.youtube.com/embed/8tLj_3Uy3gU'));
+document.querySelector('button#modulo3_1_video')?.addEventListener('click', () => abrirVideo('https://drive.google.com/file/d/1R2nivNisv2Ro-ycquKKKLBtwX2iWdYbP/preview'));
 //filter: sepia(2) saturate(10) hue-rotate(-189deg);
 //👤
+/** @param {string} video link para o video */
+function abrirVideo(video) {
+    let html = '<iframe width="640" height="360" src="' + video + '" frameborder="0" allowfullscreen></iframe>';
+    if (video.includes('youtube')) {
+        html = '<iframe width="560" height="315" src="' + video + '?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>';
+    }
+    Swal.fire({
+        title: '<strong>Vídeo Tutorial</strong>',
+        html: html,
+        width: 800,
+        padding: '3em',
+        showCloseButton: true,
+        showCancelButton: false,
+        showConfirmButton: false,
+        focusConfirm: false
+    });
+}

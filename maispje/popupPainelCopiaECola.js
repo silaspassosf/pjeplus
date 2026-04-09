@@ -1,7 +1,7 @@
 iniciar();
 
 async function iniciar() {
-    browser.storage.local.get('processo_memoria', function(result){
+    browser.storage.local.get('processo_memoria').then(function(result){
         criarPainelComDadosDaMemoria(result.processo_memoria);
     });   
 }
@@ -12,7 +12,7 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
     let containerUL = document.createElement('ul')
     let liDadosProcesso = document.createElement('li')
     let dadosProcesso = document.createElement('dadosProcesso')
-    dadosProcesso.setAttribute('ocultar',false)
+    dadosProcesso.setAttribute('ocultar','false')
     dadosProcesso.appendChild(inserirLinha('DADOS DO PROCESSO','dadosprocesso'));
     dadosProcesso.appendChild(inserirLinha('Número do Processo','comum negrito'));
     dadosProcesso.appendChild(inserirLinha(processo_memoria.numero,'selecionavel recuado','Número do processo com formatação'));
@@ -73,8 +73,13 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
             let dtNasc = parte.dataNascimento.replace( /\-/g,'/');
             dtNasc = new Date(dtNasc).toLocaleDateString();
 
-            poloAtivo.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
-            poloAtivo.appendChild(inserirLinha(cpfA,'selecionavel recuado  ','CPF/CNPJ'));//só cpf
+            let div = document.createElement('div');
+            div.style = 'display: grid;grid-template-columns: 90% 1fr;';  
+            div.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
+            div.appendChild(inserirLinha('','recuado linkGov','Situação Cadastral',cpfA,dtNasc));
+            poloAtivo.appendChild(div);
+
+            div.appendChild(inserirLinha(cpfA,'selecionavel recuado  ','CPF/CNPJ'));//só cpf
             poloAtivo.appendChild(inserirLinha(cpfA.replace(/\D/g,""),'selecionavel recuado opcao','apenas números do CPF/CNPJ'));//cpf só números
             poloAtivo.appendChild(inserirLinha(nomeA + " (CPF/CNPJ " + cpfA + ")",'selecionavel recuado opcao','Nome completo com CPF/CNPJ'));//nome e CPF
             poloAtivo.appendChild(inserirLinha('Nasc: ' + dtNasc,'selecionavel italico recuado opcao','Data de Nascimento'));//data nascimento
@@ -93,9 +98,21 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
                         let nomeAR = representante.nome;
                         let cpfAR = (representante.cpfcnpj == "" ? "desconhecido" : representante.cpfcnpj);
                         let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;
-                        poloAtivo.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        
+                        // poloAtivo.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        
+                        let divrep = document.createElement('div');
+                        divrep.style = 'display: grid;grid-template-columns: 90% 1fr;';  
+                        divrep.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        
+                        //no caso de representantes é necessario passar o id da pessoa fisica em vez do cpf
+                        //para poder pegar lá na frente (gigs-plugin) uma vez que o representante não tem a data de nascimento na consulta simples
+                        divrep.appendChild(inserirLinha('','recuado linkGov advogado','Situação Cadastral',cpfAR,representante.id));
+                        poloAtivo.appendChild(divrep);
+
                         poloAtivo.appendChild(inserirLinha(nomeAR + " (CPF/CNPJ " + cpfAR + ")",'selecionavel procurador opcao','Nome completo com CPF/CNPJ'));//nome e CPF
                         poloAtivo.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Nome completo'));//só nome
+                        poloAtivo.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Situação Cadastral'));//só nome
                         poloAtivo.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','CPF/CNPJ'));//só cpf
                         poloAtivo.appendChild(inserirLinha("OAB/" + oabAR,'selecionavel procurador opcao','OAB'));//só OAB											
                     }
@@ -121,8 +138,16 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
             i2++;
             let nomeA = parte.nome;
             let cpfA = (parte.cpfcnpj == "" ? "desconhecido" : parte.cpfcnpj);
+            let dtNasc = parte.dataNascimento.replace( /\-/g,'/');
+            dtNasc = new Date(dtNasc).toLocaleDateString();
 
-            poloPassivo.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo', parte.id));//só nome
+            let div = document.createElement('div');
+            div.style = 'display: grid;grid-template-columns: 90% 1fr;';  
+            div.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo', parte.id));//só nome
+            div.appendChild(inserirLinha('','recuado linkGov','Situação Cadastral',cpfA,dtNasc));
+            poloPassivo.appendChild(div);
+
+            poloPassivo.appendChild(inserirLinha(cpfA,'selecionavel recuado ','Situação Cadastral'));//só cpf
             poloPassivo.appendChild(inserirLinha(cpfA,'selecionavel recuado ','CPF/CNPJ'));//só cpf
             poloPassivo.appendChild(inserirLinha(cpfA.replace(/\D/g,""),'selecionavel recuado opcao','apenas números do CPF/CNPJ'));//cpf só números
             poloPassivo.appendChild(inserirLinha(nomeA + " (CPF/CNPJ " + cpfA + ")",'selecionavel recuado opcao','Nome completo com CPF/CNPJ'));//nome e CPF
@@ -154,10 +179,20 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
                     function(representante) {
                         let nomeAR = representante.nome;
                         let cpfAR = (representante.cpfcnpj == "" ? "desconhecido" : representante.cpfcnpj);
-                        let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;
-                        poloPassivo.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;                        
+
+                        let divrep = document.createElement('div');
+                        divrep.style = 'display: grid;grid-template-columns: 90% 1fr;';  
+                        divrep.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                       //no caso de representantes é necessario passar o id da pessoa fisica em vez do cpf
+                        //para poder pegar lá na frente (gigs-plugin) uma vez que o representante não tem a data de nascimento na consulta simples
+                        divrep.appendChild(inserirLinha('','recuado linkGov advogado','Situação Cadastral',cpfAR,representante.id));
+                        
+                        poloPassivo.appendChild(divrep);
+
                         poloPassivo.appendChild(inserirLinha(nomeAR + " (CPF/CNPJ " + cpfAR + ")",'selecionavel procurador opcao','Nome completo com CPF/CNPJ'));//nome e CPF
                         poloPassivo.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Nome completo'));//só nome
+                        poloPassivo.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','Situação Cadastral'));//só cpf
                         poloPassivo.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','CPF/CNPJ'));//só cpf
                         poloPassivo.appendChild(inserirLinha("OAB/" + oabAR,'selecionavel procurador opcao','OAB'));//só OAB
                     }
@@ -186,8 +221,16 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
                 i3++;
                 let nomeA = parte.nome;
                 let cpfA = (parte.cpfcnpj == "" ? "desconhecido" : parte.cpfcnpj);
+                let dtNasc = parte.dataNascimento.replace( /\-/g,'/');
+                dtNasc = new Date(dtNasc).toLocaleDateString();
 
-                poloOutros.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
+                let div = document.createElement('div');
+                div.style = 'display: grid;grid-template-columns: 90% 1fr;';  
+                div.appendChild(inserirLinha(nomeA,'selecionavel pai negrito recuado','Nome completo'));//só nome
+                div.appendChild(inserirLinha('','recuado linkGov','Situação Cadastral',cpfA,dtNasc));
+                poloOutros.appendChild(div);
+
+                poloOutros.appendChild(inserirLinha(cpfA,'selecionavel recuado ','Situação Cadastral'));//só cpf
                 poloOutros.appendChild(inserirLinha(cpfA,'selecionavel recuado ','CPF/CNPJ'));//só cpf
                 poloOutros.appendChild(inserirLinha(cpfA.replace(/\D/g,""),'selecionavel recuado opcao','apenas números do CPF/CNPJ'));//cpf só números
                 poloOutros.appendChild(inserirLinha(nomeA + " (CPF/CNPJ " + cpfA + ")",'selecionavel recuado opcao','Nome completo com CPF/CNPJ'));//nome e CPF
@@ -201,9 +244,17 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
                         let nomeAR = representante.nome;
                         let cpfAR = (representante.cpfcnpj == "" ? "desconhecido" : representante.cpfcnpj);
                         let oabAR = representante.oab == "" ? "desconhecido" : representante.oab;
-                        poloOutros.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        // poloOutros.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        
+                        let div = document.createElement('div');
+                        div.style = 'display: grid;grid-template-columns: 90% 1fr;';  
+                        div.appendChild(inserirLinha(nomeAR + " (OAB/" + oabAR + ")",'selecionavel pai procurador','Nome completo com OAB'));//nome e OAB
+                        div.appendChild(inserirLinha('','recuado linkGov advogado','Situação Cadastral',cpfAR));
+                        poloOutros.appendChild(div);
+
                         poloOutros.appendChild(inserirLinha(nomeAR + " (CPF/CNPJ " + cpfAR + ")",'selecionavel  procurador opcao','Nome completo com CPF/CNPJ'));//nome e CPF
                         poloOutros.appendChild(inserirLinha(nomeAR,'selecionavel procurador opcao','Nome completo'));//só nome
+                        poloOutros.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','Situação Cadastral'));//só cpf
                         poloOutros.appendChild(inserirLinha(cpfAR,'selecionavel procurador opcao','CPF/CNPJ'));//só cpf
                         poloOutros.appendChild(inserirLinha("OAB/" + oabAR,'selecionavel procurador opcao','OAB'));//só OAB
                     }
@@ -217,10 +268,11 @@ async function criarPainelComDadosDaMemoria(processo_memoria) {
     tabela.appendChild(containerUL);
     document.body.appendChild(tabela);	
     
-    function inserirLinha(valor, classe='comum', title='', domicilio='') {
+    function inserirLinha(valor, classe='comum', title='', atributo1='', atributo2='') {
         let span = document.createElement('span');
         span.title = title;
-        if (domicilio) { span.setAttribute('idPessoa',domicilio) }
+        if (atributo1) { span.setAttribute('idPessoa',atributo1) }
+        if (atributo2) { span.setAttribute('idPessoa2',atributo2) }        
         span.className = classe;
         span.innerText = valor;
         return span;

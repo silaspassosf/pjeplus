@@ -46,6 +46,62 @@ def _localizar_botao_tarefa(driver: WebDriver, timeout: int = 8):
     return None
 
 
+def _obter_tarefa_atual_robusta(driver: WebDriver, timeout: int = 6, debug: bool = False) -> Optional[str]:
+    """Obtém a tarefa atual pelo cabeçalho e, se necessário, pelo botão de abrir tarefa."""
+    from selenium.webdriver.common.by import By
+    import time
+
+    try:
+        tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=timeout)
+        if tarefa_el and (tarefa_el.text or '').strip():
+            return tarefa_el.text.strip()
+    except Exception:
+        pass
+
+    try:
+        tarefa_btn = _localizar_botao_tarefa(driver, timeout=max(2, timeout // 2))
+        if tarefa_btn:
+            try:
+                span_tarefa = tarefa_btn.find_element(By.CSS_SELECTOR, '.texto-tarefa-processo')
+                tarefa_texto = (span_tarefa.text or '').strip()
+            except Exception:
+                tarefa_texto = (tarefa_btn.text or '').strip()
+
+            if tarefa_texto:
+                if debug:
+                    logger.info(f'[MOV_INT] Tarefa identificada pelo botão: {tarefa_texto}')
+
+                try:
+                    abas_antes = set(driver.window_handles)
+                    if safe_click_no_scroll(driver, tarefa_btn, log=debug):
+                        for _ in range(20):
+                            novas_abas = set(driver.window_handles) - abas_antes
+                            if novas_abas:
+                                driver.switch_to.window(novas_abas.pop())
+                                break
+                            time.sleep(0.2)
+                        time.sleep(0.8)
+
+                        tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=timeout)
+                        if tarefa_el and (tarefa_el.text or '').strip():
+                            return tarefa_el.text.strip()
+                except Exception:
+                    pass
+
+                return tarefa_texto
+    except Exception:
+        pass
+
+    try:
+        el = buscar_seletor_robusto(driver, ['titulo-tarefa', 'pje-cabecalho-tarefa', 'tarefa'], timeout=timeout)
+        if el and (el.text or '').strip():
+            return el.text.strip()
+    except Exception:
+        pass
+
+    return None
+
+
 def mov_simples(
     driver: WebDriver,
     seletor_alvo: str,
@@ -381,6 +437,65 @@ def _remover_acentos(texto: str) -> str:
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
 
 
+def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout: int = 8):
+    """Localiza o botão de destino alinhado ao gigs-plugin/mini-selenium:
+    1. Aguarda pje-botoes-transicao ter pelo menos 5 botões (esperarColecao)
+    2. Busca por textContent normalizado (removeAcento + includes) — tal como querySelectorByText
+    3. Fallback para busca global de botões na página
+    4. Fallback para aria-label / title
+    """
+    from selenium.webdriver.common.by import By
+
+    destino_lower = (destino or '').strip().lower()
+    if not destino_lower:
+        return None
+
+    destino_normalizado = _remover_acentos(destino_lower)
+
+    def _texto_normalizado(texto: str) -> str:
+        # espelha removeAcento + removeQuebraDeLinha do mini-selenium.js
+        import re as _re
+        texto = _remover_acentos((texto or '').strip().lower())
+        return _re.sub(r'[\r\n]+', ' ', texto)
+
+    def _match(el) -> bool:
+        try:
+            texto = _texto_normalizado(el.text or driver.execute_script('return arguments[0].textContent;', el))
+            return destino_normalizado in texto and el.is_displayed() and not el.get_attribute('disabled')
+        except Exception:
+            return False
+
+    # 1. Aguardar pje-botoes-transicao renderizar via MutationObserver (padrão esperarElemento do mini-selenium.js)
+    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=timeout)
+
+    # 2. Dentro de pje-botoes-transicao (alvo primário)
+    try:
+        for el in driver.find_elements(By.CSS_SELECTOR, 'pje-botoes-transicao button'):
+            if _match(el):
+                return el
+    except Exception:
+        pass
+
+    # 3. Qualquer botão visível na página (fallback global)
+    try:
+        for el in driver.find_elements(By.TAG_NAME, 'button'):
+            if _match(el):
+                return el
+    except Exception:
+        pass
+
+    # 4. aria-label / title
+    try:
+        for el in driver.find_elements(By.CSS_SELECTOR, 'button[aria-label], button[title]'):
+            attr = (el.get_attribute('aria-label') or el.get_attribute('title') or '')
+            if destino_normalizado in _texto_normalizado(attr) and el.is_displayed() and not el.get_attribute('disabled'):
+                return el
+    except Exception:
+        pass
+
+    return None
+
+
 def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15) -> bool:
     from selenium.webdriver.common.by import By
     import time
@@ -392,11 +507,81 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             pass
 
     try:
-        tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=3)
-        tarefa_text = tarefa_el.text if tarefa_el else None
+        # ===== ETAPA 0: NAVEGAR PARA ABA TAREFA VIA API (espelho de acao_bt_aaMovimento) =====
+        # gigs-plugin.js: extrai idProcesso da URL /detalhe, chama REST
+        # /pje-comum-api/api/processos/id/{idProcesso}/tarefas?maisRecente=true
+        # e navega direto para /pjekz/processo/{idProcesso}/tarefa/{idTarefa}
+        import time as _time
+        import re as _re
+        try:
+            url_atual = driver.current_url or ''
+            if '/tarefa' not in url_atual and '/processo/' in url_atual:
+                # Extrai idProcesso da URL (padrão: /processo/XXXXX/detalhe)
+                m = _re.search(r'/processo/(\d+)', url_atual)
+                if m:
+                    id_processo = m.group(1)
+                    base = url_atual.split('/pjekz/')[0]  # ex: https://pje.trt2.jus.br
+
+                    # Chama API REST com cookies da sessão já presentes no driver
+                    dados = driver.execute_async_script(
+                        """
+                        const url = arguments[0];
+                        const done = arguments[arguments.length - 1];
+                        fetch(url, {method: 'GET', credentials: 'include', headers: {'Content-Type':'application/json'}})
+                            .then(resp => resp.json())
+                            .then(json => done(json))
+                            .catch(err => done({__erro: err && err.message ? err.message : String(err)}));
+                        """,
+                        f"{base}/pje-comum-api/api/processos/id/{id_processo}/tarefas?maisRecente=true"
+                    )
+                    id_tarefa = None
+                    if isinstance(dados, dict) and dados.get('__erro'):
+                        logger.warning(f"[MOV_INT][ETAPA0] fetch API error: {dados['__erro']}")
+                        dados = []
+                    if isinstance(dados, list) and dados:
+                        id_tarefa = dados[0].get('id') or dados[0].get('idTarefa')
+                    elif isinstance(dados, dict):
+                        id_tarefa = dados.get('id') or dados.get('idTarefa')
+
+                    if id_tarefa:
+                        url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
+                        abas_antes = set(driver.window_handles)
+                        driver.execute_script(f"window.open('{url_tarefa}', '_blank');")
+                        for _ in range(25):
+                            novas_abas = set(driver.window_handles) - abas_antes
+                            if novas_abas:
+                                driver.switch_to.window(novas_abas.pop())
+                                break
+                            _time.sleep(0.2)
+                        try:
+                            aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=min(8, timeout))
+                        except Exception:
+                            _time.sleep(1.5)
+                        
+                        # Após abrir a tarefa via API, aguardar que os botões de transição estejam disponíveis
+                        try:
+                            aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(8, timeout))
+                        except Exception:
+                            # Fallback para garantir que a página carregou
+                            _time.sleep(1.5)
+                            
+                        log(f'[MOV_INT] Tarefa aberta via API: processo={id_processo} tarefa={id_tarefa}')
+                    else:
+                        logger.warning('[MOV_INT] API não retornou idTarefa — abortando ETAPA 0')
+        except Exception as e0:
+            logger.warning(f'[MOV_INT][ETAPA0] Falha na abertura via API: {e0}')
+
+        tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
         if not tarefa_text:
-            el = buscar_seletor_robusto(driver, ['titulo-tarefa', 'pje-cabecalho-tarefa', 'tarefa'], timeout=3)
-            tarefa_text = el.text if el else 'Análise'
+            try:
+                from .movimentos_navegacao import navegar_para_tarefa
+                if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout):
+                    tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True)
+            except Exception:
+                pass
+
+        if not tarefa_text:
+            tarefa_text = 'Análise'
 
         tarefa_norm = _remover_acentos((tarefa_text or '').lower())
         destino_norm = _remover_acentos((destino or '').lower())
@@ -429,14 +614,34 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
             log('[MOV_INT] tarefa de elaborar/assinar - abortando')
             return False
 
+        # Tentativa genérica de clicar no botão de destino direto na tarefa atual
+        try:
+            bt = _localizar_botao_destino_movimento(driver, destino, timeout=timeout)
+            if bt and bt.is_enabled():
+                log(f"[MOV_INT] clicando botão destino direto: {destino}")
+                if safe_click_no_scroll(driver, bt, log=True):
+                    if ultimo_lance:
+                        try:
+                            clicar_ultimo_lance(driver, ultimo_lance)
+                        except Exception:
+                            pass
+                    try:
+                        chip_responsavel(driver, chip=chip, responsavel=responsavel)
+                    except Exception:
+                        pass
+                    return True
+        except Exception as e:
+            log(f"[MOV_INT] falha ao clicar destino direto: {e}")
+
+        if 'elaborar' in tarefa_norm or 'assinar' in tarefa_norm:
+            log('[MOV_INT] tarefa de elaborar/assinar - abortando')
+            return False
+
         if 'analise' in tarefa_norm:
             try:
-                bt = esperar_elemento(driver, 'button', texto=destino, timeout=max(5, timeout//2))
-                if not bt:
-                    time.sleep(1)
-                    bt = esperar_elemento(driver, 'button', texto=destino, timeout=5)
+                bt = _localizar_botao_destino_movimento(driver, destino, timeout=timeout)
                 if bt and bt.is_enabled():
-                    safe_click_no_scroll(driver, bt)
+                    driver.execute_script('arguments[0].click();', bt)
                     # último lance, chip e responsavel manejados por helpers
                     if ultimo_lance:
                         try:
@@ -451,6 +656,16 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
                 return False
             except Exception:
                 return False
+
+        try:
+            from .movimentos_navegacao import navegar_para_tarefa
+            if navegar_para_tarefa(driver, 'análise', debug=True, timeout=timeout, tarefa_atual_conhecida=tarefa_text):
+                tarefa_text = _obter_tarefa_atual_robusta(driver, timeout=max(3, timeout // 2), debug=True) or tarefa_text
+                tarefa_norm = _remover_acentos((tarefa_text or '').lower())
+                if 'analise' in tarefa_norm:
+                    return movimentar_inteligente(driver, destino, ultimo_lance=ultimo_lance, chip=chip, responsavel=responsavel, timeout=timeout)
+        except Exception:
+            pass
 
         try:
             btn_analise = buscar_seletor_robusto(driver, ['Análise', 'analise'], timeout=4)

@@ -110,10 +110,8 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
     logger.info(f'[PRAZO_API] GIGS sem prazo XS encontrados: {total_encontrado}')
 
-    main_handle = driver.current_window_handle
-    processados = 0
-    falhas = []
-
+    # Registrar os processos que serão executados
+    processos_para_executar = []
     for idx, item in enumerate(atividades, start=1):
         if max_processos and idx > max_processos:
             break
@@ -133,38 +131,53 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             logger.warning(f'[PRAZO_API] Item {idx} sem id_processo, pulando (numero_recuperado={numero})')
             continue
 
-        detalhe_url = f'https://pje.trt2.jus.br/pjekz/processo/{id_processo}/detalhe/'
-        logger.info(f'[PRAZO_API] [{idx}/{total_encontrado}] Abrindo processo id={id_processo} numero={numero}')
+        processos_para_executar.append((id_processo, numero, chave_progresso))
 
-        before_handles = set(driver.window_handles)
-        driver.execute_script("window.open(arguments[0], '_blank');", detalhe_url)
-        new_handles = [h for h in driver.window_handles if h not in before_handles]
-        if not new_handles:
-            logger.error(f'[PRAZO_API] Falha ao abrir nova aba para {target}')
-            falhas.append({'id': id_processo, 'numero': numero, 'erro': 'aba_nao_aberta'})
-            continue
+    # Registrar quais processos serão executados
+    logger.info(f'[PRAZO_API] Processos a serem executados: {[p[1] for p in processos_para_executar]}')
 
-        driver.switch_to.window(new_handles[-1])
+    processados = 0
+    falhas = []
 
+    # Processar cada processo individualmente na mesma aba
+    for idx, (id_processo, numero, chave_progresso) in enumerate(processos_para_executar, start=1):
         try:
-            wait_for_page_load(driver, timeout=20)
-            fluxo_pz(driver)
-            processados += 1
+            # Garantir que estamos apenas na aba principal antes de começar
+            abas = driver.window_handles
+            if len(abas) > 1:
+                # Fechar todas as abas extras, mantendo apenas a primeira
+                aba_principal = abas[0]
+                for aba in abas[1:]:
+                    try:
+                        driver.switch_to.window(aba)
+                        driver.close()
+                    except Exception:
+                        pass
+                driver.switch_to.window(aba_principal)
 
-            # 2) Marcar progresso P2B somente se executado com sucesso
-            if chave_progresso:
-                marcar_processo_executado_p2b(chave_progresso, progresso)
+            detalhe_url = f'https://pje.trt2.jus.br/pjekz/processo/{id_processo}/detalhe/'
+            logger.info(f'[PRAZO_API] [{idx}/{len(processos_para_executar)}] Abrindo processo id={id_processo} numero={numero}')
 
-            logger.info(f'[PRAZO_API] Processo {numero} processado com sucesso')
-        except Exception as e:
-            logger.error(f'[PRAZO_API] Erro ao processar processo {numero}: {e}')
-            falhas.append({'numero': numero, 'erro': str(e)})
-        finally:
+            # Navegar para o processo na mesma aba
+            driver.get(detalhe_url)
+
             try:
-                driver.close()
-            except Exception:
-                pass
-            driver.switch_to.window(main_handle)
+                wait_for_page_load(driver, timeout=20)
+                fluxo_pz(driver)
+                processados += 1
+
+                # 2) Marcar progresso P2B somente se executado com sucesso
+                if chave_progresso:
+                    marcar_processo_executado_p2b(chave_progresso, progresso)
+
+                logger.info(f'[PRAZO_API] Processo {numero} processado com sucesso')
+            except Exception as e:
+                logger.error(f'[PRAZO_API] Erro ao processar processo {numero}: {e}')
+                falhas.append({'numero': numero, 'erro': str(e)})
+                
+        except Exception as e:
+            logger.error(f'[PRAZO_API] Erro geral ao processar processo {numero}: {e}')
+            falhas.append({'numero': numero, 'erro': str(e)})
 
     return {
         'sucesso': len(falhas) == 0,

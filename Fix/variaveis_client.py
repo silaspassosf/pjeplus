@@ -64,6 +64,19 @@ class PjeApiClient:
             return None
         return r.json()
 
+    def associados(self, id_processo: str) -> Optional[List[Dict[str, Any]]]:
+        url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/associados")
+        r = self.sess.get(url, timeout=15)
+        if not r.ok:
+            return None
+        dados = r.json()
+        if isinstance(dados, list):
+            return dados
+        # Alguns endpoints PJe encapsulam em {resultado: [...]}
+        if isinstance(dados, dict):
+            return dados.get('resultado') or dados.get('content') or dados.get('lista') or []
+        return []
+
     def id_processo_por_numero(self, numero_processo: str) -> Optional[str]:
         """Resolve o ID interno do PJe a partir do número CNJ.
         
@@ -167,6 +180,22 @@ class PjeApiClient:
             if not isinstance(dados, list):
                 return None
             return dados
+        except Exception:
+            return None
+
+    def domicilio_eletronico(self, id_parte: str) -> Optional[bool]:
+        """Verifica domicílio eletrônico (apenas PJ).
+
+        Retorna True se habilitada, False se não, None em erro/404 (PF ou não encontrada).
+        """
+        if not id_parte or id_parte in ('None', '0', ''):
+            return None
+        url = self._url(f"/pje-comum-api/api/pessoajuridicadomicilioeletronico/{id_parte}")
+        try:
+            r = self.sess.get(url, timeout=10)
+            if not r.ok:
+                return None
+            return bool(r.json().get('habilitada', False))
         except Exception:
             return None
 

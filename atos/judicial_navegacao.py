@@ -9,6 +9,8 @@ limpeza de overlays e transição entre URLs.
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.selenium_base.element_interaction import safe_click
 from Fix.selenium_base.wait_operations import esperar_url_conter
+from Fix.abas import aguardar_nova_aba
+from Fix.core import wait_for_page_load
 from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from selenium.webdriver.common.by import By
@@ -65,11 +67,7 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
         # Aguardar nova aba
         nova_aba = None
         try:
-            WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > len(abas_antes))
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
+            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=10)
         except TimeoutException:
             logger.info('[NAVEGAÇÃO] Nenhuma nova aba detectada (continuando na mesma aba)')
 
@@ -79,7 +77,7 @@ def abrir_tarefa_processo(driver: WebDriver) -> Tuple[bool, bool]:
 
             # Aguardar carregamento mínimo
             try:
-                WebDriverWait(driver, 8).until(lambda d: d.find_element(By.TAG_NAME, 'body'))
+                wait_for_page_load(driver, 8)
             except Exception:
                 pass
 

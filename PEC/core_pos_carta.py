@@ -12,7 +12,7 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
     Busca até 4 documentos (sentença, decisão ou despacho) e aplica regras específicas.
     """
     from Fix.extracao import extrair_documento
-from Fix.gigs import criar_gigs
+    from Fix.gigs import criar_gigs
 
     def log_msg(msg):
         if debug:

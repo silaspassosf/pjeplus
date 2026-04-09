@@ -298,6 +298,17 @@ def make_comunicacao_wrapper(
             logger.info("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
             salvar_minuta_final(driver, sigilo, debug=debug, log=logger.info if debug else None)
 
+            # 6. Fechar aba de minutas e voltar para aba de detalhe
+            # (necessário para execução sequencial de múltiplas notificações no mesmo processo)
+            try:
+                handles = driver.window_handles
+                if len(handles) > 1:
+                    driver.close()
+                    driver.switch_to.window(handles[0])
+                    logger.info(f"[COMUNICACAO][ORQUESTRA] Aba de minutas fechada; retornou à aba de detalhe para {nome_comunicacao}")
+            except Exception as e_fechar:
+                logger.warning(f"[COMUNICACAO][ORQUESTRA] Falha ao fechar aba de minutas: {e_fechar}")
+
             logger.info(f"[COMUNICACAO][ORQUESTRA] Fluxo concluído com sucesso para {nome_comunicacao}")
             return True
 

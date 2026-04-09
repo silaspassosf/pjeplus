@@ -10,7 +10,7 @@ prazos e bloqueios.
 
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.selenium_base.element_interaction import safe_click
-from Fix.selenium_base.wait_operations import esperar_elemento, esperar_url_conter
+from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable, esperar_url_conter
 from Fix.selenium_base.element_interaction import preencher_multiplos_campos
 from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
@@ -19,7 +19,6 @@ from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
 from Fix.extracao import bndt, criar_gigs
 from Fix.movimento_helpers import selecionar_movimento_auto
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, StaleElementReferenceException
 import time
@@ -27,7 +26,6 @@ import logging
 
 from typing import Optional, Tuple, Dict, List, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.support.ui import WebDriverWait
 from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from .core import verificar_carregamento_pagina, aguardar_e_verificar_aba
 
@@ -189,11 +187,10 @@ def fluxo_cls(
 
                                     changed = True
                                     try:
-                                        btn_gravar_local = WebDriverWait(driver, 2).until(
-                                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'pje-intimacao-automatica button[aria-label*="Gravar"]'))
-                                        )
-                                        btn_gravar_local.click()
-                                        time.sleep(0.6)
+                                        btn_gravar_local = wait_for_clickable(driver, 'pje-intimacao-automatica button[aria-label*="Gravar"]', timeout=2, by=By.CSS_SELECTOR)
+                                        if btn_gravar_local:
+                                            btn_gravar_local.click()
+                                            time.sleep(0.6)
                                     except Exception:
                                         pass
                             except Exception as e:
@@ -221,8 +218,7 @@ def fluxo_cls(
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
             return True
         elif estado_atual == 'minutar':
-            logger.info('[CLS]  Já estamos em /minutar - focando no campo')
-            focar_campo_minutar_se_necessario(driver)
+            logger.info('[CLS]  Processo ja em /minutar — marcando como concluido')
             timing_total = time.time() - timing_inicio
             logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar)')
             return True
@@ -260,8 +256,7 @@ def fluxo_cls(
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (estado pré-assinar)')
                         return True
                     elif '/minutar' in current_after:
-                        logger.info('[CLS] Ja em /minutar apos abrir tarefa - fluxo CLS concluido')
-                        focar_campo_minutar_se_necessario(driver)
+                        logger.info('[CLS] Ja em /minutar apos abrir tarefa — marcando como concluido')
                         timing_total = time.time() - timing_inicio
                         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (já em /minutar após abrir tarefa)')
                         return True
@@ -428,8 +423,7 @@ def ato_judicial(
     :return: (sucesso: bool, sigilo_ativado: bool)
     '''
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
+    from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
     import time
 
     # === TIMING: INÍCIO ===
@@ -471,23 +465,24 @@ def ato_judicial(
                 logger.info(f'[ATO][DESCRICAO] Preenchendo descrição: {descricao}')
                 try:
                     # Seletor correto: input[aria-label="Descrição"]
-                    campo_descricao = WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'input[aria-label="Descrição"]'))
-                    )
-                    campo_descricao.clear()
-                    # Técnica validada no console: value direto + eventos
-                    driver.execute_script("""
-                        var input = arguments[0];
-                        var valor = arguments[1];
-                        input.focus();
-                        input.value = valor;
-                        ['input', 'change', 'keyup'].forEach(function(ev) {
-                            input.dispatchEvent(new Event(ev, {bubbles: true}));
-                        });
-                        input.blur();
-                    """, campo_descricao, descricao)
-                    time.sleep(0.3)
-                    logger.info('[ATO][DESCRICAO]  Descrição preenchida')
+                    campo_descricao = esperar_elemento(driver, 'input[aria-label="Descrição"]', timeout=10, by=By.CSS_SELECTOR)
+                    if campo_descricao:
+                        campo_descricao.clear()
+                        # Técnica validada no console: value direto + eventos
+                        driver.execute_script("""
+                            var input = arguments[0];
+                            var valor = arguments[1];
+                            input.focus();
+                            input.value = valor;
+                            ['input', 'change', 'keyup'].forEach(function(ev) {
+                                input.dispatchEvent(new Event(ev, {bubbles: true}));
+                            });
+                            input.blur();
+                        """, campo_descricao, descricao)
+                        time.sleep(0.3)
+                        logger.info('[ATO][DESCRICAO]  Descrição preenchida')
+                    else:
+                        raise Exception('Campo descrição não encontrado')
                 except Exception as e:
                     logger.error(f'[ATO][DESCRICAO]  Erro ao preencher descrição: {e}')
                     # Não interrompe o fluxo por erro na descrição
@@ -495,9 +490,9 @@ def ato_judicial(
             # Preencher filtro do modelo (como no jud.py)
             try:
                 logger.info(f'[ATO][MODELO] Preenchendo filtro com modelo: {modelo_nome}')
-                campo_filtro_modelo = WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
-                )
+                campo_filtro_modelo = esperar_elemento(driver, 'input#inputFiltro', timeout=10, by=By.CSS_SELECTOR)
+                if not campo_filtro_modelo:
+                    raise Exception('Campo filtro modelo não encontrado')
 
                 # Preenche o modelo usando JavaScript (como no jud.py)
                 driver.execute_script('arguments[0].focus();', campo_filtro_modelo)
@@ -555,10 +550,10 @@ def ato_judicial(
                 for tentativa in range(5):
                     try:
                         # Buscar elemento fresco a cada tentativa
-                        btn_inserir = WebDriverWait(driver, 3).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn_inserir))
-                        )
-                        break  # Sucesso - sai do loop
+                        btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=3, by=By.CSS_SELECTOR)
+                        if btn_inserir:
+                            break
+                        raise TimeoutException('Botão inserir não clicável')
                     except (TimeoutException, StaleElementReferenceException):
                         if tentativa < 4:  # Não é a última tentativa
                             time.sleep(0.3)
@@ -597,9 +592,9 @@ def ato_judicial(
         # ===== SALVAR IMEDIATAMENTE APÓS INSERÇÃO (como no jud.py) =====
         logger.info('[ATO][SALVAR] Salvando modelo após inserção...')
         try:
-            btn_salvar = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.XPATH, '//button[contains(@class, "mat-raised-button") and contains(@class, "mat-primary") and contains(., "Salvar") and @aria-label="Salvar"]'))
-            )
+            btn_salvar = wait_for_clickable(driver, '//button[contains(@class, "mat-raised-button") and contains(@class, "mat-primary") and contains(., "Salvar") and @aria-label="Salvar"]', timeout=15, by=By.XPATH)
+            if not btn_salvar:
+                raise Exception('Botão Salvar não disponível')
             safe_click(driver, btn_salvar)
             logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
@@ -619,19 +614,16 @@ def ato_judicial(
         if not intimar_ativado:
             logger.info('[ATO][INTIMAR] Desativando intimações automáticas...')
             try:
-                guia_intimacoes = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-editor-lateral div[aria-posinset="1"]'))
-                )
-                if guia_intimacoes.get_attribute('aria-selected') == "false":
+                guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
+                if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
                     guia_intimacoes.click()
                     time.sleep(0.5)
 
-                toggle_intimar = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-intimacao-automatica label.mat-slide-toggle-label'))
-                )
-                parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
-                if 'mat-checked' in parent_toggle.get_attribute('class'):
-                    toggle_intimar.click()
+                toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
+                if toggle_intimar:
+                    parent_toggle = toggle_intimar.find_element(By.XPATH, '..')
+                    if 'mat-checked' in parent_toggle.get_attribute('class'):
+                        toggle_intimar.click()
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" desativado.')
                 else:
                     logger.info('[ATO][INTIMAR] Toggle "Intimar?" já estava desativado.')
@@ -666,13 +658,10 @@ def ato_judicial(
                 
                 # Gravar prazos (usar safe_click_no_scroll em vez de scrollIntoView + click)
                 logger.info('[ATO][PRAZO] Gravando prazos...')
-                btn_gravar_prazo = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]"))
-                )
-                
-                if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
+                btn_gravar_prazo = wait_for_clickable(driver, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]", timeout=10, by=By.XPATH)
+                if btn_gravar_prazo and safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
                     logger.info('[ATO][PRAZO] Gravado via safe_click_no_scroll')
-                else:
+                elif btn_gravar_prazo:
                     logger.warning('[ATO][PRAZO] Falha em safe_click_no_scroll, tentando .click()')
                     btn_gravar_prazo.click()
                 
@@ -692,22 +681,20 @@ def ato_judicial(
                 pec_input = None
                 
                 # Tentar múltiplas formas de encontrar o checkbox PEC (fallbacks)
-                try:
-                    pec_checkbox = WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]'))
-                    )
+                pec_checkbox = esperar_elemento(driver, 'mat-checkbox[aria-label="Enviar para PEC"]', timeout=10, by=By.CSS_SELECTOR)
+                if pec_checkbox:
                     pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                except:
-                    try:
-                        pec_checkbox = WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'div.checkbox-pec mat-checkbox'))
-                        )
+                else:
+                    pec_checkbox = esperar_elemento(driver, 'div.checkbox-pec mat-checkbox', timeout=5, by=By.CSS_SELECTOR)
+                    if pec_checkbox:
                         pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                    except:
-                        pec_input = WebDriverWait(driver, 5).until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]'))
-                        )
-                        pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                    else:
+                        pec_input = esperar_elemento(driver, 'input[type="checkbox"][aria-label="Enviar para PEC"]', timeout=5, by=By.CSS_SELECTOR)
+                        if pec_input:
+                            pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
+                        else:
+                            pec_checkbox = None
+                            pec_input = None
                 
                 if not pec_checkbox or not pec_input:
                     raise Exception("Checkbox PEC não encontrado")
@@ -748,10 +735,8 @@ def ato_judicial(
         try:
             logger.info('[ATO][PEC] Tentando gravar alterações de PEC antes do movimento...')
             # seletor direto para o botão mostrado pelo usuário
-            btn_gravar_pec = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Gravar a intimação/notificação"]'))
-            )
-            if safe_click_no_scroll(driver, btn_gravar_pec, log=False):
+            btn_gravar_pec = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=5, by=By.CSS_SELECTOR)
+            if btn_gravar_pec and safe_click_no_scroll(driver, btn_gravar_pec, log=False):
                 logger.info('[ATO][PEC] Clique em Gravar (intimacao) realizado')
             else:
                 try:
@@ -854,28 +839,28 @@ def ato_judicial(
                 
                 # Gravar movimentos (botão "Gravar os movimentos a serem lançados")
                 logger.info('[ATO][MOVIMENTO] Gravando movimento...')
-                btn_gravar_mov = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Gravar os movimentos a serem lançados']"))
-                )
-                btn_gravar_mov.click()
+                btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
+                if btn_gravar_mov:
+                    btn_gravar_mov.click()
                 time.sleep(1.5)
                 
                 # Confirmar com "Sim"
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
-                btn_sim = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]"))
-                )
-                btn_sim.click()
-                time.sleep(1)
-                logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
+                btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
+                if btn_sim:
+                    btn_sim.click()
+                    time.sleep(1)
+                    logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
+                else:
+                    logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
+
                 # Após confirmar movimento, aplicar sigilo (se solicitado) ANTES do save final
                 try:
                     if sigilo:
                         logger.info('[ATO][SIGILO] Aplicando sigilo após gravação do movimento...')
                         try:
-                            slide = WebDriverWait(driver, 5).until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo'))
-                            )
+                            slide = esperar_elemento(driver, 'mat-slide-toggle[name="sigiloso"], mat-slide-toggle#sigilo', timeout=5, by=By.CSS_SELECTOR)
+
                             try:
                                 input_sig = slide.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
                             except Exception:
@@ -935,40 +920,40 @@ def ato_judicial(
             # Movimento já grava automaticamente, só precisa SALVAR
             logger.info('[ATO][SALVAR] Salvando ato após movimento...')
             try:
-                btn_salvar = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
-                )
+                btn_salvar = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10, by=By.CSS_SELECTOR)
+                if not btn_salvar:
+                    raise Exception('Botão Salvar não disponível')
+
                 btn_salvar.click()
                 logger.info('[ATO][SALVAR] Ato salvo')
                 time.sleep(1.5)
+
                 # Verifica e reaplica sigilo/PEC caso o save tenha re-renderizado a aba
                 try:
                     changed = _verificar_reaplicar_sigilo_pec()
                     if changed:
                         logger.info('[ATO][SALVAR] Mudança detectada após reaplicar; salvando novamente...')
-                        try:
-                            btn_salvar2 = WebDriverWait(driver, 5).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
-                            )
+                        btn_salvar2 = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=5, by=By.CSS_SELECTOR)
+                        if btn_salvar2:
                             btn_salvar2.click()
                             time.sleep(1)
-                        except Exception as e:
-                            logger.debug(f'[ATO][SALVAR] Não foi possível salvar novamente: {e}')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f'[ATO][SALVAR] Não foi possível salvar novamente: {e}')
+
             except Exception as e:
-                logger.error(f'[ATO][SALVAR] ❌ {e}')
+                logger.error(f'[ATO][SALVAR]  Erro ao salvar após movimento: {e}')
                 return False, False
         else:
             # Sem movimento: GRAVAR configurações e depois SALVAR
-            logger.info('[ATO][GRAVAR] Gravando configurações...')
+            logger.info('[ATO][GRAVAR] Gravando configurações...' )
             try:
-                btn_gravar = WebDriverWait(driver, 15).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Gravar a intimação/notificação"]'))
-                )
-                btn_gravar.click()
-                logger.info('[ATO][GRAVAR] Gravado')
-                time.sleep(1)
+                btn_gravar = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=15, by=By.CSS_SELECTOR)
+                if btn_gravar:
+                    btn_gravar.click()
+                    logger.info('[ATO][GRAVAR] Gravado')
+                    time.sleep(1)
+                else:
+                    raise Exception('Botão Gravar não disponível')
             except Exception as e:
                 logger.error(f'[ATO][GRAVAR] ❌ {e}')
                 return False, False
@@ -979,11 +964,10 @@ def ato_judicial(
                 if changed:
                     logger.info('[ATO][GRAVAR] Mudança detectada após reaplicar; executando save final...')
                     try:
-                        btn_salvar_final = WebDriverWait(driver, 5).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[aria-label='Salvar'][color='primary']"))
-                        )
-                        btn_salvar_final.click()
-                        time.sleep(1)
+                        btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=5, by=By.CSS_SELECTOR)
+                        if btn_salvar_final:
+                            btn_salvar_final.click()
+                            time.sleep(1)
                     except Exception as e:
                         logger.debug(f'[ATO][GRAVAR] Não foi possível executar save final: {e}')
             except Exception:
@@ -993,11 +977,12 @@ def ato_judicial(
         if Assinar:
             logger.info('[ATO][ASSINAR] Clicando em assinar...')
             try:
-                btn_assinar = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button#assinar'))
-                )
-                btn_assinar.click()
-                logger.info('[ATO][ASSINAR]  Assinar clicado')
+                btn_assinar = wait_for_clickable(driver, 'button#assinar', timeout=10, by=By.CSS_SELECTOR)
+                if btn_assinar:
+                    btn_assinar.click()
+                    logger.info('[ATO][ASSINAR]  Assinar clicado')
+                else:
+                    raise Exception('Botão assinar não disponível')
             except Exception as e:
                 logger.error(f'[ATO][ASSINAR]  Erro ao clicar em assinar: {e}')
                 return False, False

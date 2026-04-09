@@ -96,6 +96,16 @@ from .utils_login import (
     login_func, criar_driver, criar_driver_sisb
 )
 from .utils_cookies import USAR_COOKIES_AUTOMATICO, COOKIES_DIR
+from .utils_paths import (
+    obter_caminho_perfil_firefox,
+    obter_caminho_firefox_executavel,
+    obter_caminho_geckodriver,
+    obter_caminho_perfil_vt_pje,
+    obter_caminho_perfil_vt_pje_alt,
+    obter_caminho_firefox_alt,
+    configurar_caminho_credencial,
+    exibir_configuracao_atual
+)
 
 # Para compatibilidade, manter imports antigos que podem estar sendo usados
 import logging
@@ -271,9 +281,15 @@ def obter_driver_padronizado(headless=False):
     from selenium.webdriver.firefox.options import Options
     from selenium.webdriver.firefox.service import Service
 
-    PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-    FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    GECKODRIVER_PATH = r"d:\PjePlus\Fix\geckodriver.exe"
+    from .utils_paths import (
+        obter_caminho_perfil_firefox,
+        obter_caminho_firefox_executavel,
+        obter_caminho_geckodriver
+    )
+
+    PROFILE_PATH = obter_caminho_perfil_firefox()
+    FIREFOX_BINARY = obter_caminho_firefox_executavel()
+    GECKODRIVER_PATH = obter_caminho_geckodriver()
 
     options = Options()
     if headless:

@@ -94,13 +94,30 @@ from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 
 from Fix.variaveis import GECKODRIVER_PATH
+from ..utils_paths import (
+    obter_caminho_firefox_executavel,
+    obter_caminho_firefox_alt,
+    obter_caminho_geckodriver
+)
 
 # =============================
 # CONSTANTES
 # =============================
 
-SISB_PROFILE_PC = r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
-SISB_PROFILE_NOTEBOOK = r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
+# Obter caminhos via credenciais do Windows
+def _obter_caminho_sisb_profile():
+    # Tentar obter via credenciais, com fallback para valor padrão
+    import keyring
+    try:
+        profile_path = keyring.get_password('pjeplus_paths', 'SISB_PROFILE_PATH')
+        if profile_path and os.path.exists(profile_path):
+            return profile_path
+    except:
+        pass
+    return r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
+
+SISB_PROFILE_PC = _obter_caminho_sisb_profile()
+SISB_PROFILE_NOTEBOOK = _obter_caminho_sisb_profile()
 
 # Perfil fixo para drivers PJe — evita criação de rust_mozprofile a cada execução
 FIREFOX_PROFILE_PC  = r'C:\SeleniumProfilePC'
@@ -216,7 +233,7 @@ def criar_driver_PC(headless: bool = False) -> webdriver.Firefox:
     options.set_preference("page.load.animation.disabled", True)
     options.set_preference("dom.disable_window_move_resize", False)
 
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    options.binary_location = obter_caminho_firefox_executavel()
 
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
@@ -247,7 +264,7 @@ def criar_driver_VT(headless: bool = False) -> webdriver.Firefox:
         options.add_argument('-headless')
 
     options.binary_location = (
-        r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+        obter_caminho_firefox_alt()
     )
 
     # Perfil fixo — reutilizado entre execuções, sem criar rust_mozprofile a cada run
@@ -284,7 +301,7 @@ def criar_driver_notebook(headless: bool = False) -> webdriver.Firefox:
         options.add_argument('-headless')
     
     options.binary_location = (
-        r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+        obter_caminho_firefox_alt()
     )
     
     # Perfil customizado (atualmente desativado)
@@ -340,7 +357,7 @@ def criar_driver_sisb_pc(headless: bool = False) -> Optional[webdriver.Firefox]:
     if headless:
         options.add_argument('--headless')
     
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    options.binary_location = obter_caminho_firefox_executavel()
     
     # Configurações específicas SISBAJUD
     options.set_preference("browser.startup.homepage", "about:blank")
@@ -400,7 +417,7 @@ def criar_driver_sisb_pc(headless: bool = False) -> Optional[webdriver.Firefox]:
             if headless:
                 options_fallback.add_argument('--headless')
             options_fallback.binary_location = (
-                r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+                obter_caminho_firefox_executavel()
             )
             
             driver = webdriver.Firefox(service=service, options=options_fallback)
@@ -432,7 +449,7 @@ def criar_driver_sisb_notebook(headless: bool = False) -> webdriver.Firefox:
         options.add_argument('-headless')
     
     options.binary_location = (
-        r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+        obter_caminho_firefox_alt()
     )
     options.profile = SISB_PROFILE_NOTEBOOK
     

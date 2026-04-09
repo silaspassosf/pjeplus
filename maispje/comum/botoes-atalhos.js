@@ -8,11 +8,12 @@ function getUrlBaseSiscondj() {
 }
 
 class BotaoAtalhoNovaAba {
-    constructor({ id, icone, aria, cor_de_fundo, gerarSufixo = '', onClick, condicao_adicionar = () => true,
+    constructor({ id, icone, texto='', aria, cor_de_fundo, gerarSufixo = '', onClick = undefined, condicao_adicionar = () => true,
                     gerarPrefixo = () => document.location.origin
     }) {
         this.id = id;
         this.icone = icone;
+        this.texto = texto;
         this.aria = aria;
         this.cor_de_fundo = cor_de_fundo;
         this.gerarSufixo = gerarSufixo;
@@ -56,15 +57,15 @@ class BotaoAtalhoNovaAba {
         span.id = this.id;
         span.style = `--p:${posicao};--d:-1;--c:0;`;
         const tag = !!this.originalOnClick ? 'button' : 'a';
-        let link = document.createElement(tag);
+        let link = document.createElement(tag);        
         link.setAttribute('aria-label', this.aria);
         link.setAttribute('maisPje-tooltip-menuEsquerda', this.aria);
         link.setAttribute('maisPje-tooltip-menuDireita', this.aria);
         link.setAttribute('maisPje-tooltip-menuAcima', this.aria);
         link.setAttribute('maisPje-tooltip-menuAbaixo', this.aria);
         link.style.backgroundColor = this.cor_de_fundo;
-        link.onmouseenter = () => { link.style.backgroundColor = 'dimgray'; };
-        link.onmouseleave = () => { link.style.backgroundColor = this.cor_de_fundo; };
+        link.onmouseenter = () => { link.style.filter = 'grayscale(1)' };
+        link.onmouseleave = () => { link.style.filter = 'grayscale(0)' };
         const acao = this.onClick;
         const executarAcao =  (event) => {
             event.preventDefault();
@@ -72,7 +73,7 @@ class BotaoAtalhoNovaAba {
           };
         if (!!this.originalOnClick) {
             link.addEventListener('click',executarAcao);
-        } else {
+        } else if (link instanceof HTMLAnchorElement) {
             if ( typeof this.gerarSufixo === 'function') {
                 link.addEventListener('click',executarAcao);
                 link.href = '#';
@@ -83,6 +84,7 @@ class BotaoAtalhoNovaAba {
         }
         let i = document.createElement("i");
         i.className = this.icone;
+        i.innerText = this.texto;
         link.appendChild(i);
         span.appendChild(link);
         return span;
@@ -203,9 +205,10 @@ function getAtalhosNovaAba() {
         }),
         preferenciaF2: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_preferencia_f2",
-            icone: "icone keyboard t100 tamanho70",
+            icone: "textoComoIcone t100 tamanho70",
+            texto: "F2",
             aria: (!preferencias.tempF2) ? "Atalho F2: [definir]" : "Atalho F2: " + preferencias.tempF2,
-            cor_de_fundo: "darkcyan",
+            cor_de_fundo: (!preferencias.tempF2) ? "darkcyan" : "rgb(47, 138, 88)",
             onClick: async function () {
                 const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f2 button');
                 preferencias.tempF2 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F2"', preferencias.tempF2, button);
@@ -225,9 +228,10 @@ function getAtalhosNovaAba() {
         }),
         preferenciaF3: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_preferencia_f3",
-            icone: "icone keyboard t100 tamanho70",
+            icone: "textoComoIcone t100 tamanho70",
+            texto: "F3",
             aria: (!preferencias.tempF3) ? "Atalho F3: [definir]" : "Atalho F3: " + preferencias.tempF3,
-            cor_de_fundo: "darkcyan",
+            cor_de_fundo: (!preferencias.tempF3) ? "darkcyan" : "rgb(159, 56, 18)",            
             onClick: async function () {
                 const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f3 button');
                 preferencias.tempF3 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F3"', preferencias.tempF3, button);
@@ -241,6 +245,29 @@ function getAtalhosNovaAba() {
                     button?.setAttribute('maisPje-tooltip-menuAcima', tempTitle);
                     button?.setAttribute('maisPje-tooltip-menuAbaixo', tempTitle);
 					criarAreaDoPreferenciasF3();
+                });
+            },
+            condicao_adicionar: () => document.location.href.search("/detalhe") > -1
+        }),
+        preferenciaF4: new BotaoAtalhoNovaAba({
+            id: "maisPje_menuKaizen_itemmenu_preferencia_f4",
+            icone: "textoComoIcone t100 tamanho70",
+            texto: "F4",
+            aria: (!preferencias.tempF4) ? "Atalho F4: [definir]" : "Atalho F4: " + preferencias.tempF4,
+            cor_de_fundo: (!preferencias.tempF4) ? "darkcyan" : "rgb(15, 131, 200)",
+            onClick: async function () {
+                const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f4 button');
+                preferencias.tempF4 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F4"', preferencias.tempF4, button);
+                let guardarStorage1 = browser.storage.local.set({ 'tempF4': preferencias.tempF4 });
+                Promise.all([guardarStorage1]).then(values => {
+                    browser.runtime.sendMessage({ tipo: 'criarAlerta', valor: 'Janela Detalhes do Processo: definida a tecla F4 como atalho da AA ' + preferencias.tempF4 + '...', icone: '5' });
+                    tempTitle = (!preferencias.tempF4 || preferencias.tempF4 == 'Nenhum') ? "Atalho F4: [definir]" : "Atalho F4: " + preferencias.tempF4;
+                    button?.setAttribute('aria-label', tempTitle);
+                    button?.setAttribute('maisPje-tooltip-menuEsquerda', tempTitle);
+                    button?.setAttribute('maisPje-tooltip-menuDireita', tempTitle);
+                    button?.setAttribute('maisPje-tooltip-menuAcima', tempTitle);
+                    button?.setAttribute('maisPje-tooltip-menuAbaixo', tempTitle);
+					criarAreaDoPreferenciasF4();
                 });
             },
             condicao_adicionar: () => document.location.href.search("/detalhe") > -1
@@ -357,21 +384,20 @@ function getAtalhosNovaAba() {
                 let opcoes = await criarCaixaSelecao(['Caixa Econômica Federal','Banco do Brasil'],titulo='Escolha a Instituição Financeira');
                 if (opcoes == 'Caixa Econômica Federal') {
                     janelaAlvarasSIF('SIF');
-                    //https://pje.trt12.jus.br/pjekz/escaninho/situacao-alvara
                 } else {
 
-                    let opcoes = await criarCaixaCheckBox(['Sim','Não'], [true,false], 'Você já efetuou o login no sistema SISCONDJ?',false,'Continuar');
-                    if (opcoes[0]) {
+                    // let opcoes = await criarCaixaSelecao(['Sim','Não'], 'Você já efetuou o login no sistema SISCONDJ?','Nenhum',false,true);
+			        // if (!opcoes) {
                         janelaAlvarasSISCONDJ('SISCONDJ');
-                    } else {
-                        await criarCaixaDeAlerta('Atenção','Para utilizar a funcionalidade de CONFERIR ALVARÁS é obrigatório que vc já esteja logado no sistema SISCONDJ!\n Faça o login e execute novamente a função.',60);
-                    }
+                    // } else {
+                    //     fundo(false)
+                    //     await criarCaixaDeAlerta('Atenção','Para utilizar a funcionalidade de CONFERIR ALVARÁS é obrigatório que vc já esteja logado no sistema SISCONDJ!\n Faça o login e execute novamente a função.',60,0,"Fazer login");
+                    //     browser.runtime.sendMessage({tipo: 'criarJanela', url: preferencias.configURLs.urlSiscondj, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});                        
+                    // }
                     
                 }
 
             }
-            ,
-            condicao_adicionar: () => false
         })
     };
     return atalhos;

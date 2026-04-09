@@ -1,13 +1,18 @@
 {
   "manifest_version": 2,
   "name": "maisPJe",
-  "version": "4.19.1",
+  "version": "4.19.7",
   "description": "Extens\u00e3o complementar para o PJe (Processo Judicial Eletr\u00f4nico) que permite ao usu\u00e1rio gerenciar o ambiente de trabalho dentro do sistema, automatizando tarefas e eliminando as a\u00e7\u00f5es repetitivas do seu dia-a-dia.",
   "author": "Fernando de Medeiros Marcon",
   "browser_specific_settings": {
     "gecko": {
       "id": "{ab473c1e-2002-4db8-b85d-50dab45806b5}",
-      "update_url": "https://www.trt12.jus.br/repo/maispje/Downloads/update.json"
+      "update_url": "https://www.trt12.jus.br/repo/maispje/Downloads/update.json",
+      "data_collection_permissions": {
+        "required": [
+          "authenticationInfo"
+        ]
+      }
     }
   },
   "icons": {
@@ -22,11 +27,15 @@
       ],
       "js": [
         "comum/apis.js",
+        "comum/autenticacao.js",
+        "comum/preferencias.js",
         "comum/storage.js",
         "comum/mini-selenium.js",
         "comum/acoes-automatizadas.js",
         "comum/botoes-atalhos.js",
         "comum/conciliajt.js",
+        "comum/visualizador-documentos.js",
+        "comum/erec.js",
         "iniciar.js"
       ],
       "run_at": "document_end"
@@ -34,6 +43,7 @@
   ],
   "background": {
     "scripts": [
+      "comum/preferencias.js",
       "comum/storage.js",
       "gigs-background.js"
     ]
@@ -51,6 +61,7 @@
     "activeTab",
     "contextMenus",
     "notifications",
+    "cookies",
     "clipboardWrite"
   ],
   "browser_action": {

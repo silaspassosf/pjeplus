@@ -2,9 +2,9 @@ import time
 import re
 import unicodedata
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
+from Fix.core import aguardar_renderizacao_nativa
 from Fix.log import logger
 from typing import Optional, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -20,10 +20,9 @@ def normalizar_string(valor):
 def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
     for tentativa in range(1, max_tentativas + 1):
         try:
-            elemento = WebDriverWait(driver, 3).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor))
-            )
-            # Clicar elemento (usar safe_click_no_scroll em vez de scrollIntoView)
+            elemento = wait_for_clickable(driver, seletor, timeout=3, by=By.CSS_SELECTOR)
+            if not elemento:
+                raise Exception('Elemento não clicável')
             safe_click_no_scroll(driver, elemento, log=False)
             time.sleep(0.3)
             driver.execute_script("""
@@ -53,16 +52,37 @@ def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], 
 
 
 def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False):
+    """Seleciona opção em mat-select simulando digitação letra a letra.
+
+    Padrão idêntico ao simularDigitacaoDeTexto do gigs-plugin.js:
+    foca o mat-select e dispara keydown/keypress/keyup por letra.
+    O Angular Material filtra e seleciona automaticamente — sem abrir
+    dropdown de mat-option, portanto limpar_overlays_headless não interfere.
+    Aguarda via aguardar_renderizacao_nativa (MutationObserver, sem WebDriverWait).
+    """
     try:
-        select_el = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_select))
-        )
-        driver.execute_script("arguments[0].click();", select_el)
-        time.sleep(0.3)
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-option[role="option"]'))
-        )
-        time.sleep(0.3)
+        from Fix.core import aguardar_renderizacao_nativa
+        select_el = wait_for_clickable(driver, seletor_select, timeout=10, by=By.CSS_SELECTOR)
+        if not select_el:
+            return False
+
+        # Focar o mat-select e digitar letra a letra (mini-selenium.js:simularDigitacaoDeTexto)
+        driver.execute_script("""
+            var el = arguments[0];
+            var texto = arguments[1];
+            el.focus();
+            for (var i = 0; i < texto.length; i++) {
+                var letra = texto[i];
+                el.dispatchEvent(new KeyboardEvent('keydown',  {key: letra, bubbles: true, cancelable: true}));
+                el.dispatchEvent(new KeyboardEvent('keypress', {key: letra, bubbles: true, cancelable: true}));
+                el.dispatchEvent(new KeyboardEvent('keyup',    {key: letra, bubbles: true, cancelable: true}));
+            }
+        """, select_el, valor_desejado)
+
+        # Aguardar Angular processar (MutationObserver nativo — sem polling)
+        aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 3)
+
+        # Clicar na primeira opção que bater (dropdown pode ou não aparecer dependendo do Angular build)
         opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
         valor_norm = normalizar_string(valor_desejado)
         for opcao in opcoes:
@@ -70,6 +90,17 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
             if valor_norm == normalizar_string(texto_opcao) or valor_norm in normalizar_string(texto_opcao):
                 driver.execute_script("arguments[0].click();", opcao)
                 return True
+
+        # Fallback: se não abriu dropdown, o Angular já selecionou via keydown — verificar valor atual
+        valor_atual = select_el.get_attribute('value') or (
+            select_el.find_element(By.CSS_SELECTOR, 'span.mat-select-value-text').text
+            if select_el.find_elements(By.CSS_SELECTOR, 'span.mat-select-value-text') else ''
+        )
+        if valor_norm in normalizar_string(valor_atual):
+            return True
+
+        # Blur para fechar qualquer painel aberto
+        driver.execute_script("arguments[0].blur();", select_el)
         return False
     except Exception:
         return False
@@ -215,13 +246,14 @@ def executar_preenchimento_minuta(
             if not prazo_preenchido:
                 log('[AVISO] Não foi possível preencher prazo com nenhum seletor, tentando fallback...')
                 try:
-                    input_prazo = WebDriverWait(driver, 5).until(
-                        EC.visibility_of_element_located((By.CSS_SELECTOR, 'mat-form-field input[type="number"]'))
-                    )
-                    input_prazo.clear()
-                    input_prazo.send_keys(str(prazo))
-                    log('[FALLBACK][OK] Prazo preenchido via send_keys')
-                    prazo_preenchido = True
+                    input_prazo = esperar_elemento(driver, 'mat-form-field input[type="number"]', timeout=5, by=By.CSS_SELECTOR)
+                    if input_prazo:
+                        input_prazo.clear()
+                        input_prazo.send_keys(str(prazo))
+                        log('[FALLBACK][OK] Prazo preenchido via send_keys')
+                        prazo_preenchido = True
+                    else:
+                        raise Exception('Elemento input_prazo não encontrado')
                 except Exception as e:
                     log(f'[FALLBACK][ERRO] Falha no fallback: {e}')
                     prazo_preenchido = False
@@ -229,10 +261,8 @@ def executar_preenchimento_minuta(
             log('3. Sem prazo a preencher')
 
         log('4. Clicando "Confeccionar ato agrupado"')
-        btn_confeccionar = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Confeccionar ato agrupado"]'))
-        )
-        driver.execute_script("arguments[0].click();", btn_confeccionar)
+        if not aguardar_e_clicar(driver, 'button[aria-label="Confeccionar ato agrupado"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
+            raise Exception('Botão Confeccionar ato agrupado não disponível')
         time.sleep(0.8)
 
         if subtipo:
@@ -245,9 +275,9 @@ def executar_preenchimento_minuta(
                     tentativas_subtipo += 1
                     log(f'[SUBTIPO] Tentativa {tentativas_subtipo}/3')
 
-                    input_subtipo = WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'input[data-placeholder="Tipo de Documento"]'))
-                    )
+                    input_subtipo = esperar_elemento(driver, 'input[data-placeholder="Tipo de Documento"]', timeout=10, by=By.CSS_SELECTOR)
+                    if not input_subtipo:
+                        raise Exception('Campo subtipo não encontrado')
 
                     driver.execute_script("""
                         var el = arguments[0];
@@ -258,9 +288,8 @@ def executar_preenchimento_minuta(
                     time.sleep(0.5)
 
                     try:
-                        WebDriverWait(driver, 3).until(
-                            EC.visibility_of_element_located((By.CSS_SELECTOR, 'mat-option'))
-                        )
+                        if not esperar_elemento(driver, 'mat-option', timeout=3, by=By.CSS_SELECTOR):
+                            raise Exception('mat-option ainda não disponível')
                     except Exception:
                         driver.execute_script("""
                             var el = arguments[0];
@@ -268,9 +297,8 @@ def executar_preenchimento_minuta(
                             el.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 40, which: 40, bubbles: true}));
                         """, input_subtipo)
                         time.sleep(0.5)
-                        WebDriverWait(driver, 3).until(
-                            EC.visibility_of_element_located((By.CSS_SELECTOR, 'mat-option'))
-                        )
+                        if not esperar_elemento(driver, 'mat-option', timeout=3, by=By.CSS_SELECTOR):
+                            raise Exception('mat-option não apareceu mesmo após fallback')
 
                     opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option')
                     for opcao in opcoes:
@@ -319,10 +347,12 @@ def executar_preenchimento_minuta(
 
         if modelo_nome:
             log(f'8. Selecionando modelo: {modelo_nome}')
+
             try:
-                campo_filtro = WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input#inputFiltro'))
-                )
+                # Espera campo de filtro aparecer usando aguardar_renderizacao_nativa
+                if not aguardar_renderizacao_nativa(driver, 'input#inputFiltro', 'aparecer', 10):
+                    raise Exception('Campo de filtro de modelo não apareceu')
+                campo_filtro = driver.find_element(By.CSS_SELECTOR, 'input#inputFiltro')
 
                 if not preparar_campo_filtro_modelo(driver, log=debug):
                     raise Exception('Falha ao preparar campo de filtro de modelos')
@@ -352,15 +382,15 @@ def executar_preenchimento_minuta(
                 time.sleep(1.5)
 
                 try:
-                    nodo = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, '.nodo-filtrado'))
-                    )
+                    nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10, by=By.CSS_SELECTOR)
+                    if not nodo:
+                        raise Exception('Nodo filtrado não clicável')
                     driver.execute_script("arguments[0].click();", nodo)
                     time.sleep(0.5)
 
-                    btn_inserir = WebDriverWait(driver, 8).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'pje-dialogo-visualizar-modelo button'))
-                    )
+                    btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8, by=By.CSS_SELECTOR)
+                    if not btn_inserir:
+                        raise Exception('Botão inserir não clicável')
                     driver.execute_script("arguments[0].click();", btn_inserir)
                     log(' Modelo inserido')
                     time.sleep(1.0)  # Tempo para inserção completar
@@ -408,17 +438,13 @@ def executar_preenchimento_minuta(
 
         log('9. Salvando e finalizando minuta')
         try:
-            btn_salvar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Salvar"]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_salvar)
+            if not aguardar_e_clicar(driver, 'button[aria-label="Salvar"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
+                raise Exception('Botão Salvar não disponível')
             log(' Botão Salvar clicado')
             time.sleep(1.0)
 
-            btn_finalizar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[aria-label="Finalizar minuta"]'))
-            )
-            driver.execute_script("arguments[0].click();", btn_finalizar)
+            if not aguardar_e_clicar(driver, 'button[aria-label="Finalizar minuta"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
+                raise Exception('Botão Finalizar minuta não disponível')
             log(' Botão Finalizar minuta clicado')
             time.sleep(2.0)
 

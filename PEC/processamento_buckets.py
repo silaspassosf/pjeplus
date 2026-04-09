@@ -25,6 +25,18 @@ from Fix.extracao import abrir_detalhes_processo, trocar_para_nova_aba, reindexa
 from Fix.monitoramento_progresso_unificado import executar_com_monitoramento_unificado
 
 
+def fluxo_pec_bucket(driver: WebDriver, bucket: Dict[str, Any]) -> bool:
+    """Compatibilidade: executa a ação do bucket no processo já aberto."""
+    try:
+        observacao = (bucket or {}).get('observacao', '') if isinstance(bucket, dict) else ''
+        acoes = determinar_acoes_por_observacao(observacao) if observacao else None
+        acao = acoes[0] if isinstance(acoes, list) and acoes else acoes
+        return executar_acao_pec(driver, acao, observacao=observacao, debug=False)
+    except Exception as e:
+        logger.error(f"[PEC_BUCKET] Erro ao executar fluxo_pec_bucket: {e}")
+        return False
+
+
 def _processar_buckets(driver: WebDriver, buckets: dict[str, list[dict[str, any]]], progresso: dict[str, any]) -> bool:
     """Helper: Processa todos os buckets na ordem correta."""
     total_results: dict[str, int] = {'sucesso': 0, 'erro': 0}

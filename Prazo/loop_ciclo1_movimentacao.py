@@ -159,7 +159,7 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
     def _tentar_selecionar_providencias():
         if not pausar_confirmacao('CICLO1/PROVIDENCIAS_DROPDOWN', 'Abrir dropdown de destino para providências'):
             return False
-        # Abrir dropdown
+        # Abrir dropdown com o mesmo padrão curto do fluxo normal
         if not clicar_com_multiplos_seletores(
             driver,
             'CICLO1/PROVIDENCIAS_ABRIR_DROPDOWN',
@@ -172,42 +172,45 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
             return False
         try:
             from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=1.5)
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=1.2)
         except Exception:
-            time.sleep(1.5)
+            time.sleep(1.2)
 
         # Buscar opção
         overlay = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
         )
-        opcao_xpath = f".//span[contains(@class,'mat-option-text') and contains(text(), 'Cumprimento')]"
+        opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
         logger.info(f"[SELETOR][CICLO1/PROVIDENCIAS_OPCAO] Vencedor: by={By.XPATH} seletor={opcao_xpath}")
         
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
         try:
             from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=0.3)
+            aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=0.2)
         except Exception:
-            time.sleep(0.3)
-        driver.execute_script("arguments[0].click();", opcao_elemento)
+            time.sleep(0.2)
+        try:
+            opcao_elemento.click()
+        except Exception:
+            driver.execute_script("arguments[0].click();", opcao_elemento)
         try:
             from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=0.8)
         except Exception:
-            time.sleep(1.0)
+            time.sleep(0.8)
         return True
 
     try:
-        if com_retry(_tentar_selecionar_providencias, max_tentativas=5):
+        if com_retry(_tentar_selecionar_providencias, max_tentativas=3):
             # Clicar em Movimentar
             if not pausar_confirmacao('CICLO1/PROVIDENCIAS_MOVIMENTAR', 'Clique no botão Movimentar'):
                 return False
             try:
                 from Fix.core import aguardar_renderizacao_nativa
-                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
+                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
             except Exception:
-                time.sleep(2)
+                time.sleep(1.0)
             if not clicar_com_multiplos_seletores(
                 driver,
                 'CICLO1/PROVIDENCIAS_BOTAO_MOVIMENTAR',

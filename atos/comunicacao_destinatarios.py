@@ -1,11 +1,10 @@
 from Fix.selenium_base.click_operations import safe_click_no_scroll
+from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable
 from Fix.utils_observer import aguardar_renderizacao_nativa
 import re
 import json
 import unicodedata
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from Fix.log import log_seletor_multiplo, logger
 
 
@@ -107,43 +106,39 @@ def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False
 
 def _clicar_polo_passivo(driver, log):
     try:
-        header = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, '//mat-expansion-panel-header[.//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]'))
-        )
+        header = esperar_elemento(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', timeout=10, by=By.XPATH)
+        if not header:
+            log('[DESTINATARIOS][ERRO] Header Polo Passivo não encontrado')
+            return
+
         aria_expanded = (header.get_attribute('aria-expanded') or '').strip().lower()
         if aria_expanded == 'true':
             return
 
-        alvo = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, '//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]'))
-        )
+        alvo = wait_for_clickable(driver, '//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]', timeout=10, by=By.XPATH)
+        if not alvo:
+            log('[DESTINATARIOS][ERRO] Alvo Polo Passivo não clicável')
+            return
+
         safe_click_no_scroll(driver, alvo, log=False)
 
         # aguardar conteúdo do painel (preferir observer nativo)
         try:
             aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=5)
         except Exception:
-            try:
-                WebDriverWait(driver, 5).until(
-                    lambda d: len(d.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')) > 0
-                )
-            except Exception:
-                pass
+            esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=5, by=By.CSS_SELECTOR)
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao expandir Polo Passivo: {e}')
 
 
 def _clicar_botao_polo_passivo(driver, log, qtd_cliques=1):
     try:
-        btn_polo_passivo = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
-        )
         for _ in range(qtd_cliques):
-            try:
-                WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]')))
-            except Exception:
-                pass
-            driver.execute_script("arguments[0].click();", btn_polo_passivo)
+            btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
+            if not btn_polo_passivo:
+                log('[DESTINATARIOS][ERRO] Botão polo passivo não clicável')
+                return
+            safe_click_no_scroll(driver, btn_polo_passivo, log=False)
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar no botão polo passivo (fallback): {e}')
 
@@ -173,10 +168,9 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                 ok = False
             if ok:
                 linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
-            else:
-                linhas = WebDriverWait(driver, timeout).until(
-                    lambda d: d.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
-                )
+            if not linhas:
+                esperar_elemento(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', timeout=timeout, by=By.CSS_SELECTOR)
+                linhas = driver.find_elements(By.CSS_SELECTOR, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row')
         except Exception:
             linhas = driver.find_elements(By.CSS_SELECTOR, 'mat-row, .pec-partes-polo li, ul.sem-padding li')
 

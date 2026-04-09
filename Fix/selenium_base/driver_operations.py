@@ -19,10 +19,29 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 
-# Configurações globais
-GECKODRIVER_PATH = r"C:\geckodriver\geckodriver.exe"
-SISB_PROFILE_PC = r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
-SISB_PROFILE_NOTEBOOK = r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
+from ..utils_paths import (
+    obter_caminho_firefox_executavel,
+    obter_caminho_firefox_alt,
+    obter_caminho_geckodriver,
+    obter_caminho_perfil_vt_pje
+)
+
+# Configurações globais - agora obtidas via credenciais
+GECKODRIVER_PATH = obter_caminho_geckodriver()
+
+def _obter_caminho_sisb_profile():
+    # Tentar obter via credenciais, com fallback para valor padrão
+    import keyring
+    try:
+        profile_path = keyring.get_password('pjeplus_paths', 'SISB_PROFILE_PATH')
+        if profile_path and os.path.exists(profile_path):
+            return profile_path
+    except:
+        pass
+    return r'C:\Users\Silas\AppData\Local\Mozilla\Firefox\Profiles\arrn673i.Sisb'
+
+SISB_PROFILE_PC = _obter_caminho_sisb_profile()
+SISB_PROFILE_NOTEBOOK = _obter_caminho_sisb_profile()
 
 
 def criar_driver_PC(headless: bool = False) -> WebDriver:
@@ -48,7 +67,7 @@ def criar_driver_PC(headless: bool = False) -> WebDriver:
     options.set_preference("page.load.animation.disabled", True)  # Desabilitar animações de carregamento
     options.set_preference("dom.disable_window_move_resize", False)  # Permitir resize mesmo em background
 
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    options.binary_location = obter_caminho_firefox_executavel()
 
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
@@ -61,8 +80,8 @@ def criar_driver_VT(headless: bool = False) -> WebDriver:
     options = Options()
     if headless:
         options.add_argument('-headless')
-    options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
-    options.profile = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
+    options.binary_location = obter_caminho_firefox_alt()
+    options.profile = obter_caminho_perfil_vt_pje()
 
     # ===== ANTI-THROTTLING: Evitar lentidão quando janela está em background =====
     options.set_preference("dom.min_background_timeout_value", 0)
@@ -81,11 +100,11 @@ def criar_driver_notebook(headless: bool = False) -> WebDriver:
     options = Options()
     if headless:
         options.add_argument('-headless')
-    options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+    options.binary_location = obter_caminho_firefox_alt()
 
     USE_USER_PROFILE_NOTEBOOK = False
     if USE_USER_PROFILE_NOTEBOOK:
-        options.profile = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
+        options.profile = obter_caminho_perfil_vt_pje_alt()
 
     # ===== ANTI-THROTTLING: Evitar lentidão quando janela está em background =====
     options.set_preference("dom.min_background_timeout_value", 0)
@@ -104,7 +123,7 @@ def criar_driver_sisb_pc(headless: bool = False) -> Optional[WebDriver]:
     if headless:
         options.add_argument('--headless')
 
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    options.binary_location = obter_caminho_firefox_executavel()
 
     options.set_preference("browser.startup.homepage", "about:blank")
     options.set_preference("startup.homepage_welcome_url", "about:blank")
@@ -148,7 +167,7 @@ def criar_driver_sisb_pc(headless: bool = False) -> Optional[WebDriver]:
             options_fallback = Options()
             if headless:
                 options_fallback.add_argument('--headless')
-            options_fallback.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+            options_fallback.binary_location = obter_caminho_firefox_executavel()
             driver = webdriver.Firefox(service=service, options=options_fallback)
             driver.implicitly_wait(10)
             logger.info("[DRIVER_SISB_PC] Driver SISBAJUD PC (Developer Edition - fallback) criado com sucesso")
@@ -163,7 +182,7 @@ def criar_driver_sisb_notebook(headless: bool = False) -> WebDriver:
     options = Options()
     if headless:
         options.add_argument('-headless')
-    options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+    options.binary_location = obter_caminho_firefox_alt()
     options.profile = SISB_PROFILE_NOTEBOOK
 
     # ===== ANTI-THROTTLING: Evitar lentidão quando janela está em background =====

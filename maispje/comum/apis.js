@@ -3,7 +3,7 @@
  * movida para o mesmo arquivo de apis para simplificar os testes.
  */
 class ApiWrapper {
-  
+
   /**
    * Cria uma nova instância de ApiWrapper.
    * @param {string} path - Caminho da API, podendo conter parâmetros dinâmicos no formato `{param}`.
@@ -27,31 +27,31 @@ class ApiWrapper {
        */
       this.method = method.toUpperCase();
     }
-  
+
     #substituirParametrosDinamicos(params) {
         const regex = /{(\w+)}/g;
         let pathFinal = this.path;
         const parametrosRequeridos = [];
         let match;
-    
+
         while ((match = regex.exec(this.path)) !== null) {
           parametrosRequeridos.push(match[1]);
         }
-    
+
         // Verifica parâmetros faltantes
         const faltantes = parametrosRequeridos.filter(p => !(p in params));
         if (faltantes.length > 0) {
           throw new Error(`Parâmetros obrigatórios faltantes: ${faltantes.join(', ')}`);
         }
-    
+
         // Substitui valores
         parametrosRequeridos.forEach(param => {
           pathFinal = pathFinal.replace(new RegExp(`{${param}}`, 'g'), encodeURIComponent(params[param]));
         });
-    
+
         return pathFinal;
       }
-    
+
       #normalizarDominio(dominio) {
         if (!dominio) {
           alert('mais PJe: Atenção usuário, a extensão identifica o seu TRT, instância e versão do sistema a partir da tela de login do PJe.\nAcesse a tela de login para normalizar suas congiurações básicas.');
@@ -70,13 +70,13 @@ class ApiWrapper {
      * @throws {Error} Se algum parâmetro obrigatório do path estiver faltando.
      */
     montarUrl(dominio, params = {}, extraOptions = { replaceDev015: true }) {
-      let urlBase = this.#normalizarDominio(dominio);  
+      let urlBase = this.#normalizarDominio(dominio);
       if (extraOptions?.replaceDev015) {
         urlBase = urlBase.replace('dev015','pje');
       }
         const pathComParametros = this.#substituirParametrosDinamicos(params);
         const url = new URL(`${urlBase}${pathComParametros}`);
-        
+
         // Filtra parâmetros que não são do path
         const queryParams = { ...this.defaultQueryParams };
         for (const key in params) {
@@ -84,7 +84,7 @@ class ApiWrapper {
             queryParams[key] = params[key];
           }
         }
-    
+
         Object.entries(queryParams).forEach(([key, value]) => {
           if (Array.isArray(value)) {
             value.forEach(v => url.searchParams.append(key, v));
@@ -92,10 +92,10 @@ class ApiWrapper {
             url.searchParams.append(key, value);
           }
         });
-    
+
         return url.toString();
-    }    
-  
+    }
+
   /**
    * Executa a chamada HTTP utilizando fetch.
    * @param {string} dominio - Domínio base da API.
@@ -106,7 +106,7 @@ class ApiWrapper {
    */
     async executar(dominio, params = {}, fetchOptions = {}, extraOptions = { replaceDev015: true, carregarRespostaJson: true}) {
       const url = this.montarUrl(dominio, params, extraOptions);
-  
+
       // Mescla headers padrão com headers customizados, se houver
       const defaultHeaders = { 'Content-Type': 'application/json' };
       const headers = { ...defaultHeaders, ...(fetchOptions.headers || {}) };
@@ -117,13 +117,13 @@ class ApiWrapper {
         method: this.method,
         headers,
         ...fetchOptions
-      }; 
+      };
       const resposta = await fetch(url, config);
       // if (!resposta.ok || (resposta.status >= 400 )) throw new Error(`Erro HTTP ${resposta.status}`, { cause: resposta });
       if (!resposta.ok || (resposta.status >= 400 )) {
         console.error(`Erro HTTP ${resposta.status}`);
         return null;
-        // throw new Error(`Erro HTTP ${resposta.status}`, { cause: resposta }) 
+        // throw new Error(`Erro HTTP ${resposta.status}`, { cause: resposta })
       }
       if( extraOptions.carregarRespostaJson ) {
         return await resposta.json();
@@ -143,39 +143,30 @@ class ApiWrapper {
       const url = this.montarUrl(dominio, params);
       return window.open(url, target);
     }
-    
+
   }
-  
 
-/**
-  @typedef {Object.<string, ApiWrapper>} ApiMap
-*/
-
-/**
-  Objeto que mapeia nomes de APIs para instâncias de ApiWrapper.
-  @type {ApiMap}
-*/
 const apis = {
     abrirGigs: new ApiWrapper(
       '/pjekz/gigs/abrir-gigs/{idProcesso}',
       {}
     ),
-  
+
     tarefasProcesso: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/tarefas',
       { maisRecente: true }
     ),
-  
+
     tarefaPorId: new ApiWrapper(
       '/pje-comum-api/api/tarefas/{idTarefa}',
       {}
     ),
-  
+
     abrirTarefa: new ApiWrapper(
       '/pjekz/processo/{idProcesso}/tarefa/{idTarefa}',
       {}
     ),
-  
+
     calculosProcesso: new ApiWrapper(
       '/pje-comum-api/api/calculos/processo',
       {
@@ -187,7 +178,7 @@ const apis = {
         incluirCalculosHomologados: true
       }
     ),
-  
+
     extratoContaSIF: new ApiWrapper(
       '/sif-financeiro-api/api/contas/{processo}/104/{conta}/extrato/0/{dataAutuacao}/{dataFim}',
       {}
@@ -197,12 +188,22 @@ const apis = {
       '/sif-financeiro-api/api/contas/{processo}/104/{conta}/detalhes',
       {}
     ),
-  
+
     bndtProcesso: new ApiWrapper(
       '/pjekz/processo/{idProcesso}/bndt',
       { maisPje: 'excluir' }
     ),
-  
+
+    eRecDespachoPorId: new ApiWrapper(
+      '/pje-erec-api/api/despachos/{idDespacho}',
+      { titulos: true } //sem isso nao traz o nome da parte, que está no campo titulo, nos recursos
+    ),
+
+    eRecPartesPorRecursoId: new ApiWrapper(
+      '/pje-erec-api/api/recursos/{idRecurso}/partes',
+      {}
+    ),
+
     processoPorId: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}',
       {}
@@ -213,11 +214,16 @@ const apis = {
       {}
     ),
 
+    processoSimplificadoPorId: new ApiWrapper(
+      '/pje-comum-api/api/processos/id/{idProcesso}/simplificado',
+      {}
+    ),
+
     processoPorNumero: new ApiWrapper(
       '/pje-comum-api/api/processos/numero/{numeroProcesso}/completo',
       {}
     ),
-    
+
     idProcessoPorNumero: new ApiWrapper(
       '/pje-comum-api/api/processos',
       {numero: undefined}
@@ -226,6 +232,19 @@ const apis = {
     idProcessoPorNumeroIncompleto: new ApiWrapper(
       '/pje-comum-api/api/agrupamentotarefas/processos',
       {numero: undefined}
+    ),
+
+    idProcessoPorNumeroValidandoSigilo: new ApiWrapper( // sem uso
+      '/pje-comum-api/api/processos/numero/{numeroProcesso}/validacaosigilo',
+      {}
+    ),
+
+    /**
+     * valida se tem acesso ao processo ou a um de seus associados (o que permite acessar)
+     */
+    validaAcessoProcessoEAssociados: new ApiWrapper(
+      '/pje-comum-api/api/processos/id/{idProcesso}/associados/permissaoassociado',
+      {}
     ),
 
     pessoasJuridicas: new ApiWrapper(
@@ -237,7 +256,7 @@ const apis = {
         apenasMPT: undefined
       }
     ),
-    
+
     pessoasJuridicasCnpj: new ApiWrapper(
       '/pje-comum-api/api/pessoas/juridicas',
       {
@@ -246,12 +265,12 @@ const apis = {
         situacao: 1
       }
     ),
-  
+
     abrirDetalhesProcesso: new ApiWrapper(
       '/pjekz/processo/{idProcesso}/detalhe',
       {}
     ),
-  
+
     pautaAudiencias: new ApiWrapper(
       '/pjekz/pauta-audiencias',
       {
@@ -261,12 +280,12 @@ const apis = {
         fase: undefined
       }
     ),
-    
+
     validacaoChave: new ApiWrapper(
       '/pjekz/validacao/{chave}',
       { instancia: '{grau_usuario}' }
     ),
-  
+
     calendarioEventos: new ApiWrapper(
       '/pje-administracao-api/api/calendarioseventos/',
       {
@@ -284,7 +303,7 @@ const apis = {
         idUnicoDocumento: undefined //pode pegar somente um documento pelo id de sete posições
       }
     ),
-  
+
     documentoProcessoPorId: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/documentos/id/{idDocumento}',
       {
@@ -293,6 +312,14 @@ const apis = {
         incluirMovimentos: false,
         incluirApreciacao: false
       }
+    ),
+    abrirDocumentoEmNovaAba: new ApiWrapper(
+      '/pjekz/processo/{idProcesso}/documento/{idDocumento}/conteudo',
+      {}
+    ),
+    conteudoDocumento: new ApiWrapper(
+      '/pje-comum-api/api/processos/id/{idProcesso}/documentos/id/{idDocumento}/conteudo',
+      {}
     ),
 
     documentoProcessoPorIdHtml: new ApiWrapper(
@@ -327,7 +354,7 @@ const apis = {
         buscarDocumentos: true
       }
     ),
-  
+
     periciasProcesso: new ApiWrapper(
       '/pje-comum-api/api/pericias',
       {
@@ -337,7 +364,7 @@ const apis = {
         ascendente: true
       }
     ),
-  
+
     peritosPesquisa: new ApiWrapper(
       '/pje-comum-api/api/peritos',
       {
@@ -345,7 +372,7 @@ const apis = {
         somenteAtivos: true
       }
     ),
-  
+
     peritosEspecialidade: new ApiWrapper(
       '/pje-comum-api/api/peritos',
       {
@@ -368,12 +395,12 @@ const apis = {
       '/consultaprocessual/detalhe-processo/{numero}',
       {}
     ),
-  
+
     consultaProcessosBasicos: new ApiWrapper(
       '/pje-consulta-api/api/processos/dadosbasicos/{numero}',
       {}
     ),
-  
+
     pessoasFisicas: new ApiWrapper(
       '/pje-comum-api/api/pessoas/fisicas',
       {
@@ -382,64 +409,69 @@ const apis = {
         situacao: 1
       }
     ),
-    
+
+    pessoasFisicasDetalhes: new ApiWrapper(
+      '/pje-comum-api/api/pessoas/fisicas/{id}',
+      {}
+    ),
+
     tarefasCodigo: new ApiWrapper(
       '/pje-comum-api/api/tarefas/{idTarefa}',
       {}
     ),
-  
+
     sobrestamentosProcesso: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/sobrestamentos',
       {}
     ),
-  
+
     atividadeProcesso: new ApiWrapper(
       '/pje-gigs-api/api/atividade/processo/{idProcesso}',
       {}
     ),
-  
+
     partesProcesso: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/partes',
       {}
     ),
-  
+
     obrigacoesPagar: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/obrigacoespagar',
       {}
     ),
-  
+
     prazoRelator: new ApiWrapper(
       '/pje-gigs-api/api/processo/{idProcesso}/prazoRelator'
     ),
-  
+
     execucaoProcessoGigs: new ApiWrapper(
       '/pje-gigs-api/api/execucao/processo/{idProcesso}'
     ),
-  
+
     movimentosProcesso: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/movimentos/',
       { ordemAscendente: false,
         codEventos: [] // vc pode passar uma lista que o montarUrl ajusta corretamente.
       }
     ),
-  
+
     audienciasProcesso: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/audiencias',
       {
-        status: 'M' 
+        status: 'M'
       }
     ),
-  
+
     debitosTrabalhistas: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/debitostrabalhistas',
       {}
     ),
-  
+
     documentosMinuta: new ApiWrapper(
       '/pje-comum-api/api/processos/id/{idProcesso}/documentos/minuta/A/metadados',
       {}
     ),
-  
+
 		comunicacoesMinutas: new ApiWrapper(
       '/pje-comum-api/api/comunicacoesprocessuais/minutas/',
       {
@@ -449,13 +481,12 @@ const apis = {
         papeisSeguranca: 'MAGISTRADO'
       }
     ),
-  
+
     permissaoPerfis: new ApiWrapper(
       '/pje-seguranca/api/token/perfis',
       {}
     ),
 
-    ////https://pjehom2.trt12.jus.br/pje-comum-api/api/orgaosjulgadores/23
     permissaoPerfisOjUsuario: new ApiWrapper(
       '/pje-comum-api/api/orgaosjulgadores/{codigoOJ}',
       {}
@@ -472,17 +503,17 @@ const apis = {
       '/pje-comum-api/api/pessoajuridicadomicilioeletronico/{idParte}',
       {}
     ),
-  
+
     regrasImpedimento: new ApiWrapper(
       '/pje-comum-api/api/regrasimpedimentomagistrado/regrasimpedimento',
       {}
     ),
-  
+
     listasContas: new ApiWrapper(
       '/sif-financeiro-api/api/listas/contas/{numero}',
       {}
     ),
-  
+
     alvarasLista: new ApiWrapper(
       '/sif-financeiro-api/api/alvaras/lista/{numeroProcesso}/104/{contajudicial}',
       {
@@ -492,7 +523,7 @@ const apis = {
         ordenacaoColuna: 'dtHrSituacao'
       }
     ),
-  
+
     prestacaoContas: new ApiWrapper(
       '/sif-financeiro-api/api/prestacaocontas/agrupador/alvaras',
       {
@@ -514,10 +545,14 @@ const apis = {
       {
         codigo: '{codigo}',
       }
+    ),
+
+    retornaPrazoDiasUteis: new ApiWrapper(
+        '/pje-gigs-api/api/atividade/retorna-prazo/{dias}',
+        {
+            idOj: '{codigoOJ}',
+        }
     )
   };
-  
-// Exportação para Node.js (CommonJS). Usado no teste de apis.
-if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
-  module.exports = apis;
-}
+
+/** @typedef {typeof apis} ApiMap */

@@ -9,8 +9,8 @@ from typing import Optional, Dict, Any, List
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+
+from Fix.utils_observer import aguardar_renderizacao_nativa
 
 import sys
 if 'Fix.log' in sys.modules:
@@ -90,9 +90,8 @@ try {
 def _extrair_objeto_pje(driver: WebDriver, timeout: int = 8, debug: bool = False) -> Dict[str, Optional[str]]:
     from core.resultado_execucao import ResultadoExecucao
     try:
-        WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "object.conteudo-pdf"))
-        )
+        if not aguardar_renderizacao_nativa(driver, "object.conteudo-pdf", 'aparecer', timeout):
+            raise TimeoutError('object.conteudo-pdf não apareceu')
     except Exception:
         if debug:
             logger.info('[EXTRACAO_OBJ] object.conteudo-pdf não presente')

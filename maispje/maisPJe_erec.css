@@ -1,0 +1,193 @@
+.fonte-20 {
+    font-size: 20px;
+}
+.erec-documentos-titulo {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.erec-documentos-lista {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.erec-documento-item {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 2px;
+}
+
+.erec-documento-link {
+    display: inline-block;
+}
+
+.botao-gigs {
+    width: auto !important;
+    height: 17px !important;
+    line-height: 17px;
+    font-size: 14px;
+    border-radius: revert !important;
+    margin: 0 5px !important;
+}
+
+.botao-gigs > i {
+    font-size: 16px !important;
+    line-height: 14px !important;
+    width: auto !important;
+    height: 14px !important;
+    display: inline-block;
+    color: orangered !important;
+}
+
+.matish-icon-button {
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    box-sizing: border-box;
+
+    width: 40px;
+    height: 40px;
+    min-width: 0;
+    padding: 0;
+    flex: 0 0 auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    border-radius: 50%;
+    line-height: 40px;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.matish-icon-button:disabled,
+.matish-icon-button[aria-disabled="true"] {
+    cursor: default;
+    opacity: 0.38;
+    pointer-events: none;
+}
+
+.matish-icon-button:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.matish-icon-button:active {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.matish-icon-button:focus {
+    outline: none;
+}
+
+.matish-icon-button:focus-visible {
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.22);
+}
+
+.matish-icon-button > i {
+    font-size: 24px;
+    line-height: 24px;
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+}
+
+.matish-icon-button__ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    opacity: 0.22;
+    pointer-events: none;
+    background: currentColor;
+    animation: matish-ripple 450ms ease-out;
+}
+
+@keyframes matish-ripple {
+    to {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+.a11y-tooltip {
+    position: absolute;
+    z-index: 99910000;
+    max-width: 100%;
+    min-height: 1rem;
+    white-space: nowrap;
+    padding: 10px;
+
+    font-size: 12px;
+    line-height: 16px;
+
+    pointer-events: none;
+    vertical-align: middle;
+    font-family: "NunitoSans Regular", "Arial", sans-serif;
+    font-size: 14px;
+    text-shadow: none;
+    font-weight: 500;
+    background: black;
+    opacity: 1;
+    color: white;
+    border-radius: 5px;
+    box-shadow: 3px 3px 10px grey;
+}
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* [maisPje-tooltip-direita2] {
+  position: relative;
+  cursor: pointer;
+  min-height: 2rem;
+}
+[maisPje-tooltip-direita2]:before {
+  content: attr(maisPje-tooltip-direita2);
+  display: none;
+  position: absolute;
+  vertical-align: middle;
+  pointer-events: none;
+  width: auto;
+  height: auto;
+  min-height: 1rem;
+  white-space: nowrap;
+  z-index: 100000;
+  text-decoration: none;
+  font-family: "NunitoSans Regular", "Arial", sans-serif;
+  font-size: 14px;
+  text-shadow: none;
+  font-weight: 500;
+  background: black;
+  opacity: 1;
+  color: white;
+  border-radius: 5px;
+  box-shadow: 3px 3px 10px grey;
+  padding: 10px;
+  top: 0;
+  left: 7vw;
+}
+[maisPje-tooltip-direita2]:focus:before,
+[maisPje-tooltip-direita2]:hover:before {
+  display: inline-block;
+}
+ */
+

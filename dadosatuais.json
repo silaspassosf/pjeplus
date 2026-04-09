@@ -1,76 +1,49 @@
 {
   "numero": [
-    "1001352-63.2016.5.02.0703"
+    "1000695-09.2025.5.02.0703"
   ],
-  "id": 1121142,
+  "id": 7181496,
   "autor": [
     {
-      "nome": "TAYNA SANTOS RIBEIRO",
-      "cpfcnpj": "46855306837",
+      "nome": "YASMIN GONZAGA DE OLIVEIRA",
+      "cpfcnpj": "49388286855",
       "advogado": {
-        "nome": "KELLY NASCIMENTO GONCALVES",
-        "cpf": "23121377809",
-        "oab": "SP362929"
+        "nome": "RAFAEL MOURA DA SILVA",
+        "cpf": "34340144894",
+        "oab": "SP324464"
       }
     }
   ],
   "reu": [
     {
-      "nome": "FPW COMERCIO DE ALIMENTOS LTDA. - EPP",
-      "cpfcnpj": "18826143000112",
+      "nome": "SOLUCOES SERVICOS TERCEIRIZADOS- EIRELI",
+      "cpfcnpj": "09445502000109",
       "advogado": {
-        "nome": "SANDERLEI SANTOS SAPUCAIA",
-        "cpf": "13422163859",
-        "oab": "SP179252"
+        "nome": "RICARDO ANDRE ZAMBO",
+        "cpf": "15310771883",
+        "oab": "SP138476"
       }
-    },
-    {
-      "nome": "CAMANBE COMERCIO DE ALIMENTOS LTDA - EPP",
-      "cpfcnpj": "17758044000188"
-    },
-    {
-      "nome": "JULIO JOSE FARIA",
-      "cpfcnpj": "75395126791"
-    },
-    {
-      "nome": "LUCYMEIRE GONCALVES DELGADO FARIA",
-      "cpfcnpj": "08443833769"
-    },
-    {
-      "nome": "FPJ COMERCIO DE ALIMENTOS EIRELI - EPP",
-      "cpfcnpj": "20997788000160"
-    },
-    {
-      "nome": "YVONE COMERCIO DE ALIMENTOS LTDA - EPP",
-      "cpfcnpj": "14315095000147"
-    },
-    {
-      "nome": "RAFFAINE COMERCIO DE ALIMENTOS LTDA - ME",
-      "cpfcnpj": "10511206000130"
     }
   ],
-  "terceiro": [
-    {
-      "nome": "SOLARPRIME FRANCHISING LTDA"
-    }
-  ],
+  "terceiro": [],
   "divida": {
-    "valor": "R$ 437,45",
-    "data": "24/11/2025"
+    "valor": "R$ 357,26",
+    "data": "27/03/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "15/07/2016",
+  "dtAutuacao": "30/04/2025",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 64840.01,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

@@ -1,0 +1,3 @@
+# Última execução P2B: 2026-04-08 16:47:41.589162
+# Script: D:\PjePlus\Peticao\pet.py
+# Argumentos: 

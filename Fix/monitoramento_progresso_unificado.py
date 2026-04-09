@@ -33,6 +33,10 @@ CONFIGURACOES_EXECUCAO = {
         'prefixo_log': '[PROGRESSO_PEC]',
         'tipo_sistema': 'PEC'
     },
+    'pet': {
+        'prefixo_log': '[PROGRESSO_PET]',
+        'tipo_sistema': 'PET'
+    },
     'mandado': {
         'prefixo_log': '[PROGRESSO_MANDADO]',
         'tipo_sistema': 'MANDADO'
@@ -40,6 +44,10 @@ CONFIGURACOES_EXECUCAO = {
     'prov': {
         'prefixo_log': '[PROGRESSO_PROV]',
         'tipo_sistema': 'PROV'
+    },
+    'AUD': {
+        'prefixo_log': '[PROGRESSO_AUD]',
+        'tipo_sistema': 'AUD'
     }
 }
 

@@ -1,6 +1,8 @@
 import logging
 import time
+from typing import Optional, Any, List, Tuple
 
+from selenium.webdriver.remote.webdriver import WebDriver
 from PEC.anexos.core import carta_wrapper, salvar_conteudo_clipboard
 from PEC.carta_ecarta import coletar_intimacoes, coletar_tabela_ecarta
 from PEC.carta_formatacao import formatar_dados_ecarta
@@ -10,7 +12,7 @@ from PEC.carta_utils import _obter_numero_processo
 logger = logging.getLogger(__name__)
 
 
-def carta(driver, log=True, limite_intimacoes=None):
+def carta(driver: WebDriver, log: bool = True, limite_intimacoes: Optional[int] = None) -> Any:
     """Orquestra o fluxo de carta eCarta no PJe."""
     process_number = _obter_numero_processo(driver, log)
 

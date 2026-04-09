@@ -46,7 +46,12 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
             });
             
             // Remover overlays genéricos com z-index alto
+            // EXCLUIR: cdk-overlay-container e seus filhos (Angular Material dropdowns/select)
+            const cdkContainer = document.querySelector('.cdk-overlay-container');
             document.querySelectorAll('div[style*="z-index"]').forEach(el => {
+                if (cdkContainer && (cdkContainer === el || cdkContainer.contains(el) || el.contains(cdkContainer))) {
+                    return; // Nunca tocar em overlays do Angular Material (mat-select, mat-option)
+                }
                 const zIndex = parseInt(window.getComputedStyle(el).zIndex);
                 if (zIndex > 1000) {
                     el.style.display = 'none';

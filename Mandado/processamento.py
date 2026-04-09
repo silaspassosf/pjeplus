@@ -84,11 +84,11 @@ def _lazy_import_mandado():
     return _mandado_modules_cache
 
 # Módulos Locais (mantidos leves)
-from Fix.core import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery, buscar_documento_argos
+from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
+from Fix.core import buscar_documento_argos
 from Fix.selenium_base import preencher_campo
 from Fix.extracao import salvar_destinatarios_cache
 from Fix.documents import buscar_documentos_sequenciais
-from Fix.core import buscar_documento_argos
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit, extrair_pdf
 from Fix.log import logger

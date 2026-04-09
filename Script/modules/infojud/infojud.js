@@ -95,6 +95,104 @@
         return complemento;
     }
 
+    function parseEndereco(endRaw) {
+        const result = { rua: '', numero: 'S/N', complemento: '', raw: endRaw || '' };
+        if (!endRaw) return result;
+        const tokens = endRaw.replace(/\s+/g, ' ').trim().split(' ');
+        const numeroIdx = tokens.findIndex(t => /^\d+$/.test(t));
+        if (numeroIdx > -1) {
+            result.rua = tokens.slice(0, numeroIdx).join(' ');
+            result.numero = tokens[numeroIdx];
+            let resto = tokens.slice(numeroIdx + 1).join(' ');
+            if (resto.startsWith('-')) resto = resto.substring(1).trim();
+            result.complemento = resto;
+        } else {
+            result.rua = endRaw.trim();
+        }
+        return result;
+    }
+
+    function formatarEnderecoRelatorio(end) {
+        const parts = [];
+        if (end.rua) parts.push(normalizar(end.rua));
+        if (end.numero) parts.push(normalizar(end.numero));
+        if (end.complemento) parts.push(normalizar(end.complemento));
+        if (end.cep) parts.push(end.cep);
+        return parts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function formatarDocumento(doc) {
+        const apenas = apenasNumeros(doc || '');
+        if (apenas.length === 14) return `${apenas.slice(0,2)}.${apenas.slice(2,5)}.${apenas.slice(5,8)}/${apenas.slice(8,12)}-${apenas.slice(12)}`;
+        if (apenas.length === 11) return `${apenas.slice(0,3)}.${apenas.slice(3,6)}.${apenas.slice(6,9)}-${apenas.slice(9)}`;
+        return doc || '';
+    }
+
+    function montarRelatorio(d) {
+        const linhas = [];
+        if (d.empresaNome) {
+            linhas.push(`Empresa: ${d.empresaNome}`);
+            if (d.empresaEnderecoRaw || d.empresaCep) {
+                const empresaEnd = d.empresaEndereco || parseEndereco(d.empresaEnderecoRaw || '');
+                empresaEnd.cep = d.empresaCep || empresaEnd.cep || '';
+                const textoEmpresa = formatarEnderecoRelatorio(empresaEnd);
+                if (textoEmpresa) linhas.push(`Endereço: ${textoEmpresa}`);
+            }
+            if (d.nome) {
+                linhas.push(`Sócio desta empresa: ${d.nome}${d.cpf ? ` (${formatarDocumento(d.cpf)})` : ''}`);
+                const socioEnd = { rua: d.rua, numero: d.numero, complemento: d.complemento, cep: d.cep };
+                const textoSocio = formatarEnderecoRelatorio(socioEnd);
+                if (textoSocio) linhas.push(`Endereço: ${textoSocio}`);
+            }
+        } else {
+            if (d.nome) linhas.push(`Nome: ${d.nome}`);
+            if (d.cpf) linhas.push(`CPF: ${formatarDocumento(d.cpf)}`);
+            const endereco = { rua: d.rua, numero: d.numero, complemento: d.complemento, cep: d.cep };
+            const texto = formatarEnderecoRelatorio(endereco);
+            if (texto) linhas.push(`Endereço: ${texto}`);
+        }
+        return linhas.join('\n');
+    }
+
+    function extrairDadosCNPJPage() {
+        const d = { empresaNome: '', empresaCep: '', empresaEnderecoRaw: '', empresaEndereco: null, cpfResponsavel: '' };
+        document.querySelectorAll('td.azulEsquerdaNeg').forEach(td => {
+            const label = (td.textContent || '').replace(/:/g, '').trim().toUpperCase();
+            const valor = (td.nextElementSibling?.textContent || '').replace(/\s+/g, ' ').trim();
+            if (label.includes('CPF DO RESPONSÁVEL')) d.cpfResponsavel = apenasNumeros(valor);
+            if (label.includes('NOME EMPRESARIAL') || label.includes('RAZÃO SOCIAL') || label.includes('RAZAO SOCIAL')) d.empresaNome = valor;
+            if (label === 'CEP') d.empresaCep = apenasNumeros(valor);
+            if (label === 'ENDEREÇO') {
+                d.empresaEnderecoRaw = valor;
+                d.empresaEndereco = parseEndereco(valor);
+            }
+        });
+        return d;
+    }
+
+    function extrairDadosCPFPage() {
+        const d = { nome: '', cpf: '', cepRaw: '', endRaw: '', cep: '', rua: '', numero: '', complemento: '' };
+        document.querySelectorAll('td.azulEsquerdaNeg').forEach(td => {
+            const label = (td.textContent || '').replace(/:/g, '').trim().toUpperCase();
+            const valor = (td.nextElementSibling?.textContent || '').replace(/\s+/g, ' ').trim();
+            if (label === 'NOME COMPLETO') d.nome = valor;
+            if (label === 'CPF') d.cpf = apenasNumeros(valor);
+            if (label === 'CEP') d.cepRaw = valor;
+            if (label === 'ENDEREÇO') d.endRaw = valor;
+        });
+        if (d.cepRaw) {
+            d.cep = apenasNumeros(d.cepRaw);
+            if (d.cep.length === 7) d.cep = '0' + d.cep;
+        }
+        if (d.endRaw) {
+            const addr = parseEndereco(d.endRaw);
+            d.rua = addr.rua;
+            d.numero = addr.numero;
+            d.complemento = addr.complemento;
+        }
+        return d;
+    }
+
     // =================================================================================
     // PARTE 1: EXPOSIÇÃO PARA O PJE TOOLS (O Orquestrador chama esta função)
     // =================================================================================
@@ -122,6 +220,10 @@
             
             const btnStyle = 'padding:10px 20px;color:white;font-weight:bold;cursor:pointer;border-radius:4px;border:none;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:13px;';
             
+            const btnDados = document.createElement('button');
+            btnDados.textContent = 'Infojud Dados'; btnDados.style.cssText = btnStyle + 'background:#6a1b9a;';
+            btnDados.onclick = () => iniciarTrabalho('DADOS');
+
             const btnD = document.createElement('button');
             btnD.textContent = 'Infojud Direto'; btnD.style.cssText = btnStyle + 'background:#0288d1;';
             btnD.onclick = () => iniciarTrabalho('DIRETO');
@@ -130,7 +232,9 @@
             btnC.textContent = 'Infojud Correção'; btnC.style.cssText = btnStyle + 'background:#004d40;';
             btnC.onclick = () => iniciarTrabalho('COMPLETO');
 
-            container.appendChild(btnD); container.appendChild(btnC);
+            container.appendChild(btnDados);
+            container.appendChild(btnD);
+            container.appendChild(btnC);
             document.body.appendChild(container);
         }
 
@@ -157,7 +261,7 @@
             _gmSet('GOD_PJE_PRONTA', '1');
             if (atual >= filaDocs.length) {
                 mostrarNotificacao("Ciclo Infojud Finalizado!", '#28a745', true);
-                salvarGeralFinal();
+                if (MODO_EXECUCAO !== 'DADOS') salvarGeralFinal();
                 exibirRelatorioFinal();
                 rodando = false; 
                 return;
@@ -274,9 +378,14 @@
                 if (!btnEnvelope) throw new Error('Envelope sumiu');
 
                 const d = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}'));
-                const nomes = (d.nome || '').split(' ');
-                const nomeFmt = nomes.length > 1 ? `${nomes[0]} ${nomes[1]}` : nomes[0];
-                dadosRelatorio.push(`(${nomeFmt}) - (${d.cep}) - (${d.rua || ''} ${d.numero || 'S/N'}) - (${d.complemento || ''})`.replace(/\s+/g, ' '));
+                dadosRelatorio.push(montarRelatorio(d));
+
+                if (MODO_EXECUCAO === 'DADOS') {
+                    linha.style.backgroundColor = '#c8e6c9';
+                    atual++;
+                    setTimeout(processarProximo, 800);
+                    return;
+                }
 
                 btnEnvelope.click();
                 await esperarModal('mat-dialog-container');
@@ -397,10 +506,10 @@
             const painel = document.createElement('div');
             painel.id = 'god-relatorio-panel';
             painel.style.cssText = `
-                position: fixed; bottom: 80px; left: 20px;
+                position: fixed; top: 190px; right: 20px;
                 background: white; border: 2px solid #004d40;
                 padding: 10px; z-index: 10000;
-                width: 600px; max-height: 400px;
+                width: 520px; max-height: 420px;
                 overflow-y: auto; box-shadow: 0 5px 20px rgba(0,0,0,0.4);
                 border-radius: 6px; font-family: 'Segoe UI', sans-serif; font-size: 12px;
             `;
@@ -417,7 +526,7 @@
                 user-select: text; border: 1px solid #ddd; padding: 8px; background: #f9f9f9;
                 font-family: monospace; font-size: 11px; color: #333;
             `;
-            contentDiv.textContent = dadosRelatorio.join('\n');
+            contentDiv.textContent = dadosRelatorio.join('\n\n---\n\n');
            
             painel.appendChild(contentDiv);
             document.body.appendChild(painel);
@@ -455,14 +564,15 @@
             return;
         }
         setTimeout(() => {
-            const tds = Array.from(document.querySelectorAll('td'));
-            const labelCpf = tds.find(td => td.textContent.includes('CPF do responsável'));
-            const cpf = labelCpf ? apenasNumeros(labelCpf.nextElementSibling?.textContent) : null;
-                if (cpf && cpf.length === 11) {
-                    mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1');
-                    // abre CPF; a aba filha deverá devolver foco ao PJe quando terminar
-                    _gmOpenTab(URL_BASE_CPF + cpf, { active: false, insert: true });
-                } else {
+            const cnpjDados = extrairDadosCNPJPage();
+            const cpf = cnpjDados.cpfResponsavel || '';
+            if (cnpjDados.empresaNome) {
+                _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(cnpjDados));
+            }
+            if (cpf && cpf.length === 11) {
+                mostrarNotificacao('CNPJ Direcionando para CPF...', '#0288d1');
+                _gmOpenTab(URL_BASE_CPF + cpf, { active: false, insert: true });
+            } else {
                 _gmSet('GOD_STATUS', 'PULAR_' + Date.now());
                 mostrarNotificacao('Nenhum CPF Elegível Encontrado.', '#ffc107', true);
                 try { if (window.opener && !window.opener.closed) window.opener.focus(); } catch (e) {}
@@ -472,51 +582,16 @@
     else if (URL_ATUAL.includes('detalheNICPF.asp')) {
         setTimeout(() => {
             try {
-                let d = { nomeCompleto: '', cepRaw: '', endRaw: '' };
-                document.querySelectorAll('td.azulEsquerdaNeg').forEach(t => {
-                    let l = t.textContent.trim().replace(':', '');
-                    let v = t.nextElementSibling?.textContent.trim() || '';
-                    v = v.replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
-                   
-                    if (l === 'Nome Completo') d.nomeCompleto = v;
-                    if (l === 'CEP') d.cepRaw = v;
-                    if (l === 'Endereço') d.endRaw = v;
+                const base = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}')) || {};
+                const cpfDados = extrairDadosCPFPage();
+                const merged = Object.assign({}, base, cpfDados, {
+                    tipoOrigem: _gmGet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL')
                 });
 
-                if (d.cepRaw) {
-                    d.nome = d.nomeCompleto ? d.nomeCompleto.trim() : '';
-                    let cep = apenasNumeros(d.cepRaw);
-                    if (cep.length === 7) cep = '0' + cep;
-                    d.cep = cep;
-
-                    let endLimpo = d.endRaw;
-                    let tokens = endLimpo.split(' ');
-                    let numeroIdx = -1;
-
-                    for (let i = 0; i < tokens.length; i++) {
-                        if (/^\d+$/.test(tokens[i])) { numeroIdx = i; break; }
-                    }
-
-                    if (numeroIdx > -1) {
-                        d.numero = tokens[numeroIdx];
-                        d.rua = tokens.slice(0, numeroIdx).join(' ');
-                        let resto = tokens.slice(numeroIdx + 1).join(' ');
-                        if(resto.startsWith('-')) resto = resto.substring(1).trim();
-                       
-                        const tipoOrigem = _gmGet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
-                        d.complemento = tipoOrigem === 'CPF_DIRETO' ? resto : resto + ' N/P ' + d.nome;
-                    } else {
-                        d.numero = 'S/N';
-                        d.rua = endLimpo;
-                        d.complemento = d.nome;
-                    }
-
-                    _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(d));
+                if (merged.cep) {
+                    _gmSet('GOD_DADOS_CAPTURA', JSON.stringify(merged));
                     _gmSet('GOD_STATUS', 'DADOS_PRONTOS_' + Date.now());
-
                     mostrarNotificacao('DADOS OK! Retornando ao PJe...', '#28a745', true);
-
-                    // Devolver foco ao PJe (percorre opener -> opener.opener)
                     _devolverFocoPJe();
                 } else {
                     throw new Error('Dados incompletos');

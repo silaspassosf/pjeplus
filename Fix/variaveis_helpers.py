@@ -174,7 +174,11 @@ def buscar_atividade_gigs_por_observacao(client: PjeApiClient, id_processo: str,
         
         # normalizar patterns para lowercase
         patterns_lower = [p.lower() for p in observacao_patterns]
-        
+
+        # Redirecionar busca AVJT para Atbem (Pgto Hon Peric)
+        if any('avjt' in p for p in patterns_lower):
+            patterns_lower = ['checar pgto hon peric']
+
         for atividade in atividades:
             status = (atividade.get('statusAtividade') or '').upper()
             observacao = (atividade.get('observacao') or '').lower()

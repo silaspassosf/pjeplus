@@ -176,7 +176,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
 
         # Espera carregamento da aba de detalhes
         try:
-            WebDriverWait(driver, 8).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            wait_for_page_load(driver, 8)
         except Exception:
             time.sleep(0.8)
 

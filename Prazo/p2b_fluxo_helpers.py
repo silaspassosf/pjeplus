@@ -73,87 +73,74 @@ def obter_fase_processual(driver, caminho_json: str = 'dadosatuais.json', debug:
 
 
 def inicar_exec(driver, texto_normalizado: Optional[str] = None):
-    """Helper: cria duas GIGS padrão e roteia por fase.
+    """Helper: cria duas GIGS padrão, tenta Iniciar execução e roteia ato.
 
-    Comportamento reduzido (simplificado):
-      1) cria GIG '1/Ana Lucia/Argos'
-      2) cria GIG '1//xs sigilo'
-      3) roteia por fase usando apenas o valor de `labelFaseProcessual`:
-         - se fase contém 'exec' -> chama `ato_pesquisas`
-         - se fase contém 'liquid' ou 'homolog' -> chama `ato_pesqliq`
-         - caso contrário -> chama `ato_pesquisas`
+    1) cria GIG '1/Ana Lucia/Argos'      (try independente)
+    2) cria GIG '1//xs sigilo'            (try independente — não bloqueado por falha do 1)
+    3) tenta clicar 'Iniciar execução' via movimentar_inteligente
+       - sucesso → ato_pesquisas (processo já está em execução)
+       - falha   → roteia por fase:
+           'liquid'/'homolog' → ato_pesqliq
+           caso contrário     → ato_pesquisas
 
     Retorna o resultado da ação executada (tupla ou bool).
     """
-
-    # criar as GIGS padronizadas antes do roteamento
-    try:
-        m = _lazy_import()
-        criar_gigs = m.get('criar_gigs')
-        if criar_gigs:
-            try:
-                from .p2b_core import parse_gigs_param
-                d, r, o = parse_gigs_param('1/Ana Lucia/Argos')
-                criar_gigs(driver, d, r, o)
-                d2, r2, o2 = parse_gigs_param('1//xs sigilo')
-                criar_gigs(driver, d2, r2, o2)
-            except Exception as e:
-                logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS iniciais: %s', e)
-    except Exception:
-        # não bloquear fluxo caso lazy import falhe
-        pass
-
-    try:
-        # texto_normalizado pode ser fornecido pelo chamador; usar apenas para logs
-        if texto_normalizado:
-            logger.debug('[FLUXO_PZ] inicar_exec recebido texto_normalizado (comprimento=%d)', len(texto_normalizado))
-        fase = obter_fase_processual(driver)
-    except Exception as e:
-        logger.debug('[FLUXO_PZ] inicar_exec: falha ao obter fase: %s', e)
-        fase = None
-
-    fase_lower = (fase or '').lower() if isinstance(fase, str) else ''
-
-    # Lazy import atos via fluxo lazy
     m = _lazy_import()
+    criar_gigs = m.get('criar_gigs')
     ato_pesquisas = m.get('ato_pesquisas')
     ato_pesqliq = m.get('ato_pesqliq')
-
     resultado = (False, False)
 
+    if texto_normalizado:
+        logger.debug('[FLUXO_PZ] inicar_exec texto_normalizado comprimento=%d', len(texto_normalizado))
+
+    # 1) GIGS Argos — try isolado
+    if criar_gigs:
+        try:
+            from .p2b_core import parse_gigs_param
+            d, r, o = parse_gigs_param('1/Ana Lucia/Argos')
+            criar_gigs(driver, d, r, o)
+        except Exception as e:
+            logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS Argos: %s', e)
+
+        # 2) GIGS xs sigilo — try isolado (não depende do anterior)
+        try:
+            from .p2b_core import parse_gigs_param
+            d2, r2, o2 = parse_gigs_param('1//xs sigilo')
+            criar_gigs(driver, d2, r2, o2)
+        except Exception as e:
+            logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
+
+    # 3) Tentar clicar "Iniciar execução" diretamente (movimentar_inteligente)
+    # — independente da fase: se o botão está na tela, clicar; senão, rotear por fase
+    mov_ok = False
     try:
-        if 'exec' in fase_lower and ato_pesquisas:
-            resultado = ato_pesquisas(driver)
-
-        elif ('liquid' in fase_lower or 'homolog' in fase_lower):
-            # tentativa única de movimentar para execução: preferir mov_exec do cache lazy
-            try:
-                mov_exec = m.get('mov_exec')
-            except Exception:
-                mov_exec = None
-
-            mov_ok = False
-            if callable(mov_exec):
-                try:
-                    mov_ok = mov_exec(driver)
-                except Exception:
-                    mov_ok = False
-            else:
-                try:
-                    from atos.wrappers_mov import mov_exec as _mov_exec_real
-                    try:
-                        mov_ok = _mov_exec_real(driver)
-                    except Exception:
-                        mov_ok = False
-                except Exception:
-                    mov_ok = False
-
-            if mov_ok and ato_pesquisas:
-                resultado = ato_pesquisas(driver)
-            elif ato_pesqliq:
-                resultado = ato_pesqliq(driver)
+        from atos.movimentos_fluxo import movimentar_inteligente
+        mov_ok = bool(movimentar_inteligente(driver, 'Iniciar execução', timeout=10))
+        if mov_ok:
+            logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução clicado com sucesso')
         else:
+            logger.info('[FLUXO_PZ] inicar_exec: Iniciar execução não disponível, roteando por fase')
+    except Exception as e:
+        logger.info('[FLUXO_PZ] inicar_exec: movimentar_inteligente falhou (%s), roteando por fase', e)
+
+    try:
+        if mov_ok:
+            # Processo movido para execução → ato_pesquisas
             if ato_pesquisas:
+                resultado = ato_pesquisas(driver)
+        else:
+            # Fallback: rotear por fase processual
+            fase_lower = ''
+            try:
+                fase = obter_fase_processual(driver)
+                fase_lower = (fase or '').lower()
+            except Exception:
+                pass
+
+            if ('liquid' in fase_lower or 'homolog' in fase_lower) and ato_pesqliq:
+                resultado = ato_pesqliq(driver)
+            elif ato_pesquisas:
                 resultado = ato_pesquisas(driver)
     except Exception as e:
         logger.error('[FLUXO_PZ] inicar_exec: erro no roteamento: %s', e)

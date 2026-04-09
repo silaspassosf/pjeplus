@@ -11,8 +11,9 @@ import time
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from Fix.selenium_base.click_operations import aguardar_e_clicar
+from Fix.selenium_base.wait_operations import esperar_url_conter
+from Fix.utils_observer import aguardar_renderizacao_nativa
 from Fix.log import logger
 
 
@@ -77,10 +78,8 @@ def bndt(driver, inclusao=False, debug=False, **kwargs):
             # 1. Clicar no botão do polo
             logger.info(f'Procurando botão de polo {polo}...')
             try:
-                btn_polo = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.XPATH, f"//input[@value='{polo}']/ancestor::mat-radio-button | //mat-radio-button[@value='{polo}']"))
-                )
-                btn_polo.click()
+                if not aguardar_e_clicar(driver, f"//input[@value='{polo}']/ancestor::mat-radio-button | //mat-radio-button[@value='{polo}']", timeout=5, by=By.XPATH):
+                    raise Exception('botão de polo não clicou')
                 logger.info(f'Polo {polo} selecionado')
                 time.sleep(0.5)
             except Exception as e:
@@ -168,10 +167,8 @@ def _bndt_abrir_menu(driver: WebDriver) -> bool:
     Abre o menu hambúrguer com validação robusta.
     """
     try:
-        btn_menu = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fa-bars.icone-botao-menu'))
-        )
-        btn_menu.click()
+        if not aguardar_e_clicar(driver, 'i.fa-bars.icone-botao-menu', timeout=10):
+            raise TimeoutException('Não clicou menu hambúrguer')
         logger.info('Menu hambúrguer clicado')
         time.sleep(0.2)
         return True
@@ -188,10 +185,8 @@ def _bndt_clicar_icone(driver: WebDriver) -> bool:
     Clica no ícone BNDT com validação robusta.
     """
     try:
-        btn_bndt = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'i.fas.fa-money-check-alt.icone-padrao'))
-        )
-        btn_bndt.click()
+        if not aguardar_e_clicar(driver, 'i.fas.fa-money-check-alt.icone-padrao', timeout=10):
+            raise TimeoutException('Não clicou ícone BNDT')
         logger.info('Ícone BNDT clicado')
         time.sleep(0.3)
         return True
@@ -206,7 +201,7 @@ def _bndt_clicar_icone(driver: WebDriver) -> bool:
 def _bndt_abrir_nova_aba(driver):
     """Abre nova aba BNDT e retorna seu handle."""
     main_window = driver.current_window_handle
-    WebDriverWait(driver, 15).until(lambda d: len(d.window_handles) > 1)
+    nova_aba_handle = aguardar_nova_aba(driver, main_window, timeout=15)
 
     all_windows = driver.window_handles
     nova_aba = [w for w in all_windows if w != main_window]
@@ -215,16 +210,14 @@ def _bndt_abrir_nova_aba(driver):
 
     nova_aba = nova_aba[-1]
     driver.switch_to.window(nova_aba)
-    WebDriverWait(driver, 15).until(lambda d: '/bndt' in d.current_url)
+    if not esperar_url_conter(driver, '/bndt', timeout=15):
+        raise Exception('Timeout esperando URL da aba BNDT')
 
     time.sleep(0.5)
-    try:
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-card, mat-radio-group, button'))
-        )
+    if not aguardar_renderizacao_nativa(driver, 'mat-card, mat-radio-group, button', 'aparecer', timeout=10):
+        logger.warning('AVISO: Elementos podem não ter carregado: seletor mat-card, mat-radio-group, button')
+    else:
         logger.info('Elementos da página BNDT detectados')
-    except Exception as e:
-        logger.warning(f'AVISO: Elementos podem não ter carregado: {e}')
 
     logger.info(f'Nova aba BNDT aberta: {driver.current_url}')
     return main_window, nova_aba
@@ -235,9 +228,8 @@ def _bndt_selecionar_operacao(driver, inclusao):
     operacao = "Inclusão" if inclusao else "Exclusão"
 
     try:
-        WebDriverWait(driver, 10).until(
-            lambda d: d.execute_script("return document.readyState") == "complete"
-        )
+        from Fix.core import wait_for_page_load
+        wait_for_page_load(driver, timeout=10)
     except Exception as e:
         logger.warning(f'AVISO: Página pode não ter carregado: {e}')
 
@@ -280,16 +272,16 @@ def _bndt_selecionar_operacao(driver, inclusao):
     radio_operacao = None
     for by, selector in selectors:
         try:
-            radio_operacao = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((by, selector)))
-            logger.info(f'Radio {operacao} encontrado')
-            break
+            if aguardar_e_clicar(driver, selector, timeout=5, by=by):
+                logger.info(f'Radio {operacao} encontrado')
+                radio_operacao = selector
+                break
         except Exception:
             continue
 
     if not radio_operacao:
         raise Exception(f'Não foi possível encontrar o radio button de {operacao}')
 
-    radio_operacao.click()
     logger.info(f'Radio {operacao} clicado')
     time.sleep(0.5)
 
@@ -310,13 +302,11 @@ def _bndt_selecionar_operacao_para_polo(driver, inclusao, polo):
     logger.info(f'Selecionando operação: {operacao} para polo {polo}')
 
     try:
-        btn_operacao = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.XPATH, f"//input[@value='{tipo_operacao}']/ancestor::mat-radio-button | //mat-radio-button[@value='{tipo_operacao}']"))
-        )
-        btn_operacao.click()
-        logger.info(f'Operação {operacao} selecionada para polo {polo}')
-        time.sleep(0.5)
-        return True
+        if aguardar_e_clicar(driver, f"//input[@value='{tipo_operacao}']/ancestor::mat-radio-button | //mat-radio-button[@value='{tipo_operacao}']", timeout=5, by=By.XPATH):
+            logger.info(f'Operação {operacao} selecionada para polo {polo}')
+            time.sleep(0.5)
+            return True
+        raise Exception('botão de operação não clicou')
     except Exception as e:
         logger.warning(f'Erro ao selecionar operação {operacao} no polo {polo}: {e}')
         return False
@@ -378,28 +368,22 @@ def _bndt_gravar_e_confirmar(driver, main_window, nova_aba):
     btn_gravar = None
     for by, selector in selectors_gravar:
         try:
-            btn_gravar = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((by, selector)))
-            logger.info('Botão Gravar encontrado')
-            break
+            if aguardar_e_clicar(driver, selector, timeout=5, by=by):
+                logger.info('Botão Gravar encontrado')
+                btn_gravar = selector
+                break
         except Exception:
             continue
 
     if not btn_gravar:
         raise Exception('Botão Gravar não encontrado')
 
-    btn_gravar.click()
     logger.info('Botão Gravar clicado')
     time.sleep(1)
 
-    try:
-        btn_sim = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, "//button[.//span[contains(text(),'Sim')]]"))
-        )
-        btn_sim.click()
+    if aguardar_e_clicar(driver, "//button[.//span[contains(text(),'Sim')]]", timeout=3, by=By.XPATH):
         logger.info('Confirmação clicada')
         time.sleep(1)
-    except Exception:
-        pass
 
     driver.close()
     driver.switch_to.window(main_window)
@@ -417,9 +401,10 @@ def _bndt_gravar_e_confirmar_polo(driver, polo):
     ]
     for by, selector in selectors_gravar:
         try:
-            btn_gravar = WebDriverWait(driver, 3).until(EC.element_to_be_clickable((by, selector)))
-            logger.info('Botão Gravar encontrado')
-            break
+            if aguardar_e_clicar(driver, selector, timeout=3, by=by):
+                logger.info('Botão Gravar encontrado')
+                btn_gravar = selector
+                break
         except Exception:
             continue
 
@@ -428,29 +413,19 @@ def _bndt_gravar_e_confirmar_polo(driver, polo):
         return
 
 
-    try:
-        btn_gravar.click()
-        logger.info('Botão Gravar clicado')
-        time.sleep(0.5)
-    except Exception as e:
-        logger.warning(f'Erro ao clicar no botão Gravar: {e}')
-        return
+    logger.info('Botão Gravar clicado')
+    time.sleep(0.5)
 
     try:
-        btn_sim = WebDriverWait(driver, 3).until(
-            EC.element_to_be_clickable((By.XPATH, "//div[contains(@class,'cdk-overlay-pane')]//button[contains(.,'Sim')]") )
-        )
-        btn_sim.click()
-        logger.info('Confirmação "Sim" clicada')
-        time.sleep(0.5)
+        if aguardar_e_clicar(driver, "//div[contains(@class,'cdk-overlay-pane')]//button[contains(.,'Sim')]", timeout=3, by=By.XPATH):
+            logger.info('Confirmação "Sim" clicada')
+            time.sleep(0.5)
     except Exception:
         logger.warning('Botão "Sim" não encontrado (pode não ser necessário)')
 
     try:
-        aviso = WebDriverWait(driver, 3).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'simple-snack-bar'))
-        )
-        if aviso:
+        if aguardar_renderizacao_nativa(driver, 'simple-snack-bar', 'aparecer', 3):
+            aviso = driver.find_element(By.CSS_SELECTOR, 'simple-snack-bar')
             texto_aviso = aviso.text
             logger.info(f'Aviso: {texto_aviso}')
 

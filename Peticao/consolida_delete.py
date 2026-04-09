@@ -63,7 +63,8 @@ def extrair_processos_delete():
 
 def gerar_bookmarklet_apagar(processos):
     """Gera bookmarklet JavaScript com os processos extraídos.
-    O registro agora contém apenas o id_doc por processo.
+    Valida número do processo E texto do documento (desc) para evitar seleção incorreta
+    de petições de mesmo processo que não atendem ao critério de apagar.
     """
 
     # Serializar processos para JSON compacto
@@ -73,17 +74,25 @@ def gerar_bookmarklet_apagar(processos):
         ensure_ascii=False,
     )
 
-    # Lógica mínima: número do processo + id_doc extraído do href de a[accesskey="v"]
+    # Lógica de match — dois modos por prioridade:
+    # Modo 1 (definitivo): id_doc → extrai ID do href de a[accesskey="v"] → /documento/{id}/
+    # Modo 2 (fallback):   tipo+desc quando id_doc ausente
+    # Suporta formato novo [{id_doc, tipo, desc}] e formato legado (string/número)
     bookmarklet = (
         'javascript:(function(){'
         'const dp=' + delete_json + ';'
-        'function matchLinha(num,hrefHtml){'
+        'function norm(s){return(s||"").toLowerCase().trim();}'
+        'function sub(a,b){return!b||a.includes(b)||b.includes(a);}'
+        'function matchLinha(num,tipoHtml,descHtml,hrefHtml){'
         'var entradas=dp[num];'
         'if(!entradas)return false;'
-        'if(!Array.isArray(entradas))entradas=[entradas];'
+        'if(!Array.isArray(entradas))return true;'  # legado: match só por número
         'return entradas.some(function(e){'
-        'var idDoc=typeof e==="string"||typeof e==="number"?String(e).trim():String((e&&e.id_doc)||"").trim();'
-        'return !!idDoc&&hrefHtml.includes("/"+idDoc+"/");'
+        'if(e.id_doc){'
+        'return hrefHtml.includes("/"+e.id_doc+"/");'
+        '}'
+        'var t=norm(e.tipo),d=norm(e.desc);'
+        'return sub(tipoHtml,t)&&sub(descHtml,d);'
         '});'
         '}'
         'console.log("[DEL] Iniciando seleção...");'
@@ -95,13 +104,17 @@ def gerar_bookmarklet_apagar(processos):
         'if(!a||!a.textContent)return;'
         'var num=a.textContent.trim();'
         'if(!dp.hasOwnProperty(num))return;'
-            'var aVis=linha.querySelector("a[accesskey=\\"a\\"]");'
+        'var eTipo=linha.querySelector("span.texto-preto");'
+        'var tipoHtml=eTipo?norm(eTipo.textContent):"";'
+        'var aDesc=linha.querySelector("a[accesskey=\\"v\\"] span");'
+        'var descHtml=aDesc?norm(aDesc.textContent):"";'
+        'var aVis=linha.querySelector("a[accesskey=\\"v\\"]");'
         'var hrefHtml=aVis?(aVis.href||aVis.getAttribute("href")||""):"";'
-        'if(!matchLinha(num,hrefHtml))return;'
+        'if(!matchLinha(num,tipoHtml,descHtml,hrefHtml))return;'
         'var cb=linha.querySelector(' + checkbox_selector + ');'
         'if(cb){cb.click();selecionados++;'
         r'var docId=hrefHtml.match(/\/documento\/(\d+)\//);'
-        'console.log("[DEL] OK:",num,"| doc_id:",docId?docId[1]:"?");}'
+        'console.log("[DEL] OK:",num,"| doc_id:",docId?docId[1]:"?","| tipo:",tipoHtml);}'
         '}catch(e){console.error("[DEL] erro linha:",e);}'
         '});'
         'alert("Selecionados: "+selecionados+"\\nClique no lixão para remover.");'

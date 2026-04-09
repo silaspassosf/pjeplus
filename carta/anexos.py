@@ -617,9 +617,11 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         time.sleep(1)
         
         # 3. Aguarda opções aparecerem e clica na desejada
-        wait = WebDriverWait(driver, 10)
-        opcoes = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option[role='option']")))
-        
+        from Fix.core import aguardar_renderizacao_nativa
+        if not aguardar_renderizacao_nativa(driver, "mat-option[role='option']", 'aparecer', timeout=10):
+            raise Exception('Opcoes de mat-option não apareceram')
+
+        opcoes = driver.find_elements(By.CSS_SELECTOR, "mat-option[role='option']")
         for opcao in opcoes:
             if valor.lower() in opcao.text.lower():
                 driver.execute_script("arguments[0].click();", opcao)
@@ -1317,7 +1319,11 @@ def substituir_marcador_por_conteudo(driver, conteudo_customizado: Optional[str]
                 except Exception:
                     return False
 
-            WebDriverWait(driver, 3, poll_frequency=0.2).until(_condicao_html)
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline:
+                if _condicao_html(driver):
+                    break
+                time.sleep(0.2)
         except Exception:
             # Timeout expirado sem detectar alteração significativa
             if debug:

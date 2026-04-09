@@ -19,23 +19,88 @@ Observações/assunções:
 import time
 import json
 import traceback
+from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
-# Importar do módulo /Fix (novo)
-from Fix.utils import configurar_recovery_driver, handle_exception_with_recovery
-from Fix.abas import validar_conexao_driver, trocar_para_nova_aba
-from Fix.extracao import abrir_detalhes_processo, criar_gigs, extrair_dados_processo
-from Fix.core import preencher_multiplos_campos, aguardar_e_clicar, esperar_elemento, safe_click, preencher_campo
+# Helpers locais da pasta bianca
+from funcoes.driver_utils import (
+    configurar_recovery_driver,
+    handle_exception_with_recovery,
+    abrir_detalhes_processo,
+    criar_gigs,
+    extrair_dados_processo,
+    aguardar_e_clicar,
+    aguardar_renderizacao_nativa,
+    esperar_elemento,
+    safe_click,
+    preencher_campo,
+    driver_pc,
+    login_cpf,
+)
+from funcoes.tab_utils import trocar_para_nova_aba
 
-# Importa sistema unificado de progresso
-from progresso_unificado import ProgressoUnificado
+class ProgressoUnificado:
+    def __init__(self, modulo: str = "GERAL"):
+        self.modulo = modulo.upper()
+        self.arquivo_principal = Path("progresso.json")
 
-# Instância global do sistema de progresso para AUD
+    def carregar_progresso(self):
+        if not self.arquivo_principal.exists():
+            return []
+
+        try:
+            with open(self.arquivo_principal, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+        except Exception:
+            return []
+
+        modulo_data = dados.get(self.modulo, []) if isinstance(dados, dict) else []
+        if isinstance(modulo_data, dict):
+            progresso = modulo_data.get("processos_executados", [])
+        else:
+            progresso = modulo_data
+
+        return progresso if isinstance(progresso, list) else []
+
+    def salvar_progresso(self, progresso):
+        dados = {}
+        if self.arquivo_principal.exists():
+            try:
+                with open(self.arquivo_principal, "r", encoding="utf-8") as f:
+                    dados = json.load(f)
+            except Exception:
+                dados = {}
+
+        if not isinstance(dados, dict):
+            dados = {}
+
+        dados[self.modulo] = {
+            "processos_executados": list(progresso or []),
+            "ultima_execucao": datetime.now().isoformat(),
+        }
+
+        with open(self.arquivo_principal, "w", encoding="utf-8") as f:
+            json.dump(dados, f, indent=4, ensure_ascii=False)
+
+        return True
+
+    def processo_ja_executado(self, numero_processo, progresso=None):
+        lista = progresso if isinstance(progresso, list) else self.carregar_progresso()
+        return str(numero_processo) in {str(item) for item in lista}
+
+    def marcar_processo_executado(self, numero_processo, status="SUCESSO", detalhes=None, progresso=None):
+        lista = list(progresso if isinstance(progresso, list) else self.carregar_progresso())
+        numero = str(numero_processo)
+        if numero not in {str(item) for item in lista}:
+            lista.append(numero)
+        self.salvar_progresso(lista)
+        return lista
+
+
 progresso_sistema = ProgressoUnificado("AUD")
 
 def carregar_progresso_aud():
@@ -57,6 +122,16 @@ def marcar_processo_executado_aud(numero_processo, progresso=None, status="SUCES
     if not numero_processo:
         return progresso
     return progresso_sistema.marcar_processo_executado(numero_processo, status, detalhes, progresso)
+
+
+def _esperar_responsavel(driver, fn, timeout=5):
+    import time as _t
+    deadline = _t.monotonic() + timeout
+    while _t.monotonic() < deadline:
+        if fn():
+            return True
+        _t.sleep(0.3)
+    return False
 
 
 def acao_bucket_a(driver, numero_processo, processo_info):
@@ -143,19 +218,15 @@ def acao_bucket_a(driver, numero_processo, processo_info):
         # 5) Pós-audiência: responsável + GIGS + ato_100 (igual bloco 100%)
         try:
             print(f"[AUD][A] Definindo responsável para {numero_processo}")
-            input_responsavel = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]'))
-            )
-            input_responsavel.click()
+            if not aguardar_e_clicar(driver, 'input[aria-label="Sem Responsável"]', timeout=10, by=By.CSS_SELECTOR):
+                raise Exception('Input de responsável não clicou')
+            input_responsavel = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]')
             input_responsavel.clear()
             input_responsavel.send_keys("SILAS")
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
-            )
-            opcao_silas = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]"))
-            )
-            opcao_silas.click()
+            if not aguardar_renderizacao_nativa(driver, 'span.mat-option-text', 'aparecer', 5):
+                raise Exception('Opção de responsável não apareceu')
+            if not aguardar_e_clicar(driver, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]", timeout=5, by=By.XPATH):
+                raise Exception('Opção SILAS não clicou')
             # Garantir que a seleção foi aplicada: desfocar e aguardar atributo preenchido
             try:
                 driver.execute_script("document.activeElement.blur();")
@@ -163,11 +234,21 @@ def acao_bucket_a(driver, numero_processo, processo_info):
                 pass
 
             try:
-                WebDriverWait(driver, 5).until(
-                    lambda d: ('SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('aria-label') or '')
-                               or 'SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('value') or ''))
-                )
-                print(f"[AUD][A] ✅ Campo responsável confirmado visivelmente preenchido")
+                if _esperar_responsavel(driver, lambda: ('SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('aria-label') or '')
+                               or 'SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('value') or '')), timeout=5):
+                    print(f"[AUD][A] ✅ Campo responsável confirmado visivelmente preenchido")
+                else:
+                    # Tentar clicar fora como fallback e aguardar mais um pouco
+                    try:
+                        body = driver.find_element(By.TAG_NAME, 'body')
+                        body.click()
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                    if not ('SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('aria-label') or '')
+                               or 'SILAS PASSOS FERREIRA' in (input_responsavel.get_attribute('value') or '')):
+                        raise Exception('Responsável não confirmado')
+                    print(f"[AUD][A] ✅ Campo responsável confirmado após clicar fora")
             except Exception:
                 # Tentar clicar fora como fallback e aguardar mais um pouco
                 try:
@@ -198,6 +279,131 @@ def acao_bucket_a(driver, numero_processo, processo_info):
         print(f"[AUD][A] Erro ao executar ações: {e}")
         return False
 
+def obter_processos_triagem_api(driver, numeros=None):
+    """Obtém processos da Triagem Inicial via API (espelhando lógica funcionando de aaa.js).
+
+    Para cada número:
+    1. /pje-comum-api/api/processos?numero={NUM} → id como número
+    2. /pje-comum-api/api/processos/id/{id}/tarefas?maisRecente=true → filtrar "Triagem Inicial"
+    3. /pje-comum-api/api/processos/id/{id} → classeJudicial.sigla + juizoDigital
+    4. /pje-comum-api/api/processos/id/{id}/audiencias?status=M → audiências
+
+    Retorna lista com: numero, id_processo, tarefa, tipo, digital, tem_audiencia, bucket
+    """
+    # 1. Coletar números da tela (DOM) usando seletor correto
+    if not numeros:
+        js_coleta = r"""
+        const rows = document.querySelectorAll(
+            'table[name="Tabela de Atividades"] tbody tr, table[name="Tabela de Processos"] tbody tr'
+        );
+        const set = new Set();
+        rows.forEach(tr => {
+            const m = (tr.innerText || tr.textContent || '').match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/);
+            if (m) set.add(m[0]);
+        });
+        return Array.from(set);
+        """
+        try:
+            numeros = driver.execute_script(js_coleta) or []
+            print(f"[AUD_API] {len(numeros)} números coletados da tela")
+        except Exception as e:
+            print(f"[AUD_API] Erro ao coletar números do DOM: {e}")
+            return []
+
+    if not numeros:
+        print("[AUD_API] Nenhum número encontrado")
+        return []
+
+    # 2. Executar fetch de cada número com 4 chamadas de API conforme aaa.js
+    script = """
+        return (async function() {
+            const numeros = arguments[0];
+            const base = location.origin;
+            const resultado = [];
+
+            for (const numero of numeros) {
+                try {
+                    // call 1: id do processo
+                    const r1 = await fetch(
+                        base + '/pje-comum-api/api/processos?numero=' + encodeURIComponent(numero),
+                        { credentials: 'include' }
+                    );
+                    const idProcesso = await r1.json();
+                    if (!idProcesso || typeof idProcesso !== 'number') {
+                        console.warn('[AUD_API] sem id para', numero, idProcesso);
+                        continue;
+                    }
+
+                    // call 2: tarefas -> filtrar apenas Triagem Inicial (maisRecente=true)
+                    const r2t = await fetch(
+                        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/tarefas?maisRecente=true',
+                        { credentials: 'include' }
+                    );
+                    if (!r2t.ok) {
+                        console.warn('[AUD_API] erro ao consultar tarefas', numero, r2t.status);
+                        continue;
+                    }
+                    const tarefas = await r2t.json();
+                    const tarefasLista = Array.isArray(tarefas) ? tarefas : (tarefas ? [tarefas] : []);
+                    const tarefaTriagem = tarefasLista.find(t =>
+                        String(t.nomeTarefa || t.nome || t.descricao || t.tarefa || '').toLowerCase().includes('triagem inicial')
+                    );
+                    if (!tarefaTriagem) {
+                        console.log('[AUD_API] sem Triagem Inicial, pulando', numero);
+                        continue;
+                    }
+                    const nomeTarefa = tarefaTriagem.nomeTarefa || tarefaTriagem.nome || tarefaTriagem.descricao || tarefaTriagem.tarefa || 'Triagem Inicial';
+
+                    // call 3: dados do processo -> classeJudicial.sigla + juizoDigital
+                    const r2 = await fetch(
+                        base + '/pje-comum-api/api/processos/id/' + idProcesso,
+                        { credentials: 'include' }
+                    );
+                    const proc = await r2.json();
+                    const tipo = ((proc.classeJudicial && proc.classeJudicial.sigla) || proc.classe || '').toUpperCase();
+                    const digital = proc.juizoDigital === true;
+
+                    // call 4: audiencias pendentes
+                    const r3 = await fetch(
+                        base + '/pje-comum-api/api/processos/id/' + idProcesso + '/audiencias?status=M',
+                        { credentials: 'include' }
+                    );
+                    const auds = await r3.json();
+                    const temAud = Array.isArray(auds) && auds.length > 0;
+
+                    // Formar bucket conforme lógica em aaa.js
+                    const bucket = tipo.includes('HTE') ? 'D' : !temAud ? 'A' : digital ? 'B' : 'C';
+
+                    resultado.push({
+                        numero: numero,
+                        id_processo: idProcesso,
+                        tarefa: nomeTarefa,
+                        tipo: tipo,
+                        digital: digital,
+                        tem_audiencia: temAud,
+                        bucket: bucket
+                    });
+
+                    console.log('[AUD_API]', numero, tipo, '| tarefa:', nomeTarefa, '| aud:', temAud, '| digital:', digital, '=>', bucket);
+                } catch (err) {
+                    console.error('[AUD_API] erro', numero, err.message);
+                }
+            }
+
+            return resultado;
+        }).apply(null, [arguments[0]]);
+    """
+
+    try:
+        resultado = driver.execute_script(script, numeros)
+        print(f"[AUD_API] {len(resultado or [])} processos obtidos via API (com Triagem Inicial)")
+        return resultado or []
+    except Exception as e:
+        print(f"[AUD_API] Erro na execução do script: {e}")
+        traceback.print_exc()
+        return []
+
+
 def indexar_e_processar_lista_aud(driver):
     """
     Indexa e processa lista de processos AUD com controle de progresso.
@@ -218,9 +424,9 @@ def indexar_e_processar_lista_aud(driver):
         progresso = carregar_progresso_aud()
         
         # ===== ETAPA 1: INDEXAR TODOS OS PROCESSOS DA LISTA =====
-        print("[AUD] 1. Indexando todos os processos da lista...")
-        
-        lista_processos = coletar_lista_processos(driver)
+        print("[AUD] 1. Indexando todos os processos da lista via API...")
+
+        lista_processos = obter_processos_triagem_api(driver)
         if not lista_processos:
             print("[AUD] ❌ Nenhuma linha encontrada na lista")
             return {"sucesso": False, "erro": "Lista vazia"}
@@ -360,16 +566,11 @@ def indexar_e_processar_lista_aud(driver):
                 # ===== PRIMEIRA AÇÃO: DEFINIR RESPONSÁVEL =====
                 print(f"[AUD][B] Definindo responsável para {numero_processo}")
                 
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                from selenium.webdriver.common.keys import Keys
-                
                 try:
                     # 1. Localizar e clicar no input de responsável
-                    input_responsavel = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]'))
-                    )
-                    input_responsavel.click()
+                    if not aguardar_e_clicar(driver, 'input[aria-label="Sem Responsável"]', timeout=10, by=By.CSS_SELECTOR):
+                        raise Exception('Input de responsável não clicou')
+                    input_responsavel = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]')
                     print(f"[AUD][B] ✅ Input de responsável clicado")
                     
                     # 2. Digitar "SILAS"
@@ -378,15 +579,10 @@ def indexar_e_processar_lista_aud(driver):
                     print(f"[AUD][B] ✅ Digitado 'SILAS'")
                     
                     # 3. Aguardar e selecionar a opção "SILAS PASSOS FERREIRA"
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
-                    )
-                    
-                    # Encontrar a opção específica
-                    opcao_silas = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]"))
-                    )
-                    opcao_silas.click()
+                    if not aguardar_renderizacao_nativa(driver, 'span.mat-option-text', 'aparecer', 5):
+                        raise Exception('Opção de responsável não apareceu')
+                    if not aguardar_e_clicar(driver, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]", timeout=5, by=By.XPATH):
+                        raise Exception('Opção SILAS não clicou')
                     print(f"[AUD][B] ✅ Opção 'SILAS PASSOS FERREIRA' selecionada")
 
                     def responsavel_confirmado():
@@ -396,10 +592,9 @@ def indexar_e_processar_lista_aud(driver):
 
                     driver.execute_script("document.activeElement.blur();")
 
-                    try:
-                        WebDriverWait(driver, 5).until(lambda _driver: responsavel_confirmado())
+                    if _esperar_responsavel(driver, responsavel_confirmado, timeout=5):
                         print(f"[AUD][B] ✅ Responsável confirmado visivelmente preenchido")
-                    except Exception:
+                    else:
                         try:
                             body = driver.find_element(By.TAG_NAME, 'body')
                             body.click()
@@ -407,7 +602,7 @@ def indexar_e_processar_lista_aud(driver):
                             pass
                         time.sleep(0.5)
                         if not responsavel_confirmado():
-                            raise
+                            raise Exception('Responsável não confirmado')
                         print(f"[AUD][B] ✅ Responsável confirmado após clicar fora")
                     print(f"[AUD][B] ✅ Responsável definido: SILAS PASSOS FERREIRA")
                     
@@ -488,16 +683,11 @@ def indexar_e_processar_lista_aud(driver):
                 # ===== PRIMEIRA AÇÃO: DEFINIR RESPONSÁVEL =====
                 print(f"[AUD][D] Definindo responsável para {numero_processo}")
                 
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                from selenium.webdriver.common.keys import Keys
-                
                 try:
                     # 1. Localizar e clicar no input de responsável
-                    input_responsavel = WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]'))
-                    )
-                    input_responsavel.click()
+                    if not aguardar_e_clicar(driver, 'input[aria-label="Sem Responsável"]', timeout=10, by=By.CSS_SELECTOR):
+                        raise Exception('Input de responsável não clicou')
+                    input_responsavel = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Sem Responsável"]')
                     print(f"[AUD][D] ✅ Input de responsável clicado")
                     
                     # 2. Digitar "SILAS"
@@ -506,15 +696,10 @@ def indexar_e_processar_lista_aud(driver):
                     print(f"[AUD][D] ✅ Digitado 'SILAS'")
                     
                     # 3. Aguardar e selecionar a opção "SILAS PASSOS FERREIRA"
-                    WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
-                    )
-                    
-                    # Encontrar a opção específica
-                    opcao_silas = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]"))
-                    )
-                    opcao_silas.click()
+                    if not aguardar_renderizacao_nativa(driver, 'span.mat-option-text', 'aparecer', 5):
+                        raise Exception('Opção de responsável não apareceu')
+                    if not aguardar_e_clicar(driver, "//span[@class='mat-option-text' and contains(text(), 'SILAS PASSOS FERREIRA')]", timeout=5, by=By.XPATH):
+                        raise Exception('Opção SILAS não clicou')
                     print(f"[AUD][D] ✅ Opção 'SILAS PASSOS FERREIRA' selecionada")
 
                     def responsavel_confirmado():
@@ -524,10 +709,9 @@ def indexar_e_processar_lista_aud(driver):
 
                     driver.execute_script("document.activeElement.blur();")
 
-                    try:
-                        WebDriverWait(driver, 5).until(lambda _driver: responsavel_confirmado())
+                    if _esperar_responsavel(driver, responsavel_confirmado, timeout=5):
                         print(f"[AUD][D] ✅ Responsável confirmado visivelmente preenchido")
-                    except Exception:
+                    else:
                         try:
                             body = driver.find_element(By.TAG_NAME, 'body')
                             body.click()
@@ -535,7 +719,7 @@ def indexar_e_processar_lista_aud(driver):
                             pass
                         time.sleep(0.5)
                         if not responsavel_confirmado():
-                            raise
+                            raise Exception('Responsável não confirmado')
                         print(f"[AUD][D] ✅ Responsável confirmado após clicar fora")
                     print(f"[AUD][D] ✅ Responsável definido: SILAS PASSOS FERREIRA")
                     
@@ -629,7 +813,7 @@ def criar_driver_e_logar(driver: Optional[WebDriver] = None, log: bool = True) -
     try:
         if log:
             print("[AUD] Criando driver e executando login (Fix.utils)")
-        from Fix.utils import driver_pc, login_cpf
+        from funcoes.driver_utils import driver_pc, login_cpf
 
         drv = driver_pc()
         if not drv:
@@ -1140,7 +1324,7 @@ def run_aud(driver: Optional[WebDriver] = None):
     Retorna sumário de resultados.
     """
     # ===== CONFIGURAR RECOVERY GLOBAL =====
-    from Fix.utils import driver_pc, login_cpf
+    from funcoes.driver_utils import driver_pc, login_cpf
     configurar_recovery_driver(driver_pc, login_cpf)
     print("[AUD] ✅ Sistema de recuperação automática configurado")
     

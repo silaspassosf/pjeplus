@@ -1,0 +1,51 @@
+{
+  "numero": [
+    "1000479-48.2025.5.02.0703"
+  ],
+  "id": 7063946,
+  "autor": [
+    {
+      "nome": "SILVAN LIMA BRAZ",
+      "cpfcnpj": "31493748807",
+      "advogado": {
+        "nome": "WILSON ALVES DA COSTA",
+        "cpf": "16579727802",
+        "oab": "SP419974"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "MTM PRODUCOES E EVENTOS LTDA",
+      "cpfcnpj": "08617883000195",
+      "advogado": {
+        "nome": "JAIR PEREIRA BOZZOLO",
+        "cpf": "21983490865",
+        "oab": "SP328746"
+      }
+    }
+  ],
+  "terceiro": [],
+  "divida": {},
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "27/03/2025",
+  "classeJudicial": {
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Execução",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

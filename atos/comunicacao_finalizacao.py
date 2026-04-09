@@ -1,8 +1,8 @@
 import time
 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
+from Fix.selenium_base.click_operations import aguardar_e_clicar
 
 from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 
@@ -133,9 +133,8 @@ def alterar_meio_expedicao(driver, debug=False, log=None):
                 time.sleep(0.2)
 
                 try:
-                    WebDriverWait(driver, 2).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-option'))
-                    )
+                    if not esperar_elemento(driver, 'mat-option', timeout=2, by=By.CSS_SELECTOR):
+                        raise Exception('Opções do dropdown não carregaram')
                 except Exception:
                     log(f'[COMUNICACAO][WARN] Linha {idx}: Opções do dropdown não carregaram em 2s')
                     continue
@@ -281,13 +280,8 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
     # VERIFICAÇÃO DE ERRO DE ENDEREÇO (SNACKBAR) E RE-TENTATIVA
     # =========================================================
     try:
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-        
         # Tenta captar o snackbar de erro especifico de endereço em até 2 segundos
-        snackbar_erro = WebDriverWait(driver, 2).until(
-            EC.presence_of_element_located((By.XPATH, "//simple-snack-bar[contains(., 'endereço válido') or contains(., 'expedição!')]"))
-        )
+        snackbar_erro = esperar_elemento(driver, "//simple-snack-bar[contains(., 'Selecione o endereço para envio!')]", timeout=2, by=By.XPATH)
         if snackbar_erro:
             log('[COMUNICACAO][WARN] Detectado erro ao salvar (endereço inválido). Apagando destinatário e re-tentando...')
             
@@ -319,9 +313,12 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
                 time.sleep(1)
             else:
                 log('[COMUNICACAO][ERRO] Botão Salvar não encontrado para a segunda tentativa.')
+        else:
+            log('[COMUNICACAO] Nenhum erro de endereço detectado — salvamento aceito pelo sistema.')
                 
     except Exception:
-        # Se der timeout no WebDriverWait, significa que o erro não apareceu, segue a vida normal
+        # Timeout esperado: snack de erro não apareceu = salvamento aceito
+        log('[COMUNICACAO] Nenhum erro de endereço detectado — salvamento aceito pelo sistema.')
         pass
 
     time.sleep(0.3)
@@ -351,7 +348,6 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
             log('[COMUNICACAO] Confirmação via snackbar detectada (observer).')
         else:
             # Fallback: existing predicate-based wait for snackbar or Alterar button
-            from selenium.webdriver.support.ui import WebDriverWait
             def _salvo_ok(drv):
                 try:
                     snacks = drv.find_elements(By.XPATH, "//simple-snack-bar")
@@ -372,8 +368,14 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None):
                 return False
 
             try:
-                WebDriverWait(driver, 3).until(_salvo_ok)
-                log('[COMUNICACAO] Confirmação visual de salvamento detectada (fallback).')
+                deadline = time.time() + 3
+                while time.time() < deadline:
+                    if _salvo_ok(driver):
+                        log('[COMUNICACAO] Confirmação visual de salvamento detectada (fallback).')
+                        break
+                    time.sleep(0.2)
+                else:
+                    raise Exception('Timeout no fallback de confirmation')
             except Exception:
                 log('[COMUNICACAO][WARN] Não foi possível confirmar visualmente o salvamento da minuta. Tentando retry imediato...')
                 try:

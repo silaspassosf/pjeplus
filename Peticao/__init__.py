@@ -14,9 +14,11 @@ logger = logging.getLogger(__name__)
 
 # Arquivos consolidados aqui (pendente refatoração):
 # - pet.py
-# - pet2.py  
+# - pet2.py
 # - pet_novo.py
-# 
+#
 # TODO: Consolidar duplicação entre pet2 e pet_novo (~80% overlap)
 
-__all__ = []
+from . import helpers
+
+__all__ = ['helpers']

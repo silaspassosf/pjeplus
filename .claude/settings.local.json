@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(findstr \"\\\\.py$\")",
+      "Bash(findstr \"__init__\")",
+      "Bash(findstr __init__)",
+      "Bash(powershell \"Get-ChildItem -Path 'D:\\\\\\\\PjePlus\\\\\\\\Peticao' -Recurse -Name '__init__.py'\")",
+      "Bash(powershell \"Get-ChildItem -Path 'D:\\\\\\\\PjePlus\\\\\\\\Peticao' -Directory | Select-Object Name\")",
+      "Bash(python:*)",
+      "Bash(move:*)",
+      "Bash(powershell \"Move-Item -Path 'D:\\\\PjePlus\\\\Peticao\\\\helpers.py' -Destination 'D:\\\\PjePlus\\\\Peticao\\\\helpers\\\\helpers.py'\")",
+      "Bash(powershell \"Move-Item -Path 'D:\\\\PjePlus\\\\Peticao\\\\core\\\\extracao.py' -Destination 'D:\\\\PjePlus\\\\Peticao\\\\core\\\\extracao\\\\extracao.py'\")",
+      "Bash(del:*)",
+      "Bash(powershell \"Remove-Item -Path 'D:\\\\PjePlus\\\\Peticao\\\\test_import.py'\")",
+      "Bash(powershell \"Remove-Item -Path 'D:\\\\PjePlus\\\\test_import.py'\")"
+    ]
+  }
+}

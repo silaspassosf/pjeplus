@@ -5,7 +5,11 @@ from typing import Dict, List, Optional
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from Fix.extracao import extrair_dados_processo
-from Prazo.p2b_core import normalizar_texto
+from .monitoramento.progresso import (
+    carregar_progresso_pet,
+    marcar_processo_executado_pet,
+    processo_ja_executado_pet,
+)
 
 from .api_client import PeticaoAPIClient, PeticaoItem
 
@@ -75,27 +79,13 @@ def _executar_bucket_normal(driver: WebDriver, nome: str, itens: List[PeticaoIte
     """Buckets que requerem abertura individual do processo."""
     from .pet import resolver_acao
     stats = {'sucesso': 0, 'erro': 0}
-    habilitacao_consolidada = False  # Flag: consolidar apenas uma vez
-    processando_habilitacao = False  # Rastreia se estamos no bloco habilitação
+    quesitos_consolidado = False  # Flag: consolidar apenas uma vez após quesitos
 
     for item in itens:
-        if progresso.get(item.numero_processo):
+        if processo_ja_executado_pet(item.numero_processo, progresso):
             logger.info(f"[SKIP] {item.numero_processo}")
             stats['sucesso'] += 1
             continue
-
-        tem_habilitacao = 'habilitacao' in normalizar_texto(item.tipo_peticao or '')
-
-        # Se estávamos processando habilitação e agora encontramos um item sem habilitação,
-        # consolidar delete.js antes de prosseguir
-        if processando_habilitacao and not tem_habilitacao and not habilitacao_consolidada:
-            logger.info('[PET_EXEC] ✓ Bloco habilitação completo → consolidando delete.js')
-            _consolidar_delete_bookmarklet()
-            habilitacao_consolidada = True
-
-        # Marcar que estamos processando habilitação
-        if tem_habilitacao:
-            processando_habilitacao = True
 
         acao = resolver_acao(item, driver)
 
@@ -109,7 +99,7 @@ def _executar_bucket_normal(driver: WebDriver, nome: str, itens: List[PeticaoIte
             extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
             ok = _executar_acao(driver, item, acao)
             if ok:
-                progresso[item.numero_processo] = True
+                marcar_processo_executado_pet(item.numero_processo, progresso)
                 stats['sucesso'] += 1
             else:
                 stats['erro'] += 1
@@ -121,11 +111,11 @@ def _executar_bucket_normal(driver: WebDriver, nome: str, itens: List[PeticaoIte
         finally:
             _fechar_abas_extras(driver)
 
-    # Se saímos do loop enquanto ainda estava processando habilitação, consolidar agora
-    if processando_habilitacao and not habilitacao_consolidada:
-        logger.info('[PET_EXEC] ✓ Bloco habilitação concluído (fim da lista) → consolidando delete.js')
-        _consolidar_delete_bookmarklet()
-        habilitacao_consolidada = True
+        # Se processamos um item de quesitos e ainda não consolidamos, fazer agora
+        if nome == 'diretos' and not quesitos_consolidado and ('quesitos' in (item.tipo_peticao or '') or 'quesitos' in (item.descricao or '')):
+            logger.info('[PET_EXEC] ✓ Quesitos processado → consolidando delete.js')
+            _consolidar_delete_bookmarklet()
+            quesitos_consolidado = True
 
     return stats
 
@@ -136,7 +126,7 @@ def _executar_bucket_analise(driver: WebDriver, itens: List[PeticaoItem],
     from .pet import analise_pet
     stats = {'sucesso': 0, 'erro': 0}
     for item in itens:
-        if progresso.get(item.numero_processo):
+        if processo_ja_executado_pet(item.numero_processo, progresso):
             logger.info(f"[SKIP] {item.numero_processo}")
             stats['sucesso'] += 1
             continue
@@ -146,7 +136,7 @@ def _executar_bucket_analise(driver: WebDriver, itens: List[PeticaoItem],
             extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
             ok = analise_pet(driver, item)
             if ok:
-                progresso[item.numero_processo] = True
+                marcar_processo_executado_pet(item.numero_processo, progresso)
                 stats['sucesso'] += 1
             else:
                 stats['erro'] += 1
@@ -161,13 +151,13 @@ def _executar_bucket_analise(driver: WebDriver, itens: List[PeticaoItem],
 
 
 def _executar_bucket_apagar(itens: List[PeticaoItem]) -> Dict[str, int]:
-    """Apagar: sem abertura de processo — registra em delete.js com desc discriminadora."""
+    """Apagar: sem abertura de processo — registra em delete.js apenas com id_doc."""
     from .helpers import apagar
     stats = {'sucesso': 0, 'erro': 0}
     for item in itens:
         try:
-            apagar(item.numero_processo, item.id_processo or item.numero_processo, item.descricao, item.tipo_peticao, item.id_item)
-            logger.info(f'[PET_APAG] {item.numero_processo} | tipo={item.tipo_peticao!r} desc={item.descricao!r}')
+            apagar(item.numero_processo, item.id_item)
+            logger.info(f'[PET_APAG] {item.numero_processo} | id_doc={item.id_item!r}')
             stats['sucesso'] += 1
         except Exception as e:
             logger.error(f'[PET_APAG] {item.numero_processo}: {e}')
@@ -195,7 +185,7 @@ def _consolidar_delete_bookmarklet():
 class PETOrquestrador:
     def __init__(self, driver: WebDriver):
         self.driver = driver
-        self.progresso: dict = {}
+        self.progresso: dict = carregar_progresso_pet()
 
     def executar(self, dry_run: bool = False) -> Dict[str, int]:
         logger.info('=' * 60)

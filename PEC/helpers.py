@@ -5,6 +5,8 @@ logger = logging.getLogger(__name__)
 
 import re
 import unicodedata
+from typing import List
+from re import Pattern
 
 
 def remover_acentos(txt: str) -> str:
@@ -28,3 +30,29 @@ def gerar_regex_geral(termo: str) -> re.Pattern:
         if i < len(partes) - 1:
             regex += r'[\s\w\.,;:!\-–—()]*'
     return re.compile(rf"{regex}", re.IGNORECASE)
+
+
+def _montar_url_processo(numero_cnj: str, base_url: str = "https://pje.trt2.jus.br") -> str:
+    """Monta URL de detalhe do processo para navegação direta no PJe."""
+    numero_texto = str(numero_cnj or "")
+    numero_limpo = ''.join(filter(str.isdigit, numero_texto))
+    identificador = numero_limpo if len(numero_limpo) == 20 else numero_texto
+    return f"{base_url}/pjekz/processo/{identificador}/detalhe"
+
+
+def _fechar_abas_extras(driver) -> None:
+    """Mantém apenas a aba principal aberta, fechando as demais."""
+    try:
+        abas = driver.window_handles
+        if len(abas) <= 1:
+            return
+        aba_principal = abas[0]
+        for aba in abas[1:]:
+            try:
+                driver.switch_to.window(aba)
+                driver.close()
+            except Exception:
+                pass
+        driver.switch_to.window(aba_principal)
+    except Exception:
+        pass

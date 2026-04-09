@@ -1330,11 +1330,96 @@
       "Correção: MODULO9: CENSEC: corrigido o uso da extensão no convênio CENSEC."
     ],
     "testes": [
-      "MODULO9: GARIMPO: criado o assistente de impressão para o convênio GARIMPO. Aparece apenas quando consultado o extrato através da janela detalhes do processo.",
-      "MODULO7: AÇÕES AUTOMATIZADAS VARIADAS: As ações Automatizadas de Aceitar/Rejeitar prevenção agora compõe o quadro dessas ações. A vantagem é que agora você poderá definir um modelo para utilizar nas ações automatizadas de REJEITAR PREVENÇÃO.",
-      "MODULO9: CNIB: aprimorada a utilização da extensão no convênio CNIB. O usuário poderá configurar passo a passo os eventos de 'Nova Minuta' como: preencher os campos automaticamente com o acionamento da varinha mágica, confirmar as próximas telas, protocolar a ordem, guardar o número do protocolo no ctrl+c e mandar imprimir a tela de recibo. ALém disso, é possível definir uma ação automatizada para ser acionada ao final do protocolo.",
+      "Melhoria: MODULO9: GARIMPO: criado o assistente de impressão para o convênio GARIMPO. Aparece apenas quando consultado o extrato através da janela detalhes do processo.",
+      "Melhoria: MODULO7: AÇÕES AUTOMATIZADAS VARIADAS: As ações Automatizadas de Aceitar/Rejeitar prevenção agora compõe o quadro dessas ações. A vantagem é que agora você poderá definir um modelo para utilizar nas ações automatizadas de REJEITAR PREVENÇÃO.",
+      "Melhoria: MODULO9: CNIB: aprimorada a utilização da extensão no convênio CNIB. O usuário poderá configurar passo a passo os eventos de 'Nova Minuta' como: preencher os campos automaticamente com o acionamento da varinha mágica, confirmar as próximas telas, protocolar a ordem, guardar o número do protocolo no ctrl+c e mandar imprimir a tela de recibo. ALém disso, é possível definir uma ação automatizada para ser acionada ao final do protocolo.",
       "Melhoria: MODULO7: VINCULOS: permite usar como vínculo o atalho F2 e o atalho F3.",
-      "Melhoria: JANELA PRINCIPAL: RELATORIO GIGS: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados."
+      "Melhoria: JANELA PRINCIPAL: RELATORIO GIGS: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados.",
+      "Melhoria: JANELA PRINCIPAL: MEU PAINEL: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados."
+    ]
+  },
+  {
+    "date": "20/02/2026",
+    "version": "4.19.2",
+    "package": "maispje-4.19.2-fx.xpi",
+    "changes": [
+      "Correção: corrigidos os eventos de digitação.",
+      "Correção: MODULO9: ECARTA: corrigido erro na funcionalidade em decorrência da versão 147 do Firefox",
+      "Correção: Filtro Favorito: corrigida a inclusão da TAREFA e FASE do Processo no filtro favorito do relatório GIGS.",
+      "Correção: GUARDAR DADOS DO PROCESSO: corrigida a obtenção da data da concessão da justiça gratuita.",
+      "Correção: VARIÁVEIS MAISPJE: corrigido o preenchimento das variáveis [maisPje:justiçagratuita] e [maisPje:justiçagratuitaData].",
+      "Correção: MODULO1: Desativada a funcionalidade de pesquisa personalizada de documentos. Motivo: A funcionalidade existente no PJe supre esta funcionalidade.",
+      "Correção: MODULO7: RETIFICAR AUTUAÇÃO: corrigido o uso das AA de Retificar Autuação nos vínculos.",
+      "Correção: MODULO7: DESPACHOS: corrigido o bug no lançamento de movimentos par ao pje versão 2.19.0 - Caraúba.",
+      "Correção: Acessibilidade: Permite usuário escolher se quer que as prévias dos documentos sejam carregadas ao passar o mouse sobre ou ao focar no documento."
+    ],
+    "testes": [
+      "Melhoria: MODULO9: CRCJUD: incluída a possibilidade de incluir terceiros interessados nas consultas",
+      "Melhoria: MODULO7: VARIADAS: ATALHO F4: inserido no menu kaizen a funcionalidade de atribuir uma ação automatizada ao atalho F4 do teclado. Esta AA pode ser alterada a qualquer momento de acordo com a necessidade do usuário dentro do menu kaizen.",
+      "Melhoria: MODULO1: JANELA DETALHES DO PROCESSO: criado atalho (representado por uma estrela dourada) que exibe ao usuário TODAS suas Ações Automatizadas, permitindo-o escolher uma delas para executar naquele momento.",
+      "Melhoria: MODULO1: JANELA DETALHES DO PROCESSO: foi criada a opção de configuração para exibir a fase na timeline do processo. Ativada, criará uma régua colorida que identificará a fase processual quando da juntada dos documentos. As corres correspondem à fase: azul, inicial; verde: liquidação; cinza: execução;e, roxo: arquivado.",
+      "Melhoria: MODULO9: ECARTA: Criado atalho para certificar o resultado do Registro no PJe.",
+      "Melhoria: MODULO7: NOMEAR PERITO: criado módulo próprio 7.7 para elaboração/edição de ações automatizadas específicas para nomear de peritos, que automatiza o procedimento de 'Incluir perícia'."
+    ]
+  },
+  {
+    "date": "17/03/2026",
+    "version": "4.19.4",
+    "package": "maispje-4.19.4-fx.xpi",
+    "changes": [
+      "Correção: Acessibilidade: Permite usuário escolher se quer que as prévias dos documentos sejam carregadas ao passar o mouse sobre ou ao focar no documento.",
+      "Correção: MODULO7: RETIFICAR AUTUAÇÃO: Inserir Prioridade: corrigida a ação automatizada para a mudança do PJe que vincula uma prioridade a uma parte do processo."
+    ],
+    "testes": [
+      "Melhoria: MODULO7: AUTOGIGS: CHIP: CONCLUIR: criada funcionalidade para excluir todos os chips removíveis do processo, basta usar a expressão concluir e deixar o campo CHIP em branco.",
+      "Melhoria: Extras: e-Rec: exibe documentos do PJe e opção para criar Gigs específico (permite especificar qual Gigs).",
+      "Melhoria: Painel Copia e Cola: criado o botão de consulta situação cadastral na receita federal",
+      "Melhoria: MODULO9: PJECALC: criado botão para automatizar a atualização rápida de processos com cálculo consolidado (reunião).",
+      "Melhoria: Janela Registrar Obrigação de Pagar: criado botão para automatizar a expedição de certidão de habilitação de créditos",
+      "Melhoria: Extras: e-Rec: exibe documentos do PJe e opção para criar Gigs específico (permite especificar qual Gigs)."
+    ]
+  },
+  {
+    "date": "18/03/2026",
+    "version": "4.19.5",
+    "package": "maispje-4.19.5-fx.xpi",
+    "changes": [
+      "Correção: MODULO7: corrigida a funcionalidade DESPACHO>Trocar Magistrado Responsável",
+      "Correção: MODULO7: corrigida a abertura em duplicidade da tela de tarefa na execução de AA",
+      "Correção: das funcionalidades painel copia e cola e conferir Alvará pelo SIF e SISCONDJ",
+      "Correção: MODULO9: Abertura do prevjud através do menu kaizen",
+      "Correção: MODULO9:SISBAJUD funcionando na versão velha e nova",
+      "Correção: Acessibilidade: Pode escolher se quer o destaque do foco só com o teclado (comportamento atual) ou ao clicar com o mouse também."
+    ],
+    "testes": []
+  },
+  {
+    "date": "25/03/2026",
+    "version": "4.19.6",
+    "package": "maispje-4.19.6-fx.xpi",
+    "changes": [
+      "Ajustes no Sisbajud"
+    ],
+    "testes": [
+      "Melhoria: MODULO10: é possível escolher uma sala de audiência favorita para quando acessar a pauta",
+      "Correção: MODULO7: NOMEAR PERITO: ampliada a possibilidade de cadastrar prazos em dias corridos, dias úteis e data certa. Corrigido o problema de nomeação observando o sorteio: basta deixar o campo nome do perito em branco.",
+      "Melhoria: Variáveis maisPJe: criadas as variáveis para último alvará expedido: chave e id"
+    ]
+  },
+  {
+    "date": "27/03/2026",
+    "version": "4.19.7",
+    "package": "maispje-4.19.7-fx.xpi",
+    "changes": [
+      "Correção: o carregamento das configurações da extensão poderia gerar erros em instalações novas",
+      "Correção: Corrigida as funcionalidades na tela de registrar obrigação de pagar e pagamento, relativamente a escolha do credor e devedor e do botão de inverter polo",
+      "Correção: MODULO9: CNIB: ajustada a extensão para obter do usuário a confirmação do processo a ser incluído/excluído. Isso é necessário pois o cnib não tem solução de cancelamento imediato de ordens protocoladas por equívoco."
+    ],
+    "testes": [
+      "Melhoria: e-Rec: Permite visualizar os documentos lado a lado com o sistema.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de processos, caso seja indentificado um núymero de processo, nas atividades do GIGS ou Comentário",
+      "Melhoria: Variáveis maisPJe: criada a variável para trazer o magistrado responsável de acordo com a regra no módulo8.",
+      "Melhoria: MODULO7: AUTOGIGS e CHECKLIST: agora aceitam a expressão 'clipboard' no campo observação que preenche o campo com aqueles valores copiados pela extensão nos convênios, como número de protocolo, etc."
     ]
   }
 ]

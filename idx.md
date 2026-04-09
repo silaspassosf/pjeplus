@@ -111,6 +111,36 @@ Para garantir a futura conteinerização do `x.py` no GitHub Actions:
 2. **Downloads Silenciosos:** O profile do Firefox deve forçar downloads diretos via MIME types, ignorando caixas de diálogo nativas (`browser.helperApps.neverAsk.saveToDisk`).
 3. **Scroll Virtual:** Como a viewport virtual headless não possui rolagem física de usuário, antes de qualquer `.click()`, faça o elemento entrar em foco injetando: `driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)`.
 
+4. **PJEPLUS_TIME e CI**
+- Defina `PJEPLUS_TIME=1` em todos os workflows de CI (GitHub Actions, runner local) para ativar instrumentação de tempo automática.
+- Faça um job leve de sanity com `py -m py_compile Fix/log_cleaner.py Fix/__init__.py` e `py -m pytest -q tests/test_fix_log_cleaner.py`.
+- Capture métricas de tempo em log de build para análise de regressão de performance em cada merge.
+
+5. **Respostas de incidentes com Fix.log_cleaner**
+- Em caso de erro crítico (`TimeoutException`, `NoSuchElementException`) no ambiente de produção, execute:
+  ```py
+  from Fix.log_cleaner import resumir_excecao
+
+  try:
+      executar_fluxo_principal(driver, processo)
+  except Exception as e:
+      relatorio = resumir_excecao(e, contexto='fluxo_prod', max_frames=4)
+      logger.error('INCIDENTE PJEPLUS:\n%s', relatorio)
+      raise
+  ```
+- Para análise de logs locais antes de abrir sessão IA, filtre só linhas relevantes:
+  ```py
+  from Fix.log_cleaner import filtrar_log_arquivo
+
+  for linha in filtrar_log_arquivo('logs_execucao/run.log', nivel='ERROR', max_linhas=40):
+      print(linha)
+  ```
+- Para DOM copiado do DevTools, reduzir peso com:
+  ```py
+  from Fix.log_cleaner import extrair_seletor_dom
+  print(extrair_seletor_dom(html_bruto))
+  ```
+
 ***
 **INSTRUÇÃO FINAL PARA A IA:** Ao iniciar a sessão, confirme a leitura do `IDX.md`, compreenda a topologia e aguarde a indicação do usuário sobre qual módulo (ou implantação do `SmartFinder` / Cache) será trabalhado hoje.
 

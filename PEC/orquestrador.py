@@ -1,4 +1,5 @@
 import logging
+from datetime import date, timedelta
 from typing import Dict, List
 from .api_client import PECAPIClient, AtividadePEC
 from .classificador import PECClassificador
@@ -23,6 +24,14 @@ class PECOrquestrador:
         print("[PECOrquestrador] Chamando fetch_atividades_vencidas...")
         atividades = self.api.fetch_atividades_vencidas(self.driver)
         print(f"[PECOrquestrador] Atividades retornadas: {len(atividades)}")
+
+        # Filtrar apenas D-1: prazo vencido ontem (data da execução - 1 dia)
+        # Evita reprocessar itens mais antigos caso o progresso não esteja bem registrado
+        data_d1 = (date.today() - timedelta(days=1)).isoformat()  # YYYY-MM-DD
+        antes = len(atividades)
+        atividades = [a for a in atividades if (a.data_prazo or '')[:10] == data_d1]
+        print(f"[PECOrquestrador] Filtro D-1 ({data_d1}): {antes} → {len(atividades)} atividade(s)")
+
         if not atividades:
             logger.info("[ORQUESTRADOR] Nenhuma atividade encontrada")
             print("[PECOrquestrador] Nenhuma atividade encontrada pelo fetch.")

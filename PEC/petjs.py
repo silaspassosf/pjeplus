@@ -37,18 +37,25 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # CONFIGURAÇÕES VT - DRIVERS EMBUTIDOS (padrão 2.py)
 # ============================================================================
 
+# Importar funções de caminhos
+from ..Fix.utils_paths import (
+    obter_caminho_geckodriver,
+    obter_caminho_firefox_executavel,
+    obter_caminho_firefox_alt,
+    obter_caminho_perfil_vt_pje,
+    obter_caminho_perfil_vt_pje_alt
+)
+
 # Caminho do geckodriver
-GECKODRIVER_PATH = os.path.join(str(Path(__file__).parent.parent), 'geckodriver.exe')
-if not os.path.exists(GECKODRIVER_PATH):
-    GECKODRIVER_PATH = os.path.join(str(Path(__file__).parent.parent), 'Fix', 'geckodriver.exe')
+GECKODRIVER_PATH = obter_caminho_geckodriver()
 
 # Firefox Developer Edition
-FIREFOX_BINARY = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
-FIREFOX_BINARY_ALT = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+FIREFOX_BINARY = obter_caminho_firefox_executavel()
+FIREFOX_BINARY_ALT = obter_caminho_firefox_alt()
 
 # Perfis VT
-VT_PROFILE_PJE = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
-VT_PROFILE_PJE_ALT = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
+VT_PROFILE_PJE = obter_caminho_perfil_vt_pje()
+VT_PROFILE_PJE_ALT = obter_caminho_perfil_vt_pje_alt()
 
 ESCANINHO_URL = "https://pje.trt2.jus.br/pjekz/escaninho/peticoes-juntadas"
 

@@ -139,6 +139,29 @@ def validar_conexao_driver(driver, contexto: str = "GERAL", proc_id: Optional[st
             logger.error(f'[{contexto}][CONEXÃO][ERRO] Falha na validação de conexão: {validation_err}')
             raise NavegacaoError(f'Falha na validação de conexão (contexto: {contexto}): {validation_err}')
 
+def aguardar_nova_aba(driver, aba_original: str, timeout: int = 15) -> Optional[str]:
+    """
+    Aguarda uma nova aba abrir e troca para ela.
+
+    Substitui: WebDriverWait(driver, N).until(lambda d: len(d.window_handles) > 1)
+    seguido de driver.switch_to.window.
+
+    Returns:
+        str: handle da nova aba
+    Raises:
+        NavegacaoError: se timeout esgotar sem nova aba
+    """
+    import time as _time
+    deadline = _time.monotonic() + timeout
+    while _time.monotonic() < deadline:
+        handles = driver.window_handles
+        novas = [h for h in handles if h != aba_original]
+        if novas:
+            return trocar_para_nova_aba(driver, aba_original)
+        _time.sleep(0.3)
+    raise NavegacaoError(f'Nenhuma nova aba abriu em {timeout}s')
+
+
 def trocar_para_nova_aba(driver, aba_lista_original: str) -> Optional[str]:
     """
     Troca para uma nova aba diferente da aba original da lista.

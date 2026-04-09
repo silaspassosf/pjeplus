@@ -1,11 +1,10 @@
 import time
 import re
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException
 from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
 
+from Fix.core import aguardar_renderizacao_nativa, esperar_url_conter
 from .core import aguardar_e_verificar_aba, aguardar_e_clicar
 
 
@@ -52,26 +51,23 @@ def abrir_minutas(driver, debug=False):
             raise Exception('Nova aba de minutas não abriu')
 
         driver.switch_to.window(nova_aba)
+        driver.execute_script("window.focus();")
 
         if not aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug):
             raise Exception('Página travou no carregamento (spinner)')
 
-        WebDriverWait(driver, 20).until(lambda d: '/minutas' in d.current_url)
+        if not esperar_url_conter(driver, '/minutas', timeout=20):
+            raise Exception('URL de minutas não carregou')
 
         # Quick check: if 'Tipo de Expediente' (ou botões suficientes) não aparecer em 3s, refresh na aba e tentar novamente
-        try:
-            WebDriverWait(driver, 3).until(
-                lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5
-            )
-        except TimeoutException:
+        if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 3):
             logger.info('[MINUTAS] Elemento esperado não encontrado rápido; recarregando aba e tentando novamente')
             try:
                 driver.refresh()
             except Exception as e_ref:
                 logger.info(f'[MINUTAS] Falha ao refresh da aba: {e_ref}')
-            WebDriverWait(driver, 20).until(
-                lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5
-            )
+            if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 20):
+                raise Exception('Página de minutas não exibiu conteúdo esperado após refresh')
         return True
 
     except Exception as url_error:
@@ -80,7 +76,6 @@ def abrir_minutas(driver, debug=False):
             logger.info('[URL] Fazendo fallback para navegação tradicional por cliques...')
 
         # FALLBACK: Navegação tradicional por cliques
-        from selenium.webdriver.support import expected_conditions as EC
         from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 
         abas_antes = set(driver.window_handles)
@@ -107,17 +102,18 @@ def abrir_minutas(driver, debug=False):
             if not aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug):
                 raise Exception('Página travou no carregamento (spinner)')
 
-        WebDriverWait(driver, 20).until(lambda d: '/minutas' in d.current_url or 'Tipo de Expediente' in d.page_source)
+        if not esperar_url_conter(driver, '/minutas', timeout=20):
+            if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 20):
+                raise Exception('URL e conteúdo de minutas não carregaram')
         # Quick refresh attempt if UI parts not present shortly after load
-        try:
-            WebDriverWait(driver, 3).until(lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5)
-        except TimeoutException:
+        if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 3):
             logger.info('[MINUTAS][FALLBACK] Elemento esperado não encontrado rápido; recarregando aba e tentando novamente')
             try:
                 driver.refresh()
             except Exception as e_ref2:
                 logger.info(f'[MINUTAS][FALLBACK] Falha ao refresh da aba: {e_ref2}')
-            WebDriverWait(driver, 20).until(lambda d: 'Tipo de Expediente' in d.page_source or len(d.find_elements(By.TAG_NAME, 'button')) > 5)
+            if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 20):
+                raise Exception('Página de minutas não exibiu conteúdo esperado após refresh')
         if debug:
             logger.info('[MINUTAS] Tela de minutas carregada com sucesso')
         return True

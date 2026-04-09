@@ -6,10 +6,13 @@ from selenium.webdriver.common.by import By
 from Fix.core import wait_for_page_load, safe_click_no_scroll, esperar_elemento
 from Fix.log import logger
 from Fix.progress import ProgressoUnificado
-from Fix.utils.observer import aguardar_renderizacao_nativa
+from Fix.utils_observer import aguardar_renderizacao_nativa
 
 from Mandado.processamento_argos import processar_argos
 from Mandado.processamento_outros import fluxo_mandados_outros
+
+
+_ARQUIVO_PROGRESSO = Path('progresso.json')
 
 
 def _fechar_abas_extras(driver, handle_principal):
@@ -25,6 +28,29 @@ def _fechar_abas_extras(driver, handle_principal):
         driver.switch_to.window(handle_principal)
     except Exception:
         pass
+
+
+def _carregar_concluidos_mandado() -> set:
+    """Lê progresso.json e retorna set de numeros de processo MANDADO já concluídos."""
+    try:
+        if _ARQUIVO_PROGRESSO.exists():
+            data = json.loads(_ARQUIVO_PROGRESSO.read_text(encoding='utf-8'))
+            return set(data.get('processos_executados', []))
+    except Exception:
+        pass
+    return set()
+
+
+def _marcar_concluido_mandado(numero: str) -> None:
+    """Persiste numero em processos_executados dentro do progresso.json existente."""
+    try:
+        data = json.loads(_ARQUIVO_PROGRESSO.read_text(encoding='utf-8')) if _ARQUIVO_PROGRESSO.exists() else {}
+        concluidos = set(data.get('processos_executados', []))
+        concluidos.add(str(numero))
+        data['processos_executados'] = sorted(concluidos)
+        _ARQUIVO_PROGRESSO.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+    except Exception as e:
+        logger.warning(f'[MANDADOS_API] Falha ao salvar concluidos: {e}')
 
 
 def obter_mandados_devolvidos(driver, pagina=1, tamanho_pagina=50, ordenacao_crescente=True):
@@ -109,7 +135,7 @@ def _selecionar_doc_via_timeline(driver, log=True):
             logger.warning(f"[MANDADOS_API] Falha ao clicar doc timeline: '{(link.text or '')[:40]}'")
             return None
 
-        aguardar_renderizacao_nativa(driver)
+        aguardar_renderizacao_nativa(driver, "div.conteudo-principal")
         return tipo
 
     return None
@@ -180,8 +206,13 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     for i, it in enumerate(itens, 1):
         logger.info(f'[MANDADOS_API]   #{i}: id={it["id"]}  numero={it["numero"]}')
 
+    # ── Verificar o que já foi concluído em execuções anteriores
+    concluidos_anteriores = _carregar_concluidos_mandado()
+    if concluidos_anteriores:
+        logger.info(f'[MANDADOS_API] {len(concluidos_anteriores)} processo(s) ja concluidos em execucao anterior — serao ignorados')
+
     # ── Sistema de progresso
-    progresso = ProgressoUnificado(arquivo_progresso=Path('progresso.json'))
+    progresso = ProgressoUnificado(arquivo_progresso=_ARQUIVO_PROGRESSO)
     progresso.registrar_modulo('MANDADO', len(itens))
 
     sucesso_algum = False
@@ -192,6 +223,12 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
         id_p = it['id']
         num = it['numero']
         label = str(num or id_p)
+
+        # Pular processos já concluídos (comparando por número, não por id)
+        if num and str(num) in concluidos_anteriores:
+            logger.info(f"[MANDADOS_API] #{idx} {num} ja concluido em execucao anterior — pulando")
+            pulados.append(label)
+            continue
 
         logger.info(f"[MANDADOS_API] [{idx}/{len(itens)}] id={id_p} numero={num}")
 
@@ -205,6 +242,7 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
             sucesso_algum = True
             logger.info(f"[MANDADOS_API] #{idx} concluido")
             progresso.atualizar('MANDADO', item_atual=label)
+            _marcar_concluido_mandado(str(num or id_p))
         else:
             falhas.append(label)
             logger.error(f"[MANDADOS_API] #{idx} falhou: {label}")

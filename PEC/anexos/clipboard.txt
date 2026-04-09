@@ -989,3 +989,31 @@ PROCESSO: PROCESSO_DESCONHECIDO
 https://pje.trt2.jus.br/pjekz/validacao/26032717295758100000451968966?instancia=1
 ==================================================
 
+
+==================================================
+PROCESSO: 1001100-55.2019.5.02.0703
+==================================================
+    Id Pje: f4bfaf0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948311BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 25/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se*
+
+Prazo: 8 dias (09/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000352-13.2025.5.02.0703
+==================================================
+    Id Pje: e8e59e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948458BR
+    Destinatário: BAR DO GYN BEBIDAS ESPECIALIZADAS LTDA
+    Data do envio: 25/03/2026
+    Data da entrega: Indisponível
+    Status: Não disponível*
+
+Prazo: 8 dias (09/04/2026)
+==================================================
+

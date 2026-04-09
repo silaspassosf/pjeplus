@@ -11,11 +11,15 @@ import os
 import time
 from selenium.webdriver.common.by import By
 from .utils_cookies import USAR_COOKIES_AUTOMATICO, SALVAR_COOKIES_AUTOMATICO
+from .utils_paths import (
+    obter_caminho_perfil_firefox,
+    obter_caminho_firefox_executavel
+)
 
 # Seção: Navegação
-# Configurações do navegador
-PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+# Configurações do navegador - agora obtidas via credenciais
+PROFILE_PATH = obter_caminho_perfil_firefox()
+FIREFOX_BINARY = obter_caminho_firefox_executavel()
 
 def login_manual(driver, aguardar_url_painel=True):
     """Login manual: navega para login e aguarda usuário fazer login"""
@@ -173,13 +177,13 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
         except Exception as e:
             _ = e
 
-        # Clicar no botão SSO PDPJ antes de preencher credenciais
+        # Botão SSO PDPJ (fluxo antigo — opcional, pode não existir mais)
         try:
             btn_sso = driver.find_element(By.ID, 'btnSsoPdpj')
             btn_sso.click()
             time.sleep(1.0)
-        except Exception as e:
-            return False
+        except Exception:
+            pass  # Página nova não tem mais esse botão — continuar normalmente
 
         # Digitar CPF no campo username
         try:
@@ -189,6 +193,7 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                 username_field.send_keys(ch)
                 time.sleep(0.07)
         except Exception as e:
+            logger.info(f"[LOGIN_CPF] Erro ao preencher CPF: {e}")
             return False
 
         # Digitar senha no campo password
@@ -199,14 +204,20 @@ def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=T
                 password_field.send_keys(ch)
                 time.sleep(0.07)
         except Exception as e:
+            logger.info(f"[LOGIN_CPF] Erro ao preencher senha: {e}")
             return False
 
-        # Clicar no botão de login (id comum do Keycloak)
+        # Clicar no botão de confirmação do login (prioridade para #kc-login conforme requisitado)
         try:
             btn = driver.find_element(By.ID, 'kc-login')
             btn.click()
-        except Exception as e:
-            return False
+        except Exception:
+            try:
+                btn = driver.find_element(By.ID, 'btnEntrar')
+                btn.click()
+            except Exception as e:
+                logger.info(f"[LOGIN_CPF] Botão de login não encontrado: {e}")
+                return False
 
         # Aguardar redirecionamento/URL final
         if aguardar_url_final:
@@ -276,7 +287,16 @@ def login_pc(driver):
         btn_certificado = driver.find_element(By.CSS_SELECTOR, ".botao-certificado-titulo")
         btn_certificado.click()
         time.sleep(1)
-        subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
+        # Obter caminho do AutoHotkey via credenciais, com fallback para valor padrão
+        import keyring
+        try:
+            ahk_exe = keyring.get_password('pjeplus_paths', 'AUTOHOTKEY_EXE')
+            if not ahk_exe or not os.path.exists(ahk_exe):
+                ahk_exe = r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe"
+        except:
+            ahk_exe = r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe"
+
+        subprocess.Popen([ahk_exe, r"D:\\PjePlus\\Login.ahk"])
         for _ in range(60):
             if "login" not in driver.current_url.lower():
                 return True

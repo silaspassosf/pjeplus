@@ -76,6 +76,20 @@ def _parse_gigs_string(string: str) -> Dict[str, Optional[Union[int, str]]]:
 	return {'dias_uteis': None, 'responsavel': None, 'observacao': string.strip()}
 
 
+def _preencher_texto_colado(driver: WebDriver, seletor: str, texto: str, timeout: int) -> None:
+	campo = WebDriverWait(driver, timeout).until(
+		EC.presence_of_element_located((By.CSS_SELECTOR, seletor))
+	)
+	driver.execute_script(
+		"arguments[0].value = arguments[1];"
+		"arguments[0].dispatchEvent(new Event('input', {bubbles: true}));"
+		"arguments[0].dispatchEvent(new Event('change', {bubbles: true}));"
+		"arguments[0].dispatchEvent(new Event('blur', {bubbles: true}));",
+		campo,
+		texto,
+	)
+
+
 def escolher_lembrete_restrito(driver: WebDriver, debug: bool = False) -> bool:
 	"""
 	Abre o seletor de destinatário para lembretes privados.
@@ -283,53 +297,48 @@ def criar_gigs(driver: WebDriver, dias_uteis: Optional[Union[int, str]] = None, 
 		if log:
 			info = f"{dias_uteis or '-'}" + f"/{responsavel or '-'}" + f"/{observacao or '-'}"
 
-		btn_nova = WebDriverWait(driver, timeout).until(
-			EC.element_to_be_clickable((By.XPATH,
-				"//button[.//span[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')] "
-				"or contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')]"
-			))
+		nova_atividade_xpath = (
+			"//button[.//span[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')] "
+			"or contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')]"
 		)
-		btn_nova.click()
-		time.sleep(1)
+		if not aguardar_e_clicar(driver, nova_atividade_xpath, timeout=timeout, by=By.XPATH, log=log):
+			raise RuntimeError('Botão Nova atividade não foi encontrado ou clicável')
 
 		WebDriverWait(driver, timeout).until(
 			EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
 		)
 		if dias_uteis:
-			campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
-			campo_dias.clear()
-			campo_dias.send_keys(str(dias_uteis))
-			time.sleep(0.3)
+			if not preencher_campo(driver, 'input[formcontrolname="dias"]', str(dias_uteis), log=log):
+				if log:
+					logger.warning('[GIGS][AVISO] Falha ao preencher prazo de GIGS')
 		if responsavel and _gigs_responsavel_valido(responsavel):
 			campo_resp = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]')
-			campo_resp.clear()
-			campo_resp.send_keys(responsavel)
-			time.sleep(0.5)
+			if not preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel, log=log):
+				if log:
+					logger.warning('[GIGS][AVISO] Falha ao preencher responsável do GIGS')
 			campo_resp.send_keys(Keys.ARROW_DOWN)
-			time.sleep(0.2)
 			campo_resp.send_keys(Keys.ENTER)
 		if observacao:
-			campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
-			campo_obs.clear()
-			campo_obs.send_keys(observacao)
-			driver.execute_script(
-				"arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-				campo_obs
-			)
-			time.sleep(0.3)
-		btn_salvar = WebDriverWait(driver, timeout).until(
-			EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Salvar')]"))
-		)
-		btn_salvar.click()
+			preencher_campo(driver, 'textarea[formcontrolname="observacao"]', observacao, log=log)
+		if not aguardar_e_clicar(driver, "//button[contains(., 'Salvar')]", timeout=timeout, by=By.XPATH, log=log):
+			raise RuntimeError('Botão Salvar não foi encontrado ou clicável no GIGS')
 
-		time.sleep(0.3)
 		try:
 			WebDriverWait(driver, timeout).until(
 				EC.presence_of_element_located((By.XPATH, "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]"))
 			)
-			return True
 		except TimeoutException:
-			return True
+			pass
+
+		try:
+			WebDriverWait(driver, timeout).until(
+				EC.invisibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"], textarea[name="observacao"]'))
+			)
+		except TimeoutException:
+			if log:
+				logger.warning('[GIGS][AVISO] Modal de GIGS não fechou após salvar')
+
+		return True
 
 	except Exception as e:
 		if log:
@@ -342,54 +351,49 @@ def criar_comentario(driver: WebDriver, observacao: str, visibilidade: str = 'LO
 	Cria comentário GIGS na aba /detalhe.
 	"""
 	try:
-		btn_novo = WebDriverWait(driver, timeout).until(
-			EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Novo Comentário') or contains(., 'Novo comentário')]"))
-		)
-		btn_novo.click()
-		time.sleep(1)
+		if not aguardar_e_clicar(driver, "//button[contains(., 'Novo Comentário') or contains(., 'Novo comentário')]", timeout=timeout, by=By.XPATH, log=log):
+			raise RuntimeError('Botão Novo Comentário não foi encontrado ou clicável')
 
 		WebDriverWait(driver, timeout).until(
 			EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]'))
 		)
-		campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]')
-		campo_obs.clear()
-		campo_obs.send_keys(observacao)
-		driver.execute_script(
-			"arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
-			campo_obs
+		preencher_campo(
+			driver,
+			'textarea[formcontrolname="descricao"], textarea[name="descricao"]',
+			observacao,
+			log=log,
 		)
-		time.sleep(0.3)
 		visibilidade_upper = visibilidade.upper()
 		try:
 			radio_buttons = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button')
 			if len(radio_buttons) >= 3:
 				index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
 				idx = index_map.get(visibilidade_upper, 0)
-				radio_buttons[idx].find_element(By.CSS_SELECTOR, 'input').click()
-				time.sleep(0.3)
-
-				if visibilidade_upper == 'RESTRITA':
-					time.sleep(0.5)
+				radio_input = radio_buttons[idx].find_element(By.CSS_SELECTOR, 'input')
+				aguardar_e_clicar(driver, radio_input, timeout=timeout, log=log)
 		except Exception:
 			pass
-		btn_salvar = WebDriverWait(driver, timeout).until(
-			EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Salvar')]"))
-		)
-		btn_salvar.click()
-		time.sleep(1)
+		if not aguardar_e_clicar(driver, "//button[contains(., 'Salvar')]", timeout=timeout, by=By.XPATH, log=log):
+			raise RuntimeError('Botão Salvar não foi encontrado ou clicável no comentário')
 
-		time.sleep(1)
+		# Aguardar snackbar "Comentário salvo com sucesso!" — sinal imediato de conclusão
 		try:
-			modals = driver.find_elements(By.CSS_SELECTOR, 'mat-dialog-container')
-			modal_aberto = any(m.is_displayed() for m in modals)
-			if not modal_aberto:
-				return True
-			else:
-				driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-				time.sleep(0.5)
-				return True
+			WebDriverWait(driver, timeout).until(
+				EC.presence_of_element_located((By.CSS_SELECTOR, 'simple-snack-bar, snack-bar-container'))
+			)
 		except Exception:
-			return True
+			pass
+
+		try:
+			WebDriverWait(driver, timeout).until(
+				EC.invisibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]'))
+			)
+		except Exception:
+			if log:
+				logger.warning('[COMENTARIO][AVISO] Modal de comentário não fechou após salvar')
+			return False
+
+		return True
 
 	except Exception as e:
 		if log:

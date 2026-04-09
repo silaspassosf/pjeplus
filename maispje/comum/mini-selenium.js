@@ -10,24 +10,24 @@ function aguardarCarregamentoTabela() {
 			} else {
 				desapareceu = true;
 			}
-			
+
 			if (apareceu && desapareceu) {
-				clearInterval(check);	
+				clearInterval(check);
 				return resolve(true);
 			}
 
 			if (!apareceu && limite > 4) { //se não aparecer o carregamento de dados na tabela em 2 segundos, considera que não haverá carregamento
 				console.debug('maisPJe: tabela sem carregamento de dados... prosseguir..');
-				clearInterval(check);	
+				clearInterval(check);
 				return resolve(true);
 			}
-			
+
 			limite++;
 		}, 500);
-	});		
+	});
 }
 
-function aguardarCarregamentoConvenios(seletor, tempoInicialDeEspera=2) { 
+function aguardarCarregamentoConvenios(seletor, tempoInicialDeEspera=2) {
 	/*
 	o seletor poderá ser uma barra de progresso por exemplo.
 	o tempoInicialDeEspera é o tempo (em segundos) que a extnesão irá aguardar o seletor aparecer
@@ -47,25 +47,30 @@ function aguardarCarregamentoConvenios(seletor, tempoInicialDeEspera=2) {
 				desapareceu = true;
 				console.log('maisPJe: aguardarCarregamentoConvenios: |____desapareceu');
 			}
-			
+
 			if (apareceu && desapareceu) {
 				console.log('maisPJe: aguardarCarregamentoConvenios: |____carregamento concuído com sucesso');
-				clearInterval(check);	
+				clearInterval(check);
 				return resolve(true);
 			}
 
 			if (!apareceu && limite > (tempoInicialDeEspera*2)) { //multiplico por dois pois o setInterval é a cada 0.5 segundos
 				console.log('maisPJe: aguardarCarregamentoConvenios: |____ERRO: estourou o tempo de carregamento');
 				console.debug('maisPJe: sem carregamento de dados... prosseguir..');
-				clearInterval(check);	
-				return resolve(true);
+				clearInterval(check);
+				return resolve(false);
 			}
-			
+
 			limite++;
 		}, 500);
-	});		
+	});
 }
 
+/**
+ *
+ * @param {GrauUsuario} grau_usuario
+ * @returns
+ */
 function getGrauAsNumber(grau_usuario) {
 	const graus = {
 		"primeirograu": 1,
@@ -76,19 +81,23 @@ function getGrauAsNumber(grau_usuario) {
 	return graus[grau_usuario] || 1; //TODO: deveria retornar 1 por padrão? Não deveria retornar um erro?
 }
 
+/**
+ * @param {number} ms
+ * @returns {Promise<any>}
+ */
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function querySelectorByText(tagname, texto){
-	
+
 	if (texto.includes('[MMA]')) { //observar maiuscula, minúsula e acento
 		texto = texto.replace('[MMA]','');
 		return Array.from(document.querySelectorAll(tagname)).find(el => el.textContent.trim() == texto);
 	} else if (texto.includes('[exato]')) { //tem que ser a expressão exata.. sem estar incluída no texto
 		texto = texto.replace('[exato]','');
 		return Array.from(document.querySelectorAll(tagname)).find(el => removeAcento(el.textContent.trim().toLowerCase()) == removeAcento(texto.toLowerCase()));
-	} else if (texto.includes('[ou]')) { //mais de uma opção separado por vírgula...tem que ser a expressão exata.. sem estar incluída no texto.. 
+	} else if (texto.includes('[ou]')) { //mais de uma opção separado por vírgula...tem que ser a expressão exata.. sem estar incluída no texto..
 		texto = texto.replace('[ou]','');
 		let opcoes = texto.split(',');
 		return Array.from(document.querySelectorAll(tagname)).find( function (el) {
@@ -120,24 +129,31 @@ function nextParent(el, tagName) {
 function removeAcento(text){
 	let stringComAcentos = "ÄÅÁÂÀÃäáâàãÉÊËÈéêëèÍÎÏÌíîïìÖÓÔÒÕöóôòõÜÚÛüúûùÇç";
 	let stringSemAcentos = "AAAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUuuuuCc";
-	
+
 	for (let i = 0; i<stringComAcentos.length; i++) {
-		while(true) {	
-			if (text.search(stringComAcentos[i].toString()) > -1) {				
+		while(true) {
+			if (text.search(stringComAcentos[i].toString()) > -1) {
 				text = text.replace(stringComAcentos[i].toString(), stringSemAcentos[i].toString());
 			} else {
 				break;
 			}
 		}
 	}
-    return text;                 
+    return text;
 }
 
-function removeQuebraDeLinha(texto){	
+function removeQuebraDeLinha(texto){
 	return texto.replace(/(\r\n|\n|\r)/gm, " "); //substitui as quebras de linha
 }
 
-function esperarElemento(seletor, texto, tempo_espera) {
+/**
+ *
+ * @param {*} seletor
+ * @param {string} texto
+ * @param {number} tempo_espera
+ * @returns {Promise<HTMLElement>}
+ */
+function esperarElemento(seletor, texto = '', tempo_espera = 20000) {
 	return new Promise(resolve => {
 		// console.log('procurando ' + seletor + (texto ? ">" + texto : ""));
 		let elemento = texto ? querySelectorByText(seletor, texto) : document.querySelector(seletor);
@@ -154,12 +170,12 @@ function esperarElemento(seletor, texto, tempo_espera) {
 					return resolve(elemento_esperado);
 				}
 			});
-			
+
 			tempo_espera = (tempo_espera) ? tempo_espera : 20000; //para carregamento muito lento decidi por 20 segundos de tolerancia
 			observer.observe(document.body, { childList: true, subtree: true });
-			setTimeout(function() { 
-				observer.disconnect(); 
-				resolve(null); 
+			setTimeout(function() {
+				observer.disconnect();
+				resolve(null);
 			}, tempo_espera);  //se não tiver qualquer mudança em 10 segundos, significa que o elemento não aparecerá
 		}
     });
@@ -179,18 +195,18 @@ function getMatFormFieldsDoFormulario(formulario) {
 }
 
 /**
- * 
- * @param {string} tag 
- * @param {string} styleString 
- * @param {string} texto 
+ *
+ * @param {string} tag
+ * @param {string} styleString
+ * @param {string} texto
  * @returns {HTMLElement} o elemento criado
  */
-function criarElemento(tag, styleString, texto) {
+function criarElemento(tag, styleString, texto='') {
     const element = document.createElement(tag);
-    
+
     // Adiciona o texto ao elemento
-    element.textContent = texto; 
-    
+    element.textContent = texto;
+
     // Adiciona estilos ao elemento
     const styles = styleString.split(';');
     styles.forEach(style => {
@@ -225,12 +241,12 @@ async function esperarColecao(seletor, qtde_minima=1, tempo_espera=0) {
 					return;
 				}
 			});
-			
+
 			tempo_espera = (tempo_espera) ? tempo_espera : 10000;
 			observer.observe(document.body, { childList: true, subtree: true });
-			setTimeout(function() { 
-				observer.disconnect(); 
-				resolve(null); 
+			setTimeout(function() {
+				observer.disconnect();
+				resolve(null);
 			}, tempo_espera);  //se não tiver qualquer mudança em 10 segundos, significa que o elemento não aparecerá
 		}
     });
@@ -242,18 +258,18 @@ async function esperarDesaparecer(el, intervalo=100) {
 			// console.log('************** ' + el.isConnected);
 			if (!el.isConnected) {
 				clearInterval(check1);
-				// console.log('desapareceu1')
+				console.log('desapareceu1')
 				resolve(true);
 			}
 		}, intervalo);
-		
+
 		if (el.style?.display) {
 			let check2 = setInterval(async function() {
 				// console.log('************** ' + el.style.display);
 				if (el.style.display == 'none') {
 					clearInterval(check1);
 					clearInterval(check2);
-					// console.log('desapareceu2')
+					console.log('desapareceu2')
 					resolve(true);
 				}
 			}, intervalo);
@@ -263,12 +279,12 @@ async function esperarDesaparecer(el, intervalo=100) {
 				if (el.style.visibility == 'hidden') {
 					clearInterval(check1);
 					clearInterval(check3);
-					// console.log('desapareceu3')
+					console.log('desapareceu3')
 					resolve(true);
 				}
 			}, intervalo);
 		}
-		
+
 	});
 }
 
@@ -281,7 +297,7 @@ async function preencherTextArea(seletor, valor) {
 		elemento = await esperarElemento(seletor)
 	}
 	elemento.focus();
-	elemento.value = valor;	
+	elemento.value = valor;
 	triggerEvent(elemento, 'input');
 	triggerEvent(elemento, 'change');
 	triggerEvent(elemento, 'dateChange');
@@ -289,13 +305,121 @@ async function preencherTextArea(seletor, valor) {
 	console.log("                   |---> TEXTAREA " + seletor + ">" + valor);
 }
 
+function acionarBotaoComTimer(seletor,texto,velocidade) {
+	return new Promise(
+		async resolver => {
+			let bt = await esperarElemento(seletor,texto);
+			if (bt) {
+				if (bt.tagName == 'INPUT') {
+					bt.style.animation = 'pulse 1s infinite';
+					await sleep(velocidade*1000);
+					bt.click()
+					bt.style.animation = 'unset';
+					return resolver(true);
+				} else {
+					bt.scrollIntoView({behavior: 'smooth',block: 'start'});
+					await timer(bt, velocidade, 'orange', 'pulseGeral');
+					return resolver(true);
+				}
+			} else {
+				return resolver(false);
+			}
+
+		}
+	);
+}
+
+function timer(botao, tempo_para_click, corDeFundo='rgba(80, 119, 164, .7)', tipoAnimacao='pulseLeve') {
+	return new Promise(resolve => {
+		let textoDoBotao;
+		let check;
+		if (botao.tagName == "INPUT") {
+			textoDoBotao = botao.value;
+			// botao.value = textoDoBotao + ' ( ' + tempo_para_click + ' )';
+			botao.style.animation = 'pulseLeve 1s infinite';
+			botao.style.backgroundColor = corDeFundo;
+			botao.addEventListener('click', function(event) { tempo_para_click = 0 });
+
+			// tempo_para_click--;
+			check = setInterval(function() {
+				if (tempo_para_click < 1) {
+					botao.value = textoDoBotao.replace(/\(\d\)/,'');
+					clearInterval(check);
+					botao.click();
+					return resolve(true)
+				} else {
+					tempo_para_click--;
+				}
+				botao.value = textoDoBotao + ' ( ' + tempo_para_click + ' )';
+			}, 1000);
+		} else {
+			textoDoBotao = botao.innerText;
+			botao.innerText = textoDoBotao + ' ( ' + tempo_para_click + ' )';
+			botao.style.animation = tipoAnimacao + ' 1s infinite';
+			botao.style.backgroundColor = corDeFundo;
+			botao.addEventListener('click', function(event) { tempo_para_click = 0 }); //estar interromper a contagem com o pressionar do ESC
+
+			// tempo_para_click--; //o check inicia já descontando 1 segundo
+			check = setInterval(function() {
+				if (tempo_para_click <= 1) {
+					botao.innerText = textoDoBotao.replace(/\(\d\)/,'');
+					clearInterval(check);
+					botao.click();
+					botao.style.animation = 'unset';
+					return resolve(true)
+				}
+				tempo_para_click--;
+				botao.innerText = textoDoBotao + ' ( ' + tempo_para_click + ' )';
+
+			}, 1000);
+		}
+	});
+}
+
+function timerNaTela(segundos, funcao, exibirIcone=true) {
+	return new Promise(resolve => {
+		browser.runtime.sendMessage({tipo: 'insertCSS', file: 'maisPje_icones.css'});
+		let cont = parseInt(segundos);
+		if (cont <= 0) { funcao(); return resolve(true); }
+
+		let divIco,ico1,ico2;
+		if (exibirIcone) { //sem o ícone o efeito é de esmaecimento da tela
+			divIco = document.createElement('div');
+			divIco.style = "position: absolute;left: 50vw;top: 50vh;width: 120px;height: 120px;display: flex;align-items: center; animation: pulse 1s infinite !important; border-radius: 100px; z-index: 999999;";
+			divIco.id = "maisPje_icoFecharPagina";
+			ico1 = document.createElement('span');
+			ico1.style = "position: absolute; width: 100%;height: 100%;background-color: #e9e8ea;z-index: 99998;border-radius: 100%;";
+			ico2 = document.createElement('span');
+			ico2.id = "maisPje_icoAvisoFecharPagina"
+			ico2.style = "position: absolute; width: 70%; height: 70%; background-color: black; z-index: 99998; border-radius: 100%; margin-left: 15%;color: #00c0fe;text-align: center;align-items: center;display: grid;font-size: 3em;font-weight: bold;font-family: 'Orbitron', sans-serif;";
+			ico2.innerText = cont;
+			divIco.appendChild(ico1);
+			divIco.appendChild(ico2);
+			document.body.appendChild(divIco);
+		}
+		let fundoBranco = document.createElement('div');
+		fundoBranco.style = "width: 100%;height: 100%;position: absolute;top: 0;left: 0;background-color: white;z-index: 999998; opacity: 0; animation: esmaecer " + segundos + "s forwards;";
+		document.body.appendChild(fundoBranco);
+
+		let check = setInterval(function() {
+			cont--;
+			if (exibirIcone) { ico2.innerText = cont }
+			if (cont <= 0) {
+				clearInterval(check);
+				funcao();
+				return resolve(true);
+			}
+		}, 1000);
+	});
+}
+
 //FUNÇÃO PARA CRIAÇÃO DOS TOOLTIPS
 function tooltip(posicao, ativarFundo) {
 	let style = document.createElement("style");
 	style.id = "maisPje_tooltip_" + posicao;
-	style.textContent = '[maisPje-tooltip-' + posicao + '] {position: relative; cursor: pointer; min-height: 2rem;}';
+	style.textContent = '[maisPje-tooltip-' + posicao + '] {position: relative; display: inline-block; cursor: pointer; min-height: 2rem;}';
 	style.textContent += '[maisPje-tooltip-' + posicao + ']:before {content: attr(maisPje-tooltip-' + posicao + '); display: none; position: absolute; vertical-align: middle; pointer-events: none; width: auto;  height: auto; min-height: 1rem; white-space:nowrap; z-index: 100000; text-decoration: none; font-family: "NunitoSans Regular", "Arial", sans-serif; font-size: 14px; text-shadow: none; font-weight: 500; background: black; opacity: 1; color: white; border-radius: 5px; box-shadow: 3px 3px 10px grey;';
-	switch (posicao) {
+    switch (posicao) {
 		case 'oculto':
 			style.textContent += 'top: 0; left: 0;}';
 			style.textContent += '[maisPje-tooltip-' + posicao + ']:hover:before {display: none;}';
@@ -365,19 +489,73 @@ function tooltip(posicao, ativarFundo) {
 			style.textContent = '';
 			break
 	}
-	
+
 	if (ativarFundo) {
 		style.textContent += '.pjextension_executando {animation: animacao 1s infinite;animation-fill-mode: both;margin-top:-15vh;}';
 		style.textContent += '@keyframes animacao {0% {transform: scale3d(1, 1, 1);}30% {transform: scale3d(1.25, 0.75, 1);}40% {transform: scale3d(0.75, 1.25, 1);}50% {transform: scale3d(1.15, 0.85, 1);}65% {transform: scale3d(.95, 1.05, 1);}75% {transform: scale3d(1.05, .95, 1);}100% {transform: scale3d(1, 1, 1);}}';
 		style.textContent += '@keyframes pulse {0% {box-shadow: 0 0 0 0px rgba(255, 0, 0, .7);}50% {box-shadow: 0 0 0 10px rgba(255, 0, 0, .3);	background: rgba(255, 0, 0, .7);} 100% {box-shadow: 0 0 25px 20px rgba(255, 0, 0, .05);}}';
 		style.textContent += '@keyframes pulseLeve {0% {box-shadow: 0 0 0 0px rgba(80, 119, 164, .7);}50% {box-shadow: 0 0 0 0px rgba(80, 119, 164, .3); background: rgba(80, 119, 164, .7);} 100% {box-shadow: 0 0 0px 0px rgba(80, 119, 164, .05);}}';
 	}
-	document.body.appendChild(style);	
+	document.body.appendChild(style);
 }
+
+/**
+ *
+ * @param {HTMLElement} botao
+ * @param {string} textoTooltip
+ * @param {Object} configuracoesExtras
+ */
+function vincularTooltipAcessivel(botao, textoTooltip, { delay = 350 } = {}) {
+  let t;
+  const tooltip = document.createElement('div');
+  tooltip.role = 'tooltip';
+  tooltip.className="a11y-tooltip";
+  tooltip.hidden = true; // comeca escondido
+  tooltip.textContent = textoTooltip;
+  tooltip.id = 'tooltip_' + botao.id;
+  document.body.appendChild(tooltip);
+  botao.setAttribute("aria-labelledby", tooltip.id);
+
+
+  function posicionar() {
+    const r = botao.getBoundingClientRect();
+    const top = r.top + window.scrollY - 8;
+    const left = r.left + window.scrollX + r.width / 2;
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.style.transform = "translate(-50%, -100%)";
+  }
+
+  function show() {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      posicionar();
+	//   tooltip.classList.remove('sr-only');
+      tooltip.hidden = false;
+    }, delay);
+  }
+
+  function hide() {
+    clearTimeout(t);
+	// tooltip.classList.add('sr-only');
+    tooltip.hidden = true;
+  }
+
+  botao.addEventListener("mouseenter", show);
+  botao.addEventListener("mouseleave", hide);
+  botao.addEventListener("focus", show);
+  botao.addEventListener("blur", hide);
+
+  botao.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hide();
+  });
+}
+
 
 function criarPopup(id, resolver = () => {}) {
 	const altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-				
+
 	const elemento1 = document.createElement("div");
 	elemento1.id = id;
 	elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; text-align: center; flex-direction: column;';
@@ -386,9 +564,10 @@ function criarPopup(id, resolver = () => {}) {
 	elemento1.onclick = function (e) {
 		if (e.target.id == id) {
 			elemento1.remove();
+            if (document.getElementById('maisPjeContainerMapaVinculos')) { document.getElementById('maisPjeContainerMapaVinculos').remove() } //gambiarra
 			resolver(null);
 		}
-	}; //se clicar fora fecha a janela					
+	}; //se clicar fora fecha a janela
 	const fecharComEsc = function(e) {
 		if (e.key === 'Escape' || e.keyCode === 27) {
 			elemento1.remove();
@@ -400,11 +579,11 @@ function criarPopup(id, resolver = () => {}) {
 }
 //FUNÇÃO QUE MONITORA O APARECIMENTO E DESAPARECIMENTO DO OBJETO DE PROCESSAMENTO, PARA QUANDO FOR NECESSÁRIO ESPERAR O CARREGAMENTO DE ALGO
 async function aguardarCarregamentoPje() {
-	return new Promise(async resolve => {					
+	return new Promise(async resolve => {
 		let spinner = await esperarElemento('PJE-DIALOGO-STATUS-PROGRESSO',null,1000);
 		// console.log('**entrou spinner: ' + spinner)
 		if (spinner) {
-			let check = setInterval(function() {					
+			let check = setInterval(function() {
 				if (!document.querySelector('PJE-DIALOGO-STATUS-PROGRESSO')) {
 				// console.log('**saiu spinner ')
 				 clearInterval(check);
@@ -418,7 +597,7 @@ async function aguardarCarregamentoPje() {
 }
 
 function extrairCaracteresEspeciais(texto) {
-	let padrao = /[^a-zA-Z0-9 ]/g;	
+	let padrao = /[^a-zA-Z0-9 ]/g;
 	if (padrao.test(texto)) {
 		texto = texto.replace(padrao,'');
 		return texto.replace(/\s{2,}/g, ' '); //retira eventual espaço duplicado que surja após excluir o caracter especial
@@ -432,12 +611,12 @@ function extrairTRT(url) {
 	let padraoTRT = /trt\d{1,2}/; //eliminar urls que possuem numero. por exemplo: https://pjehom2.trt12.jus.br
 	let padraoSoNumero = /\d{1,}/;
 
-	let urlTRT = url.match(padraoTRT).join();
-	return urlTRT.match(padraoSoNumero).join();
+	let urlTRT = url?.match(padraoTRT)?.join();
+	return urlTRT?.match(padraoSoNumero)?.join();
 }
 
 function extrairNumeros(texto,global=false) {
-	let padrao = (global) ? /\d{1,}/g : /\d{1,}/;	
+	let padrao = (global) ? /\d{1,}/g : /\d{1,}/;
 	if (padrao.test(texto)) {
 		return texto.match(padrao).join('');
 	} else {
@@ -482,16 +661,16 @@ function porExtenso(valor){
 		"dezena":["","", "vinte e ", "trinta e ", " quarenta e ", " cinquenta e ", " sessenta e ", " setenta e ", " oitenta e ", " noventa e "],
 		"centena":["", "cento e ", "duzentos e ", "trezentos e ", "quatrocentos e ", "quinhentos e ", "seiscentos e ", "setecentos e ", "oitocentos e ", "novecentos e "]
 	};
-	
-	let soNumero = valor.replace(/\D/g, "");	
-	soNumero = soNumero.padStart(14,"0"); //999 bilhão possui 14 zeros, incluindo os centavos	
+
+	let soNumero = valor.replace(/\D/g, "");
+	soNumero = soNumero.padStart(14,"0"); //999 bilhão possui 14 zeros, incluindo os centavos
 	let nCentavos = soNumero.slice(soNumero.length-2, soNumero.length);
 	let nReais = soNumero.slice(soNumero.length-5, soNumero.length-2);
 	let nMilhar = soNumero.slice(soNumero.length-8, soNumero.length-5);
 	let nMilhao = soNumero.slice(soNumero.length-11, soNumero.length-8);
 	let nBilhao = soNumero.slice(soNumero.length-14, soNumero.length-11);
-	
-	//regras do centavos	
+
+	//regras do centavos
 	let centavos = '';
 	nCentavos = nCentavos.padStart(3,"0"); //acrescena mais um zero nos centavos para não ficar criando exceções repetidas na listaDeExcecoes
 	if (nCentavos == '000') {
@@ -503,7 +682,7 @@ function porExtenso(valor){
 	} else {
 		centavos = arrayDeReferencia.centena[parseInt(nCentavos[0])] + arrayDeReferencia.dezena[parseInt(nCentavos[1])] + arrayDeReferencia.unidade[parseInt(nCentavos[2])] + ' centavos';
 	}
-	
+
 	//regras do reais
 	let reais = '';
 	if (nReais == '000') {
@@ -517,8 +696,8 @@ function porExtenso(valor){
 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nReais[1])] + arrayDeReferencia.unidade[parseInt(nReais[2])];
 		reais = arrayDeReferencia.centena[parseInt(nReais[0])] + x + ' reais';
 	}
-	
-	//regras do milhar	
+
+	//regras do milhar
 	let milhar = '';
 	if (nMilhar == '000') {
 		milhar = '';
@@ -529,7 +708,7 @@ function porExtenso(valor){
 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhar[1])] + arrayDeReferencia.unidade[parseInt(nMilhar[2])];
 		milhar = arrayDeReferencia.centena[parseInt(nMilhar[0])] + x + ' mil';
 	}
-	
+
 	//regras do milhao
 	let milhao = '';
 	if (nMilhao == '000') {
@@ -543,7 +722,7 @@ function porExtenso(valor){
 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nMilhao[1])] + arrayDeReferencia.unidade[parseInt(nMilhao[2])];
 		milhao = arrayDeReferencia.centena[parseInt(nMilhao[0])] + x + ' milhões, ';
 	}
-	
+
 	//regras do bilhao
 	let bilhao = '';
 	if (nBilhao == '000') {
@@ -557,44 +736,44 @@ function porExtenso(valor){
 		x = (listaDeExcecoes.hasOwnProperty(x)) ? listaDeExcecoes[x] : arrayDeReferencia.dezena[parseInt(nBilhao[1])] + arrayDeReferencia.unidade[parseInt(nBilhao[2])];
 		bilhao = arrayDeReferencia.centena[parseInt(nBilhao[0])] + x + ' bilhões, ';
 	}
-	
+
 	//montando a frase
 	if (centavos) {
 		if (reais || milhar || milhao || bilhao) {
 			centavos = ' e ' + centavos;
 		}
 	}
-	
+
 	if (reais) {
 		if (milhar || milhao || bilhao) {
 			reais = (centavos ? ', ' : ' e ') + reais;
 		}
 	}
-	
+
 	if (milhar) {
 		if (!reais) {
 			milhar += ' reais';
 		}
 	}
-	
+
 	if (milhao) {
 		if (!reais && !milhar) {
 			milhao += ' de reais';
 		}
 	}
-	
+
 	if (bilhao) {
 		if (!reais && !milhar && !milhao) {
 			bilhao += ' de reais';
 		}
 	}
-	
+
 	console.debug('regras do bilhao: ' +  bilhao)
 	console.debug('regras do milhao: ' + milhao)
 	console.debug('regras do milhar: ' + milhar)
 	console.debug('regras dos reais: ' + reais)
 	console.debug('regras dos centavos: ' + centavos)
-	
+
 	let frase = bilhao + milhao + milhar + reais + centavos;
 	frase = frase.replace(/\s{2,}/gm,' '); //exclui os espaços duplicados
 	console.debug(valor + ": " + frase.trim());
@@ -608,13 +787,35 @@ async function extrairNumeroProcesso(texto) { //sempre retorna o numero formatad
 	texto = texto.toString(); //converte array em string
 	if (padrao1.test(texto)) {
 		n = texto.match(padrao1).join();
-	} else if (padrao2.test(texto)) {		
+	} else if (padrao2.test(texto)) {
 		n = texto.match(padrao2).join();
 		n =  n.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/g,"$1-$2.$3.$4.$5.$6");
 	} else {
 		n = 'ERRO: Número do processo não identificado!';
 	}
 	return n;
+}
+
+async function extrairPadraoDeUmTexto(texto,padrao) {
+	return new Promise(resolve => {
+		let conteudoExtraido = texto?.match(padrao)?.join();
+		return resolve(conteudoExtraido);
+
+	});
+}
+
+async function extrairValorDeColchetes(texto) {
+    return new Promise(async resolve => {
+        let resposta = ''
+        if (padraoColchetes.test(texto)) {
+            resposta = texto.match(padraoColchetes).join();
+            resposta = resposta.replace('[','');
+            resposta = resposta.replace(']','');
+            return resolve(resposta);
+        } else {
+            return resolve(null);
+        }
+    });
 }
 
 function decomporNumeroProcesso(numero) {
@@ -624,12 +825,12 @@ function decomporNumeroProcesso(numero) {
 			let reduzido = campos[0].replace(/^0+/, "") + '-' + campos[1] + '.' + campos[2];
 			let ultimo; // ultimo digito
 			if (campos[2] > 2009) {
-				ultimo = campos[0].substring(6, 7);					
+				ultimo = campos[0].substring(6, 7);
 			} else {
 				ultimo = campos[0].substring(4, 5);
 			}
 			return resolver({
-				'numero':campos[0],				
+				'numero':campos[0],
 				'digito':campos[1],
 				'ano':campos[2],
 				'jurisdicao':campos[3],
@@ -648,8 +849,8 @@ function decomporData(texto) {
 		resolver => {
 			if (!texto) { return null }
 			let eData = /\d{2,4}\D{1}\d{2,4}\D{1}\d{2,4}/;
-			let eAno = /\d{4}/;			
-			if (!eData.test(texto)) { return null }			
+			let eAno = /\d{4}/;
+			if (!eData.test(texto)) { return null }
 			let dia,mes,ano;
 			texto = texto.replace(/\D/g,'.');
 			let campos = texto.split('.');
@@ -684,7 +885,7 @@ function setDataDias(baseDeCalculo, dias, separador='/') {
 	let dataBase = new Date(baseDeCalculo);
 	let dataFim = new Date(baseDeCalculo);
 	dataFim.setDate(dataBase.getDate() + dias); //para diminuir basta colocar dias negativos
-	return dataFim;		
+	return dataFim;
 }
 
 function converterDataTimeline(inputFormat,mode=0) { //converte datas para o tipo 01 fev. 2025
@@ -716,20 +917,21 @@ function converterDataTimeline(inputFormat,mode=0) { //converte datas para o tip
 		inputFormat = inputFormat.replace("\/11\/" , " nov. ");
 		inputFormat = inputFormat.replace("\/12\/" , " dez. ");
 	}
-	
+
 	console.log("Fim: " + inputFormat);
 	return inputFormat;
 }
 
-function criarBotaoComCoresPadrao(texto='Continuar') {
-	const bt_continuar = document.createElement("button");	
+function criarBotaoComCoresPadrao(texto='Continuar', identificador='') {
+	const bt_continuar = document.createElement("button");
 	bt_continuar.style = "font-size: inherit; font-weight: inherit; color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
+	bt_continuar.id = identificador;
 	bt_continuar.innerText = texto;
 	bt_continuar.onmouseenter = function () {
-		bt_continuar.style.backgroundColor  = '#5077a4';
+		bt_continuar.style.filter = 'brightness(.8)';
 	};
 	bt_continuar.onmouseleave = function () {
-		bt_continuar.style.backgroundColor  = '#7a9ec8';
+		bt_continuar.style.filter  = 'brightness(1)';
 	};
 	return bt_continuar
 }
@@ -741,7 +943,7 @@ function removerAcentos(texto) {
 function filtrarOptionsPorTexto(texto, containerOptions) {
 	const optionsNodeList = containerOptions.querySelectorAll('option')
 	const filtro = removerAcentos(texto.trim().toLowerCase());
-	
+
 	optionsNodeList.forEach(function(option) {
 	  const textoOption = removerAcentos(option.textContent.toLowerCase());
 	  const corresponde = filtro === '' || textoOption.includes(filtro);
@@ -771,13 +973,13 @@ async function triggerEvent(el, type, keycode=null) {
 		el.dispatchEvent(e);
 
 	} else {
-		if ('createEvent' in document) {        
+		if ('createEvent' in document) {
 			let e = document.createEvent('HTMLEvents');
 
-			let createdEvent = new Event('Event', { 
-				"bubbles": true, 
-				"cancelable": false 
-			}); 			
+			let createdEvent = new Event('Event', {
+				"bubbles": true,
+				"cancelable": false
+			});
 
 			e.initEvent(type, false, true); //false, true
 			el.dispatchEvent(e);
@@ -798,4 +1000,74 @@ async function mouseTriggerEvent(el,evento) {
 		el.dispatchEvent(e);
 		resolve(true);
 	});
+}
+
+function simularTecla(elemento,letra,codigo,ctrl=false,alt=false,shift=false) {
+	return new Promise(resolve => {
+		console.debug('maisPJe: simulada a(s) tecla(s) ' + (ctrl ? 'Ctrl + ' : '') + (alt ? 'Alt + ' : '') + (shift ? 'Shift + ' : '') + 'tecla: ' + letra + ' keycode: ' + codigo)
+		var evento0 = new KeyboardEvent('keydown', {
+			key: letra,
+			code: letra,
+			keyCode: codigo,
+			which: codigo,
+			ctrlKey: ctrl,
+			altKey: alt,
+			shiftKey: shift,
+			bubbles: true
+		});
+		var evento1 = new KeyboardEvent('keypress', {
+			key: letra,
+			code: letra,
+			keyCode: codigo,
+			which: codigo,
+			ctrlKey: ctrl,
+			altKey: alt,
+			shiftKey: shift,
+			bubbles: true
+		});
+		var evento2 = new KeyboardEvent('keyup', {
+			key: letra,
+			code: letra,
+			keyCode: codigo,
+			which: codigo,
+			ctrlKey: ctrl,
+			altKey: alt,
+			shiftKey: shift,
+			bubbles: true
+		});
+		elemento.dispatchEvent(evento0);
+		elemento.dispatchEvent(evento1);
+		elemento.dispatchEvent(evento2);
+		return resolve(true);
+	});
+}
+
+function simularDigitacaoDeTexto(elemento, texto, segundos=0.1) { //segundos = intervalo digitação
+	return new Promise(
+		async resolver => {
+			console.debug('maisPJe:simularDigitacaoDeTexto(digitando a palavra ' + texto + ' com intervalo de ' + segundos + 'segundos');
+			elemento.addEventListener('blur', () => { console.log('fim'); return resolver(true) });
+			let keyEvent;
+			elemento.focus();
+			elemento.style.backgroundColor = 'orangered';
+			for (const [pos, letra] of texto.split("").entries()) {
+				console.debug("   |___pos " + pos + ": " + letra);
+				elemento.dispatchEvent(new KeyboardEvent('keydown', { key: letra, bubbles: true, cancelable: true }));
+				elemento.dispatchEvent(new KeyboardEvent('keypress', { key: letra, bubbles: true, cancelable: true }));
+				if (elemento.tagName == 'INPUT') {
+					if (document.location.href.includes('renajud.pdpj')) { //comando não funciona no renajud novo
+					} else {
+						elemento.value += letra
+						triggerEvent(elemento, 'input');
+						triggerEvent(elemento, 'change');
+					}
+				}
+				elemento.dispatchEvent(new KeyboardEvent('keyup', { key: letra, bubbles: true, cancelable: true }));
+				await sleep(segundos*1000)
+			}
+			elemento.style.backgroundColor = 'unset';
+			elemento.blur();
+		}
+	);
+
 }

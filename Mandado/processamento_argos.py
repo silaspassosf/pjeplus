@@ -70,9 +70,7 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         else:
             logger.info('[ARGOS][ETAPA 2]  Anexos especiais processados com sucesso')
 
-        # === ETAPA 3: SISBAJUD - EXTRAIR DOCUMENTO PDF + REGRAS ===
-        logger.info('[ARGOS][ETAPA 3] SISBAJUD - Extraindo documento PDF e aplicando regras...')
-        # Compatibilidade: ResultadoExecucao ou dict
+        # Extrair dados de anexos para decisão de rota
         if hasattr(anexos_info, 'detalhes') and isinstance(anexos_info.detalhes, dict):
             resultado_sisbajud = anexos_info.detalhes.get('resultado_sisbajud', None)
             sigilo_anexos = anexos_info.detalhes.get('sigilo_anexos', {})
@@ -84,13 +82,18 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
             executados = anexos_info.get('executados', [])
             tem_anexos = anexos_info.get('tem_anexos', False)
 
+        # Sem anexos = sem SISBAJUD = certidão negativa → ato_meios direto
+        if not tem_anexos:
+            logger.info('[ARGOS][ETAPA 2.5] Certidao sem anexos — ato_meios direto')
+            ato_meios(driver, debug=log)
+            return True
+
+        # === ETAPA 3: SISBAJUD - EXTRAIR DOCUMENTO PDF + REGRAS ===
+        logger.info('[ARGOS][ETAPA 3] SISBAJUD - Extraindo documento PDF e aplicando regras...')
         if resultado_sisbajud:
             logger.info(f'[ARGOS][ETAPA 3]  SISBAJUD processado: {resultado_sisbajud}')
         else:
             logger.info('[ARGOS][ETAPA 3][AVISO] SISBAJUD não encontrado nos anexos')
-        if not tem_anexos and resultado_sisbajud is None:
-            ato_meios(driver, debug=log)
-            return True
 
         # === ETAPA 4: BUSCAR E APLICAR REGRAS ARGOS (LOOP ITERATIVO) ===
         # Loop: abrir despacho/decisão → extrair → comparar regras → aplicar se tem regra → próximo se não

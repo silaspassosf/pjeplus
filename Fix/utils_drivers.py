@@ -12,10 +12,17 @@ import platform
 import subprocess
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.remote.webdriver import WebDriver
+from typing import Optional, Tuple, Any
 
-# Configurações do navegador
-PROFILE_PATH = r"C:\Users\Silas\AppData\Roaming\Mozilla\Dev\Selenium"
-FIREFOX_BINARY = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+from .utils_paths import (
+    obter_caminho_perfil_firefox,
+    obter_caminho_firefox_executavel
+)
+
+# Configurações do navegador - agora obtidas via credenciais
+PROFILE_PATH = obter_caminho_perfil_firefox()
+FIREFOX_BINARY = obter_caminho_firefox_executavel()
 
 # Configuração AutoHotkey
 AHK_EXE_PC = r'C:\Program Files\AutoHotkey\AutoHotkey.exe'
@@ -23,7 +30,7 @@ AHK_SCRIPT_PC = r'D:\PjePlus\Login.ahk'
 AHK_EXE_NOTEBOOK = r'C:\Users\s164283\Downloads\AHK\AutoHotkey64.exe'
 AHK_SCRIPT_NOTEBOOK = r'C:\Users\s164283\Desktop\pjeplus\login.ahk'
 
-def _obter_caminhos_ahk():
+def _obter_caminhos_ahk() -> Tuple[Optional[str], Optional[str]]:
     """Retorna os caminhos corretos do AutoHotkey baseado no ambiente"""
     sistema = platform.system().lower()
 
@@ -49,7 +56,7 @@ def _obter_caminhos_ahk():
 
     return None, None
 
-def criar_driver_firefox(profile_path=None, binary_path=None, headless=False):
+def criar_driver_firefox(profile_path: Optional[str] = None, binary_path: Optional[str] = None, headless: bool = False) -> Optional[WebDriver]:
     """Cria driver Firefox com configurações otimizadas"""
     options = FirefoxOptions()
 
@@ -77,7 +84,7 @@ def criar_driver_firefox(profile_path=None, binary_path=None, headless=False):
         logger.error(f"Erro ao criar driver Firefox: {e}")
         return None
 
-def criar_driver_PC(headless=False):
+def criar_driver_PC(headless: bool = False) -> Optional[WebDriver]:
     """Cria driver para PC com configurações específicas"""
     return criar_driver_firefox(
         profile_path=PROFILE_PATH,
@@ -85,17 +92,17 @@ def criar_driver_PC(headless=False):
         headless=headless
     )
 
-def criar_driver_VT(headless=False):
+def criar_driver_VT(headless: bool = False) -> Optional[WebDriver]:
     """Cria driver para VT (Virtual Terminal)"""
     # Configurações específicas para VT
     return criar_driver_firefox(headless=headless)
 
-def criar_driver_notebook(headless=False):
+def criar_driver_notebook(headless: bool = False) -> Optional[WebDriver]:
     """Cria driver para notebook"""
     # Configurações específicas para notebook
     return criar_driver_firefox(headless=headless)
 
-def criar_driver_sisb_pc(headless=False):
+def criar_driver_sisb_pc(headless: bool = False) -> Optional[WebDriver]:
     """Cria driver para SISBAJUD no PC"""
     return criar_driver_firefox(
         profile_path=PROFILE_PATH,
@@ -103,11 +110,11 @@ def criar_driver_sisb_pc(headless=False):
         headless=headless
     )
 
-def criar_driver_sisb_notebook(headless=False):
+def criar_driver_sisb_notebook(headless: bool = False) -> Optional[WebDriver]:
     """Cria driver para SISBAJUD no notebook"""
     return criar_driver_firefox(headless=headless)
 
-def configurar_driver_avancado(driver, timeout_implicito=10):
+def configurar_driver_avancado(driver: WebDriver, timeout_implicito: int = 10) -> bool:
     """Configurações avançadas do driver após criação"""
     try:
         driver.implicitly_wait(timeout_implicito)
@@ -117,7 +124,7 @@ def configurar_driver_avancado(driver, timeout_implicito=10):
         logger.error(f"Erro ao configurar driver avançado: {e}")
         return False
 
-def verificar_driver_ativo(driver):
+def verificar_driver_ativo(driver: WebDriver) -> bool:
     """Verifica se o driver ainda está ativo"""
     try:
         driver.current_url
@@ -125,7 +132,7 @@ def verificar_driver_ativo(driver):
     except Exception:
         return False
 
-def fechar_driver_safely(driver):
+def fechar_driver_safely(driver: WebDriver) -> bool:
     """Fecha o driver de forma segura"""
     try:
         # Evita flood de logs durante o teardown (ex.: urllib3.connectionpool)
@@ -141,7 +148,7 @@ def fechar_driver_safely(driver):
         return False
 
 
-def fechar_driver_imediato(driver, kill_processes: bool = True):
+def fechar_driver_imediato(driver: WebDriver, kill_processes: bool = True) -> bool:
     """Fecha o driver de forma imediata, forçando encerramento de processos.
 
     Tenta `driver.quit()` e, se necessário, mata processos do geckodriver/firefox
@@ -201,7 +208,7 @@ def fechar_driver_imediato(driver, kill_processes: bool = True):
         logger.error(f"fechar_driver_imediato falhou: {e}")
         return False
 
-def limpar_temp_selenium():
+def limpar_temp_selenium() -> int:
     """Limpa os arquivos temporários do Selenium de forma segura"""
     import os
     import glob

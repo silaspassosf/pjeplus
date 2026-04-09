@@ -18,10 +18,20 @@ from .core_main import main
 
 import os
 import requests
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from selenium.webdriver.remote.webdriver import WebDriver
 
 # buckets config
 from .buckets import BUCKETS_PEC
+
+# Importar logger
+from Fix.log import get_module_logger
+logger = get_module_logger(__name__)
+
+# Importar funções ausentes
+from Fix.utils_observer import aguardar_renderizacao_nativa as aguardarenderizacao_nativa
+from .processamento_buckets import fluxo_pec_bucket
+from .helpers import _montar_url_processo, _fechar_abas_extras
 
 
 # ---------------------------------------------------------------------------
@@ -70,14 +80,14 @@ def _construir_grupos_execucao(trt: str, buckets: List[Dict[str, Any]]) -> List[
 # ---------------------------------------------------------------------------
 # PONTO DE ENTRADA — iniciar fluxo robusto usando API para montar listas
 # ---------------------------------------------------------------------------
-def iniciarfluxorobusto(driver) -> Dict[str, Any]:
+def iniciarfluxorobusto(driver: WebDriver):
     progresso = carregar_progresso_pec()
     logger.info(
         f"PROGRESSO/SESSAO Carregado progresso com {len(progresso.get('processos_executados', []))} processos já executados"
     )
 
     trt = os.getenv("TRT_NUM", "2")
-    from core.resultado_execucao import ResultadoExecucao
+    from Fix.resultado_execucao import ResultadoExecucao
     grupos_execucao = _construir_grupos_execucao(trt, BUCKETS_PEC)
     if not grupos_execucao:
         logger.warning("PEC Nenhum processo encontrado via API para os buckets configurados.")
@@ -102,7 +112,7 @@ def iniciarfluxorobusto(driver) -> Dict[str, Any]:
     return ResultadoExecucao(sucesso=True, processos=total_processados)
 
 
-def _abrir_executar_fechar(driver, numero_cnj: str, bucket: Dict[str, Any]) -> bool:
+def _abrir_executar_fechar(driver: WebDriver, numero_cnj: str, bucket: Dict[str, Any]) -> bool:
     try:
         url_processo = _montar_url_processo(numero_cnj)
         driver.get(url_processo)

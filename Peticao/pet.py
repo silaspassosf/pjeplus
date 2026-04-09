@@ -1,785 +1,440 @@
-import logging
-logger = logging.getLogger(__name__)
+﻿# Ajuste sys.path para permitir imports do projeto raiz
+import sys, os
+if __name__ == '__main__':
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from Fix.log import getmodulelogger
+logger = getmodulelogger(__name__)
 
 """
 PEC/pet.py - Processamento de Petições (PJe)
-Leitura de tabela de petições juntadas + agrupamento em buckets por regras + execução sequencial
+VERSÃO SIMPLIFICADA: Padrão p2b.py - regras simples (lista_regex, acao)
 """
 
-import time
 import re
-import os
-import sys
-import inspect
-import traceback
 import json
-from datetime import datetime
-from typing import Optional, Dict, List, Tuple, Any, Callable, Union
 from pathlib import Path
+from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from Peticao.core.extracao import criar_gigs, extrair_direto, extrair_documento, extrair_dados_processo
+from Prazo.p2b_core import normalizar_texto, gerar_regex_geral
 
-# Ajuste de path para importações quando executado de dentro de PEC/
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Import de atos/wrappers_ato para ato_gen (despacho genérico)
+try:
+    from Peticao.atos.wrappers import ato_instc, ato_inste, ato_gen
+except ImportError:
+    ato_instc = None
+    ato_inste = None
+    ato_gen = None
 
-# Imports do projeto
-from Fix.core import aguardar_e_clicar, esperar_elemento
-from Fix.extracao import reindexar_linha, abrir_detalhes_processo, trocar_para_nova_aba
-from Fix.abas import validar_conexao_driver, forcar_fechamento_abas_extras
-from Fix.log import logger
+# Import de helpers para funções customizadas
+try:
+    from Peticao.helpers import checar_habilitacao, agravo_peticao, def_quesitos
+except ImportError:
+    checar_habilitacao = None
+    agravo_peticao = None
+    def_quesitos = None
+
+# Import de atos/wrappers_ato para ação de perícias
+try:
+    from Peticao.atos.wrappers import ato_laudo, ato_esc, ato_escliq, ato_datalocal
+except ImportError:
+    ato_laudo = None
+    ato_esc = None
+    ato_escliq = None
+    ato_datalocal = None
+
+# Import atos de diretos
+try:
+    from Peticao.atos.wrappers import ato_ceju, ato_respcalc, ato_assistente, ato_concor, ato_prevjud, ato_naocoaf, ato_naosimba, ato_teim, ato_adesivo, ato_homacordo, ato_uber
+except ImportError:
+    ato_ceju = ato_respcalc = ato_assistente = ato_concor = ato_prevjud = ato_naocoaf = ato_naosimba = ato_teim = ato_adesivo = ato_homacordo = ato_uber = None
+
+try:
+    from Peticao.atos.wrappers import ato_ccs, ato_censec, ato_serp, ato_conv
+except ImportError:
+    ato_ccs = ato_censec = ato_serp = ato_conv = None
+
+# Import do módulo de helpers para checagens personalizadas
+try:
+    from Peticao.helpers import checar_habilitacao
+except ImportError:
+    try:
+        from Peticao.helpers import checar_habilitacao
+    except ImportError:
+        checar_habilitacao = None
 
 # ============================================================================
 # CONFIGURAÇÕES
 # ============================================================================
 
 ESCANINHO_URL = "https://pje.trt2.jus.br/pjekz/escaninho/peticoes-juntadas"
-PROGRESSO_FILE = Path("progresso_pet.json")
 
 # ============================================================================
-# ESTRUTURAS DE DADOS
+# FUNÇÕES DE PROGRESSO (padrão Prazo/p2b.py)
 # ============================================================================
 
-class PeticaoLinha:
-    """Representa uma linha da tabela de petições"""
-    def __init__(self, indice: int, numero_processo: str, tipo_peticao: str,
-                 descricao: str, tarefa: str, fase: str, data_juntada: str,
-                 elemento_html: Optional[WebElement] = None):
-        self.indice = indice
-        self.numero_processo = numero_processo
-        self.tipo_peticao = tipo_peticao
-        self.descricao = descricao  # Descrição/detalhes da petição
-        self.tarefa = tarefa
-        self.fase = fase
-        self.data_juntada = data_juntada
-        self.elemento_html = elemento_html
-    
-    def __repr__(self):
-        desc_short = self.descricao[:30] if self.descricao else "(sem desc)"
-        return f"PeticaoLinha({self.numero_processo} | {self.tipo_peticao} | {desc_short}... | {self.tarefa}/{self.fase})"
-    
-    def gerar_chave_regra(self) -> str:
-        """Gera chave para buscar regra correspondente"""
-        # Formato: "tipo_peticao|descricao|tarefa|fase" para buscas flexíveis
-        partes = []
-        if self.tipo_peticao:
-            partes.append(self.tipo_peticao.lower().strip())
-        if self.descricao:
-            partes.append(self.descricao.lower().strip())
-        if self.tarefa:
-            partes.append(self.tarefa.lower().strip())
-        if self.fase:
-            partes.append(self.fase.lower().strip())
-        return "|".join(partes)
+
+# Progresso PET centralizado
+from Peticao.monitoramento.progresso import (
+    carregar_progresso_pet,
+    salvar_progresso_pet,
+    marcar_processo_executado_pet,
+    processo_ja_executado_pet,
+)
 
 
-# ============================================================================
-# FUNÇÕES DE NAVEGAÇÃO
-# ============================================================================
+def _w(fn):
+    """Adapta ato (driver) → (driver, item) esperado pelo orquestrador."""
+    if fn is None:
+        return None
+    return lambda driver, _: fn(driver)
 
-def navegacao_inicial_pet(driver: WebDriver) -> bool:
+
+def _gigs(dias, resp, obs):
+    """Factory: callable (driver, item) que chama criar_gigs(driver, dias, resp, obs)."""
+    return lambda driver, _: criar_gigs(driver, dias, resp, obs)
+
+
+class _Dados:
     """
-    Navega para escaninho de petições juntadas e aplica filtros iniciais.
-    
-    Steps:
-    1. Navegar para URL escaninho
-    2. Aplicar filtro 100 (visualizar 100 processos)
-    3. Clicar coluna "Tipo de Petição" para reordenar
+    Wrapper sobre dadosatuais.json (gravado por extrair_dados_processo antes de cada ação).
+    Expõe condições nomeadas reutilizáveis nas regras de classificação.
+    Sem chamada de rede — usa apenas o JSON já presente em disco.
     """
-    try:
-        # 1. Navegar para escaninho
-        driver.get(ESCANINHO_URL)
-        time.sleep(2)
-        
-        # 2. Aplicar filtro 50 (visualizar 50 processos - limite máximo na página de petições)
-        time.sleep(2)  # Aguardar carregamento após aplicar filtro
-        
-        # 3. Reordenar coluna "Tipo de Petição"
-        time.sleep(1)
-        return True
-        
-    except Exception as e:
-        logger.error(f"[PET_NAV] Erro na navegação inicial: {e}")
-        return False
-
-
-def aplicar_filtro_50(driver: WebDriver, timeout: int = 10) -> bool:
-    """
-    Aplica filtro para visualizar 50 processos (limite máximo da página de petições).
-    Padrão similar ao aplicar_filtro_100 do Fix.
-    
-    Clica no select de "Linhas por página" e seleciona opção "50".
-    """
-    try:
-        
-        # Função interna para selecionar com múltiplos seletores
-        def _selecionar():
-            try:
-                # Encontrar span com "20" (valor padrão atual)
-                span_20 = driver.find_element(By.XPATH, 
-                    "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
-                
-                # Encontrar o mat-select pai
-                mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
-                
-                # Fazer scroll para o elemento estar visível
-                driver.execute_script("arguments[0].scrollIntoView(true);", mat_select)
-                time.sleep(0.3)
-                
-                # Clicar usando JavaScript (evita bloqueios de overlay)
-                driver.execute_script("arguments[0].click();", mat_select)
-                time.sleep(0.5)
-                
-                # Aguardar overlay aparecer
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                overlay = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-                )
-                time.sleep(0.3)
-                
-                # Procurar opção "50"
-                opcao_50 = overlay.find_element(By.XPATH, 
-                    ".//mat-option[.//span[normalize-space(text())='50']]")
-                
-                # Clicar na opção usando JavaScript também
-                driver.execute_script("arguments[0].click();", opcao_50)
-                time.sleep(1)
-                
-                return True
-            except Exception as e:
-                return False
-        
-        # Aplicar com retry
-        from Fix.core import com_retry
-        resultado = com_retry(_selecionar, max_tentativas=3, backoff_base=1.5, log=True)
-        
-        if resultado:
-            pass
-        else:
-            logger.error('[PET_FILTRO] Filtro de 50 falhou após todas tentativas')
-        
-        return resultado
-        
-    except Exception as e:
-        logger.error(f"[PET_FILTRO] Erro ao aplicar filtro de 50: {e}")
-        return False
-        return False
-
-
-def reordenar_coluna_tipo_peticao(driver: WebDriver, timeout: int = 10) -> bool:
-    """
-    Clica na coluna "Tipo de Petição" para reordenar a tabela.
-    
-    A coluna é um <div> com atributos específicos contendo "Tipo de Petição".
-    Precisa clicar no header da coluna para reordenar.
-    """
-    try:
-        # Procurar pela coluna Tipo de Petição
-        seletores = [
-            (By.XPATH, "//*[contains(text(), 'Tipo de Petição')]"),
-            (By.XPATH, "//div[contains(@class, 'th-') and contains(text(), 'Tipo de Petição')]"),
-            (By.CSS_SELECTOR, "div.th-elemento-class"),  # Procurar todas as colunas headers
-        ]
-        
-        for by, seletor in seletores:
-            try:
-                elementos = driver.find_elements(by, seletor)
-                for elem in elementos:
-                    texto = elem.text.strip() if hasattr(elem, 'text') else ""
-                    if "Tipo de Petição" in texto:
-                        driver.execute_script("arguments[0].click();", elem)
-                        time.sleep(1)
-                        return True
-            except NoSuchElementException:
-                continue
-        
-        return False
-        
-    except Exception as e:
-        logger.error(f"[PET_REORD] Erro ao reordenar coluna: {e}")
-        return False
-
-
-# ============================================================================
-# EXTRAÇÃO DE TABELA
-# ============================================================================
-
-def extrair_tabela_peticoes(driver: WebDriver) -> List[PeticaoLinha]:
-    """
-    Extrai todas as linhas da tabela de petições.
-    
-    Seletor: tr.cdk-drag (linhas da tabela Material)
-    Colunas: 
-    - Índice 0: Ícone/Botão detalhes
-    - Índice 1: Número do processo
-    - Índice 2: Tipo de Petição
-    - Índice 3: Tarefa - Fase
-    - Índice 4: Data de Juntada
-    """
-    peticoes = []
-    
-    try:
-        # Aguardar tabela carregar
-        time.sleep(2)
-        
-        # Encontrar linhas
-        linhas = driver.find_elements(By.CSS_SELECTOR, "tr.cdk-drag")
-        
-        for idx, linha in enumerate(linhas, 1):
-            try:
-                # Extrair células
-                tds = linha.find_elements(By.TAG_NAME, "td")
-                if not tds:
-                    continue
-                
-                # Extrair informações
-                numero_processo = ""
-                tipo_peticao = ""
-                tarefa_fase_texto = ""
-                data_juntada = ""
-                
-                # Extrair de índices específicos (confirmado em test_html_struct.py)
-                # TD[1]: Processo (formato: "Abrir a tarefa... processo: XXXXXXX-XX.XXXX.X.XX.XXXX...")
-                texto_td1 = tds[1].text.strip()
-                match_proc = re.search(r'\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}', texto_td1)
-                numero_processo = match_proc.group(0) if match_proc else ""
-                
-                # TD[3]: Data de juntada
-                if len(tds) > 3:
-                    texto_td3 = tds[3].text.strip()
-                    data_juntada = texto_td3 if re.match(r'\d{2}/\d{2}/\d{4}', texto_td3) else ""
-                
-                # TD[4]: Tipo de petição
-                if len(tds) > 4:
-                    tipo_peticao = tds[4].text.strip()
-                
-                # TD[5]: Descrição
-                descricao = ""
-                if len(tds) > 5:
-                    descricao = tds[5].text.strip()
-                
-                # TD[6]: Tarefa + Fase (separados por "Fase:")
-                tarefa = ""
-                fase = ""
-                if len(tds) > 6:
-                    texto_td6 = tds[6].text.strip()
-                    if "Fase:" in texto_td6:
-                        partes = texto_td6.split("Fase:")
-                        tarefa = partes[0].strip()
-                        fase = partes[1].strip() if len(partes) > 1 else ""
-                    else:
-                        tarefa = texto_td6.strip()
-                
-                # Criar objeto PeticaoLinha
-                if numero_processo:
-                    peticao = PeticaoLinha(
-                        indice=idx,
-                        numero_processo=numero_processo,
-                        tipo_peticao=tipo_peticao,
-                        descricao=descricao,
-                        tarefa=tarefa,
-                        fase=fase,
-                        data_juntada=data_juntada,
-                        elemento_html=linha
-                    )
-                    peticoes.append(peticao)
-                    
-                
-            except Exception as e:
-                logger.warning(f"[PET_EXTR] Erro ao processar linha {idx}: {e}")
-                continue
-        
-        return peticoes
-        
-    except Exception as e:
-        logger.error(f"[PET_EXTR] Erro na extração de tabela: {e}")
-        return []
-
-
-# ============================================================================
-# PROGRESSÃO (pet.json)
-# ============================================================================
-
-def carregar_progresso_pet() -> Dict[str, Any]:
-    """Carrega progresso de pet.json"""
-    try:
-        if Path("pet.json").exists():
-            with open("pet.json", "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        logger.warning(f"[PET_PROG] Erro ao carregar pet.json: {e}")
-    
-    # Retornar estrutura vazia se não existir
-    return {
-        "ultima_atualizacao": "",
-        "blocos_executados": []
-    }
-
-
-def salvar_progresso_pet(progresso: Dict[str, Any]) -> None:
-    """Salva progresso em pet.json"""
-    try:
-        progresso['ultima_atualizacao'] = datetime.now().isoformat()
-        with open("pet.json", "w", encoding="utf-8") as f:
-            json.dump(progresso, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error(f"[PET_PROG]  Erro ao salvar pet.json: {e}")
-
-
-def marcar_hipotese_executada(bloco_id: str, hipotese_id: str, numero_processo: str, sucesso: bool = True) -> None:
-    """Marca um processo como executado em uma hipótese"""
-    progresso = carregar_progresso_pet()
-    
-    for bloco in progresso.get('blocos_executados', []):
-        if bloco['bloco_id'] == bloco_id:
-            for hipotese in bloco.get('hipoteses', []):
-                if hipotese['hipotese_id'] == hipotese_id:
-                    if sucesso:
-                        hipotese['processos_executados'].append(numero_processo)
-                        hipotese['status'] = 'completo' if len(hipotese.get('processos_executados', [])) > 0 else 'em_progresso'
-                    else:
-                        hipotese['processos_falhados'].append(numero_processo)
-                    
-                    salvar_progresso_pet(progresso)
-                    return
-
-
-def definir_regras_apagar() -> List[Tuple[Dict[str, Any], Callable]]:
-    """
-    Define as regras de APAGAR (limpeza de petições) com suas 3 hipóteses.
-    
-    Retorna lista de tuplas: (condicoes, acao)
-    - condicoes: dict com regex/validadores para tipo, descricao, tarefa, fase
-    - acao: função callback a executar
-    
-    Padrão: identico a p2b.py - uma única função de execução com múltiplos pares (regra->acao)
-    """
-    
-    regras = [
-        # HIPÓTESE 1: Razões Finais
-        {
-            'hipotese_id': 'RAZOES_FINAIS',
-            'hipotese_nome': 'Razões Finais',
-            'condicoes': {
-                'tipo': gerar_regex_flexivel('razões finais'),
-                'descricao': gerar_regex_flexivel('razões finais'),
-                'tarefa': None,  # Sem restrição
-                'fase': None     # Sem restrição
-            },
-            'acao': acao_apagar
-        },
-        # HIPÓTESE 2: Réplica em Conhecimento
-        {
-            'hipotese_id': 'REPLICA_CONHECIMENTO',
-            'hipotese_nome': 'Réplica (Fase: Conhecimento)',
-            'condicoes': {
-                'tipo': gerar_regex_flexivel('réplica'),
-                'descricao': gerar_regex_flexivel('réplica'),
-                'tarefa': None,  # Sem restrição
-                'fase': lambda f: normalizar_texto(f) == normalizar_texto('conhecimento')  # Restrição: fase = Conhecimento
-            },
-            'acao': acao_apagar
-        },
-        # HIPÓTESE 3: Acordos (Contestação/Habilitação/Preposição/Substabelecimento)
-        {
-            'hipotese_id': 'ACORDO',
-            'hipotese_nome': 'Acordo (Tarefa: Cumprimento)',
-            'condicoes': {
-                'tipo': lambda t: any(gerar_regex_flexivel(x).search(normalizar_texto(t)) for x in 
-                                     ['contestação', 'habilitação', 'preposição', 'substabelecimento']),
-                'descricao': None,  # Sem restrição
-                'tarefa': lambda t: normalizar_texto(t) == normalizar_texto('aguardando cumprimento de acordo'),
-                'fase': None  # Sem restrição
-            },
-            'acao': acao_apagar
-        },
-        # HIPÓTESE 4: Manifestação + Carta de Preposição
-        {
-            'hipotese_id': 'MANIFESTACAO_CARTA_PREPOSICAO',
-            'hipotese_nome': 'Manifestação - Carta de Preposição',
-            'condicoes': {
-                'tipo': gerar_regex_flexivel('manifestação'),
-                'descricao': gerar_regex_flexivel('carta de preposição'),
-                'tarefa': None,  # Sem restrição
-                'fase': None     # Sem restrição
-            },
-            'acao': acao_apagar
-        },
-        # HIPÓTESE 5: Manifestação + Substabelecimento sem reserva
-        {
-            'hipotese_id': 'MANIFESTACAO_SUBSTABELECIMENTO',
-            'hipotese_nome': 'Manifestação - Substabelecimento sem reserva',
-            'condicoes': {
-                'tipo': gerar_regex_flexivel('manifestação'),
-                'descricao': gerar_regex_flexivel('substabelecimento sem reserva'),
-                'tarefa': None,  # Sem restrição
-                'fase': None     # Sem restrição
-            },
-            'acao': acao_apagar
-        }
-    ]
-    
-    return regras
-
-
-def verifica_condicoes(peticao: PeticaoLinha, condicoes: Dict[str, Any]) -> bool:
-    """
-    Verifica se uma petição satisfaz todas as condições de uma regra.
-    
-    Args:
-        peticao: PeticaoLinha
-        condicoes: dict com 'tipo', 'descricao', 'tarefa', 'fase'
-                   - regex.Pattern: testa match
-                   - callable: testa resultado == True
-                   - None: sem restrição (sempre True)
-    
-    Returns:
-        True se todas as condições passam
-    """
-    
-    # Validar tipo
-    if condicoes.get('tipo') is not None:
-        validador = condicoes['tipo']
-        if isinstance(validador, re.Pattern):
-            if not validador.search(normalizar_texto(peticao.tipo_peticao)):
-                return False
-        elif callable(validador):
-            if not validador(peticao.tipo_peticao):
-                return False
-    
-    # Validar descrição
-    if condicoes.get('descricao') is not None:
-        validador = condicoes['descricao']
-        if isinstance(validador, re.Pattern):
-            if not validador.search(normalizar_texto(peticao.descricao)):
-                return False
-        elif callable(validador):
-            if not validador(peticao.descricao):
-                return False
-    
-    # Validar tarefa
-    if condicoes.get('tarefa') is not None:
-        validador = condicoes['tarefa']
-        if isinstance(validador, re.Pattern):
-            if not validador.search(normalizar_texto(peticao.tarefa)):
-                return False
-        elif callable(validador):
-            if not validador(peticao.tarefa):
-                return False
-    
-    # Validar fase
-    if condicoes.get('fase') is not None:
-        validador = condicoes['fase']
-        if isinstance(validador, re.Pattern):
-            if not validador.search(normalizar_texto(peticao.fase)):
-                return False
-        elif callable(validador):
-            if not validador(peticao.fase):
-                return False
-    
-    return True
-
-
-# ============================================================================
-# REGRAS E AÇÕES
-# ============================================================================
-
-def normalizar_texto(txt: str) -> str:
-    """Normaliza texto para comparações (lowercase, sem acentos)"""
-    import unicodedata
-    txt = txt.lower().strip()
-    # Remove acentos
-    txt = ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
-    return txt
-
-
-def gerar_regex_flexivel(termo: str) -> re.Pattern:
-    """Gera regex flexível para um termo (padrão p2b.py)"""
-    termo_norm = normalizar_texto(termo)
-    palavras = termo_norm.split()
-    partes = [re.escape(p) for p in palavras]
-    
-    regex = ''
-    for i, parte in enumerate(partes):
-        regex += parte
-        if i < len(partes) - 1:
-            regex += r'[\s\w\.,;:!\-–—()]*'
-    
-    return re.compile(rf"{regex}", re.IGNORECASE)
-
-
-def acao_apagar(driver: WebDriver, peticao: PeticaoLinha) -> bool:
-    """
-    Ação: APAGAR petição da tabela.
-    
-    Steps:
-    1. Localizar linha do processo na tabela
-    2. Clicar ícone trash: <i class="fas fa-trash-alt icone-tamanho-18"></i>
-    3. Confirmar com ESPAÇO
-    """
-    try:
-        # Aguardar tabela estar visível
-        time.sleep(0.5)
-        
-        # Localizar a linha do processo
-        linhas = driver.find_elements(By.CSS_SELECTOR, "tr.cdk-drag")
-        linha_encontrada = None
-        
-        for linha in linhas:
-            tds = linha.find_elements(By.TAG_NAME, "td")
-            if len(tds) > 1:
-                texto_td1 = tds[1].text.strip()
-                if peticao.numero_processo in texto_td1:
-                    linha_encontrada = linha
-                    break
-        
-        if not linha_encontrada:
-            logger.warning(f"[PET_APAG] Linha não encontrada para {peticao.numero_processo}")
-            return False
-        
-        # Localizar ícone trash na linha
+    def __init__(self):
+        self._d: dict = {}
         try:
-            trash_icon = linha_encontrada.find_element(By.CSS_SELECTOR, "i.fa-trash-alt")
-        except NoSuchElementException:
-            logger.warning(f"[PET_APAG] Ícone trash não encontrado em {peticao.numero_processo}")
-            return False
-        
-        # Clicar no trash
-        logger.info(f"[PET_APAG] Clicando lixeira de {peticao.numero_processo}...")
-        driver.execute_script("arguments[0].scrollIntoView(true);", trash_icon)
-        time.sleep(0.3)
-        trash_icon.click()
-        time.sleep(0.5)
-        
-        # Confirmar com ESPAÇO
-        logger.info(f"[PET_APAG] Confirmando exclusão com ESPAÇO...")
-        from selenium.webdriver.common.keys import Keys
-        driver.switch_to.active_element().send_keys(Keys.SPACE)
-        time.sleep(1)
-        
-        logger.info(f"[PET_APAG]  {peticao.numero_processo} apagado com sucesso")
-        return True
-        
-    except Exception as e:
-        logger.error(f"[PET_APAG]  Erro ao apagar {peticao.numero_processo}: {e}")
+            p = Path('dadosatuais.json')
+            if p.exists():
+                self._d = json.loads(p.read_text(encoding='utf-8'))
+        except Exception:
+            pass
+
+    # ---- acessores básicos ----
+    def fase(self) -> str:
+        return normalizar_texto(self._d.get('labelFaseProcessual') or '')
+
+    def reus(self) -> list:
+        return self._d.get('reu') or []
+
+    def terceiros(self) -> list:
+        return self._d.get('terceiro') or []
+
+    def autores(self) -> list:
+        return self._d.get('autor') or []
+
+    # ---- condições reutilizáveis ----
+    def um_reu_com_advogado(self) -> bool:
+        """Exatamente 1 réu com advogado preenchido."""
+        reus = self.reus()
+        return (
+            len(reus) == 1
+            and bool(reus[0].get('advogado', {}).get('nome', '').strip())
+        )
+
+    def sem_perito_terceiro(self) -> bool:
+        """Nenhum terceiro com 'perito' no nome."""
+        return not any(
+            'perito' in str(t.get('nome', '')).lower()
+            for t in self.terceiros()
+        )
+
+    def sem_perito_rogerio(self) -> bool:
+        """Nenhum perito chamado Rogério nas partes extraídas."""
+        def nome_partes() -> list[str]:
+            nomes = []
+            for pessoa in self.autores() + self.reus() + self.terceiros():
+                nomes.append(str(pessoa.get('nome', '')).lower())
+            return nomes
+
+        return not any(
+            'rogerio' in nome
+            for nome in nome_partes()
+        )
+
+
+def _dados() -> _Dados:
+    """Lê dadosatuais.json e retorna wrapper com condições prontas."""
+    return _Dados()
+
+
+def _cond_impugnacao_liq(item) -> bool:
+    """
+    Condição para ato_concor em Impugnação (Liquidação):
+    - tipo_peticao: contém 'impugnacao'
+    - fase: contém 'liquidacao'
+    - dadosatuais: exatamente 1 réu com advogado
+    - dadosatuais: nenhum terceiro-perito
+    """
+    tipo = normalizar_texto(item.tipo_peticao or '')
+    if 'impugnacao' not in tipo or 'liquidacao' not in _nfase(item):
         return False
+    d = _dados()
+    return d.um_reu_com_advogado() and d.sem_perito_terceiro() and d.sem_perito_rogerio()
 
 
-def agrupar_por_hipotese(peticoes: List[PeticaoLinha]) -> Dict[str, Dict[str, List[PeticaoLinha]]]:
-    """
-    Agrupa petições por hipótese da regra APAGAR.
-    
-    Retorna:
-    {
-        'RAZOES_FINAIS': [...peticoes...],
-        'REPLICA_CONHECIMENTO': [...peticoes...],
-        'ACORDO': [...peticoes...]
-    }
-    """
-    regras = definir_regras_apagar()
-    grupos = {}
-    
-    for regra in regras:
-        hipotese_id = regra['hipotese_id']
-        condicoes = regra['condicoes']
-        
-        # Encontrar petições que satisfazem essa hipótese
-        peticoes_hipotese = []
-        for peticao in peticoes:
-            if verifica_condicoes(peticao, condicoes):
-                peticoes_hipotese.append(peticao)
-        
-        grupos[hipotese_id] = {
-            'hipotese_nome': regra['hipotese_nome'],
-            'peticoes': peticoes_hipotese,
-            'acao': regra['acao']
-        }
-    
-    return grupos
+def _executar_acao(driver, item, acao) -> bool:
+    if isinstance(acao, tuple):
+        for f in acao:
+            if callable(f) and not f(driver, item):
+                return False
+        return True
+    return acao(driver, item) if callable(acao) else False
 
 
-def executar_grupo_apagar(driver: WebDriver, grupos_hipoteses: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """
-    Executa a regra APAGAR sequencialmente por hipótese.
-    
-    Steps:
-    1. Para cada hipótese em ordem
-    2. Para cada petição na hipótese
-    3. Executar ação_apagar
-    4. Atualizar progresso em pet.json
-    5. Log estruturado por hipótese
-    """
-    
-    resultado = {
-        'bloco': 'APAGAR',
-        'bloco_nome': 'Limpeza de Petições',
-        'hipoteses_processadas': [],
-        'total_apagados': 0,
-        'total_erros': 0
-    }
-    
-    logger.info("\n" + "="*80)
-    logger.info("[PET_APAG] INICIANDO EXECUÇÃO: Limpeza de Petições")
-    logger.info("="*80)
-    
-    for hipotese_id, hipotese_dados in grupos_hipoteses.items():
-        hipotese_nome = hipotese_dados['hipotese_nome']
-        peticoes = hipotese_dados['peticoes']
-        acao = hipotese_dados['acao']
-        
-        logger.info(f"\n[PET_APAG] HIPÓTESE: {hipotese_nome}")
-        logger.info(f"[PET_APAG]   Processos encontrados: {len(peticoes)}")
-        
-        hipotese_resultado = {
-            'hipotese_id': hipotese_id,
-            'hipotese_nome': hipotese_nome,
-            'total': len(peticoes),
-            'executados': 0,
-            'falhados': 0,
-            'processos_executados': [],
-            'processos_falhados': []
-        }
-        
-        # Executar cada petição
-        for idx, peticao in enumerate(peticoes, 1):
-            logger.info(f"[PET_APAG]   [{idx}/{len(peticoes)}] {peticao.numero_processo}...", end=" ")
-            
-            try:
-                sucesso = acao(driver, peticao)
-                
-                if sucesso:
-                    logger.info("")
-                    hipotese_resultado['executados'] += 1
-                    hipotese_resultado['processos_executados'].append(peticao.numero_processo)
-                    marcar_hipotese_executada('APAGAR', hipotese_id, peticao.numero_processo, sucesso=True)
-                    resultado['total_apagados'] += 1
-                else:
-                    logger.info("")
-                    hipotese_resultado['falhados'] += 1
-                    hipotese_resultado['processos_falhados'].append(peticao.numero_processo)
-                    marcar_hipotese_executada('APAGAR', hipotese_id, peticao.numero_processo, sucesso=False)
-                    resultado['total_erros'] += 1
-                
-            except Exception as e:
-                logger.info(f" ({e})")
-                hipotese_resultado['falhados'] += 1
-                hipotese_resultado['processos_falhados'].append(peticao.numero_processo)
-                resultado['total_erros'] += 1
-                logger.error(f"[PET_APAG] Erro ao processar {peticao.numero_processo}: {e}")
-        
-        # Atualizar status da hipótese
-        if hipotese_resultado['falhados'] == 0 and hipotese_resultado['executados'] > 0:
-            hipotese_resultado['status'] = 'completo'
-        elif hipotese_resultado['executados'] > 0:
-            hipotese_resultado['status'] = 'com_erros'
-        else:
-            hipotese_resultado['status'] = 'nao_iniciado'
-        
-        logger.info(f"[PET_APAG]   Resultado: {hipotese_resultado['executados']} apagados, {hipotese_resultado['falhados']} erros")
-        resultado['hipoteses_processadas'].append(hipotese_resultado)
-    
-    # Resumo final
-    logger.info("\n" + "="*80)
-    logger.info(f"[PET_APAG]  EXECUÇÃO FINALIZADA")
-    logger.info(f"[PET_APAG]   Total apagados: {resultado['total_apagados']}")
-    logger.info(f"[PET_APAG]   Total erros: {resultado['total_erros']}")
-    logger.info("="*80 + "\n")
-    
-    return resultado
+def _detectar_acao_analise(texto: str, dados: _Dados):
+    if not texto:
+        return None
+
+    texto = normalizar_texto(texto)
+    if 'ccs' in texto and 'censec' in texto and 'infojud' in texto:
+        return (_gigs("1", "", "xs cumprir"), _w(ato_conv)) if ato_conv else (_gigs("1", "", "xs cumprir"),)
+    if 'censec' in texto and 'ccs' not in texto:
+        return (_gigs("1", "", "xs censec"), _w(ato_censec)) if ato_censec else (_gigs("1", "", "xs censec"),)
+    if 'ccs' in texto:
+        return (_gigs("1", "", "xs ccs"), _w(ato_ccs)) if ato_ccs else (_gigs("1", "", "xs ccs"),)
+    if any(x in texto for x in ['plataformas digitais', 'uber', 'ifood']):
+        return (_w(ato_uber),) if ato_uber else None
+    if 'crcjud' in texto or 'crc-jud' in texto or 'crc jud' in texto:
+        return (_gigs("1", "", "xs serp"), _w(ato_serp)) if ato_serp else (_gigs("1", "", "xs serp"),)
+    if 'discordancia aos esclarecimentos' in texto or 'discordância aos esclarecimentos' in texto:
+        return 'flag_apagar'
+    if 'assistente tecnico' in texto or 'assistente técnico' in texto:
+        return (_w(ato_assistente),)
+    if 'comprovante de pagamento' in texto and 'execucao' in dados.fase():
+        return (_gigs("-1", "", "Bruna Liberação"),)
+    return None
 
 
 # ============================================================================
-# FLUXO PRINCIPAL
+# CLASSIFICAÇÃO — campos da API → nome do bucket
 # ============================================================================
 
-def executar_fluxo_pet(driver: WebDriver) -> bool:
+def _nfase(item) -> str:
+    return normalizar_texto(item.fase or '')
+
+
+def _regras(item, driver=None):
+    """Tabela única: (bucket, condição, ações).
+    Ordem = prioridade. Primeiro match define bucket E ação.
+    ações=None → apagar (sem abrir processo) ou analise (orquestrador trata).
+    checar_habilitacao só avaliado quando driver disponível.
     """
-    Orquestrador principal do fluxo PET:
-    1. Navegação inicial
-    2. Extração de tabela
-    3. Agrupamento por hipótese
-    4. Execução do grupo APAGAR
+    tipo   = normalizar_texto(item.tipo_peticao or '')
+    desc   = normalizar_texto(item.descricao or '')
+    tarefa = normalizar_texto(item.tarefa or '')
+    f      = _nfase(item)
+    perito = getattr(item, 'eh_perito', False)
+
+    return [
+        # ── APAGAR (sem driver, sem abrir processo) ───────────────────────
+        ('apagar',   'parecer do assistente' in desc,                                                      None),
+        ('apagar',   'razoes finais' in tipo or 'carta convite' in tipo,                                    None),
+        ('apagar',   'conhecimento' in f and 'manifestacao' in tipo and any(x in desc for x in ['replica', 'razoes finais', 'preposicao', 'substabelecimento']), None),
+        ('apagar',   'replica' in tipo and 'conhecimento' in f,                                             None),
+        ('apagar',   'aguardando cumprimento de acordo' in tarefa,                                          None),
+        ('apagar',   'manifestacao' in tipo and any(x in desc for x in ['carta de preposicao', 'substabelecimento']), None),
+        ('apagar',   'triagem inicial' in f,                                                                None),
+        ('apagar',   'contestacao' in tipo and 'conhecimento' in f,                                        None),
+        # ── PERICIAS ──────────────────────────────────────────────────────
+        ('pericias', perito and 'esclarecimentos' in tipo and 'liquidacao' in f,  (_w(ato_escliq),)),
+        ('pericias', perito and 'esclarecimentos' in tipo,                         (_w(ato_esc),)),
+        ('pericias', perito and 'apresentacao de laudo pericial' in tipo,          (_w(ato_laudo),)),
+        ('pericias', perito and 'indicacao de data' in tipo,                       (_gigs("-1", "", "xs aud"), _w(ato_datalocal))),
+        ('pericias', perito,                                                        (_w(ato_laudo),)),
+        # ── RECURSO ───────────────────────────────────────────────────────
+        ('recurso',  'agravo de instrumento' in tipo and ('liquidacao' in f or 'execucao' in f), (_w(ato_inste),)),
+        ('recurso',  'agravo de instrumento' in tipo,                                             (_w(ato_instc),)),
+        ('recurso',  'agravo de peticao' in tipo,                                                 (lambda driver, item: checar_habilitacao(item, driver) if 'habilitacao' in tipo else agravo_peticao(item, driver),)),
+        # ── DIRETOS ───────────────────────────────────────────────────────
+        ('diretos',  'habilitacao' in tipo,                                        (lambda driver, item: checar_habilitacao(item, driver),)),
+        ('diretos',  'ratificacao do acordo' in desc or 'ratificação do acordo' in desc, (_w(ato_homacordo),)),
+        ('diretos',  'conhecimento' in f and ('quesitos' in tipo or 'quesitos' in desc), (lambda driver, item: def_quesitos(item, driver),)),
+        ('diretos',  'coaf' in desc,                                               (_w(ato_naocoaf),)),
+        ('diretos',  'simba' in desc,                                              (_w(ato_naosimba),)),
+        ('diretos',  'teimosinha' in desc or 'sisbajud' in desc,                    (_gigs("1", "", "xs teimosinha"), _w(ato_teim))),
+        ('diretos',  'recurso adesivo' in tipo,                                   (_w(ato_adesivo),)),
+        ('diretos',  'calculos' in tipo,                                           (_w(ato_respcalc),)),
+        ('diretos',  'assistente' in tipo,                                         (_gigs("1", "", "xs aud"), _w(ato_assistente)) if ato_assistente else (_gigs("1", "", "xs aud"),)),
+        ('diretos',  _cond_impugnacao_liq(item),                                 (_w(ato_concor),)),
+        ('diretos',  'caged' in desc,                                              (_gigs("-1", "", "xs pec"), _w(ato_prevjud)) if ato_prevjud else (_gigs("-1", "", "xs pec"),)),
+        ('diretos',  'concordancia' in desc and 'liquidacao' in f,               (_gigs("1", "Silas", "Homologação"),)),
+        ('diretos',  bool(re.search(r'comprovante|deposito|pagamento|guia', desc)), (_gigs("-1", "", "Bruna Liberação"),)),
+        # ── ANALISE (fallback) ────────────────────────────────────────────
+        ('analise',  True,                                                        None),
+    ]
+
+
+def classificar(item) -> str:
+    """Bucket pelo primeiro match em _regras (sem driver — pura API)."""
+    for bucket, cond, _ in _regras(item):
+        if cond:
+            return bucket
+    return 'analise'
+
+
+def resolver_acao(item, driver=None):
+    """Ação pelo primeiro match em _regras."""
+    for _, cond, acao in _regras(item, driver):
+        if cond:
+            return acao
+    return None
+
+
+def _abrir_ultimo_documento_timeline(driver: WebDriver):
     """
+    Retorna o link (<a>) do primeiro item da timeline (mais recente),
+    iterando sobre li.tl-item-container.
+    """
+    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    for item in itens:
+        try:
+            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+            return link
+        except Exception:
+            continue
+    return None
+
+
+def _extrair_texto_doc_pet(driver: WebDriver, link) -> Optional[str]:
+    """
+    Clica no link, aguarda renderização e extrai texto via extrair_direto / extrair_documento.
+    Mesmo padrão de p2b_fluxo_documentos._extrair_texto_documento.
+    """
+    global logger
+    link.click()
     try:
-        logger.info("\n" + "="*80)
-        logger.info("INICIANDO FLUXO PET (Petições Juntadas)")
-        logger.info("="*80 + "\n")
-        
-        # 1. Navegação
-        if not navegacao_inicial_pet(driver):
-            logger.info("[PET]  Falha na navegação inicial")
-            return False
-        
-        # 2. Extração
-        peticoes = extrair_tabela_peticoes(driver)
-        if not peticoes:
-            logger.info("[PET]  Nenhuma petição extraída")
-            return False
-        
-        logger.info(f"[PET]  {len(peticoes)} petições extraídas")
-        
-        # 3. Agrupamento por hipótese (REGRA APAGAR)
-        grupos_hipoteses = agrupar_por_hipotese(peticoes)
-        
-        # 4. Executar grupo APAGAR
-        resultado_apagar = executar_grupo_apagar(driver, grupos_hipoteses)
-        
-        logger.info("[PET]  Fluxo completado com sucesso")
-        return True
-        
+        from Peticao.core.utils.observer import aguardar_renderizacao_nativa
+        aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
+    except Exception:
+        pass
+
+    try:
+        resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
+        if resultado and resultado.get('sucesso'):
+            if resultado.get('conteudo'):
+                texto = resultado['conteudo'].lower()
+            elif resultado.get('conteudo_bruto'):
+                texto = resultado['conteudo_bruto'].lower()
+            else:
+                texto = None
+        else:
+            texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=False)
+            if texto_tuple and texto_tuple[0]:
+                texto = texto_tuple[0].lower()
+            else:
+                texto = None
     except Exception as e:
-        logger.error(f"[PET] Erro no fluxo principal: {e}")
-        logger.exception("Erro detectado")
+        logger.error(f'Erro ao extrair texto da petição: {e}')
+        texto = None
+
+    return texto
+
+
+def analise_pet(driver: WebDriver, peticao) -> bool:
+    """
+    Análise de petição via último documento da timeline (padrão p2b):
+    1. Abre o último item da timeline (PDF mais recente)
+    2. Extrai texto via extrair_direto / extrair_documento
+    3. Fallback: ato_gen (Despacho Genérico)
+    """
+    logger.info('[PET_ANALISE] Iniciando analise_pet — %s', peticao.numero_processo)
+
+    try:
+        extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
+    except Exception as e:
+        logger.warning('[PET_ANALISE] Falha ao extrair dados do processo antes da análise: %s', e)
+
+    link = _abrir_ultimo_documento_timeline(driver)
+    if not link:
+        logger.error('[PET_ANALISE] Nenhum documento encontrado na timeline')
         return False
+
+    texto = _extrair_texto_doc_pet(driver, link)
+    if not texto:
+        # Tentar extração direta novamente (padrão p2b)
+        try:
+            resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
+            if resultado and resultado.get('sucesso'):
+                if resultado.get('conteudo'):
+                    texto = resultado['conteudo'].lower()
+                elif resultado.get('conteudo_bruto'):
+                    texto = resultado['conteudo_bruto'].lower()
+                else:
+                    texto = None
+            else:
+                texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=False)
+                if texto_tuple and texto_tuple[0]:
+                    texto = texto_tuple[0].lower()
+                else:
+                    texto = None
+        except Exception as e:
+            logger.error(f'[PET_ANALISE] Erro na extração de conteúdo: {e}')
+            texto = None
+        if not texto:
+            logger.error('[PET_ANALISE] Falha na extracao de conteudo')
+            return False
+
+    dados = _dados()
+    acao_analise = _detectar_acao_analise(texto, dados)
+    if acao_analise == 'flag_apagar':
+        logger.warning('[PET_ANALISE] Discordância aos esclarecimentos detectada — sinalizar para apagar')
+        return False
+    if acao_analise:
+        try:
+            if _executar_acao(driver, peticao, acao_analise):
+                return True
+        except Exception as e:
+            logger.error('[PET_ANALISE] Erro ao executar ação de análise: %s', e)
+
+    # Fallback: ato_gen (Despacho Genérico)
+    logger.info('[PET_ANALISE] Executando ato_gen (despacho genérico)')
+    if ato_gen:
+        try:
+            ato_gen(driver)
+            return True
+        except Exception as e:
+            logger.error('[PET_ANALISE] Erro no ato_gen: %s', e)
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+def run_pet(driver=None):
+    """Cria driver, faz login e executa o pipeline completo de petições."""
+    from Fix.utils import driver_pc as _driver_pc, login_cpf as _login_cpf, configurar_recovery_driver
+    from Peticao.core.utils import criar_driver_e_logar
+    from Peticao.orquestrador import executar_fluxo_pet
+
+    configurar_recovery_driver(_driver_pc, _login_cpf)
+
+    drv = criar_driver_e_logar(driver)
+    if not drv:
+        print('[PET] Falha ao obter driver (abortando)')
+        return None
+
+    print(f'[PET] Navegando para {ESCANINHO_URL}')
+    try:
+        drv.get(ESCANINHO_URL)
+    except Exception:
+        try:
+            drv.quit()
+        except Exception:
+            pass
+        print('[PET] Driver caiu ao navegar; recriando sessão...')
+        drv = criar_driver_e_logar()
+        if not drv:
+            print('[PET] Falha ao recuperar driver')
+            return None
+        drv.get(ESCANINHO_URL)
+
+    return executar_fluxo_pet(drv)
 
 
 if __name__ == '__main__':
-    """
-    Execução standalone de pet.py
-    """
-    from Prazo.prov import criar_driver
-    from Fix.utils import login_cpf
-    from Fix.core import finalizar_driver
-    
-    driver = None
-    try:
-        logger.info('[PET] Iniciando fluxo de petições...')
-        
-        # Criar driver
-        driver = criar_driver(headless=False)
-        if not driver:
-            logger.info('[PET]  Falha ao criar driver')
-            exit(1)
-        
-        # Login
-        logger.info('[PET] Realizando login...')
-        if not login_cpf(driver):
-            logger.info('[PET]  Falha no login')
-            exit(1)
-        
-        # Executar fluxo
-        sucesso = executar_fluxo_pet(driver)
-        
-        if sucesso:
-            logger.info('[PET]  Fluxo finalizado com sucesso')
-        else:
-            logger.info('[PET]  Fluxo falhou')
-            exit(1)
-            
-    except Exception as e:
-        logger.info(f'[PET]  Erro: {e}')
-        logger.exception("Erro detectado")
-        exit(1)
-    finally:
-        if driver:
-            try:
-                finalizar_driver(driver)
-                logger.info('[PET] Driver fechado')
-            except Exception:
-                pass
-
-if __name__ == "__main__":
-    logger.info("[PET] Módulo PEC/pet.py carregado")
-    logger.info("[PET] Use executar_fluxo_pet(driver) para iniciar o processamento")
+    print('[PET] executando como script')
+    run_pet()

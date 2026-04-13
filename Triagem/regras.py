@@ -1,9 +1,16 @@
 import re
 from typing import Any, Dict, List, Tuple
 
-from .constants import ALCADA, INTERVALOS_CEP_ZONA_SUL, RITO_SUMARISSIMO_MAX
+from .constants import ALCADA, INTERVALOS_CEP_ZONA_SUL, INTERVALOS_CEP_ZONA_LESTE, INTERVALOS_CEP_RUI_BARBOSA, RITO_SUMARISSIMO_MAX
 from .utils import _norm
 
+
+# UFs válidas para validar resultado do fallback de texto
+_UF_BRASIL = {
+    'ac', 'al', 'ap', 'am', 'ba', 'ce', 'df', 'es', 'go', 'ma', 'mt', 'ms',
+    'mg', 'pa', 'pb', 'pr', 'pe', 'pi', 'rj', 'rn', 'rs', 'ro', 'rr', 'sc',
+    'sp', 'se', 'to'
+}
 
 _TERMOS_PROC_TITULO = ['procuracao', 'mandato']
 _TERMOS_ID_TITULO = ['rg', 'cnh', 'documento de identidade', 'identidade', 'doc identidade']
@@ -94,6 +101,17 @@ _CEP_TERMOS_RECLAMADA = [
 ]
 
 
+def _foro_competente(cep_num: int) -> str:
+    """Retorna o foro competente para um CEP SP fora da Zona Sul."""
+    for lo, hi in INTERVALOS_CEP_ZONA_LESTE:
+        if lo <= cep_num <= hi:
+            return 'ZONA LESTE'
+    for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
+        if lo <= cep_num <= hi:
+            return 'RUI BARBOSA'
+    return 'RUI BARBOSA'  # default SP (faixas nao mapeadas)
+
+
 def _cep_tag(ctx_norm: str, palavras_reclamada: List[str]) -> int:
     if any(t in ctx_norm for t in _CEP_TERMOS_TERRITORIAL):
         return _CEP_TAG_TERRITORIAL
@@ -156,17 +174,6 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
             fmt,
         ))
 
-    if ceps_api:
-        cep_raw = ceps_api[0]
-        if len(cep_raw) == 8 and cep_raw.isdigit():
-            cep_num = int(cep_raw)
-            cep_fmt = f"{cep_raw[:2]}.{cep_raw[2:5]}-{cep_raw[5:]}"
-            label = 'sede da reclamada - referencia subsidiaria (art.651 CLT, ultimo local nao indicado explicitamente)'
-            for lo, hi in INTERVALOS_CEP_ZONA_SUL:
-                if lo <= cep_num <= hi:
-                    return (f"B2_CEP: OK - {cep_fmt} ({cep_num}) "
-                            f"no intervalo {lo}-{hi} Zona Sul [{label}]")
-
     candidatos = [c for c in candidatos if c[3] == 0 or c[1] == 0]
     if not candidatos:
         norm_texto = _norm(texto)
@@ -174,41 +181,118 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
         if any(t in norm_texto for t in termos_estritos):
             return "B2_CEP: ALERTA - nenhum CEP de prestacao de servicos identificado no contexto relevante (CEP da reclamada ignorado por regra)"
         if ceps_api:
-            cep_raw = ceps_api[0]
-            if len(cep_raw) == 8 and cep_raw.isdigit():
-                cep_num = int(cep_raw)
-                cep_fmt = f"{cep_raw[:2]}.{cep_raw[2:5]}-{cep_raw[5:]}"
-                label = 'sede da reclamada - referencia subsidiaria (art.651 CLT, ultimo local nao indicado explicitamente)'
+            _label_sub = 'sede da reclamada - referencia subsidiaria (art.651 CLT, ultimo local nao indicado explicitamente)'
+            _cep_resultado = None
+            for _cep_raw in ceps_api:
+                if not (len(_cep_raw) == 8 and _cep_raw.isdigit()):
+                    continue
+                _cn = int(_cep_raw)
+                _cf = f"{_cep_raw[:2]}.{_cep_raw[2:5]}-{_cep_raw[5:]}"
+                print(f'[TRIAGEM] cep_api testado: {_cf} ({_cn})')
+                if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_ZONA_SUL):
+                    _cep_resultado = (_cn, _cf, 'ZONA_SUL')
+                    break
+                if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_ZONA_LESTE):
+                    _cep_resultado = (_cn, _cf, 'ZONA LESTE')
+                    break
+                if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_RUI_BARBOSA):
+                    _cep_resultado = (_cn, _cf, 'RUI BARBOSA')
+                    break
+                print(f'[TRIAGEM] cep_api {_cf} nao pertence a nenhuma faixa SP conhecida — ignorado')
+            if _cep_resultado:
+                _cn, _cf, _zona = _cep_resultado
+                if _zona == 'ZONA_SUL':
+                    return (f"B2_CEP: OK - {_cf} ({_cn}) "
+                            f"Zona Sul [{_label_sub}]")
                 return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
-                        f"CEP {cep_fmt} ({cep_num}) fora dos intervalos Zona Sul [{label}]")
+                        f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: {_zona}")
+            return "B2_CEP: ALERTA - CEPs das reclamadas testados mas nenhum pertence a faixa SP - verificar competencia manualmente"
         return "B2_CEP: ALERTA - nenhum CEP de prestacao de servicos ou reclamada identificado (CEP do reclamante ignorado por regra)"
 
     candidatos.sort(key=lambda x: (x[0], x[1], x[2], x[3], x[4]))
-    best_tag, _, _, _, _, cep_num, cep_fmt = candidatos[0]
 
     _TAG_LABEL = {
         _CEP_TAG_TERRITORIAL: 'competencia territorial (art.651 CLT)',
         _CEP_TAG_PRESTACAO: 'ultimo local de prestacao de servicos (art.651 CLT)',
         _CEP_TAG_RECLAMADA: 'sede da reclamada - referencia subsidiaria (art.651 CLT, ultimo local nao indicado explicitamente)',
+        _CEP_TAG_RECLAMANTE: 'endereco do reclamante (referencia subsidiaria)',
         _CEP_TAG_GENERICO: 'generico',
     }
-    label = _TAG_LABEL[best_tag]
-
     _TERMOS_TERRIT = _CEP_TERMOS_TERRITORIAL + _CEP_TERMOS_PRESTACAO
     norm_texto = _norm(texto)
     termos_presentes = [t for t in _TERMOS_TERRIT if t in norm_texto]
-    sufixo_territ = ''
-    if termos_presentes and best_tag not in (_CEP_TAG_TERRITORIAL, _CEP_TAG_PRESTACAO):
-        sufixo_territ = (f' | NOTA: peticao menciona termos de competencia territorial '
-                         f'({termos_presentes[0]}) mas CEP nao foi localizado nesse contexto - '
-                         f'verificar endereco indicado na secao de competencia/prestacao')
 
-    for lo, hi in INTERVALOS_CEP_ZONA_SUL:
-        if lo <= cep_num <= hi:
-            return (f"B2_CEP: OK - {cep_fmt} ({cep_num}) "
-                    f"no intervalo {lo}-{hi} Zona Sul [{label}]{sufixo_territ}")
-    return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
-            f"CEP {cep_fmt} ({cep_num}) fora dos intervalos Zona Sul [{label}]{sufixo_territ}")
+    def _sufixo_territ(tag):
+        if termos_presentes and tag not in (_CEP_TAG_TERRITORIAL, _CEP_TAG_PRESTACAO):
+            return (f' | NOTA: peticao menciona termos de competencia territorial '
+                    f'({termos_presentes[0]}) mas CEP nao foi localizado nesse contexto - '
+                    f'verificar endereco indicado na secao de competencia/prestacao')
+        return ''
+
+    # Itera candidatos na ordem de prioridade — usa o primeiro que pertence a faixa SP
+    for cand in candidatos:
+        best_tag, _, _, _, _, cep_num, cep_fmt = cand
+        label = _TAG_LABEL[best_tag]
+        for lo, hi in INTERVALOS_CEP_ZONA_SUL:
+            if lo <= cep_num <= hi:
+                print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → Zona Sul')
+                return (f"B2_CEP: OK - {cep_fmt} ({cep_num}) "
+                        f"no intervalo {lo}-{hi} Zona Sul [{label}]{_sufixo_territ(best_tag)}")
+        for lo, hi in INTERVALOS_CEP_ZONA_LESTE:
+            if lo <= cep_num <= hi:
+                print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → ZONA LESTE')
+                return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                        f"CEP {cep_fmt} ({cep_num}) [{label}]{_sufixo_territ(best_tag)} | foro competente: ZONA LESTE")
+        for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
+            if lo <= cep_num <= hi:
+                print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → RUI BARBOSA')
+                return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                        f"CEP {cep_fmt} ({cep_num}) [{label}]{_sufixo_territ(best_tag)} | foro competente: RUI BARBOSA")
+
+    # Nenhum CEP do texto pertence a faixa SP — tentar ceps_api
+    if ceps_api:
+        _label_sub = 'sede da reclamada - referencia subsidiaria (art.651 CLT, ultimo local nao indicado explicitamente)'
+        for _cep_raw in ceps_api:
+            if not (len(_cep_raw) == 8 and _cep_raw.isdigit()):
+                continue
+            _cn = int(_cep_raw)
+            _cf = f"{_cep_raw[:2]}.{_cep_raw[2:5]}-{_cep_raw[5:]}"
+            for lo, hi in INTERVALOS_CEP_ZONA_SUL:
+                if lo <= _cn <= hi:
+                    print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → Zona Sul')
+                    return (f"B2_CEP: OK - {_cf} ({_cn}) Zona Sul [{_label_sub}]")
+            for lo, hi in INTERVALOS_CEP_ZONA_LESTE:
+                if lo <= _cn <= hi:
+                    print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → ZONA LESTE')
+                    return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                            f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: ZONA LESTE")
+            for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
+                if lo <= _cn <= hi:
+                    print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → RUI BARBOSA')
+                    return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                            f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: RUI BARBOSA")
+
+    return "B2_CEP: ALERTA - nenhum CEP de SP (Zona Sul/Leste/Rui Barbosa) identificado no processo"
+
+
+_PJDP_NOME_KEYWORDS = [
+    'municipio', 'prefeitura', 'estado de', 'estado do', 'governo do estado',
+    'governo do municipio', 'uniao federal', 'ministerio', 'autarquia',
+    'fazenda publica', 'inss', 'tribunal',
+]
+
+
+def _detectar_pjdp_api(capa_dados: Dict[str, Any]) -> Tuple[bool, str]:
+    """Detecta PJDP verificando nomes das reclamadas extraidas via API.
+    Retorna (detectado, nome_da_reclamada_gatilho).
+    """
+    reclamados = capa_dados.get('reclamados') or []
+    for r in reclamados:
+        nome_norm = _norm(r.get('nome', ''))
+        for kw in _PJDP_NOME_KEYWORDS:
+            if kw in nome_norm:
+                return True, r.get('nome', nome_norm)
+    return False, ''
 
 
 def _checar_partes(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
@@ -248,26 +332,30 @@ def _checar_partes(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
         except Exception:
             pass
 
-    _RE_PJDP = re.compile(
-        r'\b(municipio|prefeitura|uniao\s+federal|autarquia|fazenda\s+p[ue]blica|estado\b(?!\s+de\b))\b')
-    _RE_ADDR_LABEL = re.compile(r'municipio\s*:', re.IGNORECASE)
-    _RE_ESTADO_LABEL = re.compile(r'estado\s*:', re.IGNORECASE)
-    _RE_PRIVADO = re.compile(r'pessoa\s+juridica\s+d[oe]\s+direito\s+privado')
+    pjdp_detectado, pjdp_nome = _detectar_pjdp_api(capa_dados)
+    if not pjdp_detectado and not capa_dados.get('reclamados'):
+        # Fallback: analise de texto quando nao ha dados de reclamadas via API
+        _RE_PJDP = re.compile(
+            r'\b(municipio|prefeitura|uniao\s+federal|autarquia|fazenda\s+p[ue]blica|estado\b(?!\s+de\b))\b')
+        _RE_ADDR_LABEL = re.compile(r'municipio\s*:', re.IGNORECASE)
+        _RE_ESTADO_LABEL = re.compile(r'estado\s*:', re.IGNORECASE)
+        _RE_PRIVADO = re.compile(r'pessoa\s+juridica\s+d[oe]\s+direito\s+privado')
+        for m_pjdp in _RE_PJDP.finditer(contexto_partes):
+            trecho = contexto_partes[max(0, m_pjdp.start() - 80): m_pjdp.end() + 20]
+            if _RE_ADDR_LABEL.search(trecho) or _RE_ESTADO_LABEL.search(trecho):
+                continue
+            trecho_amplo = contexto_partes[max(0, m_pjdp.start() - 200): m_pjdp.end() + 50]
+            if _RE_PRIVADO.search(trecho_amplo):
+                continue
+            pjdp_detectado = True
+            pjdp_nome = m_pjdp.group(1)
+            break
 
-    pjdp_encontrado = False
-    for m_pjdp in _RE_PJDP.finditer(contexto_partes):
-        trecho = contexto_partes[max(0, m_pjdp.start() - 80): m_pjdp.end() + 20]
-        if _RE_ADDR_LABEL.search(trecho) or _RE_ESTADO_LABEL.search(trecho):
-            continue
-        trecho_amplo = contexto_partes[max(0, m_pjdp.start() - 200): m_pjdp.end() + 50]
-        if _RE_PRIVADO.search(trecho_amplo):
-            continue
-        pjdp_encontrado = True
+    if pjdp_detectado:
         linhas.append(
             f"B3_PARTES: ALERTA - PJDP no polo passivo (rito ordinario obrigatorio); "
-            f"gatilho detectado: {m_pjdp.group(1)}"
+            f"detectado via nome: {pjdp_nome}"
         )
-        break
 
     if not any('ALERTA' in l for l in linhas):
         linhas.append(f"B3_PARTES: OK{rec_info}")
@@ -345,8 +433,7 @@ def _checar_reclamadas(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
     sem_endereco = capa_dados.get('reclamadas_sem_endereco') or []
     if sem_endereco:
         linhas.append(
-            f'B5_RECLAMADAS ALERTA - {len(sem_endereco)} reclamada(s) SEM ENDERECO: '
-            f'{", ".join(sem_endereco[:3])}'
+            f'B5_RECLAMADAS: ALERTA - {len(sem_endereco)} reclamada(s) SEM ENDERECO CADASTRADO'
         )
 
     com_dom = capa_dados.get('reclamadas_com_dom_elet', 0) or 0
@@ -361,27 +448,18 @@ def _checar_reclamadas(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
         linhas.append("B5_RECLAMADAS: ALERTA - dados de partes nao disponiveis via API")
         return linhas
 
-    for r in reclamados_api:
-        nome = r.get('nome', '')
-        doc = r.get('cpfcnpj', '')
-        cep = r.get('cep')
-        endereco = r.get('endereco', '')
-        info = []
-        if cep:
-            info.append(f'CEP={cep}')
-        if endereco:
-            info.append(f'end={endereco}')
-        sufixo_info = f' ({"; ".join(info)})' if info else ''
-
-        if len(doc) == 14:
-            sufixo = doc[8:12]
-            tipo = 'matriz' if sufixo == '0001' else f'filial/{sufixo}'
-            fmt = f"{doc[:2]}.{doc[2:5]}.{doc[5:8]}/{doc[8:12]}-{doc[12:]}"
-            linhas.append(f"B5_RECLAMADAS: OK - {nome} CNPJ {fmt} ({tipo}){sufixo_info}")
-        elif len(doc) == 11:
-            linhas.append(f"B5_RECLAMADAS: OK - {nome} pessoa fisica CPF={doc}{sufixo_info}")
-        else:
-            linhas.append(f"B5_RECLAMADAS: ALERTA - {nome} sem CPF/CNPJ valido na API{sufixo_info}")
+    n_total = len(reclamados_api)
+    n_com_end = sum(1 for r in reclamados_api if r.get('cep') or r.get('endereco'))
+    ceps_rec = [r['cep'] for r in reclamados_api if r.get('cep')]
+    ceps_str = ', '.join(ceps_rec) if ceps_rec else 'nenhum'
+    sem_doc = [r for r in reclamados_api if len(r.get('cpfcnpj', '')) not in (11, 14)]
+    if sem_doc:
+        linhas.append(f"B5_RECLAMADAS: ALERTA - {len(sem_doc)} reclamada(s) sem CPF/CNPJ valido na API")
+    linhas.append(
+        f"B5_RECLAMADAS: OK - {n_total} reclamada(s); "
+        f"{n_com_end} com endereco detectado; "
+        f"CEPs analisados: {ceps_str}"
+    )
 
     cnpjs = [r['cpfcnpj'] for r in reclamados_api if len(r.get('cpfcnpj', '')) == 14]
     filiais = [c for c in cnpjs if c[8:12] != '0001']
@@ -475,9 +553,8 @@ def _checar_pedidos_liquidados(texto: str) -> str:
             if chave in seen:
                 continue
             seen.add(chave)
-            ctx = ls[-80:] if len(ls) > 80 else ls
-            prefixo = f'[{secao}] ' if secao else ''
-            itens.append(f"  {prefixo}{ctx}")
+            secao_label = secao if secao else 'pedido'
+            itens.append(f"  [{secao_label} - R$ {mv.group(1)}]")
 
     out = []
     if not itens:
@@ -495,7 +572,7 @@ def _checar_pedidos_liquidados(texto: str) -> str:
             out.append("B8_PEDIDOS: ALERTA - pedidos sem valores liquidados identificados")
     else:
         out.append(f"B8_PEDIDOS: OK - {len(itens)} pedido(s) com valor:")
-        out.extend(itens[-3:])
+        out.extend(itens[:2])
     return '\n'.join(out)
 
 
@@ -663,18 +740,53 @@ def _checar_responsabilidade(texto: str, capa_dados: Dict[str, Any] = None) -> L
     return [f"B11_RESPONSAB: OK - {n_rec} reclamadas com pedido de responsabilidade {tipo_resp} e causa de pedir"]
 
 
-def _checar_endereco_reclamante(texto: str) -> List[str]:
+def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -> List[str]:
     linhas = []
     norm = _norm(texto)
+    cd = capa_dados or {}
 
-    m = re.search(
-        r'(residente|domiciliad[ao])[^\.]{0,300}?'
-        r'([a-záãâéèêíïóôõöúçñ][a-záãâéèêíïóôõöúçñ\s]+)\s*[-/]\s*([a-z]{2})\b',
-        norm)
-    if m:
-        cidade = m.group(2).strip()
-        estado = m.group(3)
-        cidade_uf = f"{cidade}/{estado}"
+    _mun_api = cd.get('reclamante_municipio') or ''
+    _uf_api = cd.get('reclamante_uf') or ''
+    _fonte = cd.get('reclamante_end_fonte') or ('api' if _mun_api else 'texto')
+
+    ctx_texto = None
+    if _mun_api:
+        # API retornou ao menos o município — usar mesmo sem UF
+        cidade = _mun_api
+        estado = _uf_api  # pode estar vazio se a API não preencheu
+        fonte_label = 'api'
+    else:
+        # Endereço do reclamante fica no 1º parágrafo, perto do nome já detectado pela API
+        nome_rec = cd.get('reclamante_nome') or ''
+        if nome_rec:
+            _nome_norm = _norm(nome_rec)[:20]
+            _idx_nome = norm.find(_nome_norm)
+            _busca_ini = max(0, _idx_nome) if _idx_nome >= 0 else 0
+        else:
+            _busca_ini = 0
+        _trecho = norm[_busca_ini: _busca_ini + 1200]
+        # residente/domiciliado (reclamante é sempre pessoa física)
+        # [\s\S]{0,200}? cobre período no meio do endereço (ex: "n. 5")
+        # separador [ /\-]+ cobre em-dash que virou espaço após _norm
+        # UF validada contra _UF_BRASIL
+        _m = re.search(
+            r'(?:residente|domiciliad[ao])[\s\S]{0,200}?'
+            r'([a-z][a-z ]{2,35}?)[ /\-]+([a-z]{2})\b',
+            _trecho)
+        cidade = None
+        estado = None
+        if _m:
+            _c = _m.group(1).strip()
+            _e = _m.group(2)
+            if _e in _UF_BRASIL:
+                cidade = _c
+                estado = _e
+                inicio = max(0, _m.start() - 60)
+                fim = min(len(_trecho), _m.end() + 60)
+                ctx_texto = _trecho[inicio:fim].replace('\n', ' ').strip()
+        fonte_label = f'texto ({_fonte})' if _fonte != 'texto' else 'texto'
+
+    if cidade:
         grande_sp = {
             'sao paulo', 'aruja', 'barueri', 'biritiba-mirim', 'caieiras',
             'cajamar', 'carapicuiba', 'cotia', 'diadema', 'embu das artes',
@@ -688,12 +800,23 @@ def _checar_endereco_reclamante(texto: str) -> List[str]:
             'sao caetano do sul', 'sao lourenco da serra', 'suzano',
             'taboao da serra', 'vargem grande paulista'
         }
-        if estado == 'sp' and (cidade in grande_sp or cidade == 'sao paulo'):
-            linhas.append("B12_ENDERECO: OK - reclamante reside em Grande Sao Paulo/SP")
+        sufixo_fonte = f' [fonte: {fonte_label}'
+        if ctx_texto:
+            sufixo_fonte += f' | contexto: \"{ctx_texto[:120]}\"'
+        sufixo_fonte += ']'
+        if fonte_label != 'api':
+            sufixo_fonte += ' [ATENCAO: API sem endereco - dado por extracao de texto, verificar]'
+        if not estado:
+            # API retornou município mas UF está vazia — não dá para confirmar SP
+            linhas.append(f"B12_ENDERECO: ALERTA - reclamante em {cidade.upper()} (UF nao informada pela API) - verificar localidade{sufixo_fonte}")
+        elif estado == 'sp' and (cidade in grande_sp or cidade == 'sao paulo'):
+            linhas.append(f"B12_ENDERECO: OK - reclamante reside em Grande Sao Paulo/SP{sufixo_fonte}")
         else:
-            linhas.append(f"B12_ENDERECO: ALERTA - reclamante em {cidade_uf} (fora SP) - verificar audiencia virtual")
+            cidade_uf = f"{cidade}/{estado.upper()}"
+            linhas.append(f"B12_ENDERECO: ALERTA - reclamante em {cidade_uf} (fora SP) - verificar audiencia virtual{sufixo_fonte}")
     else:
-        linhas.append("B12_ENDERECO: INFO - endereco do reclamante nao identificado")
+        _fonte_info = f' [fonte tentada: {_fonte}]' if _fonte else ''
+        linhas.append(f"B12_ENDERECO: INFO - endereco do reclamante nao identificado{_fonte_info}")
 
     termos_aud = [
         'audiencia virtual', 'audiencia telepresencial', 'videoconferencia',
@@ -708,8 +831,20 @@ def _checar_endereco_reclamante(texto: str) -> List[str]:
     return linhas
 
 
-def _checar_rito(texto: str, capa_dados: Dict[str, Any]) -> str:
-    norm = _norm(texto)
+def _checar_rito(texto: str, capa_dados: Dict[str, Any], pjdp_detectado: bool = False) -> str:
+    rito_dec = capa_dados.get('rito_declarado')
+    if not rito_dec:
+        m_rito = re.search(r'RITO[:\s]+(SUMAR[IÍ]SSIMO|ORDIN[ÁA]RIO)', texto[:3000], re.IGNORECASE)
+        if m_rito:
+            rito_dec = 'SUMARISSIMO' if re.search(r'sumar', _norm(m_rito.group(1))) else 'ORDINARIO'
+
+    if pjdp_detectado:
+        if not rito_dec:
+            return "B13_RITO: ALERTA - Detectada PJDP - rito nao identificado (obrigatorio ORDINARIO)"
+        if rito_dec == 'ORDINARIO':
+            return "B13_RITO: OK - Detectada PJDP - Rito Ordinario"
+        return f"B13_RITO: ALERTA - Detectada PJDP - Rito {rito_dec} incorreto (obrigatorio ORDINARIO)"
+
     valor = capa_dados.get('valor_causa')
     if valor is None:
         m_valor = re.search(r'valor\s+da\s+causa[:\s]+R\$\s*([\d\.,]+)', texto, re.IGNORECASE)
@@ -720,29 +855,7 @@ def _checar_rito(texto: str, capa_dados: Dict[str, Any]) -> str:
         except ValueError:
             return "B13_RITO: ALERTA - valor da causa em formato invalido"
 
-    rito_dec = capa_dados.get('rito_declarado')
-    if not rito_dec:
-        m_rito = re.search(r'RITO[:\s]+(SUMAR[IÍ]SSIMO|ORDIN[ÁA]RIO)', texto[:3000], re.IGNORECASE)
-        if m_rito:
-            rito_dec = 'SUMARISSIMO' if re.search(r'sumar', _norm(m_rito.group(1))) else 'ORDINARIO'
-
-    _pub_ctx = norm[:2600]
-    _pub_ok = False
-    for _m_pub in re.finditer(r'\b(municipio|estado\s+de|uniao\s+federal|autarquia|fazenda\s+p[ue]blica)\b', _pub_ctx):
-        _t = _pub_ctx[max(0, _m_pub.start()-80): _m_pub.end()+20]
-        if re.search(r'municipio\s*:', _t, re.IGNORECASE) or re.search(r'estado\s*:', _t, re.IGNORECASE):
-            continue
-        _t2 = _pub_ctx[max(0, _m_pub.start()-200): _m_pub.end()+50]
-        if re.search(r'pessoa\s+juridica\s+d[oe]\s+direito\s+privado', _t2):
-            continue
-        _pub_ok = True
-        break
-    tem_pub = _pub_ok
-
-    if tem_pub:
-        rito_correto = 'ORDINARIO'
-        motivo = 'PJDP no polo passivo (art. 852-A §1 CLT)'
-    elif valor <= ALCADA:
+    if valor <= ALCADA:
         rito_correto = 'ALCADA'
         motivo = f'R$ {valor:_.2f} <= alcada R$ {ALCADA:_.2f}'.replace('_', '.')
     elif valor <= RITO_SUMARISSIMO_MAX:
@@ -770,6 +883,7 @@ def _checar_art611b(texto: str) -> str:
 
 
 __all__ = [
+    '_detectar_pjdp_api',
     '_checar_procuracao_e_identidade',
     '_checar_cep',
     '_checar_partes',

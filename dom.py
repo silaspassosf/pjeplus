@@ -36,6 +36,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webdriver import WebDriver
 from Fix.selenium_base import aguardar_e_clicar
+from Fix.variaveis import buscar_painel_com_filtros
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,6 +51,41 @@ from Fix.monitoramento_progresso_unificado import (
 )
 
 LIST_URL = 'https://pje.trt2.jus.br/pjekz/painel/global/todos/lista-processos'
+
+
+def buscar_processos_dom_eletronico(driver: WebDriver) -> List[Dict[str, Any]]:
+    """Busca processos em fase Conhecimento com chips de domicílio eletrônico.
+    
+    Chips buscados:
+    - Ciência Automática
+    - Ciência Expirado (Prazo de Ciência Expirado)
+    - Erro de Transmissão
+    
+    Args:
+        driver: WebDriver Selenium autenticado
+    
+    Returns:
+        Lista de processos encontrados
+    """
+    logger.info('[DOM] Buscando processos fase Conhecimento + chips Dom Eletrônico...')
+    
+    # Chips específicos para Dom Eletrônico
+    chips_domelez = [
+        'Ciência Automática',
+        'Ciência Expirado',
+        'Erro de Transmissão'
+    ]
+    
+    # Executar busca via API
+    processos = buscar_painel_com_filtros(
+        driver=driver,
+        fase='Conhecimento',
+        sub_caixa=chips_domelez,
+        tam_pagina=100
+    )
+    
+    logger.info(f'[DOM] Encontrados {len(processos)} processos')
+    return processos
 
 def create_driver_and_login():
     """1. Driver e login PC (copiar de x.py)"""

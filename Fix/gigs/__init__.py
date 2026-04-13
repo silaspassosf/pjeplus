@@ -24,7 +24,9 @@ from selenium.common.exceptions import TimeoutException
 
 from Fix.log import logger
 from Fix.selenium_base.wait_operations import aguardar_e_clicar
+from Fix.selenium_base.click_operations import safe_click_no_scroll
 from Fix.selenium_base.element_interaction import preencher_campo
+from Fix.utils_observer import aguardar_renderizacao_nativa
 
 __all__ = [
 	'criar_gigs',
@@ -88,6 +90,36 @@ def _preencher_texto_colado(driver: WebDriver, seletor: str, texto: str, timeout
 		campo,
 		texto,
 	)
+
+
+def _find_button_by_text(driver: WebDriver, texto: str, timeout: int = 5):
+	"""
+	Procura um elemento <button> cujo texto contenha `texto` (case-insensitive,
+	sem acentuação). Padrão querySelectorByText do gigs-plugin.js.
+	"""
+	import unicodedata
+
+	def _normalize(s: str) -> str:
+		s = (s or '').strip().lower()
+		s = unicodedata.normalize('NFD', s)
+		s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+		return s
+
+	alvo = _normalize(texto)
+	deadline = time.time() + timeout
+	while time.time() < deadline:
+		try:
+			buttons = driver.find_elements(By.TAG_NAME, 'button')
+			for b in buttons:
+				try:
+					if alvo in _normalize(b.text):
+						return b
+				except Exception:
+					continue
+		except Exception:
+			pass
+		time.sleep(0.2)
+	return None
 
 
 def escolher_lembrete_restrito(driver: WebDriver, debug: bool = False) -> bool:
@@ -282,6 +314,7 @@ def criar_lembrete_posit(driver: WebDriver, titulo: str, conteudo: str, prazo: s
 def criar_gigs(driver: WebDriver, dias_uteis: Optional[Union[int, str]] = None, responsavel: Optional[str] = None, observacao: Optional[str] = None, timeout: int = 10, log: bool = True) -> bool:
 	"""
 	Cria atividade GIGS na aba /detalhe.
+	Padrão de preenchimento baseado no legado (send_keys + dispatch input).
 	"""
 	if isinstance(dias_uteis, str) and responsavel is None and observacao is None:
 		parsed = _parse_gigs_string(dias_uteis)
@@ -295,48 +328,75 @@ def criar_gigs(driver: WebDriver, dias_uteis: Optional[Union[int, str]] = None, 
 
 	try:
 		if log:
-			info = f"{dias_uteis or '-'}" + f"/{responsavel or '-'}" + f"/{observacao or '-'}"
+			info = f"{dias_uteis or '-'}/{responsavel or '-'}/{observacao or '-'}"
+			logger.info(f'[GIGS] Criando: {info}')
 
-		nova_atividade_xpath = (
-			"//button[.//span[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')] "
-			"or contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'nova atividade')]"
-		)
-		if not aguardar_e_clicar(driver, nova_atividade_xpath, timeout=timeout, by=By.XPATH, log=log):
-			raise RuntimeError('Botão Nova atividade não foi encontrado ou clicável')
+		# 1. Clicar Nova atividade (click nativo após scrollIntoView — legado)
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-lista-atividades button', 'aparecer', timeout)
+		candidatos = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-lista-atividades button')
+		btn_nova = next((b for b in candidatos if 'nova atividade' in (b.text or '').lower()), None)
+		if not btn_nova:
+			raise RuntimeError('Botão Nova atividade não encontrado em pje-gigs-lista-atividades')
+		driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn_nova)
+		btn_nova.click()
+		time.sleep(1)  # aguardar modal abrir (legado)
 
+		# 2. Aguardar formulário
 		WebDriverWait(driver, timeout).until(
-			EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]'))
+			EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-gigs-cadastro-atividades textarea[formcontrolname="observacao"]'))
 		)
+
+		# 3. Dias úteis — send_keys nativo (legado)
 		if dias_uteis:
-			if not preencher_campo(driver, 'input[formcontrolname="dias"]', str(dias_uteis), log=log):
-				if log:
-					logger.warning('[GIGS][AVISO] Falha ao preencher prazo de GIGS')
+			campo_dias = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="dias"]')
+			campo_dias.clear()
+			campo_dias.send_keys(str(dias_uteis))
+			time.sleep(0.3)
+
+		# 4. Responsável — send_keys + autocomplete (legado)
 		if responsavel and _gigs_responsavel_valido(responsavel):
 			campo_resp = driver.find_element(By.CSS_SELECTOR, 'input[formcontrolname="responsavel"]')
-			if not preencher_campo(driver, 'input[formcontrolname="responsavel"]', responsavel, log=log):
-				if log:
-					logger.warning('[GIGS][AVISO] Falha ao preencher responsável do GIGS')
+			campo_resp.clear()
+			campo_resp.send_keys(responsavel)
+			time.sleep(0.5)
 			campo_resp.send_keys(Keys.ARROW_DOWN)
+			time.sleep(0.2)
 			campo_resp.send_keys(Keys.ENTER)
+
+		# 5. Observação — send_keys + dispatch input (legado: Angular detecta mudança)
 		if observacao:
-			preencher_campo(driver, 'textarea[formcontrolname="observacao"]', observacao, log=log)
-		if not aguardar_e_clicar(driver, "//button[contains(., 'Salvar')]", timeout=timeout, by=By.XPATH, log=log):
-			raise RuntimeError('Botão Salvar não foi encontrado ou clicável no GIGS')
+			campo_obs = driver.find_element(By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"]')
+			campo_obs.clear()
+			campo_obs.send_keys(observacao)
+			driver.execute_script(
+				"arguments[0].dispatchEvent(new Event('input', {bubbles: true}));",
+				campo_obs,
+			)
+			time.sleep(0.3)
 
+		# 6. Salvar — click nativo (legado)
+		btn_salvar = WebDriverWait(driver, timeout).until(
+			EC.element_to_be_clickable((By.XPATH, "//pje-gigs-cadastro-atividades//button[contains(., 'Salvar')]"))
+		)
+		btn_salvar.click()
+
+		# 7. Aguardar snackbar de confirmação (legado: "Atividade salva com sucesso")
+		time.sleep(0.3)
 		try:
 			WebDriverWait(driver, timeout).until(
-				EC.presence_of_element_located((By.XPATH, "//snack-bar-container//span[contains(normalize-space(.), 'Atividade salva com sucesso')]"))
+				EC.presence_of_element_located((By.XPATH,
+					"//snack-bar-container//span[contains(normalize-space(.), 'salv')]"
+					"| //simple-snack-bar"
+				))
 			)
-		except TimeoutException:
-			pass
-
-		try:
-			WebDriverWait(driver, timeout).until(
-				EC.invisibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="observacao"], textarea[name="observacao"]'))
-			)
-		except TimeoutException:
 			if log:
-				logger.warning('[GIGS][AVISO] Modal de GIGS não fechou após salvar')
+				logger.info('[GIGS] Atividade salva com sucesso')
+		except Exception:
+			if log:
+				logger.warning('[GIGS] Snackbar nao detectado, assumindo sucesso')
+
+		# 8. Barreira de ritmo: aguardar form fechar antes do proximo GIGS
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-cadastro-atividades', 'sumir', min(timeout, 5))
 
 		return True
 
@@ -351,12 +411,20 @@ def criar_comentario(driver: WebDriver, observacao: str, visibilidade: str = 'LO
 	Cria comentário GIGS na aba /detalhe.
 	"""
 	try:
-		if not aguardar_e_clicar(driver, "//button[contains(., 'Novo Comentário') or contains(., 'Novo comentário')]", timeout=timeout, by=By.XPATH, log=log):
-			raise RuntimeError('Botão Novo Comentário não foi encontrado ou clicável')
-
-		WebDriverWait(driver, timeout).until(
-			EC.presence_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]'))
+		# Aguardar botão Novo Comentário via MutationObserver nativo
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-comentarios-lista button', 'aparecer', timeout)
+		candidatos_cmt = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-lista button')
+		btn_cmt = next(
+			(b for b in candidatos_cmt
+			 if 'novo comentário' in (b.text or '').lower()
+			 or 'novo comentario' in (b.text or '').lower()),
+			None,
 		)
+		if not btn_cmt:
+			raise RuntimeError('Botão Novo Comentário não encontrado em pje-gigs-comentarios-lista')
+		driver.execute_script("arguments[0].click();", btn_cmt)
+
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-comentarios-cadastro textarea[formcontrolname="descricao"]', 'aparecer', timeout)
 		preencher_campo(
 			driver,
 			'textarea[formcontrolname="descricao"], textarea[name="descricao"]',
@@ -365,34 +433,29 @@ def criar_comentario(driver: WebDriver, observacao: str, visibilidade: str = 'LO
 		)
 		visibilidade_upper = visibilidade.upper()
 		try:
-			radio_buttons = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-cadastro mat-radio-button, mat-radio-button')
+			radio_buttons = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-cadastro mat-radio-button')
 			if len(radio_buttons) >= 3:
 				index_map = {'LOCAL': 0, 'RESTRITA': 1, 'GLOBAL': 2}
 				idx = index_map.get(visibilidade_upper, 0)
 				radio_input = radio_buttons[idx].find_element(By.CSS_SELECTOR, 'input')
-				aguardar_e_clicar(driver, radio_input, timeout=timeout, log=log)
-		except Exception:
-			pass
-		if not aguardar_e_clicar(driver, "//button[contains(., 'Salvar')]", timeout=timeout, by=By.XPATH, log=log):
-			raise RuntimeError('Botão Salvar não foi encontrado ou clicável no comentário')
-
-		# Aguardar snackbar "Comentário salvo com sucesso!" — sinal imediato de conclusão
-		try:
-			WebDriverWait(driver, timeout).until(
-				EC.presence_of_element_located((By.CSS_SELECTOR, 'simple-snack-bar, snack-bar-container'))
-			)
+				driver.execute_script("arguments[0].click();", radio_input)
 		except Exception:
 			pass
 
-		try:
-			WebDriverWait(driver, timeout).until(
-				EC.invisibility_of_element_located((By.CSS_SELECTOR, 'textarea[formcontrolname="descricao"], textarea[name="descricao"]'))
-			)
-		except Exception:
-			if log:
-				logger.warning('[COMENTARIO][AVISO] Modal de comentário não fechou após salvar')
-			return False
+		# Botão Salvar scoped ao form — .click() nativo
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-comentarios-cadastro button', 'habilitado', timeout)
+		candidatos_sv = driver.find_elements(By.CSS_SELECTOR, 'pje-gigs-comentarios-cadastro button')
+		btn_salvar = next((b for b in candidatos_sv if 'salvar' in (b.text or '').lower()), None)
+		if not btn_salvar:
+			raise RuntimeError('Botão Salvar não encontrado em pje-gigs-comentarios-cadastro')
+		driver.execute_script("arguments[0].click();", btn_salvar)
 
+		# Plugin: comentário não gera snackbar — aguardar tabela de comentários atualizar
+		# (plugin: esperarElemento('pje-gigs-comentarios table') após salvar)
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-comentarios table', 'aparecer', timeout)
+
+		# Barreira de estabilidade: aguardar form sumir = Angular terminou o POST
+		aguardar_renderizacao_nativa(driver, 'pje-gigs-comentarios-cadastro', 'sumir', timeout)
 		return True
 
 	except Exception as e:

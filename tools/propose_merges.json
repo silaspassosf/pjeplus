@@ -1,0 +1,405 @@
+{
+  "summary": {
+    "total_files": 76,
+    "total_lines": 17579,
+    "groups": {
+      "misc": {
+        "count": 19,
+        "small_count": 14,
+        "medium_count": 5,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/abas.py",
+            "lines": 383
+          },
+          {
+            "path": "Fix/assinatura_cookies.py",
+            "lines": 97
+          },
+          {
+            "path": "Fix/converters.py",
+            "lines": 182
+          },
+          {
+            "path": "Fix/core.py",
+            "lines": 446
+          },
+          {
+            "path": "Fix/debug_assinatura.py",
+            "lines": 57
+          },
+          {
+            "path": "Fix/debug_interativo.py",
+            "lines": 363
+          },
+          {
+            "path": "Fix/element_wait.py",
+            "lines": 225
+          },
+          {
+            "path": "Fix/exceptions.py",
+            "lines": 31
+          },
+          {
+            "path": "Fix/headless_helpers.py",
+            "lines": 273
+          },
+          {
+            "path": "Fix/infojud.py",
+            "lines": 84
+          },
+          {
+            "path": "Fix/log.py",
+            "lines": 523
+          },
+          {
+            "path": "Fix/log_cleaner.py",
+            "lines": 122
+          },
+          {
+            "path": "Fix/movimento_helpers.py",
+            "lines": 132
+          },
+          {
+            "path": "Fix/native_host.py",
+            "lines": 92
+          },
+          {
+            "path": "Fix/otimizacao_wrapper.py",
+            "lines": 95
+          },
+          {
+            "path": "Fix/selectors_pje.py",
+            "lines": 111
+          },
+          {
+            "path": "Fix/smart_finder.py",
+            "lines": 317
+          },
+          {
+            "path": "Fix/__init__.py",
+            "lines": 223
+          },
+          {
+            "path": "Fix/scripts/__init__.py",
+            "lines": 13
+          }
+        ]
+      },
+      "extracao": {
+        "count": 7,
+        "small_count": 4,
+        "medium_count": 3,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/extracao.py",
+            "lines": 109
+          },
+          {
+            "path": "Fix/extracao_analise.py",
+            "lines": 31
+          },
+          {
+            "path": "Fix/extracao_bndt.py",
+            "lines": 444
+          },
+          {
+            "path": "Fix/extracao_documento.py",
+            "lines": 298
+          },
+          {
+            "path": "Fix/extracao_indexacao.py",
+            "lines": 486
+          },
+          {
+            "path": "Fix/extracao_indexacao_fluxo.py",
+            "lines": 212
+          },
+          {
+            "path": "Fix/extracao_processo.py",
+            "lines": 388
+          }
+        ]
+      },
+      "progress": {
+        "count": 4,
+        "small_count": 3,
+        "medium_count": 0,
+        "large_count": 1,
+        "files": [
+          {
+            "path": "Fix/monitoramento_progresso_unificado.py",
+            "lines": 710
+          },
+          {
+            "path": "Fix/progress.py",
+            "lines": 261
+          },
+          {
+            "path": "Fix/progresso_unificado.py",
+            "lines": 10
+          },
+          {
+            "path": "Fix/progress_models.py",
+            "lines": 93
+          }
+        ]
+      },
+      "session": {
+        "count": 3,
+        "small_count": 1,
+        "medium_count": 2,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/session_pool.py",
+            "lines": 317
+          },
+          {
+            "path": "Fix/session/auth.py",
+            "lines": 488
+          },
+          {
+            "path": "Fix/session/__init__.py",
+            "lines": 29
+          }
+        ]
+      },
+      "utils": {
+        "count": 18,
+        "small_count": 14,
+        "medium_count": 4,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/utils.py",
+            "lines": 346
+          },
+          {
+            "path": "Fix/utils_angular.py",
+            "lines": 315
+          },
+          {
+            "path": "Fix/utils_collect.py",
+            "lines": 209
+          },
+          {
+            "path": "Fix/utils_collect_content.py",
+            "lines": 238
+          },
+          {
+            "path": "Fix/utils_collect_timeline.py",
+            "lines": 222
+          },
+          {
+            "path": "Fix/utils_cookies.py",
+            "lines": 216
+          },
+          {
+            "path": "Fix/utils_drivers.py",
+            "lines": 242
+          },
+          {
+            "path": "Fix/utils_driver_legacy.py",
+            "lines": 65
+          },
+          {
+            "path": "Fix/utils_editor.py",
+            "lines": 432
+          },
+          {
+            "path": "Fix/utils_error.py",
+            "lines": 80
+          },
+          {
+            "path": "Fix/utils_formatting.py",
+            "lines": 133
+          },
+          {
+            "path": "Fix/utils_login.py",
+            "lines": 307
+          },
+          {
+            "path": "Fix/utils_observer.py",
+            "lines": 54
+          },
+          {
+            "path": "Fix/utils_paths.py",
+            "lines": 179
+          },
+          {
+            "path": "Fix/utils_recovery.py",
+            "lines": 77
+          },
+          {
+            "path": "Fix/utils_selectors.py",
+            "lines": 230
+          },
+          {
+            "path": "Fix/utils_sleep.py",
+            "lines": 172
+          },
+          {
+            "path": "Fix/utils_tempo.py",
+            "lines": 31
+          }
+        ]
+      },
+      "variaveis": {
+        "count": 4,
+        "small_count": 2,
+        "medium_count": 2,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/variaveis.py",
+            "lines": 23
+          },
+          {
+            "path": "Fix/variaveis_client.py",
+            "lines": 222
+          },
+          {
+            "path": "Fix/variaveis_helpers.py",
+            "lines": 376
+          },
+          {
+            "path": "Fix/variaveis_resolvers.py",
+            "lines": 307
+          }
+        ]
+      },
+      "documents": {
+        "count": 3,
+        "small_count": 2,
+        "medium_count": 0,
+        "large_count": 1,
+        "files": [
+          {
+            "path": "Fix/documents/buttons.py",
+            "lines": 65
+          },
+          {
+            "path": "Fix/documents/search.py",
+            "lines": 670
+          },
+          {
+            "path": "Fix/documents/__init__.py",
+            "lines": 34
+          }
+        ]
+      },
+      "selenium": {
+        "count": 11,
+        "small_count": 6,
+        "medium_count": 3,
+        "large_count": 2,
+        "files": [
+          {
+            "path": "Fix/drivers/lifecycle.py",
+            "lines": 523
+          },
+          {
+            "path": "Fix/drivers/__init__.py",
+            "lines": 42
+          },
+          {
+            "path": "Fix/selenium_base/click_operations.py",
+            "lines": 140
+          },
+          {
+            "path": "Fix/selenium_base/driver_operations.py",
+            "lines": 420
+          },
+          {
+            "path": "Fix/selenium_base/element_interaction.py",
+            "lines": 665
+          },
+          {
+            "path": "Fix/selenium_base/field_operations.py",
+            "lines": 59
+          },
+          {
+            "path": "Fix/selenium_base/js_helpers.py",
+            "lines": 102
+          },
+          {
+            "path": "Fix/selenium_base/retry_logic.py",
+            "lines": 267
+          },
+          {
+            "path": "Fix/selenium_base/smart_selection.py",
+            "lines": 610
+          },
+          {
+            "path": "Fix/selenium_base/wait_operations.py",
+            "lines": 383
+          },
+          {
+            "path": "Fix/selenium_base/__init__.py",
+            "lines": 125
+          }
+        ]
+      },
+      "forms": {
+        "count": 2,
+        "small_count": 2,
+        "medium_count": 0,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/forms/multiple_fields.py",
+            "lines": 105
+          },
+          {
+            "path": "Fix/forms/__init__.py",
+            "lines": 15
+          }
+        ]
+      },
+      "gigs": {
+        "count": 2,
+        "small_count": 1,
+        "medium_count": 1,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/gigs/lembrete.py",
+            "lines": 134
+          },
+          {
+            "path": "Fix/gigs/__init__.py",
+            "lines": 464
+          }
+        ]
+      },
+      "navigation": {
+        "count": 3,
+        "small_count": 2,
+        "medium_count": 1,
+        "large_count": 0,
+        "files": [
+          {
+            "path": "Fix/navigation/filters.py",
+            "lines": 496
+          },
+          {
+            "path": "Fix/navigation/sigilo.py",
+            "lines": 117
+          },
+          {
+            "path": "Fix/navigation/__init__.py",
+            "lines": 22
+          }
+        ]
+      }
+    }
+  },
+  "pilot": [
+    "utils",
+    "progress",
+    "extracao"
+  ]
+}

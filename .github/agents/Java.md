@@ -52,7 +52,8 @@ Se o tipo de script for ambíguo pelo contexto, pergunte antes de gerar.
 
 > Quando alterar um módulo `Script/modules/...` carregado por `pjetools.user.js` ou `hcalc.user.js`, sempre:
 > - atualizar/bumpar a versão do orquestrador respectivo para forçar atualização;
-> - commit/push o módulo alterado e o orquestrador juntos.
+> - commit/push somente o módulo alterado e o orquestrador juntos;
+> - nunca usar `git add -A` ou commitar/pushar todo o workspace para essas alterações.
 
 ---
 

@@ -90,6 +90,16 @@ def wait_for_page_load(driver, timeout: int = 30) -> bool:
         raise
 
 
+def extrair_id_processo(driver: WebDriver) -> Optional[str]:
+    """Extrai o ID do processo a partir da URL atual do driver."""
+    try:
+        url = driver.current_url
+        match = re.search(r'/processo/(\d+)(?:/|$)', url)
+        return match.group(1) if match else None
+    except Exception:
+        return None
+
+
 def buscar_seletor_robusto(driver: WebDriver, textos: List[str], contexto: Optional[WebElement] = None, timeout: int = 5, log: bool = False) -> Optional[WebElement]:
     """Wrapper para Fix.selenium_base.retry_logic.buscar_seletor_robusto."""
     return _buscar_seletor_robusto_impl(driver, textos, contexto=contexto, timeout=timeout, log=log)

@@ -5,6 +5,7 @@ from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
 
 from Fix.core import aguardar_renderizacao_nativa, esperar_url_conter
+from Fix.exceptions import NavegacaoError
 from .core import aguardar_e_verificar_aba, aguardar_e_clicar
 
 
@@ -53,8 +54,10 @@ def abrir_minutas(driver, debug=False):
         driver.switch_to.window(nova_aba)
         driver.execute_script("window.focus();")
 
-        if not aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug):
-            raise Exception('Página travou no carregamento (spinner)')
+        try:
+            aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug)
+        except NavegacaoError as e:
+            raise Exception('Página travou no carregamento (spinner)') from e
 
         if not esperar_url_conter(driver, '/minutas', timeout=20):
             raise Exception('URL de minutas não carregou')
@@ -99,8 +102,10 @@ def abrir_minutas(driver, debug=False):
 
         if nova_aba:
             driver.switch_to.window(nova_aba)
-            if not aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug):
-                raise Exception('Página travou no carregamento (spinner)')
+            try:
+                aguardar_e_verificar_aba(driver, timeout_spinner=0.5, max_tentativas_reload=2, log=debug)
+            except NavegacaoError as e:
+                raise Exception('Página travou no carregamento (spinner)') from e
 
         if not esperar_url_conter(driver, '/minutas', timeout=20):
             if not aguardar_renderizacao_nativa(driver, 'pje-tipo-expediente, [aria-label*="Tipo de Expediente"], button', 'aparecer', 20):

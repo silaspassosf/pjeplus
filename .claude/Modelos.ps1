@@ -70,3 +70,4 @@ function use-zai {
 function modelo {
     Write-Host "Modelo atual: $env:OPENAI_MODEL @ $env:OPENAI_BASE_URL" -ForegroundColor Cyan
 }
+

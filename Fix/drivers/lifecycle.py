@@ -3,6 +3,10 @@
 # =============================
 from contextlib import contextmanager
 
+from Fix.log import get_module_logger
+
+logger = get_module_logger(__name__)
+
 @contextmanager
 def driver_session(driver_type: str, headless: bool = False):
     """
@@ -34,15 +38,9 @@ def driver_session(driver_type: str, headless: bool = False):
                 finalizar_driver(driver)
             except Exception as e:
                 logger.warning(f"DRIVER:WARN — Falha ao finalizar driver: {e}")
-import logging
-logger = logging.getLogger(__name__)
+
 
 """
-Drivers - Gestão de WebDrivers
-================================
-
-Extração do Fix/core.py (2915 linhas) → drivers/ (~500 linhas)
-
 FUNÇÕES EXTRAÍDAS (lines 1485-1693 do core.py):
 - criar_driver_PC: Driver PC - Firefox Developer Edition
 - criar_driver_VT: Driver VT - Perfil padrão

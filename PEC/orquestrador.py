@@ -1,94 +1,118 @@
+"""
+PEC/orquestrador.py — Orquestrador PEC simplificado
+
+Fluxo: API → regras_pec (match + bucket) → execução sequencial por bucket.
+"""
 import logging
 from datetime import date, timedelta
-from typing import Dict, List
-from .api_client import PECAPIClient, AtividadePEC
-from .classificador import PECClassificador
-from .executor_individual import PECExecutorIndividual
+from typing import Dict
 
-def carregar_progresso_pec():
-    return {}
+from .api_client import PECAPIClient
+from .regras_pec import BUCKET_ORDEM, determinar_regra
+from .helpers import _montar_url_processo, _fechar_abas_extras
 
 logger = logging.getLogger(__name__)
+
+
+def _aguardar_carregamento(driver) -> None:
+    try:
+        from Fix.utils.observer import aguardar_renderizacao_nativa
+        aguardar_renderizacao_nativa(driver)
+    except Exception:
+        from selenium.webdriver.support.ui import WebDriverWait
+        WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script('return document.readyState') == 'complete'
+        )
+
 
 class PECOrquestrador:
     def __init__(self, driver):
         self.driver = driver
         self.api = PECAPIClient()
-        self.classificador = PECClassificador()
-        self.progresso = carregar_progresso_pec()
 
-    def executar(self, dry_run: bool = False) -> Dict[str, int]:
-        logger.info("=" * 60)
-        logger.info("[ORQUESTRADOR] Iniciando pipeline PEC simplificado")
-        logger.info("=" * 60)
-        print("[PECOrquestrador] Chamando fetch_atividades_vencidas...")
+    def executar(self, dry_run: bool = False, filtro_d1: bool = True) -> Dict[str, int]:
         atividades = self.api.fetch_atividades_vencidas(self.driver)
-        print(f"[PECOrquestrador] Atividades retornadas: {len(atividades)}")
 
-        # Filtrar apenas D-1: prazo vencido ontem (data da execução - 1 dia)
-        # Evita reprocessar itens mais antigos caso o progresso não esteja bem registrado
-        data_d1 = (date.today() - timedelta(days=1)).isoformat()  # YYYY-MM-DD
-        antes = len(atividades)
-        atividades = [a for a in atividades if (a.data_prazo or '')[:10] == data_d1]
-        print(f"[PECOrquestrador] Filtro D-1 ({data_d1}): {antes} → {len(atividades)} atividade(s)")
+        if filtro_d1:
+            data_d1 = (date.today() - timedelta(days=1)).isoformat()
+            antes = len(atividades)
+            atividades = [a for a in atividades if (a.data_prazo or '')[:10] == data_d1]
+            logger.info(f'[PEC] D-1 ({data_d1}): {antes} -> {len(atividades)}')
+        else:
+            logger.info(f'[PEC] Filtro D-1 OFF — processando todas: {len(atividades)}')
 
         if not atividades:
-            logger.info("[ORQUESTRADOR] Nenhuma atividade encontrada")
-            print("[PECOrquestrador] Nenhuma atividade encontrada pelo fetch.")
             return {'total': 0, 'sucesso': 0, 'erro': 0}
-        buckets = self.classificador.classificar(atividades)
-        # Loga todos os buckets e suas quantidades antes de executar
-        print("\n[PECOrquestrador] Buckets prontos para execução:")
-        for nome in PECClassificador.BUCKETS_ORDEM:
-            items = buckets.get(nome, [])
-            print(f"  {nome}: {len(items)}")
+
+        # Agrupar por bucket via REGRAS
+        buckets: Dict[str, list] = {b: [] for b in BUCKET_ORDEM}
+        for atv in atividades:
+            match = determinar_regra(atv.observacao or '')
+            if match:
+                _, bucket, acao = match
+                buckets[bucket].append((atv, acao))
+            else:
+                logger.warning(f'[PEC] Sem regra: {atv.observacao!r} — {atv.numero_processo}')
+
+        if buckets.get('comunicacoes'):
+            buckets['comunicacoes'].sort(
+                key=lambda item: 0 if 'xs sigilo' in (getattr(item[0], 'observacao', '') or '').lower() else 1
+            )
+
         if dry_run:
             self._log_dry_run(buckets)
             return {'total': len(atividades), 'sucesso': 0, 'erro': 0}
+
         stats = {'total': len(atividades), 'sucesso': 0, 'erro': 0}
-        executor = PECExecutorIndividual(self.driver, self.progresso)
-        try:
-            for bucket_nome in PECClassificador.BUCKETS_ORDEM:
-                items = buckets.get(bucket_nome, [])
-                if not items:
-                    continue
-                logger.info(f"\n[ORQUESTRADOR] >>> Processando bucket '{bucket_nome}' ({len(items)} itens)")
-                for idx, atv in enumerate(items, 1):
-                    logger.info(f"[{bucket_nome}] {idx}/{len(items)}: {atv.numero_processo}")
-                    try:
-                        if executor.processar_atividade(atv):
-                            stats['sucesso'] += 1
-                        else:
-                            stats['erro'] += 1
-                    except Exception as e:
-                        if 'RESTART_PEC' in str(e):
-                            logger.error(f"[RESTART] Detectado em {atv.numero_processo}, reiniciando fluxo...")
-                            executor.cleanup()
-                            raise
+
+        for bucket in BUCKET_ORDEM:
+            for atv, acao in buckets[bucket]:
+                try:
+                    if atv.id_processo:
+                        url = f'https://pje.trt2.jus.br/pjekz/processo/{atv.id_processo}/detalhe/'
+                    else:
+                        url = _montar_url_processo(atv.numero_processo or '')
+                    self.driver.get(url)
+                    _aguardar_carregamento(self.driver)
+                    if acao is None:
+                        logger.warning(f'[PEC] Acao None: {atv.numero_processo} ({atv.observacao!r})')
                         stats['erro'] += 1
-        finally:
-            executor.cleanup()
-            executor.finalizar()
-        logger.info("\n" + "=" * 60)
-        logger.info(f"[RESUMO] Total: {stats['total']} | Sucesso: {stats['sucesso']} | Erro: {stats['erro']}")
-        logger.info("=" * 60)
+                        continue
+                    if isinstance(acao, tuple):
+                        for f in acao:
+                            f(self.driver, atv)
+                    else:
+                        acao(self.driver, atv)
+                    stats['sucesso'] += 1
+                    logger.info(f'[OK] {atv.numero_processo}')
+                except Exception as e:
+                    if 'RESTART_PEC' in str(e) or 'acesso negado' in str(e).lower():
+                        raise
+                    stats['erro'] += 1
+                    logger.error(f'[FAIL] {atv.numero_processo}: {e}')
+                finally:
+                    _fechar_abas_extras(self.driver)
+
+        logger.info(f'[RESUMO] Total: {stats["total"]} | Sucesso: {stats["sucesso"]} | Erro: {stats["erro"]}')
         return stats
 
-    def _log_dry_run(self, buckets: Dict[str, List[AtividadePEC]]):
-        logger.info("[DRY RUN] Distribuição prevista:")
+    def _log_dry_run(self, buckets: Dict[str, list]):
+        logger.info("[DRY RUN] Distribuicao prevista:")
         for nome, items in buckets.items():
             if items:
                 logger.info(f"  {nome}: {len(items)}")
-                for atv in items[:3]:
-                    logger.info(f"    - {atv.numero_processo}: {atv.observacao[:50]}")
+                for atv, acao in items[:3]:
+                    acao_nome = getattr(acao, '__name__', repr(acao))
+                    logger.info(f"    - {atv.numero_processo}: {atv.observacao[:50]} -> {acao_nome}")
 
-def executar_fluxo_novo_simplificado(driver) -> bool:
+def executar_fluxo_novo_simplificado(driver, filtro_d1: bool = False) -> dict:
     try:
         orq = PECOrquestrador(driver)
-        stats = orq.executar(dry_run=False)
-        return stats['erro'] == 0
+        stats = orq.executar(dry_run=False, filtro_d1=filtro_d1)
+        stats['sucesso'] = stats['erro'] == 0
+        return stats
     except Exception as e:
         if 'RESTART_PEC' in str(e):
             raise
-        logger.error(f"[FLUXO] Erro fatal: {e}")
-        return False
+        logger.error(f'[FLUXO] Erro fatal: {e}')
+        return {'total': 0, 'sucesso': False, 'erro': 1}

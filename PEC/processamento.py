@@ -1,8 +1,7 @@
-from .processamento_base import (
-    _lazy_import_pec,
-    executar_acao,
-    processar_processo_pec_individual,
-)
+# processamento_base removido — stubs para compatibilidade
+def _lazy_import_pec(): return {}
+def executar_acao(driver, acao, *a, **kw): return callable(acao) and acao(driver)
+def processar_processo_pec_individual(driver): return False
 from .processamento_fluxo import (
     executar_fluxo_robusto,
     executar_fluxo_novo,

@@ -2,6 +2,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 from .core import *
+from Fix.core import aguardar_renderizacao_nativa
+from Fix.selenium_base.click_operations import safe_click_no_scroll
 
 from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver

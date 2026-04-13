@@ -1,20 +1,20 @@
-import time
-import re
+"""Fix.extracao_indexacao_fluxo — stub de compatibilidade.
 
-from Fix.log import logger
-from Fix.monitoramento_progresso_unificado import carregar_progresso_unificado
-from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
-from .extracao_indexacao import (
-    _indexar_tentar_reindexar,
-    _indexar_tentar_trocar_aba,
-    abrir_detalhes_processo,
-    indexar_processos,
+Conteúdo consolidado em Fix.extracao_indexacao.
+Imports daqui continuam funcionando.
+"""
+import warnings
+warnings.warn(
+    "Fix.extracao_indexacao_fluxo está obsoleto; importe de Fix.extracao_indexacao",
+    DeprecationWarning,
+    stacklevel=2,
+)
+from Fix.extracao_indexacao import (  # noqa: F401,E402
+    _indexar_processar_item,
+    indexar_e_processar_lista,
 )
 
-try:
-    from PEC.core import reiniciar_driver_e_logar_pje
-except Exception:
-    reiniciar_driver_e_logar_pje = None
+__all__ = ["_indexar_processar_item", "indexar_e_processar_lista"]
 
 
 def _indexar_processar_item(driver, proc_id, linha, aba_lista_original, callback):

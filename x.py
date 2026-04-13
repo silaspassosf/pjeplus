@@ -58,6 +58,7 @@ from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 # Imports dos mdulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, finalizar_driver_imediato as finalizar_driver_imediato_fix
 from Fix.utils import login_cpf
+from Fix.drivers import driver_session
 from Prazo import loop_prazo
 from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
 from Fix.smart_finder import injetar_smart_finder_global
@@ -66,6 +67,10 @@ from Mandado.processamento_api import processar_mandados_devolvidos_api
 # Otimização de imports (plano_imports_otimizacao.md)
 import traceback
 from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b
+
+# Imports opcionais (carregados somente quando necessário)
+# from Triagem.runner import run_triagem
+# from Peticao.pet import run_pet
 
 # ============================================================================
 # CONFIGURAES GLOBAIS
@@ -575,47 +580,50 @@ def executar_mandado(driver) -> Dict[str, Any]:
 
 
 def executar_prazo(driver) -> Dict[str, Any]:
-    """Prazo Isolado (loop_prazo + fluxo_pz)"""
+    """Prazo Isolado — loop ciclo1+2+3 + P2B (sempre executa p2b mesmo se loop falhar)."""
     print("\n" + "=" * 80)
     print(" PRAZO ISOLADO")
     print("=" * 80)
-    
+
     inicio = datetime.now()
-    
+
+    resultado_loop = {"sucesso": False, "erro": "não executado"}
+    resultado_p2b = {"sucesso": False, "erro": "não executado"}
+
     try:
-        # Executar loop_prazo
-        print("[PRAZO] Executando loop_prazo...")
+        print("[PRAZO] Executando loop_prazo (ciclo1 + ciclo2 + ciclo3)...")
         resultado_loop = loop_prazo(driver)
         resultado_loop = normalizar_resultado(resultado_loop)
+        if resultado_loop.get("sucesso"):
+            print("[PRAZO] ✅ loop_prazo concluído")
+        else:
+            print(f"[PRAZO] ⚠ loop_prazo com falha: {resultado_loop.get('erro')} — continuando com P2B")
+    except Exception as e:
+        print(f"[PRAZO] ⚠ Exceção no loop_prazo: {e} — continuando com P2B")
+        resultado_loop = {"sucesso": False, "erro": str(e)}
 
-        if not resultado_loop.get("sucesso"):
-            print(f"[PRAZO]  Falha no loop_prazo: {resultado_loop.get('erro')}")
-            return resultado_loop
-        
-        print("[PRAZO]  loop_prazo concludo")
-
-        # Executar também o P2B como parte do Prazo Isolado
-        print("[PRAZO]  Executando P2B (atividades) como parte do Prazo Isolado...")
+    try:
+        print("[PRAZO] Executando P2B (atividades sem prazo XS)...")
         resultado_p2b = executar_p2b(driver)
         resultado_p2b = normalizar_resultado(resultado_p2b)
-
-        tempo = (datetime.now() - inicio).total_seconds()
-
-        sucesso_geral = resultado_loop.get('sucesso', False) and resultado_p2b.get('sucesso', False)
-
-        return {
-            'sucesso': sucesso_geral,
-            'status': 'SUCESSO' if sucesso_geral else 'PARCIAL',
-            'tempo': tempo,
-            'loop_prazo': resultado_loop,
-            'p2b': resultado_p2b
-        }
-        
+        if resultado_p2b.get("sucesso"):
+            print("[PRAZO] ✅ P2B concluído")
+        else:
+            print(f"[PRAZO] ⚠ P2B com falha: {resultado_p2b.get('erro')}")
     except Exception as e:
-        print(f"[PRAZO]  Erro: {e}")
-        import traceback
-        traceback.print_exc()
-        return {'sucesso': False, 'erro': str(e)}
+        print(f"[PRAZO] ⚠ Exceção no P2B: {e}")
+        resultado_p2b = {"sucesso": False, "erro": str(e)}
+
+    tempo = (datetime.now() - inicio).total_seconds()
+    sucesso_geral = resultado_loop.get("sucesso", False) and resultado_p2b.get("sucesso", False)
+
+    return {
+        "sucesso": sucesso_geral,
+        "status": "SUCESSO" if sucesso_geral else "PARCIAL",
+        "tempo": tempo,
+        "loop_prazo": resultado_loop,
+        "p2b": resultado_p2b,
+    }
 
 
 def executar_pec(driver) -> Dict[str, Any]:
@@ -625,13 +633,61 @@ def executar_pec(driver) -> Dict[str, Any]:
     print("=" * 80)
     inicio = datetime.now()
     try:
-        sucesso = pec_fluxo_api(driver)
+        resultado = pec_fluxo_api(driver)
         tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[PEC]  {'Concluído' if sucesso else 'Falha'}")
-        return {"sucesso": sucesso, "tempo": tempo}
+        resultado['tempo'] = tempo
+        print(f"[PEC] Total: {resultado.get('total', 0)} | Sucesso: {resultado.get('sucesso_count', resultado.get('total', 0) - resultado.get('erro', 0))} | Erro: {resultado.get('erro', 0)}")
+        return resultado
     except Exception as e:
         tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[PEC]  Exceção: {e}")
+        print(f"[PEC] Excecao: {e}")
+        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
+
+
+def executar_triagem(driver) -> Dict[str, Any]:
+    """Triagem Isolada — fluxo completo com análise pós-triagem e ações por alerta."""
+    print("\n" + "=" * 80)
+    print(" TRIAGEM ISOLADA")
+    print("=" * 80)
+    inicio = datetime.now()
+    try:
+        from Triagem.runner import run_triagem
+        resultado = run_triagem(driver)
+        tempo = (datetime.now() - inicio).total_seconds()
+        if resultado is None:
+            return {"sucesso": False, "status": "ERRO_EXECUCAO", "tempo": tempo,
+                    "erro": "run_triagem retornou None"}
+        resultado["tempo"] = tempo
+        print(f"[TRIAGEM] Processados: {resultado.get('processados', 0)} / "
+              f"{resultado.get('total', '?')} "
+              f"| Sucesso: {resultado.get('sucesso_count', '?')}")
+        return resultado
+    except Exception as e:
+        tempo = (datetime.now() - inicio).total_seconds()
+        print(f"[TRIAGEM] Exceção: {e}")
+        traceback.print_exc()
+        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
+
+
+def executar_pet(driver) -> Dict[str, Any]:
+    """Petição Isolada — fluxo completo de petições (escaninho)."""
+    print("\n" + "=" * 80)
+    print(" PETIÇÃO ISOLADA")
+    print("=" * 80)
+    inicio = datetime.now()
+    try:
+        from Peticao.pet import run_pet
+        resultado = run_pet(driver)
+        tempo = (datetime.now() - inicio).total_seconds()
+        if resultado is None:
+            return {"sucesso": False, "status": "ERRO_EXECUCAO", "tempo": tempo,
+                    "erro": "run_pet retornou None"}
+        resultado["tempo"] = tempo
+        return resultado
+    except Exception as e:
+        tempo = (datetime.now() - inicio).total_seconds()
+        print(f"[PET] Exceção: {e}")
+        traceback.print_exc()
         return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
 
 
@@ -717,25 +773,27 @@ def menu_ambiente() -> Optional[DriverType]:
 def menu_execucao() -> Optional[str]:
     """Menu 2: Selecionar Fluxo"""
     print("\n" + "=" * 80)
-    print("  MENU 2: SELECIONAR FLUXO DE EXECUO")
+    print("  MENU 2: SELECIONAR FLUXO DE EXECUÇÃO")
     print("=" * 80)
-    print("\n  A - Bloco Completo (Mandado  Prazo  PEC)")
+    print("\n  A - Bloco Completo (Mandado → Prazo → PEC)")
     print("  B - Mandado Isolado")
-    print("  C - Prazo Isolado")
+    print("  C - Prazo Isolado (ciclo1+2+3 + P2B)")
     print("  D - P2B Isolado")
     print("  E - PEC Isolado")
+    print("  F - Triagem Isolada (análise pós-triagem com alertas)")
+    print("  G - Petição Isolada (escaninho)")
     print("  X - Cancelar")
     print("=" * 80)
-    
+
     while True:
-        opcao = input("\n Escolha um fluxo (A/B/C/D/E/X): ").strip().upper()
+        opcao = input("\n Escolha um fluxo (A/B/C/D/E/F/G/X): ").strip().upper()
 
         if opcao == "X":
             return None
-        elif opcao in ["A", "B", "C", "D", "E"]:
+        elif opcao in ["A", "B", "C", "D", "E", "F", "G"]:
             return opcao
         else:
-            print(" Opo invlida!")
+            print(" Opção inválida!")
 
 
 # ============================================================================
@@ -836,7 +894,6 @@ def main():
     
     tee_output = None
     log_file = None
-    from Fix.drivers import driver_session
     try:
         while True:
             # Menu 1: Ambiente
@@ -887,6 +944,10 @@ def main():
                         resultado = executar_p2b(driver)
                     elif fluxo == "E":
                         resultado = executar_pec(driver)
+                    elif fluxo == "F":
+                        resultado = executar_triagem(driver)
+                    elif fluxo == "G":
+                        resultado = executar_pet(driver)
                     tempo_total = (datetime.now() - inicio).total_seconds()
                     # Relatório final
                     print("\n" + "=" * 80)

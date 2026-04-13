@@ -6,7 +6,7 @@ def carregar_js(nome_arquivo: str, pasta: str | None = None) -> str:
         pasta = Path(__file__).parent
     chave = str(Path(pasta) / nome_arquivo)
     if chave not in _cache:
-        _cache[chave] = Path(pasta / nome_arquivo).read_text(encoding="utf-8")
+        _cache[chave] = (Path(pasta) / nome_arquivo).read_text(encoding="utf-8")
     return _cache[chave]
 
 def limpar_cache_js() -> None:

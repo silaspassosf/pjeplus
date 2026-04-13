@@ -13,11 +13,6 @@ class AtividadePEC:
         self.data_prazo = data_prazo
         self.tipo_gigs = tipo_gigs
 
-    @property
-    def acoes(self):
-        from PEC.matcher import determinar_acoes_por_observacao
-        return determinar_acoes_por_observacao(self.observacao)
-
 class PECAPIClient:
     def fetch_atividades_vencidas(self, driver: WebDriver, tamanho_pagina: int = 100) -> List[AtividadePEC]:
         """

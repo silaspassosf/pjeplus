@@ -5,7 +5,7 @@ e identificação de fingerprint de cabeçalho.
 """
 import re
 from typing import List
-from triagem.utils import _norm
+from Triagem.utils import _norm
 
 # Nível 1: artefatos PJe determinísticos (risco zero)
 _RE_ARTEFATOS_PJE = re.compile(

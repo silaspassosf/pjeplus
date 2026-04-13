@@ -1,15 +1,14 @@
 import time
 from Fix.extracao import criar_gigs
 from Fix.log import logger
+from Fix.selenium_base.wait_operations import esperar_elemento
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
 from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
-from .comunicacao_preenchimento import executar_preenchimento_minuta
+from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado
 from .comunicacao_destinatarios import selecionar_destinatarios
 from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final, limpar_destinatarios_existentes
+from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from typing import Optional, Any, Callable, Union, List, Dict, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver
 
@@ -53,11 +52,12 @@ def _extrair_observacao_gigs_vencida_xs_pec(driver: WebDriver, debug: bool = Fal
 
 def comunicacao_judicial(
     driver: WebDriver,
-    tipo_expediente: str, 
-    prazo: int, 
-    nome_comunicacao: str, 
-    sigilo: str, 
-    modelo_nome: str, 
+    tipo_expediente: str,
+    prazo: int,
+    nome_comunicacao: str,
+    sigilo: str,
+    modelo_nome: str,
+    trocar_modelo: bool = False,
     **kwargs
 ) -> bool:
     """Função direta (não-wrapper) para manter compatibilidade com código existente."""
@@ -77,9 +77,12 @@ def comunicacao_judicial(
         destinatarios=kwargs.get('destinatarios', 'extraido'),
         mudar_expediente=kwargs.get('mudar_expediente'),
         checar_sp=kwargs.get('checar_sp'),
-        endereco_tipo=kwargs.get('endereco_tipo')
+        endereco_tipo=kwargs.get('endereco_tipo'),
+        trocar_modelo=trocar_modelo
     )
-    return wrapper_func(driver, debug=kwargs.get('debug', False), terceiro=kwargs.get('terceiro', False), **kwargs)
+    debug_value = kwargs.pop('debug', False)
+    terceiro_value = kwargs.pop('terceiro', False)
+    return wrapper_func(driver, debug=debug_value, terceiro=terceiro_value, **kwargs)
 
 def make_comunicacao_wrapper(
     tipo_expediente: str, 
@@ -99,8 +102,10 @@ def make_comunicacao_wrapper(
     mudar_expediente: Optional[bool] = None,
     checar_sp: Optional[bool] = None,
     endereco_tipo: Optional[str] = None,
+    trocar_modelo: bool = False,
     wrapper_name: Optional[str] = None,  # Nome específico para __name__
-    terceiro_default: bool = False
+    terceiro_default: bool = False,
+    assinar: bool = False
 ) -> Callable[[WebDriver, bool, Any], bool]:
     def wrapper(
         driver: WebDriver,
@@ -188,18 +193,22 @@ def make_comunicacao_wrapper(
             'checar_sp': overrides.get('checar_sp', overrides.get('checar_sp_', checar_sp)),
             'endereco_tipo': endereco_tipo,
             'debug': debug,
-            'terceiro': overrides.get('terceiro', terceiro_default)
+            'terceiro': overrides.get('terceiro', terceiro_default),
+            'trocar_modelo': overrides.get('trocar_modelo', trocar_modelo)
         }
+
+        # Log function: usa print quando passado via log=print no override (ex: f.py)
+        log_fn = overrides.get('log', logger.info)
 
         # Executar fluxo de comunicação orquestrado pelos módulos especializados
         try:
             # 0. Executar coleta de conteúdo PRIMEIRO (na aba /detalhe)
             if coleta_conteudo:
-                logger.info(f"[COMUNICACAO][ORQUESTRA] Executando coleta de conteúdo na aba detalhes para {nome_comunicacao}")
+                log_fn(f"[COMUNICACAO][ORQUESTRA] Executando coleta de conteúdo na aba detalhes para {nome_comunicacao}")
                 executar_coleta_conteudo(driver, coleta_conteudo, debug=debug)
 
             # 1. Abrir minutas (após coleta)
-            logger.info(f"[COMUNICACAO][ORQUESTRA] Abrindo minutas para {nome_comunicacao}")
+            log_fn(f"[COMUNICACAO][ORQUESTRA] Abrindo minutas para {nome_comunicacao}")
             sucesso_abertura = abrir_minutas(driver, debug=debug)
             if not sucesso_abertura:
                 raise Exception("Falha ao abrir tela de minutas")
@@ -208,7 +217,7 @@ def make_comunicacao_wrapper(
             # limpar_destinatarios_existentes(driver, debug=debug)
 
             # 2. Executar preenchimento da minuta
-            logger.info("[COMUNICACAO][ORQUESTRA] Executando preenchimento da minuta")
+            log_fn("[COMUNICACAO][ORQUESTRA] Executando preenchimento da minuta")
             executar_preenchimento_minuta(
                 driver=driver,
                 tipo_expediente=tipo_expediente,
@@ -221,18 +230,18 @@ def make_comunicacao_wrapper(
                 modelo_nome=modelo_nome,
                 inserir_conteudo=inserir_conteudo,
                 debug=debug,
-                log=logger.info if debug else None
+                log=log_fn
             )
 
             # 3. Selecionar destinatários
-            logger.info("[COMUNICACAO][ORQUESTRA] Selecionando destinatários")
+            log_fn("[COMUNICACAO][ORQUESTRA] Selecionando destinatários")
             resultado_selecao = selecionar_destinatarios(
                 driver=driver,
                 destinatarios=destinatarios_param,
                 cliques_polo_passivo=call_kwargs.get('cliques_polo_passivo', 1),
                 cliques_informado=cliques_informado,
                 debug=debug,
-                log=logger.info if debug else None,
+                log=log_fn,
                 observacao=observacao,
                 numero_processo=numero_processo,
                 terceiro=call_kwargs.get('terceiro', False),
@@ -255,11 +264,11 @@ def make_comunicacao_wrapper(
                         status = 'geral'
 
                 if status == 'ok' and count > 0:
-                    logger.info(f"[COMUNICACAO][ORQUESTRA] Status: {count} destinatário(s) selecionado(s) pelo módulo.")
+                    log_fn(f"[COMUNICACAO][ORQUESTRA] Status: {count} destinatário(s) selecionado(s) pelo módulo.")
                 elif status == 'empty':
-                    logger.info("[COMUNICACAO][ORQUESTRA] Status: Nenhum destinatário validado. Fallback acionado internamente.")
+                    log_fn("[COMUNICACAO][ORQUESTRA] Status: Nenhum destinatário validado. Fallback acionado internamente.")
                 else:
-                    logger.info(f"[COMUNICACAO][ORQUESTRA] Status: {status} selection route concluded.")
+                    log_fn(f"[COMUNICACAO][ORQUESTRA] Status: {status} selection route concluded.")
 
                 # Aguarda a renderização dos cards na tabela — preferir observer nativo
                 if status in ('ok', 'fallback', 'geral') or count > 0:
@@ -271,32 +280,33 @@ def make_comunicacao_wrapper(
                             ok_render = False
 
                         if ok_render:
-                            logger.info("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (observer).")
+                            log_fn("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (observer).")
                         else:
-                            # Fallback: WebDriverWait (legacy)
-                            try:
-                                WebDriverWait(driver, 10).until(
-                                    EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'))
-                                )
-                                logger.info("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (WebDriverWait fallback).")
-                            except TimeoutException:
-                                logger.warning("[COMUNICACAO][ORQUESTRA] Timeout: Tabela não renderizou os destinatários.")
+                            if esperar_elemento(driver, 'tbody.cdk-drop-list tr.cdk-drag', timeout=10, by=By.CSS_SELECTOR):
+                                log_fn("[COMUNICACAO][ORQUESTRA] Destinatários renderizados na DOM (esperar_elemento fallback).")
+                            else:
+                                log_fn("[COMUNICACAO][ORQUESTRA] Timeout: Tabela não renderizou os destinatários.")
 
                         try:
                             driver.execute_script("return window.requestAnimationFrame(function(){});")
                         except Exception:
                             pass
                     except Exception as e:
-                        logger.debug(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
+                        log_fn(f"[COMUNICACAO][ORQUESTRA] Erro ao aguardar renderização: {e}")
 
             # 4. Alterar meio de expedição se necessário
             if endereco_tipo == 'correios':
-                logger.info("[COMUNICACAO][ORQUESTRA] Alterando meio de expedição para correios")
-                alterar_meio_expedicao(driver, debug=debug, log=logger.info if debug else None)
+                log_fn("[COMUNICACAO][ORQUESTRA] Alterando meio de expedição para correios")
+                alterar_meio_expedicao(
+                    driver,
+                    debug=debug,
+                    log=log_fn,
+                    trocar_modelo=call_kwargs.get('trocar_modelo', False)
+                )
 
             # 5. Salvar minuta final
-            logger.info("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
-            salvar_minuta_final(driver, sigilo, debug=debug, log=logger.info if debug else None)
+            log_fn("[COMUNICACAO][ORQUESTRA] Salvando minuta final")
+            salvar_minuta_final(driver, sigilo, debug=debug, log=log_fn, executar_visibilidade=False, assinar=assinar)
 
             # 6. Fechar aba de minutas e voltar para aba de detalhe
             # (necessário para execução sequencial de múltiplas notificações no mesmo processo)
@@ -305,19 +315,22 @@ def make_comunicacao_wrapper(
                 if len(handles) > 1:
                     driver.close()
                     driver.switch_to.window(handles[0])
-                    logger.info(f"[COMUNICACAO][ORQUESTRA] Aba de minutas fechada; retornou à aba de detalhe para {nome_comunicacao}")
+                    log_fn(f"[COMUNICACAO][ORQUESTRA] Aba de minutas fechada; retornou à aba de detalhe para {nome_comunicacao}")
             except Exception as e_fechar:
-                logger.warning(f"[COMUNICACAO][ORQUESTRA] Falha ao fechar aba de minutas: {e_fechar}")
+                log_fn(f"[COMUNICACAO][ORQUESTRA] Falha ao fechar aba de minutas: {e_fechar}")
 
-            logger.info(f"[COMUNICACAO][ORQUESTRA] Fluxo concluído com sucesso para {nome_comunicacao}")
+            if str(sigilo).lower() in ("sim", "true", "1"):
+                try:
+                    log_fn('[COMUNICACAO][ORQUESTRA] Executando visibilidade_sigilosos após fechamento da aba de minutas')
+                    executar_visibilidade_sigilosos_se_necessario(driver, True, debug=debug)
+                    log_fn('[COMUNICACAO][ORQUESTRA] Visibilidade extra aplicada por sigilo positivo.')
+                except Exception as e_vis:
+                    log_fn(f"[COMUNICACAO][ORQUESTRA] Falha ao aplicar visibilidade extra após fechar aba: {e_vis}")
+
+            log_fn(f"[COMUNICACAO][ORQUESTRA] Fluxo concluído com sucesso para {nome_comunicacao}")
             return True
 
         except Exception as e:
-            logger.error(f"[COMUNICACAO][ORQUESTRA][ERRO] Falha no fluxo: {e}")
-            raise
-    
-    # Definir nome específico do wrapper se fornecido
-    if wrapper_name:
-        wrapper.__name__ = wrapper_name
+            log_fn(f"[COMUNICACAO][ORQUESTRA][ERRO] Falha no fluxo: {e}")
     
     return wrapper

@@ -15,6 +15,7 @@ from Fix.gigs import criar_gigs
 from Fix.navigation import aplicar_filtro_100
 from Fix.utils import limpar_temp_selenium
 from Fix.documents import buscar_documentos_sequenciais, indexar_e_processar_lista, extrair_dados_processo, carregar_destinatarios_cache
+from Fix.exceptions import ElementoNaoEncontradoError, NavegacaoError
 import os
 import logging
 import time
@@ -57,7 +58,7 @@ def selecionar_opcao_select(
         raise Exception(f'Opção "{texto_opcao}" não encontrada em {seletor}!')
     except Exception as e:
         logger.error(f'Erro em selecionar_opcao_select: {e}')
-        return False
+        raise ElementoNaoEncontradoError(texto_opcao, f'selecionar_opcao_select: {e}')
 
 
 def verificar_carregamento_pagina(
@@ -140,7 +141,7 @@ def verificar_carregamento_pagina(
     
     if log:
         logger.error(f"[CARREGAMENTO]  Falha após {max_tentativas} tentativas")
-    return False
+    raise NavegacaoError(f"verificar_carregamento_pagina: falha após {max_tentativas} tentativas")
 
 
 def aguardar_e_verificar_aba(
@@ -188,7 +189,7 @@ def aguardar_e_verificar_aba(
         
     except Exception as e:
         logger.error(f"[ABA] Erro ao verificar aba: {e}")
-        return False
+        raise NavegacaoError(f'aguardar_e_verificar_aba: {e}')
 
 
 def verificar_carregamento_detalhe(
@@ -308,7 +309,7 @@ def verificar_carregamento_detalhe(
     
     # Esgotou tentativas
     logger.error(f"[DETALHE]  Falha após {max_tentativas} tentativas. Página /detalhe não carregou.")
-    return False
+    raise NavegacaoError(f"verificar_carregamento_detalhe: falha após {max_tentativas} tentativas")
 
 
 def aguardar_e_verificar_detalhe(
@@ -356,4 +357,4 @@ def aguardar_e_verificar_detalhe(
         
     except Exception as e:
         logger.error(f"[DETALHE_ABA] Erro ao verificar aba: {e}")
-        return False
+        raise NavegacaoError(f'aguardar_e_verificar_detalhe: {e}')

@@ -136,3 +136,28 @@ def _verificar_processos_xs_paralelo(client: 'PjeApiClient', numeros_processos: 
     print(f'[LOOP_PRAZO][XS] ✅ Verificação concluída em {duracao:.1f}s ({total/duracao:.1f} processos/s)')
 
     return resultados
+
+
+def _obter_processos_com_gigs_api(client: 'PjeApiClient', numeros_processos: List[str], max_workers: int = 20) -> List[str]:
+    """Retorna lista de números de processos que têm QUALQUER atividade GIGS (com ou sem prazo)."""
+    com_gigs: List[str] = []
+
+    def verificar_um(numero: str) -> Tuple[str, bool]:
+        try:
+            atividades = client.atividades_gigs(numero)
+            return (numero, bool(atividades))
+        except Exception:
+            return (numero, False)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(verificar_um, num): num for num in numeros_processos}
+        for future in as_completed(futures):
+            try:
+                numero, tem = future.result()
+                if tem:
+                    com_gigs.append(numero)
+            except Exception:
+                pass
+
+    logger.info(f'[LOOP_PRAZO][GIGS_API] {len(com_gigs)}/{len(numeros_processos)} processos com gigs (API)')
+    return com_gigs

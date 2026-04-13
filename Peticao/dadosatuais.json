@@ -1,27 +1,36 @@
 {
   "numero": [
-    "1000479-48.2025.5.02.0703"
+    "1000319-57.2024.5.02.0703"
   ],
-  "id": 7063946,
+  "id": 5974089,
   "autor": [
     {
-      "nome": "SILVAN LIMA BRAZ",
-      "cpfcnpj": "31493748807",
+      "nome": "LEONARDO MARTINS SANTANA",
+      "cpfcnpj": "41420138820",
       "advogado": {
-        "nome": "WILSON ALVES DA COSTA",
-        "cpf": "16579727802",
-        "oab": "SP419974"
+        "nome": "NATHALIA ROQUE LEAO",
+        "cpf": "36205805880",
+        "oab": "SP318077"
       }
     }
   ],
   "reu": [
     {
-      "nome": "MTM PRODUCOES E EVENTOS LTDA",
-      "cpfcnpj": "08617883000195",
+      "nome": "TECNISA S.A.",
+      "cpfcnpj": "08065557000112",
       "advogado": {
-        "nome": "JAIR PEREIRA BOZZOLO",
-        "cpf": "21983490865",
-        "oab": "SP328746"
+        "nome": "THIAGO MAHFUZ VEZZI",
+        "cpf": "18144238850",
+        "oab": "SP228213"
+      }
+    },
+    {
+      "nome": "UTILES SERVICOS, DESENVOLVIMENTO E INTERMEDIACOES EIRELI",
+      "cpfcnpj": "30522248000183",
+      "advogado": {
+        "nome": "RUBILHAM ANDRADE",
+        "cpf": "24927918823",
+        "oab": "SP355893"
       }
     }
   ],
@@ -30,22 +39,21 @@
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "27/03/2025",
+  "dtAutuacao": "06/03/2024",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Execução",
+  "labelFaseProcessual": "Liquidação",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

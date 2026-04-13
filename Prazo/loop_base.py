@@ -210,6 +210,44 @@ try {
 } catch(e) { return -1; }
 '''
 
+# Variante que também exclui processos com gigs detectados via API (sem prazo)
+SCRIPT_SELECAO_LIVRES_API = '''
+try {
+    let processosComGigsApi = arguments[0] || [];
+    let linhas = document.querySelectorAll('tr.cdk-drag');
+    let selecionados = 0;
+    let padrao = /(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/;
+    linhas.forEach(function(linha){
+        let prazo = linha.querySelector('td:nth-child(9) time');
+        let prazoVazio = !prazo || !prazo.textContent.trim();
+        let hasComment = linha.querySelector('i.fa-comment') !== null;
+        let inputField = linha.querySelector('input[matinput]');
+        let campoPreenchido = inputField && inputField.value.trim();
+        let temLupa = linha.querySelector('td:nth-child(3) i.fa-search') !== null;
+        let numeroProcesso = null;
+        let links = linha.querySelectorAll('a');
+        for (let link of links) {
+            let match = link.textContent.match(padrao);
+            if (match) { numeroProcesso = match[1]; break; }
+        }
+        if (!numeroProcesso) {
+            let match = linha.textContent.match(padrao);
+            if (match) numeroProcesso = match[1];
+        }
+        let temGigsApi = numeroProcesso && processosComGigsApi.includes(numeroProcesso);
+        if (prazoVazio && !hasComment && !campoPreenchido && !temLupa && !temGigsApi) {
+            let checkbox = linha.querySelector('mat-checkbox input[type="checkbox"]');
+            if (checkbox && !checkbox.checked) {
+                checkbox.click();
+                linha.style.backgroundColor = "#ffccd2";
+                selecionados++;
+            }
+        }
+    });
+    return selecionados;
+} catch(e) { return -1; }
+'''
+
 SCRIPT_SELECAO_NAO_LIVRES = '''
 function selecionarProcessos(maxProcessos) {
     const linhas = document.querySelectorAll('tr.cdk-drag');

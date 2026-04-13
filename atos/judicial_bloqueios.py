@@ -4,12 +4,12 @@ judicial_bloqueios.py - Funções de verificação de bloqueios
 """
 
 from Fix.core import logger
+from Fix.exceptions import ElementoNaoEncontradoError, NavegacaoError
 
 from selenium.webdriver.common.by import By
-
 from selenium.webdriver.support.ui import WebDriverWait
-
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 import re
 
@@ -53,13 +53,21 @@ def verificar_bloqueio_recente(driver, debug=False):
 
             )
 
-        except:
+        except (TimeoutException, NoSuchElementException):
 
             if debug:
 
                 logger.info('[IDPJ][BLOQUEIO]  Seção de lembretes não encontrada')
 
             return False
+
+        except Exception as e:
+
+            if debug:
+
+                logger.info(f'[IDPJ][BLOQUEIO]  Erro ao buscar seção de lembretes: {e}')
+
+            raise ElementoNaoEncontradoError('div.post-it-set', f'verificar_bloqueio_recente: {e}')
 
         
 
@@ -217,5 +225,5 @@ def verificar_bloqueio_recente(driver, debug=False):
 
             logger.info(f'[IDPJ][BLOQUEIO]  Erro na verificação de bloqueio: {e}')
 
-        return False
+        raise NavegacaoError(f'verificar_bloqueio_recente: {e}')
 

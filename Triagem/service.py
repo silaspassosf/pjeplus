@@ -73,9 +73,10 @@ def _formatar_competencia_saida(cep: str) -> str:
 
     texto = cep.strip().replace('B2_CEP: ', '')
 
+    # OK — CEP dentro da Zona Sul
     m_ok = re.search(
         r'OK - (?P<cep>\d{2}\.\d{3}-\d{3}) \((?P<num>\d+)\) '
-        r'no intervalo (?P<lo>\d+)-(?P<hi>\d+) Zona Sul \[(?P<label>.+)\]$',
+        r'no intervalo (?P<lo>\d+)-(?P<hi>\d+) Zona Sul \[(?P<label>.+?)\]',
         texto
     )
     if m_ok:
@@ -85,16 +86,34 @@ def _formatar_competencia_saida(cep: str) -> str:
             f'[{m_ok.group("label")}]'
         )
 
+    # ALERTA — incompetência com foro identificado
     m_alerta = re.search(
         r'ALERTA - Incompetencia Territorial - CEP (?P<cep>\d{2}\.\d{3}-\d{3}) '
-        r'\((?P<num>\d+)\) fora dos intervalos Zona Sul \[(?P<label>.+)\]$',
+        r'\((?P<num>\d+)\).*\| foro competente: (?P<foro>.+?)$',
         texto
     )
     if m_alerta:
         return (
-            f'CEP: {m_alerta.group("cep")} ({m_alerta.group("num")}) - '
-            f'fora dos intervalos Zona Sul [{m_alerta.group("label")}]'
+            f'CEP: ALERTA - Zona Sul nao detectado - '
+            f'CEP {m_alerta.group("cep")} ({m_alerta.group("num")}) '
+            f'detectado ({m_alerta.group("foro").strip()})'
         )
+
+    # ALERTA — incompetência sem foro (legado sem | foro competente:)
+    m_alerta_sem_foro = re.search(
+        r'ALERTA - Incompetencia Territorial - CEP (?P<cep>\d{2}\.\d{3}-\d{3}) '
+        r'\((?P<num>\d+)\)',
+        texto
+    )
+    if m_alerta_sem_foro:
+        return (
+            f'CEP: ALERTA - Zona Sul nao detectado - '
+            f'CEP {m_alerta_sem_foro.group("cep")} ({m_alerta_sem_foro.group("num")}) detectado'
+        )
+
+    # Nenhum CEP identificado
+    if 'nenhum cep' in texto.lower() or 'nao identificado' in texto.lower():
+        return 'CEP: ALERTA - Zona Sul nao detectado - nao detectado CEP dos foruns competentes'
 
     return f'CEP: {texto}'
 
@@ -116,10 +135,7 @@ def _formatar_saida_item(item: str) -> str:
         corpo = corpo.replace('titulo', 'titulo do anexo')
 
     elif prefixo == 'B3_PARTES':
-        if 'PJDP no polo passivo' in corpo:
-            corpo = ('PJDP no polo passivo; regra aplicada: mencao a municipio, '
-                     'estado, Uniao, autarquia ou fazenda publica na peca.')
-        elif corpo.startswith('reclamante='):
+        if corpo.startswith('reclamante='):
             corpo = corpo.replace('reclamante=', 'reclamante: ').replace(' CPF=', ' CPF: ')
         elif 'reclamante nao identificado na capa' in corpo:
             corpo = 'reclamante nao identificado na capa'
@@ -194,12 +210,14 @@ def triagem_peticao(driver) -> str:
     rec = _checar_reclamadas(texto, capa_dados)
     tut = _checar_tutela(texto, capa_dados)
     dig = _checar_digital(texto, capa_dados)
-    ped = _checar_pedidos_liquidados(texto)
+    _ped_full = _checar_pedidos_liquidados(texto)
+    ped = _ped_full
     pf = _checar_pessoa_fisica(texto, capa_dados)
     lit = _checar_litispendencia(texto, coleta.get('associados_sistema'))
     resp = _checar_responsabilidade(texto, capa_dados)
-    end = _checar_endereco_reclamante(texto)
-    rito = _checar_rito(texto, capa_dados)
+    end = _checar_endereco_reclamante(texto, capa_dados)
+    pjdp_detectado = any('PJDP no polo passivo' in l for l in (partes if isinstance(partes, list) else [partes]))
+    rito = _checar_rito(texto, capa_dados, pjdp_detectado=pjdp_detectado)
     a6 = _checar_art611b(texto)
 
     def _itens(v):

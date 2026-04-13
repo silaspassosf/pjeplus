@@ -133,5 +133,5 @@ def _normalizar(raw: dict) -> PeticaoItem:
         parte=parte,
         polo=polo_key,
         id_processo=(proc.get('id') or proc.get('idProcesso') or raw.get('idProcesso') or ''),
-        id_item=(raw.get('id') or raw.get('idPeticao') or raw.get('idDocumento') or ''),
+        id_item=(raw.get('idDocumento') or raw.get('idPeticao') or raw.get('id') or ''),
     )

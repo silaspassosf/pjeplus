@@ -19,6 +19,8 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from Peticao.core.extracao import criar_gigs, extrair_direto, extrair_documento, extrair_dados_processo
 from Prazo.p2b_core import normalizar_texto, gerar_regex_geral
+from Fix.selenium_base.wait_operations import esperar_elemento
+from Fix.utils_observer import aguardar_renderizacao_nativa as _aguardar_renderizacao
 
 # Import de atos/wrappers_ato para ato_gen (despacho genérico)
 try:
@@ -30,11 +32,12 @@ except ImportError:
 
 # Import de helpers para funções customizadas
 try:
-    from Peticao.helpers import checar_habilitacao, agravo_peticao, def_quesitos
+    from Peticao.helpers import checar_habilitacao, agravo_peticao, def_quesitos, contesta_calc
 except ImportError:
     checar_habilitacao = None
     agravo_peticao = None
     def_quesitos = None
+    contesta_calc = None
 
 # Import de atos/wrappers_ato para ação de perícias
 try:
@@ -76,8 +79,8 @@ ESCANINHO_URL = "https://pje.trt2.jus.br/pjekz/escaninho/peticoes-juntadas"
 # ============================================================================
 
 
-# Progresso PET centralizado
-from Peticao.monitoramento.progresso import (
+# Progresso PET centralizado — sistema unificado (mesmo padrão p2b/pec/mandado)
+from Peticao.progresso import (
     carregar_progresso_pet,
     salvar_progresso_pet,
     marcar_processo_executado_pet,
@@ -256,7 +259,7 @@ def _regras(item, driver=None):
         ('diretos',  'simba' in desc,                                              (_w(ato_naosimba),)),
         ('diretos',  'teimosinha' in desc or 'sisbajud' in desc,                    (_gigs("1", "", "xs teimosinha"), _w(ato_teim))),
         ('diretos',  'recurso adesivo' in tipo,                                   (_w(ato_adesivo),)),
-        ('diretos',  'calculos' in tipo,                                           (_w(ato_respcalc),)),
+        ('diretos',  'calculos' in tipo,                                           (lambda driver, item: contesta_calc(item, driver),) if contesta_calc else (_w(ato_respcalc),)),
         ('diretos',  'assistente' in tipo,                                         (_gigs("1", "", "xs aud"), _w(ato_assistente)) if ato_assistente else (_gigs("1", "", "xs aud"),)),
         ('diretos',  _cond_impugnacao_liq(item),                                 (_w(ato_concor),)),
         ('diretos',  'caged' in desc,                                              (_gigs("-1", "", "xs pec"), _w(ato_prevjud)) if ato_prevjud else (_gigs("-1", "", "xs pec"),)),
@@ -298,6 +301,33 @@ def _abrir_ultimo_documento_timeline(driver: WebDriver):
     return None
 
 
+def _abrir_documento_peticao(driver: WebDriver, peticao) -> Optional[object]:
+    """Localiza o link viewer pelo id_item (definitivo — sem fallback)."""
+    id_doc = getattr(peticao, 'id_item', '') or ''
+    if not id_doc:
+        logger.error('[PET_ANALISE] id_item ausente — não é possível localizar o documento')
+        return None
+
+    _aguardar_renderizacao(driver, 'mat-card', modo='aparecer', timeout=8)
+    card = esperar_elemento(
+        driver,
+        f'//mat-card[.//a[contains(@href, "/documento/{id_doc}/")]]',
+        timeout=10,
+        by=By.XPATH,
+    )
+    if not card:
+        logger.error(f'[PET_ANALISE] mat-card para documento/{id_doc} não encontrado na timeline')
+        return None
+
+    for sel in ('a.tl-documento[accesskey="v"]', 'a.tl-documento[role="button"]', 'a.tl-documento:not([target="_blank"])'):
+        try:
+            return card.find_element(By.CSS_SELECTOR, sel)
+        except Exception:
+            continue
+    logger.error(f'[PET_ANALISE] Link viewer não encontrado no card de documento/{id_doc}')
+    return None
+
+
 def _extrair_texto_doc_pet(driver: WebDriver, link) -> Optional[str]:
     """
     Clica no link, aguarda renderização e extrai texto via extrair_direto / extrair_documento.
@@ -333,64 +363,104 @@ def _extrair_texto_doc_pet(driver: WebDriver, link) -> Optional[str]:
     return texto
 
 
+def extrair_texto_peticao_via_api(driver: WebDriver, peticao) -> Optional[str]:
+    """
+    Extrai o texto da petição via API PJe, sem interação com a timeline.
+    Usa session_from_driver para reutilizar cookies da sessão ativa.
+    Retorna texto normalizado em lowercase ou None se falhar.
+    """
+    id_doc = getattr(peticao, 'id_item', '') or ''
+    id_proc = getattr(peticao, 'id_processo', '') or ''
+    if not id_doc or not id_proc:
+        logger.debug('[PET_API] id_item ou id_processo ausente — sem extração via API')
+        return None
+
+    try:
+        from Fix.variaveis_client import session_from_driver, PjeApiClient
+        import io
+        import pdfplumber
+    except ImportError as e:
+        logger.debug(f'[PET_API] Dependência ausente para extração via API: {e}')
+        return None
+
+    try:
+        sess, trt_host = session_from_driver(driver)
+        client = PjeApiClient(sess, trt_host)
+        url = client._url(
+            f'/pje-comum-api/api/processos/id/{id_proc}/documentos/id/{id_doc}/conteudo'
+        )
+        resp = sess.get(url, timeout=30)
+        if resp.status_code == 401:
+            logger.warning('[PET_API] 401 na API — sessão expirada, usando fallback Selenium')
+            return None
+        if not resp.ok:
+            logger.debug(f'[PET_API] HTTP {resp.status_code} ao buscar conteúdo do doc {id_doc}')
+            return None
+        if 'pdf' not in resp.headers.get('Content-Type', '').lower():
+            logger.debug('[PET_API] Resposta não é PDF — usando fallback Selenium')
+            return None
+
+        textos = []
+        with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
+            for pag in pdf.pages:
+                t = pag.extract_text()
+                if t:
+                    textos.append(t)
+
+        texto = '\n'.join(textos).strip()
+        if not texto:
+            logger.debug('[PET_API] PDF sem texto nativo (provavelmente imagem) — usando fallback Selenium')
+            return None
+
+        logger.info(f'[PET_API] Texto extraído via API: {len(texto)} chars (doc={id_doc})')
+        return texto.lower()
+
+    except Exception as e:
+        logger.debug(f'[PET_API] Falha na extração via API: {e}')
+        return None
+
+
 def analise_pet(driver: WebDriver, peticao) -> bool:
     """
-    Análise de petição via último documento da timeline (padrão p2b):
-    1. Abre o último item da timeline (PDF mais recente)
-    2. Extrai texto via extrair_direto / extrair_documento
-    3. Fallback: ato_gen (Despacho Genérico)
+    Análise de petição:
+    1. Extrai texto via API PJe (sem abrir documento no browser)
+    2. Fallback: abre documento na timeline via Selenium
+    3. Aplica regras; fallback final: ato_gen
     """
     logger.info('[PET_ANALISE] Iniciando analise_pet — %s', peticao.numero_processo)
 
     try:
         extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
     except Exception as e:
-        logger.warning('[PET_ANALISE] Falha ao extrair dados do processo antes da análise: %s', e)
+        logger.warning('[PET_ANALISE] Falha ao extrair dados: %s', e)
 
-    link = _abrir_ultimo_documento_timeline(driver)
-    if not link:
-        logger.error('[PET_ANALISE] Nenhum documento encontrado na timeline')
-        return False
+    texto = extrair_texto_peticao_via_api(driver, peticao)
 
-    texto = _extrair_texto_doc_pet(driver, link)
     if not texto:
-        # Tentar extração direta novamente (padrão p2b)
-        try:
-            resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
-            if resultado and resultado.get('sucesso'):
-                if resultado.get('conteudo'):
-                    texto = resultado['conteudo'].lower()
-                elif resultado.get('conteudo_bruto'):
-                    texto = resultado['conteudo_bruto'].lower()
-                else:
-                    texto = None
-            else:
-                texto_tuple = extrair_documento(driver, regras_analise=None, timeout=10, log=False)
-                if texto_tuple and texto_tuple[0]:
-                    texto = texto_tuple[0].lower()
-                else:
-                    texto = None
-        except Exception as e:
-            logger.error(f'[PET_ANALISE] Erro na extração de conteúdo: {e}')
-            texto = None
-        if not texto:
-            logger.error('[PET_ANALISE] Falha na extracao de conteudo')
+        logger.info('[PET_ANALISE] Fallback Selenium')
+        link = _abrir_documento_peticao(driver, peticao)
+        if not link:
+            logger.error('[PET_ANALISE] Nenhum documento encontrado')
             return False
+        texto = _extrair_texto_doc_pet(driver, link)
+
+    if not texto:
+        logger.error('[PET_ANALISE] Falha na extracao de conteudo')
+        return False
 
     dados = _dados()
     acao_analise = _detectar_acao_analise(texto, dados)
     if acao_analise == 'flag_apagar':
-        logger.warning('[PET_ANALISE] Discordância aos esclarecimentos detectada — sinalizar para apagar')
+        logger.warning('[PET_ANALISE] flag_apagar — sinalizar para apagar')
         return False
     if acao_analise:
         try:
             if _executar_acao(driver, peticao, acao_analise):
                 return True
         except Exception as e:
-            logger.error('[PET_ANALISE] Erro ao executar ação de análise: %s', e)
+            logger.error('[PET_ANALISE] Erro ao executar acao: %s', e)
 
-    # Fallback: ato_gen (Despacho Genérico)
-    logger.info('[PET_ANALISE] Executando ato_gen (despacho genérico)')
+    logger.info('[PET_ANALISE] Executando ato_gen (despacho generico)')
     if ato_gen:
         try:
             ato_gen(driver)
@@ -406,7 +476,7 @@ def analise_pet(driver: WebDriver, peticao) -> bool:
 
 def run_pet(driver=None):
     """Cria driver, faz login e executa o pipeline completo de petições."""
-    from Fix.utils import driver_pc as _driver_pc, login_cpf as _login_cpf, configurar_recovery_driver
+    from Fix.utils import driver_pc as _driver_pc, login_cpf as _login_cpf, configurar_recovery_driver, handle_exception_with_recovery
     from Peticao.core.utils import criar_driver_e_logar
     from Peticao.orquestrador import executar_fluxo_pet
 
@@ -432,7 +502,19 @@ def run_pet(driver=None):
             return None
         drv.get(ESCANINHO_URL)
 
-    return executar_fluxo_pet(drv)
+    try:
+        return executar_fluxo_pet(drv)
+    except Exception as e:
+        novo_drv = handle_exception_with_recovery(e, drv, 'PET_RUN')
+        if novo_drv:
+            print('[PET] Acesso negado detectado; driver recuperado, reiniciando fluxo...')
+            try:
+                return executar_fluxo_pet(novo_drv)
+            except Exception as e2:
+                print(f'[PET] Falha ao reiniciar fluxo após recuperação: {e2}')
+                return None
+        print(f'[PET] Erro geral no run_pet: {e}')
+        return None
 
 
 if __name__ == '__main__':

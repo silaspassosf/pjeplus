@@ -10,6 +10,7 @@ from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
+from Fix.selenium_base.wait_operations import esperar_elemento
 from ..core.log import get_module_logger
 
 logger = get_module_logger(__name__)
@@ -18,6 +19,7 @@ logger = get_module_logger(__name__)
 from ..api.client import PjeApiClient, session_from_driver
 from ..core.extracao import extrair_direto, extrair_documento, criar_gigs, extrair_dados_processo
 from ..api.resolvers import obter_chave_ultimo_despacho_decisao_sentenca
+from ..pet import extrair_texto_peticao_via_api
 
 
 def _buscar_documento_relevante_timeline(driver: WebDriver) -> Tuple[Optional[Any], Optional[Any], str]:
@@ -153,67 +155,6 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
             return False
 
         # 1. VERIFICAÇÃO DE ADVOGADO (não afeta resultado final)
-        def _extrair_texto_peticao():
-            """Helper: extrai texto do documento específico da petição sendo processada.
-
-            O id_item da API é o idDocumento que aparece no href do link externo:
-              href="/pjekz/processo/.../documento/{id_item}/conteudo"
-            A partir desse href localiza o mat-card correto e clica no link viewer
-            (a.tl-documento[accesskey="v"]) que abre o documento inline.
-            """
-            try:
-                from ..core.utils.observer import aguardar_renderizacao_nativa
-
-                id_doc = getattr(item, 'id_item', '') or ''
-                if not id_doc:
-                    print(f"Processo {numero_processo} - id_item não disponível, extração ignorada")
-                    return None
-
-                # Localizar o mat-card que contém o href com o id do documento
-                try:
-                    card = driver.find_element(
-                        By.XPATH,
-                        f'//mat-card[.//a[contains(@href, "/documento/{id_doc}/")]]'
-                    )
-                except Exception:
-                    print(f"Processo {numero_processo} - mat-card para documento/{id_doc} não encontrado na timeline")
-                    return None
-
-                # Clicar no link viewer (accesskey="v" / role="button") dentro do card
-                link = None
-                for sel in (
-                    'a.tl-documento[accesskey="v"]',
-                    'a.tl-documento[role="button"]',
-                ):
-                    try:
-                        link = card.find_element(By.CSS_SELECTOR, sel)
-                        break
-                    except Exception:
-                        continue
-
-                if not link:
-                    print(f"Processo {numero_processo} - link viewer não encontrado no card de documento/{id_doc}")
-                    return None
-
-                link.click()
-
-                # Aguardar o viewer PDF (object.conteudo-pdf) carregar antes de extrair
-                try:
-                    aguardar_renderizacao_nativa(driver, 'object.conteudo-pdf', 'aparecer', timeout=10)
-                except Exception:
-                    pass
-
-                resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
-                if resultado and resultado.get('sucesso'):
-                    raw = resultado.get('conteudo') or resultado.get('conteudo_bruto')
-                    if raw:
-                        return raw
-
-                return None
-            except Exception as e:
-                print(f"Erro ao extrair texto da petição: {e}")
-                return None
-
         def _extrair_nome_assinante(texto_pdf):
             """Helper: extrai nome do assinante da primeira página"""
             try:
@@ -293,7 +234,7 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
         # 2. VERIFICAR ADVOGADO — SEMPRE, independente de ato_ceju
         id_doc_peticao = _extrair_id_doc_peticao()
         fez_gigs = False
-        texto_pdf = _extrair_texto_peticao()
+        texto_pdf = extrair_texto_peticao_via_api(driver, item)
         if texto_pdf:
             texto_lower = texto_pdf.lower()
             contem_exclusao = "excluir" in texto_lower or "exclusão" in texto_lower
@@ -621,3 +562,90 @@ def _extrair_texto_despacho(driver: WebDriver, link_despacho) -> Optional[str]:
     except Exception as e:
         logger.warning(f'[EXTRACAO_DESPACHO] Erro ao extrair texto do despacho: {e}')
         return None
+
+
+def contesta_calc(item, driver: WebDriver) -> bool:
+    """
+    Processa petição de cálculos de liquidação:
+    1. Busca despacho na timeline (ignora decisão/sentença)
+    2. Extrai texto do despacho
+    3. Verifica se contém frase de intimação para calculos de liquidação
+    4. Se sim: verifica advogado da reclamada em dadosatuais.json
+       - com advogado → ato_contestar
+       - sem advogado  → ato_revel
+    """
+    numero_processo = item.numero_processo
+    logger.info(f'[CONTESTA_CALC] Iniciando para {numero_processo}')
+
+    # 1. Buscar despacho na timeline
+    itens_tl = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+    link_despacho = None
+    for item_tl in itens_tl:
+        try:
+            link = item_tl.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+            span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+            tipo_doc = span.text.lower().strip()
+            if tipo_doc == 'despacho':
+                link_despacho = link
+                break
+        except Exception:
+            continue
+
+    if not link_despacho:
+        logger.info(f'[CONTESTA_CALC] Nenhum despacho encontrado — sem acao')
+        return False
+
+    # 2. Extrair dados do processo
+    try:
+        extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
+    except Exception as e:
+        logger.warning(f'[CONTESTA_CALC] Falha ao extrair dados do processo: {e}')
+
+    # 3. Extrair texto do despacho e verificar frase
+    texto = _extrair_texto_despacho(driver, link_despacho)
+    if not texto:
+        logger.warning(f'[CONTESTA_CALC] Nao foi possivel extrair texto do despacho')
+        return False
+
+    FRASE = 'para apresentar calculos de liquidacao'
+    texto_norm = texto.lower()
+    # normalizar acentos basicos
+    import unicodedata
+    texto_norm = unicodedata.normalize('NFD', texto_norm)
+    texto_norm = ''.join(c for c in texto_norm if unicodedata.category(c) != 'Mn')
+
+    if FRASE not in texto_norm:
+        logger.info(f'[CONTESTA_CALC] Despacho nao contem frase de calculos — sem acao')
+        return False
+
+    logger.info(f'[CONTESTA_CALC] Frase encontrada — verificando advogado da reclamada')
+
+    # 4. Verificar advogado da reclamada em dadosatuais.json
+    tem_advogado_reclamada = False
+    try:
+        dados_path = Path('dadosatuais.json')
+        if dados_path.exists():
+            with open(dados_path, encoding='utf-8') as f:
+                dados = json.load(f)
+            partes = dados.get('partes', [])
+            for parte in partes:
+                polo = str(parte.get('polo') or '').lower()
+                if 'passiv' in polo or 'reclama' in polo:
+                    advogados = parte.get('advogados', [])
+                    if advogados:
+                        tem_advogado_reclamada = True
+                        break
+    except Exception as e:
+        logger.warning(f'[CONTESTA_CALC] Erro ao ler dadosatuais.json: {e}')
+
+    try:
+        from ..atos.wrappers import ato_contestar, ato_revel
+        if tem_advogado_reclamada:
+            logger.info(f'[CONTESTA_CALC] Reclamada tem advogado — executando ato_contestar')
+            return bool(ato_contestar(driver))
+        else:
+            logger.info(f'[CONTESTA_CALC] Reclamada sem advogado (revel) — executando ato_revel')
+            return bool(ato_revel(driver))
+    except Exception as e:
+        logger.error(f'[CONTESTA_CALC] Erro ao executar ato: {e}')
+        return False

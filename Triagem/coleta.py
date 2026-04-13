@@ -10,8 +10,8 @@ import threading
 from typing import List, Dict, Any
 
 from api.variaveis import PjeApiClient, session_from_driver
-from triagem.preprocess import _strip_cabecalho_rodape
-from triagem.utils import _norm, _formatar_endereco_parte
+from Triagem.preprocess import _strip_cabecalho_rodape
+from Triagem.utils import _norm, _formatar_endereco_parte
 
 
 def _extrair_id_processo_da_url(url: str):
@@ -271,7 +271,7 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         r_endereco = client.sess.get(url_endereco, timeout=15)
         if r_endereco.ok:
             _partes_endereco = r_endereco.json()
-            print(f'[TRIAGEM] partes+endereco OK - {len(_partes_endereco.get("PASSIVO") or [])} passivo(s)')
+            print(f'[TRIAGEM] partes+endereco OK - ativo(s)={len(_partes_endereco.get("ATIVO") or [])} passivo(s)={len(_partes_endereco.get("PASSIVO") or [])}')
     except Exception as _e_partes:
         print(f'[TRIAGEM] partes_api: falha ({_e_partes})')
 
@@ -427,6 +427,26 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             resultado['capa_dados']['reclamante_nome'] = ativos[0].get('nome', '').strip()
             if len(doc_ativo) == 11:
                 resultado['capa_dados']['reclamante_cpf'] = doc_ativo
+            _ativos_end = _partes_endereco.get('ATIVO') or []
+            if _ativos_end:
+                _ativo_end_obj = _ativos_end[0].get('endereco') or {}
+                _cep_rec_raw = _ativo_end_obj.get('nroCep') or ''
+                _cep_rec = re.sub(r'[^\d]', '', _cep_rec_raw) if _cep_rec_raw else None
+                if _cep_rec and len(_cep_rec) == 8:
+                    resultado['capa_dados']['reclamante_cep'] = _cep_rec
+                _mun_rec = _ativo_end_obj.get('municipio') or ''
+                _uf_rec = _ativo_end_obj.get('uf') or ''
+                if _mun_rec or _uf_rec:
+                    resultado['capa_dados']['reclamante_municipio'] = _norm(_mun_rec)
+                    resultado['capa_dados']['reclamante_uf'] = _norm(_uf_rec)
+                    resultado['capa_dados']['reclamante_end_fonte'] = 'api'
+                    print(f'[TRIAGEM] reclamante_end_api: municipio={_mun_rec!r} uf={_uf_rec!r}')
+                else:
+                    resultado['capa_dados']['reclamante_end_fonte'] = 'api_vazio'
+                    print('[TRIAGEM] reclamante_end_api: VAZIO (municipio/uf ausentes no endpoint endereco) - fallback para texto')
+            else:
+                resultado['capa_dados']['reclamante_end_fonte'] = 'api_sem_ativo'
+                print('[TRIAGEM] reclamante_end_api: ATIVO ausente em partes_endereco - fallback para texto')
         if passivos:
             reclamados_lista = []
             reclamadas_sem_endereco = []

@@ -1,10 +1,18 @@
-from Fix.log import logger
-from Fix.extracao_documento import extrair_documento
+"""Fix.extracao_analise — stub de compatibilidade.
 
-try:
-    from Fix.gigs import criar_gigs
-except Exception:
-    criar_gigs = None
+Conteúdo consolidado em Fix.extracao (inlined).
+Imports daqui continuam funcionando.
+"""
+import warnings
+warnings.warn(
+    "Fix.extracao_analise está obsoleto; importe de Fix.extracao",
+    DeprecationWarning,
+    stacklevel=2,
+)
+from Fix.extracao import analise_argos, tratar_anexos_argos, analise_outros  # noqa: F401,E402
+
+__all__ = ["analise_argos", "tratar_anexos_argos", "analise_outros"]
+
 
 
 def analise_argos(driver):

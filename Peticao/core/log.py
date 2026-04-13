@@ -138,7 +138,10 @@ class PJePlusFormatter(logging.Formatter):
     @staticmethod
     def _supports_color() -> bool:
         """Verifica se terminal suporta cores."""
-        return sys.stdout.isatty() and 'TERM' in __import__('os').environ
+        try:
+            return sys.stdout.isatty() and 'TERM' in __import__('os').environ
+        except AttributeError:
+            return False
 
 
 class PJePlusLogger:

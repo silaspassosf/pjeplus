@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from Fix.extracao import extrair_dados_processo
-from .monitoramento.progresso import (
+from .progresso import (
     carregar_progresso_pet,
     marcar_processo_executado_pet,
     processo_ja_executado_pet,

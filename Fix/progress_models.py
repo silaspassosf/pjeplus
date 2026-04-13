@@ -1,15 +1,25 @@
-#!/usr/bin/env python3
-"""
-Modelos de dados para sistema de progresso unificado
-Enums, dataclasses e tipos reutilizáveis
-"""
+"""Fix.progress_models — stub de compatibilidade.
 
-from enum import Enum
-from dataclasses import dataclass, field, asdict
-from datetime import datetime
-from typing import Optional, Dict, Any, List
-import json
-from pathlib import Path
+O conteúdo deste módulo foi consolidado em Fix.progress.
+Imports daqui continuam funcionando mas emitem DeprecationWarning.
+"""
+import warnings
+warnings.warn(
+    "Fix.progress_models está obsoleto; importe de Fix.progress",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+from Fix.progress import (  # noqa: F401,E402
+    StatusModulo,
+    NivelLog,
+    Checkpoint,
+    StatusModuloData,
+    RegistroLog,
+)
+
+__all__ = ["StatusModulo", "NivelLog", "Checkpoint", "StatusModuloData", "RegistroLog"]
+
 
 
 class StatusModulo(Enum):

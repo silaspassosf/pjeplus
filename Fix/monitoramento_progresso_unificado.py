@@ -48,6 +48,10 @@ CONFIGURACOES_EXECUCAO = {
     'AUD': {
         'prefixo_log': '[PROGRESSO_AUD]',
         'tipo_sistema': 'AUD'
+    },
+    'TRIAGEM': {
+        'prefixo_log': '[PROGRESSO_TRIAGEM]',
+        'tipo_sistema': 'TRIAGEM'
     }
 }
 

@@ -5,6 +5,7 @@ from selenium.webdriver.common.by import By
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.core import aguardar_renderizacao_nativa
+from Fix.exceptions import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import logger
 from typing import Optional, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -18,16 +19,16 @@ def normalizar_string(valor):
 
 
 def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
+    """Preenche input via querySelector direto + setter de prototype.
+    Identico ao gigs-plugin.js preencherInput: sem click previo, sem wait_for_clickable.
+    """
     for tentativa in range(1, max_tentativas + 1):
         try:
-            elemento = wait_for_clickable(driver, seletor, timeout=3, by=By.CSS_SELECTOR)
-            if not elemento:
-                raise Exception('Elemento não clicável')
-            safe_click_no_scroll(driver, elemento, log=False)
-            time.sleep(0.3)
-            driver.execute_script("""
-                var el = arguments[0];
+            ok = driver.execute_script("""
+                var seletor = arguments[0];
                 var val = arguments[1];
+                var el = document.querySelector(seletor);
+                if (!el) { return false; }
                 window.focus();
                 el.focus();
                 Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(el, val);
@@ -35,54 +36,42 @@ def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], 
                 el.dispatchEvent(new Event('change', {bubbles: true}));
                 el.dispatchEvent(new Event('dateChange', {bubbles: true}));
                 el.dispatchEvent(new Event('keyup', {bubbles: true}));
-                var enterEvent = new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                el.dispatchEvent(enterEvent);
+                el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                 el.blur();
-            """, elemento, str(valor))
-            time.sleep(0.2)
-            if debug:
-                logger.info(f"[INPUT][OK] {seletor}='{valor}'")
-            return True
+                return true;
+            """, seletor, str(valor))
+            if ok:
+                if debug:
+                    logger.info(f"[INPUT][OK] {seletor}='{valor}'")
+                return True
+            if tentativa < max_tentativas:
+                # backoff leve entre tentativas de preencher via JS, pois a UI pode precisar de microtempo.
+                time.sleep(0.4)
         except Exception:
             if tentativa < max_tentativas:
+                # backoff leve entre tentativas de preencher via JS, pois a UI pode precisar de microtempo.
                 time.sleep(0.4)
-            else:
-                return False
     return False
 
 
 def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False):
-    """Seleciona opção em mat-select simulando digitação letra a letra.
+    """Abre o mat-select via JS click e clica na opção correspondente.
 
-    Padrão idêntico ao simularDigitacaoDeTexto do gigs-plugin.js:
-    foca o mat-select e dispara keydown/keypress/keyup por letra.
-    O Angular Material filtra e seleciona automaticamente — sem abrir
-    dropdown de mat-option, portanto limpar_overlays_headless não interfere.
-    Aguarda via aguardar_renderizacao_nativa (MutationObserver, sem WebDriverWait).
+    Comportamento idêntico ao legado (_escolher_opcao_select_js):
+    clica no mat-select para abrir o dropdown, aguarda as mat-options via
+    aguardar_renderizacao_nativa (MutationObserver) e clica na opção correta.
     """
     try:
-        from Fix.core import aguardar_renderizacao_nativa
         select_el = wait_for_clickable(driver, seletor_select, timeout=10, by=By.CSS_SELECTOR)
         if not select_el:
             return False
 
-        # Focar o mat-select e digitar letra a letra (mini-selenium.js:simularDigitacaoDeTexto)
-        driver.execute_script("""
-            var el = arguments[0];
-            var texto = arguments[1];
-            el.focus();
-            for (var i = 0; i < texto.length; i++) {
-                var letra = texto[i];
-                el.dispatchEvent(new KeyboardEvent('keydown',  {key: letra, bubbles: true, cancelable: true}));
-                el.dispatchEvent(new KeyboardEvent('keypress', {key: letra, bubbles: true, cancelable: true}));
-                el.dispatchEvent(new KeyboardEvent('keyup',    {key: letra, bubbles: true, cancelable: true}));
-            }
-        """, select_el, valor_desejado)
+        # Abrir dropdown via JS click (idêntico ao legado _escolher_opcao_select_js)
+        driver.execute_script("arguments[0].click();", select_el)
 
-        # Aguardar Angular processar (MutationObserver nativo — sem polling)
-        aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 3)
+        # Aguardar mat-options aparecerem (observer nativo — polling sincrono)
+        aguardar_renderizacao_nativa(driver, 'mat-option[role="option"]', 'aparecer', 10)
 
-        # Clicar na primeira opção que bater (dropdown pode ou não aparecer dependendo do Angular build)
         opcoes = driver.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"]')
         valor_norm = normalizar_string(valor_desejado)
         for opcao in opcoes:
@@ -91,75 +80,92 @@ def escolher_opcao_select_js(driver, seletor_select, valor_desejado, debug=False
                 driver.execute_script("arguments[0].click();", opcao)
                 return True
 
-        # Fallback: se não abriu dropdown, o Angular já selecionou via keydown — verificar valor atual
-        valor_atual = select_el.get_attribute('value') or (
-            select_el.find_element(By.CSS_SELECTOR, 'span.mat-select-value-text').text
-            if select_el.find_elements(By.CSS_SELECTOR, 'span.mat-select-value-text') else ''
-        )
-        if valor_norm in normalizar_string(valor_atual):
-            return True
-
-        # Blur para fechar qualquer painel aberto
+        # Fechar painel sem seleção
         driver.execute_script("arguments[0].blur();", select_el)
         return False
-    except Exception:
-        return False
+    except Exception as e:
+        raise NavegacaoError(f'escolher_opcao_select_js({seletor_select}): {e}')
 
 
 def clicar_radio_button_js(driver, texto_label, debug=False):
-    """
-    Clica em radio button baseado no texto do label.
-    Baseado na implementação simples do a.py: sempre clica no radio correto.
+    """Clica no input[type=radio] dentro do mat-radio-button correspondente.
+    Identico ao gigs-plugin: clicarBotao(ancora.querySelector('input')).
     """
     try:
-        if debug:
-            print(f'[RADIO] Selecionando: "{texto_label}"')
-
-        # Normalizar o texto como no a.py
-        texto_norm = texto_label.lower().replace('ú', 'u')
-
-        radios = driver.find_elements(By.CSS_SELECTOR, 'mat-radio-button')
-
-        for radio in radios:
-            label = radio.get_attribute('innerText') or radio.text or ''
-            label_norm = label.lower().replace('ú', 'u')
-
-            if texto_norm in label_norm:
-                if debug:
-                    print(f'[RADIO][ENCONTRADO] Radio encontrado: "{label}"')
-                # Clicar no mat-radio-button em si, não no input (como no a.py)
-                try:
-                    if debug:
-                        print(f'[RADIO][TENTATIVA] Clicando no mat-radio-button')
-                    radio.click()
-                    if debug:
-                        print(f'[RADIO] Selecionado: "{label}"')
-                    return True
-                except Exception as e1:
-                    if debug:
-                        print(f'[RADIO][FALHA] mat-radio-button falhou: {str(e1)[:50]}...')
-                    # Fallback: tentar clicar no input
-                    try:
-                        if debug:
-                            print(f'[RADIO][FALLBACK] Tentando clicar no input')
-                        input_elem = radio.find_element(By.CSS_SELECTOR, 'input[type="radio"]')
-                        input_elem.click()
-                        if debug:
-                            print(f'[RADIO] Selecionado (fallback): "{label}"')
-                        return True
-                    except Exception as e2:
-                        if debug:
-                            print(f'[RADIO][FALHA] Input também falhou: {str(e2)[:50]}...')
-                        continue
-
-        if debug:
-            print(f'[RADIO] ERRO: Radio "{texto_label}" não encontrado')
-        return False
-
+        texto_norm = normalizar_string(texto_label)
+        ok = driver.execute_script("""
+            var textoAlvo = arguments[0];
+            function normLabel(s) {
+                return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            }
+            var radios = document.querySelectorAll('mat-radio-button');
+            for (var i = 0; i < radios.length; i++) {
+                var label = normLabel((radios[i].innerText || radios[i].textContent || '').trim());
+                if (label.indexOf(textoAlvo) !== -1) {
+                    var inp = radios[i].querySelector('input[type="radio"]');
+                    if (inp) { inp.click(); return true; }
+                }
+            }
+            return false;
+        """, texto_norm)
+        return bool(ok)
     except Exception as e:
-        if debug:
-            print(f'[RADIO] ERRO: {e}')
-        return False
+        raise NavegacaoError(f'clicar_radio_button_js({texto_label}): {e}')
+
+
+def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
+    """Aguarda CKEditor conter conteúdo não-vazio após inserção de modelo.
+
+    Faz polling leve via JS até o editor ter dados ou o timeout expirar.
+    Substitui sleep cego: garante que o modelo foi efetivamente injetado
+    antes de prosseguir para salvar o ato.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            tem_conteudo = driver.execute_script("""
+                var el = document.querySelector('.ck-editor__editable[contenteditable="true"]');
+                if (!el) return false;
+                var ck = el.ckeditorInstance;
+                var dados = ck ? ck.getData() : el.innerHTML;
+                return dados.replace(/<[^>]*>/g, '').trim().length > 0;
+            """)
+            if tem_conteudo:
+                return True
+        except Exception:
+            pass
+        # Polling leve durante a espera pelo conteúdo do CKEditor.
+        time.sleep(0.3)
+    return False
+
+
+def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
+    """Barreira de sincronizacao pós-'Finalizar minuta'.
+
+    Aguarda em ordem:
+    1. Dialog 'Elaboração do ato de comunicação' (pje-pec-dialogo-ato) SUMIR.
+       Enquanto ele estiver presente nada pode interagir com a página de minutas.
+    2. Ícone verde 'Ato confeccionado' (i.pec-icone-verde-ato-agrupado) APARECER.
+       Esta é a única confirmação real de que o ato foi processado com sucesso.
+
+    Retorna True se ambos confirmações ocorreram, False em timeout.
+    """
+    if log is None:
+        def log(_msg): return None
+
+    ok_fechar = aguardar_renderizacao_nativa(driver, 'pje-pec-dialogo-ato', 'sumir', timeout_fechar)
+    if ok_fechar:
+        log('[MINUTA] Dialog elaboracao fechado (observer)')
+    else:
+        log('[MINUTA][WARN] Timeout aguardando dialog fechar — prosseguindo mesmo assim')
+
+    ok_icone = aguardar_renderizacao_nativa(driver, 'i.pec-icone-verde-ato-agrupado', 'aparecer', timeout_icone)
+    if ok_icone:
+        log('[MINUTA] Icone verde de ato confeccionado detectado')
+    else:
+        log('[MINUTA][WARN] Icone verde nao detectado dentro do timeout')
+
+    return ok_icone
 
 
 def executar_preenchimento_minuta(
@@ -196,12 +202,6 @@ def executar_preenchimento_minuta(
         if not clicar_radio_button_js(driver, tipo_prazo, debug=debug):
             log('[ERRO] Falha ao selecionar tipo de prazo')
             raise Exception(f'Tipo de prazo "{tipo_prazo}" não encontrado')
-        if prazo == "0" or prazo == 0:
-            tipo_prazo = "sem prazo"
-
-        if not clicar_radio_button_js(driver, tipo_prazo, debug=debug):
-            log('[ERRO] Falha ao selecionar tipo de prazo')
-            raise Exception(f'Tipo de prazo "{tipo_prazo}" não encontrado')
 
         if prazo and tipo_prazo != "sem prazo":
             log(f'3. Preenchendo prazo: {prazo}')
@@ -232,16 +232,14 @@ def executar_preenchimento_minuta(
                     'input[formcontrolname="prazo"]'
                 ]
 
-            # Pular verificação de aparecimento do campo - se o radio foi clicado,
-            # o campo deve estar disponível. Ir direto para preenchimento.
-            time.sleep(0.6)
+            # Esperar o campo de prazo aparecer após a seleção do tipo de prazo.
+            aguardar_renderizacao_nativa(driver, 'mat-form-field input[type="number"], input[aria-label="Prazo em dias úteis"], input[placeholder*="data"], input[type="date"], input[formcontrolname="prazo"]', 'aparecer', 10)
 
             # Tentar cada seletor até encontrar um que funcione (como no legado)
             for seletor in seletores_prazo:
                 if preencher_input_js(driver, seletor, prazo, debug=debug):
                     prazo_preenchido = True
                     break
-                time.sleep(0.3)
 
             if not prazo_preenchido:
                 log('[AVISO] Não foi possível preencher prazo com nenhum seletor, tentando fallback...')
@@ -263,7 +261,6 @@ def executar_preenchimento_minuta(
         log('4. Clicando "Confeccionar ato agrupado"')
         if not aguardar_e_clicar(driver, 'button[aria-label="Confeccionar ato agrupado"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
             raise Exception('Botão Confeccionar ato agrupado não disponível')
-        time.sleep(0.8)
 
         if subtipo:
             log(f'5. Selecionando subtipo: {subtipo}')
@@ -285,7 +282,8 @@ def executar_preenchimento_minuta(
                         el.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 13, which: 13, bubbles: true}));
                     """, input_subtipo)
 
-                    time.sleep(0.5)
+                    if not aguardar_renderizacao_nativa(driver, 'mat-option', 'aparecer', 3):
+                        raise Exception('mat-option ainda não disponível')
 
                     try:
                         if not esperar_elemento(driver, 'mat-option', timeout=3, by=By.CSS_SELECTOR):
@@ -296,7 +294,8 @@ def executar_preenchimento_minuta(
                             el.focus();
                             el.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 40, which: 40, bubbles: true}));
                         """, input_subtipo)
-                        time.sleep(0.5)
+                        if not aguardar_renderizacao_nativa(driver, 'mat-option', 'aparecer', 3):
+                            raise Exception('mat-option não apareceu mesmo após fallback')
                         if not esperar_elemento(driver, 'mat-option', timeout=3, by=By.CSS_SELECTOR):
                             raise Exception('mat-option não apareceu mesmo após fallback')
 
@@ -313,10 +312,9 @@ def executar_preenchimento_minuta(
                         try:
                             btn_fechar = driver.find_element(By.CSS_SELECTOR, 'pje-pec-dialogo-ato a[mattooltip="Fechar"]')
                             driver.execute_script("arguments[0].click();", btn_fechar)
-                            time.sleep(0.5)
+                            aguardar_renderizacao_nativa(driver, 'button[aria-label="Confeccionar ato agrupado"]', 'aparecer', 5)
                             btn_confeccionar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Confeccionar ato agrupado"]')
                             driver.execute_script("arguments[0].click();", btn_confeccionar)
-                            time.sleep(0.8)
                         except Exception:
                             pass
 
@@ -363,7 +361,7 @@ def executar_preenchimento_minuta(
                     el.dispatchEvent(new Event('keyup', {bubbles: true}));
                 """, campo_filtro)
 
-                time.sleep(0.3)
+                aguardar_renderizacao_nativa(driver, 'mat-option', 'aparecer', 5)
 
                 driver.execute_script("""
                     var el = arguments[0];
@@ -379,21 +377,28 @@ def executar_preenchimento_minuta(
                     el.dispatchEvent(new KeyboardEvent('keydown', {keyCode: 13, which: 13, bubbles: true}));
                 """, campo_filtro, modelo_nome)
 
-                time.sleep(1.5)
+                aguardar_renderizacao_nativa(driver, '.nodo-filtrado', 'aparecer', 10)
 
                 try:
                     nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10, by=By.CSS_SELECTOR)
                     if not nodo:
                         raise Exception('Nodo filtrado não clicável')
                     driver.execute_script("arguments[0].click();", nodo)
-                    time.sleep(0.5)
-
                     btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8, by=By.CSS_SELECTOR)
                     if not btn_inserir:
                         raise Exception('Botão inserir não clicável')
                     driver.execute_script("arguments[0].click();", btn_inserir)
-                    log(' Modelo inserido')
-                    time.sleep(1.0)  # Tempo para inserção completar
+                    log(' Modelo inserido - aguardando fechamento do dialog de preview')
+                    # 1. Aguardar o dialog de preview FECHAR (confirma que o click em Inserir
+                    #    foi aceito pelo Angular - sem este wait, o observer abaixo retornaria
+                    #    imediatamente pois o button[aria-label=Salvar] do pje-pec-dialogo-ato
+                    #    já existe no DOM antes mesmo do dialog de preview ser aberto)
+                    aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
+                    # 2. Aguardar CKEditor ter conteúdo (modelo de fato injetado no editor)
+                    if not _aguardar_ck_com_conteudo(driver, timeout=8):
+                        log('[MODELO][WARN] Timeout aguardando conteúdo no editor após inserção de modelo')
+                    else:
+                        log(' Editor com conteúdo do modelo confirmado')
                 except Exception as e_nodo:
                     log(f'[MODELO][ERRO] Modelo "{modelo_nome}" não encontrado ou não foi possível inserir: {e_nodo}')
                     raise Exception(f'Modelo não encontrado: {modelo_nome}')
@@ -441,12 +446,16 @@ def executar_preenchimento_minuta(
             if not aguardar_e_clicar(driver, 'button[aria-label="Salvar"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
                 raise Exception('Botão Salvar não disponível')
             log(' Botão Salvar clicado')
-            time.sleep(1.0)
+            # Aguarda botao "Finalizar minuta" visivel E !disabled (modo 'habilitado').
+            if not aguardar_renderizacao_nativa(driver, 'button[aria-label="Finalizar minuta"]', 'habilitado', 10):
+                log('[WARN] Timeout aguardando Finalizar minuta habilitar')
 
-            if not aguardar_e_clicar(driver, 'button[aria-label="Finalizar minuta"]', timeout=10, by=By.CSS_SELECTOR, usar_js=False):
+            if not aguardar_e_clicar(driver, 'button[aria-label="Finalizar minuta"]', timeout=5, by=By.CSS_SELECTOR, usar_js=False):
                 raise Exception('Botão Finalizar minuta não disponível')
             log(' Botão Finalizar minuta clicado')
-            time.sleep(2.0)
+            # Aguardar o dialog SUMIR e o ícone verde aparecer — única garantia real
+            # de que o ato foi confeccionado antes de prosseguir para destinatários.
+            aguardar_ato_confeccionado(driver, log=log)
 
             log(' Comunicação criada com sucesso!')
 

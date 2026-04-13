@@ -21,3 +21,4 @@ from Fix.variaveis_helpers import (
     padrao_liq,
     verificar_bndt,
 )
+from Fix.variaveis_painel import buscar_painel_com_filtros

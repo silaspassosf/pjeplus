@@ -1017,3 +1017,287 @@ PROCESSO: 1000352-13.2025.5.02.0703
 Prazo: 8 dias (09/04/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040719403880800000453610417?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040719403880800000453610417?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040719403880800000453610417?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040719403880800000453610417?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001100-55.2019.5.02.0703
+==================================================
+    Id Pje: f4bfaf0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948311BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 25/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se*
+
+Prazo: 8 dias (09/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000352-13.2025.5.02.0703
+==================================================
+    Id Pje: e8e59e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948458BR
+    Destinatário: BAR DO GYN BEBIDAS ESPECIALIZADAS LTDA
+    Data do envio: 25/03/2026
+    Data da entrega: Indisponível
+    Status: Não disponível*
+
+Prazo: 8 dias (09/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26033018362552300000452415081?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520575514400000453022926?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040114141011600000452790118?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520560372200000453022899?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001100-55.2019.5.02.0703
+==================================================
+    Id Pje: f4bfaf0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948311BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 25/03/2026
+    Data da entrega: 07/04/2026
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1000352-13.2025.5.02.0703
+==================================================
+    Id Pje: e8e59e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948458BR
+    Destinatário: BAR DO GYN BEBIDAS ESPECIALIZADAS LTDA
+    Data do envio: 25/03/2026
+    Data da entrega: 06/04/2026
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-47.2020.5.02.0703
+==================================================
+    Id Pje: 1617ae5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH107208317BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 30/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+
+Prazo: 15 dias (27/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26033018362552300000452415081?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520575514400000453022926?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040114141011600000452790118?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520560372200000453022899?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1001100-55.2019.5.02.0703
+==================================================
+    Id Pje: f4bfaf0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948311BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 25/03/2026
+    Data da entrega: 07/04/2026
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1001100-55.2019.5.02.0703
+==================================================
+    Id Pje: f4bfaf0
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948311BR
+    Destinatário: VITTORIO CARMELO CURY CALIA
+    Data do envio: 25/03/2026
+    Data da entrega: 07/04/2026
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1000352-13.2025.5.02.0703
+==================================================
+    Id Pje: e8e59e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH102948458BR
+    Destinatário: BAR DO GYN BEBIDAS ESPECIALIZADAS LTDA
+    Data do envio: 25/03/2026
+    Data da entrega: 06/04/2026
+    Status: Objeto devolvido ao remetente
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-47.2020.5.02.0703
+==================================================
+    Id Pje: 1617ae5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH107208317BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 30/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+
+Prazo: 15 dias (27/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001731-86.2025.5.02.0703
+==================================================
+    Id Pje: a4172e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH107210179BR
+    Destinatário: DEMOSTENES LUPERO TOZZI
+    Data do envio: 30/03/2026
+    Data da entrega: 07/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (17/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520575514400000453022926?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040114141011600000452790118?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-47.2020.5.02.0703
+==================================================
+    Id Pje: 1617ae5
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH107208317BR
+    Destinatário: WESLEI MORAIS BORGES
+    Data do envio: 30/03/2026
+    Data da entrega: Indisponível
+    Status: A entrega não pode ser efetuada - Cliente mudou-se
+
+Prazo: 15 dias (27/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001731-86.2025.5.02.0703
+==================================================
+    Id Pje: a4172e9
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH107210179BR
+    Destinatário: DEMOSTENES LUPERO TOZZI
+    Data do envio: 30/03/2026
+    Data da entrega: 07/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 8 dias (17/04/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520575514400000453022926?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040114141011600000452790118?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040520575514400000453022926?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26040114141011600000452790118?instancia=1
+==================================================
+

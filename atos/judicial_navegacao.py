@@ -102,13 +102,16 @@ def limpar_overlays(driver: WebDriver) -> None:
     Remove overlays e elementos flutuantes que podem interferir nos cliques.
     """
     try:
-        # Overlays principais
+        # Overlays principais — desabilitar implicit_wait para não bloquear 10s quando não há overlay
+        driver.implicitly_wait(0)
         overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-dialog-container')
+        driver.implicitly_wait(10)
         if overlays:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             time.sleep(0.15)
             logger.info('[NAVEGAÇÃO] Overlays removidos')
     except Exception as e:
+        driver.implicitly_wait(10)
         logger.debug(f'[NAVEGAÇÃO] Erro ao limpar overlays: {e}')
 
 

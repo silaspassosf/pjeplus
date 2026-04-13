@@ -1,6 +1,7 @@
 from Fix.selenium_base.click_operations import safe_click_no_scroll
 from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable
 from Fix.utils_observer import aguardar_renderizacao_nativa
+from Fix.headless_helpers import click_headless_safe
 import re
 import json
 import unicodedata
@@ -106,7 +107,7 @@ def _montar_destinatarios_por_observacao(observacao, dados_processo, debug=False
 
 def _clicar_polo_passivo(driver, log):
     try:
-        header = esperar_elemento(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', timeout=10, by=By.XPATH)
+        header = esperar_elemento(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', timeout=10, by=By.XPATH)
         if not header:
             log('[DESTINATARIOS][ERRO] Header Polo Passivo não encontrado')
             return
@@ -115,12 +116,7 @@ def _clicar_polo_passivo(driver, log):
         if aria_expanded == 'true':
             return
 
-        alvo = wait_for_clickable(driver, '//div[contains(@class,"pec-item-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]', timeout=10, by=By.XPATH)
-        if not alvo:
-            log('[DESTINATARIOS][ERRO] Alvo Polo Passivo não clicável')
-            return
-
-        safe_click_no_scroll(driver, alvo, log=False)
+        click_headless_safe(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', by=By.XPATH)
 
         # aguardar conteúdo do painel (preferir observer nativo)
         try:
@@ -252,11 +248,7 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                         clickable = driver.execute_script("return (arguments[0].closest && arguments[0].closest('button')) || arguments[0];", btn_seta)
                         driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
                         for _ in range(qtd_cliques):
-                            try:
-                                WebDriverWait(driver, 2).until(EC.element_to_be_clickable((By.XPATH, '//*')))
-                            except Exception:
-                                pass
-                            driver.execute_script('arguments[0].click();', clickable)
+                            safe_click_no_scroll(driver, clickable, log=False)
                     except Exception:
                         try:
                             for _ in range(qtd_cliques):
@@ -299,11 +291,7 @@ def selecionar_destinatario_por_documento(driver, destinatario_info, debug=False
                                 )
                                 driver.execute_script('arguments[0].scrollIntoView({block: "center"});', clickable)
                                 for _ in range(qtd_cliques):
-                                    try:
-                                        WebDriverWait(driver, 2).until(EC.element_to_be_clickable((By.XPATH, '//*')))
-                                    except Exception:
-                                        pass
-                                    driver.execute_script('arguments[0].click();', clickable)
+                                    safe_click_no_scroll(driver, clickable, log=False)
                             except Exception:
                                 try:
                                     for _ in range(qtd_cliques):
@@ -429,10 +417,11 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
     if destinatarios == 'polo_ativo':
         log('[DESTINATARIOS] OPÇÃO: Clicando no polo ativo')
         try:
-            btn_polo_ativo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloAtivo"]'))
+            click_headless_safe(
+                driver,
+                'i.fa.fa-user.pec-polo-ativo-partes-processo.pec-botao-intimar-polo-partes-processo',
+                by=By.CSS_SELECTOR
             )
-            driver.execute_script("arguments[0].click();", btn_polo_ativo)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo ativo: {e}')
@@ -442,15 +431,13 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
         cliques = cliques_polo_passivo if destinatarios == 'polo_passivo' else 2
         log(f'[DESTINATARIOS] Clicando no polo passivo ({cliques}x)')
         try:
-            btn_polo_passivo = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
-            )
+            btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
+            if not btn_polo_passivo:
+                raise RuntimeError('Botão polo passivo não clicável')
             for i in range(cliques):
-                try:
-                    WebDriverWait(driver, 3).until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]')))
-                except Exception:
-                    pass
-                driver.execute_script("arguments[0].click();", btn_polo_passivo)
+                safe_click_no_scroll(driver, btn_polo_passivo, log=False)
+                if i < cliques - 1:
+                    esperar_elemento(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=3, by=By.CSS_SELECTOR)
             return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
         except Exception as e:
             log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo: {e}')
@@ -473,13 +460,24 @@ def selecionar_destinatarios(driver, destinatarios, terceiro=False, debug=False,
             log(f'[DESTINATARIOS][ERRO] Falha ao selecionar terceiros: {e}')
             return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
 
+    if destinatarios == 'primeiro':
+        log('[DESTINATARIOS] OPCAO PRIMEIRO: primeiro do Polo Passivo')
+        try:
+            click_headless_safe(driver, '//mat-expansion-panel-header[.//div[contains(@class,"pec-titulo-painel-expansivel-partes-processo") and contains(normalize-space(.), "Polo Passivo")]]', by=By.XPATH)
+            aguardar_renderizacao_nativa(driver, '.pec-partes-polo li.partes-corpo, ul.sem-padding li.partes-corpo, mat-row', modo='aparecer', timeout=5)
+            click_headless_safe(driver, '//mat-expansion-panel[.//*[contains(text(), "Polo Passivo")]]//button[@aria-label="Clique para acrescentar esta parte à lista de destinatários de expedientes e comunicações."][1]', by=By.XPATH)
+            log('[DESTINATARIOS] Primeira seta clicada')
+            return ResultadoExecucao(sucesso=True, status='ok', detalhes={'count': 1})
+        except Exception as e:
+            log(f'[DESTINATARIOS][ERRO] Falha no modo primeiro: {e}')
+            return ResultadoExecucao(sucesso=False, status='error', erro=str(e), detalhes={'count': 0})
     # opção padrão: clicar polo passivo 1x
     log('[DESTINATARIOS] OPÇÃO PADRÃO: Clicando no polo passivo (1x)')
     try:
-        btn_polo_passivo = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[name="btnIntimarSomentePoloPassivo"]'))
-        )
-        driver.execute_script("arguments[0].click();", btn_polo_passivo)
+        btn_polo_passivo = wait_for_clickable(driver, 'button[name="btnIntimarSomentePoloPassivo"]', timeout=10, by=By.CSS_SELECTOR)
+        if not btn_polo_passivo:
+            raise RuntimeError('Botão polo passivo não clicável')
+        safe_click_no_scroll(driver, btn_polo_passivo, log=False)
         return ResultadoExecucao(sucesso=True, status='geral', detalhes={'count': 0})
     except Exception as e:
         log(f'[DESTINATARIOS][ERRO] Falha ao clicar polo passivo padrão: {e}')

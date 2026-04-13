@@ -116,7 +116,7 @@ with open("log.py", "w", encoding="utf-8") as f:
 
 # Use o monitoramento unificado para extração e marcação de progresso
 # Isso garante comportamento idêntico ao usado em p2b.py (validação/formato do número)
-from PEC.core import (
+from PEC.core_progresso import (
     carregar_progresso_pec as carregar_progresso,
     salvar_progresso_pec as salvar_progresso,
     extrair_numero_processo_pec as extrair_numero_processo,
@@ -127,7 +127,6 @@ from PEC.core import (
 
 
 def _normalizar_texto_match(valor: str) -> str:
-    """Normaliza texto para comparação robusta de nomes."""
     if not valor:
         return ''
     txt = unicodedata.normalize('NFD', str(valor)).encode('ascii', 'ignore').decode('ascii').lower()

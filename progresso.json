@@ -1,41 +1,41 @@
 {
   "metadata": {
-    "timestamp": "2026-04-08T21:16:44.608812",
+    "timestamp": "2026-04-13T11:00:23.189081",
     "versao": "2.0",
     "session_id": "sess_391d90dc7bdc456e"
   },
   "execution": {
     "status": "EM_PROGRESSO",
-    "inicio": "2026-04-08T21:13:51.790545",
-    "duracao_segundos": 172,
-    "modulo_ativo": "MANDADO",
+    "inicio": "2026-04-13T10:50:55.314188",
+    "duracao_segundos": 567,
+    "modulo_ativo": null,
     "pode_retomar": true
   },
   "modulos": {
     "MANDADO": {
-      "status": "EM_PROGRESSO",
-      "processados": 7,
-      "total": 10,
-      "tempo_decorrido_segundos": 172,
+      "status": "FALHADO",
+      "processados": 26,
+      "total": 27,
+      "tempo_decorrido_segundos": 567,
       "erros": 1,
       "checkpoint": {
-        "ultimo_item": "1000438-47.2026.5.02.0703",
-        "timestamp": "2026-04-08T21:16:44.608526",
+        "ultimo_item": "1000649-83.2026.5.02.0703",
+        "timestamp": "2026-04-13T11:00:23.177133",
         "proximo": null,
         "contexto": {}
       },
       "detalhes": {},
-      "percentual": 70.0
+      "percentual": 96.29629629629629
     }
   },
   "resumo_global": {
     "total_modulos": 1,
     "completos": 0,
-    "em_progresso": 1,
+    "em_progresso": 0,
     "pausados": 0,
-    "falhados": 0,
-    "percentual_global": 70.0,
-    "tempo_total_segundos": 172,
+    "falhados": 1,
+    "percentual_global": 96.29629629629629,
+    "tempo_total_segundos": 567,
     "tempo_restante_estimado_segundos": 0
   },
   "logs": [
@@ -59,9 +59,70 @@
       "nivel": "INFO",
       "mensagem": "Módulo MANDADO iniciado com 10 items",
       "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-13T10:47:09.208604",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO iniciado com 27 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-13T10:50:55.314430",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO iniciado com 27 items",
+      "detalhes": {}
+    },
+    {
+      "timestamp": "2026-04-13T11:00:23.188671",
+      "modulo": "MANDADO",
+      "nivel": "INFO",
+      "mensagem": "Módulo MANDADO finalizado: 26/27",
+      "detalhes": {}
     }
   ],
-  "processos_executados": [
-    "1000438-47.2026.5.02.0703"
-  ]
+  "p2b": {
+    "processos_executados": [
+      "1000580-03.2016.5.02.0703",
+      "1001070-10.2025.5.02.0703",
+      "1001878-83.2023.5.02.0703",
+      "1001873-71.2017.5.02.0703",
+      "1001706-73.2025.5.02.0703",
+      "1001089-50.2024.5.02.0703",
+      "1000468-53.2024.5.02.0703",
+      "1000715-73.2020.5.02.0703",
+      "1001593-56.2024.5.02.0703",
+      "1000265-04.2018.5.02.0703",
+      "1000654-13.2023.5.02.0703",
+      "1001501-44.2025.5.02.0703",
+      "1001818-42.2025.5.02.0703",
+      "1001682-45.2025.5.02.0703",
+      "1000907-30.2025.5.02.0703",
+      "1000864-35.2021.5.02.0703",
+      "1000465-40.2020.5.02.0703",
+      "1001918-94.2025.5.02.0703",
+      "1001704-40.2024.5.02.0703",
+      "1000140-94.2022.5.02.0703",
+      "1002133-70.2025.5.02.0703",
+      "1001329-05.2025.5.02.0703",
+      "1001777-75.2025.5.02.0703",
+      "1001011-71.2015.5.02.0703",
+      "1001975-49.2024.5.02.0703",
+      "1000218-20.2024.5.02.0703",
+      "1001334-61.2024.5.02.0703",
+      "1001959-61.2025.5.02.0703",
+      "1001431-32.2022.5.02.0703",
+      "1001506-37.2023.5.02.0703",
+      "1001310-96.2025.5.02.0703",
+      "1001502-63.2024.5.02.0703",
+      "1000101-10.2016.5.02.0703",
+      "1001326-21.2023.5.02.0703",
+      "1001147-19.2025.5.02.0703",
+      "1000955-67.2017.5.02.0703",
+      "1000882-17.2025.5.02.0703"
+    ],
+    "session_active": true,
+    "last_update": "2026-04-13T11:22:03.985256"
+  }
 }

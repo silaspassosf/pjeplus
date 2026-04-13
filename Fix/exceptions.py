@@ -10,7 +10,7 @@ class DriverFatalError(PJePlusError):
 
 class ElementoNaoEncontradoError(PJePlusError):
     """Elemento não localizado."""
-    def __init__(self, seletor: str, contexto: str):
+    def __init__(self, seletor: str, contexto: str = ""):
         super().__init__(f"Elemento não encontrado: {seletor} (contexto: {contexto})")
         self.seletor = seletor
         self.contexto = contexto

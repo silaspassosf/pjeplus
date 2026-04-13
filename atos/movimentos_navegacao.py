@@ -183,29 +183,22 @@ def _movimento_de_analise(driver: WebDriver, tarefa_destino: str, debug: bool, t
         if debug:
             logger.info('[ANALISE] Já está em análise, clicando diretamente no destino')
 
-        # Aguardar carregamento dos botões
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
-        from selenium.webdriver.common.by import By
+        from .movimentos_fluxo import _localizar_botao_destino_movimento
 
-        # Aguardar botões de transição
-        WebDriverWait(driver, timeout).until(
-            lambda d: len(d.find_elements(By.CSS_SELECTOR, 'pje-botoes-transicao button')) >= 10
-        )
+        btn_destino = _localizar_botao_destino_movimento(driver, tarefa_destino, timeout=timeout)
+        if not btn_destino:
+            if debug:
+                logger.warning(f'[ANALISE] Botão destino "{tarefa_destino}" não encontrado')
+            return False
 
-        # Procurar botão do destino
-        btn_destino = WebDriverWait(driver, timeout//2).until(
-            EC.element_to_be_clickable((By.XPATH, f"//button[contains(translate(text(), 'A-Z', 'a-z'), '{tarefa_destino.lower()}')]"))
-        )
-
-        if not btn_destino.get_attribute('disabled'):
-            safe_click(driver, btn_destino)
-            _esperar_transicao(driver, debug)
-            return True
-        else:
+        if btn_destino.get_attribute('disabled'):
             if debug:
                 logger.warning('[ANALISE] Botão destino está desabilitado')
             return False
+
+        safe_click(driver, btn_destino)
+        _esperar_transicao(driver, debug)
+        return True
 
     except Exception as e:
         if debug:

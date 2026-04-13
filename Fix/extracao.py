@@ -9,14 +9,14 @@ expected by the rest of the codebase so the refactor is backwards-compatible.
 from typing import Any, Callable
 from selenium.webdriver.remote.webdriver import WebDriver
 
-from .extracao_documento import (
+from .extracao_conteudo import (
     extrair_direto,
     extrair_documento,
     extrair_pdf,
     _extrair_formatar_texto,
 )
 
-from .extracao_processo import (
+from .extracao_conteudo import (
     extrair_dados_processo,
     extrair_destinatarios_decisao,
 )
@@ -47,8 +47,32 @@ from Fix.gigs import (
 
 # Reexports / compatibility aliases
 from .extracao_bndt import bndt
-from .extracao_analise import analise_argos, tratar_anexos_argos, analise_outros
 from .extracao_processo import salvar_destinatarios_cache, carregar_destinatarios_cache
+
+
+
+# --- Funções de analise (anterior extracao_analise.py — 31 linhas, inlined) ---
+def analise_argos(driver):
+    """Fluxo para análise de mandados Argos (Pesquisa Patrimonial)."""
+    try:
+        pass
+    except Exception as e:
+        _logger.error(f'[ARGOS][ERRO] Falha na análise Argos: {e}')
+
+
+def tratar_anexos_argos(driver, log=True):
+    """Placeholder — lógica removida conforme solicitado."""
+    pass
+
+
+def analise_outros(driver):
+    """Fluxo para análise de mandados Outros (Oficial de Justiça)."""
+    from Fix.extracao_conteudo import extrair_documento as _extrair_doc
+    from Fix.gigs import criar_gigs as _criar_gigs
+    texto = _extrair_doc(driver, regras_analise=lambda texto: _criar_gigs(driver, 0, 'Pz mdd'))
+    if not texto:
+        _logger.error("[OUTROS][ERRO] Não foi possível extrair o texto da certidão.")
+    return texto
 
 
 
@@ -65,7 +89,7 @@ def abrir_detalhes_processo(driver: WebDriver, *args: Any, **kwargs: Any) -> boo
 
 
 
-from .extracao_indexacao_fluxo import indexar_e_processar_lista as _indexar_e_processar_lista_impl
+from .extracao_indexacao import indexar_e_processar_lista as _indexar_e_processar_lista_impl
 from Fix.log import logger as _logger
 
 def indexar_e_processar_lista(driver: WebDriver, callback: Callable, *args: Any, **kwargs: Any) -> bool:

@@ -146,7 +146,54 @@ Para garantir a futura conteinerização do `x.py` no GitHub Actions:
 
 ---
 
-## 🧠 5. Lições Operacionais (Bugs Críticos — Registro Incremental)
+## 🖱️ 6. API de Interação Obrigatória (Fix) — Referência Rápida
+
+Antes de criar ou editar qualquer função que interaja com o navegador (clicar, esperar, encontrar elemento), consulte esta tabela. **Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `element.click()` direto nos módulos de negócio.**
+
+### 6.1 Clique
+
+| Situação | Função | Import |
+|---|---|---|
+| Caso geral (headless-safe, 3 estratégias) | `click_headless_safe(driver, seletor, by=By.CSS_SELECTOR, timeout=10)` | `from Fix.headless_helpers import click_headless_safe` |
+| Elemento já encontrado, sem scroll automático | `safe_click_no_scroll(driver, elemento)` | `from Fix.selenium_base.click_operations import safe_click_no_scroll` |
+
+```python
+# Clicar via seletor (caso comum):
+from Fix.headless_helpers import click_headless_safe
+from selenium.webdriver.common.by import By
+
+click_headless_safe(driver, 'button[name="btnSalvar"]')
+click_headless_safe(driver, '//mat-expansion-panel-header[...]', by=By.XPATH)
+```
+
+### 6.2 Esperar Elemento
+
+| Situação | Função | Import |
+|---|---|---|
+| Esperar presença (retorna elemento ou None) | `esperar_elemento(driver, seletor, timeout=10, by=By.CSS_SELECTOR)` | `from Fix.selenium_base.wait_operations import esperar_elemento` |
+| Esperar clicável (retorna elemento ou None) | `wait_for_clickable(driver, seletor, timeout=10, by=By.CSS_SELECTOR)` | `from Fix.selenium_base.wait_operations import wait_for_clickable` |
+| Aguardar renderização Angular/DOM | `aguardar_renderizacao_nativa(driver, seletor, modo='aparecer', timeout=5)` | `from Fix.utils_observer import aguardar_renderizacao_nativa` |
+
+```python
+# Esperar presença antes de ler texto:
+from Fix.selenium_base.wait_operations import esperar_elemento
+el = esperar_elemento(driver, '.pec-titulo', timeout=10)
+if not el:
+    log('[MODULO][ERRO] Elemento não encontrado')
+    return
+
+# Aguardar Angular terminar de renderizar tabela:
+from Fix.utils_observer import aguardar_renderizacao_nativa
+aguardar_renderizacao_nativa(driver, 'mat-row', modo='aparecer', timeout=8)
+```
+
+### 6.3 Regras de Combinação
+
+1. **Para clicar:** use sempre `click_headless_safe` com o seletor — não busque o elemento separado para depois clicar.
+2. **Para ler texto/atributo após clicar:** busque com `esperar_elemento` → leia do elemento retornado.
+3. **Para checar estado antes de agir** (ex: `aria-expanded`): use `esperar_elemento` → `elemento.get_attribute()`.
+4. **Para aguardar tabela/lista renderizar após ação:** use `aguardar_renderizacao_nativa` antes de `find_elements`.
+5. **Nunca:** `WebDriverWait(driver, N).until(EC.element_to_be_clickable(...))` nos módulos de negócio — isso é papel de `wait_for_clickable`.
 
 Registro de bugs críticos encontrados em produção com causa raiz e fix. Acrescentar cada novo bug aqui.
 

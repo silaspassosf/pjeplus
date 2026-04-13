@@ -20,6 +20,8 @@
 
     // contexto de execução real da página (unsafeWindow quando disponível)
     const _win = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
+    try { _win.__infojudModuleLoaded = true; } catch (e) {}
+    console.log('[Infojud] module loaded and registered on window');
     const URL_ATUAL = window.location.href;
     const URL_BASE_CNPJ = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICNPJ.asp?NI=';
     const URL_BASE_CPF = 'https://cav.receita.fazenda.gov.br/Servicos/ATSDR/Decjuiz/detalheNICPF.asp?NI=';
@@ -155,31 +157,56 @@
     }
 
     function extrairDadosCNPJPage() {
-        const d = { empresaNome: '', empresaCep: '', empresaEnderecoRaw: '', empresaEndereco: null, cpfResponsavel: '' };
+        const d = { empresaNome: '', empresaCep: '', empresaEnderecoRaw: '', empresaEndereco: null, cpfResponsavel: '', cnpj: '', logradouro: '', complemento: '', bairro: '', municipio: '', uf: '' };
         document.querySelectorAll('td.azulEsquerdaNeg').forEach(td => {
-            const label = (td.textContent || '').replace(/:/g, '').trim().toUpperCase();
+            const rawLabel = (td.textContent || '').replace(/:/g, '').trim();
+            const label = rawLabel.toUpperCase();
             const valor = (td.nextElementSibling?.textContent || '').replace(/\s+/g, ' ').trim();
-            if (label.includes('CPF DO RESPONSÁVEL')) d.cpfResponsavel = apenasNumeros(valor);
-            if (label.includes('NOME EMPRESARIAL') || label.includes('RAZÃO SOCIAL') || label.includes('RAZAO SOCIAL')) d.empresaNome = valor;
-            if (label === 'CEP') d.empresaCep = apenasNumeros(valor);
-            if (label === 'ENDEREÇO') {
+            if (label.includes('CPF') && label.includes('RESP')) d.cpfResponsavel = apenasNumeros(valor);
+            if (label === 'CNPJ' || label.includes('CNPJ')) d.cnpj = apenasNumeros(valor);
+            if (label.includes('NOME EMPRESARIAL') || label.includes('NOME FANTASIA') || label.includes('RAZÃO SOCIAL') || label.includes('RAZAO SOCIAL')) {
+                // preferir Nome Empresarial (razão social)
+                if (!d.empresaNome || label.includes('EMPRESARIAL') || label.includes('RAZ')) d.empresaNome = valor;
+            }
+            if (label === 'CEP' || label.includes('CEP')) d.empresaCep = apenasNumeros(valor);
+            if (label === 'ENDEREÇO' || label.includes('LOGRADOURO') || label.includes('RUA') || label.includes('AVENIDA') || label.includes('AV')) {
                 d.empresaEnderecoRaw = valor;
                 d.empresaEndereco = parseEndereco(valor);
+                d.logradouro = d.empresaEndereco.rua || '';
+                d.complemento = d.empresaEndereco.complemento || '';
             }
+            if (label.includes('COMPLEMENTO')) d.complemento = valor;
+            if (label.includes('BAIRRO')) d.bairro = valor;
+            if (label.includes('MUNICIP') || label.includes('MUNICI')) d.municipio = valor;
+            if (label === 'UF') d.uf = valor;
         });
+
+        // If endereco pieces available but empresaEndereco empty, try to assemble
+        if (!d.empresaEndereco && (d.logradouro || d.complemento || d.bairro)) {
+            const assembled = `${d.logradouro || ''} ${d.complemento || ''}`.trim();
+            d.empresaEnderecoRaw = assembled;
+            d.empresaEndereco = parseEndereco(assembled);
+        }
+
         return d;
     }
 
     function extrairDadosCPFPage() {
-        const d = { nome: '', cpf: '', cepRaw: '', endRaw: '', cep: '', rua: '', numero: '', complemento: '' };
+        const d = { nome: '', cpf: '', cepRaw: '', endRaw: '', cep: '', rua: '', numero: '', complemento: '', bairro: '', municipio: '', uf: '' };
         document.querySelectorAll('td.azulEsquerdaNeg').forEach(td => {
-            const label = (td.textContent || '').replace(/:/g, '').trim().toUpperCase();
+            const rawLabel = (td.textContent || '').replace(/:/g, '').trim();
+            const label = rawLabel.toUpperCase();
             const valor = (td.nextElementSibling?.textContent || '').replace(/\s+/g, ' ').trim();
-            if (label === 'NOME COMPLETO') d.nome = valor;
-            if (label === 'CPF') d.cpf = apenasNumeros(valor);
-            if (label === 'CEP') d.cepRaw = valor;
-            if (label === 'ENDEREÇO') d.endRaw = valor;
+            if (label.includes('NOME') && label.includes('COMPLETO')) d.nome = valor;
+            if (label === 'CPF' || label.includes('CPF')) d.cpf = apenasNumeros(valor);
+            if (label === 'CEP' || label.includes('CEP')) d.cepRaw = valor;
+            if (label === 'ENDEREÇO' || label.includes('LOGRADOURO') || label.includes('RUA') || label.includes('AV')) d.endRaw = valor;
+            if (label.includes('COMPLEMENTO')) d.complemento = valor;
+            if (label.includes('BAIRRO')) d.bairro = valor;
+            if (label.includes('MUNICIP') || label.includes('MUNICI')) d.municipio = valor;
+            if (label === 'UF') d.uf = valor;
         });
+
         if (d.cepRaw) {
             d.cep = apenasNumeros(d.cepRaw);
             if (d.cep.length === 7) d.cep = '0' + d.cep;
@@ -188,7 +215,7 @@
             const addr = parseEndereco(d.endRaw);
             d.rua = addr.rua;
             d.numero = addr.numero;
-            d.complemento = addr.complemento;
+            d.complemento = addr.complemento || d.complemento;
         }
         return d;
     }
@@ -211,31 +238,39 @@
         let ultimoProcessado = '';
         let MODO_EXECUCAO = '';
         let dadosRelatorio = [];
+        let dadosRelatorioKeys = new Set();
 
         function criarBotoesInfojud() {
-            if (document.getElementById('god-btn-container')) return;
-            const container = document.createElement('div');
-            container.id = 'god-btn-container';
-            container.style.cssText = 'position:fixed;top:100px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:5px;';
-            
-            const btnStyle = 'padding:10px 20px;color:white;font-weight:bold;cursor:pointer;border-radius:4px;border:none;box-shadow:0 3px 6px rgba(0,0,0,0.3);font-size:13px;';
-            
-            const btnDados = document.createElement('button');
-            btnDados.textContent = 'Infojud Dados'; btnDados.style.cssText = btnStyle + 'background:#6a1b9a;';
-            btnDados.onclick = () => iniciarTrabalho('DADOS');
+            if (document.getElementById('god-btn-wrapper')) return;
 
-            const btnD = document.createElement('button');
-            btnD.textContent = 'Infojud Direto'; btnD.style.cssText = btnStyle + 'background:#0288d1;';
-            btnD.onclick = () => iniciarTrabalho('DIRETO');
+            // Tentar inserir próximo ao botão de lixeira (quando disponível na tela)
+            const alvo = document.querySelector('div.pec-item-botoes-ato-agrupado');
+            const wrapper = document.createElement('div');
+            wrapper.id = 'god-btn-wrapper';
+            wrapper.style.cssText = 'display:flex;flex-direction:row;gap:8px;align-items:center;';
 
-            const btnC = document.createElement('button');
-            btnC.textContent = 'Infojud Correção'; btnC.style.cssText = btnStyle + 'background:#004d40;';
-            btnC.onclick = () => iniciarTrabalho('COMPLETO');
+            const btnStyle = 'padding:8px 14px;color:white;font-weight:700;cursor:pointer;border-radius:6px;border:none;box-shadow:0 2px 6px rgba(0,0,0,0.18);font-size:13px;';
 
-            container.appendChild(btnDados);
-            container.appendChild(btnD);
-            container.appendChild(btnC);
-            document.body.appendChild(container);
+            // Botão inicial (apenas este aparece no carregamento)
+            const btnExtrair = document.createElement('button');
+            btnExtrair.id = 'god-btn-extrair';
+            btnExtrair.textContent = 'Extrair Infojud';
+            btnExtrair.style.cssText = btnStyle + 'background:#d32f2f;';
+            btnExtrair.onclick = () => iniciarTrabalho('DADOS');
+            wrapper.appendChild(btnExtrair);
+
+            if (alvo && alvo.parentElement) {
+                // inserir após o container de botões do ato agrupado, com um pequeno espaçamento
+                alvo.parentElement.insertBefore(wrapper, alvo.nextSibling);
+                wrapper.style.marginLeft = '8px';
+            } else {
+                // fallback: container fixo no canto superior direito
+                wrapper.style.position = 'fixed';
+                wrapper.style.top = '100px';
+                wrapper.style.right = '20px';
+                wrapper.style.zIndex = '9999';
+                document.body.appendChild(wrapper);
+            }
         }
 
         function iniciarTrabalho(modo) {
@@ -248,11 +283,11 @@
             const oldR = document.getElementById('god-relatorio-panel');
             if(oldR) oldR.remove();
 
-            rodando = true; atual = 0; ultimoProcessado = ''; dadosRelatorio = [];
+            rodando = true; atual = 0; ultimoProcessado = ''; dadosRelatorio = []; dadosRelatorioKeys = new Set();
             _gmSet('GOD_STATUS', 'STANDBY');
             
             mostrarNotificacao(`Iniciando Modo: ${MODO_EXECUCAO}`, '#0288d1');
-            monitorarSinais();
+            if (MODO_EXECUCAO === 'DADOS') monitorarSinais();
             processarProximo();
         }
 
@@ -274,20 +309,32 @@
                 linha.scrollIntoView({block: 'center', behavior: 'smooth'});
             }
 
-            // Jitter para evitar requests sequenciais rápidos (mitiga bloqueio da Receita)
-            const jitter = 800 + Math.floor(Math.random() * 1200); // 800ms - 2000ms
-            await wait(jitter);
-
-            if (doc.length === 11) {
-                _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
-                _gmOpenTab(URL_BASE_CPF + doc, { active: false, insert: true });
+            if (MODO_EXECUCAO === 'DADOS') {
+                // Jitter para evitar requests sequenciais rápidos (mitiga bloqueio da Receita)
+                const jitter = 800 + Math.floor(Math.random() * 1200); // 800ms - 2000ms
+                await wait(jitter);
+                if (doc.length === 11) {
+                    _gmSet('GOD_TIPO_ORIGEM', 'CPF_DIRETO');
+                    _gmOpenTab(URL_BASE_CPF + doc, { active: false, insert: true });
+                } else {
+                    _gmSet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
+                    _gmOpenTab(URL_BASE_CNPJ + doc, { active: false, insert: true });
+                }
+                // marca timestamp da última abertura para o watchdog
+                try { window.__ultimaAberturaAba = Date.now(); } catch (e) {}
             } else {
-                _gmSet('GOD_TIPO_ORIGEM', 'CNPJ_NORMAL');
-                _gmOpenTab(URL_BASE_CNPJ + doc, { active: false, insert: true });
+                // DIRETO / COMPLETO: usa cache gerado pelo modo DADOS, sem tocar no e-CAC
+                const cached = _gmGet('GOD_DADOS_' + doc, null);
+                if (cached) {
+                    setTimeout(() => aplicarLogicaMaster(), 300);
+                } else {
+                    mostrarNotificacao('Sem dados para ' + doc + '. Execute "Extrair Infojud" primeiro.', '#f57c00');
+                    const linhaSem = encontrarLinhaPorDoc(doc);
+                    if (linhaSem) linhaSem.style.backgroundColor = '#ffccbc';
+                    atual++;
+                    setTimeout(processarProximo, 1000);
+                }
             }
-
-            // marca timestamp da última abertura para o watchdog
-            try { window.__ultimaAberturaAba = Date.now(); } catch (e) {}
         }
 
         function encontrarLinhaPorDoc(docNumerico) {
@@ -371,21 +418,73 @@
         async function aplicarLogicaMaster() {
             try {
                 const docAtual = filaDocs[atual];
-                const linha = encontrarLinhaPorDoc(docAtual);
-                if (!linha) throw new Error(`Linha não encontrada`);
+                    // DADOS lê de CAPTURA (fresh da sessão); DIRETO/COMPLETO lê do cache por-doc
+                    const d = JSON.parse(
+                        MODO_EXECUCAO === 'DADOS'
+                            ? (_gmGet('GOD_DADOS_CAPTURA', '{}') || '{}')
+                            : (_gmGet('GOD_DADOS_' + docAtual, '{}') || '{}')
+                    );
+                    console.log('[Infojud] dados lidos', docAtual, d, 'MODO', MODO_EXECUCAO);
 
-                const btnEnvelope = linha.querySelector('.fa-envelope');
-                if (!btnEnvelope) throw new Error('Envelope sumiu');
+                    if (MODO_EXECUCAO === 'DADOS') {
+                        // Registra exatamente uma entrada por parte pesquisada (chave = documento pesquisado)
+                        // e respeita o tipo de origem: se foi CPF direto, tratar como Pessoa Física;
+                        // se foi CNPJ, tratar como Empresa + Sócio (quando houver).
+                        const buscaDoc = docAtual || filaDocs[atual] || '';
+                        const tipoOrigem = (d && d.tipoOrigem) ? d.tipoOrigem : (buscaDoc && buscaDoc.length === 11 ? 'CPF_DIRETO' : 'CNPJ_NORMAL');
 
-                const d = JSON.parse(_gmGet('GOD_DADOS_CAPTURA', '{}'));
-                dadosRelatorio.push(montarRelatorio(d));
+                        if (tipoOrigem === 'CPF_DIRETO') {
+                            // Para CPF direto, não usar qualquer info de empresa que eventualmente exista
+                            const pf = {
+                                nome: d.nome || '',
+                                cpf: d.cpf || buscaDoc,
+                                rua: d.rua || '',
+                                numero: d.numero || '',
+                                complemento: d.complemento || '',
+                                cep: d.cep || ''
+                            };
+                            if (!dadosRelatorioKeys.has(buscaDoc)) {
+                                dadosRelatorioKeys.add(buscaDoc);
+                                dadosRelatorio.push(montarRelatorio(pf));
+                            } else {
+                                console.log('[Infojud] registro DADOS duplicado ignorado para doc', buscaDoc);
+                            }
+                        } else {
+                            // Origem CNPJ: registrar empresa + sócio (se houver). Não mesclar entradas de outras buscas.
+                            const empresaEntry = {
+                                empresaNome: d.empresaNome || '',
+                                empresaEnderecoRaw: d.empresaEnderecoRaw || '',
+                                empresaEndereco: d.empresaEndereco || null,
+                                empresaCep: d.empresaCep || '',
+                                nome: d.nome || d.cpfResponsavel || '',
+                                cpf: d.cpf || d.cpfResponsavel || '',
+                                rua: d.rua || '',
+                                numero: d.numero || '',
+                                complemento: d.complemento || '',
+                                cep: d.cep || ''
+                            };
+                            if (!dadosRelatorioKeys.has(buscaDoc)) {
+                                dadosRelatorioKeys.add(buscaDoc);
+                                dadosRelatorio.push(montarRelatorio(empresaEntry));
+                            } else {
+                                console.log('[Infojud] registro DADOS duplicado ignorado para doc', buscaDoc);
+                            }
+                        }
 
-                if (MODO_EXECUCAO === 'DADOS') {
-                    linha.style.backgroundColor = '#c8e6c9';
-                    atual++;
-                    setTimeout(processarProximo, 800);
-                    return;
-                }
+                        // salvar por-doc para que DIRETO/COMPLETO reutilizem sem ir ao e-CAC
+                        try { _gmSet('GOD_DADOS_' + buscaDoc, JSON.stringify(d)); } catch (e) {}
+                        const l = encontrarLinhaPorDoc(buscaDoc);
+                        if (l) l.style.backgroundColor = '#c8e6c9';
+                        atual++;
+                        setTimeout(processarProximo, 800);
+                        return;
+                    }
+
+                    const linha = encontrarLinhaPorDoc(docAtual);
+                    if (!linha) throw new Error(`Linha não encontrada`);
+
+                    const btnEnvelope = linha.querySelector('.fa-envelope');
+                    if (!btnEnvelope) throw new Error('Envelope sumiu');
 
                 btnEnvelope.click();
                 await esperarModal('mat-dialog-container');
@@ -420,6 +519,12 @@
                     let complFinal = d.complemento || '';
                     const inputBairro = document.querySelector('#inputBairro');
                     if (inputBairro && inputBairro.value) complFinal = limparBairroFuzzy(complFinal, inputBairro.value);
+
+                    // quando é endereço de sócio (CNPJ com nome do responsável), anexar "N/P {nome}" ao complemento
+                    if (d.empresaNome && d.nome) {
+                        const sufixo = 'N/P ' + d.nome;
+                        complFinal = complFinal ? complFinal + ' ' + sufixo : sufixo;
+                    }
 
                     let n = document.querySelector('#inputNumero');
                     let c = document.querySelector('#inputComplemento');
@@ -503,33 +608,135 @@
         }
 
         function exibirRelatorioFinal() {
+            const wrapper = document.getElementById('god-btn-wrapper');
+
             const painel = document.createElement('div');
             painel.id = 'god-relatorio-panel';
-            painel.style.cssText = `
-                position: fixed; top: 190px; right: 20px;
-                background: white; border: 2px solid #004d40;
-                padding: 10px; z-index: 10000;
-                width: 520px; max-height: 420px;
-                overflow-y: auto; box-shadow: 0 5px 20px rgba(0,0,0,0.4);
-                border-radius: 6px; font-family: 'Segoe UI', sans-serif; font-size: 12px;
-            `;
+            painel.style.cssText = 'position:fixed;right:20px;top:150px;width:493px;background:#fff;border:2px solid #004d40;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.4);font-family:"Segoe UI",sans-serif;z-index:10000;';
 
-            const cabecalho = document.createElement('div');
-            cabecalho.innerHTML = '<strong>RELATÓRIO DE ENDEREÇOS</strong> <span style="float:right;cursor:pointer;font-weight:bold" onclick="this.parentElement.parentElement.remove()">[X]</span>';
-            cabecalho.style.borderBottom = '1px solid #ccc';
-            cabecalho.style.marginBottom = '10px';
-            painel.appendChild(cabecalho);
+            // ── Cabeçalho (drag + collapse + fechar)
+            const cab = document.createElement('div');
+            cab.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#004d40;color:#fff;padding:9px 14px;border-radius:8px 8px 0 0;cursor:grab;';
 
-            const contentDiv = document.createElement('div');
-            contentDiv.style.cssText = `
-                width: 100%; white-space: pre-wrap; word-break: break-all;
-                user-select: text; border: 1px solid #ddd; padding: 8px; background: #f9f9f9;
-                font-family: monospace; font-size: 11px; color: #333;
-            `;
-            contentDiv.textContent = dadosRelatorio.join('\n\n---\n\n');
-           
-            painel.appendChild(contentDiv);
+            const titulo = document.createElement('span');
+            titulo.textContent = 'RELATÓRIO DE ENDEREÇOS';
+            titulo.style.cssText = 'font-size:14px;font-weight:800;letter-spacing:.5px;cursor:pointer;';
+
+            const ctrls = document.createElement('span');
+            ctrls.style.cssText = 'display:flex;gap:12px;align-items:center;font-size:13px;font-weight:700;';
+
+            const btnToggle = document.createElement('span');
+            btnToggle.textContent = '▲';
+            btnToggle.style.cursor = 'pointer';
+
+            const btnX = document.createElement('span');
+            btnX.textContent = '✕';
+            btnX.style.cursor = 'pointer';
+            btnX.onclick = () => painel.remove();
+
+            ctrls.appendChild(btnToggle);
+            ctrls.appendChild(btnX);
+            cab.appendChild(titulo);
+            cab.appendChild(ctrls);
+            painel.appendChild(cab);
+
+            // ── Corpo
+            const corpo = document.createElement('div');
+            corpo.style.cssText = 'padding:12px 14px;max-height:460px;overflow-y:auto;user-select:text;';
+
+            function escapeHtml(s) { return String(s).replace(/[&<>"]+/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+            const blocks = dadosRelatorio.slice();
+            const S = { // estilos inline reutilizados
+                empresa:  'font-size:15px;font-weight:800;color:#01579b;margin-bottom:3px;',
+                endEmp:   'font-size:14px;color:#1a237e;margin-bottom:4px;padding-left:2px;',
+                socio:    'font-size:14px;font-weight:700;color:#1a237e;margin-top:6px;margin-bottom:2px;padding:3px 8px;background:#e8eaf6;border-left:4px solid #3949ab;border-radius:0 4px 4px 0;',
+                endSocio: 'font-size:14px;color:#283593;margin-bottom:2px;padding-left:12px;',
+                cpfSocio: 'font-size:13px;color:#444;padding-left:12px;margin-bottom:2px;',
+                pf:       'font-size:15px;font-weight:800;color:#4a148c;margin-bottom:3px;',
+                cpfPf:    'font-size:14px;color:#444;margin-bottom:3px;',
+                endPf:    'font-size:14px;color:#333;margin-bottom:2px;',
+            };
+
+            const htmlBlocks = blocks.map(b => {
+                const lines = String(b).split('\n');
+                let ctx = '';
+                const parts = lines.map(l => {
+                    if (l.startsWith('Empresa:')) {
+                        ctx = 'empresa';
+                        return `<div style="${S.empresa}">${escapeHtml(l)}</div>`;
+                    }
+                    if (l.startsWith('Sócio desta empresa:')) {
+                        ctx = 'socio';
+                        const val = l.replace(/^Sócio desta empresa:\s*/, '');
+                        return `<div style="${S.socio}">Sócio: ${escapeHtml(val)}</div>`;
+                    }
+                    if (l.startsWith('Nome:')) {
+                        ctx = 'pf';
+                        const val = l.replace(/^Nome:\s*/, '');
+                        return `<div style="${S.pf}">PESSOA FÍSICA: ${escapeHtml(val)}</div>`;
+                    }
+                    if (l.startsWith('CPF:')) {
+                        return `<div style="${ctx === 'socio' ? S.cpfSocio : S.cpfPf}">${escapeHtml(l)}</div>`;
+                    }
+                    if (l.startsWith('Endereço:')) {
+                        const val = l.replace(/^Endereço:\s*/, '');
+                        if (ctx === 'socio') return `<div style="${S.endSocio}">Endereço: ${escapeHtml(val)}</div>`;
+                        if (ctx === 'empresa') return `<div style="${S.endEmp}">Endereço: ${escapeHtml(val)}</div>`;
+                        return `<div style="${S.endPf}">Endereço: ${escapeHtml(val)}</div>`;
+                    }
+                    return `<div style="font-size:14px;color:#333;">${escapeHtml(l)}</div>`;
+                });
+                return `<div style="padding:10px 10px 8px;border-radius:6px;background:#f5f5f5;border:1px solid #ddd;margin-bottom:10px;">${parts.join('')}</div>`;
+            });
+
+            corpo.innerHTML = htmlBlocks.join('');
+            painel.appendChild(corpo);
             document.body.appendChild(painel);
+
+            // ── Collapse
+            let recolhido = false;
+            const toggleCorpo = () => {
+                recolhido = !recolhido;
+                corpo.style.display = recolhido ? 'none' : '';
+                btnToggle.textContent = recolhido ? '▼' : '▲';
+            };
+            btnToggle.onclick = toggleCorpo;
+            titulo.onclick = toggleCorpo;
+
+            // ── Drag
+            let dragging = false, ox = 0, oy = 0;
+            cab.addEventListener('mousedown', e => {
+                if (e.target === btnToggle || e.target === btnX) return;
+                dragging = true;
+                const r = painel.getBoundingClientRect();
+                ox = e.clientX - r.left; oy = e.clientY - r.top;
+                cab.style.cursor = 'grabbing';
+                e.preventDefault();
+            });
+            document.addEventListener('mousemove', e => {
+                if (!dragging) return;
+                painel.style.left = (e.clientX - ox) + 'px';
+                painel.style.top  = (e.clientY - oy) + 'px';
+                painel.style.right = 'auto';
+            });
+            document.addEventListener('mouseup', () => { dragging = false; cab.style.cursor = 'grab'; });
+
+            // ── Botões no wrapper
+            const btnStyle = 'padding:8px 14px;color:white;font-weight:700;cursor:pointer;border-radius:6px;border:none;box-shadow:0 2px 6px rgba(0,0,0,0.18);font-size:13px;';
+            const mkBtn = (txt, cb) => { const b = document.createElement('button'); b.textContent = txt; b.style.cssText = btnStyle + 'background:#0288d1;'; b.onclick = cb; return b; };
+            if (wrapper) {
+                wrapper.innerHTML = '';
+                wrapper.appendChild(mkBtn('Infojud Direto',   () => iniciarTrabalho('DIRETO')));
+                wrapper.appendChild(mkBtn('Infojud Correção', () => iniciarTrabalho('COMPLETO')));
+            } else {
+                const fallback = document.createElement('div');
+                fallback.id = 'god-btn-wrapper';
+                fallback.style.cssText = 'position:fixed;top:100px;right:20px;display:flex;gap:8px;z-index:9999;';
+                fallback.appendChild(mkBtn('Infojud Direto',   () => iniciarTrabalho('DIRETO')));
+                fallback.appendChild(mkBtn('Infojud Correção', () => iniciarTrabalho('COMPLETO')));
+                document.body.appendChild(fallback);
+            }
         }
 
         function esperarModal(classe) {

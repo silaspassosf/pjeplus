@@ -121,6 +121,30 @@ ato_respcalc = make_ato_wrapper(
     descricao='Contestar Cálculos'
 )
 
+# PLACEHOLDER — modelo_nome a definir
+ato_contestar = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome=None,
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Contestar Cálculos de Liquidação'
+)
+
+# PLACEHOLDER — modelo_nome a definir
+ato_revel = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome=None,
+    prazo=None,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=False,
+    descricao='Revel — Apresentar Cálculos'
+)
+
 ato_concor = make_ato_wrapper(
     conclusao_tipo='Despacho',
     modelo_nome='cia com os c',

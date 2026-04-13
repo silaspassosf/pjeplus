@@ -1,49 +1,47 @@
 {
   "numero": [
-    "1000695-09.2025.5.02.0703"
+    "1001827-72.2023.5.02.0703"
   ],
-  "id": 7181496,
+  "id": 5795070,
   "autor": [
     {
-      "nome": "YASMIN GONZAGA DE OLIVEIRA",
-      "cpfcnpj": "49388286855",
+      "nome": "VAVI NUNES GUERRA",
+      "cpfcnpj": "11193612810",
       "advogado": {
-        "nome": "RAFAEL MOURA DA SILVA",
-        "cpf": "34340144894",
-        "oab": "SP324464"
+        "nome": "JUCILENE SANTOS ALVES",
+        "cpf": "39434624800",
+        "oab": "SP441213"
       }
     }
   ],
   "reu": [
     {
-      "nome": "SOLUCOES SERVICOS TERCEIRIZADOS- EIRELI",
-      "cpfcnpj": "09445502000109",
-      "advogado": {
-        "nome": "RICARDO ANDRE ZAMBO",
-        "cpf": "15310771883",
-        "oab": "SP138476"
-      }
+      "nome": "J.M.S. RINALDI SERVICOS DE PORTARIA E LIMPEZA - ME",
+      "cpfcnpj": "09465405000170"
+    },
+    {
+      "nome": "JEANE MARIA SILVA RINALDI",
+      "cpfcnpj": "28907802874"
     }
   ],
   "terceiro": [],
   "divida": {
-    "valor": "R$ 357,26",
-    "data": "27/03/2026"
+    "valor": "R$ 211.716,99",
+    "data": "01/02/2026"
   },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "30/04/2025",
+  "dtAutuacao": "12/12/2023",
   "classeJudicial": {
-    "id": 387,
-    "codigo": "1125",
-    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
-    "sigla": "ATSum",
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 3242.01,
-    "tetoValorCausa": 64840.0,
+    "pisoValorCausa": 64840.01,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false

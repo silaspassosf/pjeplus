@@ -448,17 +448,18 @@ def ato_judicial(
                 logger.error(f'[ATO][COLETA]  Erro na coleta de conteúdo: {e}')
                 return False, False
 
-        # 1. MODELO: Executar fluxo_cls se modelo_nome especificado
+        # 1. MODELO: Executar fluxo_cls sempre (navega para conclusao/minutar)
+        logger.info(f'[ATO][CLS] Iniciando fluxo CLS: conclusao_tipo={conclusao_tipo}')
+        timing_fluxo_cls_inicio = time.time()
+        if not fluxo_cls(driver, conclusao_tipo or 'decisão'):
+            logger.error('[ATO][CLS] Falha no fluxo CLS')
+            timing_total = time.time() - timing_inicio
+            logger.info(f'[ATO][TIMING][ERRO] {timing_total:.3f}s falha fluxo CLS')
+            return False, False
+        timing_fluxo_cls = time.time() - timing_fluxo_cls_inicio
+        logger.info(f'[ATO][TIMING][FLUXO_CLS] {timing_fluxo_cls:.3f}s')
+
         if modelo_nome:
-            logger.info(f'[ATO][MODELO] Iniciando fluxo CLS com modelo: {modelo_nome}')
-            timing_fluxo_cls_inicio = time.time()
-            if not fluxo_cls(driver, conclusao_tipo or 'decisão'):
-                logger.error('[ATO][MODELO]  Falha no fluxo CLS')
-                timing_total = time.time() - timing_inicio
-                logger.info(f'[ATO][TIMING][ERRO] {timing_total:.3f}s falha fluxo CLS')
-                return False, False
-            timing_fluxo_cls = time.time() - timing_fluxo_cls_inicio
-            logger.info(f'[ATO][TIMING][FLUXO_CLS] {timing_fluxo_cls:.3f}s')
 
             # ===== DESCRIÇÃO (ANTES de inserir modelo para evitar DOM refresh) =====
             if descricao:
@@ -656,16 +657,6 @@ def ato_judicial(
                 except Exception:
                     pass
                 
-                # Gravar prazos (usar safe_click_no_scroll em vez de scrollIntoView + click)
-                logger.info('[ATO][PRAZO] Gravando prazos...')
-                btn_gravar_prazo = wait_for_clickable(driver, "//button[.//span[normalize-space(text())='Gravar'] and contains(@class, 'mat-raised-button') and not(contains(@aria-label, 'movimentos'))]", timeout=10, by=By.XPATH)
-                if btn_gravar_prazo and safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
-                    logger.info('[ATO][PRAZO] Gravado via safe_click_no_scroll')
-                elif btn_gravar_prazo:
-                    logger.warning('[ATO][PRAZO] Falha em safe_click_no_scroll, tentando .click()')
-                    btn_gravar_prazo.click()
-                
-                time.sleep(1)
                 logger.info('[ATO][PRAZO]  Prazos concluídos')
             except Exception as e:
                 logger.error(f'[ATO][PRAZO]  Erro ao preencher prazos: {e}')
@@ -731,22 +722,18 @@ def ato_judicial(
                 logger.error(f'[ATO][PEC] ❌ {e}')
                 # Não interrompe o fluxo
 
-        # Após manipular PEC, gravar localmente antes de ir para Movimentos
+        # ===== GRAVAR INTIMAÇÕES (uma vez, após prazos e PEC) =====
+        logger.info('[ATO][GRAVAR] Gravando intimações...')
         try:
-            logger.info('[ATO][PEC] Tentando gravar alterações de PEC antes do movimento...')
-            # seletor direto para o botão mostrado pelo usuário
-            btn_gravar_pec = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=5, by=By.CSS_SELECTOR)
-            if btn_gravar_pec and safe_click_no_scroll(driver, btn_gravar_pec, log=False):
-                logger.info('[ATO][PEC] Clique em Gravar (intimacao) realizado')
+            btn_gravar_intim = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=10, by=By.CSS_SELECTOR)
+            if btn_gravar_intim:
+                safe_click_no_scroll(driver, btn_gravar_intim, log=False)
+                logger.info('[ATO][GRAVAR] Intimações gravadas')
+                time.sleep(1)
             else:
-                try:
-                    btn_gravar_pec.click()
-                    logger.info('[ATO][PEC] Clique padrao em Gravar realizado')
-                except Exception as e:
-                    logger.debug(f'[ATO][PEC] Falha ao clicar em Gravar via .click(): {e}')
-            time.sleep(0.8)
+                logger.debug('[ATO][GRAVAR] Botão Gravar não encontrado (sem alterações?)')
         except Exception as e:
-            logger.debug(f'[ATO][PEC] Botão Gravar não encontrado/acionável: {e}')
+            logger.debug(f'[ATO][GRAVAR] {e}')
 
         # ===== ABA DESTINATÁRIOS - MOVIMENTO =====
         if movimento:
@@ -928,50 +915,22 @@ def ato_judicial(
                 logger.info('[ATO][SALVAR] Ato salvo')
                 time.sleep(1.5)
 
-                # Verifica e reaplica sigilo/PEC caso o save tenha re-renderizado a aba
-                try:
-                    changed = _verificar_reaplicar_sigilo_pec()
-                    if changed:
-                        logger.info('[ATO][SALVAR] Mudança detectada após reaplicar; salvando novamente...')
-                        btn_salvar2 = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=5, by=By.CSS_SELECTOR)
-                        if btn_salvar2:
-                            btn_salvar2.click()
-                            time.sleep(1)
-                except Exception as e:
-                    logger.debug(f'[ATO][SALVAR] Não foi possível salvar novamente: {e}')
-
             except Exception as e:
                 logger.error(f'[ATO][SALVAR]  Erro ao salvar após movimento: {e}')
                 return False, False
         else:
-            # Sem movimento: GRAVAR configurações e depois SALVAR
-            logger.info('[ATO][GRAVAR] Gravando configurações...' )
+            # Sem movimento: SALVAR (intimações já foram gravadas acima)
+            logger.info('[ATO][SALVAR] Salvando ato (sem movimento)...')
             try:
-                btn_gravar = wait_for_clickable(driver, 'button[aria-label="Gravar a intimação/notificação"]', timeout=15, by=By.CSS_SELECTOR)
-                if btn_gravar:
-                    btn_gravar.click()
-                    logger.info('[ATO][GRAVAR] Gravado')
-                    time.sleep(1)
-                else:
-                    raise Exception('Botão Gravar não disponível')
+                btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=10, by=By.CSS_SELECTOR)
+                if not btn_salvar_final:
+                    raise Exception('Botão Salvar não disponível')
+                btn_salvar_final.click()
+                logger.info('[ATO][SALVAR] Ato salvo')
+                time.sleep(1.5)
             except Exception as e:
-                logger.error(f'[ATO][GRAVAR] ❌ {e}')
+                logger.error(f'[ATO][SALVAR] ❌ {e}')
                 return False, False
-
-            # Após gravar localmente, revalidar/reaplicar sigilo/PEC antes do save final
-            try:
-                changed = _verificar_reaplicar_sigilo_pec()
-                if changed:
-                    logger.info('[ATO][GRAVAR] Mudança detectada após reaplicar; executando save final...')
-                    try:
-                        btn_salvar_final = wait_for_clickable(driver, "button[aria-label='Salvar'][color='primary']", timeout=5, by=By.CSS_SELECTOR)
-                        if btn_salvar_final:
-                            btn_salvar_final.click()
-                            time.sleep(1)
-                    except Exception as e:
-                        logger.debug(f'[ATO][GRAVAR] Não foi possível executar save final: {e}')
-            except Exception:
-                pass
 
         # 8. ASSINAR: Clicar em assinar se especificado
         if Assinar:

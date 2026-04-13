@@ -1,6 +1,6 @@
 from .loop_base import *
 from .loop_helpers import _extrair_numero_processo_da_linha
-from .loop_api import _verificar_processos_xs_paralelo
+from .loop_api import _verificar_processos_xs_paralelo, _obter_processos_com_gigs_api
 from Fix.smart_finder import buscar
 from Fix.core import aguardar_renderizacao_nativa
 
@@ -50,31 +50,50 @@ def _ciclo2_aplicar_filtros(driver: WebDriver) -> bool:
 
 
 def _ciclo2_processar_livres(driver: WebDriver, client: Optional['PjeApiClient'] = None) -> int:
-    """Seleciona todos os processos livres (sem verificação de xs).
+    """Seleciona todos os processos livres (sem gigs DOM nem gigs via API).
 
     Args:
         driver: WebDriver Selenium
-        client: PjeApiClient (não utilizado, mantido para compatibilidade)
+        client: PjeApiClient — quando fornecido, faz checagem extra via API para
+                detectar gigs sem prazo que não aparecem no DOM.
 
     Returns:
         Total de processos livres selecionados
     """
     try:
         import time as _time
+
+        processos_com_gigs_api: List[str] = []
+        if client is not None:
+            # Extrai números de todos os processos visíveis na tabela
+            linhas = driver.find_elements(By.CSS_SELECTOR, 'tr.cdk-drag')
+            numeros = [n for linha in linhas
+                       if (n := _extrair_numero_processo_da_linha(linha))]
+            if numeros:
+                logger.info(f'[CICLO2][LIVRES] Verificando {len(numeros)} processos via API GIGS...')
+                processos_com_gigs_api = _obter_processos_com_gigs_api(
+                    client, numeros, max_workers=GIGS_API_MAX_WORKERS
+                )
+                logger.info(f'[CICLO2][LIVRES] {len(processos_com_gigs_api)} processo(s) com gigs via API')
+
         _t0 = _time.perf_counter()
-        selecionados_livres = driver.execute_script(SCRIPT_SELECAO_LIVRES)
+        if processos_com_gigs_api:
+            selecionados_livres = driver.execute_script(SCRIPT_SELECAO_LIVRES_API, processos_com_gigs_api)
+            _label = 'SCRIPT_SELECAO_LIVRES_API'
+        else:
+            selecionados_livres = driver.execute_script(SCRIPT_SELECAO_LIVRES)
+            _label = 'SCRIPT_SELECAO_LIVRES'
         _t1 = _time.perf_counter()
         try:
-            logger.info(f'[LATENCIA][DETALHE] SCRIPT_SELECAO_LIVRES: {(_t1-_t0)*1000:.1f}ms')
+            logger.info(f'[LATENCIA][DETALHE] {_label}: {(_t1-_t0)*1000:.1f}ms')
         except Exception:
             pass
-        
+
         if selecionados_livres > 0:
             logger.info(f'[CICLO2][LIVRES] ✅ {selecionados_livres} livre(s) selecionado(s)')
         else:
             logger.info('[CICLO2][LIVRES] Nenhum livre encontrado')
-        
-        # aguardar estabilização rápida do DOM (se necessário)
+
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=4)
         except Exception:

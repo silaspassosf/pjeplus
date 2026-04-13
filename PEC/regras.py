@@ -12,13 +12,23 @@ Este arquivo foi refatorado. As funções agora estão nos módulos especializad
 Este arquivo mantém apenas re-exports para compatibilidade com código existente.
 """
 
-# Re-exports from .matcher (modulo relativo)
-from .matcher import (
-    determinar_acoes_por_observacao,
-    determinar_acao_por_observacao,
-    get_action_rules,
-    get_cached_rules,
-)
+# Re-exports — matcher substituído por regras_pec
+from .regras_pec import determinar_regra as _determinar_regra
+
+def determinar_acoes_por_observacao(observacao: str) -> list:
+    match = _determinar_regra(observacao)
+    return [match[2]] if match else []
+
+def determinar_acao_por_observacao(observacao: str):
+    match = _determinar_regra(observacao)
+    return match[2] if match else None
+
+def get_action_rules() -> list:
+    from .regras_pec import REGRAS
+    return REGRAS
+
+def get_cached_rules() -> list:
+    return get_action_rules()
 
 # Re-exports from .helpers (modulo relativo)
 from .helpers import (
@@ -27,15 +37,16 @@ from .helpers import (
     gerar_regex_geral,
 )
 
-# Re-exports from .actions (modulo relativo)
-try:
-    from .executor import (
-        executar_acao_pec,
-        chamar_funcao_com_assinatura_correta,
-    )
-except ImportError:
-    # Se executor não existir, fornecer stubs
-    pass
+# executor foi removido — stubs para compatibilidade
+def executar_acao_pec(driver, acao, *args, **kwargs):
+    """Stub: use PEC.orquestrador para execucao."""
+    if callable(acao):
+        return acao(driver)
+    return False
+
+def chamar_funcao_com_assinatura_correta(func, driver, *args, **kwargs):
+    """Stub: chama func(driver) diretamente."""
+    return func(driver)
 
 # Re-exports from .analysis (modulo relativo)
 

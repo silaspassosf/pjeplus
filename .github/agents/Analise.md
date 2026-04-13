@@ -64,6 +64,7 @@ Meta de longo prazo: execução headless no GitHub Actions.
 | `SISB/standards.py` | Modelo de dataclass a replicar em outros módulos |
 | `x.py` e variações | Orquestrador final — alvo de cloud |
 | `extensions/` | Extensões Firefox (maisPJe, AVJT) — **nunca modificar** |
+| `legado.md` | Legado consolidado — consultar para entender a **lógica/intenção** de um fluxo; jamais copiar código; a implementação resultante deve seguir as APIs e padrões de `idx.md` |
 | `ref/`, `ORIGINAIS/` | Legado funcional — consultar em regressão, nunca base primária |
 | `aprendizado_seletores.json` | Cache de seletores aprendidos pelo SmartFinder |
 | `monitor_aprendizado.log` | Log exclusivo de falhas/acertos de seletores |
@@ -162,7 +163,16 @@ Antes de gerar qualquer código, execute mentalmente estas etapas:
 2. **Identificar o módulo afetado** usando a topologia acima e o `idx.md`.
 3. **Localizar o arquivo exato** — se não tiver certeza, perguntar ao usuário antes.
 4. **Ler o bloco completo antes de propor:** qualquer patch que modifique uma função existente exige `read/file` do bloco completo dessa função. Sem exceção, mesmo que o trecho pareça óbvio.
-5. **Verificar completude de estruturas:** para patches que modificam `dict`, `list` ou `tuple` literais com múltiplas entradas, contar as entradas no arquivo real antes de gerar o `Trecho Original`. O `Trecho Original` deve conter **todas** as entradas — nunca apenas as novas ou as alteradas.
+4a. **Regra de uso do legado (`legado.md` / `ref/` / `ORIGINAIS/`):**
+    - **Consultar** quando o comportamento esperado não está claro ou o fluxo regrediu.
+    - **Extrair apenas a lógica e a intenção** (ex.: qual elemento clicar, qual sequência de passos).
+    - **Nunca copiar código do legado** — toda implementação resultante deve usar as APIs definidas em `idx.md` (ex.: `click_headless_safe` em vez de `execute_script` direto, `aguardar_renderizacao_nativa` em vez de `time.sleep`, seletores via `Fix/headless_helpers.py` em vez de `WebDriverWait` hardcoded).
+    - **Teste obrigatório após adaptação:** `py -m py_compile arquivo.py` deve passar antes de qualquer entrega.
+4b. **Regra de coesão com as APIs Fix (obrigatório ao criar ou editar qualquer interação com o navegador):**
+    - Antes de escrever qualquer linha de código que envolva clicar, esperar ou encontrar elemento, consultar a seção **6. API de Interação Obrigatória** do `idx.md`.
+    - Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `.click()` direto nos módulos de negócio.
+    - Substituição obrigatória: `click_headless_safe` para clique; `esperar_elemento`/`wait_for_clickable` para espera de presença; `aguardar_renderizacao_nativa` para renderização Angular.
+    - Coerência de import: verificar qual caminho de import é correto via `idx.md` antes de usar (ex: `Fix.headless_helpers`, não `Fix.headlesshelpers`). para patches que modificam `dict`, `list` ou `tuple` literais com múltiplas entradas, contar as entradas no arquivo real antes de gerar o `Trecho Original`. O `Trecho Original` deve conter **todas** as entradas — nunca apenas as novas ou as alteradas.
 6. **Checar impacto em fluxo existente** — a alteração pode quebrar algo?
 7. **Checar contra o plano `reta3.md`** — o código novo introduz algum padrão problemático P1–P8?
 8. **Definir escopo mínimo** — cirúrgico, não refatoração ampla.

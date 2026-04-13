@@ -151,6 +151,7 @@ pec_sigilo = make_comunicacao_wrapper(
     subtipo="Intimação",
     descricao="decisão sigilosa",
     destinatarios='polo_ativo',
+    assinar=True,
     wrapper_name='pec_sigilo'
 )
 
@@ -163,6 +164,7 @@ pec_ord = make_comunicacao_wrapper(
     subtipo="Notificação",
     gigs_extra=None,
     destinatarios=None,
+    trocar_modelo=True,
     wrapper_name='pec_ord'
 )
 
@@ -175,6 +177,7 @@ pec_sum = make_comunicacao_wrapper(
     subtipo="Notificação",
     gigs_extra=None,
     destinatarios=None,
+    trocar_modelo=True,
     wrapper_name='pec_sum'
 )
 
@@ -204,31 +207,7 @@ pec_sumc = make_comunicacao_wrapper(
     endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
 )
 
-pec_ordc2 = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='ordc2',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios='polo_passivo',  # Adicionado para clicar no polo passivo
-    cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios'  # Adicionado para alterar expediente para correios
-)
 
-pec_sumc2 = make_comunicacao_wrapper(
-    tipo_expediente='Notificação Inicial',
-    prazo=5,
-    nome_comunicacao='Notificação',
-    sigilo=False,
-    modelo_nome='sumc2',
-    subtipo="Notificação",
-    gigs_extra=None,
-    destinatarios='polo_passivo',  # Adicionado para clicar no polo passivo
-    cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios'  # Adicionado para alterar expediente para correios
-)
 
 
 # ====================================================

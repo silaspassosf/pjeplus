@@ -14,7 +14,7 @@ Módulo PEC - Petições Eletrônicas (Refatorado)
 
 # Fornecer stubs para manter compatibilidade básica
 # (Compat layer: re-export apenas o que o código legacy `ref/PEC` importa)
-from .core import (
+from .core_progresso import (
     carregar_progresso_pec,
     salvar_progresso_pec,
     extrair_numero_processo_pec,

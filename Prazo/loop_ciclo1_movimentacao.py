@@ -63,9 +63,6 @@ def _ciclo1_marcar_todas(driver: WebDriver) -> str:
         import traceback
         logger.error(f"[CICLO1/MARCAR_TODAS] Traceback: {traceback.format_exc()[:800]}")
         return "error"
-        import traceback
-        logger.info(f"[LOOP_PRAZO] Traceback: {traceback.format_exc()[:800]}")
-        return "error"
 
 def _ciclo1_abrir_suitcase(driver: WebDriver) -> bool:
     """Abre suitcase para movimentação em lote usando JavaScript click (VERSÃO CORRIGIDA)."""

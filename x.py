@@ -47,8 +47,6 @@ import os
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 from enum import Enum
-import signal
-
 # Selenium imports
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options

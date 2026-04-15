@@ -1,6 +1,6 @@
 import re
 import time
-from typing import Optional, List, Set, Tuple, Union, Any, Callable
+from typing import Optional, List, Tuple, Union, Any, Callable
 from urllib.parse import urlparse
 
 from selenium.webdriver.remote.webdriver import WebDriver

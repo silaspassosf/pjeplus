@@ -127,24 +127,13 @@ with open("log.py", "w", encoding="utf-8") as f:
 
 # Use o monitoramento unificado para extração e marcação de progresso
 # Isso garante comportamento idêntico ao usado em p2b.py (validação/formato do número)
-from PEC.core_progresso import (
-    carregar_progresso_pec as carregar_progresso,
-    salvar_progresso_pec as salvar_progresso,
-    extrair_numero_processo_pec as extrair_numero_processo,
-    verificar_acesso_negado_pec as verificar_acesso_negado,
-    processo_ja_executado_pec as processo_ja_executado,
-    marcar_processo_executado_pec as marcar_processo_executado,
-)
 
 from .processamento_anexos import (
     _SIGILO_TYPES,
     _SELETORES_ANEXOS,
     _identificar_tipo_anexo,
-    _aguardar_icone_plus,
-    _buscar_icone_plus_direto,
     _localizar_modal_visibilidade,
     _processar_modal_visibilidade,
-    _extrair_resultado_sisbajud,
     _extrair_executados_pdf,
     processar_sisbajud,
     tratar_anexos_argos,

@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 import traceback
 from pathlib import Path
-from typing import Iterable
 
 
 def resumir_excecao(exc: BaseException, contexto: str = "", max_frames: int = 3) -> str:

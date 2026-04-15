@@ -32,6 +32,7 @@ def _definir_regras_processamento() -> List[Tuple]:
     ato_sobrestamento = m['ato_sobrestamento']
     ato_pesqliq = m.get('ato_pesqliq')
     ato_reitmeios = m.get('ato_reitmeios')
+    ato_idpj = m.get('ato_idpj')
     # wrappers/from PEC
     retifidpj_wrapper = m.get('retifidpj_wrapper')
     pec_excluiargos = m.get('pec_excluiargos')

@@ -1,0 +1,464 @@
+[
+  {
+    "original": "atos/judicial_bloqueios.py",
+    "archived_to": "_archive/20260415_023603/atos/judicial_bloqueios.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "atos/judicial_conclusao.py",
+    "archived_to": "_archive/20260415_023603/atos/judicial_conclusao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "atos/judicial_modelos.py",
+    "archived_to": "_archive/20260415_023603/atos/judicial_modelos.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "atos/judicial_navegacao.py",
+    "archived_to": "_archive/20260415_023603/atos/judicial_navegacao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "atos/judicial_prazos.py",
+    "archived_to": "_archive/20260415_023603/atos/judicial_prazos.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "atos/judicial_wrappers.py",
+    "archived_to": "_archive/20260415_023603/atos/judicial_wrappers.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/converters.py",
+    "archived_to": "_archive/20260415_023603/Fix/converters.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/extracao_analise.py",
+    "archived_to": "_archive/20260415_023603/Fix/extracao_analise.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/extracao_bndt.py",
+    "archived_to": "_archive/20260415_023603/Fix/extracao_bndt.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/extracao_documento.py",
+    "archived_to": "_archive/20260415_023603/Fix/extracao_documento.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/extracao_indexacao.py",
+    "archived_to": "_archive/20260415_023603/Fix/extracao_indexacao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/extracao_indexacao_fluxo.py",
+    "archived_to": "_archive/20260415_023603/Fix/extracao_indexacao_fluxo.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/forms/__init__.py",
+    "archived_to": "_archive/20260415_023603/Fix/forms/__init__.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/forms/multiple_fields.py",
+    "archived_to": "_archive/20260415_023603/Fix/forms/multiple_fields.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/gigs/lembrete.py",
+    "archived_to": "_archive/20260415_023603/Fix/gigs/lembrete.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/infojud.py",
+    "archived_to": "_archive/20260415_023603/Fix/infojud.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/legacy/extracao_analise.py",
+    "archived_to": "_archive/20260415_023603/Fix/legacy/extracao_analise.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/legacy/extracao_documento.py",
+    "archived_to": "_archive/20260415_023603/Fix/legacy/extracao_documento.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/legacy/extracao_indexacao_fluxo.py",
+    "archived_to": "_archive/20260415_023603/Fix/legacy/extracao_indexacao_fluxo.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/legacy/extracao_processo.py",
+    "archived_to": "_archive/20260415_023603/Fix/legacy/extracao_processo.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/legacy/progress_models.py",
+    "archived_to": "_archive/20260415_023603/Fix/legacy/progress_models.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/native_host.py",
+    "archived_to": "_archive/20260415_023603/Fix/native_host.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/progress_models.py",
+    "archived_to": "_archive/20260415_023603/Fix/progress_models.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/session_pool.py",
+    "archived_to": "_archive/20260415_023603/Fix/session_pool.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/timeline.py",
+    "archived_to": "_archive/20260415_023603/Fix/timeline.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_angular.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_angular.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_collect.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_collect.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_collect_content.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_collect_content.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_collect_timeline.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_collect_timeline.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_driver_legacy.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_driver_legacy.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_drivers.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_drivers.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_editor.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_editor.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_error.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_error.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_formatting.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_formatting.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_login.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_login.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_recovery.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_recovery.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_selectors.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_selectors.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Fix/utils_tempo.py",
+    "archived_to": "_archive/20260415_023603/Fix/utils_tempo.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Mandado/log.py",
+    "archived_to": "_archive/20260415_023603/Mandado/log.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "PEC/anexos/anexos_configuracao.py",
+    "archived_to": "_archive/20260415_023603/PEC/anexos/anexos_configuracao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "PEC/anexos/anexos_gigs.py",
+    "archived_to": "_archive/20260415_023603/PEC/anexos/anexos_gigs.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "PEC/petjs.py",
+    "archived_to": "_archive/20260415_023603/PEC/petjs.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "PEC/test_leitura_real.py",
+    "archived_to": "_archive/20260415_023603/PEC/test_leitura_real.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "PEC/test_pet2.py",
+    "archived_to": "_archive/20260415_023603/PEC/test_pet2.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "PEC/test_pet2_real.py",
+    "archived_to": "_archive/20260415_023603/PEC/test_pet2_real.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Peticao/api/contexto.py",
+    "archived_to": "_archive/20260415_023603/Peticao/api/contexto.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Peticao/core/utils/utils_drivers.py",
+    "archived_to": "_archive/20260415_023603/Peticao/core/utils/utils_drivers.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Peticao/funcoes_dependencias/__init__.py",
+    "archived_to": "_archive/20260415_023603/Peticao/funcoes_dependencias/__init__.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Peticao/funcoes_dependencias/p2b_core.py",
+    "archived_to": "_archive/20260415_023603/Peticao/funcoes_dependencias/p2b_core.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Peticao/monitoramento/__init__.py",
+    "archived_to": "_archive/20260415_023603/Peticao/monitoramento/__init__.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Peticao/monitoramento/progresso.py",
+    "archived_to": "_archive/20260415_023603/Peticao/monitoramento/progresso.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/__main__.py",
+    "archived_to": "_archive/20260415_023603/Prazo/__main__.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/loop.py",
+    "archived_to": "_archive/20260415_023603/Prazo/loop.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/loop_ciclo1_filtros.py",
+    "archived_to": "_archive/20260415_023603/Prazo/loop_ciclo1_filtros.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/prov.py",
+    "archived_to": "_archive/20260415_023603/Prazo/prov.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/prov_config.py",
+    "archived_to": "_archive/20260415_023603/Prazo/prov_config.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/prov_driver.py",
+    "archived_to": "_archive/20260415_023603/Prazo/prov_driver.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "Prazo/prov_fluxo.py",
+    "archived_to": "_archive/20260415_023603/Prazo/prov_fluxo.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/Core/sessao.py",
+    "archived_to": "_archive/20260415_023603/SISB/Core/sessao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/driver.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/driver.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/login.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/login.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/sessao.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/sessao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/sessao_helpers.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/sessao_helpers.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/utils_const.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/utils_const.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/utils_dados.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/utils_dados.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/utils_js.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/utils_js.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/core.backup_20260206/utils_web.py",
+    "archived_to": "_archive/20260415_023603/SISB/core.backup_20260206/utils_web.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento/minutas_agendada.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento/minutas_agendada.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento/minutas_copia.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento/minutas_copia.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento/minutas_deprecated.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento/minutas_deprecated.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento/minutas_protocolo.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento/minutas_protocolo.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento_ordens.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento_ordens.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento_ordens_extracao.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento_ordens_extracao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento_ordens_processamento_auxiliar.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento_ordens_processamento_auxiliar.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/processamento_ordens_processamento_principal.py",
+    "archived_to": "_archive/20260415_023603/SISB/processamento_ordens_processamento_principal.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/sisb.py",
+    "archived_to": "_archive/20260415_023603/SISB/sisb.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  },
+  {
+    "original": "SISB/test_refatoracao.py",
+    "archived_to": "_archive/20260415_023603/SISB/test_refatoracao.py",
+    "motivo": "not_reachable_from_x_py",
+    "timestamp": "20260415_023603"
+  }
+]

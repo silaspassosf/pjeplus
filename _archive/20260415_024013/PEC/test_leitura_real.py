@@ -1,0 +1,433 @@
+import logging
+logger = logging.getLogger(__name__)
+
+"""
+Teste STANDALONE de leitura de dados REAIS do doc.txt (HTML do PJE)
+NÃO PRECISA DE AMBIENTE VIRTUAL - todas as funções estão aqui
+"""
+
+import re
+import os
+from datetime import datetime
+from bs4 import BeautifulSoup
+from dataclasses import dataclass
+from typing import Optional, Any, List, Dict, Pattern, Tuple
+
+
+# ============================================================================
+# CLASSES E FUNÇÕES COPIADAS DO PET2.PY (SEM DEPENDÊNCIAS EXTERNAS)
+# ============================================================================
+
+@dataclass
+class PeticaoLinha:
+    """Representa uma linha da tabela de petições."""
+    numero_processo: str
+    tipo_peticao: str
+    descricao: str
+    tarefa: str
+    fase: str
+    data_juntada: str
+    elemento_html: Any
+    eh_perito: bool = False
+    data_audiencia: Optional[datetime] = None
+    polo: Optional[str] = None
+    indice: int = 0
+
+
+def normalizar_texto(texto: str) -> str:
+    """Remove acentos e converte para minúsculas."""
+    if not texto:
+        return ""
+    mapa = str.maketrans(
+        "áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ",
+        "aaaaaeeeeiiiiooooouuuucnAAAAAEEEEIIIIOOOOOUUUUCN"
+    )
+    return texto.translate(mapa).lower().strip()
+
+
+def gerar_regex_flexivel(palavra: str) -> Pattern:
+    """Gera regex que aceita variações de acentuação."""
+    mapa_inverso = {
+        'a': '[aáàâãäAÁÀÂÃÄ]', 'e': '[eéèêëEÉÈÊË]',
+        'i': '[iíìîïIÍÌÎÏ]', 'o': '[oóòôõöOÓÒÔÕÖ]',
+        'u': '[uúùûüUÚÙÛÜ]', 'c': '[cçCÇ]', 'n': '[nñNÑ]'
+    }
+    palavra_norm = normalizar_texto(palavra)
+    pattern = ''.join(mapa_inverso.get(c, c) for c in palavra_norm)
+    return re.compile(pattern, re.IGNORECASE)
+
+
+def campo(campo_nome: str, padrao: Any) -> Dict[str, Any]:
+    """Cria especificação para testar padrão em campo específico."""
+    return {'campo': campo_nome, 'padrao': padrao}
+
+
+def qualquer_campo(padrao: Any) -> Dict[str, Any]:
+    """Cria especificação para testar padrão em qualquer campo (legacy)."""
+    return {'campo': 'qualquer', 'padrao': padrao}
+
+
+def verifica_peticao_contra_hipotese(peticao: PeticaoLinha, padroes: List[Any]) -> bool:
+    """Verifica se petição corresponde a todos os padrões da hipótese."""
+    for padrao in padroes:
+        if isinstance(padrao, dict) and 'campo' in padrao:
+            campo_nome = padrao['campo']
+            regex = padrao['padrao']
+            
+            if campo_nome == 'qualquer':
+                texto_concatenado = f"{peticao.tipo_peticao} {peticao.descricao} {peticao.tarefa} {peticao.fase}"
+                texto_normalizado = normalizar_texto(texto_concatenado)
+            else:
+                texto_campo = getattr(peticao, campo_nome, "")
+                texto_normalizado = normalizar_texto(texto_campo)
+            
+            if callable(regex):
+                if not regex(texto_normalizado):
+                    return False
+            elif hasattr(regex, 'search'):
+                if not regex.search(texto_normalizado):
+                    return False
+        elif hasattr(padrao, 'search'):
+            texto_concatenado = f"{peticao.tipo_peticao} {peticao.descricao} {peticao.tarefa} {peticao.fase}"
+            texto_normalizado = normalizar_texto(texto_concatenado)
+            if not padrao.search(texto_normalizado):
+                return False
+        elif callable(padrao):
+            texto_concatenado = f"{peticao.tipo_peticao} {peticao.descricao} {peticao.tarefa} {peticao.fase}"
+            texto_normalizado = normalizar_texto(texto_concatenado)
+            if not padrao(texto_normalizado):
+                return False
+    
+    return True
+
+
+def definir_regras() -> Dict[str, List[Tuple[str, List, str]]]:
+    """Define todas as regras de classificação (versão simplificada para teste)."""
+    
+    regras = {
+        'apagar': [
+            ("Razões Finais / Carta Convite", [
+                campo('tipo_peticao', gerar_regex_flexivel('razoes finais')),
+                campo('tarefa', gerar_regex_flexivel('analise'))
+            ], "_apagar_peticao()"),
+            
+            ("Réplica", [
+                campo('tipo_peticao', gerar_regex_flexivel('replica')),
+            ], "_apagar_peticao()"),
+            
+            ("Acordo", [
+                campo('tipo_peticao', gerar_regex_flexivel('acordo')),
+            ], "_apagar_peticao()"),
+            
+            ("Manifestação - Carta de preposição", [
+                campo('tipo_peticao', gerar_regex_flexivel('manifestacao')),
+                campo('descricao', gerar_regex_flexivel('carta')),
+            ], "_apagar_peticao()"),
+            
+            ("Triagem", [
+                campo('tarefa', gerar_regex_flexivel('triagem inicial')),
+            ], "_apagar_peticao()"),
+        ],
+        
+        'pericias': [
+            ("Esclarecimentos - Conhecimento", [
+                campo('tipo_peticao', gerar_regex_flexivel('esclarecimentos')),
+                campo('fase', gerar_regex_flexivel('conhecimento')),
+            ], "criar_acao_padrao_liq(driver, '-1', 'silvia pericia', eh_tipo='escl')"),
+            
+            ("Esclarecimentos - Liquidação", [
+                campo('tipo_peticao', gerar_regex_flexivel('esclarecimentos')),
+                campo('fase', gerar_regex_flexivel('liquidacao')),
+            ], "criar_acao_padrao_liq(driver, '1', 'silvia pericia', eh_tipo='escl')"),
+            
+            ("Laudo", [
+                campo('tipo_peticao', gerar_regex_flexivel('laudo')),
+            ], "criar_acao_padrao_liq(driver, '1', 'silvia pericia', eh_tipo='laudo')"),
+            
+            ("Indicação de Data", [
+                campo('descricao', gerar_regex_flexivel('indicacao')),
+            ], "criar_acao_padrao_liq(driver, '-1', 'silvia pericia', eh_tipo='marcacao')"),
+        ],
+        
+        'recurso': [
+            ("Agravo - Conhecimento", [
+                campo('tipo_peticao', gerar_regex_flexivel('agravo')),
+                campo('fase', gerar_regex_flexivel('conhecimento')),
+            ], "criar_acao_padrao_liq(driver, '-1', 'conhecimento')"),
+            
+            ("Agravo - Liquidação/Execução", [
+                campo('tipo_peticao', gerar_regex_flexivel('agravo')),
+                campo('fase', lambda txt: 'liquidacao' in txt or 'execucao' in txt),
+            ], "criar_acao_padrao_liq(driver, '1', 'liq padrao')"),
+        ],
+        
+        'diretos': [
+            ("Habilitação", [
+                campo('tipo_peticao', gerar_regex_flexivel('habilitacao')),
+                campo('fase', gerar_regex_flexivel('liquidacao')),
+            ], "criar_acao_padrao_liq(driver, '1', 'liq padrao')"),
+            
+            ("Cálculos", [
+                campo('tipo_peticao', gerar_regex_flexivel('calculos')),
+            ], "criar_acao_padrao_liq(driver, '1', 'liq padrao')"),
+            
+            ("Assistente Técnico", [
+                campo('tipo_peticao', gerar_regex_flexivel('assistente')),
+            ], "criar_acao_padrao_liq(driver, '-1', 'conhecimento')"),
+            
+            ("Impugnação", [
+                campo('tipo_peticao', gerar_regex_flexivel('impugnacao')),
+            ], "criar_acao_padrao_liq(driver, '1', 'liq padrao')"),
+            
+            ("CAGED", [
+                campo('descricao', gerar_regex_flexivel('caged')),
+            ], "criar_acao_padrao_liq(driver, '1', 'liq padrao')"),
+        ],
+        
+        'gigs': [
+            ("GIGS - Homologação", [
+                campo('descricao', gerar_regex_flexivel('concordancia')),
+            ], "criar_acao_gigs(driver, '1', 'Silvia homologacao de calculos')"),
+            
+            ("GIGS - Liberação", [
+                campo('descricao', lambda txt: 'comprovante' in txt or 'deposito' in txt or 'parcela' in txt),
+            ], "criar_acao_gigs(driver, '1', 'Bruna Liberacao')"),
+        ],
+        
+        'analise': [
+            ("Despacho Genérico", [
+                campo('tipo_peticao', gerar_regex_flexivel('despacho')),
+            ], "processar_analise_pdf(driver, peticao)"),
+            
+            ("Análise", [
+                campo('tipo_peticao', gerar_regex_flexivel('analise')),
+            ], "processar_analise_pdf(driver, peticao)"),
+            
+            ("Expedição Ofício", [
+                campo('tipo_peticao', gerar_regex_flexivel('expedicao')),
+            ], "processar_analise_pdf(driver, peticao)"),
+        ],
+    }
+    
+    return regras
+
+
+def extrair_texto_limpo(elemento):
+    """Extrai texto limpo de um elemento HTML."""
+    if not elemento:
+        return ""
+    texto = elemento.get_text(strip=True)
+    # Remove múltiplos espaços
+    texto = re.sub(r'\s+', ' ', texto)
+    return texto
+
+
+def parse_numero_processo(texto):
+    """Extrai número de processo do texto."""
+    match = re.search(r'(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})', texto)
+    return match.group(1) if match else ""
+
+
+def parse_tarefa_fase(texto):
+    """Separa tarefa e fase do campo concatenado."""
+    # Formato: "Tarefa Fase: NomeFase"
+    partes = texto.split('Fase:')
+    tarefa = partes[0].strip() if partes else texto
+    fase = partes[1].strip() if len(partes) > 1 else ""
+    return tarefa, fase
+
+
+def parse_data(texto):
+    """Converte string de data para datetime."""
+    texto = texto.strip()
+    if not texto or len(texto) < 10:
+        return None
+    try:
+        return datetime.strptime(texto[:10], '%d/%m/%Y')
+    except:
+        return None
+
+
+def extrair_peticoes_html(html_content):
+    """Extrai petições do HTML real do PJE."""
+    soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # Encontrar todas as linhas da tabela (tr com classe cdk-drag)
+    linhas = soup.find_all('tr', class_='cdk-drag')
+    
+    peticoes = []
+    
+    for idx, linha in enumerate(linhas):
+        try:
+            # Extrair células (td)
+            cells = linha.find_all('td')
+            if len(cells) < 6:
+                continue
+            
+            # Coluna 1: Número do processo
+            numero_texto = extrair_texto_limpo(cells[1])
+            numero_processo = parse_numero_processo(numero_texto)
+            if not numero_processo:
+                continue
+            
+            # Verificar se tem data de audiência no texto
+            data_audiencia = None
+            if 'Audiência em:' in numero_texto or 'Audiencia em:' in numero_texto:
+                match = re.search(r'Audi[eê]ncia em: (\d{2}/\d{2}/\d{4})', numero_texto)
+                if match:
+                    data_audiencia = parse_data(match.group(1))
+            
+            # Coluna 3: Data de juntada
+            data_juntada_texto = extrair_texto_limpo(cells[3])
+            
+            # Coluna 4: Tipo de petição
+            tipo_peticao = extrair_texto_limpo(cells[4])
+            
+            # Coluna 5: Descrição (pode conter link)
+            descricao = extrair_texto_limpo(cells[5])
+            
+            # Coluna 6: Tarefa + Fase
+            tarefa_fase_texto = extrair_texto_limpo(cells[6])
+            tarefa, fase = parse_tarefa_fase(tarefa_fase_texto)
+            
+            # Verificar ícone de perito
+            eh_perito = bool(linha.find('i', class_=re.compile(r'perito')))
+            
+            # Verificar polo (ativo/passivo) pelo ícone
+            polo = None
+            icone_ativo = linha.find('i', class_=re.compile(r'icone-polo-ativo'))
+            icone_passivo = linha.find('i', class_=re.compile(r'icone-polo-passivo'))
+            
+            if icone_ativo:
+                polo = 'ativo'
+            elif icone_passivo:
+                polo = 'passivo'
+            
+            # Criar objeto PeticaoLinha
+            peticao = PeticaoLinha(
+                numero_processo=numero_processo,
+                tipo_peticao=tipo_peticao,
+                descricao=descricao,
+                tarefa=tarefa,
+                fase=fase,
+                data_juntada=data_juntada_texto,
+                elemento_html=None,
+                eh_perito=eh_perito,
+                data_audiencia=data_audiencia,
+                polo=polo,
+                indice=idx
+            )
+            
+            peticoes.append(peticao)
+            
+        except Exception as e:
+            continue
+    
+    return peticoes
+
+
+def testar_peticao_contra_regras(peticao, regras_dict):
+    """Testa uma petição contra todas as regras e retorna matches com detalhes."""
+    matches = []
+    
+    for nome_bloco, regras in regras_dict.items():
+        for nome_regra, padroes, acao in regras:
+            if verifica_peticao_contra_hipotese(peticao, padroes):
+                # Extrair detalhes dos padrões que matcharam
+                padroes_matchados = []
+                for padrao in padroes:
+                    if isinstance(padrao, dict) and 'campo' in padrao:
+                        campo_nome = padrao['campo']
+                        valor_campo = getattr(peticao, campo_nome, "")
+                        padroes_matchados.append(f"{campo_nome}='{valor_campo[:30]}...'")
+                
+                # Extrair nome da ação (isso é o que pet2.py vai chamar)
+                acao_nome = acao  # String já está definida nas regras
+                
+                matches.append({
+                    'bloco': nome_bloco,
+                    'regra': nome_regra,
+                    'acao': acao_nome,
+                    'padroes': padroes_matchados
+                })
+    
+    return matches
+
+
+def main():
+    """Execução principal do teste."""
+    
+    # Carregar HTML do doc.txt
+    doc_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'doc.txt')
+    
+    # Ler HTML com encoding correto
+    with open(doc_path, 'r', encoding='cp1252', errors='ignore') as f:
+        html_content = f.read()
+    
+    
+    # Extrair petições do HTML
+    peticoes = extrair_peticoes_html(html_content)
+    
+    # Tentar várias codificações
+    html_content = None
+    for encoding in ['utf-8', 'latin1', 'cp1252', 'iso-8859-1']:
+        try:
+            with open(doc_path, 'r', encoding=encoding) as f:
+                html_content = f.read()
+            break
+        except UnicodeDecodeError:
+            continue
+    
+    if html_content is None:
+        logger.error("ERRO: Não foi possível ler o arquivo com nenhuma codificação testada")
+        return 1
+    
+    
+    # Debug: mostrar início do conteúdo
+    
+    # Extrair petições do HTML
+    peticoes = extrair_peticoes_html(html_content)
+    
+    if not peticoes:
+        logger.error("ERRO: Nenhuma petição extraída. Verifique o formato do HTML.")
+        return 1
+    
+    # Carregar regras
+    regras_dict = definir_regras()
+    for bloco, regras in regras_dict.items():
+        pass
+    
+    # Testar cada petição
+    
+    total_com_match = 0
+    total_sem_match = 0
+    
+    for peticao in peticoes:
+        matches = testar_peticao_contra_regras(peticao, regras_dict)
+        
+        if matches:
+            total_com_match += 1
+            for match in matches:
+                # Formato detalhado:
+                # numero_processo | tipo | descricao
+                #   REGEX MATCH: [campo='valor'] → Regra: nome_regra (bloco) → Função: acao()
+        else:
+            total_sem_match += 1
+            # Mostrar só resumo para sem match
+    
+    # Resumo
+    
+    if peticoes:
+        p = peticoes[0]
+    
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        exit(main())
+    except Exception as e:
+        logger.error(f"\nERRO FATAL: {e}")
+        import traceback
+        logger.exception("Erro detectado")
+        exit(1)

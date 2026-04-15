@@ -124,7 +124,7 @@ def extract_imports(filepath: Path) -> list[tuple[str | None, list[str] | None, 
     Fallback: regex quando o arquivo tem SyntaxError.
     """
     try:
-        source = filepath.read_text(encoding="utf-8", errors="replace")
+        source = filepath.read_text(encoding="utf-8-sig", errors="replace")
         tree = ast.parse(source, filename=str(filepath))
     except SyntaxError as e:
         print(f"  [WARN-SYNTAX] {filepath.name}: {e} -- usando fallback regex")
@@ -154,7 +154,7 @@ def _extract_imports_regex(filepath: Path) -> list[tuple[str | None, list[str] |
     import re
     results = []
     try:
-        source = filepath.read_text(encoding="utf-8", errors="replace")
+        source = filepath.read_text(encoding="utf-8-sig", errors="replace")
     except Exception:
         return []
 

@@ -44,7 +44,6 @@ except Exception:
     except Exception:
         criar_driver_sisb = None
 from . import helpers
-from . import processamento
 # Importar função diretamente do módulo de campos para evitar depender
 # do namespace `processamento` em tempo de execução.
 from .processamento_campos import _configurar_valor

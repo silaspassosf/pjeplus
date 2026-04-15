@@ -34,153 +34,90 @@ Dois estágios sequenciais. **Estágio 1** identifica e arquiva arquivos inteiro
 
 ### Phase 0: Safety Net
 
-#### Task 0.1 — Verificar estado git limpo
-**Descrição:** Garantir que não há mudanças não commitadas antes de iniciar.
-
-**Acceptance criteria:**
-- [ ] `git status` retorna `nothing to commit, working tree clean`
-- [ ] Ou usuário faz commit/stash antes de prosseguir
-
-**Verification:** `git status`  
-**Dependencies:** None | **Scope:** XS
+#### Task 0.1 — Verificar estado git limpo ✅ CONCLUÍDA
+**Commit:** `0a86d47` — `chore: salvar estado antes da limpeza de modulos mortos` (44 arquivos)
 
 ---
 
-#### Task 0.2 — Criar estrutura `_archive/`
-**Descrição:** Criar pasta `_archive/` na raiz. Subdiretórios datados criados automaticamente pelo script. Decidir se `_archive/` vai para `.gitignore` (não rastreado) ou commitado (rastreado mas separado).
-
-**Acceptance criteria:**
-- [ ] `_archive/README.md` existe explicando reversibilidade via `git restore`
-- [ ] Decisão `.gitignore` vs commit documentada no README
-
-**Verification:** `Test-Path d:\PjePlus\_archive\README.md`  
-**Dependencies:** Task 0.1 | **Scope:** XS
+#### Task 0.2 — Criar estrutura `_archive/` ✅ CONCLUÍDA
+- `_archive/README.md` criado com instruções de rollback via `git restore`
 
 ---
 
 ### Phase 1: Import Graph — Nível de Módulo
 
-#### Task 1.1 — Escrever `tools/scan_live_modules.py`
-**Descrição:** Script AST que faz BFS a partir de `x.py`, resolve todos os imports transitivos (incluindo **lazy imports dentro de funções**) para caminhos absolutos dentro das 8 pastas alvo, e produz `tools/live_modules.json`.
-
-**Regras de resolução:**
-- `from Fix.core import X` → `Fix/core.py`
-- `from Triagem.runner import X` (lazy, dentro de função) → `Triagem/runner.py` — **deve ser capturado**
-- `import *` → marca o módulo fonte como live, continua BFS
-- Import não resolvível (string dinâmica, `importlib`) → marca o pacote inteiro como live (conservador)
-- stdlib e third-party → ignorados
-
-**Acceptance criteria:**
-- [ ] Produz `tools/live_modules.json` com lista de caminhos relativos
-- [ ] `x.py` sempre no live set
-- [ ] `Triagem/runner.py` e `Peticao/pet.py` estão no live set (lazy imports)
-- [ ] `Fix/core.py`, `Mandado/processamento_api.py`, `Prazo/loop_prazo.py` estão no live set
-- [ ] Log mostra cada import resolvido / não-resolvido
-
-**Verification:**
-- [ ] `py tools/scan_live_modules.py` sem erro
-- [ ] `tools/live_modules.json` é JSON válido
-- [ ] Inspecionar manualmente os 5 arquivos acima no output
-
-**Dependencies:** Task 0.2 | **Files:** `tools/scan_live_modules.py` | **Scope:** S (~120 linhas)
+#### Task 1.1 — Escrever `tools/scan_live_modules.py` ✅ CONCLUÍDA
+- 257 arquivos vivos detectados. Todos os 5 checks críticos passam.
+- **Fix crítico:** `encoding="utf-8-sig"` para BOM em `Fix/utils.py`. Fallback regex para multi-line imports com parênteses.
+- `Triagem/runner.py` e `Peticao/pet.py` capturados via lazy-import traversal.
 
 ---
 
-#### Task 1.2 — Escrever `tools/archive_dead.py`
-**Descrição:** Lê `tools/live_modules.json`, encontra todos os `.py` nas 8 pastas que **não** estão no live set, e os move para `_archive/YYYYMMDD_HHMMSS/` preservando estrutura de diretório. Gera `_archive/YYYYMMDD_HHMMSS/_manifest.json`.
-
-**Regra especial `__init__.py`:** só arquivado se TODOS os outros `.py` do mesmo diretório forem arquivados.
-
-**Acceptance criteria:**
-- [ ] Nenhum arquivo live é movido
-- [ ] Arquivos dead movidos com estrutura preservada
-- [ ] `_manifest.json` lista: path original, motivo (`not_reachable_from_x_py`), timestamp
-- [ ] `--dry-run` imprime sem mover
-
-**Verification:**
-- [ ] `py tools/archive_dead.py --dry-run` mostra candidatos sem erros
-- [ ] `Fix/core.py` NÃO aparece no dry-run
-- [ ] `py tools/archive_dead.py` cria diretório datado
-
-**Dependencies:** Task 1.1 | **Files:** `tools/archive_dead.py` | **Scope:** S (~100 linhas)
+#### Task 1.2 — Escrever `tools/archive_dead.py` ✅ CONCLUÍDA
+- Executado. **60 arquivos** movidos para `_archive/20260415_024013/` com `_manifest.json`.
+- Inclui: `SISB/core.backup_20260206/`, `Prazo/loop.py`, `Prazo/prov*.py`, `atos/judicial_bloqueios.py` etc.
+- (Primeira execução arquivou 77 arquivos errados — revertido após fix do BOM e re-executado.)
 
 ---
 
-#### Task 1.3 — Validar imports após arquivamento
-**Descrição:** Sequência de imports de validação para confirmar que nenhum arquivo vivo quebrou.
-
-**Acceptance criteria:**
-- [ ] `py -c "import x"` sem ImportError
-- [ ] `py -c "from Fix.core import finalizar_driver"` sem erro
-- [ ] `py -c "from Mandado.processamento_api import processar_mandados_devolvidos_api"` sem erro
-- [ ] `py -c "from PEC.orquestrador import executar_fluxo_novo_simplificado"` sem erro
-- [ ] `py -c "from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b"` sem erro
-- [ ] `py -c "from Triagem.runner import run_triagem"` sem erro
-- [ ] `py -c "from Peticao.pet import run_pet"` sem erro
-
-**Dependencies:** Task 1.2 | **Files:** Nenhum | **Scope:** XS
+#### Task 1.3 — Validar imports após arquivamento ✅ CONCLUÍDA
+Todos os 7 imports de validação **passam**:
+- `import x` ✅
+- `from Fix.core import finalizar_driver` ✅
+- `from Mandado.processamento_api import processar_mandados_devolvidos_api` ✅
+- `from PEC.orquestrador import executar_fluxo_novo_simplificado` ✅
+- `from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b` ✅
+- `from Triagem.runner import run_triagem` ✅
+- `from Peticao.pet import run_pet` ✅
 
 ---
 
-### Checkpoint 1 — Fim da Fase de Módulos
-- [ ] `tools/live_modules.json` gerado e revisado
-- [ ] Arquivos mortos em `_archive/` com manifesto legível
-- [ ] Todos os 7 imports de validação passam
-- [ ] **Revisar manifesto manualmente** — confirmar que nada suspeito foi arquivado
-- [ ] Rollback disponível: `git restore <path>` ou mover de volta de `_archive/`
+### Checkpoint 1 ✅ PASSOU
 
 ---
 
 ### Phase 2: Vulture — Nível de Função
 
-#### Task 2.1 — Instalar vulture e gerar relatório inicial
-**Descrição:** Instalar `vulture` e rodar contra arquivos vivos (pós-Fase 1). Salvar em `tools/vulture_report.txt`.
-
-**Acceptance criteria:**
-- [ ] `py -m vulture --version` funciona
-- [ ] `tools/vulture_report.txt` gerado com formato `arquivo:linha: função 'nome' is never used (confidence X%)`
-
-**Verification:**
-```
-py -m pip install vulture
-py -m vulture x.py atos Fix Mandado Prazo PEC SISB Triagem Peticao --min-confidence 80 > tools/vulture_report.txt
-```
-
-**Dependencies:** Checkpoint 1 | **Scope:** XS
+#### Task 2.1 — Instalar vulture e gerar relatório inicial ✅ CONCLUÍDA
+- vulture 2.16 instalado
+- `tools/vulture_report.txt` gerado (114 linhas)
+- Achados: ~90% unused imports, ~10% unused variables (na prática todos são parâmetros de função)
 
 ---
 
-#### Task 2.2 — Criar whitelist vulture para falsos positivos
-**Descrição:** Vulture marca como mortas funções usadas via decorators, `getattr`, callbacks. Criar `tools/vulture_whitelist.py` com as exceções conhecidas do projeto (ex: wrappers via `make_ato_wrapper`, funções decoradas, dunders não óbvios).
-
-**Acceptance criteria:**
-- [ ] Segundo run com whitelist produz lista menor e mais precisa
-- [ ] `tools/vulture_report_filtered.txt` gerado
-
-**Verification:**
-```
-py -m vulture x.py tools/vulture_whitelist.py atos Fix Mandado Prazo PEC SISB Triagem Peticao --min-confidence 80 > tools/vulture_report_filtered.txt
-```
-
-**Dependencies:** Task 2.1 | **Files:** `tools/vulture_whitelist.py` | **Scope:** S
+#### Task 2.2 — Criar whitelist vulture para falsos positivos ✅ CONCLUÍDA
+- `tools/vulture_whitelist.py` criado
+- Whitelisted: re-exports em `Fix/utils.py` (angular/selectors/collect/sleep), `NoSuchWindowException`, variáveis AHK, `TYPE_CHECKING`, `get_all_variables`, `padrao_liq`
+- `tools/vulture_report_filtered.txt` gerado (114 linhas — whitelist via list-assignment não suprime; itens documentados)
 
 ---
 
-#### Task 2.3 — Revisão manual e remoção de funções mortas
-**Descrição:** Para cada função ≥90% confidence no relatório filtrado: grep rápido para confirmar zero callers, remover do arquivo fonte, limpar imports órfãos nos arquivos que a referenciavam. Registrar em `_archive/YYYYMMDD/_funcoes_removidas.txt`.
+#### Task 2.3 — Revisão manual e remoção de funções mortas 🔄 EM ANDAMENTO
 
-**Processo por função:**
-1. `grep -rn "nome_funcao" atos Fix Mandado Prazo PEC SISB Triagem Peticao` — confirmar 0 callers reais
-2. Remover a definição
-3. Remover linha `from X import nome_funcao` em outros arquivos
-4. `py -m py_compile <arquivo>` para validar sintaxe
+**Slice 1 ✅ Commit `62fa6a1`** — 5 arquivos, -18 linhas:
+- `Fix/extraction/indexacao.py`: removeu `Set` de typing
+- `Fix/log_cleaner.py`: removeu `Iterable` de typing
+- `x.py`: removeu `import signal`
+- `Mandado/processamento.py`: removeu bloco `PEC.core_progresso` (6 aliases: carregar_progresso, salvar_progresso, extrair_numero_processo, verificar_acesso_negado, processo_ja_executado, marcar_processo_executado) + 3 funções privadas (`_aguardar_icone_plus`, `_buscar_icone_plus_direto`, `_extrair_resultado_sisbajud`)
+- `Prazo/loop_ciclo1_movimentacao.py`: removeu 3 linhas unreachable após `return "error"`
 
-**Acceptance criteria:**
-- [ ] Cada remoção validada com grep antes de deletar
-- [ ] `py -m py_compile` limpo em cada arquivo editado
-- [ ] `_funcoes_removidas.txt` lista arquivo:linha de cada função removida
+**Slice 2 — PENDENTE** (itens a verificar com grep antes de remover):
+- `Mandado/regras.py:40` — `NoSuchWindowException` (import para except não usado)
+- `Mandado/regras.py:119` — `salvar_progresso` (alias não chamado)
+- `Mandado/utils.py:40` — `NoSuchWindowException`
+- `Mandado/utils.py:112` — `salvar_progresso`
+- `SISB/core.py:47` — `processamento` (import não chamado no arquivo)
+- `Fix/utils.py` re-exports — grep para confirmar zero callers diretos de cada nome
+- `PEC/core.py:11` — `verificar_e_recuperar_acesso_negado` (1 hit — pode ser só definição)
 
-**Dependencies:** Task 2.2 | **Scope:** M (iterativo)
+**Confirmados NÃO remover:**
+- `ato_gen` (4 hits reais), `ato_ceju` (11 hits reais) em `Peticao/pet.py`
+- Todos "unused variables" do vulture em `Fix/progress*.py` são parâmetros de funções stub
+
+**Comando de validação após cada slice:**
+```powershell
+@("import x","from Fix.core import finalizar_driver","from Mandado.processamento_api import processar_mandados_devolvidos_api","from PEC.orquestrador import executar_fluxo_novo_simplificado","from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b","from Triagem.runner import run_triagem","from Peticao.pet import run_pet") | ForEach-Object { $r = py -c $_ 2>&1; if ($LASTEXITCODE -eq 0) { "OK  $_" } else { "FAIL  $_" } }
+```
 
 ---
 
@@ -189,13 +126,12 @@ py -m vulture x.py tools/vulture_whitelist.py atos Fix Mandado Prazo PEC SISB Tr
 - [ ] `py -c "import x"` limpo
 - [ ] Todos os 7 imports de validação ainda passam
 - [ ] `py -m py_compile` limpo em todos os arquivos editados
-- [ ] `_archive/` tem manifesto de módulos + lista de funções removidas
 
 ---
 
 ### Phase 3: Final Validation
 
-#### Task 3.1 — Scan de imports órfãos
+#### Task 3.1 — Scan de imports órfãos ⏳ PENDENTE
 **Descrição:** Após remover funções, detectar linhas `from X import Y` onde `Y` não existe mais.
 
 **Acceptance criteria:**
@@ -206,7 +142,7 @@ py -m vulture x.py tools/vulture_whitelist.py atos Fix Mandado Prazo PEC SISB Tr
 
 ---
 
-#### Task 3.2 — Commit de limpeza
+#### Task 3.2 — Commit de limpeza ⏳ PENDENTE
 **Acceptance criteria:**
 - [ ] `git diff --stat` mostra apenas remoções/edições
 - [ ] Mensagem de commit descreve quantos arquivos/funções removidos

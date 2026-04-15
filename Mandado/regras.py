@@ -39,7 +39,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
     TimeoutException,
-    NoSuchWindowException,
     StaleElementReferenceException,
 )
 
@@ -118,7 +117,6 @@ with open("log.py", "w", encoding="utf-8") as f:
 # Isso garante comportamento idêntico ao usado em p2b.py (validação/formato do número)
 from PEC.core_progresso import (
     carregar_progresso_pec as carregar_progresso,
-    salvar_progresso_pec as salvar_progresso,
     extrair_numero_processo_pec as extrair_numero_processo,
     verificar_acesso_negado_pec as verificar_acesso_negado,
     processo_ja_executado_pec as processo_ja_executado,

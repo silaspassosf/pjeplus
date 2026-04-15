@@ -17,7 +17,7 @@ from selenium.webdriver.common.by import By
 from typing import Optional, Dict, Any, List, Union
 from selenium.webdriver.remote.webdriver import WebDriver
 from Fix.log import logger
-from .utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
+from Fix.utils import normalizar_cpf_cnpj, formatar_moeda_brasileira, formatar_data_brasileira
 
 
 DESTINATARIOS_CACHE_PATH = Path('destinatarios_argos.json')

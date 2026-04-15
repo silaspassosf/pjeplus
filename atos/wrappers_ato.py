@@ -502,6 +502,17 @@ ato_respcalc = make_ato_wrapper(
     descricao='Contestar Cálculos'
 )
 
+ato_revel = make_ato_wrapper(
+    conclusao_tipo='Despacho',
+    modelo_nome='revel -',
+    prazo=8,
+    marcar_pec=False,
+    movimento=None,
+    gigs=None,
+    marcar_primeiro_destinatario=True,
+    descricao='Revelia - ag prazo cálculos'
+)
+
 #  NOVO: ato_assistente para Admissão de Assistentes
 ato_assistente = make_ato_wrapper(
     conclusao_tipo='Despacho',

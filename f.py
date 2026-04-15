@@ -1,10 +1,10 @@
 # ============================================================
 # f.py -- Harness de teste isolado: Triagem completa
 # Uso: py f.py
-# Processo alvo: 8501998
+# Processo alvo: 8501188
 # ============================================================
 
-ID_PROCESSO = '8484246'
+ID_PROCESSO = '8505663'
 
 from Triagem.driver import criar_driver_e_logar
 from Triagem.runner import _processar_processo

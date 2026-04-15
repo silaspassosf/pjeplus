@@ -236,6 +236,9 @@ def triagem_peticao(driver) -> str:
             else:
                 itens_ok.append(_formatar_saida_item(item))
 
+    if isinstance(cep, str) and 'DOMICILIO_AUTOR' in cep:
+        alertas.insert(0, 'Competencia territorial: competencia definida pelo domicilio do reclamante como referencia subsidiaria (art. 651 §3º CLT) - aguardar excecao de incompetencia')
+
     linhas = [
         '[COMPETENCIA]',
         _formatar_competencia_saida(cep),

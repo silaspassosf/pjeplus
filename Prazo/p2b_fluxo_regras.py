@@ -6,7 +6,7 @@ from typing import List, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 
-from .p2b_core import gerar_regex_geral, parse_gigs_param, checar_prox
+from .p2b_core import gerar_regex_geral, parse_gigs_param, checar_prox, calc1
 from .p2b_fluxo_lazy import _lazy_import
 from .p2b_fluxo_prescricao import prescreve
 from Fix.core import medir_tempo
@@ -130,13 +130,13 @@ def _definir_regras_processamento() -> List[Tuple]:
         ([gerar_regex_geral('Defiro a penhora no rosto dos autos')], ("criar_gigs[1//xs sob 6]", ato_180)),
 
         # REGRA DE CÁLCULOS
-        ([gerar_regex_geral('RECLAMANTE para apresentar cálculos de liquidação')], (ato_calc2,),),
+        ([gerar_regex_geral('RECLAMANTE para apresentar cálculos de liquidação')], (calc1,),),
 
         # REGRA DE TENTATIVAS
         ([gerar_regex_geral('deverá realizar tentativas')], (ato_prev,),),
 
         # REGRA DE INSTAURAÇÃO
-        ([gerar_regex_geral('defiro a instauração')], ('checar_anexos_instauracao',)),
+        ([gerar_regex_geral('defiro a instauração')], ('criar_gigs[1//xs pec dec]', 'criar_gigs[10//xs mdd edital pgto]', ato_idpj)),
 
         # REGRA DE TENDO EM VISTA
         ([gerar_regex_geral(k) for k in ['tendo em vista que', 'pagamento da parcela pendente', 'sob pena de sequestro']], ('checar_anexos_tendo_em_vista',)),

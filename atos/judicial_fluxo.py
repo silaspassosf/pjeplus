@@ -736,6 +736,7 @@ def ato_judicial(
             logger.debug(f'[ATO][GRAVAR] {e}')
 
         # ===== ABA DESTINATÁRIOS - MOVIMENTO =====
+        sigilo_ativado = False
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
@@ -892,7 +893,6 @@ def ato_judicial(
                 return False, False
 
         # ===== INTIMAR (se necessário na aba destinatários) =====
-        sigilo_ativado = False
 
         # Intimação: o PJe normalmente já traz a intimação marcada por padrão.
         # Não marcar explicitamente para evitar cliques redundantes e logs "Marcando intimação".

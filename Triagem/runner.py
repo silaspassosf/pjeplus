@@ -22,7 +22,7 @@ from typing import Optional, Dict, Any, List
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 
-from Fix.gigs import criar_comentario
+from Fix.gigs import criar_comentario, criar_gigs
 from Fix.core import esperar_elemento
 from Fix.progresso_unificado import ProgressoUnificado
 from Triagem.acoes import acao_bucket_a, acao_bucket_b, acao_bucket_c, acao_bucket_d
@@ -93,6 +93,13 @@ def _tem_alerta_docs_pessoais(triagem_txt: str) -> bool:
     return False
 
 
+def _tem_alerta_domicilio_autor(triagem_txt: str) -> bool:
+    """Verifica se competência foi definida pelo domicílio do reclamante."""
+    if not isinstance(triagem_txt, str):
+        return False
+    return 'domicilio do reclamante como referencia subsidiaria' in triagem_txt.lower()
+
+
 # ============================================================================
 # AÇÕES PÓS-TRIAGEM
 # ============================================================================
@@ -144,6 +151,14 @@ def _aplicar_acao_pos_triagem(driver: WebDriver, numero: str,
     if not triagem_txt or (isinstance(triagem_txt, str) and triagem_txt.startswith("ERRO")):
         print(f"[TRIAGEM][{numero}] triagem com erro — sem ação")
         return False
+
+    # Pré-bucket: competência por domicílio do autor → GIGS observação (sem prazo, sem responsável)
+    if _tem_alerta_domicilio_autor(triagem_txt):
+        try:
+            criar_gigs(driver, "", "", "Competencia definida por domicilio do autor - aguardar excecao")
+            print(f"[TRIAGEM][{numero}] GIGS domicílio do autor criado")
+        except Exception as e:
+            print(f"[TRIAGEM][{numero}] ⚠ Erro ao criar GIGS domicílio autor: {e}")
 
     # b2: incompetência territorial → nada
     if _tem_alerta_incompetencia(triagem_txt):

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(www.npmjs.com)",
+      "WebFetch(github.com)",
+      "WebFetch(binaryverseai.com)"
+    ]
+  },
+  "$version": 3
+}

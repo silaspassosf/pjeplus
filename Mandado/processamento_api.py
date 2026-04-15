@@ -5,14 +5,11 @@ from selenium.webdriver.common.by import By
 
 from Fix.core import wait_for_page_load, safe_click_no_scroll, esperar_elemento
 from Fix.log import logger
-from Fix.progress import ProgressoUnificado
+from Fix.monitoramento_progresso_unificado import marcar_processo_executado_unificado, carregar_progresso_unificado
 from Fix.utils_observer import aguardar_renderizacao_nativa
 
 from Mandado.processamento_argos import processar_argos
 from Mandado.processamento_outros import fluxo_mandados_outros
-
-
-_ARQUIVO_PROGRESSO = Path('progresso.json')
 
 
 def _fechar_abas_extras(driver, handle_principal):
@@ -31,24 +28,20 @@ def _fechar_abas_extras(driver, handle_principal):
 
 
 def _carregar_concluidos_mandado() -> set:
-    """Lê progresso.json e retorna set de numeros de processo MANDADO já concluídos."""
+    """Lega progresso.json via System A e retorna set de numeros de processo MANDADO ja concluidos."""
     try:
-        if _ARQUIVO_PROGRESSO.exists():
-            data = json.loads(_ARQUIVO_PROGRESSO.read_text(encoding='utf-8'))
-            return set(data.get('processos_executados', []))
+        dados = carregar_progresso_unificado('mandado', suppress_load_log=True)
+        return set(dados.get('processos_executados', []))
     except Exception:
         pass
     return set()
 
 
 def _marcar_concluido_mandado(numero: str) -> None:
-    """Persiste numero em processos_executados dentro do progresso.json existente."""
+    """Marca numero como executado em progresso.json via System A."""
     try:
-        data = json.loads(_ARQUIVO_PROGRESSO.read_text(encoding='utf-8')) if _ARQUIVO_PROGRESSO.exists() else {}
-        concluidos = set(data.get('processos_executados', []))
-        concluidos.add(str(numero))
-        data['processos_executados'] = sorted(concluidos)
-        _ARQUIVO_PROGRESSO.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+        dados = carregar_progresso_unificado('mandado', suppress_load_log=True)
+        marcar_processo_executado_unificado('mandado', numero, dados, sucesso=True)
     except Exception as e:
         logger.warning(f'[MANDADOS_API] Falha ao salvar concluidos: {e}')
 
@@ -211,10 +204,6 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
     if concluidos_anteriores:
         logger.info(f'[MANDADOS_API] {len(concluidos_anteriores)} processo(s) ja concluidos em execucao anterior — serao ignorados')
 
-    # ── Sistema de progresso
-    progresso = ProgressoUnificado(arquivo_progresso=_ARQUIVO_PROGRESSO)
-    progresso.registrar_modulo('MANDADO', len(itens))
-
     sucesso_algum = False
     falhas = []
     pulados = []
@@ -237,18 +226,13 @@ def processar_mandados_devolvidos_api(driver, pagina=1, tamanho_pagina=50, orden
         if resultado == 'PULAR':
             pulados.append(label)
             logger.info(f"[MANDADOS_API] #{idx} pulado (tipo nao mapeado)")
-            progresso.atualizar('MANDADO', item_atual=label)
         elif resultado:
             sucesso_algum = True
             logger.info(f"[MANDADOS_API] #{idx} concluido")
-            progresso.atualizar('MANDADO', item_atual=label)
             _marcar_concluido_mandado(str(num or id_p))
         else:
             falhas.append(label)
             logger.error(f"[MANDADOS_API] #{idx} falhou: {label}")
-            progresso.atualizar('MANDADO', item_atual=label, erro=True)
-
-    progresso.completar('MANDADO', sucesso=(len(falhas) == 0))
 
     logger.info(f'[MANDADOS_API] Concluido — processados={len(itens)} sucesso={len(itens)-len(falhas)-len(pulados)} pulados={len(pulados)} falhas={len(falhas)}')
     if falhas:

@@ -218,6 +218,52 @@ def processo_ja_executado_p2b(processo_id: str, progresso: dict) -> bool:
     return processo_id in progresso.get('processos_executados', [])
 
 
+def calc1(driver: WebDriver) -> Optional[Any]:
+    """Extrai dados do processo e escolhe o ato correto para réu.
+
+    Regras:
+        - reu com advogado -> ato_crda
+        - reu sem advogado -> ato_revel
+    """
+    try:
+        from Fix.extracao import extrair_dados_processo
+        extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
+    except Exception:
+        pass
+
+    caminho = os.path.join(os.getcwd(), 'dadosatuais.json')
+    if not os.path.exists(caminho):
+        return None
+
+    try:
+        with open(caminho, encoding='utf-8') as f:
+            dados = json.load(f)
+    except Exception:
+        return None
+
+    reus = dados.get('reu', []) or []
+    if not reus:
+        return None
+
+    try:
+        from atos import ato_crda, ato_revel
+    except Exception:
+        return None
+
+    for reu in reus:
+        advogado = reu.get('advogado')
+        if isinstance(advogado, dict) and any(str(valor).strip() for valor in advogado.values()):
+            try:
+                return ato_crda(driver)
+            except Exception:
+                return None
+
+    try:
+        return ato_revel(driver)
+    except Exception:
+        return None
+
+
 def checar_prox(driver: WebDriver, itens: List[Any], doc_idx: int, regras: List[Any], texto_normalizado: str) -> Tuple[Optional[Any], Optional[Any], Optional[int]]:
     """
     Verifica se há próximo documento relevante na timeline.

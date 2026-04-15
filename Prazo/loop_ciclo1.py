@@ -1,5 +1,5 @@
 ﻿from .loop_base import *
-from .loop_ciclo1_filtros import _ciclo1_aplicar_filtro_fases, _verificar_quantidade_processos_paginacao
+from .loop_ciclo1_filtros import _ciclo1_aplicar_filtro_fases
 from .loop_ciclo1_movimentacao import (
     _ciclo1_marcar_todas,
     _ciclo1_abrir_suitcase,

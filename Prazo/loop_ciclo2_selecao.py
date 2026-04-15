@@ -1,6 +1,6 @@
 from .loop_base import *
 from .loop_helpers import _extrair_numero_processo_da_linha
-from .loop_api import _verificar_processos_xs_paralelo, _obter_processos_com_gigs_api
+from .loop_api import _obter_processos_com_gigs_api
 from Fix.smart_finder import buscar
 from Fix.core import aguardar_renderizacao_nativa
 

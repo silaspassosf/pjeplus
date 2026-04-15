@@ -7,7 +7,7 @@ from .comunicacao_navigation import abrir_minutas
 from .comunicacao_coleta import executar_coleta_conteudo
 from .comunicacao_preenchimento import executar_preenchimento_minuta, aguardar_ato_confeccionado
 from .comunicacao_destinatarios import selecionar_destinatarios
-from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final, limpar_destinatarios_existentes
+from .comunicacao_finalizacao import alterar_meio_expedicao, salvar_minuta_final
 from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
 from typing import Optional, Any, Callable, Union, List, Dict, Tuple
 from selenium.webdriver.remote.webdriver import WebDriver

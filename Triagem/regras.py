@@ -13,7 +13,10 @@ _UF_BRASIL = {
 }
 
 _TERMOS_PROC_TITULO = ['procuracao', 'mandato']
-_TERMOS_ID_TITULO = ['rg', 'cnh', 'documento de identidade', 'identidade', 'doc identidade']
+_TERMOS_ID_TITULO = [
+    'rg', 'cnh', 'documento de identidade', 'identidade', 'doc identidade',
+    'documento pessoal', 'documento de identificacao', 'identificacao',
+]
 _TERMOS_PROC_BODY = [
     'outorgo', 'poderes', 'por este instrumento particular', 'constituir como',
     'procuracao', 'mandato', 'outorgante', 'outorgado'
@@ -229,48 +232,88 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                     f'verificar endereco indicado na secao de competencia/prestacao')
         return ''
 
-    # Itera candidatos na ordem de prioridade — usa o primeiro que pertence a faixa SP
+    # Separar candidatos do reclamante — tratados exclusivamente na Fase 3
+    cands_reclamante = [(cep_num, cep_fmt)
+                        for tag, _, _, _, _, cep_num, cep_fmt in candidatos
+                        if tag == _CEP_TAG_RECLAMANTE]
+
+    # ── Fase 1: CEPs contextuais (territorial, prestação, reclamada, genérico)
+    #    Retorna OK se Zona Sul. Coleta os que caem fora para compor evidência no Fase 2.
+    _cands_ctx_fora_zona_sul: List[str] = []  # cep_fmt dos candidatos fora da Zona Sul
     for cand in candidatos:
         best_tag, _, _, _, _, cep_num, cep_fmt = cand
+        if best_tag == _CEP_TAG_RECLAMANTE:
+            continue  # reservado para Fase 3
         label = _TAG_LABEL[best_tag]
-        for lo, hi in INTERVALOS_CEP_ZONA_SUL:
-            if lo <= cep_num <= hi:
-                print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → Zona Sul')
-                return (f"B2_CEP: OK - {cep_fmt} ({cep_num}) "
-                        f"no intervalo {lo}-{hi} Zona Sul [{label}]{_sufixo_territ(best_tag)}")
+        matched = next(((lo, hi) for lo, hi in INTERVALOS_CEP_ZONA_SUL if lo <= cep_num <= hi), None)
+        if matched:
+            lo_match, hi_match = matched
+            print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → Zona Sul')
+            return (f"B2_CEP: OK - {cep_fmt} ({cep_num}) "
+                f"no intervalo {lo_match}-{hi_match} Zona Sul [{label}]{_sufixo_territ(best_tag)}")
+        # Fora da Zona Sul: registrar como evidência para Fase 2
+        _foro_ctx = None
         for lo, hi in INTERVALOS_CEP_ZONA_LESTE:
             if lo <= cep_num <= hi:
-                print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → ZONA LESTE')
-                return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
-                        f"CEP {cep_fmt} ({cep_num}) [{label}]{_sufixo_territ(best_tag)} | foro competente: ZONA LESTE")
-        for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
-            if lo <= cep_num <= hi:
-                print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → RUI BARBOSA')
-                return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
-                        f"CEP {cep_fmt} ({cep_num}) [{label}]{_sufixo_territ(best_tag)} | foro competente: RUI BARBOSA")
+                _foro_ctx = 'ZONA LESTE'
+                break
+        if not _foro_ctx:
+            for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
+                if lo <= cep_num <= hi:
+                    _foro_ctx = 'RUI BARBOSA'
+                    break
+        if _foro_ctx:
+            _cands_ctx_fora_zona_sul.append(f'{cep_fmt} ({_foro_ctx})')
+            print(f'[TRIAGEM] cep_ctx_fora_zona_sul: {cep_fmt} ({cep_num}) → {_foro_ctx}')
 
-    # Nenhum CEP do texto pertence a faixa SP — tentar ceps_api
+    def _prefixo_alerta() -> str:
+        """Monta prefixo descritivo para ALERTA de Fase 2 incluindo evidência de Fase 1."""
+        if _cands_ctx_fora_zona_sul:
+            ctx_str = ', '.join(_cands_ctx_fora_zona_sul)
+            return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                    f"CEPs de contexto fora da Zona Sul ({ctx_str}) + reclamada: ")
+        return "B2_CEP: ALERTA - Incompetencia Territorial - "
+
+    # ── Fase 2: CEPs das reclamadas via API → pode gerar OK ou ALERTA
     if ceps_api:
-        _label_sub = 'sede da reclamada - referencia subsidiaria (art.651 CLT, ultimo local nao indicado explicitamente)'
+        _label_sub = 'sede da reclamada'
         for _cep_raw in ceps_api:
             if not (len(_cep_raw) == 8 and _cep_raw.isdigit()):
                 continue
             _cn = int(_cep_raw)
             _cf = f"{_cep_raw[:2]}.{_cep_raw[2:5]}-{_cep_raw[5:]}"
-            for lo, hi in INTERVALOS_CEP_ZONA_SUL:
-                if lo <= _cn <= hi:
-                    print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → Zona Sul')
-                    return (f"B2_CEP: OK - {_cf} ({_cn}) Zona Sul [{_label_sub}]")
+            if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_ZONA_SUL):
+                print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → Zona Sul')
+                _ok_sfx = ' (apos nao localizar CEP de prestacao de servicos)' if _cands_ctx_fora_zona_sul else ''
+                return (f"B2_CEP: OK - {_cf} ({_cn}) Zona Sul [{_label_sub}{_ok_sfx}]")
             for lo, hi in INTERVALOS_CEP_ZONA_LESTE:
                 if lo <= _cn <= hi:
                     print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → ZONA LESTE')
-                    return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                    return (_prefixo_alerta() +
                             f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: ZONA LESTE")
             for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
                 if lo <= _cn <= hi:
                     print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → RUI BARBOSA')
-                    return (f"B2_CEP: ALERTA - Incompetencia Territorial - "
+                    return (_prefixo_alerta() +
                             f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: RUI BARBOSA")
+
+    # ── Fase 3: CEP do reclamante — SOMENTE se há pedido expresso de competência
+    #    pelo domicílio do autor na petição E o CEP está na Zona Sul
+    _TERMOS_DOM_AUTOR = [
+        'domicilio do reclamante', 'domicilio do autor', 'foro do domicilio',
+        'competencia pelo domicilio', 'empregado viajante', 'trabalhador externo',
+        'sem local fixo de trabalho', 'art. 651, § 3', 'art 651, § 3',
+        'art.651, § 3', 'art 651 paragrafo 3', 'art. 651 paragrafo terceiro',
+    ]
+    if cands_reclamante and any(t in norm_texto for t in _TERMOS_DOM_AUTOR):
+        cep_num_r, cep_fmt_r = cands_reclamante[0]
+        label_r = _TAG_LABEL[_CEP_TAG_RECLAMANTE]
+        for lo, hi in INTERVALOS_CEP_ZONA_SUL:
+            if lo <= cep_num_r <= hi:
+                print(f'[TRIAGEM] cep_reclamante_dom: {cep_fmt_r} ({cep_num_r}) → Zona Sul (pedido domicilio)')
+                return (f"B2_CEP: OK - {cep_fmt_r} ({cep_num_r}) "
+                        f"no intervalo {lo}-{hi} Zona Sul [{label_r}] | DOMICILIO_AUTOR")
+        print(f'[TRIAGEM] cep_reclamante_dom: {cep_fmt_r} ({cep_num_r}) pedido domicilio mas fora da Zona Sul — ignorado')
 
     return "B2_CEP: ALERTA - nenhum CEP de SP (Zona Sul/Leste/Rui Barbosa) identificado no processo"
 
@@ -807,9 +850,13 @@ def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -
         if fonte_label != 'api':
             sufixo_fonte += ' [ATENCAO: API sem endereco - dado por extracao de texto, verificar]'
         if not estado:
-            # API retornou município mas UF está vazia — não dá para confirmar SP
-            linhas.append(f"B12_ENDERECO: ALERTA - reclamante em {cidade.upper()} (UF nao informada pela API) - verificar localidade{sufixo_fonte}")
-        elif estado == 'sp' and (cidade in grande_sp or cidade == 'sao paulo'):
+            # API retornou município mas sem UF — checar se está na Grande SP
+            _cidade_norm_cmp = _norm(cidade)
+            if _cidade_norm_cmp == 'sao paulo' or _cidade_norm_cmp in grande_sp:
+                linhas.append(f"B12_ENDERECO: OK - reclamante reside em Grande Sao Paulo/SP (UF nao informada pela API){sufixo_fonte}")
+            else:
+                linhas.append(f"B12_ENDERECO: ALERTA - reclamante em {cidade.upper()} (UF nao informada pela API) - verificar se fora de SP{sufixo_fonte}")
+        elif estado == 'sp' and (_norm(cidade) in grande_sp or _norm(cidade) == 'sao paulo'):
             linhas.append(f"B12_ENDERECO: OK - reclamante reside em Grande Sao Paulo/SP{sufixo_fonte}")
         else:
             cidade_uf = f"{cidade}/{estado.upper()}"
@@ -825,7 +872,11 @@ def _checar_endereco_reclamante(texto: str, capa_dados: Dict[str, Any] = None) -
     ]
     encontrado = next((t for t in termos_aud if t in norm), None)
     if encontrado:
-        linhas.append(f"B12_AUD_VIRTUAL: ALERTA - pedido de {encontrado} - verificar compatibilidade com pauta da vara")
+        processo_digital = cd.get('juizo_digital')
+        if processo_digital is True:
+            linhas.append(f"B12_AUD_VIRTUAL: OK - pedido de {encontrado} em processo 100% digital")
+        else:
+            linhas.append(f"B12_AUD_VIRTUAL: ALERTA - pedido de {encontrado} - verificar compatibilidade com pauta da vara")
     else:
         linhas.append("B12_AUD_VIRTUAL: OK - sem pedido de audiencia virtual/telepresencial")
     return linhas

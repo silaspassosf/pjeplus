@@ -68,6 +68,8 @@ def _fechar_abas_extras(driver: WebDriver):
 def _executar_acao(driver: WebDriver, item: PeticaoItem, acao) -> bool:
     if isinstance(acao, tuple):
         for f in acao:
+            if f is None:
+                return False
             if callable(f) and not f(driver, item):
                 return False
         return True

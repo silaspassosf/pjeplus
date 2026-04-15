@@ -891,7 +891,7 @@ def main():
         inicializar_otimizacoes()
     except:
         pass
-    
+
     tee_output = None
     log_file = None
     try:

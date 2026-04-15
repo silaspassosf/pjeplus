@@ -181,6 +181,8 @@ def _cond_impugnacao_liq(item) -> bool:
 def _executar_acao(driver, item, acao) -> bool:
     if isinstance(acao, tuple):
         for f in acao:
+            if f is None:
+                return False
             if callable(f) and not f(driver, item):
                 return False
         return True
@@ -242,26 +244,26 @@ def _regras(item, driver=None):
         ('apagar',   'triagem inicial' in f,                                                                None),
         ('apagar',   'contestacao' in tipo and 'conhecimento' in f,                                        None),
         # ── PERICIAS ──────────────────────────────────────────────────────
-        ('pericias', perito and 'esclarecimentos' in tipo and 'liquidacao' in f,  (_w(ato_escliq),)),
-        ('pericias', perito and 'esclarecimentos' in tipo,                         (_w(ato_esc),)),
-        ('pericias', perito and 'apresentacao de laudo pericial' in tipo,          (_w(ato_laudo),)),
-        ('pericias', perito and 'indicacao de data' in tipo,                       (_gigs("-1", "", "xs aud"), _w(ato_datalocal))),
-        ('pericias', perito,                                                        (_w(ato_laudo),)),
+        ('pericias', perito and 'esclarecimentos' in tipo and 'liquidacao' in f and ato_escliq,  (_w(ato_escliq),)),
+        ('pericias', perito and 'esclarecimentos' in tipo and ato_esc,                         (_w(ato_esc),)),
+        ('pericias', perito and 'apresentacao de laudo pericial' in tipo and ato_laudo,          (_w(ato_laudo),)),
+        ('pericias', perito and 'indicacao de data' in tipo and ato_datalocal,                       (_gigs("-1", "", "xs aud"), _w(ato_datalocal))),
+        ('pericias', perito and ato_laudo,                                                        (_w(ato_laudo),)),
         # ── RECURSO ───────────────────────────────────────────────────────
-        ('recurso',  'agravo de instrumento' in tipo and ('liquidacao' in f or 'execucao' in f), (_w(ato_inste),)),
-        ('recurso',  'agravo de instrumento' in tipo,                                             (_w(ato_instc),)),
-        ('recurso',  'agravo de peticao' in tipo,                                                 (lambda driver, item: checar_habilitacao(item, driver) if 'habilitacao' in tipo else agravo_peticao(item, driver),)),
+        ('recurso',  'agravo de instrumento' in tipo and ('liquidacao' in f or 'execucao' in f) and ato_inste, (_w(ato_inste),)),
+        ('recurso',  'agravo de instrumento' in tipo and ato_instc,                                             (_w(ato_instc),)),
+        ('recurso',  'agravo de peticao' in tipo and agravo_peticao,                         (lambda driver, item: checar_habilitacao(item, driver) if 'habilitacao' in tipo and callable(checar_habilitacao) else agravo_peticao(item, driver),)),
         # ── DIRETOS ───────────────────────────────────────────────────────
-        ('diretos',  'habilitacao' in tipo,                                        (lambda driver, item: checar_habilitacao(item, driver),)),
-        ('diretos',  'ratificacao do acordo' in desc or 'ratificação do acordo' in desc, (_w(ato_homacordo),)),
-        ('diretos',  'conhecimento' in f and ('quesitos' in tipo or 'quesitos' in desc), (lambda driver, item: def_quesitos(item, driver),)),
-        ('diretos',  'coaf' in desc,                                               (_w(ato_naocoaf),)),
-        ('diretos',  'simba' in desc,                                              (_w(ato_naosimba),)),
-        ('diretos',  'teimosinha' in desc or 'sisbajud' in desc,                    (_gigs("1", "", "xs teimosinha"), _w(ato_teim))),
-        ('diretos',  'recurso adesivo' in tipo,                                   (_w(ato_adesivo),)),
-        ('diretos',  'calculos' in tipo,                                           (lambda driver, item: contesta_calc(item, driver),) if contesta_calc else (_w(ato_respcalc),)),
+        ('diretos',  'habilitacao' in tipo and callable(checar_habilitacao),        (lambda driver, item: checar_habilitacao(item, driver),)),
+        ('diretos',  ('ratificacao do acordo' in desc or 'ratificação do acordo' in desc) and ato_homacordo, (_w(ato_homacordo),)),
+        ('diretos',  'conhecimento' in f and ('quesitos' in tipo or 'quesitos' in desc) and callable(def_quesitos), (lambda driver, item: def_quesitos(item, driver),)),
+        ('diretos',  'coaf' in desc and ato_naocoaf,                                               (_w(ato_naocoaf),)),
+        ('diretos',  'simba' in desc and ato_naosimba,                                              (_w(ato_naosimba),)),
+        ('diretos',  ('teimosinha' in desc or 'sisbajud' in desc) and ato_teim,                    (_gigs("1", "", "xs teimosinha"), _w(ato_teim))),
+        ('diretos',  'recurso adesivo' in tipo and ato_adesivo,                                   (_w(ato_adesivo),)),
+        ('diretos',  'calculos' in tipo and (contesta_calc or ato_respcalc),                                           (lambda driver, item: contesta_calc(item, driver),) if contesta_calc else (_w(ato_respcalc),) if ato_respcalc else None),
         ('diretos',  'assistente' in tipo,                                         (_gigs("1", "", "xs aud"), _w(ato_assistente)) if ato_assistente else (_gigs("1", "", "xs aud"),)),
-        ('diretos',  _cond_impugnacao_liq(item),                                 (_w(ato_concor),)),
+        ('diretos',  _cond_impugnacao_liq(item) and ato_concor,                                 (_w(ato_concor),)),
         ('diretos',  'caged' in desc,                                              (_gigs("-1", "", "xs pec"), _w(ato_prevjud)) if ato_prevjud else (_gigs("-1", "", "xs pec"),)),
         ('diretos',  'concordancia' in desc and 'liquidacao' in f,               (_gigs("1", "Silas", "Homologação"),)),
         ('diretos',  bool(re.search(r'comprovante|deposito|pagamento|guia', desc)), (_gigs("-1", "", "Bruna Liberação"),)),
@@ -460,13 +462,13 @@ def analise_pet(driver: WebDriver, peticao) -> bool:
         except Exception as e:
             logger.error('[PET_ANALISE] Erro ao executar acao: %s', e)
 
-    logger.info('[PET_ANALISE] Executando ato_gen (despacho generico)')
-    if ato_gen:
-        try:
-            ato_gen(driver)
-            return True
-        except Exception as e:
-            logger.error('[PET_ANALISE] Erro no ato_gen: %s', e)
+    logger.info('[PET_ANALISE] Fallback: criando GIGS (sem filtro reconhecido)')
+    try:
+        # criar_gigs(driver, dias, resposta, observacao)
+        criar_gigs(driver, '', '', 'Analise - sem filtro reconhecido')
+        return True
+    except Exception as e:
+        logger.error('[PET_ANALISE] Erro ao criar GIGS fallback: %s', e)
     return False
 
 

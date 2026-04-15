@@ -1,38 +1,36 @@
 {
   "numero": [
-    "1001827-72.2023.5.02.0703"
+    "1000078-15.2026.5.02.0703"
   ],
-  "id": 5795070,
+  "id": 8188676,
   "autor": [
     {
-      "nome": "VAVI NUNES GUERRA",
-      "cpfcnpj": "11193612810",
+      "nome": "ADRIANO RIBEIRO",
+      "cpfcnpj": "02525488334",
       "advogado": {
-        "nome": "JUCILENE SANTOS ALVES",
-        "cpf": "39434624800",
-        "oab": "SP441213"
+        "nome": "LUCAS CICERO DOS SANTOS BARBOSA",
+        "cpf": "46445348890",
+        "oab": "SP512485"
       }
     }
   ],
   "reu": [
     {
-      "nome": "J.M.S. RINALDI SERVICOS DE PORTARIA E LIMPEZA - ME",
-      "cpfcnpj": "09465405000170"
-    },
-    {
-      "nome": "JEANE MARIA SILVA RINALDI",
-      "cpfcnpj": "28907802874"
+      "nome": "BP CONSTRUCOES METALICAS LTDA",
+      "cpfcnpj": "18825223000153",
+      "advogado": {
+        "nome": "KEYLA CALIGHER NEME GAZAL",
+        "cpf": "07346669851",
+        "oab": "SP109626"
+      }
     }
   ],
   "terceiro": [],
-  "divida": {
-    "valor": "R$ 211.716,99",
-    "data": "01/02/2026"
-  },
+  "divida": {},
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "12/12/2023",
+  "dtAutuacao": "20/01/2026",
   "classeJudicial": {
     "id": 326,
     "codigo": "985",
@@ -46,7 +44,7 @@
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Execução",
+  "labelFaseProcessual": "Conhecimento",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

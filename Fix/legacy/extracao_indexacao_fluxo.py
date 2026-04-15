@@ -2,9 +2,9 @@ import time
 import re
 
 from Fix.log import logger
-from Fix.monitoramento_progresso_unificado import carregar_progresso_unificado
-from .abas import validar_conexao_driver, forcar_fechamento_abas_extras
-from .extracao_indexacao import (
+from Fix.progress.monitoramento import carregar_progresso_unificado
+from Fix.abas import validar_conexao_driver, forcar_fechamento_abas_extras
+from Fix.extraction.indexacao import (
     _indexar_tentar_reindexar,
     _indexar_tentar_trocar_aba,
     abrir_detalhes_processo,

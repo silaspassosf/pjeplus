@@ -9,9 +9,14 @@ import io
 import threading
 from typing import List, Dict, Any
 
+import pathlib
 from api.variaveis import PjeApiClient, session_from_driver
+from Fix.variaveis_helpers import obter_texto_documento
 from Triagem.preprocess import _strip_cabecalho_rodape
 from Triagem.utils import _norm, _formatar_endereco_parte
+
+# Diretório local para tessdata — evita gravar em Program Files (requer admin)
+_TESSDATA_LOCAL = pathlib.Path(__file__).parent.parent / 'cache' / 'tessdata'
 
 
 def _extrair_id_processo_da_url(url: str):
@@ -47,8 +52,12 @@ def _eh_procuracao(documento: dict) -> bool:
 
 def _eh_documento_identidade(documento: dict) -> bool:
     titulo = _norm(documento.get('titulo') or '')
-    palavras_chave = ['rg', 'cnh', 'identidade', 'cpf', 'passport', 'passaporte']
-    return any(p in titulo for p in palavras_chave)
+    tipo = _norm(documento.get('tipo') or '')
+    palavras_chave = [
+        'rg', 'cnh', 'identidade', 'cpf', 'passport', 'passaporte',
+        'identificacao', 'documento pessoal', 'documento de identificacao',
+    ]
+    return any(p in titulo or p in tipo for p in palavras_chave)
 
 
 def _parsear_capa(texto: str) -> dict:
@@ -134,9 +143,81 @@ class _ErroAutenticacao401(Exception):
     """401 Unauthorized na API PJe — sessão expirada, necessário re-auth."""
 
 
+def _garantir_tessdata_por() -> 'pathlib.Path | None':
+    """Garante por.traineddata em cache/tessdata local. Retorna o diretório ou None."""
+    import urllib.request
+    tessdata_dir = _TESSDATA_LOCAL
+    tessdata_dir.mkdir(parents=True, exist_ok=True)
+    destino = tessdata_dir / 'por.traineddata'
+    if destino.exists():
+        return tessdata_dir
+    url = 'https://github.com/tesseract-ocr/tessdata_fast/raw/main/por.traineddata'
+    print('[TRIAGEM] OCR: baixando por.traineddata de tessdata_fast...')
+    try:
+        urllib.request.urlretrieve(url, destino)
+        print(f'[TRIAGEM] OCR: por.traineddata salvo em {destino}')
+        return tessdata_dir
+    except Exception as e:
+        print(f'[TRIAGEM] OCR: falha ao baixar por.traineddata: {e}')
+        return None
+
+
+def _ocr_via_pymupdf(pdf_bytes: bytes, id_doc: str, fallback: str, fracao: float = 0.5) -> str:
+    """Renderiza a fração superior de cada página com PyMuPDF e extrai texto via tesseract.
+
+    fracao=0.5 → só metade superior (suficiente para nome do outorgante na procuração).
+    """
+    try:
+        import pytesseract
+        import fitz
+        from PIL import Image
+        import pathlib, os
+        _tess_candidates = [
+            r'C:\Program Files\Tesseract-OCR\tesseract.exe',
+            r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe',
+            r'D:\Tesseract-OCR\tesseract.exe',
+        ]
+        tess_exe = None
+        for _c in _tess_candidates:
+            if pathlib.Path(_c).exists():
+                tess_exe = pathlib.Path(_c)
+                pytesseract.pytesseract.tesseract_cmd = str(tess_exe)
+                break
+        if tess_exe is None:
+            print(f'[TRIAGEM] OCR indisponivel ({id_doc}): tesseract.exe não encontrado — instale com: winget install UB-Mannheim.TesseractOCR')
+            return fallback
+        tessdata_dir = _garantir_tessdata_por()
+        if tessdata_dir:
+            os.environ['TESSDATA_PREFIX'] = str(tessdata_dir)
+            lang = 'por'
+        else:
+            # fallback: tessdata do próprio tesseract (pode não ter por)
+            os.environ.setdefault('TESSDATA_PREFIX', str(tess_exe.parent / 'tessdata'))
+            lang = 'osd'
+        doc = fitz.open(stream=pdf_bytes, filetype='pdf')
+        textos_ocr = []
+        for page in doc:
+            rect = page.rect
+            clip = fitz.Rect(rect.x0, rect.y0, rect.x1, rect.y0 + rect.height * fracao)
+            pix = page.get_pixmap(dpi=300, clip=clip)
+            img = Image.frombytes('RGB', [pix.width, pix.height], pix.samples)
+            t = pytesseract.image_to_string(img, lang=lang)
+            if t.strip():
+                textos_ocr.append(t)
+        resultado = '\n'.join(textos_ocr).strip()
+        print(f'[TRIAGEM] OCR PyMuPDF {id_doc}: {len(resultado)} chars ({len(doc)} pag, fracao={fracao})')
+        return resultado if resultado else fallback
+    except ImportError as e:
+        print(f'[TRIAGEM] OCR indisponivel ({id_doc}): {e} — instale com: winget install UB-Mannheim.TesseractOCR')
+        return fallback
+    except Exception as e:
+        print(f'[TRIAGEM] OCR falhou ({id_doc}): {e}')
+        return fallback
+
+
 def _extrair_texto_pdf_api(client: 'PjeApiClient', id_processo: str, id_doc: str) -> str:
     import time as _t
-    LIMIAR = 30
+    LIMIAR = 200  # chars/pagina — abaixo disso tenta OCR (PDF digitalizado/scan)
     tempo_inicio = _t.time()
     
     try:
@@ -168,29 +249,11 @@ def _extrair_texto_pdf_api(client: 'PjeApiClient', id_processo: str, id_doc: str
         texto_nativo = '\n'.join(textos).strip()
         media = len(texto_nativo) / total if total else 0
         if media >= LIMIAR:
+            print(f'[TRIAGEM] PDF {id_doc}: texto nativo OK ({len(texto_nativo)} chars, {total} pag, media={media:.0f})')
             return texto_nativo
+        print(f'[TRIAGEM] PDF {id_doc}: texto nativo insuficiente ({len(texto_nativo)} chars, {total} pag, media={media:.0f}) — tentando OCR via PyMuPDF')
 
-        try:
-            import pytesseract
-            from pdf2image import convert_from_bytes
-            import shutil, pathlib
-            _poppler_path = None
-            if shutil.which('pdftoppm'):
-                _poppler_path = str(pathlib.Path(shutil.which('pdftoppm')).parent)
-            else:
-                for _c in [r'D:\\poppler\\bin', r'C:\\poppler\\bin',
-                           r'C:\\Program Files\\poppler\\bin', r'C:\\tools\\poppler\\bin']:
-                    if pathlib.Path(_c).exists():
-                        _poppler_path = _c
-                        break
-            imagens = convert_from_bytes(pdf_bytes, dpi=300, poppler_path=_poppler_path)
-            textos_ocr = [pytesseract.image_to_string(img, lang='por') for img in imagens]
-            return '\n'.join(t for t in textos_ocr if t.strip())
-        except ImportError:
-            return texto_nativo
-        except Exception as e:
-            print(f'[TRIAGEM] OCR falhou ({id_doc}): {e}')
-            return texto_nativo
+        return _ocr_via_pymupdf(pdf_bytes, id_doc, texto_nativo)
     except _ErroAutenticacao401:
         raise
     except Exception as e:
@@ -354,6 +417,10 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     anexos_raw = peticao.get('anexos') or []
     if not anexos_raw:
         anexos_raw = [d for d in documentos if d.get('idDocumentoPai') == peticao.get('id')]
+        print(f'[TRIAGEM] anexos_raw vazios na peticao; fallback para idDocumentoPai encontrou {len(anexos_raw)} itens')
+
+    print(f'[TRIAGEM] anexos_raw: {len(anexos_raw)} itens')
+
 
     # Filtrar apenas anexos essenciais: Procuração + Documento de Identidade
     procuracoes = [a for a in anexos_raw if _eh_procuracao(a)]
@@ -364,18 +431,35 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     for anx in procuracoes:
         id_anx = str(anx.get('id') or anx.get('idUnicoDocumento') or '')
         titulo_anx = (anx.get('titulo') or anx.get('tipo') or '').strip()
-        try:
-            texto_anx = _extrair_com_reauth(id_anx) if id_anx else ''
-        except _ErroAutenticacao401 as e:
-            resultado['erro'] = f'ERRO_CRITICO_401: procuracao {id_anx} — {e}'
-            resultado['erro_critico'] = True
-            print(f'[TRIAGEM] 🛑 ERRO CRÍTICO 401 — {resultado["erro"]}')
-            return resultado
-        print(f'[TRIAGEM] procuracao extraida: "{titulo_anx}" {len(texto_anx)} chars')
+        print(f'[TRIAGEM] procuracao detectada: id={id_anx or "(sem id)"} titulo="{titulo_anx}"')
+        # Tenta primeiro via API HTML (documentos digitados no sistema)
+        texto_anx = ''
+        if id_anx:
+            try:
+                texto_api = obter_texto_documento(client, id_processo, id_anx)
+                if texto_api and len(texto_api) > 100:
+                    texto_anx = texto_api
+                    print(f'[TRIAGEM] procuracao extraida via API HTML: {len(texto_anx)} chars')
+            except Exception as _e_api:
+                print(f'[TRIAGEM] procuracao: API HTML falhou ({_e_api}), tentando PDF')
+        # Fallback: PDF + OCR (documentos digitalizados/escaneados)
+        if not texto_anx and id_anx:
+            try:
+                texto_anx = _extrair_com_reauth(id_anx)
+            except _ErroAutenticacao401 as e:
+                resultado['erro'] = f'ERRO_CRITICO_401: procuracao {id_anx} — {e}'
+                resultado['erro_critico'] = True
+                print(f'[TRIAGEM] 🛑 ERRO CRÍTICO 401 — {resultado["erro"]}')
+                return resultado
+        if not texto_anx:
+            print(f'[TRIAGEM] AVISO procuracao extraida vazia: id={id_anx or "(sem id)"} titulo="{titulo_anx}"')
+        extrato = texto_anx[:400].replace('\n', ' ').strip() if texto_anx else ''
+        print(f'[TRIAGEM] procuracao extraida: "{titulo_anx}" {len(texto_anx)} chars | extrato: {extrato!r}')
         anexos_extraidos.append({'titulo': titulo_anx, 'tipo': (anx.get('tipo') or '').strip(), 'texto': texto_anx})
     for anx in docs_identidade:
         titulo_anx = (anx.get('titulo') or anx.get('tipo') or '').strip()
-        print(f'[TRIAGEM] doc_identidade: "{titulo_anx}" (identificado, sem extracao)')
+        id_anx = str(anx.get('id') or anx.get('idUnicoDocumento') or '')
+        print(f'[TRIAGEM] doc_identidade detectado: id={id_anx or "(sem id)"} titulo="{titulo_anx}"')
         anexos_extraidos.append({'titulo': titulo_anx, 'tipo': (anx.get('tipo') or '').strip(), 'texto': ''})
     resultado['anexos'] = anexos_extraidos
 

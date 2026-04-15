@@ -96,6 +96,13 @@ from .core import (
 )
 
 # ===== EXTRACAO =====
+from .extraction import (
+    filtrofases,
+    indexar_processos,
+    reindexar_linha,
+    abrir_detalhes_processo,
+    indexar_e_processar_lista,
+)
 from .extracao import (
     extrair_direto,
     extrair_documento,
@@ -103,16 +110,27 @@ from .extracao import (
     extrair_dados_processo,
     extrair_destinatarios_decisao,
     bndt,
-    filtrofases,
-    indexar_processos,
-    reindexar_linha,
-    abrir_detalhes_processo,
-    indexar_e_processar_lista,
     analise_argos,
     tratar_anexos_argos,
     analise_outros,
     salvar_destinatarios_cache,
     carregar_destinatarios_cache,
+)
+
+# ===== PROGRESS =====
+from .progress import (
+    ProgressoUnificado,
+    carregar_progresso_unificado,
+    salvar_progresso_unificado,
+    marcar_processo_executado_unificado,
+    processo_ja_executado_unificado,
+    executar_com_monitoramento_unificado,
+    ARQUIVO_PROGRESSO_UNIFICADO,
+    StatusModulo,
+    NivelLog,
+    Checkpoint,
+    StatusModuloData,
+    RegistroLog,
 )
 
 # ===== GIGS =====
@@ -193,11 +211,18 @@ __all__ = [
     'buscar_documentos_polo_ativo', 'criar_botoes_detalhes',
     # Core - Classes e JS
     'ErroCollector', 'js_base',
+    # Progress
+    'ProgressoUnificado', 'carregar_progresso_unificado', 'salvar_progresso_unificado',
+    'marcar_processo_executado_unificado', 'processo_ja_executado_unificado',
+    'executar_com_monitoramento_unificado', 'ARQUIVO_PROGRESSO_UNIFICADO',
+    'StatusModulo', 'NivelLog', 'Checkpoint', 'StatusModuloData', 'RegistroLog',
     # Extracao
     'extrair_direto', 'extrair_documento', 'extrair_pdf', 'extrair_dados_processo',
     'extrair_destinatarios_decisao',
     'bndt', 'filtrofases', 'indexar_processos', 'reindexar_linha',
     'abrir_detalhes_processo', 'indexar_e_processar_lista',
+    # Extraction (novo pacote)
+    # (os mesmos acima, agora via Fix.extraction)
     # GIGS
     'criar_gigs', 'criar_comentario', 'criar_lembrete_posit',
     'analise_argos', 'buscar_documento_argos', 'tratar_anexos_argos', 'analise_outros',

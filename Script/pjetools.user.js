@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PJe Tools Pro
 // @namespace    http://tampermonkey.net/
-// @version      2.1.22
+// @version      2.1.23
 // @description  Suite de ferramentas para PJe
 // @author       Silas
 // ── PJe (cobre todas as rotas com um único match)
@@ -38,7 +38,7 @@
 
 (async function () {
     'use strict';
-    console.log('[Loader] PJe Tools Pro v2.1.20 loaded');
+    console.log('[Loader] PJe Tools Pro v2.1.23 loaded');
     if (window.self !== window.top) return;
 
     // W = window real da página (unsafeWindow quando disponível)

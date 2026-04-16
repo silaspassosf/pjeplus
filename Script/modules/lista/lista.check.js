@@ -1,3 +1,10 @@
+'// ==UserScript==
+// @name         lista.check
+// @namespace    http://tampermonkey.net/
+// @version      0.1.1
+// @description  Módulo lista.check — funções de verificação e renderização de timeline
+// @grant        none
+// ==/UserScript==
 'use strict';
 
 // ── Cache / API helpers (incorporados de lista.timeline.js) ─────

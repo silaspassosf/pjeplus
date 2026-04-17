@@ -1,7 +1,7 @@
 '// ==UserScript==
 // @name         lista.check
 // @namespace    http://tampermonkey.net/
-// @version      0.1.1
+// @version      0.1.2
 // @description  Módulo lista.check — funções de verificação e renderização de timeline
 // @grant        none
 // ==/UserScript==
@@ -286,7 +286,7 @@ window.renderTabela = function (id, titulo, corBorda, saida, onRowClick) {
 }
 
 async function onCheckRowClick(doc) {
-    const elem = resolverElemento(doc);
+    const elem = resolverElemento(doc) || encontrarElementoPorUid(doc.id);
     const link = resolverLink(doc);
 
     if (doc.isAnexo && (doc.tipo === 'Serasa' || doc.tipo === 'CNIB') && link) {

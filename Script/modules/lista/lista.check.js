@@ -299,7 +299,7 @@ async function onCheckRowClick(doc) {
 
         // Re-resolver link (pode ter mudado após sleep)
         const freshLink = resolverLink(doc) || link;
-        freshLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        freshLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
         await sleep(1500);
 
         // 1º: abrir certificado — dispara segundo ciclo Angular
@@ -338,7 +338,7 @@ async function onCheckRowClick(doc) {
         // scrollIntoView dispara layout shift → Angular reconstrói header → DOM quebrado
         const textLink = elem.querySelector('a.tl-documento:not([target="_blank"])');
         if (textLink) {
-            textLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            textLink.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
         }
         elem.classList.add('pjetools-destaque');
         setTimeout(() => elem?.classList.remove('pjetools-destaque'), 3000);

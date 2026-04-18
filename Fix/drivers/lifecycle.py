@@ -152,6 +152,48 @@ def _matar_zumbis_geckodriver(limpar_temp: bool = True) -> None:
     except Exception:
         pass
 
+
+def _aplicar_prefs_download_headless(options: Options) -> None:
+    """
+    Aplica preferências para permitir downloads em modo headless.
+
+    Ajusta prefs essenciais para que arquivos como PDF/ZIP/CSV sejam
+    baixados automaticamente sem abrir visualizadores embutidos.
+    """
+    MIME_TYPES = ",".join([
+        "application/pdf",
+        "application/octet-stream",
+        "text/csv",
+        "application/zip",
+    ])
+
+    # Preferências para download automático em headless
+    options.set_preference("browser.helperApps.neverAsk.saveToDisk", MIME_TYPES)
+    options.set_preference("pdfjs.disabled", True)
+    options.set_preference("browser.download.manager.showWhenStarting", False)
+    # Garantir que o diretório de download é usado (2 = use especificado)
+    try:
+        options.set_preference("browser.download.folderList", 2)
+    except Exception:
+        pass
+
+
+def _resolver_profile_path(base_path: str) -> str:
+    """
+    Retorna `base_path` se o diretório pai existir, caso contrário cria
+    e retorna um diretório temporário via `tempfile.mkdtemp`.
+
+    Logs uma warning quando o fallback é acionado.
+    """
+    parent = os.path.dirname(base_path)
+    if parent and os.path.exists(parent):
+        return base_path
+
+    # Fallback: criar temp dir para perfil
+    temp_profile = tempfile.mkdtemp(prefix="pjeplus_profile_")
+    logger.warning("[DRIVER/WARN] Profile path indisponivel — usando temp: %s", temp_profile)
+    return temp_profile
+
     # 2. Remover pastas temp órfãs do Selenium/Firefox
     if limpar_temp:
         try:
@@ -201,10 +243,12 @@ def criar_driver_PC(headless: bool = False) -> webdriver.Firefox:
     options = Options()
     if headless:
         options.add_argument('-headless')
+        _aplicar_prefs_download_headless(options)
 
-    # Perfil fixo — reutilizado entre execuções, sem criar rust_mozprofile a cada run
-    os.makedirs(FIREFOX_PROFILE_PC, exist_ok=True)
-    options.profile = FirefoxProfile(FIREFOX_PROFILE_PC)
+    # Perfil fixo — resolver caminho (com fallback para temp em Linux/CI)
+    resolved_profile = _resolver_profile_path(FIREFOX_PROFILE_PC)
+    os.makedirs(resolved_profile, exist_ok=True)
+    options.profile = FirefoxProfile(resolved_profile)
 
     # Anti-detection
     options.set_preference("dom.webdriver.enabled", False)
@@ -235,7 +279,6 @@ def criar_driver_PC(headless: bool = False) -> webdriver.Firefox:
 
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
-    driver.implicitly_wait(10)
 
     return driver
 
@@ -260,14 +303,15 @@ def criar_driver_VT(headless: bool = False) -> webdriver.Firefox:
     options = Options()
     if headless:
         options.add_argument('-headless')
+        _aplicar_prefs_download_headless(options)
 
     options.binary_location = (
         obter_caminho_firefox_alt()
     )
 
-    # Perfil fixo — reutilizado entre execuções, sem criar rust_mozprofile a cada run
-    os.makedirs(FIREFOX_PROFILE_VT, exist_ok=True)
-    options.profile = FirefoxProfile(FIREFOX_PROFILE_VT)
+    resolved_profile = _resolver_profile_path(FIREFOX_PROFILE_VT)
+    os.makedirs(resolved_profile, exist_ok=True)
+    options.profile = FirefoxProfile(resolved_profile)
 
     # Anti-throttling
     options.set_preference("dom.min_background_timeout_value", 0)
@@ -276,7 +320,6 @@ def criar_driver_VT(headless: bool = False) -> webdriver.Firefox:
 
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
-    driver.implicitly_wait(10)
 
     return driver
 
@@ -297,6 +340,7 @@ def criar_driver_notebook(headless: bool = False) -> webdriver.Firefox:
     options = Options()
     if headless:
         options.add_argument('-headless')
+        _aplicar_prefs_download_headless(options)
     
     options.binary_location = (
         obter_caminho_firefox_alt()
@@ -305,9 +349,11 @@ def criar_driver_notebook(headless: bool = False) -> webdriver.Firefox:
     # Perfil customizado (atualmente desativado)
     USE_USER_PROFILE_NOTEBOOK = False
     if USE_USER_PROFILE_NOTEBOOK:
-        options.profile = (
+        resolved_profile = _resolver_profile_path(
             r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
         )
+        os.makedirs(resolved_profile, exist_ok=True)
+        options.profile = FirefoxProfile(resolved_profile)
     
     # Anti-throttling
     options.set_preference("dom.min_background_timeout_value", 0)
@@ -316,7 +362,6 @@ def criar_driver_notebook(headless: bool = False) -> webdriver.Firefox:
     
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
-    driver.implicitly_wait(10)
     
     return driver
 
@@ -404,7 +449,6 @@ def criar_driver_sisb_pc(headless: bool = False) -> Optional[webdriver.Firefox]:
     # Tentativa 1: Com configurações completas
     try:
         driver = webdriver.Firefox(service=service, options=options)
-        driver.implicitly_wait(10)
         return driver
     except Exception as e:
         logger.error(f"[DRIVER_SISB_PC] Erro ao criar driver: {e}")
@@ -419,7 +463,6 @@ def criar_driver_sisb_pc(headless: bool = False) -> Optional[webdriver.Firefox]:
             )
             
             driver = webdriver.Firefox(service=service, options=options_fallback)
-            driver.implicitly_wait(10)
             print(
                 "[DRIVER_SISB_PC] Driver SISBAJUD PC (Developer Edition - fallback) "
                 "criado com sucesso"
@@ -458,7 +501,6 @@ def criar_driver_sisb_notebook(headless: bool = False) -> webdriver.Firefox:
     
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
-    driver.implicitly_wait(10)
     
     return driver
 

@@ -99,16 +99,12 @@ class PJePlusFormatter(logging.Formatter):
         Returns:
             String formatada
         """
-        # Validar emoji
+        # Remover emojis antes de formatar a mensagem de log.
+        # Isto evita falhas de formatação quando a aplicação ainda usa emojis em logs.
         if self.validate_emoji and EmojiValidator.has_emoji(record.getMessage()):
-            raise ValueError(
-                f'[EMOJI_VIOLATION] Mensagem contém emoji: {record.getMessage()[:50]}... '
-                f'Origem: {record.name}:{record.lineno}'
-            )
-
-        # Remover emojis mesmo que não em modo validação rigorosa
-        if EmojiValidator.has_emoji(record.getMessage()):
-            record.msg = EmojiValidator.remove_emoji(str(record.msg))
+            clean_message = EmojiValidator.remove_emoji(record.getMessage())
+            record.msg = clean_message
+            record.args = ()
 
         # Formatar base
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
@@ -399,6 +395,129 @@ def registrar_seletor_correto(arquivo: str, linha: int, acao: str, seletor: str)
     except Exception as e:
         # Fallback silencioso se não conseguir escrever
         print(f"[REGISTRO] Erro ao salvar seletor: {e}")
+
+
+# ==========================
+# Compat: funções de resumo de exceção e utilitários de log
+# (origin: Fix/log_cleaner.py)
+# ==========================
+
+def resumir_excecao(exc: BaseException, contexto: str = "", max_frames: int = 3) -> str:
+    """Retorna string compacta de exceção para uso em debug/IA.
+
+    Compat wrapper movido de `Fix/log_cleaner.py` para facilitar importações via `Fix.log`.
+    """
+    if exc is None:
+        return "[Nenhuma exceção fornecida]"
+
+    import traceback
+    from pathlib import Path
+
+    tb = exc.__traceback__
+    frames = traceback.extract_tb(tb) if tb is not None else []
+    ultimos = frames[-max_frames:]
+
+    linhas = [f"[{type(exc).__name__}] {exc}"]
+    if contexto:
+        linhas.append(f"  contexto: {contexto}")
+
+    for frame in ultimos:
+        linhas.append(f"  {Path(frame.filename).name}:{frame.lineno} in {frame.name}")
+        if frame.line:
+            linhas.append(f"    → {frame.line.strip()}")
+
+    return "\n".join(linhas)
+
+
+def filtrar_log_arquivo(caminho: str | Path, nivel: str = "ERROR", max_linhas: int = 50) -> list[str]:
+    """Retorna as primeiras linhas do nível desejado de um arquivo de log.
+
+    Compat wrapper movido de `Fix/log_cleaner.py`.
+    """
+    caminho = Path(caminho)
+    nivel = nivel.upper()
+
+    if not caminho.exists():
+        raise FileNotFoundError(f"Arquivo de log não encontrado: {caminho}")
+
+    resultado: list[str] = []
+    with caminho.open("r", encoding="utf-8", errors="replace") as f:
+        for linha in f:
+            if nivel in linha.upper():
+                resultado.append(linha.rstrip())
+                if len(resultado) >= max_linhas:
+                    break
+
+    return resultado
+
+
+def extrair_seletor_dom(html_bruto: str) -> str:
+    """Converte um HTML bruto em selector reduzido para compartilhar em IA.
+
+    Compat wrapper movido de `Fix/log_cleaner.py`.
+    """
+    if not html_bruto or not isinstance(html_bruto, str):
+        return ""
+
+    import re
+
+    tag = re.search(r"<(\w+)", html_bruto)
+    classes = re.search(r'class=["\']([^"\']+)["\']', html_bruto)
+    id_val = re.search(r'id=["\']([^"\']+)["\']', html_bruto)
+    texto = re.search(r">([^<]{1,40})<", html_bruto)
+
+    partes = [tag.group(1) if tag else "*" ]
+    if classes:
+        classes_clean = classes.group(1).strip().replace(" ", ".")
+        if classes_clean:
+            partes[0] += f".{classes_clean}"
+    if id_val:
+        partes[0] += f"#{id_val.group(1).strip()}"
+
+    if texto and texto.group(1).strip():
+        partes.append(f"texto: '{texto.group(1).strip()}'")
+
+    return " ".join(partes)
+
+
+# ==========================
+# Exceções tipadas (origin: Fix/exceptions.py)
+# ==========================
+
+class PJePlusError(Exception):
+    """Exceção base para erros do PJePlus."""
+    pass
+
+
+class DriverFatalError(PJePlusError):
+    """Driver inutilizável."""
+    pass
+
+
+class ElementoNaoEncontradoError(PJePlusError):
+    """Elemento não localizado."""
+    def __init__(self, seletor: str, contexto: str = ""):
+        super().__init__(f"Elemento não encontrado: {seletor} (contexto: {contexto})")
+        self.seletor = seletor
+        self.contexto = contexto
+
+
+class TimeoutFluxoError(PJePlusError):
+    """Timeout de operação."""
+    def __init__(self, operacao: str, timeout: int):
+        super().__init__(f"Timeout na operação: {operacao} (timeout: {timeout}s)")
+        self.operacao = operacao
+        self.timeout = timeout
+
+
+class NavegacaoError(PJePlusError):
+    """Falha ao trocar aba ou navegar."""
+    pass
+
+
+class LoginError(PJePlusError):
+    """Falha de login."""
+    pass
 
 
 # Função auxiliar para uso automático (chama tentar_seletores + registra)

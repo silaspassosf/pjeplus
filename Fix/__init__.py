@@ -183,7 +183,8 @@ from .abas import (
 )
 
 # ===== LOG CLEANER =====
-from .log_cleaner import resumir_excecao, filtrar_log_arquivo, extrair_seletor_dom
+# compat: funções agora exportadas por Fix.log
+from .log import resumir_excecao, filtrar_log_arquivo, extrair_seletor_dom
 
 __version__ = "2.0.0"
 

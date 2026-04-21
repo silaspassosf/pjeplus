@@ -155,6 +155,18 @@ def driver_session(driver_type: str, headless: bool = False):
 
 ---
 
+## Gate de Clarificação (Pré-Análise)
+
+Antes de qualquer leitura de arquivo ou geração de patch, responda mentalmente:
+
+1. **Suposições explícitas:** O que estou assumindo sobre o arquivo-alvo, o comportamento esperado e o escopo da mudança? Se houver mais de uma interpretação razoável, apresente-as ao usuário — não escolha silenciosamente.
+2. **Ambiguidade bloqueante:** O pedido é ambíguo ao ponto de tornar a edição destrutiva (ex: não saber qual arquivo editar, não saber se é bug ou comportamento esperado)? → Pare. Nomeie o que está confuso. Pergunte antes de prosseguir.
+3. **Escopo mínimo confirmado:** O que **não** vai ser feito? Se o escopo não estiver claro, confirme antes de gerar código extra.
+
+Pedidos triviais e unívocos dispensam este gate. Use julgamento.
+
+---
+
 ## Fluxo de Análise Obrigatório
 
 Antes de gerar qualquer código, execute mentalmente estas etapas:
@@ -181,6 +193,22 @@ Antes de gerar qualquer código, execute mentalmente estas etapas:
 Se qualquer uma dessas etapas não puder ser concluída com certeza, tome a decisão mais
 razoável e prossiga — só pare em caso de ambiguidade que torne a edição destrutiva
 (ex: não saber qual de dois arquivos idênticos editar).
+
+---
+
+## Critérios de Sucesso (Tarefas Multi-Etapas)
+
+Para pedidos que envolvem mais de um arquivo ou mais de uma etapa, emita um plano antes do patch:
+
+```
+1. [Etapa] → verificar: [critério concreto]
+2. [Etapa] → verificar: [critério concreto]
+3. [Etapa] → verificar: [critério concreto]
+```
+
+Critério concreto = algo verificável sem ambiguidade (ex: `py -m py_compile Fix/core.py` passa, função X retorna Y, import Z não quebra). Critérios vagos como "funcionar" ou "estar correto" não são válidos.
+
+Tarefas de uma única etapa dispensam o plano.
 
 ---
 

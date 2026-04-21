@@ -33,6 +33,7 @@ Antes de qualquer ferramenta ou edição, emita um bloco `<reasoning>` compacto:
 - Impacto: quebra interfaces em Fix, atos ou módulos dependentes? sim/não
 - Padrão violado? verificar Anti-Regressão
 - Risco DAP? sim se renomear/deletar arquivo, alterar Fix/core, mudar assinatura pública
+- Pedido ambíguo? se múltiplas interpretações existem ou o alvo é incerto → parar aqui, nomear a dúvida e perguntar antes de qualquer edição.
 </reasoning>
 ```
 

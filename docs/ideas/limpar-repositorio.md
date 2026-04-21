@@ -101,14 +101,25 @@ Todos os 7 imports de validação **passam**:
 - `Mandado/processamento.py`: removeu bloco `PEC.core_progresso` (6 aliases: carregar_progresso, salvar_progresso, extrair_numero_processo, verificar_acesso_negado, processo_ja_executado, marcar_processo_executado) + 3 funções privadas (`_aguardar_icone_plus`, `_buscar_icone_plus_direto`, `_extrair_resultado_sisbajud`)
 - `Prazo/loop_ciclo1_movimentacao.py`: removeu 3 linhas unreachable após `return "error"`
 
-**Slice 2 — PENDENTE** (itens a verificar com grep antes de remover):
-- `Mandado/regras.py:40` — `NoSuchWindowException` (import para except não usado)
-- `Mandado/regras.py:119` — `salvar_progresso` (alias não chamado)
-- `Mandado/utils.py:40` — `NoSuchWindowException`
-- `Mandado/utils.py:112` — `salvar_progresso`
-- `SISB/core.py:47` — `processamento` (import não chamado no arquivo)
-- `Fix/utils.py` re-exports — grep para confirmar zero callers diretos de cada nome
-- `PEC/core.py:11` — `verificar_e_recuperar_acesso_negado` (1 hit — pode ser só definição)
+**Slice 2 ✅ Commit `[hash]`** — 5 edições, -7 linhas:
+- `SISB/core.py:47`: removeu `from . import processamento`
+- `Mandado/regras.py:42`: removeu `NoSuchWindowException` import  
+- `Mandado/regras.py:121`: removeu `salvar_progresso` alias
+- `Mandado/utils.py:42`: removeu `NoSuchWindowException` import
+- `Mandado/utils.py:114`: removeu `salvar_progresso` alias
+- ✓ Todos 7 imports críticos ainda passam
+
+**Slice 3 ✅ Commit `a8c483e`** — 1 edição, -1 linha:
+- `PEC/core.py:11`: removeu `verificar_e_recuperar_acesso_negado` import (importado mas não usada)
+- ✓ Todos 7 imports críticos ainda passam
+
+### Checkpoint 2 ✅ PASSOU — Fase de Função Completa
+- [x] Relatório vulture revisado e anotado
+- [x] `py -c "import x"` limpo
+- [x] Todos 7 imports de validação passam
+- [x] `py -m py_compile` limpo em todos arquivos editados
+
+---
 
 **Confirmados NÃO remover:**
 - `ato_gen` (4 hits reais), `ato_ceju` (11 hits reais) em `Peticao/pet.py`

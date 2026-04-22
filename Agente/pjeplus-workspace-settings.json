@@ -1,0 +1,12 @@
+{
+  "restrictedCopilot.restrictiveMode": true,
+  "restrictedCopilot.inquisitiveMode": true,
+  "restrictedCopilot.maxContextLines": 25,
+  "editor.formatOnSave": true,
+  "python.defaultInterpreterPath": "python",
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/dist/**": true
+  }
+}

@@ -1,0 +1,1425 @@
+[
+  {
+    "date": "17/01/2022",
+    "version": "4.5.9",
+    "changes": [
+      "Criação do módulo 8: configuração para escolha automática do magistrado quando for fazer minutas de despacho, decisão e sentença, de acordo com o número final do processo.",
+      "Correções diversas"
+    ],
+    "package": "maispje-4.5.9-fx.xpi"
+  },
+  {
+    "date": "21/01/2022",
+    "version": "4.5.9.1",
+    "changes": [
+      "Incluído nas configurações do módulo SISBAJUD a possibilidade de configurar a marcação automática de 'penhora de conta-salário' quando da inclusão dos réus.",
+      "Desligamento do vínculo do Font Awesome dos ícones utilizados nas páginas de configurações da extensão.",
+      "Correção do erro da função mapearIds."
+    ],
+    "package": "maispje-4.5.9.1-fx.xpi"
+  },
+  {
+    "date": "24/01/2022",
+    "version": "4.5.9.2",
+    "changes": [
+      "Patch de correção dos ícones."
+    ],
+    "package": "maispje-4.5.9.2-fx.xpi"
+  },
+  {
+    "date": "03/02/2022",
+    "version": "4.5.9.3",
+    "changes": [
+      "Perguntar quando preencher o campo observações nas ações automatizadas do checklist de execução e do GIGS",
+      "Aplicação do módulo 8 (Selecionar automaticamente o juiz configurado) na tela de preparar intimação/expediente e alvará SIF",
+      "Comunicações e Expedientes: inserido botões que representam a Caixa Econômica Federal e o Banco do Brasil como destinatários, para inclusão mediante um único clique, para o tipo Alvará",
+      "Criar opção de configuração para guardar o dado das partes ao abrir a Janela Detalhes do Processo",
+      "Patch de correção (fechamento do GIGS após ação automatizada, adaptação do endereço do site dos correios)"
+    ],
+    "package": "maispje-4.5.9.3-fx.xpi"
+  },
+  {
+    "date": "07/02/2022",
+    "version": "4.5.9.4",
+    "changes": [
+      "Patch de correção (O carregamento do ícone da extensão estava falhando em razão da limitação de acesso ao GIT do TRT12 - Erro: acesso proibido)"
+    ],
+    "package": "maispje-4.5.9.4-fx.xpi"
+  },
+  {
+    "date": "10/02/2022",
+    "version": "4.5.9.5",
+    "changes": [
+      "Patch de correções (módulo8 em comunicações e expedientes, conclusão ao magistrado, dentre outros)",
+      "Consulta processual para o garimpo (associação de contas)."
+    ],
+    "package": "maispje-4.5.9.5-fx.xpi"
+  },
+  {
+    "date": "15/03/2022",
+    "version": "4.5.9.6",
+    "changes": [
+      "Patch de correções (botão ZoomEditor na tela de 'Designar Perícia')",
+      "Funcionalidade: baixar todos os documentos do processo, individualmente, arquivo por arquivo",
+      "Funcionalidade: inserido botões que representam a Caixa Econômica Federal e o Banco do Brasil como destinatários, para inclusão mediante um único clique, para o tipo de expediente 'Ofício'",
+      "Funcionalidade: ação automatizada para inclusão de advogado no processo, mediante pesquisa por cpf ou nome.",
+      "Funcionalidade: botão para exportar lista contendo todos os processos do Relatório GIGS (Atividades e Comentários) em nova janela."
+    ],
+    "package": "maispje-4.5.9.6-fx.xpi"
+  },
+  {
+    "date": "28/03/2022",
+    "version": "4.5.9.7",
+    "changes": [
+      "Patch de correções (fechamento da janela com o Pje desligado)",
+      "Funcionalidade: ação automatizada para inclusão de leiloeiro no processo, mediante pesquisa por nome.",
+      "Funcionalidade: ação automatizada para inclusão de perito no processo, mediante pesquisa por nome.",
+      "Funcionalidade: inserido botão que representa o Regional como destinatário, para inclusão mediante um único clique, para o tipo de expediente 'Requisição' (Precatórios e RPVs).",
+      "Funcionalidade: varinha mágica para preenchimento de ordens de requisição de informações (endereço) no sisbajud.",
+      "Funcionalidade: gestão de filtros personalizados no Relatório GIGS (Atividades, Comentários e Processos do Gabinete).",
+      "Funcionalidade: botão para exportar lista contendo todos os processos do Relatório GIGS (Processos do Gabinete) - 2o grau - em nova janela."
+    ],
+    "package": "maispje-4.5.9.7-fx.xpi"
+  },
+  {
+    "date": "18/04/2022",
+    "version": "4.5.9.8",
+    "changes": [
+      "Patch de correções (Relatório GIGS - Processos do Gabinete - data apresentando um dia a menos, ação automatizada para inclusão de ADVOGADO no processo, botão copiar transcrição do documento, checklist de execução).",
+      "Funcionalidade: varinha mágica para preenchimento automático de campos no convênio SERASAJUD.",
+      "Funcionalidade: aperfeiçoado o 'Módulo 2: Janela GIGS', permitindo a atribuição automática de responsável de acordo com a tarefa, a tarefa + o final do processo e só por final do processo.",
+      "Funcionalidade: aperfeiçoado o 'Módulo 5: Filtro', permitindo que o botão MARCAR TODOS selecione apenas os processos filtrados. Com isso é possível executar ações em lote apenas nos processos filtrados.",
+      "Inclusão dos vídeos tutoriais das versões anteriores."
+    ],
+    "package": "maispje-4.5.9.8-fx.xpi"
+  },
+  {
+    "date": "21/04/2022",
+    "version": "4.5.9.9",
+    "changes": [
+      "Patch de correções (corrigido bug para desmarcar opções do módulo 1 ao reinstalar a extensão. refeita a função de encontrar monitores para a nova versão do navegador)"
+    ],
+    "package": "maispje-4.5.9.9-fx.xpi"
+  },
+  {
+    "date": "23/04/2022",
+    "version": "4.6.0",
+    "changes": [
+      "Patch de correções (Refeita a função de encontrar monitores para a qualquer versão do mozilla firefox)"
+    ],
+    "package": "maispje-4.6.0-fx.xpi"
+  },
+  {
+    "date": "25/04/2022",
+    "version": "4.6.1",
+    "changes": [
+      "Patch de adaptações para a versão 2.7.4 do PJe",
+      "Funcionalidade: varinha mágica para preenchimento de ordens de requisição de informações (endereço) no serasajud."
+    ],
+    "package": "maispje-4.6.1-fx.xpi"
+  },
+  {
+    "date": "28/04/2022",
+    "version": "4.6.2",
+    "changes": [
+      "Patch de correções (corrigido bug na ação automatizada de Movimento para reconhecer o nó 'Análise de Gabinete' no segundo grau).",
+      "Funcionalidade: auxiliar de preenchimento automático para o AJ-JT, quando existir processo guardado na memória do navegador."
+    ],
+    "package": "maispje-4.6.2-fx.xpi"
+  },
+  {
+    "date": "13/05/2022",
+    "version": "4.6.3",
+    "changes": [
+      "Patch de correções diversas.",
+      "Funcionalidade: varinha mágica para consultas no RENAJUD.",
+      "Funcionalidade: varinha mágica para preenchimento de ordens de indisponibilidade no CNIB.",
+      "Funcionalidade: varinha mágica para preenchimento de ordens CCS.",
+      "Funcionalidade: gestão de filtros personalizados para o Painel Global.",
+      "Melhoria: retorno da funcionalidade mapear Ids de forma automática, quando do carregamento do documento.",
+      "Melhoria: Prazo em Lote: adicionados botões que representam os prazos 0, 5 e 10 dias.",
+      "Melhoria: Otimizado o módulo sisbajud eliminando os cliques para acionar a extensão.",
+      "Melhoria: Otimizada a consulta rápida de processos no PJe (menu kaizen)."
+    ],
+    "package": "maispje-4.6.3-fx.xpi"
+  },
+  {
+    "date": "16/05/2022",
+    "version": "4.6.3.1",
+    "changes": [
+      "Patch de correção (corrigido bug no mapeamento dos monitores quando da restauração das configurações)."
+    ],
+    "package": "maispje-4.6.3.1-fx.xpi"
+  },
+  {
+    "date": "24/06/2022",
+    "version": "4.6.3.2",
+    "changes": [
+      "Funcionalidade: criado o módulo 9 - Convênios, que traz informações sobre a utilização da extensão nos convênios firmados com o Tribunal. Neste módulo ficou concentrado a configuração de uso para cada convênio.",
+      "Melhoria: convênio SISBAJUD: inserida automatização para reiteração ou cancelamento de não-respostas, valor mínimo para desbloqueio e preenchimento dos dados bancários para transferência dos valores bloqueados.",
+      "Melhoria: convênio RENAJUD: inserida automatização para escolha dos campos Tipo de Restrição, Município, Órgão e Juiz, mediante configuração prévia no módulo 9.",
+      "Melhoria: na função baixar documentos individualmente. Agora é possível também escolher os documentos que quer baixar. Para isso basta utilizar a opção de múltipla seleção nativa do Pje, presente na timeline do processo).",
+      "Melhoria: melhoria estética e de usabilidade no menu kaizen utilizado no Pje e nos convênios. Agora é possível movê-lo e posicioná-lo na página de forma a facilitar seu uso. Essas posições ficam guardadas na memória e sempre serão recuperadas na próxima vez que você acessar a página.",
+      "Funcionalidade: ação automatizada para inclusão da Prioridade 'Recuperação Judicial / Falência' no processo.",
+      "Melhoria: incluído o valor total da dívida como opção no menu. O valor total indicado é igual a soma do total devido de todos os cálculos com mesma data de atualização (de acordo com o arquivo PjeCalc juntado.",
+      "Melhoria: inserido botão que representa o MTE como destinatário, para inclusão mediante um único clique, para o tipo de expediente 'Ofício'.",
+      "Melhoria: Ações automatizadas. Agora é possível ajustar o tempo de execução das interações da ação automatizada."
+    ],
+    "package": "maispje-4.6.3.2-fx.xpi"
+  },
+  {
+    "date": "24/06/2022",
+    "version": "4.6.3.3",
+    "changes": [
+      "Patch de correção."
+    ],
+    "package": "maispje-4.6.3.3-fx.xpi"
+  },
+  {
+    "date": "24/06/2022",
+    "version": "4.6.3.4",
+    "changes": [
+      "Patch de correção."
+    ],
+    "package": "maispje-4.6.3.4-fx.xpi"
+  },
+  {
+    "date": "28/06/2022",
+    "version": "4.6.3.5",
+    "changes": [
+      "Patch de correções diversas.",
+      "Melhoria: Incluir em pauta: Se o usuário abrir a pauta a partir da janela detalhes do processo, por meio do menu kaizen > abrir pauta, a extensão irá preencher o número do processo e filtrar os tipos de audiência de acordo com o RITO e FASE do processo.",
+      "Melhoria: convênio SISBAJUD: quando da utilização da varinha mágica para preencher uma minuta de bloqueio, será inserido o campo valor da última atualização do processo (se os cálculos foram juntados no PJe via PJeCalc), logo abaixo do campo de prechimento do valor a ser bloqueado."
+    ],
+    "package": "maispje-4.6.3.5-fx.xpi"
+  },
+  {
+    "date": "04/07/2022",
+    "version": "4.6.3.6",
+    "changes": [
+      "Patch de correção icone visualizar expedientes."
+    ],
+    "package": "maispje-4.6.3.6-fx.xpi"
+  },
+  {
+    "date": "07/07/2022",
+    "version": "4.6.3.7",
+    "changes": [
+      "Patch de correção."
+    ],
+    "package": "maispje-4.6.3.7-fx.xpi"
+  },
+  {
+    "date": "08/07/2022",
+    "version": "4.6.3.8",
+    "changes": [
+      "Patch de correção na ação automática AUTOGIGS."
+    ],
+    "package": "maispje-4.6.3.8-fx.xpi"
+  },
+  {
+    "date": "29/07/2022",
+    "version": "4.6.3.9",
+    "changes": [
+      "Patch de correção para a versão 2.7.5 do PJe",
+      "Melhoria: menu Kaizen - atalho para pesquisa textual",
+      "Melhoria: Tarefa \"Aguardando Final do Sobrestamento\": criação de atalho para o processo principal no caso de dependências",
+      "Melhoria: Retorno da funcionalidade zoom",
+      "Melhoria: A ação automatização de \"Juízo 100% Digital\" passa a funcionar na qualidade de ativar/desativar de acordo com o status (Juízo 100% Digital) do processo"
+    ],
+    "package": "maispje-4.6.3.9-fx.xpi"
+  },
+  {
+    "date": "01/08/2022",
+    "version": "4.6.4",
+    "changes": [
+      "Patch de correção: guardar preferências da URL do usuário quando da verificação da versão"
+    ],
+    "package": "maispje-4.6.4-fx.xpi"
+  },
+  {
+    "date": "01/08/2022",
+    "version": "4.6.4.1",
+    "changes": [
+      "Patch de correção: Corrigido bug na escolha do modelo de documentos na ação automatizada. Corrigido bug ao guardar preferências de versão do sistema PJe."
+    ],
+    "package": "maispje-4.6.4.1-fx.xpi"
+  },
+  {
+    "date": "10/08/2022",
+    "version": "4.6.4.2",
+    "changes": [
+      "Patch de correção: Corrigido bug na versão 2.7.6 do sistema PJe.",
+      "Funcionalidade: criada opção para desativar a extensão aos papéis de advogado e perito."
+    ],
+    "package": "maispje-4.6.4.2-fx.xpi"
+  },
+  {
+    "date": "11/08/2022",
+    "version": "4.6.4.3",
+    "changes": [
+      "Patch de correção"
+    ],
+    "package": "maispje-4.6.4.3-fx.xpi"
+  },
+  {
+    "date": "07/09/2022",
+    "version": "4.6.4.4",
+    "changes": [
+      "Patch de correção (bugs diversos)",
+      "Funcionalidade: inserido o módulo Impedimentos e Suspeições na pauta de sessões (\"aba Pauta de Julgamento\") do segundo grau (Pje 1.0).",
+      "Melhoria: permitida a consulta de processos sem traços e pontos no google docs.",
+      "Melhoria: Módulo 7: Ação Automatizada AutoGIGS: a função acionada pela expressão \"perguntar\", utilizada no campo observação, agora pode estar inserida no meio de palavras e frases, que serão reaproveitadas na caixa de pergunta direcionada ao usuário.",
+      "Melhoria: Módulo 7: Ação Automatizada AutoGIGS: inserida a possibilidade de quebra de linha no campo observação. Para acessar basta ir na opção \"editar\" da ação automatizada após criá-la.",
+      "Melhoria: Módulo 7: Ação Automatizada AutoGIGS: inserida a possibilidade de registrar mais de um chip na AA Autogigs. Para isso basta o usuário preencher, no campo \"Tipo de Chip\", os chips desejados separando-os por vírgula.",
+      "Funcionalidade: A Janela Tarefas do Processo no segundo grau, traz o prazo do relator em suas informações.",
+      "Melhoria: Autogigs do tipo comentário: inserida a função \"perguntar\" no campo descrição.",
+      "Melhoria: Módulo 2: inserida a condição \"fase do processo\" como regra na atribuição automática do GIGS."
+    ],
+    "package": "maispje-4.6.4.4-fx.xpi"
+  },
+  {
+    "date": "01/10/2022",
+    "version": "4.6.4.5",
+    "changes": [
+      "Patch de correção (inserir modelo de documentos no despacho, adicionar executado no serasajud, baixa processos individualmente, correções para versão 2.8)",
+      "Melhoria: Convênios SISBAJUD: aprimorado o atalho de nova minuta",
+      "Melhoria: Convênios SISBAJUD: aprimorado o atalho de consultar minuta",
+      "Melhoria: Convênios SISBAJUD: criado o atalho de consultar teimosinha",
+      "Melhoria: Convênios SISBAJUD: aprimorado os botões \"Bloqueios Pendentes\" e \"Não Respostas\"",
+      "Melhoria: Janela Detalhes do Processo: criada a funcionalidade de marcar como lido todos alertas.",
+      "Melhoria: Insere identificador de prioridade processual na lista \"Relatório GIGS\".",
+      "Melhoria: Insere botão de buscar endereço da parte no Retificar autuação (Para aqueles casos em que a parte possui inúmeros endereços cadastrados).",
+      "Melhoria: inserido o módulo Impedimentos e Suspeições na pauta de sessões (\"aba Análise Prévia\") do segundo grau (Pje 1.0).",
+      "Funcionalidade: inserido o módulo 10: Audiências, onde é possível guardar os links fixos das salas de audiência para serem recuperados quando da inclusão de processos em pauta.",
+      "Melhoria: O extrato da conta judicial no SIF agora é da data da autuação do processo até a data da consulta.",
+      "Melhoria: Ação Automatizada para Retificar Autuação: inserida a possibilidade de cadastrar o polo ativo e o polo passivo no processo mediante a informação do CPF/CNPJ ou o nome, sendo que neste último a parte é cadastrada sem documento.",
+      "Melhoria: Ação Automatizada para Comunicação: inserida a possibilidade de escolher se a ação automatizada iniciará pela tarefa \"Preparar expedientes e Comunicações\" ou se seguirá fora do fluxo.",
+      "Funcionalidade: criada a função de proteção de dados LGPD.",
+      "Melhoria: Filtros Favoritos: Agora eles funcionam também nas classes específicas do Painel Global e não apenas em \"Exibir Todos\""
+    ],
+    "package": "maispje-4.6.4.5-fx.xpi"
+  },
+  {
+    "date": "04/10/2022",
+    "version": "4.6.4.6",
+    "changes": [
+      "Patch de correção (correções para versões anteriores a 2.8)",
+      "Funcionalidade: inserido o módulo Segredo de Justiça na pauta de sessões do segundo grau (Pje 1.0)."
+    ],
+    "package": "maispje-4.6.4.6-fx.xpi"
+  },
+  {
+    "date": "13/10/2022",
+    "version": "4.6.4.7",
+    "changes": [
+      "Patch de correção (correções para a versão 2.8.4)",
+      "Melhoria: extendido o módulo Segredo de Justiça para a pauta de sessões (\"aba Pauta de Julgamento\" e \"aba Análise Prévia\") do segundo grau (Pje 1.0).",
+      "Melhoria: ampliada a automação no SIF, permitindo o preenchimento automático de alguns campos quando da elaboração do alvará (desde que os dados do processo estejam guardados na memória com a função \"Criar Menu/Guardar dados das partes\")",
+      "Melhoria: Ação Automatizada de Movimento: criada uma ação automatizada que movimenta o processo para \"análise\" e devolve para a tarefa que estava anteriormente. O motivo é reiniciar o prazo \"na tarefa Desde\", quando necessário."
+    ],
+    "package": "maispje-4.6.4.7-fx.xpi"
+  },
+  {
+    "date": "14/10/2022",
+    "version": "4.6.4.8",
+    "changes": [
+      "Patch de correção (correções diversas para a versão 2.8.4)",
+      "Melhoria: Criar Menu:  Agora o menu do processo traz a data de nascimento e o nome da mãe do polo ativo e se o processo possui justiça gratuita deferida.",
+      "Melhoria: No convênio do CNIB, ao cadastrar nova ordem utilizando a varinha mágica, o status \"Justiça gratuita\" fica registrado no nome da ordem."
+    ],
+    "package": "maispje-4.6.4.8-fx.xpi"
+  },
+  {
+    "date": "16/10/2022",
+    "version": "4.6.4.9",
+    "changes": [
+      "Patch de correção",
+      "Funcionalidade: Opção Recolher Lembretes.",
+      "Melhoria: Ação Automatizada de Checklist: na tela de escolha do executado, você pode digitar as opções separando-as por vírgula.",
+      "Melhoria: Criar Menu: Agora o menu do processo traz a expressão \"Terceiro Interessado: nome do terceiro\" como opção de escolha.",
+      "Melhoria: adaptado alguns botões para leitura correta do NVDA (plataforma de inclusão digital para deficientes visuais).",
+      "Melhoria: Ação automatizada de despacho. Cancelar a ação automatizada APENAS quando a extensão identificar minuta em elaboração no processo que tiver na tarefa Elaborar despacho/decisão/sentença."
+    ],
+    "package": "maispje-4.6.4.9-fx.xpi"
+  },
+  {
+    "date": "16/10/2022",
+    "version": "4.6.5",
+    "changes": [
+      "Patch de correção",
+      "Funcionalidade: Ações Automatizadas em lote.",
+      "Funcionalidade: Apreciar petições automaticamente ao movimentar o processo.",
+      "Módulo 10: Melhoria: Aprimorada o manutenção dos links únicos de audiência.",
+      "Melhoria: Convênio SISBAJUD : Agora o campo que indica o valor da última atualização do processo é um botão que insere o montante no campo \"Valor aplicado a todos os réus/executados\"."
+    ],
+    "package": "maispje-4.6.5-fx.xpi"
+  },
+  {
+    "date": "14/03/2023",
+    "version": "4.6.5.1",
+    "changes": [
+      "Patch de correção (SIF versão 2.3 - Conferência de Alvará, escolha de modelo nas Ações automatizadas)",
+      "Melhoria: Módulo 8: Inserida Unidade Judiciária nas regras para escolha do magistrado",
+      "Melhoria: Módulo 9: Inserida a opção de ativar/desativar a extensão nos convênios habilitados",
+      "Excluído o código referente à versão 2.7 do Pje e anteriores",
+      "Funcionalidade: Módulo 1: Opção Recolher Cabeçalho.",
+      "Funcionalidade: Atalho rápido para os módulos na página de configuração da extensão.",
+      "Melhoria: Módulo 7: Ação Automatizada de movimento: agora é possível que, ao término da ação automatizada de movimento, a extensão prossiga um último passo clicando em um botão que esteja na tela. Por exemplo: ao cadastrar uma ação automatizada para mover o processo ao arquivo, é possível fazer com que a extensão escolha como último passo o \"arquivo definitivo\" ou o \"arquivo provisório\", bastando para isso acrescentar ao final do nome do nó de destino o último passo entre colchetes. Na prática ficaria \"Nome do nó de destino[nome do botão que será clicado ao final]\", ou seja:  Arquivar o processo[Arquivo definitivo]"
+    ],
+    "package": "maispje-4.6.5.1-fx.xpi"
+  },
+  {
+    "date": "12/04/2023",
+    "version": "4.6.5.2",
+    "changes": [
+      "Patch de correção",
+      "Melhoria: Aprimoramento dos atalhos rápido na página de configuração da extensão.",
+      "Melhoria: Aprimoramento dos item EXTRAS da janela de configurações da extensão.",
+      "Funcionalidade: Adicionado botão \"Marcar/Desmarcar Todos\" na tela de escolha dos destinatários das intimações de despacho/decisão/sentença. A opção está localizada ao lado da expressão \"Destinatário\".",
+      "Melhoria: Módulo 9: SISBAJUD: Ao tratar o rol de bloqueios em teimosinhas a extensão identifica em qual ordem houve efetivamente bloqueio de valores para serem tratados.",
+      "Melhoria: Módulo 9: PJeCalc: Opção de ativar ou desativar o uso da extensão no PJeCalc.",
+      "Melhoria: Incluída a borracha para tirar a responsabilidade do processo ou da atividade para \"SEM RESPONSÁVEL\".",
+      "Melhoria: Incluída a opção de acionar o menu Kaizen mediante clique. A configuração está localizada nos \"Extras\" da tela de configurações.",
+      "Melhoria: Módulo 7: Ação Automatizada de movimento: Sobrestamento: incluída a possibilidade de criar uma ação automatizada para o nó sobrestamento com a escolha do tipo, bastando para isso acrescentar ao final do nome do nó de destino o último passo entre colchetes. A expressão pode ser parcial. Por exemplo: a expressão Sobrestamento[outra causa] preenchida no campo destina fará com que o processo seja movido para a tarefa sobrestamento e escolhida a opção \"Dependência de julgamento de outra causa, de outro juízo ou de declaração incidente (272)\".",
+      "Melhoria: Ações Automatizadas: Incluída a possibilidade de ocultar a visibilidade de um botão que representa uma ação automatizada na janela Detalhes do Processo. A configuração está localizada na opção \"Editar\" de cada ação automatizada.",
+      "Melhoria: Módulo 10: AAChecklist: Agora ao preencher a expressão \"corrigir data\" no campo observação a extensão irá perguntar a data de lançamento do checklist.",
+      "Funcionalidade: O ato de desligar e religar a maisPJe irá limpar os dados do processo (função crachá/guardar menu) que estão na memória."
+    ],
+    "package": "maispje-4.6.5.2-fx.xpi"
+  },
+  {
+    "date": "25/07/2023",
+    "version": "4.6.5.3",
+    "package": "maispje-4.6.5.3-fx.xpi",
+    "changes": [
+      "Patch de correção (correções diversas)",
+      "Melhoria: Módulo 9: SISCONDJ: agora ao consultar a conta de um processo a extensão irá abrir e atualizar todos os saldos de forma automática.",
+      "Melhoria: Relatório GIGS: Processos de Gabinete: A funcionalidade de emitir o relatório GIGS de processos de Gabinete para o segundo grau agora foi atualizada para constar também o nome da tarefa na qual o processo se encontra.",
+      "Melhoria: Consultar Contas SIF: criada ação automatizada fixa para consulta de contas do processo no SISCONDJ. Funciona como atalho para acesso ao sistema.",
+      "Funcionalidade: Módulo 9: Acrescido à lista de convênios os convênios PREVJUD, PROTESTOJUD, SNIPER, CENSEC, CELESC (apenas TRT12), CASAN (apenas TRT12), SIGEF e INFOSEG",
+      "Funcionalidade: criado o assistente de impressão para os convênios CRCJUD, CENSEC, SNIPER, CASAN, CELESC, RENAJUD (novo). A assistente aparecerá na tela do convênio e poderá ser acionado automaticamente, a depender do convênio, ou pressionando a tecla de atalho \"p\". A captura positiva da tela  é sinalizada visualmente pela cor verde e o incremento no número de páginas capturadas. Ao clicar no ícone da impressora uma nova janela com as telas capturadas será aberta para impressão.",
+      "Funcionalidade: Módulo 9: SIF: Criado o botão \"Exibir Alvarás para Conferência\" que fica visível no Escaninho > Situação de Alvará. O objetivo da funcionalidade é oferecer ao usuário conferente uma lista de alvarás pendentes de conferência com link direto para o respectivo documento.",
+      "Melhoria: Módulo 7: Ação Automatizada de movimento: Sobrestamento: ao escolher o tipo \"Reunião de Execução\" é possível informar o número do processo na ação automatizada. Por exemplo: a expressão Sobrestamento[reunião 0000001-00.2023.5.12.0059], preenchida no campo destino, fará com que o processo seja movido para a tarefa sobrestamento, que seja escolhida a opção \"Reunião de Execução (50127)\" e que seja preenchido o 0000001-00.2023.5.12.0059 no campo \"Número do processo *\".",
+      "Melhoria: Módulo 7: Ação Automatizada de movimento: Sobrestamento: ao colocar uma data entre colchetes no nó de destino, a extensão irá entender que você quer atualizar esta data como limite do sobrestamento. Se você utilizar a expressão \"corrigir data\", sem aspas, uma pergunta será exigida para o usuário informe a data limite. Por exemplo: a expressão Sobrestamento[Execução Frustada 01/01/2025], preenchida no campo destino, fará com que o processo seja movido para a tarefa sobrestamento, que seja escolhida a opção \"Suspenso o processo por execução frustrada\" e que seja preenchida a data de 01/01/2025 como prazo para o sobrestamento.",
+      "Melhoria: Ação Automatizada para Retificar Autuação: inserida a possibilidade de cadastrar um assunto no processo. O código será pergunta quando a ação automatizada for acionada.",
+      "Melhoria: Ação automatizada em Lote: incluídos na ação automatizada em lote as ações \"Retificar Autuação > Juízo 100% Digital\", \"Retificar Autuação > Falência/Rec.Judicial\" e \"Retificar Autuação > Assunto\".",
+      "Melhoria: Módulo 9: SISBAJUD e CNIB: ao finalizar a ordem de inclusão do executado no convênio a extensão automaticamente copia para a memória o número da ordem, guardando-a na memória do computador podendo ser usada mediante o uso do comando colar (CTRL + V).",
+      "Melhoria: Módulo 4: Tela Inicial: agora é possível definir, além de escolher o papel de usuário inicial, a tela de abertura do PJe. Para isso basta preencher a tela correspondente no campo do módulo 4. Por exemplo: Escaninho, Pauta de Audiência, Relatórios do GIGS, Painel Global[Análises], Painel Global[Minutar Despacho], etc.",
+      "Melhoria: Checklist de Execução: Agora a extensão mapeia o seu checklist de execução criando atalhos para as datas de lançamento do checklist. Ao clicar no checklist a timeline do processo é direcionada para aquela data e o primeiro documento é selecionado.",
+      "Melhoria: Módulo 9: AJJT: no preenchimento da requisição a extensão preencherá automaticamente alguns campos. Assim que escolher a opção \"acordo sim ou não\", preencha primeiramente a fundamentação.",
+      "Melhoria: Guardar Menu: os dados do processo guardados na memória agora incluem a data do trânsito em julgado.",
+      "Melhoria: Ação Automatizada para Retificar Autuação: inserida a possibilidade de cadastrar TERCEIRO INTERESSADO no processo mediante a informação do CPF/CNPJ ou o nome, sendo que neste último a parte é cadastrada sem documento.",
+      "Melhoria: Ação Automatizada para Retificar Autuação: inserida a possibilidade de cadastrar o MPT como TERCEIRO INTERESSADO no processo.",
+      "Melhoria: Módulo 4: inserida a possibilidade de guardar como favorito o perfil de Oficial de Justiça.",
+      "Melhoria: Criar Menu: Agora o menu do processo traz o número do processo sem os caracteres especiais como opção de escolha.",
+      "Funcionalidade: Ação Automatizada para Lançar Movimento : criada ação automatizada para lançar os seguintes movimentos: Contadoria > Atualização, Contadoria > Liquidação, Contadoria > Retificação, TRT > processar recurso.",
+      "TRT1: Ação Automatizada Download do processo: funcionalidade desativada a pedido do Tribunal (issue SAT-7392)."
+    ]
+  },
+  {
+    "date": "05/09/2023",
+    "version": "4.6.5.4",
+    "package": "maispje-4.6.5.4-fx.xpi",
+    "changes": [
+      "Patch de correção (correções diversas)",
+      "Melhoria: Criar Menu: o valor da execução é obtido preferencialmente no GIGS>Execução, inexistindo valores lançados a extensão busca do cálculo mais atualizado juntado no processo via PJeCalc.",
+      "Incluída a impressão da tela DATAJUD no convênio SNIPER mediante o uso da tecla \"p\".",
+      "Melhoria: Módulo 9: SISBAJUD : inserido o botão \"preencher campos invertendo os polos\" que automatiza a ordem invertendo os polos da ação. Funciona tanto no bloqueio de valores quanto na requisião de informações.",
+      "Corrigido o Filtro e AA de Movimentos de processos do segundo grau.",
+      "Melhoria: Extras: inserida a possibilidade de inverter a ordem da lista de documentos ao usar a hashtag '#' no editor de textos.",
+      "Melhoria: Relatório GIGS: inserida a fase a a tarefa do processo quando da emissão do relatorio de Atividades.",
+      "Melhoria: Ação Automatiza em Lote: criada a possibilidade de executar em lote a atividade \"Reprocessar chips\" e \"Baixar processo completo\"",
+      "Melhoria: reformulada a interação com a funcionalidade Tipo em Lote, localizada em anexar documentos e retificar a autuação.",
+      "Melhoria: Janela Detalhes do Processo: Seleção em Lote: ao selecionar um documento por meio da ferramenta \"Seleção Múltipla\" do Pje, a extensão selecionará automaticamente todos os anexos a ele vinculados.",
+      "Melhoria: Ação Automatizada para Lançar Movimento : criada ação automatizada para lançar o seguintes movimento: Publicação de Pauta (exclusiva para o segundo grau)."
+    ]
+  },
+  {
+    "date": "13/09/2023",
+    "version": "4.6.5.5",
+    "package": "maispje-4.6.5.5-fx.xpi",
+    "changes": [
+      "Patch de correção (correções diversas)",
+      "Melhoria: aprimorada a funcionalidade de Zoom do documento, mantendo o foco das letras com o ajuste da distância.",
+      "Funcionalidade: Janela Detalhes do Processo: Exibir miniaturas: função que permite ao usuário visualizar as páginas de um documento em miniaturas, agilizando sua leitura.",
+      "Melhoria: Vínculos: criada a Ação Automatizada correspondento à atualização da Página (F5) para ser usada no vínculo.",
+      "Melhoria: Menu Kaizen: aprimorada a consulta rápida de processos permitindo pesquisar por nome parcial da parte. Aprimorada, ainda, a lista de resultados que passará a possuir identificação visual em cores correspondentes às fases do processo."
+    ]
+  },
+  {
+    "date": "04/10/2023",
+    "version": "4.6.5.6",
+    "package": "maispje-4.6.5.6-fx.xpi",
+    "changes": [
+      "Patch de correção (correções diversas)",
+      "Melhoria: Módulo 9: CENSEC : inserido o botão imprimir em Lote que faz a leitura de cada resposta guardando-a no assistente de impressão.",
+      "Funcionalidade: Módulo 7: Ação Automatizada de Autogigs : inserida a opção de Ação Automatizada para Lembretes.",
+      "Melhoria: Tipo em Lote, localizada em anexar documentos e retificar a autuação: ampliada a sugestão na escolha do tipo de documento também para anexos identificados como email e respostas de registro de imóveis. A extensão agora indica na tela do PJe que a sugestão foi por ela aplicada.",
+      "Melhoria: a Ação Automatizada correspondente à atualização da Página (F5) não acionará novamente a função 'criar menu/guardar dados das partes'.",
+      "Melhoria: Aprimorado o layout de edição das ações automatizadas."
+    ]
+  },
+  {
+    "date": "17/10/2023",
+    "version": "4.6.5.7",
+    "changes": [
+      "[CANCELADA]"
+    ],
+    "package": "maispje-4.6.5.7-fx.xpi"
+  },
+  {
+    "date": "17/10/2023",
+    "version": "4.6.5.8",
+    "changes": [
+      "Patch de correção: AA Autogigs de atividade estava lançando o vínculo em duplicidade [corrigido], e, AA Movimento a expressão [parar] não estava funcionando. [corrigido]."
+    ],
+    "package": "maispje-4.6.5.8-fx.xpi"
+  },
+  {
+    "date": "15/02/2024",
+    "version": "4.6.5.9",
+    "package": "maispje-4.6.5.9-fx.xpi",
+    "changes": [
+      "Patch de correção: corrigido o atalho F2 do Filtro na tela principal.",
+      "Melhoria: Vínculos: criada a Ação Automatizada correspondente ao fechamento da janela detalhes para ser usada no vínculo. Somente funciona para a janela DETALHES DO PROCESSO. Exemplo de uso: EU quero lançar um chip no processo e, em seguida, fechar a janela. Basta ir na Ação Automatizada do chip e no campo 'vínculo' escolher a opção 'Fechar Pagina|Fechar Pagina'.",
+      "Melhoria: Vínculos: criada a possibilidade de utilizar no vínculo de uma Ação Automatizada as ações disponíveis no retificar autuação e lançar movimento.",
+      "Melhoria: SIF Conferência de Alvará: a extensão abrirá automaticamente o alvará a ser conferido eliminando cliques repetitivos. Se na mesma conta existir mais de um alvará criado, eles abrirão em sequencia para facilitar a conferência. Essa funcionalidade somente é acessível pelo botão 'Conferência de Alvará' do escaninho 'Situação de Alvará'.",
+      "Correção: Issue PJEKZ-86844: corrigido o prazo do relator que não estava coincidindo com o prazo do e-Gestão.",
+      "Funcionalidade: Menu Kaizen: Janela Detalhes do Processo: ATALHO F2: inserido no menu kaizen a funcionalidade de atribuir uma ação automatizada ao atalho F2. Esta AA pode ser alterada a qualquer momento de acordo com a necessidade do usuário.",
+      "Funcionalidade: Convênios: RHP : inserido o menu Kaizen dentro do AJ-JT/SIGEO com atalhos para 'solicitar RHP' e 'consultar RHP'.",
+      "Funcionalidade: Convênios: GPREC : inserido botões de atalho para Consultar um RP e para Registrar o Pagamento de RP.",
+      "Funcionalidade: Pesquisa personalizada de documentos no processo: Agora é possível que, na abertura da janela detalhes do processo ou clicando no botão, você determine quais documentos serão filtrados na timeline. Ao definir um padrão de pesquisa (uma palavra), o filtro do Pje será aplicado automaticamente quando do carregamento da página. >É possível pesquisar mais de uma palavra ao mesmo tempo, bastando separá-las por ponto e vírgula. Contudo, essa pesquisa se limitará apenas ao título do documento na timeline não tendo qualquer relação com a ferramenta de pesquisa do próprio PJe. Exemplo de uso: Requisição de Pequeno Valor;precatório  - esse padrão irá filtrar na timeline do processo os documentos juntados cujo o título possua a expressão 'Requisição de Pequeno Valor' ou a expressão 'precatório'. Por fim, e não menos importante, também é possível favoritar o(s) tipo(s) de pesquisa utilizados no filtro 'oficial' do PJe, 'Pesquisar Conteúdo', 'Documentos' e/ou 'Movimentos', lembrando que essa escolha não terá qualquer influência na pesquisa múltipla (mais de uma palavra separada por ponto e vírgula), apenas na pesquisa simples (uma palavra)",
+      "Melhoria: menu Kaizen: Consulta Rápida de Processo: Na pesquisa por nome da parte será possível, além de copiar a lista de processos encontrados, levá-los diretamente para a funcionalidade 'Ação Automatizada em Lote';",
+      "Melhoria: Módulo 7: Ação Automatizada de Anexar Documentos: em uma AA de Anexar Documentos a opção de 'documento em sigilo' configurado como 'SIM' acionará o seguinte evento ao final da ação: 1) a janela DETALHES DO PROCESSO será atualizada; 2)recarregada a janela e aparecendo o documento sigiloso na timeline do processo, será automaticamente atribuído às partes (polo ativo e passivo) a visibilidade do referido documento.",
+      "Funcionalidade: Janela Obrigação de Pagar: ao abrir a janela a extensão selecionará como credor o primeiro autor e como devedor o primeiro réu, além de inserir na tela um botão denominado 'Inverter Polo', que, quando acionado, inverterá o status das partes selecionadas, de credor para devedor e vice-versa.",
+      "Funcionalidade: EXTRAS: permite ao usuário escolher se a janela fechará automaticamente após a assinatura de uma intimação/expediente.",
+      "Funcionalidade: EXTRAS: permite ao usuário escolher dentro da função TIPO DO DOCUMENTO se a extensão aplicará o algoritmo de sugestão de TIPO DE DOCUMENTO e/ou DESCRIÇÃO DO DOCUMENTO, relativamente aos anexos juntados. Caso ambas as opções estejam desmarcadas a extensão desativará a funcionalidade como um todo.",
+      "Funcionalidade: Módulo 5: criado filtro por 'órgão julgador cargo' (Juiz Titular e Juiz Substituto). Quando da distribuição de um processo o PJe define, além do órgão julgador (unidade judiciária), o magistrado responsável pelo julgamento do processo, nominando-o como 'órgão julgador cargo'. No cabeçalho da janela DETALHES, abaixo do número do processo, é possível identificar o 'órgão julgador cargo' de um processo. Exemplo:  VARA DO TRABALHO DE PALHOÇA / Juiz Titular de Palhoça. Neste caso o 'órgão julgador cargo' é 'Juiz Titular de Palhoça'.",
+      "Melhoria: Guardar dados das Partes/Criar Menu: agora a ação não bloqueia a manipulação da janela e identifica que está sendo realizada por meio de ícone no menu kaizen.",
+      "Melhoria: Módulo 5: Filtros Favoritos: agora é possível guardar a quantidade de linhas por página também nos filtros favoritos",
+      "Melhoria: Módulo 7: agora é possível exportar e importar ações automatizadas de forma individual. Caso queira importar mais de uma AA de uma só vez, separe-as por ponto e vírgula.",
+      "Melhoria: Módulo 10: JUNTADA DE VÍDEOS DE AUDIÊNCIA: no módulo 10 tem a opção de ativar o atalho para juntar vídeos de audiência no processo por meio da plataforma ACERVO DIGITAL. Somente é necessário configurar o modelo de certidão. Ao ativar, estarão disponíveis os atalhos na tela de pauta diária de audiência e janela DETALHES DO PROCESSO. O ícone que representa a ação é autoexplicativo.",
+      "Melhoria: Módulo 7: AUTOGIGS: CONCLUIR: a partir de agora os critérios de escolha para a conclusão de uma atividade GIGS são: 1) o nome da atividade 2) o nome do responsável do GIGS 3) palavra(s) no campo observação. Caso um desses critérios seja inexistente na configuração (deixado em branco) ele será ignorado (Por exemplo: se você não quiser que o nome do responsável seja um critério de escolha, deixo-o em branco). Outra novidade é a possibilidade de colocar mais de uma atividade ou responsável no campo correspondente, separando-os com 'ponto e vírgula'. Dessa forma, a extensão irá procurar as duas opções na regra da condição.",
+      "Melhoria: Módulo 7: a visibilidade das Ações Automatizadas podem ser facilmente alteradas ao clicar no botão da AA mantendo a tecla CTRL pressionada."
+    ]
+  },
+  {
+    "date": "05/03/2024",
+    "version": "4.6.6",
+    "package": "maispje-4.6.6-fx.xpi",
+    "changes": [
+      "Patch de correção para a versão 2.10.1 ANGICO",
+      "Funcionalidade: janela DETALHES DO PROCESSO: criado atalho para impressão do documento exibido na tela.",
+      "Melhoria: Módulo 5: filtro por 'órgão julgador cargo': caso o filtro esteja definido para o JUIZ SUBSTITUTO, a expressão 'Juiz Substituto' da janela DETALHES DO PROCESSO receberá destaque.",
+      "Funcionalidade: Janela PAGAMENTO: ao abrir a janela a extensão selecionará como credor o primeiro autor e como devedor o primeiro réu, além de inserir na tela um botão denominado 'Inverter Polo', que, quando acionado, inverterá o status das partes selecionadas, de credor para devedor e vice-versa.",
+      "Melhoria: EXTRAS: a opção de fechar a janela de intimação/expediente agora também vale para as intimações feitas por dentro da janela DETALHES DO PROCESSO.",
+      "Melhoria: Guardar dados das Partes/Criar Menu: agora está disponível como item de menu o valor das custas arbitradas.",
+      "Melhoria: EXTRAS: MENU KAIZEN: agora é possível configurar o menu Kaizen para abrir na horizontal.",
+      "Melhoria: Convênios: SISBAJUD: Agora é possível escolher as configurações do Módulo 8 para o Juiz solicitante. Basta, nas configurações do SISBAJUD, preencher o campo 'Juiz solicitante da Ordem' com a expressão MODULO8.",
+      "Funcionalidade: Configuração Básica: Agora é possível conferir e ajustar as configurações de URL do siscondj e do relatório SAO de Execução. Pra acessar a funcionalidade clique no botão entre o 'Aviso Legal' e 'Ativar Modo LGPD' no cabeçalho esquerdo da tela de configurações."
+    ]
+  },
+  {
+    "version": "4.6.7",
+    "date": "16/04/2024",
+    "changes": [
+      "Patch de correção.",
+      "Melhoria: Criar Menu: Agora o menu do processo traz a data da (não-)concessão da Justiça gratuita, se houver. Indentifica, e avisa o usuário, caso exista inconsistência na Justiça Gratuita, como estar marcado na Retificação do Processo a 'Justiça Gratuita Deferida' e existir nos autos decisão de não-concessão.",
+      "Melhoria: Módulo 7: Checklist: foi criado um botão para exibir/ocultar as Ações Automatizadas de Checklist de Execução na janela do GIGS.",
+      "Melhoria: Módulo 7: Despachos: agora é possível configurar a ação automatizada para enviar o processo para assinatura do juiz desde que não haja dependência de lançamento de movimentos.",
+      "Melhoria: Menu Kaizen: Ação Automatizada em Lote: As ações automatizadas de despacho foram incluídas nas Ações Automatizadas em Lote.",
+      "Melhoria: Módulo 7: Anexar Documentos: agora na atribuição do sigilo como sim, será possível escolher se quer aplicar a visibilidade do documento sigiloso para o polo ativo, polo passivo, ambos ou nenhum.",
+      "Melhoria: Módulo 9: SIF: agora é possível ajustar o tempo (em segundos) dos campos com clique automático.",
+      "Melhoria: Ação Automatizada para Lançar Movimento : criada ação automatizada para lançar os seguintes movimentos: Recebido os autos > para prosseguimento.",
+      "Melhoria: Módulo 7: Ação Automatizada de Anexar Documentos: agora é possível configurar a AA para abrir a aba de anexos a fim de incluir mais de um anexo na certidão. Para isso basta acrescentar a expressão [anexos] entre conlchetes no nome do botão.",
+      "Melhoria: Módulo 9: CCS: agora é possível confirmar o prosseguimento automatico das telas para realizar a tarefa com o menor numero de cliques possível.",
+      "Melhoria: Módulo 7: Ação Automatizada de Movimento: mapeada a tarefa de redistribuição de processos por motivo de 'Criação de unidade judiciária'. Para utilizá-la basta adicionar na opção destino os colchetes, e dentro deles as opções obrigatórias de preenchimento, separando-as por vírgula. <b>Exemplo</b>: Redistribuir[Criação de unidade judiciária,Por competência exclusiva,Palhoça,VARA DO TRABALHO PALHOÇA].",
+      "Melhoria: Módulo 7: Vínculos das Ações Automatizadas: Agora é possível encadear vínculos de maneira muito <b>ESPECIAL</b>, executando-os em sequência de até 10 ações automatizadas. Desse jeito você pode reaproveitar suas Ações Automatizadas sem se preocupar com o vínculo nela registrado, pois ele será ignorado e a sequência observada. A forma antiga de vincular uma AA a outra ainda permanece caso deseje criar vínculos na forma que você já conhece."
+    ],
+    "package": "maispje-4.6.7-fx.xpi"
+  },
+  {
+    "version": "4.7.0",
+    "package": "maispje-4.7.0-fx.xpi",
+    "date": "19/06/2024",
+    "changes": [
+      "Correção: corrigida a função EXPORTAR LISTA relativamente aos processos de gabinete.",
+      "Correção: corrigida o CONCILIAJT na troca de páginas da Triagem Inicial.",
+      "Melhoria: Convênios: SISBAJUD: agora é possível configurar a extensão para preencher o valor ordem de bloqueio de forma automática.",
+      "Melhoria: Convênios: SISBAJUD: a tecla F2 serve de atalho para inserir nova minuta de bloqueio.",
+      "Correção: Criar Menu: Justiça Gratuita: quando a inconsistência encontrada é corrigida pelo usuário, o alerta não será mais lançado e no menu ficará destacadoao lado da data da concessão a expressão '(corrigido)'.",
+      "Correção: SISBAJUD: ajustada o limite de escolha da teimosinha para 60 dias.",
+      "Correção: incluído na lista de convênios o E-CARTA permitindo ativar/ desativar o uso da extensão neste sistema.",
+      "Correção: corrigido o bug da tela de bloqueio na execução da AA de Lançar Movimentos.",
+      "Correção: corrigido o bug no mapeamento das Ações Automatizadas em looping. Agora a situação é identificada e interrompida para evitar travamentos.",
+      "Melhoria: [MAISPJE-12] Ação Automatizada de Movimento: mapeada a tarefa de redistribuição de processos por qualquer motivo, incluindo 'Extinção de unidade judiciária'. Para utilizá-la basta adicionar na opção destino os colchetes, e dentro deles as opções de preenchimento (campo1, campo2,...,campoN), separando-as por vírgula.<b>Por exemplo</b>: Redistribuir[Extinção de unidade judiciária,Por competência exclusiva,Palhoça,VARA DO TRABALHO PALHOÇA].",
+      "Correção: Ação Automatizada em Lote: corrigido o bug na AA em Lote que interrompia o fluxo de ações automatizadas na segunda ação.",
+      "Correção: Ação Automatizada de Movimento: tarefa Redistribuição de Processos: corrigida a função de selecionar o tipo de distribuição para utilizar o texto exato constante da opção.",
+      "Correção: Ação Automatizada de Movimento: tarefa Análise recurso Interno: mapeada a tarefa permitindo a movimentação dos processos que nela estão.",
+      "Correção: Ação Automatizada de Despacho: corrigida a lentidão que ocorria na transição da tarefa ANÁLISE para a tarefa CONCLUSÃO AO MAGISTRADO.",
+      "Melhoria: Ação Automatizada: criada uma a ação automatizada APRECIAR PETIÇÕES para ser utilizada nos vínculos",
+      "Correção: Atualizada a forma de instalação e atualização da extensão a fim de atender as Políticas de extensões da Mozilla Firefox.",
+      "Melhoria: Convênios: SISBAJUD: agora é possível configurar uma Ação Automatizada para ser executada na janela Detalhes do Processo ao final do protocolo da minuta de bloqueio. Para isso acontecer a Janela Detalhes do Processo deve estar aberta.",
+      "Correção: a tela de minutar voto do PJe 1.0 não interrompe mais o fluxo dos vínculos das ações Automatizadas.",
+      "Melhoria: obter do grau do usuário para quando ele já estiver logado no pje.",
+      "Melhoria: Ações Automatizadas: foi acrescentado um símbolo de raio nas ações automatizadas que possuem vínculos para facilitar a identificação pelo usuário, bem como um desenho da sequência em que os vínculos serão executados.",
+      "Melhoria: Aprimorado o contador para a Ação Automatizada de Fechar Página.",
+      "Melhoria: Ações Automatizadas: na tela de edição foi inserido uma lixeira para facilitar a remoção de vínculos pelo usuário.",
+      "Melhoria: Atalho para a consulta de pessoa jurídica [MAISPJE-17]",
+      "Melhoria: Módulo 1: Opção para ativar/desativar assistente de validação de AJG [MAISPJE-18]",
+      "Melhoria: Convênios SISBAJUD: inserida a configuração da teimosinha para 30 e 60 dias.",
+      "Melhoria: Módulo 7: Ação Automatizada de Comunicação: agora é possível configurar a AA para escolher como destinatário o polo ativo, o polo passivo e/ou os terceiros interessados. Para isso basta adicionar no nome do botão a opção desejada entre colchetes. Caso haja mais de uma separe elas por ponto-e-vírgula. Também é possível configurar para prosseguir com a assinatura, bastando usar a expressão assinar, como parâmetro  <b>Exemplo</b>: Vista parte[ativo;passivo;assinar]",
+      "Melhoria: Convênios: Consulta Processual: a consulta processual por dentro dos convênios, função acionada por meio do atalho identificado por uma lupa, não precisa mais de clique, bastando que o usuário deixe o mouse por 2 segundos sobre o ícone para a pesquisa seja acionada. Visualmente o usuário perceberá o ícone sendo preenchido por uma cor laranja.",
+      "Correção: corrigido bug nas funcionalidades do SIF.",
+      "Correção: corrigido bug nos atalhos do SISCONDJ.",
+      "Melhoria: Convênios SERASAJUD Antigo: Havendo processo na memória, abre uma janela de opção com os reclamados do processo para o usuário escolher sobre quem recai a ordem.",
+      "Melhoria: melhorado o layout da tela CONFERÊNCIA DE ALVARÁ NO SIF identificando o tipo de ordem.",
+      "Melhoria: Convênios RENAJUD NOVO: inserido no menu kaizen o atalho para remover restrição."
+    ]
+  },
+  {
+    "version": "4.8.0",
+    "package": "maispje-4.8.0-fx.xpi",
+    "date": "01/07/2024",
+    "changes": [
+      "Correção: MODULO1: correção da funcionalidade 'Guardar dados ao abrir a janela DETALHES'.",
+      "Correção: SISBAJUD: corrigida a função da teimosinha para 60 dias na escolha do último dia ativo.",
+      "Melhoria: SISBAJUD: corrigida a função de 'Clicar em Salvar e Protocolar?' também para a minuta de endereço.",
+      "Melhoria: AA Variadas: agora é possível configurar o temporizador das Ações Automatizadas Atualizar a Página e Fechar a Página.",
+      "Correção: MODULO1: Guardar dados: corrigida a função para obtenção do valor da execução quando obtido dos 'Cálculos do Processo.",
+      "Correção: Ação Automatizada de Retificar Autuação: corrigida a funcionalidade no 'Atalho F2'.",
+      "Correção: Ação Automatizada de Retificar Autuação: Juízo 100% Digital: corrigida a funcionalidade para ir até o final do procedimento, confirmando a inclusão/exclusão doa característica do processo."
+    ],
+    "assysts": [
+      "79410 - Erro ao carregar dados de convenio",
+      "79398 - Erro ao carregar dados de convenio"
+    ]
+  },
+  {
+    "version": "4.9.0",
+    "package": "maispje-4.9.0-fx.xpi",
+    "date": "31/07/2024",
+    "changes": [
+      "Melhoria: AÇÃO AUTOMATIZADA EM LOTE: inserida na lista de escolha as Ações Automatizadas de Anexar Documentos, Intimação/Expediente, Movimentos, Checklist e Variados.",
+      "Correção: MODULO7: AUTOGIGS [concluir]: para fechar corretamente a caixa de confirmação da conclusão das Ações Automatizadas de comentário, chip e lembrete.",
+      "Correção: MODULO7: Edição de Ações Automatizadas: corrigidas as caixas de pergunta 'sim e não' na tela de edição das Ações Automatizadas que não salvavam.",
+      "Correção: MODULO7: COMUNICAÇÃO: Edição: corrigido para ponto-e-vírgula a separação na tag especial [polo ativo;polo passivo;terceiros;assinar].<b>Exemplo</b>: Vista parte[ativo;passivo;assinar]",
+      "Melhoria: AÇÃO AUTOMATIZADA RÍGIDA - CALCULOS: criada ações automatizadas para atualização rápida dos cálculos e abrir PJeCalc.",
+      "Melhoria: MODULO9: Botão Preencher Campos: o botão preencher campos (varinha mágica) pode ser acionado sem o clique, bastanto o usuário repousar o mouse em cima do botão por dois segundos. Visualmente o usuário perceberá o ícone sendo preenchido por uma cor azul.",
+      "Melhoria: CONCILIAJT: inserido o conciliaJT na Pauta Inteligente. [MAISPJE-33][MAISPJE-36]",
+      "Melhoria: AÇÃO AUTOMATIZADA EM LOTE: criado o botão de copiar lista quando utilizada a ação automatizada em lote.",
+      "Melhoria: Convênios: Garimpo: Ao listar os processos é criado um atalho que permite inserir uma atividade gigs com as seguintes características: 'Calculista: (Garimpo) Alvará - zerar a conta ({nome do banco} : {numero da conta} : {saldo da conta}). Para isso basta abrir o processo para conferência e depois clicar no ícone correspondente na tabela do garimpo.'",
+      "Melhoria: Módulo 7: Ação Automatizada de movimento: Sobrestamento: alterada a forma de registrar as opções de escolha da tarefa SOBRESTAMENTO. Agora é possível configurar sua AA para preencher todas as opções de sobrestamento existentes, se valendo ainda das expressões corrigir data e perguntar. Além disso, é possível, para os casos em que o processo já se encontra aguardando prazo do sobrestamento, utilizar alguns padrões para alterar o prazo do sobrestamento. São eles: [Atualizar1ano] , que atualizará o prazo do sobrestamento pelo período de 12 meses. [Atualizar2anos] , que atualizará o prazo do sobrestamento pelo período de 24 meses. [AtualizarDataEspecifica ?] , que atualizará o prazo do sobrestamento para a data ?, onde ? deverá ser preenchido com uma data fixa, no padrão dd/mm/aaaa, ou em meses, no padrão mm. [AtualizarDataPerguntar] , que atualizará o prazo do sobrestamento para a data preenchida no momento do lançamento.",
+      "Melhoria: SIF: na consulta dos dados financeiros SIF de um processo, a janela com as contas judiciais desaparecerá clicando no botão fechar ou abrindo outro grupo de ações automatizadas ou, ainda, tirando o mouse da tela por 3 segundos.",
+      "Melhoria: melhorado o layout da tela CONFERÊNCIA DE ALVARÁ NO SIF trazendo informações adicionais quando a ordem for TED."
+    ]
+  },
+  {
+    "version": "4.10.0",
+    "package": "maispje-4.10.0-fx.xpi",
+    "date": "02/08/2024",
+    "changes": [
+      "Melhoria: acessibilidade na barra de botões adicionada na parte superior da tela [MAISPJE-35]",
+      "Melhoria: TRT12 - inclusão de link para o ILLUMINA12 na barra lateral. [MAISPJE-38]"
+    ]
+  },
+  {
+    "version": "4.11.0",
+    "package": "maispje-4.11.0-fx.xpi",
+    "date": "12/08/2024",
+    "changes": [
+      "Correção: AÇÃO AUTOMATIZADA RETIFICAR A AUTUAÇÃO: o cadastro do MPT como terceiro interessado será na condição de CUSTOS LEGIS.",
+      "Melhoria: AÇÃO AUTOMATIZADA RETIFICAR A AUTUAÇÃO: incluída a possibilidade de cadastrar advogados para TERCEIRO INTERESSADO via ação automatizada.",
+      "Correção: MODULO9: CENSEC: corrigido para preencher somente os números do CPF e CNPJ.",
+      "Correção: MODULO1: ativar/desativar mapeamento de ids. Agora é possível ativar/desativar a funcionalidade, bem como foi resolvido o conflito com a funcionalidade similar do sentença digital.",
+      "Melhoria: Atalho F1: Pesquisa processual por nome da parte: agora é possível pesquisar mais de um nome ao mesmo tempo separando-os por ponto e vírgula. O nome não precisa ser completo.",
+      "Melhoria: AA Variadas: criada ação automatizada para minutar no SISBAJUD um bloqueio de ordem sobre o polo passivo.",
+      "Correção: PJE Segundo grau: corrigido o bug que interrompia o fluxo das ações automatizadas quando da conclusão para JULGAMENTO."
+    ]
+  },
+  {
+    "version": "4.11.1",
+    "package": "maispje-4.11.1-fx.xpi",
+    "date": "20/08/2024",
+    "changes": [
+      "Correção: SIF: CONFERÊNCIA DE ALVARÁS: corrigido o acionamento do botão conferir quando a conta demora muito a carregar.",
+      "Correção: AÇÃO AUTOMATIZADA EM LOTE: ajustado para evitar a interrupção aleatória no segundo processo.",
+      "Correção: Módulo 7: Ação Automatizada de movimento: Sobrestamento: As expressões especiais podem ser utilizadas também para processos que já estão na tarefa de Sobrestamento. Caso queira atualizar o prazo do sobrestamento de um processo sobrestado por dois anos, basta movimentá-lo para o destino SOBRESTAMENTO[Atualizar2anos] .",
+      "Correção: AÇÃO AUTOMATIZADA RÍGIDA - CALCULOS: corrigido bug para desligar a função quando o processo não tem cálculo prévio.",
+      "Correção: AÇÃO AUTOMATIZADA RETIFICAR A AUTUAÇÃO: corrigida a possibilidade de incluir advogado para polo ativo, passivo e terceiros.",
+      "Correção: SIF: corrigida a conferência automática de alvarás para a versão 2.6 do SIF [Ajustado o paginador].",
+      "Funcionalidade: Menu Kaizen: Janela Detalhes do Processo: ATALHO F3: inserido no menu kaizen a funcionalidade de atribuir uma ação automatizada ao atalho F3. Esta AA pode ser alterada a qualquer momento de acordo com a necessidade do usuário."
+    ]
+  },
+  {
+    "version": "4.12.0",
+    "package": "maispje-4.12.0-fx.xpi",
+    "date": "20/08/2024",
+    "changes": [
+      "Melhoria: AÇÃO AUTOMATIZADA EM LOTE: o relatório de processos consultados além de trazer as informações do GIGS, classifica os resultados por cores: VERDE significa atividade GIGS com prazo a vencer, AZUL significa atividade GIGS sem prazo cadastrado, VERMELHO significa atividade GIGS com prazo VENCIDO.",
+      "Melhoria: Painel Global: Tarefa AGUARDANDO AUDIÊNCIA: filtro automático para processos aguardando audiência sem audiência designada.",
+      "Melhoria: SIF: Extrato pela ação automatizada: ao retirar o extrato, a extensão copiará para a memória (CTRL+C) o número da conta judicial para você utilizar na hora de salvar o PDF.",
+      "Melhoria: Ações em Lote: o motivo do sobrestamento também será mostrado junto ao nome da tarefa para os processos que estão em 'Aguardando prazo de sobrestamento'. Para visualizar a tarefa basta repousar o mouse em cima da expressão 'Abrir Tarefa'.",
+      "Melhoria: MODULO7: COMUNICAÇÃO: incluído trt na tag especial [polo ativo;polo passivo;terceiros;assinar]. Se utilizada [trt] irá escolher o seu Regional como destinatário da comunicação. É possível ainda escolher a unidade judiciária colocando dois pontos e o nome dela, como no exemplo: [trt:Vara do Trabalho de Palhoça]. Contudo a unidade judiciária deve estar cadastrada no PJe como autoridade.",
+      "Correção: Guardar dados das Partes: corrigida a obtenção das custas processuais arbitradas.",
+      "Correção: corrigido bug da versão 2.11.3 que não inseria as funcionalidades no GIGS.",
+      "Correção: corrigido bug na escolha da data em meses na AA de Sobrestamento quando da utilização das expressões especiais. A expressão 'corrigir data' também foi corrigida.",
+      "Melhoria: MODULO9: SISCONDJ: se ativado, ao visualizar extrato da conta preenche automaticamente como data início, a data de autuação do processo da memória, e como data fim a data atual. Cria um botão que permite ao usuario baixar diretamente o extrato da conta, e outro para baixar num único clique todos os extratos das subcontas.",
+      "Correção: MODULO6: corrigido bug no envio de emails/whattsapp ocorridos na versão 2.11.3 do PJe.",
+      "Melhoria: Menu Kaizen: alterados os ícones das funcionalidades Preferências F2 e Preferências F3 adicionando elementos visuais (cores) que pressupõe antagonismo. O objetivo é auxiliar o usuário na compreensão de qual ação automatizada está armazenada, sem precisar demonstrar seu nome.",
+      "Correção: MODULO7: COMUNICAÇÃO: corrigido bug na tag especial 'passivo' para quando houver mais de dez réus no polo passivo.",
+      "Correção: Atualização Rápida: PJeCalc: corrigido bug de quando a extensão trava quando não há processo na memória.",
+      "Melhoria: Procurar Execução: se não houver nas configurações url definida para SAO Execução, a extensão fará a busca por nome do réu nos processos da unidade. Se quiser forçar a busca apenas na sua unidade, vá nas configurações da extensão, clique em Configuração básica, abaoixo do logo, e preencha o campo 'SAO Execução' com a expressão 'Nenhum'."
+    ],
+    "testes": [
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "version": "4.13.0",
+    "package": "maispje-4.13.0-fx.xpi",
+    "date": "17/10/2024",
+    "changes": [
+      "Correção de conflitos diversos decorrentes na versão 2.11.4 do PJe.",
+      "Correção: MODULO9: CCS: ajustado o contador do acionamento automático.",
+      "Correção: corrigido o temporizador da funcionalidade ATALHO F2 e ATALHO F3, permitindo ao usuário configurar corretamente o tempo de acionamento.",
+      "Correção: Corrigido o erro  da tarefa trânsito em Julgado.",
+      "Correção: Corrigido o erro na altura da barra de ações automatizadas da Janela Detalhes do Processo para a versão 2.11.4 do PJe.",
+      "Correção: corrigido erro na conferência de alvarás do SIF para a versão 2.11.4 do PJe, e, na escolha do magistrado quando da elaboração de novos alvarás.",
+      "Correção: corrigido erro na função copiar transcrição do documento para a versão 2.11.4 do PJe.",
+      "Correção: MODULO7: AUTOGIGS: corrigido erro na função [concluir] que ocorre na versão 2.11.4 do PJe.",
+      "Correção: corrigido erro na função pesquisa personalizada para a versão 2.11.4 do PJe.",
+      "Correção: corrigido erro no atalho dos Lembretes para a versão 2.11.4 do PJe.",
+      "Correção: AÇÕES AUTOMATIZADAS: corrigido erro na atribuição de sigilo.",
+      "Correção: GARIMPO: TRT16: corrigido o endereço para acionamento das funcionalidades.",
+      "Correção: AÇÃO AUTOMATIZADA EM LOTE: DESPACHO: ao escolher assinar 'sim' a ação em lote fechará automaticamente a janela ao final, seguindo para o próximo processo automaticamente.",
+      "Correção: corrigido erro na barra de atalhos das ações automatizadas para a versão 2.11.6 do PJe.",
+      "Melhoria: Procurar Execução: agora a configuração da pesquisa utilizando apenas os processos da Vara ou do Relatório SAO, se houver, FICA nas opções EXTRAS > Procurar Execuções.",
+      "Melhorias: AÇÃO AUTOMATIZADA EM LOTE: incluído filtros por fase do processo e filtro para indicar a execução mais antiga. Agora, também, a lista de processos exclui os repetidos.",
+      "Melhoria: Convênios: CCS: agora é possível configurar uma Ação Automatizada para ser executada na janela Detalhes do Processo ao final do protocolo da minuta. Para isso acontecer a Janela Detalhes do Processo deve estar aberta.",
+      "Melhoria: Checklist de Execução: incluído botão para sincronizar o total da execução com o último cálculo juntado pelo PjeCalc. A informação é exibida ao usuário quando da abertura da janela.",
+      "Melhoria: MODULO7: AA Variadas: criada ação automatizada para assinar expedientes da tarefa 'Assinar expedientes e comunicações - servidor'. Utilize junto com a funcionalidade Ações Automatizadas em lote.",
+      "Melhoria: ATALHOS: agora é possível agrupar os atalhos por cor, bastando para isso colocar a tag [azul], [verde], [vermelho] ou [amarelo] na frente do atalho.",
+      "Melhoria: incluído modo noturno.",
+      "Melhoria: PLANILHAS GOOGLE: PESQUISA F1: A pesquisa do processo com o atalho F1 ficou mais aprimorada, podendo ser utilizado na pesquisa o número do processo, usando o padrão 0000000-00.000.0.00.0000, ou sem os caracteres separadores 0000000000000000000, ou, ainda, com o número parcial 0000000-00. É possível inclusive pesquisa pelo nome das partes.",
+      "Melhoria: ATALHO F1: agora a pesquisa processual observa eventual texto selecionado utilizando-o na busca. Se vc selecionar um número de processo, ou parte do número, ou, ainda, o nome de uma parte, basta pressionar F1 que ele a consulta acionará observando o texto selecionado.",
+      "Melhoria: LANÇAR MOVIMENTOS: incluídas as ações automatizadas de 'Remetidos os autos para Contadoria para diligência', 'Remetidos os autos da Contadoria para Vara do Trabalho para prosseguir' e 'Remetidos os autos para Vara do Trabalho por ter sido cumprida a diligência'. Corrigido também o lançamento do movimento  'Publicação de Pauta' no segundo grau",
+      "Melhoria: MODULO9: ECARTA: agora é possível configurar o endereço para consulta do AR, podendo optar entre links de impressão direta, consulta e site dos correios, se preferir.",
+      "Melhoria: Ação Automatizada Excluir BNDT: criada uma AA fixa para exclusão das partes do processo no BNDT, se houver. A função verifica, informa a(s) parte(s)que está(ão) cadastradas, excluindo-a(s) em seguida. Criado também, filtro específico para a situação nas Ações Automatizadas em Lote. Incluído, por fim, a verificação automática quando do arquivamento definitivo do processo.",
+      "Melhoria: Painel Global: Tarefa ANALISAR E ASSINAR: filtro automático para exibir o tipo de minuta e o juiz responsável por sua assinatura. A cor vermelha identifica tipos de minutas em que deve ser observada a identidade física do Juiz, como sentenças e decisões de embargos de declaração, a cor verde para tipos de minuta em que pode haver alteração do Juiz signatário sem maiores preocupações, já a cor amarela identifica minutas de EXPEDIENTE, como alvarás e ofícios."
+    ],
+    "testes": [
+      "Testando a função de substituir variáveis no editor de textos do PJe. variáveis criadas ",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "version": "4.14.0",
+    "package": "maispje-4.14.0-fx.xpi",
+    "date": "06/11/2024",
+    "changes": [
+      "Melhoria: Painel Global: Arquivados: obter Saldo SIF. Consulta o saldo das contas judiciais no SIF.",
+      "Correção: Conferir Alvarás SIF em lote: corrigido o bug que interrompia a consulta em lote no segundo processo.",
+      "Correção: MODULO5: MEU FILTRO: corrigido o filtro na janela do MEU PAINEL.",
+      "Correção: AÇÃO AUTOMATIZADA DE DESPACHO: corrigido erro na inclusão do modelo selecionado para a versão 2.11.6 do PJe.",
+      "Correção: AÇÃO AUTOMATIZADA ATUALIZAR PÁGINA: corrigido erro de looping para a versão 2.11.4 e seguintes do PJe.",
+      "Melhoria: BUSCAR AR: aprimorada a consulta do E-CARTA para consultar em lote até dez objetos.",
+      "Melhoria: SISCONDJ: incluída a funcionalidade conferir alvarás em lote. O tempo para conferência deve ser ajustado no MODULO 9 > SISCONDJ.",
+      "Melhoria: GUARDAR DADOS DAS PARTES: ao guardar os dados do processo na memória do navegador o número do processo é automaticamente copiado para o clipboard, sendo acessível rapidamente com o ctrl+v.",
+      "Melhoria: numeros selecionados podem ser convertidos em valores por extenso, basta selecionar o valor e utilizar o atalho Alt + seta à direita."
+    ],
+    "testes": [
+      "Testando a função de substituir variáveis no editor de textos do PJe. variáveis criadas ",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "date": "05/12/2024",
+    "version": "4.15.1",
+    "package": "maispje-4.15.1-fx.xpi",
+    "changes": [
+      "Melhorias: AÇÃO AUTOMATIZADA EM LOTE: incluído filtros por tarefa do processo.",
+      "Melhorias: MODULO 9: CONVÊNIOS GPREC: aprimorado o sistema de baixa de RPV/Precatório, diminuindo os cliques para a realização da tarefa.",
+      "Correção: ajustada a barra de informações do processo na Janela detalhes para que todas as informações fiquem visíveis ao usuário.",
+      "Melhoria: Adicionado os botões da extensão para zoom mais, zoom menos e reconhecer ID, na janela individualizada do documento",
+      "Melhoria: criado o botão 'marcar/desmarcar' e 'excluir' que permite ao usuário selecionar e excluir os anexos adicionados na tela ANEXAR DOCUMENTOS.",
+      "Correção: MÓDULO 4: corrigida a integração do módulo 4 (Papel de usuário inicial), deixando a escolha do papel preferido para a funcionalidade nativa do PJe, mas mantendo a possibilidade de escolher a tela inicial ao entrar no sistema.",
+      "Correção: MÓDULO 9: SISCONDJ: corrigida as configurações para desativar seu uso.",
+      "Melhoria: incluído o botão COPIAR LISTA DE PROCESSOS no escaninho",
+      "Melhoria: Copiar o Número do Processo ao Guardar dados da partes agora é configuravél. Você pode ativar/desativar no módulo 1.",
+      "Melhoria: (Painel Global: Arquivados: obter Saldo SIF) agora pode ser ativado para todas as tabelas, do Painel Global aos Relatórios Gigs.",
+      "Melhoria: criado filtro Favorito para consultar em lote a teimosinha no SISBAJUD, pegando cada processo da tabela e fazendo a consulta individual.",
+      "Melhoria: MENU KAIZEN: JANELA PRINCIPAL: Incluído atalho para conferência de alvarás (apenas para o perfil Diretor de Secretaria).",
+      "Correção: corrigido o preenchimento automátioco do credor/devedor na Obrigação de pagar e Pagamento.",
+      "Melhoria: MÓDULO 7: Ação Automatizada de Autogigs: agora o campo Prazo aceita a expressão [data_audi], que irá preencher a data com a data da audiência do processo, e campo observação aceita as expressões [data_audi] [dados_audi] [link_audi], que servem como variáveis que serão substituídas, respectivamente, pela data da audiência, pelos dados da audiência e pelo link da audiência, se houver."
+    ],
+    "testes": [
+      "Testando a função de substituir variáveis no editor de textos do PJe. variáveis criadas: [maisPje:exequente] , [maisPje:executado] , [maisPje:valorDivida] , [maisPje:dataDaDivida] , [maisPje:justiçagratuita] , [maisPje:justiçagratuitaData] , [maisPje:transitoJulgado] , [maisPje:custasArbitradas]",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "date": "31/01/2025",
+    "version": "4.15.2",
+    "package": "maispje-4.15.2-fx.xpi",
+    "changes": [
+      "Correção: CENSEC: corrigido o uso na extensão no convênio CENSEC.",
+      "Correção: AÇÃO AUTOMATIZADA EM LOTE: Filtros: corrigido os filtros de fase, execução mais antiga, com BNDT ativo e por tarefa.",
+      "Correção: GARIMPO: adequeada a extensão para a versão 2.3.2 do sistema Garimpo.",
+      "Correção: CONVÊNIOS: adequada a extensão para a versão 2.0 do sistema CNIB.",
+      "Correção: TIPO EM LOTE: corrigido o clique no botão de inserir sigilo individualmente nos anexos da tela ANEXAR DOCUMENTO.",
+      "Correção: mapearIds: corrigido o bug que impedia o carregamento das páginas do documento do PJe quando aberto em nova janela ou aba.",
+      "Correção: MÓDULO 7: AUTOGIGS: corrigida a funcionalidade de concluir comentários.",
+      "Correção: Guardar dados: aprimorado o sistema de captura de dados",
+      "Correção: EMAIL: corrigida o envio de email para a versão 2.13.1 do PJe."
+    ],
+    "testes": [
+      "Testando a função de substituir variáveis no editor de textos do PJe. variáveis criadas: [maisPje:exequente] , [maisPje:executado] , [maisPje:valorDivida] , [maisPje:dataDaDivida] , [maisPje:justiçagratuita] , [maisPje:justiçagratuitaData] , [maisPje:transitoJulgado] , [maisPje:custasArbitradas]",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento.",
+      "Melhoria: RETIFICAR AUTUAÇÃO: agora é possível informar mais de um cpf/cnpj/nome no momento de cadastrar autor(es), réu(s), terceiro(s) e advogados. Para isso basta separá-los com vírgula. Por exemplo, quando questionado sobre o cpf dos advogados que deseja cadastrar basta preencher o campo desse jeito: 000.000.000-00,123.456.789-00,João da Silva",
+      "Melhoria: RETIFICAR AUTUAÇÃO: agora é possível informar mais de um assunto no momento de cadastrar assuntos no processo. Para isso basta separar os códigos do assunto com vírgula. Por exemplo: 123456,789123,987654"
+    ]
+  },
+  {
+    "date": "12/02/2025",
+    "version": "4.15.3",
+    "package": "maispje-4.15.3-fx.xpi",
+    "changes": [
+      "Correção: corrigido o bug, originado na versão PJe 2.13.1 - Jatobá, de copiar e colar do menu de contexto, copiar para o clipboard, alterar caixa alta/baixa utilizando o comando Alt+seta pra cima/baixo, converte valores monetários em texto utilizando o comando Alt+seta pra direita.",
+      "Correção: MODULO1: APRECIAR PETIÇÕES: corrigida a funcionalidade para clicar automaticamente na mensagem de confirmação 'Deseja realmente apreciar todos os documentos?'."
+    ],
+    "testes": [
+      "[pronto]Melhoria: MODULO 10: agora é possível definir, além do horário, o nome da sala que representa o link guardado. Isso facilita a identificação do link no momento da escolha.",
+      "[pronto]Melhoria: GOOGLE PLANILHAS: Atalho F2: inserido o atalho F2 no google planilhas. Ao clicar será aberta a janela de pauta de audiências levandos os dados do processo, a fim de preencher e filtrar as opções na inclusão em pauta.",
+      "[pronto]Melhoria: Pesquisa Processual: Atalho F1: agora na pesquisa processual, caso o usuário deseje descobrir o dígito verificador de um processo, basta preencher o número completo do processo colocando no lugar do Dígito Verificador dois pontos de interrogação. Por exemplo: 0000829-??.2019.5.12.0059. Será retornado o número completo do processo incluído o dígito verificador.",
+      "[pronto]Melhoria: MÓDULO 1: GUARDAR DADOS: a opção de guardar dados do processo permite ao usuário utilizar variáveis dinâmicas no editor de modelos do PJe. Variáveis criadas: [maisPje:exequente],[maisPje:executado],[maisPje:valorDivida],[maisPje:dataDaDivida],[maisPje:justiçagratuita],[maisPje:justiçagratuitaData],[maisPje:transitoJulgado],[maisPje:custasArbitradas],[maisPje:idPetiçãoInicial],[maisPje:idÚltimaContestação],[maisPje:idÚltimaManifestação],[maisPje:idÚltimaSentença],[maisPje:idÚltimoAcórdão],[maisPje:idÚltimoDespacho],[maisPje:idÚltimaDecisão],[maisPje:idÚltimaAta],[maisPje:idÚltimaCertidão] e [maisPje:idÚltimoCálculo]. Para utilizá-las basta inserir no texto a variável deseja que ela será preenchida quando da elaboração do ato via Ação Automatizada. A lista de variáveis pode ser encontrada na página de Modelos de Documentos do próprio Pje, na barra do editor de texto.",
+      "[pronto]Melhoria: RETIFICAR AUTUAÇÃO: agora é possível informar mais de um cpf/cnpj/nome no momento de cadastrar autor(es), réu(s), terceiro(s) e advogados. Para isso basta separá-los com vírgula. Por exemplo, quando questionado sobre o cpf dos advogados que deseja cadastrar basta preencher o campo desse jeito: 000.000.000-00,123.456.789-00,João da Silva",
+      "[pronto]Melhoria: RETIFICAR AUTUAÇÃO: agora é possível informar mais de um assunto no momento de cadastrar assuntos no processo. Para isso basta separar os códigos do assunto com vírgula. Por exemplo: 123456,789123,987654",
+      "[pronto]Melhoria: o atalho para abrir cálculos do processo traz as seguintes ações automatizadas: Abrir PjeCalc, Atualização Rápida e Atualização Rápida para RPV/Precatório",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "date": "28/02/2025",
+    "version": "4.16.0",
+    "package": "maispje-4.16.0-fx.xpi",
+    "changes": [
+      "Melhoria: MODULO 10: agora é possível definir, além do horário, o nome da sala que representa o link guardado. Isso facilita a identificação do link no momento da escolha.",
+      "Melhoria: GOOGLE PLANILHAS: Atalho F2: inserido o atalho F2 no google planilhas. Ao clicar será aberta a janela de pauta de audiências levandos os dados do processo, a fim de preencher e filtrar as opções na inclusão em pauta.",
+      "Melhoria: Pesquisa Processual: Atalho F1: agora na pesquisa processual, caso o usuário deseje descobrir o dígito verificador de um processo, basta preencher o número completo do processo colocando no lugar do Dígito Verificador dois pontos de interrogação. Por exemplo: 0000829-??.2019.5.12.0059. Será retornado o número completo do processo incluído o dígito verificador.",
+      "Melhoria: MÓDULO 1: GUARDAR DADOS: a opção de guardar dados do processo permite ao usuário utilizar variáveis dinâmicas no editor de modelos do PJe. Variáveis criadas: [maisPje:exequente],[maisPje:executado],[maisPje:valorDivida],[maisPje:dataDaDivida],[maisPje:justiçagratuita],[maisPje:justiçagratuitaData],[maisPje:transitoJulgado],[maisPje:custasArbitradas],[maisPje:idPetiçãoInicial],[maisPje:idÚltimaContestação],[maisPje:idÚltimaManifestação],[maisPje:idÚltimaSentença],[maisPje:idÚltimoAcórdão],[maisPje:idÚltimoDespacho],[maisPje:idÚltimaDecisão],[maisPje:idÚltimaAta],[maisPje:idÚltimaCertidão] e [maisPje:idÚltimoCálculo]. Para utilizá-las basta inserir no texto a variável deseja que ela será preenchida quando da elaboração do ato via Ação Automatizada. A lista de variáveis pode ser encontrada na página de Modelos de Documentos do próprio Pje, na barra do editor de texto.",
+      "Melhoria: RETIFICAR AUTUAÇÃO: agora é possível informar mais de um cpf/cnpj/nome no momento de cadastrar autor(es), réu(s), terceiro(s) e advogados. Para isso basta separá-los com vírgula. Por exemplo, quando questionado sobre o cpf dos advogados que deseja cadastrar basta preencher o campo desse jeito: 000.000.000-00,123.456.789-00,João da Silva",
+      "Melhoria: RETIFICAR AUTUAÇÃO: agora é possível informar mais de um assunto no momento de cadastrar assuntos no processo. Para isso basta separar os códigos do assunto com vírgula. Por exemplo: 123456,789123,987654",
+      "Melhoria: o atalho para abrir cálculos do processo traz as seguintes ações automatizadas: Abrir PjeCalc, Atualização Rápida e Atualização Rápida para RPV/Precatório",
+      "Melhoria: MODULO6: EMAIL E WHATTSAPP: inserida as variáveis #{data_audi}, #{tipo_audi}, #{sala_audi} e #{link_audi}, permitindo ao usuário detalhar mais a mensagem.",
+      "Melhoria: AÇÃO AUTOMATIZA DE RETIFICAR AUTUAÇÃO: criada ação automatizada para inserir/remover Prioridades no processo.",
+      "Melhoria: MODULO 9: SISBAJUD: agora é possível configurar a teimosinha para atuar em 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55 ou 60 dias. É possível também configurar mais de um banco preferido, preenchendo o campo da seguinte forma: NOME DO BANCO[NUMERO DA AGENCIA]. Por exemplo: BCO DO BRASIL[2383],CAIXA ECONOMICA FEDERAL[3521]",
+      "Melhoria: GUARDAR DADOS DAS PARTES: criado o painel copia e cola para ser utilizado em sites ou navegadores incompatíveis com a maisPJe. O painel copia e cola é uma tela com todos os dados da memória do kaizen acessíveis com um único clique.",
+      "Melhoria: MODULO 9: SAJ: criada a ferramenta de preencher campos no convênio SAJ - Afastamento de SIGILO BANCÁRIO. Apenas o campo telefone não preencherá automaticamente conforme configurado.",
+      "Correção: criado uma verificação de conteúdo nos documentos do ANEXAR DOCUMENTOS para não permitir assinaturas em documentos em branco",
+      "Melhoria: MODULO7: AA Variadas: criada ação automatizada para assinar documentos do ANEXAR DOCUMENTOS que estão pendentes de assinatura. Utilize junto com a funcionalidade Ações Automatizadas em lote.",
+      "Melhoria: MODULO7: AA Despacho: se a extensão identificar que a minuta se trata de uma sentença, colará o modelo na parte dispositiva do editor.",
+      "Melhoria: MODULO 9: CONVENIOS: CRCJUD: acrescido a frase NENHUM RESULTADO ENCONTRADO para os resultados negativos.",
+      "Melhoria: AÇÃO AUTOMATIZADA EM LOTE: agora a lista traz a informação caso exista documento pendente de assinatura no processo."
+    ],
+    "testes": [
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "date": "18/03/2025",
+    "version": "4.16.1",
+    "package": "maispje-4.16.1-fx.xpi",
+    "changes": [
+      "Correção: foram realizados ajustes na funcionalidade Relatório de execução para quem utiliza relatórios do SAO.",
+      "Correção: Ação Automatizada em Lote: corrigido bug para aguardar o carregamento das fases dos processos antes de aplicar o filtro. O erro acontecia quando a lista de processos era muito grande.",
+      "Correção: RETIFICAR AUTUAÇÃO: quando o polo interessado possuir mais de uma parte e for informado mais de um cpf/cnpj/nome, abrirá uma caixa de seleção para o usuário decidir qual parte será vinculada o advogado.",
+      "Correção: CONVÊNIOS: CENSEC: corrigida a funcionalidade do botão Imprimir em Lote.",
+      "Correção: MODULO 8: Corrigida a aplicação da regra por Orgão Julgador Cargo.",
+      "Correção: MENU KAIZEN: Pesquisa de perito e Advogado. Ajustado o link para a consulta ser mais rápida.",
+      "Correção: posicionar janela gigs quando aberta em separado.",
+      "Correção Técnica: corrigida a forma de obter as URLS do site do TRT12 (https://www.trt12.jus.br/repo/maispje/Downloads/versoes/configURLs.json) apenas uma vez por dia.",
+      "Correção Técnica: excluído o diretório PJE-OLD"
+    ],
+    "testes": [
+      "Melhoria: Aprimorada a conferência em Lote dos alvarás no sistema SISCONDJ",
+      "Melhoria: Modulo 7: AA de Movimento: Transito em Julgado: mapeada a tarefa Transito em Julgado para aceitar a expressão [corrigir data], permitindo ao usuário preencher a data do trânsito em julgado no momento do lançamento.",
+      "Melhoria: Ação Automatizada Enviar Email: criada uma AA fixa para automatizar em lote o envio de emails. A configuração fica no módulo 7.7 e o usuário poderá configurar por padrão um destinatário, título, corpo, assinatura e o tempo para finalizar o envio do email.",
+      "Melhoria: criado o botão imprimir extratos em lote para o SIF.",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "date": "27/03/2025",
+    "version": "4.16.2",
+    "package": "maispje-4.16.2-fx.xpi",
+    "changes": [
+      "Correção Técnica: excluído o diretório PJE-OLD",
+      "Correção: Módulo 9: SISBAJUD: corrigido o bug na escolha do magistrado.",
+      "Correção: retorno da ação automatizada de Atualizar Página como reload da página inteira.",
+      "Correção: correção dos dados do ConciliaJT."
+    ],
+    "testes": [
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento.",
+      "Melhoria: Ação Automatizada Enviar Email: criada uma AA fixa para automatizar em lote o envio de emails. A configuração fica no módulo 7.7 e o usuário poderá configurar por padrão um destinatário, título, corpo, assinatura e o tempo para finalizar o envio do email.",
+      "Melhoria: Aprimorada a conferência em Lote dos alvarás no sistema SISCONDJ",
+      "Melhoria: Modulo 7: AA de Movimento: Transito em Julgado: mapeada a tarefa Transito em Julgado para aceitar a expressão [corrigir data], permitindo ao usuário preencher a data do trânsito em julgado no momento do lançamento.",
+      "Melhoria: criado o botão imprimir extratos em lote para o SIF.",
+      "Melhoria: as variáveis dinâmicas no editor de modelos do PJe não dependem mais da funcionalidade guardar dados do processo, obtendo as informações diretamente no momento da substituição da variável.",
+      "Melhoria: incrementada variáveis dinâmicas no editor de modelos do PJe.",
+      "Melhoria: Módulo 1: Criado atalho para consultar o resultado do domicílio eletrônico nos processos."
+    ]
+  },
+  {
+    "date": "02/05/2025",
+    "version": "4.16.3",
+    "package": "maispje-4.16.3-fx.xpi",
+    "changes": [
+      "Correção: identificado o problema do navegador exigir que o usuário clique no botão para anexar PDF no processo. Trata-se de exigência de segurança das versões mais atuais do navegador. Criado na extensão uma tela de interação para contornar o problema.",
+      "Correção: corrigido bug na importação de Ações Automatizadas (ctrl+v).",
+      "Correção: corrigido bug do índice CONCILIA na pauta de audiências tradicional quando ela demora para carregar.",
+      "Correção: corrigido o bug das funcionalidades Conferir Alvará SIF, Conferir Alvará siscondj e Painel Copia e Cola, que impedia seu funcionamento nas versões mais recentes do firefox.",
+      "Correção: corrigido o bug da ferramenta preencher campos do convênio SISBAJUD.",
+      "Correção: corrigido o bug do Modulo8 na escolha do magistrado por Órgão Julgador Cargo."
+    ],
+    "testes": [
+      "Melhoria: MODULO7: Variadas: criadas as Ações Automatizadas Variadas de: AUTOGIGS>Renovar Atividade GIGS, que atualiza a data atividade GIGS selecionada, DESPACHO>Trocar Magistrado Responsável, que substitui o magistrado responsável pela assinatura do despacho, MOVIMENTO>Renovar a Data da Tarefa, que renova a data que o processo se encontra naquela tarefa do PJe, e, RETIFICAR AUTUAÇÃO>Cadastrar Advogado, que permite vincular um advogado específico à uma parte em um processo ou vários se utilizada em conjunto com as Ações Automatizadas em Lote.",
+      "Melhoria: MODULO7: Variadas: a ação automatizada de Assinar Expedientes agora identifica se o signatário é o próprio usuário e, não o sendo, substitui pelo para que ele possa assinar.",
+      "Melhoria: Conferir Alvarás SIF: Atalho F3 para verificar se o processo possui algum documento pendente de assinatura.",
+      "Melhoria: Modulo 7: AA de Comunição e Expediente: acrescentada a possibilidade de configurar prazos em dias corridos. Ver mais detalhes na configuração.",
+      "Melhoria: A consulta automática da teimosinha SISBAJUD agora traz a situação atual dela (se encerrada ou não) e apenas a última teimosinha realizada.",
+      "Melhoria: Alterado o layout de seleção das Ações Automatizadas na funcionalidade 'Atalho F2' e 'Atalho F3'.",
+      "Melhoria: EXTRAS: criada a possibilidade de configurar os prazos que compõe a funcionalidade prazo em lote, existente na tela das minutas de despacho/decisão e sentença, bem como alterado o layout para apresentar as opções em três colunas.",
+      "Melhoria: MODULO1: O atalho de perícias agora traz a situação da última perícia, se houver. Para visualizar basta repousar o mouse sobre o ícone correspondente.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para abrir o painel Copia e Cola assim que a janela Detalhes do Processo é aberta.",
+      "Melhoria: MODULO5: criado o filtro especial 'Processos sem GIGS Cadastrado'."
+    ]
+  },
+  {
+    "date": "30/05/2025",
+    "version": "4.17.0",
+    "package": "maispje-4.17.0-fx.xpi",
+    "changes": [
+      "Correção: Modulo 7: AA de Movimento: corrigido o bug da Ação Automatiza de Movimento Arquivamente definitivo, que exige a assinatura da certidão de depósito.",
+      "Correção: AA de Retificar Autuação: corrigido o bug ao inserir parte com endereço desconhecido.",
+      "Correção: AA em Lote: corrigido o bug na ação em lote de baixar o pdf do processo.",
+      "Correção: MODULO9: PREVJUD: aprimorado o PREVJUD para fazer constar o campo inserir minuta e pesquisar minuta.",
+      "Correção: MODULO7: AA Movimento: corrigido o bug para executar a ação quando o pje está lento.",
+      "Correção: MODULO9: CNIB: Exclusão: corrigido o bug.",
+      "Correção: MODULO7: AA Anexar: corrigido o bug para evitar que documentos configurados para assinar, confirmem o status de assinado antes da assinatura.",
+      "Correção: Mapear Checklist: ao clicar num dos itens do checklis, que levará o usuário até a data do lançamento daquele evento, o cabeçalho do processo é corrigido automaticamente.",
+      "Correção: colocado aviso de ausência de configurações básicas no ícone da extensão.",
+      "Correção: JANELA DETALHES DO PROCESSO: CONCILIA: a barra com os botões de atalho na janela detalhes aparecerá independentemente de erro na consulta ao potencial de conciliação.",
+      "Melhoria: ICONE: implementado sinal visual quando a extensão carece de configurações básicas. O ícone do kaizen exibe um sinal de alerta, que some automaticamente quando as configurações são guardadas.",
+      "Melhoria: CONFERIR ALVARÁS: SISCONDJ: aprimorada a conferência em Lote dos alvarás no sistema SISCONDJ",
+      "Melhoria: CONFERIR ALVARÁS: SIF: atalho F3 para verificar se o processo possui algum documento pendente de assinatura.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: criado o botão imprimir extratos em lote para o SIF.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: alterado o layout de seleção das Ações Automatizadas na funcionalidade 'Atalho F2' e 'Atalho F3'.",
+      "Melhoria: EDITOR DE TEXTOS: incrementada variáveis dinâmicas no editor de modelos do PJe, que não dependem mais da funcionalidade guardar dados do processo, obtendo as informações diretamente no momento da substituição da variável.",
+      "Melhoria: MODULO1: Criado atalho para consultar o resultado do domicílio eletrônico nos processos.",
+      "Melhoria: MODULO1: O atalho de perícias agora traz a situação da última perícia, se houver. Para visualizar basta repousar o mouse sobre o ícone correspondente.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para abrir o painel Copia e Cola assim que a janela Detalhes do Processo é aberta.",
+      "Melhoria: MODULO5: FILTRO ESPECIAL: criado o filtro especial 'Processos sem GIGS Cadastrado'.",
+      "Melhoria: MODULO5: FILTRO ESPECIAL: criado o filtro especial 'Obter ConciliaJT', que irá retornar os índices do concilia para processos que estejam em outras tarefas além da Triagem Inicial. Funcional apenas para os Regionais habilitados no ConciliaJT.",
+      "Melhoria: MODULO5: FILTRO ESPECIAL: SISBAJUD: A consulta automática da teimosinha SISBAJUD agora traz a situação atual dela (se encerrada ou não) e apenas a última teimosinha realizada.",
+      "Melhoria: MODULO7: MOVIMENTO: Transito em Julgado: mapeada a tarefa Transito em Julgado para aceitar a expressão [corrigir data], permitindo ao usuário preencher a data do trânsito em julgado no momento do lançamento.",
+      "Melhoria: MODULO7: MOVIMENTO: criada a funcionalidade para cancelar a conclusão de processos localizados na tarefa ELABORAR DESPACHO com minuta em branco. Para o tal basta criar AA de Movimento com o seguinte destinho: Análise[Cancelar conclusão].",
+      "Melhoria: MODULO7: MOVIMENTO: mapeado o movimento usado no 2o grau de 'Remesssa para Diligência'. Agora é possível fazer todo o processo, para isso basta configurar o destino da seguinte forma:  Remeter para diligência[Remeter em diligência ao 1o grau,Enviar]  ou  Remeter para diligência[Remeter em diligência ao 1o grau,parar]",
+      "Melhoria: MODULO7: VARIADAS: Ação Automatizada Enviar Email: criada uma AA fixa para automatizar em lote o envio de emails. A configuração fica no módulo 7.7 e o usuário poderá configurar por padrão um destinatário, título, corpo, assinatura e o tempo para finalizar o envio do email.",
+      "Melhoria: MODULO7: VARIADAS: criadas as Ações Automatizadas Variadas de: AUTOGIGS>Renovar Atividade GIGS, que atualiza a data atividade GIGS selecionada, DESPACHO>Trocar Magistrado Responsável, que substitui o magistrado responsável pela assinatura do despacho, MOVIMENTO>Renovar a Data da Tarefa, que renova a data que o processo se encontra naquela tarefa do PJe, e, RETIFICAR AUTUAÇÃO>Cadastrar Advogado, que permite vincular um advogado específico à uma parte em um processo ou vários se utilizada em conjunto com as Ações Automatizadas em Lote.",
+      "Melhoria: MODULO7: VARIADAS: a ação automatizada de Assinar Expedientes agora identifica se o signatário é o próprio usuário e, não o sendo, substitui pelo para que ele possa assinar.",
+      "Melhoria: MODULO7: COMUNICAÇÃO E EXPEDIENTES: acrescentada a possibilidade de configurar prazos em dias corridos. Por exemplo: para 30 dias corridos, preencha 30dc no campo prazo.",
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento.",
+      "Melhoria: MODULO7: CLICAR EM Em: inserido na lista CLICAR EM as opções 'Concluso ao Magistrado','Movimentar Processo','Guardar dados das partes' e 'Consultar Domicílio Eletrônico'.",
+      "Melhoria: MODULO7: CHECKLIST: passa a aceitar a expressão [concluir], que irá desativar o Checklist de acordo com o seu nome, alterando o seu status para NENHUM, retirando o ALERTA e adicionando à descrição o texto 'Desativado em dia-de-hoje'.",
+      "Melhoria: MODULO9: PJECALC: ao buscar cálculos a opção 'somente cálculos deste setor' é desmarcada.",
+      "Melhoria: MODULO9: PJECALC: Criado o botão 'Buscar maisPJe' na tela de buscar cálculos que preencherá os campos de busca com o processo que está na memória. O botão só aparecerá se existir processo na memória",
+      "Melhoria: EXTRAS: criada a possibilidade de configurar os prazos que compõe a funcionalidade prazo em lote, existente na tela das minutas de despacho/decisão e sentença, bem como alterado o layout para apresentar as opções em três colunas.",
+      "Melhoria: PAINEL COPIA E COLA: agora o painel copia e cola traz a informação de domicílio eletrônico e endereço caso a parte não possua advogado"
+    ],
+    "testes": [
+      "Melhoria: MODULO7: DESPACHO: incluída a possibilidade de inserir tag especial [intimar:???;prazo:???;movimento:???] no nome do botão. A tag 'intimar:' pode ser preenchida com as expressões 'sim' ou 'não'. A tag 'prazo:' pode ser preenchida com o número de dias do prazo. Já a tag 'movimento:' pode ser preenchida com o tipo de movimento devendo os demais complementos ser separados por vírgula. Por exemplo: Extinção do processo[intimar:sim;prazo:0;movimento:(196),(7639)]   esse nome de botão fará com que, completado o despacho, a opção intimar todos seja marcada, com prazo de 0 dias definido e movimento (196) escolhido com motivo (7639). Esses códigos (196 e 7639) são aqueles do próprio PJe, que vemos quando escolhemos manualmente o movimento."
+    ]
+  },
+  {
+    "date": "30/05/2025",
+    "version": "4.17.1",
+    "package": "maispje-4.17.1-fx.xpi",
+    "changes": [
+      "Correção: MODULO9: SISBAJUD: corrigidos bugs diversos",
+      "Correção: ENVIAR EMAIL: corrigido o bug que impedia montar a mensagem de email/whattsapp",
+      "Correção: MODULO10: corrigido o bug da funcionalidade 'Juntar Depoimento' quando iniciado da pauta de audiências.",
+      "Correção: Atalho Pauta PJe (F2): corrigido o atalho para acessar a pauta do processo no PJe através das planilhas do google.",
+      "Correção: JANELA DETALHES DO PROCESSO: corrigido bug da funcionalidade barra de botões ddo documento (zoom, enviar email, enviar whattsapp, mapearIDs) quando o documento for do padrão antigo (documento envolto de uma moldura cinza escuro).",
+      "Correção: MAPEAR ID: corrigido o bug no mapeamento de Ids, seja no documento na janela detalhes do processo, seja na janela em separado, seja no modelo novo, seja no modelo antigo.",
+      "Correção: VARIÁVEIS PJE: VARIÁVEL CHAVE DE ACESSO: corrigida o bug na consulta da api.",
+      "Correção: CONSULTA F1: corrigido o bug para viabilizar a consulta apenas por parte do número do processo sem precisar usar o caracter '-', desde que a quantidade de números seja inferior a 7.",
+      "Correção: AÇÃO AUTOMATIZADA EM LOTE: RETIFICAR AUTUAÇÃO: corrigida o bug para permitir o prosseguimento dos processos do lote."
+    ],
+    "testes": [
+      "Melhoria: Ação Automatizada em Lote: aprimorada a funcionalidade de Ação Automatizada em lote para fazer constar mais detalhes nos casos de sobrestamento. Criado também filtro por tipo de sobrestamento",
+      "Melhoria: Copiar Lista de Processos: adicionado comando especial (Ctrl+clique) que leva a lista de processos diretamente para a funcionalidade Ação Automatizada em Lote.",
+      "Melhoria: Pauta de Audiência: criado o botão Hoje, que permite ao usuário retornar o calendário para o dia atual."
+    ]
+  },
+  {
+    "date": "15/07/2025",
+    "version": "4.17.2",
+    "package": "maispje-4.17.2-fx.xpi",
+    "changes": [
+      "Correção: MENU KAIZEN: CONFERIR ALVARÁS: retirada a condição de Diretor de Secretaria para visualizar a funcionalidade conferir alvarás, em razão das peculiaridades do segundo grau.",
+      "Correção: MODULO8: ORGÃO JULGADOR CARGO: identificado e corrigido o bug do õrgão julgador cargo. Cada Regional cadastra o órgão julgador cargo com um nome diferente, o que gerava inconsistência na funcionalidade. Agora foi corrigido. Ex: Juiz Substituo e Juiz do Trabalho Substituto.",
+      "Correção: MODULO9: SERASAJUD: corrigida a extensão para uso no SERASAJUD.",
+      "Correção: MODULO9: SIF: reformulado o auxilio para preenchimento de alvarás.",
+      "Correção: CONFERENCIA ALVARÁ: SIF: a fim de acelerar o processo na obtençãod e dados, o emissor do alvará será recuperado após a criação da tabela.",
+      "Correção: MODULO9: PJECALC: Corrigido o preenchimento dos dados do processo para quando o usuário incluir um novo cálculo externo",
+      "Correção: RETIFICAR AUTUAÇÃO: ADVOGADOS: corrigida a lista de partes para vincular o advogado exibindo 50 itens por vez.",
+      "Correção: AÇÕES AUTOMATIZADAS EM LOTE: corrigida a interrupção das ações automatizadas em lote ao pressionar a tecla ESC.",
+      "Correção: TIPO EM LOTE: corrigida a descrição dos documentos SISBAJUD para fazer constar: bloqueio SISBAJUD e desbloqueio SISBAJUD, conforme o caso.",
+      "Correção: Painel Copia e Cola: correção na busca do resulta do cadastro da parte no Domicílio Eletrônico",
+      "Correção: MODULO5: Filtros Favoritos com função específica: corrigido o filtro Conferir Teimosinha em Lote para evitar que a resposta da teimosinha seja anexada a processo diverso.",
+      "Correções diversas para a versão 2.15.2 do PJe."
+    ],
+    "testes": [
+      "Melhoria: Ação Automatizada em Lote: aprimorada a funcionalidade de Ação Automatizada em lote para fazer constar mais detalhes nos casos de sobrestamento. Criado também filtro por tipo de sobrestamento",
+      "Melhoria: Copiar Lista de Processos: adicionado comando especial (Ctrl+clique) que leva a lista de processos diretamente para a funcionalidade Ação Automatizada em Lote.",
+      "Melhoria: Pauta de Audiência: criado o botão Hoje, que permite ao usuário retornar o calendário para o dia atual.",
+      "Melhoria: MODULO7: VARIADAS: a ação automatizada de Assinar Documentos agora reconhece se o documento não possui texto mas possui imagem inserida no editor, permitindo a assinatura em lote.",
+      "Melhoria: MODULO7: VARIADAS: criadas a Ação Automatizada de: AUTOGIGS>Trocar Responsável Atividade GIGS, que renova o responsável por uma atividade GIGS já existente.",
+      "Melhoria: ATALHO: criado atalho personalizado para a funcionalidade Painel Copia e Cola.",
+      "Melhoria: MODULO7: VARIADAS: criada a Ação Automatizada Variadas de: Atualizar Timeline, que atualiza apenas a timeline de documentos do process, sem atualizar toda a pagina",
+      "Melhoria: MODULO7: DESPACHO: criada a possibilidade de aplicar visibilidade ao botão de acordo com a fase processual.",
+      "Melhoria: MODULO5: FILTRO GERAL: agora o meu filtro é alternável, ou seja, uma vez acionado fica ativado para as futuras tabelas carregadas.",
+      "Melhoria: Atalho F1: agora ao selecionar vários números de processo e pressionar F1, abrirá a janela detalhes de todos, um por um.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL PERITO: criada a variável que traz o(s) nome(s) do(s) perito(s) do processo.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL TELEFONE EXEQUENTE: criada a variável que traz o número de telefone do autor da ação.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL ANEXOS DA ÚLTIMA PETIÇÃO: criada a variável que traz a lista de Ids dos anexos da última petição juntada.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL AUDIÊNCIA DATA E HORA: criadas as variáveis que traz a data e a hora da audiência marcada.",
+      "Melhoria: MODULO7: VARIADAS: ENVIAR EMAIL: agora os ajustes do temporizador serve para definir por quanto tempo a extensão deve aguardar antes de clicar no botão enviar email.",
+      "Melhoria: JANELA PRINCIPAL: RELATÓRIO GIGS: o duplo clique no icone do Relatório GIGS traz as atividades sem prazo sob sua responsabilidade. Se segurar a Tecla CTRL durante o duplo clique trará os prazos vencidos sob sua responsabilidade.",
+      "Melhoria: MODULO9: SISBAJUD: criado menu para pesquisa de ordens por protocolo. Ao consultar o protocolo o processo é aberto automaticamente.",
+      "Melhoria: Enviar email: reconhece padrões de email no texto, separando-os e preenchendo o campo destinatário com eles.",
+      "Melhoria: MODULO1: MAPEAR IDs: Agora o mapeamento de Ids está reconhecendo mais padrões e ao repousar o mouse em cima do id mapeado aparecerá uma prévia do documento referenciado.",
+      "Melhoria: MODULO1: MAPEAR IDs: segurar o Ctrl e clicar em cima do atalho criado pela função mapearIds, copia o respectivo id mapeado.",
+      "Melhoria: MODULO7: ATUALIZAÇÃO RÁPIDA: agora a atualização rápida de processo e RPV identifica se o processo aberto é o que disparou a atualização e, não sendo, limpa a memória do PJECalc refazendo o procedimento.",
+      "Melhoria: MODULO7: ATUALIZAÇÃO RÁPIDA: inserido o botão +PJe:Buscar na pesquisa de Relatório Consolidado.",
+      "Melhoria: MODULO7: Ação Automatizada de movimento: Sobrestamento: Agora é possível configurar sua AA para utilizar o novo padrão [AtualizarDataPeloGIGS], que atualizará o prazo do sobrestamento para o prazo encontrado na atividade GIGS. Se houver mais de um prazo, abrirá uma caixa de seleção para que você escolha do prazo desejado. Caso não aja escolha, decorridos 5 segundos, o primeiro prazo GIGS encontrado será utilizado.",
+      "Melhoria: MODULO7: AUTOGIGS: Agora é possível lançar prazos de atividades em dias corridos. Para isso basta preencher o campo 'Prazo' usando o número de dias mais a expressão dc. Por exemplo: para 60 dias corridos: 60dc, para 30 dias corridos: 30dc, e assim por diante.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para ocultar da timeline as Certidões de Publicação no DJEN.",
+      "Melhoria: MODULO7: AUTOGIGS: agora é possível configurar o tipo de evento como 'nenhum'. Com isso sua Ação Automatizada de Autogigs não executará nada, servindo apenas para chamar a cadeia de vínculo.",
+      "Melhoria: MODULO10: AUDI: agora a extensão mapeia o título do AUDI em busca do número do processo, criando o link para acesso mediante simples clique.",
+      "Melhoria: MODULO10: AUDI: agora é possível abrir o Painel Copia e Cola pode ser configurado para abrir quando a audiência do processo inicia."
+    ]
+  },
+  {
+    "date": "07/08/2025",
+    "version": "4.17.3",
+    "package": "maispje-4.17.3-fx.xpi",
+    "changes": [],
+    "testes": []
+  },
+  {
+    "date": "08/08/2025",
+    "version": "4.17.4",
+    "package": "maispje-4.17.4-fx.xpi",
+    "changes": [
+      "Correção: VARIÁVEIS PJE: corrigido bug nas variáveis de chave de acesso que retornavam o ID.",
+      "Correção: RENAJUD: aprimorada a pesquisa de partes no RENAJUD antigo, permitindo consultar várias pessoas com um único comando",
+      "Correção: AUTOGIGS: corrigida a variável [data_audi]",
+      "Correção: EXPEDIR ALVARÁ: SIF: corrigido erro quando o processo possui mais de uma parte. Incluído, também, o tipo de pessoa quando há alteração do representante.",
+      "Correção: MODULO8: ORGAO JULGADOR CARGO: corrigido erro para registros de orgão julgador cargo em letra minúscula.",
+      "Correção: MODULO5: MEU FILTRO: ajustado o tempo de aplicação do filtro de forma automática.",
+      "Correção: MODULO9: CENSEC: adaptada a extensão para uso com desafio captcha.",
+      "Correção: EXTRAS: permite ao usuário configurar que novas páginas sejam abertas em abas em vez de janelas.",
+      "Correção: JANELA DETALHES: corrigido bug que impedia o aparecimento dos botões de zoom, enviar email, whattsapp, mapearId no documento carregado.",
+      "Correção: JANELA TAREFA: MINUTA DE DESPACHO: corrigido bug que impedia o aparecimento do botão adicionar prazo em lote e marcar-desmarcar todos."
+    ],
+    "testes": [
+      "Melhoria: Ação Automatizada em Lote: aprimorada a funcionalidade de Ação Automatizada em lote para fazer constar mais detalhes nos casos de sobrestamento. Criado também filtro por tipo de sobrestamento",
+      "Melhoria: Copiar Lista de Processos: adicionado comando especial (Ctrl+clique) que leva a lista de processos diretamente para a funcionalidade Ação Automatizada em Lote.",
+      "Melhoria: Pauta de Audiência: criado o botão Hoje, que permite ao usuário retornar o calendário para o dia atual.",
+      "Melhoria: MODULO7: VARIADAS: a ação automatizada de Assinar Documentos agora reconhece se o documento não possui texto mas possui imagem inserida no editor, permitindo a assinatura em lote.",
+      "Melhoria: MODULO7: VARIADAS: criadas a Ação Automatizada de: AUTOGIGS>Trocar Responsável Atividade GIGS, que renova o responsável por uma atividade GIGS já existente.",
+      "Melhoria: ATALHO: criado atalho personalizado para a funcionalidade Painel Copia e Cola.",
+      "Melhoria: MODULO7: VARIADAS: criada a Ação Automatizada Variadas de: Atualizar Timeline, que atualiza apenas a timeline de documentos do processo, sem atualizar toda a página",
+      "Melhoria: MODULO7: DESPACHO: criada a possibilidade de aplicar visibilidade ao botão de acordo com a fase processual.",
+      "Melhoria: MODULO5: FILTRO GERAL: agora o meu filtro é alternável, ou seja, uma vez acionado fica ativado para as futuras tabelas carregadas.",
+      "Melhoria: Atalho F1: agora ao selecionar vários números de processo e pressionar F1, abrirá a janela detalhes de todos, um por um.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL PERITO: criada a variável que traze o(s) nome(s) do(s) perito(s) do processo.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL TELEFONE EXEQUENTE: criada a variável que traz o número de telefone do autor da ação.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL ANEXOS DA ÚLTIMA PETIÇÃO: criada a variável que traz a lista de Ids dos anexos da última petição juntada.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL AUDIÊNCIA DATA E HORA: criadas as variáveis que trazem a data e a hora da audiência marcada de forma separada.",
+      "Melhoria: MODULO7: VARIADAS: ENVIAR EMAIL: agora o ajuste do temporizador serve para definir por quanto tempo a extensão deve aguardar antes de clicar no botão enviar email.",
+      "Melhoria: JANELA PRINCIPAL: RELATÓRIO GIGS: o duplo clique no icone do Relatório GIGS traz as atividades sem prazo sob sua responsabilidade. Se segurar a Tecla CTRL durante o duplo clique trará os prazos vencidos sob sua responsabilidade.",
+      "Melhoria: MODULO9: SISBAJUD: criado menu para pesquisa de ordens por protocolo. Ao consultar o protocolo o processo é aberto automaticamente.",
+      "Melhoria: Enviar email: reconhece padrões de email no texto, separando-os e preenchendo o campo destinatário com eles.",
+      "Melhoria: MODULO1: MAPEAR IDs: Agora o mapeamento de Ids está reconhecendo mais padrões e ao repousar o mouse em cima do id mapeado aparecerá uma prévia do documento referenciado.",
+      "Melhoria: MODULO1: MAPEAR IDs: segurar o Ctrl e clicar em cima do atalho criado pela função mapearIds, copia o respectivo id mapeado.",
+      "Melhoria: MODULO7: ATUALIZAÇÃO RÁPIDA: agora a atualização rápida de processo e RPV identifica se o processo aberto é o que disparou a atualização e, não sendo, limpa a memória do PJECalc refazendo o procedimento.",
+      "Melhoria: MODULO7: ATUALIZAÇÃO RÁPIDA: inserido o botão +PJe:Buscar na pesquisa de Relatório Consolidado.",
+      "Melhoria: MODULO7: Ação Automatizada de movimento: Sobrestamento: Agora é possível configurar sua AA para utilizar o novo padrão [AtualizarDataPeloGIGS], que atualizará o prazo do sobrestamento para o prazo encontrado na atividade GIGS. Se houver mais de um prazo, abrirá uma caixa de seleção para que você escolha do prazo desejado. Caso não aja escolha, decorridos 5 segundos, o primeiro prazo GIGS encontrado será utilizado.",
+      "Melhoria: MODULO7: AUTOGIGS: Agora é possível lançar prazos de atividades em dias corridos. Para isso basta preencher o campo 'Prazo' usando o número de dias mais a expressão dc. Por exemplo: para 60 dias corridos: 60dc, para 30 dias corridos: 30dc, e assim por diante.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para ocultar da timeline as Certidões de Publicação no DJEN.",
+      "Melhoria: MODULO7: AUTOGIGS: agora é possível configurar o tipo de evento como 'nenhum'. Com isso sua Ação Automatizada de Autogigs não executará nada, servindo apenas para chamar a cadeia de vínculo.",
+      "Melhoria: MODULO10: AUDI: agora a extensão mapeia o título do AUDI em busca do número do processo, criando o link para acesso mediante simples clique.",
+      "Melhoria: MODULO10: AUDI: agora é possível abrir o Painel Copia e Cola pode ser configurado para abrir quando a audiência do processo inicia.",
+      "Melhoria: EXPEDIR ALVARÁ: SIF: agora a extensão pergunta para o usuário a parte beneficiária do alvará, preenchendo seus dados, assim como outros dados exigidos, tasis quais: data de atualização, data de vencimento, data de competência, código GRU e DARF, dentre outros.",
+      "Melhoria: MODULO9: CRCJUD: aprimorada a pesquisa eliminando cliques.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: criado o botão para copiar o Id do documento.",
+      "Melhoria: RETIFICAR AUTUAÇÃO: criada a ação automatizada para ASSOCIAR processos em Afetação, Apensamento,Corre-Junto,Dependência,Prevenção e Reunião.",
+      "Melhoria: MODULO7: DESPACHO: criada a configuração dos comandos especiais para pdoer retirá-los do nome do botão.",
+      "Melhoria: MODULO9: SIF: criada a possibilidade de configurar neste módulo, a data da correção bancária como sendo a Data do Dia ou a Data do Depósito."
+    ]
+  },
+  {
+    "date": "29/08/2025",
+    "version": "4.18.0",
+    "package": "maispje-4.18.0-fx.xpi",
+    "changes": [
+      "Correção: Correções diversas da versão 2.16.2 do PJe",
+      "Correção: Corrigidos erros diversos no MÓDULO8, quando escolhida a opção filtro por Órgão Julgador Cargo",
+      "Correção: MODULO7: MOVIMENTOS: corrigido o comando especial de [AtualizarDataPeloGIGS] quando o processo está fora do nó de SOBRESTAMENTO.",
+      "Melhoria: Ação Automatizada em Lote: aprimorada a funcionalidade de Ação Automatizada em lote para fazer constar mais detalhes nos casos de sobrestamento. Criado também filtro por tipo de sobrestamento",
+      "Melhoria: Copiar Lista de Processos: adicionado comando especial (Ctrl+clique) que leva a lista de processos diretamente para a funcionalidade Ação Automatizada em Lote.",
+      "Melhoria: Pauta de Audiência: criado o botão Hoje, que permite ao usuário retornar o calendário para o dia atual.",
+      "Melhoria: MODULO7: VARIADAS: a ação automatizada de Assinar Documentos agora reconhece se o documento não possui texto mas possui imagem inserida no editor, permitindo a assinatura em lote.",
+      "Melhoria: MODULO7: VARIADAS: criadas a Ação Automatizada de: AUTOGIGS>Trocar Responsável Atividade GIGS, que renova o responsável por uma atividade GIGS já existente.",
+      "Melhoria: ATALHO: criado atalho personalizado para a funcionalidade Painel Copia e Cola.",
+      "Melhoria: MODULO7: VARIADAS: criada a Ação Automatizada Variadas de: Atualizar Timeline, que atualiza apenas a timeline de documentos do processo, sem atualizar toda a página",
+      "Melhoria: MODULO7: DESPACHO: criada a possibilidade de aplicar visibilidade ao botão de acordo com a fase processual.",
+      "Melhoria: MODULO5: FILTRO GERAL: agora o meu filtro é alternável, ou seja, uma vez acionado fica ativado para as futuras tabelas carregadas.",
+      "Melhoria: Atalho F1: agora ao selecionar vários números de processo e pressionar F1, abrirá a janela detalhes de todos, um por um.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL PERITO: criada a variável que traze o(s) nome(s) do(s) perito(s) do processo.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL TELEFONE EXEQUENTE: criada a variável que traz o número de telefone do autor da ação.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL ANEXOS DA ÚLTIMA PETIÇÃO: criada a variável que traz a lista de Ids dos anexos da última petição juntada.",
+      "Melhoria: VARIÁVEIS PJE: VARIÁVEL AUDIÊNCIA DATA E HORA: criadas as variáveis que trazem a data e a hora da audiência marcada de forma separada.",
+      "Melhoria: MODULO7: VARIADAS: ENVIAR EMAIL: agora o ajuste do temporizador serve para definir por quanto tempo a extensão deve aguardar antes de clicar no botão enviar email.",
+      "Melhoria: JANELA PRINCIPAL: RELATÓRIO GIGS: o duplo clique no icone do Relatório GIGS traz as atividades sem prazo sob sua responsabilidade. Se segurar a Tecla CTRL durante o duplo clique trará os prazos vencidos sob sua responsabilidade.",
+      "Melhoria: MODULO9: SISBAJUD: criado menu para pesquisa de ordens por protocolo. Ao consultar o protocolo o processo é aberto automaticamente.",
+      "Melhoria: MODULO6: Enviar email: reconhece padrões de email no texto, separando-os e preenchendo o campo destinatário com eles.",
+      "Melhoria: MODULO1: MAPEAR IDs: Agora o mapeamento de Ids está reconhecendo mais padrões e ao repousar o mouse em cima do id mapeado aparecerá uma prévia do documento referenciado.",
+      "Melhoria: MODULO1: MAPEAR IDs: segurar o Ctrl e clicar em cima do atalho criado pela função mapearIds, copia o respectivo id mapeado.",
+      "Melhoria: MODULO7: ATUALIZAÇÃO RÁPIDA: agora a atualização rápida de processo e RPV identifica se o processo aberto é o que disparou a atualização e, não sendo, limpa a memória do PJECalc refazendo o procedimento.",
+      "Melhoria: MODULO7: ATUALIZAÇÃO RÁPIDA: inserido o botão +PJe:Buscar na pesquisa de Relatório Consolidado.",
+      "Melhoria: MODULO7: Ação Automatizada de movimento: Sobrestamento: Agora é possível configurar sua AA para utilizar o novo padrão [AtualizarDataPeloGIGS], que atualizará o prazo do sobrestamento para o prazo encontrado na atividade GIGS. Se houver mais de um prazo, abrirá uma caixa de seleção para que você escolha do prazo desejado. Caso não aja escolha, decorridos 5 segundos, o primeiro prazo GIGS encontrado será utilizado.",
+      "Melhoria: MODULO7: AUTOGIGS: Agora é possível lançar prazos de atividades em dias corridos. Para isso basta preencher o campo 'Prazo' usando o número de dias mais a expressão dc. Por exemplo: para 60 dias corridos: 60dc, para 30 dias corridos: 30dc, e assim por diante.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para ocultar da timeline as Certidões de Publicação no DJEN.",
+      "Melhoria: MODULO7: AUTOGIGS: agora é possível configurar o tipo de evento como 'nenhum'. Com isso sua Ação Automatizada de Autogigs não executará nada, servindo apenas para chamar a cadeia de vínculo.",
+      "Melhoria: MODULO10: AUDI: agora a extensão mapeia o título do AUDI em busca do número do processo, criando o link para acesso mediante simples clique.",
+      "Melhoria: MODULO10: AUDI: agora é possível abrir o Painel Copia e Cola pode ser configurado para abrir quando a audiência do processo inicia.",
+      "Melhoria: EXPEDIR ALVARÁ: SIF: agora a extensão pergunta para o usuário a parte beneficiária do alvará, preenchendo seus dados, assim como outros dados exigidos, tasis quais: data de atualização, data de vencimento, data de competência, código GRU e DARF, dentre outros.",
+      "Melhoria: MODULO9: CRCJUD: aprimorada a pesquisa eliminando cliques.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: criado o botão para copiar o Id do documento.",
+      "Melhoria: RETIFICAR AUTUAÇÃO: criada a ação automatizada para ASSOCIAR processos em Afetação, Apensamento,Corre-Junto,Dependência,Prevenção e Reunião.",
+      "Melhoria: MODULO7: DESPACHO: criada a configuração dos comandos especiais para poder retirá-los do nome do botão.",
+      "Melhoria: MODULO9: SIF: criada a possibilidade de configurar neste módulo, a data da correção bancária como sendo a Data do Dia ou a Data do Depósito.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: criado o botão para certificar vencimento de prazo de expedientes. Acessível na tela de Exedientes da timeline do processo.",
+      "Melhoria: Atalho F1: agora ao selecionar um número de e pressionar F1, a extensão irá identificar se o número é do Órgão Julgador do usuário OU do Regional do usuário OU de outro Regional OU de Outra Justiça. A depender do caso abrirá o processo no PJe, PJe processos de terceiros ou plataforma PDPJ.",
+      "Melhoria: MODULO7: DESPACHO: criada ação automatizada fixa para aceitar/rejeitar prevenção.",
+      "Melhoria: MODULO1: O atalho de perícias agora traz também a relação de perícias, o nome do perito, sua especialidade e a situação atual da perícia.",
+      "Melhoria: TAREFA REMESSA DE RECURSO: análise e posicionamento."
+    ],
+    "testes": []
+  },
+  {
+    "date": "12/09/2025",
+    "version": "4.18.1",
+    "package": "maispje-4.18.1-fx.xpi",
+    "changes": [
+      "Correções e ajustes diversos.",
+      "Correção: MODULO9: SERASAJUD: corrigido o bug para registro automatico da baixa de uma dívida.",
+      "Correção: MODULO9: RENAJUD: corrigido o bug para preenchimento do campo número do processo.",
+      "Correção: Atalho F1: Corrigida a pesquisa de processos quando o usuário troca o perfil (órgão julgador).",
+      "Correção: MODULO9: SIF: corrigida a opção de ativar/desativar a extensão no SIF.",
+      "Correção: MODULO7: AUTOGIGS: corrigido o erro na variável do prazo [data_audi].",
+      "Correção: MODULO9: GPREC: corrigido o erro no preenchimento da data, quando do registro do pagamento."
+    ],
+    "testes": [
+      "Melhoria: MODULO9: SISBAJUD: criado o botão 'Ir última página' em complementação aos botões 'Bloqueios pendentes','Não Respostas' e 'Não lidas'. O novo objetivo levara a lista pesquisada para os processos mais antigos.",
+      "Melhoria: MODULO7: COMUNICAÇÃO: criada a configuração dos comandos especiais para poder retirá-los do nome do botão.",
+      "Melhoria: MODULO9: GPREC: criado atalho para registro do prazo de pagamento dos RPVs.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: criado o botão para buscar o expediente no e-cARTA. Acessível na tela de Exedientes da timeline do processo.",
+      "Melhoria: AÇÃO AUTOMATIZADA EM LOTE:  adicionada as ações automatizadas fixas de receber e rejeitar prevenção para uso em lote.",
+      "Melhoria: MODULO7: AUTOGIGS: substituída a variável 'corrigir data' pela expressão [perguntar], que a partir desta versão deverá ser utilizada no campo Prazo."
+    ]
+  },
+  {
+    "date": "10/10/2025",
+    "version": "4.18.2",
+    "package": "maispje-4.18.2-fx.xpi",
+    "changes": [
+      "Correções e ajustes diversos.",
+      "Correção: CONCLUSÃO AO MAGISTRADO: aprimorada a inclusão dos botões prazo em lote e marcar/desmarcar todos, sem precisar clicar em Salvar ao entrar na tarefa.",
+      "Correção: JANELA ANEXAR DOCUMENTOS: Excluir anexos em Lote: corrigido erro que impedia o clique no botão de juntada do arquivo PJC.",
+      "Correção: MODULO9: SERASAJUD: corrigido novos bugs para registro automatico da baixa de uma dívida.",
+      "Correção: EXTRAS: Procurar Execução: corrigido bug na busca de execuçãos pelo relatório SAO utilizando o CPF da parte.",
+      "Correção: Atalho F1: Corrigida a pesquisa de processos quando o nome da parte possui numerais."
+    ],
+    "testes": [
+      "Melhoria: MODULO9: SISCONDJ: criada configuração para o usuário escolher expandir, ou não, as subcontas automaticamente ao abrir a tela do extrato.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: o gigs do tipo 'Atenção' (se você não tem deve ser criado) cria um destaque na janela com a mensagem desejada. Opção configurável no módulo2.",
+      "Melhoria: MODULO5: criado o filtro especial 'Processos parados há mais de XX dias'.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de requisição de informação no sisbajud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'sisbajud' junto da palavra 'endereço' e/ou 'informação'. Ex: Prazo: Sisbajud endereço",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de teimosinha no sisbajud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'sisbajud'. Ex: Prazo: Sisbajud",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem sisbajud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra sisbajud. Ex: Convênio: Sisbajud",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem prevjud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra prevjud. Ex: Convênio: Prevjud",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de no prevjud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'prevjud'. Ex: Prazo: Prevjud",
+      "Melhoria: JANELA PRINCIPAL: criado botão para sincronizar os dados básicos do usuário no PJe na memória da extensão. O botão se chama 'maisPJe ↺', e fica acessível ao clicar na foto do usuário, abaixo do botão FECHAR.",
+      "Melhoria: MODULO9: PREVJUD: criada a configuração de ação automatizada a ser executada automaticamente após o PROTOCOLO e CONSULTA de uma ordem Prevjud. ALém da opção para baixar os documentos assim que se realiza a consultad e um protocolo.",
+      "Melhoria: MODULO7: ANEXAR DOCUMENTOS: Ampliada a programação da visibilidade de sigilo nos documentos juntados também para peritos e para perguntar na hora da aplicação.",
+      "Correção Técnica: removidas as funcionalidades 'ordenar e inverter AUTOTEXTOS' e 'Ao usar # inverter a ordem de exibição dos documentos' existentes nas CONFIGURAÇÕES > EXTRAS > d) Janelas com EDITOR DE TEXTOS.",
+      "Correção: MODULO1: APRECIAR PETIÇÕES: agora a funcionalidade corrige o bug do PJe que impede o carregamento do documento clicado na timeline do processo."
+    ]
+  },
+  {
+    "date": "27/10/2025",
+    "version": "4.18.3",
+    "package": "maispje-4.18.3-fx.xpi",
+    "changes": [
+      "Correção: corrigida a funcionalidade excluir selecionados da tarefa AGUARDANDO CUMPRIMENTO DE ACORDO.",
+      "Correção: MODULO7: MOVIMENTO: corrigida as movimentações para as tarefas ARQUIVO DEFINITIVO e ARQUIVAR CARTA.",
+      "Correção: MODULO1: APRECIAR PETIÇÕES: agora a funcionalidade corrige o bug do PJe que impede o carregamento do documento clicado na timeline do processo.",
+      "Correção: MODULO1: MAPEAR IDs: corrigido o acesso ao documento quando o ID mapeado está referenciado em caixa alta.",
+      "Correção Técnica: removidas as funcionalidades 'ordenar e inverter AUTOTEXTOS' e 'Ao usar # inverter a ordem de exibição dos documentos' existentes nas CONFIGURAÇÕES > EXTRAS > d) Janelas com EDITOR DE TEXTOS.",
+      "Correção Técnica: removido o filtro especial 'Processos sem GIGS cadastrado' pois já incorporados ao PJe.",
+      "Correção: MODULO7: DESPACHOS: corrigido o lançamento de movimentos para múltiplos lançamentos. Exemplo de configuração de lançamento múltiplo de movimento: 50141-804,7154,polo ativo-1059,7154,polo ativo,7154,polo passivo",
+      "Correção: MODULO7: AUTOGIGS: LEMBRETE: corrigido o bug para desbloquear a tela nos casos em que o salvamento automático está configurado para 'não'.",
+      "Correção: MODULO9: PESQUISA PROCESSUAL: corrigida a pesquisa processual a partir dos convênios.",
+      "Correção: MODULO7: CHECKLIST: corrigida a possibilidade de importar uma ação automatizada de checklist",
+      "Correção: MODO LGPD: corrigida a aplicação do modo LGPD"
+    ],
+    "testes": [
+      "Melhoria: MODULO2: criado botões para importar/exportar regras e excluir todas as regras.",
+      "Melhoria: MODULO2: criado controle para reposicionar as regras do módulo2 já criadas.",
+      "Melhoria: MODULO9: PREVJUD: criada a configuração de ação automatizada a ser executada automaticamente após o PROTOCOLO e CONSULTA de uma ordem Prevjud. ALém da opção para baixar os documentos assim que se realiza a consultad e um protocolo.",
+      "Melhoria: MODULO7: ANEXAR DOCUMENTOS: Ampliada a programação da visibilidade de sigilo nos documentos juntados também para peritos e para perguntar na hora da aplicação.",
+      "Melhoria: MÓDULO9: no convênio SISBAJUD foi criado botão para marcar/desmarcar todas as contas atingidas pelo bloqueio.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem AJJT. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra 'AJJT' ou 'RHP'. Ex: Convênio: AJJT",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de no AJJT. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'AJJT' ou 'RHP'. Ex: Prazo: RHP",
+      "Melhoria: Tarefa Aguardando Cumprimento de Acordo: ao clicar no botão 'Registrar Cumprimento das Obrigações' sem ter marcado nenhum opção de parcela e/ou obrigação, a extensão marcará automaticamente todas as opções disponíveis pra vc. Contudo, por segurança, vc deve clicar novamente no botão para confirmar o registro.",
+      "Melhoria: CONCLUSÃO AO MAGISTRADO: BOTÃO PRAZO EM LOTE: agora o botão prazo em lote também identifica os destinatários da intimação e sua relação com o polo processual.",
+      "Melhoria: MODULO7: DESPACHOS: COMANDOS ESPECIAIS: agora é possível escolher o destinatário da intimação automática, entre polo ativo, polo passivo, polo ativo e passivo, perito ou todos."
+    ]
+  },
+  {
+    "date": "07/11/2025",
+    "version": "4.18.4",
+    "package": "maispje-4.18.4-fx.xpi",
+    "changes": [
+      "Correção: MODULO7: AA Movimentar: é possível movimentar processos que estão no nó de desvio do fluxo de controle de dependência",
+      "Correção: MODULO9: SNIPER: ajustado o assistente de impressão para a tela Investigação de bens > Detalhes da Partes > Dados e Processos.",
+      "Correção: MODULO9: SNIPER: criado botão para impressão em lote de partes no grafo.",
+      "Correção: MODULO1: Apreciar Petições: corrigido o bug para desbloquear a tela nos casos em que não há petição a ser apreciada.",
+      "Correção: MODULO1: DOMICÍLIO ELETRÔNICO: corrigido o endereço de consulta do domicílio eletrônico."
+    ],
+    "testes": [
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem CCS. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra 'CCS'. Ex: Convênio: CCS",
+      "Melhoria: MODULO5: criado o filtro especial 'Obter Saldo Garimpo'."
+    ]
+  },
+  {
+    "date": "27/11/2025",
+    "version": "4.18.5",
+    "package": "maispje-4.18.5-fx.xpi",
+    "changes": [
+      "Correção do atalho f2."
+    ],
+    "testes": [
+      "Melhoria: MODULO8: Criada a regra para ignorar o zero.",
+      "Melhoria: Download do processo: criada ação automatizada para baixar o processo por fase: Conhecimento, Liquidação e Execução.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem CENSEC. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra 'CENSEC'. Ex: Convênio: CENSEC",
+      "Correção: MODULO9: no convênio SISBAJUD foi corrigido o botão para marcar/desmarcar todas as contas atingidas pelo bloqueio.",
+      "Melhoria: MODULO6: criada a configuração para o usuário escolher se quer que a extensão identifique os padrões de email no documento, para usá-los como destinatário. Ex: a extensão lê o teor do documento enviado em busca de padrões de email (xxx@xxx.com)",
+      "Melhoria: MODULO6: caso a opção de destinatário esteja ativada, o usuário poderá guardar um padrão de email que será ignorado como destinatário.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: implementado aviso automático para evitar execuções em duplicidade. As condições para aparecer o aviso são: que o processo esteja na Tarefa 'Recebimento de instância superior' e exista processo associado ao principal nas fases de liquidação e/ou execução."
+    ]
+  },
+  {
+    "date": "05/12/2025",
+    "version": "4.18.6",
+    "package": "maispje-4.18.6-fx.xpi",
+    "changes": [
+      "Correção: MODULO9: SNIPER: correções diversas",
+      "Correção: MODULO9: SERASAJUD: correções diversas"
+    ],
+    "testes": [
+      "Melhoria: filtro na janela de escolha de Ação Automatizada.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: MAPEAR IDs: agora a extensão identifica padrões de Id também nas atividades e comentários do GIGS.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para ocultar da timeline os documentos excluídos."
+    ]
+  },
+  {
+    "date": "09/12/2025",
+    "version": "4.18.7",
+    "package": "maispje-4.18.7-fx.xpi",
+    "changes": [
+      "Correção: MODULO7: intimação automática não era enviada para o assinar"
+    ],
+    "testes": []
+  },
+  {
+    "date": "12/12/2025",
+    "version": "4.18.8",
+    "package": "maispje-4.18.8-fx.xpi",
+    "changes": [
+      "Correção: MODULO7: Em alguns casos, gravava a intimação automática antes de selecionar os destinatários configurados",
+      "Correção: Acessibilidade: O indicador de foco somente é exibido quando navega usando o teclado (ou alguma tecnologia assistiva)"
+    ],
+    "testes": []
+  },
+  {
+    "date": "16/12/2025",
+    "version": "4.19.0",
+    "package": "maispje-4.19.0-fx.xpi",
+    "changes": [
+      "Melhoria: MODULO9: SISBAJUD: criado o botão 'Ir última página' em complementação aos botões 'Bloqueios pendentes','Não Respostas' e 'Não lidas'. O novo objetivo levara a lista pesquisada para os processos mais antigos.",
+      "Melhoria: MODULO7: COMUNICAÇÃO: criada a configuração dos comandos especiais para poder retirá-los do nome do botão.",
+      "Melhoria: MODULO9: GPREC: criado atalho para registro do prazo de pagamento dos RPVs.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: criado o botão para buscar o expediente no e-cARTA. Acessível na tela de Exedientes da timeline do processo.",
+      "Melhoria: AÇÃO AUTOMATIZADA EM LOTE:  adicionada as ações automatizadas fixas de receber e rejeitar prevenção para uso em lote.",
+      "Melhoria: MODULO7: AUTOGIGS: substituída a variável 'corrigir data' pela expressão [perguntar], que a partir desta versão deverá ser utilizada no campo Prazo.",
+      "Melhoria: MODULO9: SISCONDJ: criada configuração para o usuário escolher expandir, ou não, as subcontas automaticamente ao abrir a tela do extrato.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: o gigs do tipo 'Atenção' (se você não tem deve ser criado) cria um destaque na janela com a mensagem desejada. Opção configurável no módulo2.",
+      "Melhoria: MODULO5: criado o filtro especial 'Processos parados há mais de XX dias'.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de requisição de informação no sisbajud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'sisbajud' junto da palavra 'endereço' e/ou 'informação'. Ex: Prazo: Sisbajud endereço",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de teimosinha no sisbajud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'sisbajud'. Ex: Prazo: Sisbajud",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem sisbajud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra sisbajud. Ex: Convênio: Sisbajud",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem prevjud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra prevjud. Ex: Convênio: Prevjud",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de no prevjud. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'prevjud'. Ex: Prazo: Prevjud",
+      "Melhoria: JANELA PRINCIPAL: criado botão para sincronizar os dados básicos do usuário no PJe na memória da extensão. O botão se chama 'maisPJe ↺', e fica acessível ao clicar na foto do usuário, abaixo do botão FECHAR.",
+      "Melhoria: MODULO9: PREVJUD: criada a configuração de ação automatizada a ser executada automaticamente após o PROTOCOLO e CONSULTA de uma ordem Prevjud. ALém da opção para baixar os documentos assim que se realiza a consultad e um protocolo.",
+      "Melhoria: MODULO7: ANEXAR DOCUMENTOS: Ampliada a programação da visibilidade de sigilo nos documentos juntados também para peritos e para perguntar na hora da aplicação.",
+      "Melhoria: MODULO2: criado botões para importar/exportar regras e excluir todas as regras.",
+      "Melhoria: MODULO2: criado controle para reposicionar as regras do módulo2 já criadas.",
+      "Melhoria: MÓDULO9: no convênio SISBAJUD foi criado botão para marcar/desmarcar todas as contas atingidas pelo bloqueio.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem AJJT. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra 'AJJT' ou 'RHP'. Ex: Convênio: AJJT",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de no AJJT. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade com prazo (ícone de relógio) e conter na observação a palavra 'AJJT' ou 'RHP'. Ex: Prazo: RHP",
+      "Melhoria: Tarefa Aguardando Cumprimento de Acordo: ao clicar no botão 'Registrar Cumprimento das Obrigações' sem ter marcado nenhum opção de parcela e/ou obrigação, a extensão marcará automaticamente todas as opções disponíveis pra vc. Contudo, por segurança, vc deve clicar novamente no botão para confirmar o registro.",
+      "Melhoria: CONCLUSÃO AO MAGISTRADO: BOTÃO PRAZO EM LOTE: agora o botão prazo em lote também identifica os destinatários da intimação e sua relação com o polo processual.",
+      "Melhoria: MODULO7: DESPACHOS: COMANDOS ESPECIAIS: agora é possível escolher o destinatário da intimação automática, entre polo ativo, polo passivo, polo ativo e passivo, perito ou todos.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem CCS. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra 'CCS'. Ex: Convênio: CCS",
+      "Melhoria: MODULO5: criado o filtro especial 'Obter Saldo Garimpo'.",
+      "Melhoria: MODULO8: Criada a regra para ignorar o zero.",
+      "Melhoria: Download do processo: criada ação automatizada para baixar o processo por fase: Conhecimento, Liquidação e Execução.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criado atalho para protocolo de nova ordem CENSEC. A atividade âncora, que irá criar o botão, DEVERÁ ser atividade sem prazo (ícone de caneta) e conter na observação a palavra 'CENSEC'. Ex: Convênio: CENSEC",
+      "Correção: MODULO9: no convênio SISBAJUD foi corrigido o botão para marcar/desmarcar todas as contas atingidas pelo bloqueio.",
+      "Melhoria: MODULO6: criada a configuração para o usuário escolher se quer que a extensão identifique os padrões de email no documento, para usá-los como destinatário. Ex: a extensão lê o teor do documento enviado em busca de padrões de email (xxx@xxx.com)",
+      "Melhoria: MODULO6: caso a opção de destinatário esteja ativada, o usuário poderá guardar um padrão de email que será ignorado como destinatário.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: implementado aviso automático para evitar execuções em duplicidade. As condições para aparecer o aviso são: que o processo esteja na Tarefa 'Recebimento de instância superior' e exista processo associado ao principal nas fases de liquidação e/ou execução. Também verifica processos antigos não associados, que foram convertidos ao PJe somente agora pois estavam no TST, em que haja identidade de partes e fase de liquidação/execução.",
+      "Melhoria: filtro na janela de escolha de Ação Automatizada.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: MAPEAR IDs: agora a extensão identifica padrões de Id também nas atividades e comentários do GIGS.",
+      "Melhoria: MODULO1: agora é possível configurar a extensão para ocultar da timeline os documentos excluídos."
+    ],
+    "testes": []
+  },
+  {
+    "date": "02/02/2026",
+    "version": "4.19.1",
+    "package": "maispje-4.19.1-fx.xpi",
+    "changes": [
+      "Correção: corrigida a incompatibilidade com as versões mais recentes do firefox (147.0.x adiante).",
+      "Correção: GIGS: corrigida a exibição dos feriados no calendário do GIGS.",
+      "Correção: DETALHES DO PROCESSO: SIGILO: corrigida a aplicação de sigilo automática das ações automatizadas.",
+      "Correção: AÇÃO AUTOMATIZADA RÍGIDA - CALCULOS: corrigido o bug que impedia a atualização rápida dos cálculos para os casos de apenas um cálculo por processo.",
+      "Correção: AUTOGIGS: MAPEAR ID: corrigido o bug no mapeamento de id em comentários.",
+      "Correção: VÍNCULOS: CLICAR EM: corrigido o bug no uso desses atalahos no vínculo.",
+      "Correção: JANELA DETALHES DO PROCESSO: corrigido o aviso automático de execuções em duplicidade, nos casos de processos com identidade de partes na fase de EXECUÇÃO/LIQUIDAÇÃO. O erro era aparecer o próprio processo pesquisado no aviso.",
+      "Correção: DOWNLOAD DO PROCESSO: corrigido o bug de seleção dos documentos ao baixar o processo por fase: Conhecimento, Liquidação e Execução.",
+      "Correção: MODULO7: DESPACHO: corrigido o bug nos comandos especiais de movimento quando ocorria multipla seleção de movimentos. Ex: (50047)-(11382)-(12040)-(12037)",
+      "Correção: MODULO9: CENSEC: corrigido o uso da extensão no convênio CENSEC."
+    ],
+    "testes": [
+      "Melhoria: MODULO9: GARIMPO: criado o assistente de impressão para o convênio GARIMPO. Aparece apenas quando consultado o extrato através da janela detalhes do processo.",
+      "Melhoria: MODULO7: AÇÕES AUTOMATIZADAS VARIADAS: As ações Automatizadas de Aceitar/Rejeitar prevenção agora compõe o quadro dessas ações. A vantagem é que agora você poderá definir um modelo para utilizar nas ações automatizadas de REJEITAR PREVENÇÃO.",
+      "Melhoria: MODULO9: CNIB: aprimorada a utilização da extensão no convênio CNIB. O usuário poderá configurar passo a passo os eventos de 'Nova Minuta' como: preencher os campos automaticamente com o acionamento da varinha mágica, confirmar as próximas telas, protocolar a ordem, guardar o número do protocolo no ctrl+c e mandar imprimir a tela de recibo. ALém disso, é possível definir uma ação automatizada para ser acionada ao final do protocolo.",
+      "Melhoria: MODULO7: VINCULOS: permite usar como vínculo o atalho F2 e o atalho F3.",
+      "Melhoria: JANELA PRINCIPAL: RELATORIO GIGS: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados.",
+      "Melhoria: JANELA PRINCIPAL: MEU PAINEL: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados."
+    ]
+  },
+  {
+    "date": "20/02/2026",
+    "version": "4.19.2",
+    "package": "maispje-4.19.2-fx.xpi",
+    "changes": [
+      "Correção: corrigidos os eventos de digitação.",
+      "Correção: MODULO9: ECARTA: corrigido erro na funcionalidade em decorrência da versão 147 do Firefox",
+      "Correção: Filtro Favorito: corrigida a inclusão da TAREFA e FASE do Processo no filtro favorito do relatório GIGS.",
+      "Correção: GUARDAR DADOS DO PROCESSO: corrigida a obtenção da data da concessão da justiça gratuita.",
+      "Correção: VARIÁVEIS MAISPJE: corrigido o preenchimento das variáveis [maisPje:justiçagratuita] e [maisPje:justiçagratuitaData].",
+      "Correção: MODULO1: Desativada a funcionalidade de pesquisa personalizada de documentos. Motivo: A funcionalidade existente no PJe supre esta funcionalidade.",
+      "Correção: MODULO7: RETIFICAR AUTUAÇÃO: corrigido o uso das AA de Retificar Autuação nos vínculos.",
+      "Correção: MODULO7: DESPACHOS: corrigido o bug no lançamento de movimentos par ao pje versão 2.19.0 - Caraúba.",
+      "Correção: Acessibilidade: Permite usuário escolher se quer que as prévias dos documentos sejam carregadas ao passar o mouse sobre ou ao focar no documento."
+    ],
+    "testes": [
+      "Melhoria: MODULO9: CRCJUD: incluída a possibilidade de incluir terceiros interessados nas consultas",
+      "Melhoria: MODULO7: VARIADAS: ATALHO F4: inserido no menu kaizen a funcionalidade de atribuir uma ação automatizada ao atalho F4 do teclado. Esta AA pode ser alterada a qualquer momento de acordo com a necessidade do usuário dentro do menu kaizen.",
+      "Melhoria: MODULO1: JANELA DETALHES DO PROCESSO: criado atalho (representado por uma estrela dourada) que exibe ao usuário TODAS suas Ações Automatizadas, permitindo-o escolher uma delas para executar naquele momento.",
+      "Melhoria: MODULO1: JANELA DETALHES DO PROCESSO: foi criada a opção de configuração para exibir a fase na timeline do processo. Ativada, criará uma régua colorida que identificará a fase processual quando da juntada dos documentos. As corres correspondem à fase: azul, inicial; verde: liquidação; cinza: execução;e, roxo: arquivado.",
+      "Melhoria: MODULO9: ECARTA: Criado atalho para certificar o resultado do Registro no PJe.",
+      "Melhoria: MODULO7: NOMEAR PERITO: criado módulo próprio 7.7 para elaboração/edição de ações automatizadas específicas para nomear de peritos, que automatiza o procedimento de 'Incluir perícia'."
+    ]
+  },
+  {
+    "date": "17/03/2026",
+    "version": "4.19.4",
+    "package": "maispje-4.19.4-fx.xpi",
+    "changes": [
+      "Correção: Acessibilidade: Permite usuário escolher se quer que as prévias dos documentos sejam carregadas ao passar o mouse sobre ou ao focar no documento.",
+      "Correção: MODULO7: RETIFICAR AUTUAÇÃO: Inserir Prioridade: corrigida a ação automatizada para a mudança do PJe que vincula uma prioridade a uma parte do processo."
+    ],
+    "testes": [
+      "Melhoria: MODULO7: AUTOGIGS: CHIP: CONCLUIR: criada funcionalidade para excluir todos os chips removíveis do processo, basta usar a expressão concluir e deixar o campo CHIP em branco.",
+      "Melhoria: Extras: e-Rec: exibe documentos do PJe e opção para criar Gigs específico (permite especificar qual Gigs).",
+      "Melhoria: Painel Copia e Cola: criado o botão de consulta situação cadastral na receita federal",
+      "Melhoria: MODULO9: PJECALC: criado botão para automatizar a atualização rápida de processos com cálculo consolidado (reunião).",
+      "Melhoria: Janela Registrar Obrigação de Pagar: criado botão para automatizar a expedição de certidão de habilitação de créditos",
+      "Melhoria: Extras: e-Rec: exibe documentos do PJe e opção para criar Gigs específico (permite especificar qual Gigs)."
+    ]
+  },
+  {
+    "date": "18/03/2026",
+    "version": "4.19.5",
+    "package": "maispje-4.19.5-fx.xpi",
+    "changes": [
+      "Correção: MODULO7: corrigida a funcionalidade DESPACHO>Trocar Magistrado Responsável",
+      "Correção: MODULO7: corrigida a abertura em duplicidade da tela de tarefa na execução de AA",
+      "Correção: das funcionalidades painel copia e cola e conferir Alvará pelo SIF e SISCONDJ",
+      "Correção: MODULO9: Abertura do prevjud através do menu kaizen",
+      "Correção: MODULO9:SISBAJUD funcionando na versão velha e nova",
+      "Correção: Acessibilidade: Pode escolher se quer o destaque do foco só com o teclado (comportamento atual) ou ao clicar com o mouse também."
+    ],
+    "testes": []
+  },
+  {
+    "date": "25/03/2026",
+    "version": "4.19.6",
+    "package": "maispje-4.19.6-fx.xpi",
+    "changes": [
+      "Ajustes no Sisbajud"
+    ],
+    "testes": [
+      "Melhoria: MODULO10: é possível escolher uma sala de audiência favorita para quando acessar a pauta",
+      "Correção: MODULO7: NOMEAR PERITO: ampliada a possibilidade de cadastrar prazos em dias corridos, dias úteis e data certa. Corrigido o problema de nomeação observando o sorteio: basta deixar o campo nome do perito em branco.",
+      "Melhoria: Variáveis maisPJe: criadas as variáveis para último alvará expedido: chave e id"
+    ]
+  },
+  {
+    "date": "27/03/2026",
+    "version": "4.19.7",
+    "package": "maispje-4.19.7-fx.xpi",
+    "changes": [
+      "Correção: o carregamento das configurações da extensão poderia gerar erros em instalações novas",
+      "Correção: Corrigida as funcionalidades na tela de registrar obrigação de pagar e pagamento, relativamente a escolha do credor e devedor e do botão de inverter polo",
+      "Correção: MODULO9: CNIB: ajustada a extensão para obter do usuário a confirmação do processo a ser incluído/excluído. Isso é necessário pois o cnib não tem solução de cancelamento imediato de ordens protocoladas por equívoco."
+    ],
+    "testes": [
+      "Melhoria: e-Rec: Permite visualizar os documentos lado a lado com o sistema.",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de processos, caso seja indentificado um núymero de processo, nas atividades do GIGS ou Comentário",
+      "Melhoria: Variáveis maisPJe: criada a variável para trazer o magistrado responsável de acordo com a regra no módulo8.",
+      "Melhoria: MODULO7: AUTOGIGS e CHECKLIST: agora aceitam a expressão 'clipboard' no campo observação que preenche o campo com aqueles valores copiados pela extensão nos convênios, como número de protocolo, etc."
+    ]
+  }
+]

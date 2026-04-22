@@ -1,0 +1,69 @@
+{
+  "timestamp": "2025-11-07T13:20:50.885055",
+  "url_base": "https://pje.trt2.jus.br/pjekz/gigs/meu-painel",
+  "cookies": [
+    {
+      "name": "ASSINADOR_PJE",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "MO",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "sso_refresh_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI4ZmViYjJiOS0zYmIzLTQzZmItYTMxMS0xMjJmMmNlODIwNGUifQ.eyJleHAiOjE3NjI1NjA4NTEsImlhdCI6MTc2MjUzMjA1MSwianRpIjoiMmQwNzAxNjctMGE4NS00MzU5LTlhMjktOTI2OTg0MzIzZTM5IiwiaXNzIjoiaHR0cHM6Ly9zc28uY2xvdWQucGplLmp1cy5ici9hdXRoL3JlYWxtcy9wamUiLCJhdWQiOiJodHRwczovL3Nzby5jbG91ZC5wamUuanVzLmJyL2F1dGgvcmVhbG1zL3BqZSIsInN1YiI6IjAzNDcwZGMxLTg2ZGQtNDRhOS1hNTE5LTI5NGE0OTE5OTBlNCIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwamUtdHJ0Mi0xZyIsInNlc3Npb25fc3RhdGUiOiI0Yjk1YjNiZS1iMjg0LTRkNjAtYWUwNy1mYjIxMmM5NzBlZTMiLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiNGI5NWIzYmUtYjI4NC00ZDYwLWFlMDctZmIyMTJjOTcwZWUzIn0.Djswde1NkAYx-_pbdSBoTQGJxXhqHtimEZLgeBfF3Y8",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "access_token",
+      "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiJiZDlhZTgyNi1lZGYzLTRkNjQtOWQ0YS1jZWU1NDlkMGEzYmYiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc2MjUzMjA1Miwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc2MjUzNTY1Miwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiVVNVQVJJTyIsImlkIjo2Nzg4MzksImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJub21lIjoiU0lMQVMgUEFTU09TIEZFUlJFSVJBIiwicGVyZmlsIjoyMDY4MjAsInBhcGVsIjp7ImlkIjo1Mzk5LCJub21lIjoiU2VjcmV0w6FyaW8gZGUgQXVkacOqbmNpYSIsImlkZW50aWZpY2Fkb3IiOiJTRUNSRVRBUklPIn0sInBhcGVsS3oiOnsiaWQiOjIzLCJub21lIjoiU2Vydmlkb3IiLCJpZGVudGlmaWNhZG9yIjoiU0VSVklET1IifSwibG9jYWxpemFjYW8iOnsiaWQiOjQsImRlc2NyaWNhbyI6IkNvbnRyb2xlIGRlIEF1ZGnDqm5jaWEifSwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJzaWQiOiIxZmExYTA2MS04OTllLTQ5OWEtYjZlYi00ZGY1OGRkNmJlNTMiLCJvcmdhb0p1bGdhZG9yIjp7ImlkIjoxODcsImRlc2NyaWNhbyI6IjPCqiBWYXJhIGRvIFRyYWJhbGhvIGRlIFPDo28gUGF1bG8gLSBab25hIFN1bCJ9LCJvcmlnZW0iOiJUUlQyIiwib3RwUGVyc2lzdGlkbyI6ZmFsc2V9",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "access_token_footer",
+      "value": "eDRlgvlGgN483HIW1Nbe7mff1LzZvdCULwG5RhcCvNs8UOcFXQl6i9MwnR_WA57mNH_R5U0c4J5GLJEX_MZHEQ",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "Xsrf-Token",
+      "value": "B3A8888ECDE6A79F5A697BD0CD3C89ECEAF9D5B9DD18079F6D81FB6E31C71B80954A8A99966C58EB67D32D130A4EF8ED3438",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "refresh_token",
+      "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiI4YTE0MDFlMy1mNzBkLTRhOGQtODk1Zi0xOGEwMGFlZGE2OTciLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc2MjUzMjA1Miwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc2MjU3NTI1Miwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiUkVGUkVTSF9UT0tFTiIsImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJwZXJmaWwiOjIwNjgyMCwic2lkIjoiMWZhMWEwNjEtODk5ZS00OTlhLWI2ZWItNGRmNThkZDZiZTUzIiwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJvcmlnZW0iOiJUUlQyIn0.bodhe_i0bqIPiV2P_YbXw5xyVD2xLBy6CsxcVTNMzFK2_LdvaAxdzNGn0WX1ZJwP-IiH_Wj_CrM1ObbY2gXwBw",
+      "path": "/",
+      "domain": ".pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    }
+  ]
+}

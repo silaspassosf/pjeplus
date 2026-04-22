@@ -1,0 +1,59 @@
+@import url("/css/navegador.css");
+
+body{
+	overflow-y:scroll;
+}
+
+main{
+	height:100%;
+	margin:0;
+	padding:40px 0 30px 0;
+}
+
+section{
+	margin:1rem auto 0 auto;
+}
+
+configuracoes{
+	margin:0;
+}
+
+h2{
+	margin:0 0 1rem 0;
+}
+
+label{
+	color:rgba(var(--extensao-cor-branco),1);
+	margin:0;
+}
+
+input[type="date"]{
+	width:100%;
+}
+
+footer,
+header
+{
+	z-index:3 !important;
+}
+
+#importar,
+#salvar
+{
+	border-radius:10px;
+	box-shadow:0 2px 4px 2px rgba(var(--extensao-cor-preto),0.5);
+	padding:1rem;
+}
+
+#salvar{
+	bottom:0;
+	box-shadow:0 2px 4px 2px rgba(var(--extensao-cor-preto),0.5);
+	left:calc(50vw - 50px);
+	position:fixed;
+	width:100px;
+	z-index:4 !important;
+}
+
+#importar{
+	margin:1rem auto;
+}

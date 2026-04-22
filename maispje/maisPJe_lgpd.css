@@ -1,0 +1,324 @@
+/* *****PÁGINA PRINCIPAL***** */
+body {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****PÁGINA PRINCIPAL***** */
+
+/* Nome das partes nas listas da página principal */
+pje-data-table div[class*="sobrescrito"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Descrição do GIGS nas listas da página principal */
+.texto-descricao {
+	font-family: "Redacted Script", serif;
+}
+
+/* Responsável nas listas da página principal */
+input[aria-label*="Responsável"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Descrição da petição no escaninho */
+a[aria-label*="Visualizar"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Nome das partes na tabela de perícias */
+pje-celula-dados-basicos-processo div[class*="sobrescrito"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Nome dos peritos na tabela de perícias */
+span[aria-label*="Perito"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Nome dos destinatários no minutar despacho */
+span[class*="destinario"] {
+	font-family: "Redacted Script", serif;
+}
+
+
+/* Nome dos responsável na tabela de designação automática de responsáveis */
+pje-designacao-automatica div[class*="mat-tooltip-trigger"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Nome dos responsável na tabela do GIGS */
+pje-data-table[nametabela*="Tabela de Atividades"] td:nth-child(6) {
+	font-family: "Redacted Script", serif;
+}
+
+/* Nome dos responsável na tabela do GIGS */
+pje-data-table[nametabela*="Tabela de Comentários"] td:nth-child(5) {
+	font-family: "Redacted Script", serif;
+}
+
+
+/* *****GIGS***** */
+
+/* Descrição da atividade/Comentário GIGS  */
+pje-gigs-ficha-processo span[class*="descricao"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Responsável na atividade GIGS  */
+pje-gigs-ficha-processo span[class*="texto-responsavel"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* Nome do executado Checklist GIGS  */
+pje-gigs-ficha-processo span[class*="font-label-executado"] {
+	font-family: "Redacted Script", serif;
+}
+
+pje-gigs-dados-processo div[class*="wrapper"] div:nth-child(2) {
+	font-family: "Redacted Script", serif;
+}
+
+
+/* *****MAT-OPTIONS***** */
+.mat-option-text {
+	font-family: "Redacted Script", serif;
+}
+
+
+/* *****DETALHES DO PROCESSO***** */
+
+.partes {
+	font-family: "Redacted Script", serif !important;
+}
+
+.oj-cargo {
+	font-family: "Redacted Script", serif;
+}
+
+.campo-informacao {
+	font-family: "Redacted Script", serif;
+}
+
+.tl-documento {
+	font-family: "Redacted Script", serif;
+}
+
+div[class*="cabecalho-esquerda"] mat-card-title {
+	font-family: "Redacted Script", serif;
+}
+
+div[class*="cabecalho-esquerda"] mat-card-subtitle {
+	font-family: "Redacted Script", serif;
+}
+
+div[class*="cabecalho-central"] {
+	font-family: "Redacted Script", serif;
+}
+
+.conteudo-pdf {
+	filter: blur(5px);
+}
+
+pje-autuacao dd {
+	font-family: "Redacted Script", serif;
+}
+
+pje-parte-processo .partes-corpo {
+	font-family: "Redacted Script", serif;
+}
+
+pje-parte-processo .partes-representante {
+	font-family: "Redacted Script", serif;
+}
+
+.post-it-conteudo {
+	font-family: "Redacted Script", serif !important;
+}
+
+.rodape-post-it {
+	font-family: "Redacted Script", serif !important;
+}
+
+.post-it-titulo {
+	font-family: "Redacted Script", serif !important;
+}
+
+.nome-com-quebra {
+	font-family: "Redacted Script", serif !important;
+}
+
+pje-dialogo-post-it [aria-label="Informações de Edição"] {
+	font-family: "Redacted Script", serif !important;
+}
+
+/* *****TAREFA DO PROCESSO***** */
+
+pje-cabecalho-tarefa .nome-responsavel {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****SISBAJUD***** */
+
+.span-nome-juiz {
+	font-family: "Redacted Script", serif;
+}
+
+.span-nome-assessor {
+	font-family: "Redacted Script", serif;
+}
+
+.sisbajud-label-valor {
+	font-family: "Redacted Script", serif;
+}
+
+.col-reu-dados {
+	font-family: "Redacted Script", serif;
+}
+
+td[class*="cdk-column-juizSolicitante"] {
+	font-family: "Redacted Script", serif;
+}
+
+#maisPje_caixa_de_selecao span[style*="cursor: pointer"] {
+	font-family: "Redacted Script", serif;
+}
+
+input[placeholder*="Juiz Solicitante"] {
+	font-family: "Redacted Script", serif;
+}
+
+mat-select[name*="varaJuizoSelect"] {
+	font-family: "Redacted Script", serif;
+}
+
+input[placeholder*="CPF/CNPJ"] {
+	font-family: "Redacted Script", serif;
+}
+
+input[placeholder*="Vara/Juízo:"] {
+	font-family: "Redacted Script", serif;
+}
+
+input[placeholder*="Nome do autor"] {
+	font-family: "Redacted Script", serif;
+}
+
+.cdk-column-identificacao {
+	font-family: "Redacted Script", serif;
+}
+
+
+/* *****RETIFICAR AUTUAÇÃO***** */
+
+pje-nome-parte {
+	font-family: "Redacted Script", serif;
+}
+
+#inputCPF {
+	font-family: "Redacted Script", serif;
+}
+
+#inputCNPJ {
+	font-family: "Redacted Script", serif;
+}
+
+#inputNome {
+	font-family: "Redacted Script", serif;
+}
+
+#inputNomeFantasia {
+	font-family: "Redacted Script", serif;
+}
+
+#inputNomeResponsavel {
+	font-family: "Redacted Script", serif;
+}
+
+#inputCpfResponsavel {
+	font-family: "Redacted Script", serif;
+}
+
+#inputNomePessoaPesquisada {
+	font-family: "Redacted Script", serif;
+}
+
+#inputParteId {
+	font-family: "Redacted Script", serif;
+}
+
+#inputCPFParteId {
+	font-family: "Redacted Script", serif;
+}
+
+#inputGenitora {
+	font-family: "Redacted Script", serif;
+}
+
+span[class*="label-parte"] span:nth-child(2) {
+	font-family: "Redacted Script", serif;
+}
+
+.lista-selecao-partes {
+	font-family: "Redacted Script", serif;
+}
+
+pje-endereco mat-card-title {
+	font-family: "Redacted Script", serif;
+}
+	
+	
+
+/* *****PESQUISAR PROCESSO***** */
+
+mat-cell[class*="cdk-column-autor"] {
+	font-family: "Redacted Script", serif;
+}
+
+mat-cell[class*="cdk-column-terceiro"] {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****COMUNICAÇÕES***** */
+pje-pec-partes-polo .nome-parte {
+	font-family: "Redacted Script", serif;
+}
+
+pje-pec-partes-polo .partes-representante {
+	font-family: "Redacted Script", serif;
+}
+
+pje-editor .cabecalho  {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****AUDIÊNCIAS***** */
+pje-listagem-dia .sobrescrito  {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****SIF***** */
+.mat-select-value-text {
+	font-family: "Redacted Script", serif;
+}
+
+.mat-input-element {
+	font-family: "Redacted Script", serif;
+}
+
+.mat-column-nomeEmissor {
+	font-family: "Redacted Script", serif;
+}
+
+.formatacao-item-lista {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****ALVARÁS***** */
+pje-novo-alvara pje-dado-processo mat-card-content {
+	font-family: "Redacted Script", serif;
+}
+
+/* *****CÁLCULOS***** */
+.texto-preto {
+	font-family: "Redacted Script", serif;
+}

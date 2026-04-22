@@ -1,0 +1,476 @@
+{
+  "pilot": {
+    "utils": {
+      "files": [
+        "Fix/utils.py",
+        "Fix/utils_angular.py",
+        "Fix/utils_collect.py",
+        "Fix/utils_collect_content.py",
+        "Fix/utils_collect_timeline.py",
+        "Fix/utils_cookies.py",
+        "Fix/utils_drivers.py",
+        "Fix/utils_driver_legacy.py",
+        "Fix/utils_editor.py",
+        "Fix/utils_error.py",
+        "Fix/utils_formatting.py",
+        "Fix/utils_login.py",
+        "Fix/utils_observer.py",
+        "Fix/utils_paths.py",
+        "Fix/utils_recovery.py",
+        "Fix/utils_selectors.py",
+        "Fix/utils_sleep.py",
+        "Fix/utils_tempo.py"
+      ],
+      "files_analyzed": {
+        "Fix/utils.py": {
+          "parse_error": "invalid non-printable character U+FEFF (<unknown>, line 1)"
+        },
+        "Fix/utils_angular.py": {
+          "exports": [
+            "logger",
+            "aguardar_angular_carregar",
+            "aguardar_angular_requests",
+            "clicar_elemento_angular",
+            "preencher_campo_angular",
+            "aguardar_elemento_angular_visivel",
+            "verificar_angular_app",
+            "aguardar_angular_digest",
+            "obter_angular_scope",
+            "executar_angular_expressao",
+            "criar_js_otimizado",
+            "esperar_elemento_angular"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_collect.py": {
+          "exports": [
+            "logger",
+            "coletar_texto_seletor",
+            "coletar_valor_atributo",
+            "coletar_multiplos_elementos",
+            "coletar_tabela_como_lista",
+            "coletar_links_pagina",
+            "coletar_dados_formulario",
+            "extrair_numero_processo",
+            "extrair_cpf_cnpj",
+            "coletar_dados_pagina"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_collect_content.py": {
+          "exports": [
+            "logger",
+            "coletar_conteudo_formatado_documento",
+            "coletar_conteudo_js",
+            "coletar_elemento_css",
+            "executar_coleta_parametrizavel"
+          ],
+          "top_level_effects": [
+            "Try"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/utils_collect_timeline.py": {
+          "exports": [
+            "logger",
+            "coletar_link_ato_timeline"
+          ],
+          "top_level_effects": [
+            "Try"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/utils_cookies.py": {
+          "exports": [
+            "logger",
+            "USAR_COOKIES_AUTOMATICO",
+            "SALVAR_COOKIES_AUTOMATICO",
+            "PROJECT_ROOT",
+            "COOKIES_DIR",
+            "carregar_cookies_sessao",
+            "verificar_e_aplicar_cookies",
+            "salvar_cookies_sessao",
+            "limpar_cookies_antigos",
+            "listar_cookies_salvos",
+            "SimpleConfig",
+            "config"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_drivers.py": {
+          "exports": [
+            "logger",
+            "PROFILE_PATH",
+            "FIREFOX_BINARY",
+            "AHK_EXE_PC",
+            "AHK_SCRIPT_PC",
+            "AHK_EXE_NOTEBOOK",
+            "AHK_SCRIPT_NOTEBOOK",
+            "criar_driver_firefox",
+            "criar_driver_PC",
+            "criar_driver_VT",
+            "criar_driver_notebook",
+            "criar_driver_sisb_pc",
+            "criar_driver_sisb_notebook",
+            "configurar_driver_avancado",
+            "verificar_driver_ativo",
+            "fechar_driver_safely",
+            "fechar_driver_imediato",
+            "limpar_temp_selenium"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_driver_legacy.py": {
+          "exports": [
+            "logger",
+            "obter_driver_padronizado",
+            "driver_pc",
+            "navegar_para_tela"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_editor.py": {
+          "exports": [
+            "logger",
+            "inserir_html_editor",
+            "inserir_texto_editor",
+            "obter_ultimo_conteudo_clipboard",
+            "substituir_marcador_por_conteudo",
+            "inserir_link_ato",
+            "inserir_html_no_editor_apos_marcador",
+            "inserir_link_ato_validacao",
+            "inserir_conteudo_formatado"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_error.py": {
+          "exports": [
+            "logger",
+            "ErroCollector"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_formatting.py": {
+          "exports": [
+            "logger",
+            "formatar_moeda_brasileira",
+            "formatar_data_brasileira",
+            "normalizar_cpf_cnpj",
+            "extrair_raiz_cnpj",
+            "identificar_tipo_documento"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_login.py": {
+          "exports": [
+            "logger",
+            "PROFILE_PATH",
+            "FIREFOX_BINARY",
+            "login_manual",
+            "login_automatico",
+            "login_automatico_direto",
+            "login_cpf",
+            "AHK_EXE_PC",
+            "AHK_SCRIPT_PC",
+            "AHK_EXE_NOTEBOOK",
+            "AHK_SCRIPT_NOTEBOOK",
+            "AHK_EXE_ACTIVE",
+            "AHK_SCRIPT_ACTIVE",
+            "login_func",
+            "criar_driver",
+            "criar_driver_sisb",
+            "exibir_configuracao_ativa",
+            "login_pc"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_observer.py": {
+          "exports": [
+            "aguardar_renderizacao_nativa",
+            "aguardar_colecao_sync"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_paths.py": {
+          "exports": [
+            "logger",
+            "obter_caminho_perfil_firefox",
+            "obter_caminho_firefox_executavel",
+            "obter_caminho_geckodriver",
+            "obter_caminho_perfil_vt_pje",
+            "obter_caminho_perfil_vt_pje_alt",
+            "obter_caminho_firefox_alt",
+            "configurar_caminho_credencial",
+            "exibir_configuracao_atual"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_recovery.py": {
+          "exports": [
+            "logger",
+            "configurar_recovery_driver",
+            "verificar_e_tratar_acesso_negado_global",
+            "handle_exception_with_recovery"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_selectors.py": {
+          "exports": [
+            "logger",
+            "SELECTORS_PJE",
+            "obter_seletor_pje",
+            "buscar_seletor_robusto",
+            "gerar_seletor_dinamico",
+            "detectar_seletor_elemento",
+            "validar_seletor",
+            "encontrar_seletor_estavel",
+            "criar_seletor_fallback",
+            "aplicar_estrategia_seletor"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_sleep.py": {
+          "exports": [
+            "logger",
+            "sleep_random",
+            "sleep_fixed",
+            "sleep_progressivo",
+            "aguardar_url_mudar",
+            "aguardar_elemento_sumir",
+            "aguardar_texto_mudar",
+            "aguardar_loading_sumir",
+            "sleep_condicional",
+            "aguardar_pagina_carregar",
+            "sleep_com_logging",
+            "aguardar_multiplas_condicoes",
+            "sleep_adaptativo",
+            "sleep",
+            "smart_sleep"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/utils_tempo.py": {
+          "exports": [
+            "logger",
+            "TIME_ENABLED",
+            "medir_tempo"
+          ],
+          "top_level_effects": []
+        }
+      },
+      "collisions": {
+        "logger": [
+          "Fix/utils_angular.py",
+          "Fix/utils_collect.py",
+          "Fix/utils_collect_content.py",
+          "Fix/utils_collect_timeline.py",
+          "Fix/utils_cookies.py",
+          "Fix/utils_drivers.py",
+          "Fix/utils_driver_legacy.py",
+          "Fix/utils_editor.py",
+          "Fix/utils_error.py",
+          "Fix/utils_formatting.py",
+          "Fix/utils_login.py",
+          "Fix/utils_paths.py",
+          "Fix/utils_recovery.py",
+          "Fix/utils_selectors.py",
+          "Fix/utils_sleep.py",
+          "Fix/utils_tempo.py"
+        ],
+        "PROFILE_PATH": [
+          "Fix/utils_drivers.py",
+          "Fix/utils_login.py"
+        ],
+        "FIREFOX_BINARY": [
+          "Fix/utils_drivers.py",
+          "Fix/utils_login.py"
+        ],
+        "AHK_EXE_PC": [
+          "Fix/utils_drivers.py",
+          "Fix/utils_login.py"
+        ],
+        "AHK_SCRIPT_PC": [
+          "Fix/utils_drivers.py",
+          "Fix/utils_login.py"
+        ],
+        "AHK_EXE_NOTEBOOK": [
+          "Fix/utils_drivers.py",
+          "Fix/utils_login.py"
+        ],
+        "AHK_SCRIPT_NOTEBOOK": [
+          "Fix/utils_drivers.py",
+          "Fix/utils_login.py"
+        ]
+      }
+    },
+    "progress": {
+      "files": [
+        "Fix/monitoramento_progresso_unificado.py",
+        "Fix/progress.py",
+        "Fix/progresso_unificado.py",
+        "Fix/progress_models.py"
+      ],
+      "files_analyzed": {
+        "Fix/monitoramento_progresso_unificado.py": {
+          "exports": [
+            "logger",
+            "CONFIGURACOES_EXECUCAO",
+            "ARQUIVO_PROGRESSO_UNIFICADO",
+            "carregar_progresso_unificado",
+            "salvar_progresso_unificado",
+            "limpar_progresso_corrompido",
+            "extrair_numero_processo_unificado",
+            "verificar_acesso_negado_unificado",
+            "processo_ja_executado_unificado",
+            "marcar_processo_executado_unificado",
+            "executar_com_monitoramento_unificado",
+            "carregar_progresso_p2b",
+            "salvar_progresso_p2b",
+            "extrair_numero_processo_p2b",
+            "verificar_acesso_negado_p2b",
+            "processo_ja_executado_p2b",
+            "marcar_processo_executado_p2b",
+            "carregar_progresso",
+            "salvar_progresso",
+            "extrair_numero_processo",
+            "verificar_acesso_negado",
+            "processo_ja_executado",
+            "marcar_processo_executado",
+            "carregar_progresso_mandado",
+            "salvar_progresso_mandado",
+            "extrair_numero_processo_mandado",
+            "verificar_acesso_negado_mandado",
+            "processo_ja_executado_mandado",
+            "marcar_processo_executado_mandado",
+            "exemplo_uso_monitoramento_unificado",
+            "ProgressoUnificado"
+          ],
+          "top_level_effects": [
+            "If"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/progress.py": {
+          "exports": [
+            "logger",
+            "ProgressoUnificado",
+            "registrar_modulo",
+            "atualizar",
+            "completar"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/progresso_unificado.py": {
+          "exports": [],
+          "top_level_effects": []
+        },
+        "Fix/progress_models.py": {
+          "exports": [
+            "StatusModulo",
+            "NivelLog",
+            "Checkpoint",
+            "StatusModuloData",
+            "RegistroLog"
+          ],
+          "top_level_effects": []
+        }
+      },
+      "collisions": {
+        "logger": [
+          "Fix/monitoramento_progresso_unificado.py",
+          "Fix/progress.py"
+        ],
+        "ProgressoUnificado": [
+          "Fix/monitoramento_progresso_unificado.py",
+          "Fix/progress.py"
+        ]
+      }
+    },
+    "extracao": {
+      "files": [
+        "Fix/extracao.py",
+        "Fix/extracao_analise.py",
+        "Fix/extracao_bndt.py",
+        "Fix/extracao_documento.py",
+        "Fix/extracao_indexacao.py",
+        "Fix/extracao_indexacao_fluxo.py",
+        "Fix/extracao_processo.py"
+      ],
+      "files_analyzed": {
+        "Fix/extracao.py": {
+          "parse_error": "invalid non-printable character U+FEFF (<unknown>, line 1)"
+        },
+        "Fix/extracao_analise.py": {
+          "exports": [
+            "analise_argos",
+            "tratar_anexos_argos",
+            "analise_outros"
+          ],
+          "top_level_effects": [
+            "Try"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/extracao_bndt.py": {
+          "exports": [
+            "logger",
+            "bndt"
+          ],
+          "top_level_effects": []
+        },
+        "Fix/extracao_documento.py": {
+          "exports": [
+            "extrair_direto",
+            "extrair_documento",
+            "extrair_pdf"
+          ],
+          "top_level_effects": [
+            "If"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/extracao_indexacao.py": {
+          "exports": [
+            "filtrofases",
+            "indexar_processos",
+            "reindexar_linha",
+            "abrir_detalhes_processo",
+            "trocar_para_nova_aba"
+          ],
+          "top_level_effects": [
+            "Try",
+            "Try"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/extracao_indexacao_fluxo.py": {
+          "exports": [
+            "indexar_e_processar_lista"
+          ],
+          "top_level_effects": [
+            "Try"
+          ],
+          "has_side_effects": true
+        },
+        "Fix/extracao_processo.py": {
+          "exports": [
+            "logger",
+            "DESTINATARIOS_CACHE_PATH",
+            "extrair_dados_processo",
+            "extrair_destinatarios_decisao",
+            "salvar_destinatarios_cache",
+            "carregar_destinatarios_cache"
+          ],
+          "top_level_effects": []
+        }
+      },
+      "collisions": {
+        "logger": [
+          "Fix/extracao_bndt.py",
+          "Fix/extracao_processo.py"
+        ]
+      }
+    }
+  },
+  "issues": []
+}

@@ -1,0 +1,50 @@
+{
+  "numero": [
+    "1000078-15.2026.5.02.0703"
+  ],
+  "id": 8188676,
+  "autor": [
+    {
+      "nome": "ADRIANO RIBEIRO",
+      "cpfcnpj": "02525488334",
+      "advogado": {
+        "nome": "LUCAS CICERO DOS SANTOS BARBOSA",
+        "cpf": "46445348890",
+        "oab": "SP512485"
+      }
+    }
+  ],
+  "reu": [
+    {
+      "nome": "BP CONSTRUCOES METALICAS LTDA",
+      "cpfcnpj": "18825223000153",
+      "advogado": {
+        "nome": "KEYLA CALIGHER NEME GAZAL",
+        "cpf": "07346669851",
+        "oab": "SP109626"
+      }
+    }
+  ],
+  "terceiro": [],
+  "divida": {},
+  "justicaGratuita": [],
+  "transito": "",
+  "custas": "",
+  "dtAutuacao": "20/01/2026",
+  "classeJudicial": {
+    "id": 326,
+    "codigo": "985",
+    "descricao": "Ação Trabalhista - Rito Ordinário",
+    "sigla": "ATOrd",
+    "requerProcessoReferenciaCodigo": "NE",
+    "controlaValorCausa": true,
+    "podeIncluirAutoridade": false,
+    "pisoValorCausa": 64840.01,
+    "ativo": true,
+    "idClasseJudicialPai": 323,
+    "possuiFilhos": false
+  },
+  "labelFaseProcessual": "Conhecimento",
+  "orgaoJuizo": {},
+  "dataUltimo": ""
+}

@@ -1,0 +1,52 @@
+#maisPJE_visualizadorDocumentos {
+    position: fixed;
+    top: 0;
+    right: -100%; /* Começa fora da tela */
+    height: 100vh;
+    background: white;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+    z-index: 99999;
+    display: flex;
+    transition: right 0.3s ease;
+}
+
+/* Quando estiver visível */
+#maisPJE_visualizadorDocumentos.visible {
+    right: 0;
+}
+
+#iframe-documentos {
+    flex-grow: 1;
+    border: none;
+    height: 100%;
+}
+
+#pdf-resizer {
+    width: 10px;
+    cursor: ew-resize;
+    background: #f0f0f0;
+    border-left: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#pdf-resizer:hover {
+    background: #ddd;
+}
+
+#close-pdf-btn {
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    background: black;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 50px;
+    border-radius: 20px;
+    padding: 6px 4px;
+    cursor: pointer;
+    z-index: 100001;
+}

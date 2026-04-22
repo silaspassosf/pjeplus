@@ -1,0 +1,1791 @@
+QUESTÃO 1 (ID: Q2398002)
+ASSUNTO: Direito Constitucional
+Direitos da Nacionalidade
+ENUNCIADO: Leonilson praticou crime comum após se naturalizar brasileiro. Considerando que não se trata de crime político ou de opinião, Leonilson
+ALTERNATIVAS:
+  A) não poderá ser extraditado, pois o crime foi praticado após a sua naturalização.
+  B) não poderá ser extraditado, pois não é possível, em nenhuma hipótese, a extradição de brasileiro, seja ele nato ou naturalizado.
+  C) poderá ser extraditado, pois o crime foi praticado após a sua naturalização.
+  D) não poderá ser extraditado, pois somente haverá extradição de brasileiro naturalizado no caso de comprovado envolvimento em tráfico ilícito de entorpecentes e drogas afins, praticado antes ou após a sua naturalização.
+  E) poderá ser extraditado, pois a extradição poderá ocorrer com o brasileiro naturalizado condenado definitivamente pela prática de crime comum ocorrido antes ou depois da naturalização.
+COMENTÁRIO: 22 de Março de 2024 às 11:25
+COMENTÁRIO: Tal previsão está disposta no art. 5º da CRFB, em seus incisos LI e LII.
+COMENTÁRIO: LI - nenhum brasileiro será extraditado, salvo o naturalizado, em caso de crime comum, praticado antes da naturalização, ou de comprovado envolvimento em tráfico ilícito de entorpecentes e drogas afins, na forma da lei;
+COMENTÁRIO: LII - não será concedida extradição de estrangeiro por crime político ou de opinião;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (437)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2398001)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Teoria Geral da Prova
+ENUNCIADO: De acordo com o Código de Processo Civil, a produção antecipada da prova
+ALTERNATIVAS:
+  A) admite defesa, mas não recurso, salvo apenas contra a decisão que deferi-la total ou parcialmente.
+  B) é da competência, necessariamente, do juízo do foro onde esta deva ser produzida.
+  C) não previne a competência do juízo para a ação que venha a ser proposta.
+  D) só será admitida nos casos em que haja fundado receio de que venha a tornar-se impossível ou muito difícil a verificação de certos fatos na pendência da ação.
+  E) dispensa a citação, mesmo se existente caráter contencioso, bem como o recolhimento de custas, salvo aquelas estritamente necessárias à produção da prova.
+COMENTÁRIO: 26 de Março de 2024 às 10:18
+COMENTÁRIO: De acordo com o Código de Processo Civil, a produção antecipada da prova
+COMENTÁRIO: A admite defesa, mas não recurso, salvo apenas contra a decisão que deferi-la total ou parcialmente.
+COMENTÁRIO: Art. 382 .§ 4º Neste procedimento, não se admitirá defesa ou recurso, salvo contra decisão que indeferir totalmente a produção da prova pleiteada pelo requerente originário.
+COMENTÁRIO: B é da competência, necessariamente, do juízo do foro onde esta deva ser produzida.
+COMENTÁRIO: Art. 382 § 2º A produção antecipada da prova é da competência do juízo do foro onde esta deva ser produzida ou do foro de domicílio do réu.
+COMENTÁRIO: C não previne a competência do juízo para a ação que venha a ser proposta.
+COMENTÁRIO: ART. 381, § 3º A produção antecipada da prova não previne a competência do juízo para a ação que venha a ser proposta.
+COMENTÁRIO: D só será admitida nos casos em que haja fundado receio de que venha a tornar-se impossível ou muito difícil a verificação de certos fatos na pendência da ação.
+COMENTÁRIO: Art. 381. A produção antecipada da prova será admitida nos casos em que:
+COMENTÁRIO: I - haja fundado receio de que venha a tornar-se impossível ou muito difícil a verificação de certos fatos na pendência da ação;
+COMENTÁRIO: II - a prova a ser produzida seja suscetível de viabilizar a autocomposição ou outro meio adequado de solução de conflito;
+COMENTÁRIO: III - o prévio conhecimento dos fatos possa justificar ou evitar o ajuizamento de ação.
+COMENTÁRIO: E dispensa a citação, mesmo se existente caráter contencioso, bem como o recolhimento de custas, salvo aquelas estritamente necessárias à produção da prova.
+COMENTÁRIO: Art. 382. § 1º O juiz determinará, de ofício ou a requerimento da parte, a citação de interessados na produção da prova ou no fato a ser provado, salvo se inexistente caráter contencioso.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (248)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2398000)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Sujeitos da Relação Processual ,
+Das Partes e dos Procuradores
+ENUNCIADO: Em ação proposta contra pessoa incapaz cujos interesses colidirem com os dos seus representantes legais, o juiz deverá, enquanto durar a incapacidade,
+ALTERNATIVAS:
+  A) nomear ao incapaz um curador especial.
+  B) nomear ao incapaz um amicus curiae.
+  C) determinar ao Ministério Público que assuma a representação do incapaz.
+  D) determinar aos representantes legais do incapaz a indicação de terceiro idôneo para representá-lo.
+  E) nomear um supervisor judicial para monitorar a conduta dos representantes do incapaz.
+COMENTÁRIO: 22 de Março de 2024 às 07:25
+COMENTÁRIO: Gabarito: letra A.
+COMENTÁRIO: CPC/15, Art. 72. O juiz nomeará curador especial ao: I - incapaz, se não tiver representante legal ou se os interesses deste colidirem com os daquele, enquanto durar a incapacidade;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (377)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2397999)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Processo de Execução ,
+Processo de Execução da Obrigação de Pagar Quantia Certa
+ENUNCIADO: De com as normas do Código de Processo Civil que disciplinam a execução por quantia certa, são formas de expropriação:
+ALTERNATIVAS:
+  A) a penhora e o arresto, apenas.
+  B) a adjudicação e a penhora, apenas.
+  C) a alienação, a adjudicação, o arresto, a penhora e a remição.
+  D) a alienação, a penhora e a remição, apenas.
+  E) a adjudicação, a alienação e a apropriação de frutos e rendimentos de empresa.
+COMENTÁRIO: 23 de Março de 2024 às 11:36
+COMENTÁRIO: Expropriação é a-a-a:
+COMENTÁRIO: adjudicação
+COMENTÁRIO: alienação
+COMENTÁRIO: apropriação de frutos e rendimentos
+COMENTÁRIO: Gostei
+COMENTÁRIO: (683)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2397998)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Teoria Geral da Prova
+ENUNCIADO: De acordo com o Código de Processo Civil, a distribuição do ônus da prova
+ALTERNATIVAS:
+  A) pode ser objeto de convenção das partes, desde que celebrada antes do processo.
+  B) constitui matéria de ordem pública, não podendo ser objeto de convenção das partes em nenhuma hipótese.
+  C) constitui matéria de ordem pública, podendo ser objeto de convenção das partes apenas nas ações sem conteúdo patrimonial expressamente previstas em lei.
+  D) pode ser objeto de convenção das partes, salvo quando tornar excessivamente difícil a uma parte o exercício do direito, ou recair sobre direito indisponível da parte.
+  E) pode ser objeto de convenção das partes em quaisquer hipóteses, salvo apenas nas ações envolvendo incapazes.
+COMENTÁRIO: 22 de Março de 2024 às 07:41
+COMENTÁRIO: GAB: D
+COMENTÁRIO: ART. 373, § 3º A distribuição diversa do ônus da prova também pode ocorrer por convenção das partes, salvo quando:
+COMENTÁRIO: I - recair sobre direito indisponível da parte;
+COMENTÁRIO: II - tornar excessivamente difícil a uma parte o exercício do direito.
+COMENTÁRIO: § 4º A convenção de que trata o § 3º pode ser celebrada antes ou durante o processo.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (312)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2397996)
+ASSUNTO: Direito Civil
+Contratos em Espécie ,
+Depósito, Mandato, Comissão, Agência e Distribuição
+ENUNCIADO: De acordo com o Código Civil, o mandato
+ALTERNATIVAS:
+  A) outorgado por instrumento público não poderá ser substabelecido por instrumento particular.
+  B) pode ser aceito de forma tácita.
+  C) pode ser outorgado por instrumento particular, mesmo que a lei exija instrumento público para o ato a ser praticado.
+  D) poderá ser verbal, mesmo quando o ato deva ser celebrado por escrito, se assim for o costume do local.
+  E) confere, em termos gerais, poderes para alienar, hipotecar, transigir ou praticar outros quaisquer atos que exorbitem da administração ordinária.
+COMENTÁRIO: 22 de Março de 2024 às 06:05
+COMENTÁRIO: A) Errada. CC, Art. 655. Ainda quando se outorgue mandato por instrumento público, pode substabelecer-se mediante instrumento particular.
+COMENTÁRIO: B) CERTO. CC, Art. 656. O mandato pode ser expresso ou tácito, verbal ou escrito. Art. 659. A aceitação do mandato pode ser tácita, e resulta do começo de execução.
+COMENTÁRIO: C e D) Erradas. CC, Art. 657. A outorga do mandato está sujeita à forma exigida por lei para o ato a ser praticado. Não se admite mandato verbal quando o ato deva ser celebrado por escrito.
+COMENTÁRIO: E) Errada. CC, Art. 661. O mandato em termos gerais só confere poderes de administração. § 1 Para alienar, hipotecar, transigir, ou praticar outros quaisquer atos que exorbitem da administração ordinária, depende a procuração de poderes especiais e expressos. § 2 O poder de transigir não importa o de firmar compromisso.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (397)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2397995)
+ASSUNTO: Direito Civil
+Ato Jurídico, Fato Jurídico e Teoria Geral do Negócio Jurídico ,
+Parte Geral
+ENUNCIADO: João e Maria concluíram entre si negócio jurídico cujo objeto era impossível ao tempo da celebração. Porém, antes de realizada a condição a que o negócio foi subordinado, a impossibilidade do objeto cessou. Nesse caso, de acordo com o Código Civil, o negócio é
+ALTERNATIVAS:
+  A) válido, mas só produzirá efeitos se for ratificado pelas partes depois de realizada a condição.
+  B) nulo de pleno direito, não admitindo convalidação.
+  C) anulável, mas poderá ser convalidado se, depois de realizada a condição, for ratificado pelas partes.
+  D) nulo de pleno direito, mas poderá ser convalidado se, depois de realizada a condição, for ratificado pelas partes.
+  E) válido e, realizada a condição, produzirá efeitos independentemente de ratificação.
+COMENTÁRIO: 22 de Março de 2024 às 06:15
+COMENTÁRIO: Art. 106. A impossibilidade inicial do objeto não invalida o negócio jurídico se for relativa, ou se cessar antes de realizada a condição a que ele estiver subordinado.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (722)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2397994)
+ASSUNTO: Direito Civil
+Ato Jurídico, Fato Jurídico e Teoria Geral do Negócio Jurídico ,
+Parte Geral
+ENUNCIADO: São fatos jurídicos:
+ALTERNATIVAS:
+  A) os negócios jurídicos, mas não os atos jurídicos.
+  B) os eventos da natureza que ensejam consequências jurídicas e os atos jurídicos, mas não os negócios jurídicos.
+  C) os eventos da natureza que ensejam consequências jurídicas, os atos jurídicos e os negócios jurídicos.
+  D) somente aqueles que decorram da vontade humana, como os atos jurídicos e os negócios jurídicos.
+  E) os atos jurídicos, mas não os negócios jurídicos.
+COMENTÁRIO: 22 de Março de 2024 às 13:43
+COMENTÁRIO: Fato jurídico (gênero): todo fato que tenha relevância para o Direito, subdividindo-se em:
+COMENTÁRIO: Fato Natural (fato da natureza): chuva, desabamento, inundação, terremoto, etc.
+COMENTÁRIO: Fato Humano: que esteja relacionado à uma atividade humana, subdividindo-se em:
+COMENTÁRIO: Ilícitos: em desconformidade com a lei;
+COMENTÁRIO: Lícitos: possuem efeitos jurídicos, subdividindo-se em:
+COMENTÁRIO: Ato jurídico: manifestação de vontade prevista em lei;
+COMENTÁRIO: Negócio jurídico: manifestação de vontade objetivando um fim comum, advindo conquências jurídicas;
+COMENTÁRIO: Ato-fato jurídico: não há relevância na análise da vontade humana, perquerindo a conduta e a consequência legal advinda com o ato.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (600)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2397993)
+ASSUNTO: Direito Civil
+Personalidade, Pessoa Natural e Capacidade ,
+Parte Geral
+ENUNCIADO: Arnaldo tem 21 anos e é pródigo. Bruna tem 95 anos e, por causa permanente, não é capaz de exprimir sua vontade, Cláudia tem 16 anos e é casada. Daniel tem 15 anos e é viciado em tóxico. De acordo com o Código Civil,
+ALTERNATIVAS:
+  A) apenas Arnaldo, Bruna e Cláudia são relativamente incapazes.
+  B) todos eles são relativamente incapazes.
+  C) todos eles são absolutamente incapazes.
+  D) apenas Arnaldo e Bruna são relativamente incapazes.
+  E) apenas Bruna e Daniel são absolutamente incapazes.
+COMENTÁRIO: 22 de Março de 2024 às 06:10
+COMENTÁRIO: Pelo código civil:
+COMENTÁRIO: -> Art. 3. São ABSOLUTAMENTE incapazes de exercer pessoalmente os atos da vida civil os MENORES DE 16 (dezesseis) anos. APENAS OS MENORES DE 16 SÃO ABSOLUTAMENTE!!!
+COMENTÁRIO: -> Art. 4. São incapazes, relativamente a certos atos ou à maneira de os exercer:
+COMENTÁRIO: I - os maiores de 16 e menores de 18 anos;
+COMENTÁRIO: II - os ébrios habituais e os viciados em tóxico;
+COMENTÁRIO: III - aqueles que, por causa transitória ou permanente, não puderem exprimir sua vontade;
+COMENTÁRIO: IV - os pródigos.
+COMENTÁRIO: Parágrafo único.  A capacidade dos indígenas será regulada por legislação especial.
+COMENTÁRIO: -> Art. 5. A menoridade cessa aos 18 anos completos, quando a pessoa fica habilitada à prática de todos os atos da vida civil.
+COMENTÁRIO: Parágrafo único. Cessará, para os menores, a incapacidade:
+COMENTÁRIO: I - pela concessão dos pais, ou de um deles na falta do outro, mediante instrumento público, independentemente de homologação judicial, ou por sentença do juiz, ouvido o tutor, se o menor tiver dezesseis anos completos;
+COMENTÁRIO: II - pelo casamento;
+COMENTÁRIO: III - pelo exercício de emprego público efetivo;
+COMENTÁRIO: IV - pela colação de grau em curso de ensino superior;
+COMENTÁRIO: V - pelo estabelecimento civil ou comercial, ou pela existência de relação de emprego, desde que, em função deles, o menor com dezesseis anos completos tenha economia própria.
+COMENTÁRIO: A questões trouxe o seguinte cenário:
+COMENTÁRIO: Arnaldo tem 21 anos e é pródigo = relativamente (art. 4.º);
+COMENTÁRIO: Bruna tem 95 anos e, por causa permanente, não é capaz de exprimir sua vontade = relativamente (art. 4.º);
+COMENTÁRIO: Cláudia tem 16 anos e é casada = capaz (art. 5.º);
+COMENTÁRIO: Daniel tem 15 anos e é viciado em tóxico = ABSOLUTAMENTE (art. 3.º).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (498)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2397990)
+ASSUNTO: Direito Processual do Trabalho
+Execução trabalhista ,
+Forma de execução
+ENUNCIADO: Visando o equacionamento sobre a compatibilidade das normas do Código de Processo Civil de 2015 com o processo do trabalho, o TST aprovou Instrução Normativa que, especificamente em relação à execução, prevê ser aplicável ao processo do trabalho que:
+ALTERNATIVAS:
+  A) no prazo para embargos, reconhecendo o crédito do exequente e comprovando o depósito de 35% do valor em execução, o executado poderá requerer que o pagamento do restante em até 6 parcelas mensais, acrescidas de correção monetária e de juros de um por cento ao mês.
+  B) sem prejuízo da inclusão do devedor no Banco Nacional de Devedores Trabalhistas, aplicam-se à execução trabalhista a hipoteca judiciária, o protesto de decisão judicial e a inclusão do nome do executado em cadastros de inadimplentes.
+  C) são sujeitos à execução os bens cuja alienação ou gravação com ônus real tenha sido anulada em razão do reconhecimento, em ação autônoma, de fraude à execução.
+  D) a alienação ou a oneração de bem é considerada fraude contra credores quando, ao tempo da alienação ou da oneração, tramitava contra o devedor ação capaz de reduzi-lo à insolvência.
+  E) formalizada a penhora por qualquer dos meios legais, dela será imediatamente intimado, pessoalmente, o executado, de preferência por oficial de justiça.
+COMENTÁRIO: 21 de Abril de 2024 às 12:44
+COMENTÁRIO: Questão alto nível. Atenção as palavrinhas que fcc trocou !
+COMENTÁRIO: A) 30%
+COMENTÁRIO: B)correta
+COMENTÁRIO: C)fraude a credores
+COMENTÁRIO: D)fraude à execução
+COMENTÁRIO: E) por advogado e na falta deste por via postal.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (296)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2397982)
+ASSUNTO: Direito do Trabalho
+Saúde Ocupacional ,
+Questões essenciais relativas aos contratos de emprego
+ENUNCIADO: Entre as diversas medidas legislativas para garantir a proteção à saúde e à segurança do trabalhador está prevista a instituição da Comissão Interna de Prevenção de Acidentes (CIPA), em relação à qual o legislador prevê que:
+ALTERNATIVAS:
+  A) os titulares da representação dos empregados e do empregador na CIPA não poderão sofrer dispensa sem justa causa e, considerando a importância de sua atuação na defesa da saúde e da integridade física dos trabalhadores, a dispensa por justa causa depende do reconhecimento judicial da prática da falta grave imputada.
+  B) a mesma é órgão de representação que visa a proteção do trabalhador no ambiente de trabalho, razão pela qual seus membros, representantes dos empregados e representantes dos empregadores, são eleitos em escrutínio secreto, do qual participem exclusivamente os empregados interessados.
+  C) o mandato dos membros eleitos da CIPA, representantes dos empregados e representantes do empregador, terá duração de um ano, permitidas duas reeleições.
+  D) os empregados elegerão, anualmente, dentre os seus representantes, o Presidente da CIPA, e o empregador designará, dentre os seus representantes, o Vice-Presidente.
+  E) ocorrendo a dispensa de representante dos empregados na CIPA, o empregador deverá, em caso de reclamação trabalhista, comprovar a existência de motivo disciplinar, técnico, econômico ou financeiro justificador da dispensa, sob pena de ser condenado a reintegrar o empregado.
+COMENTÁRIO: 22 de Março de 2024 às 08:15
+COMENTÁRIO: GAB E
+COMENTÁRIO: Art 164
+COMENTÁRIO: § 1º - Os representantes dos empregadores, titulares e suplentes, serão por eles designados.
+COMENTÁRIO: § 2º - Os representantes dos empregados, titulares e suplentes, serão eleitos em escrutínio secreto, do qual participem, independentemente de filiação sindical, exclusivamente os empregados interessados.
+COMENTÁRIO: § 3º - O mandato dos membros eleitos da CIPA terá a duração de 1 (um) ano, permitida uma reeleição
+COMENTÁRIO: § 5º - O empregador designará, anualmente, dentre os seus representantes, o Presidente da CIPA e os empregados elegerão, dentre eles, o Vice-Presidente.
+COMENTÁRIO: Art. 165 - Os titulares da representação dos empregados nas CIPA (s) não poderão sofrer despedida arbitrária, entendendo-se como tal a que não se fundar em motivo disciplinar, técnico, econômico ou financeiro.
+COMENTÁRIO: Parágrafo único - Ocorrendo a despedida, caberá ao empregador, em caso de reclamação à Justiça do Trabalho, comprovar a existência de qualquer dos motivos mencionados neste artigo, sob pena de ser condenado a reintegrar o empregado.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (239)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2397975)
+ASSUNTO: Noções de Informática
+Navegadores (Browser) ,
+Google Chrome
+ENUNCIADO: Após fazer login na sua conta do Google Workspace configurada para usar o idioma português, um Advogado clicou na opção Drive, para acessar sua pasta no Google Drive. Na pasta, para visualizar informações sobre o arquivo, como quem pode acessar, o tipo do arquivo, o tamanho, o proprietário, quando foi criado, aberto ou modificado, deve
+ALTERNATIVAS:
+  A) selecionar o arquivo e pressionar a tecla F1 sobre ele.
+  B) clicar no ícone da engrenagem (Configurações) e na opção Informações sobre o documento.
+  C) clicar com o botão direito do mouse sobre o arquivo e selecionar a opção Sobre.
+  D) clicar no ícone com a imagem de um ponto de interrogação, à direita do nome do documento.
+  E) clicar com o botão direito do mouse sobre o arquivo, selecionar a opção Informações sobre o arquivo e a opção Detalhes.
+COMENTÁRIO: 23 de Março de 2024 às 09:15
+COMENTÁRIO: GAB E
+COMENTÁRIO: No Google Workspace o 'clique' do botão direito é semelhante a um clique na 'área de trabalho', ou seja, vai abrir um Menu de contexto.
+COMENTÁRIO: No referido menu é possível ver os 'Detalhes' na opção 'Informações sobre o arquivo'
+COMENTÁRIO: Outras opções do menu contexto: abrir com, fazer download, renomear, fazer uma copia, compartilhar, organizar, informações sobre o arquivo, tornar disponível off-line e mover para lixeira.
+COMENTÁRIO: Abrir com: Permite abrir o arquivo com um aplicativo específico, caso haja suporte para isso. Por exemplo, abrir um documento do Google Docs com o Google Docs, ou um arquivo de imagem com o Google Fotos.
+COMENTÁRIO: Fazer download: Baixa o arquivo para o seu dispositivo local, permitindo que você o acesse mesmo quando estiver offline.
+COMENTÁRIO: Renomear: Permite que você altere o nome do arquivo ou pasta selecionado.
+COMENTÁRIO: Fazer uma cópia: Cria uma cópia do arquivo ou pasta selecionado. Útil quando você deseja criar uma cópia de segurança ou duplicar um arquivo.
+COMENTÁRIO: Compartilhar: Abre opções para compartilhar o arquivo ou pasta com outras pessoas. Você pode definir permissões de visualização e edição, bem como obter um link para compartilhar.
+COMENTÁRIO: Organizar: Oferece opções para organizar o arquivo em pastas específicas ou marcá-lo com tags.
+COMENTÁRIO: Informações sobre o arquivo: Fornece detalhes sobre o arquivo ou pasta selecionado, como quem o criou, quando foi modificado pela última vez, tamanho do arquivo, etc.
+COMENTÁRIO: Tornar disponível off-line: Disponibiliza o arquivo para visualização e edição offline, sincronizando-o com o dispositivo para acesso sem conexão com a internet.
+COMENTÁRIO: Mover para lixeira: Move o arquivo ou pasta selecionado para a lixeira, onde ele será mantido por um período antes de ser permanentemente excluído.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (87)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2397974)
+ASSUNTO: Noções de Informática
+Correio Eletrônico (cliente de e-mail e webmail) ,
+Webmail (Hotmail, Gmail, Yahoo!)
+ENUNCIADO: Após clicar no ícone da engrenagem (Configurações) no canto superior direito da interface do Gmail, configurada para usar o idioma português, um Advogado clicou no botão Mostrar todas as configurações e, na guia Geral da janela que aparece, dentre as opções de configuração disponíveis, está a opção para configurar
+ALTERNATIVAS:
+  A) informações da conta, como senha, dados para recuperação e outras configurações de segurança.
+  B) o encaminhamento das mensagens do Gmail automaticamente para outra conta.
+  C) uma resposta automática de férias, que envia uma resposta automatizada às mensagens recebidas.
+  D) filtros de endereços de e-mail bloqueados que serão encaminhados automaticamente à caixa de spam.
+  E) a adição do Gmail a outros clientes de e-mail, como Microsoft Outlook, Apple Mail ou Mozilla Thunderbird.
+COMENTÁRIO: 11 de Agosto de 2024 às 17:39
+COMENTÁRIO: Sou servidora de TRT, sou técnica estudando pra analista. O interessante é que esse recurso de mensagem automática de férias é MUITO usado por nós, servidores de Tribunal. Sempre que saímos de férias, precisamos ativar esse recurso. Muito útil !
+COMENTÁRIO: Gostei
+COMENTÁRIO: (126)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (7)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2397973)
+ASSUNTO: Noções de Informática
+Ferramentas de Reuniões e Comunicações On-line ,
+Google Meet
+ENUNCIADO: Após fazer login na sua conta Google, um Advogado clicou na opção Google Apps e na opção Meet para criar uma videoconferência. Em seguida, clicou no botão Nova Reunião e, no menu que apareceu, encontrou, disponíveis para escolha, as opções: Criar uma reunião para depois, Iniciar uma reunião instantânea e
+ALTERNATIVAS:
+  A) Agendar no Google Agenda.
+  B) Cancelar uma reunião.
+  C) Editar uma reunião existente.
+  D) Participar de uma reunião agendada.
+  E) Agendar uma reunião via Gmail.
+COMENTÁRIO: 23 de Março de 2024 às 09:50
+COMENTÁRIO: GAB. A
+COMENTÁRIO: Iniciar uma videochamada no Meet
+COMENTÁRIO: Acesse o Google Meet.
+COMENTÁRIO: Clique em Nova reunião.
+COMENTÁRIO: Selecione uma opção:
+COMENTÁRIO: Criar uma reunião para depois:
+COMENTÁRIO: Para compartilhar os detalhes de uma reunião futura, copie o link da reunião e compartilhe com os participantes.
+COMENTÁRIO: Para iniciar uma reunião com este link, cole-o em um navegador ou digite o link no campo "Digite um código ou link" e clique em Participar.
+COMENTÁRIO: Iniciar uma reunião instantânea: crie uma reunião para você participar agora.
+COMENTÁRIO: Programar no Google Agenda: se quiser agendar uma reunião, essa opção direcionará você para o Google Agenda.
+COMENTÁRIO: Dica: os usuários do Google Workspace Essentials não podem agendar uma reunião no Google Agenda.
+COMENTÁRIO: Fonte: https://support.google.com/meet/answer/9302870?hl=pt-BR&co=GENIE.Platform%3DDesktop
+COMENTÁRIO: Gostei
+COMENTÁRIO: (83)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2397970)
+ASSUNTO: Meio Ambiente
+Politicas Públicas e Aspectos Legais
+ENUNCIADO: Considere:
+
+I. As ações culturalmente diversas têm como objetivo respeitar a variedade e a convivência entre ideias, características, gêneros e regionalismos no ambiente de trabalho.
+
+II. Resíduos recicláveis descartados consistem em materiais não mais passíveis de retorno ao seu ciclo produtivo, rejeitados pelos órgãos do Poder Judiciário.
+
+III. No conceito de “quadro auxiliar” estão inseridos, dentre outros, juízes(as) leigos(as) e voluntários(as).
+
+Nos termos da Resolução nº 400/2021, do Conselho Nacional de Justiça, está correto o que consta APENAS de
+ALTERNATIVAS:
+  A) II.
+  B) I.
+  C) II e III.
+  D) III.
+  E) I e III.
+COMENTÁRIO: 15 de Abril de 2024 às 10:17
+COMENTÁRIO: RESOLUÇÃO nº 400 CNJ
+COMENTÁRIO: I. Art. 2º, § 4º- As ações culturalmente diversas têm como objetivo respeitar a variedade e a convivência entre ideias, características, gêneros e regionalismos no ambiente de trabalho.
+COMENTÁRIO: II. Art. 3º, XV – resíduos recicláveis descartados: materiais passíveis de retorno ao seu ciclo produtivo, rejeitados pelos órgãos do Poder Judiciário;
+COMENTÁRIO: III. Art. 3º, VII – quadro auxiliar: estagiários(as), terceirizados(as), juízes(as) leigos(as), trabalhadores(as) de serventias judiciais privatizadas, conciliadores(as), voluntários(as) e jovens aprendizes;
+COMENTÁRIO: Bora timeeeeeeeeeeeeeeee!!!
+COMENTÁRIO: Gostei
+COMENTÁRIO: (50)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2397969)
+ASSUNTO: Meio Ambiente
+Politicas Públicas e Aspectos Legais
+ENUNCIADO: Segundo a Resolução nº 400/2021, do Conselho Nacional de Justiça, o processo de coordenação do fluxo de materiais, de serviços e de informações, do fornecimento ao desfazimento, considerando o ambientalmente correto, o socialmente justo e o desenvolvimento econômico equilibrado, denomina-se:
+ALTERNATIVAS:
+  A) coleta seletiva solidária.
+  B) logística sustentável.
+  C) gestão documental.
+  D) ponto de equilíbrio.
+  E) prática de racionalização.
+COMENTÁRIO: 21 de Abril de 2024 às 16:04
+COMENTÁRIO: III – coleta seletiva solidária: coleta dos resíduos recicláveis descartados, separados na fonte geradora, para destinação às associações e cooperativas de catadores de materiais recicláveis;
+COMENTÁRIO: IX – logística sustentável: processo de coordenação do fluxo de materiais, de serviços e de informações, do fornecimento ao desfazimento, considerando o ambientalmente correto, o socialmente justo e o desenvolvimento econômico equilibrado;
+COMENTÁRIO: VIII – gestão documental: conjunto de procedimentos e operações técnicas para produção, tramitação, uso e avaliação de documentos, com vistas à sua guarda permanente ou eliminação, mediante o uso razoável de critérios de responsabilidade ambiental;
+COMENTÁRIO: XIII – ponto de equilíbrio: quantidade ideal de recursos materiais necessários para execução das atividades desempenhadas por uma unidade de trabalho, sem prejuízo de sua eficiência;
+COMENTÁRIO: XIV – práticas de racionalização: ações que tenham como objetivo a melhoria da qualidade do gasto público e o aperfeiçoamento contínuo na gestão dos processos de trabalho;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (25)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2397968)
+ASSUNTO: Estatuto da Pessoa com Deficiência - Lei nº 13.146 de 2015
+Legislação das Pessoas com Deficiência ,
+Lei nº 10.048 de 2000, Lei nº 10.098 de 2000 e Decreto nº 5.296 de 2004: Acessibilidade e Atendimento Prioritário
+ENUNCIADO: A Prefeitura de determinado Município do Estado do Rio Grande do Norte pretende instalar lixeira em área de circulação comum para pedestre. Considerando que o projeto contempla instalação em local para permitir sua utilização por pessoas com deficiência ou com mobilidade reduzida, mas que representa risco de acidente a esse público, nos termos da Lei nº 10.098/2000, lixeira
+ALTERNATIVAS:
+  A) deverá ser indicada mediante sinalização tátil de alerta no piso, de acordo com as normas técnicas pertinentes.
+  B) poderá ser instalada, independentemente de qualquer medida pelo poder público, cabendo à pessoa com deficiência providenciar os meios necessários para evitar acidentes, como por exemplo, utilizar-se de cães-guia.
+  C) não poderá, em hipótese alguma, ser implementada.
+  D) deverá ser indicada mediante sinalização sonora suave e intermitente, de acordo com as normas técnicas pertinentes.
+  E) poderá ser indicada com qualquer tipo de mecanismo que sirva de guia ou orientação para a pessoa com deficiência.
+COMENTÁRIO: 22 de Março de 2024 às 16:45
+COMENTÁRIO: Lei no 10.098, de 19 de dezembro de 2000 estabelece "normas gerais e critérios básicos para a promoção da acessibilidade das pessoas portadoras de deficiência ou com mobilidade reduzida".
+COMENTÁRIO: Fala nos Arts. 10 e 11 de do desenho e localização do mobiliário urbano:
+COMENTÁRIO: Art. 10. Os elementos do mobiliário urbano deverão ser projetados e instalados em locais que permitam sejam eles utilizados pelas pessoas portadoras de deficiência ou com mobilidade reduzida.
+COMENTÁRIO: Art. 10-A. A instalação de qualquer mobiliário urbano em área de circulação comum para pedestre que ofereça risco de acidente à pessoa com deficiência deverá ser indicada mediante sinalização tátil de alerta no piso, de acordo com as normas técnicas pertinentes.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (238)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2397967)
+ASSUNTO: Estatuto da Pessoa com Deficiência - Lei nº 13.146 de 2015
+Direitos Fundamentais no Estatuto da Pessoa com Deficiência ,
+Direito à Educação
+ENUNCIADO: Considere:
+
+I. Sistema educacional inclusivo em todos os níveis e modalidades, bem como aprendizado ao longo de toda a vida.
+
+
+II. Inclusão em conteúdos curriculares, em cursos de nível superior e de educação profissional técnica e tecnológica, de temas relacionados à pessoa com deficiência nos respectivos campos de conhecimento.
+
+
+III. Adoção de medidas individualizadas e coletivas em ambientes que maximizem o desenvolvimento acadêmico e social dos estudantes com deficiência, favorecendo o acesso, a permanência, a participação e a aprendizagem em instituições de ensino.
+
+
+As assertivas acima tratam, dentre outras, de incumbências do poder público relativas ao direito à educação da pessoa com deficiência. De acordo com a Lei nº 13.146/2015, aplicam-se, obrigatoriamente, às instituições privadas, as medidas descritas em
+ALTERNATIVAS:
+  A) II e III, apenas.
+  B) I e II, apenas.
+  C) I, apenas.
+  D) I, II e III.
+  E) III, apenas.
+COMENTÁRIO: 09 de Abril de 2024 às 14:19
+COMENTÁRIO: Lei nº 13.146/2015
+COMENTÁRIO: Art. 28. Incumbe ao poder público assegurar, criar, desenvolver, implementar, incentivar, acompanhar e avaliar:
+COMENTÁRIO: I - sistema educacional inclusivo em todos os níveis e modalidades, bem como o aprendizado ao longo de toda a vida;
+COMENTÁRIO: V - adoção de medidas individualizadas e coletivas em ambientes que maximizem o desenvolvimento acadêmico e social dos estudantes com deficiência, favorecendo o acesso, a permanência, a participação e a aprendizagem em instituições de ensino;
+COMENTÁRIO: XIV - inclusão em conteúdos curriculares, em cursos de nível superior e de educação profissional técnica e tecnológica, de temas relacionados à pessoa com deficiência nos respectivos campos de conhecimento;
+COMENTÁRIO: DE ACORDO COM O PARÁGRAFO PRIMEIRO, SÓ NÃO SE APLICAM ÀS INSTITUIÇÕES PRIVADAS OS INCISOS IV E VI, QUAIS SEJAM:
+COMENTÁRIO: IV - oferta de educação bilíngue, em Libras como primeira língua e na modalidade escrita da língua portuguesa como segunda língua, em escolas e classes bilíngues e em escolas inclusivas; (SOMENTE INSTITUIÇÃO PÚBLICA)
+COMENTÁRIO: VI - pesquisas voltadas para o desenvolvimento de novos métodos e técnicas pedagógicas, de materiais didáticos, de equipamentos e de recursos de tecnologia assistiva; (SOMENTE INSTITUIÇÃO PÚBLICA)
+COMENTÁRIO: § 1º Às instituições privadas, de qualquer nível e modalidade de ensino, aplica-se obrigatoriamente o disposto nos incisos I, II, III, V, VII, VIII, IX, X, XI, XII, XIII, XIV, XV, XVI, XVII e XVIII do caput deste artigo, sendo vedada a cobrança de valores adicionais de qualquer natureza em suas mensalidades, anuidades e matrículas no cumprimento dessas determinações.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (217)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2397965)
+ASSUNTO: Português
+Interpretação de Textos
+TEXTO ASSOCIADO: Novo movimento
+         As revoluções dos últimos dois séculos foram tão rápidas e radicais que transformaram a característica mais fundamental da
+ordem social. Tradicionalmente, a ordem social era firme e rígida. “Ordem” implicava estabilidade e continuidade. Revoluções sociais
+rápidas eram excepcionais, e a maioria das transformações sociais resultava da acumulação de uma série de pequenos passos. Os
+humanos tendiam a presumir que a estrutura social era inflexível e eterna. As pessoas costumavam declarar: “é assim que sempre foi, e é
+assim que sempre será”.
+          Nos últimos dois séculos, o ritmo das mudanças se tornou tão rápido que a ordem social adquiriu um caráter dinâmico e maleável.
+Agora existe em estado de fluxo permanente. Quando falamos de revoluções modernas, tendemos a pensar em 1789 (a Revolução
+Francesa), 1848 (as revoluções liberais) ou 1917 (a Revolução Russa). Mas o fato é que, atualmente, todo ano é revolucionário. Hoje, até
+mesmo uma pessoa de 30 anos pode dizer honestamente a adolescentes incrédulos: “Quando eu era jovem, o mundo era completamente
+diferente”. A internet, por exemplo, só se disseminou no início dos anos 1990, poucas décadas atrás, hoje, não podemos imaginar o
+mundo sem ela.
+(Adaptado de: HARARI, Yuval Noah, Uma breve história da humanidade. Trad. de Janaina Marcoantonio. Porto Alegre: L&PM, 2018,
+p. 375-376)
+ENUNCIADO: Está corretamente pontuada esta outra construção de uma frase do texto:
+ALTERNATIVAS:
+  A) Foi a partir dos anos 1990, e só então, que a internet veio a se disseminar.
+  B) Foram tão radicais, as revoluções, dos dois últimos séculos que transformaram a característica fundamental, da ordem social.
+  C) Era firme e rígida, tradicionalmente a ordem social.
+  D) Atualmente, o fato é que, todo ano, é revolucionário.
+  E) Uma pessoa de 30 anos, hoje pode dizer, a adolescentes incrédulos honestamente.
+COMENTÁRIO: 12 de Abril de 2024 às 14:23
+COMENTÁRIO: Jesus.... dá uma luz...
+COMENTÁRIO: Gostei
+COMENTÁRIO: (92)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2397964)
+ASSUNTO: Português
+Interpretação de Textos ,
+Tipos de Discurso: Direto, Indireto e Indireto Livre
+ENUNCIADO: Ela disse ao seu amigo, tempos atrás: - Você pode não acreditar, mas quando eu era jovem, meu mundo era inteiramente diferente do em que ambos vivemos hoje.
+
+
+Transpondo-se o comentário acima, atrelado ao assunto do texto, para o discurso indireto, uma construção adequada será: Ela disse ao seu amigo, tempos atrás, que
+ALTERNATIVAS:
+  A) podia até mesmo não acreditar, pois quando ela era jovem o mundo deles era inteiramente diferente do que passaram a viver.
+  B) podia-se não acreditar, tendo em vista que na sua juventude era inteiramente diferente do que vivemos hoje.
+  C) mesmo que ele não acreditasse, quando era jovem, vivia-se num mundo inteiramente do que se vive hoje.
+  D) ele podia não acreditar que quando jovem, o mundo dele era inteiramente diferente do que ambos viveriam hoje.
+  E) ele podia não acreditar, mas o mundo dela, quando jovem, era inteiramente diferente daquele em que ambos estavam vivendo.
+COMENTÁRIO: 21 de Junho de 2024 às 08:32
+COMENTÁRIO: Discurso direto
+COMENTÁRIO: - Deslocamento da fala da personagem por meio de gráficos ("aspas", travessão -)
+COMENTÁRIO: - Ex.: João toma banho- Mãe! disse ele. - pegue a toalha!
+COMENTÁRIO: Discurso indireto
+COMENTÁRIO: - Paráfrase do narrador que possui total controle sobre o enunciado
+COMENTÁRIO: - Ex.: João tomava banho, por isso disse para sua mãe pegar a toalha.
+COMENTÁRIO: Discurso indireto-livre
+COMENTÁRIO: - Fala da personagem deslocada da fala do narrador, mas sem sinais gráficos.
+COMENTÁRIO: - Ex.: João tomava banho e gritou, mãe, pegue a toalha.
+COMENTÁRIO: PALAVRAS QUE A FGV AMA NA TRANSPOSIÇÃO DO DISCURSO DIRETO PARA O INDIRETO:
+COMENTÁRIO: Amanhã = no dia seguinte
+COMENTÁRIO: Ontem = no dia anterior
+COMENTÁRIO: Hoje = Naquele dia
+COMENTÁRIO: No final do ano = No final daquele ano
+COMENTÁRIO: Agora = naquele momento
+COMENTÁRIO: Esta noite = naquela noite
+COMENTÁRIO: Daqui = dali
+COMENTÁRIO: Gostei
+COMENTÁRIO: (63)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2397960)
+ASSUNTO: Português
+Interpretação de Textos ,
+Redação - Reescritura de texto
+TEXTO ASSOCIADO: A ilha do conhecimento
+       Quanto podemos conhecer do mundo? Será que podemos conhecer tudo? Ou será que existem limites fundamentais para o que a
+ciência pode explicar? Se esses limites existem, até que ponto podemos compreender a natureza da realidade?
+       O que vemos no mundo é uma ínfima fração do que existe. Muito do que existe é invisível aos olhos, mesmo quando aumentamos
+nossa percepção sensorial com telescópios, microscópios e outros instrumentos de exploração. Tal como nossos sentidos, todo
+instrumento tem um alcance limitado. Como muito da Natureza permanece oculto, nossa visão de mundo é baseada apenas na fração da
+realidade que podemos medir e analisar. A ciência, nossa narrativa descrevendo aquilo que vemos e que conjecturamos existir no mundo
+natural, é, portanto, necessariamente limitada, contando-nos apenas parte da história. Quanto à outra parte, que nos é inacessível, pouco
+podemos afirmar. Porém, dados os sucessos do passado, temos confiança de que, passado tempo suficiente, parte do que hoje é mistério
+será incorporado na narrativa científica — desconhecimento se tornará conhecimento.
+       Essa visão dos nossos limites nada tem de anticientífica ou derrotista. Também não se trata de uma proposta para que
+sucumbamos a algum obscurantismo religioso. Pelo contrário, o impulso criativo, o desejo que temos de sempre querer saber mais, vem
+justamente do flerte com o mistério, da compulsão que temos de ir além das fronteiras do conhecido. O não saber é a musa do saber.
+         Nos últimos duzentos anos, avanços na física, na matemática e, mais recentemente, nas ciências da computação, nos ensinaram
+que a própria Natureza tem um comportamento esquivo do qual não podemos escapar. A própria Natureza — ao menos como nós
+percebemos — opera dentro de certos limites. O filósofo grego Heráclito já havia percebido isso quando escreveu, 25 séculos atrás, que “A
+Natureza ama esconder-se”.
+(Adaptado de: GLEISER, Marcelo. A ilha do conhecimento. São Paulo: Editora Record, 2023, p. 13-4 e 19)
+ENUNCIADO: Pode-se substituir adequadamente o segmento sublinhado pelo indicado entre parênteses no seguinte caso:
+ALTERNATIVAS:
+  A) O avanço das ciências é um fato do qual ninguém duvida (cuja desconfiança ninguém nutre)
+  B) Ele tem um comportamento do qual não consegue abdicar (de cujo não consegue renunciar)
+  C) São mistérios a que não podemos acessar (aonde não sabemos tocar)
+  D) É limitado esse instrumento de que vamos nos servir (ao qual iremos nos utilizar)
+  E) É somente uma fração do real a que pode chegar nossa percepção (que nosso entendimento alcança)
+COMENTÁRIO: 26 de Abril de 2024 às 18:47
+COMENTÁRIO: Se não me engano, seria o que segue:
+COMENTÁRIO: O avanço das ciências é um fato do qual ninguém duvida (DE cuja desconfiança ninguém nutre).
+COMENTÁRIO: Pois quem desconfia, desconfia DE...
+COMENTÁRIO: Gostei
+COMENTÁRIO: (78)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2397959)
+ASSUNTO: Português
+Sintaxe ,
+Concordância verbal, Concordância nominal
+ENUNCIADO: As normas de concordância verbal encontram-se plenamente observadas na frase:
+ALTERNATIVAS:
+  A) Já haviam há 25 séculos pensadores que, como Heráclito, aplicava-se a reconhecer o limite que nos impunha as razões da própria Natureza.
+  B) Nem tudo o que podemos conhecer dos fenômenos naturais encontra-se à disposição das técnicas científicas que ora se prestigiam.
+  C) É ínfima a fração dos fatos compreensíveis que se calculam haver em nosso mundo, ainda quando nos pareçam de grande relevância.
+  D) Não cabem aos cientistas decretar o que podem ou não ser por eles conhecido, desde que a própria Natureza em seus mistérios teimam ocultar-se.
+  E) Aos avanços das ciências exatas não correspondem, na exata medida, o avanço do conhecimento pleno que a tantos entusiasmam.
+COMENTÁRIO: 02 de Abril de 2024 às 10:47
+COMENTÁRIO: - ERRADA
+COMENTÁRIO: Já haviam há 25 séculos pensadores que, como Heráclito, aplicava-se a reconhecer o limite que nos impunha as razões da própria Natureza.
+COMENTÁRIO: o correto seria.: aplicavam-se e impunham, sendo seus sujeitos respectivamente pensadores e as razões
+COMENTÁRIO: - CORRETA
+COMENTÁRIO: Nem tudo o que podemos conhecer dos fenômenos naturais encontra-se à disposição das técnicas científicas que ora se prestigiam.
+COMENTÁRIO: A sinal indicativo de crase foi utilizado de maneira correta, já que é uma locução adverbial feminina
+COMENTÁRIO: - ERRADA
+COMENTÁRIO: É ínfima a fração dos fatos compreensíveis que se calculam haver em nosso mundo, ainda quando nos pareçam de grande relevância.
+COMENTÁRIO: O correto seria.: Que se calcula e pareça, concordando com o sujeito a fração
+COMENTÁRIO: - ERRADA
+COMENTÁRIO: Não cabem aos cientistas decretar o que podem ou não ser por eles conhecido, desde que a própria Natureza em seus mistérios teimam ocultar-se.
+COMENTÁRIO: O correto seria.: Não cabe (já que o sujeito está ligado pelo conectivo OU com sentido de exclusão, podendo escolher apenas 1 exmplo.: Poder andar, não poder fumar )
+COMENTÁRIO: - ERRADA
+COMENTÁRIO: Aos avanços das ciências exatas não correspondem, na exata medida, o avanço do conhecimento pleno que a tantos entusiasmam.
+COMENTÁRIO: Essa frase ficou muito confusa, então vamos invertê-la
+COMENTÁRIO: Aos avanços das ciências exatas não correspondem, na exata medida, o avanço do conhecimento pleno que a tantos entusiasmam
+COMENTÁRIO: 1º erro Sujeito singular (avanço) e verbo plural (correspondem)
+COMENTÁRIO: 2º erro.: Sujeito singular (avanço) e verbo plural (entusiasmam)
+COMENTÁRIO: O sentido da frase no caso seria.: que o avanço de X não corresponde Y (tudo no singular)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (113)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2397958)
+ASSUNTO: Português
+Interpretação de Textos ,
+Redação - Reescritura de texto
+ENUNCIADO: Considerando-se o contexto, traduz-se adequadamente um segmento do texto em:
+ALTERNATIVAS:
+  A) vem justamente do flerte com o mistério (3º parágrafo) = de fato deriva de um namoro com o oculto
+  B) uma ínfima fração do que existe (2º parágrafo) = uma irrelevante potenciação da existência
+  C) fração da realidade que podemos medir (2º parágrafo) = aspecto real quase incomensurável
+  D) conjecturamos existir no mundo natural (2º parágrafo) = incluímo-nos supostamente na natureza
+  E) compulsão que temos de ir além (3º parágrafo) = intento que admitimos ao avançar
+COMENTÁRIO: 04 de Maio de 2024 às 23:01
+COMENTÁRIO: Eu acho esse tipo de questão complicada na hora da prova, sempre vai causar dúvida, eu fui na alternativa certa, mas com certo receio, pois flerte é uma coisa, namoro é outra, mas era a menos pior.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (104)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (6)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2397915)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Análise SWOT
+ENUNCIADO: Suponha que determinada organização pública esteja utilizando como ferramenta em um processo de planejamento estratégico uma Matriz Swot. A partir de tal utilização, identificam-se e relacionam-se na referida matriz, entre outros aspectos,
+ALTERNATIVAS:
+  A) a missão da organização e as ações necessárias para seu atingimento e mensuração.
+  B) as etapas criticas nos processos de trabalho existentes na organização (bottlenecks).
+  C) as ameaças e oportunidades presentes no cenário externo em que se encontra inserida.
+  D) as metas estratégicas e os indicadores de resultado de curto e longo prazo.
+  E) os projetos prioritários da organização, seus valores e sua visão de futuro.
+COMENTÁRIO: 22 de Março de 2024 às 07:43
+COMENTÁRIO: Análise SWOT ou FOFA é utilizada para realizar o diagnóstico estratégico da organização, para saber em que situação ela se encontra no momento.
+COMENTÁRIO: Rememorar Matriz SWOT: é indicada para analisar tanto o ambiente interno quanto o externo.
+COMENTÁRIO: Possui Forças e Fraquezas do ambiente interno e a organização tem capacidade de alterar e interferir.
+COMENTÁRIO: Possui Oportunidade e Ameaças no ambiente externo que influenciam a organização, porém, a mesma não pode influenciar ou alterar à sua vontade.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (75)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2397914)
+ASSUNTO: Gestão de Pessoas
+Responsabilidade de Linha e Função de Staff ,
+Agregando Pessoas
+ENUNCIADO: A evolução dos modelos de gestão de pessoas ao longo dos anos indica um movimento de descentralização em que a denominada função de staff corresponde
+ALTERNATIVAS:
+  A) às atribuições de assessoria e consultoria do órgão central de RH, que orientam e apoiam os gestores que detêm a autoridade de linha em relação às suas equipes.
+  B) ao papel de controle e normalização anteriormente detido com exclusividade pelo órgão central de RH e que passa a ser compartilhado com áreas operacionais da organização.
+  C) à atividade de gerenciamento de pessoal, de cunho operacional, remanescente em setores da organização inicialmente não vocacionados para atuação estratégica.
+  D) ao papel dos gerentes e gestores de projetos, que possuem a responsabilidade de gerenciar e apoiar os recursos humanos que lhes sejam alocados.
+  E) ao apoio de consultorias externas especializadas ou pessoal terceirizado para atividades de gestão de RH, ficando a cargo da equipe interna apenas as funções estratégicas e normativas.
+COMENTÁRIO: 23 de Março de 2024 às 10:23
+COMENTÁRIO: Gabarito: Letra A
+COMENTÁRIO: Responsabilidade de linha: Os gestores são responsáveis pelos recursos de seus departamentos
+COMENTÁRIO: Função de Staff: Área de recursos humanos que presta atividade de assessoria, consultoria e apoio aos gestores
+COMENTÁRIO: Qualquer erro, por favor, me avisem :)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (67)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2397913)
+ASSUNTO: Gerência de Projetos
+PMBOK e Processos de Gerenciamento de Projetos
+ENUNCIADO: Suponha que determinada organização pretenda aplicar, para gestão de seus projetos, as boas práticas estabelecidas no Guia PMBOK, publicado pelo PMI (Project Management lnstitute). Para tanto, deverá considerar, entre outros conceitos, a
+ALTERNATIVAS:
+  A) indicação de um gerente de projetos para atuar na organização centralizando o gerenciamento dos projetos de todas as áreas.
+  B) figura do projeto modelo, estruturado a partir de benchmarks do setor, e a partir do qual os processos da organização devem ser adaptados.
+  C) construção de um fluxograma de acordo com os inputs e outputs de cada processo, utilizando uma matriz PERT.
+  D) classificação dos processos segundo a fase em que se encontrem: iniciação; planejamento; execução; monitoramento e encerramento.
+  E) divisão dos processos da organízação, segundo a etapa do ciclo de vida correspondente, em: emulados, padronizados e otimizados.
+COMENTÁRIO: 04 de Abril de 2024 às 17:21
+COMENTÁRIO: Segundo o PMBOK, o ciclo de vida de um projeto é dividido em:
+COMENTÁRIO: Iniciação.
+COMENTÁRIO: Planejamento.
+COMENTÁRIO: Execução.
+COMENTÁRIO: Encerramento.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (42)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2397912)
+ASSUNTO: Administração Pública
+Governabilidade, Governança e Accountability ,
+Accountability e transparência na Administração Pública
+ENUNCIADO: Conforme estabelecido pelo Referencial Básico de Governança Organizacional para organizações públicas e outros entes jurisdicionados ao TCU (3ª edição), a Governança envolve diversos preceitos e boas práticas, entre as quais a denominada accountabílíty, que
+ALTERNATIVAS:
+  A) consiste em ações de compliance voltadas à observância de regras de conformidade, legalidade e standars éticos no âmbito das organizações.
+  B) não se resume à simples transparência, demandando que o gestor justifique suas ações do ponto de vista da gestão de recursos públicos e seja responsabilizado pelos resultados decorrentes.
+  C) se aplica para a gestão de riscos, com as etapas de identificação, mensuração, análise de impacto e de probabilidade, e, por fim, medidas de mitigação ou alocação.
+  D) é sinônimo de orçamento por resultados, no qual os recursos públicos só podem ser alocados para ações anteriormente mensuradas.
+  E) representa um conceito contemporâneo que supera a eficácia e a eficiência, correspondendo aos resultados tangíveis apropriados pela sociedade.
+COMENTÁRIO: 26 de Março de 2024 às 15:13
+COMENTÁRIO: Letra B.
+COMENTÁRIO: Accountability é a responsabilidade e prestação de contas que indivíduos ou organizações têm em relação às suas ações, decisões e resultados. No contexto empresarial e da gestão, a accountability refere-se à obrigação de prestar contas sobre o desempenho, a utilização de recursos e o cumprimento de metas e objetivos.
+COMENTÁRIO: A contabilidade é uma ferramenta essencial para garantir a accountability nas empresas. Ela fornece informações e relatórios que permitem aos gestores e proprietários compreenderem a saúde financeira do negócio, tomar decisões informadas e cumprir obrigações legais. Além disso, a contabilidade é fundamental para a transparência e confiança entre os diversos stakeholders, como governos, fornecedores, bancos, investidores, funcionários e sindicatos.
+COMENTÁRIO: PS: Foi o QC ou a FGV que escreveram accountability com acento nos dois "is"?
+COMENTÁRIO: Gostei
+COMENTÁRIO: (69)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2397911)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Estratégia organizacional
+ENUNCIADO: A ferramenta de gestão denominada OKR - Objectives and Key Results possuí como característica relevante
+ALTERNATIVAS:
+  A) o estabelecimento de resultados-chave para cada objetivo, os quais devem ser desafiadores e objetivamente mensuráveis em um gradiente de 0 a 100%.
+  B) a escolha de, no máximo, 3 objetivos-chave para alinhar a estratégia da organização com todos os seus colaboradores.
+  C) a escolha de colaboradores-chave que, juntamente com os gestores e lideres, devem fomentar a persecução de objetivos estratégicos e motivar a equipe.
+  D) a necessidade de prévia identificação da chave ou missão da organização, e que se traduz em meta a ser perseguida por todos os seus integrantes.
+  E) uma abordagem flexível e customizável para as metas e indicadores que integram o planejamento estratégico, evitando métricas quantitativas.
+COMENTÁRIO: 23 de Março de 2024 às 15:17
+COMENTÁRIO: Gab. A.
+COMENTÁRIO: OKR (Objectives and Key Results) é uma poderosa ferramenta de gestão que auxilia as organizações a definirem objetivos e medirem seu progresso com base em resultados tangíveis. Vamos explorar o que é OKR, suas características e como ele contribui para o sucesso das empresas:
+COMENTÁRIO: O que é OKR? OKR é uma abordagem de gerenciamento ágil baseada em metas desafiadoras e resultados mensuráveis.
+COMENTÁRIO: Foi criado por Andrew Grove, ex-CEO da Intel, para traçar objetivos de negócios e acompanhá-los ao longo do tempo.
+COMENTÁRIO: Significado: Objetivos e Resultados-Chave.
+COMENTÁRIO: Conceitos Centrais dos OKRs:Objetivos: São declarações claras e inspiradoras que definem a direção estratégica da organização.
+COMENTÁRIO: Resultados-Chave (KRs): São métricas específicas e mensuráveis que indicam o progresso em direção aos objetivos.
+COMENTÁRIO: Iniciativas: São ações concretas que impulsionam o alcance dos resultados-chave.
+COMENTÁRIO: Benefícios do OKR:Foco: OKRs mantêm todos alinhados em direção aos mesmos objetivos.
+COMENTÁRIO: Transparência: Resultados são visíveis para toda a equipe.
+COMENTÁRIO: Agilidade: Adapta-se facilmente a mudanças e incertezas.
+COMENTÁRIO: Colaboração: Incentiva o trabalho em equipe.
+COMENTÁRIO: Como Implementar OKR:Defina Objetivos Inspiradores: Alinhe-os à visão da empresa.
+COMENTÁRIO: Estabeleça Resultados-Chave: Métricas específicas para medir o progresso.
+COMENTÁRIO: Acompanhe Regularmente: Reavalie e ajuste conforme necessário.
+COMENTÁRIO: Exemplos de OKR:Objetivo: Aumentar a base de usuários em 20%.KR1: Alcançar 100.000 downloads do aplicativo.
+COMENTÁRIO: KR2: Aumentar a taxa de retenção em 15%.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (146)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2397910)
+ASSUNTO: Gestão de Pessoas
+Aplicando Pessoas ,
+Controle e Avaliação
+ENUNCIADO: Em um processo de gestão de desempenho, podem ocorrer distorções no processo de avaliação de desempenho dos colaboradores, entre os quais o denominado "efeito HORN", que se apresenta
+ALTERNATIVAS:
+  A) com excessivo apego do avaliador por comportamentos recentes ou extremos do avaliado, levando em conta apenas os dados de sua memória (subjetivos) e não aspectos objetivos e mensuráveis.
+  B) como uma forma corrompida de avaliação, em que vínculos pessoais e Interesses do próprio avaliador maculam os resultados apresentados.
+  C) na forma de comportamento leniente do avaliador, que não aplica de forma acurada os métodos de avaliação, distorcendo os resultados obtidos.
+  D) como extrapolação de uma avaliação extremamente positiva de uma característica do avaliado para o resultado final da avaliação, desconsiderando ou anulando os pontos negativos do avaliado.
+  E) com o nivelamento da avaliação a partir de um aspecto negativo do avaliado, ou seja, uma generalização da avaliação negativa de um determinado aspecto para todos os demais.
+COMENTÁRIO: 23 de Março de 2024 às 10:29
+COMENTÁRIO: Gabarito: Letra E
+COMENTÁRIO: Efeito HALO/HORN/Generalização: Existe a generalização de aspectos bom (halo) ou aspectos ruins (horn) do indivíduo no processo de avaliação de desempenho.
+COMENTÁRIO: Qualquer erro, por favor, avisem :)
+COMENTÁRIO: Gostei
+COMENTÁRIO: (86)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2397908)
+ASSUNTO: Gestão de Pessoas
+Gestão de Competências
+ENUNCIADO: Considere que determinada organização tenha Iniciado a implantação de um modelo de gestão por competências. Iniciando pela etapa de mapeamento de competências. De acordo com os preceitos predicados pela doutrina para tal metodologia, a referida fase de mapeamento
+ALTERNATIVAS:
+  A) resulta no ranqueamento dos profissionais da organização por nível de aptidão técnica, identificando aqueles que deve ser desligados.
+  B) é voltada à identificação de colaboradores com perfil de liderança, posteriormente escolhidos para postos-chave na organização.
+  C) busca, no mercado, os profissionais mais preparados para o desempenho das atividades estratégicas da organização.
+  D) objetiva a identificação do perfil técnico e comportamental desejável para cada cargo ou função da organização.
+  E) mensura o nível de competência técnica dos colaboradores da organização e identifica as lacunas ("gaps") a ser preenchidas.
+COMENTÁRIO: 22 de Março de 2024 às 14:38
+COMENTÁRIO: Aprendi errado
+COMENTÁRIO: Gostei
+COMENTÁRIO: (86)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2397907)
+ASSUNTO: Administração de Recursos Materiais
+Classificação de Materiais ,
+Classificação Pelo Valor do Consumo – Classificação ABC
+ENUNCIADO: A adoção da Curva ABC para planejamento e controle de estoques implica
+ALTERNATIVAS:
+  A) Identificar as principais variáveis criticas para o controle e reposição de estoques, sendo as variáveis A as mais relevantes: custo de aquisição (peso 80) e prazo de entrega (peso 20).
+  B) alocar os itens de estoque em diferentes categorias a partir do histórico de uso e reposição, independentemente da relevância em termos de custo e demanda dos clientes.
+  C) alocar os itens em categorias (A, B e C) considerando os de maior e menor relevância em termos de giro de estoque, calculado a partir de uma curva de probabilidade de escassez.
+  D) eleger as 3 categorias de itens de estoque com maior rotatividade e, consequentemente, que demandam maior prontidão na reposição.
+  E) alocar na categoria A os itens com maior valor, considerando que tais itens correspondem a 20% do estoque total, mas representam 80% do faturamento.
+COMENTÁRIO: 30 de Março de 2024 às 10:04
+COMENTÁRIO: A Curva ABC ou Classificação ABC, é uma metodologia que permite a classificação das informações quanto ao seu grau de importância. Para isso, utiliza a regra 80/20, uma teoria que prevê que 80% dos efeitos surgem a partir de apenas 20% das causas. A ferramenta é muito utilizada para o controle de estoque de empresas. Considerando que tais itens correspondem a 20% do estoque total, mas representam 80% do faturamento.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (28)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2397906)
+ASSUNTO: Administração Geral
+Gestão Estratégica ,
+Balanced Scorecard na Administração Geral
+ENUNCIADO: Entre as principais metodologias aplicadas pelas organizações publicas e privadas no âmbito do planejamento estratégico e gestão de desempenho, destaca-se o Balanced Scorecard - BSC, a qual
+ALTERNATIVAS:
+  A) utiliza o diagrama de Pareto como referencial gráfico dos pontos fortes e fracos da organização e das etapas a serem percorridas para os aprimoramentos Indicados.
+  B) utiliza o mapa estratégico como ferramenta para Integrar as perspectivas dos clientes, dos processos internos, do aprendizado e crescimento, e financeira, visualizando relações de causa e efeito.
+  C) tem como escopo a definição da missão da organização, correspondente aos resultados intangíveis obtidos a partir do atingimento das metas estabelecidas no planejamento estratégico.
+  D) apresenta dificuldades para a sua plena aplicação em organizações publicas, dada a ênfase na perspectiva financeira, que se sobrepõe às demais.
+  E) também pode ser aplicada como método de avaliação de desempenho, analisando a produtividade da equipe a partir das perspectivas tempo de execução e qualidade dos outputs.
+COMENTÁRIO: 25 de Março de 2024 às 16:45
+COMENTÁRIO: O BSC é o tema mais recorrente nas questões da FCC, acho que já resolvi umas 100 questões desse assunto só aqui na plataforma do Qconcursos. Portanto, é MUITO IMPORTANTE conhecer os desdobramentos do Balanced Scorecard:
+COMENTÁRIO: O BSC é uma ferramenta para o planejamento estratégico (longo prazo). Desse modo, não se vincula a rotinas operacionais (planejamento operacional). Além disso, o BSC é um procedimento para implementação da estratégia, não para sua formulação/planejamento,  estabelecendo uma forma de gestão baseada em indicadores financeiros e não financeiros.
+COMENTÁRIO: são essas as 4 perspectivas do BSC:
+COMENTÁRIO: Perspectiva do cliente: A instituição deverá traduzir em medidas específicas os fatores importantes para os clientes, obtendo assim a satisfação e fidelização. Aqui os indicadores de resultado e satisfação são importantes. Pergunta-se: Para atingir nossos objetivos financeiros, quais necessidades dos clientes devemos atender?
+COMENTÁRIO: Perspectiva financeira: Monitora se a estratégia da instituição está contribuindo para a melhoria dos resultados financeiros. As metas financeiras se relacionam com a rentabilidade e o crescimento. Aqui, a produtividade e o crescimento da receita são essenciais. Pergunta-se: Para satisfazer nossos acionistas, quais objetivos financeiros devem ser atingidos?
+COMENTÁRIO: Perspectiva dos processos internos: Nesta perspectiva as organizações identificam os processos críticos para a realização dos objetivos das duas perspectivas anteriores. Os processos devem criar as condições para que a organização ofereça propostas de valor ao cliente, capazes de atrair e reter clientes nos seus segmentos de atuação. Ou seja, tanto o cliente, quanto o acionista estão interessados nesta perspectiva. Pergunta-se: Em quais processos internos devemos ser excelentes para satisfazer nossos clientes e acionistas. Como agregar valor à empresa? (adendo: é nesta perspectiva que se aplica a análise SWOT (forças, fraquezas, oportunidades e ameaças).
+COMENTÁRIO: Perspectiva do aprendizado e do crescimento: A capacitação da organização se dará por meio dos investimentos em novos equipamentos, em pesquisa, em sistemas e nos recursos humanos da empresa. Por fim, a ótica aqui já é da organização como um todo. A preocupação é em investir em novos equipamentos, produtos, ativos intangíveis.
+COMENTÁRIO: *fonte:
+COMENTÁRIO: Gostei
+COMENTÁRIO: (154)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2397905)
+ASSUNTO: Direito Previdenciário
+Planos de Benefício da Previdência Social - Lei nº 8.213, de 24 de Julho de 1991 ,
+Benefícios em Espécie ,
+Acidente do Trabalho
+ENUNCIADO: Agenor trabalha como Chefe de Almoxarifado na Metalúrgica XV Lida. Sofreu acidente do trabalho quando uma caixa com ferramentas pesadas caiu em seu braço, tendo que se submeter a cirurgia e afastamento do emprego por dois meses, recebendo auxilio-acidente do INSS. Quando obteve alta médica. Agenor foi comunicado pela empresa que estava sendo dispensado injustamente. Diante dessa situação hipotética e de acordo com a legislação vigente,
+ALTERNATIVAS:
+  A) a dispensa somente é válida se for atestada por Médico do INSS ou Médico do Trabalho a capacidade laboral total de Agenor.
+  B) Agenor pode ser dispensado, uma vez que somente em caso de doença, sem nexo causal com o trabalho, é que há obrigatoriedade de manutenção de seu contrato de trabalho.
+  C) Agenor não pode ser dispensado, pois goza de estabilidade provisória no emprego pelo período de doze meses, após a alta médica.
+  D) a dispensa é válida, pois o acidente de trabalho não acarretou a aposentadoria por invalidez de Agenor, hipótese em que a dispensa não é possível.
+  E) Agenor não pode ser dispensado, pois goza de estabilidade provisória no emprego pelo período de dezoito meses, após a alta médica.
+COMENTÁRIO: 25 de Março de 2024 às 19:02
+COMENTÁRIO: Alternativa Correta C.
+COMENTÁRIO: Súmula 378 do TST - ESTABILIDADE PROVISÓRIA. ACIDENTE DO TRABALHO. ART. 118 DA LEI Nº 8.213/1991.
+COMENTÁRIO: I - É constitucional o artigo 118 da Lei nº 8.213/1991 que assegura o direito à estabilidade provisória por período de 12 meses após a cessação do auxílio-doença ao empregado acidentado.
+COMENTÁRIO: II - São pressupostos para a concessão da estabilidade o afastamento superior a 15 dias e a consequente percepção do auxílio-doença acidentário, salvo se constatada, após a despedida, doença profissional que guarde relação de causalidade com a execução do contrato de emprego.
+COMENTÁRIO: III - O empregado submetido a contrato de trabalho por tempo determinado goza da garantia provisória de emprego decorrente de acidente de trabalho prevista no n no art. 118 da Lei nº 8.213/91.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (214)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2397902)
+ASSUNTO: Direito Previdenciário
+Regimes da Previdência Social ,
+Regimes Complementares de Previdência (Privada e Pública)
+ENUNCIADO: Maria está estudando para um concurso público e, ao deparar-se com a Lei Complementar nº 108/2001, que dispõe sobre a relação entre a União, os Estados, o Distrito Federal e os Municípios, suas autarquias, fundações, sociedades de economia mista e outras entidades públicas e suas respectivas entidades fechadas de previdência complementar, verificou que no tocante à estrutura organizacional das entidades de previdência complementar, a mesma é constituída de:
+ALTERNATIVAS:
+  A) conselho deliberativo, conselho jurídico e diretoria-executiva.
+  B) conselho jurídico, conselho contábil e diretoria-executiva.
+  C) conselho fiscal e diretoria-executiva, somente.
+  D) conselho deliberativo e conselho fiscal, somente.
+  E) conselho deliberativo, conselho fiscal e diretoria-executiva.
+COMENTÁRIO: 25 de Março de 2024 às 19:20
+COMENTÁRIO: Alternativa Correta E.
+COMENTÁRIO: De acordo com o art. 9º, da LC 108/01: A estrutura organizacional das entidades de previdência complementar a que se refere esta LC é constituída de conselho deliberativo, conselho fiscal e diretoria-executiva.
+COMENTÁRIO: Mais detalhes:
+COMENTÁRIO: 1) Conselho deliberativo: órgão máximo, responsável pela definição de política geral de administração da entidade e planos de benefícios. Integrado por, no máximo, 6 membros, será paritária entre representantes dos participantes e assistidos e dos patrocinadores, cabendo a estes a indicação do conselheiro presidente, que terá, além do seu, o voto de qualidade (art. 10 e 11).
+COMENTÁRIO: 2) Conselho fiscal: órgão de controle interno. Integrado por, no máximo, 4 membros, será paritária entre representantes de patrocinadores e participantes e assistidos, cabendo a estes a indicação do conselheiro presidente, que terá, além do seu, o voto de qualidade. (art. 14 e 15).
+COMENTÁRIO: 3) Diretoria-executiva: órgão responsável pela administração, conforme política definida pelo conselho deliberativo. Composta, no máximo, por 6 membros, definidos em função do patrimônio da entidade e do número de participantes, inclusive assistidos (art. 19, §1º).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (144)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2397893)
+ASSUNTO: Direito do Trabalho
+Princípios do Direito do Trabalho ,
+Direito do Trabalho
+ENUNCIADO: Considerando que o Direito do Trabalho é um ramo jurídico autônomo, evidente que possui princípios próprios diferentes dos que inspiram os outros ramos da ciência jurídica. Nesse contexto, sobre os princípios do Direito do Trabalho,
+ALTERNATIVAS:
+  A) o princípio protetor abrange três facetas distintas: boa fé objetiva, primazia da realidade e irrenunciabilidade, todas integrando o conceito amplo de proteção ao trabalhador e não sendo aplicáveis ao empregador.
+  B) o princípio da irrenunciabilidade decorre do pacta sunt servanda e visa dar segurança jurídica contratual, impedindo renúncia de direitos e de garantias decorrentes do contrato de trabalho por qualquer das partes.
+  C) a regra da norma mais favorável, decorrente do princípio protetor, tem aplicação ampla e geral no âmbito do Direito do Trabalho, não havendo exceções admitidas em relação à mesma.
+  D) o princípio da primazia da realidade deve ser aplicado a ambas as partes do contrato de trabalho, e não apenas aos trabalhadores.
+  E) o princípio da continuidade da relação de emprego Impõe que se busque a conservação da fonte de trabalho, visando a manutenção do sustento do trabalhador e da sua família, sendo fundamento para a vedação das rescisões imotivadas do contrato de trabalho.
+COMENTÁRIO: 22 de Março de 2024 às 12:52
+COMENTÁRIO: Se algum colega tiver uma explicação melhor ou perceber algum erro nos meus comentários, por favor, me corrija...
+COMENTÁRIO: LETRA A – ERRADA
+COMENTÁRIO: O princípio protetor está vinculado à ideia de se atribuir interpretação mais favorável ao trabalhador na aplicação da norma jurídica.
+COMENTÁRIO: O princípio protetor , de fato, possui 3 facetas, mas a boa fé objetiva e a primazia da realidade não são fazem parte. As facetas são:
+COMENTÁRIO: a) in dubio pro operario - em caso de dúvida, interpreta-se a favor do trabalhador;
+COMENTÁRIO: b) condição mais benéfica - não se pode alterar as condições contratuais para prejudicar o empregado;
+COMENTÁRIO: c) norma mais favorável - deve ser aplicada a norma mais favorável ao trabalhador.
+COMENTÁRIO: Outro detalhe está na “primazia da realidade”, pois este princípio deve ser aplicado a ambas as partes (empregado e empregador), não apenas em favor do obreiro
+COMENTÁRIO: LETRA B – ERRADA
+COMENTÁRIO: O princípio da irrenunciabilidade não decorre do pacta sunt servanda, mas da natureza protetora do Direito do Trabalho.
+COMENTÁRIO: Pacta sut servanta: obrigatoriedade em cumprir o que foi acordado em contrato. Objetivo: proteção ao contrato celebrado.
+COMENTÁRIO: Entretando, se o contrato for prejudicial ao empregado, este não pode renunciar seus direitos trabalhistas em decorrencia desse contrato.
+COMENTÁRIO: Artigo 9º da CLT: 'Serão nulos de pleno direito os atos praticados com o objetivo de desvirtuar, impedir ou fraudar a aplicação dos preceitos contidos nesta Consolidação.'
+COMENTÁRIO: LETRA C – ERRADA
+COMENTÁRIO: Artigo 444 da CLT: 'As relações contratuais de trabalho podem ser objeto de livre estipulação das partes interessadas em tudo quanto não contravenha às disposições de proteção ao trabalho, aos contratos coletivos que lhes sejam aplicáveis e às decisões das autoridades competentes.'
+COMENTÁRIO: OU SEJA, a norma mais favorável não é absoluta e possui exceção (quando a norma mais favorável for contrária a uma norma de ordem pública).
+COMENTÁRIO: LETRA D – CORRETA
+COMENTÁRIO: O princípio da primazia da realidade se aplica tanto ao empregado, como ao empregador. Prevalece o que acontece na realidade, caso haja divergência entre o que foi acordado.
+COMENTÁRIO: LETRA E - ERRADA
+COMENTÁRIO: O “princípio da continuidade da relação de emprego” tem relação com a duração indeterminada do contrato de trabalho, casa não seja contrato de trabalho por prazo determinado. Porém, o empregador não é obrigado a permanecer com o empregado se não quiser, devendo indenizá-lo em caso de demissão sem justa causa.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (686)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2397892)
+ASSUNTO: Direito do Trabalho
+Descanso no trabalho: repouso anual (férias) e semanal ,
+Efeitos e duração do trabalho nos contratos de emprego
+ENUNCIADO: O repouso semanal remunerado, assim considerado o período de 24 horas consecutivas de descanso, a cada semana, em que o empregado deixa de prestar serviços ao empregador, preferencialmente aos domingos, mas recebe a respectiva remuneração, tem regulamentação legal ampla, abrangendo diversos aspectos sobre sua concessão e remuneração, entre as quais a de que
+ALTERNATIVAS:
+  A) a redução da duração do repouso semanal pode ser objeto de negociação coletiva, constituindo, porém, objeto ilícito de convenção coletiva ou de acordo coletivo de trabalho a sua supressão.
+  B) para os empregados que trabalham por dia, semana, quinzena ou mês, a remuneração correspondente ao repouso semanal equivale à de um dia de serviço, não computadas, porém, as horas extraordinárias, ainda que habitualmente prestadas.
+  C) excepcionalmente admite-se o trabalho em dia de repouso, quando ocorrer motivo de força maior ou quando, para atender à realização ou à conclusão de serviços inadiáveis ou cuja inexecução possa acarretar prejuízo manifesto, a empresa obtiver autorização prévia da autoridade competente em matéria de trabalho, com discriminação do período autorizado, o qual, de cada vez, não poderá exceder a 60 dias.
+  D) a autorização excepcional para o trabalho em dia de repouso, concedida pela autoridade competente, não Indica os tipos de atividades que podem ser executadas, mas não pode haver desvio de função dos empregados no período.
+  E) o trabalho aos domingos é autorizado nas atividades do comércio em geral, observada a legislação de cada município, mas o repouso semanal deverá coincidir com o domingo pelo menos uma vez a cada sete semanas.
+COMENTÁRIO: 22 de Março de 2024 às 12:10
+COMENTÁRIO: Art. 68 - O trabalho em domingo, seja total ou parcial, na forma do art. 67, será sempre subordinado à permissão prévia da autoridade competente em matéria de trabalho.
+COMENTÁRIO: Parágrafo único. A permissão será concedida a título permanente nas atividades que, por sua natureza ou pela conveniência pública, devem ser exercidas aos domingos, cabendo ao Ministro do Trabalho, Industria e Comercio, expedir instruções em que sejam especificadas tais atividades. Nos demais casos, ela será dada sob forma transitória, com discriminação do período autorizado, o qual, de cada vez, não excederá de 60 dias.
+COMENTÁRIO:  Art. 611-B - Constituem objeto ilícito de convenção coletiva ou de acordo coletivo de trabalho, exclusivamente, a supressão ou a redução dos seguintes direitos: IX. repouso semanal remunerado;
+COMENTÁRIO: Súmula n. 172 do TST REPOUSO REMUNERADO. HORAS EXTRAS. CÁLCULO.
+COMENTÁRIO: Computam-se no cálculo do repouso remunerado as horas extras habitualmente prestadas.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (293)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2397889)
+ASSUNTO: Direito Constitucional
+Direitos da Nacionalidade
+TEXTO ASSOCIADO: Atenção: Para responder à questão, considere a Constituição Federal de 1988.
+ENUNCIADO: Hans nasceu no Brasil enquanto seus pais aqui estavam a serviço do seu país de origem, qual seja, a Alemanha. Tendo estudado em território nacional brasileiro e sendo bastante popular aqui, deseja seguir a carreira política e, eleito Deputado Federal, tomar-se Presidente da Câmara dos Deputados. Tendo em vista apenas as Informações fornecidas, com relação à possibilidade de Hans ocupar o cargo que almeja de Presidente da Câmara dos Deputados, é correto afirmar:
+ALTERNATIVAS:
+  A) poderá ocupá-lo, pois se trata de cargo que pode ser preenchido por brasileiros ou estrangeiros residentes no Brasil.
+  B) não poderá ocupá-lo, pois o cargo somente pode ser preenchido por brasileiros natos, naturalizados ou estrangeiros provenientes de países que tenham como idioma oficial a língua portuguesa.
+  C) poderá ocupá-lo, por ser brasileiro nato, uma vez que nasceu no Brasil.
+  D) não poderá ocupá-lo, pois se trata de cargo privativo de brasileiro nato.
+  E) poderá ocupá-lo apenas se se naturalizar brasileiro.
+COMENTÁRIO: 22 de Março de 2024 às 17:15
+COMENTÁRIO: CARGOS PRIVATIVOS DE BRASILEIROS NATOS : MP3 (M + 3 Ps)
+COMENTÁRIO: Ministro do Supremo Tribunal Federal;
+COMENTÁRIO: Presidente e Vice-Presidente da República;
+COMENTÁRIO: o Presidente da Câmara dos Deputados;
+COMENTÁRIO: Presidente do Senado Federal;
+COMENTÁRIO: COM
+COMENTÁRIO: Carreira diplomática;
+COMENTÁRIO: Oficial das Forças Armadas.
+COMENTÁRIO: Ministro de Estado da Defesa
+COMENTÁRIO: Assim, o mnemônico resultante é MP3.COM.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (261)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2397888)
+ASSUNTO: Direito Constitucional
+Ordem Econômica e Financeira ,
+Princípios Gerais da Atividade Econômica
+ENUNCIADO: Com relação à ordem econômica e financeira é correto afirmar:
+ALTERNATIVAS:
+  A) o Estado é o agente normativo e regulador da atividade econômica, exercendo as funções de fiscalização. Incentivo e planejamento, sendo este determinante para o setor privado, e indicativo para o setor público.
+  B) é vedado tratamento favorecido para as empresas de pequeno porte constituídas sob as leis brasileiras e que tenham sua sede e administração no País, dada a igualdade entre brasileiros e estrangeiros.
+  C) a lei disciplinará, com base no interesse nacional, os investimentos de capital estrangeiro. Incentivará os reinvestimentos e regulará a remessa de lucros.
+  D) a exploração direta de atividade econômica pelo Estado será permitida apenas quando necessária aos imperativos da segurança nacional.
+  E) deve ser observado, dentre outros, o princípio da defesa do meio ambiente, não podendo, entretanto, haver tratamento diferenciado conforme o impacto ambiental dos produtos e serviços e de seus processos de elaboração e prestação.
+COMENTÁRIO: 23 de Março de 2024 às 22:00
+COMENTÁRIO: Assertiva correta é a C.
+COMENTÁRIO: A questão traz a cópia da CF/88 com diversas pegadinhas. Vejamos:
+COMENTÁRIO: A - o Estado é o agente normativo e regulador da atividade econômica, exercendo as funções de fiscalização. Incentivo e planejamento, sendo este determinante para o setor privado, e indicativo para o setor público. CF/88, Art. 174
+COMENTÁRIO: Inverteu-se os setores, sendo correto que será determinante para o setor público, e indicativo para o setor privado.
+COMENTÁRIO: B - é vedado tratamento favorecido para as empresas de pequeno porte constituídas sob as leis brasileiras e que tenham sua sede e administração no País, dada a igualdade entre brasileiros e estrangeiros. CF/88, Art. 170, IX
+COMENTÁRIO: É permitido o tratamento favorecido às empresas de pequeno porte. Trata-se de um dos princípios da ordem econômica.
+COMENTÁRIO: C -a lei disciplinará, com base no interesse nacional, os investimentos de capital estrangeiro. Incentivará os reinvestimentos e regulará a remessa de lucros. Resposta correta - CF/88, art. 172.
+COMENTÁRIO: D - a exploração direta de atividade econômica pelo Estado será permitida apenas quando necessária aos imperativos da segurança nacional. CF/88, Art. 173
+COMENTÁRIO: Não será apenas neste caso. O referido artigo ressalva os casos previstos nesta Constituição, bem como quando for necessária a relevante interesse coletivo.
+COMENTÁRIO: E - deve ser observado, dentre outros, o princípio da defesa do meio ambiente, não podendo, entretanto, haver tratamento diferenciado conforme o impacto ambiental dos produtos e serviços e de seus processos de elaboração e prestação. CF/88, Art. 170, VI
+COMENTÁRIO: Pelo contrário, o princípio afirma que o tratamento poderá ser diferenciado.
+COMENTÁRIO: Qualquer erro, me sinalizem, por favor.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (185)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (3)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2397887)
+ASSUNTO: Direito Constitucional
+Direitos Sociais
+TEXTO ASSOCIADO: Atenção: Para responder à questão, considere a Constituição Federal de 1988.
+ENUNCIADO: Considerando apenas as informações aqui fornecidas, a mulher, sem filhos, maior de dezoito anos, não gestante, trabalhadora urbana,
+ALTERNATIVAS:
+  A) não poderá realizar trabalho no período noturno, mas poderá exercer atividade insalubre, desde que receba adicional de remuneração para esse tipo de atividade, na forma da lei.
+  B) poderá realizar trabalho no período noturno, devendo a sua remuneração ser superior à do diurno, além de poder exercer atividade insalubre, devendo, neste caso, receber adicional de remuneração para esse tipo de atividade, na forma da lei.
+  C) poderá realizar trabalho no período noturno, sendo, neste caso, sua remuneração igual à do diurno, além de poder exercer atividade Insalubre, devendo receber adicional de remuneração para esse tipo de atividade, na forma da lei.
+  D) não poderá realizar trabalho no período noturno nem exercer atividade insalubre, tendo em vista as normas de proteção à saúde da mulher.
+  E) poderá realizar trabalho no período noturno, devendo a sua remuneração ser superior à do diurno, mas não poderá exercer atividade insalubre.
+COMENTÁRIO: 22 de Março de 2024 às 17:08
+COMENTÁRIO: Art. 7º São direitos dos trabalhadores urbanos e rurais, além de outros que visem à melhoria de sua condição social:
+COMENTÁRIO: IX - remuneração do trabalho noturno superior à do diurno;
+COMENTÁRIO: XXIII - adicional de remuneração para as atividades penosas, insalubres ou perigosas, na forma da lei;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (160)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2397886)
+ASSUNTO: Direito Constitucional
+Direitos Individuais - Remédios Constitucionais e Garantias Processuais
+ENUNCIADO: Abel faleceu logo após sua condenação definitiva por crime por ele praticado que implica a obrigação de reparar danos a Euclides. Euclides, então, pretende receber de Carlos, único sucessor de Abel, o valor desses danos. Essa obrigação
+ALTERNATIVAS:
+  A) não poderá ser estendida a Carlos, ainda que limitada ao valor do patrimônio transferido, pois a execução contra sucessores somente é possível nos casos de decretação do perdimento de bens.
+  B) poderá, nos termos da lei, ser estendida a Carlos e contra ele executada, sendo possível ultrapassar, no limite de até três salários mínimos, o valor do patrimônio transferido.
+  C) poderá, nos termos da lei, ser estendida a Carlos e contra ele executada, podendo ultrapassar o valor do patrimônio transferido até atingir o valor total da dívida.
+  D) não poderá ser estendida a Carlos, pois nenhuma pena passará da pessoa do condenado.
+  E) poderá, nos termos da lei, ser estendida a Carlos e contra ele executada até o limite do valor do patrimônio transferido.
+COMENTÁRIO: 22 de Março de 2024 às 07:54
+COMENTÁRIO: Letra da Constituição:
+COMENTÁRIO: Art. 5º
+COMENTÁRIO: XLV - nenhuma pena passará da pessoa do condenado, podendo a obrigação de reparar o dano e a decretação do perdimento de bens ser, nos termos da lei, estendidas aos sucessores e contra eles executadas, até o limite do valor do patrimônio transferido;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (312)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 1 (ID: Q2397885)
+ASSUNTO: Administração Financeira e Orçamentária
+Princípios Orçamentários
+ENUNCIADO: Acerca dos princípios orçamentários:
+ALTERNATIVAS:
+  A) Por conta do principio da não afetação das receitas. é proibida a vinculação das receitas decorrentes de taxas.
+  B) É plenamente passivei, com base no princípio do orçamento bruto, que despesas financeiras recorrentes de um Ente Público sejam deduzidas de seu orçamento global.
+  C) O princípio da unidade, em conjunto com o princípio da totalidade, é o que permite entender que, mesmo com a existência dos orçamentos fiscal, de investimentos e da seguridade social, a unidade orçamentária é respeitada.
+  D) O princípio da exclusividade determina que o orçamento anual não conterá dispositivo estranho à previsão da receita e fixação da despesa. Sendo assim, o projeto da lei Orçamentária Anual não pode prever autorização para contratação de operações de crédito.
+  E) Sob motivos de segurança nacional, algumas despesas destinadas à manutenção das forças policiais podem ser omitidas do orçamento anual, não afrontando, portanto, os princípios da universalidade e publicidade.
+COMENTÁRIO: 01 de Abril de 2024 às 08:33
+COMENTÁRIO: Gab. C
+COMENTÁRIO: Quanto a letra E), acredito que o erro/correção seriam esses:
+COMENTÁRIO: [ERRADA]
+COMENTÁRIO: E) Sob motivos de segurança nacional, algumas despesas destinadas à manutenção das forças policiais podem ser omitidas do orçamento anual, não afrontando, portanto, os princípios da universalidade e publicidade.
+COMENTÁRIO: --
+COMENTÁRIO: [CORREÇÃO]
+COMENTÁRIO: E) Sob motivos de segurança nacional, algumas despesas destinadas à manutenção das forças policiais podem ser constituídas sob a forma de porgramas especiais de trabalho do orçamento anual, não afrontando, portanto, os princípios da especificidade, da universalidade e da publicidade.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (51)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 2 (ID: Q2397883)
+ASSUNTO: Administração Financeira e Orçamentária
+LC nº 101 de 2000 - Lei de Responsabilidade Fiscal ,
+Transparência, Controle e Fiscalização
+ENUNCIADO: Analise as assertivas abaixo:
+
+I. A transparência da gestão fiscal será assegurada, também, pelo incentivo da participação popular nos processos de elaboração dos planos, lei de diretrizes orçamentárias e orçamentos.
+
+II. As contas apresentadas pelo Chefe do Poder Executivo ficarão disponíveis, durante todo o exercido, no respectivo Poder legislativo e no órgão técnico responsável pela sua elaboração,. para consulta e apreciação pelos cidadãos e instituições da sociedade.
+
+III. Acompanhará o Relatório Resumido da Execução Orçamentária comparativo de limites de concessão de garantias.
+
+Está correto o que se afirma em
+ALTERNATIVAS:
+  A) II e III, apenas.
+  B) III, apenas.
+  C) I, II e III.
+  D) I e II, apenas.
+  E) II, apenas.
+COMENTÁRIO: 27 de Março de 2024 às 04:53
+COMENTÁRIO: RELATÓRIO RESUMIDO DE EXECUÇÃO ORÇAMENTÁRIA (RREO)
+COMENTÁRIO: -> Apresentado pelo Poder Executivo
+COMENTÁRIO: -> Publicados até 30 dias após o encerramento de cada bimestre
+COMENTÁRIO: Balanço orçamentário
+COMENTÁRIO: Demonstrativos de execução de receitas e despesas:
+COMENTÁRIO: Apuração/evolução da RCL :
+COMENTÁRIO: + receitas e despesas previdenciárias
+COMENTÁRIO: + resultado nominal/primário
+COMENTÁRIO: + despesas com juros
+COMENTÁRIO: + restos a pagar
+COMENTÁRIO: RELATÓRIO DE GESTÃO FISCAL (RGF)
+COMENTÁRIO: -> Apresentado Pelos titulares de poderes e órgãos.
+COMENTÁRIO: -> Publicados até 30 dias após o encerramento de cada quadrimestre.
+COMENTÁRIO: Comparativo com os limites da L.R.F.:
+COMENTÁRIO: Despesa total com pessoal
+COMENTÁRIO: Dívidas consolidadas/mobiliária
+COMENTÁRIO: Concessão de garantias
+COMENTÁRIO: Operações de créditos
+COMENTÁRIO: Gostei
+COMENTÁRIO: (75)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 3 (ID: Q2397881)
+ASSUNTO: Administração Financeira e Orçamentária
+LC nº 101 de 2000 - Lei de Responsabilidade Fiscal ,
+Planejamento
+ENUNCIADO: De acordo com a Lei Complementar Federal nº 101/2000, a respeito das diretrizes sobre o planejamento:
+ALTERNATIVAS:
+  A) O Anexo de Metas Fiscais, que integrará o projeto da Lei de Diretrizes Orçamentárias, conterá demonstrativo de estimativa e compensação da renúncia de receita.
+  B) O projeto da Lei de Diretrizes Orçamentárias conterá reserva de contingência.
+  C) A Lei Orçamentária Anual tem o condão de dispor sobre o equilíbrio entre receitas e despesas.
+  D) O Anexo de Riscos Fiscais, que acompanha a Lei de Diretrizes Orçamentárias, deve estabelecer as metas anuais, em valores correntes e constantes, relativas a receitas, despesas, resultados nominal e primário e montante da dívida pública.
+  E) As normas relativas ao controle de custos e avaliação de resultados dos programas financiados com recursos dos orçamentos comporão o texto do Plano Plurianual.
+COMENTÁRIO: 05 de Abril de 2024 às 09:46
+COMENTÁRIO: A) CERTO. O Anexo de Metas conterá demonstrativo das estimativas e compensação da renúncia de receitas e margem de expansão das despesas obrigatórias de caráter continuado.
+COMENTÁRIO: B) A LOA contém a reserva de contingência; a LDO estabelece a forma de utilização e montante da reserva de contingência, mas não a contém.
+COMENTÁRIO: C) A LDO contém o condão de dispor sobre o equilíbrio entre receitas e despesas.
+COMENTÁRIO: D) O Anexo de Metas Fiscais, que acompanha a LDO, deve estabelecer as metas anuais, em valores correntes e constantes, relativas a receitas, despesas, resultado nominal e primário e montante da dívida pública.
+COMENTÁRIO: E) As normas relativas ao controle de custos e avaliação de resultados dos programas financiados com recursos dos orçamentos comporão o texto da LDO.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (58)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 4 (ID: Q2397879)
+ASSUNTO: Direito Administrativo
+Licitações e Lei nº 14.133 de 2021 ,
+Alienações e Instrumentos Auxiliares
+ENUNCIADO: Suponha que a Administração pretenda adquirir computadores e impressoras para substituir tais itens em vários órgãos públicos. Contudo, considerando que alguns dos órgãos passam por reformas e não dispõem de local com segurança adequada para estocar os equipamentos, surgiu dúvida de como proceder à aquisição de forma mais eficiente e econômica. Além disso, estando já no final do ano, praticamente não há recursos orçamentários disponíveis. Nesse cenário, cogita-se utilizar sistema de registro de preços,
+ALTERNATIVAS:
+  A) o que não soluciona totalmente o problema, eis que, embora permita compras futuras, a preço fixado no momento do registro, demanda a reserva de dotação orçamentária no ato de adesão.
+  B) tendo em vista que permite obter descontos em Itens padronizados, porém pode não ser a melhor solução, pois pressupõe a aquisição em até 90 dias da ata de registro de preços.
+  C) eis que a adesão ao sistema garante a aquisição imediata do bem, diferindo o correspondente pagamento, bem como a entrega, pelo prazo 1 ano, prorrogável uma única vez.
+  D) contudo a opção afigura-se Inadequada, eis que o sistema de registro de preços vincula os órgãos que aderirem, tomando a aquisição obrigatória no prazo de até 1 ano.
+  E) dado que viabiliza compras futuras com economia de escala e sem necessidade de reserva de dotação orçamentaria, que somente é requerida no momento da aquisição.
+COMENTÁRIO: 22 de Março de 2024 às 08:00
+COMENTÁRIO: Art. 6º Para os fins desta Lei, consideram-se
+COMENTÁRIO: XLV - sistema de registro de preços: conjunto de procedimentos para realização, mediante contratação direta ou licitação nas modalidades pregão ou concorrência, de registro formal de preços relativos a prestação de serviços, a obras e a aquisição e locação de bens para contratações futuras;
+COMENTÁRIO: Art. 78. São procedimentos auxiliares das licitações e das contratações regidas por esta Lei:
+COMENTÁRIO: IV - sistema de registro de preços;
+COMENTÁRIO: Art. 83. A existência de preços registrados implicará compromisso de fornecimento nas condições estabelecidas, mas não obrigará a Administração a contratar, facultada a realização de licitação específica para a aquisição pretendida, desde que devidamente motivada.
+COMENTÁRIO: Art. 84. O prazo de vigência da ata de registro de preços será de 1 (um) ano e poderá ser prorrogado, por igual período, desde que comprovado o preço vantajoso.
+COMENTÁRIO: Parágrafo único. O contrato decorrente da ata de registro de preços terá sua vigência estabelecida em conformidade com as disposições nela contidas.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (310)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 5 (ID: Q2397877)
+ASSUNTO: Direito Administrativo
+Processo Administrativo - Lei nº 9.784 de 1999 e Lei nº 14.210 de 2021 ,
+Demais aspectos da lei 9.784/99
+ENUNCIADO: Considere que a Administração pretenda Invalidar ato administrativo que concedeu beneficio a particular, por ter identificado equivoco nos fatos consignados no reconhecimento do pedido. De acordo com o procedimento estabelecido na Lei nº 9.784/1999, que regula o processo administrativo,
+ALTERNATIVAS:
+  A) deverá anular o ato, independentemente do tempo decorrido desde sua prática, salvo se o mesmo não produzir efeitos pecuniários.
+  B) deverá proceder à anulação do ato, decaindo de tal direito caso decorridos mais de 5 anos de sua prática, salvo comprovada má-fé.
+  C) somente estará impedida de convalidar o ato se identificada má-fé do beneficiário e, havendo indícios de tal circunstância, deverá Instaurar procedimento para a revogação com direito ao contraditório.
+  D) poderá revogar o ato ou convalidá-lo, ponderando eventuais razões de conveniência e oportunidade para sua manutenção.
+  E) deverá recorrer à via Judicial, caso se trate de ato vinculado, somente sendo passíveis de autotutela os atos de natureza discricionária.
+COMENTÁRIO: 22 de Março de 2024 às 09:22
+COMENTÁRIO: Lei nº 9.784/1999:
+COMENTÁRIO: Art. 54. O direito da Administração de anular os atos administrativos de que decorram efeitos favoráveis para os destinatários decai em cinco anos, contados da data em que foram praticados, salvo comprovada má-fé.
+COMENTÁRIO: Alternativa correta: letra B
+COMENTÁRIO: Gostei
+COMENTÁRIO: (254)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 6 (ID: Q2397875)
+ASSUNTO: Noções de Informática
+Internet ,
+Nuvem ("cloud computing" e "cloud storage")
+ENUNCIADO: Usando as Configurações do Google Drive em português e em condições ideais, via computador pessoal, é possível
+ALTERNATIVAS:
+  A) mostrar arquivos sugeridos na seção Google Interface, na opção Notificações.
+  B) controlar quanta informação é apresentada na tela (densidade), na opção Gerenciar.
+  C) receber atualizações sobre os itens do Google Drive no seu desktop, na opção Geral.
+  D) converter uploads no formato dos editores de arquivo do Google, na opção Geral.
+  E) gerenciar aplicativos conectados ao Google Drive, na opção Notificações.
+COMENTÁRIO: 03 de Maio de 2024 às 09:50
+COMENTÁRIO: Dentre as maiores e mais clássicas bancas de Concurso, a FCC é a mais ou a segunda mais difícil em informática.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (98)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (5)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 7 (ID: Q2397874)
+ASSUNTO: Noções de Informática
+Correio Eletrônico (cliente de e-mail e webmail) ,
+Webmail (Hotmail, Gmail, Yahoo!)
+ENUNCIADO: Um dos caminhos que permite a alteração da senha no Gmail não corporativo, em português, em condições ideais e usando um computador pessoal é
+
+Dado:
+
+O símbolo >> indica tão somente o sentido do caminho a percorrer.
+ALTERNATIVAS:
+  A) Complementos >> Contas >> Segurança >> Alterar senha.
+  B) Geral >> Configuração de Contas >> Mudar senha.
+  C) Geral >> Contas >> Senhas alterar.
+  D) Configurações >> Geral >> Mudar senha.
+  E) Configurações >> Contas e Importação >> Alterar senha.
+COMENTÁRIO: 28 de Março de 2024 às 15:43
+COMENTÁRIO: Sacanagem uma pergunta dessa.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (97)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 8 (ID: Q2397870)
+ASSUNTO: Meio Ambiente
+Politicas Públicas e Aspectos Legais
+ENUNCIADO: Nos termos da Resolução nº 400/2021, do Conselho Nacional de Justiça, a unidade de sustentabilidade
+ALTERNATIVAS:
+  A) tem, dentre outras competências, a de subsidiar a administração com informações que auxiliem a tomada de decisão sob o aspecto social, ambiental, econômico e cultural.
+  B) deve, obrigatoriamente, ser subordinada diretamente à Diretoria-Geral do órgão do Poder Judiciário.
+  C) não é responsável por monitorar metas do Plano de Logística Sustentável (PLS), pois tal competência pertence às unidades gestoras responsáveis pela execução do Plano de Logística Sustentável.
+  D) deverá observar a lotação minima de 3 (três) servidores(as) nos tribunais que possuam menos de 5.000 servidores do quadro de pessoal.
+  E) deve ter caráter provisório, pois avalia os indicadores de desempenho anualmente.
+COMENTÁRIO: 27 de Março de 2024 às 09:57
+COMENTÁRIO: A) Correta. Art. 16, V, V – subsidiar a administração com informações que auxiliem a tomada de decisão sob o aspecto social, ambiental, econômico e cultural;
+COMENTÁRIO: B) Errada. Art. 15. A unidade de sustentabilidade deve, preferencialmente, ser subordinada diretamente à Presidência, à Secretaria-Geral ou à Diretoria-Geral do órgão do Poder Judiciário.
+COMENTÁRIO: C) Errada. Art. 16. São competências da unidade de sustentabilidade:  II – monitorar os indicadores e as metas do PLS;
+COMENTÁRIO: D) Errada. (Não está toda errada, só incompleta)
+COMENTÁRIO: Art. 15. A unidade de sustentabilidade deve, preferencialmente, ser subordinada diretamente à Presidência, à Secretaria-Geral ou à Diretoria-Geral do órgão do Poder Judiciário.
+COMENTÁRIO: § 1o Deverá ser observada a seguinte lotação mínima na unidade de sustentabilidade:
+COMENTÁRIO: I – 3 (três) servidores(as), nos tribunais que possuam mais de 5.000 servidores do quadro de pessoal;
+COMENTÁRIO: II – 2 (dois) servidores(as), nos tribunais cuja quantidade de servidores seja inferior ao quantitativo mencionado no inciso I;
+COMENTÁRIO: E) Errada. Art. 14. A unidade de sustentabilidade deve ter caráter permanente para assessorar o planejamento, a implementação, o monitoramento de metas anuais e a avaliação de indicadores de desempenho para o cumprimento desta Resolução.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (31)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (1)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 9 (ID: Q2397869)
+ASSUNTO: Meio Ambiente
+Politicas Públicas e Aspectos Legais
+ENUNCIADO: Contratações compartilhadas consistem na aquisição conjunta de bens e serviços que geram menor impacto ambiental, maior inclusão social, consideram a dimensão cultural da sustentabilidade e a eficiência econômica, com ganho de escala, visando fomentar a produção e o consumo sustentáveis no país. Para os fins da Resolução nº 400/2021, do Conselho Nacional de Justiça, que dispõe sobre a política de sustentabilidade no âmbito do Poder Judiciário, as contratações compartilhadas são realizadas
+ALTERNATIVAS:
+  A) entre unidades de uma mesma organização pública ou privada, exclusivamente.
+  B) por organizações públicas ou privadas de diferentes setores, não sendo possível a realização de contratações compartilhadas entre unidades de uma mesma organização, seja ela pública ou privada.
+  C) por organizações públicas de diferentes setores, exclusivamente.
+  D) por organizações públicas de diferentes setores ou entre unidades de uma mesma organização pública.
+  E) entre unidades da mesma organização pública, exclusivamente.
+COMENTÁRIO: 27 de Março de 2024 às 10:20
+COMENTÁRIO: Letra D.
+COMENTÁRIO: Art. 3º, IV – contratações compartilhadas: aquisição conjunta de bens e serviços que geram menor impacto ambiental, maior inclusão social, consideram a dimensão cultural da sustentabilidade e a eficiência econômica, com ganho de escala, realizada por organizações públicas de diferentes setores ou entre unidades de uma mesma organização pública, visando fomentar a produção e o consumo sustentáveis no país;
+COMENTÁRIO: Gostei
+COMENTÁRIO: (30)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 10 (ID: Q2397867)
+ASSUNTO: Estatuto da Pessoa com Deficiência - Lei nº 13.146 de 2015
+Direitos Fundamentais no Estatuto da Pessoa com Deficiência ,
+Direito à Moradia
+ENUNCIADO: Considere as seguintes assertivas:
+
+I. O direito à prioridade na aquisição de imóvel para moradia própria, nos programas habitacionais públicos ou subsidiados com recursos públicos, será reconhecido à pessoa com deficiência beneficiária apenas uma vez.
+
+II. Caso não haja pessoa com deficiência interessada nas unidades habitacionais narradas no item anterior, as unidades não utilizadas não poderão ser disponibilizadas às demais pessoas, devendo manter-se reservadas às pessoas com deficiência.
+
+III. Deverá ser reservado, no mínimo, 3% das unidades habitacionais para pessoa com deficiência.
+
+IV. Nos programas habitacionais públicos, os critérios de financiamento devem ser compatíveis com os rendimentos da pessoa com deficiência ou de sua família.
+
+
+Nos termos da Lei nº 13.146/2015, nos programas habitacionais, públicos ou subsidiados com recursos públicos, a pessoa com deficiência ou o seu responsável goza de prioridade na aquisição de imóvel para moradia própria, observados determinados requisitos legais. Acerca do tema, está correto o que consta APENAS de
+ALTERNATIVAS:
+  A) I, III e IV.
+  B) I e lI.
+  C) I e III.
+  D) Il e IV.
+  E) II, III e IV.
+COMENTÁRIO: 14 de Maio de 2024 às 10:27
+COMENTÁRIO: sobre percentuais, aqui estão alguns que peguei de comentários de colegas do QC.
+COMENTÁRIO: Brinquedo5 → 5%
+COMENTÁRIO: Unidades habitacionais para Morada → mínimo 3% ( Mo-ra-da - 3 sílabas )
+COMENTÁRIO: Hotéis e pousadas já existentes para Hospedagem → pelo menos 10%, no mínimo 1
+COMENTÁRIO: Estacionamento → mínimo 2%, no mínimo 1 vaga sinalizada
+COMENTÁRIO: Frotas de Táxi → reservar 10% ( Ten – 10 )
+COMENTÁRIO: Locadoras de Veículos → 1 veículo adaptado para cada 20 ( V - Vinte )
+COMENTÁRIO: Telecentro e lan houses → no mínimo 10%, assegurado pelo menos 1 (Ten – 10)
+COMENTÁRIO: Servidores, funcionários e terceirizados capacitados para o uso e interpretação da Libras → Pelo menos 5%
+COMENTÁRIO: Concursos públicos - mínimo de 5% - até 20% das vagas. Decreto 3298/1999 art. 37 e lei 8112/1990 art. 5.
+COMENTÁRIO: Banheiros de uso público existentes ou a construir em parques, praças, jardins e espaços livres púbicos → pelo menos 1 sanitário e 1 lavatório
+COMENTÁRIO: Banheiros químicos acessíveis em eventos em espaços públicos e privados → mín. 10% do total, garantindo-se pelo menos 1 unidade acessível caso a aplicação do percentual resulte em fração inferior a 1.
+COMENTÁRIO: A empresa com 100 (cem) ou mais empregados está obrigada a preencher de 2% (dois por cento) a 5% (cinco por cento) dos seus cargos com beneficiários reabilitados ou pessoas portadoras de deficiência, habilitadas, na seguinte proporção - LEI 8.213
+COMENTÁRIO: Gostei
+COMENTÁRIO: (120)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 11 (ID: Q2397865)
+ASSUNTO: Português
+Sintaxe ,
+Concordância verbal, Concordância nominal
+TEXTO ASSOCIADO: Numa manhã, Donana acordou me chamando de Carmelita, dizendo que iria dar um jeito em tudo, que eu não me preocupasse,
+que não precisaria mais viajar. Àquela época eu tinha doze anos e Belonísia se aproximava dos onze. Vi Donana nas manhãs seguintes
+chamar Belonísia de Carmelita também. Minha irmã apenas ria da confusão. Olhávamos uma para a outra e nos deixávamos caçoar pela
+desordem que se instaurou nos falares de Donana. Em seus pensamentos, Fusco havia se formado uma onça, pedia para que tivéssemos
+cuidado. Nos convidava a caminhar pelas veredas por onde iriamos buscar meu pal que, haviam dito, estava dormindo aos pés de um jatobá ao lado da onça mansa que o cão havia se tomado. Sabíamos que nosso paí estava na roça, trabalhando todos os dias, então as
+coisas que minha avó falava não faziam sentido. Mesmo assim, minha mãe pedia que a acompanhássemos, que vigiássemos para que não
+lhe sucedesse nenhum acidente ou se perdesse em meio à mala.
+(Adaptado de: VIEIRA JÚNIOR, Itamar. Torto Arado. São Paulo, Cia. das Letras, 2019)
+ENUNCIADO: A expressão sublinhada deve sua flexão ao verbo em negrito em:
+ALTERNATIVAS:
+  A) Àquela época eu tinha doze anos e Belonísia se aproximava dos onze.
+  B) então as coisas que minha avó falava não faziam sentido.
+  C) Olhávamos uma para a outra e nos deixávamos caçoar pela desordem que se instaurou nos falares de Donana.
+  D) Numa manhã, Donana acordou me chamando de Carmelita, dizendo que iria dar um jeito em tudo.
+  E) Em seus pensamentos, Fusco havia se tornado uma onça, pedia para que tivéssemos cuidado.
+COMENTÁRIO: 01 de Abril de 2024 às 08:04
+COMENTÁRIO: a) Verbo: tinha / Sujeito do verbo tinha: eu
+COMENTÁRIO: b) Verbo: "faziam" / sujeito: as coisas (obs: minha avó é sujeito do verbo falava)
+COMENTÁRIO: c) Verbo: deixavamos / Sujeito: nos
+COMENTÁRIO: d) Verbo: iria / Sujeito: ela (Danona)
+COMENTÁRIO: e) Verbo: Pedia / sujeito: Danona (obs: sempre bom voltar no texto até mesmo para entender que os pensamentos eram de danona e não de fusco).
+COMENTÁRIO: Gostei
+COMENTÁRIO: (203)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 12 (ID: Q2397861)
+ASSUNTO: Português
+Morfologia - Verbos ,
+Flexão de voz (ativa, passiva, reflexiva)
+ENUNCIADO: Vi Donana nas manhãs seguintes chamar Belonísia de Carmelita também.
+
+Transpondo a frase acima para a voz passiva, O verbo “Chamar” deverá assumir a seguinte forma:
+ALTERNATIVAS:
+  A) tinha chamado.
+  B) fora chamada.
+  C) ser chamada.
+  D) foi chamado.
+  E) era chamada.
+COMENTÁRIO: 22 de Março de 2024 às 09:11
+COMENTÁRIO: Essa eu achei dificil o verbo chamar esta no infinitivo
+COMENTÁRIO: tem que reparar na frase em si
+COMENTÁRIO: Vi Donana nas manhãs seguintes chamar Belonísia de Carmelita também.
+COMENTÁRIO: o verbo ver é presente do indicativo, mas se voce for peceber o contexto, a ideia se forma no passado....
+COMENTÁRIO: Numa manhã, Donana acordou me chamando de Carmelita, dizendo que iria dar um jeito em tudo, que eu não me preocupasse, que não precisaria mais viajar. Àquela época eu tinha doze anos e Belonísia se aproximava dos onze. Vi Donana nas manhãs seguintes chamar Belonísia de Carmelita também.
+COMENTÁRIO: Ai gera uma duvida de semantica....
+COMENTÁRIO: mas a frase ficaria assim:
+COMENTÁRIO: Vi Donana nas manhãs seguintes chamar Belonísia de Carmelita também.
+COMENTÁRIO: Voz ativa
+COMENTÁRIO: Vi Belonísia ser chamada de Carmelita pela Donana nas manhas seguintes também
+COMENTÁRIO: Voz Passiva
+COMENTÁRIO: Obs. o trecho nas manhas seguintes também poderia esta entre virgulas na frase por que é um adjunto adnominal de tempo? Me corrgija se eu estiver errado.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (142)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (7)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 13 (ID: Q2384456)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Juizado Especial ,
+Juizado Especial Cível
+ENUNCIADO: De acordo com a Lei nº 9.099/1995, são partes legítimas para ingressar com ações perante o Juizado Especial Cível:
+ALTERNATIVAS:
+  A) os incapazes, mediante representação ou assistência de seus representantes legais.
+  B) as pessoas presas.
+  C) os cessionários de direito de pessoas jurídicas.
+  D) as pessoas jurídicas qualificadas como Organização da Sociedade Civil de Interesse Público.
+  E) as pessoas jurídicas de direito público e as empresas públicas da União.
+COMENTÁRIO: 05 de Março de 2024 às 15:18
+COMENTÁRIO: Lei nº 9.099/1995
+COMENTÁRIO: Art. 8º Não poderão ser partes, no processo instituído por esta Lei: o incapaz, o preso, as pessoas jurídicas de direito público, as empresas públicas da União, a massa falida e o insolvente civil.
+COMENTÁRIO: § 1 Somente serão admitidas a propor ação perante o Juizado Especial:
+COMENTÁRIO: I - as pessoas físicas capazes, excluídos os cessionários de direito de pessoas jurídicas;
+COMENTÁRIO: II - as pessoas enquadradas como microempreendedores individuais, microempresas e empresas de pequeno porte;
+COMENTÁRIO: III - as pessoas jurídicas qualificadas como Organização da Sociedade Civil de Interesse Público;
+COMENTÁRIO: IV - as sociedades de crédito ao microempreendedor.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA D)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (388)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 14 (ID: Q2384454)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Intervenção de Terceiro ,
+Assistência
+ENUNCIADO: José é fiador em contrato de locação firmado por seu irmão, Jonas, o qual está inadimplente. Em razão disso, José foi demandado exclusivamente pelo locador em ação de cobrança. Considerando o contexto e as modalidades de intervenção de terceiros previstas no Código de Processo Civil, José poderá realizar nos autos pedido de
+ALTERNATIVAS:
+  A) exclusão do polo passivo por ilegitimidade passiva.
+  B) denunciação à lide.
+  C) chamamento ao processo.
+  D) assistência litisconsorcial.
+  E) assistência simples.
+COMENTÁRIO: 05 de Março de 2024 às 15:27
+COMENTÁRIO: CPC
+COMENTÁRIO: Art. 125. É admissível a denunciação da lide, promovida por qualquer das partes: ⮕ (pode ser provocada tanto pelo autor quanto pelo réu.)
+COMENTÁRIO: I - ao alienante imediato, no processo relativo à coisa cujo domínio foi transferido ao denunciante, a fim de que possa exercer os direitos que da evicção lhe resultam;
+COMENTÁRIO: II - àquele que estiver obrigado, por lei ou pelo contrato, a indenizar, em ação regressiva, o prejuízo de quem for vencido no processo.
+COMENTÁRIO: Art. 130. É admissível o chamamento ao processo, requerido pelo réu: ⮕ (só pode ser utilizado pelo réu).
+COMENTÁRIO: I - do afiançado, na ação em que o fiador for réu;
+COMENTÁRIO: II - dos demais fiadores, na ação proposta contra um ou alguns deles;
+COMENTÁRIO: III - dos demais devedores solidários, quando o credor exigir de um ou de alguns o pagamento da dívida comum.
+COMENTÁRIO: _________________________________________________________________________________________________________________
+COMENTÁRIO: Em resumo:
+COMENTÁRIO: Denunciação da lide: Evicção e Ação de Regresso;
+COMENTÁRIO: Chamamento ao processo: Fiança e Solidariedade.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA C)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (453)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (4)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 15 (ID: Q2384453)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Competência no Processo Civil ,
+Critérios de Competência
+ENUNCIADO: Sobre a competência no Código de Processo Civil, a ação fundada em direito pessoal ou direito real sobre bens móveis será proposta, em regra, no foro
+ALTERNATIVAS:
+  A) de domicílio do réu.
+  B) de qualquer uma das partes, à escolha do autor.
+  C) da situação da coisa móvel, cujo juízo tem competência absoluta.
+  D) de domicílio do autor.
+  E) de eleição, cujo juízo tem competência absoluta.
+COMENTÁRIO: 06 de Março de 2024 às 07:36
+COMENTÁRIO: gab a
+COMENTÁRIO: FORO DE DOMICÍLIO DO RÉU
+COMENTÁRIO: Conforme CPC 2015
+COMENTÁRIO: Art. 46. A ação fundada em direito pessoal ou em direito real sobre bens MÓVEIS será proposta, em regra, no foro de DOMICÍLIO do réu.
+COMENTÁRIO: § 1º Tendo mais de um domicílio, o réu será demandado no foro de qualquer deles.
+COMENTÁRIO: § 2º Sendo incerto ou desconhecido o domicílio do réu, ele poderá ser demandado onde for encontrado ou no foro de domicílio do autor.
+COMENTÁRIO: § 3º Quando o réu não tiver domicílio ou residência no Brasil, a ação será proposta no foro de domicílio do autor, e, se este também residir fora do Brasil, a ação será proposta em qualquer foro.
+COMENTÁRIO: § 4º Havendo 2 (dois) ou mais réus com diferentes domicílios, serão demandados no foro de qualquer deles, à escolha do autor.
+COMENTÁRIO: § 5º A execução fiscal será proposta no foro de domicílio do réu, no de sua residência ou no do lugar onde for encontrado.
+COMENTÁRIO: Gostei
+COMENTÁRIO: (340)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 16 (ID: Q2384452)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Processo de Execução ,
+Processo de Execução da Obrigação de Pagar Quantia Certa
+ENUNCIADO: De acordo com o Código de Processo Civil, é impenhorável
+ALTERNATIVAS:
+  A) o rendimento do bem inalienável em qualquer caso.
+  B) o seguro de vida.
+  C) o bem móvel que serve apenas para adornar escritório profissional.
+  D) o pertence de elevado valor de uso pessoal do executado.
+  E) a pequena propriedade rural, assim definida em lei, ainda que ociosa,
+COMENTÁRIO: 06 de Março de 2024 às 10:49
+COMENTÁRIO: Art. 833. São impenhoráveis:
+COMENTÁRIO: I - os bens inalienáveis e os declarados, por ato voluntário, não sujeitos à execução;
+COMENTÁRIO: LETRA C II - os móveis, os pertences e as utilidades domésticas que guarnecem a residência do executado, salvo os de elevado valor ou os que ultrapassem as necessidades comuns correspondentes a um médio padrão de vida;
+COMENTÁRIO: LETRA D III - os vestuários, bem como os pertences de uso pessoal do executado, salvo se de elevado valor;
+COMENTÁRIO: IV - os vencimentos, os subsídios, os soldos, os salários, as remunerações, os proventos de aposentadoria, as pensões, os pecúlios e os montepios, bem como as quantias recebidas por liberalidade de terceiro e destinadas ao sustento do devedor e de sua família, os ganhos de trabalhador autônomo e os honorários de profissional liberal, ressalvado o § 2º ;
+COMENTÁRIO: V - os livros, as máquinas, as ferramentas, os utensílios, os instrumentos ou outros bens móveis necessários ou úteis ao exercício da profissão do executado;
+COMENTÁRIO: LETRA B VI - o seguro de vida;
+COMENTÁRIO: VII - os materiais necessários para obras em andamento, salvo se essas forem penhoradas;
+COMENTÁRIO: LETRA E VIII - a pequena propriedade rural, assim definida em lei, desde que trabalhada pela família;
+COMENTÁRIO: IX - os recursos públicos recebidos por instituições privadas para aplicação compulsória em educação, saúde ou assistência social;
+COMENTÁRIO: X - a quantia depositada em caderneta de poupança, até o limite de 40 (quarenta) salários-mínimos;
+COMENTÁRIO: XI - os recursos públicos do fundo partidário recebidos por partido político, nos termos da lei;
+COMENTÁRIO: XII - os créditos oriundos de alienação de unidades imobiliárias, sob regime de incorporação imobiliária, vinculados à execução da obra.
+COMENTÁRIO: § 1º A impenhorabilidade não é oponível à execução de dívida relativa ao próprio bem, inclusive àquela contraída para sua aquisição.
+COMENTÁRIO: § 2º O disposto nos incisos IV e X do caput não se aplica à hipótese de penhora para pagamento de prestação alimentícia, independentemente de sua origem, bem como às importâncias excedentes a 50 (cinquenta) salários-mínimos mensais, devendo a constrição observar o disposto no , e no .
+COMENTÁRIO: § 3º Incluem-se na impenhorabilidade prevista no inciso V do caput os equipamentos, os implementos e as máquinas agrícolas pertencentes a pessoa física ou a empresa individual produtora rural, exceto quando tais bens tenham sido objeto de financiamento e estejam vinculados em garantia a negócio jurídico ou quando respondam por dívida de natureza alimentar, trabalhista ou previdenciária.
+COMENTÁRIO: LETRA A - Art. 834 - Podem ser penhorados, à falta de outros bens, os frutos e os rendimentos dos bens inalienáveis,
+COMENTÁRIO: Gostei
+COMENTÁRIO: (210)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 17 (ID: Q2384451)
+ASSUNTO: Direito Processual Civil - Novo Código de Processo Civil - CPC 2015
+Recursos ,
+Efeitos dos Recursos ,
+Apelação no Processo Civil
+ENUNCIADO: Em ação que discute o estado da pessoa, com o objetivo de declarar sua incapacidade civil, há sentença de mérito julgando procedente o pedido para decretar a interdição da parte requerida. O curador especial da parte ré interpôs recurso de apelação contra a decisão. A apelação, de acordo com o Código de Processo Civil, terá efeito
+ALTERNATIVAS:
+  A) devolutivo, pois as apelações interpostas por curador especial gozam de remessa obrigatória.
+  B) suspensivo, pois, em regra, as apelações gozam de efeito suspensivo legal.
+  C) suspensivo, pois as apelações interpostas por curador especial gozam de efeito suspensivo legal.
+  D) devolutivo, pois a decisão produzirá efeitos imediatamente após a sua publicação a sentença.
+  E) suspensivo, pois nas ações de estado da pessoa, as apelações gozam de efeito suspensivo legal.
+COMENTÁRIO: 06 de Março de 2024 às 08:39
+COMENTÁRIO: "Art. 1.012. A apelação terá efeito suspensivo.
+COMENTÁRIO: § 1º Além de outras hipóteses previstas em lei, começa a produzir efeitos imediatamente após a sua publicação a sentença que:
+COMENTÁRIO: (...)
+COMENTÁRIO: VI - decreta a interdição."
+COMENTÁRIO: ou seja, nesse caso, já que a sentença decretou interdição, a apelação não terá efeito suspensivo, surtindo efeitos desde já
+COMENTÁRIO: apenas terá efeito devolutivo, natural de todo recurso
+COMENTÁRIO: Gostei
+COMENTÁRIO: (410)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 18 (ID: Q2384450)
+ASSUNTO: Direito Empresarial (Comercial)
+Teoria Geral do Direito Empresarial ,
+Nome empresarial
+ENUNCIADO: Acerca do nome empresarial, a
+ALTERNATIVAS:
+  A) denominação será composta com o nome de um ou mais sócios, de modo indicativo da relação social.
+  B) firma deve designar o objeto da sociedade, sendo permitido nela figurar o nome dos sócios,
+  C) sociedade limitada pode adotar firma ou denominação, integradas pela palavra final “limitada” ou a sua abreviatura,
+  D) omissão da palavra “limitada” não acarreta a responsabilidade solidária dos administradores que assim empregarem o nome empresarial da sociedade limitada.
+  E) firma será composta com o nome de um ou mais sócios, sejam eles pessoas físicas ou jurídicas, de modo indicativo da relação social.
+COMENTÁRIO: 05 de Março de 2024 às 15:03
+COMENTÁRIO: CC
+COMENTÁRIO: Art. 1.158. Pode a sociedade limitada adotar firma ou denominação, integradas pela palavra final "limitada" ou a sua abreviatura.
+COMENTÁRIO: § 1 A firma será composta com o nome de um ou mais sócios, desde que pessoas físicas, de modo indicativo da relação social.
+COMENTÁRIO: § 2 A denominação deve designar o objeto da sociedade, sendo permitido nela figurar o nome de um ou mais sócios.
+COMENTÁRIO: § 3 A omissão da palavra "limitada" determina a responsabilidade solidária e ilimitada dos administradores que assim empregarem a firma ou a denominação da sociedade.
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA C)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (164)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 19 (ID: Q2384449)
+ASSUNTO: Direito Civil
+Direito das Sucessões ,
+Inventário e Partilha
+ENUNCIADO: Aline e Carlos são filhos de Amanda, falecida em 2020, e netos de Bruno, o qual é viúvo e pai de Amanda (falecida), Miriam (viva), Caio (vivo) e Kaique (vivo). No ano de 2023, Bruno faleceu e não deixou testamento. Na partilha de seus bens, Aline e Carlos
+ALTERNATIVAS:
+  A) serão herdeiros por direito de representação e cada um deles terá direito a 12,5% da herança.
+  B) herdarão por cabeça e cada um deles terá direito a 20% da herança.
+  C) serão herdeiros por direito de representação e cada um deles terá direito a 20% da herança.
+  D) herdarão por cabeça e cada um deles terá direito a 16,66% da herança.
+  E) não terão direito à herança, porque eram apenas netos de Bruno.
+COMENTÁRIO: 05 de Março de 2024 às 14:23
+COMENTÁRIO: BRUNO (X 2023) ____ (X)
+COMENTÁRIO: _________________|________________________
+COMENTÁRIO: | AMANDA (X 2020), MIRIAN, CAIO e KAIQUE |
+COMENTÁRIO: _______|________
+COMENTÁRIO: | ALINE  e CARLOS|
+COMENTÁRIO: Art. 1.851. Dá-se o direito de representação, quando a lei chama certos parentes do falecido a suceder em todos os direitos, em que ele sucederia, se vivo fosse.
+COMENTÁRIO: Art. 1.852. O direito de representação dá-se na linha reta descendente, mas nunca na ascendente.
+COMENTÁRIO: Veja que cada um dos filhos de Bruno terá direito a 25% da herança (100%/4=25%), como Amanda morreu em 2020, seus filhos (Aline e Carlos) herdarão por representação a parte que caberia a Amanda (25%). Dessa forma, Aline a Carlos terão direito a 12,5% da herança, cada um (25%/ 2 = 12,5%).
+COMENTÁRIO: .
+COMENTÁRIO: GABARITO: LETRA A)
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (251)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (2)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+QUESTÃO 20 (ID: Q2384448)
+ASSUNTO: Direito Civil
+Contratos em Geral ,
+Noções e Princípios do Direito Contratual
+ENUNCIADO: Considere as seguintes assertivas sobre contratos no Código Civil:
+
+I. A liberdade contratual será exercida nos limites da função social do contrato.
+
+II. É lícito às partes estipular contratos atípicos, observadas as normas gerais fixadas no Código Civil.
+
+III. Pode ser objeto de contrato a herança de pessoa viva.
+
+IV. Nas relações contratuais privadas, prevalecerão os princípios da habitualidade e da intervenção máxima da revisão contratual.
+
+Está correto o que se afirma APENAS em
+ALTERNATIVAS:
+  A) II e IV.
+  B) I e II.
+  C) I e III.
+  D) I e IV.
+  E) III e IV.
+COMENTÁRIO: 05 de Março de 2024 às 14:03
+COMENTÁRIO: CC
+COMENTÁRIO: I - CORRETA! Art. 421. A liberdade contratual será exercida nos limites da função social do contrato.
+COMENTÁRIO: II - CORRETA! Art. 425. É lícito às partes estipular contratos atípicos, observadas as normas gerais fixadas neste Código.
+COMENTÁRIO: III - ERRADO! Art. 426. Não pode ser objeto de contrato a herança de pessoa viva.
+COMENTÁRIO: IV - ERRADO! Art. 421. Parágrafo único. Nas relações contratuais privadas, prevalecerão o princípio da intervenção mínima e a excepcionalidade da revisão contratual.
+COMENTÁRIO: Bons estudos! ☺
+COMENTÁRIO: Gostei
+COMENTÁRIO: (357)
+COMENTÁRIO: Respostas
+COMENTÁRIO: (0)
+COMENTÁRIO: Reportar abuso
+
+--------------------------------------------------
+
+
+GABARITO FINAL
+--------------------
+Questão 1 (ID: Q2398002): 
+Questão 2 (ID: Q2398001): 
+Questão 3 (ID: Q2398000): A
+Questão 4 (ID: Q2397999): E
+Questão 5 (ID: Q2397998): D
+Questão 6 (ID: Q2397996): B
+Questão 7 (ID: Q2397995): E
+Questão 8 (ID: Q2397994): 
+Questão 9 (ID: Q2397993): D
+Questão 10 (ID: Q2397990): B
+Questão 11 (ID: Q2397982): 
+Questão 12 (ID: Q2397975): E
+Questão 13 (ID: Q2397974): C
+Questão 14 (ID: Q2397973): A
+Questão 15 (ID: Q2397970): E
+Questão 16 (ID: Q2397969): 
+Questão 17 (ID: Q2397968): A
+Questão 18 (ID: Q2397967): D
+Questão 19 (ID: Q2397965): A
+Questão 20 (ID: Q2397964): E
+Questão 1 (ID: Q2397960): E
+Questão 2 (ID: Q2397959): B
+Questão 3 (ID: Q2397958): A
+Questão 4 (ID: Q2397915): 
+Questão 5 (ID: Q2397914): A
+Questão 6 (ID: Q2397913): D
+Questão 7 (ID: Q2397912): B
+Questão 8 (ID: Q2397911): A
+Questão 9 (ID: Q2397910): E
+Questão 10 (ID: Q2397908): D
+Questão 11 (ID: Q2397907): E
+Questão 12 (ID: Q2397906): B
+Questão 13 (ID: Q2397905): C
+Questão 14 (ID: Q2397902): E
+Questão 15 (ID: Q2397893): D
+Questão 16 (ID: Q2397892): 
+Questão 17 (ID: Q2397889): D
+Questão 18 (ID: Q2397888): C
+Questão 19 (ID: Q2397887): B
+Questão 20 (ID: Q2397886): E
+Questão 1 (ID: Q2397885): 
+Questão 2 (ID: Q2397883): D
+Questão 3 (ID: Q2397881): A
+Questão 4 (ID: Q2397879): E
+Questão 5 (ID: Q2397877): 
+Questão 6 (ID: Q2397875): D
+Questão 7 (ID: Q2397874): 
+Questão 8 (ID: Q2397870): 
+Questão 9 (ID: Q2397869): D
+Questão 10 (ID: Q2397867): 
+Questão 11 (ID: Q2397865): 
+Questão 12 (ID: Q2397861): C
+Questão 13 (ID: Q2384456): D
+Questão 14 (ID: Q2384454): C
+Questão 15 (ID: Q2384453): A
+Questão 16 (ID: Q2384452): B
+Questão 17 (ID: Q2384451): D
+Questão 18 (ID: Q2384450): C
+Questão 19 (ID: Q2384449): A
+Questão 20 (ID: Q2384448): B

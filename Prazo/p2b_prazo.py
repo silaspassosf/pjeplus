@@ -372,7 +372,10 @@ def _executar_callback_processo(driver: WebDriver, proc_id: str, progresso: dict
 
         logger.info(f"[PROGRESSO_P2B] Processando: {proc_id}")
 
-        fluxo_pz(driver)  # Call the main function for the process tab
+        sucesso_pz = fluxo_pz(driver)  # Call the main function for the process tab
+        if not sucesso_pz:
+            logger.error(f"[PROGRESSO_P2B] Processo {proc_id} não processado; não marcar como executado")
+            return False
 
         # Marcar processo como executado
         if proc_id != '[sem número]':

@@ -181,7 +181,10 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
         opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
         logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Selecionando opção com xpath: {opcao_xpath}")
         try:
-            opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
+            # Buscar a opção globalmente (às vezes o overlay não é o pai direto do elemento)
+            opcao_elemento = WebDriverWait(driver, 8).until(
+                EC.presence_of_element_located((By.XPATH, opcao_xpath))
+            )
             log_seletor_vencedor('CICLO1/PROVIDENCIAS_OPCAO', By.XPATH, opcao_xpath)
         except Exception as e:
             logger.error(f"[LOOP_PRAZO] Opção '{opcao_destino}' não encontrada com xpath {opcao_xpath}: {e}")

@@ -14,7 +14,8 @@ from selenium.webdriver.common.by import By
 from Prazo.p2b_core import normalizar_texto, gerar_regex_geral
 from .p2b_fluxo_helpers import (
     _encontrar_documento_relevante, _extrair_texto_documento,
-    _processar_regras_gerais, _fechar_aba_processo
+    _obter_texto_documento_api, _processar_regras_gerais,
+    _fechar_aba_processo
 )
 
 # Logger local para evitar conflitos
@@ -30,7 +31,7 @@ from PEC.carta import carta
 
 # ===== ORCHESTRATOR: FLUXO_PZ =====
 
-def fluxo_pz(driver: WebDriver) -> None:
+def fluxo_pz(driver: WebDriver) -> bool:
     """
     Processa prazos detalhados em processos abertos.
 
@@ -39,31 +40,90 @@ def fluxo_pz(driver: WebDriver) -> None:
 
     Refatoração: 761→40 linhas, aninhamento 6→2 níveis
     Padrão: Orchestrator + 8 Helpers privados
+
+    Returns:
+        True se o fluxo processou ao menos um documento relevante; False caso contrário.
     """
     acao_secundaria = None
     texto = None
+    try:
+        current_url = driver.current_url
+    except Exception:
+        current_url = 'URL indisponível'
+    logger.info('[FLUXO_PZ] Iniciando fluxo_pz em %s', current_url)
 
     # 1. Encontrar documento relevante na timeline
     doc_encontrado, doc_link, doc_idx = _encontrar_documento_relevante(driver)
-    if not doc_encontrado or not doc_link:
+    if not doc_encontrado:
         logger.error('[FLUXO_PZ] Nenhum documento relevante encontrado.')
-        return
+        return False
 
     # Loop para processar documentos (incluindo próximos encontrados por checar_prox)
     while True:
         # 2. Extrair texto do documento
-        texto = _extrair_texto_documento(driver, doc_link)
+        if doc_link is None:
+            # Documento obtido via API (DocTimeline) — extrair conteúdo via endpoint
+            try:
+                from Fix.timeline import CONTEUDO_PDF
+                texto = _obter_texto_documento_api(driver, doc_encontrado)
+                if texto == CONTEUDO_PDF or not texto:
+                    logger.info('[FLUXO_PZ] Documento via API é PDF ou vazio — tentando extração direta por URL de documento')
+                    try:
+                        doc_id = getattr(doc_encontrado, 'id_interno', None) or getattr(doc_encontrado, 'id_unico', None)
+                        if doc_id and trt_host:
+                            base = trt_host if trt_host.startswith('http') else 'https://' + trt_host
+                            url_doc = f"{base}/pjekz/processo/{id_processo}/detalhe/timeline/documento/{doc_id}"
+                            logger.info('[FLUXO_PZ] Abrindo documento diretamente para extração: %s', url_doc)
+                            driver.execute_script("window.open(arguments[0], '_blank');", url_doc)
+                            handles = driver.window_handles
+                            driver.switch_to.window(handles[-1])
+                            time.sleep(1)
+                            try:
+                                res = extrair_direto(driver, timeout=10, debug=False, formatar=True)
+                                if res and res.get('sucesso'):
+                                    texto = res.get('conteudo') or res.get('conteudo_bruto')
+                                else:
+                                    texto = extrair_documento(driver, timeout=15, log=False)
+                            except Exception as e_ext:
+                                logger.debug('[FLUXO_PZ] Falha extrair via Selenium direto: %s', e_ext)
+                            try:
+                                driver.close()
+                            except Exception:
+                                pass
+                            try:
+                                driver.switch_to.window(handles[0])
+                            except Exception:
+                                pass
+                        else:
+                            logger.info('[FLUXO_PZ] Não há doc_id ou host para extração direta por URL')
+                    except Exception as e_nav:
+                        logger.debug('[FLUXO_PZ] Erro ao abrir documento para extração direta: %s', e_nav)
+                if texto == CONTEUDO_PDF:
+                    texto = None
+            except Exception as e:
+                logger.error('[FLUXO_PZ] Falha ao extrair documento via API: %s', e)
+                texto = None
+        else:
+            texto = _extrair_texto_documento(driver, doc_link)
+        # Diagnostic: report source and basic metrics about extracted text
+        src = 'selenium' if doc_link is not None else 'api'
+        snippet_raw = (texto or '')[:200].replace('\n', ' ') if texto else ''
+        logger.info('[FLUXO_PZ] Texto extraído (fonte=%s) length=%s snippet=%r', src, len(texto or ''), snippet_raw)
+
         if texto == "__DOC_NAO_ASSINADO__":
             logger.warning('[FLUXO_PZ] Documento não assinado detectado. Marcando processo como analisado e encerrando.')
             _fechar_aba_processo(driver)
-            return
+            return False
 
         if not texto:
             logger.error('[FLUXO_PZ] Não foi possível extrair o texto do documento.')
-            break
+            _fechar_aba_processo(driver)
+            return False
 
         from Fix.extracao import _extrair_formatar_texto
         texto_formatado = _extrair_formatar_texto(texto)
+        snippet_fmt = (texto_formatado or '')[:200].replace('\n', ' ')
+        logger.info('[FLUXO_PZ] Texto formatado length=%s snippet=%r', len(texto_formatado or ''), snippet_fmt)
         pass
         pass
 
@@ -94,6 +154,7 @@ def fluxo_pz(driver: WebDriver) -> None:
 
     # Cleanup: fechar aba
     _fechar_aba_processo(driver)
+    return True
 
 
 # ===== VALIDAÇÃO =====

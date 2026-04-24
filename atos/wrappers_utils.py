@@ -184,8 +184,7 @@ def visibilidade_sigilosos(driver, polo='ativo', log=False):
         _ocultar_multipla_selecao(driver)
         return True
     except Exception as e:
-        if log:
-            logger.error(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}')
+        logger.error(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}')
         return False
 
 

@@ -163,7 +163,12 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
 
             try:
                 wait_for_page_load(driver, timeout=20)
-                fluxo_pz(driver)
+                sucesso_pz = fluxo_pz(driver)
+                if not sucesso_pz:
+                    logger.error(f'[PRAZO_API] Processo {numero} não processado: nenhum documento relevante ou extração falhou')
+                    falhas.append({'numero': numero, 'erro': 'nenhum documento relevante ou extração falhou'})
+                    continue
+
                 processados += 1
 
                 # 2) Marcar progresso P2B somente se executado com sucesso

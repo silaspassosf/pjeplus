@@ -516,21 +516,25 @@ def _checar_reclamadas(texto: str, capa_dados: Dict[str, Any]) -> List[str]:
 
 def _checar_tutela(texto: str, capa_dados: Dict[str, Any]) -> str:
     norm = _norm(texto)
-    idx = max(norm.rfind('pedidos'), norm.rfind('dos pedidos'),
-              norm.rfind('requerimentos'), len(norm) - 4000)
-    sec_norm = norm[max(0, idx):]
+    # Termos ordenados do mais específico para o mais genérico
     termos = [
-        'tutela de urgencia', 'tutela antecipada', 'tutela provisoria',
-        'tutela de evidencia', 'tutela cautelar', 'medida liminar',
-        'medida cautelar', 'medida de urgencia', 'tutela liminar',
+        'tutela antecipada de urgencia', 'tutela de urgencia', 'tutela antecipada',
+        'tutela provisoria', 'tutela de evidencia', 'tutela cautelar',
+        'concessao de tutela', 'requer tutela', 'tutela urgente',
+        'medida liminar', 'medida cautelar', 'medida de urgencia', 'tutela liminar',
         'art. 300', 'art. 305', 'art. 311',
     ]
+    # Busca em todo o documento — tutela pode estar em seção própria
+    # antes dos pedidos finais (ex.: "I - DA TUTELA ANTECIPADA")
     for t in termos:
-        pos = sec_norm.find(t)
-        if pos != -1:
-            ctx = _pag_contexto(texto, max(0, idx) + pos, janela=300)
-            return (f"B6_TUTELA: ALERTA - pedido tutela provisoria ({t}) "
-                    f"- encaminhar para despacho\n  {ctx}")
+        if norm.find(t) == -1:
+            continue
+        # Re-encontra posição no texto original (sem normalização) para contexto correto
+        m = re.search(re.escape(t), texto, re.IGNORECASE)
+        ctx_pos = m.start() if m else norm.find(t)
+        ctx = _pag_contexto(texto, ctx_pos, janela=300)
+        return (f"B6_TUTELA: ALERTA - pedido tutela provisoria ({t}) "
+                f"- encaminhar para despacho\n  {ctx}")
     if capa_dados.get('medida_urgencia') is True:
         return "B6_TUTELA: ALERTA - certidao indica medida de urgencia mas termo nao localizado nos pedidos"
     return "B6_TUTELA: OK"

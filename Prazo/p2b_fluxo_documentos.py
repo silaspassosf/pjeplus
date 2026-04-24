@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+import unicodedata
 from typing import Optional, Tuple, Any
 
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -26,30 +27,114 @@ def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Op
     Returns:
         Tupla (doc_encontrado, doc_link, doc_idx)
     """
+
+    # 1. Tenta API REST (universal, igual Mandado/Argos)
+    try:
+        from Fix.timeline import obter_timeline, encontrar_doc_por_tipo
+        m = re.search(r'/processo/(\d+)', driver.current_url)
+        id_processo = m.group(1) if m else None
+        if id_processo:
+            timeline = obter_timeline(driver, id_processo)
+            doc = encontrar_doc_por_tipo(timeline, tipos=['Despacho','Decisão','Sentença','Conclusão'], mais_recente=False)
+            if doc:
+                logger.info('[FLUXO_PZ] Documento relevante encontrado via API: tipo=%r titulo=%r', doc.tipo, doc.titulo)
+                return doc, None, -1
+    except Exception as e:
+        logger.warning('[FLUXO_PZ] Falha ao buscar documento relevante via API: %s', e)
+
+    # 2. Fallback: DOM Selenium (compatibilidade)
     itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-    pass
+    logger.info('[FLUXO_PZ] Timeline total de itens encontrados: %d', len(itens))
+
+    def _normalizar_texto_para_busca(valor: str) -> str:
+        if not valor:
+            return ''
+        sem_acento = unicodedata.normalize('NFD', valor)
+        sem_acento = ''.join(ch for ch in sem_acento if unicodedata.category(ch) != 'Mn')
+        return sem_acento.lower().strip()
 
     # Busca do mais antigo para o mais recente
     for idx, item in enumerate(itens):
         try:
             link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-            
-            #  CORRIGIDO: Extrair apenas o primeiro <span> (tipo real do documento)
-            # Não o texto completo que pode incluir descrição enganosa
-            primeiro_span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
-            tipo_real = primeiro_span.text.lower().strip() if primeiro_span else ''
-            
-            # Verificar se o tipo REAL é um dos procurados
-            if tipo_real and re.search(r'^(despacho|decisão|sentença|conclusão)', tipo_real):
-                real_idx = idx
-                # Mostrar o tipo real encontrado (sem incluir a descrição enganosa)
-                pass
-                return item, link, real_idx
+            tipo_real = ''
+            try:
+                primeiro_span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+                tipo_real = primeiro_span.text.strip() if primeiro_span else ''
+            except Exception as e:
+                tipo_real = ''
+                logger.debug('[FLUXO_PZ] _encontrar_documento_relevante: falha ao ler primeiro span no item %s: %s', idx, e)
 
-        except Exception:
+            doc_text = link.text.strip()
+            tipo_real_norm = _normalizar_texto_para_busca(tipo_real)
+            doc_text_norm = _normalizar_texto_para_busca(doc_text)
+            logger.debug('[FLUXO_PZ] _encontrar_documento_relevante: item=%s tipo_real=%r tipo_real_norm=%r doc_text=%r doc_text_norm=%r', idx, tipo_real, tipo_real_norm, doc_text, doc_text_norm)
+
+            relevante = False
+            if tipo_real_norm and re.search(r'^(despacho|decisao|sentenca|conclusao)', tipo_real_norm):
+                relevante = True
+            elif re.search(r'despacho|decisao|sentenca|conclusao', doc_text_norm):
+                relevante = True
+
+            if relevante:
+                logger.info('[FLUXO_PZ] Documento relevante encontrado #%s: tipo_real=%r doc_text=%r', idx, tipo_real, doc_text)
+                return item, link, idx
+
+        except Exception as e:
+            logger.debug('[FLUXO_PZ] _encontrar_documento_relevante: erro no item %s: %s', idx, e)
             continue
 
+    # Nenhum documento relevante encontrado: coletar amostra dos primeiros itens
+    amostra = []
+    for idx, item in enumerate(itens[:5]):
+        try:
+            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+            tipo_real = ''
+            try:
+                primeiro_span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
+                tipo_real = primeiro_span.text.strip() if primeiro_span else ''
+            except Exception:
+                tipo_real = ''
+            doc_text = link.text.strip().replace('\n', ' ').replace('\r', ' ')
+            amostra.append({'idx': idx, 'tipo_real': tipo_real, 'doc_text': doc_text[:80]})
+        except Exception as e:
+            amostra.append({'idx': idx, 'erro': str(e)})
+
+    logger.info('[FLUXO_PZ] Nenhum documento relevante encontrado. Amostra dos primeiros itens: %s', amostra)
     return None, None, 0
+
+
+def _obter_texto_documento_api(driver: WebDriver, doc_encontrado: Any) -> Optional[str]:
+    """
+    Extrai texto do documento usando a API de timeline e conteúdo de documento.
+
+    Retorna o texto extraído ou CONTEUDO_PDF se o documento for PDF.
+    """
+    try:
+        from Fix.timeline import obter_conteudo_doc, CONTEUDO_PDF
+
+        m = re.search(r'/processo/(\d+)', driver.current_url)
+        id_processo = m.group(1) if m else None
+        if not id_processo:
+            logger.debug('[FLUXO_PZ] _obter_texto_documento_api: id_processo não encontrado na URL %r', driver.current_url)
+            return None
+
+        doc_id = getattr(doc_encontrado, 'id_interno', None) or getattr(doc_encontrado, 'id_unico', None)
+        if not doc_id:
+            logger.debug('[FLUXO_PZ] _obter_texto_documento_api: documento API sem id_interno/id_unico')
+            return None
+
+        texto = obter_conteudo_doc(driver, id_processo, doc_id)
+        if texto == CONTEUDO_PDF:
+            logger.info('[FLUXO_PZ] _obter_texto_documento_api: documento PDF detectado id=%s', doc_id)
+        elif texto:
+            logger.info('[FLUXO_PZ] _obter_texto_documento_api: texto extraído via API id=%s length=%d', doc_id, len(texto))
+        else:
+            logger.info('[FLUXO_PZ] _obter_texto_documento_api: API retornou vazio para documento id=%s', doc_id)
+        return texto
+    except Exception as e:
+        logger.warning('[FLUXO_PZ] _obter_texto_documento_api falhou: %s', e)
+        return None
 
 
 def _documento_nao_assinado(doc_link: Any) -> bool:

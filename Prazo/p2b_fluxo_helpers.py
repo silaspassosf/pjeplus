@@ -27,6 +27,7 @@ from .p2b_fluxo_documentos import (
     _encontrar_documento_relevante,
     _documento_nao_assinado,
     _extrair_texto_documento,
+    _obter_texto_documento_api,
     _extrair_com_extrair_direto,
     _extrair_com_extrair_documento,
     _fechar_aba_processo,

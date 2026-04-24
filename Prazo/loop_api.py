@@ -67,8 +67,13 @@ def _verificar_processo_tem_xs(client: 'PjeApiClient', numero_processo: str) -> 
         True se processo já tem atividade xs (sem prazo), False caso contrário
     """
     try:
-        # Buscar atividades GIGS do processo
-        atividades = client.atividades_gigs(numero_processo)
+        # Resolver id interno do processo antes de consultar GIGS (client espera id interno em vários endpoints)
+        id_interno = client.id_processo_por_numero(numero_processo)
+        if not id_interno:
+            # Se não conseguiu resolver, tentar chamar diretamente e confiar no cliente
+            atividades = client.atividades_gigs(numero_processo)
+        else:
+            atividades = client.atividades_gigs(id_interno)
 
         if not atividades:
             return False
@@ -144,7 +149,13 @@ def _obter_processos_com_gigs_api(client: 'PjeApiClient', numeros_processos: Lis
 
     def verificar_um(numero: str) -> Tuple[str, bool]:
         try:
-            atividades = client.atividades_gigs(numero)
+            # Resolver id interno primeiro - muitos endpoints GIGS aceitam id interno
+            id_interno = client.id_processo_por_numero(numero)
+            if id_interno:
+                atividades = client.atividades_gigs(id_interno)
+            else:
+                # Fallback: tentar com o próprio número (algumas impls aceitam CNJ)
+                atividades = client.atividades_gigs(numero)
             return (numero, bool(atividades))
         except Exception:
             return (numero, False)

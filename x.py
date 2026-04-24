@@ -75,9 +75,44 @@ from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b
 # ============================================================================
 
 # Caminho do geckodriver
-GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
-if not os.path.exists(GECKODRIVER_PATH):
-    GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'Fix', 'geckodriver.exe')
+def _find_or_auto_geckodriver():
+    """Localiza geckodriver ou permite auto-download via Selenium 4.10+"""
+    # Localidades conhecidas
+    candidates = [
+        os.path.join(os.path.dirname(__file__), 'geckodriver.exe'),
+        os.path.join(os.path.dirname(__file__), 'Fix', 'geckodriver.exe'),
+        os.path.join(os.path.expanduser('~'), '.wdm', 'geckodriver.exe'),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    # Se não encontrar, retorna None; Selenium 4.10+ pode auto-download
+    return None
+
+def _get_geckodriver_with_webdriver_manager():
+    """Tenta usar webdriver-manager para auto-download de geckodriver"""
+    try:
+        from webdriver_manager.firefox import GeckoDriverManager
+        driver_path = GeckoDriverManager().install()
+        print(f"[INIT] Geckodriver baixado via webdriver-manager: {driver_path}")
+        return driver_path
+    except ImportError:
+        print("[INIT] webdriver-manager não instalado. Execute: pip install webdriver-manager")
+        return None
+    except Exception as e:
+        print(f"[INIT] Erro ao usar webdriver-manager: {e}")
+        return None
+
+GECKODRIVER_PATH = _find_or_auto_geckodriver()
+if GECKODRIVER_PATH:
+    print(f"[INIT] Geckodriver localizado: {GECKODRIVER_PATH}")
+else:
+    # Tentar webdriver-manager como fallback
+    GECKODRIVER_PATH = _get_geckodriver_with_webdriver_manager()
+    if GECKODRIVER_PATH:
+        print(f"[INIT] Geckodriver obtido via webdriver-manager")
+    else:
+        print("[INIT] Geckodriver não encontrado. Será tentado auto-download na primeira execução...")
 
 # Diretrio de logs
 LOG_DIR = "logs_execucao"
@@ -171,7 +206,8 @@ def criar_driver_pc(headless=False):
         # Firefox binary
         options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
         
-        service = Service(executable_path=GECKODRIVER_PATH)
+        # Tentar com path explícito se disponível; senão deixar webdriver gerenciar
+        service = Service(executable_path=GECKODRIVER_PATH) if GECKODRIVER_PATH else None
         driver = webdriver.Firefox(options=options, service=service)
         driver.implicitly_wait(10)
         
@@ -207,10 +243,10 @@ def criar_driver_vt(headless=False):
     VT_PROFILE_PJE = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
     VT_PROFILE_PJE_ALT = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
     
-    if not os.path.exists(GECKODRIVER_PATH):
+    if GECKODRIVER_PATH and not os.path.exists(GECKODRIVER_PATH):
         print(f"[DRIVER_VT]  Geckodriver no encontrado em {GECKODRIVER_PATH}")
-        return None
-    
+        print("[DRIVER_VT]  Tentando usar Selenium auto-manager...")
+
     # Encontrar binrio
     firefox_bin = None
     for bin_path in [FIREFOX_BINARY, FIREFOX_BINARY_ALT]:
@@ -288,7 +324,7 @@ def criar_driver_vt(headless=False):
             # Performance normal para modo visvel
             options.set_preference("browser.cache.disk.enable", False)
             options.set_preference("browser.cache.memory.enable", False)
-        
+
         # Performance geral
         options.set_preference("browser.sessionstore.max_tabs_undo", 0)
         options.set_preference("browser.sessionstore.max_windows_undo", 0)
@@ -302,50 +338,50 @@ def criar_driver_vt(headless=False):
         options.set_preference("datareporting.healthreport.uploadEnabled", False)
         options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
         options.set_preference("toolkit.telemetry.enabled", False)
-        
-        service = Service(executable_path=GECKODRIVER_PATH)
+
+        service = Service(executable_path=GECKODRIVER_PATH) if GECKODRIVER_PATH else None
         print("[DRIVER_VT]  Criando instncia Firefox...")
         t0 = time.time()
         driver = webdriver.Firefox(options=options, service=service)
         print(f"[DRIVER_VT]  Configurando driver... (launch {time.time() - t0:.1f}s)")
         driver.implicitly_wait(10)
-        
+
         if not headless:
             driver.maximize_window()
         else:
             driver.set_window_size(1920, 1080)
-        
+
         # Ocultar webdriver
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
+
         print("[DRIVER_VT]  Driver VT criado com sucesso")
         return driver
-        
+
     except Exception as e:
         print(f"[DRIVER_VT]  Erro com configuraes otimizadas: {e}")
         print("[DRIVER_VT]  Fallback: criando driver com configuraes mnimas...")
-        
+
         try:
             options = Options()
-            
+
             if headless:
                 options.add_argument('-headless')
-            
+
             # ===== DESABILITAR EXTENSES PARA ACELERAR STARTUP =====
             options.add_argument('-no-remote')
             options.add_argument('-new-instance')
-            
+
             options.binary_location = firefox_bin
-            
+
             # Anti-automao
             options.set_preference("dom.webdriver.enabled", False)
             options.set_preference('useAutomationExtension', False)
-            
+
             # ===== DESABILITAR EXTENSES =====
             options.set_preference("extensions.update.enabled", False)
             options.set_preference("extensions.update.autoUpdateDefault", False)
             options.set_preference("xpinstall.enabled", False)
-            
+
             # ===== OTIMIZAES DE PERFORMANCE =====
             options.set_preference("browser.sessionstore.max_tabs_undo", 0)
             options.set_preference("browser.sessionstore.max_windows_undo", 0)
@@ -355,12 +391,12 @@ def criar_driver_vt(headless=False):
             options.set_preference("browser.safebrowsing.malware.enabled", False)
             options.set_preference("browser.safebrowsing.phishing.enabled", False)
             options.set_preference("browser.safebrowsing.downloads.enabled", False)
-            
+
             # Anti-throttling
             options.set_preference("dom.min_background_timeout_value", 0)
             options.set_preference("dom.timeout.throttling_delay", 0)
             options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-            
+
             # Performance
             options.set_preference("browser.startup.homepage", "about:blank")
             options.set_preference("startup.homepage_welcome_url", "about:blank")
@@ -371,33 +407,33 @@ def criar_driver_vt(headless=False):
             options.set_preference("browser.privatebrowsing.autostart", False)
             options.set_preference("toolkit.cosmeticAnimations.enabled", False)
             options.set_preference("alerts.useSystemBackend", False)
-            
+
             # Telemetria
             options.set_preference("datareporting.healthreport.uploadEnabled", False)
             options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
             options.set_preference("toolkit.telemetry.enabled", False)
             options.set_preference("toolkit.startup.max_pinned_tabs", 0)
-            
+
             # Desabilitar notificaes
             options.set_preference("dom.disable_beforeunload", True)
             options.set_preference("browser.sessionstore.resuming_notification.delayed", False)
-            
-            service = Service(executable_path=GECKODRIVER_PATH)
+
+            service = Service(executable_path=GECKODRIVER_PATH) if GECKODRIVER_PATH else None
             t0 = time.time()
             driver = webdriver.Firefox(options=options, service=service)
             print(f"[DRIVER_VT]  Configurando driver... (fallback launch {time.time() - t0:.1f}s)")
             driver.implicitly_wait(10)
-            
+
             if not headless:
                 driver.maximize_window()
             else:
                 driver.set_window_size(1920, 1080)
-            
+
             driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
+
             print("[DRIVER_VT]  Driver VT criado (fallback)")
             return driver
-        
+
         except Exception as e2:
             print(f"[DRIVER_VT]  Falha total: {e2}")
             return None
@@ -892,6 +928,7 @@ def main():
 
     tee_output = None
     log_file = None
+    driver = None
     try:
         while True:
             # Menu 1: Ambiente
@@ -924,7 +961,18 @@ def main():
             # Usar context manager para ciclo de vida do driver
             driver_type_str = "VT" if driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS] else "PC"
             headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
-            with driver_session(driver_type_str, headless=headless) as driver:
+            try:
+                driver_cm = driver_session(driver_type_str, headless=headless)
+                driver = driver_cm.__enter__()
+            except (RuntimeError, Exception) as e:
+                print(f"[ERRO] Falha ao criar driver: {e}")
+                print("[ERRO] Verifique:")
+                print("  - Firefox Developer Edition está instalado?")
+                print("  - Geckodriver está no PATH ou em um diretório conhecido?")
+                print("  - Todas as dependências Selenium estão instaladas?")
+                continue
+
+            try:
                 # Login
                 if not login_cpf(driver):
                     print(" Falha no login")
@@ -972,6 +1020,14 @@ def main():
                     print(f" Erro: {e}")
                     import traceback
                     traceback.print_exc()
+            finally:
+                # Finalizar context manager manualmente se foi criado
+                if driver_cm is not None:
+                    try:
+                        driver_cm.__exit__(None, None, None)
+                    except Exception:
+                        pass
+
             # Fechar log
             if tee_output:
                 tee_output.close()
@@ -981,10 +1037,14 @@ def main():
     except KeyboardInterrupt:
         print("\n Interrompido pelo usurio — finalizando imediatamente")
         try:
-            safe_immediate_shutdown(driver, tee_output, reason='OuterKeyboardInterrupt')
+            if driver:
+                safe_immediate_shutdown(driver, tee_output, reason='OuterKeyboardInterrupt')
+            else:
+                os._exit(0)
         except Exception:
             try:
-                finalizar_driver_imediato_fix(driver)
+                if driver:
+                    finalizar_driver_imediato_fix(driver)
             except Exception:
                 pass
             os._exit(0)
@@ -994,7 +1054,7 @@ def main():
         traceback.print_exc()
     
     finally:
-        if driver:
+        if driver is not None:
             try:
                 if not skip_finalizar:
                     finalizar_driver_fix(driver)

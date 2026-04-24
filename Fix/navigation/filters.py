@@ -389,12 +389,19 @@ def filtrofases(
             logger.error(f'[ERRO] Não encontrou opções {fases_alvo} no painel.')
             return False
         
-        # Aplicar filtro de fase
+        # Aplicar filtro de fase — clique com retry para evitar StaleElementReference
         try:
-            botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-            driver.execute_script('arguments[0].click();', botao_filtrar)
-            time.sleep(1)
-            _aguardar_loader_painel(driver)
+            def _click_filtrar():
+                btn = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
+                driver.execute_script('arguments[0].click();', btn)
+                return True
+
+            # tentar com retry rápido
+            if com_retry(_click_filtrar, max_tentativas=3, backoff_base=0.6, log_enabled=False):
+                time.sleep(1)
+                _aguardar_loader_painel(driver)
+            else:
+                logger.error('[ERRO] Não conseguiu clicar no botão de filtrar (retry esgotado)')
         except Exception as e:
             logger.error(f'[ERRO] Não conseguiu clicar no botão de filtrar: {e}')
         
@@ -480,12 +487,18 @@ def filtrofases(
                 logger.error(f'[ERRO] Não encontrou opções {tarefas_alvo} no painel de tarefas.')
                 return False
             
-            # Aplicar filtro de tarefas
+            # Aplicar filtro de tarefas — usar retry para evitar stale elements
             try:
-                botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-                driver.execute_script('arguments[0].click();', botao_filtrar)
-                time.sleep(1)
-                _aguardar_loader_painel(driver)
+                def _click_filtrar_tarefas():
+                    btn = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
+                    driver.execute_script('arguments[0].click();', btn)
+                    return True
+
+                if com_retry(_click_filtrar_tarefas, max_tentativas=3, backoff_base=0.6, log_enabled=False):
+                    time.sleep(1)
+                    _aguardar_loader_painel(driver)
+                else:
+                    logger.error('[ERRO] Não conseguiu clicar no botão de filtrar para tarefas (retry esgotado)')
             except Exception as e:
                 logger.error(f'[ERRO] Não conseguiu clicar no botão de filtrar para tarefas: {e}')
         

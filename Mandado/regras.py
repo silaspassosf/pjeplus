@@ -507,6 +507,11 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                 logger.error(f'[ARGOS][REGRAS][ERRO] Falha ao extrair dados do processo: {e}')
             dados_processo = {}
 
+        if not dados_processo:
+            reus_dadosatuais = _carregar_reus_dadosatuais(debug=debug)
+            if reus_dadosatuais:
+                dados_processo = {'reu': reus_dadosatuais}
+
         num_reclamadas = len(dados_processo.get('reu', [])) if dados_processo else 0
         if num_reclamadas == 1:
             # Com uma reclamada, segue lógica semelhante a despacho
@@ -543,7 +548,7 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                         logger.error(f'[ARGOS][REGRAS][ERRO] ato_bloq falhou: {e}')
                 if debug:
                     logger.info(f'[ARGOS][REGRAS] ato_bloq finalizado em {time.time() - inicio_ato:.2f}s')
-        else:
+        elif num_reclamadas > 1:
             # Multiplas reclamadas
             if resultado_sisbajud == 'negativo':
                 if debug:
@@ -567,6 +572,10 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
                         logger.error(f'[ARGOS][REGRAS][ERRO] ato_bloq falhou: {e}')
                 if debug:
                     logger.info(f'[ARGOS][REGRAS] ato_bloq finalizado em {time.time() - inicio_ato:.2f}s')
+        else:
+            if debug:
+                logger.info('[ARGOS][REGRAS] Número de reclamadas desconhecido/zero; regra "tendo em vista que" não será aplicada')
+            return False
         return True
     return False
 

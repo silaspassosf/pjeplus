@@ -67,24 +67,24 @@ def _xs_meios(driver, atv):
     """xs meios: inclusão BNDT + ato meios."""
     from Fix.extracao import bndt
     from atos.judicial import ato_meios
-    bndt(driver, inclusao=True)
     ato_meios(driver)
+    bndt(driver, inclusao=True)
 
 
 def _xs_socio(driver, atv):
     """xs socio: inclusão BNDT + termo sócio."""
     from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoS
-    bndt(driver, inclusao=True)
     ato_termoS(driver)
+    bndt(driver, inclusao=True)
 
 
 def _empresa_termo(driver, atv):
     """empresa termo: inclusão BNDT + termo empresa."""
     from Fix.extracao import bndt
     from atos.wrappers_ato import ato_termoE
-    bndt(driver, inclusao=True)
     ato_termoE(driver)
+    bndt(driver, inclusao=True)
 
 
 def _sob_n(driver, atv):
@@ -124,9 +124,19 @@ def _build() -> list:
         from SISB.core import minuta_bloqueio, minuta_bloqueio_60, processar_ordem_sisbajud
     except ImportError:
         minuta_bloqueio = minuta_bloqueio_60 = processar_ordem_sisbajud = None
+    try:
+        from atos.movimentos_fluxo import movimentar_inteligente as _mov_int
+    except ImportError:
+        _mov_int = None
 
     def _a(mod, name):
         return getattr(mod, name, None) if mod else None
+
+    def _a_pec(name):
+        acao = _a(w, name)
+        if acao is None:
+            logger.warning(f'[PEC] Wrapper ausente em atos.wrappers_pec: {name} (placeholder ativo)')
+        return acao
 
     def R(pat, bucket, acao):
         return (re.compile(pat, re.IGNORECASE), bucket, acao)
@@ -153,12 +163,14 @@ def _build() -> list:
         R(r'\bedital\s+aud\b|\bpec\s+aud\b',                    'comunicacoes', _w(_a(w, 'pec_editalaud'))),
         R(r'\bpz\s+idpj\b|\bidpjd\b',                          'comunicacoes', _pz_idpj),
         R(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral'))),
+        R(r'\bxs\s+mdd\s+pgto\b',                                 'comunicacoes', _w(_a_pec('pec_mddpgto'))),
+        R(r'\bxs\s+edital\s+pgto\b',                              'comunicacoes', _w(_a_pec('pec_editalpagto'))),
         R(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b',
           'comunicacoes', _w(_a(w, 'pec_editaldec'))),
         R(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunicacoes', _w(_a(w, 'pec_decisao'))),
         R(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj'))),
         R(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio'))),
-        R(r'\bxs\s+sigilo\b',                                   'comunicacoes', _w(_a(w, 'pec_sigilo'))),
+        R(r'\bxs\s+sigilo\b',                                   'comunicacoes', (_w(_a(w, 'pec_sigilo')), _w(lambda d: _mov_int(d, 'Aguardando prazo')))),
         # ── OUTROS ───────────────────────────────────────────────────────
         R(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int),
         R(r'\bxs\s+parcial\b',                                  'outros',   _w(ato_bloq)),

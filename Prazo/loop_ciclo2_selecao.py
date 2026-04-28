@@ -108,11 +108,10 @@ def _ciclo2_processar_livres(driver: WebDriver, client: Optional['PjeApiClient']
 def _ciclo2_selecionar_nao_livres(driver: WebDriver, max_processos: int = 20) -> Tuple[int, bool]:
     """Seleciona processos não-livres via JavaScript."""
     try:
+        # Desselecionar todos primeiro — time.sleep(0.6) idêntico ao legado para Angular estabilizar
+        # NOTA: WebDriverWait+len() era bugado (execute_script retorna int, len(int) → TypeError silenciado)
         driver.execute_script("document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
-        try:
-            WebDriverWait(driver, 4).until(lambda d: len(d.execute_script("return document.querySelectorAll('mat-checkbox input[type=\\\"checkbox\\\"]:checked').length")) == 0)
-        except Exception:
-            pass
+        time.sleep(0.6)
 
         import time as _time
         _t0 = _time.perf_counter()

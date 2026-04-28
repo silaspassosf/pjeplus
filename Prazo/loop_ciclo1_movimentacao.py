@@ -147,80 +147,127 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
         return False
 
 def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
-    """Abordagem robusta para 'Cumprimento de providências' (Gabarito)."""
+    """Abordagem robusta para 'Cumprimento de providências' (baseada no legado)."""
     opcao_destino = 'Cumprimento de providências'
     logger.info(f"[LOOP_PRAZO] Abordagem especial para '{opcao_destino}'")
 
-    from Fix.core import com_retry
-    
-    def _tentar_selecionar_providencias():
-        if not pausar_confirmacao('CICLO1/PROVIDENCIAS_DROPDOWN', 'Abrir dropdown de destino para providências'):
-            return False
+    # ── Passo 1: abrir dropdown (até 8 tentativas, 3 cliques por tentativa) ──
+    max_tent_abrir = 8
+    dropdown_aberto = False
 
-        seletor_dropdown = "div.mat-select-arrow-wrapper"
-        logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Abrindo dropdown com seletor: {seletor_dropdown}")
+    for tent in range(1, max_tent_abrir + 1):
         try:
+            logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Tentativa {tent}/{max_tent_abrir}")
+
             seta_dropdown = WebDriverWait(driver, 15).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_dropdown))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
             )
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", seta_dropdown)
-            driver.execute_script("arguments[0].click();", seta_dropdown)
-            log_seletor_vencedor('CICLO1/PROVIDENCIAS_DROPDOWN', By.CSS_SELECTOR, seletor_dropdown)
+            time.sleep(1.5)                                                     # legado: dar tempo ao Angular
+            driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
+            driver.execute_script("document.body.style.zoom='100%'")           # legado: garantir zoom neutro
+            time.sleep(0.5)
+
+            # Até 3 cliques por tentativa, verificando se overlay apareceu
+            for click_num in range(1, 4):
+                try:
+                    driver.execute_script("arguments[0].click();", seta_dropdown)
+                    logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Clique {click_num} executado")
+                    time.sleep(2.0)                                             # legado: espera generosa
+
+                    overlay = WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+                    )
+                    opcoes = overlay.find_elements(By.XPATH, ".//span[contains(@class,'mat-option-text')]")
+                    textos = [o.text.strip() for o in opcoes if o.text.strip()]
+                    if textos:
+                        logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] ✅ {len(textos)} opções: {textos}")
+                        dropdown_aberto = True
+                        break
+                except Exception:
+                    time.sleep(1.0)
+
+            if dropdown_aberto:
+                break
+
         except Exception as e:
-            logger.error(f"[LOOP_PRAZO] Erro ao abrir dropdown de providências com seletor {seletor_dropdown}: {e}")
-            return False
-
-        try:
-            overlay = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-            )
-        except Exception as e:
-            logger.error(f"[LOOP_PRAZO] Overlay de providências não apareceu após abrir dropdown: {e}")
-            return False
-
-        opcao_xpath = f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']"
-        logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Selecionando opção com xpath: {opcao_xpath}")
-        try:
-            opcao_elemento = overlay.find_element(By.XPATH, opcao_xpath)
-            log_seletor_vencedor('CICLO1/PROVIDENCIAS_OPCAO', By.XPATH, opcao_xpath)
-        except Exception as e:
-            logger.error(f"[LOOP_PRAZO] Opção '{opcao_destino}' não encontrada com xpath {opcao_xpath}: {e}")
-            return False
-
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", opcao_elemento)
-        try:
-            opcao_elemento.click()
-        except Exception:
-            driver.execute_script("arguments[0].click();", opcao_elemento)
-
-        try:
-            from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
-        except Exception:
+            logger.warning(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Erro tentativa {tent}: {e}")
             time.sleep(1.0)
 
-        return True
+    if not dropdown_aberto:
+        logger.error(f"[LOOP_PRAZO] Falha ao abrir dropdown de providências após {max_tent_abrir} tentativas")
+        return False
 
+    # ── Passo 2: selecionar a opção (até 8 tentativas) ──
+    max_tent_opcao = 8
+    for tent in range(1, max_tent_opcao + 1):
+        try:
+            logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Tentativa {tent}/{max_tent_opcao}")
+
+            overlay = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+            )
+            opcao_elemento = None
+
+            # Busca exata → parcial "Cumprimento" → parcial "providências"
+            for xpath in [
+                f".//span[contains(@class,'mat-option-text') and normalize-space(text())='{opcao_destino}']",
+                ".//span[contains(@class,'mat-option-text') and contains(text(),'Cumprimento')]",
+                ".//span[contains(@class,'mat-option-text') and contains(text(),'provid')]",
+            ]:
+                try:
+                    opcao_elemento = overlay.find_element(By.XPATH, xpath)
+                    break
+                except Exception:
+                    pass
+
+            if opcao_elemento:
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", opcao_elemento)
+                time.sleep(0.5)
+                try:
+                    opcao_elemento.click()
+                except Exception:
+                    driver.execute_script("arguments[0].click();", opcao_elemento)
+                logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] ✅ Opção selecionada na tentativa {tent}")
+                time.sleep(1.5)
+                break
+            else:
+                logger.warning(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção não encontrada, reabrindo dropdown...")
+                if tent < max_tent_opcao:
+                    try:
+                        driver.execute_script("document.body.click();")
+                        time.sleep(0.5)
+                        seta = driver.find_element(By.CSS_SELECTOR, "div.mat-select-arrow-wrapper")
+                        seta.click()
+                        time.sleep(1.5)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.error(f"[CICLO1/PROVIDENCIAS_OPCAO] Erro tentativa {tent}: {e}")
+            if tent == max_tent_opcao:
+                return False
+            time.sleep(1.0)
+
+    # ── Passo 3: clicar Movimentar ──
+    time.sleep(3.0)                                                             # legado: aguardar botão habilitar
+    seletor_btn = "button.mat-raised-button[color='primary']"
     try:
-        if com_retry(_tentar_selecionar_providencias, max_tentativas=3):
-            if not pausar_confirmacao('CICLO1/PROVIDENCIAS_MOVIMENTAR', 'Clique no botão Movimentar'):
-                return False
-            if not clicar_com_multiplos_seletores(
-                driver,
-                'CICLO1/PROVIDENCIAS_BOTAO_MOVIMENTAR',
-                [
-                    (By.CSS_SELECTOR, "button.mat-raised-button[color='primary']"),
-                    (By.XPATH, "//button[contains(., 'Movimentar')]")
-                ],
-                timeout=10
-            ):
-                return False
-            logger.info("[LOOP_PRAZO] ✅ Movimentação para providências confirmada.")
+        btn = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn))
+        )
+        driver.execute_script("arguments[0].scrollIntoView({block:'center'});", btn)
+        result = driver.execute_script("arguments[0].click(); return true;", btn)
+        if result:
+            logger.info("[LOOP_PRAZO] ✅ Botão 'Movimentar processos' clicado")
+            time.sleep(2.0)
             return True
+        logger.error("[LOOP_PRAZO] JS click no botão Movimentar retornou falso")
         return False
     except Exception as e:
-        logger.info(f"[LOOP_PRAZO][ERRO] Falha em providências: {e}")
+        logger.error(f"[LOOP_PRAZO] Botão Movimentar não encontrado: {e}")
         return False
+
+
+
 
 def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
     """Seleciona destino usando abordagem direta (Gabarito)."""

@@ -537,7 +537,6 @@
                                 <div id="fgts-radios" style="display: flex; align-items: center; gap: 8px;">
                                     <label style="font-size: 11px; font-weight: bold; margin: 0; color: #555;">Situação:</label>
                                     <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="devido" checked> Devido</label>
-                                    <label style="display: flex; align-items: center; gap: 4px; margin: 0; font-size: 12px;"><input type="radio" name="fgts-tipo" value="depositado"> Depositado</label>
                                 </div>
                                 <div style="width: 1px; height: 16px; background: #ccc;"></div>
                                 <label style="display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px;">

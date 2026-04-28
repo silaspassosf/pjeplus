@@ -83,11 +83,36 @@
                     }
                 }
 
+                // Se houver indicação de responsabilidade subsidiária/solidária, adaptar primeira frase
+                try {
+                    const passivoDetectado = (window.hcalcPartesData?.passivo || []).map((p) => p?.nome).filter(Boolean);
+                    const primeiraReclamada = passivoDetectado[0] || '';
+                    let tipoRespAtual = 'unica';
+                    if ($('resp-subsidiarias')?.checked) tipoRespAtual = 'subsidiarias';
+                    if ($('resp-solidarias')?.checked) tipoRespAtual = 'solidarias';
+
+                    if (tipoRespAtual === 'subsidiarias' && primeiraReclamada) {
+                        // Inserir indicação de quem é a devedora subsidiária diretamente na frase inicial
+                        introTxt += ` O crédito é devido pela 1ª reclamada, ${primeiraReclamada}.`;
+                    }
+                } catch (e) { dbg('erro ao detectar responsabilidade:', e && e.message); }
+
                 if (reclamadaLabel) {
                     text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;"><strong>${reclamadaLabel}</strong></p>`;
                 }
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
+                // Honorário contábil: exibir logo após o parágrafo introdutório
+                try {
+                    const peritoContabilDetectado = (window.hcalcPeritosDetectados || []).find((nome) => isNomeRogerio(nome));
+                    const valorPeritoContabil = $('val-perito-contabil-valor')?.value || '';
+                    if (peritoContabilDetectado && valorPeritoContabil) {
+                        const vContabil = normalizeMoneyInput(valorPeritoContabil);
+                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Honorários contábeis em favor de ${bold(peritoContabilDetectado)}, ora arbitrados em ${bold(vContabil)}.</p>`;
+                    }
+                } catch (e) { dbg('erro honorario contabil:', e && e.message); }
+
+                // Em seguida, inserir texto de responsabilidade (se houver)
                 if (textoResponsabilidade) {
                     text += textoResponsabilidade;
                 }

@@ -331,23 +331,37 @@ def _ciclo2_reselecionar_processos(driver: WebDriver, numeros_processos: List[st
 def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências') -> Union[bool, str]:
     """
     Ciclo 2 completo: GIGS + LIVRES + PROVIDÊNCIAS.
+    Ordem: 1) NÃO-LIVRES (providências) → 2) Reaplicar filtros → 3) GIGS+LIVRES+XS
     """
     from .loop_ciclo2_selecao import _ciclo2_aplicar_filtros, _ciclo2_processar_livres
     from .loop_api import _selecionar_processos_por_gigs_aj_jt
 
     try:
         with medir_latencia('CICLO2_TOTAL'):
-            logger.info('[CICLO2] Iniciando ciclo 2 completo...')
+            logger.info('[CICLO2] Iniciando ciclo 2 (ordem: NÃO-LIVRES -> LIVRES+XS)...')
 
+            # Aplicar filtros iniciais
             if not _ciclo2_aplicar_filtros(driver):
                 return False
 
+            # Inicializar client GIGS quando possível
             client = None
             try:
                 sess, trt = session_from_driver(driver)
                 client = PjeApiClient(sess, trt)
             except Exception as e:
                 logger.warning(f'[CICLO2][WARN] Falha ao inicializar client GIGS: {e}')
+
+            # 1) Selecionar e processar NÃO-LIVRES primeiro (movimentação em lote / providências)
+            with medir_latencia('CICLO2_LOOP_PROVIDENCIAS'):
+                logger.info('[CICLO2] ===== Iniciando processamento de NÃO-LIVRES (providências) =====')
+                if not ciclo2_loop_providencias(driver, opcao_destino):
+                    logger.error('[CICLO2] Erro ao processar providências (não-livres)')
+                    return False
+
+            # 2) Reaplicar filtros e selecionar GIGS + LIVRES para criar atividade XS
+            if not _ciclo2_aplicar_filtros(driver):
+                return False
 
             with medir_latencia('CICLO2_SELECAO_GIGS_AJ_JT'):
                 gigs_selecionados = _selecionar_processos_por_gigs_aj_jt(driver, client)
@@ -356,7 +370,7 @@ def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências
                 livres_selecionados = _ciclo2_processar_livres(driver, client=client)
 
             total_selecionados = gigs_selecionados + livres_selecionados
-            logger.info(f'[CICLO2]  Total selecionado: {total_selecionados} (GIGS: {gigs_selecionados}, Livres: {livres_selecionados})')
+            logger.info(f'[CICLO2]  Total selecionado para XS: {total_selecionados} (GIGS: {gigs_selecionados}, Livres: {livres_selecionados})')
 
             if total_selecionados > 0:
                 selected_before = _ciclo2_contar_processos_selecionados(driver)
@@ -364,6 +378,7 @@ def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências
                 logger.info(f'[CICLO2] Selecionados antes de XS: {selected_before} | IDs: {selected_ids}')
 
                 if not _ciclo2_criar_atividade_xs(driver):
+                    logger.error('[CICLO2] Falha ao criar atividade XS')
                     return False
 
                 selected_after = _ciclo2_contar_processos_selecionados(driver)
@@ -376,10 +391,6 @@ def ciclo2(driver: WebDriver, opcao_destino: str = 'Cumprimento de providências
 
                     selected_after = _ciclo2_contar_processos_selecionados(driver)
                     logger.info(f'[CICLO2] Selecionados após reseleção: {selected_after}')
-
-            with medir_latencia('CICLO2_LOOP_PROVIDENCIAS'):
-                if not ciclo2_loop_providencias(driver, opcao_destino):
-                    return False
 
             logger.info('[CICLO2] Ciclo 2 concluído com sucesso.')
             return True

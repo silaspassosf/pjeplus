@@ -250,6 +250,7 @@ ato_pesqliq_original = make_ato_wrapper(
     marcar_primeiro_destinatario=True,
     descricao='pesquisas para execucao',
     sigilo=True,
+    atribuir_visibilidade_autor=True,
     intimar=False
 )
 
@@ -263,6 +264,7 @@ ato_pesqliq = make_ato_wrapper(
     marcar_primeiro_destinatario=True,
     sigilo=True,
     descricao='pesquisas para execucao',
+    atribuir_visibilidade_autor=True,
     intimar=False
 )
 

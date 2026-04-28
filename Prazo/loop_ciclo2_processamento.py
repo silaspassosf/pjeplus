@@ -53,10 +53,10 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
         campo_obs = driver.find_element(By.CSS_SELECTOR, "textarea[formcontrolname='observacao']")
         campo_obs.click()
         campo_obs.clear()
-        campo_obs.send_keys('xs')
+        campo_obs.send_keys('-1//xs1')
         
         # Aguardar até que o textarea contenha o texto (sincronização mínima)
-        WebDriverWait(driver, 6).until(lambda d: 'xs' in campo_obs.get_attribute('value'))
+        WebDriverWait(driver, 6).until(lambda d: '-1//xs1' in campo_obs.get_attribute('value'))
 
         # Encontrar e clicar no botão Salvar
         spans = driver.find_elements(By.CSS_SELECTOR, "button.mat-raised-button span")

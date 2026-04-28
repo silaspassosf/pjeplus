@@ -103,13 +103,13 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS Argos: %s', e)
 
-        # 2) GIGS xs sigilo — try isolado (não depende do anterior)
+        # 2) GIGS xs1 (prazo 1) — try isolado (não depende do anterior)
         try:
             from .p2b_core import parse_gigs_param
-            d2, r2, o2 = parse_gigs_param('1//xs sigilo')
+            d2, r2, o2 = parse_gigs_param('1//xs1')
             criar_gigs(driver, d2, r2, o2)
         except Exception as e:
-            logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
+            logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs1: %s', e)
 
     # 3) Tentar clicar "Iniciar execução" diretamente (movimentar_inteligente)
     # — independente da fase: se o botão está na tela, clicar; senão, rotear por fase
@@ -126,26 +126,25 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
 
     try:
         if mov_ok:
-            # Processo movido para execução → ato_pesquisas
+            # Processo movido para execução → ato_pesquisas (forçar sigilo)
             if ato_pesquisas:
-                resultado = ato_pesquisas(driver)
+                resultado = ato_pesquisas(driver, sigilo=True)
         else:
             # Fallback: rotear por fase processual
             fase_lower = ''
             try:
-                fase = obter_fase_processual(driver)
-                fase_lower = (fase or '').lower()
+                fase_lower = (driver.find_element(By.CSS_SELECTOR, '[class*="fase"]').text or '').lower()
             except Exception:
                 pass
 
             if ('liquid' in fase_lower or 'homolog' in fase_lower) and ato_pesqliq:
-                resultado = ato_pesqliq(driver)
+                # Chamadas em fallback também devem forçar sigilo
+                resultado = ato_pesqliq(driver, sigilo=True)
             elif ato_pesquisas:
-                resultado = ato_pesquisas(driver)
+                resultado = ato_pesquisas(driver, sigilo=True)
     except Exception as e:
         logger.error('[FLUXO_PZ] inicar_exec: erro no roteamento: %s', e)
 
-    # aplicar visibilidade se necessário
     try:
         sucesso, sigilo_ativado = resultado if isinstance(resultado, tuple) else (bool(resultado), False)
     except Exception:

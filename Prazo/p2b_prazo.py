@@ -159,6 +159,21 @@ def aplicar_filtro_atividades_xs(driver: WebDriver, apenas_filtro: bool = False)
         if not removido:
             logger.info('[FLUXO_PRAZO] Chip Vencidas não encontrado ou já removido.')
             
+        # Clicar no ícone "No Prazo" (fa-clock, success, icone-clicavel)
+        try:
+            icones_no_prazo = driver.find_elements(By.CSS_SELECTOR, 'i.fa-clock.icone-clicavel.success[aria-label="No Prazo"]')
+            if icones_no_prazo:
+                for icone in icones_no_prazo:
+                    try:
+                        safe_click(driver, icone, timeout=5, log=False)
+                        logger.info('[FLUXO_PRAZO] Ícone No Prazo clicado.')
+                    except Exception as e:
+                        logger.info(f'[FLUXO_PRAZO] Erro ao clicar no ícone No Prazo: {e}')
+            else:
+                logger.info('[FLUXO_PRAZO] Nenhum ícone No Prazo encontrado.')
+        except Exception as e:
+            logger.info(f'[FLUXO_PRAZO] Erro ao buscar/clicar ícone No Prazo: {e}')
+
         # Clicar no ícone fa-pen
         btn_fa_pen = esperar_elemento(driver, 'i.fa-pen', timeout=10)
         if btn_fa_pen:
@@ -168,7 +183,7 @@ def aplicar_filtro_atividades_xs(driver: WebDriver, apenas_filtro: bool = False)
         campo_descricao = esperar_elemento(driver, 'input[aria-label*="Descrição"]', timeout=10)
         if campo_descricao:
             campo_descricao.clear()
-            campo_descricao.send_keys('xs')
+            campo_descricao.send_keys('xs1')
             from selenium.webdriver.common.keys import Keys
             campo_descricao.send_keys(Keys.ENTER)
             

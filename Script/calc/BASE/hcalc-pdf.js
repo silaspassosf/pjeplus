@@ -352,7 +352,97 @@
 
             // Aplicar validação (Fase 2)
             const dadosValidados = validarDadosExtraidos(dadosBrutos);
-            const qualidade = calcularQualidadeExtracao(dadosValidados);
+            let qualidade = calcularQualidadeExtracao(dadosValidados);
+
+            // Se campos obrigatórios faltando, tentar fallback OCR (renderizar páginas + Tesseract.js)
+            if (qualidade.faltando && qualidade.faltando.length > 0) {
+                dbg('[HCalc] Qualidade insuficiente — tentando fallback OCR');
+                try {
+                    // Carregar Tesseract dinamicamente e renderizar páginas para OCR
+                    if (!window.Tesseract) {
+                        await new Promise(function (resolve, reject) {
+                            var s = document.createElement('script');
+                            s.src = 'https://unpkg.com/tesseract.js@2.1.5/dist/tesseract.min.js';
+                            s.onload = resolve; s.onerror = reject;
+                            document.head.appendChild(s);
+                        });
+                    }
+
+                    if (window.Tesseract && window.Tesseract.createWorker) {
+                        const worker = window.Tesseract.createWorker({ logger: function () {} });
+                        await worker.load();
+                        try { await worker.loadLanguage('por'); await worker.initialize('por'); } catch (e) { /* ignore */ }
+
+                        const ocrPages = [];
+                        for (let p2 = 1; p2 <= pdf.numPages; p2++) {
+                            try {
+                                const page2 = await pdf.getPage(p2);
+                                const viewport = page2.getViewport({ scale: 2 });
+                                const canvas = document.createElement('canvas');
+                                canvas.width = Math.floor(viewport.width);
+                                canvas.height = Math.floor(viewport.height);
+                                const ctx = canvas.getContext('2d');
+                                await page2.render({ canvasContext: ctx, viewport: viewport }).promise;
+                                const dataUrl = canvas.toDataURL('image/png');
+                                const res = await worker.recognize(dataUrl, 'por');
+                                const txt = (res && res.data && res.data.text) ? String(res.data.text).trim() : '';
+                                if (txt) ocrPages.push(txt);
+                            } catch (e) {
+                                console.warn('[HCalc] OCR página falhou', e && e.message);
+                            }
+                        }
+                        await worker.terminate();
+                        const ocrTexto = ocrPages.join(' ');
+                        if (ocrTexto && ocrTexto.length > 50) {
+                            // Re-executar extrações a partir do texto OCR
+                            const textoCompletoOCR = ocrTexto;
+                            const verbas2 = (textoCompletoOCR.match(regexVerbas) || [])[1] || "";
+                            const fgts2 = (textoCompletoOCR.match(regexFGTS) || [])[1] || "";
+                            const inssTotal2 = (textoCompletoOCR.match(regexINSSTotal) || [])[1] || "";
+                            const inssAutor2 = (textoCompletoOCR.match(regexINSSAutor) || [])[1] || "";
+                            const custas2 = (textoCompletoOCR.match(regexCustas) || [])[1] || "";
+                            let honAutor2 = findFirstMatch(textoCompletoOCR, regexHonAutor_variants) || "";
+                            let honReu2 = findFirstMatch(textoCompletoOCR, regexHonReu_variants) || "";
+                            const matchPerito2 = textoCompletoOCR.match(regexHonPerito);
+                            let peritoNome2 = matchPerito2 ? matchPerito2[1].trim() : "";
+                            let peritoValor2 = matchPerito2 ? matchPerito2[2] : "";
+                            let dataAtualizacao2 = (textoCompletoOCR.match(regexData) || [])[1] || (textoCompletoOCR.match(regexData) || [])[2] || '';
+                            if (!dataAtualizacao2) {
+                                const fallback2 = textoCompletoOCR.match(regexDataFallback);
+                                if (fallback2) dataAtualizacao2 = fallback2[1];
+                            }
+                            const idPlanilha2 = idNomeArquivo || (textoCompletoOCR.match(regexIdAssinatura) || [])[1] || "";
+
+                            const dadosBrutosOCR = {
+                                verbas: verbas2,
+                                fgts: fgts2,
+                                fgtsDepositado,
+                                inssTotal: inssTotal2,
+                                inssAutor: inssAutor2,
+                                custas: custas2,
+                                dataAtualizacao: dataAtualizacao2,
+                                idPlanilha: idPlanilha2,
+                                honAutor: honAutor2,
+                                honReu: honReu2,
+                                peritoNome: peritoNome2,
+                                peritoValor: peritoValor2,
+                                periodoCalculo,
+                                irpfIsento,
+                                sucesso: true
+                            };
+
+                            const dadosValidadosOCR = validarDadosExtraidos(dadosBrutosOCR);
+                            const qualidadeOCR = calcularQualidadeExtracao(dadosValidadosOCR);
+                            dbg('[HCalc] Qualidade OCR:', qualidadeOCR.percentual, 'faltando=', qualidadeOCR.faltando);
+                            if (!qualidadeOCR.faltando || qualidadeOCR.faltando.length === 0) {
+                                return dadosValidadosOCR;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    warn('[HCalc] Fallback OCR falhou:', e && e.message);
+                }
+            }
 
             console.log(`[HCalc] Extração concluída - Qualidade: ${qualidade.percentual}% (${qualidade.validos}/${qualidade.total} válidos)`);
             if (qualidade.faltando.length > 0) {

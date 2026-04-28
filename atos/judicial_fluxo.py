@@ -1,4 +1,4 @@
-﻿from Fix.utils_tempo import medir_tempo
+from Fix.utils_tempo import medir_tempo
 """
 judicial_fluxo.py - Fluxos principais de atos judiciais
 ======================================================
@@ -987,7 +987,8 @@ def make_ato_wrapper(
     Assinar: bool = False,
     coleta_conteudo: Optional[Callable] = None,
     inserir_conteudo: Optional[Callable] = None,
-    intimar: Optional[bool] = None
+    intimar: Optional[bool] = None,
+    atribuir_visibilidade_autor: Optional[bool] = False
 ) -> Callable[[WebDriver, Any], Tuple[bool, bool]]:
     '''
     Factory function que cria um wrapper para ato_judicial com parâmetros pré-definidos.

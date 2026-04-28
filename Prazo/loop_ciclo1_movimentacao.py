@@ -125,7 +125,11 @@ def _ciclo1_abrir_suitcase(driver: WebDriver) -> bool:
         return False
 
 def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
-    """Aguarda carregamento da página de movimentação em lote."""
+    """Aguarda carregamento da página de movimentação em lote.
+    
+    Inclui espera pelo spinner 'Recuperando transições possíveis...' (div.carregando)
+    desaparecer antes de retornar — garante que o dropdown de destino terá opções.
+    """
     logger.info("[DEBUG] Aguardando URL /painel/movimentacao-lote...")
     try:
         WebDriverWait(driver, 15).until(
@@ -136,15 +140,26 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
             logger.info(f"[LOOP_PRAZO][ERRO] URL inesperada após suitcase: {driver.current_url}")
             return False
         logger.info(f"[LOOP_PRAZO] Na tela de movimentação em lote: {driver.current_url}")
+
+        # ── Aguardar spinner "Recuperando transições possíveis..." desaparecer ──
+        # Sem isso, o dropdown de destino não terá opções e o clique nunca funciona
+        logger.info("[CICLO1/LOTE] Aguardando transições carregarem (div.carregando sumir)...")
         try:
-            from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.2)
-        except Exception:
-            time.sleep(1.2)
+            WebDriverWait(driver, 25).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, 'div.carregando'))
+            )
+            logger.info("[CICLO1/LOTE] ✅ Transições carregadas (spinner sumiu)")
+        except TimeoutException:
+            logger.error("[CICLO1/LOTE] ❌ Timeout: spinner 'Recuperando transições possíveis...' não sumiu em 25s")
+            logger.error("[CICLO1/LOTE] Algum processo do lote não possui a transição de destino — abortando")
+            return False
+
+        time.sleep(0.5)
         return True
     except Exception as e:
         logger.info(f"[LOOP_PRAZO][ERRO] URL de movimentacao-lote não carregou: {e}")
         return False
+
 
 def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
     """Abordagem robusta para 'Cumprimento de providências' (baseada no legado)."""

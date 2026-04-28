@@ -103,13 +103,13 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
         except Exception as e:
             logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS Argos: %s', e)
 
-        # 2) GIGS xs1 (prazo 1) — try isolado (não depende do anterior)
+        # 2) GIGS xs sigilo — try isolado (não depende do anterior)
         try:
             from .p2b_core import parse_gigs_param
-            d2, r2, o2 = parse_gigs_param('1//xs1')
+            d2, r2, o2 = parse_gigs_param('1//xs sigilo')
             criar_gigs(driver, d2, r2, o2)
         except Exception as e:
-            logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs1: %s', e)
+            logger.error('[FLUXO_PZ] inicar_exec: falha ao criar GIGS xs sigilo: %s', e)
 
     # 3) Tentar clicar "Iniciar execução" diretamente (movimentar_inteligente)
     # — independente da fase: se o botão está na tela, clicar; senão, rotear por fase
@@ -133,7 +133,8 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
             # Fallback: rotear por fase processual
             fase_lower = ''
             try:
-                fase_lower = (driver.find_element(By.CSS_SELECTOR, '[class*="fase"]').text or '').lower()
+                fase = obter_fase_processual(driver)
+                fase_lower = (fase or '').lower()
             except Exception:
                 pass
 
@@ -145,17 +146,15 @@ def inicar_exec(driver, texto_normalizado: Optional[str] = None):
     except Exception as e:
         logger.error('[FLUXO_PZ] inicar_exec: erro no roteamento: %s', e)
 
+    # aplicar visibilidade se necessário
     try:
         sucesso, sigilo_ativado = resultado if isinstance(resultado, tuple) else (bool(resultado), False)
     except Exception:
         sucesso, sigilo_ativado = (False, False)
 
-    if sucesso and sigilo_ativado:
-        try:
-            from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
-            executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=True)
-        except Exception as e:
-            logger.error('[FLUXO_PZ] inicar_exec: erro aplicando visibilidade: %s', e)
+    # Visibilidade é aplicada pelo próprio `ato_judicial` quando o wrapper
+    # foi configurado com `atribuir_visibilidade_autor=True`. Não executar
+    # aqui para evitar duplicação.
 
     return resultado
 

@@ -38,6 +38,7 @@ def ato_pesquisas(driver, debug=False, gigs=None, **kwargs):
             marcar_primeiro_destinatario=True,
             debug=debug,
             sigilo=True,
+            atribuir_visibilidade_autor=True,
             descricao='Pesquisas para execução',
             intimar=False
         )

@@ -1,3 +1,79 @@
+# Expedientes API
+
+Endpoint: `GET /pje-comum-api/api/processos/id/{processoId}/expedientes`
+
+Query parameters:
+- `pagina` (int) — página (inicia em 1)
+- `tamanhoPagina` (int) — tamanho da página (ex.: 10, 50)
+- `instancia` (int) — instância do processo (ex.: 1)
+
+Descrição
+--------
+Retorna uma lista paginada de "expedientes" relacionados a um processo.
+
+Resposta (resumo relevante):
+
+{
+  "pagina": 1,
+  "tamanhoPagina": 10,
+  "qtdPaginas": 4,
+  "totalRegistros": 31,
+  "resultado": [
+    {
+      "id": 12345,
+      "nomePessoaParte": "João da Silva",
+      "tipoExpediente": "INTIMAÇÃO",
+      "meioExpediente": "CORREIO",
+      "prazoLegal": 10,
+      "dataCriacao": "2026-04-01T10:00:00Z",
+      "dataCiencia": "2026-04-02T12:00:00Z",
+      "fimDoPrazoLegal": "2026-04-12T12:00:00Z",
+      "fechado": false
+    }
+  ]
+}
+
+Campos observados (nomes exatos usados pelo PJe):
+- `nomePessoaParte`
+- `tipoExpediente`
+- `meioExpediente`
+- `prazoLegal` (número de dias — quando presente)
+- `dataCriacao` (ISO)
+- `dataCiencia` (ISO)
+- `fimDoPrazoLegal` (ISO — quando disponível)
+- `fechado` (boolean)
+
+Normalização recomendada para consumidores (campos retornados pelos exemplos):
+- `destinatario` ← `nomePessoaParte`
+- `tipo` ← `tipoExpediente`
+- `meio` ← `meioExpediente`
+- `dataCriacao` ← `dataCriacao` (formatado `DD/MM/YY`)
+- `dataCiencia` ← `dataCiencia` (formatado `DD/MM/YY` ou `null`)
+- `prazo` ← `prazoLegal` (dias)
+- `fimPrazo` ← `fimDoPrazoLegal` (formatado `DD/MM/YY`) — quando ausente, pode ser calculado como `(dataCiencia || dataCriacao) + prazoLegal dias` se `prazoLegal` for numérico
+- `fechado` ← `fechado` (boolean)
+
+Autenticação / cabeçalhos
+- Execute a chamada a partir de uma sessão autenticada (navegador com credenciais ou `requests.Session` com cookies/headers corretos).
+- Para clientes sem cookie de sessão, é necessário prover `X-XSRF-TOKEN` / header apropriado se o servidor exigir.
+
+Observações
+- Esta documentação foi gerada a partir de inspeção direta do endpoint em uma sessão autenticada; o cliente deve mapear exatamente os nomes observados acima para evitar regressões.
+
+## Extração específica: Editais por parte (via `expedientes`)
+
+Para localizar *editais* diretamente pelo endpoint de `expedientes`, consultar o mesmo endpoint e filtrar os itens cujo campo `tipoExpediente` é igual a `EDITAL`. O consumidor pode coletar apenas o nome do destinatário (`nomePessoaParte`) e construir um relatório do tipo:
+
+"Editais localizados em nome de: [lista de partes com edital]"
+
+Exemplo de fluxo (navegador autenticado):
+
+1. GET `/pje-comum-api/api/processos/id/{processoId}/expedientes?pagina=1&tamanhoPagina=50&instancia=1`
+2. Filtrar `resultado` por `item.tipoExpediente === 'EDITAL'`
+3. Mapear `item.nomePessoaParte` e deduplicar para obter a lista de partes
+
+Esta extração está implementada no script `Script/calc/calcapi.js` como `calcApi.editaisPorParte()` — método que pagina o endpoint e retorna a lista de nomes (strings) das partes que aparecem em expedientes do tipo `EDITAL`.
+
 # Guia de Extração de Dados do PJe via API
 
 Este guia reúne todas as informações necessárias para obter dados de processos do PJe (Processo Judicial Eletrônico) utilizando as APIs disponíveis, com foco em automação e integração. O conteúdo foi consolidado a partir da análise da extensão maisPJe, que já implementa diversas chamadas para extrair informações processuais.

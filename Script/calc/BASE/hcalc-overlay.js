@@ -1003,7 +1003,8 @@
         
         draftController.setResponsabilidadesApi({
             addPrincipal: responsabilidadesController.addPrincipal,
-            addSubsInt: responsabilidadesController.addSubsInt
+            addSubsInt: responsabilidadesController.addSubsInt,
+            addSolInt: responsabilidadesController.addSolInt
         });
 
         const responsabilidadesTextoApi = window.hcalcOverlayResponsabilidades.createTextApi({

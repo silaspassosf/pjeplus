@@ -632,7 +632,7 @@
 
             if (solDiv.length > 0) {
                 const txtSolDiv = formatarLista(solDiv.map(s => s.nome || s));
-                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras solidárias por período parcial do contrato: ${txtSolDiv} — serão tratadas em item próprio a seguir.</p>`);
+                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras solidárias por período parcial do contrato: ${txtSolDiv}.</p>`);
             }
 
             if (subsInt.length > 0) {
@@ -642,7 +642,7 @@
 
             if (subsDiv.length > 0) {
                 const txtSubsDiv = formatarLista(subsDiv.map(s => s.nome || s));
-                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras subsidiárias por período parcial do contrato: ${txtSubsDiv} — serão tratadas em item próprio a seguir.</p>`);
+                paragrafos.push(`<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">São devedoras subsidiárias por período parcial do contrato: ${txtSubsDiv}.</p>`);
             }
 
             const textoIntro = paragrafos.join('');

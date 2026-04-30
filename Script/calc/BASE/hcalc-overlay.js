@@ -668,62 +668,11 @@
                 </div>
             </fieldset>
 
-            <!-- SEÇÃO 6: RESPONSABILIDADE -->
-            <fieldset id="fieldset-responsabilidade-opcoes">
-                <legend>Responsabilidade</legend>
-                
-                <div style="display:flex; flex-direction:row; align-items:flex-start; gap:20px;">
-                    <!-- COLUNA ESQUERDA: SUBSIDIÁRIAS -->
-                    <div style="flex:1; display:flex; flex-direction:column;">
-                        <div style="margin-bottom:8px;">
-                            <label style="font-weight:bold; font-size:13px; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
-                                <input type="checkbox" id="resp-subsidiarias" checked> Devedoras Subsidiárias
-                            </label>
-                        </div>
-                        <div id="resp-sub-opcoes" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
-                            <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="checkbox" id="resp-sub-integral" checked> Período Integral
-                            </label>
-                            <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="checkbox" id="resp-sub-diversos" style="margin-top:2px;">
-                                <span>Período Diverso</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- DIVISOR VERTICAL -->
-                    <div style="width:1px; background:#e5e7eb; align-self:stretch;"></div>
-
-                    <!-- COLUNA DIREITA: SOLIDÁRIAS -->
-                    <div style="flex:1; display:flex; flex-direction:column;">
-                        <div style="margin-bottom:8px;">
-                            <label style="font-weight:bold; font-size:13px; display:flex; align-items:center; justify-content:flex-start; gap:8px;">
-                                <input type="checkbox" id="resp-solidarias"> Devedoras Solidárias
-                            </label>
-                        </div>
-                        <div id="resp-sol-opcoes" class="hidden" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding-left:24px;">
-                            <label style="display:flex; align-items:center; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="checkbox" id="resp-sol-integral"> Período Integral
-                            </label>
-                            <label style="display:flex; align-items:flex-start; justify-content:flex-start; gap:6px; font-weight:normal; cursor:pointer;">
-                                <input type="checkbox" id="resp-sol-diversos" style="margin-top:2px;">
-                                <span>Período Diverso</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <input type="hidden" id="resp-unica-flag" value="false">
-                <div id="resp-rec-judicial-unica-row" class="hidden" style="margin-top: 12px; border-top: 1px solid #eee; padding-top: 8px;">
-                    <label><input type="checkbox" id="resp-rec-judicial-unica"> Rec. Judicial/Falência (reclamada única)</label>
-                </div>
-            </fieldset>
-
             <!-- SEÇÃO 6.1: DEVEDORAS PRINCIPAIS (SEMPRE VISÍVEL) -->
             <fieldset id="resp-principais-fieldset">
                 <div class="row" style="margin-bottom: 0;">
                     <div class="col">
-                        <label style="font-weight: bold; color: #b45309;">1. Devedoras Principais</label>
+                        <label style="font-weight: bold; color: #b45309;">1. Devedora Principal</label>
                         <small style="color:#666; display:block; margin-bottom:6px;">A primeira da lista é a Devedora Principal (automática).</small>
                         <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
                         <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
@@ -737,63 +686,7 @@
                 </div>
             </fieldset>
 
-            <!-- SEÇÃO 6.2: SOLIDÁRIAS INTEGRAIS -->
-            <fieldset id="resp-solidarias-integral-fieldset" class="hidden" style="background: #fdfbf7; border-color: #fbd38d;">
-                <div class="row" style="margin-bottom: 0;">
-                    <div class="col">
-                        <label style="font-weight: bold; color: #d97706;">2. Solidárias - Período Integral</label>
-                        <small style="color:#666; display:block; margin-bottom:6px;">
-                            Adicione as reclamadas que respondem solidariamente pelo período total do contrato.
-                        </small>
-                        <div id="resp-solidarias-integral-dinamico-container" style="flex-direction:column; gap:6px; margin-bottom:10px;"></div>
-                        <div id="div-add-sol-int" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                            <select id="sel-add-sol-int" style="padding: 6px; flex: 1;">
-                                <option value="">Adicionar solidária integral...</option>
-                            </select>
-                            <button type="button" class="btn-action" id="btn-add-sol-int" style="background:#d97706;">+</button>
-                        </div>
-                        <div style="margin-top:8px;">
-                            <label style="font-size:11px; color:#555;"><input type="checkbox" id="chk-nao-ha-sol-int"> Não há Solidárias Integrais literais (apenas diversas/principais)</label>
-                        </div>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- SEÇÃO 6.3: SOLIDÁRIAS DIVERSOS -->
-            <fieldset id="resp-solidarias-diversos-fieldset" class="hidden" style="background: #fff8eb;">
-                <legend style="background: #f59e0b; color: #fff; padding: 2px 8px; border-radius: 4px;">Solidárias - Períodos Diversos</legend>
-                <div id="resp-sol-diversos-container" style="display:flex;flex-direction:column;gap:10px;"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo-sol" style="margin-top:10px; background:#f59e0b;">+ Adicionar Planilha de período diverso</button>
-            </fieldset>
-
-            <!-- SEÇÃO 6.4: SUBSIDIÁRIAS INTEGRAIS -->
-            <fieldset id="resp-subsidiarias-integral-fieldset" class="hidden" style="background: #f8fafc; border-color: #cbd5e1;">
-                <div class="row" style="margin-bottom: 0;">
-                    <div class="col">
-                        <label style="font-weight: bold; color: #334155;">3. Subsidiárias - Período Integral</label>
-                        <small style="color:#666; display:block; margin-bottom:6px;">
-                            A primeira marcada ganhará a badge de Subsidiária Principal (caso seja relevante).
-                        </small>
-                        <div id="resp-subsidiarias-integral-dinamico-container" style="flex-direction:column; gap:6px; margin-bottom:10px;"></div>
-                        <div id="div-add-subs-int" style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                            <select id="sel-add-subs-int" style="padding: 6px; flex: 1;">
-                                <option value="">Adicionar subsidiária integral...</option>
-                            </select>
-                            <button type="button" class="btn-action" id="btn-add-subs-int" style="background:#475569;">+</button>
-                        </div>
-                        <div style="margin-top:8px;">
-                            <label style="font-size:11px; color:#555;"><input type="checkbox" id="chk-nao-ha-subs-int"> Não há Subsidiárias Integrais literais (apenas diversas/principais)</label>
-                        </div>
-                    </div>
-                </div>
-            </fieldset>
-
-            <!-- SEÇÃO 6.5: SUBSIDIÁRIAS DIVERSOS -->
-            <fieldset id="resp-subsidiarias-diversos-fieldset" class="hidden" style="background: #f1f5f9;">
-                <legend style="background: #64748b; color: #fff; padding: 2px 8px; border-radius: 4px;">Subsidiárias - Períodos Diversos</legend>
-                <div id="resp-sub-diversos-container" style="display:flex;flex-direction:column;gap:10px;"></div>
-                <button type="button" class="btn-action" id="btn-adicionar-periodo-sub" style="margin-top:10px; background:#64748b;">+ Adicionar Planilha de período diverso</button>
-            </fieldset>
+            <div id="resp-extras-reclamadas-container"></div>
 
             <!-- Links de Sentença e Acórdão -->
             <fieldset style="border: none; padding: 8px 0; margin: 8px 0;">
@@ -1004,7 +897,8 @@
         draftController.setResponsabilidadesApi({
             addPrincipal: responsabilidadesController.addPrincipal,
             addSubsInt: responsabilidadesController.addSubsInt,
-            addSolInt: responsabilidadesController.addSolInt
+            addSolInt: responsabilidadesController.addSolInt,
+            criarBoxReclamadaExtra: responsabilidadesController.criarBoxReclamadaExtra
         });
 
         const responsabilidadesTextoApi = window.hcalcOverlayResponsabilidades.createTextApi({
@@ -1120,6 +1014,9 @@
                     // Só injeta se estiver vazio e não estiver restaurando um rascunho
                     if (container && container.children.length === 0 && !draftIsRestoring) {
                         responsabilidadesController.addPrincipal(passivo[0].nome);
+                    }
+                    if (passivo.length > 1 && !draftIsRestoring && typeof responsabilidadesController.inicializarBoxesReclamadasExtras === 'function') {
+                        responsabilidadesController.inicializarBoxesReclamadasExtras(passivo);
                     }
                 }
 

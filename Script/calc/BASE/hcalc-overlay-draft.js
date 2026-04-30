@@ -114,6 +114,7 @@
         }
 
         function save() {
+            console.log('[hcalc][draft] save() started');
             const modal = $('homologacao-modal');
             if (!modal) return;
 
@@ -218,6 +219,7 @@
         }
 
         function restore() {
+            console.log('[hcalc][draft] restore() started');
             const draft = loadRaw(warn);
             if (!draft) return false;
 

@@ -668,7 +668,8 @@
                 </div>
             </fieldset>
 
-            <!-- SEÇÃO 6.1: DEVEDORAS PRINCIPAIS (SEMPRE VISÍVEL) -->
+            <!-- SEÇÃO 6: RESPONSABILIDADE -->
+            <div style="background: #0056b3; color: white; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 15px; margin-bottom: 5px; font-size: 12px;">Responsabilidade</div>
             <fieldset id="resp-principais-fieldset">
                 <div class="row" style="margin-bottom: 0;">
                     <div class="col">
@@ -689,6 +690,7 @@
             <div id="resp-extras-reclamadas-container"></div>
 
             <!-- Links de Sentença e Acórdão -->
+            <div style="background: #0056b3; color: white; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 15px; margin-bottom: 5px; font-size: 12px;">Decisões</div>
             <fieldset style="border: none; padding: 8px 0; margin: 8px 0;">
                 <div id="link-sentenca-acordao-container"></div>
             </fieldset>

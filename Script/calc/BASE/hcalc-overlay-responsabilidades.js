@@ -73,7 +73,7 @@
         function addPrincipal(nome) {
             const principaisContainer = document.getElementById('resp-principais-dinamico-container');
             if (!nome || !principaisContainer) return;
-            // avoid duplicates
+            // avoid duplicates (check both dataset.nome and option value just in case)
             if (principaisContainer.querySelector(`.principal-item[data-nome="${CSS.escape(nome)}"]`)) return;
             const div = document.createElement('div');
             div.className = 'principal-item';
@@ -85,14 +85,33 @@
             const isFirst = principaisContainer.children.length === 0;
             const removeStyle = isFirst ? 'display:none;' : 'background:#d32f2f;padding:4px 8px;';
 
-            div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;"><input type="checkbox" class="chk-principal" data-nome="${nome}"> <span>${nome}</span></label><label style="font-size:11px;"><input type="checkbox" class="chk-principal-rec"> Rec. Judicial/Falência</label><button type="button" class="btn-remove-principal btn-action" style="${removeStyle}">Remover</button>`;
+            const todasReclamadas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [nome];
+            const optionsHtml = todasReclamadas.map(r => `<option value="${r}" ${r === nome ? 'selected' : ''}>${r}</option>`).join('');
+
+            div.innerHTML = `<label style="flex:1; display:flex; gap:8px; align-items:center;">
+                <input type="checkbox" class="chk-principal hidden" data-nome="${nome}" checked style="display:none;"> 
+                <select class="sel-principal-dinamico" style="flex:1; padding:4px; max-width:400px;">
+                    ${optionsHtml}
+                </select>
+            </label>
+            <label style="font-size:11px;"><input type="checkbox" class="chk-principal-rec"> Rec. Judicial/Falência</label>
+            <button type="button" class="btn-remove-principal btn-action" style="${removeStyle}">Remover</button>`;
             principaisContainer.appendChild(div);
+
+            const sel = div.querySelector('.sel-principal-dinamico');
+            const chk = div.querySelector('.chk-principal');
+            sel.addEventListener('change', (e) => {
+                const novoNome = e.target.value;
+                div.dataset.nome = novoNome;
+                chk.dataset.nome = novoNome;
+                atualizarDropdownsPlanilhas();
+                queueOverlayDraftSave();
+            });
+
             // Se for o primeiro item, marcar automaticamente como principal
             try {
-                const chk = div.querySelector('.chk-principal');
                 if (chk && isFirst) {
                     chk.checked = true;
-                    // garantir que dropdowns e estilos reflitam a seleção
                     if (typeof atualizarDropdownsPlanilhas === 'function') atualizarDropdownsPlanilhas();
                 }
             } catch (e) { /* ignore */ }
@@ -116,31 +135,56 @@
             box.dataset.idx = String(idx);
             box.id = `resp-extra-box-${idx}`;
             box.innerHTML = `
-                <fieldset style="border:1px solid #cbd5e1;border-radius:4px;padding:8px;margin-bottom:6px;background:#f8fafc">
-                    <legend style="background:#6b7280;color:#fff;padding:2px 6px;border-radius:3px;font-size:12px;font-weight:bold">${nome}</legend>
-                    <div class="row" style="margin-bottom:4px">
-                        <label style="font-size:12px"><input type="radio" name="rad-resp-extra-${idx}" value="subsidiaria" checked> Subsidiária</label>
-                        <label style="font-size:12px;margin-left:12px"><input type="radio" name="rad-resp-extra-${idx}" value="solidaria"> Solidária</label>
+                <div style="border:1px solid #cbd5e1;border-radius:4px;padding:8px;margin-bottom:6px;background:#f8fafc">
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
+                        <span style="background:#6b7280;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;" title="${nome}">${nome}</span>
+                        <div style="display:flex; gap:12px; align-items:center; margin-left:auto;">
+                            <label style="font-size:11px;margin:0;"><input type="radio" name="rad-resp-extra-${idx}" value="subsidiaria" checked> Subsidiária</label>
+                            <label style="font-size:11px;margin:0;"><input type="radio" name="rad-resp-extra-${idx}" value="solidaria"> Solidária</label>
+                        </div>
                     </div>
-                    <div id="resp-extra-periodo-opts-${idx}" class="row" style="margin-bottom:4px">
-                        <label style="font-size:12px"><input type="radio" name="rad-resp-extra-periodo-${idx}" value="integral" checked> Período Integral</label>
-                        <label style="font-size:12px;margin-left:12px"><input type="radio" name="rad-resp-extra-periodo-${idx}" value="diverso"> Período Diverso</label>
+                    <div id="resp-extra-periodo-opts-${idx}" style="display:flex; gap:12px; align-items:center; margin-bottom:4px;">
+                        <label style="font-size:11px;margin:0;"><input type="checkbox" id="chk-resp-extra-integral-${idx}" checked> Período Integral</label>
+                        <label style="font-size:11px;margin:0;"><input type="checkbox" id="chk-resp-extra-diverso-${idx}"> Período Diverso</label>
                     </div>
-                    <div id="resp-extra-diverso-area-${idx}" class="hidden">
+                    <div id="resp-extra-diverso-area-${idx}" class="hidden" style="margin-top:6px;">
                         <div class="row">
                             <button type="button" id="btn-extra-carregar-${idx}" class="btn-action" style="font-size:11px;padding:4px 8px">📎 Carregar Planilha</button>
                             <input type="file" id="inp-extra-pdf-${idx}" accept="application/pdf" style="display:none">
                         </div>
                         <div id="resp-extra-resumo-${idx}" style="font-size:11px;color:#555;margin-top:4px"></div>
                     </div>
-                </fieldset>`;
+                </div>`;
             container.appendChild(box);
+
+            const chkIntegral = box.querySelector(`#chk-resp-extra-integral-${idx}`);
+            const chkDiverso = box.querySelector(`#chk-resp-extra-diverso-${idx}`);
+            const diversoArea = box.querySelector(`#resp-extra-diverso-area-${idx}`);
+
+            chkIntegral.addEventListener('change', () => {
+                if (chkIntegral.checked) {
+                    chkDiverso.checked = false;
+                    diversoArea.classList.add('hidden');
+                } else if (!chkDiverso.checked) {
+                    chkIntegral.checked = true;
+                }
+                queueOverlayDraftSave();
+            });
+
+            chkDiverso.addEventListener('change', () => {
+                if (chkDiverso.checked) {
+                    chkIntegral.checked = false;
+                    diversoArea.classList.remove('hidden');
+                } else if (!chkIntegral.checked) {
+                    chkDiverso.checked = true;
+                }
+                queueOverlayDraftSave();
+            });
 
             box.querySelectorAll(`input[name="rad-resp-extra-${idx}"]`).forEach(radio => {
                 radio.addEventListener('change', () => {
                     const isSolidaria = document.querySelector(`input[name="rad-resp-extra-${idx}"]:checked`)?.value === 'solidaria';
                     const periodoOpts = document.getElementById(`resp-extra-periodo-opts-${idx}`);
-                    const diversoArea = document.getElementById(`resp-extra-diverso-area-${idx}`);
                     if (periodoOpts) periodoOpts.classList.toggle('hidden', isSolidaria);
                     if (isSolidaria && diversoArea) diversoArea.classList.add('hidden');
                     queueOverlayDraftSave();
@@ -297,7 +341,8 @@
                         principaisSelecionadas.push({ nome, recJud: false });
                     }
                 } else {
-                    const periodo = document.querySelector(`input[name="rad-resp-extra-periodo-${idx}"]:checked`)?.value || 'integral';
+                    const chkDiverso = document.getElementById(`chk-resp-extra-diverso-${idx}`);
+                    const periodo = chkDiverso && chkDiverso.checked ? 'diverso' : 'integral';
                     if (periodo === 'diverso') {
                         const idPlanilha = box.dataset.idPlanilha || `SemID-extra-${idx}`;
                         const periodoTexto = box.dataset.periodoCalculo || '';

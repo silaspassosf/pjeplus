@@ -497,6 +497,8 @@
             hsusp: false,
             trteng: false,
             trtmed: false,
+            ctps: false,              // Nova flag: ordem de anotação/retificação CTPS
+            fgts_vinculada: false,    // Nova flag: depósito FGTS em conta vinculada
             responsabilidade: null,   // 'subsidiaria' | 'solidaria' | null
             honorariosPericiais: []    // { valor, trt }
         };
@@ -527,6 +529,12 @@
         // Perícia TRT médica
         result.trtmed = /honor[aá]rios\s+periciais\s+m[eé]dicos.*pagos\s+pelo\s+Tribunal/i.test(texto)
             || /pagos\s+pelo\s+Tribunal\s+Regional.*periciais\s+m[eé]dicos/i.test(texto);
+
+        // CTPS: (deverá a reclamada|deverá a secretaria) + (anotar|retificar) + CTPS
+        result.ctps = /(dever[aá]\s+a\s+(reclamad[ao]|secretaria)).*(anotar|retificar).*CTPS/i.test(texto);
+
+        // FGTS: FGTS + (depósito em conta vinculada|apresentação de guias)
+        result.fgts_vinculada = /FGTS.*(dep[oó]sito\s+em\s+conta\s+vinculada|apresenta[cç][aã]o\s+de\s+guias)/i.test(texto);
 
         // Responsabilidade
         if (/condenar\s+(de\s+forma\s+)?subsidi[aá]ri/i.test(texto)) {
@@ -717,6 +725,8 @@
                     href: null,
                     custas: null,
                     hsusp: false,
+                    ctps: false,
+                    fgts_vinculada: false,
                     responsabilidade: null,
                     honorariosPericiais: []
                 },
@@ -742,8 +752,31 @@
             });
 
             // Mapear acórdãos e editais para resultado
-            prepResult.acordaos = timeline.acordaos.map(a => ({ data: a.data, href: a.href, id: a.id }));
+            prepResult.acordaos = timeline.acordaos.map(a => ({ data: a.data, href: a.href, id: a.id, ctps: false, fgts_vinculada: false }));
             prepResult.editais = timeline.editais.map(e => ({ data: e.data, href: e.href }));
+            
+            // ── ETAPA 1.2: Ler Acórdãos para checagens (CTPS/FGTS) ──
+            if (timeline.acordaos.length > 0) {
+                console.log('[prep.js] Lendo acórdãos para checagens extras...');
+                for (const acordao of prepResult.acordaos) {
+                    if (acordao.href) {
+                        if (!abrirDocumentoInlineViaHref(acordao.href)) {
+                            console.warn('[prep] Falha ao abrir acórdão:', acordao.href);
+                            continue;
+                        }
+                        await sleep(600);
+                        const resAco = await lerHtmlOriginal(5000, signal);
+                        fecharViewer();
+                        await sleep(300);
+                        
+                        if (resAco && resAco.texto) {
+                            const dadosAco = extrairDadosSentenca(resAco.texto);
+                            acordao.ctps = dadosAco.ctps;
+                            acordao.fgts_vinculada = dadosAco.fgts_vinculada;
+                        }
+                    }
+                }
+            }
 
             // ── ETAPA 1.5: Filtrar recursos e Enriquecer com anexos ──
             const acordaosIdx = timeline.acordaos.map(a => a.idx);
@@ -846,6 +879,8 @@
                         const dados = extrairDadosSentenca(textoSentenca);
                         prepResult.sentenca.custas = dados.custas;
                         prepResult.sentenca.hsusp = dados.hsusp;
+                        prepResult.sentenca.ctps = dados.ctps;
+                        prepResult.sentenca.fgts_vinculada = dados.fgts_vinculada;
                         prepResult.sentenca.responsabilidade = dados.responsabilidade;
                         prepResult.sentenca.honorariosPericiais = dados.honorariosPericiais;
                         prepResult.pericia.trteng = dados.trteng;

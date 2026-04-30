@@ -755,6 +755,24 @@
                 </div>
             </fieldset>
 
+            <!-- SEÇÃO 8: CHECKLIST DE ORDENS (NOVO) -->
+            <fieldset id="fieldset-checklist-ordens" style="background: #f8fafc; border: 1px solid #cbd5e1;">
+                <legend>Checklist de Ordens (Acórdão / Sentença)</legend>
+                <div class="row" style="gap: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #e11d48; cursor: pointer;">
+                        <input type="checkbox" id="chk-ordem-ctps"> 
+                        <strong>Anotação/Retificação CTPS</strong>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #0ea5e9; cursor: pointer;">
+                        <input type="checkbox" id="chk-ordem-fgts"> 
+                        <strong>FGTS (Conta Vinculada/Guias)</strong>
+                    </label>
+                </div>
+                <div id="checklist-auto-info" style="font-size: 11px; color: #64748b; margin-top: 5px; font-style: italic;">
+                    * Marcados automaticamente se detectados na leitura de documentos.
+                </div>
+            </fieldset>
+
             <button class="btn-action btn-gravar" id="btn-gravar">GRAVAR DECISÃO (Copiar p/ PJe)</button>
         </div>
     </div>
@@ -1084,6 +1102,9 @@
                         const info = [];
                         if (prep.sentenca.custas) info.push(`Custas: R$${prep.sentenca.custas}`);
                         if (prep.sentenca.responsabilidade) info.push(`Resp: ${prep.sentenca.responsabilidade}`);
+                        if (prep.sentenca.ctps) info.push(`<span style="color:#e11d48;font-weight:bold;">\uD83D\uDCDD CTPS</span>`);
+                        if (prep.sentenca.fgts_vinculada) info.push(`<span style="color:#0ea5e9;font-weight:bold;">\uD83C\uDFE6 FGTS Vinculada</span>`);
+                        
                         if (prep.pericia.peritosComAjJt.length > 0) {
                             info.push(`Hon.Periciais: ${prep.pericia.peritosComAjJt.length} AJ-JT detectado(s)`);
                         } else if (prep.sentenca.honorariosPericiais.length > 0) {
@@ -1116,7 +1137,12 @@
                                 const lbl = prep.acordaos.length > 1 ? `Acórdão ${i + 1}` : 'Acórdão';
                                 const a = document.createElement('a');
                                 a.href = '#';
-                                a.innerHTML = `<i class="fas fa-crosshairs"></i> ${lbl}${acordao.data ? ' - ' + acordao.data : ''}`;
+                                
+                                const acoInfo = [];
+                                if (acordao.ctps) acoInfo.push(`<span style="color:#e11d48;font-size:10px;margin-left:5px;">[CTPS]</span>`);
+                                if (acordao.fgts_vinculada) acoInfo.push(`<span style="color:#0ea5e9;font-size:10px;margin-left:5px;">[FGTS]</span>`);
+                                
+                                a.innerHTML = `<i class="fas fa-crosshairs"></i> ${lbl}${acordao.data ? ' - ' + acordao.data : ''}${acoInfo.join('')}`;
                                 a.style.cssText = 'display:block; color:#00509e; font-size:12px; margin-top:5px; text-decoration:none; cursor:pointer;';
                                 a.addEventListener('click', (e) => {
                                     e.preventDefault();
@@ -1371,6 +1397,18 @@
                     } catch (e) {
                         console.warn('[hcalc] falha ao setar peritos detectados:', e);
                     }
+                }
+
+                // REGRA 3: Checklist de Ordens (CTPS e FGTS)
+                const chkCtps = $('chk-ordem-ctps');
+                const chkFgtsOrdem = $('chk-ordem-fgts');
+                if (chkCtps) {
+                    const hasCtps = prep.sentenca.ctps || prep.acordaos.some(a => a.ctps);
+                    chkCtps.checked = hasCtps;
+                }
+                if (chkFgtsOrdem) {
+                    const hasFgtsVinc = prep.sentenca.fgts_vinculada || prep.acordaos.some(a => a.fgts_vinculada);
+                    chkFgtsOrdem.checked = hasFgtsVinc;
                 }
                 // Data da sentença no campo de data do perito
                 if (prep.sentenca.data && peritoDataEl && !peritoDataEl.value) {

@@ -39,14 +39,22 @@
 
     console.log('[hcalc] bootloader iniciado v3.1.38');
 
-    // Helper para aguardar o PJe (Angular)
-    function aguardarPJe(callback, tentativas = 0) {
-        if (tentativas > 100) return;
-        const pronto = document.querySelector('.processo-detalhe-flex') || document.querySelector('mat-tab-group');
+    // Aguarda Angular/DOM do PJe estabilizar
+    function aguardarPJe(cb, tentativas) {
+        tentativas = tentativas || 0;
+        if (tentativas > 40) return; // timeout ~8s
+
+        var pronto =
+            document.querySelector('pje-cabecalho') ||
+            document.querySelector('li.tl-item-container') ||
+            document.querySelector('[class*="processo"]');
+
         if (pronto) {
-            setTimeout(callback, 800);
+            cb();
         } else {
-            setTimeout(() => aguardarPJe(callback, tentativas + 1), 500);
+            setTimeout(function () {
+                aguardarPJe(cb, tentativas + 1);
+            }, 200);
         }
     }
 

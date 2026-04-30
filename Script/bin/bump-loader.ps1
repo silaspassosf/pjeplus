@@ -18,7 +18,7 @@ if (-not (Test-Path $file)) {
   Write-Error "File not found: $file"; exit 1
 }
 
-$content = Get-Content -Raw -Path $file
+$content = Get-Content -Raw -Path $file -Encoding UTF8
 
 # 1) bump @version patch
 $content = [regex]::Replace($content, '(@version\s+)(\d+)\.(\d+)\.(\d+)', {

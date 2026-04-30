@@ -345,6 +345,14 @@
                     }
                 }
 
+                // Ordens de CTPS e FGTS (Checklist)
+                if ($('chk-ordem-ctps')?.checked) {
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Cumpra-se a ordem de ${bold('anotação/retificação da CTPS')}, conforme determinado no julgado.</p>`;
+                }
+                if ($('chk-ordem-fgts')?.checked) {
+                    text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">A reclamada deverá comprovar o ${bold('depósito do FGTS em conta vinculada')} ou a ${bold('apresentação das guias')} para levantamento, sob pena de execução direta do valor correspondente.</p>`;
+                }
+
                 const passivoCount = (window.hcalcPartesData?.passivo || []).length;
                 const temRecJudicial = document.querySelector('#resp-principais-dinamico-container .chk-principal-rec:checked') !== null
                     || (passivoCount === 1 && document.getElementById('resp-rec-judicial-unica')?.checked)

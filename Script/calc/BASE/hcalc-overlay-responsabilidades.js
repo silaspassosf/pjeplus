@@ -56,17 +56,6 @@
                 if (box.dataset.nome) jaUsadas.add(box.dataset.nome);
             });
 
-            // Update selAddPrincipal
-            const selAddPrincipal = document.getElementById('sel-add-principal');
-            if (selAddPrincipal) {
-                const cur = selAddPrincipal.value || '';
-                selAddPrincipal.innerHTML = '<option value="">Adicionar devedora principal...</option>';
-                todasReclamadas.forEach(rec => {
-                    if (!jaUsadas.has(rec) || rec === cur) {
-                        const o = document.createElement('option'); o.value = rec; o.textContent = rec; selAddPrincipal.appendChild(o);
-                    }
-                });
-            }
         }
 
         // Definidas no escopo do controller para serem acessíveis externamente (Drafts)
@@ -129,6 +118,11 @@
             if (!container) return;
             if (container.querySelector(`.resp-extra-box[data-nome="${CSS.escape(nome)}"]`)) return;
 
+            const todas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+            const realIdx = todas.indexOf(nome) + 1;
+            const prefixo = realIdx > 0 ? `${realIdx}ª ` : '';
+            const nomeComPrefixo = `${prefixo}${nome}`;
+
             const box = document.createElement('div');
             box.className = 'resp-extra-box';
             box.dataset.nome = nome;
@@ -137,7 +131,7 @@
             box.innerHTML = `
                 <div style="border:1px solid #cbd5e1;border-radius:4px;padding:8px;margin-bottom:6px;background:#f8fafc">
                     <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
-                        <span style="background:#6b7280;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;" title="${nome}">${nome}</span>
+                        <input type="text" value="${nomeComPrefixo}" disabled title="${nomeComPrefixo}" style="flex:1; padding:4px; border:1px solid #ccc; border-radius:4px; background:#e9ecef; color:#495057; font-size:12px; cursor:not-allowed;">
                         <div style="display:flex; gap:12px; align-items:center; margin-left:auto;">
                             <label style="font-size:11px;margin:0;"><input type="radio" name="rad-resp-extra-${idx}" value="subsidiaria" checked> Subsidiária</label>
                             <label style="font-size:11px;margin:0;"><input type="radio" name="rad-resp-extra-${idx}" value="solidaria"> Solidária</label>
@@ -266,13 +260,14 @@
             if (recJudUnicaEl) recJudUnicaEl.addEventListener('change', () => { aplicarEstiloRecuperacaoJudicial(); queueOverlayDraftSave(); });
 
             // --- Principais quick-add
-            const selAddPrincipal = document.getElementById('sel-add-principal');
             const btnAddPrincipal = document.getElementById('btn-add-principal');
-            if (btnAddPrincipal && selAddPrincipal) {
+            if (btnAddPrincipal) {
                 btnAddPrincipal.onclick = (e) => {
                     e.preventDefault();
-                    const nome = selAddPrincipal.value;
-                    if (nome) addPrincipal(nome);
+                    const curNames = Array.from(document.querySelectorAll('.sel-principal-dinamico')).map(s => s.value);
+                    const todas = window.hcalcPartesData?.passivo?.map(r => r.nome) || [];
+                    const next = todas.find(n => !curNames.includes(n)) || todas[0] || 'Nova Devedora';
+                    addPrincipal(next);
                 };
             }
 

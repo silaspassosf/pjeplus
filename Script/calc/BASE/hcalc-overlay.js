@@ -668,30 +668,11 @@
                 </div>
             </fieldset>
 
-            <!-- SEÇÃO 6: RESPONSABILIDADE -->
-            <div style="background: #0056b3; color: white; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 15px; margin-bottom: 5px; font-size: 12px;">Responsabilidade</div>
-            <fieldset id="resp-principais-fieldset">
-                <div class="row" style="margin-bottom: 0;">
-                    <div class="col">
-                        <label style="font-weight: bold; color: #b45309;">1. Devedora Principal</label>
-                        <small style="color:#666; display:block; margin-bottom:6px;">A primeira da lista é a Devedora Principal (automática).</small>
-                        <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
-                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                            <select id="sel-add-principal" style="padding: 6px; flex: 1;">
-                                <option value="">Adicionar devedora principal...</option>
-                            </select>
-                            <button type="button" class="btn-action" id="btn-add-principal">+</button>
-                        </div>
-                        <small id="resp-principais-note" style="color:#666; display:block; margin-top:6px;">Marque Rec. Judicial/Falência por empresa na lista acima.</small>
-                    </div>
-                </div>
+            <!-- SEÇÃO 6: DECISÕES E HONORÁRIOS PERICIAIS -->
+            <fieldset style="border:none; padding:0; margin: 15px 0 5px 0;">
+                <legend>Decisões</legend>
             </fieldset>
-
-            <div id="resp-extras-reclamadas-container"></div>
-
-            <!-- Links de Sentença e Acórdão -->
-            <div style="background: #0056b3; color: white; font-weight: bold; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 15px; margin-bottom: 5px; font-size: 12px;">Decisões</div>
-            <fieldset style="border: none; padding: 8px 0; margin: 8px 0;">
+            <fieldset style="border: none; padding: 0 0 8px 0; margin: 0 0 8px 0;">
                 <div id="link-sentenca-acordao-container"></div>
             </fieldset>
 
@@ -721,6 +702,29 @@
                     </div>
                 </div>
             </fieldset>
+
+            <!-- SEÇÃO 7: RESPONSABILIDADE -->
+            <fieldset style="border:none; padding:0; margin: 15px 0 5px 0;">
+                <legend>Responsabilidade</legend>
+            </fieldset>
+            <fieldset id="resp-principais-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; margin-bottom: 10px;">
+                <div class="row" style="margin-bottom: 0;">
+                    <div class="col">
+                        <label style="font-weight: bold; color: #00509e; font-size: 13px;">A) Devedora Principal</label>
+                        <small style="color:#666; display:block; margin-bottom:6px;">A primeira da lista é a Devedora Principal (automática).</small>
+                        <div id="resp-principais-dinamico-container" style="margin-top:6px; padding:0; display:flex; flex-direction:column; gap:6px;"></div>
+                        <div style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                            <button type="button" class="btn-action" id="btn-add-principal" style="padding: 4px 12px; font-size: 11px;">+ Adicionar principal</button>
+                        </div>
+                        <small id="resp-principais-note" style="color:#666; display:block; margin-top:6px;">Marque Rec. Judicial/Falência por empresa na lista acima.</small>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div id="resp-extras-header-container" class="hidden" style="margin-top: 15px; margin-bottom: 5px;">
+                <label style="font-weight: bold; color: #00509e; font-size: 13px;">B) Demais Reclamadas</label>
+            </div>
+            <div id="resp-extras-reclamadas-container"></div>
 
             <!-- Custas já foram movidas para o card 4 acima -->
 

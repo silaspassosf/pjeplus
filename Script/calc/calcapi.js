@@ -56,6 +56,38 @@
     function _normalize(str) {
         return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     }
+    // normaliza e colapsa espaços/quebras para comparações de frase
+    function _compactNormalize(str) {
+        return _normalize((str || '').replace(/\s+/g, ' '));
+    }
+
+    // Retorna substring ao redor de um índice (em texto normalizado)
+    function _windowAround(text, idx, before = 120, after = 120) {
+        const start = Math.max(0, idx - before);
+        const end = Math.min(text.length, idx + after);
+        return text.slice(start, end);
+    }
+
+    // Checa se qualquer item de `termsA` aparece próximo (janela) a qualquer item de `termsB`
+    function _cooccursInWindow(textNorm, termsA, termsB, windowSize = 120) {
+        if (!textNorm) return false;
+        for (const a of termsA) {
+            const aNorm = _normalize(a);
+            let idx = textNorm.indexOf(aNorm);
+            while (idx !== -1) {
+                const win = _windowAround(textNorm, idx, windowSize, windowSize);
+                for (const b of termsB) {
+                    if (win.includes(_normalize(b))) return true;
+                }
+                idx = textNorm.indexOf(aNorm, idx + aNorm.length);
+            }
+        }
+        return false;
+    }
+
+    function _debugMatch(name, snippet) {
+        try { console.log('[calcApi][debug]', name, '→', snippet.slice(0, 240).replace(/\n/g, '↵ ')); } catch (_) { /* noop */ }
+    }
 
     function _stripHtml(html) {
         const tmp = document.createElement('div');
@@ -109,10 +141,11 @@
     // ══════════════════════════════════════════════════════════
 
     function _shapePartes(dados) {
-        const flatten = (partes, tipo) => (partes || []).map(p => ({
+        const flatten = (partes, tipo) => (partes || []).map((p, idx) => ({
             nome: (p.nome || '').trim(),
             cpfcnpj: p.documento || '',
             tipo,
+            ordem: `${idx + 1}ª`,
             telefone: (() => {
                 const pf = p.pessoaFisica;
                 if (!pf) return '';
@@ -166,6 +199,7 @@
         let categoria = 'outro';
         if (/senten[cç]a/.test(low)) categoria = 'sentenca';
         else if (/acord[aã]o/.test(low) && !/intima/.test(low)) categoria = 'acordao';
+        else if (/despacho/.test(low) || /decis[aã]o/.test(low) && /despacho/.test(low)) categoria = 'despacho';
         else if (/recurso de revista/.test(low)) categoria = 'RR';
         else if (/recurso ordin[aá]rio/.test(low)) categoria = 'RO';
         else if (/edital/.test(low)) categoria = 'edital';
@@ -304,6 +338,8 @@
             trtmed: false,
             responsabilidade: null,
             honorariosPericiais: [],
+            ctpsAnotacao: false,
+            fgtsDeposito: false,
         };
 
         const custasMatch =
@@ -327,6 +363,30 @@
             const trt = /pagos?\s+pelo\s+Tribunal/i.test(m[0]) || /TRT/i.test(m[0]);
             result.honorariosPericiais.push({ valor: m[1], trt });
         }
+
+        // CTPS — checagem usando janelas de contexto para reduzir falsos positivos
+        try {
+            const tnorm = _normalize(texto || '');
+            const ctpsTargets = ['ctps', 'carteira de trabalho', 'carteira profissional'];
+            const ctpsActions = ['anotar', 'retificar', 'anotacao', 'anotação', 'retifica', 'registrar', 'lançar', 'lancar'];
+            const orderVerbs = ['dever', 'devera', 'determina', 'determinar', 'ordem', 'ordenar', 'determina-se', 'determino'];
+            const ctps = _cooccursInWindow(tnorm, ctpsTargets, ctpsActions, 120) ||
+                _cooccursInWindow(tnorm, ctpsActions, ctpsTargets, 120) ||
+                _cooccursInWindow(tnorm, ctpsTargets, orderVerbs, 120) ||
+                _cooccursInWindow(tnorm, ctpsActions, orderVerbs, 120);
+            if (ctps) _debugMatch('CTPS', tnorm);
+            result.ctpsAnotacao = !!ctps;
+        } catch (_) { result.ctpsAnotacao = false; }
+
+        // FGTS — checagem por co-ocorrência em janela (depósito/guia/recolhimento)
+        try {
+            const tnorm2 = _normalize(texto || '');
+            const fgtsTargets = ['fgts'];
+            const fgtsActions = ['deposito', 'depositar', 'recolhimento', 'recolher', 'guia', 'apresentar guia', 'darf', 'gps', 'conta vinculada', 'vinculada'];
+            const fgts = _cooccursInWindow(tnorm2, fgtsTargets, fgtsActions, 120) || _cooccursInWindow(tnorm2, fgtsActions, fgtsTargets, 120);
+            if (fgts) _debugMatch('FGTS', tnorm2);
+            result.fgtsDeposito = !!fgts;
+        } catch (_) { result.fgtsDeposito = false; }
 
         return result;
     }
@@ -412,6 +472,241 @@
                     (tituloNorm.includes(partes[0]) && tituloNorm.includes(partes[partes.length - 1])));
         });
         return temReclamada ? 'PASSIVO' : null; // null = não determinado
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // CONFERÊNCIA DE ACÓRDÃO — localizar despacho após último acórdão e analisar texto
+    // ══════════════════════════════════════════════════════════
+
+    async function _conferirAcordao() {
+        const partes = await _fetchPartes();
+        const raw = await _fetchTimeline();
+        const items = raw.map(_classifyItem);
+
+        console.log('[calcApi] _conferirAcordao: timeline length=', items.length);
+
+        const acordaoIdxs = items.map((it, idx) => it.categoria === 'acordao' ? idx : -1).filter(i => i >= 0);
+        if (!acordaoIdxs.length) return { ok: false, erro: 'Nenhum acórdão encontrado na timeline' };
+
+        // escolher o ACÓRDÃO alvo: o primeiro acórdão cronologicamente (mais antigo)
+        const targetAcordaoIdx = Math.max(...acordaoIdxs);
+        const targetAcordao = items[targetAcordaoIdx];
+
+        // termos que qualificam um despacho relevante (configurável se necessário)
+        const triggerTerms = ['mantido', 'mantida', 'mantem', 'manter', 'intimem', 'intime', 'remessa', 'remeta', 'agrav', 'processe', 'intimem-se'];
+
+        function isDespachoLike(it) {
+            if (!it) return false;
+            // Strict: require API-classified 'despacho' to avoid decisions being picked
+            return it.categoria === 'despacho';
+        }
+
+        function matchesTrigger(textoNorm) {
+            if (!textoNorm) return false;
+            return triggerTerms.some(t => textoNorm.includes(t));
+        }
+
+        // helper: try to read text for an item (prefer pjeExtrairApi)
+        async function readTextoFor(it) {
+            try {
+                if (!it) return { texto: '', source: 'none' };
+                    try {
+                        const ext = await window.pjeExtrairApi(it.uid, { idProcesso: _idProcesso() });
+                        if (ext && ext.sucesso) {
+                            // preferir o conteúdo já formatado (ext.conteudo), cair para conteudo_bruto se necessário
+                            if (ext.conteudo) return { texto: String(ext.conteudo), source: 'pjeExtrairApi.conteudo' };
+                            if (ext.conteudo_bruto) return { texto: String(ext.conteudo_bruto), source: 'pjeExtrairApi.bruto' };
+                        }
+                    } catch (e) { /* ignore and fallback */ }
+                if (it.idDoc) {
+                    try {
+                        const r = await _fetchDocHtml(it.idDoc).catch(() => null);
+                        if (r && r.texto) return { texto: r.texto, source: r.tipo || 'fetchDocHtml' };
+                    } catch (e) { /* ignore */ }
+                    try {
+                        const raw = await _fetchDocConteudo(it.idDoc).catch(() => null);
+                        if (raw) {
+                            if (raw.tipo === 'pdf' && raw.buffer) {
+                                try {
+                                    const txt = await _pdfToText(raw.buffer);
+                                    if (txt) return { texto: txt, source: 'pdfToText-forced' };
+                                } catch (e) { /* ignore */ }
+                            }
+                            if ((raw.tipo === 'json-html' || raw.tipo === 'html') && raw.conteudo) {
+                                const txt = _stripHtml(raw.conteudo || '');
+                                if (txt) return { texto: txt, source: raw.tipo };
+                            }
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+            } catch (e) { console.warn('[calcApi] readTextoFor falhou:', e && e.message || e); }
+            return { texto: '', source: 'none' };
+        }
+
+        // heurística para detectar 1ª instância a partir dos campos do item
+        function isFirstInstance(it) {
+            if (!it || !it._raw) return false;
+            const raw = it._raw;
+            const candidates = ['grauInstancia','grau','instancia','grau_instancia','grauInst'];
+            for (const k of candidates) {
+                if (raw[k] !== undefined && raw[k] !== null) {
+                    const v = String(raw[k]).replace(/[^0-9]/g, '');
+                    if (v === '1') return true;
+                    if (v) return false;
+                }
+            }
+            // fallback: unidade/nome containing 'vara' indicates 1ª instância
+            const unitKeys = ['unidade','nomeUnidade','unidadeJudiciaria','orgaoJudicial','local'];
+            for (const k of unitKeys) {
+                if (raw[k] && typeof raw[k] === 'string' && /vara/i.test(raw[k])) return true;
+            }
+            return false;
+        }
+
+        // Busca estrita: aceitar APENAS quando:
+        // 1) categoria === 'despacho'
+        // 2) pertence à 1ª instância
+        // 3) texto contém exatamente a expressão 'ante o retorno' (normalizado)
+        // A busca varre cronologicamente até achar — nada além disso é considerado.
+        let despachoItem = null;
+        let despachoIdx = -1;
+
+        const requiredPhrase = _compactNormalize('ante o retorno');
+
+        for (let i = targetAcordaoIdx - 1; i >= 0; i--) {
+            const it = items[i];
+            if (!isDespachoLike(it)) continue; // condição 1
+            if (!isFirstInstance(it)) { console.log('[calcApi] pulando (não 1ª inst) idx=', i, it.titulo); continue; } // condição 2
+            console.log('[calcApi] conferindo candidato estrito idx=', i, it.titulo);
+            const textoCandObj = await readTextoFor(it);
+            const textoCand = textoCandObj && textoCandObj.texto ? textoCandObj.texto : '';
+            if (!textoCand) { console.log('[calcApi] candidato sem texto, pulando idx=', i); continue; }
+            const tnorm = _compactNormalize(textoCand);
+            if (tnorm.includes(requiredPhrase)) { despachoItem = it; despachoIdx = i; break; }
+            console.log('[calcApi] candidato não contém "ante o retorno", pulando idx=', i);
+        }
+
+        if (!despachoItem) {
+            // incluir preview reduzido para facilitar diagnóstico
+            const preview = items.slice(Math.max(0, targetAcordaoIdx - 3), Math.min(items.length, targetAcordaoIdx + 4)).map(it => ({ categoria: it.categoria, titulo: it.titulo, idDoc: it.idDoc }));
+            return { ok: false, erro: 'Nenhum despacho relevante encontrado após o acórdão alvo', lastAcordao: targetAcordao, preview };
+        }
+
+        console.log('[calcApi] despacho pós-acórdão (relevante) encontrado: idx=', despachoIdx, despachoItem.titulo);
+
+        // ler conteúdo do despacho (preferir pjeExtrairApi quando disponível)
+        let texto = null;
+        try {
+            if (typeof window.pjeExtrairApi === 'function' && despachoItem.uid) {
+                const ext = await window.pjeExtrairApi(despachoItem.uid, { idProcesso: _idProcesso() });
+                if (ext && ext.sucesso && ext.conteudo_bruto) texto = ext.conteudo_bruto;
+            }
+        } catch (e) { /* ignore */ }
+        if (!texto && despachoItem.idDoc) {
+            try { const r = await _fetchDocHtml(despachoItem.idDoc); texto = r.texto || null; } catch (e) { /* ignore */ }
+        }
+        texto = texto || '';
+
+        const textoNorm = _normalize(texto);
+
+        // análise por regexs simples
+        const mantida = /manuten[cç][aã]o|mantida a senten[cç]a|mantido o julgado|mant(e|é)m? a senten[cç]a/i.test(texto);
+
+        // Detecta exclusões/afastamentos de condenação por texto.
+        function detectarExclusoes(texto, passivo) {
+            const tnorm = _normalize(texto || '');
+            const exclusoesSet = new Set();
+
+            // 1) detectar referências numéricas: "2ª reclamada" ou "2a reclamada" com verbo de afastamento/exclusão próximo
+            // Aceita sinais ordinais (ª/º) e formas sem sinal (a/o) após o número
+            const numRe = /(\d+)\s*[ªºaAoO]?\s*reclamad[aoas]/g;
+            let m;
+            while ((m = numRe.exec(tnorm)) !== null) {
+                const idx = m.index;
+                const win = _windowAround(tnorm, idx, 120, 120);
+                if (/(afast|exclu|retir)/.test(win) && /(subsidi|solidar)/.test(win)) {
+                    const n = parseInt(m[1], 10);
+                    if (passivo[n - 1]) {
+                        exclusoesSet.add(passivo[n - 1].nome);
+                        _debugMatch('EXCL_NUM:' + passivo[n - 1].nome, win);
+                    } else {
+                        _debugMatch('EXCL_NUM:sem-correspondencia', win);
+                    }
+                } else {
+                    _debugMatch('EXCL_NUM:sem-verbo-ou-tipo', win);
+                }
+            }
+
+            // 2) detectar por proximidade entre nome e verbo (fallback quando não há número)
+            for (let i = 0; i < (passivo || []).length; i++) {
+                const p = passivo[i];
+                if (!p || !p.nome) continue;
+                const nomeNorm = _normalize(p.nome);
+                let idx2 = tnorm.indexOf(nomeNorm);
+                while (idx2 !== -1) {
+                    const win = _windowAround(tnorm, idx2, 120, 120);
+                    if (/(afast|exclu|retir)/.test(win) && /(subsidi|solidar)/.test(win)) {
+                        exclusoesSet.add(p.nome);
+                        _debugMatch('EXCL_NOME:' + p.nome, win);
+                        break;
+                    }
+                    idx2 = tnorm.indexOf(nomeNorm, idx2 + nomeNorm.length);
+                }
+            }
+
+            // 3) detectar expressão genérica sem ligação direta: "afastando a condenação subsidiária"
+            if (exclusoesSet.size === 0 && /(afast|exclu|retir).{0,120}condena/.test(tnorm) && /(subsidi|solidar)/.test(tnorm)) {
+                _debugMatch('EXCL_GENERIC', tnorm.match(/(.{0,120}afast.{0,120}condena.{0,120})/)?.[0] || tnorm.slice(0, 240));
+                // marcar flag genérica retornando placeholder vazio (caller inspects text via preview)
+            }
+
+            return Array.from(exclusoesSet);
+        }
+
+        const exclusoes = detectarExclusoes(texto || '', partes.passivo || []);
+
+        const rearbitramento = /rearbitrad.*custas|custas.*rearbitrad|rearbitradas.*custas/i.test(texto);
+
+        // CTPS e FGTS no despacho
+        let ctpsDespacho = false;
+        let fgtsDespacho = false;
+        try {
+            const tnorm = _normalize(texto || '');
+            const ctpsTargets = ['ctps', 'carteira de trabalho', 'carteira profissional'];
+            const ctpsActions = ['anotar', 'retificar', 'anotacao', 'anotação', 'retifica', 'registrar', 'lançar', 'lancar'];
+            const orderVerbs = ['dever', 'devera', 'determina', 'determinar', 'ordem', 'ordenar', 'determina-se', 'determino'];
+            const ctps = _cooccursInWindow(tnorm, ctpsTargets, ctpsActions, 120) ||
+                _cooccursInWindow(tnorm, ctpsActions, ctpsTargets, 120) ||
+                _cooccursInWindow(tnorm, ctpsTargets, orderVerbs, 120) ||
+                _cooccursInWindow(tnorm, ctpsActions, orderVerbs, 120);
+            if (ctps) _debugMatch('CTPS_DESPACHO', tnorm);
+            ctpsDespacho = !!ctps;
+        } catch (_) { ctpsDespacho = false; }
+        try {
+            const tnorm2 = _normalize(texto || '');
+            const fgtsTargets = ['fgts'];
+            const fgtsActions = ['deposito', 'depositar', 'recolhimento', 'recolher', 'guia', 'apresentar guia', 'darf', 'gps', 'conta vinculada', 'vinculada'];
+            const fgts = _cooccursInWindow(tnorm2, fgtsTargets, fgtsActions, 120) || _cooccursInWindow(tnorm2, fgtsActions, fgtsTargets, 120);
+            if (fgts) _debugMatch('FGTS_DESPACHO', tnorm2);
+            fgtsDespacho = !!fgts;
+        } catch (_) { fgtsDespacho = false; }
+
+        // log preview of extracted despacho texto for diagnosis
+        console.log('[calcApi] despacho texto preview:\n', texto.slice(0, 800));
+
+        return {
+            ok: true,
+            lastAcordao: { data: targetAcordao.data, idDoc: targetAcordao.idDoc, uid: targetAcordao.uid, titulo: targetAcordao.titulo },
+            despacho: { data: despachoItem.data, idDoc: despachoItem.idDoc, uid: despachoItem.uid, titulo: despachoItem.titulo },
+            analise: {
+                mantidaSentenca: !!mantida,
+                exclusaoReclamadas: exclusoes,
+                rearbitramentoCustas: !!rearbitramento,
+                ctpsAnotacao: !!ctpsDespacho,
+                fgtsDeposito: !!fgtsDespacho,
+            },
+            preview: texto.slice(0, 1000),
+        };
     }
 
     // ══════════════════════════════════════════════════════════
@@ -536,6 +831,17 @@
             console.log('[calcApi] Partes intimadas por edital:', partesIntimadasEdital);
         }
 
+        // Conferência de acórdão (tentar localizar despacho e analisar)
+        let conferenciaAcordao = null;
+        try {
+            console.log('[calcApi] Executando _conferirAcordao()...');
+            conferenciaAcordao = await _conferirAcordao();
+            console.log('[calcApi] conferenciaAcordao:', conferenciaAcordao);
+        } catch (e) {
+            console.warn('[calcApi] _conferirAcordao falhou:', e && e.message || e);
+            conferenciaAcordao = { ok: false, erro: e && e.message || String(e) };
+        }
+
         const durMs = Date.now() - t0;
         console.log(`[calcApi] prep() concluído em ${durMs}ms`);
 
@@ -566,6 +872,7 @@
                     editais.length ? 'E4/E5:edital' : null,
                 ].filter(Boolean),
             },
+            conferenciaAcordao,
         };
     }
 
@@ -616,7 +923,7 @@
 
         section('Partes');
         row('Ativo', result.partes.ativo.map(p => p.nome).join(', ') || '—');
-        row('Passivo', result.partes.passivo.map(p => p.nome).join(', ') || '—');
+        row('Passivo', result.partes.passivo.map(p => (p.ordem ? p.ordem + ' ' : '') + p.nome).join(', ') || '—');
 
         section('Sentença');
         row('Data', result.sentenca.data || '—');
@@ -626,6 +933,8 @@
         row('H. Suspensiva', badge(result.sentenca.hsusp));
         row('Perícia TRT Eng', badge(result.sentenca.trteng));
         row('Perícia TRT Med', badge(result.sentenca.trtmed));
+        row('CTPS (anotar/retificar)', badge(result.sentenca.ctpsAnotacao));
+        row('FGTS (depósito/guia)', badge(result.sentenca.fgtsDeposito));
         if (result.sentenca.honorariosPericiais?.length) {
             row('Hon. Periciais', result.sentenca.honorariosPericiais.map(h => `R$${h.valor}${h.trt ? '(TRT)' : ''}`).join(' | '));
         }
@@ -647,6 +956,33 @@
 
         section('Acórdãos (' + result.acordaos.length + ')');
         result.acordaos.forEach((a, i) => row(`  [${i}]`, `${a.data} — ${a.titulo.slice(0, 30)}`));
+
+        // Conferência do acórdão (se disponível)
+        if (result.conferenciaAcordao) {
+            section('Conferência Acórdão');
+            const conf = result.conferenciaAcordao;
+            row('Status', conf.ok ? 'OK' : 'Nenhum', conf.ok ? '#a6e3a1' : '#f38ba8');
+            if (conf.despacho) row('Despacho', (conf.despacho.titulo || '') + ' (' + (conf.despacho.data || '') + ')');
+            if (conf.analise) {
+                if (conf.analise.exclusaoReclamadas && conf.analise.exclusaoReclamadas.length) {
+                    row('Exclusões', conf.analise.exclusaoReclamadas.join(', '));
+                } else {
+                    row('Exclusões', '—');
+                }
+                row('Mantida sentença', conf.analise.mantidaSentenca ? 'sim' : 'não');
+                row('CTPS', conf.analise.ctpsAnotacao ? 'sim' : 'não');
+                row('FGTS', conf.analise.fgtsDeposito ? 'sim' : 'não');
+            }
+            if (conf.preview) {
+                const pv = conf.preview.slice(0, 300).replace(/</g, '&lt;').replace(/\n/g, '↵ ');
+                const d = document.createElement('div');
+                d.style.cssText = 'margin-top:6px;font-size:10px;color:#a6adc8;white-space:pre-wrap;word-break:break-word;cursor:pointer;';
+                d.title = 'Click para copiar texto completo';
+                d.textContent = '[conferência preview] ' + pv + (conf.preview.length > 300 ? '…' : '');
+                d.onclick = () => navigator.clipboard.writeText(conf.preview).then(() => alert('Texto copiado (' + conf.preview.length + ' chars)'));
+                panel.appendChild(d);
+            }
+        }
 
         section('Depósitos Recursais (' + result.depositos.length + ')');
         result.depositos.forEach((d, i) => row(`  [${i}] ${d.tipo}`, `${d.data} ${d.depositante ? '— ' + d.depositante.slice(0, 20) : ''} (${d.anexos.length} anexo(s))`));
@@ -740,6 +1076,13 @@
             return dados;
         },
 
+        // Conferência de acórdão — encontra despacho após último acórdão e analisa
+        conferirAcordao: async () => {
+            const r = await _conferirAcordao();
+            console.log('[calcApi] conferirAcordao:', r);
+            return r;
+        },
+
         // Partes intimadas em primeiro edital encontrado
         lerEdital: async () => {
             const partes = await _fetchPartes();
@@ -771,6 +1114,36 @@
             return deps;
         },
 
+        // E6 — Editais via endpoint `expedientes` (somente partes com tipo 'EDITAL')
+        // Retorna array de nomes (strings) das partes que aparecem em expedientes do tipo EDITAL
+        editaisPorParte: async () => {
+            const paginaSize = 50;
+            let pagina = 1;
+            const encontrados = new Set();
+            while (true) {
+                const url = _base() + '/expedientes?' + new URLSearchParams({ pagina: String(pagina), tamanhoPagina: String(paginaSize), instancia: '1' });
+                let body;
+                try {
+                    body = await _get(url);
+                } catch (e) {
+                    console.warn('[calcApi] falha ao buscar expedientes:', e.message);
+                    break;
+                }
+                const items = (body && body.resultado) ? body.resultado : [];
+                for (const it of items) {
+                    if ((it.tipoExpediente || '').toString().toUpperCase() === 'EDITAL') {
+                        const nome = (it.nomePessoaParte || '').trim();
+                        if (nome) encontrados.add(nome);
+                    }
+                }
+                if (!Array.isArray(items) || items.length < paginaSize) break;
+                pagina += 1;
+            }
+            const list = Array.from(encontrados);
+            console.log('[calcApi] editaisPorParte (partes com edital):', list);
+            return list;
+        },
+
         // Orquestrador completo — espelho de executarPrep()
         prep: async () => {
             const r = await _prep();
@@ -800,6 +1173,7 @@
   await calcApi.lerSentenca(id?)  → Extrai dados da sentença (idDoc opcional)
   await calcApi.lerEdital()       → Partes intimadas por edital
   await calcApi.depositos()       → Recursos recursais classificados
+    await calcApi.conferirAcordao() → Localiza despacho após último acórdão e analisa
   await calcApi.prep()            → Orquestrador completo (+ painel visual)
   calcApi.help()                  → Exibe esta ajuda
 

@@ -142,9 +142,14 @@
                         <label style="font-size:11px;margin:0;"><input type="checkbox" id="chk-resp-extra-diverso-${idx}"> Período Diverso</label>
                     </div>
                     <div id="resp-extra-diverso-area-${idx}" class="hidden" style="margin-top:6px;">
-                        <div class="row">
+                        <div class="row" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
                             <button type="button" id="btn-extra-carregar-${idx}" class="btn-action" style="font-size:11px;padding:4px 8px">📎 Carregar Planilha</button>
                             <input type="file" id="inp-extra-pdf-${idx}" accept="application/pdf" style="display:none">
+                            <input type="text" id="inp-extra-uid-${idx}" placeholder="UID"
+                                style="font-size:11px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;width:120px;"
+                                title="Cole o idUnicoDocumento da planilha para carregar via API">
+                            <button type="button" id="btn-extra-uid-${idx}" class="btn-action"
+                                style="font-size:11px;padding:4px 8px">API &#x21D2;</button>
                         </div>
                         <div id="resp-extra-resumo-${idx}" style="font-size:11px;color:#555;margin-top:4px"></div>
                     </div>
@@ -230,6 +235,63 @@
                     } finally {
                         btnCarregar.disabled = false;
                         inpPdf.value = '';
+                    }
+                });
+            }
+
+            // Handler API ⇒ para extra reclamada
+            const btnExtraUid = document.getElementById(`btn-extra-uid-${idx}`);
+            const inpExtraUid = document.getElementById(`inp-extra-uid-${idx}`);
+            if (btnExtraUid && inpExtraUid) {
+                btnExtraUid.addEventListener('click', async () => {
+                    const uid = inpExtraUid.value.trim();
+                    if (!uid) { alert('Informe o UID da planilha.'); return; }
+                    const m = location.pathname.match(/\/processo\/(\d+)/);
+                    if (!m) { alert('ID do processo não encontrado na URL.'); return; }
+                    const idProcesso = m[1];
+                    const getCookie = (name) => {
+                        const c = document.cookie.split(';').map(s => s.trim())
+                            .find(s => s.toLowerCase().startsWith(name.toLowerCase() + '='));
+                        return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
+                    };
+                    const xsrf = getCookie('XSRF-TOKEN');
+                    const headers = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+                    if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+                    btnExtraUid.disabled = true;
+                    btnExtraUid.textContent = '⏳';
+                    try {
+                        const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${uid}/conteudo`;
+                        const resp = await fetch(url, { method: 'GET', credentials: 'include', headers });
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                        const buffer = await resp.arrayBuffer();
+                        if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia');
+                        await carregarPDFJSSeNecessario();
+                        const fakeFile = new File([buffer], `Documento_${uid}.pdf`, { type: 'application/pdf' });
+                        const dados = await processarPlanilhaPDF(fakeFile);
+                        if (!dados || !dados.sucesso) throw new Error(dados && dados.erro ? dados.erro : 'Falha na extração');
+                        const planilhaId = dados.id || dados.idPlanilha || `extra-${idx}-api`;
+                        const existente = window.hcalcState.planilhasDisponiveis.find(p => p.id === planilhaId);
+                        if (!existente) {
+                            window.hcalcState.planilhasDisponiveis.push({ id: planilhaId, label: nome, dados });
+                        } else {
+                            existente.dados = dados;
+                        }
+                        box.dataset.idPlanilha = planilhaId;
+                        box.dataset.periodoCalculo = dados.periodoCalculo || '';
+                        const resumo = document.getElementById(`resp-extra-resumo-${idx}`);
+                        if (resumo) {
+                            resumo.innerHTML = `<strong>ID:</strong> ${planilhaId} &nbsp; <strong>Período:</strong> ${dados.periodoCalculo || '—'} (API)`;
+                        }
+                        if (btnCarregar) btnCarregar.textContent = '✅ Planilha Carregada (API)';
+                        btnExtraUid.textContent = '✓';
+                        inpExtraUid.value = '';
+                        queueOverlayDraftSave();
+                        setTimeout(() => { btnExtraUid.textContent = 'API ⇒'; btnExtraUid.disabled = false; }, 2000);
+                    } catch (e) {
+                        console.warn('hcalc resp-extra uid falhou:', e.message);
+                        alert('Erro ao carregar via API: ' + e.message);
+                        btnExtraUid.textContent = 'API ⇒';
+                        btnExtraUid.disabled = false;
                     }
                 });
             }

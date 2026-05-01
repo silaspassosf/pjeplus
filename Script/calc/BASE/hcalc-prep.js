@@ -1,97 +1,621 @@
-(function () {
+﻿(function () {
     'use strict';
     const HCALC_DEBUG = false;
     const dbg = (...args) => { if (HCALC_DEBUG) console.log('[hcalc]', ...args); };
     const warn = (...args) => console.warn('[hcalc]', ...args);
     const err = (...args) => console.error('[hcalc]', ...args);
 
-    // prep.js — Preparação pré-overlay para hcalc.js
-    // Varre timeline, extrai dados da sentença, cruza peritos com AJ-JT, monta depósitos.
+    // prep.js - Preparação pré-overlay para hcalc.js (API-only)
+    // Sem DOM polling, sem clicks, sem sleep no fluxo principal.
     // Uso: const result = await window.executarPrep(partesData, peritosConhecimento);
 
-    // (IIFE removida para escopo único)
-
     // ==========================================
-    // UTILIDADES
+    // UTILIDADES GERAIS
     // ==========================================
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
     function normalizeText(str) {
         return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
     }
 
-    // Normaliza data de "17 nov. 2025" para "17/11/2025"
-    function normalizarDataTimeline(dataStr) {
-        if (!dataStr) return '';
-        const meses = {
-            'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04', 'mai': '05', 'jun': '06',
-            'jul': '07', 'ago': '08', 'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+    // ==========================================
+    // API HELPERS
+    // ==========================================
+
+    function _xsrf() {
+        const c = document.cookie.split(';').map(s => s.trim())
+            .find(s => s.toLowerCase().startsWith('xsrf-token='));
+        return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
+    }
+
+    function _headers(accept) {
+        const h = {
+            'Accept': accept || 'application/json',
+            'Content-Type': 'application/json',
+            'X-Grau-Instancia': '1',
         };
-        // Padrão: "17 nov. 2025" ou "17 nov 2025"
-        const match = dataStr.match(/(\d{1,2})\s+(\w{3})\.?\s+(\d{4})/);
-        if (match) {
-            const dia = match[1].padStart(2, '0');
-            const mes = meses[match[2].toLowerCase()] || '00';
-            const ano = match[3];
-            return `${dia}/${mes}/${ano}`;
-        }
-        return dataStr; // Retorna original se não reconhecer
+        const x = _xsrf();
+        if (x) h['X-XSRF-TOKEN'] = x;
+        return h;
     }
 
-    // Destaca um elemento na timeline (usado por links de recursos)
-    function destacarElementoNaTimeline(href) {
+    function _idProcesso() {
+        const m = window.location.pathname.match(/\/processo\/(\d+)/) ||
+            window.location.search.match(/processo=(\d+)/i);
+        return m ? m[1] : null;
+    }
+
+    function _base() {
+        return location.origin + '/pje-comum-api/api/processos/id/' + _idProcesso();
+    }
+
+    // ISO "2024-11-17T..." -> "17/11/2024" (4 digitos de ano - obrigatorio para overlay)
+    function _normData(s) {
+        if (!s || typeof s !== 'string') return s;
+        const m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
+    }
+
+    // Monta href sintetico usado pelo overlay para localizar itens na timeline
+    function _montarHref(uid) {
+        if (!uid) return null;
         try {
-            // Tentar encontrar o elemento pelo href
-            const link = document.querySelector(`a[href="${href}"]`);
-            if (!link) {
-                console.warn('[hcalc] Elemento não encontrado na timeline:', href);
-                return;
+            return `${location.origin}/pjekz/processo/${_idProcesso() || ''}/detalhe?documentoId=${uid}`;
+        } catch (e) { return null; }
+    }
+
+    function _normalize(str) {
+        return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    }
+
+    function _compactNormalize(str) {
+        return _normalize((str || '').replace(/\s+/g, ' '));
+    }
+
+    function _windowAround(text, idx, before, after) {
+        const b = before === undefined ? 120 : before;
+        const a = after === undefined ? 120 : after;
+        const start = Math.max(0, idx - b);
+        const end = Math.min(text.length, idx + a);
+        return text.slice(start, end);
+    }
+
+    function _cooccursInWindow(textNorm, termsA, termsB, windowSize) {
+        const ws = windowSize === undefined ? 120 : windowSize;
+        if (!textNorm) return false;
+        for (const a of termsA) {
+            const aNorm = _normalize(a);
+            let idx = textNorm.indexOf(aNorm);
+            while (idx !== -1) {
+                const win = _windowAround(textNorm, idx, ws, ws);
+                for (const b of termsB) {
+                    if (win.includes(_normalize(b))) return true;
+                }
+                idx = textNorm.indexOf(aNorm, idx + aNorm.length);
             }
-
-            // Encontrar o container do item na timeline
-            let container = link.closest('li.tl-item-container') ||
-                link.closest('.tl-item-container') ||
-                link.closest('.timeline-item');
-
-            if (!container) {
-                console.warn('[hcalc] Container do item não encontrado');
-                return;
-            }
-
-            // Scroll suave até o elemento
-            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // Salvar estilo original
-            const originalBorder = container.style.border;
-            const originalBackground = container.style.background;
-            const originalTransition = container.style.transition;
-
-            // Aplicar destaque
-            container.style.transition = 'all 0.3s ease';
-            container.style.border = '2px solid #fbbf24';
-            container.style.background = '#fffbeb';
-
-            // Remover destaque após 3 segundos
-            setTimeout(() => {
-                container.style.transition = 'all 0.5s ease';
-                container.style.border = originalBorder;
-                container.style.background = originalBackground;
-
-                // Restaurar transition original após animação
-                setTimeout(() => {
-                    container.style.transition = originalTransition;
-                }, 500);
-            }, 3000);
-
-            console.log('[hcalc] Elemento destacado na timeline:', href);
-        } catch (error) {
-            console.error('[hcalc] Erro ao destacar elemento:', error);
         }
+        return false;
+    }
+
+    function _stripHtml(html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        return (tmp.innerText || tmp.textContent || '').trim();
+    }
+
+    async function _get(url) {
+        const resp = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: _headers(),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${url}`);
+        const txt = await resp.text();
+        try { return JSON.parse(txt); } catch (_) { return txt; }
+    }
+
+    async function _getRaw(url) {
+        const resp = await fetch(url, {
+            method: 'GET',
+            credentials: 'include',
+            headers: _headers('*/*'),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${url}`);
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/pdf') || ct.includes('octet-stream')) {
+            return { tipo: 'pdf-buffer', conteudo: await resp.arrayBuffer(), contentType: ct };
+        }
+        const text = await resp.text();
+        if (text.startsWith('%PDF')) {
+            const enc = new TextEncoder();
+            return { tipo: 'pdf-buffer', conteudo: enc.encode(text).buffer, contentType: ct };
+        }
+        if (ct.includes('application/json')) {
+            try {
+                const data = JSON.parse(text);
+                const html = data.conteudo || data.conteudoHtml || data.html || data.conteudoBase64 || null;
+                if (html) return { tipo: 'json-html', conteudo: html, raw: data, contentType: ct };
+                return { tipo: 'json-raw', conteudo: text, raw: data, contentType: ct };
+            } catch (_) { /* fall through */ }
+        }
+        return { tipo: 'html', conteudo: text, contentType: ct };
     }
 
     // ==========================================
-    // TIMELINE: VARREDURA ÚNICA
+    // E1 - PARTES
     // ==========================================
+
+    function _shapePartes(dados) {
+        const flatten = (partes, tipo) => (partes || []).map((p, idx) => ({
+            nome: (p.nome || '').trim(),
+            cpfcnpj: p.documento || '',
+            tipo,
+            ordem: `${idx + 1}a`,
+            telefone: (() => {
+                const pf = p.pessoaFisica;
+                if (!pf) return '';
+                return [
+                    pf.dddCelular && pf.numeroCelular ? `(${pf.dddCelular}) ${pf.numeroCelular}` : '',
+                    pf.dddResidencial && pf.numeroResidencial ? `(${pf.dddResidencial}) ${pf.numeroResidencial}` : '',
+                ].filter(Boolean).join(' | ');
+            })(),
+            representantes: (p.representantes || []).map(r => ({
+                nome: (r.nome || '').trim(),
+                oab: r.numeroOab || '',
+                tipo: r.tipo || '',
+            })),
+        }));
+        return {
+            ativo: flatten(dados.ATIVO, 'AUTOR'),
+            passivo: flatten(dados.PASSIVO, 'REU'),
+            outros: flatten(dados.TERCEIROS, 'TERCEIRO'),
+        };
+    }
+
+    async function _fetchPartes() {
+        const raw = await _get(_base() + '/partes');
+        return _shapePartes(raw);
+    }
+
+    // ==========================================
+    // E2 - TIMELINE
+    // ==========================================
+
+    function _TIMELINE_URL() {
+        return _base() + '/timeline?' + new URLSearchParams({
+            buscarMovimentos: 'false',
+            buscarDocumentos: 'true',
+            somenteDocumentosAssinados: 'false',
+        });
+    }
+
+    async function _fetchTimeline() {
+        return _get(_TIMELINE_URL());
+    }
+
+    // Classifica item da timeline sem tocar no DOM.
+    function _classifyItem(item) {
+        const low = _normalize(
+            (item.titulo || '') + ' ' +
+            (item.nomeDocumento || '') + ' ' +
+            (item.descricao || '') + ' ' +
+            (item.tipo || '')
+        );
+
+        let categoria = 'outro';
+        if (/senten[cç]a/.test(low)) categoria = 'sentenca';
+        else if (/acord[aã]o/.test(low) && !/intima/.test(low)) categoria = 'acordao';
+        else if (/despacho/.test(low) || (/decis[aã]o/.test(low) && /despacho/.test(low))) categoria = 'despacho';
+        else if (/recurso de revista/.test(low)) categoria = 'RR';
+        else if (/recurso ordin[aá]rio/.test(low)) categoria = 'RO';
+        else if (/edital/.test(low)) categoria = 'edital';
+        else if (/periciai.*aj.*jt|periciai.*aj|perito.*aj.*jt/.test(low)) categoria = 'hon_ajjt';
+
+        return {
+            categoria,
+            uid: item.idUnicoDocumento || null,
+            idDoc: item.id ? Number(item.id) : null,
+            titulo: item.titulo || '',
+            tipo: item.tipo || '',
+            data: _normData(item.data || item.atualizadoEm || ''),
+            polo: item.polo || item.tipoItemTimeline || null,
+            nomeParte: item.nomeParte || item.nomeAutor || null,
+            anexos: (item.anexos || []).map(function(a) {
+                return {
+                    uid: a.idUnicoDocumento || null,
+                    idDoc: a.id ? Number(a.id) : null,
+                    titulo: a.titulo || a.nomeDocumento || '',
+                    data: _normData(a.data || a.atualizadoEm || ''),
+                };
+            }),
+            _raw: item,
+        };
+    }
+
+    // ==========================================
+    // E3-E5 - CONTEUDO DE DOCUMENTO
+    // ==========================================
+
+    async function _fetchDocMeta(idDoc) {
+        return _get(_base() + '/documentos/id/' + idDoc);
+    }
+
+    async function _fetchDocConteudo(idDoc) {
+        const endpoints = [
+            _base() + '/documentos/id/' + idDoc + '/conteudo',
+            _base() + '/documentos/id/' + idDoc + '/html',
+        ];
+        let lastErr = null;
+        for (const url of endpoints) {
+            try {
+                const r = await _getRaw(url);
+                if (r.tipo === 'pdf-buffer') {
+                    return { tipo: 'pdf', texto: null, buffer: r.conteudo, idDoc };
+                }
+                const texto = (r.tipo === 'json-html' || r.tipo === 'html') ? _stripHtml(r.conteudo) : (r.conteudo || '');
+                if (texto.length >= 10) {
+                    return { tipo: r.tipo, texto, html: r.conteudo, chars: texto.length, idDoc };
+                }
+            } catch (e) {
+                lastErr = e;
+                warn('[prep] endpoint falhou:', url, e.message);
+            }
+        }
+        throw lastErr || new Error('Nenhum endpoint retornou conteudo para idDoc=' + idDoc);
+    }
+
+    async function _pdfToText(arrayBuffer) {
+        let lib = window.pdfjsLib;
+        if (!lib) {
+            try {
+                await new Promise(function(res, rej) {
+                    const s = document.createElement('script');
+                    s.src = location.origin + '/pjekz/assets/pdf/build/pdf.js';
+                    s.onload = res; s.onerror = rej;
+                    document.head.appendChild(s);
+                });
+                lib = window.pdfjsLib;
+            } catch (_) { /* prosseguir para CDN */ }
+        }
+        if (!lib) {
+            await new Promise(function(res, rej) {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            });
+            lib = window.pdfjsLib;
+        }
+        if (!lib) throw new Error('pdf.js nao disponivel');
+        try {
+            lib.GlobalWorkerOptions.workerSrc = location.origin + '/pjekz/assets/pdf/build/pdf.worker.js';
+        } catch (_) {
+            lib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        }
+        const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+        const pages = [];
+        for (let p = 1; p <= pdf.numPages; p++) {
+            const content = await (await pdf.getPage(p)).getTextContent();
+            const linesMap = {};
+            content.items.filter(function(it) { return it.str && it.str.trim(); }).forEach(function(it) {
+                const y = Math.round(it.transform[5]);
+                const k = Object.keys(linesMap).find(function(k) { return Math.abs(parseInt(k) - y) <= 4; }) || String(y);
+                if (!linesMap[k]) linesMap[k] = [];
+                linesMap[k].push({ str: it.str, x: Math.round(it.transform[4]) });
+            });
+            pages.push(
+                Object.keys(linesMap).map(Number).sort(function(a, b) { return b - a; })
+                    .map(function(y) { return linesMap[y].sort(function(a, b) { return a.x - b.x; }).map(function(it) { return it.str.trim(); }).filter(Boolean).join(' '); })
+                    .join('\n')
+            );
+        }
+        return pages.join('\n\n--- PAGINA ---\n\n').trim();
+    }
+
+    async function _fetchDocHtml(idDoc) {
+        const r = await _fetchDocConteudo(idDoc);
+        if (r.tipo === 'pdf' && r.buffer) {
+            const texto = await _pdfToText(r.buffer);
+            return { tipo: 'pdf-extraido', texto, chars: texto.length, idDoc };
+        }
+        return r;
+    }
+
+    // ==========================================
+    // EXTRACAO DE DADOS DA SENTENCA
+    // ==========================================
+
+    function _extrairDadosSentenca(texto) {
+        const result = {
+            custas: null,
+            hsusp: false,
+            trteng: false,
+            trtmed: false,
+            responsabilidade: null,
+            honorariosPericiais: [],
+        };
+
+        const custasMatch =
+            texto.match(/no\s+importe\s+(?:m[ii]nim[oa]\s+|m[aa]xim[oa]\s+|total\s+)?de\s+R\$\s*([\d.,]+),?\s*calculadas\s+sobre/i) ||
+            texto.match(/[Cc]ustas[^,]*,\s*(?:pela\s+)?[Rr]eclamad[ao][^,]*,\s*no\s+importe\s+(?:m[ii]nim[oa]\s+|m[aa]xim[oa]\s+|total\s+)?de\s+R\$\s*([\d.,]+)/i) ||
+            texto.match(/[Cc]ustas[^,]*de\s+R\$\s*([\d.,]+)/i);
+        if (custasMatch) result.custas = custasMatch[1].replace(/[.,]+$/, '');
+
+        result.hsusp = /obriga[cç][aã]o\s+ficar[aá]\s+sob\s+condi[cç][aã]o\s+suspensiva/i.test(texto);
+        result.trteng =
+            /honor[aá]rios\s+periciais\s+t[eé]cnicos.*pagos\s+pelo\s+Tribunal/i.test(texto) ||
+            /pagos\s+pelo\s+Tribunal\s+Regional.*periciais\s+t[eé]cnicos/i.test(texto);
+        result.trtmed =
+            /honor[aá]rios\s+periciais\s+m[eé]dicos.*pagos\s+pelo\s+Tribunal/i.test(texto) ||
+            /pagos\s+pelo\s+Tribunal\s+Regional.*periciais\s+m[eé]dicos/i.test(texto);
+
+        if (/condenar\s+(de\s+forma\s+)?subsidi[aá]ri/i.test(texto)) result.responsabilidade = 'subsidiaria';
+        else if (/condenar\s+(de\s+forma\s+)?solid[aá]ri/i.test(texto)) result.responsabilidade = 'solidaria';
+
+        const reHon = /honor[aá]rios\s+periciais[^.]*?R\$\s*([\d.,]+)[^.]*?\./gi;
+        let m;
+        while ((m = reHon.exec(texto)) !== null) {
+            const trt = /pagos?\s+pelo\s+Tribunal/i.test(m[0]) || /TRT/i.test(m[0]);
+            result.honorariosPericiais.push({ valor: m[1], trt });
+        }
+
+        return result;
+    }
+
+    // ==========================================
+    // EXTRACAO DE PERITOS EM DOC AJ-JT
+    // ==========================================
+
+    async function _lerPeritosAjJt(ajJtItems, peritosConhecimento) {
+        const encontrados = [];
+        const jaAchados = new Set();
+        for (const item of ajJtItems) {
+            if (jaAchados.size >= peritosConhecimento.length) break;
+            if (!item.idDoc) continue;
+            try {
+                const r = await _fetchDocHtml(item.idDoc);
+                if (!r.texto) continue;
+                const textoNorm = _normalize(r.texto);
+                for (const perito of peritosConhecimento) {
+                    if (jaAchados.has(perito)) continue;
+                    const pNorm = _normalize(perito);
+                    const partes = pNorm.split(/\s+/).filter(Boolean);
+                    const found = textoNorm.includes(pNorm) ||
+                        (partes.length > 1 && textoNorm.includes(partes[0]) && textoNorm.includes(partes[partes.length - 1]));
+                    if (found) {
+                        encontrados.push({ nome: perito, trt: true, idAjJt: item.idDoc });
+                        jaAchados.add(perito);
+                    }
+                }
+            } catch (e) {
+                warn('[prep] AJ-JT idDoc=' + item.idDoc + ' falhou:', e.message);
+            }
+        }
+        return encontrados;
+    }
+
+    // ==========================================
+    // DETECCAO DE PARTES EM EDITAL
+    // ==========================================
+
+    async function _lerPartesEdital(editais, passivo) {
+        if (passivo.length === 1) return [passivo[0].nome];
+        const intimadas = new Set();
+        const reclamadas = passivo.map(function(p) { return { nome: p.nome, norm: _normalize(p.nome) }; });
+        for (const edital of editais) {
+            if (intimadas.size >= passivo.length || !edital.idDoc) continue;
+            try {
+                const r = await _fetchDocHtml(edital.idDoc);
+                if (!r.texto) continue;
+                const textoNorm = _normalize(r.texto);
+                for (const r2 of reclamadas) {
+                    if (!intimadas.has(r2.nome) && textoNorm.includes(r2.norm)) {
+                        intimadas.add(r2.nome);
+                    }
+                }
+            } catch (e) {
+                warn('[prep] Edital idDoc=' + edital.idDoc + ' falhou:', e.message);
+            }
+        }
+        return Array.from(intimadas);
+    }
+
+    // ==========================================
+    // DETECCAO DE POLO PASSIVO SEM DOM
+    // ==========================================
+
+    function _detectarPoloPassivo(itemRaw, passivo) {
+        if (itemRaw.polo) return itemRaw.polo;
+        if (itemRaw.nomeParte) {
+            const norm = _normalize(itemRaw.nomeParte);
+            return passivo.some(function(p) { return _normalize(p.nome).includes(norm) || norm.includes(_normalize(p.nome)); })
+                ? 'PASSIVO' : 'ATIVO';
+        }
+        const tituloNorm = _normalize(itemRaw.titulo || '');
+        const temReclamada = passivo.some(function(p) {
+            const nomeNorm = _normalize(p.nome);
+            const partes = nomeNorm.split(/\s+/).filter(Boolean);
+            return partes.length >= 2 &&
+                (tituloNorm.includes(nomeNorm) ||
+                    (tituloNorm.includes(partes[0]) && tituloNorm.includes(partes[partes.length - 1])));
+        });
+        return temReclamada ? 'PASSIVO' : null;
+    }
+
+    // ==========================================
+    // CONFERENCIA DE ACORDAO
+    // ==========================================
+
+    async function _conferirAcordao() {
+        const partes = await _fetchPartes();
+        const raw = await _fetchTimeline();
+        const items = raw.map(_classifyItem);
+
+        const acordaoIdxs = items.map(function(it, idx) { return it.categoria === 'acordao' ? idx : -1; }).filter(function(i) { return i >= 0; });
+        if (!acordaoIdxs.length) return { ok: false, erro: 'Nenhum acordao encontrado na timeline' };
+
+        const targetAcordaoIdx = Math.max.apply(null, acordaoIdxs);
+        const targetAcordao = items[targetAcordaoIdx];
+
+        function isDespachoLike(it) { return it && it.categoria === 'despacho'; }
+
+        function isFirstInstance(it) {
+            if (!it || !it._raw) return false;
+            const raw = it._raw;
+            const candidates = ['grauInstancia', 'grau', 'instancia', 'grau_instancia', 'grauInst'];
+            for (const k of candidates) {
+                if (raw[k] !== undefined && raw[k] !== null) {
+                    const v = String(raw[k]).replace(/[^0-9]/g, '');
+                    if (v === '1') return true;
+                    if (v) return false;
+                }
+            }
+            const unitKeys = ['unidade', 'nomeUnidade', 'unidadeJudiciaria', 'orgaoJudicial', 'local'];
+            for (const k of unitKeys) {
+                if (raw[k] && typeof raw[k] === 'string' && /vara/i.test(raw[k])) return true;
+            }
+            return false;
+        }
+
+        async function readTextoFor(it) {
+            try {
+                if (!it) return { texto: '' };
+                if (typeof window.pjeExtrairApi === 'function' && it.uid) {
+                    try {
+                        const ext = await window.pjeExtrairApi(it.uid, { idProcesso: _idProcesso() });
+                        if (ext && ext.sucesso) {
+                            if (ext.conteudo) return { texto: String(ext.conteudo) };
+                            if (ext.conteudo_bruto) return { texto: String(ext.conteudo_bruto) };
+                        }
+                    } catch (e) { /* fallback */ }
+                }
+                if (it.idDoc) {
+                    try {
+                        const r = await _fetchDocHtml(it.idDoc);
+                        if (r && r.texto) return { texto: r.texto };
+                    } catch (e) { /* ignore */ }
+                }
+            } catch (e) { warn('[prep] readTextoFor falhou:', e.message); }
+            return { texto: '' };
+        }
+
+        let despachoItem = null;
+        const requiredPhrase = _compactNormalize('ante o retorno');
+
+        for (let i = targetAcordaoIdx - 1; i >= 0; i--) {
+            const it = items[i];
+            if (!isDespachoLike(it)) continue;
+            if (!isFirstInstance(it)) continue;
+            const res = await readTextoFor(it);
+            const textoCand = res.texto || '';
+            if (!textoCand) continue;
+            if (_compactNormalize(textoCand).includes(requiredPhrase)) {
+                despachoItem = it;
+                break;
+            }
+        }
+
+        if (!despachoItem) {
+            return { ok: false, erro: 'Nenhum despacho relevante encontrado apos o acordao alvo', lastAcordao: targetAcordao };
+        }
+
+        let texto = '';
+        try {
+            if (typeof window.pjeExtrairApi === 'function' && despachoItem.uid) {
+                const ext = await window.pjeExtrairApi(despachoItem.uid, { idProcesso: _idProcesso() });
+                if (ext && ext.sucesso && ext.conteudo_bruto) texto = ext.conteudo_bruto;
+            }
+        } catch (e) { /* ignore */ }
+        if (!texto && despachoItem.idDoc) {
+            try { const r = await _fetchDocHtml(despachoItem.idDoc); texto = r.texto || ''; } catch (e) { /* ignore */ }
+        }
+
+        const mantida = /manuten[cç][aã]o|mantida a senten[cç]a|mantido o julgado|mant(e|e)m? a senten[cç]a/i.test(texto);
+        const rearbitramento = /rearbitrad.*custas|custas.*rearbitrad|rearbitradas.*custas/i.test(texto);
+
+        function detectarExclusoes(texto, passivo) {
+            const tnorm = _normalize(texto || '');
+            const exclusoesSet = new Set();
+            const numRe = /(\d+)\s*[aAoO]?\s*reclamad[aoas]/g;
+            let mm;
+            while ((mm = numRe.exec(tnorm)) !== null) {
+                const win = _windowAround(tnorm, mm.index, 120, 120);
+                if (/(afast|exclu|retir)/.test(win) && /(subsidi|solidar)/.test(win)) {
+                    const n = parseInt(mm[1], 10);
+                    if (passivo[n - 1]) exclusoesSet.add(passivo[n - 1].nome);
+                }
+            }
+            for (const p of (passivo || [])) {
+                if (!p || !p.nome) continue;
+                const nomeNorm = _normalize(p.nome);
+                let idx2 = tnorm.indexOf(nomeNorm);
+                while (idx2 !== -1) {
+                    const win = _windowAround(tnorm, idx2, 120, 120);
+                    if (/(afast|exclu|retir)/.test(win) && /(subsidi|solidar)/.test(win)) {
+                        exclusoesSet.add(p.nome); break;
+                    }
+                    idx2 = tnorm.indexOf(nomeNorm, idx2 + nomeNorm.length);
+                }
+            }
+            return Array.from(exclusoesSet);
+        }
+
+        const exclusoes = detectarExclusoes(texto, partes.passivo || []);
+        const tnorm = _normalize(texto);
+        const ctpsDespacho = _cooccursInWindow(tnorm,
+            ['ctps', 'carteira de trabalho', 'carteira profissional'],
+            ['anotar', 'retificar', 'anotacao', 'anotacao', 'retifica', 'registrar', 'lancar', 'lancar'], 120) ||
+            _cooccursInWindow(tnorm,
+                ['ctps', 'carteira de trabalho'],
+                ['dever', 'devera', 'determina', 'determinar', 'ordem', 'ordenar'], 120);
+        const fgtsDespacho = _cooccursInWindow(tnorm,
+            ['fgts'],
+            ['deposito', 'depositar', 'recolhimento', 'recolher', 'guia', 'darf', 'gps', 'conta vinculada', 'vinculada'], 120);
+
+        return {
+            ok: true,
+            lastAcordao: { data: targetAcordao.data, idDoc: targetAcordao.idDoc, uid: targetAcordao.uid, titulo: targetAcordao.titulo },
+            despacho: { data: despachoItem.data, idDoc: despachoItem.idDoc, uid: despachoItem.uid, titulo: despachoItem.titulo },
+            analise: {
+                mantidaSentenca: !!mantida,
+                exclusaoReclamadas: exclusoes,
+                rearbitramentoCustas: !!rearbitramento,
+                ctpsAnotacao: !!ctpsDespacho,
+                fgtsDeposito: !!fgtsDespacho,
+            },
+        };
+    }
+
+    // ==========================================
+    // CLASSIFICACAO DE ANEXOS
+    // ==========================================
+
+    function classificarAnexo(textoAnexo) {
+        const t = (textoAnexo || '').toLowerCase();
+        if (/jurisprudencia|jurisprudencia|sentenca|sentenca|isencao|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
+        if (/deposito|deposito|preparo/.test(t)) return { tipo: 'Deposito', ordem: 1 };
+        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 2 };
+        if (/garantia|seguro|susep|apolice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
+        return { tipo: 'Anexo', ordem: 4 };
+    }
+
+    // ==========================================
+    // DOM-UI HELPERS (usados pelo overlay pos-carga - manter)
+    // ==========================================
+
+    function safeDispatch(el, type, opts) {
+        try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
+        catch (e) {
+            try {
+                const safeOpts = Object.assign({}, opts || {});
+                if ('view' in safeOpts) delete safeOpts.view;
+                el.dispatchEvent(new MouseEvent(type, safeOpts));
+                return true;
+            } catch (e2) { try { el.click(); return true; } catch (e3) { /* ignore */ } }
+        }
+        return false;
+    }
+
     function getTimelineItems() {
         const selectors = ['li.tl-item-container', '.tl-data .tl-item-container', '.timeline-item'];
         for (const sel of selectors) {
@@ -101,214 +625,6 @@
         return [];
     }
 
-    function extractDataFromItem(item) {
-        let el = null;
-        let prev = item.previousElementSibling;
-        while (prev) {
-            el = prev.querySelector('.tl-data[name="dataItemTimeline"]') || prev.querySelector('.tl-data');
-            if (el) break;
-            prev = prev.previousElementSibling;
-        }
-        if (!el) el = item.querySelector('.tl-data[name="dataItemTimeline"]') || item.querySelector('.tl-data');
-        const dataOriginal = (el?.textContent || '').trim();
-        return normalizarDataTimeline(dataOriginal);
-    }
-
-    function tipoDocumentoDoItem(item) {
-        const link = item.querySelector('a.tl-documento[target="_blank"]');
-        if (!link) return '';
-        const ariaLabel = link.getAttribute('aria-label') || '';
-        const m = ariaLabel.match(/Tipo do documento:\s*([^.]+)/i);
-        return m ? normalizeText(m[1].trim()) : '';
-    }
-
-    function tituloDocumentoDoItem(item) {
-        const link = item.querySelector('a.tl-documento[target="_blank"]');
-        if (!link) return '';
-        const ariaLabel = link.getAttribute('aria-label') || '';
-        const m = ariaLabel.match(/Título:\s*\(([^)]+)\)/i);
-        return m ? normalizeText(m[1].trim()) : '';
-    }
-
-    function hasAnexoNoItem(item) {
-        if (!item) return false;
-        const sels = [
-            'div[name="mostrarOuOcultarAnexos"]',
-            'pje-timeline-anexos div[name="areaAnexos"]',
-            '.fa-paperclip'
-        ];
-        return sels.some(s => item.querySelector(s));
-    }
-
-    function isPoloPassivoNoItem(item) {
-        if (!item) return false;
-        const container = item.closest('li.tl-item-container') || item;
-        return !!container.querySelector('.icone-polo-passivo, [class*="polo-passivo"]');
-    }
-
-    // Extrai o nome da parte do polo passivo a partir do aria-label do div tipoItemTimeline
-    // Ex: aria-label="VIBRASIL INDUSTRIA DE ARTEFATOS DE BORRACHA LTDA"
-    function nomePassivoDoItem(item) {
-        if (!item) return '';
-        const container = item.closest('li.tl-item-container') || item;
-
-        // ESTRATÉGIA PRINCIPAL: aria-label do ícone do polo
-        const seletores = [
-            'div[name="tipoItemTimeline"][aria-label]',
-            '[name="tipoItemTimeline"][aria-label]',
-            'div.tl-icon[aria-label]',
-            '[role="img"][aria-label]'
-        ];
-
-        for (const sel of seletores) {
-            const elemento = container.querySelector(sel);
-            if (elemento) {
-                const ariaLabel = elemento.getAttribute('aria-label')?.trim();
-                if (ariaLabel && ariaLabel.length > 3) {
-                    if (!ariaLabel.toLowerCase().includes('advogado') &&
-                        !ariaLabel.toLowerCase().includes('tipo do documento')) {
-                        return ariaLabel;
-                    }
-                }
-            }
-        }
-
-        // FALLBACK rec.js v1.0: extrair do texto do documento
-        const textoDoc = textoDoItem(item);
-        const matchEmpresa = textoDoc.match(/^([^-:\n]+)/);
-        if (matchEmpresa && matchEmpresa[1].trim().length > 10) {
-            const nomeExtraido = matchEmpresa[1].trim();
-            if (!/^(recurso|ordinário|revista|ro|rr|documento)$/i.test(nomeExtraido)) {
-                return nomeExtraido;
-            }
-        }
-
-        return 'Reclamada não identificada';
-    }
-
-    function hrefDoItem(item) {
-        const link = item.querySelector('a.tl-documento[target="_blank"]');
-        return link?.href || null;
-    }
-
-    function textoDoItem(item) {
-        const previewLink = item.querySelector('a.tl-documento[role="button"]:not([target])')
-            || item.querySelector('a.tl-documento:not([target])');
-        return (previewLink?.textContent || item.textContent || '').replace(/\s+/g, ' ').trim();
-    }
-
-    function idDocumentoDoItem(item) {
-        // Extrai ID do formato: <span class="ng-star-inserted"> - 44709e4</span>
-        const previewLink = item.querySelector('a.tl-documento[role="button"]:not([target])')
-            || item.querySelector('a.tl-documento:not([target])');
-        if (!previewLink) return null;
-
-        const spans = previewLink.querySelectorAll('span.ng-star-inserted');
-        for (let i = spans.length - 1; i >= 0; i--) {
-            const texto = spans[i].textContent.trim();
-            const match = texto.match(/^\s*-\s*([a-f0-9]{7})$/i);
-            if (match) return match[1];
-        }
-        return null;
-    }
-
-    // Varredura única: classifica todos os items da timeline
-    function varrerTimeline() {
-        const items = getTimelineItems();
-        const resultado = {
-            sentencas: [],
-            acordaos: [],
-            editais: [],
-            recursosPassivo: [],  // RO/RR + polo passivo + anexo
-            honAjJt: []
-        };
-
-        items.forEach((item, idx) => {
-            const texto = textoDoItem(item);
-            const textoNorm = normalizeText(texto);
-            const tipoDoc = tipoDocumentoDoItem(item);
-            const tituloDoc = tituloDocumentoDoItem(item);
-            const data = extractDataFromItem(item);
-            const href = hrefDoItem(item);
-
-            // BASE: Apenas dados essenciais (SEM element: item para evitar vazamento DOM)
-            const base = {
-                idx,
-                texto: texto.substring(0, 300), // Limitar tamanho do texto
-                data,
-                href
-            };
-
-            // Sentença
-            if (textoNorm.includes('sentenca') || textoNorm.includes('sentença')) {
-                resultado.sentencas.push({ ...base, tipo: 'sentenca' });
-                return;
-            }
-
-            // Acórdão - CAPTURA ID
-            if (textoNorm.includes('acordao') && !textoNorm.includes('intima')) {
-                const idDoc = idDocumentoDoItem(item);
-                resultado.acordaos.push({ ...base, id: idDoc, tipo: 'acordao' });
-                return;
-            }
-
-            // Recurso Ordinário / Recurso de Revista (Coleta bruta para filtro cronológico posterior)
-            if ((tipoDoc === 'recurso ordinario' || tipoDoc === 'recurso de revista'
-                || tipoDoc.includes('recurso ordinario') || tipoDoc.includes('recurso de revista'))
-                && hasAnexoNoItem(item)) {
-
-                const tipoRec = tipoDoc.includes('revista') ? 'RR' : 'RO';
-                const depositante = nomePassivoDoItem(item);
-                const poloPassivo = isPoloPassivoNoItem(item);
-                const temReclamada = poloPassivo || (depositante && depositante !== 'Reclamada não identificada');
-
-                resultado.recursosPassivo.push({ ...base, tipoRec, depositante, temReclamada, _itemRef: item });
-                return;
-            }
-
-            // Honorários Periciais AJ-JT - CAPTURA ID
-            if (/peric[ia]*.*aj[\s-]*jt/i.test(tituloDoc) || /peric[ia]*.*aj[\s-]*jt/i.test(texto)) {
-                const idDoc = idDocumentoDoItem(item);
-                resultado.honAjJt.push({ ...base, id: idDoc, tipo: 'hon_ajjt' });
-                return;
-            }
-
-            // Edital
-            if (textoNorm.includes('edital')) {
-                resultado.editais.push({ ...base, tipo: 'edital' });
-            }
-        });
-
-        // Sentença alvo = mais antiga (última no array, pois timeline é desc)
-        return resultado;
-    }
-
-    // ==========================================
-    // EXTRAÇÃO VIA HTML ORIGINAL
-    // ==========================================
-
-    // Abre o documento inline (clica no preview link)
-    function abrirDocumentoInline(item) {
-        const previewLink = item.querySelector('a.tl-documento[accesskey="v"]:not([target])')
-            || item.querySelector('a.tl-documento[role="button"]:not([target])')
-            || item.querySelector('a.tl-documento:not([target])');
-        if (previewLink) {
-            try { safeDispatch(previewLink, 'click', { bubbles: true, cancelable: true }); }
-            catch (_) { try { previewLink.click(); } catch (_2) { } }
-        }
-    }
-
-    // Dispatch seguro local para este arquivo (evita erro quando UIEventInit.view é problemático)
-    function safeDispatch(el, type, opts) {
-        try { el.dispatchEvent(new MouseEvent(type, opts || {})); return true; }
-        catch (e) {
-            try { const safeOpts = Object.assign({}, opts || {}); if ('view' in safeOpts) delete safeOpts.view; el.dispatchEvent(new MouseEvent(type, safeOpts)); return true; }
-            catch (e2) { try { el.click(); return true; } catch (e3) {} try { const ev = document.createEvent('MouseEvents'); ev.initMouseEvent(type, !!(opts && opts.bubbles), !!(opts && opts.cancelable), window, 0,0,0,0,0,false,false,false,false,0,null); el.dispatchEvent(ev); return true; } catch (e4) {} }
-        }
-        return false;
-    }
-
-    // Recaptura elemento da timeline pelo href (evita guardar referências DOM)
     function encontrarItemTimeline(href) {
         if (!href) return null;
         const items = getTimelineItems();
@@ -319,79 +635,14 @@
         return null;
     }
 
-    // ========== INTEGRADO DE rec.js v1.0 ==========
-
-    // Classificação por tipo de anexo
-    function classificarAnexo(textoAnexo) {
-        const t = textoAnexo.toLowerCase();
-        // Exceções absolutas: se tiver essas palavras, é anexo comum
-        if (/jurisprudência|jurisprudencia|sentença|sentenca|isenção|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
-
-        // PRIORIDADE: Preferir identificar Depósito recursal antes de classificar como Custas.
-        // Alguns anexos mencionam ambas palavras; considerando a importância do depósito recursal
-        // para o fluxo, priorizamos sua detecção.
-        if (/depósito|deposito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 1 };
-        // GRU/Custas ficam em seguida
-        if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 2 };
-        // PRIORIDADE 3: Garantia
-        if (/garantia|seguro|susep|apólice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
-        // PRIORIDADE 4: Outros anexos
-        return { tipo: 'Anexo', ordem: 4 };
-    }
-
-    // Expande anexos e retorna lista estruturada
-    async function extrairAnexosDoItem(item) {
-        const anexos = [];
-        try {
-            const anexosRoot = item.querySelector('pje-timeline-anexos');
-            if (!anexosRoot) return anexos;
-
-            const toggle = anexosRoot.querySelector('div[name="mostrarOuOcultarAnexos"]');
-            let anexoLinks = anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]');
-
-            if ((!anexoLinks || anexoLinks.length === 0) && toggle) {
-                try { safeDispatch(toggle, 'click', { bubbles: true }); } catch (e) { }
-                await sleep(350);
-                anexoLinks = anexosRoot.querySelectorAll('a.tl-documento[id^="anexo_"]');
-            }
-
-            if (anexoLinks && anexoLinks.length) {
-                Array.from(anexoLinks).forEach(anexo => {
-                    const texto = (anexo.textContent || '').trim();
-                    let id = '';
-                    const match = texto.match(/\s-\s([a-f0-9]{7})\s*$/i);
-                    if (match) {
-                        id = match[1];
-                    } else {
-                        id = anexo.id || anexo.getAttribute('id') || '';
-                    }
-                    const { tipo, ordem } = classificarAnexo(texto);
-                    anexos.push({ texto, id, tipo, ordem, elemento: anexo });
-                });
-                anexos.sort((a, b) => a.ordem - b.ordem);
-                // Log de depuração para auxiliar identificação de anexos (visível no console)
-                try {
-                    console.log('[prep] anexos extraídos:', anexos.map(a => ({ id: a.id, tipo: a.tipo, texto: a.texto ? a.texto.slice(0,80) : '' })));
-                } catch (e) { /* ignore */ }
-            }
-        } catch (error) {
-            err('Erro ao extrair anexos:', error);
-        }
-        return anexos;
-    }
-
-    // Expande o toggle de anexos se não estiver expandido
     async function expandirAnexos(container) {
+        const sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
         try {
             const anexosRoot = container.querySelector('pje-timeline-anexos');
             if (!anexosRoot) return false;
-
             const toggle = anexosRoot.querySelector('div[name="mostrarOuOcultarAnexos"]');
             if (!toggle) return false;
-
-            const jaExpandido = toggle.getAttribute('aria-pressed') === 'true';
-            if (jaExpandido) return true;
-
+            if (toggle.getAttribute('aria-pressed') === 'true') return true;
             toggle.click();
             await sleep(400);
             return true;
@@ -401,524 +652,204 @@
         }
     }
 
-    // Destaca elemento na timeline (recebe href, localiza e aplica visual)
     function destacarElementoNaTimeline(href) {
         const container = encontrarItemTimeline(href);
-        if (!container) {
-            warn('Elemento não encontrado para href:', href);
-            return;
-        }
+        if (!container) { warn('Elemento nao encontrado para href:', href); return; }
         try {
             container.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            const originalBorder = container.style.border;
-            const originalBackground = container.style.background;
-            const originalTransition = container.style.transition;
-
+            const orig = {
+                border: container.style.border,
+                background: container.style.background,
+                transition: container.style.transition,
+            };
             container.style.transition = 'all 0.3s ease';
             container.style.border = '2px solid #fbbf24';
             container.style.background = '#fffbeb';
-
-            // Expandir anexos após scroll completar
-            setTimeout(async () => { await expandirAnexos(container); }, 500);
-
-            // Remover destaque após 3s
-            setTimeout(() => {
+            setTimeout(function() { expandirAnexos(container); }, 500);
+            setTimeout(function() {
                 container.style.transition = 'all 0.5s ease';
-                container.style.border = originalBorder;
-                container.style.background = originalBackground;
-                setTimeout(() => { container.style.transition = originalTransition; }, 500);
+                container.style.border = orig.border;
+                container.style.background = orig.background;
+                setTimeout(function() { container.style.transition = orig.transition; }, 500);
             }, 3000);
-        } catch (error) {
-            err('Erro ao destacar elemento:', error);
-        }
-    }
-
-    // Abre documento inline via href (recaptura elemento dinamicamente)
-    function abrirDocumentoInlineViaHref(href) {
-        const item = encontrarItemTimeline(href);
-        if (!item) return false;
-        abrirDocumentoInline(item);
-        return true;
-    }
-
-    // Clica em "Visualizar HTML original" e lê #previewModeloDocumento
-    async function lerHtmlOriginal(timeoutMs = 5000, abortSignal = null) {
-        const started = Date.now();
-
-        // 1. Espera o botão aparecer (com suporte a cancelamento)
-        let htmlBtn = null;
-        while ((Date.now() - started) < timeoutMs) {
-            if (abortSignal?.aborted) {
-                console.log('[hcalc] lerHtmlOriginal cancelado (aborted)');
-                return null;
-            }
-            htmlBtn = document.querySelector('button[aria-label="Visualizar HTML original"]');
-            if (htmlBtn) break;
-            await sleep(150); // Reduzido de 200ms para 150ms
-        }
-        if (!htmlBtn) return null;
-
-        htmlBtn.click();
-
-        // 2. Espera o conteúdo carregar (com suporte a cancelamento)
-        let previewEl = null;
-        const started2 = Date.now();
-        while ((Date.now() - started2) < timeoutMs) {
-            if (abortSignal?.aborted) {
-                console.log('[hcalc] lerHtmlOriginal cancelado (aborted)');
-                return null;
-            }
-            previewEl = document.getElementById('previewModeloDocumento');
-            if (previewEl && (previewEl.innerText || '').trim().length > 200) break;
-            await sleep(150); // Reduzido de 200ms para 150ms
-        }
-
-        const texto = (previewEl?.innerText || '').trim();
-        const html = (previewEl?.innerHTML || '').trim();
-        return texto.length > 200 ? { texto, html } : null;
-    }
-
-    // Fecha o modal/viewer atual (se houver)
-    function fecharViewer() {
-        // Tenta fechar o modal de preview
-        const closeBtns = document.querySelectorAll(
-            'button[aria-label="Fechar"], .mat-dialog-close, mat-dialog-container button.close, .cdk-overlay-backdrop'
-        );
-        closeBtns.forEach(b => { try { b.click(); } catch (_) { } });
+        } catch (error) { err('Erro ao destacar elemento:', error); }
     }
 
     // ==========================================
-    // EXTRAÇÃO DE DADOS DA SENTENÇA
+    // ORQUESTRADOR PRINCIPAL - API puro
     // ==========================================
-    function extrairDadosSentenca(texto) {
-        const result = {
-            custas: null,
-            hsusp: false,
-            trteng: false,
-            trtmed: false,
-            responsabilidade: null,   // 'subsidiaria' | 'solidaria' | null
-            honorariosPericiais: []    // { valor, trt }
-        };
 
-        // Custas: padrão amplo com flexibilidade para "mínimo", "máximo", "total", etc.
-        // Aceita: "no importe [mínimo/máximo/total] de R$ X, calculadas sobre"
-        // ou "Custas, pela Reclamada, no importe de R$ 300,00"
-        // ou "Custas de R$ 200,00"
-        const custasMatch = texto.match(
-            /no\s+importe\s+(?:m[ií]nim[oa]\s+|m[áa]xim[oa]\s+|total\s+)?de\s+R\$\s*([\d.,]+),?\s*calculadas\s+sobre/i
-        ) || texto.match(
-            /[Cc]ustas[^,]*,\s*(?:pela\s+)?[Rr]eclamad[ao][^,]*,\s*no\s+importe\s+(?:m[ií]nim[oa]\s+|m[áa]xim[oa]\s+|total\s+)?de\s+R\$\s*([\d.,]+)/i
-        ) || texto.match(
-            /[Cc]ustas[^,]*de\s+R\$\s*([\d.,]+)/i
-        );
-        if (custasMatch) {
-            // Remove vírgulas/pontos extras no final
-            result.custas = custasMatch[1].replace(/[.,]+$/, '');
-        }
-
-        // Condição suspensiva
-        result.hsusp = /obriga[cç][aã]o\s+ficar[aá]\s+sob\s+condi[cç][aã]o\s+suspensiva/i.test(texto);
-
-        // Perícia TRT engenharia
-        result.trteng = /honor[aá]rios\s+periciais\s+t[eé]cnicos.*pagos\s+pelo\s+Tribunal/i.test(texto)
-            || /pagos\s+pelo\s+Tribunal\s+Regional.*periciais\s+t[eé]cnicos/i.test(texto);
-
-        // Perícia TRT médica
-        result.trtmed = /honor[aá]rios\s+periciais\s+m[eé]dicos.*pagos\s+pelo\s+Tribunal/i.test(texto)
-            || /pagos\s+pelo\s+Tribunal\s+Regional.*periciais\s+m[eé]dicos/i.test(texto);
-
-        // Responsabilidade
-        if (/condenar\s+(de\s+forma\s+)?subsidi[aá]ri/i.test(texto)) {
-            result.responsabilidade = 'subsidiaria';
-        } else if (/condenar\s+(de\s+forma\s+)?solid[aá]ri/i.test(texto)) {
-            result.responsabilidade = 'solidaria';
-        }
-
-        // Honorários periciais: buscar todos os trechos com valor + se é TRT
-        // Padrão: "honorários periciais ... em R$ 800,00 ... pagos pelo Tribunal"
-        const regexHon = /honor[aá]rios\s+periciais[^.]*?R\$\s*([\d.,]+)[^.]*?\./gi;
-        let match;
-        while ((match = regexHon.exec(texto)) !== null) {
-            const trecho = match[0];
-            const valor = match[1];
-            const trt = /pagos?\s+pelo\s+Tribunal/i.test(trecho)
-                || /Tribunal\s+Regional/i.test(trecho)
-                || /TRT/i.test(trecho);
-            result.honorariosPericiais.push({ valor, trt });
-        }
-
-        return result;
-    }
-
-    // ==========================================
-    // CRUZAMENTO AJ-JT × PERITOS
-    // ==========================================
-    async function buscarAjJtPeritos(honAjJtItems, peritosConhecimento) {
-        const resultados = []; // { nome, trt: true, idAjJt }
-
-        // Set de peritos já encontrados — evita abrir mais docs desnecessários
-        const peritosEncontrados = new Set();
-
-        for (const ajjt of honAjJtItems) {
-            // Se todos os peritos já foram encontrados, para
-            if (peritosEncontrados.size >= peritosConhecimento.length) break;
-
-            // Abre documento via href (recaptura elemento dinamicamente)
-            if (!abrirDocumentoInlineViaHref(ajjt.href)) {
-                console.warn('[prep] Falha ao abrir AJ-JT:', ajjt.href);
-                continue;
-            }
-            await sleep(600);
-
-            // Lê HTML original
-            const resHtml = await lerHtmlOriginal(5000);
-            fecharViewer();
-            await sleep(300);
-
-            if (!resHtml || !resHtml.texto) continue;
-
-            const textoNorm = normalizeText(resHtml.texto);
-
-            // Procura cada perito de conhecimento no texto
-            for (const perito of peritosConhecimento) {
-                if (peritosEncontrados.has(perito)) continue;
-
-                const peritoNorm = normalizeText(perito);
-                // Match parcial: primeiro nome + último nome
-                const partes = peritoNorm.split(/\s+/).filter(Boolean);
-                const primeiroNome = partes[0] || '';
-                const ultimoNome = partes.length > 1 ? partes[partes.length - 1] : '';
-
-                const found = textoNorm.includes(peritoNorm)
-                    || (primeiroNome && ultimoNome && textoNorm.includes(primeiroNome) && textoNorm.includes(ultimoNome));
-
-                if (found) {
-                    // Usar ID já extraído da timeline
-                    const idAjJt = ajjt.id || ajjt.texto;
-
-                    resultados.push({ nome: perito, trt: true, idAjJt });
-                    peritosEncontrados.add(perito);
-                }
-            }
-        }
-
-        return resultados;
-    }
-
-    // ==========================================
-    // NOTIFICAÇÕES EDITAL
-    // ==========================================
-    async function buscarPartesEdital(editaisItems, passivo, abortSignal) {
-        // Regra maior: se há apenas uma reclamada e há edital, é ela.
-        if (passivo.length === 1) {
-            return [passivo[0].nome];
-        }
-
-        const intimadas = new Set();
-        const reclamadas = passivo.map(p => ({ nome: p.nome, nomNorm: normalizeText(p.nome) }));
-
-        for (const edital of editaisItems) {
-            if (intimadas.size >= passivo.length) break;
-
-            // Abre edital via href (recaptura elemento dinamicamente)
-            if (!abrirDocumentoInlineViaHref(edital.href)) {
-                console.warn('[prep] Falha ao abrir edital:', edital.href);
-                continue;
-            }
-            await sleep(600);
-
-            // #region agent log
-            fetch('http://127.0.0.1:7803/ingest/28b8f51b-bfb8-4f41-93f6-1611c83e87d0', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Debug-Session-Id': '6b8a26'
-                },
-                body: JSON.stringify({
-                    sessionId: '6b8a26',
-                    runId: 'pre-fix',
-                    hypothesisId: 'H1',
-                    location: 'hcalc-prep.js:611',
-                    message: 'buscarPartesEdital antes de lerHtmlOriginal',
-                    data: { hasAbortSignal: !!abortSignal, editaisCount: editaisItems.length },
-                    timestamp: Date.now()
-                })
-            }).catch(() => { });
-            // #endregion agent log
-
-            const resHtml = await lerHtmlOriginal(6000, abortSignal);
-            fecharViewer();
-            await sleep(300);
-
-            if (!resHtml || !resHtml.html) continue;
-
-            const html = resHtml.html;
-
-            const matchComeco = html.match(/<strong[^>]*>\s*EDITAL\s+D.*?<\/strong>/i);
-            const matchFim = html.match(/<strong[^>]*>\s*\(http:\/\/pje\.trtsp\.jus\.br\/documentos\)\s*<\/strong>/i);
-
-            let textoAlvo = '';
-
-            if (matchComeco && matchFim && matchFim.index > matchComeco.index) {
-                const blocoHtml = html.substring(matchComeco.index, matchFim.index + matchFim[0].length);
-                const div = document.createElement('div');
-                div.innerHTML = blocoHtml;
-                textoAlvo = normalizeText(div.innerText || div.textContent || '');
-            } else if (matchComeco) {
-                const blocoHtml = html.substring(matchComeco.index, matchComeco.index + 1000);
-                const div = document.createElement('div');
-                div.innerHTML = blocoHtml;
-                textoAlvo = normalizeText(div.innerText || div.textContent || '');
-            } else {
-                textoAlvo = normalizeText(resHtml.texto);
-            }
-
-            for (const r of reclamadas) {
-                if (intimadas.has(r.nome)) continue;
-                if (textoAlvo.includes(r.nomNorm)) {
-                    intimadas.add(r.nome);
-                }
-            }
-        }
-        return Array.from(intimadas);
-    }
-
-    // ==========================================
-    // ORQUESTRADOR PRINCIPAL
-    // ==========================================
     async function executarPrep(partesData, peritosConhecimento) {
-        // FLAG ANTI-EXECUÇÃO-DUPLA: Previne loops de polling acumulando timers
         if (window.hcalcPrepRunning) {
-            console.log('[prep.js] ⚠️ Prep já em execução, ignorando chamada duplicada');
+            console.log('[prep.js] Prep ja em execucao, ignorando chamada duplicada');
             return;
         }
-
-        // Abortar prep anterior se existir
-        if (window.hcalcState.abortController) {
-            dbg('[prep] Abortando execução anterior antes de iniciar nova');
-            window.hcalcState.abortController.abort();
-        }
-
-        // Criar novo AbortController para esta execução
-        window.hcalcState.abortController = new AbortController();
-        const signal = window.hcalcState.abortController.signal;
-
         window.hcalcPrepRunning = true;
 
         try {
-            console.log('[prep.js] Iniciando preparação pré-overlay...');
-            const partesSafe = partesData && typeof partesData === 'object' ? partesData : {};
+            console.log('[prep.js] Iniciando preparacao via API...');
 
-            // Resultado padrão
-            const prepResult = {
-                sentenca: {
-                    data: null,
-                    href: null,
-                    custas: null,
-                    hsusp: false,
-                    responsabilidade: null,
-                    honorariosPericiais: []
-                },
-                pericia: {
-                    trteng: false,
-                    trtmed: false,
-                    peritosComAjJt: []
-                },
-                acordaos: [],
-                depositos: [],
-                editais: [],
-                partesIntimadasEdital: []
-            };
+            // 1. Partes - reutilizar partesData.passivo se valido, senao buscar via API
+            let passivo = [];
+            if (partesData && Array.isArray(partesData.passivo) && partesData.passivo.length > 0) {
+                passivo = partesData.passivo;
+            } else {
+                const partes = await _fetchPartes();
+                passivo = partes.passivo || [];
+            }
+            dbg('[prep] Passivo:', passivo.length, 'parte(s)');
 
-            // ── ETAPA 1: Varrer timeline (síncrona) ──
-            const timeline = varrerTimeline();
-            console.log('[prep.js] Timeline varrida:', {
-                sentencas: timeline.sentencas.length,
-                acordaos: timeline.acordaos.length,
-                editais: timeline.editais.length,
-                recursosPassivo: timeline.recursosPassivo.length,
-                honAjJt: timeline.honAjJt.length
+            // 2. Timeline via API
+            const rawItems = await _fetchTimeline();
+            const items = rawItems.map(_classifyItem);
+            console.log('[prep.js] Timeline:', rawItems.length, 'itens classificados:', {
+                sentencas: items.filter(function(i) { return i.categoria === 'sentenca'; }).length,
+                acordaos: items.filter(function(i) { return i.categoria === 'acordao'; }).length,
+                RO: items.filter(function(i) { return i.categoria === 'RO'; }).length,
+                RR: items.filter(function(i) { return i.categoria === 'RR'; }).length,
+                editais: items.filter(function(i) { return i.categoria === 'edital'; }).length,
+                honAjJt: items.filter(function(i) { return i.categoria === 'hon_ajjt'; }).length,
             });
 
-            // Mapear acórdãos e editais para resultado
-            prepResult.acordaos = timeline.acordaos.map(a => ({ data: a.data, href: a.href, id: a.id }));
-            prepResult.editais = timeline.editais.map(e => ({ data: e.data, href: e.href }));
+            // 3. Classificar por categoria
+            const sentencas = items.filter(function(i) { return i.categoria === 'sentenca'; });
+            const acordaos = items.filter(function(i) { return i.categoria === 'acordao'; });
+            const editais = items.filter(function(i) { return i.categoria === 'edital'; });
+            const honAjJt = items.filter(function(i) { return i.categoria === 'hon_ajjt'; });
+            const todosRecursos = items.filter(function(i) { return i.categoria === 'RO' || i.categoria === 'RR'; });
 
-            // ── ETAPA 1.5: Filtrar recursos e Enriquecer com anexos ──
-            const acordaosIdx = timeline.acordaos.map(a => a.idx);
-            // Na timeline (descendente), o acórdão cronologicamente "mais antigo" tem o MAIOR idx.
-            const oldestAcordaoIdx = acordaosIdx.length > 0 ? Math.max(...acordaosIdx) : -1;
-
-            const recsFiltrados = [];
-            for (const r of timeline.recursosPassivo) {
-                // Se o recurso tem idx MENOR que o acórdão, ele apareceu ACIMA (ocorreu DEPOIS do acórdão).
-                const ocorreuDepoisDoAcordao = oldestAcordaoIdx !== -1 && r.idx < oldestAcordaoIdx;
-
-                if (ocorreuDepoisDoAcordao) {
-                    // Cronologicamente DEPOIS do acórdão: Basta Nome + Anexos (já validados na coleta)
-                    recsFiltrados.push(r);
-                } else {
-                    // Cronologicamente ANTES do acórdão (ou se não houver acórdão): Precisa Nome + Reclamada + Anexos
-                    if (r.temReclamada) {
-                        recsFiltrados.push(r);
-                    } else {
-                        dbg('prep: recurso descartado (Antes do acórdão e sem reclamada detectada)', r.texto);
+            // 4. Sentenca - mais antiga = ultimo no array (timeline DESC)
+            const sentencaAlvo = sentencas.length > 0 ? sentencas[sentencas.length - 1] : null;
+            let sentencaDados = { custas: null, hsusp: false, trteng: false, trtmed: false, responsabilidade: null, honorariosPericiais: [] };
+            if (sentencaAlvo && sentencaAlvo.idDoc) {
+                try {
+                    let texto = null;
+                    if (typeof window.pjeExtrairApi === 'function' && sentencaAlvo.uid) {
+                        try {
+                            const ext = await window.pjeExtrairApi(sentencaAlvo.uid, { idProcesso: _idProcesso() });
+                            if (ext && ext.sucesso) texto = ext.conteudo_bruto || ext.conteudo || null;
+                        } catch (e) { /* fallback */ }
                     }
-                }
-            }
-
-            if (recsFiltrados.length > 0) {
-                dbg('prep', 'Extraindo anexos de', recsFiltrados.length, 'recursos...');
-                for (const rec of recsFiltrados) {
-                    if (rec._itemRef) {
-                        rec.anexos = await extrairAnexosDoItem(rec._itemRef);
-                        delete rec._itemRef;
-                    } else {
-                        rec.anexos = [];
+                    if (!texto) {
+                        const r = await _fetchDocHtml(sentencaAlvo.idDoc);
+                        texto = r.texto || null;
                     }
-                }
-                dbg('prep', 'Anexos extraídos');
+                    if (texto) sentencaDados = _extrairDadosSentenca(texto);
+                    dbg('[prep] Sentenca extraida:', sentencaDados);
+                } catch (e) { warn('[prep] Falha ao ler sentenca:', e.message); }
             }
 
-            // Garantir limpeza de referências DOM para evitar vazamento de memória
-            timeline.recursosPassivo.forEach(r => { delete r._itemRef; });
-
-            // Populando depósitos sem NENHUM filtro restritivo de "Custas"
-            prepResult.depositos = recsFiltrados.map(r => ({
-                tipo: r.tipoRec,
-                texto: r.texto,
-                href: r.href,
-                data: r.data,
-                depositante: r.depositante || '',
-                anexos: r.anexos || []
-            }));
-
-            // Ordenar depósitos por data (mais antigos primeiro)
-            function _dateToTs(dstr) {
-                if (!dstr) return 0;
-                const parts = dstr.split('/');
-                if (parts.length < 3) return 0;
-                const dia = parseInt(parts[0], 10);
-                const mes = parseInt(parts[1], 10) - 1;
-                const ano = parseInt(parts[2], 10);
-                return new Date(ano, mes, dia).getTime();
-            }
-            prepResult.depositos.sort((a, b) => _dateToTs(a.data) - _dateToTs(b.data));
-
-            // ── ETAPA 2: AJ-JT — só se tem perito de conhecimento ──
-            // ORDEM INVERTIDA: AJ-JT antes de sentença para manter sentença selecionada
-            const peritosConh = Array.isArray(peritosConhecimento) ? peritosConhecimento.filter(Boolean) : [];
-
-            if (peritosConh.length > 0 && timeline.honAjJt.length > 0) {
-                console.log('[prep.js] Buscando AJ-JT para peritos:', peritosConh);
-                prepResult.pericia.peritosComAjJt = await buscarAjJtPeritos(timeline.honAjJt, peritosConh);
-                console.log('[prep.js] AJ-JT encontrados:', prepResult.pericia.peritosComAjJt);
-            } else if (peritosConh.length > 0) {
-                console.log('[prep.js] Peritos de conhecimento detectados mas nenhum AJ-JT na timeline.');
+            // 5. Peritos AJ-JT
+            let peritosComAjJt = [];
+            if (Array.isArray(peritosConhecimento) && peritosConhecimento.length > 0) {
+                peritosComAjJt = await _lerPeritosAjJt(honAjJt, peritosConhecimento);
             }
 
-            // ── ETAPA 3: Sentença — abrir e extrair tudo ──
-            // MOVIDO PARA DEPOIS DE AJ-JT para ficar selecionada por último
-            const sentencaAlvo = timeline.sentencas.length > 0
-                ? timeline.sentencas[timeline.sentencas.length - 1]  // mais antiga (última no array)
-                : null;
+            // 6. Depositos - filtrar por polo passivo; usar indice real dentro de items
+            const acordaoItemIndices = items
+                .map(function(it, idx) { return it.categoria === 'acordao' ? idx : -1; })
+                .filter(function(i) { return i >= 0; });
+            const oldestAcordaoItemIdx = acordaoItemIndices.length > 0 ? Math.max.apply(null, acordaoItemIndices) : -1;
 
-            if (sentencaAlvo) {
-                prepResult.sentenca.data = sentencaAlvo.data;
-                prepResult.sentenca.href = sentencaAlvo.href;
+            const depositos = todosRecursos.map(function(rec) {
+                const recItemIdx = items.indexOf(rec);
+                const ocorreuDepoisDoAcordao = oldestAcordaoItemIdx !== -1 && recItemIdx < oldestAcordaoItemIdx;
+                const poloDetectado = _detectarPoloPassivo(rec._raw, passivo);
+                if (!ocorreuDepoisDoAcordao && poloDetectado !== 'PASSIVO') return null;
 
-                // Abrir documento via href (recaptura elemento dinamicamente)
-                if (!abrirDocumentoInlineViaHref(sentencaAlvo.href)) {
-                    console.warn('[prep] Falha ao abrir sentença:', sentencaAlvo.href);
-                } else {
-                    await sleep(600);
+                const depositante = rec.nomeParte ||
+                    passivo.map(function(p) { return p.nome; }).find(function(n) { return _normalize(rec.titulo).includes(_normalize(n)); }) || '';
 
-                    // Ler HTML original
-                    const resSent = await lerHtmlOriginal(6000, signal);
-                    fecharViewer();
-                    await sleep(300);
+                return {
+                    tipo: rec.categoria,
+                    texto: rec.titulo,
+                    href: _montarHref(rec.uid),
+                    data: rec.data,
+                    depositante,
+                    anexos: rec.anexos.map(function(a) {
+                        const cls = classificarAnexo(a.titulo);
+                        return {
+                            texto: a.titulo,
+                            id: a.uid || (a.idDoc ? String(a.idDoc) : null),
+                            tipo: cls.tipo,
+                            ordem: cls.ordem,
+                        };
+                    }).sort(function(a, b) { return a.ordem - b.ordem; }),
+                };
+            }).filter(Boolean);
 
-                    if (resSent && resSent.texto) {
-                        const textoSentenca = resSent.texto;
-                        console.log('[prep.js] Sentença lida:', textoSentenca.length, 'chars');
+            // Ordenar depositos por data (mais antigos primeiro)
+            depositos.sort(function(a, b) {
+                const ts = function(s) {
+                    if (!s) return 0;
+                    const p = s.split('/');
+                    if (p.length < 3) return 0;
+                    return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])).getTime();
+                };
+                return ts(a.data) - ts(b.data);
+            });
 
-                        const dados = extrairDadosSentenca(textoSentenca);
-                        prepResult.sentenca.custas = dados.custas;
-                        prepResult.sentenca.hsusp = dados.hsusp;
-                        prepResult.sentenca.responsabilidade = dados.responsabilidade;
-                        prepResult.sentenca.honorariosPericiais = dados.honorariosPericiais;
-                        prepResult.pericia.trteng = dados.trteng;
-                        prepResult.pericia.trtmed = dados.trtmed;
-                    } else {
-                        console.warn('[prep.js] Falha ao ler sentença via HTML original.');
-                    }
-                }
-            } else {
-                console.warn('[prep.js] Nenhuma sentença encontrada na timeline.');
+            // 7. Editais - partes intimadas
+            let partesIntimadasEdital = [];
+            if (editais.length > 0 && passivo.length > 0) {
+                partesIntimadasEdital = await _lerPartesEdital(editais, passivo);
             }
 
-            // ── ETAPA 4: EDITAL — extrair partes intimadas ──
-            const passivoArray = Array.isArray(partesSafe.passivo) ? partesSafe.passivo : [];
-            if (timeline.editais.length > 0 && passivoArray.length > 0) {
-                console.log('[prep.js] Buscando partes intimadas nos editais...');
-
-                // #region agent log
-                fetch('http://127.0.0.1:7803/ingest/28b8f51b-bfb8-4f41-93f6-1611c83e87d0', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Debug-Session-Id': '6b8a26'
-                    },
-                    body: JSON.stringify({
-                        sessionId: '6b8a26',
-                        runId: 'pre-fix',
-                        hypothesisId: 'H1',
-                        location: 'hcalc-prep.js:791',
-                        message: 'executarPrep chamando buscarPartesEdital',
-                        data: {
-                            editaisCount: timeline.editais.length,
-                            passivoCount: passivoArray.length,
-                            hasAbortController: !!window.hcalcState.abortController
-                        },
-                        timestamp: Date.now()
-                    })
-                }).catch(() => { });
-                // #endregion agent log
-
-                prepResult.partesIntimadasEdital = await buscarPartesEdital(timeline.editais, passivoArray, signal);
-                console.log('[prep.js] Partes intimadas por edital:', prepResult.partesIntimadasEdital);
+            // 8. Conferencia de acordao
+            let conferenciaAcordao = null;
+            try {
+                conferenciaAcordao = await _conferirAcordao();
+            } catch (e) {
+                warn('[prep] _conferirAcordao falhou:', e.message);
+                conferenciaAcordao = { ok: false, erro: e.message };
             }
 
-            console.log('[prep.js] Preparação concluída:', prepResult);
+            // 9. Montar prepResult - shape 100% compativel com overlay (+ conferenciaAcordao)
+            const prepResult = {
+                sentenca: {
+                    data: sentencaAlvo ? sentencaAlvo.data : null,
+                    href: sentencaAlvo ? _montarHref(sentencaAlvo.uid) : null,
+                    custas: sentencaDados.custas,
+                    hsusp: sentencaDados.hsusp,
+                    responsabilidade: sentencaDados.responsabilidade,
+                    honorariosPericiais: sentencaDados.honorariosPericiais,
+                },
+                pericia: {
+                    trteng: sentencaDados.trteng,
+                    trtmed: sentencaDados.trtmed,
+                    peritosComAjJt,
+                },
+                acordaos: acordaos.map(function(a) {
+                    return { data: a.data, href: _montarHref(a.uid), id: a.uid || String(a.idDoc || '') };
+                }),
+                depositos,
+                editais: editais.map(function(e) { return { data: e.data, href: _montarHref(e.uid) }; }),
+                partesIntimadasEdital,
+                conferenciaAcordao,
+            };
 
-            // Disponibilizar globalmente
+            console.log('[prep.js] prepResult montado:', {
+                sentencaData: prepResult.sentenca.data,
+                acordaos: prepResult.acordaos.length,
+                depositos: prepResult.depositos.length,
+                editais: prepResult.editais.length,
+                partesIntimadasEdital: prepResult.partesIntimadasEdital.length,
+                conferenciaOk: prepResult.conferenciaAcordao ? prepResult.conferenciaAcordao.ok : null,
+            });
+
             window.hcalcPrepResult = prepResult;
-
-            // Liberar flag de execução
-            window.hcalcPrepRunning = false;
-
             return prepResult;
-
-        } catch (error) {
-            console.error('[prep.js] Erro durante preparação:', error);
-            // Garantir que flag seja liberada mesmo em caso de erro
+        } finally {
             window.hcalcPrepRunning = false;
-            throw error;
         }
     }
 
-    // Expor prep no escopo global para integração/depuração.
-    const prepGlobalObj = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-    prepGlobalObj.executarPrep = executarPrep;
-    if (prepGlobalObj !== window) {
-        window.executarPrep = executarPrep;
-    }
-
-    // Fim prep (agora global no escopo do arquivo)
-
+    // ==========================================
+    // EXPORTS
+    // ==========================================
     window.executarPrep = executarPrep;
     window.destacarElementoNaTimeline = destacarElementoNaTimeline;
     window.encontrarItemTimeline = encontrarItemTimeline;
     window.expandirAnexos = expandirAnexos;
+
 })();

@@ -89,6 +89,15 @@
                 <button id="btn-abrir-homologacao" type="button">
                     \uD83D\uDCC4 Carregar Planilha
                 </button>
+                <div id="hcalc-uid-row" style="display:flex;gap:4px;margin-top:6px;">
+                    <input id="input-planilha-uid" type="text" placeholder="UID da planilha"
+                        style="flex:1;font-size:11px;padding:4px 6px;border:1px solid #ccc;border-radius:4px;min-width:0;"
+                        title="Cole aqui o idUnicoDocumento da planilha (documentoId da URL)">
+                    <button id="btn-planilha-uid" type="button"
+                        style="font-size:11px;padding:4px 8px;border:none;border-radius:4px;background:#374151;color:#fff;cursor:pointer;white-space:nowrap;">
+                        API &#x21D2;
+                    </button>
+                </div>
             </div>
             <input
                 id="input-planilha-pdf"
@@ -604,7 +613,7 @@
                         <!-- Coluna RÉU -->
                         <div class="col" style="flex: 1; min-width: 160px;">
                             <label>
-                                <input type="checkbox" id="chk-hon-reu" checked style="margin-right: 5px;">Não há Honorários Adv Réu
+                                <input type="checkbox" id="chk-hon-reu" style="margin-right: 5px;">Não há Honorários Adv Réu
                             </label>
                             <div id="hon-reu-campos" class="hidden" style="margin-top: 6px;">
                                 <label style="font-size: 11px; display: block; margin-bottom: 6px;">
@@ -706,6 +715,14 @@
             <!-- SEÇÃO 7: RESPONSABILIDADE -->
             <fieldset style="border:none; padding:0; margin: 15px 0 5px 0;">
                 <legend>Responsabilidade</legend>
+            </fieldset>
+
+            <!-- CONFERÊNCIA DE ACÓRDÃO (novo card) -->
+            <fieldset style="border:none; padding: 0 0 8px 0; margin: 0 0 8px 0;">
+                <div id="conferencia-acordao-container" class="hidden">
+                    <label style="font-weight:bold; color:#5b21b6;">Conferência Pós-Acórdão:</label>
+                    <div id="conferencia-acordao-body" style="margin-top:6px; font-size:12px; color:#374151"></div>
+                </div>
             </fieldset>
             <fieldset id="resp-principais-fieldset" style="border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; margin-bottom: 10px;">
                 <div class="row" style="margin-bottom: 0;">
@@ -1221,6 +1238,34 @@
                     }
                 }
 
+                // Preencher card de Conferência de Acórdão
+                try {
+                    const conf = prep.conferenciaAcordao || null;
+                    const confContainer = $('conferencia-acordao-container');
+                    const confBody = $('conferencia-acordao-body');
+                    if (conf && confBody && confContainer) {
+                        confContainer.classList.remove('hidden');
+                        const lines = [];
+                        lines.push(`<div><strong>Status:</strong> ${conf.ok ? '✅ OK' : '❌ Não OK'}</div>`);
+                        if (conf.despacho) {
+                            lines.push(`<div><strong>Despacho:</strong> ${conf.despacho.data ? conf.despacho.data : ''} ${conf.despacho.uid ? ' (uid: ' + conf.despacho.uid + ')' : ''}</div>`);
+                        }
+                        if (conf.analise) {
+                            const a = conf.analise;
+                            lines.push(`<div style="margin-top:6px"><strong>Análise:</strong></div>`);
+                            lines.push(`<div>Sentença mantida: ${a.mantidaSentenca ? '✅' : '❌'}</div>`);
+                            lines.push(`<div>Exclusão de reclamadas: ${Array.isArray(a.exclusaoReclamadas) && a.exclusaoReclamadas.length ? a.exclusaoReclamadas.join(', ') : 'nenhuma'}</div>`);
+                            lines.push(`<div>Rearbitramento de custas: ${a.rearbitramentoCustas ? '✅' : '❌'}</div>`);
+                            lines.push(`<div>CTPS anotação: ${a.ctpsAnotacao ? '✅' : '❌'}</div>`);
+                            lines.push(`<div>FGTS depósito: ${a.fgtsDeposito ? '✅' : '❌'}</div>`);
+                        }
+                        confBody.innerHTML = lines.join('');
+                    } else if (confContainer && confBody) {
+                        confContainer.classList.add('hidden');
+                        confBody.innerHTML = '';
+                    }
+                } catch (e) { console.warn('[hcalc] falha ao preencher conferenciaAcordao:', e); }
+
                 // Preencher custas automaticamente (planilha vs sentença)
                 if (window.hcalcState.planilhaExtracaoData?.custas && $('val-custas')) {
                     const custasPlanilha = window.hcalcState.planilhaExtracaoData.custas;
@@ -1289,23 +1334,18 @@
                     });
                 }
 
-                // Editais
+                // Editais — exibir como texto informativo (sem links clicáveis)
                 const editaisContainer = $('links-editais-container');
                 const editaisLista = $('links-editais-lista');
                 if (editaisContainer && editaisLista) {
                     editaisLista.innerHTML = '';
                     if (prep.editais.length > 0) {
                         editaisContainer.classList.remove('hidden');
-                        prep.editais.forEach((edital, i) => {
-                            if (edital.href) {
-                                const btn = document.createElement('a');
-                                btn.href = edital.href;
-                                btn.target = "_blank";
-                                btn.innerHTML = `<i class="fas fa-external-link-alt"></i> Edital ${i + 1}`;
-                                btn.style.cssText = "display:inline-block; margin-right:10px; color:#00509e; font-size:12px; text-decoration:none;";
-                                editaisLista.appendChild(btn);
-                            }
-                        });
+                        editaisLista.innerHTML = prep.editais.map((e, i) =>
+                            `<span style="display:inline-block; margin-right:10px; color:#374151; font-size:12px;">` +
+                            `Edital ${i + 1}${e.data ? ' (' + e.data + ')' : ''}` +
+                            `</span>`
+                        ).join('');
                     } else {
                         editaisContainer.classList.add('hidden');
                     }
@@ -1428,18 +1468,14 @@
                 const chkHonReu = $('chk-hon-reu');
                 const honReuCampos = $('hon-reu-campos');
                 if (prep.sentenca.hsusp) {
-                    // Lógica invertida: desmarcar "Não há" para mostrar campos
-                    if (chkHonReu) chkHonReu.checked = false;
-                    if (honReuCampos) honReuCampos.classList.remove('hidden');
+                // Desmarcar "Não há" e forçar suspensiva quando sentença tem condição suspensiva
+                if (chkHonReu) chkHonReu.checked = false;
+                if (honReuCampos) honReuCampos.classList.remove('hidden');
 
-                    const radSusp = document.querySelector('input[name="rad-hon-reu"][value="suspensiva"]');
-                    if (radSusp) radSusp.checked = true;
-                } else {
-                    // Estado padrão: checkbox marcado, campos ocultos
-                    if (chkHonReu) chkHonReu.checked = true;
-                    if (honReuCampos) honReuCampos.classList.add('hidden');
-                }
-
+                const radSusp = document.querySelector('input[name="rad-hon-reu"][value="suspensiva"]');
+                if (radSusp) radSusp.checked = true;
+            }
+            // else: manter default do HTML (chk-hon-reu desmarcado = campos visíveis)
                 // ==========================================
                 // PREENCHER COM DADOS DA PLANILHA (PRIORIDADE)
                 // ==========================================
@@ -1632,7 +1668,71 @@
             });
         }
 
-        // Handler do botão Reload (recarregar planilha)
+        // Carrega planilha a partir de UID via API (sem selecionar arquivo)
+        async function carregarPlanilhaPorUid(uid) {
+            uid = (uid || '').trim();
+            if (!uid) throw new Error('UID vazio');
+            const m = location.pathname.match(/\/processo\/(\d+)/);
+            if (!m) throw new Error('ID do processo não encontrado na URL');
+            const idProcesso = m[1];
+
+            const getCookie = (name) => {
+                const c = document.cookie.split(';').map(s => s.trim())
+                    .find(s => s.toLowerCase().startsWith(name.toLowerCase() + '='));
+                return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
+            };
+            const xsrf = getCookie('XSRF-TOKEN');
+            const headers = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+            if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+
+            const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${uid}/conteudo`;
+            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar documento uid=${uid}`);
+
+            const buffer = await resp.arrayBuffer();
+            if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia para uid=' + uid);
+
+            const loaded = await carregarPDFJSSeNecessario();
+            if (!loaded) throw new Error('PDF.js não disponível');
+            const fakeFile = new File([buffer], `Documento_${uid}.pdf`, { type: 'application/pdf' });
+            return processarPlanilhaPDF(fakeFile);
+        }
+
+        // Handler do botão API ⇒
+        const btnUid = document.getElementById('btn-planilha-uid');
+        const inputUid = document.getElementById('input-planilha-uid');
+        if (btnUid && inputUid) {
+            btnUid.addEventListener('click', async () => {
+                const uid = inputUid.value.trim();
+                if (!uid) { alert('Informe o UID da planilha.'); return; }
+                const btnMain = $('btn-abrir-homologacao');
+                btnUid.disabled = true;
+                btnUid.textContent = '⏳';
+                if (btnMain) { btnMain.textContent = '⏳ Buscando...'; btnMain.disabled = true; }
+                try {
+                    const dados = await carregarPlanilhaPorUid(uid);
+                    if (!dados || !dados.sucesso) throw new Error(dados && dados.erro ? dados.erro : 'Falha na extração');
+                    window.hcalcState.planilhaExtracaoData = dados;
+                    window.hcalcState.planilhaCarregada = true;
+                    if (window.hcalcAtualizarResumoPlanilha) window.hcalcAtualizarResumoPlanilha(dados);
+                    if (typeof atualizarDropdownsPlanilhas === 'function') atualizarDropdownsPlanilhas();
+                    if (btnMain) { btnMain.textContent = '✓ Dados Extraídos (API)'; btnMain.style.background = '#10b981'; btnMain.disabled = false; }
+                    btnUid.textContent = '✓';
+                    inputUid.value = '';
+                    setTimeout(() => {
+                        if (btnMain) { btnMain.textContent = 'Gerar Homologação'; btnMain.style.background = '#00509e'; }
+                        btnUid.textContent = 'API ⇒';
+                        btnUid.disabled = false;
+                    }, 2000);
+                } catch (e) {
+                    console.error('[HCalc] carregarPlanilhaPorUid falhou:', e.message);
+                    alert('Erro ao carregar via API: ' + e.message);
+                    btnUid.textContent = 'API ⇒';
+                    btnUid.disabled = false;
+                    if (btnMain) { btnMain.textContent = '📄 Carregar Planilha'; btnMain.disabled = false; }
+                }
+            });
+        }
         $('btn-reload-planilha').onclick = () => {
             const inputFile = $('input-planilha-pdf');
             inputFile.click();

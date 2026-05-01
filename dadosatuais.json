@@ -1,50 +1,54 @@
 {
   "numero": [
-    "1000078-15.2026.5.02.0703"
+    "1001571-61.2025.5.02.0703"
   ],
-  "id": 8188676,
+  "id": 7707229,
   "autor": [
     {
-      "nome": "ADRIANO RIBEIRO",
-      "cpfcnpj": "02525488334",
+      "nome": "PAULO JOSE TEIXEIRA DA CRUZ",
+      "cpfcnpj": "09381394520",
       "advogado": {
-        "nome": "LUCAS CICERO DOS SANTOS BARBOSA",
-        "cpf": "46445348890",
-        "oab": "SP512485"
+        "nome": "ROSELI FREITAS DE JESUS CASTRO",
+        "cpf": "29589876803",
+        "oab": "SP354276"
       }
     }
   ],
   "reu": [
     {
-      "nome": "BP CONSTRUCOES METALICAS LTDA",
-      "cpfcnpj": "18825223000153",
+      "nome": "ANDERSON RODRIGO DE MELO CONSTRUCOES E MANUTENCAO LTDA",
+      "cpfcnpj": "32846533000185",
       "advogado": {
-        "nome": "KEYLA CALIGHER NEME GAZAL",
-        "cpf": "07346669851",
-        "oab": "SP109626"
+        "nome": "KLEBER JOSE STOCCO",
+        "cpf": "04785050861",
+        "oab": "SP320303"
       }
     }
   ],
   "terceiro": [],
-  "divida": {},
+  "divida": {
+    "valor": "R$ 4.556,24",
+    "data": "24/04/2026"
+  },
   "justicaGratuita": [],
   "transito": "",
   "custas": "",
-  "dtAutuacao": "20/01/2026",
+  "dtAutuacao": "10/09/2025",
   "classeJudicial": {
-    "id": 326,
-    "codigo": "985",
-    "descricao": "Ação Trabalhista - Rito Ordinário",
-    "sigla": "ATOrd",
+    "id": 387,
+    "codigo": "1125",
+    "descricao": "Ação Trabalhista - Rito Sumaríssimo",
+    "sigla": "ATSum",
     "requerProcessoReferenciaCodigo": "NE",
     "controlaValorCausa": true,
     "podeIncluirAutoridade": false,
-    "pisoValorCausa": 64840.01,
+    "pisoValorCausa": 3242.01,
+    "tetoValorCausa": 64840.0,
     "ativo": true,
     "idClasseJudicialPai": 323,
     "possuiFilhos": false
   },
-  "labelFaseProcessual": "Conhecimento",
+  "labelFaseProcessual": "Execução",
   "orgaoJuizo": {},
   "dataUltimo": ""
 }

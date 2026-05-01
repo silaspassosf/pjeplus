@@ -60,20 +60,11 @@ function criarContainerVisualizadorDocumentos(ajustarJanela) {
     resizer.innerText = "⋮";
     resizer.setAttribute("aria-hidden", true);
 
-    const closeBtn = document.createElement("button");
-    closeBtn.id = "close-pdf-btn";
-    closeBtn.innerText = ">";
-    vincularTooltipAcessivel(
-        closeBtn,
-        "Recolher visualizador de documentos maisPJE"
-    );
-
     container.appendChild(resizer);
     container.appendChild(iframe);
-    container.appendChild(closeBtn);
 
     browser.storage.local.get(["larguraVisualizadorDocumentos"], (result) => {
-        const width = result.larguraVisualizadorDocumentos || 450;
+        const width = result.larguraVisualizadorDocumentos || 550;
         container.style.width = width + "px";
         ajustarTamanhoJanelaVisualizadorDocumentos(ajustarJanela);
     });
@@ -83,10 +74,22 @@ function criarContainerVisualizadorDocumentos(ajustarJanela) {
         ajustarTamanhoJanelaVisualizadorDocumentos(ajustarJanela);
     };
 
-    closeBtn.onclick = fecharVisualizador;
+    if (preferencias.extrasExibirPreviaDocumentoMouseOver) {
+        container.addEventListener("mouseleave", fecharVisualizador);
+    } else {
+        const closeBtn = document.createElement("button");
+        closeBtn.id = "close-pdf-btn";
+        closeBtn.innerText = "🡲";
+        closeBtn.addEventListener('click', fecharVisualizador);
+        vincularTooltipAcessivel(
+            closeBtn,
+            "Recolher visualizador de documentos maisPJE"
+        );
+        container.appendChild(closeBtn);
+    }
 
     // 3. Redimensionamento (Resizer)
-    let isResizing = false;
+    let isResizing;
 
     resizer.addEventListener("mousedown", (e) => {
         isResizing = true;
@@ -95,7 +98,7 @@ function criarContainerVisualizadorDocumentos(ajustarJanela) {
         iframe.style.pointerEvents = "none";
     });
 
-    window.addEventListener("mousemove", (e) => {
+    document.addEventListener("mousemove", (e) => {
         if (!isResizing) return;
 
         // Calcula a nova largura baseada na posição do mouse em relação à direita da tela
@@ -103,12 +106,12 @@ function criarContainerVisualizadorDocumentos(ajustarJanela) {
 
         if (newWidth > 200 && newWidth < window.innerWidth * 0.8) {
             // Limites min/max
-            container.style.width = newWidth + "px";
+            container.style.width = newWidth + 50 + "px"; //se eu não der o +50px o mouse escapa do listener e ocorre um bug no redimensionamento da largura da janela
             ajustarTamanhoJanelaVisualizadorDocumentos(ajustarJanela);
         }
     });
 
-    window.addEventListener("mouseup", () => {
+    document.addEventListener("mouseup", () => {
         if (isResizing) {
             isResizing = false;
             document.body.style.cursor = "default";

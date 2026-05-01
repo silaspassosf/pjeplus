@@ -43,6 +43,8 @@ browser.runtime.onInstalled.addListener(async function(details) {
 				{id:"botao_lancar_movimento_7",nm_botao:"Leilão:designado"},
 				{id:"botao_lancar_movimento_9",nm_botao:"da Contadoria para Vara:prosseguimento"}
 			],
+            extrasAcionarBotoesSemCliqueAtivar: false,
+            extrasAcionarBotoesSemCliqueRegras: [],
 			sisbajud: {juiz: '', vara: '', cnpjRaiz: '', teimosinha: '', contasalario: '', naorespostas: '', valor_desbloqueio: '', banco_preferido: '', agencia_preferida: '', preencherValor: '', confirmar: '', executarAAaoFinal: '', salvarEprotocolar: ''},
 			// configURLs : {descricao:'',urlSiscondj:'',idSiscondj:'',urlSAOExecucao:''},
 			conciliajt: {'primeirograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'},'segundograu': {'enabled':false,'url':'','ads_enabled':false,'ads_url':'https://portal.trt12.jus.br/noticias/trt-sc-desenvolve-ferramenta-que-utiliza-inteligencia-artificial-para-estimar-chances-de'}},
@@ -78,6 +80,8 @@ browser.runtime.onInstalled.addListener(async function(details) {
 				{id:"botao_lancar_movimento_7",nm_botao:"Leilão:designado"},
 				{id:"botao_lancar_movimento_9",nm_botao:"da Contadoria para Vara:prosseguimento"}
 			],
+            extrasAcionarBotoesSemCliqueAtivar: false,
+            extrasAcionarBotoesSemCliqueRegras: [],
 			tempAuto : 10,
 			anexadoDoctoEmSigilo: -1,
 			impressoraVirtual: [],
@@ -108,68 +112,65 @@ function discordar() {
 }
 
 function notify(message) {
-    switch (message.tipo) {
-        case 'abrirConfiguracoes':
-            browser.runtime.openOptionsPage();
-            break
-        case 'posicionarJanela':
-            browser.windows.getCurrent().then((janela) => posicionarJanela(janela.id, janela.opener, message.left, message.top, message.width, message.height));
-			break
-		case 'silenciarGuia' :
-			toggleMuteState();
-			break;
-		case 'storage_guardar':
-			storage_guardar(message.chave, message.valor);
-			break
-		case 'storage_vinculo':
-			storage_vinculo(message.valor);
-			break
-		case 'storage_limpar':
-			storage_limpar(message.valor);
-			break
-		case 'criarAlerta':
-			Alerta(message.valor.trim(), message.icone);
-			break
-		case 'permissao':
-			requestTermoDeUso();
-			break
-		case 'abrirOpcoes':
-			abrirOpcoes(message.script);
-			break
-		case 'iconeNavegador':
-			mudarIcone(message.valor, message.icone);
-			break
-		case 'obterPartesDoProcesso':
-			pjeApiObterPartesDoProcesso(message.trt, message.id, message.processo);
-			break
-		case 'iniciar':
-			executarScript(message.script);
-			break;
-		case 'criarJanela':
-			criarJanela(message.url, message.posx, message.posy, message.width, message.height, message.abrirEmAba);
-			break
-		case 'fecharJanela':
-			fecharJanela(message.url);
-			break
-		case 'insertCSS':
-			insertCSS(message.file);
-			break
-		// case 'atualizarJanela':
-		// 	chrome.tabs.query({active: true, lastFocusedWindow: true}, tabs => {
-		// 		let url = tabs[0].url;
-		// 		console.log('atualizarJanela' + url)
-		// 		browser.tabs.reload(tabs[0].id);
-		// 	});
-		// 	break
-        default:
-            console.error('Mensagem com tipo invalido: ' + message.tipo)
-    }
+    console.info ('message', message)
+    return new Promise(async resolve => {
+        switch (message.tipo) {
+            case 'abrirConfiguracoes':
+                await browser.runtime.openOptionsPage();
+                break
+            case 'posicionarJanela':
+                await browser.windows.getCurrent().then((janela) => posicionarJanela(janela.id, janela.opener, message.left, message.top, message.width, message.height));
+                break
+            case 'silenciarGuia' :
+                await toggleMuteState();
+                break;
+            case 'storage_guardar':
+                await storage_guardar(message.chave, message.valor);
+                break
+            case 'storage_vinculo':
+                await storage_vinculo(message.valor);
+                break
+            case 'storage_limpar':
+                await storage_limpar(message.valor);
+                break
+            case 'criarAlerta':
+                await Alerta(message.valor.trim(), message.icone);
+                break
+            case 'permissao':
+                await requestTermoDeUso();
+                break
+            case 'abrirOpcoes':
+                await abrirOpcoes(message.script);
+                break
+            case 'iconeNavegador':
+                await mudarIcone(message.valor, message.icone);
+                break
+            case 'obterPartesDoProcesso':
+                await pjeApiObterPartesDoProcesso(message.trt, message.id, message.processo);
+                break
+            case 'iniciar':
+                await executarScript(message.script);
+                break;
+            case 'criarJanela':
+                await criarJanela(message.url, message.posx, message.posy, message.width, message.height, message.abrirEmAba);
+                break
+            case 'fecharJanela':
+                await fecharJanela(message.url);
+                break
+            case 'insertCSS':
+                await insertCSS(message.file);
+                break
+            default:
+                console.error('Mensagem com tipo invalido: ' + message.tipo)
+        }
+        return resolve(true);
+    });
 }
 
 function requestTermoDeUso() {
 	browser.storage.local.set({'extensaoAtiva': false, 'concordo' : false });
 	mudarIcone('+PJe: Desligado', 'ico_16_off.png');
-	browser.tabs.create({
+	return browser.tabs.create({
 		url: browser.runtime.getURL("aviso.html"),
 		active: true
 	});
@@ -177,43 +178,47 @@ function requestTermoDeUso() {
 
 function abrirOpcoes(url) {
 	// console.log(url)
-	browser.tabs.create({
+	return browser.tabs.create({
 		url: browser.runtime.getURL(url),
 		active: true
 	});
+}
+
+function getActiveTab() {
+    return browser.tabs.query({active: true, currentWindow: true});
 }
 
 function storage_limpar(param) {
 	console.debug('maisPJe: limpando a memoria... ' + param);
 	if (param == "pjExtension_depositos") {
 		let limparStorage = browser.storage.local.set({'pjExtension_depositos': []});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: pjExtension_depositos... excluido');
 		});
 	} else if (param == "tempBt") {
 		let limparStorage = browser.storage.local.set({'tempBt': []});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: tempBt... excluido');
 		});
 	} else if (param == "tempAAEspecial") {
 		let limparStorage = browser.storage.local.set({'tempAAEspecial': []});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: tempAAEspecial... excluido');
 		});
 	} else if (param == "tempAR") {
 		let limparStorage = browser.storage.local.set({'tempAR': ''});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: tempAR... excluido');
 		});
 	} else if (param == "AALote") {
 		let limparStorage = browser.storage.local.set({'AALote': ''});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: AALote... excluido');
 		});
 	} else if (param == "tempBt,AALote") {
 		let limparStorage1 = browser.storage.local.set({'tempBt': []});
 		let limparStorage2 = browser.storage.local.set({'AALote': ''});
-		Promise.all([limparStorage1,limparStorage2]).then(values => {
+		return Promise.all([limparStorage1,limparStorage2]).then(values => {
 			console.debug('maisPJe: background: tempBt... excluido');
 			console.debug('maisPJe: background: AALote... excluido');
 		});
@@ -223,7 +228,7 @@ function storage_limpar(param) {
 		let limparStorage3 = browser.storage.local.set({'tempAAEspecial': []});
 		let limparStorage4 = browser.storage.local.set({'anexadoDoctoEmSigilo': -1});
 		let limparStorage5 = browser.storage.local.set({'tempAR': ''});
-		Promise.all([limparStorage1,limparStorage2,limparStorage3,limparStorage4,limparStorage5]).then(values => {
+		return Promise.all([limparStorage1,limparStorage2,limparStorage3,limparStorage4,limparStorage5]).then(values => {
 			console.debug('maisPJe: background: tempBt... excluido');
 			console.debug('maisPJe: background: AALote... excluido');
 			console.debug('maisPJe: background: anexadoDoctoEmSigilo... excluido');
@@ -232,17 +237,17 @@ function storage_limpar(param) {
 		});
 	} else if (param == "impressoraVirtual") {
 		let limparStorage = browser.storage.local.set({'impressoraVirtual': []});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: maispje_assistente_impressao... excluido');
 		});
 	} else if (param == "processo_memoria") {
 		let limparStorage = browser.storage.local.set({'processo_memoria': ''});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: processo_memoria... excluido');
 		});
 	} else {
 		let limparStorage = browser.storage.local.set({param: ''});
-		Promise.all([limparStorage]).then(values => {
+		return Promise.all([limparStorage]).then(values => {
 			console.debug('maisPJe: background: ' + param + '... excluido');
 		});
 	}
@@ -304,7 +309,7 @@ function storage_guardar(chave,valor) {
 		return;
 	}
 
-	Promise.all([guardarStorage]).then(values => {
+	return Promise.all([guardarStorage]).then(values => {
 		console.debug('maisPJe: background: ' + chave + '(' + valor + ')... salvo com sucesso');
 	});
 }
@@ -320,14 +325,18 @@ function posicionarJanela(id, pai, left, top, width, height) {
 }
 
 async function criarJanela(url, posx, posy, largura, altura, tabs=false) {
-	if (!tabs) { tabs = await getLocalStorage('pesquisaRapidaDeProcessoEmAba') }
+    try {
+        if (!tabs) { tabs = await getLocalStorage('pesquisaRapidaDeProcessoEmAba') }
+    } catch (e) {
+        console.error(`Erro no getLocalStorage('pesquisaRapidaDeProcessoEmAba')`, e);
+    }
 	if (!tabs) { tabs = false } //se retornar undefined
 	if (tabs) {
-		browser.tabs.create({
+		return await browser.tabs.create({
 			url: url
 		  });
 	} else {
-		browser.windows.create({
+		return await browser.windows.create({
 			url: url,
 			type: "normal",
 			left: posx,
@@ -339,25 +348,34 @@ async function criarJanela(url, posx, posy, largura, altura, tabs=false) {
 }
 
 async function fecharJanela() {
-	if (idJanelaPainelCopiaECola) { browser.tabs.remove(idJanelaPainelCopiaECola.id) }
+    if (idJanelaPainelCopiaECola && idJanelaPainelCopiaECola.id) {
+        try {
+            if (document.body && browser.runtime?.id) {
+                await browser.tabs.remove(idJanelaPainelCopiaECola.id);
+                idJanelaPainelCopiaECola = null; // Limpa a referência após fechar
+            }
+        } catch (error) {
+            console.warn("A janela já estava fechada ou não foi encontrada.", error);
+        }
+    }
 }
 
 async function toggleMuteState() {
-	let tabArray = await browser.tabs.query({currentWindow: true, active: true});
-	let tabId = tabArray[0].id;
-	const muted = !tabArray[0].mutedInfo.muted;
-	await chrome.tabs.update(tabId, {muted});
-	console.log(`Tab ${tabArray[0].id} is ${muted ? "muted" : "unmuted"}`);
+    return getActiveTab().then(async (tabs) => {
+        const muted = !tabs[0].mutedInfo.muted;
+        await browser.tabs.update(tabs[0].id, {muted});
+        console.log(`Tab ${tabs[0].id} is ${muted ? "muted" : "unmuted"}`);
+    });
 }
 
-function Alerta(mensagem, imagem, id='maisPjeNotificacao', tempo=5000) {
+async function Alerta(mensagem, imagem, id='maisPjeNotificacao', tempo=5000) {
 	// 1: indiferente
 	// 2: alerta
 	// 3: piscando
 	// 4: assustado
 	// 5: feliz
 	// 6: normal
-	browser.notifications.clear('maisPjeNotificacao');
+	await browser.notifications.clear('maisPjeNotificacao');
 
 	if (imagem === undefined) {
 		let sorteio = getRandomIntInclusive(1,6);
@@ -365,23 +383,24 @@ function Alerta(mensagem, imagem, id='maisPjeNotificacao', tempo=5000) {
 	}
 
 	let icone = 'icons/gigs-plugin_' + imagem + '.png'
-	chrome.notifications.create(id, {
+	return browser.notifications.create(id, {
 		type: 'basic',
 		iconUrl: icone,
 		title: 'maisPJe',
 		message: mensagem.trim()
-	},function() {
+	}).then( () => {
 		if (mensagem.includes("Aviso Legal.")) {
-			if (chrome.browserAction.onClicked.hasListener(listener)) {
-				chrome.notifications.onClicked.removeListener(listener);
+			if (browser.browserAction.onClicked.hasListener(listener)) {
+				browser.notifications.onClicked.removeListener(listener);
 			} else {
-				chrome.notifications.onClicked.addListener(listener);
+				browser.notifications.onClicked.addListener(listener);
 			}
 		} else {
 			setTimeout(function() {
 				browser.notifications.clear('maisPjeNotificacao');
 			},tempo);
 		}
+        return true;
 	});
 
 	function getRandomIntInclusive(min, max) {
@@ -599,25 +618,33 @@ async function montarMenu(processo_memoria) {
 	// }
 }
 
-function mudarIcone(msg, ico) {
-	browser.browserAction.setIcon({path:'../icons/' + ico});
-	browser.browserAction.setTitle({title: msg});
+async function mudarIcone(msg, ico) {
+	await browser.browserAction.setIcon({path:'../icons/' + ico});
+	await browser.browserAction.setTitle({title: msg});
 }
 
 function executarScript(arquivo) {
-	browser.tabs.executeScript({file: arquivo});
+    function onExecuted(result) {
+        console.log("maisPje: ativando script " + arquivo);
+    }
+    function onError(error) {
+        console.error("maisPje:erro ao ativar script " + arquivo);
+    }
+    const executing = browser.tabs.executeScript({file: arquivo});
+    executing.then(onExecuted, onError);
+    return executing;
 }
 
 async function devolverMensagem(mensagem) {
-	let tabArray = await browser.tabs.query({currentWindow: true, active: true});
-	let tabId = tabArray[0].id;
-	browser.tabs.sendMessage(tabId,{greeting: mensagem});
+    getActiveTab().then((tabs) => {
+        browser.tabs.sendMessage(tabs[0].id,{greeting: mensagem});
+    });
 }
 
 async function insertCSS(arquivo) {
-	let tabArray = await browser.tabs.query({currentWindow: true, active: true});
-	let tabId = tabArray[0].id;
-	await browser.tabs.insertCSS(tabId, {file: arquivo});
+    return getActiveTab().then(async (tabs) => {
+        await browser.tabs.insertCSS(tabs[0].id, {file: arquivo});
+    });
 }
 
 var listener = function() {
@@ -641,10 +668,17 @@ browser.menus.onClicked.addListener((info, tab) => {
 			browser.menus.removeAll();
 		});
 	} else if (info.menuItemId == 'Painel Copia e Cola') {
-		criarJanela('popupPainelCopiaECola.html')
+        try {
+            criarJanela('popupPainelCopiaECola.html')
+        } catch (e) {
+            console.error(`erro ao criar copia e cola`, e)
+        }
+
 	} else {
+        console.info({tab},{greeting: info.menuItemId});
 		browser.tabs.sendMessage(tab.id,{greeting: info.menuItemId});
 	}
+    return true;
 });
 
 browser.runtime.onMessage.addListener(notify);
@@ -760,7 +794,7 @@ async function pjeApiObterPartesDoProcesso(trt, id, processo){
 	const valorCustas = 'R$ ' + transitoEvalorCustas[1];
 	const processoMemoria = new Processo(processo, id, poloAtivo, poloPassivo, poloTerceiro, divida, justicaGratuita, transito, valorCustas, dtAutuacao, orgaoJulgadorCargo);
 	const var1 = browser.storage.local.set({'processo_memoria': processoMemoria});
-	Promise.all([var1]).then(values => { montarMenu(processoMemoria) });
+	return Promise.all([var1]).then(values => { montarMenu(processoMemoria) });
 }
 
 async function pjeApiObterValorExecucao(trt, id, timeout){

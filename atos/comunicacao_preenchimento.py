@@ -2,6 +2,7 @@ import time
 import re
 import unicodedata
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.core import aguardar_renderizacao_nativa
@@ -121,22 +122,80 @@ def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
     antes de prosseguir para salvar o ato.
     """
     deadline = time.monotonic() + timeout
+    selectors = [
+        '.ck-editor__editable[contenteditable="true"]',
+        '.ck-content',
+        'div[contenteditable="true"]',
+        'textarea',
+        'iframe'
+    ]
+
     while time.monotonic() < deadline:
         try:
-            tem_conteudo = driver.execute_script("""
-                var el = document.querySelector('.ck-editor__editable[contenteditable="true"]');
-                if (!el) return false;
-                var ck = el.ckeditorInstance;
-                var dados = ck ? ck.getData() : el.innerHTML;
-                return dados.replace(/<[^>]*>/g, '').trim().length > 0;
-            """)
-            if tem_conteudo:
-                return True
+            for sel in selectors:
+                try:
+                    tem_conteudo = driver.execute_script("""
+                        var sel = arguments[0];
+                        var el = document.querySelector(sel);
+                        if (!el) {
+                            if (sel === 'div[contenteditable="true"]') {
+                                el = document.querySelector('[contenteditable="true"]');
+                                if (!el) return false;
+                            } else return false;
+                        }
+
+                        // iframe case
+                        if (el.tagName === 'IFRAME') {
+                            try {
+                                var doc = el.contentDocument || el.contentWindow.document;
+                                var txt = doc && doc.body ? (doc.body.innerText || doc.body.textContent || '') : '';
+                                return (txt || '').trim().length > 0;
+                            } catch(e) { return false; }
+                        }
+
+                        // CKEditor classic instance on the editable element
+                        if (el.ckeditorInstance && typeof el.ckeditorInstance.getData === 'function') {
+                            var data = el.ckeditorInstance.getData();
+                            return (data || '').replace(/<[^>]*>/g,'').trim().length > 0;
+                        }
+
+                        // global CKEDITOR instances (fallback)
+                        if (window.CKEDITOR) {
+                            for (var k in window.CKEDITOR.instances) {
+                                try {
+                                    var d = window.CKEDITOR.instances[k].getData();
+                                    if ((d || '').replace(/<[^>]*>/g,'').trim().length > 0) return true;
+                                } catch(e) {}
+                            }
+                        }
+
+                        var html = el.innerHTML || el.value || el.textContent || '';
+                        return (html || '').replace(/<[^>]*>/g,'').trim().length > 0;
+                    """, sel)
+                except Exception:
+                    tem_conteudo = False
+
+                if tem_conteudo:
+                    return True
         except Exception:
             pass
-        # Polling leve durante a espera pelo conteúdo do CKEditor.
+
+        # Pequena espera/trigger adicional para lidar com casos onde o
+        # preview fecha muito rápido e a injeção ocorre com micro-latência.
+        try:
+            from .wrappers_utils import esperar_insercao_modelo
+            # esperar_insercao_modelo usa ms; dar um pequeno pulso de 500ms
+            esperar_insercao_modelo(driver, timeout=500)
+        except Exception:
+            time.sleep(0.3)
+
+        # Polling leve durante a espera pelo conteúdo do editor.
         time.sleep(0.3)
+
     return False
+
+
+
 
 
 def aguardar_ato_confeccionado(driver: WebDriver, timeout_fechar: int = 15, timeout_icone: int = 10, log=None) -> bool:
@@ -384,17 +443,37 @@ def executar_preenchimento_minuta(
                     if not nodo:
                         raise Exception('Nodo filtrado não clicável')
                     driver.execute_script("arguments[0].click();", nodo)
-                    btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8, by=By.CSS_SELECTOR)
+
+                    modal_aberto = False
+                    for tentativa in range(5):
+                        try:
+                            modal = driver.find_element(By.CSS_SELECTOR, 'pje-dialogo-visualizar-modelo')
+                            if modal.is_displayed():
+                                modal_aberto = True
+                                break
+                        except Exception:
+                            pass
+                        time.sleep(0.5)
+
+                    if not modal_aberto:
+                        log('[MODELO][WARN] Modal de visualização não abriu, tentando inserir mesmo assim...')
+
+                    seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
+                    btn_inserir = wait_for_clickable(driver, seletor_btn_inserir, timeout=10, by=By.CSS_SELECTOR)
                     if not btn_inserir:
                         raise Exception('Botão inserir não clicável')
                     driver.execute_script("arguments[0].click();", btn_inserir)
-                    log(' Modelo inserido - aguardando fechamento do dialog de preview')
-                    # 1. Aguardar o dialog de preview FECHAR (confirma que o click em Inserir
-                    #    foi aceito pelo Angular - sem este wait, o observer abaixo retornaria
-                    #    imediatamente pois o button[aria-label=Salvar] do pje-pec-dialogo-ato
-                    #    já existe no DOM antes mesmo do dialog de preview ser aberto)
+                    log(' Modelo inserido - aguardando confirmação de inserção')
+                    try:
+                        from .wrappers_utils import esperar_insercao_modelo
+                        ok_monitor = esperar_insercao_modelo(driver, timeout=8000)
+                        if not ok_monitor:
+                            logger.warning('[MODELO] esperar_insercao_modelo retornou timeout aguardando inserção')
+                    except Exception as _e:
+                        logger.warning(f'[MODELO] Exceção ao executar esperar_insercao_modelo: {_e}')
+
+                    time.sleep(1.5)
                     aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
-                    # 2. Aguardar CKEditor ter conteúdo (modelo de fato injetado no editor)
                     if not _aguardar_ck_com_conteudo(driver, timeout=8):
                         log('[MODELO][WARN] Timeout aguardando conteúdo no editor após inserção de modelo')
                     else:

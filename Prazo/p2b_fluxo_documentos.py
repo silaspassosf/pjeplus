@@ -26,24 +26,114 @@ def _encontrar_documento_relevante(driver: WebDriver) -> Tuple[Optional[Any], Op
     Returns:
         Tupla (doc_encontrado, doc_link, doc_idx)
     """
-    itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-    pass
+    # Preferir funções já existentes no projeto (Fix.documents) — comportamento legado
+    try:
+        from Fix.documents import buscar_documentos_sequenciais, verificar_documento_decisao_sentenca
+
+        # Se existir um bloco sequencial (ARGOS), ele já retorna os elementos na ordem correta
+        try:
+            docs = buscar_documentos_sequenciais(driver, log=False)
+            if docs:
+                # Retornar o primeiro elemento que possua um link clicável
+                for idx, elem in enumerate(docs):
+                    try:
+                        try:
+                            link = elem.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+                        except Exception:
+                            links = elem.find_elements(By.TAG_NAME, 'a')
+                            link = None
+                            for l in links:
+                                try:
+                                    if l.is_displayed():
+                                        link = l
+                                        break
+                                except Exception:
+                                    continue
+                        if link:
+                            return elem, link, idx
+                    except Exception:
+                        continue
+        except Exception:
+            # Se a busca sequencial falhar, continuar para heurística DOM abaixo
+            pass
+
+        # Se não encontrou via sequencial, tentar apenas verificar se existe decisão/sentença
+        try:
+            if verificar_documento_decisao_sentenca(driver):
+                # fallback para heurística DOM se a verificação retorna True
+                pass
+        except Exception:
+            pass
+    except Exception:
+        # se Fix.documents não estiver disponível, continuar com heurística DOM
+        pass
+
+    # Heurística DOM (fallback): múltiplos seletores de container — diferentes versões do PJe
+    container_selectors = [
+        'li.tl-item-container',
+        'div.tl-item-container',
+        'li.timeline-item',
+        'div.timeline-item',
+        'li.tl-item',
+    ]
+
+    # Coletar itens encontrando o primeiro seletor válido
+    itens = []
+    for sel in container_selectors:
+        try:
+            itens = driver.find_elements(By.CSS_SELECTOR, sel)
+            if itens:
+                break
+        except Exception:
+            continue
 
     # Busca do mais antigo para o mais recente
     for idx, item in enumerate(itens):
         try:
-            link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-            
-            #  CORRIGIDO: Extrair apenas o primeiro <span> (tipo real do documento)
-            # Não o texto completo que pode incluir descrição enganosa
-            primeiro_span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
-            tipo_real = primeiro_span.text.lower().strip() if primeiro_span else ''
-            
+            # Preferir link com classe 'tl-documento', fallback para qualquer <a> dentro do item
+            try:
+                link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
+            except Exception:
+                try:
+                    link = item.find_element(By.CSS_SELECTOR, 'a[href*="/documento/"]')
+                except Exception:
+                    # último recurso: qualquer link clicável dentro do item
+                    links = item.find_elements(By.TAG_NAME, 'a')
+                    link = None
+                    for l in links:
+                        try:
+                            if l.is_displayed():
+                                link = l
+                                break
+                        except Exception:
+                            continue
+                    if link is None:
+                        continue
+
+            # Tentar obter o tipo real do documento a partir do primeiro elemento textual
+            tipo_real = ''
+            try:
+                # procurar primeiro span/strong/b que contenha texto legível
+                candidate = None
+                for q in ['span:not(.sr-only)', 'strong', 'b', 'em', 'span']:
+                    try:
+                        candidate = link.find_element(By.CSS_SELECTOR, q)
+                        if candidate and candidate.text and candidate.text.strip():
+                            tipo_real = candidate.text.lower().strip()
+                            break
+                    except Exception:
+                        continue
+                # fallback: usar texto do link inteiro (removendo descrição entre parênteses)
+                if not tipo_real:
+                    raw = link.text or ''
+                    # pegar a parte antes de '(' se existir
+                    tipo_real = raw.split('(')[0].strip().lower()
+            except Exception:
+                tipo_real = ''
+
             # Verificar se o tipo REAL é um dos procurados
-            if tipo_real and re.search(r'^(despacho|decisão|sentença|conclusão)', tipo_real):
+            if tipo_real and re.search(r'^(despacho|decis[oã]o|senten[çc]a|conclus[oã]o|conclusao)', tipo_real):
                 real_idx = idx
-                # Mostrar o tipo real encontrado (sem incluir a descrição enganosa)
-                pass
                 return item, link, real_idx
 
         except Exception:

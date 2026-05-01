@@ -3,6 +3,21 @@ const cacheERec = {
   documentos: undefined,
 };
 
+const urlFuncoes = [
+    {
+        test: (href) => href.includes(".jus.br/erec/assistente"),
+        exec: configurarAssistente
+    },
+    {
+        test: (href) => href.includes(".jus.br/erec/painel"),
+        exec: configurarTelaPrincipalERec
+    },
+    {
+        test: (href) => href.includes(".jus.br/erec/importacao"),
+        exec: configurarImportarProcessosErec
+    },
+]
+
 /**
  *
  * @param {number} idDespacho
@@ -358,11 +373,20 @@ function configurarBotaoPDF(pdfUrl, idDocumento) {
     return button;
 }
 
-async function configurarERec() {
+async function configurarERec(href) {
     browser.runtime.sendMessage({
         tipo: "insertCSS",
         file: "maisPJe_erec.css",
     });
+    browser.runtime.sendMessage({
+        tipo: "insertCSS",
+        file: "maisPJe_icones.css",
+    });
+    const match = urlFuncoes.find(u => u.test(href));
+    match?.exec();
+}
+
+async function configurarAssistente() {
     criarContainerVisualizadorDocumentos(true);
     configurarObservablePressupostos();
     const processo = await obterIdNumeroProcessoDaTelaErec();
@@ -371,10 +395,6 @@ async function configurarERec() {
         d,
         ...(d.anexos ?? []),
     ]);
-      console.info({
-    documentos,
-    documentosEAnexos,
-  });
     preencherSentencasEAcordaos(
         documentosEAnexos,
         processo.numeroProcesso,
@@ -382,7 +402,6 @@ async function configurarERec() {
     );
   configurarBotaoAdicionarGigsSemTese(processo.idProcesso);
 }
-
 /** @returns {idNumeroProcesso} id do processo. */
 async function obterIdNumeroProcessoDaTelaErec() {
     const tituloProcesso = await esperarElemento(
@@ -455,27 +474,6 @@ async function configurarBotaoAdicionarGigsSemTese(idProcesso) {
 
 /**
  *
- * @param {string} texto
- * @returns {HTMLButtonElement} botao que copia o texto passado para a pessoa.
- */
-function criarBotaoCopiar(texto) {
-  const botaoCopiar = document.createElement("button");
-  const label = "Copia " + texto;
-  botaoCopiar.id = "maisPje_copiar_" + texto;
-  vincularTooltipAcessivel(botaoCopiar, label);
-  botaoCopiar.className = "matish-icon-button";
-  const icone = document.createElement("i");
-  icone.className = "fa-copy fa-sm far";
-  botaoCopiar.appendChild(icone);
-  botaoCopiar.addEventListener("click", async (ev) => {
-    ev.preventDefault();
-    await navigator.clipboard.writeText(texto);
-  });
-  return botaoCopiar;
-}
-
-/**
- *
  * @param {Documento[]} documentos
  * @param {string[]} pessoasSignatarias
  * @returns {Documento[]} documentos juntados pelas pessoas signatárias
@@ -484,4 +482,70 @@ function filtrarDocumentosRepresentantes(documentos, pessoasSignatarias) {
   return documentos.filter((doc) =>
     pessoasSignatarias.includes(semAcento(doc.nomeSignatario))
   );
+}
+
+async function configurarTelaPrincipalERec() {
+    /** @type {HTMLDivElement} */
+    const menuPrincipal = await esperarElemento('.menu-principal');
+    if (menuPrincipal) {
+        menuPrincipal.style.alignItems = 'baseline';
+        configurarMarcarMeusProcessosERec(menuPrincipal, 1, 3);
+    }
+}
+
+async function configurarMarcarMeusProcessosERec(container, colunaCheck = 1, colunaNumero = 2) {
+    const importarProcessosHtml = `
+    <button class="mat-icon-button importar-processos" id="importarMeusProcessos"
+        title="Marcar processos em lote - maisPJE" aria-label="Marcar processos em lote - maisPJE"
+    >
+        <i class="fas fa-user-check"></i>
+    </button>
+    `
+    const domParser = new DOMParser();
+    const documentoTratado = domParser.parseFromString(importarProcessosHtml, 'text/html');
+    const importarProcessos = documentoTratado.querySelector('button#importarMeusProcessos');
+    importarProcessos.addEventListener('click', async () => {
+        const processos = await listaProcessoParaAcoesEmLote();
+        if (processos) {
+            selecionarProcessosNaTabela('table', processos, colunaCheck, colunaNumero);
+        }
+    });
+    container.appendChild(importarProcessos);
+}
+
+
+async function configurarImportarProcessosErec() {
+    /** @type {HTMLDivElement} */
+    const botaoPesquisar = await esperarElemento('pje-erec-importacao-filtros button[aria-label="Pesquisar"]');
+    configurarMarcarMeusProcessosERec(botaoPesquisar.parentElement);
+}
+
+async function selecionarProcessosNaTabela(tabelaSelector, processos, colunaCheck = 1, colunaNumero = 2) {
+    // Seleciona a tabela e as linhas (ignorando o cabeçalho se houver <thead>)
+    const tabela = document.querySelector(tabelaSelector);
+    if (!tabela) {
+        console.error("Tabela não encontrada!");
+        return;
+    }
+
+    const linhas = tabela.querySelectorAll('tr');
+    linhas.forEach(async linha => {
+        const colunas = linha.querySelectorAll('td');
+
+        // Verificamos se a linha tem colunas suficientes
+        // Coluna 2 (índice 1) é o Checkbox
+        // Coluna 3 (índice 2) é o Número do Processo
+        if (colunas.length >= 3) {
+            const numeroProcesso = colunas[colunaNumero].innerText.trim();
+            // const checkbox = colunas[1].querySelector('input[type="checkbox"]');
+            const checkbox = colunas[colunaCheck].querySelector('mat-checkbox');
+
+            // Se o número estiver na lista e o checkbox existir, clicamos
+            if (processos.includes(numeroProcesso) && checkbox) {
+                if (!checkbox.className.includes('mat-checkbox-checked')) {
+                    checkbox.firstElementChild.click()
+                }
+            }
+        }
+    });
 }

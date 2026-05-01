@@ -15,7 +15,7 @@ menuMaisPje{
 	align-items: center;
 	justify-content: center;
 	cursor: grab;
-	z-index: 1000;
+    z-index: 2147483647;
 }
 @media print {
 	menuMaisPje{
@@ -60,7 +60,7 @@ menuMaisPje.openv .toggle-btn{
 
 menuMaisPje.openv .menuMaisPje-content span{
 	/* p = posicao do icone no menu    d = direção que abre o menu    c = coluna do icone no menu (0 ou 1)*/
-	transform: translateY(calc(var(--p) * 35px * var(--d))) translateX(calc(var(--c) * 35px)); 
+	transform: translateY(calc(var(--p) * 35px * var(--d))) translateX(calc(var(--c) * 35px));
 	opacity: 1;
 }
 
@@ -76,7 +76,7 @@ menuMaisPje.openh .toggle-btn{
 
 menuMaisPje.openh .menuMaisPje-content span{
 	/* p = posicao do icone no menu    d = direção que abre o menu    c = coluna do icone no menu (0 ou 1)*/
-	transform: translateX(calc(var(--p) * 35px * var(--d))) translateY(calc(var(--c) * 35px)); 
+	transform: translateX(calc(var(--p) * 35px * var(--d))) translateY(calc(var(--c) * 35px));
 	opacity: 1;
 }
 .menuMaisPje-content span button,

@@ -75,24 +75,29 @@ def idpj(
         bool: True se executou com sucesso, False caso contrário
     """
     try:
-        try:
-            resultado_bndt = bndt(driver, inclusao=True)
-            if resultado_bndt:
-                pass
-            else:
-                pass
-        except Exception as e:
-            if debug:
-                logger.error(f'[IDPJ]  Erro no BNDT inclusão: {e}')
-            # Continua mesmo com erro no BNDT
-        
         # 1. Verificar se há lembretes de bloqueio
         tem_bloqueio_recente = verificar_bloqueio_recente(driver, debug=debug)
-        
+
+        # Executa o ato apropriado primeiro
         if tem_bloqueio_recente:
-            return ato_bloq(driver)
+            sucesso_ato = ato_bloq(driver)
         else:
-            return ato_meios(driver)
+            sucesso_ato = ato_meios(driver)
+
+        # Apenas após confirmação do ato, tentar inclusão no BNDT (se aplicável)
+        try:
+            if sucesso_ato:
+                resultado_bndt = bndt(driver, inclusao=True)
+                if debug:
+                    logger.info(f'[IDPJ] BNDT inclusão executada pós-ato: {bool(resultado_bndt)}')
+            else:
+                if debug:
+                    logger.info('[IDPJ] Ato não confirmado; pulando inclusão BNDT')
+        except Exception as e:
+            if debug:
+                logger.error(f'[IDPJ] Erro no BNDT inclusão pós-ato: {e}')
+
+        return bool(sucesso_ato)
             
     except Exception as e:
         if debug:

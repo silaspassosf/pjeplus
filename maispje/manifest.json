@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "maisPJe",
-  "version": "4.19.7",
+  "version": "4.20.5",
   "description": "Extens\u00e3o complementar para o PJe (Processo Judicial Eletr\u00f4nico) que permite ao usu\u00e1rio gerenciar o ambiente de trabalho dentro do sistema, automatizando tarefas e eliminando as a\u00e7\u00f5es repetitivas do seu dia-a-dia.",
   "author": "Fernando de Medeiros Marcon",
   "browser_specific_settings": {
@@ -30,6 +30,7 @@
         "comum/autenticacao.js",
         "comum/preferencias.js",
         "comum/storage.js",
+        "comum/cliqueRapido.js",
         "comum/mini-selenium.js",
         "comum/acoes-automatizadas.js",
         "comum/botoes-atalhos.js",

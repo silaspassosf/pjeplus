@@ -5,9 +5,9 @@ async function iniciar() {
         await createTable(result.tempAR);
 
         //limpa o storage
-        await sleep(1000);        
+        await sleep(1000);
         browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
-    });	
+    });
 }
 
 iniciar();
@@ -15,28 +15,28 @@ iniciar();
 async function createTable(children) {
     console.log('criando a tabela')
     let tabela = document.createElement('table');
-    
+
     //cria o cabeçalho
     let cabecalho = document.createElement('thead');
     cabecalho.appendChild(inserirLinha("th",'BANCO/DATA/EMISSOR',"width: auto;"));
     cabecalho.appendChild(inserirLinha("th",'BENEFICIÁRIO',"width: auto;"));
     cabecalho.appendChild(inserirLinha("th",'TIPO',"width: auto;"));
     cabecalho.appendChild(inserirLinha("th",'VALOR',"width: auto;"));
-   
+
 
     let conta = inserirLinha("th",'CONTA JUDICIAL',"width: auto;")
     let conferirEmLote = document.createElement("button");
     conferirEmLote.id = 'maisPje_bt_conferirEmAALote';
     conferirEmLote.style = "position: absolute; margin-left: 5px;width: 15px;height: 15px;cursor:pointer;";
-    conferirEmLote.title = "Conferir em Lote";	
+    conferirEmLote.title = "Conferir em Lote";
     conta.appendChild(conferirEmLote);
     cabecalho.appendChild(conta);
-    
+
     let numero = inserirLinha("th",'NÚMERO DO PROCESSO',"width: auto;")
     let conferirEmLoteProcessos = document.createElement("button");
     conferirEmLoteProcessos.id = 'maisPje_bt_ProcessoConferirEmAALote';
     conferirEmLoteProcessos.style = "position: absolute; margin-left: 5px;width: 15px;height: 15px;cursor:pointer;";
-    conferirEmLoteProcessos.title = "Copiar processos";	
+    conferirEmLoteProcessos.title = "Copiar processos";
     numero.appendChild(conferirEmLoteProcessos);
     cabecalho.appendChild(numero);
 
@@ -44,29 +44,29 @@ async function createTable(children) {
     tabela.appendChild(cabecalho);
 
     let tbody = document.createElement('tbody')
-    
+
     for (const [pos, alvara] of children.entries()) {
         // console.log(JSON.stringify(alvara))
         let linha = document.createElement("tr");
-        linha.style.setProperty('line-height','3em');  
+        linha.style.setProperty('line-height','3em');
 
         //coluna1
-        let coluna1 = document.createElement("td")        
+        let coluna1 = document.createElement("td")
         let em = inserirLinha("div",'',"display: grid; grid-template-rows: 1fr 1fr; gap: 5px; line-height: 1;padding: 5px 0;");
         em.appendChild(inserirLinha("span",alvara.banco,"font-size: 13px;"));
-        
+
         let spanEmissor = inserirLinha("span",'',"font-size: 11px;  font-style: italic;color: #35878a;")
         spanEmissor.classList.add('carregando');
         spanEmissor.title = 'Emissor do Alvará';
         em.appendChild(spanEmissor);
-       
+
         obterEmissorDoAlvara(spanEmissor,alvara.data,alvara.trt,alvara.processo,alvara.conta);
 
 
         coluna1.appendChild(em);
         linha.appendChild(coluna1);
 
-        //coluna2        
+        //coluna2
         linha.appendChild(inserirLinha("td",alvara.beneficiario,""));
         if (alvara.beneficiario.includes('NÃO IDENTIFICADA')) {
             linha.style.backgroundColor = 'tomato';
@@ -79,7 +79,7 @@ async function createTable(children) {
         tp.style = "font-size: 1em;padding: .5em;border-radius: .5em;font-weight: bold;";
         if (alvara.tipo == 'TRANSFERENCIA_BENEFICIARIO') {
             tp.innerText = 'TED'
-            tp.style.backgroundColor = 'gold';				
+            tp.style.backgroundColor = 'gold';
         } else if (alvara.tipo == 'RECOLHIMENTO_DARF') {
             tp.innerText = 'DARF'
             tp.style.backgroundColor = 'cadetblue';
@@ -108,28 +108,29 @@ async function createTable(children) {
         let nomeContribuinte = '';
         if (alvara.conteudoComprovante.includes('Contribuinte:')) {
             nomeContribuinte = alvara.conteudoComprovante.substring(alvara.conteudoComprovante.search('Contribuinte:'),alvara.conteudoComprovante.search('digo de Recolhimento:'));
-            if (nomeContribuinte) {                
+            if (nomeContribuinte) {
                 nomeContribuinte = nomeContribuinte.match(/(\>.{1})([A-Za-z0-9].{1,})(<{1})/)[2];
             }
         }
-        a2.setAttribute('maisPJeLink', 'https://' + alvara.trt + '/sif/alvara/incluir/' + alvara.processo + '/104/'  + alvara.conta + '?maisPJeconferir=' + nomeContribuinte);
+        https://pje.trt12.jus.br/sif-financeiro-api/api/alvaras/lista/00001258720245120059/104/3521042015223791
+        a2.setAttribute('maisPJeLink', 'https://' + alvara.trt + '/sif/alvara/incluir/' + alvara.processo + '/104/'  + alvara.conta + '?maisPJeconferir=' + nomeContribuinte + '&tamanhoPagina=30&situacaoAlvara=Aguardando Conferência');
         a2.setAttribute('target', '_blank');
         a2.onclick = function() { this.parentElement.parentElement.style.backgroundColor = "skyblue";this.style.textDecoration = "line-through"; }
         a2.onmouseover = function() { this.firstElementChild.style.display = "unset" }
         a2.onmouseout = function() { this.firstElementChild.style.display = "none" }
         a2.innerText = alvara.conta;
-        
+
         if (alvara.conteudoComprovante) {
             let linkfr = document.createElement('div');
             linkfr.style.display = 'none';
             let fr = document.createElement('iframe');
             fr.style = 'position: fixed; background-color: white; border: medium none;  width: 34vw; height: 90vh; transform: scale(0.8); top: 7vh;left: 5vw;outline: rgba(0, 0, 0, 0.5) solid 12vw;';
             fr.srcdoc = alvara.conteudoComprovante;
-            linkfr.appendChild(fr);					
-            
-            a2.appendChild(linkfr);            
+            linkfr.appendChild(fr);
+
+            a2.appendChild(linkfr);
         }
-        
+
         coluna5.appendChild(a2);
         linha.appendChild(coluna5);
 
@@ -168,8 +169,8 @@ async function createTable(children) {
 
         tbody.appendChild(linha);
     }
-   
-    tabela.appendChild(tbody);    
+
+    tabela.appendChild(tbody);
     document.body.appendChild(tabela);
 }
 
@@ -192,7 +193,7 @@ function obterEmissorDoAlvara(el,dataAlvara,trt,numeroProcesso,contajudicial) {
 
             let url = 'https://' + trt + '/sif-financeiro-api/api/alvaras/lista/' + numeroProcesso + '/104/' + contajudicial + '?pagina=1&tamanhoPagina=5&ordenacaoCrescente=false&ordenacaoColuna=dtHrSituacao';
             let resposta = await fetch(url);
-            let dados = await resposta.json();				
+            let dados = await resposta.json();
             if (!dados) { return resolver('') }
             if (!dados.resultado) { return resolver('') }
             if (dados.resultado.length <= 0) { return resolver('') }
@@ -203,9 +204,9 @@ function obterEmissorDoAlvara(el,dataAlvara,trt,numeroProcesso,contajudicial) {
                     el.innerText = dataAlvara + ' - ' + item.nomeEmissor
                     break;
                 }
-            }            
+            }
             return resolver(true);
-			
+
 		}
 	);
 }

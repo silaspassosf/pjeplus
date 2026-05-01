@@ -1,12 +1,22 @@
 {
-  "numero_processo": "1000887-73.2024.5.02.0703",
+  "numero_processo": "1001231-30.2019.5.02.0703",
   "destinatarios": [
     {
-      "nome": "RENAN GONCALVES CAPPI",
-      "cpfcnpj": "33717939823",
+      "nome": "JLA ALIMENTACAO LTDA",
+      "cpfcnpj": "09448082000106",
+      "tipo": "reu"
+    },
+    {
+      "nome": "JONES AMANCIO DOS SANTOS SILVA",
+      "cpfcnpj": "40079889867",
+      "tipo": "reu"
+    },
+    {
+      "nome": "JULIO DOS SANTOS SILVA",
+      "cpfcnpj": "40079890873",
       "tipo": "reu"
     }
   ],
   "origem": "argos_idpj_decisao",
-  "timestamp": "2026-04-14T11:22:58.786947"
+  "timestamp": "2026-04-30T15:44:04.829730"
 }

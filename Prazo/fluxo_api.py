@@ -1,10 +1,10 @@
-"""Fluxos API de Prazo (GIGS sem prazo / XS)"""
+"""Fluxos API de Prazo (GIGS xs1 via API)."""
 
 from typing import List
 
 
-def gerar_script_gigs_sem_prazo(tamanho_pagina: int = 100) -> str:
-    """Retorna script JS para listar GIGS sem prazo (sem prazo + xs) via API REST."""
+def gerar_script_gigs_xs1(tamanho_pagina: int = 100) -> str:
+    """Retorna script JS para listar GIGS com observação xs1 via API REST."""
     return f"""
 const callback = arguments[0];
 const rawCookie = document.cookie.split(';')
@@ -17,7 +17,7 @@ if (!xsrf) {{
 }}
 
 const base = location.origin;
-const params = 'filtrarAtividadesSemPrazo=true'
+const params = 'filtrarAtividadesSemPrazo=false'
              + '&filtrarAtividadesSemPrazoConcluidas=false'
              + '&ordenacaoCrescente=true'
              + '&filtrarPorDestinatario=false'
@@ -53,14 +53,14 @@ const headers = {{
             rest.forEach(p => (all = all.concat(p.resultado || [])));
         }}
 
-        const xs = all.filter(item => {{
+        const xs1 = all.filter(item => {{
             const tipo = (item.tipoAtividade && (item.tipoAtividade.descricao || item.tipoAtividade.nome)) || '';
             const observacao = (item.observacao || '').toString();
             const texto = `${{tipo}} ${{observacao}}`.toLowerCase();
-            return texto.includes('xs');
+            return texto.includes('xs1');
         }});
 
-        callback({{ totalRegistros: p1.totalRegistros, qtdPaginas: totalPages, resultado: xs }});
+        callback({{ totalRegistros: p1.totalRegistros, qtdPaginas: totalPages, resultado: xs1 }});
     }} catch (error) {{
         callback({{ erro: error.message || String(error), resultado: [] }});
     }}
@@ -68,9 +68,9 @@ const headers = {{
 """
 
 
-def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:
-    """Executa o script JS no driver e retorna as atividades XS (sem prazo)."""
-    script = gerar_script_gigs_sem_prazo(tamanho_pagina=tamanho_pagina)
+def testar_gigs_xs1(driver, tamanho_pagina: int = 100) -> List[dict]:
+    """Executa o script JS no driver e retorna as atividades XS1 via API."""
+    script = gerar_script_gigs_xs1(tamanho_pagina=tamanho_pagina)
 
     driver.set_script_timeout(60)
     try:
@@ -83,9 +83,19 @@ def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:
 
     if not response or response.get('erro'):
         erro = (response or {}).get('erro', 'sem_resposta')
-        raise RuntimeError(f"Fluxo API XS sem prazo falhou: {erro}")
+        raise RuntimeError(f"Fluxo API XS1 falhou: {erro}")
 
     return response.get('resultado', [])
+
+
+def gerar_script_gigs_sem_prazo(tamanho_pagina: int = 100) -> str:
+    """Compatibilidade: wrapper para gerar_script_gigs_xs1."""
+    return gerar_script_gigs_xs1(tamanho_pagina=tamanho_pagina)
+
+
+def testar_gigs_sem_prazo(driver, tamanho_pagina: int = 100) -> List[dict]:
+    """Compatibilidade: wrapper para testar_gigs_xs1."""
+    return testar_gigs_xs1(driver, tamanho_pagina=tamanho_pagina)
 
 
 def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processos: int = 0):
@@ -102,13 +112,13 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
     logger = logging.getLogger(__name__)
 
     progresso = carregar_progresso_p2b()
-    atividades = testar_gigs_sem_prazo(driver, tamanho_pagina=tamanho_pagina)
+    atividades = testar_gigs_xs1(driver, tamanho_pagina=tamanho_pagina)
     total_encontrado = len(atividades)
     if total_encontrado == 0:
-        logger.info('[PRAZO_API] Nenhuma atividade XS sem prazo encontrada')
+        logger.info('[PRAZO_API] Nenhuma atividade XS1 encontrada')
         return {'sucesso': True, 'total': 0, 'processados': 0}
 
-    logger.info(f'[PRAZO_API] GIGS sem prazo XS encontrados: {total_encontrado}')
+    logger.info(f'[PRAZO_API] GIGS XS1 encontrados: {total_encontrado}')
 
     # Registrar os processos que serão executados
     processos_para_executar = []
@@ -162,15 +172,31 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             driver.get(detalhe_url)
 
             try:
-                wait_for_page_load(driver, timeout=20)
-                fluxo_pz(driver)
-                processados += 1
+                # Chamar o orquestrador `fluxo_pz` para extrair + aplicar regras + executar ações
+                from .p2b_fluxo import fluxo_pz
 
-                # 2) Marcar progresso P2B somente se executado com sucesso
-                if chave_progresso:
-                    marcar_processo_executado_p2b(chave_progresso, progresso)
+                # esperar carregamento mínimo da página
+                try:
+                    wait_for_page_load(driver, timeout=20)
+                except Exception:
+                    pass
 
-                logger.info(f'[PRAZO_API] Processo {numero} processado com sucesso')
+                try:
+                    ok = fluxo_pz(driver)
+                except Exception as e:
+                    logger.error(f'[PRAZO_API] Erro ao executar fluxo_pz para processo {numero}: {e}')
+                    falhas.append({'numero': numero, 'erro': str(e)})
+                    ok = False
+
+                if ok:
+                    processados += 1
+                    if chave_progresso:
+                        marcar_processo_executado_p2b(chave_progresso, progresso)
+                    logger.info(f'[PRAZO_API] Processo {numero} processado com sucesso (fluxo_pz)')
+                else:
+                    logger.error(f'[PRAZO_API] Processo {numero} não processado pelo fluxo_pz')
+                    falhas.append({'numero': numero, 'erro': 'fluxo_pz_nao_executou'})
+
             except Exception as e:
                 logger.error(f'[PRAZO_API] Erro ao processar processo {numero}: {e}')
                 falhas.append({'numero': numero, 'erro': str(e)})

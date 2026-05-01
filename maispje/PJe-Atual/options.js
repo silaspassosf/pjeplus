@@ -125,7 +125,7 @@ async function mostrarOpcoes(restaurar=false) {
 					showConfirmButton: false,
 					timer: 1000,
 					timerProgressBar: false,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 						setTimeout(function() {
 							document.getElementById("overlay").style.display = "none";
 						}, 1000)
@@ -344,7 +344,7 @@ async function mostrarOpcoes(restaurar=false) {
 					showConfirmButton: false,
 					timer: 1000,
 					timerProgressBar: false,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 						setTimeout(function() {
 							document.getElementById("overlay").style.display = "none";
 						}, 1000)
@@ -436,7 +436,7 @@ async function mostrarOpcoes(restaurar=false) {
 					showConfirmButton: false,
 					timer: 1000,
 					timerProgressBar: false,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 						setTimeout(function() {
 							document.getElementById("overlay").style.display = "none";
 						}, 1000)
@@ -467,7 +467,7 @@ async function mostrarOpcoes(restaurar=false) {
 					showConfirmButton: false,
 					timer: 1000,
 					timerProgressBar: false,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 						setTimeout(function() {
 							document.getElementById("overlay").style.display = "none";
 						}, 1000)
@@ -516,6 +516,9 @@ async function mostrarOpcoes(restaurar=false) {
 		preencherCampoDasPreferencias('#extrasERecTipoGigsSemTema', preferencias.extrasERecTipoGigsSemTema);
 
         preencherCampoDasPreferencias('#extrasFocusSempre', preferencias.extrasFocusSempre);
+
+        preencherCampoDasPreferencias('#extrasAcionarBotoesSemCliqueAtivar', preferencias.extrasAcionarBotoesSemCliqueAtivar);
+        preencherCampoDasPreferencias('#extrasAcionarBotoesSemCliqueTempo', preferencias.extrasAcionarBotoesSemCliqueTempo);
 
 		preencherCampoDasPreferencias('#elPzoEmLote0', preferencias.extrasPrazoEmLote[0]);
 		preencherCampoDasPreferencias('#elPzoEmLote1', preferencias.extrasPrazoEmLote[1]);
@@ -732,7 +735,8 @@ async function salvarOpcoes() {
 			extrasExibirPreviaDocumentoMouseOver: document.querySelector('#extrasExibirPreviaDocumentoMouseOver')?.checked,
 			extrasExibirPreviaDocumentoFocus: document.querySelector('#extrasExibirPreviaDocumentoFocus').checked,
 			extrasFocusSempre: document.querySelector('#extrasFocusSempre').checked,
-
+            extrasAcionarBotoesSemCliqueAtivar: document.querySelector('#extrasAcionarBotoesSemCliqueAtivar').checked,
+            extrasAcionarBotoesSemCliqueTempo: document.querySelector('#extrasAcionarBotoesSemCliqueTempo')?.value,
 			extrasERecTipoGigsSemTema: document.querySelector('#extrasERecTipoGigsSemTema')?.value,
 			extrasFecharJanelaExpediente: document.querySelector('#fecharJanelaExpediente').checked,
 			extrasSugerirTipoAoAnexar: document.querySelector('#extrasSugerirTipoAoAnexar').checked,
@@ -749,7 +753,7 @@ async function salvarOpcoes() {
 			showConfirmButton: false,
 			timer: 1000,
 			timerProgressBar: false,
-			onOpen: (toast) => {
+			didOpen: (toast) => {
 				setTimeout(function() {
 					document.getElementById("overlay").style.display = "none";
 
@@ -1419,7 +1423,7 @@ async function converter_lista_de_magistrados_em_modulo8() {
 					showConfirmButton: false,
 					timer: 3000,
 					timerProgressBar: true,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 					toast.addEventListener('mouseenter', Swal.stopTimer)
 					toast.addEventListener('mouseleave', Swal.resumeTimer)
 					}
@@ -1936,7 +1940,7 @@ async function modulo9(convenio) {
 						showConfirmButton: false,
 						timer: 1500,
 						timerProgressBar: true,
-						onOpen: (toast) => {
+						didOpen: (toast) => {
 						toast.addEventListener('mouseenter', Swal.stopTimer)
 						toast.addEventListener('mouseleave', Swal.resumeTimer)
 						}
@@ -2004,7 +2008,7 @@ async function modulo9(convenio) {
 						showConfirmButton: false,
 						timer: 1500,
 						timerProgressBar: true,
-						onOpen: (toast) => {
+						didOpen: (toast) => {
 						toast.addEventListener('mouseenter', Swal.stopTimer)
 						toast.addEventListener('mouseleave', Swal.resumeTimer)
 						}
@@ -2142,7 +2146,7 @@ async function modulo9(convenio) {
 						showConfirmButton: false,
 						timer: 1500,
 						timerProgressBar: true,
-						onOpen: (toast) => {
+						didOpen: (toast) => {
 						toast.addEventListener('mouseenter', Swal.stopTimer)
 						toast.addEventListener('mouseleave', Swal.resumeTimer)
 						}
@@ -2155,7 +2159,8 @@ async function modulo9(convenio) {
 			}
 			break
 		case 'ccs':
-			let aaCCS = (preferencias.modulo9.ccs[6] ? preferencias.modulo9.ccs[6] : 'Nenhum');
+			let aaCCS1 = (preferencias.modulo9.ccs[6] ? preferencias.modulo9.ccs[6] : 'Nenhum');
+            let aaCCS2 = (preferencias.modulo9.ccs[7] ? preferencias.modulo9.ccs[7] : 'Nenhum');
 			let { value: resultccs } = await Swal.fire({
 				title: 'CCS',
 				html:
@@ -2174,10 +2179,14 @@ async function modulo9(convenio) {
 					'</fieldset>' +
 					'<div style="background-color: #95959512;padding: 10px;border-radius: 10px;"><label for="swal-input1" style="font-weight: bold;"> Velocidade de Interação no CCS (em segundos)</label>' +
 					'<input id="swal-input1" class="swal2-input" style="background-color: white;" value="' + preferencias.modulo9.ccs[5] + '"></div>' +
-					'<div><label for="swal-input2" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o protocolo da ordem? </label>' +
-					'<select id="swal-input2" class="swal2-select" style="background-color: white;width: 100%;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;">' +
-					listaAcoesAutomatizadas(aaCCS) +
-					'</select></div>',
+					'<br aria-hidden="true"><br aria-hidden="true"><label for="swal-input3" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o protocolo da ordem CCS </label>' +
+                    '<br aria-hidden="true"><div style="display: grid;grid-template-columns: 5fr 1fr;align-items: center;padding-top: 20px;"><button id="escolherAAVinculoAACCS1" aria-description="Escolher Ação Automatizada para executar após o protocolo da ordem CCS" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					aaCCS1 +
+					'</button><button id="apagar-escolherAAVinculoAACCS1" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada para executar após o protocolo da ordem CCS" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>' +
+                    '<br aria-hidden="true"><br aria-hidden="true"><label for="swal-input3" style="font-weight: bold;"> Escolher Ação Automatizada para executar após o DOWNLOAD da resposta </label>' +
+                    '<br aria-hidden="true"><div style="display: grid;grid-template-columns: 5fr 1fr;align-items: center;padding-top: 20px;"><button id="escolherAAVinculoAACCS2" aria-description="Escolher Ação Automatizada para executar após o DOWNLOAD da resposta" style="cursor: pointer; background-color: white;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);height: 2.625em;padding: 0 .75em;display: flex;align-items: center;font-size: 1em;">' +
+					aaCCS2 +
+					'</button><button id="apagar-escolherAAVinculoAACCS2" data-tooltip="Remover Ação Automatizada após PROTOCOLO da ordem de INCLUSÃO" aria-label="Remover Ação Automatizada para executar após o DOWNLOAD da resposta" style="margin-left: 15px; width: 40px; height: 40px; border: none; background: transparent; cursor: pointer;"><i class="icone trash-alt t20" style="background-color: lightgray; vertical-align: middle;"></i></button></div>',
 
 				focusConfirm: false,
 				confirmButtonText: 'Salvar',
@@ -2190,7 +2199,8 @@ async function modulo9(convenio) {
 						document.getElementById('swal2-checkbox3').checked,
 						document.getElementById('swal2-checkbox4').checked,
 						document.getElementById('swal-input1').value,
-						document.getElementById('swal-input2').value
+						document.getElementById('escolherAAVinculoAACCS1').innerText,
+                        document.getElementById('escolherAAVinculoAACCS2').innerText,
 					]
 				}
 			});
@@ -2477,7 +2487,7 @@ async function modulo9(convenio) {
 						showConfirmButton: false,
 						timer: 1500,
 						timerProgressBar: true,
-						onOpen: (toast) => {
+						didOpen: (toast) => {
 						toast.addEventListener('mouseenter', Swal.stopTimer)
 						toast.addEventListener('mouseleave', Swal.resumeTimer)
 						}
@@ -2762,7 +2772,7 @@ async function modulo9(convenio) {
 						showConfirmButton: false,
 						timer: 1500,
 						timerProgressBar: true,
-						onOpen: (toast) => {
+						didOpen: (toast) => {
 						toast.addEventListener('mouseenter', Swal.stopTimer)
 						toast.addEventListener('mouseleave', Swal.resumeTimer)
 						}
@@ -2789,7 +2799,7 @@ async function guardarModulo9() {
 					showConfirmButton: false,
 					timer: 1500,
 					timerProgressBar: true,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 					toast.addEventListener('mouseenter', Swal.stopTimer)
 					toast.addEventListener('mouseleave', Swal.resumeTimer)
 					}
@@ -2923,7 +2933,7 @@ async function ativarJuntadaDeMidia() {
 			showConfirmButton: false,
 			timer: 1500,
 			timerProgressBar: true,
-			onOpen: (toast) => {
+			didOpen: (toast) => {
 			toast.addEventListener('mouseenter', Swal.stopTimer)
 			toast.addEventListener('mouseleave', Swal.resumeTimer)
 			}
@@ -8277,7 +8287,7 @@ async function abrirJanelaConfigURLs(configBase) {
 					showConfirmButton: false,
 					timer: 1500,
 					timerProgressBar: true,
-					onOpen: (toast) => {
+					didOpen: (toast) => {
 					toast.addEventListener('mouseenter', Swal.stopTimer)
 					toast.addEventListener('mouseleave', Swal.resumeTimer)
 					}
@@ -9151,7 +9161,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 
 				if (multiplaEscolha) {
 					containerSelect.setAttribute('multiple','true');
-					containerSelect.style.minHeight = '80vh';
+					containerSelect.style.minHeight = '75vh';
 				}
 
 				let check;
@@ -9275,7 +9285,7 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', no
 
 			if (t[2]) { //opcoes
 				let spanOpt = document.createElement("span");
-				spanOpt.style = "text-align: justify;padding-left: 15%;font-weight: bold;color: darkcyan;";
+				spanOpt.style = "text-align: left;padding-left: 15%;font-weight: bold;color: darkcyan;";
 				spanOpt.innerText = t[2];
 				container.appendChild(spanOpt);
 			}

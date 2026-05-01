@@ -21,14 +21,11 @@ logger = logging.getLogger(__name__)
 # ====================================================
 
 # 0. Importações Padrão
-import json
 import os
-import re
 import sys
 import time
-import unicodedata
 from datetime import datetime
-from typing import Optional, Dict, List, Union, Tuple, Callable, Any
+from typing import Optional, Dict, List
 
 # Selenium
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -42,60 +39,7 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
 )
 
-# Módulos Locais
-from Fix.core import (
-    buscar_seletor_robusto,
-    buscar_documento_argos,
-)
-from Fix.utils import (
-    driver_pc,
-    navegar_para_tela,
-    verificar_e_tratar_acesso_negado_global,
-    handle_exception_with_recovery,
-)
-from Fix.extracao import (
-    extrair_pdf,
-    analise_outros,
-    extrair_documento,
-    criar_gigs,
-    indexar_e_processar_lista,
-    extrair_dados_processo,
-    extrair_destinatarios_decisao,
-    salvar_destinatarios_cache,
-)
-from Fix.documents import (
-    buscar_mandado_autor,
-    buscar_ultimo_mandado,
-)
-from Fix.selenium_base import (
-    esperar_elemento,
-    aguardar_e_clicar,
-    preencher_campo,
-    safe_click,
-    wait_for_visible,
-)
-from Fix.utils import (
-    sleep,
-    limpar_temp_selenium,
-    configurar_recovery_driver,
-)
-from Fix.abas import validar_conexao_driver
-from Fix.extracao import criar_lembrete_posit
-from atos import (
-    ato_judicial,
-    ato_meios,
-    ato_pesquisas,
-    ato_crda,
-    ato_crte,
-    ato_bloq,
-    ato_idpj,
-    ato_termoE,
-    ato_termoS,
-    ato_edital,
-    ato_idpj,
-    mov_arquivar,
-    ato_meiosub
-)
+
 
 with open("log.py", "w", encoding="utf-8") as f:
     f.write(f"# Última execução: {datetime.now()}\n")

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // versões do PJe - Regionais: https://portal.pje.redejt/infra/pje-versoes
 /**
  * Objeto Preferencias
@@ -47,6 +46,8 @@ var listaDeVariaveisParaEditorDeTexto = [
 	['[maisPje:último:anexos]','*'], //traz a lista de ids dos anexos "Id.xxx, Id.xxx, Id.xxx", contendo a lista de ids dos anexos do último documento juntado
 	['[maisPje:perito]',''],
 	['[maisPje:exequente:telefone]',''],
+    ['[maisPje:perguntar:texto]',''],
+    ['[maisPje:perguntar:data]',''],
     ['[maisPje:magistrado:modulo8]','']
 ];
 
@@ -61,9 +62,9 @@ browser.storage.local.get(null).then( async function(configuracoes){
 	preferencias = configuracoes;
 	if (preferencias.concordo) {
 		if (preferencias.extensaoAtiva) {
-			await checarVariaveis();
-			await sleep(preferencias.maisPje_velocidade_interacao * 0.2);
-			executar();
+            await checarVariaveis();
+            await sleep(preferencias.maisPje_velocidade_interacao * 0.2);
+            executar();
 		}
 	} else {
 		browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '+PJe: Para a extensão funcionar você precisa tomar ciência do Aviso Legal.\nClique aqui para visualizá-lo.', icone: '6'});
@@ -88,8 +89,11 @@ async function executar() {
 	const href = document.location.href;
 	if (document.location.href.includes("moz-extension:") && document.getElementById('maisPje_Janela_Conferencia_alvaras')) { return }
 	if (document.location.href.includes("moz-extension:") && document.getElementById('/PJe-Atual/options')) { return }
+    if (preferencias.extrasAcionarBotoesSemCliqueAtivar) {
+        mapearElementosParaCliqueRapido()
+    }
 
-	if (document.location.href.includes("/administracao")) {
+    if (document.location.href.includes("/administracao")) {
 		if (document.referrer.includes("login.seam")) {
 			mudarPerfil();
 			await sleep(2000);
@@ -320,17 +324,17 @@ async function executar() {
 
 		//ENDEREÇO DA PÁGINA: ANEXAR DOCUMENTOS EM DETALHES
 		} else if (document.location.href.includes("/anexar")) {
-			if (preferencias.tempBt.length > 0) {
-				if (preferencias.tempBt[0] == "acao_bt_aaAnexar") {
-					fundo(true);
-					acao_bt_aaAnexar(preferencias.tempBt[1]);
-					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
-				}
-			}
 			posicionarJanelaTarefas(preferencias.desativarAjusteJanelas);
 			// ajustarColuna("70%");
 			monitor_janela_anexar();//cria monitor para identificar a assinatura e a atualização automatica d janela detalhes
 			await addZoom_Editor(); //INCLUI O BOTÃO DE ZOOM NO EDITOR DE TEXTOS
+            if (preferencias.tempBt.length > 0) {
+				if (preferencias.tempBt[0] == "acao_bt_aaAnexar") {
+					fundo(true);
+					await acao_bt_aaAnexar(preferencias.tempBt[1]);
+					browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempBt'});
+				}
+			}
 		} else if (document.location.href.includes("/pauta-audiencias")) {
             setTimeout(configurarPautaAudiencias,500);
 		    if (document.location.href.includes("maisPje=true")) { //vem do kaizen
@@ -642,8 +646,10 @@ async function executar() {
 		}
 
 
-		await aguardarCarregamentoConvenios('P-PROGRESSBAR',2); //carregamento da barra de progresso
-		let avisoErro = await esperarElemento('snack-bar-container','Erro interno do servidor', 1);
+		// await aguardarCarregamentoConvenios('NG-PROGRESSBAR',2); //carregamento da barra de progresso
+        await sleep(2000); //aguardar carregamento... elemento com calsse ng-progressbar-active
+        let avisoErro = await esperarElemento('#toast-container div[role="alert"]','Erro interno do servidor', 1);
+        console.log(avisoErro)
 		if (avisoErro) {
 			await criarCaixaDeAlerta('ERRO','PREVJUD apresentou erro interno no servidor.\nTente novamente mais tarde!',10);
 			return;
@@ -669,19 +675,28 @@ async function executar() {
 					await preencherInput('input[id="solicitacaoCpf"]', cpfcnpj);
 					await preencherInput('input[id="solicitacaoProcesso"]', pProcesso);
 					await clicarBotao('BUTTON','SOLICITAR');
-					let aviso = await esperarElemento('snack-bar-container','Protocolo gerado');
-					await sleep(2000);
-					await clicarBotao(aviso.querySelector('button'));
+					let aviso = await esperarElemento('#toast-container div[role="alert"]');
+                    console.log(aviso.innerText)
+                    if (aviso.innerText.includes('Protocolo gerado')) {
+                        if (pos == listaPartes.length-1) { //último
+                            if (pTipo != '0' && preferencias.prevjud.aa != "Nenhum") {
+                                browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.prevjud.aa});
+                            }
+                        }
+                        fundo (false);
+                    } else if(aviso.innerText.includes('Existe solicitação em andamento')) {
+                        await criarCaixaDeAlerta('ATENÇÃO','Já existe ordem PREVJUD aguardando resposta.');
+                        fundo(false)
+                    } else {
+                        await criarCaixaDeAlerta('ERRO','ERRO maisPJe.');
+                        fundo(false)
+                    }
 
-					if (pos == listaPartes.length-1) { //último
-						if (pTipo != '0' && preferencias.prevjud.aa != "Nenhum") {
-							browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.prevjud.aa});
-						}
-					}
+
 				}
 
 				if (pTipo == '0') {
-					let url = 'https://previdenciario.pdpj.jus.br/dossie/medico?maisPje=true&acao=' + pAcao + '&tipo=1&cpf=' + pCpf + '&processo=' + pProcesso;
+					let url = 'https://previdenciario.pdpj.jus.br/dossie-medico?maisPje=true&acao=' + pAcao + '&tipo=1&cpf=' + pCpf + '&processo=' + pProcesso;
 					browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
 				}
 
@@ -693,12 +708,13 @@ async function executar() {
 				await preencherInput('input[id="pesquisaChaveTexto"]', pProcesso);
 				await clicarBotao('BUTTON','APLICAR');
 
-				await aguardarCarregamentoConvenios('P-PROGRESSBAR',2); //carregamento da barra de progresso
+				// await aguardarCarregamentoConvenios('NG-PROGRESSBAR',2); //carregamento da barra de progresso
+                await sleep(2000); //aguardar carregamento... elemento com calsse ng-progressbar-active
 
 				// console.log(preferencias.prevjud.opt1)
 				if (preferencias.prevjud.opt1) {
 
-					if (document.location.href.includes('/dossie/previdenciario')) {
+					if (document.location.href.includes('/dossie-previdenciario')) {
 						console.debug('maisPJe: PREVJUD - Dossiê Previdenciário');
 						exibir_mensagem('PREVJUD: Dossiê Previdenciário: Atualizando os relatório encontrados...');
 
@@ -706,10 +722,11 @@ async function executar() {
 						let existeIconeAtualizar;
 
 						while(true) { //clica no icone atualizar
-							existeIconeAtualizar = document.querySelector('app-previdenciario tbody tr mat-icon[title="Atualizar"]');
+							existeIconeAtualizar = document.querySelector('app-previdenciario tr[class*="mat-mdc-row"] button[title="Atualizar"]');
 							if (existeIconeAtualizar && primeiraConsulta) {
 								existeIconeAtualizar.click();
-								let resposta = await aguardarCarregamentoConvenios('P-PROGRESSBAR',2); //carregamento da barra de progresso
+								// let resposta = await aguardarCarregamentoConvenios('NG-PROGRESSBAR',2); //carregamento da barra de progresso
+                                await sleep(2000); //aguardar carregamento... elemento com calsse ng-progressbar-active
 								if (resposta) { //se for verdadeira, ou seja, clica e espera o loading
 									primeiraConsulta = false;
 								}
@@ -719,21 +736,25 @@ async function executar() {
 						}
 
 						// //se ainda assim, o incone de atualizar está presente, a resposta não está pronta
-						existeIconeAtualizar = document.querySelector('app-previdenciario tbody tr mat-icon[title="Atualizar"]');
+						existeIconeAtualizar = document.querySelector('app-previdenciario tr[class*="mat-mdc-row"] button[title="Atualizar"]');
 						if (!existeIconeAtualizar) {
-
+                            fundo(true);
 							console.debug('maisPJe: PREVJUD baixar relatórios');
+                            fundo(true);
 							exibir_mensagem('PREVJUD: Dossiê Previdenciário: Baixando os relatório encontrados...');
 							// await sleep(1000);
 
 							//clica no icone Visualizar
-							let linhasEncontradas = document.querySelectorAll('app-previdenciario tbody tr');
+							let linhasEncontradas = document.querySelectorAll('app-previdenciario tr[class*="mat-mdc-row"]');
 
 							for (const [pos, linha] of linhasEncontradas.entries()) {
-								let btVisualizar = linha.querySelector('mat-icon[title="Visualizar"]');
+                                console.log(linha)
+								let btVisualizar = linha.querySelector('button[title="Visualizar"]');
+                                console.log(btVisualizar)
 								if (btVisualizar) {
-									await clicarBotao(btVisualizar.parentElement.parentElement);
-									await aguardarCarregamentoConvenios('P-PROGRESSBAR',2); //carregamento da barra de progresso
+									await clicarBotao(btVisualizar);
+									// await aguardarCarregamentoConvenios('NG-PROGRESSBAR',2); //carregamento da barra de progresso
+                                    await sleep(2000); //aguardar carregamento... elemento com calsse ng-progressbar-active
 									//tem que esperar relatorio por relatorio senão, as vezes deixa de baixar algum
 
 									//Quadro Resumo
@@ -775,16 +796,18 @@ async function executar() {
 
 						fundo(false);
 
-					} else if (document.location.href.includes('/dossie/medico')) {
+					} else if (document.location.href.includes('/dossie-medico')) {
 						console.debug('maisPJe: PREVJUD - Dossiê Médico');
+                        fundo(true)
 						exibir_mensagem('PREVJUD: Dossiê Médico: Atualizando os relatório encontrados...');
 
 						//clica no icone atualizar
 						while(true) {
-							let existeIconeAtualizar = document.querySelector('app-medico tbody tr mat-icon[title="Atualizar"]');
+							let existeIconeAtualizar = document.querySelector('app-dossie-medico tr[class*="mat-mdc-row"] button[title="Atualizar"]');
 							if (existeIconeAtualizar) {
 								existeIconeAtualizar.click();
-								await aguardarCarregamentoConvenios('P-PROGRESSBAR',2); //carregamento da barra de progresso
+								// await aguardarCarregamentoConvenios('NG-PROGRESSBAR',2); //carregamento da barra de progresso
+                                await sleep(2000); //aguardar carregamento... elemento com calsse ng-progressbar-active
 							} else {
 								break;
 							}
@@ -794,22 +817,22 @@ async function executar() {
 						exibir_mensagem('PREVJUD: Dossiê Médico: Baixando os relatório encontrados...');
 						// await sleep(1000);
 
-						let linhasEncontradas = document.querySelectorAll('app-medico tbody tr')
+						let linhasEncontradas = document.querySelectorAll('app-dossie-medico tr[class*="mat-mdc-row"]')
+                        console.log(linhasEncontradas)
 						for (const [pos, linha] of linhasEncontradas.entries()) {
-							let btBaixarPDF = linha.querySelector('mat-icon[title="Baixar PDF"]');
+							let btBaixarPDF = linha.querySelector('button[title="Baixar PDF"]');
+                            console.log(btBaixarPDF)
 							if (btBaixarPDF) {
-								await clicarBotao(btBaixarPDF.parentElement.parentElement);
-
-								let avisoSemDossie = await esperarElemento('snack-bar-container','Esse processo não possui dossiê.',1000); //espera aparecer o aviso por um segundo
-								if (!avisoSemDossie) {
-									existeResposta = 'sim';
-									linha.style = 'background-color: orange !important;';
-								} else {
-									avisoSemDossie.querySelector('button').click();
-									linha.style = 'background-color: pink !important;';
+								await clicarBotao(btBaixarPDF);
+								let avisoSemDossie = await esperarElemento('#toast-container div[role="alert"]');
+								if (avisoSemDossie.innerText.includes('Esse processo não possui dossiê')) {
+                                    linha.style = 'background-color: pink !important;';
 									linha.children[4].innerText = 'SEM DOSSIÊ';
 									linha.children[4].style.fontWeight = 'bold';
-								}
+                                } else {
+                                    existeResposta = 'sim';
+									linha.style = 'background-color: orange !important;';
+                                }
 
 								exibir_mensagem('PREVJUD: Dossiê Previdenciário: Baixando os relatório encontrados... ' + (pos+1));
 							}
@@ -826,7 +849,7 @@ async function executar() {
 				}
 
 				if (pTipo == '0') { //sempre começa no previdenciario
-					let url = 'https://previdenciario.pdpj.jus.br/dossie/medico?maisPje=true&acao=' + pAcao + '&tipo=1&processo=' + pProcesso + '&existeResposta=' + existeResposta;
+					let url = 'https://previdenciario.pdpj.jus.br/dossie-medico?maisPje=true&acao=' + pAcao + '&tipo=1&processo=' + pProcesso + '&existeResposta=' + existeResposta;
 					browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight, abrirEmAba: true});
 				}
 				fundo(false)
@@ -984,7 +1007,7 @@ async function executar() {
 			if (document.location.href.includes('maisPje=preencherCampos')) {
 				await menuConvenios("CCS","preencherCampos");
 
-			} else if (document.location.href.includes('maisPje=consultar')) {
+			} else if (document.location.href.includes('maisPje=detalhamento')) {
 
 				let parametros = new URLSearchParams(document.location.href);
 				let protocolo = parametros.get('protocolo') || '';
@@ -1002,6 +1025,21 @@ async function executar() {
 				bt_consultar.focus();
 				await timer(bt_consultar, preferencias.modulo9.ccs[5], 'orangered');
 
+            } else if (document.location.href.includes('maisPje=consultar')) {
+
+				let parametros = new URLSearchParams(document.location.href);
+				let protocolo = parametros.get('protocolo') || '';
+				protocolo = await extrairNumeros(protocolo,true);
+				console.log('Processo: ' + protocolo)
+				console.log("      |___NUMERO DO PROTOCOLO");
+				let bt_requisicao = await esperarElemento('a[href*="baixarArquivo.do?method=baixarArquivo&nomeArquivo="][href*="' + protocolo + '"]');
+				bt_requisicao.focus();
+                await timer(bt_requisicao, preferencias.modulo9.ccs[5], 'orangered');
+                await sleep(2000);
+                let guardarStorage = browser.storage.local.set({'tempBt': ['vinculo', preferencias.modulo9.ccs[7]]});
+	            Promise.all([guardarStorage]).then(values => {
+                    window.close();
+                });
 
 			} else {
 				await menuConvenios("CCS");
@@ -1047,12 +1085,6 @@ async function executar() {
 
                         copiarClipboard(textocopiado);
 
-
-
-
-
-
-
 						browser.runtime.sendMessage({tipo: 'criarAlerta', valor: 'Número da ordem CCS (' + textocopiado + ') copiada para a memória (CTRL + C)!!\n Use apenas CTRL + V para guardar essa informação..', icone: '5'});
 						setTimeout(async function() {
 							el.classList.add('maisPje_destaque_elemento_off');
@@ -1061,6 +1093,12 @@ async function executar() {
 						}, 1000);
 					}
 				}
+
+                if (document.location.href.includes('exibirRequisicoesRealizadas.do?method=consultarRequisicoes')) {
+                    let bt_gerarDetalhamento = await esperarElemento('input[value="Gerar Arquivo PDF com Detalhamentos"]');
+				    bt_gerarDetalhamento.focus();
+                    await timer(bt_gerarDetalhamento, preferencias.modulo9.ccs[5], 'orangered');
+                }
 			}
 		}
 
@@ -1139,6 +1177,7 @@ async function executar() {
 				if (tituloDaPagina.includes('Autorizar Cancelamento')) {
 
                     let opcoes = await criarCaixaSelecao(['Sim','Não'], 'Você tem certeza que deseja Prosseguir?\nO processo que será excluído é o:\n' + preferencias.processo_memoria.numero,'Nenhum',false,true);
+                    console.log(opcoes)
                     if (!opcoes) {
                         if (preferencias.modulo9.cnib.exclusao[0] == 1 && preferencias.tempAR == 'EXCLUIR CNIB') { //total
                             let btTotal = await esperarElemento('.nav-link','Total');
@@ -1176,6 +1215,10 @@ async function executar() {
                             }
                             await preencherInputNumeroProcesso(preferencias.processo_memoria.numero);//o preenchimento do input já dispara a pesquisa
                             browser.storage.local.set({'tempAR': ''});
+
+                        } else if (preferencias.modulo9.cnib.exclusao[0] == 0 && preferencias.tempAR == 'EXCLUIR CNIB') { //QUERO ESCOLHER
+                            await preencherInputNumeroProcesso(preferencias.processo_memoria.numero);//o preenchimento do input já dispara a pesquisa
+
                         }
                     } else {
                         console.log('   |___cancelado!')
@@ -1512,7 +1555,7 @@ async function executar() {
 						// console.log(valorTotal)
 
 						//cria a linha Nova com o Valor Total e botao de proporcionalizar
-						let tabela = el_valorCustas.parentElement.parentElement.parentElement;
+						let tabela = el_valorCustas.parentElement;
 						let trNovo1 = document.createElement('tr');
 						trNovo1.className = 'ui-widget-content ui-panelgrid-even';
 						trNovo1.setAttribute('role','row');
@@ -1684,7 +1727,7 @@ async function executar() {
 					return
 				}
 				for (const [pos, botao] of listaDeBotoes.entries()) {
-					let linha = botao.parentElement.parentElement;
+					let linha = botao;
 					linha.style.filter = 'contrast(0.5)';
 					linha.style.border = '1px solid orangered';
 
@@ -1705,6 +1748,7 @@ async function executar() {
 					let btSalvar = await esperarElemento('div[id="formRpvPrazo:dlgRpvPrazo"][aria-hidden="false"] button[id="formRpvPrazo:btnDlgPrazoSalvar"]');
 					btSalvar.style.backgroundColor = 'orangered';
 					await clicarBotao(btSalvar);
+                    await esperarDesaparecer('div[id*="dialogStatus_modal"]',1000); //a cada 1 segundo
 
 					linha.style.filter = 'revert';
 					linha.style.border = 'revert';
@@ -1854,7 +1898,7 @@ async function executar() {
 
 				let el = await clicarBotao('button[placeholder*="consultar extrato"]');
 				fundo(false);
-				await esperarTransicaoSIF(60000,'PJE-SPINNER-DIALOG');
+				await esperarTransicaoSIF('PJE-SPINNER-DIALOG');
 				acao4();
 			}
 
@@ -1886,25 +1930,61 @@ async function executar() {
 
 			if (document.location.href.includes("?maisPJeconferir")) {
 				fundo(true);
-				await esperarTransicaoSIF(60000,'PJE-SPINNER-DIALOG');
-				await escolherOpcaoTeste('mat-select[aria-label="Items per page:"], pje-paginador mat-select[aria-labelledby="mat-select-value-7"]','30');
-				await esperarTransicaoSIF(5000,'PJE-SPINNER-DIALOG');
 
-				let listaDeAlvaras = await esperarColecao('table tbody tr');
-				for (const [pos, alvara] of listaDeAlvaras.entries()) {
+                let parametros = new URLSearchParams(document.location.href);
+                let tamanhoPagina = parametros.get('tamanhoPagina') || '';
+                let situacaoAlvara = parametros.get('situacaoAlvara') || '';
 
-					if (alvara.childNodes[4].innerText.includes('Aguardando conferência') && alvara.childNodes[7].innerText.length < 3) {
-						console.log('maisPje: conferindo o alvará da linha ' + pos + ': ' + alvara.innerText);
-						//não posso mais usar o objeto alvará, tendo que pegar uma nova lista, pois a cada conferência a tabela é renovada e os elementos deixam de existir
-						let newLista = await esperarColecao('table tbody tr');
-						newLista[pos].querySelector('button[mattooltip="Conferir"]').click();
-						await esperarTransicaoSIF();
-						fundo(false);
-						await esperarConferenciaAlvaraSif('Conferir e Salvar');
-						fundo(true);
-						await esperarTransicaoSIF(60000,'cdk-column-nomeConferidor');
-					}
-				}
+                await esperarTransicaoSIF('PJE-SPINNER-DIALOG');
+
+                if (situacaoAlvara) {
+                    await escolherOpcaoTeste('pje-listar-alvara mat-select[aria-labelledby*="mat-select-value-3"]',situacaoAlvara);
+                    await clicarBotao('.cdk-overlay-transparent-backdrop');
+                    await esperarTransicaoSIF('PJE-SPINNER-DIALOG');
+
+                }
+
+                if (tamanhoPagina) {
+                    await escolherOpcaoTeste('mat-select[aria-label="Items per page:"], pje-paginador mat-select[aria-labelledby="mat-select-value-7"]',tamanhoPagina);
+                    await esperarTransicaoSIF('PJE-SPINNER-DIALOG');
+                }
+
+                fundo(false);
+
+				let aguardaCarregamento = await esperarColecao('table tbody tr td[class*="mat-column-nomeConferidor"]');
+                if (aguardaCarregamento) {
+                    // for (const [pos, alvara] of listaDeAlvaras.entries()) {
+                    //     if (alvara.childNodes[4].innerText.includes('Aguardando conferência') && alvara.childNodes[7].innerText.length < 3) {
+                    //         console.log('maisPje: conferindo o alvará da linha ' + pos + ': ' + alvara.innerText);
+                    //         //não posso mais usar o objeto alvará, tendo que pegar uma nova lista, pois a cada conferência a tabela é renovada e os elementos deixam de existir
+                    //         let newLista = await esperarColecao('table tbody tr');
+                    //         newLista[pos].querySelector('button[mattooltip="Conferir"]').click();
+                    //         await esperarTransicaoSIF();
+                    //         fundo(false);
+                    //         await esperarConferenciaAlvaraSif('Conferir e Salvar');
+                    //         fundo(true);
+                    //         await esperarTransicaoSIF('cdk-column-nomeConferidor');
+                    //     }
+                    // }
+
+                    while (true) {
+                        let primeiraLinha = document.querySelector('table tbody tr td[class*="mat-column-nomeConferidor"]');
+                        if (!primeiraLinha) { break }
+                        if (primeiraLinha.innerText = '---') {
+                            await clicarBotao(primeiraLinha.parentElement.querySelector('button[mattooltip="Conferir"]'));
+                            await esperarTransicaoSIF();
+                            console.log('0')
+                            await esperarConferenciaAlvaraSif('Conferir e Salvar');
+                            console.log('1')
+                            await esperarTransicaoSIF('SIMPLE-SNACK-BAR');
+                            console.log('2')
+                            await sleep(1000);
+                        } else { break }
+                        console.log('next')
+                    }
+
+                    console.log('saiu')
+                }
 
 				await sleep(1000);
 
@@ -1934,6 +2014,7 @@ async function executar() {
 					clearInterval(check);
 					let situacaoMandado = await esperarElemento('#statusAlvara');
 					let opcao = situacaoMandado.querySelector('option[value="GRAVADO"]');
+                    // let opcao = situacaoMandado.querySelector('option[value="FINALIZADO"]'); //********************************************************** */
 					opcao.setAttribute('selected','selected');
 					triggerEvent(situacaoMandado, 'change');
 					await clicarBotao('#bt_pesquisar_alvara');
@@ -2255,7 +2336,7 @@ async function executar() {
 			}
 
 			let ancora = document.querySelector('maisPjeInformacaoAdicional');
-			let info = elemento.parentElement.parentElement.innerText;
+			let info = elemento.innerText;
 			info = info.replace(/\n/gm,';');
 			// let padraoCurrency = /[0-9]\d{0,2}(?:\.\d{3})*,\d{2}/gm;
 			// console.log(info);
@@ -2296,8 +2377,8 @@ async function executar() {
 		// 	await clicarBotao('#mat_row_lista_processo');
 		// }
 
-	} else if (href.includes(".jus.br/erec/assistente")) {
-		configurarERec();
+	} else if (href.includes(".jus.br/erec/")) {
+		configurarERec(href);
 
 	} else if (href.includes("/cpf/consultasituacao/ConsultaPublicaExibir.asp")) {
 		// https://servicos.receita.fazenda.gov.br/servicos/cpf/consultasituacao/ConsultaPublicaExibir.asp
@@ -2418,7 +2499,6 @@ async function checarVariaveis() {
 	preencherVariaveisModulo1(preferencias);
 	// preferencias.gigsPesquisaDeDocumentos = typeof(preferencias.gigsPesquisaDeDocumentos) == "undefined" ? 0 : preferencias.gigsPesquisaDeDocumentos; --> função desativada
 	preferencias.guiaPersonalizadaDetalhes = typeof(preferencias.guiaPersonalizadaDetalhes) == "undefined" ? '' : preferencias.guiaPersonalizadaDetalhes;
-	preferencias.pesquisaRapidaDeProcessoEmAba = typeof(preferencias.pesquisaRapidaDeProcessoEmAba) == "undefined" ? false : preferencias.pesquisaRapidaDeProcessoEmAba;
 	//TODO: essa variavel esta em milissegundos aqui e em segundos no storage.js. Qual o correto?
 	preferencias.maisPje_velocidade_interacao = typeof(preferencias.maisPje_velocidade_interacao) == "undefined" ? 1000 : preferencias.maisPje_velocidade_interacao * 1000; //NA HORA DE USAR EU CONVERTO EM SEGUNDOS
 	preencherVariaveisModulo7(preferencias);
@@ -3285,14 +3365,11 @@ async function guardarOJdoUsuario(aForca=false) {
 			//Nesse caso a troca de papel do usuário é identificada também como reload
 			if (performance.getEntriesByType("navigation")[0].type == 'reload') {
 				// guardar o ojUsuarioId
-				codigoOJ = await obterCodigoOJ();
-				if (codigoOJ) { //so chama a api se achar algum codigo
-					oj_usuarioId = await apis.permissaoPerfisOjUsuario.executar(preferencias.trt,{codigoOJ});
-				}
+                ({ codigoOJ, oj_usuarioId } = await carregarIdOJUsuario(codigoOJ, oj_usuarioId));
 				if (!oj_usuarioId?.codigoOrigem) {
 					return resolve(false);
 				} else {
-					let gs = browser.storage.local.set({'oj_usuarioId': oj_usuarioId.codigoOrigem});
+					let gs = browser.storage.local.set({'oj_usuarioId': oj_usuarioId?.codigoOrigem});
 					Promise.all([gs]).then(values => {
 						preferencias.oj_usuarioId = oj_usuarioId?.codigoOrigem;
 						return resolve(true);
@@ -3314,18 +3391,17 @@ async function guardarOJdoUsuario(aForca=false) {
 		let nm_usuario = ancora.childNodes[0].innerText;
 		let oj_usuario = ancora.childNodes[1].innerText;
 		let papel_usuario = ancora.childNodes[3].innerText;
-		codigoOJ = await obterCodigoOJ();
-		oj_usuarioId = await apis.permissaoPerfisOjUsuario.executar(preferencias.trt,{codigoOJ});
+        ({ codigoOJ, oj_usuarioId } = await carregarIdOJUsuario(codigoOJ, oj_usuarioId));
 		// console.log('codigoOJ --- ' + codigoOJ)
 		// console.log('oj_usuarioId --- ' + JSON.stringify(oj_usuarioId));
 		console.debug('maisPJe> Guardando informações do usuários na memória')
 		console.debug('maisPJe> Servidor: Sim')
 		console.debug('maisPJe> Nome: ' + nm_usuario)
 		console.debug('maisPJe> OJ: ' + oj_usuario)
-		console.debug('maisPJe> OJ Código: ' + oj_usuarioId?.codigoOrigem)
+		console.debug('maisPJe> OJ Código Origem: ' + oj_usuarioId?.codigoOrigem)
 		console.debug('maisPJe> Papel: ' + papel_usuario)
 
-		let guardarStorage = browser.storage.local.set({'nm_usuario': nm_usuario, 'papel_usuario': papel_usuario, 'oj_usuario': oj_usuario, 'oj_usuarioId': oj_usuarioId.codigoOrigem});
+		let guardarStorage = browser.storage.local.set({'nm_usuario': nm_usuario, 'papel_usuario': papel_usuario, 'oj_usuario': oj_usuario, 'oj_usuarioId': oj_usuarioId?.codigoOrigem});
 		Promise.all([guardarStorage]).then(values => {
 			preferencias.nm_usuario = nm_usuario;
 			preferencias.oj_usuario = oj_usuario;
@@ -3335,33 +3411,42 @@ async function guardarOJdoUsuario(aForca=false) {
 		});
 	});
 
+
+    async function carregarIdOJUsuario(codigoOJ, oj_usuarioId) {
+        const dadosAutenticacao = await obterCodigoOJ();
+        codigoOJ = dadosAutenticacao?.codigoOJ;
+        if (codigoOJ) { //so chama a api se achar algum codigo
+            oj_usuarioId = await apis.orgaoJulgadorPorId.executar(preferencias.trt,{codigoOJ});
+        }
+        return { codigoOJ, oj_usuarioId };
+    }
+
+    /**
+     *
+     * @returns {Promise<{
+        codigoOJ: number;
+        codigoOJC: number;
+    }>}
+    */
 	function obterCodigoOJ() {
 		return new Promise(async resolve => {
 			//faz o request para identificar qual o orgao julgador do usuairo. A primeira vez, no login, não há identificação de troca de perfil. A partir de então, quando houver troca de perfil entro do sistema, o novo codigo do orgao julgador é obtido
 			//https://pje.trt12.jus.br/pje-comum-api/api/orgaosjulgadores/23
-			let cdOJ = undefined;
 			try {
-				cdOJ = await getOrgaoJulgadorId();
-				if (!!cdOJ) {
+                const dadosAutenticacao = await getDadosAutenticacaoOJOJC();
+				if (!!dadosAutenticacao.codigoOJ || !!dadosAutenticacao.codigoOJC) {
 					browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atalho Rápido', icone: 'ico_16.png'});
-					return resolve(cdOJ);
-				}
+					return resolve(dadosAutenticacao);
+				} else {
+                    await criarCaixaDeAlerta('ÓRGÃO JULGADOR NÃO IDENTIFICADO', "\nO maisPJe não conseguiu identificar o código interno do seu órgão julgador.\n\nEssa informação é obtida quando você faz o login no PJe.\n\nFavor refazer o processo de login, clicando no botão vermelho 'Sair'.\n\n",60)
+                    return resolve(false);
+                }
 			} catch (e) {
 				browser.runtime.sendMessage({tipo: 'iconeNavegador', valor: '+PJe: Atenção', icone: 'ico_16_alerta.png'});
 				console.error("Erro ao carregar OJ do access_token", e);
-			}
-			//TODO: apos confirmar que o metodo acima esta funcionando, acredito que possamos apagar o que vem abaixo
-			cdOJ = await obterUrlDoNetworkRequest('/pje-comum-api/api/orgaosjulgadores/', true);
-			if (cdOJ == 'Nenhum' || !cdOJ) {
-				cdOJ = await obterUrlDoNetworkRequest('/pje-comum-api/api/orgaosjulgadores/')
-				cdOJ = cdOJ.substring(cdOJ.search('orgaosjulgadores/')+17);
-				if (cdOJ.length < 1) {
-					await criarCaixaDeAlerta('ÓRGÃO JULGADOR NÃO IDENTIFICADO', "\nO maisPJe não conseguiu identificar o código interno do seu órgão julgador.\n\nEssa informação é obtida quando você faz o login no PJe.\n\nFavor refazer o processo de login, clicando no botão vermelho 'Sair'.\n\n",60)
-					return resolve(false);
-				} else {
-					return resolve(cdOJ)
-				}
-			}
+                await criarCaixaDeAlerta('ÓRGÃO JULGADOR NÃO IDENTIFICADO', "\nO maisPJe não conseguiu identificar o código interno do seu órgão julgador.\n\nEssa informação é obtida quando você faz o login no PJe.\n\nFavor refazer o processo de login, clicando no botão vermelho 'Sair'.\n\n",60)
+                return resolve(false);
+            }
 		});
 	}
 }
@@ -4436,11 +4521,11 @@ function addBotaoTarefas() {
 		let ancora = document.querySelector('section[aria-label="Ações da tarefa"]');
 		if(ancora) {
 			clearInterval(check);
-			if (document.getElementById('pjextension_bt_detalhes_base')) { return }
+			if (document.getElementById('maisPje_bt_tarefa_base')) { return }
 
 			//DIV AGRUPADOR
 			let div1 = document.createElement("div");
-			div1.id = "pjextension_bt_detalhes_base";
+			div1.id = "maisPje_bt_tarefa_base";
 			div1.style = "float: left";
 			div1.setAttribute('role', 'toolbar');
 
@@ -4511,7 +4596,7 @@ function criarBotaoDetalhes({ tooltip, complementoStyle = '',
 async function addBotaoDetalhes() {
 	let check = setInterval(async function() {
 		let ancora = document.querySelector('pje-resumo-processo mat-card[class*="resumo-processo"]');
-		if(ancora && !document.getElementById('pjextension_bt_detalhes_base')) {
+		if(ancora && !document.getElementById('maisPJe_bt_detalhes_base')) {
 			clearInterval(check);
 
 			//DESCRIÇÃO: REGRA DO TOOLTIP
@@ -4520,7 +4605,7 @@ async function addBotaoDetalhes() {
 			}
 
 			let base = document.createElement("div");
-			base.id = "pjextension_bt_detalhes_base";
+			base.id = "maisPJe_bt_detalhes_base";
 			base.style = "width: 100%;height: 100%; display: flex; align-items: center;";
 
 			//DESCRIÇÃO: EVENTO QUE CONTROLA A SENSIBILIDADE DO CARREGAMENTO DOS BOTÕES REFERENTES AS AÇÕES AUTOMATIZADAS
@@ -4703,7 +4788,6 @@ async function addBotaoDetalhes() {
 			if (preferencias.atalhosDetalhes[4]) {
 				let botao4 = criarBotaoDetalhes({
 					id: "maisPJe_bt_detalhes_anexarDocumentos",
-					id: "pjextension_bt_detalhes_4",
 					tooltip: 'Anexar Documentos',
 					iconClass: "fa fa-paperclip",
 				});
@@ -4717,6 +4801,7 @@ async function addBotaoDetalhes() {
 					}
 					botao4.onmouseleave = function () {this.style.color = 'rgba(0, 0, 0, 0.87)';elementoAtivo = "";}
 				}
+
 				botao4.onclick = function () {acaoBotaoDetalhes("Anexar Documentos")};
 				base.appendChild(botao4);
 			}
@@ -5097,13 +5182,13 @@ async function addBotaoDetalhes() {
 				let processoNumero = await extrairNumeroProcesso(titulo.innerText);
 				const botao25 = await criarLinkPotencialConciliaJT(processoNumero);
 				botao25.style = "cursor: pointer; position: relative; vertical-align: -moz-middle-with-baseline; padding: 5px; top: 5px; z-index: 6; opacity: 0.87; font-size: 1.7rem; margin: 5px;";
-				if (botao25) { document.querySelector('#pjextension_bt_detalhes_base')?.appendChild(botao25) }
+				if (botao25) { document.querySelector('#maisPJe_bt_detalhes_base')?.appendChild(botao25) }
 			}
 			//*************************
 
 			//ajustar a altura ba barra de acordo com a extensão AVJT
 			let btAVJT = await esperarElemento('botao[id="menu-do-processo-expandido-configuracoes"]',null,2000);
-			document.getElementById('pjextension_bt_detalhes_base').style.marginTop = (!btAVJT) ? alturaAjusteAVJT : '15px';
+			document.getElementById('maisPJe_bt_detalhes_base').style.marginTop = (!btAVJT) ? alturaAjusteAVJT : '15px';
 		}
 	}, 100);
 
@@ -5346,6 +5431,7 @@ async function addBotaoGigs() {
 			let listaDeComentarios = await esperarColecao('pje-gigs-comentarios tbody span[class*="descricao"]');
 			if (listaDeComentarios) {
 				for (const [pos, comentario] of listaDeComentarios.entries()) {
+
 					let textoDoComentario = comentario.innerText.toLowerCase();
 					if (textoDoComentario == '') { continue }
 
@@ -5357,23 +5443,19 @@ async function addBotaoGigs() {
 					}
 
                     if (padraoProcesso.test(textoDoComentario)) {
+
                         let numero = textoDoComentario.match(padraoProcesso).join();
-                        let bt_processo = document.createElement("a");
-                        let ic_processo = document.createElement("i");
-                        bt_processo.id = "extensaoPje_comentario_gigs_bt_processo_" + pos;
-                        ic_processo.id = "extensaoPje_comentario_gigs_ic_processo_" + pos;
-                        bt_processo.title = "Ir para";
-                        ic_processo.className = "fas fa-search";
-                        ic_processo.style = "color: white;background-color: #0078aa;padding: 5px;border-radius: 20px;";
-                        bt_processo.style = "cursor: pointer; position: relative; padding: 5px; z-index: 100; opacity: 1;";
-                        bt_processo.onmouseover = function () {bt_processo.style.opacity = 0.5};
-                        bt_processo.onmouseleave = function () {bt_processo.style.opacity = 1};
-                        bt_processo.onclick = function () {
+                        let botao = await criarBotaoAcoplado(
+                            "padraoProcesso_comentario_" + pos,
+                            "Ir para " + numero,
+                            'fas fa-search',
+                            async function () {
                             console.log("Extensão maisPJE (" + agora() + "): Ir para o processo");
-                            consultaRapidaPJE(numero)
-                        };
-                        bt_processo.appendChild(ic_processo);
-                        comentario.appendChild(bt_processo);
+                                let num = await extrairNumeroProcesso(numero);
+                                consultaRapidaPJE(num);
+                    }
+                        );
+                        comentario.appendChild(botao);
                     }
 				}
 			}
@@ -5764,13 +5846,13 @@ async function addBotaoGigs() {
 
                         let url;
                         if (opt == 0) { //medico
-                            url = 'https://previdenciario.pdpj.jus.br/dossie/medico?maisPje=true&acao=incluir&tipo=1&cpf=' + quem + '&processo=' + processoNumero;
+                            url = 'https://previdenciario.pdpj.jus.br/dossie-medico?maisPje=true&acao=incluir&tipo=1&cpf=' + quem + '&processo=' + processoNumero;
 
                         } else if (opt == 1) { //previdenciario
-                            url = 'https://previdenciario.pdpj.jus.br/dossie/previdenciario?maisPje=true&acao=incluir&tipo=2&cpf=' + quem + '&processo=' + processoNumero;
+                            url = 'https://previdenciario.pdpj.jus.br/dossie-previdenciario?maisPje=true&acao=incluir&tipo=2&cpf=' + quem + '&processo=' + processoNumero;
 
                         } else if (opt == 2) { //ambos
-                            url = 'https://previdenciario.pdpj.jus.br/dossie/previdenciario?maisPje=true&acao=incluir&tipo=0&cpf=' + quem + '&processo=' + processoNumero;
+                            url = 'https://previdenciario.pdpj.jus.br/dossie-previdenciario?maisPje=true&acao=incluir&tipo=0&cpf=' + quem + '&processo=' + processoNumero;
                         }
 
                         browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
@@ -5791,13 +5873,13 @@ async function addBotaoGigs() {
                         let opt = await criarCaixaSelecao(['Dossiê Médico','Dossiê Previdenciário','Ambos'],'Deseja solicitar qual dossiê?','Nenhum',false,true);
                         let url;
                         if (opt == 0) { //medico
-                            url = 'https://previdenciario.pdpj.jus.br/dossie/medico?maisPje=true&acao=consultar&tipo=1&processo=' + processoNumero;
+                            url = 'https://previdenciario.pdpj.jus.br/dossie-medico?maisPje=true&acao=consultar&tipo=1&processo=' + processoNumero;
 
                         } else if (opt == 1) { //previdenciario
-                            url = 'https://previdenciario.pdpj.jus.br/dossie/previdenciario?maisPje=true&acao=consultar&tipo=2&processo=' + processoNumero;
+                            url = 'https://previdenciario.pdpj.jus.br/dossie-previdenciario?maisPje=true&acao=consultar&tipo=2&processo=' + processoNumero;
 
                         } else if (opt == 2) { //ambos
-                            url = 'https://previdenciario.pdpj.jus.br/dossie/previdenciario?maisPje=true&acao=consultar&tipo=0&processo=' + processoNumero;
+                            url = 'https://previdenciario.pdpj.jus.br/dossie-previdenciario?maisPje=true&acao=consultar&tipo=0&processo=' + processoNumero;
                         }
 
                         browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
@@ -5806,7 +5888,7 @@ async function addBotaoGigs() {
                 );
                 atividade.appendChild(botao);
 
-            }else if (prazoOUpreparo == 'preparo' && (textoDaAtividade.includes('ajjt') || textoDaAtividade.includes('rhp') || textoDaAtividade.includes('requisição de honorários periciais'))) {
+            } else if (prazoOUpreparo == 'preparo' && (textoDaAtividade.includes('ajjt') || textoDaAtividade.includes('rhp') || textoDaAtividade.includes('requisição de honorários periciais'))) {
 
                 let botao = await criarBotaoAcoplado(
                     "padraoRHPfazer_" + pos,
@@ -5830,7 +5912,7 @@ async function addBotaoGigs() {
                     'fas fa-search',
                     async function () {
                         //Obrigado a fazer a pergunta ao usuário antes pois senão o link entra num looping de autenticação que trava o CCS
-                        let opcoes = await criarCaixaSelecao(['Sim','Fazer Login'], 'Você já efetuou o login no sistema CCS?','Nenhum',false,true);
+                        let opcoes = await criarCaixaSelecao(['Sim','Fazer Login'], 'Você já efetuou o login no sistema AJJT?','Nenhum',false,true);
                         if (!opcoes) {
                             let processoNumero = await obterNumeroDoProcessoNaTela();
                             console.log("Extensão maisPJE (" + agora() + "): consultar ajjt");
@@ -5838,7 +5920,7 @@ async function addBotaoGigs() {
                             browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
                             await sleep(2000); //esperar abrir a janela
                         } else {
-                            browser.runtime.sendMessage({tipo: 'criarJanela', url: 'https://www3.bcb.gov.br/ccs/indexEstatico.jsp', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
+                            browser.runtime.sendMessage({tipo: 'criarJanela', url: 'https://aj.sigeo.jt.jus.br/aj', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
                         }
                     }
                 );
@@ -5853,12 +5935,22 @@ async function addBotaoGigs() {
                     async function () {
                         console.log("Extensão maisPJE (" + agora() + "): Consultar CCS");
                         //Obrigado a fazer a pergunta ao usuário antes pois senão o link entra num looping de autenticação que trava o CCS
-                        let opcoes = await criarCaixaSelecao(['Sim','Fazer Login'], 'Você já efetuou o login no sistema CCS?','Nenhum',false,true);
-                        if (!opcoes) {
-                            let processoNumero = await obterNumeroDoProcessoNaTela();
-                            let url = 'https://www3.bcb.gov.br/ccs/iniciarConsultaRequisicoesRealizadas.do?method=iniciarConsultaRequisicoes&maisPje=consultar&processo=' + processoNumero;
+                        let opcoes = await criarCaixaSelecao(['Solicitar Detalhamento', 'Baixar Resultados','Fazer Login'], 'O que deseja fazer no sistema CCS?','Nenhum',false,true);
+                        if (opcoes == 0) {
+                            let ancora = document.querySelector('[title="Pesquisar CCS"]');
+                            let protocolo = await extrairNumeros(ancora.parentElement.innerText,true);
+                            let url = 'https://www3.bcb.gov.br/ccs/iniciarConsultaRequisicoesRealizadas.do?method=iniciarConsultaRequisicoes&maisPje=detalhamento&protocolo=' + protocolo;
                             browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
                             await sleep(2000); //esperar abrir a janela
+                        } else if (opcoes == 1) {
+                            let ancora = document.querySelector('[title="Pesquisar CCS"]');
+                            let protocolo = await extrairNumeros(ancora.parentElement.innerText,true);
+                            let url = 'https://www3.bcb.gov.br/ccs/listarArquivosDownload.do?method=listarArquivosDownload&maisPje=consultar&protocolo=' + protocolo;
+                            browser.runtime.sendMessage({tipo: 'criarJanela', url: url, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
+                            await sleep(2000); //esperar abrir a janela
+                            //https://www3.bcb.gov.br/ccs/iniciar.do?method=iniciar
+
+
                         } else {
                             browser.runtime.sendMessage({tipo: 'criarJanela', url: 'https://www3.bcb.gov.br/ccs/indexEstatico.jsp', posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
                         }
@@ -5928,12 +6020,12 @@ async function addBotaoGigs() {
 
                 let numero = textoDaAtividade.match(padraoProcesso).join();
                 let botao = await criarBotaoAcoplado(
-                    "padraoProcesso_" + pos,
+                    "padraoProcesso_atividade_" + pos,
                     "Ir para " + numero,
                     'fas fa-search',
                     async function () {
                         console.log("Extensão maisPJE (" + agora() + "): Ir para o processo");
-                        let num = await extrairNumeroProcesso(this.title);
+                        let num = await extrairNumeroProcesso(numero);
                         consultaRapidaPJE(num);
                     }
                 );
@@ -5945,21 +6037,22 @@ async function addBotaoGigs() {
     }
 
     function criarBotaoAcoplado(id, title, classe, funcao) {
-        let bt = document.createElement("a");
+        let botao = document.createElement("a");
         let i = document.createElement("i");
-        bt.id = 'maisPJe_GIGS_bt_' + id;
+        botao.id = 'maisPJe_GIGS_bt_' + id;
         i.id = 'maisPJe_GIGS_i_' + id;
-        bt.title = title;
-        bt.href = '#';
-        bt.className = 'efeitoOverLeaave'
-        bt.setAttribute('maispje-tooltip-menuesquerda',title);
-        bt.setAttribute('aria-label',title); //para leitor de tela
+        botao.title = title;
+        botao.href = '#';
+        botao.className = 'efeitoOverLeaave'
+        botao.classList.add('maisPje_CR');
+        botao.setAttribute('maispje-tooltip-menuesquerda',title);
+        botao.setAttribute('aria-label',title); //para leitor de tela
         i.className = classe;
-        bt.style = "position: relative; padding: 5px; z-index: 100;";
+        botao.style = "position: relative; padding: 5px; z-index: 100;";
         i.style = "color: inherit; padding: 5px; border-radius: 20px;";
-        bt.onclick = (event) => { event.preventDefault(); funcao(); };
-        bt.appendChild(i);
-        return bt;
+        botao.onclick = (event) => { event.preventDefault(); funcao(); };
+        botao.appendChild(i);
+        return botao;
     }
 
 }
@@ -6499,13 +6592,13 @@ async function addBotaoPrazoEmLote() {
 		let tempo_espera = preferencias.maisPje_velocidade_interacao + 1000;
 		let ancora = await esperarElemento('pje-intimacao-automatica',null,tempo_espera);
 		if (!ancora) { return resolve(false) }
-		let jaExiste = await esperarElemento('button[id="pjextension_prazoEmLote"]',null,tempo_espera);
+		let jaExiste = await esperarElemento('button[id="maisPje_prazoEmLote"]',null,tempo_espera);
 		if (jaExiste) { return resolve(true) }
 		var el = document.querySelector('div[class="controle-intimacao"]')
 		if (!el) { return resolve(true) }
 		var botao = document.createElement("button");
 		botao.textContent = "Prazo em lote";
-		botao.id = "pjextension_prazoEmLote";
+		botao.id = "maisPje_prazoEmLote";
 		botao.style = "cursor: pointer; margin-left: 10px;"
 		botao.onmouseenter = function () {
 			if (!document.getElementById('maisPje_barra_bt_pzoLote')) {
@@ -6739,29 +6832,29 @@ function addBotaoTipoEmLote() {
 			}
 		}
 
-		if (!document.getElementById('pjextension_tipoEmLote')) {
+		if (!document.getElementById('maisPje_tipoEmLote')) {
 			var el = document.querySelector('pje-anexar-pdfs')
 			var botao = document.createElement("button");
 			botao.textContent = "Tipo em lote";
-			botao.id = "pjextension_tipoEmLote";
+			botao.id = "maisPje_tipoEmLote";
 			botao.style = "cursor: pointer; margin-left: 10px;"
 			botao.onclick = function () {executar()};
 			el.insertBefore(botao, el.firstElementChild);
 		}
-		if (!document.getElementById('pjextension_apagarEmLote')) {
+		if (!document.getElementById('maisPje_apagarEmLote')) {
 			var el = document.querySelector('pje-anexar-pdfs')
 			var botao = document.createElement("button");
 			botao.textContent = "Excluir";
-			botao.id = "pjextension_apagarEmLote";
+			botao.id = "maisPje_apagarEmLote";
 			botao.style = "position: absolute; cursor: pointer; right: 10px;"
 			botao.onclick = function () {excluir()};
 			el.insertBefore(botao, el.firstElementChild);
 		}
-		if (!document.getElementById('pjextension_marcarEmLote')) {
+		if (!document.getElementById('maisPje_marcarEmLote')) {
 			var el = document.querySelector('pje-anexar-pdfs')
 			var botao = document.createElement("button");
 			botao.textContent = "Marcar Todos";
-			botao.id = "pjextension_marcarEmLote";
+			botao.id = "maisPje_marcarEmLote";
 			botao.setAttribute('maisPJe_marcar','true');
 			botao.style = "position: absolute; cursor: pointer; right: 70px;"
 			botao.onclick = function () {
@@ -7118,6 +7211,7 @@ async function criarBotao(container, id, nm_botao, cor, visivel, acao, v=['Nenhu
 		bt.id = id;
 		bt.name = nm_botao;
 		bt.className = "mat-raised-button mat-primary ng-star-inserted";
+        // bt.classList.add('maisPje_CR'); //transforma o botão em clique rapido .... não gostei ficou ruim
 		if (visivel == "sim" || visivel == faseProcesso) {
 			bt.style = "margin: 3px; z-index: 5;" + (cor != "" ? "background-color: " + cor + ";" : "");
 		} else {
@@ -7189,8 +7283,15 @@ async function addBotaoTelaAnexar() {
 			preferencias.aaAnexar,
 			function() {
 				let var1 = browser.storage.local.set({'tempBt': ['acao_bt_aaAnexar', this.id]});
-				Promise.all([var1]).then(values => {
+				Promise.all([var1]).then(async values => {
 					acaoBotaoDetalhes("Anexar Documentos");
+
+                    //a tentativa abaixo deu bug.. quando o documento é assinado não atualizava a timeline automaticamente
+                    // sem contar que sempre abria em janela
+
+                    // let idProcesso = await obterIdProcessoDaUrl();
+                    // let urlLink = 'https://' + preferencias.trt + '/pjekz/processo/' + idProcesso + '/documento/anexar';
+                    // browser.runtime.sendMessage({tipo: 'criarJanela', url: urlLink, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});
 				});
 			}
 		);
@@ -8185,10 +8286,16 @@ async function addBotaoLancarMovimentos() {
 					await sleep(1000);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7044');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'7574');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
 
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
+
 					fundo(false);
 					monitorFim();
 				}
@@ -8208,10 +8315,14 @@ async function addBotaoLancarMovimentos() {
 					await sleep(1000);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7044');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'7087');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8231,10 +8342,14 @@ async function addBotaoLancarMovimentos() {
 					await sleep(800);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7044');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'7575');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8254,10 +8369,14 @@ async function addBotaoLancarMovimentos() {
 					await sleep(800);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7044');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'7084');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8277,10 +8396,14 @@ async function addBotaoLancarMovimentos() {
 					await esperarElemento('pje-lancador-movimentos-dialogo');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7044');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'37');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8300,10 +8423,14 @@ async function addBotaoLancarMovimentos() {
 					await sleep(1000);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7499');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'38');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8322,10 +8449,14 @@ async function addBotaoLancarMovimentos() {
 					await clicarBotao(opcao.querySelector('label'));
 					await sleep(1000);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'40');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8358,10 +8489,14 @@ async function addBotaoLancarMovimentos() {
 						let dtFormatada = new Date(x[2],x[1]-1,x[0]);
 
 						await preencherInput(campoData, dtFormatada, null,'data');
-						await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-						let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-						await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+						let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                        if (testeDeVersao) {
+                            await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                        } else {
+                            await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                            let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+                            await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                        }
 						fundo(false);
 						monitorFim();
 					}
@@ -8388,10 +8523,14 @@ async function addBotaoLancarMovimentos() {
 					await preencherInput(opcao.querySelectorAll('input[data-placeholder="Data, hora e local do leilão ou praça"]')[0], dataHoraLocal);
 					await simularTecla(elAncora,'Enter',13); //ENTER
 					await sleep(1000);
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8411,10 +8550,14 @@ async function addBotaoLancarMovimentos() {
 					await sleep(1000);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7500');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'40');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -8434,10 +8577,14 @@ async function addBotaoLancarMovimentos() {
 					await sleep(1000);
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[0],'7500');
 					await escolherOpcao(opcao.querySelectorAll('mat-select')[1],'7110');
-					await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
-
-					let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
-					await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+					let testeDeVersao = await versaoAtualMaiorQue('2.18.3 - BARAÚNA');
+                    if (testeDeVersao) {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]',null,true);
+                    } else {
+                        await clicarBotao('pje-lancador-movimentos-dialogo button[aria-label="Gravar os movimentos a serem lançados"]');
+                        let caixaDePergunta = await esperarElemento('mat-dialog-container div[class="div-container"]', 'Deseja realmente incluir estes movimentos?');
+					    await clicarBotao(caixaDePergunta.querySelectorAll('button')[0]);
+                    }
 					fundo(false);
 					monitorFim();
 				}
@@ -9589,10 +9736,19 @@ function reposicionarBotoesFlutuantes() {
 }
 
 //FUNÇÃO RESPONSÁVEL POR CRIAR O FUNDO ESCURO QUANDO A EXTENSÃO ESTÁ OPERANDO
-async function fundo(ligar, mensagem, altura) {
+/**
+ *
+ * @param {boolean} ligar
+ * @param {string} mensagem
+ * @param {number} altura
+ * @param {HTMLElement} conteudoAdicional
+ * @returns {Promise<boolean>}
+ */
+async function fundo(ligar, mensagem = '', altura = '', conteudoAdicional = undefined) {
 	return new Promise(async resolve => {
 		if (ligar) {
-			if (!document.getElementById('extensaoPje_fundo')) {
+            let elemento1 = document.getElementById('extensaoPje_fundo');
+			if (!elemento1) {
 				//DESCRIÇÃO: REGRA DO TOOLTIP
 				if (!document.getElementById('maisPje_tooltip_fundo')) {
 					tooltip('fundo', true);
@@ -9601,12 +9757,12 @@ async function fundo(ligar, mensagem, altura) {
 				mensagem = !mensagem ? "" : mensagem + "\n";
 				altura = !altura ? '100%' : altura + 'px';
 
-				let elemento1 = document.createElement("div");
+				elemento1 = document.createElement("div");
 				elemento1.id = 'extensaoPje_fundo';
 				elemento1.style = 'position: fixed; width: 100%; height: ' + altura + '; top: 0; inset: 0px; background: #000000a1 none repeat scroll 0% 0%; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-size: 80px; font-weight: bold; text-align: center;  text-shadow: rgb(0, 0, 0) 1px 1px;flex-direction: column;';
 
 				let span = document.createElement("span");
-				span.className = 'pjextension_executando';
+				span.className = 'maisPje_executando';
 				let img = document.createElement("img");
 				img.src = browser.runtime.getURL("icons/ico_32.png");
 				span.appendChild(img);
@@ -9614,7 +9770,7 @@ async function fundo(ligar, mensagem, altura) {
 
 				let msg = document.createElement("span");
 				msg.id = 'maisPJe_mensagem_fundo';
-				msg.style = 'position: absolute; font-size: .2em;align-self: center;margin-top: 7vh; color: white;';
+				msg.style = 'font-size: .2em;align-self: center; color: white;';
 				msg.innerText = mensagem + 'pressione "ESC" para interromper as ações!';
 				elemento1.appendChild(msg);
 
@@ -9628,6 +9784,9 @@ async function fundo(ligar, mensagem, altura) {
 
 				document.body.appendChild(elemento1);
 			}
+            if (conteudoAdicional && !elemento1.contains(conteudoAdicional)) {
+                elemento1.appendChild(conteudoAdicional);
+            }
 			return resolve(true);
 		} else {
 			let fundo = await esperarElemento('div[id="extensaoPje_fundo"]');
@@ -9996,6 +10155,7 @@ async function acao_bt_aaAnexar(id) {
 			let avisoAssinatura = await esperarElemento('PJE-DIALOGO-STATUS-PROGRESSO','Solicitando assinaturas'); //aviso de carregamento da assinatura
 			await esperarDesaparecer(avisoAssinatura);
 			await sleep(5000)
+            window.close();
 			fundo(false);
 		}
 
@@ -10033,17 +10193,36 @@ async function acao_bt_aaAnexar(id) {
 		return new Promise(async resolve => {
 
 			//***cria o observer
+            let verificarEditorDeTexto = false;
 			let observer = new MutationObserver(async function(mutationsDocumento) {
 				mutationsDocumento.forEach(async function(mutation) {
 					if (!mutation.addedNodes[0]) { return }
 					if (!mutation.addedNodes[0].tagName) { return }
 					// console.log(mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText.length); //excluir após os testes
 
+
+                    //TESTE
+                    //aguarda o aviso de salvamento por cinco segundos ---> "SIMPLE-SNACK-BAR","inserido com sucesso no editor"
+                    //caso isso não aconteça, o usuário deve ter tirado o foco da tela.. nesses casos o aviso realmente não aparece
+                    //como não aparece o aviso, não ocorre a substituição das variáveis maisPJe e a extensão fica aguardando um promise que nunca vem
+                    // esse promise é monitorado na função monitor_janela_anexar()..
+                    if (verificarEditorDeTexto) {
+                        let existeTexto = await verificarSeExisteTextoNoEditor();
+		                if (existeTexto) {
+                            console.log("       |___Conteúdo inserido no editor.2");
+                            observer.disconnect();
+                            await substituirVariaveisEditorTexto();
+                            return resolve(true);
+                        }
+                    }
+
+
 					if (mutation.addedNodes[0].tagName == 'PJE-DIALOGO-VISUALIZAR-MODELO') {
 						// console.log("       |___Pje carregando o teor do modelo para visualização...");
 						await sleep(500);
 						// console.log('       |___clicando sobre o botão "Inserir Modelo".');
 						await clicarBotao('button[aria-label="Inserir modelo de documento"]');
+                        verificarEditorDeTexto = true;
 						// console.log("       |___Inserindo o conteúdo no editor...");
 					}
 
@@ -10052,7 +10231,7 @@ async function acao_bt_aaAnexar(id) {
 						if (mutation.addedNodes[0].innerText.includes('inserido com sucesso no editor')) {
 							mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso
 							observer.disconnect();
-							// console.log("       |___Conteúdo inserido no editor.");
+							console.log("       |___Conteúdo inserido no editor.1");
 							return resolve(true);
 						}
 
@@ -10084,32 +10263,6 @@ async function acao_bt_aaAnexar(id) {
 			if (areaConteudo?.innerText.length > 1) { resposta = true }
 			if (areaConteudo.querySelector('figure')) { resposta = true } //imagem anexada sem texto
 			return resolve(resposta);
-		});
-	}
-
-	async function inserirTextoNoEditor(titulo,texto,tipoParagrafo='Corpo') {
-		return new Promise(async resolve => {
-			if (document.querySelector('pdf-viewer')) { return resolve(true) } //tem documento em pdf
-			await esperarElemento('pje-arvore-modelo-documento'); //esperar o carregamento da pagina
-			let areaConteudo = await esperarElemento('div[class*="area-conteudo"][contenteditable="true"]');
-			areaConteudo.focus();
-
-			if (titulo) { //INSERIR TITULO
-				await clicarBotao('button[data-cke-tooltip-text="Centralizar"]'); //centraliza o texto
-				await clicarBotao('button[data-cke-tooltip-text="Negrito (Ctrl+B)"]'); //poe negrito
-				document.execCommand('insertText',false,titulo);
-				await clicarBotao('button[data-cke-tooltip-text="Negrito (Ctrl+B)"]'); //tira negrito
-				await clicarBotao('button[data-cke-tooltip-text="Centralizar"]'); //tira o centralizar
-			}
-
-			if (tipoParagrafo != 'Corpo') {
-				await clicarBotao('button[data-cke-tooltip-text="Titulo"]');
-				await clicarBotao('div[class*="ck-heading-dropdown"] li button',tipoParagrafo);
-			}
-
-			document.execCommand('insertText',false,texto);
-			await sleep(1000);
-			return resolve(true);
 		});
 	}
 
@@ -11793,7 +11946,7 @@ async function acao_bt_aaDespacho(id) {
 				await clicarBotao('div[role="tab"]','Modelos');
 				let elementoModelo = await buscarModeloNaArvoreDeModelos(aa.modelo);
 				// await inserirModeloNoDocumento(elementoModelo);
-				await AguardarModeloNoDocumento(buscandoModelo);
+				await AguardarModeloNoDocumento(elementoModelo);
 				//tem que esperar a substituição das variáveis maisPje
 				//vou mudar o icone para verde após concluir
 				//****************** */
@@ -12387,15 +12540,19 @@ async function acao_bt_aaMovimento(id) {
 					}
 
 				} else {
-
-					await clicarBotao('button[aria-label="Incluir Chip Amarelo"]');
-					let ancora = await esperarElemento('table[name="Etiquetas"] tr', aa.chip);
-					if (ancora) {
-						await clicarBotao(ancora.querySelector('input[aria-label="Marcar chip"]'));
-						await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Salvar');
-					} else {
-						await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Cancelar');
-					}
+					let chips = aa.chip.split(',');
+                    await clicarBotao('button[aria-label="Incluir Chip Amarelo"]');
+                    await marcarChips(chips, true);
+        			// let estaNa219 = await versaoAtualMaiorQue('2.18.9 - BARAÚNA');
+					// await clicarBotao('button[aria-label="Incluir Chip Amarelo"]');
+                    // const ancoraQuerySelector = estaNa219 ? 'ul.etiquetas li label' : 'table[name="Etiquetas"] tr';
+					// let ancora = await esperarElemento(ancoraQuerySelector, aa.chip);
+					// if (ancora) {
+					// 	await clicarBotao(ancora.querySelector('input[type="checkbox"]'));
+					// 	await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Salvar');
+					// } else {
+					// 	await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Cancelar');
+					// }
 				}
 
 			}
@@ -12818,7 +12975,8 @@ async function acao_bt_aaMovimento(id) {
 
 			} else if (tipo === 'redistribuir') {
 				//Redistribuir[Criação de unidade judiciária,Por competência exclusiva,São José,2ª VARA DO TRABALHO SÃO JOSÉ], onde as opções são separadas por vírgula na sequencia em que devem ser preenchidas
-
+                // espera carregar a tela de tarefa
+                await esperarElemento('pje-cabecalho-tarefa');
 				//Redistribuir[Determinação judicial,Por dependência,,00,MESMA_JUR,MESMA_VT]
 				if (aa.ultimoLance.includes('MESMA_JUR') ||
 					aa.ultimoLance.includes('MESMA_VT')
@@ -13576,7 +13734,8 @@ async function acao_bt_aaNomearPerito(id) {
                 await preencherInput('input[data-placeholder="Prazo de entrega"]',prazo);
 
             } else { //dias úteis
-                let idOJ = await getOrgaoJulgadorId();
+                const { codigoOJ, codigoOJC } = await getDadosAutenticacaoOJOJC();
+                let idOJ = codigoOJ;
                 prazo = parseInt(prazo);
                 let dataFim = await apis.retornaPrazoDiasUteis.executar(preferencias.trt, {'dias': prazo, 'idOj' : idOJ}); //retorna: Object { DATA: "2026-03-31T00:00:00" }
                 prazo = await decomporData(dataFim.DATA);
@@ -13586,13 +13745,14 @@ async function acao_bt_aaNomearPerito(id) {
 
         }
 
-
-
-
         console.log('-*-*-*-*-*' + nomePerito + " : " + (nomePerito) + ' : ' + (nomePerito != ''))
 		if (nomePerito || nomePerito != '') {
 			await escolherOpcaoTeste2('input[data-placeholder="Digite o nome ou o CPF do perito"]',nomePerito);
-		}
+		} else {
+            let peritoSorteado = await esperarElemento('input[data-placeholder="Digite o nome ou o CPF do perito"]');
+            nomePerito = peritoSorteado.value.replace(/.\(\d{1,}.designações\)/,'');
+            await sleep(1000);
+        }
 
 		if (designar.toLowerCase() == "sim") {
 			await clicarBotao('button','Designar');
@@ -13628,8 +13788,8 @@ async function acao_bt_aaNomearPerito(id) {
 				await criarCaixaDeAlerta('ATENÇÃO','O modelo ' + modelo + ' não foi encontrado!',3);
 			} else {
 				await AguardarModeloNoDocumento(buscandoModelo);
-				await substituir('#{processo.comunicacaoProcessual.nomeDestinatario}',nomePerito);
-				await substituir('#{processo.comunicacaoProcessual.nomeEnderecoDestinatario}',nomePerito);
+                await substituir('#{processo.comunicacaoProcessual.nomeDestinatario}',nomePerito);
+                await substituir('#{processo.comunicacaoProcessual.nomeEnderecoDestinatario}',nomePerito);
 			}
 			editor.focus(); //a escolha do modelo tira o foco do elemento.. tem que devolver
 			fundo(false);
@@ -13824,7 +13984,11 @@ async function acao_vinculo(v) {
 				await clicarBotao('div[class*="cdk-overlay-backdrop-showing"]');
 			}
 
-			if (preferencias.AALote != "") { browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'}) }
+			if (preferencias.AALote != "") {
+                browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'AALote'})
+            } else {
+                browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.tempAAEspecial});
+            }
 
 
 		} else if (arr[1] == 'Download do processo completo') {
@@ -14136,7 +14300,8 @@ async function acao_bt_retificarAutuacao(id) {
 	return new Promise(async resolve => {
 		console.log("***acao_bt_retificarAutuacao***");
 		exibir_mensagem("Executando a Ação Automatizada de RETIFICAR AUTUAÇÃO\nPróximo vínculo: " + (preferencias.tempAAEspecial.length < 1 ? 'Nenhum' : preferencias.tempAAEspecial))
-		if (!Array.isArray(id)) { //veio da AA Variados:RETIFICAR AUTUAÇÃO>Cadastrar Advogado
+		console.log(id)
+        if (!Array.isArray(id)) { //veio da AA Variados:RETIFICAR AUTUAÇÃO>Cadastrar Advogado
 			console.log("     |___inicio acao especial");
 			await clicarBotao('mat-step-header[aria-posinset="3"]');
 			await sleep(500);
@@ -14159,8 +14324,11 @@ async function acao_bt_retificarAutuacao(id) {
 			if (padrao.test(id.advogado.trim())) {
 				await preencherInput('input[id="inputParteId"]', id.advogado.trim());
 			} else {
-				await preencherInput('input[id="inputCPFParteId"]', id.advogado.trim());
+				// await preencherInput('input[id^="inputCPF"]', id.advogado.trim());
+                await preencherAngularInputNaRetificacao('input[id^="inputCPF"]', id.advogado.trim());
 			}
+			await clicarBotao('button[aria-label="Pesquisar"]', null, true);
+			await clicarBotao('button[aria-label="Confirmar"]', null, true);
 			await sleep(500);
 			await clicarBotao('pje-filtros button[aria-label="Filtrar"]', null, true);
 			await sleep(500);
@@ -14335,13 +14503,17 @@ async function acao_bt_retificarAutuacao(id) {
 			await escolherOpcao('mat-select[aria-label="Tipo de participação"]', 'LEILOEIRO', 5);
 			await clicarBotao('div[role="tab"]','Pessoa física');
 			await sleep(500);
-			let pergunta = 'Digite o NOME do leiloeiro:';
-			let codigo_especialidade = '50103';
-			let documento = await Promise.all([consultaPeritos(prompt(pergunta,''), codigo_especialidade)]).then(values => {
-				return values[0];
-			});
-			await preencherInput('input[id="inputCPF"]', documento);
-			await clicarBotao('button[aria-label="Pesquisar CPF"]', null, true); //***** demorando
+			let pergunta = 'Digite o NOME ou CPF do leiloeiro:';
+            let padrao = /[A-Za-z]/gmi;
+            let documento = prompt(pergunta,'');
+			if (padrao.test(documento)) {
+                let codigo_especialidade = '50103';
+                documento = await Promise.all([consultaPeritos(documento, codigo_especialidade)]).then(values => {
+                    return values[0];
+                });
+            }
+			await preencherAngularInputNaRetificacao('input[id="inputCPF"]', documento);
+			await clicarBotao('button[aria-label="Pesquisar CPF"], button[aria-label="Pesquisar"]', null, true); //***** demorando
 			await clicarBotao('button[aria-label="Confirmar"]');
 			let erro = await clicarBotao('button','Inserir', true);
 			if (erro) { //endereço desconhecido
@@ -14371,12 +14543,18 @@ async function acao_bt_retificarAutuacao(id) {
 			await escolherOpcao('mat-select[aria-label="Tipo de participação"]', 'PERITO', 5);
 			await clicarBotao('div[role="tab"]','Pessoa física');
 			await sleep(500);
-			let pergunta = 'Digite o NOME do perito:';
-			let codigo_especialidade = null;
-			let documento = await Promise.all([consultaPeritos(prompt(pergunta,''), codigo_especialidade)]).then(values => {
-				return values[0];
-			});
-			await preencherInput('input[id="inputCPF"]', documento);
+			let pergunta = 'Digite o NOME ou CPF do perito:';
+                        let padrao = /[A-Za-z]/gmi;
+
+            let documento = prompt(pergunta,'');
+			if (padrao.test(documento)) {
+                let codigo_especialidade = null;
+                documento = await Promise.all([consultaPeritos(documento, codigo_especialidade)]).then(values => {
+                    return values[0];
+                });
+            }
+
+			await preencherAngularInputNaRetificacao('input[id="inputCPF"]', documento);
 			await clicarBotao('button[aria-label="Pesquisar CPF"], button[aria-label="Pesquisar"]', null, true);
 			await clicarBotao('button[aria-label="Confirmar"]');
 			let erro = await clicarBotao('button','Inserir', true);
@@ -14460,32 +14638,41 @@ async function acao_bt_retificarAutuacao(id) {
 			if (padrao.test(info)) {
 				await preencherInput('input[id="inputParteId"]', info);
 			} else {
-				await preencherInput('input[id="inputCPFParteId"]', info);
+				// await preencherInput('input[id^="inputCPF"]', info, false, 'texto', true);
+				await preencherAngularInputNaRetificacao('input[id^="inputCPF"]', info);
 			}
-			await clicarBotao('pje-filtros button[aria-label="Filtrar"]', null, true);
-			let lista_de_advogados = await esperarColecao('table[name="Advogados"] button[aria-label="Selecionar"]', 1);
-			if (lista_de_advogados.length == 1) {
-				await clicarBotao(lista_de_advogados[0]);
+            if (document.querySelector('button[aria-label="Pesquisar"]')) {
+                await clicarBotao('button[aria-label="Pesquisar"]', null, true);
+                await clicarBotao('button[aria-label="Confirmar"]', null, true);
+            } else {
+                let teste = await versaoAtualMaiorQue('2.18.9 - BARAÚNA');
+		        if (!teste) { //se ainda estiver na 2.18
+                    const filtrar = await esperarElemento('pje-filtros button[aria-label="Filtrar"]');
+                    if (filtrar) {
+                        await clicarBotao('pje-filtros button[aria-label="Filtrar"]', null, true);
+                        let lista_de_advogados = await esperarColecao('table[name="Advogados"] button[aria-label="Selecionar"]', 1);
+                        if (lista_de_advogados?.length == 1) {
+                            await clicarBotao(lista_de_advogados[0]);
+                        }
+                    }
+                }
+            }
 
-				await esperarElemento('pje-autuacao-partes-vinculadas pje-paginador');
-				await linhasPorPagina('50','pje-autuacao-partes-vinculadas pje-paginador');
-				await sleep(1000);
 
-				let partes_a_vincular = await esperarColecao('pje-autuacao-partes-vinculadas mat-list-option', 1);
-				console.log(partes_a_vincular.length);
-				if (partes_a_vincular.length == 1) {
+        async function associarPartesEConsertarEnderecoDesconhecido() {
+                let paginador = await esperarElemento('pje-autuacao-partes-vinculadas pje-paginador');
+                console.log(paginador)
+            if (paginador) {
+                await linhasPorPagina('50','pje-autuacao-partes-vinculadas pje-paginador');
+                let partes_a_vincular = await esperarColecao('pje-autuacao-partes-vinculadas mat-list-option', 1);
+                if (partes_a_vincular.length == 1) {
 					await clicarBotao(partes_a_vincular[0]);
 					let erro = await clicarBotao('button','Inserir', true);
 					if (erro) { //endereço desconhecido
-						console.log("   |___Corrigindo erro de Endereço desconhecido!");
-						let opcao_marcada = await esperarElemento('i[class*="check"]');
-						if (opcao_marcada) {
-							opcao_marcada.parentElement.parentElement.click();
-						} else {
-							await clicarBotao('mat-expansion-panel-header','Endereços');
-							await clicarBotao('button','Endereço desconhecido');
-							await clicarBotao('button','Sim');
-						}
+						console.log("   |___1.Corrigindo erro de Endereço desconhecido!");
+                        await clicarBotao('mat-expansion-panel-header','Endereços');
+                        await clicarBotao('label','Marcar endereço desconhecido');
+                        await clicarBotao('button','Sim');
 						await clicarBotao('button','Inserir');
 					}
 				} else {
@@ -14494,14 +14681,24 @@ async function acao_bt_retificarAutuacao(id) {
 						listadePartesPergunta.push(parte.innerText);
 					}
 					let listaDePartes = await criarCaixaSelecao(listadePartesPergunta, 'Segure o Ctrl e escolha mais de uma opção ao mesmo tempo','Selecionar', true);
-
+                    console.log(listaDePartes)
 					for (const [pos2, item] of listaDePartes.entries()) {
 						await clicarBotao('pje-autuacao-partes-vinculadas mat-list-option', item);
 					}
 
-					await clicarBotao('button','Inserir');
+					let erro = await clicarBotao('button','Inserir', true);
+                    console.log('*/*/*/*/*/*' + erro)
+                    if (erro) { //endereço desconhecido
+                        console.log("   |___2.Corrigindo erro de Endereço desconhecido!");
+                        await clicarBotao('mat-expansion-panel-header','Endereços');
+                        await clicarBotao('label','Marcar endereço desconhecido');
+                        await clicarBotao('button','Sim');
+						await clicarBotao('button','Inserir');
+                    }
 				}
-			}
+            }
+        }
+            await associarPartesEConsertarEnderecoDesconhecido();
 			resolve(true);
 			console.log("     |___fim acao5");
 		});
@@ -15064,7 +15261,7 @@ async function consultaRapidaPJE(processo, id=false) { //se tiver id consulta di
 			textoSelecionado = await obterTextoSelecionado();
 			console.log(textoSelecionado)
 			if (!textoSelecionado) {
-				textoSelecionado = await criarCaixaDePergunta('text','Digite o número do processo ou o nome da parte:\n');
+				textoSelecionado = await criarCaixaDePerguntaDialog('text','Digite o número do processo ou o nome da parte:');
 			}
 
 			// console.log('-*-*-*-*-*-*-' + textoSelecionado)
@@ -15426,10 +15623,10 @@ async function obterTextoSelecionado() {
 async function addBotaoPlanilhasGoogle(){
 	let ancora = await esperarElemento('#docs-toolbar')
 	if (ancora) {
-		if (!document.getElementById("pjextension_botao_buscarProcesso")) {
+		if (!document.getElementById("maisPje_botao_buscarProcesso")) {
 			let bt = document.createElement("a");
 			let ic = document.createElement("span");
-			bt.id = "pjextension_botao_buscarProcesso";
+			bt.id = "maisPje_botao_buscarProcesso";
 			bt.title = "Buscar Processo"; //<--aria-label
 			ic.innerText = "PJe (F1)";
 			bt.style = "cursor: pointer; position: relative; padding: 5px; z-index: 100; opacity: 1;background-color: #dd4b39;border-radius: 5px;font-weight: bold;color: white;";
@@ -15445,7 +15642,7 @@ async function addBotaoPlanilhasGoogle(){
 
 			let bt2 = document.createElement("a");
 			let ic2 = document.createElement("span");
-			bt2.id = "pjextension_botao_buscarPautaProcesso";
+			bt2.id = "maisPje_botao_buscarPautaProcesso";
 			bt2.title = "Buscar Processo"; //<--aria-label
 			ic2.innerText = "Pauta PJe (F2)";
 			bt2.style = "cursor: pointer; position: relative; margin-left: 5px; padding: 5px; z-index: 100; opacity: 1;background-color: slategray;border-radius: 5px;font-weight: bold;color: white;";
@@ -15688,13 +15885,13 @@ function kaizen(nome_janela) {
 
 		async function bt_atalhos() {
 			let posicao_itemmenu = 1;
-			await sleep(1000); //comando para aghuardar o carregamento de eventuais elementos condicionantes
+			await sleep(1000); //comando para aguardar o carregamento de eventuais elementos condicionantes
 			const atalhos = getAtalhosNovaAba();
-
 			Object.values(atalhos).forEach(atalho => {
 				if (atalho.condicao_adicionar()) {
 					const botao = atalho.criar_botao(posicao_itemmenu++);
-					menuMaisPje_content.appendChild(botao);
+                    if (!preferencias.acionarKaizenComClique) { acionarCliqueRapido(botao) }
+                    menuMaisPje_content.appendChild(botao);
 				}
 			});
 		}
@@ -15715,16 +15912,62 @@ function criarAreaDoPreferenciasF2() {
 	let areaPreferenciaF2 = preferencias.aaVariados.find(obj => obj.id === 'Atalho F2');
 	if (!areaPreferenciaF2.ativar) { return }
 
+    let style = document.createElement("style");
+	style.id = "maisPje_tooltip_areaDeAtalhoF2";
+    style.textContent = `
+    [maisPje_tooltip_areaDeAtalhoF2] {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        min-height: 2rem;
+    }
+
+    [maisPje_tooltip_areaDeAtalhoF2]:before {
+        content: attr(maisPje_tooltip_areaDeAtalhoF2);
+        position: absolute;
+        pointer-events: none;
+        white-space: break-spaces;
+        z-index: 100000;
+        text-decoration: none;
+        font-family: "NunitoSans Regular", "Arial", sans-serif;
+        font-size: .6vw;
+        align-content: center;
+        text-shadow: none;
+        font-weight: 500;
+        background: white;
+        opacity: 1;
+        color: black;
+        border-radius: 5px;
+        padding: 5px;
+        display: none;
+        border: 1px dashed black;
+        margin: -1vh 1vw;
+        width: -moz-available;
+        text-align: center;
+        overflow-wrap: break-word;
+        min-height: 5vh;
+        max-height: 5vh;
+    }
+
+    [maisPje_tooltip_areaDeAtalhoF2]:hover:before {
+        display: inline-block;
+    }
+    `;
+
+    document.head.appendChild(style);
 	let containerAreaDeAtalhoF2 = document.createElement('div');
 	containerAreaDeAtalhoF2.id = 'maisPje_ContainerAreaDeAtalhoF2';
-	containerAreaDeAtalhoF2.style = 'position: absolute; top: 82vh; z-index: 1; border-radius: 80px 80px 0px 0px; display: flex; padding-bottom: 5vh;';
+	containerAreaDeAtalhoF2.style = 'position: absolute; top: 77vh; z-index: 1; display: block; animation: 0.5s forwards descer; width: 8vw; height: 8vw; margin-left: 1vw; align-content: center;';
+    containerAreaDeAtalhoF2.setAttribute('maisPje_tooltip_areaDeAtalhoF2',preferencias.tempF2);
 
 	let areaDeAtalhoF2 = document.createElement('a');
-	areaDeAtalhoF2.id = 'maisPje_areaDeAtalhoF2';
-	areaDeAtalhoF2.style = "width: 10vw; height: 20vh; background-color: #1c5536; z-index: 10000; border-radius: 5%; font-weight: bold; outline: white solid 0.3em; cursor: pointer; scale: 0.5; animation: unset; font-size: 6em; text-align: center; line-height: 19vh; color: rgba(60, 179, 113, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #1c5536; margin: -1vw -1vw 0 -1vw;";
+    areaDeAtalhoF2.id = 'maisPje_areaDeAtalhoF2';
+	areaDeAtalhoF2.style = "text-decoration-line: none; width: 6vw; height: 6vw; background-color: rgb(28, 85, 54); border-radius: 5px; font-weight: bold; outline: white solid 1vw; cursor: pointer; animation: unset; font-size: 4vw; text-align: center; align-content: space-between; color: rgba(60, 179, 113, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #1c5536; display: block; margin: 8vh auto;";
 	areaDeAtalhoF2.setAttribute('aria-label', preferencias.tempF2);
 	areaDeAtalhoF2.innerText = "F2";
-	areaDeAtalhoF2.onclick = function() {
+	areaDeAtalhoF2.href = '#';
+    areaDeAtalhoF2.onclick = (event) => {
+        event.preventDefault();
 		acao_vinculo(preferencias.tempF2);
 	}
 	acionarSemClique(areaDeAtalhoF2,'black','#1c5536',areaPreferenciaF2.temporizador);
@@ -15751,16 +15994,31 @@ function criarAreaDoPreferenciasF3() {
 	let areaPreferenciaF3 = preferencias.aaVariados.find(obj => obj.id === 'Atalho F3');
 	if (!areaPreferenciaF3.ativar) { return }
 
+    let style = document.createElement("style");
+	style.id = "maisPje_tooltip_areaDeAtalhoF3";
+	style.textContent = '[maisPje_tooltip_areaDeAtalhoF3] {position: relative; display: inline-block; cursor: pointer; min-height: 2rem;}';
+	style.textContent += '[maisPje_tooltip_areaDeAtalhoF3]:before {';
+    style.textContent += 'content: attr(maisPje_tooltip_areaDeAtalhoF3); position: absolute; pointer-events: none; white-space: nowrap;';
+    style.textContent += 'z-index: 100000; text-decoration: none; font-family: "NunitoSans Regular", "Arial", sans-serif; font-size: .6vw;';
+    style.textContent += 'align-content: center; text-shadow: none; font-weight: 500; background: white; opacity: 1; color: black; border-radius: 5px;';
+    style.textContent += 'padding: 5px; display:none; border: 1px dashed black; margin: -1vh 1vw; width: -moz-available; text-align: center; overflow-wrap: break-word;';
+    style.textContent += 'white-space: break-spaces; min-height: 5vh; max-height: 5vh;}';
+    style.textContent += '[maisPje_tooltip_areaDeAtalhoF3]:hover:before {display: inline-block;}';
+    document.body.appendChild(style);
+
 	let containerAreaDeAtalhoF3 = document.createElement('div');
 	containerAreaDeAtalhoF3.id = 'maisPje_ContainerAreaDeAtalhoF3';
-	containerAreaDeAtalhoF3.style = 'position: absolute; top: 82vh; left: 8vw; z-index: 1; border-radius: 80px 80px 0px 0px; display: flex; padding-bottom: 5vh;';
+    containerAreaDeAtalhoF3.style = 'position: absolute; top: 77vh; left: 8vw; z-index: 1; display: block; animation: 0.5s forwards descer; width: 8vw; height: 8vw; margin-left: 2vw; align-content: center;';
+    containerAreaDeAtalhoF3.setAttribute('maisPje_tooltip_areaDeAtalhoF3',preferencias.tempF3);
 
 	let areaDeAtalhoF3 = document.createElement('a');
 	areaDeAtalhoF3.id = 'maisPje_areaDeAtalhoF3';
-	areaDeAtalhoF3.style = "width: 10vw; height: 20vh; background-color: #681d01; z-index: 10000; border-radius: 5%; font-weight: bold; outline: white solid 0.3em; cursor: pointer; scale: 0.5; animation: unset; font-size: 6em; text-align: center; line-height: 19vh; color: rgba(255, 99, 71, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #681d01; margin: -1vw -1vw 0 -1vw;";
+    areaDeAtalhoF3.style = "text-decoration-line: none; width: 6vw; height: 6vw; background-color: #681d01; border-radius: 5px; font-weight: bold; outline: white solid 1vw; cursor: pointer; animation: unset; font-size: 4vw; text-align: center; align-content: space-between; color: rgba(255, 99, 71, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #1c5536; display: block; margin: 8vh auto;"
 	areaDeAtalhoF3.setAttribute('aria-label', preferencias.tempF3);
 	areaDeAtalhoF3.innerText = "F3";
-	areaDeAtalhoF3.onclick = function() {
+    areaDeAtalhoF3.href = '#';
+    areaDeAtalhoF3.onclick = (event) => {
+        event.preventDefault();
 		acao_vinculo(preferencias.tempF3);
 	}
 	acionarSemClique(areaDeAtalhoF3,'black','#681d01',areaPreferenciaF3.temporizador);
@@ -15785,19 +16043,37 @@ function criarAreaDoPreferenciasF4() {
 	let areaPreferenciaF4 = preferencias.aaVariados.find(obj => obj.id === 'Atalho F4');
 	if (!areaPreferenciaF4.ativar) { return }
 
+    let style = document.createElement("style");
+	style.id = "maisPje_tooltip_areaDeAtalhoF4";
+	style.textContent = '[maisPje_tooltip_areaDeAtalhoF4] {position: relative; display: inline-block; cursor: pointer; min-height: 2rem;}';
+	style.textContent += '[maisPje_tooltip_areaDeAtalhoF4]:before {';
+    style.textContent += 'content: attr(maisPje_tooltip_areaDeAtalhoF4); position: absolute; pointer-events: none; white-space: nowrap;';
+    style.textContent += 'z-index: 100000; text-decoration: none; font-family: "NunitoSans Regular", "Arial", sans-serif; font-size: .6vw;';
+    style.textContent += 'align-content: center; text-shadow: none; font-weight: 500; background: white; opacity: 1; color: black; border-radius: 5px;';
+    style.textContent += 'padding: 5px; display:none; border: 1px dashed black; margin: -1vh 1vw; width: -moz-available; text-align: center; overflow-wrap: break-word;';
+    style.textContent += 'white-space: break-spaces; min-height: 5vh; max-height: 5vh;}';
+    style.textContent += '[maisPje_tooltip_areaDeAtalhoF4]:hover:before {display: inline-block;}';
+    document.body.appendChild(style);
+
 	let containerAreaDeAtalhoF4 = document.createElement('div');
 	containerAreaDeAtalhoF4.id = 'maisPje_ContainerAreaDeAtalhoF4';
-	containerAreaDeAtalhoF4.style = 'position: absolute; top: 82vh; left: 16vw; z-index: 1; border-radius: 80px 80px 0px 0px; display: flex; padding-bottom: 5vh;';
+    containerAreaDeAtalhoF4.style = 'position: absolute; top: 77vh; left: 16vw; z-index: 1; display: block; animation: 0.5s forwards descer; width: 8vw; height: 8vw; margin-left: 3vw; align-content: center;';
+    containerAreaDeAtalhoF4.setAttribute('maisPje_tooltip_areaDeAtalhoF4',preferencias.tempF4);
+
+	// containerAreaDeAtalhoF4.style = 'position: absolute; top: 83vh; left: 16vw; z-index: 1; border-radius: 80px 80px 0px 0px; display: flex; padding-bottom: 5vh;';
 
 	let areaDeAtalhoF4 = document.createElement('a');
 	areaDeAtalhoF4.id = 'maisPje_areaDeAtalhoF4';
-	areaDeAtalhoF4.style = "width: 10vw; height: 20vh; background-color: #03629b; z-index: 10000; border-radius: 5%; font-weight: bold; outline: white solid 0.3em; cursor: pointer; scale: 0.5; animation: unset; font-size: 6em; text-align: center; line-height: 19vh; color: rgba(1, 147, 234, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #681d01; margin: -1vw -1vw 0 -1vw;";
+    areaDeAtalhoF4.style = "text-decoration-line: none; width: 6vw; height: 6vw; background-color: #03629b; border-radius: 5px; font-weight: bold; outline: white solid 1vw; cursor: pointer; animation: unset; font-size: 4vw; text-align: center; align-content: space-between; color: rgba(1, 147, 234, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #1c5536; display: block; margin: 8vh auto;"
+	// areaDeAtalhoF4.style = "width: 10vw; height: 20vh; background-color: #03629b; z-index: 10000; border-radius: 5%; font-weight: bold; outline: white solid 0.3em; cursor: pointer; scale: 0.5; animation: unset; font-size: 6em; text-align: center; align-content: space-between; line-height: 19vh; color: rgba(1, 147, 234, 0.65); box-shadow: rgb(0, 0, 0) 0px 0px 80px, rgb(0, 0, 0) 0px 0px 60px, rgb(0, 0, 0) 0px 0px 0px, rgba(4, 4, 4, 0) 0px 0px 100px; --color1: black; --color2: #681d01; margin: -1vw -1vw 0 -1vw;";
 	areaDeAtalhoF4.setAttribute('aria-label', preferencias.tempF4);
 	areaDeAtalhoF4.innerText = "F4";
-	areaDeAtalhoF4.onclick = function() {
+    areaDeAtalhoF4.href = '#';
+    areaDeAtalhoF4.onclick = (event) => {
+        event.preventDefault();
 		acao_vinculo(preferencias.tempF4);
 	}
-	acionarSemClique(areaDeAtalhoF4,'black','#03629b',areaPreferenciaF4.temporizador);
+    acionarSemClique(areaDeAtalhoF4,'black','#03629b',areaPreferenciaF4.temporizador);
 
 	containerAreaDeAtalhoF4.onmouseenter = function () { this.style.animation  = 'subir .5s 1 forwards'	};
 	containerAreaDeAtalhoF4.onmouseleave = function () { this.style.animation  = 'descer .5s 1 forwards' };
@@ -17184,7 +17460,8 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 							consultarMinutaSisbajudPorProtocolo();
 							break;
 					}
-				}
+				},
+				"acionarMouseEmCima"
 			)
 
 			//BOTÃO CONSULTAR TEIMOSINHA
@@ -17214,7 +17491,8 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 							novaMinutaEndSerasajud();
 							break;
 					}
-				}
+				},
+				"acionarMouseEmCima"
 			)
 
 			//BOTÃO NOVA MINUTA ENDEREÇO
@@ -17238,7 +17516,8 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 							}
 							break;
 					}
-				}
+				},
+				"acionarMouseEmCima"
 			)
 
 			//BOTÃO EXCLUIR RESTRIÇÃO
@@ -17282,34 +17561,7 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 				atalho.style.backgroundColor  = cor_de_fundo
 
 				if (acionarMouseEmCima) {
-					let check;
-					let mouseEmCima = false;
-					atalho.onmouseenter = function (event) {
-						event.preventDefault();
-						if (mouseEmCima) { return }
-						// console.log('entrou')
-						this.style.animation = 'trocarCorConvenios .75s';
-						mouseEmCima = true;
-						let seg = 1;
-						check = setInterval(function() {
-							seg--;
-							if (mouseEmCima && seg < 1) {
-								clearInterval(check);
-								mouseEmCima = false;
-								window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
-								atalho.click();
-								atalho.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
-								setTimeout(function() {atalho.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
-							}
-
-						}, 750);
-					};
-					atalho.onmouseleave = function (event) {
-						event.preventDefault();
-						this.style.animation = 'unset';
-						mouseEmCima = false;
-						clearInterval(check);
-					};
+                    acionarSemClique(atalho,cor_de_fundo, 'dodgerblue')
 				} else {
 					atalho.onmouseenter = function () {atalho.style.backgroundColor  = 'dimgray'};
 					atalho.onmouseleave = function () {atalho.style.backgroundColor  = cor_de_fundo};
@@ -17553,7 +17805,8 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 
 		//cria o monitor da tela do convênio na criação do menu
 		if (nome_convenio == "SISBAJUD") {
-
+            fundo(true);
+            exibir_mensagem('Verificando a versão do sisbajud');
 			let versao = await esperarElemento('button[aria-label="Informações do sistema"]:not([aria-expanded="true"])', null, 2000);
 			if (versao) {
 				versao.click();
@@ -17561,13 +17814,18 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 				document.querySelector('.cdk-overlay-pane').style.opacity = '0';
 				await sleep(1000)
 				console.log(dadosVersao.innerText)
-				if (dadosVersao.innerText.includes('2.32.20')) {
+                document.querySelector('menuMaisPje').setAttribute('versao_sisbajud',dadosVersao.innerText);
+				if (dadosVersao.innerText.includes('2.32.')) {
+                    document.querySelector('uikit-systeminfo').style.fontSize = '.6em'
+                    document.querySelector('uikit-systeminfo').appendChild(document.createTextNode(dadosVersao.innerText));
 					monitor_janela_sisbajudVersaoVelha();
 				} else {
 					monitor_janela_sisbajudVersaoNova();
 				}
-			}
-
+			} else {
+                monitor_janela_sisbajudVersaoNova();
+            }
+            fundo(false);
 		}
 
 		if (nome_convenio == "SNIPER") {
@@ -19080,18 +19338,19 @@ async function menuConvenios(nome_convenio,executar_funcao='') {
 				console.log(menu)
 				//medico: menu = 2
 				//previdenciario: menu = 1
-				if (document.querySelector('breadcrumb')?.innerText.includes('Página Inicial')) {
-					let idMenu = (menu == 2) ? 'a[href="/dossie/medico"]' : 'a[href="/dossie/previdenciario"]';
+				if (document.location.href.includes('/dashboard')) {
+                    console.log('entrou na pagina central')
+					let idMenu = (menu == 2) ? 'a[href="/dossie-medico"]' : 'a[href="/dossie-previdenciario"]';
 					await clicarBotao(idMenu);
 					console.log('clicou')
 					await aguardarCarregamentoConvenios('P-PROGRESSBAR',2);
 				} else if (menu) {
 					// console.log('1 ' + document.querySelector('breadcrumb')?.innerText)
-					if (document.querySelector('breadcrumb')?.innerText.includes('MÉDICO')) { document.querySelector('a[href="/dossie/previdenciario"]').click() }
+					if (document.querySelector('breadcrumb')?.innerText.includes('MÉDICO')) { document.querySelector('a[href="/dossie-previdenciario"]').click() }
 
 				} else {
 					// console.log('2 ' + document.querySelector('breadcrumb')?.innerText)
-					if (document.querySelector('breadcrumb')?.innerText.includes('PREVIDENCIÁRIO')) { document.querySelector('a[href="/dossie/medico"]').click() }
+					if (document.querySelector('breadcrumb')?.innerText.includes('PREVIDENCIÁRIO')) { document.querySelector('a[href="/dossie-medico"]').click() }
 				}
 
 				if (pesquisar) {
@@ -19669,9 +19928,9 @@ async function monitor_Janela_Detalhes() {
 											let var1 = browser.storage.local.get('processo_memoria', async function(result){
 												if (!result.processo_memoria.numero) { return }
 												event.preventDefault();
-												window.onunload = function() {
-													browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});
-												};
+												// window.onunload = function() {
+												// 	browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});
+												// };
 												browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
 											});
 											return;
@@ -19870,8 +20129,13 @@ async function monitor_Janela_Principal() {
 
 		if (!existeMonitor) {
 			console.log("Extensão maisPJE (" + agora() + "): monitor_janela_principal");
+
+            let timer;
+		    let segundos = 2750 + parseInt(preferencias.maisPje_velocidade_interacao); //intervalo de tempo em que há o monitoramento. Na velocidade máxima corresponde a 3 segundos
+
 			let observerJanelaPrincipal = new MutationObserver(async function(mutationsDocumento) {
 				mutationsDocumento.forEach(async function(mutation) {
+
 					// console.log(mutation.target.tagName + " : " + mutation.target.className);
 					//PAINEL DE PERÍCIAS
 					if (mutation.target.tagName == 'PJE-DATA-TABLE') {
@@ -20124,10 +20388,6 @@ async function monitor_Janela_Principal() {
 								}
 							}
 						}
-
-						// if (document.querySelector('pje-pauta-audiencias') && document.querySelector('table[name*="Horários do"]') && preferencias.modulo10_juntadaMidia[0]) {
-
-
 					}
 
 					if (mutation.removedNodes[0]) {
@@ -20150,8 +20410,7 @@ async function monitor_Janela_Principal() {
 			observerJanelaPrincipal.observe(document.body, { childList: true, subtree:true }); //inicia o MutationObserver
 			await guardarOJdoUsuario();
 		}
-		//atualiza o grau do usuario
-		// await apiObterGraudeJurisdicaoDoPerfil();
+
 	}
 
 	async function monitorRelatorioGigs() {
@@ -21409,8 +21668,9 @@ async function monitor_janela_sisbajudVersaoNova() {
 }
 
 async function monitor_janela_sisbajudVersaoVelha() {
-	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_sisbajudVersaoVelha");
+    console.log("Extensão maisPJE (" + agora() + "): monitor_janela_sisbajudVersaoVelha");
 	let targetDocumento = document.body;
+    let ancora, tituloDaOrdem, situacaoOrdem;
 	let observerDocumento = new MutationObserver(function(mutationsDocumento) {
 		mutationsDocumento.forEach(function(mutation) {
 			if (!mutation.addedNodes[0]) { return }
@@ -21418,25 +21678,24 @@ async function monitor_janela_sisbajudVersaoVelha() {
 			// console.log(mutation.addedNodes[0].tagName + " : " + mutation.addedNodes[0].className + " : " + mutation.addedNodes[0].innerText);
 
 			//aplica efeitos aos botoes
-				if (document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO')) {
-					if (mutation.addedNodes[0].tagName == "BUTTON" && (mutation.addedNodes[0].innerText.includes('Salvar') || mutation.addedNodes[0].innerText.includes('Protocolar'))) {
-						if (!mutation.addedNodes[0].hasAttribute('disabled')) {
-							if (!mutation.addedNodes[0].hasAttribute('maispje')) {
-								acionarSemClique(mutation.addedNodes[0],'#005efc','#ff3d00')
-							}
-						}
-					}
+                if (document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO')) {
+                    if (mutation.addedNodes[0].tagName == "BUTTON" && (mutation.addedNodes[0].innerText.includes('Salvar') || mutation.addedNodes[0].innerText.includes('Protocolar'))) {
+                        if (!mutation.addedNodes[0].hasAttribute('disabled')) {
+                            if (!mutation.addedNodes[0].hasAttribute('maispje')) {
+                                acionarSemClique(mutation.addedNodes[0],'#005efc','#ff3d00')
+                            }
+                        }
+                    }
 
-					if (document.querySelector('button[title="Exportar PDF"]:not([disabled]):not([maisPje])')) {
-						let btExportarPDF = document.querySelector('button[title="Exportar PDF"]:not([disabled])');
-						if (!btExportarPDF.hasAttribute('maispje')) {
-							btExportarPDF.setAttribute('maisPje','true');
-							acionarSemClique(btExportarPDF,'#005efc','#ff3d00')
-						}
-					}
+                    if (document.querySelector('button[title="Exportar PDF"]:not([disabled]):not([maisPje])')) {
+                        let btExportarPDF = document.querySelector('button[title="Exportar PDF"]:not([disabled])');
+                        if (!btExportarPDF.hasAttribute('maispje')) {
+                            btExportarPDF.setAttribute('maisPje','true');
+                            acionarSemClique(btExportarPDF,'#005efc','#ff3d00')
+                        }
+                    }
 
-				}
-
+                }
 
 			//aplicar estilos nas linhas de tabelas onmouseenter onmouseleave
 				if (document.querySelector('SISBAJUD-PESQUISA-TEIMOSINHA') && mutation.addedNodes[0].tagName == "TR" && mutation.target.tagName == "TBODY") {
@@ -21493,9 +21752,6 @@ async function monitor_janela_sisbajudVersaoVelha() {
 				if (preferencias.AALote?.includes('sisbajud.marcarComoLidaEmLote')) { return true }//LEITURA DAS NÃO LIDAS EM LOTE
 				let var1 = browser.storage.local.get('processo_memoria', function(result){
 					if (!result.processo_memoria.numero) {return}
-					if (preferencias.tempAR.includes('conferirTeimosinhaEmLote')) {
-						return
-					}
 					let check = setInterval(function() {
 						if (document.querySelector('input[placeholder="Número do Processo"]')) {
 							clearInterval(check);
@@ -21535,76 +21791,56 @@ async function monitor_janela_sisbajudVersaoVelha() {
 					if (document.querySelector('div[class="mat-expansion-panel-body"]')) {
 						if (document.querySelector('div[class="mat-expansion-panel-body"]').children.length > 0) {
 							clearInterval(check);
-							aplicar_estilos();
+                            aplicar_estilos();
 						}
 					}
-				}, 100);
-
-				//verificar se a resposta é de endereço... se sim, mandar exportar pdf.
-				let tempominimo = 5000; //depois de cinco segundos encerra a verificação.. motivo: economia de recursos
-				let check2= setInterval(function() {
-					tempominimo = tempominimo - 100;
-					let barraTitulo = document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO MAT-CARD-TITLE');
-					let resposta = document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO SISBAJUD-LIST-PESSOAS-PESQUISADAS-COM-RESPOSTA-E-ACOES, SISBAJUD-INCLUSAO-DESDOBRAMENTO SISBAJUD-LIST-REUS-COM-RESPOSTA-E-ACOES');
-					let btExportarResposta = document.querySelector('SISBAJUD-INCLUSAO-DESDOBRAMENTO DIV[class="uikit-actions"] MAT-ICON[class*="fa-file-pdf"]');
-
-					// console.log(ordemInfo + ":" + resposta + ":" + btExportarResposta);
-					if (barraTitulo && resposta && btExportarResposta) {
-                        let ordemInfo = barraTitulo?.innerText.includes('Dados da Ordem Judicial de Requisição de Informações');
-                        if (ordemInfo) { // é requisição de informação
-                            clearInterval(check2);
-						    btExportarResposta.parentElement.parentElement.click();
-                        } else {
-                            clearInterval(check2)
-                            console.log('saiu.. não é requisição de endereço');
-                        }
-					}
-
-					if (tempominimo <= 0) { console.log('saiu.. não achou os 3 elementos necessários');clearInterval(check2) }
-				}, 100);
+				}, 1000);
 			}
 
 			if (mutation.addedNodes[0].tagName == "SISBAJUD-DETALHAMENTO-ORDEM-JUDICIAL") {
 				console.log('SISBAJUD-DETALHAMENTO-ORDEM-JUDICIAL')
 				if (preferencias.AALote?.includes('sisbajud.marcarComoLidaEmLote')) { return true }//LEITURA DAS NÃO LIDAS EM LOTE
 
-				let check1 = setInterval(function() {
+				let check1 = setInterval(async function() {
 					if (document.querySelector('span[class*="sisbajud-label-valor"]').innerText != "") { //esperar carregar os valores
 						clearInterval(check1);
 						consultaPJe(document.querySelectorAll('span[class*="sisbajud-label-valor"]'));
 						if (!document.querySelector('sisbajud-list-reus-com-resposta')) {
-							copiarNumeroOrdem(document.querySelectorAll('span[class*="sisbajud-label-valor"]'));
-							let ancora = document.querySelector('sisbajud-detalhamento-ordem-judicial mat-card');
-							let tituloDaOrdem = ancora.querySelector('mat-card-title');
-							let situacaoOrdem = ancora.querySelector('mat-card-content span[class="sisbajud-label-valor"]');
 
-							console.log('***************************************' + tituloDaOrdem.innerText);
-							console.log('***************************************' + situacaoOrdem.innerText);
+							// copiarNumeroOrdem(document.querySelectorAll('span[class*="sisbajud-label-valor"]')); //copia o numero do protocolo sisbajud
 
-							if (!tituloDaOrdem.innerText.includes('Dados da Ordem Judicial de Requisição de Informações')) {
-								if (preferencias.sisbajud.executarAAaoFinal != 'Nenhum') {
+                            ancora = document.querySelector('sisbajud-detalhamento-ordem-judicial mat-card');
+                            tituloDaOrdem = ancora?.querySelector('mat-card-title');
+                            situacaoOrdem = ancora?.querySelector('mat-card-content span[class="sisbajud-label-valor"]');
+
+							if (tituloDaOrdem.innerText.includes('Requisição de Informações')) {
+                                browser.storage.local.get('tempAR').then(async function(result){
+                                    if (situacaoOrdem.innerText.includes('Respostas recebidas') && result.tempAR.includes('conferirPesquisaDeEndereço')) {
+                                        console.log('ENTROU')
+                                        await clicarBotao('button[title="Exportar PDF"]:not([disabled])');
+                                        await aguardarCarregamentoConvenios('.mat-ripple-element',0);
+                                        await sleep(2000);
+				                        let guardarStorage = browser.storage.local.set({'tempAR': result.tempAR + '_finalizado'});
+                                        Promise.all([guardarStorage]).then(async values => { window.close() });
+                                    }
+                                });
+
+							} else { //bloqueio de valores
+                                console.log('asd')
+                                aplicar_estilos();
+                                if (preferencias.sisbajud.executarAAaoFinal != 'Nenhum') {
 									if (situacaoOrdem.innerText.includes('Aguardando respostas das instituições financeiras')) {
 										// browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.sisbajud.executarAAaoFinal});
 									}
 									if (situacaoOrdem.innerText.includes('Ordem judicial ainda não disponibilizada para as instituições financeiras')) {
-
-										copiarDadosParaNovaOrdem2();
+                                        copiarDadosParaNovaOrdem2();
 										clicarBotao('button[title="Gerar Recibo"]');
 										setTimeout(function() {
 											browser.runtime.sendMessage({tipo: 'storage_vinculo', valor: preferencias.sisbajud.executarAAaoFinal});
 										}, 500);
 									}
 								}
-							}
-						}
-					}
-				}, 100);
-
-				let check2 = setInterval(function() {
-					if (document.querySelector('div[class="mat-expansion-panel-body"]')) {
-						if (document.querySelector('div[class="mat-expansion-panel-body"]').children.length > 0) {
-							clearInterval(check2);
-							aplicar_estilos();
+                            }
 						}
 					}
 				}, 100);
@@ -21677,8 +21913,9 @@ async function monitor_janela_sisbajudVersaoVelha() {
 		});
 	});
 	let configDocumento = { childList: true, subtree:true }
+    if (!preferencias.tempAR.includes('conferirTeimosinhaEmLote')) { //se vier da conferência em lote não liga o observer
 	observerDocumento.observe(targetDocumento, configDocumento); //inicia o MutationObserver
-
+    }
 
 	//mutation do storage para disparar a inclusão de nova minuta de bloqueio
 	browser.storage.onChanged.addListener(logStorageChange);
@@ -21693,10 +21930,13 @@ async function monitor_janela_sisbajudVersaoVelha() {
 				} else if (changes[item].newValue.includes('conferirTeimosinhaEmLote')) {
 					fundo(true)
 					let processo = changes[item].newValue.replace('conferirTeimosinhaEmLote','');
+                    console.log(processo)
 					// let barraLateral = await esperarElemento('mat-sidenav-container mat-sidenav');
 					// barraLateral.style.marginLeft = '-1000px';
 					await clicarBotao('button[aria-label*="menu de navegação"]'); //exibir
 					await clicarBotao('a[aria-label*="Ir para Teimosinha"]');
+                    // await esperarElemento('')
+                    await clicarBotao('button', 'Limpar');
 					await preencherInput('input[placeholder="Número do Processo"]',processo,false);
 					await clicarBotao('button', 'Consultar');
 					await clicarBotao('button[aria-label*="menu de navegação"]'); //ocultar
@@ -21714,6 +21954,8 @@ async function monitor_janela_sisbajudVersaoVelha() {
 							console.log(i + ' : ' + d + ' : ' + v + ' : ' + s + ' : ' + p)
 							resposta.push({id:i,data:d,valor:v,situacao:s,processo:p});
 						}
+					} else { //nenhuma série encontrada
+                        resposta.push({id:'',data:'',valor:'',situacao:'Nenhuma série encontrada',processo:processo});
 					}
 
 					let guardarStorage1 = browser.storage.local.set({'tempAR': ''});
@@ -21738,6 +21980,14 @@ async function monitor_janela_sisbajudVersaoVelha() {
 					}
 
 				} else if (changes[item].newValue.includes('conferirPesquisaDeEndereço')) {
+                    if (changes[item].newValue.includes('_finalizado')) {
+                        let guardarStorage1 = browser.storage.local.set({'tempAR': ''});
+						Promise.all([guardarStorage1]).then(async values => {
+							window.close();
+						});
+                        return
+                    }
+
 					fundo(true);
 					exibir_mensagem('Conferindo pesquisa de endereço automaticamente...')
 					let processo = changes[item].newValue.replace('conferirPesquisaDeEndereço','');
@@ -21748,13 +21998,7 @@ async function monitor_janela_sisbajudVersaoVelha() {
 					await clicarBotao('button', 'Consultar');
 
 					let erro = await esperarElemento('sisbajud-snack-messenger','Nenhuma série encontrada',1000);
-					if (!erro) {
-						await clicarBotao('sisbajud-pesquisa-ordem-judicial tbody tr');
-						let guardarStorage1 = browser.storage.local.set({'tempAR': ''});
-						Promise.all([guardarStorage1]).then(async values => {
-							window.close();
-						});
-					}
+					if (!erro) { await clicarBotao('sisbajud-pesquisa-ordem-judicial tbody tr') }
 
 				} else if (changes[item].newValue.includes('minutarPesquisaDeEndereço')) {
 					await clicarBotao('button[aria-label*="menu de navegação"]');
@@ -21804,6 +22048,10 @@ async function monitor_janela_sisbajudVersaoVelha() {
 
 	//APLICAR ESTILOS NAS RESPOSTAS
 	async function aplicar_estilos() {
+        console.log('aplicar_estilos(): ' + tituloDaOrdem?.innerText)
+
+        // if (tituloDaOrdem?.innerText.includes('Requisição de Informações')) {
+
 		let check = setInterval(async function() {
 			if (document.querySelector('sisbajud-list-reus-com-resposta-e-acoes') || document.querySelector('sisbajud-list-reus-com-resposta') || document.querySelector('sisbajud-list-pessoas-pesquisadas-com-resposta-e-acoes') || document.querySelector('sisbajud-list-pessoas-pesquisadas-com-resposta')) {
 				if (document.querySelector('mat-panel-description')) {
@@ -21811,29 +22059,33 @@ async function monitor_janela_sisbajudVersaoVelha() {
 					console.log("   |___DESDOBRAR MINUTAS");
 
 					//PREENCHER JUIZ
-					if (document.querySelector('input[placeholder*="Juiz"]')) {
-						await juiz();
-					}
+					if (document.querySelector('input[placeholder*="Juiz"]')) {	await juiz() }
 
 					//ESTILO DA PAGINA
 					if (document.querySelectorAll('mat-panel-description')) {
-						let el1 = document.querySelectorAll('mat-panel-description');
-						if (!el1) {
-							return
-						}
-						let map = [].map.call(
-							el1,
-							function(elemento) {
-								let total_bloqueado = elemento.innerText.substring(elemento.innerText.search(": R") + 5, elemento.innerText.length);
-								total_bloqueado = total_bloqueado.replace(',','.');
+                        let ancora = document.querySelector('sisbajud-detalhamento-ordem-judicial mat-card, sisbajud-inclusao-desdobramento mat-card');
+                        let tituloDaOrdem = ancora?.querySelector('mat-card-title');
 
-								if (parseFloat(total_bloqueado) < 0.01) {
-									elemento.parentElement.parentElement.parentElement.style = 'background-color: #ff270080; padding: 5px;';
-								} else {
-									elemento.parentElement.parentElement.parentElement.style = 'background-color: #32cd3280; padding: 5px;';
-								}
-							}
-						);
+                        if (tituloDaOrdem?.innerText.includes('Requisição de Informações')) { //
+                        } else {
+                            let el1 = document.querySelectorAll('mat-panel-description');
+                            if (!el1) {
+                                return
+                            }
+                            let map = [].map.call(
+                                el1,
+                                function(elemento) {
+                                    let total_bloqueado = elemento.innerText.substring(elemento.innerText.search(": R") + 5, elemento.innerText.length);
+                                    total_bloqueado = total_bloqueado.replace(',','.');
+
+                                    if (parseFloat(total_bloqueado) < 0.01) {
+                                        elemento.parentElement.parentElement.parentElement.style = 'background-color: #ff270080; padding: 5px;';
+                                    } else {
+                                        elemento.parentElement.parentElement.parentElement.style = 'background-color: #32cd3280; padding: 5px;';
+                                    }
+                                }
+                            );
+                        }
 					}
 
 					console.log("      |___NÃO-RESPOSTAS (" + preferencias.sisbajud.naorespostas + ") e DESBLOQUEIO DE VALORES MÍNIMOS (" + preferencias.sisbajud.valor_desbloqueio + ")");
@@ -22479,7 +22731,6 @@ async function monitor_janela_sisbajudVersaoVelha() {
 	}
 	//**********************************************************************************
 }
-
 
 async function monitor_janela_renajud() {
 	console.log("Extensão maisPJE (" + agora() + "): monitor_janela_renajud");
@@ -23426,7 +23677,7 @@ async function monitor_janela_PJeCalc() {
 
 					let novadata;
 					if (!preferencias.tempAR.dataFim) {
-						novadata = await criarCaixaDePergunta('data','Atualizar cálculo para:');
+						novadata = await criarCaixaDePergunta('data','Atualizar cálculo para:',new Date().toLocaleDateString());
 					} else {
 						novadata = preferencias.tempAR.dataFim
 					}
@@ -23551,7 +23802,7 @@ async function monitor_janela_PJeCalc() {
 
 					let novadata;
 					if (!preferencias.tempAR.dataFim) {
-						novadata = await criarCaixaDePergunta('data','Atualizar cálculo para:');
+						novadata = await criarCaixaDePergunta('data','Atualizar cálculo para:',new Date().toLocaleDateString());
 					} else {
 						novadata = preferencias.tempAR.dataFim
 					}
@@ -23752,7 +24003,7 @@ async function monitor_janela_PJeCalc() {
 
 							browser.storage.onChanged.addListener(logStorageChangePJeCalc);
 
-							let dataFim = await criarCaixaDePergunta('data','Atualizar os cálculos para:');
+							let dataFim = await criarCaixaDePergunta('data','Atualizar os cálculos para:',new Date().toLocaleDateString());
 							let guardarStorage = browser.storage.local.set({
 								'tempAR': {
 									'tipo':'atualizacaorapidaemlote',
@@ -23956,7 +24207,7 @@ async function monitor_janela_sif() {
 
 	async function preencherAlvaraSIF(numeroProcesso) {
 
-		let beneficiario = await criarCaixaDeSelecaoCom(numeroProcesso);
+		let beneficiario = await criarCaixaDeSelecaoPartes(numeroProcesso);
 		beneficiario.nome = beneficiario.nome.replace(/(\d{1,2}. )/g,'');
 		//retira a posicao do beneficiário do nome, por exemplo: 1. Reu   2. Reu       tira o '1. ' da frente
 		let ancora = await esperarElemento('pje-form-alvara mat-select[placeholder="Confeccionar Alvará"]');
@@ -23993,7 +24244,6 @@ async function monitor_janela_sif() {
 			await preencherInput('pje-form-alvara input[formcontrolname="dataVencimento"]', dtVencimento.toLocaleDateString()); //DATA DE VENCIMENTO
 			await preencherInput('pje-form-alvara input[formcontrolname="dataApuracao"]', obterDataMMYYYY(hoje)); //PERÍODO APURAÇÃO
 			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="contribuinte"]', beneficiario.nome); //CONTRIBUINTE
-			// await esperarTransicaoSIF(60000,'PJE-SPINNER-DIALOG');	//pje-spinner-dialog
 			await preencherInput('pje-form-alvara input[formcontrolname="dataAtualizacao"]', dtAtualizacao); //CORREÇÃO
 
 		} else if (ancora.innerText.includes('Guia da Previdência Social GPS')) {
@@ -25294,6 +25544,7 @@ function isoComMicrosParaDate(isoString) {
  * @returns {LinksDocumento}
  */
 function montarURLsDocumentos(nrProcesso, documento, idProcesso) {
+    if (!documento) { return null }
 	const {idUnicoDocumento} = documento;
 	const idDocumento = documento.id;
 	const previewDocumento = apis.documentoProcessoPreview.montarUrl(preferencias.trt, {nrProcesso, idUnicoDocumento});
@@ -25419,7 +25670,7 @@ async function editarCalendarioGigs(consultaAPI) {
 				div.style = "width: " + ancora.offsetWidth + "px;height: auto;display: flex; text-align: center;font-size: .87em;background-color: white;color: rgba(0, 0, 0, 0.87); border-radius: 0 0 4px 4px;padding: 0 2vh 2vh 0";
 
 				let legendaMunicipal = document.createElement("div");
-				legendaMunicipal.style = "width: 1.4em; height: 1.4em; background-color: rgba(235, 164, 16, 0.6); border-radius: 999px; margin-left: 1vw;";
+				legendaMunicipal.style = "width: 1.4em; height: 1.4em; background-color: rgba(235, 164, 16, 0.6); border-radius: 999px; margin-left: 2vw;";
 				div.appendChild(legendaMunicipal);
 				let legendaMunicipal_span = document.createElement("span");
 				legendaMunicipal_span.textContent = "Municipal";
@@ -26819,9 +27070,9 @@ async function montarFiltrosFavoritos(ancora) {
 			conferirTeimosinhaEmLote();
 		}
 
-		if (preferencias.modulo5_processosSemGigsCadastrado) {
-			processosSemGigsCadastrado();
-		}
+		// if (preferencias.modulo5_processosSemGigsCadastrado) {
+		// 	processosSemGigsCadastrado();
+		// }
 
 		if (preferencias.modulo5_processosParadosHaMaisDeXXDias) {
 			processosParadosHaMaisDeXXDias(tabela_atual);
@@ -26854,7 +27105,8 @@ async function montarFiltrosFavoritos(ancora) {
 			//atalho
 			let botao = document.createElement("button");
 			botao.id = "maisPje_filtrofavorito_" + nome;
-			botao.style = "cursor:pointer;margin: 5px; padding: 5px 8px; background-color: #bbb;border: 1px solid white;outline: darkgray solid 1px;border-radius: 3px;color: #1e1e1e;";
+            botao.classList.add('maisPje_CR');
+			botao.style = "position: relative;cursor:pointer;margin: 5px; padding: 5px 8px; background-color: #bbb;border: 1px solid white;outline: darkgray solid 1px;border-radius: 3px;color: #1e1e1e;";
 			botao.onclick = function () {acao(tabela, camposFixos, camposDinamicos,qtde)};
 			let botao_span = document.createElement("span");
 			botao_span.innerText = nome;
@@ -27274,7 +27526,8 @@ async function inserirBotaoCopiarListaDeProcessos() {
 			let botao = document.createElement("button");
 			botao.id = "maisPje_bt_copiar_lista";
 			botao.classList.add("mat-focus-indicator", "mat-tooltip-trigger", "mat-icon-button", "mat-button-base");
-			botao.setAttribute("maispje-tooltip-abaixo5", "maisPje: Copiar Lista de Processos");
+			botao.setAttribute("maispje-tooltip-abaixo5", "Copiar Lista de Processos - maisPje");
+			botao.setAttribute("aria-label", "Copiar Lista de Processos - maisPje");
 			botao.onclick = async function (e) {
 
 				let tabela = await esperarElemento('pje-data-table tbody');
@@ -27313,6 +27566,7 @@ async function inserirBotaoCopiarListaDeProcessos() {
 }
 
 //FUNÇÃO QUE RETORNA O ID DO PROCESSO PARA ABERTURA DE NOVAS PÁGINAS
+
 async function obterIdProcessoViaApi(numero) {
 	const grau_usuario = getGrauAsNumber(preferencias.grau_usuario);
 	if (numero.includes('ERRO')) { return null }
@@ -27520,7 +27774,11 @@ async function obterNomeTarefaViaApi(idTarefa = '') {
 async function obterNomeTarefaDoProcessoViaApi(idProcesso) {
 	let urlBase = preferencias.trt;
 	let dados = await apis.tarefasProcesso.executar(urlBase, {idProcesso});
-	return dados[0].nomeTarefa;
+    if (dados) {
+        return dados[0]?.nomeTarefa;
+    } else {
+        return 'Erro';
+    }
 }
 
 //FUNÇÃO QUE OBTEM O MOTIVO DO SOBRESTAMENTO
@@ -27700,7 +27958,7 @@ async function obterPartesDoProcesso(idProcesso, comPosicao=true) { //comPosicao
 async function obterDadosResumidosDoProcesso(numeroProcesso, idProcesso, soDadosGerais=false, soDadosPartes=false, comPosicao=true){ // se passar o nomeDaParte a extensão retorna apenas os dados dela
 	if (!idProcesso) {
 		let api = await obterIdProcessoViaApiPublica(numeroProcesso);
-		idProcesso = api[0].id ? api[0].id : api[0].idProcesso;
+		idProcesso = api[0].id ?? api[0].idProcesso;
 	}
 
 	let dadosGerais, partes;
@@ -27852,11 +28110,11 @@ async function obterResultadoTeimosinha(numero) {
 	return new Promise(async resolve => {
 		console.log('obterResultadoTeimosinha(' + numero + ')')
 		let verificador = false;
+
 		browser.storage.onChanged.addListener(logStorageChange);
 
-
 		//abre a janela sisbajud
-		let winSisbajud = window.open('https://sisbajud.cnj.jus.br/teimosinha', '_blank', 'toolbar=no,status=no,menubar=no,scrollbars=no,resizable=no,width=500, height=500, visible=none', '');
+		let winSisbajud = window.open('https://sisbajud.cnj.jus.br/minuta', '_blank', 'toolbar=no,status=no,menubar=no,scrollbars=no,resizable=no,width=500, height=500, visible=none', '');
 		await sleep(2000) //aguarda carregar todas as funções da maisPJe na Janela
 		//disparar o sisbajud
 		let guardarStorage = browser.storage.local.set({'tempAR': 'conferirTeimosinhaEmLote'+numero});
@@ -28628,6 +28886,7 @@ async function ativarModulo10() {
 					);
 					elemento1.appendChild(div);
 					document.body.appendChild(elemento1);
+                    // elemento1?.showModal();
 				} else {
 					resolver(null);
 				}
@@ -28730,6 +28989,7 @@ async function processosSemAudienciaDesignada() {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_processosSemAudienciaDesignada";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Processos sem audiência Designada";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -28828,91 +29088,91 @@ async function processosSemAudienciaDesignada() {
 }
 
 //BOTAO PARA ACHAR PROCESSOS SEM GIGS CADASTRADO
-async function processosSemGigsCadastrado() {
-	console.log('processosSemGigsCadastrado()');
-	// if (!document.getElementById('maisPje_processosSemGigsCadastrado')) {
-	// 	let ancora = await esperarElemento('maisPje-container-filtros');
-	// 	let botao = document.createElement("button");
-	// 	botao.id = "maisPje_processosSemGigsCadastrado";
-	// 	botao.innerText = "Processos sem Gigs Cadastrado";
-	// 	botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
-	// 	botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
-	// 	botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
-	// 	botao.onclick = function () {
+// async function processosSemGigsCadastrado() {
+// 	console.log('processosSemGigsCadastrado()');
+// 	// if (!document.getElementById('maisPje_processosSemGigsCadastrado')) {
+// 	// 	let ancora = await esperarElemento('maisPje-container-filtros');
+// 	// 	let botao = document.createElement("button");
+// 	// 	botao.id = "maisPje_processosSemGigsCadastrado";
+// 	// 	botao.innerText = "Processos sem Gigs Cadastrado";
+// 	// 	botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
+// 	// 	botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
+// 	// 	botao.onmouseleave = function () { this.style.filter  = 'brightness(1)' };
+// 	// 	botao.onclick = function () {
 
-	// 		console.log("Extensão maisPJE (" + agora() + "): filtrarProcessosSemGigsCadastrado");
-	// 		let ativar = document.querySelector('tbody').getAttribute('maisPje_processosSemGigsCadastrado_ativado');
-	// 		if (!ativar || ativar == "false") {
-	// 			ativarFiltro();
-	// 		} else {
-	// 			desativarFiltro();
-	// 		}
+// 	// 		console.log("Extensão maisPJE (" + agora() + "): filtrarProcessosSemGigsCadastrado");
+// 	// 		let ativar = document.querySelector('tbody').getAttribute('maisPje_processosSemGigsCadastrado_ativado');
+// 	// 		if (!ativar || ativar == "false") {
+// 	// 			ativarFiltro();
+// 	// 		} else {
+// 	// 			desativarFiltro();
+// 	// 		}
 
-	// 		async function ativarFiltro() {
-	// 			document.querySelector('tbody').setAttribute('maisPje_processosSemGigsCadastrado_ativado',true);
-	// 			let el = document.querySelectorAll('tbody tr');
-	// 			if (!el) {
-	// 				return
-	// 			}
+// 	// 		async function ativarFiltro() {
+// 	// 			document.querySelector('tbody').setAttribute('maisPje_processosSemGigsCadastrado_ativado',true);
+// 	// 			let el = document.querySelectorAll('tbody tr');
+// 	// 			if (!el) {
+// 	// 				return
+// 	// 			}
 
-	// 			for (const [pos, linha] of el.entries()) {
-	// 				//****demonstração ao usuário de que está passando na linha
-	// 				linha.scrollIntoView({behavior: 'auto',block: 'center',inline: 'center'});
-	// 				linha.style.setProperty('filter', 'brightness(0.5)');
-	// 				linha.style.setProperty('outline', '2px dashed yellow');
-	// 				await sleep(1);
-	// 				//**********
+// 	// 			for (const [pos, linha] of el.entries()) {
+// 	// 				//****demonstração ao usuário de que está passando na linha
+// 	// 				linha.scrollIntoView({behavior: 'auto',block: 'center',inline: 'center'});
+// 	// 				linha.style.setProperty('filter', 'brightness(0.5)');
+// 	// 				linha.style.setProperty('outline', '2px dashed yellow');
+// 	// 				await sleep(1);
+// 	// 				//**********
 
-	// 				let existe = linha.querySelector('div[class*="tipo-atividade-container"]');
-	// 				if (existe) {
-	// 					linha.style.display = 'none';
-	// 					linha.style.setProperty('filter', 'revert');
-	// 					linha.style.setProperty('outline', 'revert');
-	// 				} else {
-	// 					linha.style.setProperty('filter', 'revert');
-	// 					linha.style.setProperty('outline', 'revert');
-	// 					linha.style.setProperty('background-color', 'khaki');
-	// 					linha.setAttribute('maisPje_processosSemGigsCadastrado_ativado',true);
-	// 				}
+// 	// 				let existe = linha.querySelector('div[class*="tipo-atividade-container"]');
+// 	// 				if (existe) {
+// 	// 					linha.style.display = 'none';
+// 	// 					linha.style.setProperty('filter', 'revert');
+// 	// 					linha.style.setProperty('outline', 'revert');
+// 	// 				} else {
+// 	// 					linha.style.setProperty('filter', 'revert');
+// 	// 					linha.style.setProperty('outline', 'revert');
+// 	// 					linha.style.setProperty('background-color', 'khaki');
+// 	// 					linha.setAttribute('maisPje_processosSemGigsCadastrado_ativado',true);
+// 	// 				}
 
-	// 			}
+// 	// 			}
 
-	// 			// DESCRIÇÃO: Se o usuário clicar em qualquer item do cabeçalho o filtro será desativado
-	// 			document.querySelector('thead').addEventListener('click', function(event) {
-	// 				if (!event.target.className.includes('fa-check') && !event.target.className.includes('todas-marcadas')) {
-	// 					desativarFiltro();
-	// 				}
-	// 			});
+// 	// 			// DESCRIÇÃO: Se o usuário clicar em qualquer item do cabeçalho o filtro será desativado
+// 	// 			document.querySelector('thead').addEventListener('click', function(event) {
+// 	// 				if (!event.target.className.includes('fa-check') && !event.target.className.includes('todas-marcadas')) {
+// 	// 					desativarFiltro();
+// 	// 				}
+// 	// 			});
 
-	// 			// DESCRIÇÃO: Se o usuário mudar a página da tabela, o filtro é desativado
-	// 			document.querySelector('pje-paginador').addEventListener('click', function(event) {
-	// 				desativarFiltro();
-	// 			});
-	// 		}
+// 	// 			// DESCRIÇÃO: Se o usuário mudar a página da tabela, o filtro é desativado
+// 	// 			document.querySelector('pje-paginador').addEventListener('click', function(event) {
+// 	// 				desativarFiltro();
+// 	// 			});
+// 	// 		}
 
-	// 		function desativarFiltro() {
-	// 			document.querySelector('tbody').setAttribute('maisPje_processosSemGigsCadastrado_ativado',false);
-	// 			let el = document.querySelector('tbody').getElementsByTagName('tr');
-	// 			if (!el) { return }
-	// 			let cor = 'rgb(240, 240, 240)';
-	// 			let map1 = [].map.call(
-	// 				el,
-	// 				function(linha) {
-	// 					linha.style.setProperty('display', '');
-	// 					linha.style.setProperty('background-color', cor);
-	// 					cor = (cor == "white") ? 'rgb(240, 240, 240)' : 'white';
-	// 				}
-	// 			);
-	// 			return true;
-	// 		}
+// 	// 		function desativarFiltro() {
+// 	// 			document.querySelector('tbody').setAttribute('maisPje_processosSemGigsCadastrado_ativado',false);
+// 	// 			let el = document.querySelector('tbody').getElementsByTagName('tr');
+// 	// 			if (!el) { return }
+// 	// 			let cor = 'rgb(240, 240, 240)';
+// 	// 			let map1 = [].map.call(
+// 	// 				el,
+// 	// 				function(linha) {
+// 	// 					linha.style.setProperty('display', '');
+// 	// 					linha.style.setProperty('background-color', cor);
+// 	// 					cor = (cor == "white") ? 'rgb(240, 240, 240)' : 'white';
+// 	// 				}
+// 	// 			);
+// 	// 			return true;
+// 	// 		}
 
 
-	// 	};
+// 	// 	};
 
-	// 	ancora.appendChild(botao);
+// 	// 	ancora.appendChild(botao);
+// 	// }
+
 	// }
-
-}
 
 //BOTAO PARA PARADOS HÁ MAIS DE XX DIAS
 async function processosParadosHaMaisDeXXDias(tabela) {
@@ -28921,6 +29181,7 @@ async function processosParadosHaMaisDeXXDias(tabela) {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_processosParadosHaMaisDeXXDias";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Processos parados há mais de XX dias";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -28980,6 +29241,7 @@ async function juizResponsavelPelaMinuta() {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_juizResponsavelPelaMinuta";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Juiz Responsável pela Minuta";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -29068,6 +29330,7 @@ async function obterSaldoSIF() {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_obterSaldoSIF";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Obter Saldo SIF";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -29201,6 +29464,7 @@ async function ObterConcilia() {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_obterConcilia";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Obter ConciliaJT";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -29226,6 +29490,7 @@ async function conferirTeimosinhaEmLote() {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_conferirTeimosinhaEmLote";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Conferir SISBAJUD(Teimosinha)";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -29376,6 +29641,7 @@ async function conferirGarimpoEmLote() {
 		let ancora = await esperarElemento('maisPje-container-filtros');
 		let botao = document.createElement("button");
 		botao.id = "maisPje_conferirGarimpoEmLote";
+        botao.classList.add('maisPje_CR');
 		botao.innerText = "Obter Saldo GARIMPO";
 		botao.style = "cursor: pointer; position: relative; top: 20%; margin: 8px; padding: 5px; z-index: 1;background-color: #0078aa;border: 1px solid #66aecc;outline: 1px solid #006f9d;border-radius: 3px;color: #ffe8a4;";
 		botao.onmouseenter = function () { this.style.filter  = 'brightness(.8)' };
@@ -29683,89 +29949,54 @@ async function verificarVersoesPjeTRTs() {
 	}
 }
 
-async function listaProcessoParaAcoesEmLote(listaPronta) {
-	return new Promise(
-		resolver => {
-			console.log("      |___maisPJe: acoesacoesEmLoteContainer");
-
-			if (document.querySelector('maisPje_aaLote_lista_processos')) { return }
-
-			let elemento1 = criarPopup('maisPje_aaLote_lista_processos', resolver);
-			let container = document.createElement("div");
-			container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
-
-			let titulo = document.createElement("h2");
-			titulo.style = "color: grey; border-bottom: 1px solid lightgrey; margin: 0;";
-			titulo.innerText = "Processos para Ação Automatizada em lote";
-			container.appendChild(titulo);
-
-			let lista_processos = document.createElement('textarea');
-			lista_processos.id = 'maisPje_aaLote_lista_processos_textarea';
-			lista_processos.placeholder = '\n\nDigite ou cole a sua lista de processos aqui.\n\nOs números devem estar no padrão CNJ.\n\nNão importa se eles estão sozinhos ou misturados com outras palavras de texto.\n\nAo clicar em "CONTINUAR" a extensão irá encontrar os números dos processos no texto e criará uma lista.\n\nApenas os processos que fazem parte dessa nova lista é que serão utilizados para a ação automatizada em lote.\n\nBom proveito!'
-			lista_processos.ariaDescription = lista_processos.placeholder;
-			// lista_processos.value = (listaPronta) ? listaPronta : '';
-			lista_processos.value = (listaPronta) ? listaPronta : '';
-			lista_processos.style = 'width: 100%; height: 80vh;';
-			lista_processos.addEventListener("selectionchange", function (event) { ajustarNumeroDeProcessos() });
-			container.appendChild(lista_processos);
-
-			const bt_continuar = criarBotaoComCoresPadrao();
-			bt_continuar.onclick = async function () {
-				let lista = lista_processos.value.match(padraoProcesso).join();
-				resolver(lista.split(','));
-				document.getElementById('maisPje_aaLote_lista_processos').remove();
-			};
-			container.appendChild(bt_continuar);
-			elemento1.appendChild(container);
-			document.body.appendChild(elemento1);
-			lista_processos.focus();
-			if (listaPronta) { bt_continuar.click() }
-		}
-	);
-
-	async function ajustarNumeroDeProcessos() {
-		let conteudo = document.querySelector('#maisPje_aaLote_lista_processos_textarea').value;
-		let padrao = /\d{20}/gm;
-		if (padrao.test(conteudo)) {
-			let listaTemp = conteudo.match(/\d{20}/gm).join();
-			let novaLista = [];
-			[].map.call(
-				listaTemp.toString().split(','),
-				function(item) {
-					let numeroNovo = item.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/g,"$1-$2.$3.$4.$5.$6");
-					novaLista.push(numeroNovo)
-				}
-			);
-			// let novoConteudo = conteudo.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/gm,"$1-$2.$3.$4.$5.$6");
-			document.querySelector('#maisPje_aaLote_lista_processos_textarea').value = novaLista.toString();
-			await sleep(500);
-		}
-	}
-}
-
 async function acoesEmLote(listaPronta) {
 	console.debug("      |___maisPJe: acoesEmLote", listaPronta);
 	let guardarStorage1 = browser.storage.local.set({'AALote': ''});
 	let guardarStorage2 = browser.storage.local.set({'erros': ''});
 	Promise.all([guardarStorage1,guardarStorage2]).then(values => {
-		if (!document.getElementById('maisPje_caixa_de_selecao_AALote')) { iniciar(listaPronta) }
+        /** @type {HTMLDialogElement} */
+        const caixaParaDigitarProcessos = document.getElementById('maisPje_caixa_de_selecao_AALote');
+		if (!caixaParaDigitarProcessos || !caixaParaDigitarProcessos.open) { iniciar(listaPronta) }
 	});
 
 	async function iniciar(listaPronta) {
 		let lista = await listaProcessoParaAcoesEmLote(listaPronta);
+        console.log ({lista}, 'processos');
 		if (!lista || lista.length == 0) { return }
 
 		//tratar lista para eliminar os duplicados
 		Array.prototype.removeDuplicados = function() { return Array.from(new Set(this)) }
 		lista = lista.removeDuplicados();
+        /**@type {ProcessoAA[]} */
 		let listaDeProcessos = [];
 
-		fundo(true);
+        const progresso = document.createElement('progress');
+        progresso.max = lista.length;
+        progresso.value = 0;
+		fundo(true, '', '', progresso);
 		for (const [pos, numeroProcesso] of lista.entries()) {
-			let idProcessoApiPublica = await obterIdProcessoViaApiPublica(numeroProcesso);
-			const idProcesso = idProcessoApiPublica[0]?.id ?? await obterIdProcessoViaApi(numeroProcesso);
-			listaDeProcessos.push({id:idProcesso,numero:numeroProcesso});
+            const processoComErro = {id:'Erro',numero:numeroProcesso, tarefa: 'Erro', gigs: [], fase: 'Erro', documentoNaoAssinado: false, erro:true};
+            try {
+                let idProcessoApiPublica = await obterIdProcessoViaApiPublica(numeroProcesso);
+                const idProcesso = idProcessoApiPublica?.[0]?.id ?? await obterIdProcessoViaApi(numeroProcesso);
+                if (idProcesso) {
+                    const tarefa = await obterNomeTarefaDoProcessoViaApi(idProcesso);
+                    const gigs = await obterGIGSIdProcessoViaApi(idProcesso);
+                    const documentoNaoAssinado = await existeDoctoNaoAssinado(idProcesso);
+                    const fase = await obterFaseIdProcessoViaApi(idProcesso);
+                    listaDeProcessos.push({id:idProcesso,numero:numeroProcesso, tarefa, gigs, fase, documentoNaoAssinado, erro: false});
+                } else {
+                    listaDeProcessos.push(processoComErro);
+                }
+            } catch (e) {
+                console.error('erro ao recuperar dados do processo: ' + numeroProcesso, e);
+                listaDeProcessos.push(processoComErro);
+            } finally {
+                progresso.value = pos + 1;
+            }
 		}
+        // console.info({listaDeProcessos})
+        setTimeout(() => progresso.remove(), 500);
 
 		if (listaDeProcessos.length == 0) { return }
 
@@ -29778,9 +30009,7 @@ async function acoesEmLote(listaPronta) {
 
 		let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
-		let elemento1 = document.createElement("div");
-		elemento1.id = 'maisPje_caixa_de_selecao_AALote';
-		elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; width: 50vw top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; text-align: center; flex-direction: column;';
+        const elemento1 = criarPopup('maisPje_caixa_de_selecao_AALote');
 		elemento1.onclick = function (e) {
 			if (e.target.id == "maisPje_caixa_de_selecao_AALote") {
 				elemento1.remove();
@@ -29804,8 +30033,8 @@ async function acoesEmLote(listaPronta) {
 			}
 		}; //se clicar fora fecha a janela
 
-		let container = document.createElement("div");
-		container.style="position: absolute;top: 10vh;width: 44vw;max-width: 44vw;min-width: 44vw;max-height: 80vh; display: inline-grid; background-color: white;padding: 25px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12); overflow: auto;";
+		let container = document.createElement("section");
+		container.style="text-align: inherit; font-weight: inherit; width: 54vw;max-width: 54vw;min-width: 44vw;max-height: 75vh; display: inline-grid; background-color: white;padding: 25px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12); overflow: auto;";
 		let bloqueioContainer = document.createElement("maisPjebloqueioContainer"); //server para suavizar os eventos onmouseenter e onmouseleave dos processos da lista
 		bloqueioContainer.style="display: none;position: absolute;width: 43vw;max-height: 90vh;background-color: transparent;height: 90vh;z-index: 1000;";
 
@@ -29815,8 +30044,7 @@ async function acoesEmLote(listaPronta) {
 
 		//BOTAO COPIAR LISTA PARA A MEMORIA
 		let btCopiarLista = document.createElement("button");
-		btCopiarLista.className = "mat-icon-button t32";
-		btCopiarLista.style = "line-height: 0;"; // deixa o botao mais elevado
+		btCopiarLista.className = "mat-icon-button t32 botoes-cinza-destacado";
 		btCopiarLista.id = 'maisPje_bt_copiarLista';
 		btCopiarLista.title = "Copiar processos";
 		btCopiarLista.setAttribute("aria-label","Copiar processos");
@@ -29826,13 +30054,12 @@ async function acoesEmLote(listaPronta) {
 		let iCopiarLista = document.createElement("i");
 		iCopiarLista.id = 'maisPje_i_copiarLista';
 		iCopiarLista.className = 'icone copy-solid t18';
-		iCopiarLista.style.backgroundColor = "lightgray";
+		iCopiarLista.style.backgroundColor = "currentColor";
 		btCopiarLista.appendChild(iCopiarLista);
 
 		//BOTAO ATIVAR FILTROS
 		let btAtivarFiltros = document.createElement("button");
-		btAtivarFiltros.className = "mat-icon-button t32";
-		btAtivarFiltros.style = "line-height: 0;";
+		btAtivarFiltros.className = "mat-icon-button t32 botoes-cinza-destacado";
 		btAtivarFiltros.id = 'maisPje_bt_ativarFiltros';
 		btAtivarFiltros.title = "Exibir Filtros";
 		btAtivarFiltros.setAttribute("aria-label","Exibir Filtros");
@@ -29842,12 +30069,12 @@ async function acoesEmLote(listaPronta) {
 		let iAtivarFiltros = document.createElement("i");
 		iAtivarFiltros.id = 'maisPje_i_ativarFiltros';
 		iAtivarFiltros.className = 'icone filter-solid t18';
-		iAtivarFiltros.style.backgroundColor = "lightgray";
+		iAtivarFiltros.style.backgroundColor = "currentColor";
 		btAtivarFiltros.appendChild(iAtivarFiltros);
 
-		let titulo = document.createElement("span");
+		let titulo = document.createElement("h2");
 		titulo.id = "maisPje_caixa_de_selecao_titulo";
-		titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
+		titulo.style = "color: #505050; border-bottom: 1px solid lightgrey; margin-top: 0; font-size: 16pt";
 		titulo.innerText = "maisPje: Ações Automatizadas em lote (" + listaDeProcessos.length + ")";
 
 		cabecalho.appendChild(btCopiarLista);
@@ -29857,12 +30084,13 @@ async function acoesEmLote(listaPronta) {
 
 		let selectAcaoAutomatizada = document.createElement('button');
 		selectAcaoAutomatizada.id = 'escolherAAVinculo';
-		selectAcaoAutomatizada.style = "font-size: inherit; font-weight: inherit; cursor: pointer; margin-top: 10px; background-color: cornsilk; color: #a52a2a70;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);padding: 10px;display: flex;align-items: center;font-size: 1.125em;"
+		selectAcaoAutomatizada.style = "font-size: inherit; font-weight: inherit; cursor: pointer; margin-top: 10px; background-color: cornsilk; color: #ad563d;border: 1px solid #d9d9d9;border-radius: .1875em;box-shadow: inset 0 1px 1px rgba(0,0,0,.06);padding: 10px;display: flex;align-items: center;font-size: 1.125em;"
 		selectAcaoAutomatizada.innerText = "Escolha uma Ação Automatizada";
 		selectAcaoAutomatizada.onmouseenter = function () { this.style.outline = '2px solid #ff6c0042' }
 		selectAcaoAutomatizada.onmouseleave = function () { this.style.outline = 'revert' }
 
 		let bt_executar = criarBotaoComCoresPadrao('Executar', 'maisPje_bt_executar');
+        bt_executar.style = 'font-size: 18pt; padding: 5px';
 		bt_executar.onclick = async function () {
 			if (this.innerText == "Executar") {
 				let guardarStorage = browser.storage.local.set({'erros': ''});
@@ -29900,53 +30128,41 @@ async function acoesEmLote(listaPronta) {
 		filtro.id = 'maisPje_caixa_de_selecao_AALote_filtros';
 		filtro.style = "cursor: pointer; margin-top: 5px; display: inline; width: 100%; max-width: 100%; min-width: 100%;padding: 0 10px;";
 
-		let btFiltroConhecimento = document.createElement("button");
-		btFiltroConhecimento.id = 'maisPje_caixa_de_selecao_AALote_filtros_conhecimento';
-		btFiltroConhecimento.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: rgb(179, 229, 252); filter: brightness(1); font-size: 14px; color: steelblue; border: 1px solid steelblue; border-radius: 25px;margin: 2px 10px;";
-		btFiltroConhecimento.setAttribute('ativo','true');
-		btFiltroConhecimento.innerText = "Conhecimento";
-		btFiltroConhecimento.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroConhecimento.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
-		btFiltroConhecimento.onclick = function () { filtrarPorFase('Conhecimento',this.id) };
+        function criarBotaoFiltroAA(rotulo = '', cor = 'orangered', corTexto = 'black', botaoDeAlternancia = true) {
+            const btFiltroFase = document.createElement("button");
+            const textoLimpo = rotulo
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replaceAll(' ', '')
+                .toLowerCase();
+            btFiltroFase.id = 'maisPje_caixa_de_selecao_AALote_filtros_' + textoLimpo;
+            btFiltroFase.className = 'filtroAA';
+            btFiltroFase.style = `background-color: ${cor}; color: ${corTexto};`;
+            btFiltroFase.setAttribute('ativo','true');
+            if (botaoDeAlternancia) {
+                btFiltroFase.setAttribute('aria-pressed','true');
+            }
+            btFiltroFase.innerText = rotulo;
+            return btFiltroFase;
+        }
+
+		const btFiltroConhecimento = criarBotaoFiltroAA('Conhecimento', 'rgb(179, 229, 252)', '#10108f');
+        btFiltroConhecimento.onclick = function () { filtrarPorFase('Conhecimento' ,this.id) };
 		filtro.appendChild(btFiltroConhecimento);
 
-		let btFiltroLiquidacao = document.createElement("button");
-		btFiltroLiquidacao.id = 'maisPje_caixa_de_selecao_AALote_filtros_liquidacao';
-		btFiltroLiquidacao.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: rgb(174, 213, 129); filter: brightness(1); font-size: 14px; color: green; border: 1px solid green; border-radius: 25px;margin: 2px 10px;";
-		btFiltroLiquidacao.setAttribute('ativo','true');
-		btFiltroLiquidacao.innerText = "Liquidação";
-		btFiltroLiquidacao.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroLiquidacao.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
-		btFiltroLiquidacao.onclick = function () { filtrarPorFase('Liquidação',this.id) };
+		const btFiltroLiquidacao = criarBotaoFiltroAA('Liquidação', 'rgb(174, 213, 129)', '#004300');
+        btFiltroLiquidacao.onclick = function () { filtrarPorFase('Liquidação' ,this.id) };
 		filtro.appendChild(btFiltroLiquidacao);
 
-		let btFiltroExecucao = document.createElement("button");
-		btFiltroExecucao.id = 'maisPje_caixa_de_selecao_AALote_filtros_execucao';
-		btFiltroExecucao.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: rgb(138, 138, 138); filter: brightness(1); font-size: 14px; color: #444; border: 1px solid #444; border-radius: 25px;margin: 2px 10px;";
-		btFiltroExecucao.setAttribute('ativo','true');
-		btFiltroExecucao.innerText = "Execução";
-		btFiltroExecucao.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroExecucao.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
-		btFiltroExecucao.onclick = function () { filtrarPorFase('Execução',this.id) };
+		const btFiltroExecucao = criarBotaoFiltroAA('Execução', '#DBDBDB');
+        btFiltroExecucao.onclick = function () { filtrarPorFase('Execução' ,this.id) };
 		filtro.appendChild(btFiltroExecucao);
 
-		let btFiltroArquivado = document.createElement("button");
-		btFiltroArquivado.id = 'maisPje_caixa_de_selecao_AALote_filtros_arquivado';
-		btFiltroArquivado.setAttribute('ativo','true');
-		btFiltroArquivado.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: rgba(186, 104, 200); filter: brightness(1); font-size: 14px; color: #920097; border: 1px solid #920097; border-radius: 25px;margin: 2px 10px;";
-		btFiltroArquivado.innerText = "Arquivado";
-		btFiltroArquivado.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroArquivado.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
-		btFiltroArquivado.onclick = function () { filtrarPorFase('Arquivado',this.id) };
+		const btFiltroArquivado = criarBotaoFiltroAA('Arquivado', '#E2cCEF', '#38003C');
+        btFiltroArquivado.onclick = function () { filtrarPorFase('Arquivado' ,this.id) };
 		filtro.appendChild(btFiltroArquivado);
 
-		let btFiltroExecMaisAntiga = document.createElement("button");
-		btFiltroExecMaisAntiga.id = 'maisPje_caixa_de_selecao_AALote_filtros_execMaisAntiga';
-		btFiltroExecMaisAntiga.setAttribute('ativo','true');
-		btFiltroExecMaisAntiga.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: chocolate; filter: brightness(1); font-size: 14px; color: #803b09; border: 1px solid #803b09; border-radius: 25px;margin: 2px 10px;";
-		btFiltroExecMaisAntiga.innerText = "Execução mais Antiga";
-		btFiltroExecMaisAntiga.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroExecMaisAntiga.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
+		let btFiltroExecMaisAntiga = criarBotaoFiltroAA('Execução mais Antiga', '#a66464', 'white', false);
 		btFiltroExecMaisAntiga.onclick = async function () {
 			//aguardar o carregamento de todos os processos da lista
 			await esperarColecao('span[id*="maisPje_AALote_"][title]',listaDeProcessos.length);
@@ -29958,25 +30174,13 @@ async function acoesEmLote(listaPronta) {
 		};
 		filtro.appendChild(btFiltroExecMaisAntiga);
 
-		let btFiltroBNDTAtivo = document.createElement("button");
-		btFiltroBNDTAtivo.id = 'maisPje_caixa_de_selecao_AALote_filtros_parteNoBNDT';
-		btFiltroBNDTAtivo.setAttribute('ativo','true');
-		btFiltroBNDTAtivo.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: turquoise; filter: brightness(1); font-size: 14px; color: #199386; border: 1px solid #199386; border-radius: 25px;font-weight: bold;margin: 2px 10px;";
-		btFiltroBNDTAtivo.innerText = "com BNDT ativo";
-		btFiltroBNDTAtivo.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroBNDTAtivo.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
+		const btFiltroBNDTAtivo = criarBotaoFiltroAA('com BNDT ativo', 'turquoise', '#00505f', false);
 		btFiltroBNDTAtivo.onclick = async function () {
 			await comBNDTAtivo()
 		};
 		filtro.appendChild(btFiltroBNDTAtivo);
 
-		let btFiltroPorTarefa = document.createElement("button");
-		btFiltroPorTarefa.id = 'maisPje_caixa_de_selecao_AALote_filtros_porTarefa';
-		btFiltroPorTarefa.setAttribute('ativo','true');
-		btFiltroPorTarefa.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: turquoise; filter: brightness(1); font-size: 14px; color: #199386; border: 1px solid #199386; border-radius: 25px;font-weight: bold;margin: 2px 10px;";
-		btFiltroPorTarefa.innerText = "por Tarefa";
-		btFiltroPorTarefa.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroPorTarefa.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
+		const btFiltroPorTarefa = criarBotaoFiltroAA('por Tarefa', 'turquoise', '#00505f', false);
 		btFiltroPorTarefa.onclick = async function () {
 			let listaTarefas = [];
 			let t = [];
@@ -29984,8 +30188,9 @@ async function acoesEmLote(listaPronta) {
 			if (this.getAttribute('ativo') == 'false') {
 				this.style.opacity = '1';
 				this.setAttribute('ativo','true');
+				// this.setAttribute('aria-pressed','true');
 				[].map.call(document.querySelectorAll('span[id*="maisPje_AALote_"]'),function(item) {
-					item.style.display = 'revert';
+					item.style.display = 'grid';
 				});
 
 				//atualiza o contador
@@ -30003,19 +30208,15 @@ async function acoesEmLote(listaPronta) {
 					}
 				});
 				let t = await criarCaixaSelecao(listaTarefas, 'Escolha a Tarefa que deseja filtrar','Filtrar');
-				await filtrarPorTarefa(t);
+                if (t) { // so filtra se escolheu alguma tarefa.
+                    await filtrarPorTarefa(t);
+                }
 
 			}
 		};
 		filtro.appendChild(btFiltroPorTarefa);
 
-		let btFiltroSobrestamentoTipo = document.createElement("button");
-		btFiltroSobrestamentoTipo.id = 'maisPje_caixa_de_selecao_AALote_filtros_sobrestamentoTipo';
-		btFiltroSobrestamentoTipo.setAttribute('ativo','true');
-		btFiltroSobrestamentoTipo.style = "cursor: pointer; padding: 2px 10px 2px 10px; background-color: turquoise; filter: brightness(1); font-size: 14px; color: #199386; border: 1px solid #199386; border-radius: 25px;font-weight: bold;margin: 2px 10px;";
-		btFiltroSobrestamentoTipo.innerText = "por tipo de Sobrestamento";
-		btFiltroSobrestamentoTipo.onmouseenter  = function () { this.style.filter = 'brightness(0.7)' }
-		btFiltroSobrestamentoTipo.onmouseleave  = function () { this.style.filter = 'brightness(1)' }
+		let btFiltroSobrestamentoTipo = criarBotaoFiltroAA('por tipo de Sobrestamento', 'turquoise', '#00505f');
 		btFiltroSobrestamentoTipo.onclick = async function () {
 			let listaTipos = [];
 			let t = [];
@@ -30023,8 +30224,9 @@ async function acoesEmLote(listaPronta) {
 			if (this.getAttribute('ativo') == 'false') {
 				this.style.opacity = '1';
 				this.setAttribute('ativo','true');
+                this.setAttribute('aria-pressed','true');
 				[].map.call(document.querySelectorAll('span[id*="maisPje_AALote_"]'),function(item) {
-					item.style.display = 'revert';
+					item.style.display = 'grid';
 				});
 
 				//atualiza o contador
@@ -30035,6 +30237,7 @@ async function acoesEmLote(listaPronta) {
 			} else {
 				this.style.opacity = '0.3';
 				this.setAttribute('ativo','false');
+				this.setAttribute('aria-pressed','false');
 
 				[].map.call(document.querySelectorAll('span[id*="maisPje_AALote_"]:not([style*="display: none"]'),function(item) {
 					if (!listaTipos.includes(item.getAttribute('motivoSobrestamento'))) {
@@ -30058,80 +30261,28 @@ async function acoesEmLote(listaPronta) {
 		container.appendChild(bt_executar);
 		let cont = 0;
 		let alertarSobreDocumentosNaoAssinados = false;
-		for (const [pos, processo] of listaDeProcessos.entries()) {
-			let span = document.createElement("span");
+        const processosComErro = listaDeProcessos.filter(p => p.erro);
+        if (processosComErro && processosComErro.length) {
+            const msgProcessosAAComErro = 'Processos não encontrados: ' + processosComErro.map(p => p.numero).join(', ');
+            const p = document.createElement('p');
+            p.innerText = msgProcessosAAComErro;
+            p.style.color = 'red';
+            container.appendChild(p);
+        }
+        const processosUL = document.createElement('ul');
+        processosUL.className = 'lista-sem-ocupar-espaco';
+        const processosSEMErro = listaDeProcessos.filter(p => !p.erro);
+
+		for (const [pos, processo] of processosSEMErro.entries()) {
+            const processoAAItem = document.createElement('li');
+			const span = document.createElement("span");
+            processoAAItem.appendChild(span);
+            processosUL.appendChild(processoAAItem);
 			span.id = 'maisPje_AALote_' + processo.id;
 			span.setAttribute('idProcesso',processo.id);
-			span.style = "cursor: pointer; position: relative; height: fit-content; min-height: 23px; margin-top: 5px; padding: 10px 0; color:rgb(81, 81, 81); border-radius: 3px;  display: grid; grid-template-columns: 1fr;z-index:1;}";
-			span.innerText = processo.numero;
-			span.setAttribute('labelAnterior',processo.numero);
+            span.className = 'processoAA';
+            const ttip = document.createElement('p')
 			span.onmouseenter = async function () {
-				this.style.cursor = 'auto';
-				this.style.display = 'grid';
-				this.style.setProperty('grid-template-columns','2fr 4fr 1fr 1fr');
-				this.style.filter = 'brightness(.5)';
-				this.innerText = '';
-
-				let atalho1 = document.createElement("span");
-				let atalho1_i = document.createElement("i");
-				atalho1_i.className = 'fas fa-trash-alt icone-padrao';
-				atalho1.title = 'Excluir da Lista';
-				atalho1.style.cursor = 'pointer';
-				atalho1.onmouseenter = function () { this.style.opacity = '.5'; }
-				atalho1.onmouseleave = function () { this.style.opacity = '1'; }
-				atalho1.onclick = function () {
-					this.parentElement.remove();
-					listaDeProcessosTemp.splice(listaDeProcessosTemp.findIndex(e => e.id === processo.id), 1);
-					let tituloTotal = document.getElementById('maisPje_caixa_de_selecao_titulo');
-					tituloTotal.innerText = titulo.innerText.replace(new RegExp(/\d{1,}/gm), listaDeProcessosTemp.length);
-				};
-				atalho1.appendChild(atalho1_i);
-
-				let atalho2 = document.createElement("a");
-				atalho2.style = 'padding-left:20px;padding-right:20px;';
-				atalho2.innerText = processo.numero;
-				atalho2.title = 'Abrir Detalhes';
-				atalho2.style.cursor = 'pointer';
-				atalho2.onmouseenter = function () { this.style.color = 'white'; this.style.opacity = '.5'; }
-				atalho2.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.opacity = '1';  }
-				atalho2.onclick = function (event) {
-					if (event.getModifierState("Control")) { //CTRL +clique
-						copiarClipboard(this.innerText);
-						browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Conteúdo copiado com sucesso!\n' + this.innerText, icone: '3'});
-					} else {
-						this.parentElement.style.outline = '1px dashed black';
-						consultaRapidaPJE(processo.id,true);
-					}
-				};
-
-				let atalho3 = document.createElement("a");
-				atalho3.style = 'padding-right:20px;';
-				let nomeTarefa = (span.hasAttribute('tarefaProcesso')) ? span.getAttribute('tarefaProcesso') : '';
-				atalho3.innerText = nomeTarefa;
-				atalho3.title = 'Abrir Tarefa';
-				atalho3.style.cursor = 'pointer';
-				atalho3.onmouseenter = async function () { this.style.color = 'white'; this.style.opacity = '.5';}
-				atalho3.onmouseleave = function () { this.style.color = 'rgb(81, 81, 81)'; this.style.opacity = '1';  }
-				atalho3.onclick = function () {
-					this.parentElement.style.outline = '1px dashed black';
-					abrirTarefaDoProcesso(processo.id);
-				};
-
-				let atalho4 = document.createElement("span");
-				let atalho4_i = document.createElement("i");
-				atalho4_i.className = 'fa fa-tag icone-padrao';
-				atalho4_i.style.color = span.getAttribute('gigsColor');
-				atalho4.title = span.getAttribute('gigs');
-				atalho4.style.cursor = 'pointer';
-				atalho4.onmouseenter = function () {  this.style.opacity = '.5'; }
-				atalho4.onmouseleave = function () { this.style.opacity = '1'; }
-				atalho4.appendChild(atalho4_i);
-
-				// span.appendChild(descricao);
-				span.appendChild(atalho2);
-				span.appendChild(atalho3);
-				span.appendChild(atalho4);
-				span.appendChild(atalho1);
 
 				//amplia o campo span em caso de informações úteis
 				let motivoSobrestamento = '';
@@ -30140,40 +30291,24 @@ async function acoesEmLote(listaPronta) {
 					motivoSobrestamento += (span.hasAttribute('motivoSobrestamentoDetalhes')) ? span.getAttribute('motivoSobrestamentoDetalhes') : '';
 				}
 				let textoGigs = (span.hasAttribute('gigs')) ? span.getAttribute('gigs') : '';
-				let alturaspan = span.offsetHeight;
 				if (motivoSobrestamento || textoGigs) {
-					let ttip = document.createElement('span')
 					ttip.id = span.id + '_ttip';
-					ttip.style = 'z-index:999999;width: 38vw;max-width: 38vw;min-width: 38vw;grid-area: observacao; background-color: white;color: teal;opacity:.7;font-weight: lighter;border-radius: 5px;padding: 1vh;margin: 1vh 1vw;height: 5vh;font-size: smaller;height:auto;';
+					ttip.style = 'z-index:999999; grid-area: observacao; background-color: white;color: #006060;font-weight: bold;border-radius: 5px;padding: 1vh;margin: 1vh 1vw;height: 5vh;font-size: smaller;height:auto;';
 					ttip.innerText = textoGigs + motivoSobrestamento;
 					span.appendChild(ttip);
-					span.style.setProperty('grid-template-columns','unset');
-					let gt = `
-					". . . ."
-					"observacao observacao observacao observacao"
-					`;
-					span.style.setProperty('grid-template-areas',gt);
-					span.style.height = alturaspan + ttip.offsetHeight + 'px';
 				}
-			};
+			}; // fim onmouseenter
 			span.onmouseleave = async function () {
+                ttip?.remove();
 				bloqueioContainer.style.display = 'block'; //ativa o bloqueio do container
-				this.style.cursor = 'pointer';
-				this.style.filter = 'brightness(1)';
-				this.style.height = '23px';
-				this.style.setProperty('grid-template-columns','1fr');
-				this.innerText = this.getAttribute('labelAnterior');
-
-				if (this.getAttribute('doctoNaoAssinado') == "true") {
-					exibirDoctoNaoAssinado(this);
-				}
-
 				setTimeout(function() {	bloqueioContainer.style.display = 'none' },200)//desativa o bloqueio do container para suavizar a transição entre elementos
 
 			};
 
-			obterFaseIdProcessoViaApi(processo.id).then(resultado => {
-				switch(resultado) {
+			// await obterFaseIdProcessoViaApi(processo.id).then(fase => {
+                const fase = processo.fase;
+                //TODO: a informação da fase precisa estar em algum lugar além da borda para que leitores de tela possam ler.
+				switch(fase) {
 					case 'CONHECIMENTO':
 						span.style.borderRight = '2vw solid rgba(179, 229, 252)';
 						span.style.backgroundColor = 'rgba(179, 229, 252, .3)';
@@ -30194,12 +30329,23 @@ async function acoesEmLote(listaPronta) {
 						span.style.backgroundColor = 'rgba(186, 104, 200, .3)';
 						span.title = 'Arquivado';
 						break;
+					case 'Erro':
+						span.style.borderRight = '2vw solid red';
+						span.title = 'Erro';
+						break;
 				}
-			});
+			// });
 
-			obterNomeTarefaDoProcessoViaApi(processo.id).then(async resultado => {
-				span.setAttribute('tarefaProcesso',resultado);
-				if (resultado == "Aguardando final do sobrestamento") {
+            if (processo.erro) {
+                span.parentElement.style.backgroundImage = 'repeating-linear-gradient( 45deg, rgba(255, 0, 0, 0.5) 0px, rgba(255, 0, 0, 0.5) 5px, transparent 5px, transparent 10px )';
+            }
+
+			// await obterNomeTarefaDoProcessoViaApi(processo.id).then(async tarefa => {
+                const tarefa = processo.tarefa;
+				span.setAttribute('tarefaProcesso',tarefa);
+                if (tarefa == "Erro") {
+                    span.parentElement.style.backgroundImage = 'repeating-linear-gradient( 45deg, rgba(255, 0, 0, 0.5) 0px, rgba(255, 0, 0, 0.5) 5px, transparent 5px, transparent 10px )';
+				} else if (tarefa == "Aguardando final do sobrestamento") {
 					let motivo = await obterMotivoSobrestamentoViaApi(processo.id);
 					span.setAttribute('motivoSobrestamento',motivo);
 
@@ -30212,12 +30358,14 @@ async function acoesEmLote(listaPronta) {
 						if (tarefaNovo.includes('Aguardando apreciação pela instância superior')) { span.style.outline = '2px solid lightsalmon' }
 					}
 				}
-			});
+			// });
 
-			obterGIGSIdProcessoViaApi(processo.id).then(resultado => {
+			// await obterGIGSIdProcessoViaApi(processo.id).then(gigs => {
+            if (!processo.erro) {
+                const gigs = processo.gigs;
 				let msg = '';
 				let statusVencimento = 0;
-				for (const [pos, item] of resultado.entries()) {
+				for (const [pos, item] of gigs.entries()) {
 					if (pos > 0) { msg += '\n\n' }
 					msg += String.fromCharCode(187) + '';
 					if (item.statusAtividade == 'Vencido') {
@@ -30246,27 +30394,96 @@ async function acoesEmLote(listaPronta) {
 					}
 				}
 				span.setAttribute('gigs',msg);
-			});
+            }
+			// });
 
-			let doctoNaoAssinado = await existeDoctoNaoAssinado(processo.id);
+            const containerIconeNaoAssinado = document.createElement('span');
+            containerIconeNaoAssinado.style.width = '24px';
+            span.appendChild(containerIconeNaoAssinado);
+			// let doctoNaoAssinado = await existeDoctoNaoAssinado(processo.id);
+			const doctoNaoAssinado = processo.documentoNaoAssinado;
 			span.setAttribute('doctoNaoAssinado',doctoNaoAssinado);
-			if (doctoNaoAssinado) {
-				exibirDoctoNaoAssinado(span);
+			if (!processo.erro && doctoNaoAssinado) {
+				exibirDoctoNaoAssinado(span, containerIconeNaoAssinado);
 				alertarSobreDocumentosNaoAssinados = true;
 			}
 
-			if (cont >= listaDeProcessos.length-1) {
+			if (cont >= processosSEMErro.length-1) {
 				elemento1.setAttribute('maisPJeTabelaFinalizada','true')
 			}
 			cont++;
 
-			container.appendChild(span);
+            const excluirProcessoAA = document.createElement("button");
+            excluirProcessoAA.classList = 'mat-icon-button';
+            let atalho1_i = document.createElement("i");
+            atalho1_i.className = 'fas fa-trash-alt icone-padrao';
+            excluirProcessoAA.title = 'Excluir da Lista';
+            excluirProcessoAA.ariaLabel = 'Excluir da Lista';
+            excluirProcessoAA.style.cursor = 'pointer';
+            excluirProcessoAA.onclick = function () {
+                this.parentElement.remove();
+                listaDeProcessosTemp.splice(listaDeProcessosTemp.findIndex(e => e.id === processo.id), 1);
+                let tituloTotal = document.getElementById('maisPje_caixa_de_selecao_titulo');
+                tituloTotal.innerText = titulo.innerText.replace(new RegExp(/\d{1,}/gm), listaDeProcessosTemp.length);
+            };
+            excluirProcessoAA.appendChild(atalho1_i);
+
+            const atalho2 = document.createElement("div");
+            atalho2.className = 'flex-center'
+            const abrirDetalhes = document.createElement("a");
+            abrirDetalhes.innerText = processo.numero;
+            abrirDetalhes.title = 'Abrir Detalhes';
+            abrirDetalhes.href = '#';
+            abrirDetalhes.onclick = function (event) {
+                event.preventDefault();
+                if (event.getModifierState("Control")) { //CTRL +clique
+                    copiarClipboard(this.innerText);
+                    browser.runtime.sendMessage({tipo: 'criarAlerta', valor: '\n Conteúdo copiado com sucesso!\n' + this.innerText, icone: '3'});
+                } else {
+                    this.parentElement.style.outline = '1px dashed black';
+                    consultaRapidaPJE(processo.id,true);
+                }
+            };
+            const copiarNumero = criarBotaoCopiar(processo.numero);
+            atalho2.appendChild(abrirDetalhes);
+            atalho2.appendChild(copiarNumero);
+
+            const abrirTarefa = document.createElement("a");
+            let nomeTarefa = (span.hasAttribute('tarefaProcesso')) ? span.getAttribute('tarefaProcesso') : '';
+            abrirTarefa.innerText = nomeTarefa;
+            abrirTarefa.title = 'Abrir Tarefa';
+            abrirTarefa.href = '#';
+            abrirTarefa.onclick = function (event) {
+                event.preventDefault();
+                this.parentElement.style.outline = '1px dashed black';
+                abrirTarefaDoProcesso(processo.id);
+            };
+
+            const gigsComentario = document.createElement("span");
+            let atalho4_i = document.createElement("i");
+            atalho4_i.className = 'fa fa-tag icone-padrao';
+            atalho4_i.style.color = span.getAttribute('gigsColor');
+            gigsComentario.title = span.getAttribute('gigs');
+            gigsComentario.ariaLabel = span.getAttribute('gigs');
+            gigsComentario.style.cursor = 'pointer';
+            gigsComentario.onmouseenter = function () {  this.style.opacity = '.5'; }
+            gigsComentario.onmouseleave = function () { this.style.opacity = '1'; }
+            gigsComentario.appendChild(atalho4_i);
+
+            // span.appendChild(descricao);
+            span.appendChild(atalho2);
+            span.appendChild(abrirTarefa);
+            span.appendChild(gigsComentario);
+            span.appendChild(excluirProcessoAA);
+			// container.appendChild(span);
 			listaDeProcessosTemp.push({ id: processo.id, numero: processo.numero });
 		}
+        container.appendChild(processosUL);
 
 		elemento1.appendChild(container);
 		elemento1.appendChild(bloqueioContainer);
 		document.body.appendChild(elemento1);
+        // elemento1?.showModal();
 
 		if (alertarSobreDocumentosNaoAssinados) {
 			fundo(false);
@@ -30276,7 +30493,7 @@ async function acoesEmLote(listaPronta) {
 		}
 	}
 
-	function exibirDoctoNaoAssinado(el) {
+	function exibirDoctoNaoAssinado(el, container) {
 		let idProc = el.getAttribute('idProcesso');
 		if (!idProc) { return }
 		if (document.getElementById(idProc + '_doctoNassinado')) { return }
@@ -30284,9 +30501,9 @@ async function acoesEmLote(listaPronta) {
 		let i = document.createElement('i');
 		i.id = idProc + '_doctoNassinado';
 		i.className = 'fa fa-unlock fa-lg documento-nao-assinado';
-		i.style = 'position: absolute; color: lightseagreen; font-size: smaller;';
-
-		el.appendChild(i);
+		i.style = 'color: lightseagreen; font-size: smaller;';
+        vincularTooltipAcessivel(i, 'Há documento não assinado.');
+		container.appendChild(i);
 
 	}
 
@@ -30308,9 +30525,11 @@ async function acoesEmLote(listaPronta) {
 			if (btAcionador.getAttribute('ativo') == 'false') {
 				btAcionador.style.opacity = '1';
 				btAcionador.setAttribute('ativo','true');
+				btAcionador.setAttribute('aria-pressed','true');
 			} else {
 				btAcionador.style.opacity = '0.3';
 				btAcionador.setAttribute('ativo','false');
+				btAcionador.setAttribute('aria-pressed','false');
 			}
 
 			let cont = document.querySelectorAll('span[id*="maisPje_AALote_"]:not([style*="display: none"])');
@@ -30714,14 +30933,16 @@ async function esperarConferenciaAlvaraSif(descricaoBotao) {
 		}
 
 		//se o beneficiario não estiver escolhido (bug do sif que acontece com nomes de réus muito grandes), escolhe o beneficiario
-		console.log(document.querySelector('mat-select[placeholder="Contribuinte"]'))
 		if (document.querySelector('mat-select[placeholder="Contribuinte"][aria-invalid="true"]'))
 			{
 			let beneficiario = decodeURIComponent(document.location.href.match(/(={1})([A-Za-z0-9].{1,})/)[2]);
 			await escolherOpcao('pje-form-alvara mat-select[formcontrolname="contribuinte"]', beneficiario); //CONTRIBUINTE
 		}
 
-		elemento1.onclick = function (e) { console.log('clicou em ' + descricaoBotao); return resolver(true);  }
+		elemento1.onclick = function (e) {
+            console.log('clicou em ' + descricaoBotao);
+            return resolver(true);
+        }
 		// elemento1.style.outline = '5px solid #ff00005e';
 		elemento1.style.animation = 'pulse 1s infinite';
 		elemento1.firstElementChild.innerText = descricaoBotao + ' ( ' + cont + ' )';
@@ -30729,7 +30950,7 @@ async function esperarConferenciaAlvaraSif(descricaoBotao) {
 		let check = setInterval(function() {
 			cont--;
 			elemento1.firstElementChild.innerText = descricaoBotao + ' ( ' + cont + ' )';
-			if (cont < 1) {
+			if (cont <= 1) {
 				clearInterval(check);
 				elemento1.click();
 			}
@@ -30738,27 +30959,33 @@ async function esperarConferenciaAlvaraSif(descricaoBotao) {
 }
 
 //FUNÇÃO QUE AGUARDA O CARREGAMENTO DA LISTA DE ALVARÁS PARA CONFERIR
-async function esperarTransicaoSIF(tempoLimite=60000,classObj='cdk-overlay-backdrop') { //um minuto
+async function esperarTransicaoSIF(classObj='cdk-overlay-backdrop',tempoLimite=60000) { //um minuto
 	return new Promise(async resolve => {
 		let targetDocumento = document.body;
+        let qtdeSpinner = 0;
 		let observerDocumento = new MutationObserver(async function(mutationsDocumento) {
-			mutationsDocumento.forEach(async function(mutation) {
+			mutationsDocumento.forEach(function(mutation) {
 				if (!mutation.removedNodes[0] && !mutation.addedNodes[0]) { return }
-				if (mutation.removedNodes[0]) {
-					if (!mutation.removedNodes[0].tagName) { return }
+                if (mutation.removedNodes[0]) {
+
+                    if (!mutation.removedNodes[0].tagName) { return }
 					// console.log("***[DEL] tag " + mutation.removedNodes[0].tagName);
 					// console.log("***[DEL] class " + mutation.removedNodes[0].className);
 					if (mutation.removedNodes[0].tagName == 'DIV' && mutation.removedNodes[0].className.includes('cdk-overlay-backdrop')) {
 						if (classObj == 'cdk-overlay-backdrop') {
 							observerDocumento.disconnect();
-							resolve(true);
+							setTimeout(() => resolve(true), 1000);
 						}
 					}
 
 					if (mutation.removedNodes[0].tagName == 'PJE-SPINNER-DIALOG') {
 						if (classObj == 'PJE-SPINNER-DIALOG') {
-							observerDocumento.disconnect();
-							resolve(true);
+                            qtdeSpinner--;
+                            // console.log('-spinner: ' + qtdeSpinner)
+                            if (qtdeSpinner <= 0 && !document.querySelector('PJE-SPINNER-DIALOG')) { //não vai pra frente enquanto existir algum elemento na página.. fiz assim, pois o sif est´pa duplicando este elemento
+                                observerDocumento.disconnect();
+                                setTimeout(() => resolve(true), 1000);
+                            }
 						}
 					}
 				}
@@ -30767,13 +30994,18 @@ async function esperarTransicaoSIF(tempoLimite=60000,classObj='cdk-overlay-backd
 
 					// console.log("***[ADD] tag " + mutation.addedNodes[0].tagName);
 					// console.log("***[ADD] class " + mutation.addedNodes[0].className);
-					if (mutation.addedNodes[0].tagName == 'TD' && mutation.addedNodes[0].className.includes('cdk-column-nomeConferidor')) {
+					if (mutation.addedNodes[0].tagName == 'SIMPLE-SNACK-BAR') {
 						// console.log(mutation.addedNodes[0].innerText)
-						if (mutation.addedNodes[0].innerText.length > 3) {
-							if (classObj == 'cdk-column-nomeConferidor') {
-								observerDocumento.disconnect();
-								resolve(true);
-							}
+						if (mutation.addedNodes[0].innerText.includes('com sucesso')) {
+							observerDocumento.disconnect();
+							setTimeout(() => resolve(true), 1000);
+						}
+					}
+
+                    if (mutation.addedNodes[0].tagName == 'PJE-SPINNER-DIALOG') {
+						if (classObj == 'PJE-SPINNER-DIALOG') {
+							qtdeSpinner++;
+                            // console.log('+spinner: ' + qtdeSpinner)
 						}
 					}
 
@@ -30878,8 +31110,8 @@ async function janelaAlvarasSISCONDJ(tipo) {
 		let result = await mapTratarDados(lista);
 		let guardarStorage = browser.storage.local.set({'tempAR': result});
 		Promise.all([guardarStorage]).then(values => {
+            fundo(false);
 			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupConferirAlvaraSISCONDJ.html', posx: preferencias.gigsDetalhesLeft, posy: preferencias.gigsDetalhesTop, width: preferencias.gigsDetalhesWidth, height: preferencias.gigsDetalhesHeight});
-			fundo(false);
 
 			// browser.storage.onChanged.removeListener(logStorageChangeConferirALvaraSiscondj);
 			// browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
@@ -30944,11 +31176,16 @@ async function janelaAlvarasSISCONDJ(tipo) {
 		function logStorageChangeConferirALvaraSiscondj(changes, area) {
 			let changedItems = Object.keys(changes);
 			for (let item of changedItems) {
-				console.log('+-*+-*+-*+-*+-*+-*+-*+-*+-*+*+-*+-*+-*+-*+-*+*-+*+-*+*+-*+-*+-*+*+-*+-*+-*' + item)
+				console.log('+-*+-*+-*+-*+-*+-*+-*+-*+-*+*+-*+-*+-*+-*+-*+*-+*+-*+*+-*+-*+-*+*+-*+-*+-*' + item);
+                console.log('+-*+-*+-*+-*+-*+-*+-*+-*+-*+*+-*+-*+-*+-*+-*+*-+*+-*+*+-*+-*+-*+*+-*+-*+-*' + changes[item].newValue);
+                console.log(changes[item].newValue);
+                console.log(typeof changes[item].newValue === 'object');
 				if (item == "tempAR") {
-					if (changes[item].newValue?.conferirSiscondj == 3) {
+                    if (changes[item].newValue?.conferirSiscondj == 3) {
 						preferencias.tempAR = changes[item].newValue;
 						iniciarCriacaoDaPagina(preferencias.tempAR.lista);
+                    } else if (changes[item].newValue?.conferirSiscondj == -1) { //a janela de conferência foi fechada
+                        browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
 					} else if (changes[item].newValue?.conferirSiscondj == 0) { //nenhum alvará pendente
 						browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
 						criarCaixaDeAlerta("ALERTA","Não foi encontrado alvará para conferir.", 3);
@@ -31453,6 +31690,7 @@ async function substituirVariaveisEditorTexto() {
 	return new Promise(async resolver => {
 		if (document.querySelector('pje-editor-documento')) {
 			fundo(true,'Substituindo variáveis maisPje');
+            await sleep(1000); //tentativa de evitar o erro do editor
 			// if (!preferencias.processo_memoria) { return resolver(false) }
 			var idProcesso = await obterIdProcessoDaUrl();
 			let ancora = await esperarElemento('div[aria-label*="Alt+F10 para acessar a barra de tarefas"]')
@@ -31558,6 +31796,15 @@ async function substituirVariaveisEditorTexto() {
                 await substituir('[maisPje:magistrado:modulo8]',nomeMagistrado)
             }
 
+            if (ancora.textContent.includes('[maisPje:perguntar:texto]')) {
+                let resposta = await criarCaixaDePergunta('text','[maisPje:perguntar:texto]')
+                await substituir('[maisPje:perguntar:texto]',resposta)
+            }
+
+            if (ancora.textContent.includes('[maisPje:perguntar:data]')) {
+                let resposta = await criarCaixaDePergunta('data','[maisPje:perguntar:data]')
+                await substituir('[maisPje:perguntar:data]',resposta)
+            }
 
 			let variavel;
 			let itensTimeline = undefined;
@@ -32101,19 +32348,28 @@ async function remeterAoSegundoGrau(idProcesso) {
 //FUNÇÃO RESPONSÁVEL POR COPIAR E COLAR OS ITENS DO MENU
 //ESTÁ LIGADA COM O ARQUIVO "BACKGROUND.JS"
 browser.runtime.onMessage.addListener(request => {
+    processarMensagem(request);
+    return true;
+});
 
+async function processarMensagem(request) {
 	//Corrige o menuItemId
 	let texto = request.greeting;
 	if (!texto) { return }
 
 	//abrirPainelCopiaECola
 	if (texto.includes('menufinalizado')) {
-		//
-		if (preferencias.gigsCriarMenuAbrirPainelCopiaECola) {
-			window.onunload = function() {
-				browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});
-			};
-			browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
+		// verifica se a extensao ainda esta ativa
+		if (browser.runtime?.id && preferencias.gigsCriarMenuAbrirPainelCopiaECola) {
+            try {
+                // window.onunload = function() {
+                // 	browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});
+                // };
+                browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
+            } catch (e) {
+                console.warn("Falha ao criarJanela copia e cola: ", e);
+            }
+
 		}
 		return;
 	}
@@ -32150,7 +32406,7 @@ browser.runtime.onMessage.addListener(request => {
 	substituirTextoSelecionado(texto);
 
 
-});
+}
 
 ////LISTENERS
 
@@ -32742,14 +32998,6 @@ document.addEventListener('mousedown', function(event) {
 	if (!preferencias.extensaoAtiva) { return }
 	//DESCRIÇÃO: CONCILIAJT NA PAUTA DE AUDIeNCIA
 	if (document.location.href.includes("/pauta-audiencias") || document.location.href.includes("/pauta-inteligente")) {
-		// console.log('ativando conciLIAnaPauta')
-		// setTimeout(function() { //pauta tradicional
-		// 	if (document.querySelector('pje-data-table[nametabela="Horários do dia"]')) {
-		// 		if (!document.querySelector('td[id="pjextension_coluna_lia"]')) {
-		// 			conciLIAnaPauta();
-		// 		}
-		// 	}
-		// },1000);
 
 		//DESCRIÇÃO: SE VINDO DA JANELA DETALHES PREENCHER CONSIDERANDO OS DADOS DO PROCESSO
 		if (document.location.href.includes("maisPje")) {
@@ -32881,6 +33129,11 @@ var eventosDeTeclaNaJanela = async function(event) {
 				// event.preventDefault();
 				// event.stopPropagation();
 
+                // teste_mutation_observer();
+                // return;
+                // teste_mutation_observer();
+                // return
+
 			}
 
 			if (preferencias?.atalho?.painelcopiaecola && (event.key === preferencias.atalho.painelcopiaecola)) {
@@ -32898,9 +33151,9 @@ var eventosDeTeclaNaJanela = async function(event) {
 					let var1 = browser.storage.local.get('processo_memoria', async function(result){
 						if (!result.processo_memoria.numero) { return }
 						event.preventDefault();
-						window.onunload = function() {
-							browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});
-						};
+						// window.onunload = function() {
+						// 	browser.runtime.sendMessage({tipo: 'fecharJanela', url: 'popupPainelCopiaECola.html'});
+						// };
 						browser.runtime.sendMessage({tipo: 'criarJanela', url: 'popupPainelCopiaECola.html', posx: preferencias.gigsGigsLeft, posy: preferencias.gigsGigsTop, width: preferencias.gigsGigsWidth, height: preferencias.gigsGigsHeight});
 					});
 					return;
@@ -32928,6 +33181,33 @@ var eventosDeTeclaNaJanela = async function(event) {
 
 		//atalhos padrão
 		if (event.code === "F1") {
+
+            //o F1 (tecla universal de ajuda) trará dados do processo que poderão ser incluídos no texto diretamente
+            if (event.target.className.includes('area-conteudo')) { //editor de texto
+
+				event.preventDefault();
+				event.stopPropagation();
+
+                //pega a posição do cursor no editor
+                let elinicial = window.getSelection().anchorNode;
+                let posinicial = window.getSelection().anchorOffset;
+                let elfinal = window.getSelection().focusNode;
+                let posfinal = window.getSelection().focusOffset;
+
+
+				let numeroProcesso = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
+				let resposta = await criarCaixaDeSelecaoPartes(numeroProcesso)
+
+                // let resposta = await criarCaixaDeSelecaoComTodos(false,false,true,false,false,false);
+                // console.log(resposta.nome)
+                // substituirTextoSelecionado(resposta.nome);
+                if (resposta) {
+                    colarTextoNoEditor(resposta.nome, elinicial, posinicial, elfinal, posfinal);
+                }
+
+				return;
+			}
+
 			if (document.location.href.search("docs.google.com/spreadsheets") > -1) {
 				consultaRapidaPJE(identificarNumeroDoProcessoDaPlanilhaGoogle());
 			} else {
@@ -33108,14 +33388,7 @@ var eventosDeTeclaNaJanela = async function(event) {
 				document.querySelector('button[id="maisPje_assistenteImpressao_bt_copiar"]').click();
 			}
 		} else if (event.code === "ContextMenu") {
-			if (event.target.className.includes('area-conteudo')) { //editor de texto
-				event.preventDefault();
-				event.stopPropagation();
-				let numeroProcesso = await extrairNumeroProcesso(document.querySelector('pje-cabecalho-processo').innerText);
-				let resposta = await criarCaixaDeSelecaoCom(numeroProcesso)
-				copiarClipboard(resposta.nome);
-				return;
-			}
+
 		}
 
 
@@ -33222,9 +33495,35 @@ var eventosDeTeclaNaJanela = async function(event) {
 			}
 		}
 
+        async function colarTextoNoEditor(textoNovo, elementoInicialdaSelecao, posInicialdaSelecao, elementoFinaldaSelecao, posFinaldaSelecao) {
 
+            let areaConteudo = await esperarElemento('div[class*="area-conteudo"][contenteditable="true"]');
+            await sleep(1000); //teste para evitar o erro CKEDITORERROR
+            areaConteudo.focus();
+            setTimeout(function () {
+                setCursor(areaConteudo, elementoFinaldaSelecao, posFinaldaSelecao);
+                if (document.queryCommandSupported('insertText')) {
+                    document.execCommand('insertText',false,textoNovo);
+                }
+            }, 200);
+
+            function setCursor(node, cursorElement, cursorPosicao) {
+                var range = document.createRange();
+                range.setStart(cursorElement, cursorPosicao);
+                range.collapse(true);
+                if (window.getSelection) {
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    node.focus();
+                } else if (document.selection && range.select) {
+                    range.select();
+                }
+            }
+		}
 	}
 }
+
 document.addEventListener('keydown', eventosDeTeclaNaJanela, true);
 
 browser.storage.onChanged.addListener(logStorageChangeGeral);
@@ -33487,6 +33786,8 @@ async function teste_mutation_observer() {
 					// 	console.log(`The ${mutation.attributeName} attribute was modified para ${mutation.oldValue}.`);
 					// 	console.log(mutation.target.className)
 				  	// }
+                    // console.log("TARGET >>> tagName(" + mutation.removedNodes[0].tagName + ") id(" + mutation.removedNodes[0].id + ") className(" + mutation.removedNodes[0].className + ")");
+
 
 					if (!mutation.removedNodes[0] && !mutation.addedNodes[0]) { return }
 
@@ -33495,12 +33796,15 @@ async function teste_mutation_observer() {
 						console.log("---[DEL] tagName(" + mutation.removedNodes[0].tagName + ") id(" + mutation.removedNodes[0].id + ") className(" + mutation.removedNodes[0].className + ")");
 						console.log("---    |___" + mutation.removedNodes[0].innerText);
 						console.log("---    |___" + mutation.removedNodes[0].parentElement);
+                        console.log("---    |___" + mutation.removedNodes[0].firstChild);
 					}
 
 					if (mutation.addedNodes[0]) {
 						if (!mutation.addedNodes[0].tagName) { return }
 						console.log("+++[ADD] tagName(" + mutation.addedNodes[0].tagName + ") id(" + mutation.addedNodes[0].id + ") className(" + mutation.addedNodes[0].className + ")");
 						console.log("+++    |___" + mutation.addedNodes[0].innerText);
+                        console.log("---    |___" + mutation.removedNodes[0].parentElement);
+                        console.log("---    |___" + mutation.removedNodes[0].firstChild);
 					}
 				});
 			});
@@ -33579,6 +33883,7 @@ function criarTimeoutParaApi(resolve, timeout, semValor, api = '') {
 
 function substituirTextoSelecionado(texto) {
 	return new Promise(resolver => {
+        if (!document.body || !browser.runtime?.id) resolver();
 		texto = texto.toString();
 		let e = document.activeElement;
 		let elementoInicialdaSelecao = window.getSelection().anchorNode;
@@ -33638,6 +33943,7 @@ function substituirTextoSelecionado(texto) {
 				}, 200);
 			}
 
+            console.info('insertText suportado?', document.queryCommandSupported('insertText'), e.id);
 			if (document.queryCommandSupported('insertText')) {
 				document.execCommand('insertText',false,texto);
 			}
@@ -33914,6 +34220,10 @@ function consultaPJe(el) {
 	}
 }
 
+/**
+ * @param {number} param
+ * @returns {Promise<boolean>}
+ */
 async function existeDoctoNaoAssinado(param) {
 	return new Promise(
 		async resolver => {
@@ -33947,77 +34257,6 @@ async function existeDoctoNaoAssinado(param) {
 			return resolver(alertarSobreDocumentosNaoAssinados);
 		}
 	);
-}
-
-function acionarSemClique(elemento,cor1,cor2,tempo='1',angulo='0deg') {
-	if (elemento) {
-
-		//inserir css
-		let style = document.createElement("style");
-		style.textContent = '@keyframes trocarCorGenerico {';
-		style.textContent += '0% { background: linear-gradient(' + angulo + ',var(--color1) 100%, var(--color2) 0); } ';
-		style.textContent += '5% { background: linear-gradient(' + angulo + ',var(--color1) 95%, var(--color2) 0); } ';
-		style.textContent += '10% { background: linear-gradient(' + angulo + ',var(--color1) 90%, var(--color2) 0); } ';
-		style.textContent += '15% { background: linear-gradient(' + angulo + ',var(--color1) 85%, var(--color2) 0); } ';
-		style.textContent += '20% { background: linear-gradient(' + angulo + ',var(--color1) 80%, var(--color2) 0); } ';
-		style.textContent += '25% { background: linear-gradient(' + angulo + ',var(--color1) 75%, var(--color2) 0); } ';
-		style.textContent += '30% { background: linear-gradient(' + angulo + ',var(--color1) 70%, var(--color2) 0); } ';
-		style.textContent += '35% { background: linear-gradient(' + angulo + ',var(--color1) 65%, var(--color2) 0); } ';
-		style.textContent += '40% { background: linear-gradient(' + angulo + ',var(--color1) 60%, var(--color2) 0); } ';
-		style.textContent += '45% { background: linear-gradient(' + angulo + ',var(--color1) 55%, var(--color2) 0); } ';
-		style.textContent += '50% { background: linear-gradient(' + angulo + ',var(--color1) 50%, var(--color2) 0); } ';
-		style.textContent += '55% { background: linear-gradient(' + angulo + ',var(--color1) 45%, var(--color2) 0); } ';
-		style.textContent += '60% { background: linear-gradient(' + angulo + ',var(--color1) 40%, var(--color2) 0); } ';
-		style.textContent += '65% { background: linear-gradient(' + angulo + ',var(--color1) 35%, var(--color2) 0); } ';
-		style.textContent += '70% { background: linear-gradient(' + angulo + ',var(--color1) 30%, var(--color2) 0); } ';
-		style.textContent += '75% { background: linear-gradient(' + angulo + ',var(--color1) 25%, var(--color2) 0); } ';
-		style.textContent += '80% { background: linear-gradient(' + angulo + ',var(--color1) 20%, var(--color2) 0); } ';
-		style.textContent += '85% { background: linear-gradient(' + angulo + ',var(--color1) 15%, var(--color2) 0); } ';
-		style.textContent += '90% { background: linear-gradient(' + angulo + ',var(--color1) 10%, var(--color2) 0); } ';
-		style.textContent += '95% { background: linear-gradient(' + angulo + ',var(--color1) 5%, var(--color2) 0); } ';
-		style.textContent += '100% { background: linear-gradient(' + angulo + ',var(--color1) 0%, var(--color2) 0); }}';
-		document.body.appendChild(style);
-
-		let temporizador = parseFloat(tempo);
-		let mouseEmCima = false;
-		let check99;
-		elemento.style.setProperty('--color1',cor1);
-		elemento.style.setProperty('--color2',cor2);
-
-		elemento.addEventListener("click", function (event) {
-			clearInterval(check99);
-			mouseEmCima = false;
-			elemento.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
-			setTimeout(function() {elemento.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
-		});
-
-		elemento.onmouseenter = function (event) {
-			event.preventDefault();
-			if (mouseEmCima) { return }
-			this.style.animation = 'trocarCorGenerico ' + temporizador + 's';
-			mouseEmCima = true;
-			let seg = 1;
-			check99 = setInterval(function() {
-				seg--;
-				if (mouseEmCima && seg < 1) {
-					clearInterval(check99);
-					mouseEmCima = false;
-					elemento.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
-					setTimeout(function() {elemento.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
-					window.focus(); // garante o clique mesmo que o usuário clique em outra janela
-					elemento.click();
-				}
-
-			}, temporizador*1000);
-		};
-		elemento.onmouseleave = function (event) {
-			event.preventDefault();
-			this.style.animation = 'unset';
-			mouseEmCima = false;
-			clearInterval(check99);
-		};
-
-	}
 }
 
 function getContadorDePagina(cont) {
@@ -34060,6 +34299,33 @@ function getContadorDePagina(cont) {
 
 }
 
+async function inserirTextoNoEditor(titulo,texto,tipoParagrafo='Corpo') {
+    return new Promise(async resolve => {
+        if (document.querySelector('pdf-viewer')) { return resolve(true) } //tem documento em pdf
+        await esperarElemento('pje-arvore-modelo-documento'); //esperar o carregamento da pagina
+        let areaConteudo = await esperarElemento('div[class*="area-conteudo"][contenteditable="true"]');
+        await sleep(1000); //teste para evitar o erro CKEDITORERROR
+        areaConteudo.focus();
+
+        if (titulo) { //INSERIR TITULO
+            await clicarBotao('button[data-cke-tooltip-text="Centralizar"]'); //centraliza o texto
+            await clicarBotao('button[data-cke-tooltip-text="Negrito (Ctrl+B)"]'); //poe negrito
+            document.execCommand('insertText',false,titulo);
+            await clicarBotao('button[data-cke-tooltip-text="Negrito (Ctrl+B)"]'); //tira negrito
+            await clicarBotao('button[data-cke-tooltip-text="Centralizar"]'); //tira o centralizar
+        }
+
+        if (tipoParagrafo != 'Corpo') {
+            await clicarBotao('button[data-cke-tooltip-text="Titulo"]');
+            await clicarBotao('div[class*="ck-heading-dropdown"] li button',tipoParagrafo);
+        }
+
+        document.execCommand('insertText',false,texto);
+        await sleep(1000); //teste para evitar o erro CKEDITORERROR
+        return resolve(true);
+    });
+}
+
 function criarCaixaDeSelecaoComReclamados(excluir=true, abrirContagem=false) {
 	//excluir=true cria uma caixa de seleção de reclamados que você deixa apenas aqueles que quer utilizar
 	//excluir=false cria uma caixa de seleção de reclamados que vc escolhe apenas um dentre aqueles que aparecem
@@ -34094,7 +34360,7 @@ function criarCaixaDeSelecaoComReclamados(excluir=true, abrirContagem=false) {
 					}; //se clicar fora fecha a janela
 
 					let container = document.createElement("div");
-					container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);overflow-y: auto;";
+					container.style="text-align: inherit; font-weight: inherit; height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);overflow-y: auto;";
 
 					let titulo = document.createElement("span");
 					titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
@@ -34216,6 +34482,7 @@ function criarCaixaDeSelecaoComReclamantes() {
 					container.appendChild(bt_continuar);
 					elemento1.appendChild(container);
 					document.body.appendChild(elemento1);
+                    // elemento1?.showModal();
 				});
 			} else {
 				resolver(null);
@@ -34556,11 +34823,14 @@ function criarCaixaDeSelecaoComTodos(excluir=true, alternar=false, filtros=false
 	}
 }
 
-async function criarCaixaDeSelecaoCom(numeroProcesso,ativo=true,passivo=true,outros=true,representantes=true) {
+async function criarCaixaDeSelecaoPartes(numeroProcesso,ativo=true,passivo=true,outros=true,representantes=true) {
 	//excluir=false cria uma caixa de seleção de reclamados que vc escolhe apenas um dentre aqueles que aparecem
 	return new Promise(
 		async resolver => {
-			if (!document.getElementById('maisPje_caixa_de_selecaoCom')) {
+            const idDialog = 'maisPje_caixa_de_selecaoCom';
+            /** @type {HTMLDialogElement} */
+            let elemento1 = document.querySelector(`dialog#${idDialog}`);
+			if (!elemento1) {
 				let dadosResumidos = await obterDadosResumidosDoProcesso(numeroProcesso,null,false,true,false);
 
 				// console.log(JSON.stringify(dadosResumidos));
@@ -34571,26 +34841,15 @@ async function criarCaixaDeSelecaoCom(numeroProcesso,ativo=true,passivo=true,out
 				if (!document.getElementById('maisPje_tooltip_fundo')) {
 					tooltip('fundo', true);
 				}
-
-				let altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
-
-				let elemento1 = document.createElement("div");
-				elemento1.id = 'maisPje_caixa_de_selecaoCom';
-				elemento1.style = 'position: fixed; width: 100%; height: ' + altura + 'px; top: 0; inset: 0px; background: #00000080; z-index: 10000; display: flex; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans,Arial,Verdana,sans-serif; font-size: 16px; text-align: center; flex-direction: column;';
-
-				elemento1.onclick = function (e) {
-					if (e.target.id == "maisPje_caixa_de_selecaoCom") {
-						elemento1.remove();
-					}
-				}; //se clicar fora fecha a janela
+				elemento1 = criarDialogPopup(idDialog);
 
 				let container = document.createElement("div");
 				container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);overflow-y: auto;";
 
-				let titulo = document.createElement("span");
+				const titulo = document.createElement("h3");
 				titulo.style = "color: grey; border-bottom: 1px solid lightgrey;";
-				titulo.innerText = "Lista de Partes do Processo";
-				titulo.innerText += " - clique para ESCOLHER";
+				titulo.innerText = "Partes do Processo";
+				titulo.innerText += " - clique para inserir no editor";
 				container.appendChild(titulo);
 
 				// return {
@@ -34599,79 +34858,59 @@ async function criarCaixaDeSelecaoCom(numeroProcesso,ativo=true,passivo=true,out
 				// 	"dados": dados,
 				// 	"partes": partes
 				// }
-
-				for (const [pos, parte] of dadosResumidos.partes.poloAtivo.entries()) {
-					// console.debug(parte.nome + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
-					let span = document.createElement("span");
-					span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_a_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
-					span.innerText = parte.nome + ' (' + parte.tipo + ')';
-					span.onmouseenter = function () {
-						span.style.backgroundColor  = 'lightgrey';
-					};
-					span.onmouseleave = function () {
-						span.style.backgroundColor  = 'white';
-						span.style.color  = 'rgb(81, 81, 81)';
-					};
-					span.onclick = function () {
-						resolver(parte);
-						document.getElementById('maisPje_caixa_de_selecaoCom').remove();
-					};
-
-					container.appendChild(span);
-					lista_de_partes_temp.push(parte);
-				}
-
-				for (const [pos, parte] of dadosResumidos.partes.poloPassivo.entries()) {
-					// console.debug(parte.nome + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
-					let span = document.createElement("span");
-					span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/t_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
-					span.innerText = parte.nome + ' (' + parte.tipo + ')';
-					span.onmouseenter = function () {
-						span.style.backgroundColor  = 'lightgrey';
-					};
-					span.onmouseleave = function () {
-						span.style.backgroundColor  = 'white';
-						span.style.color  = 'rgb(81, 81, 81)';
-					};
-					span.onclick = function () {
-						resolver(parte);
-						document.getElementById('maisPje_caixa_de_selecaoCom').remove();
-					};
-					container.appendChild(span);
-					lista_de_partes_temp.push(parte);
-				}
-
-				for (const [pos, parte] of dadosResumidos.partes.poloOutros.entries()) {
-					// console.debug(parte.nome + '   :   ' + parte.cpfcnpj + '   :   ' + parte.tipo)
-					let span = document.createElement("span");
-
-					if (parte.tipo.includes('ADVOGADO')) {
-						span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_adv_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
-					} else {
-						span.style = "cursor: pointer; margin-top: 10px; padding: 10px; font-weight: bold; font-size: 16px; background-position-x: 1rem; background-image: url('" + browser.runtime.getURL("icons/user_t_16.png") + "');	background-repeat: no-repeat; background-position: left center;";
-					}
-
-					span.innerText = parte.nome + ' (' + parte.tipo + ')';
-					span.onmouseenter = function () {
-						span.style.backgroundColor  = 'lightgrey';
-					};
-					span.onmouseleave = function () {
-						span.style.backgroundColor  = 'white';
-						span.style.color  = 'rgb(81, 81, 81)';
-					};
-					span.onclick = function () {
-						resolver(parte);
-						document.getElementById('maisPje_caixa_de_selecaoCom').remove();
-					};
-					container.appendChild(span);
-					lista_de_partes_temp.push(parte);
-				}
+                preencherPartes(dadosResumidos.partes.poloAtivo, lista_de_partes_temp, container, 'Polo Ativo', "icons/user_a_16.png");
+                preencherPartes(dadosResumidos.partes.poloPassivo, lista_de_partes_temp, container, 'Polo Passivo', "icons/user_r_16.png");
+                const advogados = dadosResumidos.partes.poloOutros.filter(parte => parte.tipo.includes('ADVOGADO'));
+                const terceiros = dadosResumidos.partes.poloOutros.filter(parte => !parte.tipo.includes('ADVOGADO'));
+                preencherPartes(advogados, lista_de_partes_temp, container, 'Advogados', "icons/user_adv_16.png");
+                preencherPartes(terceiros, lista_de_partes_temp, container, 'Terceiros', "icons/user_t_16.png");
 
 				elemento1.appendChild(container);
 				document.body.appendChild(elemento1);
 			} else {
 				resolver(null);
 			}
+            if (elemento1 && elemento1.showModal && !elemento1.open) {
+            elemento1.showModal();
+            }
+
+            function preencherPartes(partes, lista_de_partes_temp, container, titulo, icone) {
+                const section = document.createElement('section');
+                const idTitulo = 'lista_' + titulo
+                                    .normalize("NFD")
+                                    .replace(/[\u0300-\u036f]/g, "")
+                                    .replaceAll(' ', '')
+                                    .toLowerCase();
+                section.setAttribute('aria-labelledby', idTitulo);
+                const tituloPartes = document.createElement('h4');
+                tituloPartes.id = idTitulo
+                tituloPartes.className = 'sr-only';
+                tituloPartes.style = 'margin: 0; text-align: left;'
+                tituloPartes.innerText = titulo;
+                const partesUL = document.createElement('ul');
+                partesUL.className = 'lista-sem-ocupar-espaco';
+                for (const [pos, parte] of partes.entries()) {
+                    const parteJaAdicionada = lista_de_partes_temp.some(p => p.nome === parte.nome);
+                    if (parteJaAdicionada) {
+                        continue;
+                    }
+                    const parteLi = document.createElement('li');
+                    partesUL.appendChild(parteLi);
+                    const button = document.createElement("button");
+                    button.className = 'selecionarPartesEditorTexto';
+                    parteLi.appendChild(button);
+                    button.style = `background-image: url(${browser.runtime.getURL(icone)}); background-repeat: no-repeat; background-position: left center;`;
+                    button.innerText = parte.nome + ' (' + parte.tipo + ')';
+                    button.onclick = function () {
+                        resolver(parte);
+                        document.getElementById('maisPje_caixa_de_selecaoCom').remove();
+                    };
+                    lista_de_partes_temp.push(parte);
+                }
+                section.appendChild(tituloPartes);
+                section.appendChild(partesUL);
+                container.appendChild(section);
+            }
 		}
 	);
 }
@@ -34689,7 +34928,7 @@ function criarCaixaExibirMinuta(titulo='', observacao='', conteudoDaMinuta='', n
 			fundoEscuro = criarPopup('maisPje_caixa_de_exibir_minuta_fundo', resolver);
 		}
 
-		fundoEscuro.style = 'position: fixed;   inset: 0px; background: rgba(0, 0, 0, 0.5); z-index: 10000; display: grid; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans, Arial, Verdana, sans-serif; text-align: center; flex-direction: column; grid-template-columns: 1fr 1fr; gap: 10px;overflow-y: auto;padding: 10px;width: auto;';
+		// fundoEscuro.style = 'position: fixed;   inset: 0px; background: rgba(0, 0, 0, 0.5); z-index: 10000; display: grid; align-items: center; justify-content: center; color: rgb(81, 81, 81); font-weight: bold; font-family: Open Sans, Arial, Verdana, sans-serif; text-align: center; flex-direction: column; grid-template-columns: 1fr 1fr; gap: 10px;overflow-y: auto;padding: 10px;width: auto;';
 
 		let pos = document.querySelectorAll('div[id*="maisPje_caixa_de_exibir_minuta_"]').length;
 
@@ -34730,12 +34969,12 @@ function criarCaixaExibirMinuta(titulo='', observacao='', conteudoDaMinuta='', n
 		divTitulo.style = 'display: grid;grid-template-columns: 40% 60%;margin: 5px 0;'
 
 		let spanTitulo = document.createElement("span");
-		spanTitulo.style = "color: grey; text-align: justify; align-self: center;padding: 5px;";
+		spanTitulo.style = "color: grey; text-align: left; align-self: center;padding: 5px;";
 		spanTitulo.innerText = 'Certidão de Habilitação de Crédito do(a)';
 		container.appendChild(spanTitulo);
 		let inputTitulo = document.createElement("input");
 		inputTitulo.id = 'maisPje_cxExibirMinuta_titulo_' + pos;
-		inputTitulo.style = "text-align: justify;font-weight: bold;font-family: Open Sans, Arial, Verdana, sans-serif;font-size: inherit;color: orangered;border: 0;background-color: whitesmoke;padding: 5px;";
+		inputTitulo.style = "text-align: left;font-weight: bold;font-family: Open Sans, Arial, Verdana, sans-serif;font-size: inherit;color: orangered;border: 0;background-color: whitesmoke;padding: 5px;";
 		inputTitulo.value = titulo;
 
 		divTitulo.appendChild(spanTitulo);
@@ -34743,7 +34982,7 @@ function criarCaixaExibirMinuta(titulo='', observacao='', conteudoDaMinuta='', n
 		container.appendChild(divTitulo);
 
 		let containerTitulo = document.createElement('span');
-		containerTitulo.style = 'color: grey; border-bottom: 1px solid lightgrey; text-align: justify;';
+		containerTitulo.style = 'color: grey; border-bottom: 1px solid lightgrey; text-align: left;';
 
 		let inputTexto = document.createElement("textarea")
 		inputTexto.id = 'maisPje_cxExibirMinuta_inputTexto_' + pos;
@@ -34779,15 +35018,21 @@ function criarCaixaExibirMinuta(titulo='', observacao='', conteudoDaMinuta='', n
 
 		fundoEscuro.appendChild(container);
 		document.body.appendChild(fundoEscuro);
+        // fundoEscuro.showModal(); // removendo pois, usa o criarPopup, logo não gera um dialog
 
 		return resolver(true);
 
 	});
 }
 
-function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', acionamentoAutomatico=false, permitirTrocaTipo=false) {
+async function criarCaixaDePerguntaDialog(tipo, titulo) {
+    return await criarCaixaDePergunta(tipo, titulo, '', '', false, false, true);
+}
+
+function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', acionamentoAutomatico=false, permitirTrocaTipo=false, usarDialog = false) {
+    let elemento1 = document.getElementById('maisPje_caixa_de_pergunta');
 	return new Promise(resolver => {
-		if (!document.getElementById('maisPje_caixa_de_pergunta')) {
+		if (!elemento1) {
 			// DESCRIÇÃO: REGRA DO TOOLTIP
 			if (!document.getElementById('maisPje_tooltip_fundo')) {
 				tooltip('fundo', true);
@@ -34795,11 +35040,13 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 			if (!document.getElementById('maisPje_tooltip_abaixo')) {
 				tooltip('abaixo');
 			}
-			let elemento1 = criarPopup('maisPje_caixa_de_pergunta', resolver);
+            const criacaoPopup = usarDialog ? criarDialogPopup : criarPopup;
+			elemento1 = criacaoPopup('maisPje_caixa_de_pergunta', resolver);
 			let container = document.createElement("div");
 			container.style="height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
 
 			let logo = document.createElement("span");
+            logo.ariaLabel = 'mais PJE';
 			logo.style = "color: grey; display: flex;justify-self: end; opacity:50%;";
 			logo.innerText = "+PJ";
 			let logoi = document.createElement("i");
@@ -34811,27 +35058,27 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 
 			let t = titulo.split('|');
 
-			let spanTitulo = document.createElement("span");
-			spanTitulo.style = "color: grey; border-bottom: 1px solid lightgrey;text-align: justify;";
+			let spanTitulo = document.createElement("h2");
+			spanTitulo.style = "color: grey; border-bottom: 1px solid lightgrey; text-align: left; margin: 0; font-size: inherit;";
 			spanTitulo.innerText = t[0];
 			container.appendChild(spanTitulo);
 
 			if (t[1]) { //subtitulo
-				let spanSubTitulo = document.createElement("span");
-				spanSubTitulo.style = "color: lightcoral;font-style: italic;font-weight: normal;";
+				let spanSubTitulo = document.createElement("h3");
+				spanSubTitulo.style = "color: lightcoral;font-style: italic;font-weight: normal; margin: 0; font-size: inherit;";
 				spanSubTitulo.innerText = t[1];
 				container.appendChild(spanSubTitulo);
 			}
 
 			if (t[2]) { //opcoes
 				let spanOpt = document.createElement("span");
-				spanOpt.style = "text-align: justify;padding-left: 15%;font-weight: bold;color: darkcyan;";
+				spanOpt.style = "text-align: left;padding-left: 15%;font-weight: bold;color: darkcyan;";
 				spanOpt.innerText = t[2];
 				container.appendChild(spanOpt);
 			}
 
 			let containerTitulo = document.createElement('span');
-			containerTitulo.style = 'color: grey; border-bottom: 1px solid lightgrey; text-align: justify;';
+			containerTitulo.style = 'color: grey; border-bottom: 1px solid lightgrey; text-align: left;';
 			let inputTexto;
 			let trocaTipoTitulo = document.createElement('span');
 
@@ -34939,6 +35186,9 @@ function criarCaixaDePergunta(tipo, titulo, valorAnterior='', placeholder='', ac
 		} else {
 			resolver(null);
 		}
+        if (elemento1 && elemento1.showModal && !elemento1.open) {
+            elemento1.showModal();
+        }
 	});
 
 	function criarCampoPreenchimento(t, v, p) {
@@ -35056,9 +35306,10 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				let container = document.createElement("div");
 				container.style="height: fit-content; min-width: 35vw;  background-color: white; padding: 15px; border-radius: 4px; box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 1px -1px, rgba(0, 0, 0, 0.14) 0px 1px 1px 0px, rgba(0, 0, 0, 0.12) 0px 1px 3px 0px; overflow-y: auto;display: grid;";
 
-				let t = document.createElement("div");
+				let t = document.createElement("label");
+                t.htmlFor = 'selecionarItensMaisPJE';
 				t.style = "height: max-content;color: grey; border-bottom: 1px solid lightgrey;display: inline-grid;";
-				let span1 = document.createElement("span");
+				let span1 = document.createElement("h3");
 				span1.innerText = titulo;
 				t.appendChild(span1);
 
@@ -35077,8 +35328,8 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				container.appendChild(t);
 
 				let containerSelect = document.createElement("select");
+                containerSelect.id = 'selecionarItensMaisPJE';
 				containerSelect.style = 'max-height: 70vh; cursor: pointer; margin-top: 10px;  background-color: white; color: rgb(81, 81, 81); font-size: 1.125em; overflow-y: auto; text-align: center; border: medium;';
-				containerSelect.style.setProperty('min-height','12vh'); //tamanho idela para duas opções
 
 				if (multiplaEscolha) { containerSelect.setAttribute('multiple','true') }
 
@@ -35115,6 +35366,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 				// console.log(containerSelect.getAttribute('size'))
 				// console.log(parseInt(containerSelect.getAttribute('size')) >= 5)
 				switch (containerSelect.getAttribute('size')) {
+					case '1':
 					case '2':
 						containerSelect.style.setProperty('min-height','12vh'); break;
 					case '3':
@@ -35151,6 +35403,7 @@ async function criarCaixaSelecao(listaDeOpcoes=[],titulo='Escolha entre as opç�
 
 				elemento1.appendChild(container);
 				document.body.appendChild(elemento1);
+                // elemento1?.showModal();
 
 				// com opcao favorita
 				if (opcaoFavorita > -1) {
@@ -35951,7 +36204,7 @@ async function assistenteDeImpressao() {
 							pagina.insertAdjacentElement('afterbegin', cabecalhoImpressao);
 						}
 
-						if(querySelectorByText('div[role="alert"]','Sua consulta não retornou registros!')) {
+						if(querySelectorByText('#toast-container div[role="alert"]','Sua consulta não retornou registros!')) {
 							let semresultado = criarElemento('h1', 'font-size: 16px;', 'Nenhum resultado foi encontrado')
 							pagina.appendChild(semresultado);
 						}
@@ -36222,7 +36475,7 @@ async function assistenteDeImpressao() {
 		} else if (convenio.nome == 'renajud') {
 			areaDeImpressao += '</head><body onload="window.print(); window.close();">';
 		} else if (convenio.nome == 'saj') {
-			areaDeImpressao += '<style>app-requisicao-extrato-detalhamento{ font-size: 16px;font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" } #tabProcessoId { box-sizing: border-box;font-weight: 400;line-height: 1.5;color: #212529;text-align: justify; } </style>';
+			areaDeImpressao += '<style>app-requisicao-extrato-detalhamento{ font-size: 16px;font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" } #tabProcessoId { box-sizing: border-box;font-weight: 400;line-height: 1.5;color: #212529;text-align: left; } </style>';
 			// areaDeImpressao += '</head><body onload="window.print(); window.close();">';
 		} else if (convenio.nome == 'garimpo') {
 			areaDeImpressao += '</head><body onload="window.print(); window.close();">'; //esse comando abre a pagina de impressão ao carregar o documento
@@ -36507,12 +36760,10 @@ async function escolherOpcaoTeste2(seletor, valor, possuiBarraProgresso) {
 	return new Promise(async resolve => {
 		//NOVOS TESTES PARA QUE A FUNÇÃO FUNCIONE EM ABAS(GUIAS) DESATIVADAS
 		await sleep(preferencias.maisPje_velocidade_interacao);
-		// window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
 		if (seletor instanceof HTMLElement) {
 		} else {
 			seletor = await esperarElemento(seletor);
 		}
-
 		seletor.focus();
 		await simularTecla(seletor,'Enter',13); //ENTER
 		await sleep(500);
@@ -36576,7 +36827,17 @@ async function escolherOpcaoTeste2(seletor, valor, possuiBarraProgresso) {
 	}
 }
 
-async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto') {
+/**
+ * funcao criada para a retificacao da autuacao, pois o preencherInput nao funcionou.
+ * So deu certo com o execCommand, que, salvo engano, esta obsoleto.
+ * ela eh um atalho para a funcao com todos os parametros.
+ */
+function preencherAngularInputNaRetificacao(seletor, valor) {
+    return preencherInput(seletor, valor, false, 'texto', true);
+}
+
+async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto', usarExecCommand = false) {
+    console.info(seletor, valor, monitorar, tipoInput)
 	return new Promise(async resolver => {
 		await sleep(preferencias.maisPje_velocidade_interacao);
 		window.focus(); //garante o clique mesmo que o usuário tire o foco da tela
@@ -36587,7 +36848,10 @@ async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto'
 			elemento = await esperarElemento(seletor)
 		}
 		elemento.focus();
-		if (tipoInput == 'data') {
+        if (usarExecCommand) {
+            document.execCommand('insertText', false, valor?.trim());
+        } else
+        if (tipoInput == 'data') {
 			Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'valueAsDate').set.call(elemento, valor);
 		} else {
 			Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(elemento, valor);
@@ -36600,7 +36864,7 @@ async function preencherInput(seletor, valor, monitorar=false, tipoInput='texto'
 		await simularTecla(elemento,'Enter',13); //ENTER
 
 		elemento.blur();
-		console.log("                   |---> INPUT " + seletor + ">" + valor);
+		console.log("                   |---> INPUT " + seletor + " > " + valor);
 		if (monitorar) {
 			await ligar_mutation_observer2();
 			return resolver(true)
@@ -36747,7 +37011,7 @@ async function clicarBotao(seletor, texto, monitorar=false) {
 								return resolve(true);
 							}
 
-							if (mutation.addedNodes[0].innerText.includes('com sucesso')) {
+                            if (mutation.addedNodes[0].innerText.includes('com sucesso')) {
 								mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso de erro
 								observer_clicarBotao.disconnect();
 								return resolve(true);
@@ -36796,6 +37060,14 @@ async function clicarBotao(seletor, texto, monitorar=false) {
 
 						if (mutation.addedNodes[0].tagName.includes("DIV")) {
 							if (mutation.addedNodes[0].innerText.includes('Adicionado com sucesso.')) { //anexar modelos
+								mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso de salvamento
+								observer_clicarBotao.disconnect();
+								return resolve(true);
+							}
+						}
+
+                        if (mutation.addedNodes[0].tagName.includes("DIV")) {
+							if (mutation.addedNodes[0].innerText.includes('endereço está em branco.')) { //retificar autuação inserir partes/advs
 								mutation.addedNodes[0].querySelector('button').click(); //fecha o aviso de salvamento
 								observer_clicarBotao.disconnect();
 								return resolve(true);
@@ -36957,7 +37229,7 @@ async function gerarLinksDosIds(elemento, listaIds_Novo, backgroundColor='coral'
         let idUnicoDocumento = id_encontrado.id;
         const doc = await recuperarDocumentoPeloIdUnico(idProcesso, idUnicoDocumento);
         const metadados = montarURLsDocumentos(nrProcesso, doc, idProcesso);
-        const abrirOuFecharDocumento = () => abrirFecharVisualizador(metadados.conteudoDocumento, false);
+        const abrirOuFecharDocumento = () => abrirFecharVisualizador(metadados.link, false);
 		section.appendChild(a);
 		section.onmouseenter = async function () {
 			this.style.filter = 'brightness(0.5)';

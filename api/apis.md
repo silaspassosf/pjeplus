@@ -1039,6 +1039,114 @@ RITO_SUMARISSIMO_MAX = SALARIO_MINIMO * 40   # R$ 64.880,00
 
 ---
 
+## 18. Resolução de Parte Peticionante via Timeline — Pipeline Validada
+
+**Data de validação:** 01/05/2026 — processo `7530597`
+
+### 18.1. O Problema
+
+A API de timeline (`/timeline`) e o endpoint de metadados de documento (`/documentos/id/{id}`) **não retornam campos de polo ou nome da parte** (`polo`, `nomeParte`, `nomeAutor` — todos ausentes ou `null`). Porém, a interface Angular do PJe exibe corretamente o nome da parte e o ícone de polo (ex: `icone-polo-passivo`).
+
+**Descoberta:** o Angular constrói essa informação cruzando o campo `idPessoaInclusao` do documento (que identifica o **advogado** que peticionou) com a lista de **representantes** do endpoint `/partes`.
+
+### 18.2. Pipeline: 3 GETs para resolver parte + polo
+
+```
+1. GET /partes                    → mapa: advogado(idPessoa) → [partes]
+2. GET /timeline                  → filtrar itens por tipo/titulo (regex)
+3. GET /documentos/id/{idDoc}     → obter idPessoaInclusao (advogado)
+4. Bater idPessoaInclusao no mapa → retorna TODAS as partes do match
+```
+
+> **Nota:** Um advogado pode representar **múltiplas partes**. O mapa deve ser `idPessoa → Array` (não objeto único). Exemplo: advogada RAFAELA PIRES FEITOSA (id `1988991`) representa tanto `SOLUCAO CONSTRUTORA LTDA` quanto `PAULISTA OBRAS LTDA` — ambas polo passivo.
+
+### 18.3. Campos-chave
+
+| Endpoint | Campo | Tipo | Usado para |
+|---|---|---|---|
+| `/partes` | `PASSIVO[*].representantes[*].idPessoa` | number | Chave do mapa |
+| `/partes` | `PASSIVO[*].representantes[*].nome` | string | Fallback por nome |
+| `/partes` | `PASSIVO[*].nome` | string | Nome da parte (resultado) |
+| `/documentos/id/{id}` | `idPessoaInclusao` | number | ID do advogado que peticionou |
+| `/documentos/id/{id}` | `criador` | string | Nome do advogado (fallback) |
+| `/timeline` | `id` | number | ID numérico p/ buscar metadados |
+| `/timeline` | `tipo` | string | Ex: `"Contrarrazões"` |
+| `/timeline` | `titulo` | string | Ex: `"CONTRARRAZÕES AO RO DO RECLAMANTE - ..."` |
+| `/timeline` | `anexos` | Array | Verificar presença de anexos |
+
+> **Campos que NÃO existem na timeline/documentos:** `polo`, `nomeParte`, `nomeAutor`, `poloPeticionante` — todos ausentes ou `null`.
+
+### 18.4. Implementação JavaScript (IIFE para console autenticado)
+
+```javascript
+// ── Passo 1: Montar mapa advogado → [partes] ────────────
+var partesRaw = await apiGet(BASE + '/partes');
+
+var advPartes = {};  // idPessoa → [{ nomeParte, polo }]
+
+function mapear(lista, polo) {
+  for (var i = 0; i < (lista || []).length; i++) {
+    var parte = lista[i];
+    for (var r = 0; r < (parte.representantes || []).length; r++) {
+      var repr = parte.representantes[r];
+      var idRepr = repr.idPessoa || repr.id;
+      if (!idRepr) continue;
+      if (!advPartes[idRepr]) advPartes[idRepr] = [];
+      var jaExiste = advPartes[idRepr].some(function(e) { return e.nomeParte === parte.nome; });
+      if (!jaExiste) advPartes[idRepr].push({ nomeParte: parte.nome.trim(), polo: polo });
+    }
+  }
+}
+mapear(partesRaw.ATIVO, 'ATIVO');
+mapear(partesRaw.PASSIVO, 'PASSIVO');
+
+// ── Passo 2: Para cada item da timeline filtrado ─────────
+// GET /documentos/id/{item.id} → meta.idPessoaInclusao
+var meta = await apiGet(BASE + '/documentos/id/' + item.id);
+var partes = advPartes[meta.idPessoaInclusao] || null;
+// partes = [{ nomeParte: "SOLUCAO CONSTRUTORA LTDA", polo: "PASSIVO" },
+//           { nomeParte: "PAULISTA OBRAS LTDA", polo: "PASSIVO" }]
+```
+
+### 18.5. Termos de busca para tipos comuns
+
+| Tipo | Regex de busca | Campo |
+|---|---|---|
+| Contrarrazões | `/contrarraz/i` | `titulo` ou `tipo` |
+| Recurso Ordinário | `/recurso\s+ordin[aá]rio/i` | `titulo` ou `tipo` |
+| Recurso de Revista | `/recurso de revista/i` | `titulo` ou `tipo` |
+
+### 18.6. Fallback: Match por título
+
+Quando `idPessoaInclusao` não resolve (advogado não está nos representantes, ou documento muito antigo), usar match fuzzy do título contra os nomes das partes:
+
+```javascript
+var tituloNorm = normalize(item.titulo || '');
+for (var p of todasPartes) {
+  var palavras = normalize(p.nome).split(/\s+/);
+  if (palavras.length >= 2 &&
+      tituloNorm.includes(palavras[0]) &&
+      tituloNorm.includes(palavras[palavras.length - 1])) {
+    // match encontrado
+  }
+}
+```
+
+### 18.7. Resultado validado (processo 7530597)
+
+| Categoria | Partes resolvidas | Polo | Método | Anexos |
+|---|---|---|---|---|
+| CONTRARRAZÕES | SOLUCAO CONSTRUTORA LTDA + PAULISTA OBRAS LTDA | PASSIVO | `idPessoaInclusao→advogado` | NÃO |
+| RECURSO ORDINÁRIO | JOSUE DANIEL BOCANEY GARCIA | ATIVO | `idPessoaInclusao→advogado` | NÃO |
+
+### 18.8. Referências de implementação
+
+- `Script/calc/calcapi.js` — classificador `_classifyItem()` (reconhece RO/RR mas não contrarrazões)
+- `Script/core/extrair.js` — helpers `_apiXsrf()`, `_apiHeaders()`, `_apiIdProcesso()`
+- `Script/Java/pjeapi.js` — spy de API (`__pje.probe()`, `__pje.fromEl()`)
+
+---
+
 ## Considerações Finais
 
 - **Autenticação:** Todas as chamadas exigem que a sessão esteja autenticada. Utilize cookies de um navegador logado ou obtenha via Selenium.

@@ -64,6 +64,11 @@
                 const depositanteSelect = $(`dep-depositante-${idx}`);
                 if (depositanteSelect) {
                     depositanteSelect.value = deposito.depositante || '';
+                    // Fallback para petições conjuntas: se o valor cheio não bateu no select, tenta o primeiro nome
+                    if (!depositanteSelect.value && deposito.depositante && deposito.depositante.indexOf(' + ') !== -1) {
+                        const primeiro = deposito.depositante.split(' + ')[0].trim();
+                        depositanteSelect.value = primeiro;
+                    }
                 }
 
                 // 4. Se encontrou um anexo campeão, preenche os dados dele

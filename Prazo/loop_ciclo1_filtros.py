@@ -23,7 +23,18 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
 
         # AGUARDAR LISTA CARREGAR - loop manual com break imediato ao encontrar células
         t1 = time.perf_counter()
-        timeout_espera = 3.0  # máximo 3 segundos de espera
+        # Dar mais tempo para o Angular povoar a lista após aplicar o filtro.
+        # 3s provou ser insuficiente em casos reais; usar 6s para maior robustez.
+        timeout_espera = 6.0  # máximo 6 segundos de espera
+
+        # Tentar aguardar renderização nativa/pagination atualizar (quando disponível)
+        try:
+            from Fix.core import aguardar_renderizacao_nativa
+            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
+            logger.info('[CICLO1][FILTRO] aguardar_renderizacao_nativa completada')
+        except Exception:
+            # fallback silencioso; o loop abaixo fará a checagem final
+            logger.info('[CICLO1][FILTRO] aguardar_renderizacao_nativa indisponível ou falhou')
 
         seletor_celula_processo = 'td.td-class span.link.processo'
         xpath_vazio = "//span[contains(text(), 'Não há processos neste tema')]"
@@ -51,7 +62,7 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
             except Exception:
                 pass
 
-            time.sleep(0.1)  # Sleep curto entre tentativas
+            time.sleep(0.15)  # Sleep curto entre tentativas
 
         # Timeout da espera atingido - fazer avaliação final rápida
         t_lista = time.perf_counter() - t1
@@ -63,6 +74,18 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
             celulas = driver.find_elements(By.CSS_SELECTOR, seletor_celula_processo)
             if len(celulas) > 0:
                 logger.info(f'[CICLO1][FILTRO] {len(celulas)} célula(s) de processo detectada(s) na avaliação final')
+                return True
+        except Exception:
+            pass
+
+        # Última verificação: tentar ler paginação para confirmar quantidade
+        try:
+            total = _verificar_quantidade_processos_paginacao(driver)
+            if total == 0:
+                logger.info(f'[CICLO1][FILTRO] Paginação indica 0 processos (final)')
+                return "no_more_processes"
+            elif total > 0:
+                logger.info(f'[CICLO1][FILTRO] Paginação final indica {total} processo(s)')
                 return True
         except Exception:
             pass

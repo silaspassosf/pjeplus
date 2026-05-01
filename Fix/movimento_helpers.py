@@ -1,12 +1,10 @@
-import logging
-logger = logging.getLogger(__name__)
-
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import re
 import unicodedata
 import time
+
 
 def _normalize_text(s: str) -> str:
     if not s:
@@ -16,6 +14,7 @@ def _normalize_text(s: str) -> str:
     s = ''.join(ch for ch in s if ord(ch) < 128)
     s = re.sub(r'\s+', ' ', s)
     return s
+
 
 def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: int = 2) -> bool:
     """Seleciona movimentos em múltiplos estágios (comboboxes / complementos).
@@ -116,6 +115,7 @@ def selecionar_movimento_dois_estagios(driver, movimento: str, timeout_select: i
         time.sleep(0.2)
 
     return True
+
 
 def selecionar_movimento_auto(driver, movimento: str) -> bool:
     """Chamada auxiliar: decide a estratégia e executa seleção.

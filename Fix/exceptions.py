@@ -1,22 +1,5 @@
-"""Compatibility shim: re-export exceptions from `Fix.log`.
-
-This file exists so older imports `from Fix.exceptions import ...`
-continue to work after consolidation into `Fix.log`.
-"""
-from Fix.log import (
-    PJePlusError,
-    DriverFatalError,
-    ElementoNaoEncontradoError,
-    TimeoutFluxoError,
-    NavegacaoError,
-    LoginError,
-)
-
-__all__ = [
-    "PJePlusError",
-    "DriverFatalError",
-    "ElementoNaoEncontradoError",
-    "TimeoutFluxoError",
-    "NavegacaoError",
-    "LoginError",
-]
+"""Fix.exceptions - Exceções customizadas"""
+class PJePlusError(Exception): pass
+class ElementoNaoEncontradoError(PJePlusError): pass
+class NavegacaoError(PJePlusError): pass
+__all__ = ['PJePlusError', 'ElementoNaoEncontradoError', 'NavegacaoError']

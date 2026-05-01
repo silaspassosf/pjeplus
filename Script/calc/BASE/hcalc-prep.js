@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     'use strict';
     const HCALC_DEBUG = false;
     const dbg = (...args) => { if (HCALC_DEBUG) console.log('[hcalc]', ...args); };
@@ -174,6 +174,59 @@
     async function _fetchPartes() {
         const raw = await _get(_base() + '/partes');
         return _shapePartes(raw);
+    }
+
+    // Mapa advogado(idPessoa) → [{ nomeParte, polo }]
+    // Um advogado pode representar múltiplas partes (ex: mesmo escritório para 2+ reclamadas)
+    function _buildAdvogadoPartesMap(partesRaw) {
+        const mapa = {};
+        function registrar(lista, polo) {
+            for (const parte of (lista || [])) {
+                const nomeParte = (parte.nome || '').trim();
+                for (const repr of (parte.representantes || [])) {
+                    const id = repr.idPessoa || repr.id;
+                    if (!id) continue;
+                    if (!mapa[id]) mapa[id] = [];
+                    const jaExiste = mapa[id].some(function(e) { return e.nomeParte === nomeParte; });
+                    if (!jaExiste) mapa[id].push({ nomeParte: nomeParte, polo: polo });
+                }
+            }
+        }
+        registrar(partesRaw.ATIVO, 'ATIVO');
+        registrar(partesRaw.PASSIVO, 'PASSIVO');
+        registrar(partesRaw.TERCEIROS, 'TERCEIROS');
+        return mapa;
+    }
+
+    // Resolve a parte peticionante de um recurso via pipeline:
+    //   1. GET /documentos/id/{idDoc} → idPessoaInclusao → mapa advogado
+    //   2. Fallback: match título × nomes das partes
+    async function _resolverPartePeticionante(rec, advMap, passivo) {
+        // Estratégia 1: idPessoaInclusao → advogado → partes
+        if (rec.idDoc) {
+            try {
+                const meta = await _fetchDocMeta(rec.idDoc);
+                if (meta.idPessoaInclusao && advMap[meta.idPessoaInclusao]) {
+                    return { partes: advMap[meta.idPessoaInclusao], metodo: 'advogado' };
+                }
+            } catch (e) {
+                warn('[prep] docMeta falhou para idDoc=' + rec.idDoc + ':', e.message);
+            }
+        }
+        // Estratégia 2: match título × nomes das partes (fallback)
+        var tituloNorm = _normalize(rec.titulo || '');
+        var matches = [];
+        for (var p = 0; p < passivo.length; p++) {
+            var pNorm = _normalize(passivo[p].nome);
+            var palavras = pNorm.split(/\s+/).filter(Boolean);
+            if (palavras.length >= 2 &&
+                tituloNorm.indexOf(palavras[0]) !== -1 &&
+                tituloNorm.indexOf(palavras[palavras.length - 1]) !== -1) {
+                matches.push({ nomeParte: passivo[p].nome, polo: 'PASSIVO' });
+            }
+        }
+        if (matches.length > 0) return { partes: matches, metodo: 'titulo' };
+        return null;
     }
 
     // ==========================================
@@ -592,10 +645,10 @@
 
     function classificarAnexo(textoAnexo) {
         const t = (textoAnexo || '').toLowerCase();
-        if (/jurisprudencia|jurisprudencia|sentenca|sentenca|isencao|isencao/.test(t)) return { tipo: 'Anexo', ordem: 4 };
-        if (/deposito|deposito|preparo/.test(t)) return { tipo: 'Deposito', ordem: 1 };
+        if (/jurisprudencia|jurisprudência|sentenca|sentença|isencao|isenção/.test(t)) return { tipo: 'Anexo', ordem: 4 };
+        if (/deposito|depósito|preparo/.test(t)) return { tipo: 'Depósito', ordem: 1 };
         if (/gru|custas/.test(t)) return { tipo: 'Custas', ordem: 2 };
-        if (/garantia|seguro|susep|apolice|apolice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
+        if (/garantia|seguro|susep|apolice|apólice/.test(t)) return { tipo: 'Garantia', ordem: 3 };
         return { tipo: 'Anexo', ordem: 4 };
     }
 
@@ -694,15 +747,14 @@
         try {
             console.log('[prep.js] Iniciando preparacao via API...');
 
-            // 1. Partes - reutilizar partesData.passivo se valido, senao buscar via API
-            let passivo = [];
-            if (partesData && Array.isArray(partesData.passivo) && partesData.passivo.length > 0) {
-                passivo = partesData.passivo;
-            } else {
-                const partes = await _fetchPartes();
-                passivo = partes.passivo || [];
-            }
-            dbg('[prep] Passivo:', passivo.length, 'parte(s)');
+            // 1. Partes - buscar raw para construir mapa de advogados
+            const partesRaw = await _get(_base() + '/partes');
+            const partes = _shapePartes(partesRaw);
+            let passivo = (partesData && Array.isArray(partesData.passivo) && partesData.passivo.length > 0)
+                ? partesData.passivo
+                : partes.passivo || [];
+            const advMap = _buildAdvogadoPartesMap(partesRaw);
+            dbg('[prep] Passivo:', passivo.length, 'parte(s), advMap:', Object.keys(advMap).length, 'advogado(s)');
 
             // 2. Timeline via API
             const rawItems = await _fetchTimeline();
@@ -750,29 +802,45 @@
                 peritosComAjJt = await _lerPeritosAjJt(honAjJt, peritosConhecimento);
             }
 
-            // 6. Depositos - filtrar por polo passivo; usar indice real dentro de items
+            // 6. Depositos - resolver parte via pipeline advogado, filtrar polo passivo com anexos
             const acordaoItemIndices = items
                 .map(function(it, idx) { return it.categoria === 'acordao' ? idx : -1; })
                 .filter(function(i) { return i >= 0; });
             const oldestAcordaoItemIdx = acordaoItemIndices.length > 0 ? Math.max.apply(null, acordaoItemIndices) : -1;
 
-            const depositos = todosRecursos.map(function(rec) {
+            const depositos = [];
+            for (const rec of todosRecursos) {
                 const recItemIdx = items.indexOf(rec);
                 const ocorreuDepoisDoAcordao = oldestAcordaoItemIdx !== -1 && recItemIdx < oldestAcordaoItemIdx;
-                const poloDetectado = _detectarPoloPassivo(rec._raw, passivo);
-                if (!ocorreuDepoisDoAcordao && poloDetectado !== 'PASSIVO') return null;
-                if (rec.anexos.length === 0) return null;
 
-                const depositante = rec.nomeParte ||
-                    passivo.map(function(p) { return p.nome; }).find(function(n) { return _normalize(rec.titulo).includes(_normalize(n)); }) || '';
+                // Pipeline: resolver parte peticionante via advogado
+                const resolucao = await _resolverPartePeticionante(rec, advMap, passivo);
+                const nomesPartes = resolucao
+                    ? resolucao.partes.map(function(p) { return p.nomeParte; }).join(' + ')
+                    : rec.nomeParte || '';
+                const polo = resolucao
+                    ? (resolucao.partes[0] ? resolucao.partes[0].polo : null)
+                    : _detectarPoloPassivo(rec._raw, passivo);  // fallback antigo
 
-                return {
+                dbg('[prep] Recurso', rec.categoria, '→ parte:', nomesPartes, '(' + polo + ') via', resolucao ? resolucao.metodo : 'fallback');
+
+                // Filtro: apenas polo passivo (ou pós-acórdão) COM anexos
+                if (!ocorreuDepoisDoAcordao && polo !== 'PASSIVO') continue;
+                if (rec.anexos.length === 0) continue;
+
+                depositos.push({
                     tipo: rec.categoria,
                     texto: rec.titulo,
                     href: _montarHref(rec.uid),
                     data: rec.data,
-                    depositante,
-                    anexos: rec.anexos.map(function(a) {
+                    depositante: nomesPartes,
+                    polo: polo,
+                    anexos: rec.anexos.filter(function(a, idx, self) {
+                        // Deduplicar por UID ou idDoc
+                        return self.findIndex(function(t) {
+                            return (t.uid && t.uid === a.uid) || (t.idDoc && t.idDoc === a.idDoc);
+                        }) === idx;
+                    }).map(function(a) {
                         const cls = classificarAnexo(a.titulo);
                         return {
                             texto: a.titulo,
@@ -781,8 +849,8 @@
                             ordem: cls.ordem,
                         };
                     }).sort(function(a, b) { return a.ordem - b.ordem; }),
-                };
-            }).filter(Boolean);
+                });
+            }
 
             // Ordenar depositos por data (mais antigos primeiro)
             depositos.sort(function(a, b) {

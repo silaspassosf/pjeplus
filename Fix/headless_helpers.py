@@ -1,6 +1,3 @@
-import logging
-logger = logging.getLogger(__name__)
-
 """
 Fix/headless_helpers.py
 Funções otimizadas para execução headless - resolve click intercepted e timing issues
@@ -19,6 +16,7 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     NoSuchElementException,
 )
+
 
 def limpar_overlays_headless(driver: WebDriver) -> bool:
     """
@@ -46,12 +44,7 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
             });
             
             // Remover overlays genéricos com z-index alto
-            // EXCLUIR: cdk-overlay-container e seus filhos (Angular Material dropdowns/select)
-            const cdkContainer = document.querySelector('.cdk-overlay-container');
             document.querySelectorAll('div[style*="z-index"]').forEach(el => {
-                if (cdkContainer && (cdkContainer === el || cdkContainer.contains(el) || el.contains(cdkContainer))) {
-                    return; // Nunca tocar em overlays do Angular Material (mat-select, mat-option)
-                }
                 const zIndex = parseInt(window.getComputedStyle(el).zIndex);
                 if (zIndex > 1000) {
                     el.style.display = 'none';
@@ -65,9 +58,12 @@ def limpar_overlays_headless(driver: WebDriver) -> bool:
     """
     try:
         driver.execute_script(script)
+        time.sleep(0.2)  # Pequeno delay para DOM se estabilizar
         return True
     except Exception as e:
+        print(f"[HEADLESS] Aviso: Não foi possível limpar overlays: {e}")
         return False
+
 
 def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
     """
@@ -86,6 +82,7 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
             "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'});", 
             element
         )
+        time.sleep(0.3)
         return True
     except:
         try:
@@ -94,9 +91,11 @@ def scroll_to_element_safe(driver: WebDriver, element: WebElement) -> bool:
                 "window.scrollTo(0, arguments[0].getBoundingClientRect().top + window.pageYOffset - 200);",
                 element
             )
+            time.sleep(0.3)
             return True
         except:
             return False
+
 
 def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECTOR, timeout: int = 10) -> bool:
     """
@@ -133,6 +132,7 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
             EC.presence_of_element_located((by, selector))
         )
         scroll_to_element_safe(driver, element)
+        time.sleep(0.4)
         element.click()
         return True
     except (ElementClickInterceptedException, StaleElementReferenceException):
@@ -142,9 +142,12 @@ def click_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECT
     try:
         element = driver.find_element(by, selector)
         driver.execute_script("arguments[0].click();", element)
+        time.sleep(0.2)
         return True
     except Exception as e:
-                return False
+        print(f"[HEADLESS] ❌ Todas estratégias falharam para '{selector}': {e}")
+        return False
+
 
 def wait_and_click_headless(driver: WebDriver, selector: str, timeout: int = 10) -> bool:
     """
@@ -152,6 +155,7 @@ def wait_and_click_headless(driver: WebDriver, selector: str, timeout: int = 10)
     Compatível com assinatura de funções Fix existentes.
     """
     return click_headless_safe(driver, selector, By.CSS_SELECTOR, timeout)
+
 
 def find_element_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS_SELECTOR, timeout: int = 10) -> Optional[WebElement]:
     """
@@ -182,6 +186,7 @@ def find_element_headless_safe(driver: WebDriver, selector: str, by: By = By.CSS
             return element
         except:
             return None
+
 
 def executar_com_retry_headless(
     func: Callable,
@@ -223,6 +228,7 @@ def executar_com_retry_headless(
             else:
                 raise last_exception
 
+
 def is_headless_mode(driver: WebDriver) -> bool:
     """
     Detecta se driver está em modo headless.
@@ -237,6 +243,7 @@ def is_headless_mode(driver: WebDriver) -> bool:
         return outer_width == 0 or result is True
     except:
         return False
+
 
 def aguardar_elemento_headless_safe(driver: WebDriver, selector: str, timeout: int = 10) -> Optional[WebElement]:
     """
@@ -267,6 +274,7 @@ def aguardar_elemento_headless_safe(driver: WebDriver, selector: str, timeout: i
             return element if element.is_displayed() else None
         except:
             return None
+
 
 # Aliases para compatibilidade com código existente
 esperar_elemento_headless = aguardar_elemento_headless_safe

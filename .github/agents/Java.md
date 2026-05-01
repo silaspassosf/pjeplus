@@ -180,6 +180,18 @@ Dois blocos: um para o arquivo novo, um para o ponto de integração
 
 ---
 
+## Checagem Rápida de JS — ESLint
+
+Antes de submeter scripts ou patches JS, execute uma verificação rápida com `ESLint` para capturar problemas além da sintaxe (variáveis não declaradas, `await` fora de `async`, usos incorretos de APIs assíncronas, etc.). Exemplo mínimo e direto que ignora configs locais:
+
+```bash
+npx eslint arquivo.js --no-eslintrc --rule '{"no-undef": "warn"}'
+```
+
+- `--no-eslintrc` garante que a checagem não seja afetada por configurações locais do projeto.
+- A regra `no-undef` sinaliza usos de variáveis não declaradas.
+- Use este comando como triagem rápida em PRs ou antes de testes manuais; ele complementa, não substitui, testes e revisão de código.
+
 ## Regras Absolutas
 
 - **Completude inegociável**: zero `// TODO`, zero `// ...`, zero trechos omitidos.

@@ -1301,3 +1301,153 @@ PROCESSO: PROCESSO_DESCONHECIDO
 https://pje.trt2.jus.br/pjekz/validacao/26040114141011600000452790118?instancia=1
 ==================================================
 
+
+==================================================
+PROCESSO: 1000355-02.2024.5.02.0703
+==================================================
+    Id Pje: 27d63b4
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH110272213BR
+    Destinatário: JOAO DOS SANTOS SIMAS
+    Data do envio: 01/04/2026
+    Data da entrega: 15/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (11/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001827-72.2023.5.02.0703
+==================================================
+    Id Pje: b065d31
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH137895319BR
+    Destinatário: JEANE MARIA SILVA RINALDI
+    Data do envio: 15/04/2026
+    Data da entrega: 23/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (15/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042317145335200000456594760?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26041413071678200000454947749?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: PROCESSO_DESCONHECIDO
+==================================================
+https://pje.trt2.jus.br/pjekz/validacao/26042317170093000000456595595?instancia=1
+==================================================
+
+
+==================================================
+PROCESSO: 1000813-97.2016.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000813-97.2016.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>29/05/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 119.281,80 (cento e dezenove mil  e duzentos e oitenta e um reais e oitenta centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>RN CONSTRUCOES LTDA - [21.765.818]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>SEVERINO BARBOSA - [875.395.434-34]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>TIB CONSTRUCOES LTDA - [47.226.786]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-76.2022.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000180-76.2022.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>29/05/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 46.422,55 (quarenta e seis mil  e quatrocentos e vinte e dois reais e cinquenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>GUILHERME AVILA BRITO DOS SANTOS - [489.413.778-03]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>LINCOLN RODRIGUES DE OLIVEIRA - [406.356.338-33]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>EVERTON DA SILVA SILVEIRA - [083.821.479-76]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>RENATA GRISSI CARDOSO - [818.060.356-34]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1000180-76.2022.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Dados da Teimosinha protocolada:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do processo: <strong>1000180-76.2022.5.02.0703</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Número do protocolo: <strong>Não encontrado</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Repetição programada? <strong>Sim</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Limite da repetição: <strong>29/05/2026</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Valor do bloqueio: <strong>R$ 46.422,55 (quarenta e seis mil  e quatrocentos e vinte e dois reais e cinquenta e cinco centavos)</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Partes alvo do bloqueio:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>GUILHERME AVILA BRITO DOS SANTOS - [489.413.778-03]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>LINCOLN RODRIGUES DE OLIVEIRA - [406.356.338-33]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>EVERTON DA SILVA SILVEIRA - [083.821.479-76]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>RENATA GRISSI CARDOSO - [818.060.356-34]</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Notas:</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Por padrão é consultado CNPJ raiz.</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">-Eventuais partes faltantes se referem a CPF ou CNPJ sem relacionamento bancário.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1001827-72.2023.5.02.0703
+==================================================
+    Id Pje: b065d31
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH137895319BR
+    Destinatário: JEANE MARIA SILVA RINALDI
+    Data do envio: 15/04/2026
+    Data da entrega: 23/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (15/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1001667-13.2024.5.02.0703
+==================================================
+    Id Pje: 440ad97
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH138995485BR
+    Destinatário: LARISSA PEREIRA SANTANA
+    Data do envio: 16/04/2026
+    Data da entrega: 23/04/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 98aa249
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH138995477BR
+    Destinatário: NOÁ SANTANA MIGLIO
+    Data do envio: 16/04/2026
+    Data da entrega: 24/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (18/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1002087-58.2017.5.02.0090
+==================================================
+    Id Pje: b4b1f7d
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH138995579BR
+    Destinatário: FVA ASSESSORIA CONTABIL & SERVICOS TERCEIRIZADOS LTDA
+    Data do envio: 16/04/2026
+    Data da entrega: 23/04/2026
+    Status: Objeto entregue ao destinatário
+--------------------------------------------------
+
+    Id Pje: 859e89b
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH138995565BR
+    Destinatário: EVERTON SILVA DOS SANTOS
+    Data do envio: 16/04/2026
+    Data da entrega: 23/04/2026
+    Status: Objeto entregue ao destinatário
+
+Prazo: 15 dias (15/05/2026)
+==================================================
+
+
+==================================================
+PROCESSO: 1000558-66.2021.5.02.0703
+==================================================
+    Id Pje: c126da6
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH141749105BR
+    Destinatário: ELAINE BRAGA SILVA
+    Data do envio: 20/04/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+--------------------------------------------------
+
+    Id Pje: e88d0f6
+    Rastreamento: https://aplicacoes1.trt2.jus.br/eCarta-web/consultarObjeto.xhtml?codigo=YH141749119BR
+    Destinatário: JOSE RICARDO DA SILVA
+    Data do envio: 20/04/2026
+    Data da entrega: Indisponível
+    Status: Objeto saiu para entrega ao destinatário
+
+Prazo: 8 dias (04/05/2026)
+==================================================
+

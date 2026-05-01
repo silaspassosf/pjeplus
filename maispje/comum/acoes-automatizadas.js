@@ -175,9 +175,10 @@ function criarOptGroup(nomeGrupo, prefixo, opcoes, acao, aaAtual) {
 	const optGroup = document.createElement("optgroup");
 	optGroup.label = nomeGrupo;
 	opcoes?.forEach(item => {
-        let comVinculo = (item.vinculo != 'Nenhum') ? 'optionAA vinculo' : 'optionAA'
+        let comVinculo = (item.vinculo && item.vinculo != 'Nenhum') ? 'optionAA vinculo' : 'optionAA';
+        if (item.nm_botao?.includes('[concluir]')) { comVinculo = comVinculo + ' concluir' }
 		let optionAAA = criarOption(prefixo, item.nm_botao || item, acao, aaAtual, comVinculo);
-        if (item.vinculo != 'Nenhum') { optionAAA.setAttribute('aavinculo',item.vinculo) }
+        if (item.vinculo && item.vinculo != 'Nenhum') { optionAAA.setAttribute('aavinculo',item.vinculo) }
 		optGroup.appendChild(optionAAA);
 	});
 	return optGroup;
@@ -219,17 +220,7 @@ function criarSelectAcoesAutomatizadas(preferencias, acao, aaAtual) {
 	selectAcaoAutomatizada.appendChild(optionGR2);
 
 	//monta as acoes automatizadas de Autogigs
-	// const optionGR3 = criarOptGroup('AUTOGIGS', 'AutoGigs|', preferencias.aaAutogigs, clicarContinuar);
-	let optionGR3 = document.createElement("optgroup");
-	optionGR3.label = 'AUTOGIGS';
-	//monta as acoes automatizadas de Autogigs
-	for (const [pos, item] of preferencias.aaAutogigs.entries()) {
-		let optionAAG = criarOption('AutoGigs|', item.nm_botao, clicarContinuar, aaAtual);
-		if (item.nm_botao.includes('[concluir]')) {
-			optionAAG.style.color = 'coral';
-		}
-		optionGR3.appendChild(optionAAG);
-	}
+	const optionGR3 = criarOptGroup('AUTOGIGS', 'AutoGigs|', preferencias.aaAutogigs, clicarContinuar);
 	selectAcaoAutomatizada.appendChild(optionGR3);
 
 	//monta as acoes automatizadas de Despacho
@@ -343,6 +334,7 @@ async function criarCaixaDeSelecaoComAAs(preferencias, label, aaAtual = '', elem
 				container.appendChild(bt_continuar);
 				elemento1.appendChild(container);
 				document.body.appendChild(elemento1);
+                // elemento1.showModal();
 				filtroTexto.focus();
 
 			} else {
@@ -415,4 +407,70 @@ function criarMapaDosVinculos(aa_pai,v='Nenhum',descricao='') {
 		document.body.appendChild(container);
 		resolver(true);
 	});
+}
+
+async function listaProcessoParaAcoesEmLote(listaPronta) {
+	return new Promise(
+		resolver => {
+			console.log("      |___maisPJe: acoesacoesEmLoteContainer");
+
+            /** @type {HTMLDialogElement} */
+			let elemento1 = document.querySelector('dialog#maisPje_aaLote_lista_processos');
+			if (elemento1) { elemento1.showModal(); return }
+
+			elemento1 = criarDialogPopup('maisPje_aaLote_lista_processos');
+			let container = document.createElement("section");
+			container.style="text-align: center; font-weight: bold; height: auto; min-width: 35vw; display: inline-grid; background-color: white;padding: 15px;border-radius: 4px;box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),0 1px 1px 0 rgba(0,0,0,.14),0 1px 3px 0 rgba(0,0,0,.12);";
+
+			let titulo = document.createElement("h2");
+			titulo.style = "color: grey; border-bottom: 1px solid lightgrey; margin: 0;";
+			titulo.innerText = "Processos para Ação Automatizada em lote";
+			container.appendChild(titulo);
+
+			let lista_processos = document.createElement('textarea');
+			lista_processos.id = 'maisPje_aaLote_lista_processos_textarea';
+			lista_processos.placeholder = '\n\nDigite ou cole a sua lista de processos aqui.\n\nOs números devem estar no padrão CNJ.\n\nNão importa se eles estão sozinhos ou misturados com outras palavras de texto.\n\nAo clicar em "CONTINUAR" a extensão irá encontrar os números dos processos no texto e criará uma lista.\n\nApenas os processos que fazem parte dessa nova lista é que serão utilizados para a ação automatizada em lote.\n\nBom proveito!'
+			lista_processos.ariaDescription = lista_processos.placeholder;
+			// lista_processos.value = (listaPronta) ? listaPronta : '';
+			lista_processos.value = (listaPronta) ? listaPronta : '';
+			lista_processos.style = 'width: 100%; height: 75vh;';
+			lista_processos.addEventListener("selectionchange", function (event) { ajustarNumeroDeProcessos() });
+			container.appendChild(lista_processos);
+
+			const bt_continuar = criarBotaoComCoresPadrao();
+            bt_continuar.style = 'font-size: 18pt; padding: 5px';
+			bt_continuar.onclick = async function () {
+				let lista = lista_processos.value.match(padraoProcesso).join();
+				resolver(lista.split(','));
+				document.getElementById('maisPje_aaLote_lista_processos').remove();
+			};
+			container.appendChild(bt_continuar);
+			elemento1.appendChild(container);
+			document.body.appendChild(elemento1);
+            if (elemento1.showModal && !elemento1.open) {
+                elemento1.showModal();
+            }
+			// lista_processos.focus();
+			if (listaPronta) { bt_continuar.click() }
+		}
+	);
+
+	async function ajustarNumeroDeProcessos() {
+		let conteudo = document.querySelector('#maisPje_aaLote_lista_processos_textarea').value;
+		let padrao = /\d{20}/gm;
+		if (padrao.test(conteudo)) {
+			let listaTemp = conteudo.match(/\d{20}/gm).join();
+			let novaLista = [];
+			[].map.call(
+				listaTemp.toString().split(','),
+				function(item) {
+					let numeroNovo = item.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/g,"$1-$2.$3.$4.$5.$6");
+					novaLista.push(numeroNovo)
+				}
+			);
+			// let novoConteudo = conteudo.replace(/(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})/gm,"$1-$2.$3.$4.$5.$6");
+			document.querySelector('#maisPje_aaLote_lista_processos_textarea').value = novaLista.toString();
+			await sleep(500);
+		}
+	}
 }

@@ -32,7 +32,8 @@ window.SisbCore = {
     },
 
     timerId: null,
-    TIMEOUT: 15000,
+    // TIMEOUT retained for compatibility but auto-reset is disabled to persist until user finalization
+    TIMEOUT: 0,
 
     // ── Reset ────────────────────────────────────────────────────────
     reset() {
@@ -45,6 +46,12 @@ window.SisbCore = {
             clearTimeout(this.timerId);
             this.timerId = null;
         }
+        // persist cleared state
+        try {
+            if (typeof GM_setValue !== 'undefined') {
+                GM_setValue('sisbajud_acumulador', JSON.stringify(this.acumulador));
+            }
+        } catch (e) { console.warn('[SISB Core] GM_setValue reset failed', e); }
         console.log('[SISB Core] Acumulador resetado');
     },
 
@@ -88,8 +95,12 @@ window.SisbCore = {
         }
 
         // Resetar timer
-        if (this.timerId) clearTimeout(this.timerId);
-        this.timerId = setTimeout(() => this.reset(), this.TIMEOUT);
+        // Persistir acumulador para sobreviver a navegações/paginas
+        try {
+            if (typeof GM_setValue !== 'undefined') {
+                GM_setValue('sisbajud_acumulador', JSON.stringify(this.acumulador));
+            }
+        } catch (e) { console.warn('[SISB Core] GM_setValue failed', e); }
 
         console.log('[SISB Core] Dados agrupados:', {
             executados: Object.keys(this.acumulador.executados).length,
@@ -276,12 +287,28 @@ window.SisbCore = {
     }
 };
 
+// Carregar acumulador persistido (se existir)
+try {
+    if (typeof GM_getValue !== 'undefined') {
+        const saved = GM_getValue('sisbajud_acumulador');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed && parsed.executados) {
+                    window.SisbCore.acumulador = parsed;
+                    console.log('[SISB Core] Acumulador carregado do storage -', Object.keys(parsed.executados).length, 'executados');
+                }
+            } catch (e) { console.warn('[SISB Core] parse persisted acumulador failed', e); }
+        }
+    }
+} catch (e) { console.warn('[SISB Core] GM_getValue load failed', e); }
+
 // Registrar cleanup se disponível
 if (window.PJeState && window.PJeState.registry) {
     window.PJeState.registry.add(() => {
         if (window.SisbCore.timerId) {
             clearTimeout(window.SisbCore.timerId);
         }
-        window.SisbCore.reset();
+        // Não resetar automaticamente para preservar dados acumulados até finalização pelo usuário
     });
 }

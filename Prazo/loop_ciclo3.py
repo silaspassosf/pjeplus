@@ -108,10 +108,12 @@ def ciclo3(driver: WebDriver) -> bool:
 
         logger.info(f"[CICLO3] ✓ Total de processos livres selecionados: {total_selecionados}")
 
-        # 4. Aplicar XS se houver processos
+        # Usar a mesma execução de atividade XS do ciclo 2
         if total_selecionados > 0:
-            logger.info("[CICLO3] Aplicando atividade XS para os processos selecionados...")
-            _ciclo2_criar_atividade_xs(driver)
+            logger.info("[CICLO3] Aplicando atividade XS para os processos livres selecionados...")
+            if not _ciclo2_criar_atividade_xs(driver):
+                logger.error("[CICLO3] Falha ao aplicar XS após seleção de livres")
+                return False
             logger.info("[CICLO3] ✓ Atividade XS aplicada")
         else:
             logger.info("[CICLO3] Nenhum processo livre encontrado")

@@ -38,10 +38,10 @@ async function salvarOpcoes() {
 }
 
 function configuracoes() {
-	browser.storage.local.get('concordo').then(function(result){
+	browser.storage.local.get('concordo').then(async function(result){
 		if (result.concordo) {
-			window.close();
-			return browser.runtime.sendMessage({tipo: 'abrirConfiguracoes'});
+            await browser.runtime.sendMessage({tipo: 'abrirConfiguracoes'})
+            window.close()
 		}
 	});
 }

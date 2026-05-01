@@ -1,143 +1,86 @@
-import logging
-logger = logging.getLogger(__name__)
-
 """
-Fix - Pacote modular para automação PJe (REFATORADO).
+Fix - Pacote modular para automação PJe.
 
-Estrutura modular:
-  - Fix.selenium_base: Operações Selenium fundamentais (wait, click, retry, select)
-  - Fix.drivers: Criação e gestão de WebDrivers Firefox
-  - Fix.session: Cookies, autenticação e sessões
-  - Fix.navigation: Filtros e navegação PJe
-  - Fix.documents: Busca e extração de documentos
-  - Fix.core: Funções legadas (em migração)
-  - Fix.extracao: Extração, BNDT, GIGS
-  - Fix.utils: Formatação, login, utilitários
+Módulos:
+  - Fix.core: Funções Selenium base (aguardar_e_clicar, selecionar_opcao, criar_driver_PC)
+  - Fix.extracao: Extração, BNDT, GIGS, indexação
+  - Fix.utils: Formatação, login, coleta, utilitários
+  - Fix.abas: Gerenciamento de abas, validação de conexão
 
-Imports recomendados (API pública):
-    from Fix.selenium_base import aguardar_e_clicar, selecionar_opcao, com_retry
-    from Fix.drivers import criar_driver_PC, finalizar_driver
-    from Fix.session import credencial, salvar_cookies_sessao
-    from Fix.navigation import aplicar_filtro_100, filtro_fase
-    from Fix.documents import buscar_documentos_sequenciais
+Uso recomendado:
+    from Fix import aguardar_e_clicar, criar_gigs, login_cpf, validar_conexao_driver
 """
 
-# ===== MÓDULOS REFATORADOS (PRIORIDADE) =====
-
-# selenium_base: Operações Selenium fundamentais
-from .selenium_base import (
-    # Wait operations
+# ===== CORE =====
+from .core import (
+    # Consolidadas (performance)
+    aguardar_e_clicar,
+    selecionar_opcao,
+    preencher_campo,
+    preencher_campos_prazo,
+    preencher_multiplos_campos,
+    # Retry e robustez
+    com_retry,
+    buscar_seletor_robusto,
+    esperar_elemento,
+    esperar_url_conter,
+    escolher_opcao_inteligente,
+    encontrar_elemento_inteligente,
+    # Legadas (compatibilidade)
+    safe_click,
     wait,
     wait_for_visible,
     wait_for_clickable,
-    esperar_elemento,
-    aguardar_e_clicar,
-    esperar_url_conter,
-    # Element interaction
-    safe_click,
-    preencher_campo,
-    preencher_campos_prazo,
-    # Retry logic
-    com_retry,
-    # Smart selection
-    selecionar_opcao,
-    escolher_opcao_inteligente,
-    encontrar_elemento_inteligente,
-)
-
-# drivers: Gestão de WebDrivers
-from .drivers import (
+    smart_sleep,
+    sleep,
+    # Drivers
     criar_driver_PC,
     criar_driver_VT,
     criar_driver_notebook,
     criar_driver_sisb_pc,
     criar_driver_sisb_notebook,
     finalizar_driver,
-    driver_session,
-)
-
-# session: Cookies e autenticação
-from .session import (
+    # Cookies/Sessão
     salvar_cookies_sessao,
     carregar_cookies_sessao,
-    credencial,
-)
-
-# navigation: Filtros e navegação
-from .navigation import (
+    verificar_e_aplicar_cookies,
+    # Filtros e navegação
     aplicar_filtro_100,
     filtro_fase,
-    filtrofases,
-)
-
-# documents: Busca de documentos
-from .documents import (
+    # Documentos
     verificar_documento_decisao_sentenca,
+    visibilidade_sigilosos,
     buscar_ultimo_mandado,
     buscar_mandado_autor,
     buscar_documentos_sequenciais,
     buscar_documentos_polo_ativo,
-    buscar_documento_argos,
-)
-
-# ===== CORE LEGADO (COMPATIBILIDADE) =====
-from .core import (
-    # Funções ainda em core.py (TODO: migrar)
-    preencher_multiplos_campos,
-    buscar_seletor_robusto,
-    verificar_e_aplicar_cookies,
-    visibilidade_sigilosos,
     criar_botoes_detalhes,
-    smart_sleep,
-    sleep,
     # Classes e JS
     ErroCollector,
     js_base,
 )
 
 # ===== EXTRACAO =====
-from .extraction import (
-    filtrofases,
-    indexar_processos,
-    reindexar_linha,
-    abrir_detalhes_processo,
-    indexar_e_processar_lista,
-)
 from .extracao import (
     extrair_direto,
     extrair_documento,
     extrair_pdf,
     extrair_dados_processo,
     extrair_destinatarios_decisao,
+    criar_gigs,
+    criar_comentario,
+    criar_lembrete_posit,
     bndt,
+    filtrofases,
+    indexar_processos,
+    reindexar_linha,
+    abrir_detalhes_processo,
+    indexar_e_processar_lista,
     analise_argos,
     tratar_anexos_argos,
     analise_outros,
     salvar_destinatarios_cache,
     carregar_destinatarios_cache,
-)
-
-# ===== PROGRESS =====
-from .progress import (
-    ProgressoUnificado,
-    carregar_progresso_unificado,
-    salvar_progresso_unificado,
-    marcar_processo_executado_unificado,
-    processo_ja_executado_unificado,
-    executar_com_monitoramento_unificado,
-    ARQUIVO_PROGRESSO_UNIFICADO,
-    StatusModulo,
-    NivelLog,
-    Checkpoint,
-    StatusModuloData,
-    RegistroLog,
-)
-
-# ===== GIGS =====
-from .gigs import (
-    criar_gigs,
-    criar_comentario,
-    criar_lembrete_posit,
 )
 
 # `buscar_documento_argos` is implemented centrally in Fix.core to avoid duplicates.
@@ -182,10 +125,6 @@ from .abas import (
     is_browsing_context_discarded_error,
 )
 
-# ===== LOG CLEANER =====
-# compat: funções agora exportadas por Fix.log
-from .log import resumir_excecao, filtrar_log_arquivo, extrair_seletor_dom
-
 __version__ = "2.0.0"
 
 __all__ = [
@@ -201,7 +140,6 @@ __all__ = [
     # Core - Drivers
     'criar_driver_PC', 'criar_driver_VT', 'criar_driver_notebook',
     'criar_driver_sisb_pc', 'criar_driver_sisb_notebook', 'finalizar_driver',
-    'driver_session',
     # Core - Cookies/Sessão
     'salvar_cookies_sessao', 'carregar_cookies_sessao', 'verificar_e_aplicar_cookies',
     # Core - Filtros e navegação
@@ -212,20 +150,11 @@ __all__ = [
     'buscar_documentos_polo_ativo', 'criar_botoes_detalhes',
     # Core - Classes e JS
     'ErroCollector', 'js_base',
-    # Progress
-    'ProgressoUnificado', 'carregar_progresso_unificado', 'salvar_progresso_unificado',
-    'marcar_processo_executado_unificado', 'processo_ja_executado_unificado',
-    'executar_com_monitoramento_unificado', 'ARQUIVO_PROGRESSO_UNIFICADO',
-    'StatusModulo', 'NivelLog', 'Checkpoint', 'StatusModuloData', 'RegistroLog',
     # Extracao
     'extrair_direto', 'extrair_documento', 'extrair_pdf', 'extrair_dados_processo',
-    'extrair_destinatarios_decisao',
+    'extrair_destinatarios_decisao', 'criar_gigs', 'criar_comentario', 'criar_lembrete_posit',
     'bndt', 'filtrofases', 'indexar_processos', 'reindexar_linha',
     'abrir_detalhes_processo', 'indexar_e_processar_lista',
-    # Extraction (novo pacote)
-    # (os mesmos acima, agora via Fix.extraction)
-    # GIGS
-    'criar_gigs', 'criar_comentario', 'criar_lembrete_posit',
     'analise_argos', 'buscar_documento_argos', 'tratar_anexos_argos', 'analise_outros',
     'salvar_destinatarios_cache', 'carregar_destinatarios_cache',
     # Utils
@@ -243,7 +172,5 @@ __all__ = [
     # Abas
     'validar_conexao_driver', 'trocar_para_nova_aba', 'forcar_fechamento_abas_extras',
     'is_browsing_context_discarded_error',
-    # Log cleaner
-    'resumir_excecao', 'filtrar_log_arquivo', 'extrair_seletor_dom',
 ]
 

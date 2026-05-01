@@ -2,11 +2,104 @@ import time
 import unicodedata
 
 from Fix.selenium_base import esperar_elemento
-from Fix.extracao import indexar_e_processar_lista
+from Fix.extracao import indexar_e_processar_lista, indexar_processos
 from Fix.log import logger
-from Fix.progress import registrar_modulo, atualizar, completar
 from Fix.monitoramento_progresso_unificado import executar_com_monitoramento_unificado
 from Fix.core import wait_for_page_load
+
+import json
+import os
+from datetime import datetime
+from Fix.progress.monitoramento import ARQUIVO_PROGRESSO_UNIFICADO
+
+
+# --- Helpers locais de progresso (gravam sob chave 'modulos' em progresso.json)
+def _registrar_modulo_local(nome_modulo: str, total_items: int) -> None:
+    try:
+        dados = {}
+        if os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
+            try:
+                with open(ARQUIVO_PROGRESSO_UNIFICADO, 'r', encoding='utf-8') as f:
+                    dados = json.load(f)
+            except Exception:
+                dados = {}
+
+        modulos = dados.get('modulos', {})
+        modulos[nome_modulo] = {
+            'status': 'NAO_INICIADO',
+            'processados': 0,
+            'total': int(total_items) if total_items is not None else 0,
+            'erros': 0,
+            'detalhes': {},
+            'last_update': datetime.now().isoformat(),
+        }
+        dados['modulos'] = modulos
+        with open(ARQUIVO_PROGRESSO_UNIFICADO, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _atualizar_modulo_local(nome_modulo: str, increment: bool = False, item_atual: str = None, erro: bool = False) -> None:
+    try:
+        dados = {}
+        if os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
+            try:
+                with open(ARQUIVO_PROGRESSO_UNIFICADO, 'r', encoding='utf-8') as f:
+                    dados = json.load(f)
+            except Exception:
+                dados = {}
+
+        modulos = dados.get('modulos', {})
+        m = modulos.get(nome_modulo, None)
+        if m is None:
+            m = {'status': 'EM_PROGRESSO', 'processados': 0, 'total': 0, 'erros': 0, 'detalhes': {}}
+
+        if increment:
+            m['processados'] = int(m.get('processados', 0)) + 1
+
+        if item_atual is not None:
+            m.setdefault('detalhes', {})['item_atual'] = item_atual
+
+        if erro:
+            m['erros'] = int(m.get('erros', 0)) + 1
+            m['status'] = 'FALHADO'
+        else:
+            if m.get('status') in (None, 'NAO_INICIADO'):
+                m['status'] = 'EM_PROGRESSO'
+
+        m['last_update'] = datetime.now().isoformat()
+        modulos[nome_modulo] = m
+        dados['modulos'] = modulos
+        with open(ARQUIVO_PROGRESSO_UNIFICADO, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _completar_modulo_local(nome_modulo: str, sucesso: bool = True) -> None:
+    try:
+        dados = {}
+        if os.path.exists(ARQUIVO_PROGRESSO_UNIFICADO):
+            try:
+                with open(ARQUIVO_PROGRESSO_UNIFICADO, 'r', encoding='utf-8') as f:
+                    dados = json.load(f)
+            except Exception:
+                dados = {}
+
+        modulos = dados.get('modulos', {})
+        m = modulos.get(nome_modulo, None)
+        if m is None:
+            m = {'processados': 0, 'total': 0, 'erros': 0, 'detalhes': {}}
+
+        m['status'] = 'COMPLETO' if sucesso else 'FALHADO'
+        m['last_update'] = datetime.now().isoformat()
+        modulos[nome_modulo] = m
+        dados['modulos'] = modulos
+        with open(ARQUIVO_PROGRESSO_UNIFICADO, 'w', encoding='utf-8') as f:
+            json.dump(dados, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 from .processamento_argos import processar_argos
 from .processamento_outros import fluxo_mandados_outros
@@ -20,15 +113,24 @@ def fluxo_mandado(driver):
     def remover_acentos(txt):
         return ''.join(c for c in unicodedata.normalize('NFD', txt) if unicodedata.category(c) != 'Mn')
 
-    # Registrar módulo no sistema de progresso
-    registrar_modulo('MANDADO_PROCESSAMENTO', 0)  # Total será atualizado dinamicamente
+    # Indexar lista primeiro (como faz o P2B) e registrar total real
+    try:
+        processos_iniciais = indexar_processos(driver)
+    except Exception:
+        processos_iniciais = None
+
+    if not processos_iniciais:
+        logger.info('[MANDADO] Nenhum mandado encontrado na lista')
+        return
+
+    _registrar_modulo_local('MANDADO_PROCESSAMENTO', len(processos_iniciais))
 
     def fluxo_callback(driver):
         proc_id = getattr(driver, '_numero_processo_lista', '[sem número]')
         logger.info(f'[MANDADO][CALLBACK] invoked for {proc_id}')
 
         # Atualiza módulo (visão geral)
-        atualizar('MANDADO_PROCESSAMENTO', item_atual='processando_mandado')
+        _atualizar_modulo_local('MANDADO_PROCESSAMENTO', item_atual='processando_mandado')
 
         # Função interna que executa o processamento real e retorna bool
         def _processar_atual(driver):
@@ -88,11 +190,11 @@ def fluxo_mandado(driver):
         # Executar com monitoramento unificado (skipa se já processado)
         try:
             sucesso, numero = executar_com_monitoramento_unificado('mandado', driver, None, _processar_atual, suppress_load_log=True)
-            # Atualizar progresso de módulo conforme resultado
+            # Atualizar progresso de módulo conforme resultado (incrementa processados quando sucesso)
             if sucesso:
-                atualizar('MANDADO_PROCESSAMENTO')
+                _atualizar_modulo_local('MANDADO_PROCESSAMENTO', increment=True)
             else:
-                atualizar('MANDADO_PROCESSAMENTO', erro=True)
+                _atualizar_modulo_local('MANDADO_PROCESSAMENTO', erro=True)
             return bool(sucesso)
         except Exception as e:
             logger.error(f'Erro ao executar com monitoramento unificado: {e}')
@@ -102,7 +204,7 @@ def fluxo_mandado(driver):
     try:
         sucesso_fluxo = bool(indexar_e_processar_lista(driver, fluxo_callback, tipo_execucao='mandado'))
         # Completar módulo com sucesso
-        completar('MANDADO_PROCESSAMENTO', sucesso=sucesso_fluxo)
+        _completar_modulo_local('MANDADO_PROCESSAMENTO', sucesso=sucesso_fluxo)
     except Exception as e:
         logger.error(f'Erro fatal no processamento de mandados: {e}')
         completar('MANDADO_PROCESSAMENTO', sucesso=False)

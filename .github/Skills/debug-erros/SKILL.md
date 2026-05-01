@@ -298,3 +298,17 @@ After fixing a bug:
 - [ ] All existing tests pass
 - [ ] Build succeeds
 - [ ] The original bug scenario is verified end-to-end
+
+## JS Quick Check (ESLint)
+
+Use `ESLint` for a quick, industry-standard static check of JavaScript files. It finds issues beyond syntax: undeclared variables, `await` used outside `async`, unreachable code patterns, and common logic errors.
+
+Run a lightweight check without project config:
+
+```bash
+npx eslint arquivo.js --no-eslintrc --rule '{"no-undef": "warn"}'
+```
+
+- `--no-eslintrc` ignores local ESLint configs so checks are consistent.
+- The `no-undef` rule flags variables that are used but not declared.
+- Use this as a fast triage step before deeper debugging or when reviewing PRs.

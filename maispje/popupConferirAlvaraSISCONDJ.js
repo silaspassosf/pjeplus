@@ -4,41 +4,45 @@ async function iniciar() {
     browser.storage.local.get(['tempAR','configURLs'], async function(result){
         document.querySelector('.titulo').innerText = 'Relatório de Alvarás SISCONDJ - Total: ' + result.tempAR.length;
         document.querySelector('.subtitulo').innerText = 'Gerado em: ' + agora();
-        urlSiscondj = getUrlBaseSiscondj(result.configURLs.urlSiscondj);        
+        urlSiscondj = getUrlBaseSiscondj(result.configURLs.urlSiscondj);
         await createTable(result.tempAR);
-        await sleep(1000);        
+        await sleep(1000);
         browser.runtime.sendMessage({tipo: 'storage_limpar', valor: 'tempAR'});
-    });	
+    });
 }
 
 iniciar();
+
+window.addEventListener('beforeunload', function (e) { //desliga o listener da janela principal do PJe
+    browser.runtime.sendMessage({tipo: 'storage_guardar', chave: 'tempAR', valor: {"conferirSiscondj":-1,"lista":[]} });
+});
 
 async function createTable(children) {
     console.log(children);
     console.log('criando a tabela - cabeçalho')
     let tabela = document.createElement('table');
-    
+
     //cria o cabeçalho
     let cabecalho = document.createElement('thead');
     cabecalho.appendChild(inserirLinha("th",'BANCO/DATA/EMISSOR',"width: auto;"));
     cabecalho.appendChild(inserirLinha("th",'BENEFICIÁRIO',"width: auto;"));
     cabecalho.appendChild(inserirLinha("th",'TIPO',"width: auto;"));
     cabecalho.appendChild(inserirLinha("th",'VALOR',"width: auto;"));
-   
+
 
     let conta = inserirLinha("th",'CONTA JUDICIAL',"width: auto;")
     let conferirEmLote = document.createElement("button");
     conferirEmLote.id = 'maisPje_bt_conferirEmAALote';
     conferirEmLote.style = "position: absolute; margin-left: 5px;width: 15px;height: 15px;cursor:pointer;";
-    conferirEmLote.title = "Conferir em Lote";	
+    conferirEmLote.title = "Conferir em Lote";
     conta.appendChild(conferirEmLote);
     cabecalho.appendChild(conta);
-    
+
     let numero = inserirLinha("th",'NÚMERO DO PROCESSO',"width: auto;")
     let conferirEmLoteProcessos = document.createElement("button");
     conferirEmLoteProcessos.id = 'maisPje_bt_ProcessoConferirEmAALote';
     conferirEmLoteProcessos.style = "position: absolute; margin-left: 5px;width: 15px;height: 15px;cursor:pointer;";
-    conferirEmLoteProcessos.title = "Copiar processos";	
+    conferirEmLoteProcessos.title = "Copiar processos";
     numero.appendChild(conferirEmLoteProcessos);
     cabecalho.appendChild(numero);
 
@@ -50,10 +54,10 @@ async function createTable(children) {
     for (const [pos, alvara] of children.entries()) {
         console.log(JSON.stringify(alvara))
         let linha = document.createElement("tr");
-        linha.style.setProperty('line-height','3em');  
+        linha.style.setProperty('line-height','3em');
 
         //coluna1
-        let coluna1 = document.createElement("td")        
+        let coluna1 = document.createElement("td")
         let em = inserirLinha("div",'',"display: grid; grid-template-rows: 1fr 1fr; gap: 5px; line-height: 1;padding: 5px 0;");
         em.appendChild(inserirLinha("span",alvara.banco,"font-size: 13px;"));
         em.appendChild(inserirLinha("span",alvara.data + ' - ' + alvara.emissor,"font-size: 11px;  font-style: italic;color: #35878a;"));
@@ -73,7 +77,7 @@ async function createTable(children) {
         tp.style = "font-size: 1em;padding: .5em;border-radius: .5em;font-weight: bold;";
         if (alvara.tipo.includes('Crédito em Conta')) {
             tp.innerText = 'TED'
-            tp.style.backgroundColor = 'gold';				
+            tp.style.backgroundColor = 'gold';
         } else if (alvara.tipo == 'Pagamento de DARF') {
             tp.innerText = 'DARF'
             tp.style.backgroundColor = 'cadetblue';
@@ -98,24 +102,24 @@ async function createTable(children) {
         let a2 = document.createElement('a');
         a2.id = 'maisPje_conferir_alvara_processo_conta_' + pos;
         a2.style.cursor = 'pointer';
-        a2.setAttribute('maisPJeLink', urlSiscondj + '/pages/mandado/pagamento/exibirAcionadoPelaGrid/' + alvara.conta + '?maisPJeconferir');	
+        a2.setAttribute('maisPJeLink', urlSiscondj + '/pages/mandado/pagamento/exibirAcionadoPelaGrid/' + alvara.conta + '?maisPJeconferir');
         a2.setAttribute('target', '_blank');
         a2.onclick = function() { this.parentElement.parentElement.style.backgroundColor = "skyblue";this.style.textDecoration = "line-through"; }
         a2.onmouseover = function() { this.firstElementChild.style.display = "unset" }
         a2.onmouseout = function() { this.firstElementChild.style.display = "none" }
         a2.innerText = alvara.conta;
-        
+
         if (alvara.conteudoComprovante) {
             let linkfr = document.createElement('div');
             linkfr.style.display = 'none';
             let fr = document.createElement('iframe');
             fr.style = 'position: fixed; background-color: white; border: medium none;  width: 34vw; height: 90vh; transform: scale(0.8); top: 7vh;left: 5vw;outline: rgba(0, 0, 0, 0.5) solid 12vw;';
             fr.srcdoc = alvara.conteudoComprovante;
-            linkfr.appendChild(fr);					
-            
-            a2.appendChild(linkfr);            
+            linkfr.appendChild(fr);
+
+            a2.appendChild(linkfr);
         }
-        
+
         coluna5.appendChild(a2);
         linha.appendChild(coluna5);
 
@@ -123,7 +127,7 @@ async function createTable(children) {
         let coluna6 = document.createElement("td")
         let a1 = document.createElement('a');
         a1.innerText = alvara.processoFormatado;
-        
+
         if (alvara.identificador) {
             a1.id = alvara.identificador;
             a1.href = 'https://' + alvara.trt + '/pjekz/processo/' + alvara.identificador + '/detalhe';
@@ -155,8 +159,8 @@ async function createTable(children) {
 
         tbody.appendChild(linha);
     }
-   
-    tabela.appendChild(tbody);    
+
+    tabela.appendChild(tbody);
     document.body.appendChild(tabela);
 
     window.addEventListener("beforeunload", function (e) {

@@ -157,6 +157,9 @@
  * @property {boolean} extrasExibirPreviaDocumentoMouseOver
  * @property {boolean} extrasExibirPreviaDocumentoFocus
  * @property {boolean} extrasFocusSempre
+ * @property {boolean} extrasAcionarBotoesSemCliqueAtivar
+ * @property {string} extrasAcionarBotoesSemCliqueTempo
+ * @property {any[]} extrasAcionarBotoesSemCliqueRegras
  * @property {string} [extrasERecTipoGigsSemTema]
  * @property {boolean} [extrasFecharJanelaExpediente]
  * @property {boolean} [extrasSugerirTipoAoAnexar]
@@ -639,4 +642,23 @@
  * @property {string} preview
  * @property {string} conteudoDocumento
  * @property {Documento} documento
+ */
+
+/**
+ * @typedef {Object} Gigs
+ * @property {string} dataPrazo - Data de vencimento no formato "DD,HH:mm:ss/MM/AAAA".
+ * @property {string} observacao - Observações ou etiquetas curtas (ex: "sif").
+ * @property {string} statusAtividade - Situação atual da atividade (ex: "Vencido", "Pendente").
+ * @property {string} tipoAtividade - Categoria da atividade (ex: "Prazo").
+ */
+
+/**
+ * @typedef {Object} ProcessoAA
+ * @property {boolean} documentoNaoAssinado - Indica se existem documentos pendentes de assinatura.
+ * @property {boolean} erro - Indica se houve alguma falha no processamento dos dados do processo.
+ * @property {string} fase - A fase processual atual (ex: "EXECUCAO", "CONHECIMENTO").
+ * @property {Gigs[]} gigs - Lista de objetos contendo informações complementares ou subtarefas.
+ * @property {number} id - Identificador interno do processo no sistema.
+ * @property {string} numero - Número único do processo no formato CNJ.
+ * @property {string} tarefa - Nome da tarefa ou fluxo atual em que o processo se encontra.
  */

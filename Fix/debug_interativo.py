@@ -1,6 +1,3 @@
-import logging
-logger = logging.getLogger(__name__)
-
 """
 Fix/debug_interativo.py
 Sistema de debug interativo - pausa execuo em erros crticos para anlise
@@ -10,6 +7,7 @@ import time
 from datetime import datetime
 from typing import Optional, Dict, Any, Callable
 from selenium.webdriver.remote.webdriver import WebDriver
+
 
 class DebugInterativo:
     """
@@ -76,9 +74,9 @@ class DebugInterativo:
             driver.save_screenshot(screenshot_path)
             contexto['screenshot'] = screenshot_path
             self.screenshots_salvos.append(screenshot_path)
-            pass
+            print(f" Screenshot salvo: {screenshot_path}")
         except Exception as e:
-            logger.error(f" Erro ao salvar screenshot: {e}")
+            print(f" Erro ao salvar screenshot: {e}")
         
         try:
             # Detectar overlays/backdrops no DOM
@@ -122,9 +120,9 @@ class DebugInterativo:
             """)
             contexto['overlays'] = overlays
             if overlays:
-                pass
+                print(f" Overlays detectados: {len(overlays)}")
                 for ov in overlays[:3]:  # Mostrar primeiros 3
-                    pass
+                    print(f"   - {ov.get('type')}: z-index={ov.get('zIndex', 'N/A')}")
         except:
             pass
         
@@ -134,9 +132,9 @@ class DebugInterativo:
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(driver.page_source)
             contexto['html'] = html_path
-            pass
+            print(f" HTML salvo: {html_path}")
         except Exception as e:
-            logger.error(f" Erro ao salvar HTML: {e}")
+            print(f" Erro ao salvar HTML: {e}")
         
         return contexto
     
@@ -165,56 +163,56 @@ class DebugInterativo:
         }
         self.erros_log.append(erro_info)
         
-        pass
-        logger.error(" DEBUG INTERATIVO - ERRO CRTICO DETECTADO")
-        pass
-        logger.error(f"Pausa #{self.pausa_count} | Erros totais: {self.erro_count}")
-        logger.error(f"\n Erro: {erro_msg[:200]}")
+        print("\n" + "=" * 80)
+        print(" DEBUG INTERATIVO - ERRO CRTICO DETECTADO")
+        print("=" * 80)
+        print(f"Pausa #{self.pausa_count} | Erros totais: {self.erro_count}")
+        print(f"\n Erro: {erro_msg[:200]}")
         
         # Capturar contexto
         contexto = self.capturar_contexto(driver, erro_msg)
         
         if contexto_extra:
-            pass
+            print(f"\n Contexto adicional:")
             for key, value in contexto_extra.items():
-                pass
+                print(f"   {key}: {value}")
         
         #  NOVO: Modo automtico - aplica fix e continua
         if self.auto_mode:
-            pass
-            pass
+            print("\n MODO AUTOMTICO ATIVADO")
+            print("   Aplicando correo automtica...")
             self._tentar_fix_automatico(driver)
             
             # Salvar relatrio do erro
             self._salvar_relatorio_erro(erro_info, contexto)
             
-            pass
+            print("    Continuando execuo automaticamente...")
             return 'f'  # Fix aplicado
         
         # Menu de opes
-        pass
-        pass
-        pass
-        pass
-        pass
-        logger.error("  [I] Info - Mostra mais informaes do erro")
-        pass
-        pass
+        print("\n" + "-" * 80)
+        print("OPES:")
+        print("  [C] Continuar - Tenta continuar execuo")
+        print("  [S] Skip - Pula este item e vai para o prximo")
+        print("  [F] Fix - Tenta correo automtica (limpa overlays)")
+        print("  [I] Info - Mostra mais informaes do erro")
+        print("  [A] Abortar - Para execuo completamente")
+        print("-" * 80)
         
         while True:
             try:
                 escolha = input("\n Escolha uma opo [C/S/F/I/A]: ").strip().upper()
                 
                 if escolha == 'C':
-                    pass
+                    print(" Continuando execuo...")
                     return 'c'
                 
                 elif escolha == 'S':
-                    pass
+                    print(" Pulando item atual...")
                     return 's'
                 
                 elif escolha == 'F':
-                    pass
+                    print(" Tentando correo automtica...")
                     self._tentar_fix_automatico(driver)
                     return 'f'
                 
@@ -223,40 +221,37 @@ class DebugInterativo:
                     continue
                 
                 elif escolha == 'A':
-                    pass
+                    print(" Abortando execuo...")
                     return 'a'
                 
                 else:
-                    pass
+                    print(" Opo invlida. Use C, S, F, I ou A.")
             
             except (KeyboardInterrupt, EOFError):
-                logger.error("\n Interrompido pelo usurio - Abortando")
+                print("\n Interrompido pelo usurio - Abortando")
                 return 'a'
     
     def _tentar_fix_automatico(self, driver: WebDriver):
         """Tenta correes automticas conhecidas"""
-        logger.info(" Aplicando correes automticas:")
+        print(" Aplicando correes automticas:")
         
         try:
             # 1. Limpar overlays
-            logger.info("   - Limpando overlays...")
+            print("   - Limpando overlays...")
             from Fix.headless_helpers import limpar_overlays_headless
             limpar_overlays_headless(driver)
             time.sleep(0.5)
-            logger.info("    Overlays limpos")
+            print("    Overlays limpos")
         except Exception as e:
-            logger.info(f"    Erro ao limpar overlays: {e}")
+            print(f"    Erro ao limpar overlays: {e}")
         
         try:
             # 2. Scroll para topo
-            logger.info("   - Scroll para topo da pgina...")
+            print("   - Scroll para topo da pgina...")
             driver.execute_script("window.scrollTo(0, 0);")
             time.sleep(0.3)
-            logger.info("    Scroll realizado")
-        except Exception as e:
-            logger.info(f"    Erro ao fazer scroll: {e}")
-
-    def salvar_relatorio_erro(self, erro_info: Dict, contexto: Dict):
+            print("    Scroll realizado")
+        esalvar_relatorio_erro(self, erro_info: Dict, contexto: Dict):
         """Salva relatrio detalhado do erro para anlise"""
         try:
             relatorio_path = os.path.join(self.debug_dir, f'erro_{erro_info["numero"]:03d}_relatorio.json')
@@ -273,9 +268,9 @@ class DebugInterativo:
             with open(relatorio_path, 'w', encoding='utf-8') as f:
                 json.dump(relatorio, f, indent=2, ensure_ascii=False)
             
-            pass
+            print(f"    Relatrio salvo: {relatorio_path}")
         except Exception as e:
-            logger.error(f"    Erro ao salvar relatrio: {e}")
+            print(f"    Erro ao salvar relatrio: {e}")
     
     def obter_relatorio_final(self) -> Dict[str, Any]:
         """Retorna relatrio final de todos os erros encontrados"""
@@ -287,37 +282,70 @@ class DebugInterativo:
             'modo_automatico': self.auto_mode,
         }
     
+    def _xcept Exception as e:
+            print(f"    Erro no scroll: {e}")
+        
+        try:,
+                                auto_mode: bool = False) -> DebugInterativo:
+    """
+    Inicializa sistema de debug interativo
+    
+    Args:
+        enabled: Ativa/desativa debug
+        debug_dir: Diretrio para screenshots/logs
+        auto_mode: Modo automtico (aplica fixes sem input humano)
+    """
+    global _debug
+    _debug = DebugInterativo(enabled=enabled, debug_dir=debug_dir, auto_mode=auto_mode)
+    if enabled:
+        modo = "AUTOMTICO " if auto_mode else "INTERATIVO "
+        print(f" Debug {modo}torAll('.modal .close, .modal button[aria-label*="fechar"]').forEach(el => {
+                    el.click();
+                });
+                
+                // Pressionar ESC
+                document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}));
+            """)
+            time.sleep(0.5)
+            print("    Modals processados")
+        except Exception as e:
+            print(f"    Erro ao fechar modals: {e}")
+        
+        print(" Correes automticas aplicadas")
+    
     def _mostrar_info_detalhada(self, contexto: Dict[str, Any]):
         """Mostra informaes detalhadas do erro"""
-        pass
-        pass
-        pass
+        print("\n" + "=" * 80)
+        print(" INFORMAES DETALHADAS")
+        print("=" * 80)
         
-        pass
-        pass
-        pass
-        pass
+        print(f"\n Timestamp: {contexto['timestamp']}")
+        print(f" URL: {contexto['url']}")
+        print(f" Screenshot: {contexto['screenshot']}")
+        print(f" HTML: {contexto['html']}")
         
         if contexto['overlays']:
-            pass
+            print(f"\n Overlays encontrados ({len(contexto['overlays'])}):")
             for ov in contexto['overlays']:
-                pass
-                pass
-                pass
-                pass
-                pass
+                print(f"   - Tipo: {ov.get('type')}")
+                print(f"     Classes: {ov.get('classes', 'N/A')}")
+                print(f"     Z-Index: {ov.get('zIndex', 'N/A')}")
+                print(f"     Visvel: {ov.get('visible', 'N/A')}")
+                print()
         else:
-            pass
+            print("\n Nenhum overlay detectado")
         
-        pass
-        pass
-        pass
-        pass
-        logger.error("   4. Se persistir, reporte o erro com screenshot/HTML")
-        pass
+        print("\n SUGESTES:")
+        print("   1. Abra o screenshot para ver estado visual")
+        print("   2. Verifique o HTML para encontrar elementos bloqueadores")
+        print("   3. Use opo [F] para tentar correo automtica")
+        print("   4. Se persistir, reporte o erro com screenshot/HTML")
+        print("=" * 80)
+
 
 # Singleton global
 _debug = None
+
 
 def obter_relatorio_debug() -> Optional[Dict[str, Any]]:
     """Obtm relatrio final do debug (para anlise automtica)"""
@@ -326,17 +354,20 @@ def obter_relatorio_debug() -> Optional[Dict[str, Any]]:
         return debug.obter_relatorio_final()
     return None
 
+
 def inicializar_debug_interativo(enabled: bool = True, debug_dir: str = "debug_interativo") -> DebugInterativo:
     """Inicializa sistema de debug interativo"""
     global _debug
     _debug = DebugInterativo(enabled=enabled, debug_dir=debug_dir)
     if enabled:
-        pass
+        print(f" Debug interativo ATIVADO - Pasta: {debug_dir}")
     return _debug
+
 
 def get_debug_interativo() -> Optional[DebugInterativo]:
     """Retorna instncia do debug interativo (ou None se no inicializado)"""
     return _debug
+
 
 def on_erro_critico(driver: WebDriver, erro_msg: str, 
                    contexto: Optional[Dict] = None) -> str:
@@ -356,6 +387,7 @@ def on_erro_critico(driver: WebDriver, erro_msg: str,
         return debug.pausar_para_analise(driver, erro_msg, contexto)
     
     return 'c'
+
 
 def is_debug_ativo() -> bool:
     """Verifica se debug interativo est ativo"""

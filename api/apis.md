@@ -481,6 +481,77 @@ if texto:
     print(texto)
 ```
 
+### 6.2.1. Dois tipos de identificador de documento — e como converter
+
+Todo documento no PJe tem **dois identificadores distintos**:
+
+| Campo | Tipo | Exemplo | Usado em |
+|---|---|---|---|
+| `id` | inteiro numérico | `987654` | endpoints de API (`/documentos/id/{id}/conteudo`, `/documentos/id/{id}/html`) |
+| `idUnicoDocumento` | hex 7 chars | `abc1234` | URL do PJe (`?documentoId=abc1234`), DOM da timeline, links internos |
+
+**Regra geral:** qualquer endpoint `/documentos/id/{idDocumento}/...` exige o `id` **numérico**. Passar `idUnicoDocumento` resulta em HTTP 404.
+
+#### Estratégia correta: resolver via `/documentos?idUnicoDocumento={uid}`
+
+O endpoint `/documentos` aceita `idUnicoDocumento` como query parameter e retorna o objeto completo do documento, incluindo seu `id` numérico:
+
+**Endpoint:** `GET /pje-comum-api/api/processos/id/{idProcesso}/documentos?idUnicoDocumento={uid}`
+
+**Resposta:** array (geralmente 1 item) ou objeto com `id` numérico.
+
+```javascript
+// JavaScript (Tampermonkey/extensão)
+async function resolverUidParaId(idProcesso, uid) {
+    const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos?` +
+        new URLSearchParams({ idUnicoDocumento: uid });
+    const resp = await fetch(url, { credentials: 'include' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const item = Array.isArray(data) ? data[0] : data;
+    return item?.id;  // id numérico
+}
+
+// Uso
+const idDoc = await resolverUidParaId('7530597', '217ddae');
+const conteudo = await fetch(
+    `${location.origin}/pje-comum-api/api/processos/id/7530597/documentos/id/${idDoc}/conteudo`,
+    { credentials: 'include' }
+);
+```
+
+```python
+# Python
+def resolver_uid_para_id(client, id_processo, uid):
+    resp = client.sess.get(
+        client._url(f"/pje-comum-api/api/processos/id/{id_processo}/documentos"),
+        params={"idUnicoDocumento": uid}
+    ).json()
+    item = resp[0] if isinstance(resp, list) else resp
+    return item.get("id")
+
+id_doc = resolver_uid_para_id(client, "7530597", "217ddae")
+```
+
+> **Nota:** Não use a timeline para essa resolução. Percorrer todos os itens da timeline para encontrar o `id` numérico é desnecessário — o endpoint `/documentos?idUnicoDocumento` faz esse lookup diretamente.
+
+#### Origem dos identificadores na timeline
+
+A timeline (`/timeline?buscarDocumentos=true`) retorna os dois campos juntos no mesmo objeto:
+
+```json
+{
+  "tipo": "Planilha de Cálculos",
+  "id": 987654,
+  "idUnicoDocumento": "abc1234",
+  "titulo": "Planilha de Cálculos - ID. abc1234"
+}
+```
+
+Quando o dado já vem da timeline (ex: durante processamento de itens), use `item["id"]` diretamente sem chamada adicional.
+
+---
+
 ### 6.3. Chave de validação de documento
 
 A chave é construída a partir de `dataInclusaoBin` e `idBin`. A função `obter_codigo_validacao_documento` a calcula:

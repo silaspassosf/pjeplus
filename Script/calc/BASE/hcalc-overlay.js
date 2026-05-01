@@ -243,8 +243,8 @@
         }
 
         // Handler do botão API ⇒ (registrado aqui para funcionar sem abrir o overlay)
-        // uid = idUnicoDocumento (7-char hex da URL/DOM). A API /documentos/id/{id}/conteudo
-        // usa o id NUMÉRICO — é necessário resolver via timeline primeiro.
+        // uid = idUnicoDocumento (7-char hex). Resolve para id numérico via
+        // GET /documentos?idUnicoDocumento={uid} (retorna documento único com campo "id").
         async function carregarPlanilhaPorUidBotao(uid) {
             uid = (uid || '').trim();
             if (!uid) throw new Error('UID vazio');
@@ -257,32 +257,25 @@
                 return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
             };
             const xsrf = getCookie('XSRF-TOKEN');
-            const headers = { 'Accept': 'application/json', 'X-Grau-Instancia': '1' };
-            if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+            const baseHeaders = { 'Accept': 'application/json', 'X-Grau-Instancia': '1' };
+            if (xsrf) baseHeaders['X-XSRF-TOKEN'] = xsrf;
 
-            // 1. Buscar timeline para resolver idUnicoDocumento → id numérico
-            const tlUrl = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/timeline?` +
-                new URLSearchParams({ buscarMovimentos: 'false', buscarDocumentos: 'true', somenteDocumentosAssinados: 'false' });
-            const tlResp = await fetch(tlUrl, { method: 'GET', credentials: 'include', headers });
-            if (!tlResp.ok) throw new Error(`HTTP ${tlResp.status} ao buscar timeline`);
-            const tlItems = await tlResp.json();
-
-            // Procura em itens e anexos
-            let idDoc = null;
-            for (const item of tlItems) {
-                if (item.idUnicoDocumento === uid) { idDoc = item.id; break; }
-                for (const a of (item.anexos || [])) {
-                    if (a.idUnicoDocumento === uid) { idDoc = a.id; break; }
-                }
-                if (idDoc) break;
-            }
-            if (!idDoc) throw new Error(`idUnicoDocumento "${uid}" não encontrado na timeline`);
+            // 1. Resolver idUnicoDocumento → id numérico
+            const docUrl = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos?` +
+                new URLSearchParams({ idUnicoDocumento: uid });
+            const docResp = await fetch(docUrl, { method: 'GET', credentials: 'include', headers: baseHeaders });
+            if (!docResp.ok) throw new Error(`HTTP ${docResp.status} ao resolver uid=${uid}`);
+            const docData = await docResp.json();
+            // resposta pode ser array ou objeto único
+            const docItem = Array.isArray(docData) ? docData[0] : docData;
+            const idDoc = docItem && docItem.id;
+            if (!idDoc) throw new Error(`idUnicoDocumento "${uid}" não encontrado`);
 
             // 2. Buscar conteúdo pelo id numérico
-            const docHeaders = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
-            if (xsrf) docHeaders['X-XSRF-TOKEN'] = xsrf;
+            const pdfHeaders = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+            if (xsrf) pdfHeaders['X-XSRF-TOKEN'] = xsrf;
             const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${idDoc}/conteudo`;
-            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: docHeaders });
+            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: pdfHeaders });
             if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar conteúdo (idDoc=${idDoc})`);
             const buffer = await resp.arrayBuffer();
             if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia para idDoc=' + idDoc);

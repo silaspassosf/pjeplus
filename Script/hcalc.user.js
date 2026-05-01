@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Homologação de Cálculos
 // @namespace    http://tampermonkey.net/
-// @version      3.1.43
+// @version      3.1.44
 // @description  Assistente de homologação PJe-Calc
 // @author       Silas
 // @match        https://pje.trt2.jus.br/pjekz/processo/*/detalhe*
@@ -19,7 +19,7 @@
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-responsabilidades.js?v=3142&t=202605011200
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-partes.js?v=3142&t=202605011200
 // @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay-decisao.js?v=3142&t=202605011200
-// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=3143&t=202605020900
+// @require      https://raw.githubusercontent.com/silaspassosf/pjeplus/main/Script/calc/BASE/hcalc-overlay.js?v=3144&t=202605020930
 
 // @connect      cdnjs.cloudflare.com
 // @connect      raw.githubusercontent.com

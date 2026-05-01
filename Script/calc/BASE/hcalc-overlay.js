@@ -243,6 +243,8 @@
         }
 
         // Handler do botão API ⇒ (registrado aqui para funcionar sem abrir o overlay)
+        // uid = idUnicoDocumento (7-char hex da URL/DOM). A API /documentos/id/{id}/conteudo
+        // usa o id NUMÉRICO — é necessário resolver via timeline primeiro.
         async function carregarPlanilhaPorUidBotao(uid) {
             uid = (uid || '').trim();
             if (!uid) throw new Error('UID vazio');
@@ -255,13 +257,35 @@
                 return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
             };
             const xsrf = getCookie('XSRF-TOKEN');
-            const headers = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+            const headers = { 'Accept': 'application/json', 'X-Grau-Instancia': '1' };
             if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
-            const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${uid}/conteudo`;
-            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar documento uid=${uid}`);
+
+            // 1. Buscar timeline para resolver idUnicoDocumento → id numérico
+            const tlUrl = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/timeline?` +
+                new URLSearchParams({ buscarMovimentos: 'false', buscarDocumentos: 'true', somenteDocumentosAssinados: 'false' });
+            const tlResp = await fetch(tlUrl, { method: 'GET', credentials: 'include', headers });
+            if (!tlResp.ok) throw new Error(`HTTP ${tlResp.status} ao buscar timeline`);
+            const tlItems = await tlResp.json();
+
+            // Procura em itens e anexos
+            let idDoc = null;
+            for (const item of tlItems) {
+                if (item.idUnicoDocumento === uid) { idDoc = item.id; break; }
+                for (const a of (item.anexos || [])) {
+                    if (a.idUnicoDocumento === uid) { idDoc = a.id; break; }
+                }
+                if (idDoc) break;
+            }
+            if (!idDoc) throw new Error(`idUnicoDocumento "${uid}" não encontrado na timeline`);
+
+            // 2. Buscar conteúdo pelo id numérico
+            const docHeaders = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+            if (xsrf) docHeaders['X-XSRF-TOKEN'] = xsrf;
+            const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${idDoc}/conteudo`;
+            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers: docHeaders });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar conteúdo (idDoc=${idDoc})`);
             const buffer = await resp.arrayBuffer();
-            if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia para uid=' + uid);
+            if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia para idDoc=' + idDoc);
             const loaded = await window.carregarPDFJSSeNecessario();
             if (!loaded) throw new Error('PDF.js não disponível');
             const fakeFile = new File([buffer], `Documento_${uid}.pdf`, { type: 'application/pdf' });

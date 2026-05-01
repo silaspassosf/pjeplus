@@ -614,7 +614,7 @@
             const subsDiv = (respDados && respDados.subsidiariasComPeriodo) || [];
             
             // Força a entrada no bloco de períodos diversos se houver dados no array extraído da interface
-            const usarDuplicacao = isDiversosMarcado && (subsDiv.length > 0 || princParc.length > 0);
+            const usarDuplicacao = subsDiv.length > 0;
 
             if (usarDuplicacao && passivoTotal > 1) {
                 if (respDados) {
@@ -728,41 +728,45 @@
                 text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${introTxt}</p>`;
 
                 if (passivoTotal > 1) {
-                    let tipoRespDecisao = 'unica';
-                    if ($('resp-subsidiarias')?.checked) tipoRespDecisao = 'subsidiarias';
-                    if ($('resp-solidarias')?.checked) tipoRespDecisao = 'solidarias';
+                    if (respDados && respDados.textoIntro) {
+                        text += respDados.textoIntro;
+                    } else {
+                        let tipoRespDecisao = 'unica';
+                        if ($('resp-subsidiarias')?.checked) tipoRespDecisao = 'subsidiarias';
+                        if ($('resp-solidarias')?.checked) tipoRespDecisao = 'solidarias';
 
-                    if (tipoRespDecisao === 'solidarias') {
-                        text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Declaro que as reclamadas respondem de forma solidária pela presente execução.</p>`;
-                    } else if (tipoRespDecisao === 'subsidiarias' && $('resp-sub-integral')?.checked) {
-                        const principais = [];
-                        const subsidiarias = [];
+                        if (tipoRespDecisao === 'solidarias') {
+                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">Declaro que as reclamadas respondem de forma solidária pela presente execução.</p>`;
+                        } else if (tipoRespDecisao === 'subsidiarias' && $('resp-sub-integral')?.checked) {
+                            const principais = [];
+                            const subsidiarias = [];
 
-                        document.querySelectorAll('#resp-principais-dinamico-container .principal-item').forEach((item) => {
-                            const nome = item.getAttribute('data-nome');
-                            if (nome) principais.push(nome);
-                        });
+                            document.querySelectorAll('#resp-principais-dinamico-container .principal-item').forEach((item) => {
+                                const nome = item.getAttribute('data-nome');
+                                if (nome) principais.push(nome);
+                            });
 
-                        document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item').forEach((item) => {
-                            const nome = item.getAttribute('data-nome');
-                            if (nome) subsidiarias.push(nome);
-                        });
+                            document.querySelectorAll('#resp-subsidiarias-integral-dinamico-container .subs-item').forEach((item) => {
+                                const nome = item.getAttribute('data-nome');
+                                if (nome) subsidiarias.push(nome);
+                            });
 
-                        if (principais.length > 0 && subsidiarias.length > 0) {
-                            const formatarLista = (nomes) => {
-                                if (nomes.length === 1) return bold(nomes[0]);
-                                if (nomes.length === 2) return `${bold(nomes[0])} e ${bold(nomes[1])}`;
-                                return nomes.slice(0, -1).map((nome) => bold(nome)).join(', ') + ' e ' + bold(nomes[nomes.length - 1]);
-                            };
+                            if (principais.length > 0 && subsidiarias.length > 0) {
+                                const formatarLista = (nomes) => {
+                                    if (nomes.length === 1) return bold(nomes[0]);
+                                    if (nomes.length === 2) return `${bold(nomes[0])} e ${bold(nomes[1])}`;
+                                    return nomes.slice(0, -1).map((nome) => bold(nome)).join(', ') + ' e ' + bold(nomes[nomes.length - 1]);
+                                };
 
-                            const txtPrincipais = formatarLista(principais);
-                            const txtSubsidiarias = formatarLista(subsidiarias);
-                            const verboPrin = principais.length > 1 ? 'são devedoras principais' : 'é devedora principal';
-                            const verboSub = subsidiarias.length > 1 ? 'são subsidiárias' : 'é subsidiária';
+                                const txtPrincipais = formatarLista(principais);
+                                const txtSubsidiarias = formatarLista(subsidiarias);
+                                const verboPrin = principais.length > 1 ? 'são devedoras principais' : 'é devedora principal';
+                                const verboSub = subsidiarias.length > 1 ? 'são subsidiárias' : 'é subsidiária';
 
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${txtPrincipais} ${verboPrin}, ${txtSubsidiarias} ${verboSub} pelo período integral do contrato, portanto, os valores neste momento são devidos apenas pelas principais.</p>`;
-                        } else {
-                            text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">A primeira reclamada é devedora principal, as demais são subsidiárias pelo período integral do contrato, portanto, os valores neste momento são devidos apenas pela primeira.</p>`;
+                                text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">${txtPrincipais} ${verboPrin}, ${txtSubsidiarias} ${verboSub} pelo período integral do contrato, portanto, os valores neste momento são devidos apenas pelas principais.</p>`;
+                            } else {
+                                text += `<p style="text-align:justify; text-indent: 4.5cm; font-size:12pt;">A primeira reclamada é devedora principal, as demais são subsidiárias pelo período integral do contrato, portanto, os valores neste momento são devidos apenas pela primeira.</p>`;
+                            }
                         }
                     }
                 }

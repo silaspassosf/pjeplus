@@ -63,11 +63,18 @@ def def_citacao(driver: WebDriver, processo_info: Dict) -> Dict:
 
     # Regra unica: se ao menos um passivo tem domicilio eletronico → ord/sum
     # Se nenhum tem → ordc/sumc
+    # Atualizado: criar GIGS com IDs do fluxo 1/Bianca e observações c.* conforme mapeamento
     if com_dom >= 1:
-        gigs_obs = [f'xs {base}']
+        if base == 'ord':
+            gigs_obs = ['1/Bianca/c.Ord']
+        else:
+            gigs_obs = ['1/Bianca/c.Sum']
         pec_list = [f'pec_{base}']
     else:
-        gigs_obs = [f'xs {base}c']
+        if base == 'ord':
+            gigs_obs = ['1/Bianca/c.Ord.AR']
+        else:
+            gigs_obs = ['1/Bianca/c.Sum.AR']
         pec_list = [f'pec_{base}c']
 
     return {

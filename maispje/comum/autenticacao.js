@@ -1,6 +1,6 @@
 /**
- * 
- * @param {string} token 
+ *
+ * @param {string} token
  * @returns {UsuarioPJE} tocken com as informaoes do usuario do PJE
  */
 function decodeJwt(token) {
@@ -33,20 +33,29 @@ async function getPapelPessoaLogada() {
   return papel;
 }
 
-async function getOrgaoJulgadorId() {
+/**
+ *
+ * @returns {Promise<{
+    codigoOJ: number;
+    codigoOJC: number;
+}>}
+ */
+async function getDadosAutenticacaoOJOJC() {
   const accessToken = getCookie("access_token");
   const payload = decodeJwt(accessToken);
   const codigoOJ = payload?.orgaoJulgador?.id;
   console.log("Órgão ID:", codigoOJ);
-  return codigoOJ;
+  const codigoOJC = payload?.orgaoJulgadorColegiado?.id;
+  console.log("Órgão Colegiado ID:", codigoOJC);
+  return { codigoOJ, codigoOJC };
 }
 
 async function getOrgaoJulgadorColegiadoId() {
   const accessToken = getCookie("access_token");
   const payload = decodeJwt(accessToken);
-  const codigoOJ = payload?.orgaoJulgadorColegiado?.id;
-  console.log("Órgão Colegiado ID:", codigoOJ);
-  return codigoOJ;
+  const codigoOJC = payload?.orgaoJulgadorColegiado?.id;
+  console.log("Órgão Colegiado ID:", codigoOJC);
+  return codigoOJC;
 }
 
 /**
@@ -80,20 +89,19 @@ function extrairOJOJC(processo) {
  */
 async function isMesmoOJOJCProcesso(processo) {
     try {
-        const idOJPessoa = await getOrgaoJulgadorId();
-        const idOJCPessoa = await getOrgaoJulgadorColegiadoId();
+        const { codigoOJ, codigoOJC } = await getDadosAutenticacaoOJOJC();
         const {idOJProcesso, idOJCProcesso} = extrairOJOJC(processo);
-        console.info('validando acesso processo', {idOJPessoa, idOJProcesso, idOJCPessoa, idOJCProcesso})
+        console.info('validando acesso processo', {idOJPessoa: codigoOJ, idOJProcesso, idOJCPessoa: codigoOJC, idOJCProcesso})
 
         // Lógica OJ: ambos existem e são iguais OU ambos nulos/inexistentes
-        const ojCompatível = 
-            (idOJPessoa != null && idOJProcesso != null && idOJPessoa === idOJProcesso) ||
-            (idOJPessoa == null && idOJProcesso == null);
+        const ojCompatível =
+            (codigoOJ != null && idOJProcesso != null && codigoOJ === idOJProcesso) ||
+            (codigoOJ == null && idOJProcesso == null);
 
         // Lógica OJC: mesma regra
-        const ojcCompatível = 
-            (idOJCPessoa != null && idOJCProcesso != null && idOJCPessoa === idOJCProcesso) ||
-            (idOJCPessoa == null && idOJCProcesso == null);
+        const ojcCompatível =
+            (codigoOJC != null && idOJCProcesso != null && codigoOJC === idOJCProcesso) ||
+            (codigoOJC == null && idOJCProcesso == null);
 
         return ojCompatível && ojcCompatível;
     } catch (error) {

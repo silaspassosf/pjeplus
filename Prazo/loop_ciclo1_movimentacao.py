@@ -13,55 +13,46 @@ logger = logging.getLogger(__name__)
 def _ciclo1_marcar_todas(driver: WebDriver) -> str:
     """Seleciona todos os processos via botão marcar-todas."""
     logger.info("[CICLO1/MARCAR_TODAS] Iniciando busca e clique")
-    
-    try:
-        # XPath robusto do legado - element_to_be_clickable
+    from Fix.core import com_retry
+
+    def _tentar_marcar():
         logger.info("[CICLO1/MARCAR_TODAS] Aguardando botão marcar-todas...")
-        btn_marcar_todas = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'marcar-todas')]"))
+        btn = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'marcar-todas')]") )
         )
-        html_btn = btn_marcar_todas.get_attribute('outerHTML')
-        logger.info(f"[CICLO1/MARCAR_TODAS] Botão encontrado: {html_btn[:200]}")
-        
-        # JS click direto como no legado
+        html = btn.get_attribute('outerHTML')
+        logger.info(f"[CICLO1/MARCAR_TODAS] Botão encontrado: {html[:200]}")
         logger.info("[CICLO1/MARCAR_TODAS] Executando clique via JS...")
-        result = driver.execute_script("""
-        arguments[0].scrollIntoView(true);
-        arguments[0].click();
-        return true;
-        """, btn_marcar_todas)
-        
-        if not result:
-            logger.error("[CICLO1/MARCAR_TODAS] JS retornou false")
-            return "error"
-            
-        logger.info("[CICLO1/MARCAR_TODAS] Clique executado, aguardando efeito...")
         try:
-            from Fix.core import aguardar_renderizacao_nativa
-            aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+            result = driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click(); return true;", btn)
         except Exception:
-            time.sleep(1)
-        
-        # Validar checkboxes marcados
-        marcados = driver.execute_script(
-            "return document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').length;"
-        )
-        logger.info(f"[CICLO1/MARCAR_TODAS] {marcados} checkbox(es) marcado(s)")
-        
-        if int(marcados or 0) > 0:
-            logger.info("[CICLO1/MARCAR_TODAS] Sucesso")
-            return "success"
+            result = False
+        if result:
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
+            except Exception:
+                time.sleep(1)
+        return result
+
+    try:
+        if com_retry(_tentar_marcar, max_tentativas=5, backoff_base=1.5, log=True):
+            # Validar checkboxes marcados
+            marcados = driver.execute_script(
+                "return document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').length;"
+            )
+            logger.info(f"[CICLO1/MARCAR_TODAS] {marcados} checkbox(es) marcado(s)")
+            if int(marcados or 0) > 0:
+                logger.info("[CICLO1/MARCAR_TODAS] Sucesso")
+                return "success"
+            else:
+                logger.error("[CICLO1/MARCAR_TODAS] Nenhum checkbox marcado após clique")
+                return "marcar_todas_not_found_but_continue"
         else:
-            logger.error("[CICLO1/MARCAR_TODAS] Nenhum checkbox marcado após clique")
+            logger.info("[LOOP_PRAZO] Todas as tentativas de marcar-todas falharam")
             return "marcar_todas_not_found_but_continue"
-            
-    except TimeoutException:
-        logger.error("[CICLO1/MARCAR_TODAS] Timeout: botão não encontrado em 5s")
-        return "marcar_todas_not_found_but_continue"
     except Exception as e:
-        logger.error(f"[CICLO1/MARCAR_TODAS] Exceção: {str(e)[:300]}")
-        import traceback
-        logger.error(f"[CICLO1/MARCAR_TODAS] Traceback: {traceback.format_exc()[:800]}")
+        logger.error(f"[CICLO1/MARCAR_TODAS] Erro geral: {e}")
         return "error"
 
 def _ciclo1_abrir_suitcase(driver: WebDriver) -> bool:

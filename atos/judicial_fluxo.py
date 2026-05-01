@@ -425,6 +425,12 @@ def ato_judicial(
     from selenium.webdriver.common.by import By
     from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
     import time
+    # Extrair flag de visibilidade (se o wrapper solicitou aplicar visibilidade após sigilo)
+    atribuir_visibilidade_autor = False
+    try:
+        atribuir_visibilidade_autor = bool(kwargs.pop('atribuir_visibilidade_autor', False))
+    except Exception:
+        atribuir_visibilidade_autor = False
 
     # === TIMING: INÍCIO ===
     timing_inicio = time.time()
@@ -949,15 +955,17 @@ def ato_judicial(
         logger.info('=' * 60)
         logger.info('ATO JUDICIAL - CONCLUÍDO COM SUCESSO')
         logger.info('=' * 60)
-        # Centralizar execução da visibilidade quando aplicável
+        # Centralizar execução da visibilidade quando o wrapper solicitou
         try:
-            if sigilo_ativado:
-                logger.info('[ATO][VISIBILIDADE] Sigilo ativado — executando visibilidade canônica')
+            if sigilo_ativado and atribuir_visibilidade_autor:
+                logger.info('[ATO][VISIBILIDADE] Sigilo ativado e wrapper solicitou visibilidade — executando visibilidade canônica')
                 try:
                     executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=debug)
                     logger.info('[ATO][VISIBILIDADE] Execução da visibilidade concluída')
                 except Exception as e:
                     logger.error(f'[ATO][VISIBILIDADE] Falha ao executar visibilidade: {e}')
+            elif sigilo_ativado and not atribuir_visibilidade_autor:
+                logger.debug('[ATO][VISIBILIDADE] Sigilo ativado, mas wrapper não solicitou atribuição automática de visibilidade; pulando execução')
         except Exception:
             # Não permitir que falha na visibilidade quebre o fluxo principal
             pass
@@ -1017,7 +1025,8 @@ def make_ato_wrapper(
             'Assinar': Assinar,
             'coleta_conteudo': coleta_conteudo,
             'inserir_conteudo': inserir_conteudo,
-            'intimar': intimar
+            'intimar': intimar,
+            'atribuir_visibilidade_autor': atribuir_visibilidade_autor
         }
         params.update(kwargs)  # kwargs sobrescrevem padrões
 

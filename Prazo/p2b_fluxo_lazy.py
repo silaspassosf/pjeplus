@@ -13,7 +13,7 @@ def _lazy_import():
     
     if not _modules_cache:
         from Fix.core import aguardar_e_clicar
-        from Fix.extracao import criar_gigs, extrair_direto, extrair_documento, criar_lembrete_posit
+        from Fix.extracao import criar_gigs, criar_lembrete_posit
         from atos.judicial import ato_pesquisas, idpj
         from atos.movimentos import mov
         from atos.wrappers_mov import mov_arquivar
@@ -28,8 +28,6 @@ def _lazy_import():
         _modules_cache.update({
             'aguardar_e_clicar': aguardar_e_clicar,
             'criar_gigs': criar_gigs,
-            'extrair_direto': extrair_direto,
-            'extrair_documento': extrair_documento,
             'criar_lembrete_posit': criar_lembrete_posit,
             'ato_pesquisas': ato_pesquisas,
             'idpj': idpj,

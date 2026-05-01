@@ -1,0 +1,561 @@
+================================================================================
+ERASE ANALYSIS - Mapping x.py dependency tree
+================================================================================
+
+Total .py files in scope: 255
+Successfully parsed: 248 files
+
+Modules in analysis scope: 235
+
+================================================================================
+PER-FILE ANALYSIS: Functions defined vs used
+================================================================================
+
+----------------------------------------------------------------------
+FILE: Agente\node_modules\flatted\python\flatted.py
+   Total defs: 17 | Used: 14 | UNUSED: 1
+   UNUSED functions:
+      - stringify (line 141)
+
+----------------------------------------------------------------------
+FILE: Aud1\node_modules\flatted\python\flatted.py
+   Total defs: 17 | Used: 14 | UNUSED: 1
+   UNUSED functions:
+      - stringify (line 136)
+
+----------------------------------------------------------------------
+FILE: Fix\core.py
+   Total defs: 48 | Used: 47 | UNUSED: 1
+   UNUSED functions:
+      - tempo_execucao (line 405)
+
+----------------------------------------------------------------------
+FILE: Fix\debug_interativo.py
+   Total defs: 14 | Used: 8 | UNUSED: 5
+   UNUSED functions:
+      - obter_relatorio_debug (line 322)
+      - inicializar_debug_interativo (line 329)
+      - on_erro_critico (line 341)
+      - is_debug_ativo (line 360)
+      - salvar_relatorio_erro (line 259)
+
+----------------------------------------------------------------------
+FILE: Fix\element_wait.py
+   Total defs: 8 | Used: 4 | UNUSED: 3
+   UNUSED functions:
+      - navegar_e_esperar (line 176)
+      - adicionar_elemento_customizado (line 199)
+      - remover_elemento_customizado (line 214)
+
+----------------------------------------------------------------------
+FILE: Fix\extracao_bndt.py
+   Total defs: 11 | Used: 8 | UNUSED: 3
+   UNUSED functions:
+      - _bndt_selecionar_operacao (line 226)
+      - _bndt_processar_selecoes (line 315)
+      - _bndt_gravar_e_confirmar (line 359)
+
+----------------------------------------------------------------------
+FILE: Fix\gigs\__init__.py
+   Total defs: 10 | Used: 8 | UNUSED: 2
+   UNUSED functions:
+      - _preencher_texto_colado (line 81)
+      - _find_button_by_text (line 95)
+
+----------------------------------------------------------------------
+FILE: Fix\headless_helpers.py
+   Total defs: 8 | Used: 6 | UNUSED: 2
+   UNUSED functions:
+      - find_element_headless_safe (line 156)
+      - executar_com_retry_headless (line 186)
+
+----------------------------------------------------------------------
+FILE: Fix\log.py
+   Total defs: 35 | Used: 28 | UNUSED: 2
+   UNUSED functions:
+      - tentar_seletores_com_registro (line 524)
+      - set_level (line 235)
+
+----------------------------------------------------------------------
+FILE: Fix\otimizacao_wrapper.py
+   Total defs: 6 | Used: 4 | UNUSED: 2
+   UNUSED functions:
+      - with_learning (line 22)
+      - usar_headless_safe (line 58)
+
+----------------------------------------------------------------------
+FILE: Fix\progress.py
+   Total defs: 46 | Used: 42 | UNUSED: 2
+   UNUSED functions:
+      - marcar_progresso_executado_p2b (line 397)
+      - marcar_progresso_executado_mandado (line 435)
+
+----------------------------------------------------------------------
+FILE: Fix\progress\monitoramento.py
+   Total defs: 37 | Used: 35 | UNUSED: 1
+   UNUSED functions:
+      - exemplo_uso_monitoramento_unificado (line 647)
+
+----------------------------------------------------------------------
+FILE: Fix\selectors_pje.py
+   Total defs: 3 | Used: 1 | UNUSED: 2
+   UNUSED functions:
+      - seletor_processo_por_numero (line 59)
+      - seletor_pec_por_numero (line 63)
+
+----------------------------------------------------------------------
+FILE: Fix\selenium_base\element_interaction.py
+   Total defs: 14 | Used: 10 | UNUSED: 4
+   UNUSED functions:
+      - _tentar_click_padrao (line 544)
+      - _tentar_click_javascript (line 571)
+      - _tentar_click_actionchains (line 595)
+      - _tentar_click_javascript_avancado (line 619)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_angular.py
+   Total defs: 11 | Used: 2 | UNUSED: 9
+   UNUSED functions:
+      - aguardar_angular_requests (line 47)
+      - clicar_elemento_angular (line 71)
+      - preencher_campo_angular (line 87)
+      - aguardar_elemento_angular_visivel (line 103)
+      - verificar_angular_app (line 119)
+      - aguardar_angular_digest (line 131)
+      - obter_angular_scope (line 157)
+      - executar_angular_expressao (line 182)
+      - esperar_elemento_angular (line 304)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_collect.py
+   Total defs: 9 | Used: 3 | UNUSED: 6
+   UNUSED functions:
+      - coletar_valor_atributo (line 25)
+      - coletar_multiplos_elementos (line 37)
+      - coletar_tabela_como_lista (line 47)
+      - coletar_links_pagina (line 74)
+      - coletar_dados_formulario (line 95)
+      - coletar_dados_pagina (line 189)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_cookies.py
+   Total defs: 8 | Used: 5 | UNUSED: 2
+   UNUSED functions:
+      - limpar_cookies_antigos (line 159)
+      - listar_cookies_salvos (line 178)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_drivers.py
+   Total defs: 12 | Used: 10 | UNUSED: 2
+   UNUSED functions:
+      - configurar_driver_avancado (line 117)
+      - fechar_driver_safely (line 135)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_error.py
+   Total defs: 6 | Used: 1 | UNUSED: 4
+   UNUSED functions:
+      - registrar_erro (line 26)
+      - registrar_sucesso (line 36)
+      - gerar_relatorio (line 40)
+      - exportar_csv (line 64)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_observer.py
+   Total defs: 2 | Used: 1 | UNUSED: 1
+   UNUSED functions:
+      - aguardar_colecao_sync (line 42)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_paths.py
+   Total defs: 8 | Used: 6 | UNUSED: 2
+   UNUSED functions:
+      - configurar_caminho_credencial (line 152)
+      - exibir_configuracao_atual (line 171)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_selectors.py
+   Total defs: 8 | Used: 1 | UNUSED: 7
+   UNUSED functions:
+      - obter_seletor_pje (line 56)
+      - gerar_seletor_dinamico (line 78)
+      - detectar_seletor_elemento (line 108)
+      - validar_seletor (line 154)
+      - encontrar_seletor_estavel (line 168)
+      - criar_seletor_fallback (line 198)
+      - aplicar_estrategia_seletor (line 206)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_sleep.py
+   Total defs: 14 | Used: 4 | UNUSED: 10
+   UNUSED functions:
+      - sleep_random (line 18)
+      - sleep_progressivo (line 29)
+      - aguardar_url_mudar (line 38)
+      - aguardar_elemento_sumir (line 50)
+      - aguardar_texto_mudar (line 60)
+      - aguardar_loading_sumir (line 70)
+      - sleep_condicional (line 80)
+      - sleep_com_logging (line 99)
+      - aguardar_multiplas_condicoes (line 113)
+      - sleep_adaptativo (line 142)
+
+----------------------------------------------------------------------
+FILE: Fix\variaveis_client.py
+   Total defs: 16 | Used: 13 | UNUSED: 2
+   UNUSED functions:
+      - execucao_gigs (line 44)
+      - associados (line 67)
+
+----------------------------------------------------------------------
+FILE: Mandado\core.py
+   Total defs: 6 | Used: 5 | UNUSED: 1
+   UNUSED functions:
+      - _main_legado (line 449)
+
+----------------------------------------------------------------------
+FILE: Mandado\processamento.py
+   Total defs: 1 | Used: 0 | UNUSED: 1
+   UNUSED functions:
+      - _lazy_import_mandado (line 54)
+
+----------------------------------------------------------------------
+FILE: Mandado\processamento_anexos.py
+   Total defs: 10 | Used: 7 | UNUSED: 3
+   UNUSED functions:
+      - _aguardar_icone_plus (line 44)
+      - _buscar_icone_plus_direto (line 62)
+      - _extrair_resultado_sisbajud (line 142)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_extracao.py
+   Total defs: 2 | Used: 1 | UNUSED: 1
+   UNUSED functions:
+      - extrair_numero_processo_da_pagina (line 19)
+
+----------------------------------------------------------------------
+FILE: PEC\core.py
+   Total defs: 4 | Used: 3 | UNUSED: 1
+   UNUSED functions:
+      - iniciarfluxorobusto (line 83)
+
+----------------------------------------------------------------------
+FILE: PEC\core_recovery.py
+   Total defs: 2 | Used: 1 | UNUSED: 1
+   UNUSED functions:
+      - verificar_e_recuperar_acesso_negado (line 9)
+
+----------------------------------------------------------------------
+FILE: PEC\processamento.py
+   Total defs: 3 | Used: 2 | UNUSED: 1
+   UNUSED functions:
+      - _lazy_import_pec (line 2)
+
+----------------------------------------------------------------------
+FILE: PEC\processamento_fluxo.py
+   Total defs: 7 | Used: 6 | UNUSED: 1
+   UNUSED functions:
+      - callback_pec_centralizado (line 82)
+
+----------------------------------------------------------------------
+FILE: PEC\regras.py
+   Total defs: 8 | Used: 5 | UNUSED: 3
+   UNUSED functions:
+      - determinar_acao_por_observacao (line 22)
+      - get_cached_rules (line 30)
+      - chamar_funcao_com_assinatura_correta (line 47)
+
+----------------------------------------------------------------------
+FILE: Prazo\criteria_matcher.py
+   Total defs: 16 | Used: 13 | UNUSED: 2
+   UNUSED functions:
+      - buscar_prazo_por_tipo (line 115)
+      - buscar_primeiro_prazo (line 138)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_api.py
+   Total defs: 6 | Used: 5 | UNUSED: 1
+   UNUSED functions:
+      - _verificar_processos_xs_paralelo (line 91)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_base.py
+   Total defs: 4 | Used: 3 | UNUSED: 1
+   UNUSED functions:
+      - clicar_com_multiplos_seletores (line 85)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_ciclo1_filtros.py
+   Total defs: 2 | Used: 1 | UNUSED: 1
+   UNUSED functions:
+      - _ciclo1_aplicar_filtro_fases (line 4)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_ciclo1_movimentacao.py
+   Total defs: 8 | Used: 7 | UNUSED: 1
+   UNUSED functions:
+      - _ciclo1_marcar_todas (line 13)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_ciclo2_processamento.py
+   Total defs: 9 | Used: 8 | UNUSED: 1
+   UNUSED functions:
+      - ciclo2_processar_livres_apenas_uma_vez (line 179)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_helpers.py
+   Total defs: 2 | Used: 1 | UNUSED: 1
+   UNUSED functions:
+      - selecionar_processos_nao_livres (line 46)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_api.py
+   Total defs: 5 | Used: 3 | UNUSED: 2
+   UNUSED functions:
+      - localizar_documento_relevante_api (line 114)
+      - extrair_conteudo_documento_api (line 209)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_core.py
+   Total defs: 13 | Used: 11 | UNUSED: 2
+   UNUSED functions:
+      - ato_pesqliq_callback (line 339)
+      - aplicar (line 358)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_fluxo_documentos.py
+   Total defs: 6 | Used: 5 | UNUSED: 1
+   UNUSED functions:
+      - _extrair_texto_documento (line 171)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_prazo.py
+   Total defs: 12 | Used: 10 | UNUSED: 2
+   UNUSED functions:
+      - executar_prazo_com_otimizacoes (line 93)
+      - _gerenciar_abas_apos_processo (line 442)
+
+----------------------------------------------------------------------
+FILE: SISB\core.py
+   Total defs: 12 | Used: 11 | UNUSED: 1
+   UNUSED functions:
+      - processar_endereco (line 1114)
+
+----------------------------------------------------------------------
+FILE: SISB\performance.py
+   Total defs: 26 | Used: 14 | UNUSED: 8
+   UNUSED functions:
+      - optimized_element_wait (line 369)
+      - batched_form_fill (line 384)
+      - cached_selector_lookup (line 408)
+      - parallel_series_processing (line 421)
+      - smart_cache_operation (line 435)
+      - cache_element (line 235)
+      - get_cached_element (line 244)
+      - clear_expired_cache (line 277)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento\ordens_acao.py
+   Total defs: 7 | Used: 4 | UNUSED: 3
+   UNUSED functions:
+      - _classificar_selects (line 53)
+      - _acao_com_saldo (line 87)
+      - _acao_nao_resposta (line 144)
+
+----------------------------------------------------------------------
+FILE: SISB\s_orquestrador.py
+   Total defs: 9 | Used: 6 | UNUSED: 3
+   UNUSED functions:
+      - trigger_event (line 169)
+      - safe_execute_script (line 176)
+      - otimizar_performance_sisbajud (line 210)
+
+----------------------------------------------------------------------
+FILE: SISB\standards.py
+   Total defs: 42 | Used: 19 | UNUSED: 14
+   UNUSED functions:
+      - TipoMinuta (line 111)
+      - SerieSisbajud (line 157)
+      - OrdemSisbajud (line 179)
+      - ElementoNaoEncontradoException (line 241)
+      - TimeoutExcedidoException (line 250)
+      - CaptchaDetectadoException (line 259)
+      - SessaoExpiradaException (line 268)
+      - validar_numero_processo_padronizado (line 288)
+      - formatar_valor_monetario_padronizado (line 315)
+      - calcular_data_limite_padronizada (line 335)
+      - criar_timestamp_padronizado (line 348)
+      - log_operacao (line 359)
+      - validar_parametros (line 379)
+      - retry_on_failure (line 393)
+
+----------------------------------------------------------------------
+FILE: api\variaveis_client.py
+   Total defs: 15 | Used: 13 | UNUSED: 1
+   UNUSED functions:
+      - execucao_gigs (line 44)
+
+----------------------------------------------------------------------
+FILE: apiaud.py
+   Total defs: 8 | Used: 7 | UNUSED: 1
+   UNUSED functions:
+      - _normalizar_lista (line 19)
+
+----------------------------------------------------------------------
+FILE: atos\comunicacao_finalizacao.py
+   Total defs: 22 | Used: 19 | UNUSED: 3
+   UNUSED functions:
+      - remover_destinatarios_invalidos (line 386)
+      - _aguardar_confirmar_save_js (line 438)
+      - limpar_destinatarios_existentes (line 741)
+
+----------------------------------------------------------------------
+FILE: atos\core.py
+   Total defs: 5 | Used: 4 | UNUSED: 1
+   UNUSED functions:
+      - aguardar_e_verificar_detalhe (line 315)
+
+----------------------------------------------------------------------
+FILE: atos\judicial_fluxo.py
+   Total defs: 5 | Used: 4 | UNUSED: 1
+   UNUSED functions:
+      - _verificar_reaplicar_sigilo_pec (line 77)
+
+----------------------------------------------------------------------
+FILE: atos\movimentos_chips.py
+   Total defs: 4 | Used: 3 | UNUSED: 1
+   UNUSED functions:
+      - def_chip_custom (line 110)
+
+----------------------------------------------------------------------
+FILE: atos\movimentos_fluxo.py
+   Total defs: 17 | Used: 16 | UNUSED: 1
+   UNUSED functions:
+      - verificar_minuta_preenchida (line 756)
+
+----------------------------------------------------------------------
+FILE: atos\movimentos_navegacao.py
+   Total defs: 23 | Used: 21 | UNUSED: 2
+   UNUSED functions:
+      - _obter_nome_tarefa_via_api (line 88)
+      - mov_cls (line 363)
+
+----------------------------------------------------------------------
+FILE: atos\wrappers_mov.py
+   Total defs: 6 | Used: 4 | UNUSED: 2
+   UNUSED functions:
+      - mov_para_analise (line 93)
+      - mov_para_comunicacoes (line 101)
+
+----------------------------------------------------------------------
+FILE: atos\wrappers_pec.py
+   Total defs: 2 | Used: 0 | UNUSED: 2
+   UNUSED functions:
+      - wrapper_pec_ord_com_domicilio (line 238)
+      - wrapper_pec_sum_com_domicilio (line 297)
+
+----------------------------------------------------------------------
+FILE: carta\anexos.py
+   Total defs: 34 | Used: 33 | UNUSED: 1
+   UNUSED functions:
+      - extrair_numero_processo_da_pagina (line 96)
+
+----------------------------------------------------------------------
+FILE: carta\carta.py
+   Total defs: 10 | Used: 9 | UNUSED: 1
+   UNUSED functions:
+      - teste_juntada_carta_html (line 1021)
+
+----------------------------------------------------------------------
+FILE: dom.py
+   Total defs: 15 | Used: 13 | UNUSED: 2
+   UNUSED functions:
+      - buscar_processos_dom_eletronico (line 56)
+      - navigate_to_list (line 104)
+
+----------------------------------------------------------------------
+FILE: p2.py
+   Total defs: 14 | Used: 13 | UNUSED: 1
+   UNUSED functions:
+      - buscar_peticoes_escaninho_direto (line 5)
+
+================================================================================
+TOTAL UNUSED FUNCTIONS: 153
+================================================================================
+
+================================================================================
+IMPORT CHAIN FROM x.py
+================================================================================
+
+Direct imports from x.py:
+  import sys (line 43)
+  import time (line 44)
+  import logging (line 45)
+  import os (line 46)
+  from datetime import datetime (line 47)
+  from typing import Dict (line 48)
+  from typing import Any (line 48)
+  from typing import Optional (line 48)
+  from typing import Tuple (line 48)
+  from enum import Enum (line 49)
+  from selenium import webdriver (line 51)
+  from selenium.webdriver.firefox.options import Options (line 52)
+  from selenium.webdriver.firefox.service import Service (line 53)
+  from selenium.webdriver.firefox.firefox_profile import FirefoxProfile (line 54)
+  from Fix.core import finalizar_driver as finalizar_driver_fix (line 57)
+  from Fix.core import finalizar_driver_imediato as finalizar_driver_imediato_fix (line 57)
+  from Fix.utils import login_cpf (line 58)
+  from Fix.drivers import driver_session (line 59)
+  from Prazo import loop_prazo (line 60)
+  from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api (line 61)
+  from Fix.smart_finder import injetar_smart_finder_global (line 62)
+  from Mandado.processamento_api import processar_mandados_devolvidos_api (line 63)
+  import traceback (line 66)
+  from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b (line 67)
+  from Triagem.runner import run_triagem (line 652)
+  from Peticao.pet import run_pet (line 677)
+  from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b (line 703)
+  from Prazo.fluxo_api import testar_gigs_sem_prazo (line 703)
+  import logging (line 857)
+  from Fix.otimizacao_wrapper import inicializar_otimizacoes (line 888)
+  from Fix.smart_finder import carregar_cache (line 444)
+  from Fix.smart_finder import salvar_cache (line 444)
+  import traceback (line 465)
+  import traceback (line 726)
+  import traceback (line 992)
+  from Fix.otimizacao_wrapper import finalizar_otimizacoes (line 1007)
+  import traceback (line 972)
+
+================================================================================
+TOP FILES BY UNUSED FUNCTION COUNT
+================================================================================
+   14 unused /  42 total  -  SISB\standards.py
+   10 unused /  14 total  -  Fix\utils_sleep.py
+    9 unused /  11 total  -  Fix\utils_angular.py
+    8 unused /  26 total  -  SISB\performance.py
+    7 unused /   8 total  -  Fix\utils_selectors.py
+    6 unused /   9 total  -  Fix\utils_collect.py
+    5 unused /  14 total  -  Fix\debug_interativo.py
+    4 unused /  14 total  -  Fix\selenium_base\element_interaction.py
+    4 unused /   6 total  -  Fix\utils_error.py
+    3 unused /   8 total  -  Fix\element_wait.py
+    3 unused /  11 total  -  Fix\extracao_bndt.py
+    3 unused /  10 total  -  Mandado\processamento_anexos.py
+    3 unused /   8 total  -  PEC\regras.py
+    3 unused /   7 total  -  SISB\processamento\ordens_acao.py
+    3 unused /   9 total  -  SISB\s_orquestrador.py
+    3 unused /  22 total  -  atos\comunicacao_finalizacao.py
+    2 unused /  10 total  -  Fix\gigs\__init__.py
+    2 unused /   8 total  -  Fix\headless_helpers.py
+    2 unused /  35 total  -  Fix\log.py
+    2 unused /   6 total  -  Fix\otimizacao_wrapper.py
+    2 unused /  46 total  -  Fix\progress.py
+    2 unused /   3 total  -  Fix\selectors_pje.py
+    2 unused /   8 total  -  Fix\utils_cookies.py
+    2 unused /  12 total  -  Fix\utils_drivers.py
+    2 unused /   8 total  -  Fix\utils_paths.py
+    2 unused /  16 total  -  Fix\variaveis_client.py
+    2 unused /  16 total  -  Prazo\criteria_matcher.py
+    2 unused /   5 total  -  Prazo\p2b_api.py
+    2 unused /  13 total  -  Prazo\p2b_core.py
+    2 unused /  12 total  -  Prazo\p2b_prazo.py

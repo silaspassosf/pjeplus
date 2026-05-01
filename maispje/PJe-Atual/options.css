@@ -12,6 +12,7 @@ legend > h3 {
   padding: 0;
   gap: 4px;
 }
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -302,7 +303,7 @@ a {
   line-height: 2;
   text-indent: 0;
   font-style: normal;
-  text-align: justify;
+  text-align: left;
   max-width: 450px;
   overflow: visible;
   font-size: 0.9em;
@@ -657,3 +658,8 @@ ol.alfabetica > li:before {
   margin-right: 1rem;
   flex: 1;
 }
+
+label.container > span {
+    font-size: 15px !important;
+}
+

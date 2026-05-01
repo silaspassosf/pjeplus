@@ -45,26 +45,22 @@ import time
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 from enum import Enum
 # Selenium imports
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
-
-# Imports dos mdulos refatorados
-from Fix.core import finalizar_driver as finalizar_driver_fix, finalizar_driver_imediato as finalizar_driver_imediato_fix
+# Imports dos módulos refatorados
+from Fix.core import finalizar_driver as finalizar_driver_fix
 from Fix.utils import login_cpf
-from Fix.drivers import driver_session
 from Prazo import loop_prazo
 from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
-from Fix.smart_finder import injetar_smart_finder_global
 from Mandado.processamento_api import processar_mandados_devolvidos_api
 
 # Otimização de imports (plano_imports_otimizacao.md)
 import traceback
-from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b
+# from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b  # Comentado - será importado quando necessário
 
 # Imports opcionais (carregados somente quando necessário)
 # from Triagem.runner import run_triagem
@@ -432,30 +428,6 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
             print(" Falha no login")
             finalizar_driver_fix(driver)
             return None
-        
-        # Injecao do Smart Finder (Cache + Auto-Healing)
-        try:
-            injetar_smart_finder_global(driver)
-        except Exception:
-            # Não falhar se smart finder não puder ser ativado
-            pass
-        # Verificação rápida: testar se o cache do SmartFinder é gravável
-        try:
-            from Fix.smart_finder import carregar_cache, salvar_cache
-            cache = carregar_cache() or {}
-            test_key = '__SMARTFINDER_Writable_Test__'
-            if test_key not in cache:
-                try:
-                    cache[test_key] = True
-                    salvar_cache(cache)
-                    # remover o marcador imediatamente
-                    cache.pop(test_key, None)
-                    salvar_cache(cache)
-                except Exception:
-                    # Não falhar a criação do arquivo de cache
-                    pass
-        except Exception:
-            pass
 
         print(" Driver criado e logado com sucesso")
         return driver
@@ -798,7 +770,7 @@ def menu_execucao() -> Optional[str]:
 # CONFIGURAO DE LOGGING
 # ============================================================================
 
-def configurar_logging(driver_type: DriverType):
+def configurar_logging(driver_type: DriverType, debug: bool = False):
     """Configura logging baseado no tipo de driver"""
     
     headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
@@ -823,7 +795,7 @@ def configurar_logging(driver_type: DriverType):
     
     # Configurar logging (para logger.info(), logger.error(), etc.)
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
     
     # Remover handlers antigos se existirem
     for handler in root_logger.handlers[:]:
@@ -839,7 +811,7 @@ def configurar_logging(driver_type: DriverType):
     
     # Adicionar StreamHandler para console (vai passar por TeeOutput)
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG if debug else logging.INFO)
     console_formatter = logging.Formatter('[%(name)s] %(message)s')
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
@@ -850,8 +822,8 @@ def configurar_logging(driver_type: DriverType):
 def safe_immediate_shutdown(driver, tee_output=None, reason=None):
     """Força shutdown imediato: suprime logs ruidosos, finaliza driver e sai do processo.
 
-    Usa `finalizar_driver_imediato_fix` (que mata processos) e `os._exit(0)` para liberar o terminal
-    imediatamente — isso evita flood de mensagens de `urllib3.connectionpool` durante teardown.
+    Usa finalização best-effort do driver e `os._exit(0)` para liberar o terminal
+    imediatamente, evitando flood de mensagens de teardown.
     """
     try:
         import logging as _logging
@@ -861,8 +833,8 @@ def safe_immediate_shutdown(driver, tee_output=None, reason=None):
         except Exception:
             pass
         try:
-            # tentar finalizar de forma imediata (mata geckodriver/firefox)
-            finalizar_driver_imediato_fix(driver)
+            if driver:
+                finalizar_driver_fix(driver, log=False)
         except Exception:
             pass
         try:
@@ -882,6 +854,7 @@ def safe_immediate_shutdown(driver, tee_output=None, reason=None):
 def main():
     """Funo principal"""
     global skip_finalizar
+    driver = None
     
     #  NOVO: Inicializar otimizaes
     try:
@@ -901,7 +874,6 @@ def main():
                 break
 
             driver_type, debug_mode = resultado_menu
-            debug_mode = False  # Debug mode desabilitado por enquanto
 
             # Menu 2: Fluxo
             fluxo = menu_execucao()
@@ -921,57 +893,47 @@ def main():
             print(f" Log: {log_file}")
             print("=" * 80)
 
-            # Usar context manager para ciclo de vida do driver
-            driver_type_str = "VT" if driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS] else "PC"
-            headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
-            with driver_session(driver_type_str, headless=headless) as driver:
-                # Login
-                if not login_cpf(driver):
-                    print(" Falha no login")
-                    continue
-                try:
-                    inicio = datetime.now()
-                    resultado = None
-                    if fluxo == "A":
-                        resultado = executar_bloco_completo(driver)
-                    elif fluxo == "B":
-                        resultado = executar_mandado(driver)
-                    elif fluxo == "C":
-                        resultado = executar_prazo(driver)
-                    elif fluxo == "D":
-                        resultado = executar_p2b(driver)
-                    elif fluxo == "E":
-                        resultado = executar_pec(driver)
-                    elif fluxo == "F":
-                        resultado = executar_triagem(driver)
-                    elif fluxo == "G":
-                        resultado = executar_pet(driver)
-                    tempo_total = (datetime.now() - inicio).total_seconds()
-                    # Relatório final
-                    print("\n" + "=" * 80)
-                    print(" RELATRIO FINAL")
-                    print("=" * 80)
-                    if resultado:
-                        if 'sucesso_geral' in resultado:
-                            print(f" Sucesso geral: {resultado['sucesso_geral']}")
-                        elif 'sucesso' in resultado:
-                            print(f" Sucesso: {resultado['sucesso']}")
-                    print(f"  Tempo total: {tempo_total:.2f}s")
-                    print("=" * 80)
-                except KeyboardInterrupt:
-                    print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
-                    try:
-                        safe_immediate_shutdown(driver, tee_output, reason='KeyboardInterrupt')
-                    except Exception:
-                        try:
-                            finalizar_driver_imediato_fix(driver)
-                        except Exception:
-                            pass
-                        os._exit(0)
-                except Exception as e:
-                    print(f" Erro: {e}")
-                    import traceback
-                    traceback.print_exc()
+            driver = criar_e_logar_driver(driver_type)
+            if not driver:
+                print(" Falha ao inicializar driver/logar")
+                continue
+
+            try:
+                inicio = datetime.now()
+                resultado = None
+                if fluxo == "A":
+                    resultado = executar_bloco_completo(driver)
+                elif fluxo == "B":
+                    resultado = executar_mandado(driver)
+                elif fluxo == "C":
+                    resultado = executar_prazo(driver)
+                elif fluxo == "D":
+                    resultado = executar_p2b(driver)
+                elif fluxo == "E":
+                    resultado = executar_pec(driver)
+                elif fluxo == "F":
+                    resultado = executar_triagem(driver)
+                elif fluxo == "G":
+                    resultado = executar_pet(driver)
+                tempo_total = (datetime.now() - inicio).total_seconds()
+                # Relatório final
+                print("\n" + "=" * 80)
+                print(" RELATRIO FINAL")
+                print("=" * 80)
+                if resultado:
+                    if 'sucesso_geral' in resultado:
+                        print(f" Sucesso geral: {resultado['sucesso_geral']}")
+                    elif 'sucesso' in resultado:
+                        print(f" Sucesso: {resultado['sucesso']}")
+                print(f"  Tempo total: {tempo_total:.2f}s")
+                print("=" * 80)
+            except KeyboardInterrupt:
+                print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
+                safe_immediate_shutdown(driver, tee_output, reason='KeyboardInterrupt')
+            except Exception as e:
+                print(f" Erro: {e}")
+                import traceback
+                traceback.print_exc()
             # Fechar log
             if tee_output:
                 tee_output.close()
@@ -980,14 +942,7 @@ def main():
     
     except KeyboardInterrupt:
         print("\n Interrompido pelo usurio — finalizando imediatamente")
-        try:
-            safe_immediate_shutdown(driver, tee_output, reason='OuterKeyboardInterrupt')
-        except Exception:
-            try:
-                finalizar_driver_imediato_fix(driver)
-            except Exception:
-                pass
-            os._exit(0)
+        safe_immediate_shutdown(driver, tee_output, reason='OuterKeyboardInterrupt')
     except Exception as e:
         print(f" Erro fatal: {e}")
         import traceback

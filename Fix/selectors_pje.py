@@ -1,6 +1,3 @@
-import logging
-logger = logging.getLogger(__name__)
-
 # selectors_pje.py
 # Centralização dos seletores usados no projeto de automação PJe TRT2
 # Organização inspirada em Fix.py para facilitar manutenção e leitura
@@ -78,6 +75,8 @@ def buscar_seletor_robusto(driver, textos, timeout=10, log=True):
                 f'*[aria-label*="{texto}"], *[placeholder*="{texto}"], *[name*="{texto}"], *[title*="{texto}"]')
             for el in elementos:
                 if el.is_displayed():
+                    if log:
+                        print(f'[SELECTOR] Found by aria-label/placeholder/title: {texto}')
                     return el
         except Exception:
             continue
@@ -88,6 +87,8 @@ def buscar_seletor_robusto(driver, textos, timeout=10, log=True):
             elementos = driver.find_elements(By.XPATH, xpath)
             for el in elementos:
                 if el.is_displayed():
+                    if log:
+                        print(f'[SELECTOR] Found by visible text: {texto}')
                     return el
         except Exception:
             continue
@@ -96,16 +97,26 @@ def buscar_seletor_robusto(driver, textos, timeout=10, log=True):
         try:
             img = driver.find_elements(By.CSS_SELECTOR, f'img[mattooltip*="{texto}"]')
             if img:
+                if log:
+                    print(f'[SELECTOR] Found by img[mattooltip]: {texto}')
                 return img[0]
             img_alt = driver.find_elements(By.CSS_SELECTOR, f'img[alt*="{texto}"]')
             if img_alt:
+                if log:
+                    print(f'[SELECTOR] Found by img[alt]: {texto}')
                 return img_alt[0]
             img_src = driver.find_elements(By.CSS_SELECTOR, f'img[src*="{texto}"]')
             if img_src:
+                if log:
+                    print(f'[SELECTOR] Found by img[src]: {texto}')
                 return img_src[0]
             btn = driver.find_elements(By.CSS_SELECTOR, f'button[mattooltip*="{texto}"]')
             if btn:
+                if log:
+                    print(f'[SELECTOR] Found by button[mattooltip]: {texto}')
                 return btn[0]
         except Exception:
             continue
+    if log:
+        print(f'[SELECTOR] No element found for: {textos}')
     return None

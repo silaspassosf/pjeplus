@@ -487,7 +487,7 @@ const apis = {
       {}
     ),
 
-    permissaoPerfisOjUsuario: new ApiWrapper(
+    orgaoJulgadorPorId: new ApiWrapper(
       '/pje-comum-api/api/orgaosjulgadores/{codigoOJ}',
       {}
     ),
@@ -551,6 +551,12 @@ const apis = {
         '/pje-gigs-api/api/atividade/retorna-prazo/{dias}',
         {
             idOj: '{codigoOJ}',
+        }
+    ),
+
+    orgaoJulgadorPorId: new ApiWrapper(
+        '/pje-comum-api/api/orgaosjulgadores/{codigoOJ}',
+        {
         }
     )
   };

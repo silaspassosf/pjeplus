@@ -338,7 +338,7 @@
 
 @keyframes descer {
 	0% {
-		transform: translatey(6vh);
+		transform: translatey(4vh);
 		opacity: 1;
 	}
 	100% {
@@ -353,7 +353,7 @@
 		opacity: .5;
 	}
 	100% {
-		transform: translatey(6vh);
+		transform: translatey(4vh);
 		opacity: 1;
 	}
 }
@@ -921,6 +921,11 @@
 	-webkit-mask: url(icons/svg/rectangle-list-solid.svg) no-repeat center;
 }
 
+.clickrapido {
+	background-color: white;
+	-webkit-mask: url(icons/svg/click-rapido.svg) no-repeat center;
+}
+
 .keyboard {
 	background-color: white;
 	-webkit-mask: url(icons/svg/keyboard.svg) no-repeat center;
@@ -987,6 +992,16 @@
 	box-shadow: inset 0.5vw 0 0 rgb(186, 104, 200);
 }
 
+a[id*="maisPJe_GIGS_bt_padrao"]:visited {
+    color: unset;
+    text-decoration: none;
+}
+
+a[id*="maisPJe_GIGS_bt_padrao"]:active {
+    color: unset;
+    text-decoration: none;
+}
+
 .efeitoOverLeaave:hover i {
     background-color: whitesmoke;
     box-shadow: 0px 1px 0px rgba(0,0,0,0.1), 0px 1px 2px rgba(0,0,0,0.1), 0px 1px 2px rgba(0,0,0,0.1), 0px 2px 4px rgba(0,0,0,0.1);
@@ -999,6 +1014,9 @@
     background-position: calc(0.2em) calc(0.4em);
 }
 
+.concluir {
+    color: coral;
+}
 
 .optionAA {
 	background-color: initial;
@@ -1022,6 +1040,105 @@
 	color: white;
 }
 
+.filtroAA {
+    cursor: pointer;
+    padding: 2px 10px 2px 10px;
+    filter: brightness(1);
+    font-size: 14px;
+    color: white;
+    border: 1px solid #199386;
+    border-radius: 25px;
+    font-weight: bold;
+    margin: 2px 10px;
+}
+
+.processoAA i,
+.processoAA:hover,
+.botaoContinuar:hover,
+.botoes-cinza-destacado:hover
+.filtroAA:hover {
+    filter: brightness(0.7);
+}
+
+.botaoContinuar {
+    font-size: 18pt;
+    font-weight: inherit;
+    color: white;
+    margin-top: 10px;
+    padding: 10px;
+    border-bottom: 1px solid lightgrey;
+    background-color: #4674ac;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.botoes-cinza-destacado {
+    line-height: 0;
+    color: #8f8f8f
+}
+.processoAA {
+    position: relative;
+    z-index:1;
+    height: fit-content;
+    color:rgb(81, 81, 81);
+    border-radius: 3px;
+    display: grid;
+    align-items: center;
+    justify-content: space-evenly;
+    justify-items: center;
+    filter: brightness(1);
+    grid-template-areas:
+    ".          .          .          .          .         "
+    "observacao observacao observacao observacao observacao";
+    grid-template-columns: auto auto 1fr auto auto;
+    grid-gap: 0 10px;
+    padding: 0 20px;
+}
+
+.lista-sem-ocupar-espaco {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 5px;
+}
+.processoAA a {
+    color: rgb(81, 81, 81);
+}
+.processoAA button:hover,
+.processoAA a:hover {
+    color: blue;
+    filter: opacity(0.5);
+}
+
+.flex-center {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.selecionarPartesEditorTexto {
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    border: none;
+    padding: 10px;
+    font-weight: bold;
+    font-size: 16px;
+    color: rgb(81, 81, 81);
+    background-color: white;
+    background-position-x: 1rem;
+    background-repeat: no-repeat;
+    background-position: left center;
+}
+
+.selecionarPartesEditorTexto:hover {
+    background-color: lightgrey;
+}
+
 #selectAcaoAutomatizada option:checked {
 	background-color: #007bff;
 	color: white;
@@ -1040,4 +1157,43 @@ a:focus-visible, span:focus-visible {
 	box-shadow: 0 0 0 3px white !important;
 	outline-offset: 0.01rem;
 	z-index: 1;
+}
+.a11y-tooltip {
+    position: absolute;
+    z-index: 99910000;
+    max-width: 100%;
+    min-height: 1rem;
+    white-space: nowrap;
+    padding: 10px;
+
+    font-size: 12px;
+    line-height: 16px;
+
+    pointer-events: none;
+    vertical-align: middle;
+    font-family: "NunitoSans Regular", "Arial", sans-serif;
+    font-size: 14px;
+    text-shadow: none;
+    font-weight: 500;
+    background: black;
+    opacity: 1;
+    color: white;
+    border-radius: 5px;
+    box-shadow: 3px 3px 10px grey;
+}
+
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+dialog {
+    background: transparent;
+    border: 0;
+    color: rgb(81, 81, 81);
+    font-weight: bold;
+    padding: 0;
+}
+
+#documento {
+  scroll-margin-top: 120px;
 }

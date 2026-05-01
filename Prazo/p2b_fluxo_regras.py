@@ -180,6 +180,12 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
     criar_gigs = m.get('criar_gigs')
     regras = _definir_regras_processamento()
 
+    # aba principal antes de executar ações — usada para garantir foco e cleanup
+    try:
+        aba_principal = driver.current_window_handle
+    except Exception:
+        aba_principal = None
+
     # Prioridade absoluta: prescrição
     if gerar_regex_geral('A pronúncia da').search(texto_normalizado):
         try:
@@ -250,10 +256,30 @@ def _processar_regras_gerais(driver: WebDriver, texto_normalizado: str, doc_idx:
                                         except Exception:
                                             return None
                                     # Generic callable: call with driver only
-                                    return action(driver)
+                                    res = action(driver)
                                 except Exception as e:
                                     logger.error('[FLUXO_PZ] Erro ao executar action callable: %s', e)
-                                    return None
+                                    res = None
+
+                                # Cleanup: fechar abas extras que a action possa ter aberto
+                                try:
+                                    if aba_principal:
+                                        handles = driver.window_handles
+                                        for h in handles:
+                                            if h != aba_principal:
+                                                try:
+                                                    driver.switch_to.window(h)
+                                                    driver.close()
+                                                except Exception:
+                                                    pass
+                                        try:
+                                            driver.switch_to.window(aba_principal)
+                                        except Exception:
+                                            pass
+                                except Exception:
+                                    pass
+
+                                return res
 
                             # suporte à sintaxe string criar_gigs[param]
                             if isinstance(action, str):

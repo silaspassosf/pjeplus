@@ -24,11 +24,6 @@ logger = logging.getLogger(__name__)
 from .p2b_fluxo_lazy import _lazy_import
 from .p2b_fluxo_prescricao import prescreve, analisar_timeline_prescreve_js_puro
 from .p2b_fluxo_documentos import (
-    _encontrar_documento_relevante,
-    _documento_nao_assinado,
-    _extrair_texto_documento,
-    _extrair_com_extrair_direto,
-    _extrair_com_extrair_documento,
     _fechar_aba_processo,
 )
 from .p2b_fluxo_regras import _definir_regras_processamento, _processar_regras_gerais

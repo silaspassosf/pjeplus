@@ -155,7 +155,7 @@ function removeQuebraDeLinha(texto){
  */
 function esperarElemento(seletor, texto = '', tempo_espera = 20000) {
 	return new Promise(resolve => {
-		// console.log('procurando ' + seletor + (texto ? ">" + texto : ""));
+		// console.debug('procurando ' + seletor + (texto ? ">" + texto : ""));
 		let elemento = texto ? querySelectorByText(seletor, texto) : document.querySelector(seletor);
 		if (elemento) {
 			// console.log("                        achou de pronto : " + seletor + (texto ? ">" + texto : "") + " : " + elemento.toString());
@@ -329,6 +329,116 @@ function acionarBotaoComTimer(seletor,texto,velocidade) {
 	);
 }
 
+function acionarSemClique(elemento,cor1,cor2,tempo,angulo='0deg') {
+
+    if (!preferencias.extrasAcionarBotoesSemCliqueAtivar) { return }
+
+    if (!tempo) { //se não tiver tempo específico vai pra regra geral
+        tempo = (preferencias.extrasAcionarBotoesSemCliqueTempo == null || preferencias.extrasAcionarBotoesSemCliqueTempo.trim() == '') ? '1' : preferencias.extrasAcionarBotoesSemCliqueTempo;
+    }
+
+    if (elemento) {
+        console.debug('maisPJe: acionarSemClique(): ' + elemento.tagName + '[className *="' + elemento.className + '"]')
+
+        if (elemento.tagName == 'DIV' && elemento.className.includes('item-menu')) { //EXCEÇÃO > item de submenu da janela principal
+        } else if (elemento.tagName.includes('PJE-ICONE')) { //EXCEÇÃO > filtros da janela principal
+        } else if (elemento.tagName == 'I' && elemento?.getAttribute('role') == 'button') { //EXCEÇÃO > filtros da janela principal
+        } else if (elemento.tagName == 'MAT-CARD' && elemento?.getAttribute('role') == 'list') { //painéis do painel global
+        } else if (!['BUTTON','A'].includes(elemento.tagName)) { //menu kaizen e gerais
+            // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
+            elemento = elemento.firstChild;
+            if (elemento && !['BUTTON','A'].includes(elemento.tagName)) {
+                // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
+                elemento = elemento.firstChild;
+                if (elemento && !['BUTTON','A'].includes(elemento.tagName)) {
+                    // console.debug('    |___"' + elemento.tagName + '" não compatível. Trocar por firstChild')
+                    elemento = elemento.firstChild;
+                    if (elemento && !['BUTTON','A'].includes(elemento.tagName)) {
+                        // console.debug('    |___"' + elemento.tagName + '" não compatível. Encerrar acionarSemClique()!')
+                        return;
+                    }
+                }
+            }
+            // console.debug('    |___"' + elemento.tagName + '" compatível.');
+            cor1 = (cor1!='') ? cor1 : elemento.style.backgroundColor;
+            cor1 = (cor1!='') ? cor1 : elemento.style.background;
+            cor1 = (cor1!='') ? cor1 : 'orangered';
+            // console.debug('    |___ cor base ' + cor1)
+        }
+
+        //inserir css
+        if (!document.getElementById('maisPJe_cliqueRapido')) {
+            let style = document.createElement("style");
+            style.id = 'maisPJe_cliqueRapido';
+            style.textContent = '@keyframes maisPJe_cliqueRapido {';
+            style.textContent += '0% { background: linear-gradient(' + angulo + ',var(--color1) 100%, var(--color2) 0); } ';
+            style.textContent += '5% { background: linear-gradient(' + angulo + ',var(--color1) 95%, var(--color2) 0); } ';
+            style.textContent += '10% { background: linear-gradient(' + angulo + ',var(--color1) 90%, var(--color2) 0); } ';
+            style.textContent += '15% { background: linear-gradient(' + angulo + ',var(--color1) 85%, var(--color2) 0); } ';
+            style.textContent += '20% { background: linear-gradient(' + angulo + ',var(--color1) 80%, var(--color2) 0); } ';
+            style.textContent += '25% { background: linear-gradient(' + angulo + ',var(--color1) 75%, var(--color2) 0); } ';
+            style.textContent += '30% { background: linear-gradient(' + angulo + ',var(--color1) 70%, var(--color2) 0); } ';
+            style.textContent += '35% { background: linear-gradient(' + angulo + ',var(--color1) 65%, var(--color2) 0); } ';
+            style.textContent += '40% { background: linear-gradient(' + angulo + ',var(--color1) 60%, var(--color2) 0); } ';
+            style.textContent += '45% { background: linear-gradient(' + angulo + ',var(--color1) 55%, var(--color2) 0); } ';
+            style.textContent += '50% { background: linear-gradient(' + angulo + ',var(--color1) 50%, var(--color2) 0); } ';
+            style.textContent += '55% { background: linear-gradient(' + angulo + ',var(--color1) 45%, var(--color2) 0); } ';
+            style.textContent += '60% { background: linear-gradient(' + angulo + ',var(--color1) 40%, var(--color2) 0); } ';
+            style.textContent += '65% { background: linear-gradient(' + angulo + ',var(--color1) 35%, var(--color2) 0); } ';
+            style.textContent += '70% { background: linear-gradient(' + angulo + ',var(--color1) 30%, var(--color2) 0); } ';
+            style.textContent += '75% { background: linear-gradient(' + angulo + ',var(--color1) 25%, var(--color2) 0); } ';
+            style.textContent += '80% { background: linear-gradient(' + angulo + ',var(--color1) 20%, var(--color2) 0); } ';
+            style.textContent += '85% { background: linear-gradient(' + angulo + ',var(--color1) 15%, var(--color2) 0); } ';
+            style.textContent += '90% { background: linear-gradient(' + angulo + ',var(--color1) 10%, var(--color2) 0); } ';
+            style.textContent += '95% { background: linear-gradient(' + angulo + ',var(--color1) 5%, var(--color2) 0); } ';
+            style.textContent += '100% { background: linear-gradient(' + angulo + ',var(--color1) 0%, var(--color2) 0); }}';
+
+            document.body.appendChild(style);
+        }
+
+        let temporizador = parseFloat(tempo);
+        let mouseEmCima = false;
+        let check99;
+        elemento.setAttribute('maisPJe_cliqueRapido','true');
+        elemento.style.setProperty('--color1',cor1);
+        elemento.style.setProperty('--color2',cor2);
+
+        elemento.addEventListener("click", function (event) {
+            clearInterval(check99);
+            mouseEmCima = false;
+            elemento.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
+            setTimeout(function() {elemento.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
+        });
+
+        elemento.onmouseenter = function (event) {
+            event.preventDefault();
+            if (mouseEmCima) { return }
+            this.style.animation = 'maisPJe_cliqueRapido ' + temporizador + 's';
+            mouseEmCima = true;
+            let seg = 1;
+            check99 = setInterval(function() {
+                seg--;
+                if (mouseEmCima && seg < 1) {
+                    clearInterval(check99);
+                    mouseEmCima = false;
+                    elemento.style.visibility = 'hidden'; //desaparece para não ficar acionando caso o usuário fique com o mouse parado. volta apenas após 4 segundos
+                    setTimeout(function() {elemento.style.visibility = 'visible';}, 4000); //retorna após 4 segundos
+                    window.focus(); // garante o clique mesmo que o usuário clique em outra janela
+                    elemento.click();
+                }
+
+            }, temporizador*1000);
+        };
+        elemento.onmouseleave = function (event) {
+            event.preventDefault();
+            this.style.animation = 'unset';
+            mouseEmCima = false;
+            clearInterval(check99);
+        };
+
+    }
+}
+
 function timer(botao, tempo_para_click, corDeFundo='rgba(80, 119, 164, .7)', tipoAnimacao='pulseLeve') {
 	return new Promise(resolve => {
 		let textoDoBotao;
@@ -491,7 +601,7 @@ function tooltip(posicao, ativarFundo) {
 	}
 
 	if (ativarFundo) {
-		style.textContent += '.pjextension_executando {animation: animacao 1s infinite;animation-fill-mode: both;margin-top:-15vh;}';
+		style.textContent += '.maisPje_executando {animation: animacao 1s infinite;animation-fill-mode: both;margin-top:-15vh;}';
 		style.textContent += '@keyframes animacao {0% {transform: scale3d(1, 1, 1);}30% {transform: scale3d(1.25, 0.75, 1);}40% {transform: scale3d(0.75, 1.25, 1);}50% {transform: scale3d(1.15, 0.85, 1);}65% {transform: scale3d(.95, 1.05, 1);}75% {transform: scale3d(1.05, .95, 1);}100% {transform: scale3d(1, 1, 1);}}';
 		style.textContent += '@keyframes pulse {0% {box-shadow: 0 0 0 0px rgba(255, 0, 0, .7);}50% {box-shadow: 0 0 0 10px rgba(255, 0, 0, .3);	background: rgba(255, 0, 0, .7);} 100% {box-shadow: 0 0 25px 20px rgba(255, 0, 0, .05);}}';
 		style.textContent += '@keyframes pulseLeve {0% {box-shadow: 0 0 0 0px rgba(80, 119, 164, .7);}50% {box-shadow: 0 0 0 0px rgba(80, 119, 164, .3); background: rgba(80, 119, 164, .7);} 100% {box-shadow: 0 0 0px 0px rgba(80, 119, 164, .05);}}';
@@ -552,7 +662,33 @@ function vincularTooltipAcessivel(botao, textoTooltip, { delay = 350 } = {}) {
   });
 }
 
+/**
+ *
+ * @param {string} idDialog
+ * @param {function} resolver
+ * @returns {HTMLDialogElement}
+ */
+function criarDialogPopup(idDialog, resolver = () => {}) {
+    const elemento1 = document.createElement("dialog");
+    elemento1.id = idDialog;
+    elemento1.addEventListener('click', (e) => {
+        if (e.target.id == idDialog) {
+            elemento1.close();
+        }
+    }); //se clicar fora fecha a janela e remove o dialog, para manter comportamento compativel com o que o maisPJe espera
+    elemento1.addEventListener('close', (e) => {
+        resolver(null);
+        elemento1?.remove();
+    });
+	return elemento1;
+}
 
+/**
+ * @deprecated
+ * @param {string} id
+ * @param {function} resolver
+ * @returns {HTMLDivElement}
+ */
 function criarPopup(id, resolver = () => {}) {
 	const altura = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
@@ -577,6 +713,7 @@ function criarPopup(id, resolver = () => {}) {
 	elemento1.addEventListener('keyup', fecharComEsc);
 	return elemento1;
 }
+
 //FUNÇÃO QUE MONITORA O APARECIMENTO E DESAPARECIMENTO DO OBJETO DE PROCESSAMENTO, PARA QUANDO FOR NECESSÁRIO ESPERAR O CARREGAMENTO DE ALGO
 async function aguardarCarregamentoPje() {
 	return new Promise(async resolve => {
@@ -784,7 +921,7 @@ async function extrairNumeroProcesso(texto) { //sempre retorna o numero formatad
 	let padrao1 = /\d{7}\-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}/g;
 	let padrao2 = /\d{20}/g;
 	let n = '';
-	texto = texto.toString(); //converte array em string
+	texto = Array.isArray(texto) ? texto.toString() : texto; //converte array em string
 	if (padrao1.test(texto)) {
 		n = texto.match(padrao1).join();
 	} else if (padrao2.test(texto)) {
@@ -922,17 +1059,33 @@ function converterDataTimeline(inputFormat,mode=0) { //converte datas para o tip
 	return inputFormat;
 }
 
+/**
+ *
+ * @param {string} texto
+ * @returns {HTMLButtonElement} botao que copia o texto passado para a pessoa.
+ */
+function criarBotaoCopiar(texto) {
+  const botaoCopiar = document.createElement("button");
+  const label = "Copia " + texto;
+  botaoCopiar.id = "maisPje_copiar_" + texto;
+  vincularTooltipAcessivel(botaoCopiar, label);
+  botaoCopiar.className = "mat-icon-button matish-icon-button";
+  const icone = document.createElement("i");
+  icone.id = "maisPje_copiar_" + texto + "_icone";
+  icone.className = "fa-copy far";
+  botaoCopiar.appendChild(icone);
+  botaoCopiar.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    await navigator.clipboard.writeText(texto);
+  });
+  return botaoCopiar;
+}
+
 function criarBotaoComCoresPadrao(texto='Continuar', identificador='') {
 	const bt_continuar = document.createElement("button");
-	bt_continuar.style = "font-size: inherit; font-weight: inherit; color: white; margin-top: 10px; padding: 10px; border-bottom: 1px solid lightgrey; background-color: #7a9ec8; border-radius: 3px; cursor: pointer;";
+	bt_continuar.className = "botaoContinuar";
 	bt_continuar.id = identificador;
 	bt_continuar.innerText = texto;
-	bt_continuar.onmouseenter = function () {
-		bt_continuar.style.filter = 'brightness(.8)';
-	};
-	bt_continuar.onmouseleave = function () {
-		bt_continuar.style.filter  = 'brightness(1)';
-	};
 	return bt_continuar
 }
 
@@ -1070,4 +1223,32 @@ function simularDigitacaoDeTexto(elemento, texto, segundos=0.1) { //segundos = i
 		}
 	);
 
+}
+/**
+ * Abre o dialogo de chips e marca os que são passados como parametro
+ * @param {string[]} chips
+ * @param {boolean} salvarAoFinal
+ * return {number} quantidade de chips marcados
+ */
+async function marcarChips(chips, salvarAoFinal = false) {
+    if (!chips) {
+        return;
+    }
+    let marcados = 0;
+    const jaPassouDa218 = await versaoAtualMaiorQue('2.18.9 - BARAÚNA');
+    const ancoraQuerySelector = jaPassouDa218 ? 'ul.etiquetas li label' : 'table[name="Etiquetas"] tr';
+    for (const [pos, chip] of chips.entries()) {
+        let ancora = await esperarElemento(ancoraQuerySelector, chip);
+        if (ancora) {
+            await clicarBotao(ancora.querySelector('input[type="checkbox"]'));
+            marcados++;
+        }
+    }
+    if (salvarAoFinal) {
+        if (marcados > 0) {
+            await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Salvar');
+        } else {
+            await clicarBotao('pje-inclui-etiquetas-dialogo button', 'Cancelar');
+        }
+    }
 }

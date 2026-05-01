@@ -1,0 +1,87 @@
+maisPje_bloquearTela {
+    position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 999; background-color: #0000;
+}
+
+maisPje_bloquearTela_btSalvar {
+    position: absolute;
+    cursor: pointer;
+    right: 48vw;
+    top: 90vh;
+    border: none;
+    background-color: white;
+    font-size: 2rem;
+    scale: 1;
+    border-radius: 50%;
+    width: 4rem;
+    height: 4rem;
+    align-content: center;
+    text-align: center;
+    box-shadow: rgba(0, 0, 0, 0.25) 0px 54px 55px, rgba(0, 0, 0, 0.12) 0px -12px 30px, rgba(0, 0, 0, 0.12) 0px 4px 6px, rgba(0, 0, 0, 0.17) 0px 12px 13px, rgba(0, 0, 0, 0.09) 0px -3px 5px;
+}
+
+maisPje_bloquearTela_btSalvar::before {
+    content: "💾";
+}
+
+maisPje_bloquearTela_btSalvar:hover {
+    scale: 1.2;
+}
+
+
+maispjeMap {
+    position: absolute;
+    z-index: 9;
+}
+
+maispjeMap.desativado {
+    outline: .2rem dashed orangered;
+    background-color: unset;
+}
+
+maispjeMap.ativado {
+    outline: .2rem solid orangered;
+    background-color: #ff45002e;
+}
+
+maispjeMap:hover {
+    background-color: #ff450099;
+    cursor: pointer;
+}
+
+.maisPJe-cliqueRapido-bloqueio {
+    pointer-events: none;
+}
+
+maisPJeLoader {
+    position: absolute;
+    display:block;
+    top:0;
+    left:0;
+    width:1em;
+    height:1em;
+    border-radius: 50%;
+    transform:rotate(45deg);
+    background: #fff;
+    outline: .1rem solid dodgerblue;
+}
+
+maisPJeLoader::before {
+    content: "";
+    box-sizing: border-box;
+    position: absolute;
+    inset: 0px;
+    border-radius: 50%;
+    border:.5em solid dodgerblue;
+    animation: maisPJe_acionarCliqueRapido var(--tempo) linear;
+}
+
+@keyframes maisPJe_acionarCliqueRapido {
+    0% { clip-path:polygon(50% 50%,0 0,0 0,0 0,0 0,0 0) }
+    25% { clip-path:polygon(50% 50%,0 0,100% 0,100% 0,100% 0,100% 0) }
+    50% { clip-path:polygon(50% 50%,0 0,100% 0,100% 100%,100% 100%,100% 100%) }
+    75% { clip-path:polygon(50% 50%,0 0,100% 0,100% 100%,0 100%,0 100%) }
+    100% { clip-path:polygon(50% 50%,0 0,100% 0,100% 100%,0 100%,0 0) }
+}
+
+
+

@@ -2,7 +2,7 @@ async function getLocalStorage(key) {
 	return new Promise((resolve, reject) => {
 		browser.storage.local.get([key]).then(function (result) {
 			if (result[key] === undefined) {
-				reject();
+				reject(`${key} não encontrada no storage`);
 			} else {
 				resolve(result[key]);
 			}
@@ -57,6 +57,7 @@ function preencherVariaveisComuns(preferencias, restaurar=false) {
 	preferencias.modulo4PaginaInicial = typeof(preferencias.modulo4PaginaInicial) == "undefined" ? 'nenhum' : preferencias.modulo4PaginaInicial;
 	preferencias.atalhosPlugin = typeof(preferencias.atalhosPlugin) == "undefined" ? "SISBAJUD:https://sisbajud.cnj.pje.jus.br/|Caged:https://caged.maisemprego.mte.gov.br/caged|CCS:https://www3.bcb.gov.br/ccs/dologin|Celesc:http://consumidor.celesc.com.br:8895/index.php/acesso|Cnib:https://www.indisponibilidade.org.br/autenticacao/|Honor\u00e1rios:http://www2.trt12.jus.br/ajg/intranet/entrada.asp|Intranet:https://intranet.trt12.jus.br/|Renajud:https://renajud.denatran.serpro.gov.br/renajud/login.jsf|Serasajud:https://sitenet05cert.serasa.com.br/SerasaJudicial/default.aspx|Siel:https://apps.tre-sc.jus.br/siel/index.php" : preferencias.atalhosPlugin;
 
+    preferencias.pesquisaRapidaDeProcessoEmAba = typeof(preferencias.pesquisaRapidaDeProcessoEmAba) == "undefined" ? true : preferencias.pesquisaRapidaDeProcessoEmAba;
 	//TODO: essas 3 linhas sao de algum modulo especifico?
 	preferencias.timeline = typeof(preferencias.timeline) == "undefined" ? ['',[]] : preferencias.timeline;
 	preferencias.atalho = typeof(preferencias.atalho) == "undefined" ? {'painelcopiaecola':''}: preferencias.atalho;
@@ -261,8 +262,9 @@ function preencherVariaveisModulo9(preferencias) {
 	preferencias.modulo9.cnib = typeof (preferencias.modulo9.cnib) == "undefined" ? cnibNovaConfiguracao : preferencias.modulo9.cnib;
 	preferencias.modulo9.cnib = Array.isArray(preferencias.modulo9.cnib) ? cnibNovaConfiguracao : preferencias.modulo9.cnib;
 
-	preferencias.modulo9.ccs = Array.isArray(preferencias.modulo9.ccs) ? preferencias.modulo9.ccs : [preferencias.modulo9.ccs,false,false,false,false,5,'Nenhum'];
+	preferencias.modulo9.ccs = Array.isArray(preferencias.modulo9.ccs) ? preferencias.modulo9.ccs : [preferencias.modulo9.ccs,false,false,false,false,5,'Nenhum','Nenhum'];
 	preferencias.modulo9.ccs[6] = (preferencias.modulo9.ccs[6] ? preferencias.modulo9.ccs[6] : 'Nenhum');
+    preferencias.modulo9.ccs[7] = (preferencias.modulo9.ccs[7] ? preferencias.modulo9.ccs[7] : 'Nenhum');
 	preferencias.modulo9.sif = (preferencias.modulo9.sif[1]) ? preferencias.modulo9.sif : [true,10];
 	preferencias.modulo9.sif = (preferencias.modulo9.sif[2]) ? preferencias.modulo9.sif : [preferencias.modulo9.sif[0],preferencias.modulo9.sif[1],'dia'];
 	preferencias.modulo9.siscondj = (preferencias.modulo9.siscondj) ? preferencias.modulo9.siscondj : [true,10,true];
@@ -310,6 +312,9 @@ function preencherVariaveisModuloExtras(preferencias) {
 	preferencias.extrasExibirPreviaDocumentoMouseOver = preferencias.extrasExibirPreviaDocumentoMouseOver ?? false;
 	preferencias.extrasExibirPreviaDocumentoFocus = preferencias.extrasExibirPreviaDocumentoFocus ?? false;
 	preferencias.extrasFocusSempre = preferencias.extrasFocusSempre ?? false;
+    preferencias.extrasAcionarBotoesSemCliqueAtivar = preferencias.extrasAcionarBotoesSemCliqueAtivar ?? false;
+    preferencias.extrasAcionarBotoesSemCliqueTempo = preferencias.extrasAcionarBotoesSemCliqueTempo ?? '2';
+    preferencias.extrasAcionarBotoesSemCliqueRegras = typeof(preferencias.extrasAcionarBotoesSemCliqueRegras) == "undefined" ? [] : preferencias.extrasAcionarBotoesSemCliqueRegras;
 	preferencias.extrasERecTipoGigsSemTema = preferencias.extrasERecTipoGigsSemTema ?? 'Não tem tese (TST e STF)';
 	preferencias.extrasPrazoEmLote = typeof(preferencias.extrasPrazoEmLote) == "undefined" ? ['0','2','5','8','10','15'] : preferencias.extrasPrazoEmLote;
 
@@ -362,7 +367,6 @@ async function checarVariaveis(restaurar=false) {
 
 		preencherVariaveisModulo9(preferencias);
 
-		preferencias.pesquisaRapidaDeProcessoEmAba = typeof(preferencias.pesquisaRapidaDeProcessoEmAba) == "undefined" ? false : preferencias.pesquisaRapidaDeProcessoEmAba;
 		preencherVariaveisModuloExtras(preferencias);
 
 		//verificar velocidade de interação //TODO: isso deveria ir para o modulo 7? ou so faz sentido na tela de opcoes?

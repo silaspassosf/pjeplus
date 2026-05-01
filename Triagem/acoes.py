@@ -246,11 +246,7 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
         rito = 'ATSum' if tipo == 'ATSUM' else 'ATOrd'
 
         if not tem_100:
-            print(f"[TRIAGEM/A] Processo {numero_processo} sem 100% digital. Criando GIGS e marcando audiência.")
-            try:
-                criar_gigs(driver, "", "", "xs triagem")
-            except Exception as e:
-                print(f"[TRIAGEM/A] ⚠ Erro ao criar GIGS triagem: {e}")
+            print(f"[TRIAGEM/A] Processo {numero_processo} sem 100% digital. Marcando audiência.")
 
             limpar_overlays_headless(driver)
 
@@ -312,10 +308,7 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
             pass
 
         limpar_overlays_headless(driver)
-        try:
-            criar_gigs(driver, "", "", "xs triagem")
-        except Exception as e:
-            print(f"[TRIAGEM/A] ⚠ Erro ao criar GIGS triagem: {e}")
+        # 'xs triagem' GIGS removido per request
 
         citacao_a2 = def_citacao(driver, processo_info)
         if not citacao_a2.get('sucesso', True):
@@ -342,10 +335,7 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
 
 def acao_bucket_b(driver: WebDriver, numero_processo: str, processo_info: Dict) -> bool:
     try:
-        try:
-            criar_gigs(driver, "", "", "xs triagem")
-        except Exception as e:
-            print(f"[TRIAGEM/B] ⚠ Erro ao criar GIGS triagem: {e}")
+        # 'xs triagem' GIGS removido per request
 
         limpar_overlays_headless(driver)
 
@@ -405,10 +395,7 @@ def acao_bucket_c(driver: WebDriver, numero_processo: str, processo_info: Dict) 
 
 def acao_bucket_d(driver: WebDriver, numero_processo: str, processo_info: Dict) -> bool:
     try:
-        try:
-            criar_gigs(driver, "", "", "xs triagem")
-        except Exception as e:
-            print(f"[TRIAGEM/D] ⚠ Erro ao criar GIGS triagem: {e}")
+        # 'xs triagem' GIGS removido per request
 
         try:
             from atos import ato_ratif

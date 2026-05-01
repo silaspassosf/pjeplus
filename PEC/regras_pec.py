@@ -35,7 +35,7 @@ def _w(fn):
 
 def _xs_ord(driver, atv):
     """xs ord: domicílio eletrônico determina qual sub-ação executar."""
-    from atos.wrappers_pec import pec_ord, pec_ordc
+    from atos.wrappers_pec import pec_ord, pec_arord
     from atos.wrappers_mov import mov_aud
     try:
         from Fix.variaveis import session_from_driver, PjeApiClient
@@ -54,10 +54,10 @@ def _xs_ord(driver, atv):
                 if sem == 0:
                     pec_ord(driver)
                 elif com == 0:
-                    pec_ordc(driver)
+                    pec_arord(driver)
                 else:
                     pec_ord(driver)
-                    pec_ordc(driver)
+                    pec_arord(driver)
                 mov_aud(driver)
                 return
     except Exception as e:
@@ -68,7 +68,7 @@ def _xs_ord(driver, atv):
 
 def _xs_sum(driver, atv):
     """xs sum: domicílio eletrônico determina qual sub-ação executar."""
-    from atos.wrappers_pec import pec_sum, pec_sumc
+    from atos.wrappers_pec import pec_sum, pec_arsum
     from atos.wrappers_mov import mov_aud
     try:
         from Fix.variaveis import session_from_driver, PjeApiClient
@@ -87,10 +87,10 @@ def _xs_sum(driver, atv):
                 if sem == 0:
                     pec_sum(driver)
                 elif com == 0:
-                    pec_sumc(driver)
+                    pec_arsum(driver)
                 else:
                     pec_sum(driver)
-                    pec_sumc(driver)
+                    pec_arsum(driver)
                 mov_aud(driver)
                 return
     except Exception as e:
@@ -141,7 +141,49 @@ def _sob_n(driver, atv):
     """sob/xs N: def_chip + mov_sob."""
     from atos.movimentos import def_chip, mov_sob
     def_chip(driver)
-    mov_sob(driver)
+    mov_sob(driver, atv.numero_processo, atv.observacao)
+
+
+def _executar_sisbajud(driver, atv, fn_sisb):
+    """Executa o fluxo completo PJE -> SISBAJUD para ações SISBAJUD."""
+    from Fix.extracao import extrair_dados_processo
+    from SISB.core import iniciar_sisbajud
+
+    dados_processo = extrair_dados_processo(driver)
+    if not dados_processo:
+        raise RuntimeError('Falha ao extrair dados do processo para SISBAJUD')
+
+    driver_sisb = iniciar_sisbajud(driver_pje=driver, extrair_dados=False)
+    if not driver_sisb:
+        raise RuntimeError('Falha ao iniciar o driver SISBAJUD')
+
+    resultado = fn_sisb(
+        driver_sisb,
+        dados_processo=dados_processo,
+        driver_pje=driver,
+        log=True,
+        fechar_driver=True
+    )
+
+    if isinstance(resultado, dict) and resultado.get('status') == 'erro':
+        raise RuntimeError(f'SISBAJUD falhou: {resultado.get("erros")}')
+
+    return resultado
+
+
+def _sisbajud_minuta(driver, atv):
+    from SISB.core import minuta_bloqueio
+    return _executar_sisbajud(driver, atv, minuta_bloqueio)
+
+
+def _sisbajud_minuta_60(driver, atv):
+    from SISB.core import minuta_bloqueio_60
+    return _executar_sisbajud(driver, atv, minuta_bloqueio_60)
+
+
+def _sisbajud_processar_ordem(driver, atv):
+    from SISB.core import processar_ordem_sisbajud
+    return _executar_sisbajud(driver, atv, processar_ordem_sisbajud)
 
 
 def _audx_mov_int(driver, atv):
@@ -184,9 +226,9 @@ def _build() -> list:
     return [
         # ── SISBAJUD ─────────────────────────────────────────────────────
         # teimosinha 60 ANTES de teimosinha (ordem importa)
-        R(r'teimosinha\s+60|t2\s+60|\b60\s*d\b|60\s+dias',    'sisbajud', _w(minuta_bloqueio_60)),
-        R(r'\bteimosinha\b|\bt2\b',                             'sisbajud', _w(minuta_bloqueio)),
-        R(r'\bxs\s+resultado\b|\bresultado\b',                  'sisbajud', _w(processar_ordem_sisbajud)),
+        R(r'teimosinha\s+60|t2\s+60|\b60\s*d\b|60\s+dias',    'sisbajud', _sisbajud_minuta_60),
+        R(r'\bteimosinha\b|\bt2\b',                             'sisbajud', _sisbajud_minuta),
+        R(r'\bxs\s+resultado\b|\bresultado\b',                  'sisbajud', _sisbajud_processar_ordem),
         # ── CARTA ────────────────────────────────────────────────────────
         R(r'\bxs\s+carta\b',                                    'carta',    _w(carta)),
         # ── SOB ──────────────────────────────────────────────────────────
@@ -196,19 +238,19 @@ def _build() -> list:
         # ── COMUNICACOES ─────────────────────────────────────────────────
         R(r'exclu[ei]r?.*(?:convenios?|serasa|cnib)|(?:convenios?|serasa|cnib).*exclu[ei]r?|mandado\s+de\s+exclus',
           'comunicacoes', _w(_a(w, 'pec_excluiargos'))),
-        R(r'\bxs\s+ordc\b',                                     'comunicacoes', _w(_a(w, 'pec_ordc'))),
-        R(r'\bxs\s+sumc\b',                                     'comunicacoes', _w(_a(w, 'pec_sumc'))),
-        R(r'\bxs\s+ord\b',                                      'comunicacoes', _xs_ord),
-        R(r'\bxs\s+sum\b',                                      'comunicacoes', _xs_sum),
+        R(r'\b(?:xs\s+ordc|c\.ord\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arord'))),
+        R(r'\b(?:xs\s+sumc|c\.sum\.ar)\b',                    'comunicacoes', _w(_a(w, 'pec_arsum'))),
+        R(r'\b(?:xs\s+ord|c\.ord)\b',                          'comunicacoes', _xs_ord),
+        R(r'\b(?:xs\s+sum|c\.sum)\b',                          'comunicacoes', _xs_sum),
         R(r'\bedital\s+aud\b|\bpec\s+aud\b',                    'comunicacoes', _w(_a(w, 'pec_editalaud'))),
-        R(r'\bpz\s+idpj\b|\bidpjd\b',                          'comunicacoes', _pz_idpj),
+        R(r'\bpz\s+idpj\b|\bidpjd\b|\bpzi\b',                 'comunicacoes', _pz_idpj),
         R(r'\bpec\s+cp\b|\bxs\s+pec\s+cp\b',                   'comunicacoes', _w(_a(w, 'pec_cpgeral'))),
         R(r'\bxs\s+edital\b|\bpec\s+edital\b|\bxs\s+pec\s+edital\b',
           'comunicacoes', _w(_a(w, 'pec_editaldec'))),
         R(r'\bpec\s+dec\b|\bxs\s+pec\s+dec\b',                 'comunicacoes', _w(_a(w, 'pec_decisao'))),
         R(r'\bpec\s+idpj\b|\bxs\s+pec\s+idpj\b',               'comunicacoes', _w(_a(w, 'pec_editalidpj'))),
         R(r'\bxs\s+bloq\b|\bpec\s+bloq\b',                     'comunicacoes', _w(_a(w, 'pec_bloqueio'))),
-        R(r'\bxs\s+sigilo\b',                                   'comunicacoes', _w(_a(w, 'pec_sigilo'))),
+        R(r'\bxs\s+sigilo\b',                                   'comunicacoes', (_w(_a(w, 'pec_sigilo')), lambda driver, atv: __import__('atos.movimentos_fluxo', fromlist=['movimentar_inteligente']).movimentar_inteligente(driver, 'Aguardando Prazo'))),
         # ── OUTROS ───────────────────────────────────────────────────────
         R(r'\bxs\s+audx\b|\baudx\b|\baud\s+x\b',               'outros',   _audx_mov_int),
         R(r'\bxs\s+parcial\b',                                  'outros',   _w(ato_bloq)),

@@ -1942,13 +1942,12 @@
             </label>
             <label class="container" style="margin-left: 5px;">
                 <input type="checkbox" id="extrasExibirPreviaDocumentoFocus">
-                <span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Exibir prévia ao dar foco no link do documento</span>
+                <span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Exibir prévia ao dar foco no link do documento (via teclado)</span>
                 <span class="checkmark"></span>
             </label>
         </div>
         <br aria-hidden="true"><br aria-hidden="true">
-
-            <div class="subtitulo">
+        <div class="subtitulo">
             <b><u>n) Foco:</u></b>
             <br aria-hidden="true">
             <br aria-hidden="true">
@@ -1959,14 +1958,27 @@
             </label>
         </div>
         <br aria-hidden="true"><br aria-hidden="true">
-        <!-- <div class="titulo" style="color: #333;background-color: rgba(0,0,0,0.1);">AJUSTES</div>
-            <br aria-hidden="true"/>
-            <div class="textoItalico">Durante o funcionamento da extensão algumas páginas são ajustadas automaticamente para um melhor conforto do usuário, diminuindo o número de cliques na tela. São elas:</div>
-            <br aria-hidden="true"/>
-            <div class="subtitulo">a) Comunicações processuais</div>
-            <div class="subtitulo">b) Minutar/Assinar despachos/decisões/sentenças</div>
-            <div class="subtitulo">c) Anexar documentos</div>
-            <br aria-hidden="true"/><br aria-hidden="true"/> -->
+        <div class="subtitulo" style="visibility: visible;">
+            <b><u>o) Clique rápido:</u></b> permite clicar em botões apenas repousando o mouse sobre eles.<br>
+            <br aria-hidden="true">
+            <label class="container" style="margin-left: 5px;">
+                <input type="checkbox" id="extrasAcionarBotoesSemCliqueAtivar">
+                <span style="position: relative; top: -2px; margin-left: -10px; font-size: 12px;">Ativar</span>
+                <span class="checkmark"></span>
+            </label>
+            <br aria-hidden="true">
+            <br aria-hidden="true">
+            <div style="margin-left: 5px;">
+                <input
+                    id="extrasAcionarBotoesSemCliqueTempo"
+                    class="swal2-input"
+                    type="text"
+                    style="background-color: white; text-align: center; width: 50px; margin: 5px 0 0 0;height: 34px;font-size: 15px;"
+                >&nbsp;segundos (após esse tempo o botão será clicado)
+            </div>
+
+        </div>
+        <br aria-hidden="true"><br aria-hidden="true">
         <h2
             class="titulo"
             style="color: #333;background-color: rgba(0,0,0,0.1);"

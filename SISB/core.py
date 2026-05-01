@@ -658,6 +658,41 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 if log:
                     logger.info('[SISBAJUD] ▶ Executando juntada DA MINUTA no PJe (modelo xteim)...')
 
+                # Garantir que o foco está na aba /detalhe do PJe antes de executar a juntada
+                try:
+                    if driver_pje:
+                        aba_detalhe = None
+                        for handle in list(driver_pje.window_handles):
+                            try:
+                                driver_pje.switch_to.window(handle)
+                                try:
+                                    url = driver_pje.current_url or ''
+                                except Exception:
+                                    url = ''
+                                if '/detalhe' in url:
+                                    aba_detalhe = handle
+                                    break
+                            except Exception:
+                                continue
+
+                        if aba_detalhe:
+                            try:
+                                driver_pje.switch_to.window(aba_detalhe)
+                                logger.info('[SISBAJUD]  Foco ajustado para aba /detalhe do PJe antes da juntada')
+                            except Exception:
+                                pass
+                        else:
+                            # Tentar aguardar brevemente por /detalhe na aba atual como fallback
+                            try:
+                                from Fix.core import esperar_url_conter
+                                driver_pje.switch_to.window(driver_pje.window_handles[-1])
+                                esperar_url_conter(driver_pje, '/detalhe', timeout=5)
+                                logger.info('[SISBAJUD]  Aguardando /detalhe na aba atual (fallback)')
+                            except Exception:
+                                logger.info('[SISBAJUD]  Aviso: não foi possível garantir aba /detalhe antes da juntada')
+                except Exception as e:
+                    logger.info(f'[SISBAJUD]  Erro ao tentar ajustar foco para PJe: {e}')
+
                 # Importar wrapper específico que insere conteúdo do relatório SISBAJUD
                 try:
                     from PEC.anexos import consulta_wrapper
@@ -665,6 +700,33 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     consulta_wrapper = None
 
                 if consulta_wrapper:
+                    # DEBUG: imprimir estado das janelas/abas do driver_pje antes da juntada (prints para garantir visibilidade)
+                    try:
+                        handles = list(driver_pje.window_handles)
+                        print(f'[SISBAJUD][DEBUG] driver_pje.handles: {handles}')
+                        try:
+                            active = driver_pje.current_window_handle
+                        except Exception:
+                            active = None
+                        print(f'[SISBAJUD][DEBUG] driver_pje.active_handle: {active}')
+                        for h in handles:
+                            try:
+                                driver_pje.switch_to.window(h)
+                                try:
+                                    url = driver_pje.current_url
+                                except Exception:
+                                    url = '<unreadable>'
+                                print(f'[SISBAJUD][DEBUG] handle={h} url={url}')
+                            except Exception as e:
+                                print(f'[SISBAJUD][DEBUG] handle={h} error reading url: {e}')
+                        # restore active
+                        try:
+                            if active:
+                                driver_pje.switch_to.window(active)
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        print(f'[SISBAJUD][DEBUG] Erro ao coletar handles do PJe: {e}')
                     # chamar consulta_wrapper com modelo correto
                     juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
                     resultado['juntada_executada'] = bool(juntada_executada)

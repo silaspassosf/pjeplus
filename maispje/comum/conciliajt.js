@@ -196,7 +196,7 @@ async function obterUrlsConciliaJT(trt, forcar = false) {
         }
 		//CONTROLA A CONSULTA DO ACESSO AO PROJETO CONCILIA PARA APENAS 1 VEZ POR DIA
 		browser.storage.local.get(['verificadorDiario','configURLs']).then(async function(result) {
-			let hoje = new Date().getDate();
+            let hoje = new Date().getDate();
 			let verificador = false;
 			let configBase = result.configURLs; //configurações existentes do storage
 
@@ -227,7 +227,7 @@ async function obterUrlsConciliaJT(trt, forcar = false) {
 				.catch(function (err) {
 					console.error('configUrl error', err, data, trt)
 					alert(`maisPJE: erro ao acessar  ${url}`);
-					return null;
+					return resolve(undefined);
 				});
 
 				// console.log(JSON.stringify(configBase))

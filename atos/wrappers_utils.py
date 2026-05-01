@@ -10,25 +10,87 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import WebDriverException
 import time
 from Fix.utils import sleep_fixed, aguardar_pagina_carregar
 
 
 def esperar_insercao_modelo(driver, timeout=8000):
     """
-    Aguarda a inserção do modelo com timeout simples.
-    NOTA: Monitoramento complexo removido - usa apenas sleep.
+    Aguarda a inserção do modelo monitorando o DOM via MutationObserver.
+    Implementação baseada no legado: observa dialog de visualização e snackbar
+    e retorna True se detectados dentro do timeout, False caso contrário.
     """
     try:
-        # Converte timeout de ms para segundos
-        timeout_segundos = timeout / 1000.0
-        logger.info(f'[MODELO] Aguardando {timeout_segundos}s para inserção do modelo...')
-        sleep_fixed(timeout_segundos)
-        logger.info('[MODELO] Timeout de espera concluído')
-        return True
+        timeout_ms = int(timeout)
+        logger.info(f'[MODELO] Monitorando inserção do modelo por {timeout_ms}ms')
+        js = f"""
+var callback = arguments[arguments.length - 1];
+(function() {{
+    console.log('maisPje: esperar_insercao_modelo() - iniciando com timeout {timeout_ms}ms');
+    var startTime = Date.now();
+    var timeoutId = setTimeout(function() {{
+        console.log('maisPje: esperar_insercao_modelo() - timeout esgotado após ' + (Date.now() - startTime) + ' ms');
+        try {{ callback(false); }} catch(e){{}}
+    }}, {timeout_ms});
+
+    function verificarInsercao() {{
+        try {{
+            var dialog = document.querySelector('pje-dialogo-visualizar-modelo');
+            var dialogVisivel = dialog && (dialog.offsetParent !== null);
+            var snackbar = document.querySelector('simple-snack-bar');
+            var snackbarVisivel = snackbar && (snackbar.offsetParent !== null);
+            if (dialogVisivel && snackbarVisivel) {{
+                console.log('maisPje: esperar_insercao_modelo() - inserção confirmada');
+                clearTimeout(timeoutId);
+                try {{ callback(true); }} catch(e){{}}
+                return true;
+            }}
+        }} catch (e) {{ console.warn('maisPje: esperar_insercao_modelo() - erro na verificação:', e); }}
+        return false;
+    }}
+
+    if (!verificarInsercao()) {{
+        var observer = new MutationObserver(function(mutations) {{
+            if (verificarInsercao()) {{
+                try {{ observer.disconnect(); }} catch(e){{}}
+            }}
+        }});
+
+        observer.observe(document.body, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['style','class'] }});
+
+        var checkInterval = setInterval(function() {{
+            if (verificarInsercao()) {{
+                clearInterval(checkInterval);
+                try {{ observer.disconnect(); }} catch(e){{}}
+            }}
+        }}, 500);
+
+        setTimeout(function() {{
+            clearInterval(checkInterval);
+            try {{ observer.disconnect(); }} catch(e){{}}
+        }}, {timeout_ms});
+    }}
+}})();
+"""
+
+        try:
+            resultado = driver.execute_async_script(js)
+            if resultado:
+                logger.info('[MODELO] Inserção confirmada via observer')
+                return True
+            else:
+                logger.warning(f'[MODELO] Timeout aguardando inserção ({timeout_ms}ms)')
+                return False
+        except WebDriverException as e:
+            logger.warning(f'[MODELO] Falha ao executar monitor JS: {e}')
+            return False
+        except Exception as e:
+            logger.warning(f'[MODELO] Falha ao executar monitor JS: {e}')
+            return False
     except Exception as e:
-        logger.warning(f'[MODELO] Erro na espera: {e}')
-        return True  # Retorna True mesmo em caso de erro para não interromper fluxo
+        logger.exception(f'[MODELO] Exceção em esperar_insercao_modelo: {e}')
+        return False
 
 
 

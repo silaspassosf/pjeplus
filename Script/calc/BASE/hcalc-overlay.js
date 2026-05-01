@@ -1261,6 +1261,7 @@
                                 <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
                                     <span class="rec-tipo-badge">${dep.tipo || 'RO'}</span>
                                     <span style="font-size:11px;color:#92400e;font-weight:600;flex:1">${dep.depositante || 'Parte não identificada'}</span>
+                                    ${dep.polo ? `<span style="font-size:9px;background:${dep.polo === 'PASSIVO' ? '#dc2626' : '#2563eb'};color:#fff;padding:1px 4px;border-radius:3px;margin-left:4px;font-weight:600">${dep.polo}</span>` : ''}
                                     <span style="font-size:10px;color:#6b7280">${dep.data || 'sem data'}</span>
                                     ${dep.anexos && dep.anexos.length > 0 ? `<span class="rec-seta-toggle">▶ ${dep.anexos.length} anexo${dep.anexos.length > 1 ? 's' : ''}</span>` : ''}
                                 </div>

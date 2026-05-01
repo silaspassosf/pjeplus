@@ -1417,9 +1417,102 @@
     ],
     "testes": [
       "Melhoria: e-Rec: Permite visualizar os documentos lado a lado com o sistema.",
-      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de processos, caso seja indentificado um núymero de processo, nas atividades do GIGS ou Comentário",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de processos, caso seja indentificado um número de processo, nas atividades do GIGS ou Comentário",
       "Melhoria: Variáveis maisPJe: criada a variável para trazer o magistrado responsável de acordo com a regra no módulo8.",
       "Melhoria: MODULO7: AUTOGIGS e CHECKLIST: agora aceitam a expressão 'clipboard' no campo observação que preenche o campo com aqueles valores copiados pela extensão nos convênios, como número de protocolo, etc."
+    ]
+  },
+  {
+    "date": "08/04/2026",
+    "version": "4.19.8",
+    "package": "maispje-4.19.8-fx.xpi",
+    "changes": [
+      "Correção: As prévias dos documentos voltam a aparecer para todos, agora com o documento completo.",
+      "Correção: MODULO7: Em algumas situações, a AA travava na tarefa redistribuir",
+      "Correção: MODULO7: A tela de AAs carrega mesmo quando ocorre erro com alguns processos",
+      "Correção: A extensão continua a funcionar mesmo quando não consegue carregar o arquivo de configurações",
+      "Correção: O menu kaizen não fica mais abaixo do Corisco",
+      "Correção: Coreções diversas no SISCONDJ e no AJJT",
+      "Acessibilidade: MODULO7: Contraste aprimorado na tela de visualização dos processos, além de apresentar mais informações sem precisar passar o mouse sobre"
+    ],
+    "testes": [
+      "Melhoria: MODULO9: CCS: aprimorada a busca do convênio CCS pelo icone de busca nas atividades GIGS. INcluída configuração para executar ação automatizada após baixar a resposta do CCS.",
+      "Melhoria: ATALHO F2 F3 e F4: Adicionado o nome da ação automatizada no atalho para facilitar a identificação.",
+      "Melhoria: Variáveis maisPJe: criada as variáveis '[maisPje:perguntar:texto]' e '[maisPje:perguntar:data]' que trazem uma caixa de texto rápido para preenchimento dos valores desejados",
+      "TESTES: Melhoria: editor de texto do PJe: o atalho F1 (tecla universal para ajuda), usada no editor de textos do PJe, exibirá uma caixa de seleção com as partes do processo para serem utilizadas nos despachos.",
+      "Melhoria: EXTRAS: criada a configuração que permite ao usuário permite clicar em botões apenas repousando o mouse sobre eles. Os botões aceitos são somente aquele previamente programados pela extensão. È possível definir o tempo que o mouse deverá ficar repousado em cima do botão antes do clique."
+    ]
+  },
+  {
+    "date": "22/04/2026",
+    "version": "4.20.0",
+    "package": "maispje-4.20.0-fx.xpi",
+    "changes": [
+      "Melhoria: editor de texto do PJe: o atalho F1 (tecla universal para ajuda), usada no editor de textos do PJe, exibirá uma caixa de seleção com as partes do processo para serem utilizadas nos despachos.",
+      "Melhoria: ATALHO F2 F3 e F4: Adicionado o nome da ação automatizada no atalho para facilitar a identificação.",
+      "Melhoria: e-Rec: Permite visualizar os documentos lado a lado com o sistema.",
+      "Melhoria: EXTRAS: criada a configuração que permite ao usuário permite clicar em botões apenas repousando o mouse sobre eles. Os botões aceitos são somente aquele previamente programados pela extensão. È possível definir o tempo que o mouse deverá ficar repousado em cima do botão antes do clique.",
+      "Melhoria: Extras: e-Rec: exibe documentos do PJe e opção para criar Gigs específico (permite especificar qual Gigs).",
+      "Melhoria: JANELA DETALHES DO PROCESSO: GIGS: criada a lupa para pesquisa de processos, caso seja indentificado um número de processo, nas atividades do GIGS ou Comentário",
+      "Melhoria: JANELA PRINCIPAL: MEU PAINEL: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados.",
+      "Melhoria: JANELA PRINCIPAL: RELATORIO GIGS: ao clicar numa determinada linha da tabela ela fica azulada, voltando ao normal com outro clique. Isso ajuda a identificar aqueles processos que já foram trabalhados.",
+      "Melhoria: Janela Registrar Obrigação de Pagar: criado botão para automatizar a expedição de certidão de habilitação de créditos",
+      "Melhoria: MODULO1: JANELA DETALHES DO PROCESSO: criado atalho (representado por uma estrela dourada) que exibe ao usuário TODAS suas Ações Automatizadas, permitindo-o escolher uma delas para executar naquele momento.",
+      "Melhoria: MODULO1: JANELA DETALHES DO PROCESSO: foi criada a opção de configuração para exibir a fase na timeline do processo. Ativada, criará uma régua colorida que identificará a fase processual quando da juntada dos documentos. As corres correspondem à fase: azul, inicial; verde: liquidação; cinza: execução;e, roxo: arquivado.",
+      "Melhoria: MODULO7: AÇÕES AUTOMATIZADAS VARIADAS: As ações Automatizadas de Aceitar/Rejeitar prevenção agora compõe o quadro dessas ações. A vantagem é que agora você poderá definir um modelo para utilizar nas ações automatizadas de REJEITAR PREVENÇÃO.",
+      "Melhoria: MODULO7: AUTOGIGS e CHECKLIST: agora aceitam a expressão 'clipboard' no campo observação que preenche o campo com aqueles valores copiados pela extensão nos convênios, como número de protocolo, etc.",
+      "Melhoria: MODULO7: AUTOGIGS: CHIP: CONCLUIR: criada funcionalidade para excluir todos os chips removíveis do processo, basta usar a expressão concluir e deixar o campo CHIP em branco.",
+      "Melhoria: MODULO7: NOMEAR PERITO: criado módulo próprio 7.7 para elaboração/edição de ações automatizadas específicas para nomear de peritos, que automatiza o procedimento de 'Incluir perícia'.",
+      "Melhoria: MODULO7: VARIADAS: ATALHO F4: inserido no menu kaizen a funcionalidade de atribuir uma ação automatizada ao atalho F4 do teclado. Esta AA pode ser alterada a qualquer momento de acordo com a necessidade do usuário dentro do menu kaizen.",
+      "Melhoria: MODULO7: VINCULOS: permite usar como vínculo o atalho F2 e o atalho F3.",
+      "Correção: MODULO7: AA Decisão: corrigido carregamento de modelos de documentos em AA de decisão.",
+      "Correção: MODULO7: AA Movimentar: corrigido o lançamento de chips na 2.19.",
+      "Correção: MODULO7: NOMEAR PERITO: ampliada a possibilidade de cadastrar prazos em dias corridos, dias úteis e data certa. Corrigido o problema de nomeação observando o sorteio: basta deixar o campo nome do perito em branco.",
+      "Melhoria: MODULO9: CCS: aprimorada a busca do convênio CCS pelo icone de busca nas atividades GIGS. INcluída configuração para executar ação automatizada após baixar a resposta do CCS.",
+      "Correção: MODULO9: PREVJUD: corrigida a extensão para funcionamento na versão 17.3.12 do PREVJUD.",
+      "Correção: MODULO9: SISBAJUD: corrigida a consulta da teimosinha em Lote, visto que o sisbajud está trazendo por padrão, automaticamente, a última teimosinha pesquisada.",
+      "Correção: MODULO9: SISBAJUD: corrigida a extensão para funcionamento na versão 2.32.21 do SISBAJUD.",
+      "Melhoria: MODULO9: CNIB: aprimorada a utilização da extensão no convênio CNIB. O usuário poderá configurar passo a passo os eventos de 'Nova Minuta' como: preencher os campos automaticamente com o acionamento da varinha mágica, confirmar as próximas telas, protocolar a ordem, guardar o número do protocolo no ctrl+c e mandar imprimir a tela de recibo. ALém disso, é possível definir uma ação automatizada para ser acionada ao final do protocolo.",
+      "Melhoria: MODULO9: CRCJUD: incluída a possibilidade de incluir terceiros interessados nas consultas",
+      "Melhoria: MODULO9: ECARTA: Criado atalho para certificar o resultado do Registro no PJe.",
+      "Melhoria: MODULO9: GARIMPO: criado o assistente de impressão para o convênio GARIMPO. Aparece apenas quando consultado o extrato através da janela detalhes do processo.",
+      "Melhoria: MODULO9: PJECALC: criado botão para automatizar a atualização rápida de processos com cálculo consolidado (reunião).",
+      "Melhoria: CONVÊNIOS: agora é possível configurar o acionamento automático dos botões do menu kaizen pelas configurações EXTRAS > 'o) Clique rápido', permitindo ao usuário ativar/desativar a função, bem como definir o tempo de execução.",
+      "Melhoria: MODULO10: é possível escolher uma sala de audiência favorita para quando acessar a pauta",
+      "Melhoria: Painel Copia e Cola: criado o botão de consulta situação cadastral na receita federal",
+      "Melhoria: Variáveis maisPJe: criada a variável para trazer o magistrado responsável de acordo com a regra no módulo8.",
+      "Melhoria: Variáveis maisPJe: criada as variáveis '[maisPje:perguntar:texto]' e '[maisPje:perguntar:data]' que trazem uma caixa de texto rápido para preenchimento dos valores desejados",
+      "Melhoria: Variáveis maisPJe: criadas as variáveis para último alvará expedido: chave e id"
+    ],
+    "testes": []
+  },
+  {
+    "date": "24/04/2026",
+    "version": "4.20.4",
+    "package": "maispje-4.20.4-fx.xpi",
+    "changes": [
+      "Correção: Funcionamento da extensão normalizado. Para isso, tivemos que desativar o painel copia e cola temporariamente.",
+      "Correção: Detalhes do processo: cabeçalho não some mais ao clicar em documento na linha do tempo",
+      "Correção: MODULO9: SISBAJUD: corrigida a extensão para funcionamento na versão 2.32.21 do SISBAJUD.",
+      "Correção: MODULO9: SISBAJUD: corrigida a consulta da teimosinha em Lote, visto que o sisbajud está trazendo por padrão, automaticamente, a última teimosinha pesquisada.",
+      "Correção: MODULO9: PREVJUD: corrigida a extensão para funcionamento na versão 17.3.12 do PREVJUD.",
+      "Correção: MODULO7: AA Decisão: corrigido carregamento de modelos de documentos em AA de decisão.",
+      "Correção: MODULO7: AA Movimentar: corrigido o lançamento de chips na 2.19.",
+      "Correção: MODULO7: AA Lançar Movimentos: corrigido o lançamento de movimentos na 2.19.",
+      "Correção: CONFERENCIA DE ALVARÁS SIF: corrigida a conferência de alvarás SIF para versão 2.19."
+    ],
+    "testes": []
+  },
+  {
+    "date": "27/04/2026",
+    "version": "4.20.5",
+    "package": "maispje-4.20.5-fx.xpi",
+    "changes": [
+      "Correção: Retorno do painel copia e cola e das funções de copiar e colar dados do menu.",
+      "Correção: Retificação da autuação: Não era possível inserir advogados, peritos e leiloeiros na versão 2.19.1 do PJE."
+    ],
+    "testes": [
+      "Melhoria: Retificação da autuação: Pode inserir CPF para leiloeiros e peritos"
     ]
   }
 ]

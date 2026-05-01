@@ -189,9 +189,8 @@ pec_ordc = make_comunicacao_wrapper(
     modelo_nome='zordc',
     subtipo="Notificação",
     gigs_extra=None,
-    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
-    endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
+    destinatarios=None,
+    mudar_expediente=True,
 )
 
 pec_sumc = make_comunicacao_wrapper(
@@ -202,13 +201,35 @@ pec_sumc = make_comunicacao_wrapper(
     modelo_nome='zsumc',
     subtipo="Notificação",
     gigs_extra=None,
+    destinatarios=None,
+    mudar_expediente=True,
+)
+
+pec_arsum = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='AR-Su',
+    subtipo="Notificação",
+    gigs_extra=None,
     destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
-    cliques_polo_passivo=1,  # Notificação Inicial já adiciona 1x automaticamente
+    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
     endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
 )
 
-
-
+pec_arord = make_comunicacao_wrapper(
+    tipo_expediente='Notificação Inicial',
+    prazo=5,
+    nome_comunicacao='Notificação',
+    sigilo=False,
+    modelo_nome='AR-Or',
+    subtipo="Notificação",
+    gigs_extra=None,
+    destinatarios='polo_passivo',  # Alterado de 'polo_passivo_2x' para 'polo_passivo'
+    cliques_polo_passivo=0,  # Notificação Inicial já adiciona 1x automaticamente
+    endereco_tipo='correios'  # Alterado de mudar_expediente=True para endereco_tipo
+)
 
 # ====================================================
 # WRAPPERS COM DOMICÍLIO ELETRÔNICO - xs ord / xs sum

@@ -1,0 +1,1677 @@
+================================================================================
+UNUSED IMPORTS ANALYSIS
+================================================================================
+Files in scope: 237
+
+----------------------------------------------------------------------
+FILE: Fix\__init__.py
+   Total imports: 107 | Used: 0 | UNUSED: 107
+   [UNUSED IMPORT] from selenium_base import wait (line 28)
+   [UNUSED IMPORT] from selenium_base import wait_for_visible (line 28)
+   [UNUSED IMPORT] from selenium_base import wait_for_clickable (line 28)
+   [UNUSED IMPORT] from selenium_base import esperar_elemento (line 28)
+   [UNUSED IMPORT] from selenium_base import aguardar_e_clicar (line 28)
+   [UNUSED IMPORT] from selenium_base import esperar_url_conter (line 28)
+   [UNUSED IMPORT] from selenium_base import safe_click (line 28)
+   [UNUSED IMPORT] from selenium_base import preencher_campo (line 28)
+   [UNUSED IMPORT] from selenium_base import preencher_campos_prazo (line 28)
+   [UNUSED IMPORT] from selenium_base import com_retry (line 28)
+   [UNUSED IMPORT] from selenium_base import selecionar_opcao (line 28)
+   [UNUSED IMPORT] from selenium_base import escolher_opcao_inteligente (line 28)
+   [UNUSED IMPORT] from selenium_base import encontrar_elemento_inteligente (line 28)
+   [UNUSED IMPORT] from drivers import criar_driver_PC (line 49)
+   [UNUSED IMPORT] from drivers import criar_driver_VT (line 49)
+   [UNUSED IMPORT] from drivers import criar_driver_notebook (line 49)
+   [UNUSED IMPORT] from drivers import criar_driver_sisb_pc (line 49)
+   [UNUSED IMPORT] from drivers import criar_driver_sisb_notebook (line 49)
+   [UNUSED IMPORT] from drivers import finalizar_driver (line 49)
+   [UNUSED IMPORT] from drivers import driver_session (line 49)
+   [UNUSED IMPORT] from session import salvar_cookies_sessao (line 60)
+   [UNUSED IMPORT] from session import carregar_cookies_sessao (line 60)
+   [UNUSED IMPORT] from session import credencial (line 60)
+   [UNUSED IMPORT] from navigation import aplicar_filtro_100 (line 67)
+   [UNUSED IMPORT] from navigation import filtro_fase (line 67)
+   [UNUSED IMPORT] from navigation import filtrofases (line 67)
+   [UNUSED IMPORT] from documents import verificar_documento_decisao_sentenca (line 74)
+   [UNUSED IMPORT] from documents import buscar_ultimo_mandado (line 74)
+   [UNUSED IMPORT] from documents import buscar_mandado_autor (line 74)
+   [UNUSED IMPORT] from documents import buscar_documentos_sequenciais (line 74)
+   [UNUSED IMPORT] from documents import buscar_documentos_polo_ativo (line 74)
+   [UNUSED IMPORT] from documents import buscar_documento_argos (line 74)
+   [UNUSED IMPORT] from core import preencher_multiplos_campos (line 84)
+   [UNUSED IMPORT] from core import buscar_seletor_robusto (line 84)
+   [UNUSED IMPORT] from core import verificar_e_aplicar_cookies (line 84)
+   [UNUSED IMPORT] from core import visibilidade_sigilosos (line 84)
+   [UNUSED IMPORT] from core import criar_botoes_detalhes (line 84)
+   [UNUSED IMPORT] from core import smart_sleep (line 84)
+   [UNUSED IMPORT] from core import sleep (line 84)
+   [UNUSED IMPORT] from core import ErroCollector (line 84)
+   [UNUSED IMPORT] from core import js_base (line 84)
+   [UNUSED IMPORT] from extraction import filtrofases (line 99)
+   [UNUSED IMPORT] from extraction import indexar_processos (line 99)
+   [UNUSED IMPORT] from extraction import reindexar_linha (line 99)
+   [UNUSED IMPORT] from extraction import abrir_detalhes_processo (line 99)
+   [UNUSED IMPORT] from extraction import indexar_e_processar_lista (line 99)
+   [UNUSED IMPORT] from extracao import extrair_direto (line 106)
+   [UNUSED IMPORT] from extracao import extrair_documento (line 106)
+   [UNUSED IMPORT] from extracao import extrair_pdf (line 106)
+   [UNUSED IMPORT] from extracao import extrair_dados_processo (line 106)
+   [UNUSED IMPORT] from extracao import extrair_destinatarios_decisao (line 106)
+   [UNUSED IMPORT] from extracao import bndt (line 106)
+   [UNUSED IMPORT] from extracao import analise_argos (line 106)
+   [UNUSED IMPORT] from extracao import tratar_anexos_argos (line 106)
+   [UNUSED IMPORT] from extracao import analise_outros (line 106)
+   [UNUSED IMPORT] from extracao import salvar_destinatarios_cache (line 106)
+   [UNUSED IMPORT] from extracao import carregar_destinatarios_cache (line 106)
+   [UNUSED IMPORT] from progress import ProgressoUnificado (line 121)
+   [UNUSED IMPORT] from progress import carregar_progresso_unificado (line 121)
+   [UNUSED IMPORT] from progress import salvar_progresso_unificado (line 121)
+   [UNUSED IMPORT] from progress import marcar_processo_executado_unificado (line 121)
+   [UNUSED IMPORT] from progress import processo_ja_executado_unificado (line 121)
+   [UNUSED IMPORT] from progress import executar_com_monitoramento_unificado (line 121)
+   [UNUSED IMPORT] from progress import ARQUIVO_PROGRESSO_UNIFICADO (line 121)
+   [UNUSED IMPORT] from progress import StatusModulo (line 121)
+   [UNUSED IMPORT] from progress import NivelLog (line 121)
+   [UNUSED IMPORT] from progress import Checkpoint (line 121)
+   [UNUSED IMPORT] from progress import StatusModuloData (line 121)
+   [UNUSED IMPORT] from progress import RegistroLog (line 121)
+   [UNUSED IMPORT] from gigs import criar_gigs (line 137)
+   [UNUSED IMPORT] from gigs import criar_comentario (line 137)
+   [UNUSED IMPORT] from gigs import criar_lembrete_posit (line 137)
+   [UNUSED IMPORT] from core import buscar_documento_argos (line 144)
+   [UNUSED IMPORT] from utils import formatar_moeda_brasileira (line 147)
+   [UNUSED IMPORT] from utils import formatar_data_brasileira (line 147)
+   [UNUSED IMPORT] from utils import normalizar_cpf_cnpj (line 147)
+   [UNUSED IMPORT] from utils import extrair_raiz_cnpj (line 147)
+   [UNUSED IMPORT] from utils import identificar_tipo_documento (line 147)
+   [UNUSED IMPORT] from utils import limpar_temp_selenium (line 147)
+   [UNUSED IMPORT] from utils import login_manual (line 147)
+   [UNUSED IMPORT] from utils import login_automatico (line 147)
+   [UNUSED IMPORT] from utils import login_automatico_direto (line 147)
+   [UNUSED IMPORT] from utils import login_cpf (line 147)
+   [UNUSED IMPORT] from utils import login_pc (line 147)
+   [UNUSED IMPORT] from utils import coletar_link_ato_timeline (line 147)
+   [UNUSED IMPORT] from utils import coletar_conteudo_js (line 147)
+   [UNUSED IMPORT] from utils import coletar_elemento_css (line 147)
+   [UNUSED IMPORT] from utils import executar_coleta_parametrizavel (line 147)
+   [UNUSED IMPORT] from utils import inserir_html_editor (line 147)
+   [UNUSED IMPORT] from utils import inserir_texto_editor (line 147)
+   [UNUSED IMPORT] from utils import inserir_html_no_editor_apos_marcador (line 147)
+   [UNUSED IMPORT] from utils import obter_ultimo_conteudo_clipboard (line 147)
+   [UNUSED IMPORT] from utils import inserir_link_ato (line 147)
+   [UNUSED IMPORT] from utils import inserir_link_ato_validacao (line 147)
+   [UNUSED IMPORT] from utils import configurar_recovery_driver (line 147)
+   [UNUSED IMPORT] from utils import verificar_e_tratar_acesso_negado_global (line 147)
+   [UNUSED IMPORT] from utils import handle_exception_with_recovery (line 147)
+   [UNUSED IMPORT] from utils import obter_driver_padronizado (line 147)
+   [UNUSED IMPORT] from utils import driver_pc (line 147)
+   [UNUSED IMPORT] from utils import navegar_para_tela (line 147)
+   [UNUSED IMPORT] from abas import validar_conexao_driver (line 178)
+   [UNUSED IMPORT] from abas import trocar_para_nova_aba (line 178)
+   [UNUSED IMPORT] from abas import forcar_fechamento_abas_extras (line 178)
+   [UNUSED IMPORT] from abas import is_browsing_context_discarded_error (line 178)
+   [UNUSED IMPORT] from log import resumir_excecao (line 187)
+   [UNUSED IMPORT] from log import filtrar_log_arquivo (line 187)
+   [UNUSED IMPORT] from log import extrair_seletor_dom (line 187)
+
+----------------------------------------------------------------------
+FILE: Fix\core.py
+   Total imports: 89 | Used: 59 | UNUSED: 30
+   [UNUSED IMPORT] from selenium import webdriver (line 24)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 28)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 28)
+   [UNUSED IMPORT] from selenium.common.exceptions import WebDriverException (line 28)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchWindowException (line 28)
+   [UNUSED IMPORT] from selenium.common.exceptions import ElementClickInterceptedException (line 28)
+   [UNUSED IMPORT] from selenium.common.exceptions import ElementNotInteractableException (line 28)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 34)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 35)
+   [UNUSED IMPORT] from selenium.webdriver.common.action_chains import ActionChains (line 36)
+   [UNUSED IMPORT] from log import _log_info (line 38)
+   [UNUSED IMPORT] from log import _log_error (line 38)
+   [UNUSED IMPORT] from log import _audit (line 38)
+   [UNUSED IMPORT] from Fix.utils import ErroCollector (line 44)
+   [UNUSED IMPORT] from Fix.utils import SimpleConfig (line 44)
+   [UNUSED IMPORT] from Fix.utils import config (line 44)
+   [UNUSED IMPORT] from Fix.utils import ErroCollector (line 175)
+   [UNUSED IMPORT] from Fix.utils import AHK_EXE_PC (line 284)
+   [UNUSED IMPORT] from Fix.utils import AHK_SCRIPT_PC (line 284)
+   [UNUSED IMPORT] from Fix.utils import AHK_EXE_NOTEBOOK (line 284)
+   [UNUSED IMPORT] from Fix.utils import AHK_SCRIPT_NOTEBOOK (line 284)
+   [UNUSED IMPORT] from Fix.utils import AHK_EXE_ACTIVE (line 284)
+   [UNUSED IMPORT] from Fix.utils import AHK_SCRIPT_ACTIVE (line 284)
+   [UNUSED IMPORT] from Fix.utils import USAR_COOKIES_AUTOMATICO (line 284)
+   [UNUSED IMPORT] from Fix.utils import login_func (line 284)
+   [UNUSED IMPORT] from Fix.utils import criar_driver (line 284)
+   [UNUSED IMPORT] from Fix.utils import criar_driver_sisb (line 284)
+   [UNUSED IMPORT] from Fix.utils import exibir_configuracao_ativa (line 284)
+   [UNUSED IMPORT] from Fix.utils import SimpleConfig (line 382)
+   [UNUSED IMPORT] from Fix.utils import config (line 383)
+
+----------------------------------------------------------------------
+FILE: Fix\debug_interativo.py
+   Total imports: 7 | Used: 6 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Callable (line 11)
+
+----------------------------------------------------------------------
+FILE: Fix\documents\__init__.py
+   Total imports: 10 | Used: 0 | UNUSED: 10
+   [UNUSED IMPORT] from Fix.extracao import carregar_destinatarios_cache (line 1)
+   [UNUSED IMPORT] from Fix.extracao import extrair_dados_processo (line 2)
+   [UNUSED IMPORT] from search import verificar_documento_decisao_sentenca (line 12)
+   [UNUSED IMPORT] from search import buscar_ultimo_mandado (line 12)
+   [UNUSED IMPORT] from search import buscar_mandado_autor (line 12)
+   [UNUSED IMPORT] from search import buscar_documentos_sequenciais (line 12)
+   [UNUSED IMPORT] from search import buscar_documentos_polo_ativo (line 12)
+   [UNUSED IMPORT] from search import buscar_documento_argos (line 12)
+   [UNUSED IMPORT] from Fix.extracao import indexar_e_processar_lista (line 20)
+   [UNUSED IMPORT] from buttons import criar_botoes_detalhes (line 21)
+
+----------------------------------------------------------------------
+FILE: Fix\documents\search.py
+   Total imports: 11 | Used: 10 | UNUSED: 1
+   [UNUSED IMPORT] from Fix.extracao import extrair_documento (line 422)
+
+----------------------------------------------------------------------
+FILE: Fix\drivers\__init__.py
+   Total imports: 8 | Used: 0 | UNUSED: 8
+   [UNUSED IMPORT] from lifecycle import criar_driver_PC (line 15)
+   [UNUSED IMPORT] from lifecycle import criar_driver_VT (line 15)
+   [UNUSED IMPORT] from lifecycle import criar_driver_notebook (line 15)
+   [UNUSED IMPORT] from lifecycle import criar_driver_sisb_pc (line 15)
+   [UNUSED IMPORT] from lifecycle import criar_driver_sisb_notebook (line 15)
+   [UNUSED IMPORT] from lifecycle import finalizar_driver (line 15)
+   [UNUSED IMPORT] from lifecycle import _matar_zumbis_geckodriver (line 15)
+   [UNUSED IMPORT] from lifecycle import driver_session (line 15)
+
+----------------------------------------------------------------------
+FILE: Fix\drivers\lifecycle.py
+   Total imports: 11 | Used: 10 | UNUSED: 1
+   [UNUSED IMPORT] from utils_paths import obter_caminho_geckodriver (line 95)
+
+----------------------------------------------------------------------
+FILE: Fix\element_wait.py
+   Total imports: 6 | Used: 5 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Optional (line 24)
+
+----------------------------------------------------------------------
+FILE: Fix\exceptions.py
+   Total imports: 6 | Used: 0 | UNUSED: 6
+   [UNUSED IMPORT] from Fix.log import PJePlusError (line 6)
+   [UNUSED IMPORT] from Fix.log import DriverFatalError (line 6)
+   [UNUSED IMPORT] from Fix.log import ElementoNaoEncontradoError (line 6)
+   [UNUSED IMPORT] from Fix.log import TimeoutFluxoError (line 6)
+   [UNUSED IMPORT] from Fix.log import NavegacaoError (line 6)
+   [UNUSED IMPORT] from Fix.log import LoginError (line 6)
+
+----------------------------------------------------------------------
+FILE: Fix\extracao_conteudo.py
+   Total imports: 15 | Used: 14 | UNUSED: 1
+   [UNUSED IMPORT] from core.resultado_execucao import ResultadoExecucao (line 103)
+
+----------------------------------------------------------------------
+FILE: Fix\extracao_indexacao.py
+   Total imports: 10 | Used: 0 | UNUSED: 10
+   [UNUSED IMPORT] from Fix.extraction.indexacao import filtrofases (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import indexar_processos (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import reindexar_linha (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import abrir_detalhes_processo (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import trocar_para_nova_aba (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_preparar_contexto (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_tentar_reindexar (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_tentar_trocar_aba (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_processar_item (line 13)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import indexar_e_processar_lista (line 13)
+
+----------------------------------------------------------------------
+FILE: Fix\extracao_processo.py
+   Total imports: 5 | Used: 0 | UNUSED: 5
+   [UNUSED IMPORT] from Fix.extracao_conteudo import extrair_dados_processo (line 12)
+   [UNUSED IMPORT] from Fix.extracao_conteudo import extrair_destinatarios_decisao (line 12)
+   [UNUSED IMPORT] from Fix.extracao_conteudo import salvar_destinatarios_cache (line 12)
+   [UNUSED IMPORT] from Fix.extracao_conteudo import carregar_destinatarios_cache (line 12)
+   [UNUSED IMPORT] from Fix.extracao_conteudo import DESTINATARIOS_CACHE_PATH (line 12)
+
+----------------------------------------------------------------------
+FILE: Fix\extraction\__init__.py
+   Total imports: 10 | Used: 0 | UNUSED: 10
+   [UNUSED IMPORT] from Fix.extraction.indexacao import filtrofases (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import indexar_processos (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import reindexar_linha (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import abrir_detalhes_processo (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import trocar_para_nova_aba (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_preparar_contexto (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_tentar_reindexar (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_tentar_trocar_aba (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import _indexar_processar_item (line 15)
+   [UNUSED IMPORT] from Fix.extraction.indexacao import indexar_e_processar_lista (line 15)
+
+----------------------------------------------------------------------
+FILE: Fix\extraction\indexacao.py
+   Total imports: 19 | Used: 15 | UNUSED: 4
+   [UNUSED IMPORT] from typing import Union (line 3)
+   [UNUSED IMPORT] from typing import Any (line 3)
+   [UNUSED IMPORT] from typing import Callable (line 3)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 10)
+
+----------------------------------------------------------------------
+FILE: Fix\gigs\__init__.py
+   Total imports: 17 | Used: 14 | UNUSED: 3
+   [UNUSED IMPORT] from typing import Any (line 17)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 23)
+   [UNUSED IMPORT] from Fix.selenium_base.click_operations import safe_click_no_scroll (line 27)
+
+----------------------------------------------------------------------
+FILE: Fix\headless_helpers.py
+   Total imports: 12 | Used: 11 | UNUSED: 1
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 16)
+
+----------------------------------------------------------------------
+FILE: Fix\log_cleaner.py
+   Total imports: 2 | Used: 1 | UNUSED: 1
+   [UNUSED IMPORT] from __future__ import annotations (line 7)
+
+----------------------------------------------------------------------
+FILE: Fix\monitoramento_progresso_unificado.py
+   Total imports: 29 | Used: 0 | UNUSED: 29
+   [UNUSED IMPORT] from Fix.progress.monitoramento import ProgressoUnificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import carregar_progresso_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import salvar_progresso_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import marcar_processo_executado_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import processo_ja_executado_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import executar_com_monitoramento_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import ARQUIVO_PROGRESSO_UNIFICADO (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import CONFIGURACOES_EXECUCAO (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import extrair_numero_processo_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import verificar_acesso_negado_unificado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import limpar_progresso_corrompido (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import carregar_progresso_p2b (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import salvar_progresso_p2b (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import extrair_numero_processo_p2b (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import verificar_acesso_negado_p2b (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import processo_ja_executado_p2b (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import marcar_processo_executado_p2b (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import carregar_progresso (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import salvar_progresso (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import extrair_numero_processo (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import verificar_acesso_negado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import processo_ja_executado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import marcar_processo_executado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import carregar_progresso_mandado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import salvar_progresso_mandado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import extrair_numero_processo_mandado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import verificar_acesso_negado_mandado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import processo_ja_executado_mandado (line 13)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import marcar_processo_executado_mandado (line 13)
+
+----------------------------------------------------------------------
+FILE: Fix\navigation\__init__.py
+   Total imports: 4 | Used: 0 | UNUSED: 4
+   [UNUSED IMPORT] from filters import aplicar_filtro_100 (line 10)
+   [UNUSED IMPORT] from filters import filtro_fase (line 10)
+   [UNUSED IMPORT] from filters import filtrofases (line 10)
+   [UNUSED IMPORT] from sigilo import visibilidade_sigilosos (line 15)
+
+----------------------------------------------------------------------
+FILE: Fix\navigation\filters.py
+   Total imports: 14 | Used: 11 | UNUSED: 3
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 48)
+   [UNUSED IMPORT] from Fix.selenium_base.wait_operations import aguardar_e_clicar (line 53)
+   [UNUSED IMPORT] from Fix.selenium_base.js_helpers import js_base (line 54)
+
+----------------------------------------------------------------------
+FILE: Fix\otimizacao_wrapper.py
+   Total imports: 11 | Used: 9 | UNUSED: 2
+   [UNUSED IMPORT] from typing import Optional (line 9)
+   [UNUSED IMPORT] from typing import Any (line 9)
+
+----------------------------------------------------------------------
+FILE: Fix\progress\__init__.py
+   Total imports: 13 | Used: 0 | UNUSED: 13
+   [UNUSED IMPORT] from Fix.progress.monitoramento import ProgressoUnificado (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import carregar_progresso_unificado (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import salvar_progresso_unificado (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import marcar_processo_executado_unificado (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import processo_ja_executado_unificado (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import executar_com_monitoramento_unificado (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import ARQUIVO_PROGRESSO_UNIFICADO (line 14)
+   [UNUSED IMPORT] from Fix.progress.monitoramento import CONFIGURACOES_EXECUCAO (line 14)
+   [UNUSED IMPORT] from Fix.progress.models import StatusModulo (line 25)
+   [UNUSED IMPORT] from Fix.progress.models import NivelLog (line 25)
+   [UNUSED IMPORT] from Fix.progress.models import Checkpoint (line 25)
+   [UNUSED IMPORT] from Fix.progress.models import StatusModuloData (line 25)
+   [UNUSED IMPORT] from Fix.progress.models import RegistroLog (line 25)
+
+----------------------------------------------------------------------
+FILE: Fix\progresso_unificado.py
+   Total imports: 8 | Used: 0 | UNUSED: 8
+   [UNUSED IMPORT] from Fix.monitoramento_progresso_unificado import ProgressoUnificado (line 8)
+   [UNUSED IMPORT] from Fix.monitoramento_progresso_unificado import carregar_progresso_unificado (line 9)
+   [UNUSED IMPORT] from Fix.monitoramento_progresso_unificado import salvar_progresso_unificado (line 9)
+   [UNUSED IMPORT] from Fix.monitoramento_progresso_unificado import marcar_processo_executado_unificado (line 9)
+   [UNUSED IMPORT] from monitoramento_progresso_unificado import ProgressoUnificado (line 16)
+   [UNUSED IMPORT] from monitoramento_progresso_unificado import carregar_progresso_unificado (line 17)
+   [UNUSED IMPORT] from monitoramento_progresso_unificado import salvar_progresso_unificado (line 17)
+   [UNUSED IMPORT] from monitoramento_progresso_unificado import marcar_processo_executado_unificado (line 17)
+
+----------------------------------------------------------------------
+FILE: Fix\selenium_base\__init__.py
+   Total imports: 24 | Used: 0 | UNUSED: 24
+   [UNUSED IMPORT] from wait_operations import wait (line 16)
+   [UNUSED IMPORT] from wait_operations import wait_for_visible (line 16)
+   [UNUSED IMPORT] from wait_operations import wait_for_clickable (line 16)
+   [UNUSED IMPORT] from wait_operations import esperar_elemento (line 16)
+   [UNUSED IMPORT] from wait_operations import esperar_url_conter (line 16)
+   [UNUSED IMPORT] from click_operations import aguardar_e_clicar (line 27)
+   [UNUSED IMPORT] from element_interaction import safe_click (line 34)
+   [UNUSED IMPORT] from element_interaction import preencher_campos_prazo (line 34)
+   [UNUSED IMPORT] from field_operations import preencher_campo (line 42)
+   [UNUSED IMPORT] from driver_operations import criar_driver_PC (line 49)
+   [UNUSED IMPORT] from driver_operations import criar_driver_VT (line 49)
+   [UNUSED IMPORT] from driver_operations import criar_driver_notebook (line 49)
+   [UNUSED IMPORT] from driver_operations import criar_driver_sisb_pc (line 49)
+   [UNUSED IMPORT] from driver_operations import criar_driver_sisb_notebook (line 49)
+   [UNUSED IMPORT] from driver_operations import finalizar_driver (line 49)
+   [UNUSED IMPORT] from driver_operations import salvar_cookies_sessao (line 49)
+   [UNUSED IMPORT] from driver_operations import carregar_cookies_sessao (line 49)
+   [UNUSED IMPORT] from driver_operations import credencial (line 49)
+   [UNUSED IMPORT] from smart_selection import selecionar_opcao (line 64)
+   [UNUSED IMPORT] from smart_selection import escolher_opcao_inteligente (line 64)
+   [UNUSED IMPORT] from smart_selection import encontrar_elemento_inteligente (line 64)
+   [UNUSED IMPORT] from smart_selection import buscar_seletor_robusto (line 64)
+   [UNUSED IMPORT] from js_helpers import js_base (line 74)
+   [UNUSED IMPORT] from retry_logic import com_retry (line 81)
+
+----------------------------------------------------------------------
+FILE: Fix\selenium_base\driver_operations.py
+   Total imports: 15 | Used: 11 | UNUSED: 4
+   [UNUSED IMPORT] from pathlib import Path (line 15)
+   [UNUSED IMPORT] from typing import Dict (line 16)
+   [UNUSED IMPORT] from typing import Any (line 16)
+   [UNUSED IMPORT] from typing import Union (line 16)
+
+----------------------------------------------------------------------
+FILE: Fix\selenium_base\element_interaction.py
+   Total imports: 19 | Used: 16 | UNUSED: 3
+   [UNUSED IMPORT] from typing import Callable (line 16)
+   [UNUSED IMPORT] from typing import Any (line 16)
+   [UNUSED IMPORT] from typing import List (line 16)
+
+----------------------------------------------------------------------
+FILE: Fix\selenium_base\smart_selection.py
+   Total imports: 14 | Used: 12 | UNUSED: 2
+   [UNUSED IMPORT] from typing import Union (line 44)
+   [UNUSED IMPORT] from typing import Any (line 44)
+
+----------------------------------------------------------------------
+FILE: Fix\session\__init__.py
+   Total imports: 4 | Used: 0 | UNUSED: 4
+   [UNUSED IMPORT] from auth import salvar_cookies_sessao (line 14)
+   [UNUSED IMPORT] from auth import carregar_cookies_sessao (line 14)
+   [UNUSED IMPORT] from auth import credencial (line 14)
+   [UNUSED IMPORT] from auth import verificar_e_aplicar_cookies (line 14)
+
+----------------------------------------------------------------------
+FILE: Fix\session\auth.py
+   Total imports: 19 | Used: 17 | UNUSED: 2
+   [UNUSED IMPORT] from typing import Dict (line 45)
+   [UNUSED IMPORT] from typing import Any (line 45)
+
+----------------------------------------------------------------------
+FILE: Fix\smart_finder.py
+   Total imports: 4 | Used: 2 | UNUSED: 2
+   [UNUSED IMPORT] from typing import List (line 7)
+   [UNUSED IMPORT] from typing import Optional (line 7)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_drivers.py
+   Total imports: 10 | Used: 9 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Any (line 16)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_editor.py
+   Total imports: 11 | Used: 7 | UNUSED: 4
+   [UNUSED IMPORT] from typing import Dict (line 13)
+   [UNUSED IMPORT] from typing import List (line 13)
+   [UNUSED IMPORT] from typing import Union (line 13)
+   [UNUSED IMPORT] from typing import Callable (line 13)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_error.py
+   Total imports: 4 | Used: 3 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Optional (line 11)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_login.py
+   Total imports: 25 | Used: 22 | UNUSED: 3
+   [UNUSED IMPORT] from utils_cookies import SALVAR_COOKIES_AUTOMATICO (line 13)
+   [UNUSED IMPORT] from drivers.lifecycle import criar_driver_notebook (line 259)
+   [UNUSED IMPORT] from drivers.lifecycle import criar_driver_sisb_notebook (line 259)
+
+----------------------------------------------------------------------
+FILE: Fix\utils_sleep.py
+   Total imports: 11 | Used: 10 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Any (line 12)
+
+----------------------------------------------------------------------
+FILE: Fix\variaveis.py
+   Total imports: 14 | Used: 0 | UNUSED: 14
+   [UNUSED IMPORT] from Fix.variaveis_client import PjeApiClient (line 8)
+   [UNUSED IMPORT] from Fix.variaveis_client import session_from_driver (line 8)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import obter_codigo_validacao_documento (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import obter_peca_processual_da_timeline (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import resolver_variavel (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import get_all_variables (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import obter_chave_ultimo_despacho_decisao_sentenca (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import obter_gigs_com_fase (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import obter_texto_documento (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import buscar_atividade_gigs_por_observacao (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import obter_todas_atividades_gigs_com_observacao (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import padrao_liq (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import verificar_bndt (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_painel import buscar_painel_com_filtros (line 24)
+
+----------------------------------------------------------------------
+FILE: Fix\variaveis_painel.py
+   Total imports: 5 | Used: 4 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Optional (line 4)
+
+----------------------------------------------------------------------
+FILE: Fix\variaveis_resolvers.py
+   Total imports: 5 | Used: 4 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Any (line 1)
+
+----------------------------------------------------------------------
+FILE: Mandado\__init__.py
+   Total imports: 19 | Used: 0 | UNUSED: 19
+   [UNUSED IMPORT] from core import navegacao (line 16)
+   [UNUSED IMPORT] from core import iniciar_fluxo_robusto (line 16)
+   [UNUSED IMPORT] from processamento import processar_argos (line 21)
+   [UNUSED IMPORT] from processamento import fluxo_mandados_outros (line 21)
+   [UNUSED IMPORT] from processamento import ultimo_mdd (line 21)
+   [UNUSED IMPORT] from processamento import fluxo_mandado (line 21)
+   [UNUSED IMPORT] from processamento_api import obter_mandados_devolvidos (line 27)
+   [UNUSED IMPORT] from processamento_api import processar_mandado_detalhe (line 27)
+   [UNUSED IMPORT] from processamento_api import processar_mandados_devolvidos_api (line 27)
+   [UNUSED IMPORT] from processamento_api import _gigs_sem_prazo_via_js (line 27)
+   [UNUSED IMPORT] from processamento_api import testar_api_gigs_sem_prazo (line 27)
+   [UNUSED IMPORT] from regras import aplicar_regras_argos (line 35)
+   [UNUSED IMPORT] from utils import lembrete_bloq (line 39)
+   [UNUSED IMPORT] from utils import retirar_sigilo (line 39)
+   [UNUSED IMPORT] from utils import retirar_sigilo_fluxo_argos (line 39)
+   [UNUSED IMPORT] from utils import retirar_sigilo_certidao_devolucao_primeiro (line 39)
+   [UNUSED IMPORT] from utils import retirar_sigilo_demais_documentos_especificos (line 39)
+   [UNUSED IMPORT] from utils import retirar_sigilo_documentos_especificos (line 39)
+   [UNUSED IMPORT] from utils import fechar_intimacao (line 39)
+
+----------------------------------------------------------------------
+FILE: Mandado\atos_wrapper.py
+   Total imports: 13 | Used: 0 | UNUSED: 13
+   [UNUSED IMPORT] from atos import ato_judicial (line 8)
+   [UNUSED IMPORT] from atos import ato_meios (line 8)
+   [UNUSED IMPORT] from atos import ato_pesquisas (line 8)
+   [UNUSED IMPORT] from atos import ato_crda (line 8)
+   [UNUSED IMPORT] from atos import ato_crte (line 8)
+   [UNUSED IMPORT] from atos import ato_bloq (line 8)
+   [UNUSED IMPORT] from atos import ato_idpj (line 8)
+   [UNUSED IMPORT] from atos import ato_termoE (line 8)
+   [UNUSED IMPORT] from atos import ato_termoS (line 8)
+   [UNUSED IMPORT] from atos import ato_edital (line 8)
+   [UNUSED IMPORT] from atos import pec_idpj (line 8)
+   [UNUSED IMPORT] from atos import mov_arquivar (line 8)
+   [UNUSED IMPORT] from atos import ato_meiosub (line 8)
+
+----------------------------------------------------------------------
+FILE: Mandado\core.py
+   Total imports: 51 | Used: 25 | UNUSED: 26
+   [UNUSED IMPORT] from typing import Optional (line 31)
+   [UNUSED IMPORT] from typing import List (line 31)
+   [UNUSED IMPORT] from typing import Union (line 31)
+   [UNUSED IMPORT] from typing import Tuple (line 31)
+   [UNUSED IMPORT] from typing import Callable (line 31)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webelement import WebElement (line 35)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 37)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchWindowException (line 40)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 40)
+   [UNUSED IMPORT] from Fix.drivers import criar_driver_PC (line 50)
+   [UNUSED IMPORT] from Fix.extracao import criar_lembrete_posit (line 51)
+   [UNUSED IMPORT] from Fix.utils import handle_exception_with_recovery (line 56)
+   [UNUSED IMPORT] from Fix.utils import login_pc (line 56)
+   [UNUSED IMPORT] from atos import ato_judicial (line 66)
+   [UNUSED IMPORT] from atos import ato_meios (line 66)
+   [UNUSED IMPORT] from atos import ato_pesquisas (line 66)
+   [UNUSED IMPORT] from atos import ato_crda (line 66)
+   [UNUSED IMPORT] from atos import ato_crte (line 66)
+   [UNUSED IMPORT] from atos import ato_bloq (line 66)
+   [UNUSED IMPORT] from atos import ato_idpj (line 66)
+   [UNUSED IMPORT] from atos import ato_termoE (line 66)
+   [UNUSED IMPORT] from atos import ato_termoS (line 66)
+   [UNUSED IMPORT] from atos import ato_edital (line 66)
+   [UNUSED IMPORT] from atos import ato_idpj (line 66)
+   [UNUSED IMPORT] from atos import mov_arquivar (line 66)
+   [UNUSED IMPORT] from atos import ato_meiosub (line 66)
+
+----------------------------------------------------------------------
+FILE: Mandado\processamento.py
+   Total imports: 74 | Used: 19 | UNUSED: 55
+   [UNUSED IMPORT] from typing import Optional (line 31)
+   [UNUSED IMPORT] from typing import Dict (line 31)
+   [UNUSED IMPORT] from typing import List (line 31)
+   [UNUSED IMPORT] from typing import Union (line 31)
+   [UNUSED IMPORT] from typing import Tuple (line 31)
+   [UNUSED IMPORT] from typing import Callable (line 31)
+   [UNUSED IMPORT] from typing import Any (line 31)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webdriver import WebDriver (line 34)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webelement import WebElement (line 35)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 36)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 37)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 38)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 39)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 40)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchWindowException (line 40)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 40)
+   [UNUSED IMPORT] from Fix.utils import verificar_e_tratar_acesso_negado_global (line 87)
+   [UNUSED IMPORT] from Fix.utils import handle_exception_with_recovery (line 87)
+   [UNUSED IMPORT] from Fix.core import buscar_documento_argos (line 88)
+   [UNUSED IMPORT] from Fix.selenium_base import preencher_campo (line 89)
+   [UNUSED IMPORT] from Fix.extracao import salvar_destinatarios_cache (line 90)
+   [UNUSED IMPORT] from Fix.documents import buscar_documentos_sequenciais (line 91)
+   [UNUSED IMPORT] from Fix.abas import validar_conexao_driver (line 92)
+   [UNUSED IMPORT] from Fix.extracao import criar_lembrete_posit (line 93)
+   [UNUSED IMPORT] from atos import ato_judicial (line 95)
+   [UNUSED IMPORT] from atos import ato_meios (line 95)
+   [UNUSED IMPORT] from atos import ato_pesquisas (line 95)
+   [UNUSED IMPORT] from atos import ato_crda (line 95)
+   [UNUSED IMPORT] from atos import ato_crte (line 95)
+   [UNUSED IMPORT] from atos import ato_bloq (line 95)
+   [UNUSED IMPORT] from atos import ato_idpj (line 95)
+   [UNUSED IMPORT] from atos import ato_termoE (line 95)
+   [UNUSED IMPORT] from atos import ato_termoS (line 95)
+   [UNUSED IMPORT] from atos import ato_edital (line 95)
+   [UNUSED IMPORT] from atos import ato_idpj (line 95)
+   [UNUSED IMPORT] from atos import mov_arquivar (line 95)
+   [UNUSED IMPORT] from atos import ato_meiosub (line 95)
+   [UNUSED IMPORT] from utils import fechar_intimacao (line 110)
+   [UNUSED IMPORT] from utils import retirar_sigilo (line 110)
+   [UNUSED IMPORT] from utils import retirar_sigilo_fluxo_argos (line 110)
+   [UNUSED IMPORT] from utils import retirar_sigilo_certidao_devolucao_primeiro (line 110)
+   [UNUSED IMPORT] from utils import retirar_sigilo_demais_documentos_especificos (line 110)
+   [UNUSED IMPORT] from regras import aplicar_regras_argos (line 117)
+   [UNUSED IMPORT] from processamento_anexos import _SIGILO_TYPES (line 131)
+   [UNUSED IMPORT] from processamento_anexos import _SELETORES_ANEXOS (line 131)
+   [UNUSED IMPORT] from processamento_anexos import _identificar_tipo_anexo (line 131)
+   [UNUSED IMPORT] from processamento_anexos import _localizar_modal_visibilidade (line 131)
+   [UNUSED IMPORT] from processamento_anexos import _processar_modal_visibilidade (line 131)
+   [UNUSED IMPORT] from processamento_anexos import _extrair_executados_pdf (line 131)
+   [UNUSED IMPORT] from processamento_anexos import processar_sisbajud (line 131)
+   [UNUSED IMPORT] from processamento_anexos import tratar_anexos_argos (line 131)
+   [UNUSED IMPORT] from processamento_argos import processar_argos (line 141)
+   [UNUSED IMPORT] from processamento_outros import ultimo_mdd (line 142)
+   [UNUSED IMPORT] from processamento_outros import fluxo_mandados_outros (line 142)
+   [UNUSED IMPORT] from processamento_fluxo import fluxo_mandado (line 143)
+
+----------------------------------------------------------------------
+FILE: Mandado\processamento_api.py
+   Total imports: 11 | Used: 10 | UNUSED: 1
+   [UNUSED IMPORT] from pathlib import Path (line 2)
+
+----------------------------------------------------------------------
+FILE: Mandado\regras.py
+   Total imports: 52 | Used: 29 | UNUSED: 23
+   [UNUSED IMPORT] from typing import Optional (line 31)
+   [UNUSED IMPORT] from typing import Union (line 31)
+   [UNUSED IMPORT] from typing import Tuple (line 31)
+   [UNUSED IMPORT] from typing import Callable (line 31)
+   [UNUSED IMPORT] from typing import Any (line 31)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webelement import WebElement (line 35)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 36)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 37)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 38)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 39)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 40)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 40)
+   [UNUSED IMPORT] from Fix.utils import verificar_e_tratar_acesso_negado_global (line 85)
+   [UNUSED IMPORT] from Fix.utils import handle_exception_with_recovery (line 85)
+   [UNUSED IMPORT] from Fix.selenium_base import preencher_campo (line 86)
+   [UNUSED IMPORT] from Fix.abas import validar_conexao_driver (line 88)
+   [UNUSED IMPORT] from atos_wrapper import ato_judicial (line 91)
+   [UNUSED IMPORT] from atos_wrapper import ato_pesquisas (line 91)
+   [UNUSED IMPORT] from atos_wrapper import ato_crda (line 91)
+   [UNUSED IMPORT] from atos_wrapper import ato_crte (line 91)
+   [UNUSED IMPORT] from atos_wrapper import ato_idpj (line 91)
+   [UNUSED IMPORT] from atos_wrapper import ato_edital (line 91)
+   [UNUSED IMPORT] from atos_wrapper import mov_arquivar (line 91)
+
+----------------------------------------------------------------------
+FILE: Mandado\utils.py
+   Total imports: 63 | Used: 3 | UNUSED: 60
+   [UNUSED IMPORT] from typing import Optional (line 31)
+   [UNUSED IMPORT] from typing import Dict (line 31)
+   [UNUSED IMPORT] from typing import List (line 31)
+   [UNUSED IMPORT] from typing import Union (line 31)
+   [UNUSED IMPORT] from typing import Tuple (line 31)
+   [UNUSED IMPORT] from typing import Callable (line 31)
+   [UNUSED IMPORT] from typing import Any (line 31)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webdriver import WebDriver (line 34)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webelement import WebElement (line 35)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 36)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 37)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 38)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 39)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 40)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 40)
+   [UNUSED IMPORT] from Fix.core import buscar_seletor_robusto (line 46)
+   [UNUSED IMPORT] from Fix.core import buscar_documento_argos (line 46)
+   [UNUSED IMPORT] from Fix.utils import driver_pc (line 50)
+   [UNUSED IMPORT] from Fix.utils import navegar_para_tela (line 50)
+   [UNUSED IMPORT] from Fix.utils import verificar_e_tratar_acesso_negado_global (line 50)
+   [UNUSED IMPORT] from Fix.utils import handle_exception_with_recovery (line 50)
+   [UNUSED IMPORT] from Fix.extracao import extrair_pdf (line 56)
+   [UNUSED IMPORT] from Fix.extracao import analise_outros (line 56)
+   [UNUSED IMPORT] from Fix.extracao import extrair_documento (line 56)
+   [UNUSED IMPORT] from Fix.extracao import criar_gigs (line 56)
+   [UNUSED IMPORT] from Fix.extracao import indexar_e_processar_lista (line 56)
+   [UNUSED IMPORT] from Fix.extracao import extrair_dados_processo (line 56)
+   [UNUSED IMPORT] from Fix.extracao import extrair_destinatarios_decisao (line 56)
+   [UNUSED IMPORT] from Fix.extracao import salvar_destinatarios_cache (line 56)
+   [UNUSED IMPORT] from Fix.documents import buscar_mandado_autor (line 66)
+   [UNUSED IMPORT] from Fix.documents import buscar_ultimo_mandado (line 66)
+   [UNUSED IMPORT] from Fix.selenium_base import esperar_elemento (line 70)
+   [UNUSED IMPORT] from Fix.selenium_base import aguardar_e_clicar (line 70)
+   [UNUSED IMPORT] from Fix.selenium_base import preencher_campo (line 70)
+   [UNUSED IMPORT] from Fix.selenium_base import safe_click (line 70)
+   [UNUSED IMPORT] from Fix.selenium_base import wait_for_visible (line 70)
+   [UNUSED IMPORT] from Fix.utils import sleep (line 77)
+   [UNUSED IMPORT] from Fix.utils import limpar_temp_selenium (line 77)
+   [UNUSED IMPORT] from Fix.utils import configurar_recovery_driver (line 77)
+   [UNUSED IMPORT] from Fix.abas import validar_conexao_driver (line 82)
+   [UNUSED IMPORT] from Fix.extracao import criar_lembrete_posit (line 83)
+   [UNUSED IMPORT] from atos import ato_judicial (line 84)
+   [UNUSED IMPORT] from atos import ato_meios (line 84)
+   [UNUSED IMPORT] from atos import ato_pesquisas (line 84)
+   [UNUSED IMPORT] from atos import ato_crda (line 84)
+   [UNUSED IMPORT] from atos import ato_crte (line 84)
+   [UNUSED IMPORT] from atos import ato_bloq (line 84)
+   [UNUSED IMPORT] from atos import ato_idpj (line 84)
+   [UNUSED IMPORT] from atos import ato_termoE (line 84)
+   [UNUSED IMPORT] from atos import ato_termoS (line 84)
+   [UNUSED IMPORT] from atos import ato_edital (line 84)
+   [UNUSED IMPORT] from atos import ato_idpj (line 84)
+   [UNUSED IMPORT] from atos import mov_arquivar (line 84)
+   [UNUSED IMPORT] from atos import ato_meiosub (line 84)
+   [UNUSED IMPORT] from utils_lembrete import lembrete_bloq (line 105)
+   [UNUSED IMPORT] from utils_intimacao import _selecionar_checkbox_intimacao (line 106)
+   [UNUSED IMPORT] from utils_intimacao import fechar_intimacao (line 106)
+   [UNUSED IMPORT] from utils_sigilo import retirar_sigilo_certidao_devolucao_primeiro (line 107)
+   [UNUSED IMPORT] from utils_sigilo import retirar_sigilo_demais_documentos_especificos (line 107)
+   [UNUSED IMPORT] from utils_sigilo import retirar_sigilo_documentos_especificos (line 107)
+
+----------------------------------------------------------------------
+FILE: PEC\__init__.py
+   Total imports: 10 | Used: 0 | UNUSED: 10
+   [UNUSED IMPORT] from core_progresso import carregar_progresso_pec (line 17)
+   [UNUSED IMPORT] from core_progresso import salvar_progresso_pec (line 17)
+   [UNUSED IMPORT] from core_progresso import extrair_numero_processo_pec (line 17)
+   [UNUSED IMPORT] from core_progresso import verificar_acesso_negado_pec (line 17)
+   [UNUSED IMPORT] from core_progresso import processo_ja_executado_pec (line 17)
+   [UNUSED IMPORT] from core_progresso import marcar_processo_executado_pec (line 17)
+   [UNUSED IMPORT] from core_navegacao import navegar_para_atividades (line 25)
+   [UNUSED IMPORT] from core_navegacao import aplicar_filtro_xs (line 25)
+   [UNUSED IMPORT] from core_navegacao import indexar_processo_atual_gigs (line 25)
+   [UNUSED IMPORT] from core_pos_carta import analisar_documentos_pos_carta (line 30)
+
+----------------------------------------------------------------------
+FILE: PEC\ajuste_gigs.py
+   Total imports: 5 | Used: 1 | UNUSED: 4
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 8)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 9)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 10)
+   [UNUSED IMPORT] from Fix.core import preencher_campo (line 43)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\__init__.py
+   Total imports: 6 | Used: 0 | UNUSED: 6
+   [UNUSED IMPORT] from core import substituir_marcador_por_conteudo (line 16)
+   [UNUSED IMPORT] from core import salvar_conteudo_clipboard (line 16)
+   [UNUSED IMPORT] from anexos_wrappers import consulta_wrapper (line 17)
+   [UNUSED IMPORT] from anexos_wrappers import wrapper_bloqneg (line 17)
+   [UNUSED IMPORT] from anexos_wrappers import wrapper_parcial (line 17)
+   [UNUSED IMPORT] from anexos_wrappers import carta_wrapper (line 17)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_configuracao.py
+   Total imports: 23 | Used: 0 | UNUSED: 23
+   [UNUSED IMPORT] from typing import Optional (line 15)
+   [UNUSED IMPORT] from typing import Dict (line 15)
+   [UNUSED IMPORT] from typing import Any (line 15)
+   [UNUSED IMPORT] from typing import Callable (line 15)
+   [UNUSED IMPORT] from typing import Union (line 15)
+   [UNUSED IMPORT] from typing import List (line 15)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 16)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 17)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 18)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 19)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 20)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 20)
+   [UNUSED IMPORT] from Fix.core import aguardar_e_clicar (line 23)
+   [UNUSED IMPORT] from Fix.core import selecionar_opcao (line 23)
+   [UNUSED IMPORT] from Fix.core import preencher_campo (line 23)
+   [UNUSED IMPORT] from Fix.core import safe_click (line 23)
+   [UNUSED IMPORT] from Fix.core import wait_for_clickable (line 23)
+   [UNUSED IMPORT] from Fix.core import wait_for_visible (line 23)
+   [UNUSED IMPORT] from Fix.utils import inserir_html_no_editor_apos_marcador (line 31)
+   [UNUSED IMPORT] from Fix.utils import obter_ultimo_conteudo_clipboard (line 31)
+   [UNUSED IMPORT] from Fix.utils import executar_coleta_parametrizavel (line 31)
+   [UNUSED IMPORT] from Fix.utils import inserir_link_ato_validacao (line 31)
+   [UNUSED IMPORT] from anexos_extracao import extrair_numero_processo_da_url (line 39)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_juntador.py
+   Total imports: 40 | Used: 25 | UNUSED: 15
+   [UNUSED IMPORT] from typing import Union (line 15)
+   [UNUSED IMPORT] from typing import List (line 15)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 17)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 20)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 20)
+   [UNUSED IMPORT] from Fix.core import aguardar_e_clicar (line 24)
+   [UNUSED IMPORT] from Fix.core import selecionar_opcao (line 24)
+   [UNUSED IMPORT] from Fix.core import preencher_campo (line 24)
+   [UNUSED IMPORT] from Fix.core import safe_click (line 24)
+   [UNUSED IMPORT] from Fix.core import wait_for_clickable (line 24)
+   [UNUSED IMPORT] from Fix.core import wait_for_visible (line 24)
+   [UNUSED IMPORT] from Fix.utils import inserir_html_no_editor_apos_marcador (line 32)
+   [UNUSED IMPORT] from Fix.utils import obter_ultimo_conteudo_clipboard (line 32)
+   [UNUSED IMPORT] from Fix.utils import inserir_link_ato_validacao (line 32)
+   [UNUSED IMPORT] from anexos_formatacao import formatar_conteudo_ecarta (line 41)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_juntador_base.py
+   Total imports: 40 | Used: 22 | UNUSED: 18
+   [UNUSED IMPORT] from typing import Union (line 15)
+   [UNUSED IMPORT] from typing import List (line 15)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 17)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 18)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 19)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 20)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 21)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 21)
+   [UNUSED IMPORT] from Fix.core import aguardar_e_clicar (line 24)
+   [UNUSED IMPORT] from Fix.core import selecionar_opcao (line 24)
+   [UNUSED IMPORT] from Fix.core import preencher_campo (line 24)
+   [UNUSED IMPORT] from Fix.core import safe_click (line 24)
+   [UNUSED IMPORT] from Fix.core import wait_for_clickable (line 24)
+   [UNUSED IMPORT] from Fix.core import wait_for_visible (line 24)
+   [UNUSED IMPORT] from Fix.utils import inserir_html_no_editor_apos_marcador (line 32)
+   [UNUSED IMPORT] from Fix.utils import obter_ultimo_conteudo_clipboard (line 32)
+   [UNUSED IMPORT] from Fix.utils import inserir_link_ato_validacao (line 32)
+   [UNUSED IMPORT] from anexos_formatacao import formatar_conteudo_ecarta (line 41)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_juntador_helpers.py
+   Total imports: 25 | Used: 7 | UNUSED: 18
+   [UNUSED IMPORT] from typing import Optional (line 15)
+   [UNUSED IMPORT] from typing import Callable (line 15)
+   [UNUSED IMPORT] from typing import Union (line 15)
+   [UNUSED IMPORT] from typing import List (line 15)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webdriver import WebDriver (line 16)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 18)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 19)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 20)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 21)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 21)
+   [UNUSED IMPORT] from Fix.core import safe_click (line 24)
+   [UNUSED IMPORT] from Fix.core import wait_for_clickable (line 24)
+   [UNUSED IMPORT] from Fix.core import wait_for_visible (line 24)
+   [UNUSED IMPORT] from Fix.utils import inserir_html_no_editor_apos_marcador (line 32)
+   [UNUSED IMPORT] from Fix.utils import obter_ultimo_conteudo_clipboard (line 32)
+   [UNUSED IMPORT] from Fix.utils import executar_coleta_parametrizavel (line 32)
+   [UNUSED IMPORT] from Fix.utils import inserir_link_ato_validacao (line 32)
+   [UNUSED IMPORT] from Fix.utils import substituir_marcador_por_conteudo (line 32)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_juntador_metodos.py
+   Total imports: 25 | Used: 10 | UNUSED: 15
+   [UNUSED IMPORT] from typing import Optional (line 15)
+   [UNUSED IMPORT] from typing import Callable (line 15)
+   [UNUSED IMPORT] from typing import Union (line 15)
+   [UNUSED IMPORT] from typing import List (line 15)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 20)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 20)
+   [UNUSED IMPORT] from Fix.core import aguardar_e_clicar (line 23)
+   [UNUSED IMPORT] from Fix.core import selecionar_opcao (line 23)
+   [UNUSED IMPORT] from Fix.core import preencher_campo (line 23)
+   [UNUSED IMPORT] from Fix.core import safe_click (line 23)
+   [UNUSED IMPORT] from Fix.core import wait_for_clickable (line 23)
+   [UNUSED IMPORT] from Fix.core import wait_for_visible (line 23)
+   [UNUSED IMPORT] from Fix.utils import inserir_html_no_editor_apos_marcador (line 31)
+   [UNUSED IMPORT] from Fix.utils import obter_ultimo_conteudo_clipboard (line 31)
+   [UNUSED IMPORT] from anexos_formatacao import formatar_conteudo_ecarta (line 40)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_sisbajud.py
+   Total imports: 8 | Used: 5 | UNUSED: 3
+   [UNUSED IMPORT] from typing import Dict (line 11)
+   [UNUSED IMPORT] from typing import Any (line 11)
+   [UNUSED IMPORT] from typing import List (line 11)
+
+----------------------------------------------------------------------
+FILE: PEC\anexos\anexos_wrappers.py
+   Total imports: 9 | Used: 6 | UNUSED: 3
+   [UNUSED IMPORT] from typing import Callable (line 11)
+   [UNUSED IMPORT] from typing import Any (line 11)
+   [UNUSED IMPORT] from anexos_sisbajud import _obter_conteudo_relatorio_sisbajud (line 13)
+
+----------------------------------------------------------------------
+FILE: PEC\carta.py
+   Total imports: 11 | Used: 9 | UNUSED: 2
+   [UNUSED IMPORT] from typing import List (line 3)
+   [UNUSED IMPORT] from typing import Tuple (line 3)
+
+----------------------------------------------------------------------
+FILE: PEC\core.py
+   Total imports: 24 | Used: 14 | UNUSED: 10
+   [UNUSED IMPORT] from core_progresso import salvar_progresso_pec (line 3)
+   [UNUSED IMPORT] from core_progresso import extrair_numero_processo_pec (line 3)
+   [UNUSED IMPORT] from core_progresso import verificar_acesso_negado_pec (line 3)
+   [UNUSED IMPORT] from core_recovery import reiniciar_driver_e_logar_pje (line 11)
+   [UNUSED IMPORT] from core_navegacao import navegar_para_atividades (line 12)
+   [UNUSED IMPORT] from core_navegacao import aplicar_filtro_xs (line 12)
+   [UNUSED IMPORT] from core_navegacao import indexar_processo_atual_gigs (line 12)
+   [UNUSED IMPORT] from core_pos_carta import analisar_documentos_pos_carta (line 13)
+   [UNUSED IMPORT] from core_main import main (line 14)
+   [UNUSED IMPORT] from typing import Optional (line 21)
+
+----------------------------------------------------------------------
+FILE: PEC\core_navegacao.py
+   Total imports: 4 | Used: 3 | UNUSED: 1
+   [UNUSED IMPORT] from Fix.core import preencher_campo (line 10)
+
+----------------------------------------------------------------------
+FILE: PEC\core_progresso.py
+   Total imports: 11 | Used: 9 | UNUSED: 2
+   [UNUSED IMPORT] from Fix.monitoramento_progresso_unificado import extrair_numero_processo_unificado (line 10)
+   [UNUSED IMPORT] from Fix.monitoramento_progresso_unificado import verificar_acesso_negado_unificado (line 10)
+
+----------------------------------------------------------------------
+FILE: PEC\prescricao.py
+   Total imports: 10 | Used: 2 | UNUSED: 8
+   [UNUSED IMPORT] from datetime import datetime (line 9)
+   [UNUSED IMPORT] from datetime import timedelta (line 9)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 11)
+   [UNUSED IMPORT] from Fix.extracao import criar_lembrete_posit (line 12)
+   [UNUSED IMPORT] from Fix.documents import buscar_documentos_polo_ativo (line 13)
+   [UNUSED IMPORT] from atos.movimentos import mov_fimsob (line 14)
+   [UNUSED IMPORT] from atos.movimentos import mov_sob (line 14)
+   [UNUSED IMPORT] from atos.judicial import ato_presc (line 15)
+
+----------------------------------------------------------------------
+FILE: PEC\processamento.py
+   Total imports: 22 | Used: 0 | UNUSED: 22
+   [UNUSED IMPORT] from processamento_fluxo import executar_fluxo_robusto (line 5)
+   [UNUSED IMPORT] from processamento_fluxo import executar_fluxo_novo (line 5)
+   [UNUSED IMPORT] from processamento_fluxo import _configurar_driver (line 5)
+   [UNUSED IMPORT] from processamento_fluxo import _navegar_atividades (line 5)
+   [UNUSED IMPORT] from processamento_fluxo import _aplicar_filtros (line 5)
+   [UNUSED IMPORT] from processamento_fluxo import _organizar_e_executar_buckets (line 5)
+   [UNUSED IMPORT] from processamento_listas import criar_lista_sisbajud (line 13)
+   [UNUSED IMPORT] from processamento_listas import executar_lista_sisbajud_por_abas (line 13)
+   [UNUSED IMPORT] from processamento_listas import criar_lista_resto (line 13)
+   [UNUSED IMPORT] from processamento_indexacao import _indexar_todos_processos (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import _filtrar_por_observacao (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import _salvar_amostra_debug_rows (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import _filtrar_por_progresso (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import _filtrar_por_acoes_validas (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import _agrupar_em_buckets (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import _executar_dry_run (line 18)
+   [UNUSED IMPORT] from processamento_indexacao import indexar_e_criar_buckets_unico (line 18)
+   [UNUSED IMPORT] from processamento_buckets import _processar_buckets (line 28)
+   [UNUSED IMPORT] from processamento_buckets import _processar_bucket_generico (line 28)
+   [UNUSED IMPORT] from processamento_buckets import _processar_bucket_demais (line 28)
+   [UNUSED IMPORT] from processamento_buckets import _processar_bucket_sisbajud (line 28)
+   [UNUSED IMPORT] from processamento_buckets import _imprimir_relatorio_final (line 28)
+
+----------------------------------------------------------------------
+FILE: PEC\processamento_fluxo.py
+   Total imports: 24 | Used: 23 | UNUSED: 1
+   [UNUSED IMPORT] from core import verificar_acesso_negado_pec (line 13)
+
+----------------------------------------------------------------------
+FILE: PEC\regras.py
+   Total imports: 10 | Used: 6 | UNUSED: 4
+   [UNUSED IMPORT] from sobrestamento import def_sob (line 54)
+   [UNUSED IMPORT] from prescricao import def_presc (line 55)
+   [UNUSED IMPORT] from ajuste_gigs import def_ajustegigs (line 56)
+   [UNUSED IMPORT] from sisbajud_driver import fechar_driver_sisbajud_global (line 57)
+
+----------------------------------------------------------------------
+FILE: PEC\sobrestamento.py
+   Total imports: 21 | Used: 18 | UNUSED: 3
+   [UNUSED IMPORT] from atos.judicial import ato_fal (line 10)
+   [UNUSED IMPORT] from atos.judicial import ato_termoS (line 10)
+   [UNUSED IMPORT] from Fix.extracao import bndt (line 13)
+
+----------------------------------------------------------------------
+FILE: Prazo\__init__.py
+   Total imports: 24 | Used: 11 | UNUSED: 13
+   [UNUSED IMPORT] from p2b_core import normalizar_texto (line 12)
+   [UNUSED IMPORT] from p2b_core import gerar_regex_geral (line 12)
+   [UNUSED IMPORT] from p2b_core import parse_gigs_param (line 12)
+   [UNUSED IMPORT] from p2b_core import carregar_progresso_p2b (line 12)
+   [UNUSED IMPORT] from p2b_core import salvar_progresso_p2b (line 12)
+   [UNUSED IMPORT] from p2b_core import marcar_processo_executado_p2b (line 12)
+   [UNUSED IMPORT] from p2b_core import processo_ja_executado_p2b (line 12)
+   [UNUSED IMPORT] from p2b_core import RegraProcessamento (line 12)
+   [UNUSED IMPORT] from p2b_core import REGEX_PATTERNS (line 12)
+   [UNUSED IMPORT] from p2b_fluxo import fluxo_pz (line 18)
+   [UNUSED IMPORT] from p2b_prazo import fluxo_prazo (line 19)
+   [UNUSED IMPORT] from fluxo_api import gerar_script_gigs_sem_prazo (line 23)
+   [UNUSED IMPORT] from fluxo_api import testar_gigs_sem_prazo (line 23)
+
+----------------------------------------------------------------------
+FILE: Prazo\criteria_matcher.py
+   Total imports: 9 | Used: 8 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Any (line 23)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_base.py
+   Total imports: 28 | Used: 7 | UNUSED: 21
+   [UNUSED IMPORT] from selenium.webdriver.common.action_chains import ActionChains (line 12)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 14)
+   [UNUSED IMPORT] from Fix.core import aplicar_filtro_100 (line 18)
+   [UNUSED IMPORT] from Fix.core import aguardar_e_clicar (line 18)
+   [UNUSED IMPORT] from Fix.core import selecionar_opcao (line 18)
+   [UNUSED IMPORT] from Fix.core import filtrofases (line 18)
+   [UNUSED IMPORT] from Fix.utils import configurar_recovery_driver (line 24)
+   [UNUSED IMPORT] from Fix.utils import handle_exception_with_recovery (line 24)
+   [UNUSED IMPORT] from Fix.core import criar_driver_PC (line 28)
+   [UNUSED IMPORT] from Fix.utils import login_cpf (line 29)
+   [UNUSED IMPORT] from typing import Optional (line 32)
+   [UNUSED IMPORT] from typing import Dict (line 32)
+   [UNUSED IMPORT] from typing import Union (line 32)
+   [UNUSED IMPORT] from typing import TYPE_CHECKING (line 32)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webelement import WebElement (line 34)
+   [UNUSED IMPORT] from concurrent.futures import ThreadPoolExecutor (line 35)
+   [UNUSED IMPORT] from concurrent.futures import as_completed (line 35)
+   [UNUSED IMPORT] from Fix.variaveis import session_from_driver (line 39)
+   [UNUSED IMPORT] from Fix.variaveis import PjeApiClient (line 39)
+   [UNUSED IMPORT] from Fix.variaveis import obter_gigs_com_fase (line 39)
+   [UNUSED IMPORT] from Prazo.p2b_prazo import fluxo_prazo (line 42)
+
+----------------------------------------------------------------------
+FILE: Prazo\loop_ciclo1_movimentacao.py
+   Total imports: 15 | Used: 14 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Union (line 3)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_core.py
+   Total imports: 22 | Used: 16 | UNUSED: 6
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchWindowException (line 14)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 14)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 16)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 18)
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 19)
+   [UNUSED IMPORT] from typing import Dict (line 347)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_fluxo.py
+   Total imports: 22 | Used: 7 | UNUSED: 15
+   [UNUSED IMPORT] from typing import Optional (line 10)
+   [UNUSED IMPORT] from typing import Tuple (line 10)
+   [UNUSED IMPORT] from typing import List (line 10)
+   [UNUSED IMPORT] from typing import Any (line 10)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 12)
+   [UNUSED IMPORT] from Prazo.p2b_core import gerar_regex_geral (line 14)
+   [UNUSED IMPORT] from Fix.selenium_base import aguardar_e_clicar (line 22)
+   [UNUSED IMPORT] from Fix.gigs import criar_gigs (line 23)
+   [UNUSED IMPORT] from atos.judicial import ato_pesquisas (line 24)
+   [UNUSED IMPORT] from atos.judicial import ato_pesqliq (line 24)
+   [UNUSED IMPORT] from atos.judicial import ato_sobrestamento (line 24)
+   [UNUSED IMPORT] from atos.judicial import idpj (line 24)
+   [UNUSED IMPORT] from atos.wrappers_mov import mov_arquivar (line 25)
+   [UNUSED IMPORT] from PEC.carta import carta (line 26)
+   [UNUSED IMPORT] from Prazo.p2b_core import gerar_regex_geral (line 89)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_fluxo_helpers.py
+   Total imports: 20 | Used: 9 | UNUSED: 11
+   [UNUSED IMPORT] from typing import Tuple (line 18)
+   [UNUSED IMPORT] from typing import List (line 18)
+   [UNUSED IMPORT] from typing import Any (line 18)
+   [UNUSED IMPORT] from selenium.webdriver.remote.webdriver import WebDriver (line 19)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 20)
+   [UNUSED IMPORT] from p2b_fluxo_prescricao import prescreve (line 25)
+   [UNUSED IMPORT] from p2b_fluxo_prescricao import analisar_timeline_prescreve_js_puro (line 25)
+   [UNUSED IMPORT] from p2b_fluxo_documentos import _fechar_aba_processo (line 26)
+   [UNUSED IMPORT] from p2b_fluxo_regras import _definir_regras_processamento (line 29)
+   [UNUSED IMPORT] from p2b_fluxo_regras import _processar_regras_gerais (line 29)
+   [UNUSED IMPORT] from Prazo.p2b_core import gerar_regex_geral (line 163)
+
+----------------------------------------------------------------------
+FILE: Prazo\p2b_prazo.py
+   Total imports: 31 | Used: 30 | UNUSED: 1
+   [UNUSED IMPORT] from Fix.selenium_base import aguardar_e_clicar (line 139)
+
+----------------------------------------------------------------------
+FILE: Prazo\t3.py
+   Total imports: 3 | Used: 2 | UNUSED: 1
+   [UNUSED IMPORT] from selenium import webdriver (line 20)
+
+----------------------------------------------------------------------
+FILE: SISB\Core\login.py
+   Total imports: 6 | Used: 5 | UNUSED: 1
+   [UNUSED IMPORT] from driver_config import salvar_cookies_sessao (line 151)
+
+----------------------------------------------------------------------
+FILE: SISB\Core\utils_web.py
+   Total imports: 9 | Used: 7 | UNUSED: 2
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 5)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 6)
+
+----------------------------------------------------------------------
+FILE: SISB\__init__.py
+   Total imports: 23 | Used: 0 | UNUSED: 23
+   [UNUSED IMPORT] from core import iniciar_sisbajud (line 18)
+   [UNUSED IMPORT] from core import driver_sisbajud (line 18)
+   [UNUSED IMPORT] from core import login_automatico_sisbajud (line 18)
+   [UNUSED IMPORT] from core import login_manual_sisbajud (line 18)
+   [UNUSED IMPORT] from processamento import minuta_bloqueio_refatorada (line 26)
+   [UNUSED IMPORT] from utils import criar_js_otimizado (line 31)
+   [UNUSED IMPORT] from utils import safe_click (line 31)
+   [UNUSED IMPORT] from utils import aguardar_elemento (line 31)
+   [UNUSED IMPORT] from utils import log_sisbajud (line 31)
+   [UNUSED IMPORT] from utils import validar_numero_processo (line 31)
+   [UNUSED IMPORT] from utils import formatar_valor_monetario (line 31)
+   [UNUSED IMPORT] from standards import SISBConstants (line 41)
+   [UNUSED IMPORT] from standards import StatusProcessamento (line 41)
+   [UNUSED IMPORT] from standards import TipoFluxo (line 41)
+   [UNUSED IMPORT] from standards import DadosProcesso (line 41)
+   [UNUSED IMPORT] from standards import ResultadoProcessamento (line 41)
+   [UNUSED IMPORT] from standards import sisb_logger (line 41)
+   [UNUSED IMPORT] from performance import performance_optimizer (line 51)
+   [UNUSED IMPORT] from performance import polling_reducer (line 51)
+   [UNUSED IMPORT] from performance import cache_manager (line 51)
+   [UNUSED IMPORT] from performance import parallel_processor (line 51)
+   [UNUSED IMPORT] from s_orquestrador import executar_sisbajud_completo (line 59)
+   [UNUSED IMPORT] from batch import processar_lote_sisbajud (line 62)
+
+----------------------------------------------------------------------
+FILE: SISB\core.py
+   Total imports: 34 | Used: 32 | UNUSED: 2
+   [UNUSED IMPORT] from datetime import timedelta (line 28)
+   [UNUSED IMPORT] from selenium import webdriver (line 31)
+
+----------------------------------------------------------------------
+FILE: SISB\helpers.py
+   Total imports: 26 | Used: 0 | UNUSED: 26
+   [UNUSED IMPORT] from validation import _validar_dados (line 11)
+   [UNUSED IMPORT] from minutas import _selecionar_prazo_bloqueio (line 16)
+   [UNUSED IMPORT] from minutas import _preencher_campos_iniciais (line 16)
+   [UNUSED IMPORT] from minutas import _processar_reus_otimizado (line 16)
+   [UNUSED IMPORT] from minutas import _salvar_minuta (line 16)
+   [UNUSED IMPORT] from minutas import _gerar_relatorio_minuta (line 16)
+   [UNUSED IMPORT] from minutas import _protocolar_minuta (line 16)
+   [UNUSED IMPORT] from minutas import _criar_minuta_agendada (line 16)
+   [UNUSED IMPORT] from ordens import _carregar_dados_ordem (line 27)
+   [UNUSED IMPORT] from ordens import _extrair_ordens_da_serie (line 27)
+   [UNUSED IMPORT] from ordens import _aplicar_acao_por_fluxo (line 27)
+   [UNUSED IMPORT] from ordens import _identificar_ordens_com_bloqueio (line 27)
+   [UNUSED IMPORT] from series import _filtrar_series (line 35)
+   [UNUSED IMPORT] from series import _navegar_e_extrair_ordens_serie (line 35)
+   [UNUSED IMPORT] from series import _extrair_nome_executado_serie (line 35)
+   [UNUSED IMPORT] from series import _processar_series (line 35)
+   [UNUSED IMPORT] from series import _calcular_estrategia_bloqueio (line 35)
+   [UNUSED IMPORT] from navigation import _voltar_para_lista_ordens_serie (line 44)
+   [UNUSED IMPORT] from navigation import _voltar_para_lista_principal (line 44)
+   [UNUSED IMPORT] from relatorios import _agrupar_dados_bloqueios (line 50)
+   [UNUSED IMPORT] from relatorios import extrair_dados_bloqueios_processados (line 50)
+   [UNUSED IMPORT] from relatorios import gerar_relatorio_bloqueios_processados (line 50)
+   [UNUSED IMPORT] from relatorios import gerar_relatorio_bloqueios_conciso (line 50)
+   [UNUSED IMPORT] from relatorios import _gerar_relatorio_ordem (line 50)
+   [UNUSED IMPORT] from integration import _atualizar_relatorio_com_segundo_protocolo (line 59)
+   [UNUSED IMPORT] from integration import _executar_juntada_pje (line 59)
+
+----------------------------------------------------------------------
+FILE: SISB\integration\__init__.py
+   Total imports: 2 | Used: 0 | UNUSED: 2
+   [UNUSED IMPORT] from pje_integration import _atualizar_relatorio_com_segundo_protocolo (line 6)
+   [UNUSED IMPORT] from pje_integration import _executar_juntada_pje (line 6)
+
+----------------------------------------------------------------------
+FILE: SISB\integration\pje_integration.py
+   Total imports: 4 | Used: 3 | UNUSED: 1
+   [UNUSED IMPORT] from PEC.anexos import consulta_wrapper (line 78)
+
+----------------------------------------------------------------------
+FILE: SISB\minutas\__init__.py
+   Total imports: 7 | Used: 0 | UNUSED: 7
+   [UNUSED IMPORT] from processor import _selecionar_prazo_bloqueio (line 5)
+   [UNUSED IMPORT] from processor import _preencher_campos_iniciais (line 5)
+   [UNUSED IMPORT] from processor import _processar_reus_otimizado (line 5)
+   [UNUSED IMPORT] from processor import _salvar_minuta (line 5)
+   [UNUSED IMPORT] from processor import _gerar_relatorio_minuta (line 5)
+   [UNUSED IMPORT] from processor import _protocolar_minuta (line 5)
+   [UNUSED IMPORT] from processor import _criar_minuta_agendada (line 5)
+
+----------------------------------------------------------------------
+FILE: SISB\navigation\__init__.py
+   Total imports: 2 | Used: 0 | UNUSED: 2
+   [UNUSED IMPORT] from navigator import _voltar_para_lista_ordens_serie (line 6)
+   [UNUSED IMPORT] from navigator import _voltar_para_lista_principal (line 6)
+
+----------------------------------------------------------------------
+FILE: SISB\ordens\__init__.py
+   Total imports: 4 | Used: 0 | UNUSED: 4
+   [UNUSED IMPORT] from processor import _carregar_dados_ordem (line 5)
+   [UNUSED IMPORT] from processor import _extrair_ordens_da_serie (line 5)
+   [UNUSED IMPORT] from processor import _aplicar_acao_por_fluxo (line 5)
+   [UNUSED IMPORT] from processor import _identificar_ordens_com_bloqueio (line 5)
+
+----------------------------------------------------------------------
+FILE: SISB\ordens\processor.py
+   Total imports: 11 | Used: 10 | UNUSED: 1
+   [UNUSED IMPORT] from selenium.webdriver.common.action_chains import ActionChains (line 144)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento.py
+   Total imports: 13 | Used: 1 | UNUSED: 12
+   [UNUSED IMPORT] from processamento_minuta import minuta_bloqueio_refatorada (line 14)
+   [UNUSED IMPORT] from processamento_campos import _preencher_campos_principais (line 15)
+   [UNUSED IMPORT] from processamento_campos import _processar_reus_otimizado (line 15)
+   [UNUSED IMPORT] from processamento_campos import _configurar_valor (line 15)
+   [UNUSED IMPORT] from processamento_campos import _configurar_opcoes_adicionais (line 15)
+   [UNUSED IMPORT] from processamento_relatorios import _salvar_minuta (line 21)
+   [UNUSED IMPORT] from processamento_relatorios import _gerar_relatorio_minuta (line 21)
+   [UNUSED IMPORT] from processamento_relatorios import _salvar_relatorios (line 21)
+   [UNUSED IMPORT] from processamento_relatorios import _finalizar_minuta (line 21)
+   [UNUSED IMPORT] from processamento_extracao import _extrair_cpf_autor (line 27)
+   [UNUSED IMPORT] from processamento_extracao import _extrair_nome_autor (line 27)
+   [UNUSED IMPORT] from processamento_ordens_processamento import _processar_ordem (line 28)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento\__init__.py
+   Total imports: 27 | Used: 0 | UNUSED: 27
+   [UNUSED IMPORT] from validacao import _validar_dados (line 5)
+   [UNUSED IMPORT] from integracao import _atualizar_relatorio_com_segundo_protocolo (line 6)
+   [UNUSED IMPORT] from integracao import _executar_juntada_pje (line 6)
+   [UNUSED IMPORT] from navegacao import _voltar_para_lista_ordens_serie (line 7)
+   [UNUSED IMPORT] from navegacao import _voltar_para_lista_principal (line 7)
+   [UNUSED IMPORT] from ordens_dados import _carregar_dados_ordem (line 8)
+   [UNUSED IMPORT] from ordens_dados import _extrair_ordens_da_serie (line 8)
+   [UNUSED IMPORT] from ordens_dados import _identificar_ordens_com_bloqueio (line 8)
+   [UNUSED IMPORT] from ordens_acao import _aplicar_acao_por_fluxo (line 9)
+   [UNUSED IMPORT] from relatorios_dados import _agrupar_dados_bloqueios (line 10)
+   [UNUSED IMPORT] from relatorios_dados import extrair_dados_bloqueios_processados (line 10)
+   [UNUSED IMPORT] from relatorios_formatacao import gerar_relatorio_bloqueios_processados (line 11)
+   [UNUSED IMPORT] from relatorios_formatacao import gerar_relatorio_bloqueios_conciso (line 11)
+   [UNUSED IMPORT] from relatorios_ordem import _gerar_relatorio_ordem (line 12)
+   [UNUSED IMPORT] from series_filtro import _filtrar_series (line 13)
+   [UNUSED IMPORT] from series_navegar import _navegar_e_extrair_ordens_serie (line 14)
+   [UNUSED IMPORT] from series_navegar import _extrair_nome_executado_serie (line 14)
+   [UNUSED IMPORT] from series_estrategia import _calcular_estrategia_bloqueio (line 15)
+   [UNUSED IMPORT] from series_fluxo import _processar_series (line 16)
+   [UNUSED IMPORT] from minutas_prazo import _selecionar_prazo_bloqueio (line 17)
+   [UNUSED IMPORT] from minutas_campos import _preencher_campos_iniciais (line 18)
+   [UNUSED IMPORT] from minutas_reus import _processar_reus_otimizado (line 19)
+   [UNUSED IMPORT] from minutas_salvar import _salvar_minuta (line 20)
+   [UNUSED IMPORT] from minutas_relatorio import _gerar_relatorio_minuta (line 21)
+   [UNUSED IMPORT] from  import minutas_deprecated (line 24)
+   [UNUSED IMPORT] from processamento_minuta import minuta_bloqueio_refatorada (line 25)
+   [UNUSED IMPORT] from processamento_ordens_processamento import _processar_ordem (line 26)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento\integracao.py
+   Total imports: 4 | Used: 3 | UNUSED: 1
+   [UNUSED IMPORT] from PEC.anexos import consulta_wrapper (line 78)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento\series_fluxo.py
+   Total imports: 13 | Used: 12 | UNUSED: 1
+   [UNUSED IMPORT] from series_estrategia import _calcular_estrategia_bloqueio (line 6)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento_campos.py
+   Total imports: 4 | Used: 0 | UNUSED: 4
+   [UNUSED IMPORT] from processamento_campos_principais import _preencher_campos_principais (line 14)
+   [UNUSED IMPORT] from processamento_campos_reus import _processar_reus_otimizado (line 15)
+   [UNUSED IMPORT] from processamento_campos_reus import _configurar_valor (line 15)
+   [UNUSED IMPORT] from processamento_campos_reus import _configurar_opcoes_adicionais (line 15)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento_minuta.py
+   Total imports: 12 | Used: 11 | UNUSED: 1
+   [UNUSED IMPORT] from utils import extrair_protocolo (line 11)
+
+----------------------------------------------------------------------
+FILE: SISB\processamento_ordens_processamento.py
+   Total imports: 11 | Used: 8 | UNUSED: 3
+   [UNUSED IMPORT] from selenium.webdriver.common.action_chains import ActionChains (line 11)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 12)
+   [UNUSED IMPORT] from selenium.common.exceptions import StaleElementReferenceException (line 16)
+
+----------------------------------------------------------------------
+FILE: SISB\relatorios\__init__.py
+   Total imports: 5 | Used: 0 | UNUSED: 5
+   [UNUSED IMPORT] from generator import _agrupar_dados_bloqueios (line 6)
+   [UNUSED IMPORT] from generator import extrair_dados_bloqueios_processados (line 6)
+   [UNUSED IMPORT] from generator import gerar_relatorio_bloqueios_processados (line 6)
+   [UNUSED IMPORT] from generator import gerar_relatorio_bloqueios_conciso (line 6)
+   [UNUSED IMPORT] from generator import _gerar_relatorio_ordem (line 6)
+
+----------------------------------------------------------------------
+FILE: SISB\s_orquestrador.py
+   Total imports: 28 | Used: 11 | UNUSED: 17
+   [UNUSED IMPORT] from typing import Optional (line 2)
+   [UNUSED IMPORT] from core import driver_sisbajud (line 22)
+   [UNUSED IMPORT] from core import login_automatico_sisbajud (line 22)
+   [UNUSED IMPORT] from core import login_manual_sisbajud (line 22)
+   [UNUSED IMPORT] from core import minuta_bloqueio (line 22)
+   [UNUSED IMPORT] from processamento import minuta_bloqueio_refatorada (line 32)
+   [UNUSED IMPORT] from utils import criar_js_otimizado (line 36)
+   [UNUSED IMPORT] from utils import safe_click (line 36)
+   [UNUSED IMPORT] from utils import aguardar_elemento (line 36)
+   [UNUSED IMPORT] from utils import log_sisbajud (line 36)
+   [UNUSED IMPORT] from utils import formatar_valor_monetario (line 36)
+   [UNUSED IMPORT] from standards import SISBConstants (line 45)
+   [UNUSED IMPORT] from standards import DadosProcesso (line 45)
+   [UNUSED IMPORT] from performance import performance_optimizer (line 54)
+   [UNUSED IMPORT] from performance import polling_reducer (line 54)
+   [UNUSED IMPORT] from performance import cache_manager (line 54)
+   [UNUSED IMPORT] from performance import parallel_processor (line 54)
+
+----------------------------------------------------------------------
+FILE: SISB\series\__init__.py
+   Total imports: 5 | Used: 0 | UNUSED: 5
+   [UNUSED IMPORT] from processor import _filtrar_series (line 6)
+   [UNUSED IMPORT] from processor import _navegar_e_extrair_ordens_serie (line 6)
+   [UNUSED IMPORT] from processor import _extrair_nome_executado_serie (line 6)
+   [UNUSED IMPORT] from processor import _processar_series (line 6)
+   [UNUSED IMPORT] from processor import _calcular_estrategia_bloqueio (line 6)
+
+----------------------------------------------------------------------
+FILE: SISB\utils.py
+   Total imports: 33 | Used: 4 | UNUSED: 29
+   [UNUSED IMPORT] from Core.utils_const import SISBAJUD_URLS (line 3)
+   [UNUSED IMPORT] from Core.utils_const import TIMEOUTS (line 3)
+   [UNUSED IMPORT] from Core.utils_const import SELECTORS (line 3)
+   [UNUSED IMPORT] from Core.utils_js import criar_js_otimizado (line 4)
+   [UNUSED IMPORT] from Core.utils_js import mutation_observer_script (line 4)
+   [UNUSED IMPORT] from Core.utils_js import rate_limiting_manager (line 4)
+   [UNUSED IMPORT] from Core.utils_js import advanced_dom_manipulator (line 4)
+   [UNUSED IMPORT] from Core.utils_js import consolidated_js_framework (line 4)
+   [UNUSED IMPORT] from Core.utils_web import safe_click (line 11)
+   [UNUSED IMPORT] from Core.utils_web import simulate_human_movement (line 11)
+   [UNUSED IMPORT] from Core.utils_web import aguardar_elemento (line 11)
+   [UNUSED IMPORT] from Core.utils_web import aguardar_e_clicar (line 11)
+   [UNUSED IMPORT] from Core.utils_web import escolher_opcao_sisbajud (line 11)
+   [UNUSED IMPORT] from Core.utils_web import aplicar_rate_limiting (line 11)
+   [UNUSED IMPORT] from Core.utils_web import detectar_captcha (line 11)
+   [UNUSED IMPORT] from Core.utils_web import anti_detection_measures (line 11)
+   [UNUSED IMPORT] from Core.utils_web import smart_wait (line 11)
+   [UNUSED IMPORT] from Core.utils_dados import extrair_protocolo (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import validar_numero_processo (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import formatar_valor_monetario (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import calcular_data_limite (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import criar_timestamp (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import log_sisbajud (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import registrar_erro_minuta (line 22)
+   [UNUSED IMPORT] from Core.utils_dados import carregar_dados_processo (line 22)
+   [UNUSED IMPORT] from Core.sessao_helpers import _extrair_dados_pje (line 32)
+   [UNUSED IMPORT] from Core.sessao_helpers import _criar_driver_sisbajud (line 32)
+   [UNUSED IMPORT] from Core.sessao_helpers import _realizar_login (line 32)
+   [UNUSED IMPORT] from Core.sessao_helpers import _navegar_minuta (line 32)
+
+----------------------------------------------------------------------
+FILE: SISB\validation\__init__.py
+   Total imports: 1 | Used: 0 | UNUSED: 1
+   [UNUSED IMPORT] from processor import _validar_dados (line 5)
+
+----------------------------------------------------------------------
+FILE: api\variaveis.py
+   Total imports: 13 | Used: 0 | UNUSED: 13
+   [UNUSED IMPORT] from Fix.variaveis_client import PjeApiClient (line 8)
+   [UNUSED IMPORT] from Fix.variaveis_client import session_from_driver (line 8)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import obter_codigo_validacao_documento (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import obter_peca_processual_da_timeline (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import resolver_variavel (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import get_all_variables (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_resolvers import obter_chave_ultimo_despacho_decisao_sentenca (line 9)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import obter_gigs_com_fase (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import obter_texto_documento (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import buscar_atividade_gigs_por_observacao (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import obter_todas_atividades_gigs_com_observacao (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import padrao_liq (line 16)
+   [UNUSED IMPORT] from Fix.variaveis_helpers import verificar_bndt (line 16)
+
+----------------------------------------------------------------------
+FILE: api\variaveis_resolvers.py
+   Total imports: 5 | Used: 4 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Any (line 1)
+
+----------------------------------------------------------------------
+FILE: atos\__init__.py
+   Total imports: 54 | Used: 0 | UNUSED: 54
+   [UNUSED IMPORT] from core import selecionar_opcao_select (line 5)
+   [UNUSED IMPORT] from judicial import fluxo_cls (line 6)
+   [UNUSED IMPORT] from judicial import ato_judicial (line 6)
+   [UNUSED IMPORT] from judicial import ato_pesquisas (line 6)
+   [UNUSED IMPORT] from judicial import make_ato_wrapper (line 6)
+   [UNUSED IMPORT] from judicial import idpj (line 6)
+   [UNUSED IMPORT] from comunicacao import comunicacao_judicial (line 13)
+   [UNUSED IMPORT] from comunicacao import make_comunicacao_wrapper (line 13)
+   [UNUSED IMPORT] from movimentos import mov (line 17)
+   [UNUSED IMPORT] from wrappers_ato import ato_meios (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_reitmeios (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_ratif (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_100 (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_unap (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_crda (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_crte (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_bloq (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_idpj (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_termoE (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_termoS (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_edital (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_sobrestamento (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_prov (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_180 (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_x90 (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_pesqliq_original (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_pesqliq (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_calc2 (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_meiosub (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_presc (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_fal (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_parcela (line 18)
+   [UNUSED IMPORT] from wrappers_ato import ato_prev (line 18)
+   [UNUSED IMPORT] from wrappers_mov import mov_arquivar (line 45)
+   [UNUSED IMPORT] from wrappers_mov import mov_exec (line 45)
+   [UNUSED IMPORT] from wrappers_mov import mov_aud (line 45)
+   [UNUSED IMPORT] from wrappers_mov import mov_prazo (line 45)
+   [UNUSED IMPORT] from wrappers_pec import pec_bloqueio (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_decisao (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_idpj (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_editalidpj (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_editaldec (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_cpgeral (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_excluiargos (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_mddgeral (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_mddaud (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_editalaud (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_sigilo (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_ord (line 51)
+   [UNUSED IMPORT] from wrappers_pec import pec_sum (line 51)
+   [UNUSED IMPORT] from movimentos import mov_sob (line 66)
+   [UNUSED IMPORT] from movimentos import mov_fimsob (line 66)
+   [UNUSED IMPORT] from wrappers_utils import visibilidade_sigilosos (line 71)
+   [UNUSED IMPORT] from wrappers_utils import executar_visibilidade_sigilosos_se_necessario (line 71)
+
+----------------------------------------------------------------------
+FILE: atos\comunicacao.py
+   Total imports: 22 | Used: 21 | UNUSED: 1
+   [UNUSED IMPORT] from comunicacao_preenchimento import aguardar_ato_confeccionado (line 8)
+
+----------------------------------------------------------------------
+FILE: atos\comunicacao_coleta.py
+   Total imports: 9 | Used: 8 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Any (line 3)
+
+----------------------------------------------------------------------
+FILE: atos\comunicacao_finalizacao.py
+   Total imports: 20 | Used: 18 | UNUSED: 2
+   [UNUSED IMPORT] from Fix.exceptions import ElementoNaoEncontradoError (line 6)
+   [UNUSED IMPORT] from wrappers_utils import executar_visibilidade_sigilosos_se_necessario (line 8)
+
+----------------------------------------------------------------------
+FILE: atos\comunicacao_navigation.py
+   Total imports: 8 | Used: 7 | UNUSED: 1
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 3)
+
+----------------------------------------------------------------------
+FILE: atos\comunicacao_preenchimento.py
+   Total imports: 22 | Used: 18 | UNUSED: 4
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 5)
+   [UNUSED IMPORT] from Fix.selenium_base.click_operations import safe_click_no_scroll (line 7)
+   [UNUSED IMPORT] from Fix.exceptions import ElementoNaoEncontradoError (line 9)
+   [UNUSED IMPORT] from typing import Any (line 11)
+
+----------------------------------------------------------------------
+FILE: atos\core.py
+   Total imports: 34 | Used: 10 | UNUSED: 24
+   [UNUSED IMPORT] from typing import Optional (line 1)
+   [UNUSED IMPORT] from typing import Tuple (line 1)
+   [UNUSED IMPORT] from typing import Dict (line 1)
+   [UNUSED IMPORT] from typing import List (line 1)
+   [UNUSED IMPORT] from typing import Union (line 1)
+   [UNUSED IMPORT] from typing import Callable (line 1)
+   [UNUSED IMPORT] from Fix.utils import login_pc (line 8)
+   [UNUSED IMPORT] from Fix.selenium_base.element_interaction import safe_click (line 9)
+   [UNUSED IMPORT] from Fix.selenium_base.element_interaction import preencher_campos_prazo (line 9)
+   [UNUSED IMPORT] from Fix.selenium_base.wait_operations import esperar_elemento (line 10)
+   [UNUSED IMPORT] from Fix.selenium_base.wait_operations import esperar_url_conter (line 10)
+   [UNUSED IMPORT] from Fix.selenium_base.retry_logic import buscar_seletor_robusto (line 11)
+   [UNUSED IMPORT] from Fix.selenium_base.retry_logic import com_retry (line 11)
+   [UNUSED IMPORT] from Fix.selenium_base.click_operations import aguardar_e_clicar (line 12)
+   [UNUSED IMPORT] from Fix.selenium_base import selecionar_opcao (line 13)
+   [UNUSED IMPORT] from Fix.selenium_base import preencher_campo (line 13)
+   [UNUSED IMPORT] from Fix.gigs import criar_gigs (line 14)
+   [UNUSED IMPORT] from Fix.navigation import aplicar_filtro_100 (line 15)
+   [UNUSED IMPORT] from Fix.utils import limpar_temp_selenium (line 16)
+   [UNUSED IMPORT] from Fix.documents import buscar_documentos_sequenciais (line 17)
+   [UNUSED IMPORT] from Fix.documents import indexar_e_processar_lista (line 17)
+   [UNUSED IMPORT] from Fix.documents import extrair_dados_processo (line 17)
+   [UNUSED IMPORT] from Fix.documents import carregar_destinatarios_cache (line 17)
+   [UNUSED IMPORT] from Fix.selectors_pje import BTN_TAREFA_PROCESSO (line 22)
+
+----------------------------------------------------------------------
+FILE: atos\judicial.py
+   Total imports: 35 | Used: 11 | UNUSED: 24
+   [UNUSED IMPORT] from typing import Tuple (line 1)
+   [UNUSED IMPORT] from typing import Dict (line 1)
+   [UNUSED IMPORT] from typing import List (line 1)
+   [UNUSED IMPORT] from typing import Union (line 1)
+   [UNUSED IMPORT] from wrappers_ato import ato_meios (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_100 (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_crda (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_crte (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_bloq (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_idpj (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_termoE (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_termoS (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_edital (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_sobrestamento (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_prov (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_180 (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_x90 (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_pesqliq_original (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_pesqliq (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_calc2 (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_meiosub (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_presc (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_fal (line 15)
+   [UNUSED IMPORT] from wrappers_ato import ato_parcela (line 15)
+
+----------------------------------------------------------------------
+FILE: atos\judicial_fluxo.py
+   Total imports: 45 | Used: 33 | UNUSED: 12
+   [UNUSED IMPORT] from Fix.selenium_base.wait_operations import esperar_url_conter (line 13)
+   [UNUSED IMPORT] from Fix.selenium_base.element_interaction import preencher_multiplos_campos (line 14)
+   [UNUSED IMPORT] from Fix.selectors_pje import BTN_TAREFA_PROCESSO (line 17)
+   [UNUSED IMPORT] from Fix.utils import inserir_link_ato_validacao (line 18)
+   [UNUSED IMPORT] from Fix.extracao import bndt (line 19)
+   [UNUSED IMPORT] from Fix.extracao import criar_gigs (line 19)
+   [UNUSED IMPORT] from selenium.common.exceptions import ElementClickInterceptedException (line 23)
+   [UNUSED IMPORT] from typing import Dict (line 27)
+   [UNUSED IMPORT] from typing import List (line 27)
+   [UNUSED IMPORT] from core import verificar_carregamento_pagina (line 30)
+   [UNUSED IMPORT] from core import aguardar_e_verificar_aba (line 30)
+   [UNUSED IMPORT] from judicial_utils import verificar_bloqueio_recente (line 45)
+
+----------------------------------------------------------------------
+FILE: atos\judicial_helpers.py
+   Total imports: 14 | Used: 13 | UNUSED: 1
+   [UNUSED IMPORT] from atos.judicial_utils import preencher_prazos_destinatarios (line 109)
+
+----------------------------------------------------------------------
+FILE: atos\judicial_modelos.py
+   Total imports: 12 | Used: 6 | UNUSED: 6
+   [UNUSED IMPORT] from Fix.selenium_base.click_operations import aguardar_e_clicar (line 10)
+   [UNUSED IMPORT] from Fix.selenium_base.click_operations import safe_click_no_scroll (line 10)
+   [UNUSED IMPORT] from Fix.selenium_base.element_interaction import safe_click (line 11)
+   [UNUSED IMPORT] from selenium.webdriver.common.keys import Keys (line 16)
+   [UNUSED IMPORT] from selenium.common.exceptions import ElementClickInterceptedException (line 17)
+   [UNUSED IMPORT] from typing import Optional (line 19)
+
+----------------------------------------------------------------------
+FILE: atos\judicial_navegacao.py
+   Total imports: 16 | Used: 15 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Optional (line 21)
+
+----------------------------------------------------------------------
+FILE: atos\judicial_utils.py
+   Total imports: 10 | Used: 9 | UNUSED: 1
+   [UNUSED IMPORT] from datetime import timedelta (line 16)
+
+----------------------------------------------------------------------
+FILE: atos\movimentos.py
+   Total imports: 6 | Used: 0 | UNUSED: 6
+   [UNUSED IMPORT] from movimentos_fluxo import mov (line 1)
+   [UNUSED IMPORT] from movimentos_fluxo import mov_simples (line 1)
+   [UNUSED IMPORT] from movimentos_sobrestamento import mov_sob (line 2)
+   [UNUSED IMPORT] from movimentos_fimsob import mov_fimsob (line 3)
+   [UNUSED IMPORT] from movimentos_chips import def_chip (line 4)
+   [UNUSED IMPORT] from movimentos_despacho import despacho_generico (line 5)
+
+----------------------------------------------------------------------
+FILE: atos\movimentos_despacho.py
+   Total imports: 5 | Used: 3 | UNUSED: 2
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 35)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 36)
+
+----------------------------------------------------------------------
+FILE: atos\movimentos_sobrestamento.py
+   Total imports: 10 | Used: 9 | UNUSED: 1
+   [UNUSED IMPORT] from selenium.webdriver.remote.webdriver import WebDriver (line 6)
+
+----------------------------------------------------------------------
+FILE: atos\wrappers_mov.py
+   Total imports: 7 | Used: 3 | UNUSED: 4
+   [UNUSED IMPORT] from movimentos import mov (line 10)
+   [UNUSED IMPORT] from movimentos import mov_simples (line 10)
+   [UNUSED IMPORT] from selenium.webdriver.common.by import By (line 12)
+   [UNUSED IMPORT] from movimentos import mov_simples (line 33)
+
+----------------------------------------------------------------------
+FILE: carta\anexos.py
+   Total imports: 50 | Used: 17 | UNUSED: 33
+   [UNUSED IMPORT] from typing import Union (line 6)
+   [UNUSED IMPORT] from typing import List (line 6)
+   [UNUSED IMPORT] from selenium.common.exceptions import TimeoutException (line 11)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 11)
+   [UNUSED IMPORT] from Fix.core import safe_click (line 14)
+   [UNUSED IMPORT] from Fix.core import wait_for_clickable (line 14)
+   [UNUSED IMPORT] from Fix.utils import inserir_html_no_editor_apos_marcador (line 22)
+   [UNUSED IMPORT] from atos import fluxo_cls (line 30)
+   [UNUSED IMPORT] from atos import ato_judicial (line 30)
+   [UNUSED IMPORT] from atos import comunicacao_judicial (line 30)
+   [UNUSED IMPORT] from atos import mov (line 30)
+   [UNUSED IMPORT] from atos import idpj (line 30)
+   [UNUSED IMPORT] from atos import make_ato_wrapper (line 30)
+   [UNUSED IMPORT] from atos import make_comunicacao_wrapper (line 30)
+   [UNUSED IMPORT] from atos import selecionar_opcao_select (line 30)
+   [UNUSED IMPORT] from PEC import analisar_documentos_pos_carta (line 42)
+   [UNUSED IMPORT] from PEC import aplicar_filtro_xs (line 42)
+   [UNUSED IMPORT] from PEC import carregar_progresso_pec (line 42)
+   [UNUSED IMPORT] from PEC import extrair_numero_processo_pec (line 42)
+   [UNUSED IMPORT] from PEC import indexar_processo_atual_gigs (line 42)
+   [UNUSED IMPORT] from PEC import marcar_processo_executado_pec (line 42)
+   [UNUSED IMPORT] from PEC import navegar_para_atividades (line 42)
+   [UNUSED IMPORT] from PEC import processo_ja_executado_pec (line 42)
+   [UNUSED IMPORT] from PEC import salvar_progresso_pec (line 42)
+   [UNUSED IMPORT] from PEC import verificar_acesso_negado_pec (line 42)
+   [UNUSED IMPORT] from PEC.processamento import executar_fluxo_novo (line 54)
+   [UNUSED IMPORT] from PEC.processamento import executar_acao (line 54)
+   [UNUSED IMPORT] from PEC.processamento import processar_processo_pec_individual (line 54)
+   [UNUSED IMPORT] from Prazo.p2b_fluxo_helpers import _processar_regras_gerais (line 83)
+   [UNUSED IMPORT] from Prazo.p2b_core import carregar_progresso_p2b (line 86)
+   [UNUSED IMPORT] from Prazo.p2b_core import salvar_progresso_p2b (line 86)
+   [UNUSED IMPORT] from Prazo.p2b_core import processo_ja_executado_p2b (line 86)
+   [UNUSED IMPORT] from Prazo.p2b_core import marcar_processo_executado_p2b (line 86)
+
+----------------------------------------------------------------------
+FILE: carta\carta.py
+   Total imports: 15 | Used: 12 | UNUSED: 3
+   [UNUSED IMPORT] from selenium.webdriver.support.ui import WebDriverWait (line 3)
+   [UNUSED IMPORT] from selenium.webdriver.support import expected_conditions (line 4)
+   [UNUSED IMPORT] from selenium.common.exceptions import NoSuchElementException (line 5)
+
+----------------------------------------------------------------------
+FILE: core\resultado_execucao.py
+   Total imports: 6 | Used: 5 | UNUSED: 1
+   [UNUSED IMPORT] from datetime import datetime (line 3)
+
+----------------------------------------------------------------------
+FILE: dom.py
+   Total imports: 42 | Used: 41 | UNUSED: 1
+   [UNUSED IMPORT] from x import resetar_driver (line 45)
+
+----------------------------------------------------------------------
+FILE: f.py
+   Total imports: 10 | Used: 7 | UNUSED: 3
+   [UNUSED IMPORT] from Fix.gigs import criar_comentario (line 12)
+   [UNUSED IMPORT] from PEC.regras_pec import determinar_regra (line 13)
+   [UNUSED IMPORT] from types import SimpleNamespace (line 14)
+
+----------------------------------------------------------------------
+FILE: p2.py
+   Total imports: 7 | Used: 6 | UNUSED: 1
+   [UNUSED IMPORT] from typing import Union (line 3)
+
+----------------------------------------------------------------------
+FILE: utilitarios_processamento.py
+   Total imports: 4 | Used: 2 | UNUSED: 2
+   [UNUSED IMPORT] from typing import Callable (line 11)
+   [UNUSED IMPORT] from typing import List (line 11)
+
+----------------------------------------------------------------------
+FILE: x.py
+   Total imports: 27 | Used: 25 | UNUSED: 2
+   [UNUSED IMPORT] from typing import Tuple (line 48)
+   [UNUSED IMPORT] from selenium.webdriver.firefox.firefox_profile import FirefoxProfile (line 54)
+
+================================================================================
+TOTAL UNUSED IMPORTS: 1143
+================================================================================
+
+================================================================================
+TOP FILES BY UNUSED IMPORT COUNT
+================================================================================
+  107 unused imports  -  Fix\__init__.py
+   60 unused imports  -  Mandado\utils.py
+   55 unused imports  -  Mandado\processamento.py
+   54 unused imports  -  atos\__init__.py
+   33 unused imports  -  carta\anexos.py
+   30 unused imports  -  Fix\core.py
+   29 unused imports  -  Fix\monitoramento_progresso_unificado.py
+   29 unused imports  -  SISB\utils.py
+   27 unused imports  -  SISB\processamento\__init__.py
+   26 unused imports  -  Mandado\core.py
+   26 unused imports  -  SISB\helpers.py
+   24 unused imports  -  Fix\selenium_base\__init__.py
+   24 unused imports  -  atos\core.py
+   24 unused imports  -  atos\judicial.py
+   23 unused imports  -  Mandado\regras.py
+   23 unused imports  -  PEC\anexos\anexos_configuracao.py
+   23 unused imports  -  SISB\__init__.py
+   22 unused imports  -  PEC\processamento.py
+   21 unused imports  -  Prazo\loop_base.py
+   19 unused imports  -  Mandado\__init__.py
+   18 unused imports  -  PEC\anexos\anexos_juntador_base.py
+   18 unused imports  -  PEC\anexos\anexos_juntador_helpers.py
+   17 unused imports  -  SISB\s_orquestrador.py
+   15 unused imports  -  PEC\anexos\anexos_juntador.py
+   15 unused imports  -  PEC\anexos\anexos_juntador_metodos.py
+   15 unused imports  -  Prazo\p2b_fluxo.py
+   14 unused imports  -  Fix\variaveis.py
+   13 unused imports  -  Fix\progress\__init__.py
+   13 unused imports  -  Mandado\atos_wrapper.py
+   13 unused imports  -  Prazo\__init__.py

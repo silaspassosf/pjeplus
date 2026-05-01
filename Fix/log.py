@@ -1,642 +1,122 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
-Logger Centralizado para PJePlus - Especificação Completa
+Fix/log.py - Sistema de Logging para PJe Plus
 
-Este módulo define a arquitetura de logging centralizado que força boas práticas:
-- Rejeita mensagens com emojis
-- Formata automaticamente com timestamp
-- Separa logs por módulo
-- Suporta múltiplos níveis (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- Integra com progresso unificado
-- Valida tipo hints
+Fornece logger estruturado com controle via variável ambiente PJEPLUS_LOG.
 
-Substituir: print() e logger.info() despadronizados
-Por: logger_pje.info(), logger_pje.error(), etc
+Uso:
+    from Fix.log import logger
+    logger.info("Mensagem")
+    logger.error("Erro detectado")
+    logger.warning("Aviso")
+    logger.debug("Debug info")
+
+Controle:
+    Variável PJEPLUS_LOG:
+    - "0" (padrão): INFO + WARNING + ERROR
+    - "1" / "true": DEBUG + INFO + WARNING + ERROR
+    - "on": DEBUG + INFO + WARNING + ERROR
 """
 
+import os
 import logging
-import logging.handlers
-import re
 import sys
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Callable, Tuple
-from enum import Enum
-
-# typing for selenium WebDriver used across logging helpers
-from selenium.webdriver.remote.webdriver import WebDriver
 
 
-class LogLevel(Enum):
-    """Níveis de log customizados para PJePlus."""
-    DEBUG = logging.DEBUG
-    INFO = logging.INFO
-    WARNING = logging.WARNING
-    ERROR = logging.ERROR
-    CRITICAL = logging.CRITICAL
-
-
-class EmojiValidator:
-    """Validador que rejeita mensagens com emojis."""
-
-    # Padrão Unicode para emojis
-    EMOJI_PATTERN = re.compile(
-        r'[\U0001F600-\U0001F64F'  # emoticons
-        r'\U0001F300-\U0001F5FF'   # symbols & pictographs
-        r'\U0001F680-\U0001F6FF'   # transport & map
-        r'\U0001F1E0-\U0001F1FF'   # flags (iOS)
-        r'\u2600-\u27BF'           # misc symbols
-        r'\u2700-\u27BF'           # dingbats
-        r'\U0001F900-\U0001F9FF'   # supplemental symbols
-        r'\u2B50\u274C\u2705\u26A0\uFE0F]'  # específicos: , , , 
-    )
-
-    @classmethod
-    def has_emoji(cls, text: str) -> bool:
-        """Verifica se texto contém emoji."""
-        return bool(cls.EMOJI_PATTERN.search(text))
-
-    @classmethod
-    def remove_emoji(cls, text: str) -> str:
-        """Remove todos os emojis do texto."""
-        return cls.EMOJI_PATTERN.sub('', text)
-
-
-class PJePlusFormatter(logging.Formatter):
-    """Formatador customizado para PJePlus."""
-
-    # Cores para terminal (ANSI)
-    COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[41m',   # Red background
-        'RESET': '\033[0m',       # Reset
-    }
-
-    def __init__(self, use_color: bool = True, validate_emoji: bool = True):
+class PJELogger:
+    """Logger estruturado para PJe Plus com níveis configuráveis."""
+    
+    NIVEL_PADRAO = logging.INFO
+    
+    def __init__(self, nome='pjeplus'):
         """
-        Inicializa formatador.
-
+        Inicializa o logger.
+        
         Args:
-            use_color: Usar cores no terminal
-            validate_emoji: Validar e rejeitar emojis
+            nome: Nome do logger
         """
-        super().__init__()
-        self.use_color = use_color and self._supports_color()
-        self.validate_emoji = validate_emoji
-
-    def format(self, record: logging.LogRecord) -> str:
-        """
-        Formata record de log.
-
-        Args:
-            record: Record a formatar
-
-        Returns:
-            String formatada
-        """
-        # Remover emojis antes de formatar a mensagem de log.
-        # Isto evita falhas de formatação quando a aplicação ainda usa emojis em logs.
-        if self.validate_emoji and EmojiValidator.has_emoji(record.getMessage()):
-            clean_message = EmojiValidator.remove_emoji(record.getMessage())
-            record.msg = clean_message
-            record.args = ()
-
-        # Formatar base
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
-        level_name = record.levelname
-        module_name = record.name
-        line_number = record.lineno
-        function_name = record.funcName
-
-        # Construir mensagem
-        if self.use_color:
-            color = self.COLORS.get(level_name, self.COLORS['RESET'])
-            reset = self.COLORS['RESET']
-            formatted = (
-                f'{color}[{timestamp}] [{level_name}] '
-                f'{module_name}:{function_name}:{line_number} '
-                f'{record.getMessage()}{reset}'
-            )
+        self.logger = logging.getLogger(nome)
+        self._configurar_nivel()
+        self._configurar_formatador()
+    
+    def _configurar_nivel(self):
+        """Configura nível de logging baseado em variável ambiente."""
+        debug_env = os.getenv('PJEPLUS_DEBUG', '0').lower()
+        
+        if debug_env in ('1', 'true', 'on'):
+            self.logger.setLevel(logging.DEBUG)
         else:
-            formatted = (
-                f'[{timestamp}] [{level_name}] '
-                f'{module_name}:{function_name}:{line_number} '
-                f'{record.getMessage()}'
-            )
-
-        # Adicionar traceback se houver exception
-        if record.exc_info:
-            formatted += '\n' + self.formatException(record.exc_info)
-
-        return formatted
-
-    @staticmethod
-    def _supports_color() -> bool:
-        """Verifica se terminal suporta cores."""
-        return sys.stdout.isatty() and 'TERM' in __import__('os').environ
-
-
-class PJePlusLogger:
-    """Logger centralizado para PJePlus."""
-
-    _instance: Optional['PJePlusLogger'] = None
-    _loggers: Dict[str, logging.Logger] = {}
-
-    def __new__(cls, *args, **kwargs):
-        """Singleton pattern."""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(
-        self,
-        log_level: LogLevel = LogLevel.INFO,
-        log_file: Optional[Path] = None,
-        validate_emoji: bool = True,
-        use_color: bool = True,
-    ):
-        """
-        Inicializa logger centralizado.
-
-        Args:
-            log_level: Nível mínimo de log
-            log_file: Caminho do arquivo de log (opcional)
-            validate_emoji: Validar e rejeitar emojis
-            use_color: Usar cores no terminal
-        """
-        if self._initialized:
-            return
-
-        self.log_level = log_level
-        self.log_file = log_file
-        self.validate_emoji = validate_emoji
-        self.use_color = use_color
-        self._setup_root_logger()
-        self._initialized = True
-
-    def _setup_root_logger(self):
-        """Configura logger raiz."""
-        root_logger = logging.getLogger('pjeplus')
-        root_logger.setLevel(self.log_level.value)
-        root_logger.propagate = False
-
-        # Limpar handlers anteriores
-        root_logger.handlers.clear()
-
-        # Handler de console
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(self.log_level.value)
-        formatter = PJePlusFormatter(
-            use_color=self.use_color,
-            validate_emoji=self.validate_emoji
+            self.logger.setLevel(self.NIVEL_PADRAO)
+    
+    def _configurar_formatador(self):
+        """Configura formatador de logging."""
+        # Remove handlers existentes
+        self.logger.handlers.clear()
+        
+        # Handler console
+        handler = logging.StreamHandler(sys.stdout)
+        
+        # Formato: [HH:MM:SS] [LEVEL] mensagem
+        formatador = logging.Formatter(
+            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
         )
-        console_handler.setFormatter(formatter)
-        root_logger.addHandler(console_handler)
-
-        # Handler de arquivo (se configurado)
-        if self.log_file:
-            self.log_file.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.handlers.RotatingFileHandler(
-                self.log_file,
-                maxBytes=10 * 1024 * 1024,  # 10MB
-                backupCount=5,
-                encoding='utf-8'
-            )
-            file_handler.setLevel(self.log_level.value)
-            file_formatter = PJePlusFormatter(use_color=False, validate_emoji=self.validate_emoji)
-            file_handler.setFormatter(file_formatter)
-            root_logger.addHandler(file_handler)
-
-    def get_logger(self, module_name: str) -> logging.Logger:
-        """
-        Obtém logger para um módulo.
-
-        Args:
-            module_name: Nome do módulo (ex: 'pjeplus.SISB.series')
-
-        Returns:
-            Logger configurado
-        """
-        full_name = f'pjeplus.{module_name}'
-
-        if full_name not in self._loggers:
-            logger = logging.getLogger(full_name)
-            logger.setLevel(self.log_level.value)
-            self._loggers[full_name] = logger
-
-        return self._loggers[full_name]
-
-    def set_level(self, level: LogLevel):
-        """Altera nível de log globalmente."""
-        logging.getLogger('pjeplus').setLevel(level.value)
-        for logger in self._loggers.values():
-            logger.setLevel(level.value)
-
-
-# Singleton global
-_logger_instance: Optional[PJePlusLogger] = None
-
-
-def initialize_logging(
-    log_level: LogLevel = LogLevel.INFO,
-    log_file: Optional[Path] = None,
-    validate_emoji: bool = True,
-) -> PJePlusLogger:
-    """
-    Inicializa o sistema de logging.
-
-    Chamar UMA VEZ no início da aplicação.
-
-    Args:
-        log_level: Nível mínimo de log
-        log_file: Caminho do arquivo de log
-        validate_emoji: Validar emojis
-
-    Returns:
-        Instância do logger centralizado
-
-    Exemplo:
-        initialize_logging(
-            log_level=LogLevel.DEBUG,
-            log_file=Path('logs/pjeplus.log')
-        )
-    """
-    global _logger_instance
-    _logger_instance = PJePlusLogger(
-        log_level=log_level,
-        log_file=log_file,
-        validate_emoji=validate_emoji,
-    )
-    return _logger_instance
-
-
-def get_module_logger(module_name: str) -> logging.Logger:
-    """
-    Obtém logger para um módulo.
-
-    Uso em cada arquivo Python:
-
-    ```python
-    from Fix.log import get_module_logger
-
-    logger = get_module_logger(__name__)
-
-    def funcao_exemplo():
-        logger.info('Iniciando operação')
-        try:
-            # fazer algo
-            logger.info('Operação concluída com sucesso')
-        except Exception as e:
-            logger.error(f'Erro na operação: {e}', exc_info=True)
-    ```
-
-    Args:
-        module_name: Nome do módulo (__name__)
-
-    Returns:
-        Logger configurado
-    """
-    if _logger_instance is None:
-        initialize_logging()
-
-    # Remover prefixo 'pjeplus.' se presente
-    if module_name.startswith('pjeplus.'):
-        module_name = module_name[8:]
-
-    return _logger_instance.get_logger(module_name)
-
-
-# ============ UTILITÁRIOS PARA MÚLTIPLOS SELETORES ============
-
-def log_seletor_multiplo(prefixo: str, seletor: str, status: str, erro: Optional[str] = None) -> None:
-    """
-    Logging padronizado para tentativas de múltiplos seletores.
-
-    Args:
-        prefixo: Identificador da operação (ex: '[PRAZO]', '[RADIO]')
-        seletor: Seletor CSS/XPath testado
-        status: 'TENTATIVA', 'SUCESSO', 'FALHA'
-        erro: Mensagem de erro (opcional, apenas para FALHA)
-    """
-    logger = get_module_logger('Fix.log')
-    if status == 'TENTATIVA':
-        logger.info(f"{prefixo}[{status}] Testando seletor: {seletor}")
-    elif status == 'SUCESSO':
-        logger.info(f"{prefixo}[{status}] Seletor funcionou: {seletor}")
-    elif status == 'FALHA':
-        erro_msg = f" - {erro[:50]}..." if erro else ""
-        logger.info(f"{prefixo}[{status}] Seletor não funcionou: {seletor}{erro_msg}")
-
-
-def tentar_seletores(driver: WebDriver, seletores: List[str], funcao_teste: Callable[..., bool], prefixo_log: str, *args: Any, **kwargs: Any) -> Tuple[Optional[str], Optional[bool]]:
-    """
-    Tenta múltiplos seletores sequencialmente até um funcionar.
-    Log apenas o seletor que funcionou.
-
-    Args:
-        driver: WebDriver instance
-        seletores: Lista de seletores CSS/XPath para tentar
-        funcao_teste: Função que recebe (driver, seletor, *args, **kwargs) e retorna bool
-        prefixo_log: Prefixo para logging (ex: '[PRAZO]')
-        *args, **kwargs: Argumentos extras para funcao_teste
-
-    Returns:
-        tuple: (seletor_sucesso, resultado_funcao) ou (None, None) se nenhum funcionou
-    """
-    for seletor in seletores:
-        try:
-            resultado = funcao_teste(driver, seletor, *args, **kwargs)
-            if resultado is True:
-                # Log apenas o sucesso
-                logger = get_module_logger('Fix.log')
-                logger.info(f"{prefixo_log}[SUCESSO] Seletor funcionou: {seletor}")
-                return seletor, resultado
-        except Exception:
-            # Não logar falhas, apenas continuar tentando
-            continue
-
-    return None, None
-
-
-def registrar_seletor_correto(arquivo: str, linha: int, acao: str, seletor: str) -> None:
-    """
-    Registra seletor correto em arquivo txt para análise posterior.
-
-    Args:
-        arquivo: Nome do arquivo onde foi usado
-        linha: Número da linha aproximado
-        acao: Descrição da ação (ex: 'preencher_prazo', 'clicar_botao')
-        seletor: Seletor que funcionou
-    """
-    import os
-    from datetime import datetime
-
-    # Criar pasta log se não existir
-    log_dir = Path('log')
-    log_dir.mkdir(exist_ok=True)
-
-    # Arquivo de registro
-    registro_file = log_dir / 'seletores_corretos.txt'
-
-    # Formatar entrada
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    entrada = f"{timestamp} | {arquivo}:{linha} | {acao} | {seletor}\n"
-
-    # Adicionar ao arquivo
-    try:
-        with open(registro_file, 'a', encoding='utf-8') as f:
-            f.write(entrada)
-    except Exception as e:
-        # Fallback silencioso se não conseguir escrever
-        print(f"[REGISTRO] Erro ao salvar seletor: {e}")
-
-
-# ==========================
-# Compat: funções de resumo de exceção e utilitários de log
-# (origin: Fix/log_cleaner.py)
-# ==========================
-
-def resumir_excecao(exc: BaseException, contexto: str = "", max_frames: int = 3) -> str:
-    """Retorna string compacta de exceção para uso em debug/IA.
-
-    Compat wrapper movido de `Fix/log_cleaner.py` para facilitar importações via `Fix.log`.
-    """
-    if exc is None:
-        return "[Nenhuma exceção fornecida]"
-
-    import traceback
-    from pathlib import Path
-
-    tb = exc.__traceback__
-    frames = traceback.extract_tb(tb) if tb is not None else []
-    ultimos = frames[-max_frames:]
-
-    linhas = [f"[{type(exc).__name__}] {exc}"]
-    if contexto:
-        linhas.append(f"  contexto: {contexto}")
-
-    for frame in ultimos:
-        linhas.append(f"  {Path(frame.filename).name}:{frame.lineno} in {frame.name}")
-        if frame.line:
-            linhas.append(f"    → {frame.line.strip()}")
-
-    return "\n".join(linhas)
-
-
-def filtrar_log_arquivo(caminho: str | Path, nivel: str = "ERROR", max_linhas: int = 50) -> list[str]:
-    """Retorna as primeiras linhas do nível desejado de um arquivo de log.
-
-    Compat wrapper movido de `Fix/log_cleaner.py`.
-    """
-    caminho = Path(caminho)
-    nivel = nivel.upper()
-
-    if not caminho.exists():
-        raise FileNotFoundError(f"Arquivo de log não encontrado: {caminho}")
-
-    resultado: list[str] = []
-    with caminho.open("r", encoding="utf-8", errors="replace") as f:
-        for linha in f:
-            if nivel in linha.upper():
-                resultado.append(linha.rstrip())
-                if len(resultado) >= max_linhas:
-                    break
-
-    return resultado
-
-
-def extrair_seletor_dom(html_bruto: str) -> str:
-    """Converte um HTML bruto em selector reduzido para compartilhar em IA.
-
-    Compat wrapper movido de `Fix/log_cleaner.py`.
-    """
-    if not html_bruto or not isinstance(html_bruto, str):
-        return ""
-
-    import re
-
-    tag = re.search(r"<(\w+)", html_bruto)
-    classes = re.search(r'class=["\']([^"\']+)["\']', html_bruto)
-    id_val = re.search(r'id=["\']([^"\']+)["\']', html_bruto)
-    texto = re.search(r">([^<]{1,40})<", html_bruto)
-
-    partes = [tag.group(1) if tag else "*" ]
-    if classes:
-        classes_clean = classes.group(1).strip().replace(" ", ".")
-        if classes_clean:
-            partes[0] += f".{classes_clean}"
-    if id_val:
-        partes[0] += f"#{id_val.group(1).strip()}"
-
-    if texto and texto.group(1).strip():
-        partes.append(f"texto: '{texto.group(1).strip()}'")
-
-    return " ".join(partes)
-
-
-# ==========================
-# Exceções tipadas (origin: Fix/exceptions.py)
-# ==========================
-
-class PJePlusError(Exception):
-    """Exceção base para erros do PJePlus."""
-    pass
-
-
-class DriverFatalError(PJePlusError):
-    """Driver inutilizável."""
-    pass
-
-
-class ElementoNaoEncontradoError(PJePlusError):
-    """Elemento não localizado."""
-    def __init__(self, seletor: str, contexto: str = ""):
-        super().__init__(f"Elemento não encontrado: {seletor} (contexto: {contexto})")
-        self.seletor = seletor
-        self.contexto = contexto
-
-
-class TimeoutFluxoError(PJePlusError):
-    """Timeout de operação."""
-    def __init__(self, operacao: str, timeout: int):
-        super().__init__(f"Timeout na operação: {operacao} (timeout: {timeout}s)")
-        self.operacao = operacao
-        self.timeout = timeout
-
-
-class NavegacaoError(PJePlusError):
-    """Falha ao trocar aba ou navegar."""
-    pass
-
-
-class LoginError(PJePlusError):
-    """Falha de login."""
-    pass
-
-
-# Função auxiliar para uso automático (chama tentar_seletores + registra)
-def tentar_seletores_com_registro(driver: WebDriver, seletores: List[str], funcao_teste: Callable[..., bool], prefixo_log: str,
-                                 arquivo: str, linha: int, acao: str, *args: Any, **kwargs: Any) -> Tuple[Optional[str], Optional[bool]]:
-    """
-    Versão que automaticamente registra o seletor correto.
-
-    Args:
-        driver: WebDriver instance
-        seletores: Lista de seletores CSS/XPath para tentar
-        funcao_teste: Função que recebe (driver, seletor, *args, **kwargs) e retorna bool
-        prefixo_log: Prefixo para logging (ex: '[PRAZO]')
-        arquivo: Nome do arquivo (__file__)
-        linha: Número da linha (__line__)
-        acao: Descrição da ação
-        *args, **kwargs: Argumentos extras para funcao_teste
-
-    Returns:
-        tuple: (seletor_sucesso, resultado_funcao) ou (None, None) se nenhum funcionou
-    """
-    seletor_funcionou, resultado = tentar_seletores(
-        driver, seletores, funcao_teste, prefixo_log, *args, **kwargs
-    )
-
-    # Registrar se encontrou um seletor
-    if seletor_funcionou:
-        registrar_seletor_correto(arquivo, linha, acao, seletor_funcionou)
-
-    return seletor_funcionou, resultado
-
-
-# ============ EXEMPLO DE USO ============
-
-def example_usage():
-    """Exemplo de como usar o logger."""
-
-    # 1. Inicializar no main
-    initialize_logging(
-        log_level=LogLevel.DEBUG,
-        log_file=Path('logs/pjeplus.log')
-    )
-
-    # 2. Em cada módulo
-    logger = get_module_logger(__name__)
-
-    # 3. Usar
-    logger.debug('Mensagem de debug')
-    logger.info('Operação iniciada')
-    logger.warning('Aviso importante')
-    logger.error('Erro detectado')
-    logger.critical('Erro crítico!')
-
-    # 4. Com variáveis (sem emojis!)
-    processo_id = '0000001-98.2024.8.26.0100'
-    logger.info(f'Processando: {processo_id}')
-
-    # 5. Exceções
-    try:
-        1 / 0
-    except Exception:
-        logger.error('Erro na divisão', exc_info=True)
-
-
-# ============ INTEGRAÇÃO COM MÓDULOS EXISTENTES ============
-
-"""
-Estratégia de migração dos módulos atuais:
-
-SISB/series/processor.py:
-    # ANTES
-    logger.info(f'[SISBAJUD]  Analisando série {idx}: {id_serie}')
+        
+        handler.setFormatter(formatador)
+        self.logger.addHandler(handler)
     
-    # DEPOIS
-    logger = get_module_logger(__name__)
-    logger.info(f'Analisando série {idx}: {id_serie}')
-
-SISB/processamento/ordens_acao.py:
-    # ANTES
-    from ..utils import safe_click
-    logger = logging.getLogger(__name__)
-    logger.error(f'[_aplicar_acao]    Erro ao preencher valor parcial: {e_valor}')
+    def debug(self, mensagem):
+        """Log nível DEBUG."""
+        self.logger.debug(mensagem)
     
-    # DEPOIS
-    from Fix.log import get_module_logger
-    logger = get_module_logger(__name__)
-    logger.error(f'Erro ao preencher valor parcial: {e_valor}', exc_info=True)
-
-PEC/actions/executor.py:
-    # ANTES (presumido)
-    logger.info('DEBUG:', resultado)
-    logger.info('[PEC] Executando ação')
+    def info(self, mensagem):
+        """Log nível INFO."""
+        self.logger.info(mensagem)
     
-    # DEPOIS
-    logger = get_module_logger(__name__)
-    logger.debug('Resultado', extra={'resultado': resultado})
-    logger.info('Executando ação')
-"""
+    def warning(self, mensagem):
+        """Log nível WARNING."""
+        self.logger.warning(mensagem)
+    
+    def error(self, mensagem):
+        """Log nível ERROR."""
+        self.logger.error(mensagem)
 
 
-if __name__ == '__main__':
-    example_usage()
+# Instância global
+logger = PJELogger('pjeplus').logger
 
-# Backward compatibility: export a default logger
-import logging
-logger = logging.getLogger('Fix')
 
-# Alias sem underscore para adoção consistente nos módulos
-getmodulelogger = get_module_logger
+def get_module_logger(module_name: str):
+    """Compatibilidade para módulos que pedem logger nomeado por módulo."""
+    return logging.getLogger(module_name)
 
-# Backward compatibility functions
-def _log_info(msg: str):
-    """Função de compatibilidade para logging info."""
-    logger.info(msg)
 
-def _log_error(msg: str):
-    """Função de compatibilidade para logging error."""
-    logger.error(msg)
+def getmodulelogger(module_name: str):
+    """Alias legado de get_module_logger."""
+    return get_module_logger(module_name)
 
-def _audit(msg: str):
-    """Função de compatibilidade para audit logging."""
-    logger.info(f"[AUDIT] {msg}")
+
+def _log_info(message: str):
+    logger.info(message)
+
+
+def _log_error(message: str):
+    logger.error(message)
+
+
+def log_seletor_multiplo(prefixo: str, seletor: str, status: str, erro: str = None) -> None:
+    if status == 'FALHA' and erro:
+        logger.warning(f"{prefixo}[{status}] {seletor} :: {erro}")
+        return
+    logger.info(f"{prefixo}[{status}] {seletor}")
+
+
+__all__ = [
+    'logger',
+    'PJELogger',
+    'get_module_logger',
+    'getmodulelogger',
+    '_log_info',
+    '_log_error',
+    'log_seletor_multiplo',
+]

@@ -214,7 +214,8 @@ def _processar_processo(driver: WebDriver, processo_info: Dict,
     # Registrar comentário com resultado da triagem
     if triagem_txt:
         try:
-            sucesso_cmt = criar_comentario(driver, triagem_txt)
+            observacao = f"BIANCA - TRIAGEM\n\n{triagem_txt}"
+            sucesso_cmt = criar_comentario(driver, observacao)
             if not sucesso_cmt:
                 print(f"[TRIAGEM][{numero}] ⚠ Comentário pode não ter sido salvo")
         except Exception as e:

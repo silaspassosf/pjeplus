@@ -80,6 +80,15 @@ def ciclo1(driver: WebDriver, opcao_destino: str = 'Análise') -> Union[bool, st
         logger.info(f'[CICLO1] Retorno inesperado em marcar-todas: {marcar_result}')
         return False
 
+    # Pequena pausa para garantir que a lista e UI estabilizaram
+    try:
+        logger.info('[CICLO1] Pausa breve (2s) para verificação visual da seleção antes do lote')
+        time.sleep(2.0)
+        # Também oferece a pausa interativa se DEBUG_PAUSAS_LOOP estiver habilitado
+        pausar_confirmacao('CICLO1/VERIFICAR_SELECAO', 'Verificar seleção antes de abrir suitcase')
+    except Exception:
+        pass
+
     with medir_latencia('CICLO1_ABRIR_SUITCASE'):
         abriu_suitcase = _ciclo1_abrir_suitcase(driver)
     if not abriu_suitcase:

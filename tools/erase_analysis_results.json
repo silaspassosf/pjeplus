@@ -1,0 +1,6579 @@
+{
+  "Agente\\node_modules\\flatted\\python\\flatted.py": {
+    "total_defs": 17,
+    "used_count": 14,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "stringify",
+        "line": 141
+      }
+    ],
+    "used": [
+      {
+        "name": "_Known",
+        "line": 19,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_String",
+        "line": 24,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_array_keys",
+        "line": 29,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_object_keys",
+        "line": 37,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_is_array",
+        "line": 43,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_is_object",
+        "line": 46,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_is_string",
+        "line": 49,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_index",
+        "line": 52,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_loop",
+        "line": 59,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ref",
+        "line": 67,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_relate",
+        "line": 77,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_transform",
+        "line": 86,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_wrap",
+        "line": 101,
+        "used_by": [
+          "Aud1\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "parse",
+        "line": 117,
+        "used_by": [
+          "SISB\\processamento\\series_navegar.py",
+          "SISB\\series\\processor.py",
+          "act_dump.py"
+        ],
+        "total_users": 3
+      }
+    ]
+  },
+  "Aud1\\node_modules\\flatted\\python\\flatted.py": {
+    "total_defs": 17,
+    "used_count": 14,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "stringify",
+        "line": 136
+      }
+    ],
+    "used": [
+      {
+        "name": "_Known",
+        "line": 19,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_String",
+        "line": 24,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_array_keys",
+        "line": 28,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_object_keys",
+        "line": 32,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_is_array",
+        "line": 36,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_is_object",
+        "line": 39,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_is_string",
+        "line": 42,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_index",
+        "line": 45,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_relate",
+        "line": 52,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_resolver",
+        "line": 61,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_transform",
+        "line": 77,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_wrap",
+        "line": 92,
+        "used_by": [
+          "Agente\\node_modules\\flatted\\python\\flatted.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "parse",
+        "line": 108,
+        "used_by": [
+          "SISB\\processamento\\series_navegar.py",
+          "SISB\\series\\processor.py",
+          "act_dump.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "resolver",
+        "line": 62,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\core.py": {
+    "total_defs": 48,
+    "used_count": 47,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "tempo_execucao",
+        "line": 405
+      }
+    ],
+    "used": [
+      {
+        "name": "wait",
+        "line": 55,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\element_wait.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\element_interaction.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "wait_for_visible",
+        "line": 60,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Mandado\\utils.py",
+          "PEC\\anexos\\anexos_configuracao.py",
+          "PEC\\anexos\\anexos_juntador.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "wait_for_clickable",
+        "line": 65,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "PEC\\anexos\\anexos_configuracao.py",
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 12
+      },
+      {
+        "name": "wait_for_page_load",
+        "line": 69,
+        "used_by": [
+          "Fix\\extracao_bndt.py",
+          "Mandado\\processamento_api.py",
+          "Mandado\\processamento_fluxo.py",
+          "Mandado\\processamento_outros.py",
+          "Prazo\\fluxo_api.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "extrair_id_processo",
+        "line": 93,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "atos\\wrappers_pec.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "buscar_seletor_robusto",
+        "line": 103,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\utils_selectors.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "esperar_elemento",
+        "line": 108,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\search.py",
+          "Fix\\element_wait.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\element_interaction.py"
+        ],
+        "total_users": 31
+      },
+      {
+        "name": "safe_click",
+        "line": 119,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\navigation\\filters.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Mandado\\utils.py",
+          "Mandado\\utils_intimacao.py"
+        ],
+        "total_users": 31
+      },
+      {
+        "name": "aguardar_e_clicar",
+        "line": 124,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\extracao_bndt.py",
+          "Fix\\gigs\\__init__.py",
+          "Fix\\navigation\\filters.py",
+          "Fix\\otimizacao_wrapper.py"
+        ],
+        "total_users": 34
+      },
+      {
+        "name": "safe_click_no_scroll",
+        "line": 129,
+        "used_by": [
+          "Fix\\documents\\search.py",
+          "Fix\\gigs\\__init__.py",
+          "Mandado\\processamento_api.py",
+          "atos\\comunicacao_destinatarios.py",
+          "atos\\comunicacao_preenchimento.py"
+        ],
+        "total_users": 11
+      },
+      {
+        "name": "selecionar_opcao",
+        "line": 138,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "PEC\\anexos\\anexos_configuracao.py",
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 10
+      },
+      {
+        "name": "preencher_campo",
+        "line": 143,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\gigs\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\utils_angular.py",
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 16
+      },
+      {
+        "name": "preencher_campos_prazo",
+        "line": 148,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "atos\\core.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "preencher_multiplos_campos",
+        "line": 153,
+        "used_by": [
+          "Fix\\__init__.py",
+          "atos\\judicial_fluxo.py",
+          "atos\\judicial_utils.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "com_retry",
+        "line": 158,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\navigation\\filters.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Prazo\\loop_ciclo1_movimentacao.py",
+          "atos\\core.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "escolher_opcao_inteligente",
+        "line": 163,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "encontrar_elemento_inteligente",
+        "line": 168,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "js_base",
+        "line": 181,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\navigation\\filters.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\element_interaction.py",
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "aguardar_renderizacao_nativa",
+        "line": 188,
+        "used_by": [
+          "Fix\\extracao_bndt.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\extraction\\indexacao.py",
+          "Fix\\gigs\\__init__.py",
+          "Fix\\navigation\\filters.py"
+        ],
+        "total_users": 26
+      },
+      {
+        "name": "criar_driver_PC",
+        "line": 204,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 11
+      },
+      {
+        "name": "criar_driver_VT",
+        "line": 209,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 7
+      },
+      {
+        "name": "criar_driver_notebook",
+        "line": 214,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 7
+      },
+      {
+        "name": "criar_driver_sisb_pc",
+        "line": 219,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "criar_driver_sisb_notebook",
+        "line": 224,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "finalizar_driver",
+        "line": 231,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py",
+          "x.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "finalizar_driver_imediato",
+        "line": 237,
+        "used_by": [
+          "x.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "salvar_cookies_sessao",
+        "line": 254,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py",
+          "Fix\\session\\__init__.py",
+          "Fix\\session\\auth.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "credencial",
+        "line": 260,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\session\\__init__.py",
+          "Mandado\\core.py",
+          "PEC\\core_main.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "carregar_cookies_sessao",
+        "line": 273,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py",
+          "Fix\\session\\__init__.py",
+          "Fix\\session\\auth.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "verificar_e_aplicar_cookies",
+        "line": 278,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\session\\__init__.py",
+          "Fix\\utils_login.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "aplicar_filtro_100",
+        "line": 299,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\navigation\\__init__.py",
+          "PEC\\core_recovery.py",
+          "PEC\\processamento_fluxo.py",
+          "Prazo\\loop_base.py"
+        ],
+        "total_users": 10
+      },
+      {
+        "name": "filtro_fase",
+        "line": 304,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\navigation\\__init__.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "filtrofases",
+        "line": 309,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\extracao_indexacao.py",
+          "Fix\\extraction\\__init__.py",
+          "Fix\\navigation\\__init__.py",
+          "Fix\\navigation\\filters.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "esperar_url_conter",
+        "line": 322,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\extracao_bndt.py",
+          "Fix\\selenium_base\\__init__.py",
+          "PEC\\anexos\\anexos_juntador_helpers.py",
+          "SISB\\core.py"
+        ],
+        "total_users": 10
+      },
+      {
+        "name": "verificar_documento_decisao_sentenca",
+        "line": 327,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py",
+          "Prazo\\p2b_api.py",
+          "Prazo\\p2b_fluxo_documentos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "visibilidade_sigilosos",
+        "line": 332,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\navigation\\__init__.py",
+          "atos\\__init__.py",
+          "atos\\wrappers_utils.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "criar_botoes_detalhes",
+        "line": 342,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "buscar_ultimo_mandado",
+        "line": 351,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "buscar_mandado_autor",
+        "line": 356,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "buscar_documentos_sequenciais",
+        "line": 361,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py",
+          "Fix\\utils_collect_timeline.py",
+          "Mandado\\processamento.py",
+          "Mandado\\processamento_argos.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "buscar_documentos_polo_ativo",
+        "line": 366,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py",
+          "Fix\\utils_collect_timeline.py",
+          "PEC\\prescricao.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "buscar_documento_argos",
+        "line": 374,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\documents\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\processamento_argos.py",
+          "Mandado\\regras.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "smart_sleep",
+        "line": 386,
+        "used_by": [
+          "Fix\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "sleep",
+        "line": 391,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\abas.py",
+          "Fix\\debug_interativo.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py"
+        ],
+        "total_users": 96
+      },
+      {
+        "name": "medir_tempo",
+        "line": 421,
+        "used_by": [
+          "Prazo\\p2b_fluxo_regras.py",
+          "atos\\judicial_fluxo.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_decorator",
+        "line": 429,
+        "used_by": [
+          "Fix\\utils_tempo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_wrapper",
+        "line": 430,
+        "used_by": [
+          "Fix\\utils_tempo.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Fix\\debug_interativo.py": {
+    "total_defs": 14,
+    "used_count": 8,
+    "unused_count": 5,
+    "unused": [
+      {
+        "name": "obter_relatorio_debug",
+        "line": 322
+      },
+      {
+        "name": "inicializar_debug_interativo",
+        "line": 329
+      },
+      {
+        "name": "on_erro_critico",
+        "line": 341
+      },
+      {
+        "name": "is_debug_ativo",
+        "line": 360
+      },
+      {
+        "name": "salvar_relatorio_erro",
+        "line": 259
+      }
+    ],
+    "used": [
+      {
+        "name": "DebugInterativo",
+        "line": 14,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "get_debug_interativo",
+        "line": 337,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "is_erro_critico",
+        "line": 47,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "capturar_contexto",
+        "line": 55,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "pausar_para_analise",
+        "line": 143,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_tentar_fix_automatico",
+        "line": 236,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "obter_relatorio_final",
+        "line": 280,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_mostrar_info_detalhada",
+        "line": 290,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\element_wait.py": {
+    "total_defs": 8,
+    "used_count": 4,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "navegar_e_esperar",
+        "line": 176
+      },
+      {
+        "name": "adicionar_elemento_customizado",
+        "line": 199
+      },
+      {
+        "name": "remover_elemento_customizado",
+        "line": 214
+      }
+    ],
+    "used": [
+      {
+        "name": "ElementWaitPool",
+        "line": 33,
+        "used_by": [
+          "PEC\\processamento_fluxo.py",
+          "Prazo\\p2b_prazo.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "esperar_elemento",
+        "line": 80,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\element_interaction.py"
+        ],
+        "total_users": 31
+      },
+      {
+        "name": "esperar_clicavel",
+        "line": 112,
+        "used_by": [
+          "Prazo\\criteria_matcher.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "esperar_invisibilidade",
+        "line": 144,
+        "used_by": [
+          "Prazo\\criteria_matcher.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Fix\\extracao_bndt.py": {
+    "total_defs": 11,
+    "used_count": 8,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "_bndt_selecionar_operacao",
+        "line": 226
+      },
+      {
+        "name": "_bndt_processar_selecoes",
+        "line": 315
+      },
+      {
+        "name": "_bndt_gravar_e_confirmar",
+        "line": 359
+      }
+    ],
+    "used": [
+      {
+        "name": "bndt",
+        "line": 20,
+        "used_by": [
+          "Fix\\__init__.py",
+          "PEC\\regras_pec.py",
+          "PEC\\sobrestamento.py",
+          "Prazo\\p2b_fluxo_prescricao.py",
+          "atos\\judicial_fluxo.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "_bndt_validar_localizacao",
+        "line": 156,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_bndt_abrir_menu",
+        "line": 165,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_bndt_clicar_icone",
+        "line": 183,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_bndt_abrir_nova_aba",
+        "line": 201,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_bndt_selecionar_operacao_para_polo",
+        "line": 297,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_bndt_processar_selecoes_polo",
+        "line": 337,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_bndt_gravar_e_confirmar_polo",
+        "line": 393,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\gigs\\__init__.py": {
+    "total_defs": 10,
+    "used_count": 8,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "_preencher_texto_colado",
+        "line": 81
+      },
+      {
+        "name": "_find_button_by_text",
+        "line": 95
+      }
+    ],
+    "used": [
+      {
+        "name": "_gigs_responsavel_valido",
+        "line": 38,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_parse_gigs_string",
+        "line": 45,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "escolher_lembrete_restrito",
+        "line": 125,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "escolher_opcao_teste",
+        "line": 151,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "criar_lembrete_posit",
+        "line": 223,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Mandado\\core.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "criar_gigs",
+        "line": 314,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py",
+          "PEC\\core_pos_carta.py"
+        ],
+        "total_users": 18
+      },
+      {
+        "name": "criar_comentario",
+        "line": 409,
+        "used_by": [
+          "Fix\\__init__.py",
+          "f.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_normalize",
+        "line": 102,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\headless_helpers.py": {
+    "total_defs": 8,
+    "used_count": 6,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "find_element_headless_safe",
+        "line": 156
+      },
+      {
+        "name": "executar_com_retry_headless",
+        "line": 186
+      }
+    ],
+    "used": [
+      {
+        "name": "limpar_overlays_headless",
+        "line": 23,
+        "used_by": [
+          "Fix\\debug_interativo.py",
+          "Fix\\navigation\\sigilo.py",
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "scroll_to_element_safe",
+        "line": 72,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "click_headless_safe",
+        "line": 101,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py",
+          "Fix\\selenium_base\\wait_operations.py",
+          "atos\\comunicacao_destinatarios.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "wait_and_click_headless",
+        "line": 149,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "is_headless_mode",
+        "line": 226,
+        "used_by": [
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "aguardar_elemento_headless_safe",
+        "line": 241,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\log.py": {
+    "total_defs": 35,
+    "used_count": 28,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "tentar_seletores_com_registro",
+        "line": 524
+      },
+      {
+        "name": "set_level",
+        "line": 235
+      }
+    ],
+    "used": [
+      {
+        "name": "LogLevel",
+        "line": 32,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "EmojiValidator",
+        "line": 41,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "PJePlusFormatter",
+        "line": 67,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "PJePlusLogger",
+        "line": 144,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "initialize_logging",
+        "line": 246,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "get_module_logger",
+        "line": 279,
+        "used_by": [
+          "Fix\\drivers\\lifecycle.py",
+          "PEC\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "log_seletor_multiplo",
+        "line": 317,
+        "used_by": [
+          "atos\\comunicacao_destinatarios.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "tentar_seletores",
+        "line": 337,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "registrar_seletor_correto",
+        "line": 367,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "resumir_excecao",
+        "line": 405,
+        "used_by": [
+          "Fix\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "filtrar_log_arquivo",
+        "line": 432,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\log_cleaner.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "extrair_seletor_dom",
+        "line": 454,
+        "used_by": [
+          "Fix\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "PJePlusError",
+        "line": 487,
+        "used_by": [
+          "Fix\\exceptions.py",
+          "atos\\wrappers_mov.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "DriverFatalError",
+        "line": 492,
+        "used_by": [
+          "Fix\\abas.py",
+          "Fix\\exceptions.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "ElementoNaoEncontradoError",
+        "line": 497,
+        "used_by": [
+          "Fix\\exceptions.py",
+          "atos\\comunicacao_finalizacao.py",
+          "atos\\comunicacao_preenchimento.py",
+          "atos\\core.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "TimeoutFluxoError",
+        "line": 505,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\exceptions.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "NavegacaoError",
+        "line": 513,
+        "used_by": [
+          "Fix\\abas.py",
+          "Fix\\exceptions.py",
+          "atos\\comunicacao_finalizacao.py",
+          "atos\\comunicacao_navigation.py",
+          "atos\\comunicacao_preenchimento.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "LoginError",
+        "line": 518,
+        "used_by": [
+          "Fix\\exceptions.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "example_usage",
+        "line": 555,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_log_info",
+        "line": 632,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\selenium_base\\element_interaction.py",
+          "Fix\\selenium_base\\retry_logic.py",
+          "Fix\\selenium_base\\smart_selection.py",
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "_log_error",
+        "line": 636,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\selenium_base\\element_interaction.py",
+          "SISB\\Core\\utils_dados.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_audit",
+        "line": 640,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\selenium_base\\element_interaction.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "has_emoji",
+        "line": 57,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "remove_emoji",
+        "line": 62,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "format",
+        "line": 92,
+        "used_by": [
+          "atos\\judicial_fluxo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_supports_color",
+        "line": 139,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_setup_root_logger",
+        "line": 183,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "get_logger",
+        "line": 216,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\otimizacao_wrapper.py": {
+    "total_defs": 6,
+    "used_count": 4,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "with_learning",
+        "line": 22
+      },
+      {
+        "name": "usar_headless_safe",
+        "line": 58
+      }
+    ],
+    "used": [
+      {
+        "name": "inicializar_otimizacoes",
+        "line": 76,
+        "used_by": [
+          "x.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "finalizar_otimizacoes",
+        "line": 86,
+        "used_by": [
+          "x.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "decorator",
+        "line": 32,
+        "used_by": [
+          "SISB\\standards.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "wrapper",
+        "line": 33,
+        "used_by": [
+          "SISB\\standards.py",
+          "atos\\comunicacao.py",
+          "atos\\judicial_fluxo.py",
+          "p2.py"
+        ],
+        "total_users": 4
+      }
+    ]
+  },
+  "Fix\\progress.py": {
+    "total_defs": 46,
+    "used_count": 42,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "marcar_progresso_executado_p2b",
+        "line": 397
+      },
+      {
+        "name": "marcar_progresso_executado_mandado",
+        "line": 435
+      }
+    ],
+    "used": [
+      {
+        "name": "StatusModulo",
+        "line": 35,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "NivelLog",
+        "line": 44,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "Checkpoint",
+        "line": 53,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "StatusModuloData",
+        "line": 64,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\progress\\__init__.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "RegistroLog",
+        "line": 89,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\progress\\__init__.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_log_progresso",
+        "line": 107,
+        "used_by": [
+          "Fix\\progress\\monitoramento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_validar_tipo_execucao",
+        "line": 116,
+        "used_by": [
+          "Fix\\progress\\monitoramento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_validar_e_limpar_progresso",
+        "line": 120,
+        "used_by": [
+          "Fix\\progress\\monitoramento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "carregar_progresso_unificado",
+        "line": 144,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\extraction\\indexacao.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\monitoramento.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "salvar_progresso_unificado",
+        "line": 190,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\monitoramento.py",
+          "Fix\\progresso_unificado.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "limpar_progresso_corrompido",
+        "line": 212,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "extrair_numero_processo_unificado",
+        "line": 225,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\monitoramento.py",
+          "PEC\\core_progresso.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "verificar_acesso_negado_unificado",
+        "line": 274,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\monitoramento.py",
+          "PEC\\core_progresso.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "processo_ja_executado_unificado",
+        "line": 288,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\monitoramento.py",
+          "PEC\\core_progresso.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "marcar_processo_executado_unificado",
+        "line": 298,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progress\\monitoramento.py",
+          "Fix\\progresso_unificado.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "executar_com_monitoramento_unificado",
+        "line": 329,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Mandado\\processamento_fluxo.py",
+          "PEC\\processamento_buckets.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "carregar_progresso_p2b",
+        "line": 382,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_core.py",
+          "Prazo\\p2b_prazo.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "salvar_progresso_p2b",
+        "line": 385,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\p2b_core.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "extrair_numero_processo_p2b",
+        "line": 388,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "verificar_acesso_negado_p2b",
+        "line": 391,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "processo_ja_executado_p2b",
+        "line": 394,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_prazo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "carregar_progresso",
+        "line": 401,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\monitoramento.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "salvar_progresso",
+        "line": 404,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "extrair_numero_processo",
+        "line": 407,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\utils_collect.py",
+          "Mandado\\core.py",
+          "Mandado\\processamento_argos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "verificar_acesso_negado",
+        "line": 410,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py",
+          "dom.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "processo_ja_executado",
+        "line": 413,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "marcar_progresso_executado",
+        "line": 416,
+        "used_by": [
+          "Fix\\progress\\monitoramento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "carregar_progresso_mandado",
+        "line": 420,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "salvar_progresso_mandado",
+        "line": 423,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "extrair_numero_processo_mandado",
+        "line": 426,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "verificar_acesso_negado_mandado",
+        "line": 429,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "processo_ja_executado_mandado",
+        "line": 432,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "ProgressoUnificado",
+        "line": 439,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progresso_unificado.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "to_dict",
+        "line": 59,
+        "used_by": [
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "percentual",
+        "line": 74,
+        "used_by": [
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "to_dict",
+        "line": 79,
+        "used_by": [
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "to_dict",
+        "line": 100,
+        "used_by": [
+          "Fix\\progress\\models.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "carregar_progresso",
+        "line": 445,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\monitoramento.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "salvar_progresso",
+        "line": 448,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "processo_ja_executado",
+        "line": 451,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "marcar_progresso_executado",
+        "line": 456,
+        "used_by": [
+          "Fix\\progress\\monitoramento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "marcar_processo_executado",
+        "line": 463,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Fix\\progress\\monitoramento.py": {
+    "total_defs": 37,
+    "used_count": 35,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "exemplo_uso_monitoramento_unificado",
+        "line": 647
+      }
+    ],
+    "used": [
+      {
+        "name": "_log_progresso",
+        "line": 65,
+        "used_by": [
+          "Fix\\progress.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_validar_tipo_execucao",
+        "line": 75,
+        "used_by": [
+          "Fix\\progress.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_validar_e_limpar_progresso",
+        "line": 79,
+        "used_by": [
+          "Fix\\progress.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "carregar_progresso_unificado",
+        "line": 125,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\extraction\\indexacao.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "Fix\\progress\\__init__.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "salvar_progresso_unificado",
+        "line": 207,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progresso_unificado.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "limpar_progresso_corrompido",
+        "line": 249,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "extrair_numero_processo_unificado",
+        "line": 284,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "PEC\\core_progresso.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "verificar_acesso_negado_unificado",
+        "line": 364,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "PEC\\core_progresso.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "processo_ja_executado_unificado",
+        "line": 395,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "Fix\\progress\\__init__.py",
+          "PEC\\core_progresso.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "marcar_processo_executado_unificado",
+        "line": 421,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progresso_unificado.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "executar_com_monitoramento_unificado",
+        "line": 477,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Mandado\\processamento_fluxo.py",
+          "PEC\\processamento_buckets.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "carregar_progresso_p2b",
+        "line": 587,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_core.py",
+          "Prazo\\p2b_prazo.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "salvar_progresso_p2b",
+        "line": 590,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\p2b_core.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "extrair_numero_processo_p2b",
+        "line": 593,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "verificar_acesso_negado_p2b",
+        "line": 596,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "processo_ja_executado_p2b",
+        "line": 599,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_prazo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "marcar_processo_executado_p2b",
+        "line": 602,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_prazo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "carregar_progresso",
+        "line": 606,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "salvar_progresso",
+        "line": 609,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "extrair_numero_processo",
+        "line": 612,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\utils_collect.py",
+          "Mandado\\core.py",
+          "Mandado\\processamento_argos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "verificar_acesso_negado",
+        "line": 615,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py",
+          "dom.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "processo_ja_executado",
+        "line": 618,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "marcar_processo_executado",
+        "line": 621,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "carregar_progresso_mandado",
+        "line": 625,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "salvar_progresso_mandado",
+        "line": 628,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "extrair_numero_processo_mandado",
+        "line": 631,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "verificar_acesso_negado_mandado",
+        "line": 634,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "processo_ja_executado_mandado",
+        "line": 637,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "marcar_processo_executado_mandado",
+        "line": 640,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "ProgressoUnificado",
+        "line": 677,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress\\__init__.py",
+          "Fix\\progresso_unificado.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "carregar_progresso",
+        "line": 690,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Fix\\progress.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "salvar_progresso",
+        "line": 693,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "processo_ja_executado",
+        "line": 696,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "marcar_progresso_executado",
+        "line": 701,
+        "used_by": [
+          "Fix\\progress.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "marcar_processo_executado",
+        "line": 709,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Fix\\selectors_pje.py": {
+    "total_defs": 3,
+    "used_count": 1,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "seletor_processo_por_numero",
+        "line": 59
+      },
+      {
+        "name": "seletor_pec_por_numero",
+        "line": 63
+      }
+    ],
+    "used": [
+      {
+        "name": "buscar_seletor_robusto",
+        "line": 67,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\utils_selectors.py",
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 10
+      }
+    ]
+  },
+  "Fix\\selenium_base\\element_interaction.py": {
+    "total_defs": 14,
+    "used_count": 10,
+    "unused_count": 4,
+    "unused": [
+      {
+        "name": "_tentar_click_padrao",
+        "line": 544
+      },
+      {
+        "name": "_tentar_click_javascript",
+        "line": 571
+      },
+      {
+        "name": "_tentar_click_actionchains",
+        "line": 595
+      },
+      {
+        "name": "_tentar_click_javascript_avancado",
+        "line": 619
+      }
+    ],
+    "used": [
+      {
+        "name": "_log_info",
+        "line": 35,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\selenium_base\\retry_logic.py",
+          "Fix\\selenium_base\\smart_selection.py",
+          "Fix\\selenium_base\\wait_operations.py",
+          "SISB\\Core\\utils_dados.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "_log_error",
+        "line": 39,
+        "used_by": [
+          "Fix\\core.py",
+          "SISB\\Core\\utils_dados.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_audit",
+        "line": 43,
+        "used_by": [
+          "Fix\\core.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "js_base",
+        "line": 50,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\navigation\\filters.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "safe_click",
+        "line": 129,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\navigation\\filters.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Mandado\\utils.py"
+        ],
+        "total_users": 32
+      },
+      {
+        "name": "preencher_campo",
+        "line": 246,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\gigs\\__init__.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\utils_angular.py"
+        ],
+        "total_users": 17
+      },
+      {
+        "name": "preencher_campos_prazo",
+        "line": 320,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\selenium_base\\__init__.py",
+          "atos\\core.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "preencher_multiplos_campos",
+        "line": 363,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "atos\\judicial_fluxo.py",
+          "atos\\judicial_utils.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "_clicar_botao_movimentar",
+        "line": 427,
+        "used_by": [
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_clicar_botao_tarefa_processo",
+        "line": 472,
+        "used_by": [
+          "Fix\\selenium_base\\wait_operations.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Fix\\utils_angular.py": {
+    "total_defs": 11,
+    "used_count": 2,
+    "unused_count": 9,
+    "unused": [
+      {
+        "name": "aguardar_angular_requests",
+        "line": 47
+      },
+      {
+        "name": "clicar_elemento_angular",
+        "line": 71
+      },
+      {
+        "name": "preencher_campo_angular",
+        "line": 87
+      },
+      {
+        "name": "aguardar_elemento_angular_visivel",
+        "line": 103
+      },
+      {
+        "name": "verificar_angular_app",
+        "line": 119
+      },
+      {
+        "name": "aguardar_angular_digest",
+        "line": 131
+      },
+      {
+        "name": "obter_angular_scope",
+        "line": 157
+      },
+      {
+        "name": "executar_angular_expressao",
+        "line": 182
+      },
+      {
+        "name": "esperar_elemento_angular",
+        "line": 304
+      }
+    ],
+    "used": [
+      {
+        "name": "aguardar_angular_carregar",
+        "line": 13,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "criar_js_otimizado",
+        "line": 214,
+        "used_by": [
+          "Fix\\selenium_base\\element_interaction.py",
+          "Fix\\selenium_base\\js_helpers.py",
+          "SISB\\__init__.py",
+          "SISB\\minutas\\processor.py",
+          "SISB\\processamento\\minutas_campos.py"
+        ],
+        "total_users": 12
+      }
+    ]
+  },
+  "Fix\\utils_collect.py": {
+    "total_defs": 9,
+    "used_count": 3,
+    "unused_count": 6,
+    "unused": [
+      {
+        "name": "coletar_valor_atributo",
+        "line": 25
+      },
+      {
+        "name": "coletar_multiplos_elementos",
+        "line": 37
+      },
+      {
+        "name": "coletar_tabela_como_lista",
+        "line": 47
+      },
+      {
+        "name": "coletar_links_pagina",
+        "line": 74
+      },
+      {
+        "name": "coletar_dados_formulario",
+        "line": 95
+      },
+      {
+        "name": "coletar_dados_pagina",
+        "line": 189
+      }
+    ],
+    "used": [
+      {
+        "name": "coletar_texto_seletor",
+        "line": 13,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "extrair_numero_processo",
+        "line": 144,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Mandado\\core.py",
+          "Mandado\\processamento_argos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "extrair_cpf_cnpj",
+        "line": 163,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Fix\\utils_cookies.py": {
+    "total_defs": 8,
+    "used_count": 5,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "limpar_cookies_antigos",
+        "line": 159
+      },
+      {
+        "name": "listar_cookies_salvos",
+        "line": 178
+      }
+    ],
+    "used": [
+      {
+        "name": "carregar_cookies_sessao",
+        "line": 25,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py",
+          "Fix\\session\\__init__.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "verificar_e_aplicar_cookies",
+        "line": 126,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\session\\__init__.py",
+          "Fix\\utils_login.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "salvar_cookies_sessao",
+        "line": 134,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Fix\\selenium_base\\driver_operations.py",
+          "Fix\\session\\__init__.py"
+        ],
+        "total_users": 10
+      },
+      {
+        "name": "SimpleConfig",
+        "line": 191,
+        "used_by": [
+          "Fix\\core.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "get_delay",
+        "line": 205,
+        "used_by": [
+          "Fix\\utils_sleep.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Fix\\utils_drivers.py": {
+    "total_defs": 12,
+    "used_count": 10,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "configurar_driver_avancado",
+        "line": 117
+      },
+      {
+        "name": "fechar_driver_safely",
+        "line": 135
+      }
+    ],
+    "used": [
+      {
+        "name": "_obter_caminhos_ahk",
+        "line": 33,
+        "used_by": [
+          "Fix\\utils_login.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "criar_driver_firefox",
+        "line": 59,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "criar_driver_PC",
+        "line": 87,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 12
+      },
+      {
+        "name": "criar_driver_VT",
+        "line": 95,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "criar_driver_notebook",
+        "line": 100,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "criar_driver_sisb_pc",
+        "line": 105,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 10
+      },
+      {
+        "name": "criar_driver_sisb_notebook",
+        "line": 113,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\drivers\\__init__.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\__init__.py"
+        ],
+        "total_users": 10
+      },
+      {
+        "name": "verificar_driver_ativo",
+        "line": 127,
+        "used_by": [
+          "PEC\\carta_ecarta.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "fechar_driver_imediato",
+        "line": 151,
+        "used_by": [
+          "Fix\\core.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "limpar_temp_selenium",
+        "line": 211,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py",
+          "atos\\core.py"
+        ],
+        "total_users": 5
+      }
+    ]
+  },
+  "Fix\\utils_error.py": {
+    "total_defs": 6,
+    "used_count": 1,
+    "unused_count": 4,
+    "unused": [
+      {
+        "name": "registrar_erro",
+        "line": 26
+      },
+      {
+        "name": "registrar_sucesso",
+        "line": 36
+      },
+      {
+        "name": "gerar_relatorio",
+        "line": 40
+      },
+      {
+        "name": "exportar_csv",
+        "line": 64
+      }
+    ],
+    "used": [
+      {
+        "name": "ErroCollector",
+        "line": 16,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Fix\\utils_observer.py": {
+    "total_defs": 2,
+    "used_count": 1,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "aguardar_colecao_sync",
+        "line": 42
+      }
+    ],
+    "used": [
+      {
+        "name": "aguardar_renderizacao_nativa",
+        "line": 6,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\extracao_bndt.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\extraction\\indexacao.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 27
+      }
+    ]
+  },
+  "Fix\\utils_paths.py": {
+    "total_defs": 8,
+    "used_count": 6,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "configurar_caminho_credencial",
+        "line": 152
+      },
+      {
+        "name": "exibir_configuracao_atual",
+        "line": 171
+      }
+    ],
+    "used": [
+      {
+        "name": "obter_caminho_perfil_firefox",
+        "line": 14,
+        "used_by": [
+          "Fix\\utils_drivers.py",
+          "Fix\\utils_login.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "obter_caminho_firefox_executavel",
+        "line": 37,
+        "used_by": [
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\driver_operations.py",
+          "Fix\\utils_drivers.py",
+          "Fix\\utils_login.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "obter_caminho_geckodriver",
+        "line": 60,
+        "used_by": [
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "obter_caminho_perfil_vt_pje",
+        "line": 83,
+        "used_by": [
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "obter_caminho_perfil_vt_pje_alt",
+        "line": 106,
+        "used_by": [
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "obter_caminho_firefox_alt",
+        "line": 129,
+        "used_by": [
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\selenium_base\\driver_operations.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Fix\\utils_selectors.py": {
+    "total_defs": 8,
+    "used_count": 1,
+    "unused_count": 7,
+    "unused": [
+      {
+        "name": "obter_seletor_pje",
+        "line": 56
+      },
+      {
+        "name": "gerar_seletor_dinamico",
+        "line": 78
+      },
+      {
+        "name": "detectar_seletor_elemento",
+        "line": 108
+      },
+      {
+        "name": "validar_seletor",
+        "line": 154
+      },
+      {
+        "name": "encontrar_seletor_estavel",
+        "line": 168
+      },
+      {
+        "name": "criar_seletor_fallback",
+        "line": 198
+      },
+      {
+        "name": "aplicar_estrategia_seletor",
+        "line": 206
+      }
+    ],
+    "used": [
+      {
+        "name": "buscar_seletor_robusto",
+        "line": 64,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py",
+          "Fix\\selenium_base\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py"
+        ],
+        "total_users": 9
+      }
+    ]
+  },
+  "Fix\\utils_sleep.py": {
+    "total_defs": 14,
+    "used_count": 4,
+    "unused_count": 10,
+    "unused": [
+      {
+        "name": "sleep_random",
+        "line": 18
+      },
+      {
+        "name": "sleep_progressivo",
+        "line": 29
+      },
+      {
+        "name": "aguardar_url_mudar",
+        "line": 38
+      },
+      {
+        "name": "aguardar_elemento_sumir",
+        "line": 50
+      },
+      {
+        "name": "aguardar_texto_mudar",
+        "line": 60
+      },
+      {
+        "name": "aguardar_loading_sumir",
+        "line": 70
+      },
+      {
+        "name": "sleep_condicional",
+        "line": 80
+      },
+      {
+        "name": "sleep_com_logging",
+        "line": 99
+      },
+      {
+        "name": "aguardar_multiplas_condicoes",
+        "line": 113
+      },
+      {
+        "name": "sleep_adaptativo",
+        "line": 142
+      }
+    ],
+    "used": [
+      {
+        "name": "sleep_fixed",
+        "line": 24,
+        "used_by": [
+          "SISB\\minutas\\processor.py",
+          "atos\\wrappers_utils.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "aguardar_pagina_carregar",
+        "line": 89,
+        "used_by": [
+          "SISB\\core.py",
+          "atos\\wrappers_mov.py",
+          "atos\\wrappers_utils.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "sleep",
+        "line": 165,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\abas.py",
+          "Fix\\core.py",
+          "Fix\\debug_interativo.py",
+          "Fix\\documents\\search.py"
+        ],
+        "total_users": 96
+      },
+      {
+        "name": "smart_sleep",
+        "line": 169,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Fix\\core.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Fix\\variaveis_client.py": {
+    "total_defs": 16,
+    "used_count": 13,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "execucao_gigs",
+        "line": 44
+      },
+      {
+        "name": "associados",
+        "line": 67
+      }
+    ],
+    "used": [
+      {
+        "name": "PjeApiClient",
+        "line": 7,
+        "used_by": [
+          "Fix\\utils_editor.py",
+          "Fix\\variaveis.py",
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "PEC\\regras_pec.py"
+        ],
+        "total_users": 12
+      },
+      {
+        "name": "session_from_driver",
+        "line": 203,
+        "used_by": [
+          "Fix\\utils_editor.py",
+          "Fix\\variaveis.py",
+          "PEC\\regras_pec.py",
+          "Prazo\\loop_base.py",
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "_url",
+        "line": 13,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "api\\variaveis_client.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "timeline",
+        "line": 19,
+        "used_by": [
+          "Fix\\variaveis_resolvers.py",
+          "Mandado\\processamento_outros.py",
+          "Prazo\\p2b_api.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "documento_por_id",
+        "line": 31,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_helpers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "processo_por_id",
+        "line": 53,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_helpers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "partes",
+        "line": 60,
+        "used_by": [
+          "Fix\\gigs\\__init__.py",
+          "Fix\\log.py",
+          "Fix\\log_cleaner.py",
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py"
+        ],
+        "total_users": 19
+      },
+      {
+        "name": "id_processo_por_numero",
+        "line": 80,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "calculos",
+        "line": 115,
+        "used_by": [
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "pericias",
+        "line": 123,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_helpers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "atividades_gigs",
+        "line": 131,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Prazo\\loop_api.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "debitos_trabalhistas_bndt",
+        "line": 152,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "domicilio_eletronico",
+        "line": 186,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "atos\\wrappers_pec.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Mandado\\core.py": {
+    "total_defs": 6,
+    "used_count": 5,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_main_legado",
+        "line": 449
+      }
+    ],
+    "used": [
+      {
+        "name": "_aguardar_estabilizacao_pos_processo",
+        "line": 113,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "navegacao",
+        "line": 149,
+        "used_by": [
+          "Mandado\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "iniciar_fluxo_robusto",
+        "line": 285,
+        "used_by": [
+          "Mandado\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "fluxo_callback",
+        "line": 291,
+        "used_by": [
+          "Mandado\\processamento_fluxo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "recovery_credencial",
+        "line": 487,
+        "used_by": [
+          "PEC\\core_main.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Mandado\\processamento.py": {
+    "total_defs": 1,
+    "used_count": 0,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_lazy_import_mandado",
+        "line": 54
+      }
+    ],
+    "used": []
+  },
+  "Mandado\\processamento_anexos.py": {
+    "total_defs": 10,
+    "used_count": 7,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "_aguardar_icone_plus",
+        "line": 44
+      },
+      {
+        "name": "_buscar_icone_plus_direto",
+        "line": 62
+      },
+      {
+        "name": "_extrair_resultado_sisbajud",
+        "line": 142
+      }
+    ],
+    "used": [
+      {
+        "name": "_identificar_tipo_anexo",
+        "line": 30,
+        "used_by": [
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_localizar_modal_visibilidade",
+        "line": 77,
+        "used_by": [
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_processar_modal_visibilidade",
+        "line": 98,
+        "used_by": [
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_extrair_executados_pdf",
+        "line": 180,
+        "used_by": [
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "processar_sisbajud",
+        "line": 207,
+        "used_by": [
+          "Mandado\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "tratar_anexos_argos",
+        "line": 278,
+        "used_by": [
+          "Fix\\__init__.py",
+          "Mandado\\processamento.py",
+          "Mandado\\processamento_argos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_buscar_modal",
+        "line": 82,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "PEC\\anexos\\anexos_extracao.py": {
+    "total_defs": 2,
+    "used_count": 1,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "extrair_numero_processo_da_pagina",
+        "line": 19
+      }
+    ],
+    "used": [
+      {
+        "name": "extrair_numero_processo_da_url",
+        "line": 58,
+        "used_by": [
+          "PEC\\anexos\\anexos_configuracao.py",
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py",
+          "atos\\comunicacao_coleta.py"
+        ],
+        "total_users": 7
+      }
+    ]
+  },
+  "PEC\\core.py": {
+    "total_defs": 4,
+    "used_count": 3,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "iniciarfluxorobusto",
+        "line": 83
+      }
+    ],
+    "used": [
+      {
+        "name": "_buscar_processos_bucket_api",
+        "line": 40,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_construir_grupos_execucao",
+        "line": 71,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_abrir_executar_fechar",
+        "line": 115,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "PEC\\core_recovery.py": {
+    "total_defs": 2,
+    "used_count": 1,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "verificar_e_recuperar_acesso_negado",
+        "line": 9
+      }
+    ],
+    "used": [
+      {
+        "name": "reiniciar_driver_e_logar_pje",
+        "line": 40,
+        "used_by": [
+          "Fix\\extraction\\indexacao.py",
+          "PEC\\core.py",
+          "PEC\\processamento_fluxo.py"
+        ],
+        "total_users": 3
+      }
+    ]
+  },
+  "PEC\\processamento.py": {
+    "total_defs": 3,
+    "used_count": 2,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_lazy_import_pec",
+        "line": 2
+      }
+    ],
+    "used": [
+      {
+        "name": "executar_acao",
+        "line": 3,
+        "used_by": [
+          "carta\\anexos.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "processar_processo_pec_individual",
+        "line": 4,
+        "used_by": [
+          "PEC\\processamento_fluxo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "PEC\\processamento_fluxo.py": {
+    "total_defs": 7,
+    "used_count": 6,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "callback_pec_centralizado",
+        "line": 82
+      }
+    ],
+    "used": [
+      {
+        "name": "executar_fluxo_robusto",
+        "line": 23,
+        "used_by": [
+          "PEC\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "executar_fluxo_novo",
+        "line": 210,
+        "used_by": [
+          "PEC\\core_main.py",
+          "PEC\\processamento.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_configurar_driver",
+        "line": 287,
+        "used_by": [
+          "PEC\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_navegar_atividades",
+        "line": 328,
+        "used_by": [
+          "PEC\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_aplicar_filtros",
+        "line": 350,
+        "used_by": [
+          "PEC\\processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_organizar_e_executar_buckets",
+        "line": 377,
+        "used_by": [
+          "PEC\\processamento.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "PEC\\regras.py": {
+    "total_defs": 8,
+    "used_count": 5,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "determinar_acao_por_observacao",
+        "line": 22
+      },
+      {
+        "name": "get_cached_rules",
+        "line": 30
+      },
+      {
+        "name": "chamar_funcao_com_assinatura_correta",
+        "line": 47
+      }
+    ],
+    "used": [
+      {
+        "name": "determinar_acoes_por_observacao",
+        "line": 18,
+        "used_by": [
+          "PEC\\processamento_buckets.py",
+          "PEC\\processamento_indexacao.py",
+          "PEC\\processamento_listas.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "get_action_rules",
+        "line": 26,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "executar_acao_pec",
+        "line": 41,
+        "used_by": [
+          "PEC\\processamento_buckets.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "get_or_create_driver_sisbajud",
+        "line": 62,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "fechar_driver_sisbajud_global",
+        "line": 64,
+        "used_by": [
+          "PEC\\processamento_fluxo.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Prazo\\criteria_matcher.py": {
+    "total_defs": 16,
+    "used_count": 13,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "buscar_prazo_por_tipo",
+        "line": 115
+      },
+      {
+        "name": "buscar_primeiro_prazo",
+        "line": 138
+      }
+    ],
+    "used": [
+      {
+        "name": "CriteriaMatcher",
+        "line": 29,
+        "used_by": [
+          "Prazo\\p2b_prazo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "buscar_com_criterio",
+        "line": 50,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "buscar_prazo_ativo",
+        "line": 90,
+        "used_by": [
+          "Prazo\\p2b_prazo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_extrair_dados_pagina",
+        "line": 155,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_extrair_prazos_tabela",
+        "line": 195,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ir_proxima_pagina",
+        "line": 234,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_obter_numero_pagina",
+        "line": 261,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_obter_total_paginas",
+        "line": 278,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_prazo_vencido",
+        "line": 293,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_timestamp_atual",
+        "line": 311,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "criterio_prazo_ativo",
+        "line": 100,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "criterio_tipo_prazo",
+        "line": 126,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "criterio_qualquer_prazo",
+        "line": 148,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Prazo\\loop_api.py": {
+    "total_defs": 6,
+    "used_count": 5,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_verificar_processos_xs_paralelo",
+        "line": 91
+      }
+    ],
+    "used": [
+      {
+        "name": "_selecionar_processos_por_gigs_aj_jt",
+        "line": 4,
+        "used_by": [
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_verificar_processo_tem_xs",
+        "line": 59,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_obter_processos_com_gigs_api",
+        "line": 141,
+        "used_by": [
+          "Prazo\\loop_ciclo2_selecao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "verificar_um",
+        "line": 109,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "verificar_um",
+        "line": 145,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Prazo\\loop_base.py": {
+    "total_defs": 4,
+    "used_count": 3,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "clicar_com_multiplos_seletores",
+        "line": 85
+      }
+    ],
+    "used": [
+      {
+        "name": "pausar_confirmacao",
+        "line": 54,
+        "used_by": [
+          "Prazo\\__init__.py",
+          "Prazo\\loop_api.py",
+          "Prazo\\loop_ciclo1_filtros.py",
+          "Prazo\\loop_ciclo1_movimentacao.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "log_seletor_vencedor",
+        "line": 80,
+        "used_by": [
+          "Prazo\\loop_ciclo1_movimentacao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "medir_latencia",
+        "line": 115,
+        "used_by": [
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Prazo\\loop_ciclo1_filtros.py": {
+    "total_defs": 2,
+    "used_count": 1,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_ciclo1_aplicar_filtro_fases",
+        "line": 4
+      }
+    ],
+    "used": [
+      {
+        "name": "_verificar_quantidade_processos_paginacao",
+        "line": 100,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Prazo\\loop_ciclo1_movimentacao.py": {
+    "total_defs": 8,
+    "used_count": 7,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_ciclo1_marcar_todas",
+        "line": 13
+      }
+    ],
+    "used": [
+      {
+        "name": "_ciclo1_abrir_suitcase",
+        "line": 58,
+        "used_by": [
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_ciclo1_aguardar_movimentacao_lote",
+        "line": 118,
+        "used_by": [
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_ciclo1_movimentar_destino_providencias",
+        "line": 155,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ciclo1_movimentar_destino",
+        "line": 278,
+        "used_by": [
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_ciclo1_retornar_lista",
+        "line": 353,
+        "used_by": [
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_tentar_marcar",
+        "line": 18,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_tentar_abrir_suitcase",
+        "line": 72,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "Prazo\\loop_ciclo2_processamento.py": {
+    "total_defs": 9,
+    "used_count": 8,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "ciclo2_processar_livres_apenas_uma_vez",
+        "line": 179
+      }
+    ],
+    "used": [
+      {
+        "name": "_parse_atividade_xs_param",
+        "line": 7,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ciclo2_criar_atividade_xs",
+        "line": 19,
+        "used_by": [
+          "Prazo\\loop_ciclo3.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_ciclo2_movimentar_lote",
+        "line": 133,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "ciclo2_loop_providencias",
+        "line": 235,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ciclo2_contar_processos_selecionados",
+        "line": 298,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ciclo2_obter_numeros_processos_selecionados",
+        "line": 307,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_ciclo2_reselecionar_processos",
+        "line": 331,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "ciclo2",
+        "line": 365,
+        "used_by": [
+          "Prazo\\__init__.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Prazo\\loop_helpers.py": {
+    "total_defs": 2,
+    "used_count": 1,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "selecionar_processos_nao_livres",
+        "line": 46
+      }
+    ],
+    "used": [
+      {
+        "name": "_extrair_numero_processo_da_linha",
+        "line": 4,
+        "used_by": [
+          "Prazo\\loop_api.py",
+          "Prazo\\loop_ciclo2_selecao.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Prazo\\p2b_api.py": {
+    "total_defs": 5,
+    "used_count": 3,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "localizar_documento_relevante_api",
+        "line": 114
+      },
+      {
+        "name": "extrair_conteudo_documento_api",
+        "line": 209
+      }
+    ],
+    "used": [
+      {
+        "name": "extrair_documento_relevante",
+        "line": 27,
+        "used_by": [
+          "Prazo\\p2b_fluxo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_falha",
+        "line": 109,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "processar_processo_por_id_api",
+        "line": 293,
+        "used_by": [
+          "Prazo\\t3.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Prazo\\p2b_core.py": {
+    "total_defs": 13,
+    "used_count": 11,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "ato_pesqliq_callback",
+        "line": 339
+      },
+      {
+        "name": "aplicar",
+        "line": 358
+      }
+    ],
+    "used": [
+      {
+        "name": "remover_acentos",
+        "line": 124,
+        "used_by": [
+          "Mandado\\processamento_fluxo.py",
+          "PEC\\helpers.py",
+          "PEC\\regras.py",
+          "PEC\\sobrestamento.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "normalizar_texto",
+        "line": 129,
+        "used_by": [
+          "PEC\\helpers.py",
+          "PEC\\regras.py",
+          "PEC\\regras_pec.py",
+          "PEC\\sobrestamento.py",
+          "Prazo\\__init__.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "gerar_regex_geral",
+        "line": 134,
+        "used_by": [
+          "PEC\\regras.py",
+          "PEC\\sobrestamento.py",
+          "Prazo\\__init__.py",
+          "Prazo\\p2b_fluxo.py",
+          "Prazo\\p2b_fluxo_helpers.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "parse_gigs_param",
+        "line": 159,
+        "used_by": [
+          "Prazo\\__init__.py",
+          "Prazo\\p2b_fluxo_helpers.py",
+          "Prazo\\p2b_fluxo_regras.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "carregar_progresso_p2b",
+        "line": 177,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_prazo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "salvar_progresso_p2b",
+        "line": 201,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "marcar_processo_executado_p2b",
+        "line": 210,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_prazo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "processo_ja_executado_p2b",
+        "line": 216,
+        "used_by": [
+          "Fix\\monitoramento_progresso_unificado.py",
+          "Prazo\\__init__.py",
+          "Prazo\\fluxo_api.py",
+          "Prazo\\p2b_prazo.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "calc1",
+        "line": 221,
+        "used_by": [
+          "Prazo\\p2b_fluxo_regras.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "checar_prox",
+        "line": 267,
+        "used_by": [
+          "Mandado\\regras.py",
+          "Prazo\\p2b_fluxo_regras.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "RegraProcessamento",
+        "line": 351,
+        "used_by": [
+          "Prazo\\__init__.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "Prazo\\p2b_fluxo_documentos.py": {
+    "total_defs": 6,
+    "used_count": 5,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_extrair_texto_documento",
+        "line": 171
+      }
+    ],
+    "used": [
+      {
+        "name": "_encontrar_documento_relevante",
+        "line": 16,
+        "used_by": [
+          "atos\\comunicacao_coleta.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_documento_nao_assinado",
+        "line": 145,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_extrair_com_extrair_direto",
+        "line": 206,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_extrair_com_extrair_documento",
+        "line": 236,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_fechar_aba_processo",
+        "line": 256,
+        "used_by": [
+          "Prazo\\p2b_fluxo.py",
+          "Prazo\\p2b_fluxo_helpers.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "Prazo\\p2b_prazo.py": {
+    "total_defs": 12,
+    "used_count": 10,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "executar_prazo_com_otimizacoes",
+        "line": 93
+      },
+      {
+        "name": "_gerenciar_abas_apos_processo",
+        "line": 442
+      }
+    ],
+    "used": [
+      {
+        "name": "fluxo_prazo",
+        "line": 34,
+        "used_by": [
+          "Prazo\\__init__.py",
+          "Prazo\\loop_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "aplicar_filtro_atividades_xs",
+        "line": 135,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_wait_linhas_estaveis",
+        "line": 200,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_indexar_processos_lista",
+        "line": 227,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_filtrar_processos_nao_executados",
+        "line": 246,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_processar_lista_processos",
+        "line": 278,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_processar_processo_individual",
+        "line": 310,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_reindexar_linha_se_necessario",
+        "line": 346,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_executar_callback_processo",
+        "line": 368,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "processar_item_prazo",
+        "line": 289,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "SISB\\core.py": {
+    "total_defs": 12,
+    "used_count": 11,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "processar_endereco",
+        "line": 1114
+      }
+    ],
+    "used": [
+      {
+        "name": "simular_movimento_humano",
+        "line": 53,
+        "used_by": [
+          "SISB\\Core\\login.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "driver_sisbajud",
+        "line": 80,
+        "used_by": [
+          "PEC\\processamento_listas.py",
+          "SISB\\Core\\sessao_helpers.py",
+          "SISB\\__init__.py",
+          "SISB\\batch.py",
+          "SISB\\processamento_minuta.py"
+        ],
+        "total_users": 7
+      },
+      {
+        "name": "login_automatico_sisbajud",
+        "line": 101,
+        "used_by": [
+          "SISB\\Core\\sessao_helpers.py",
+          "SISB\\__init__.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "login_manual_sisbajud",
+        "line": 220,
+        "used_by": [
+          "SISB\\Core\\sessao_helpers.py",
+          "SISB\\__init__.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "salvar_dados_processo_temp",
+        "line": 272,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "iniciar_sisbajud",
+        "line": 295,
+        "used_by": [
+          "PEC\\processamento_fluxo.py",
+          "PEC\\processamento_listas.py",
+          "PEC\\regras_pec.py",
+          "PEC\\sisbajud_driver.py",
+          "SISB\\__init__.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "minuta_bloqueio",
+        "line": 495,
+        "used_by": [
+          "PEC\\processamento_listas.py",
+          "PEC\\regras_pec.py",
+          "SISB\\batch.py",
+          "SISB\\s_orquestrador.py",
+          "f.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "processar_ordem_sisbajud",
+        "line": 803,
+        "used_by": [
+          "PEC\\processamento_listas.py",
+          "PEC\\regras_pec.py",
+          "SISB\\batch.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "processar_bloqueios",
+        "line": 1059,
+        "used_by": [
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "coletar_dados_minuta_sisbajud",
+        "line": 1154,
+        "used_by": [
+          "SISB\\minutas\\processor.py",
+          "SISB\\processamento\\minutas_relatorio.py",
+          "SISB\\processamento_relatorios.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "minuta_bloqueio_60",
+        "line": 1253,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "f.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "SISB\\performance.py": {
+    "total_defs": 26,
+    "used_count": 14,
+    "unused_count": 8,
+    "unused": [
+      {
+        "name": "optimized_element_wait",
+        "line": 369
+      },
+      {
+        "name": "batched_form_fill",
+        "line": 384
+      },
+      {
+        "name": "cached_selector_lookup",
+        "line": 408
+      },
+      {
+        "name": "parallel_series_processing",
+        "line": 421
+      },
+      {
+        "name": "smart_cache_operation",
+        "line": 435
+      },
+      {
+        "name": "cache_element",
+        "line": 235
+      },
+      {
+        "name": "get_cached_element",
+        "line": 244
+      },
+      {
+        "name": "clear_expired_cache",
+        "line": 277
+      }
+    ],
+    "used": [
+      {
+        "name": "PerformanceOptimizer",
+        "line": 18,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "PollingReducer",
+        "line": 123,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "CacheManager",
+        "line": 226,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "ParallelProcessor",
+        "line": 297,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "cache_element_selector",
+        "line": 27,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "batch_dom_operations",
+        "line": 47,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "optimize_javascript_execution",
+        "line": 89,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_create_mutation_observer",
+        "line": 130,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "replace_polling_with_observer",
+        "line": 204,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "cache_data",
+        "line": 256,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "get_cached_data",
+        "line": 265,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "process_parallel",
+        "line": 304,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "process_series_parallel",
+        "line": 327,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "execute_task",
+        "line": 314,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "SISB\\processamento\\ordens_acao.py": {
+    "total_defs": 7,
+    "used_count": 4,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "_classificar_selects",
+        "line": 53
+      },
+      {
+        "name": "_acao_com_saldo",
+        "line": 87
+      },
+      {
+        "name": "_acao_nao_resposta",
+        "line": 144
+      }
+    ],
+    "used": [
+      {
+        "name": "_fechar_dropdown",
+        "line": 25,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_aguardar_opcoes",
+        "line": 33,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_abrir_select",
+        "line": 42,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_aplicar_acao_por_fluxo",
+        "line": 185,
+        "used_by": [
+          "SISB\\helpers.py",
+          "SISB\\ordens\\__init__.py",
+          "SISB\\processamento\\__init__.py"
+        ],
+        "total_users": 3
+      }
+    ]
+  },
+  "SISB\\s_orquestrador.py": {
+    "total_defs": 9,
+    "used_count": 6,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "trigger_event",
+        "line": 169
+      },
+      {
+        "name": "safe_execute_script",
+        "line": 176
+      },
+      {
+        "name": "otimizar_performance_sisbajud",
+        "line": 210
+      }
+    ],
+    "used": [
+      {
+        "name": "executar_sisbajud_completo",
+        "line": 69,
+        "used_by": [
+          "SISB\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "minuta_bloqueio",
+        "line": 152,
+        "used_by": [
+          "PEC\\processamento_listas.py",
+          "PEC\\regras_pec.py",
+          "SISB\\batch.py",
+          "SISB\\core.py",
+          "f.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "minuta_endereco",
+        "line": 156,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "processar_ordem_sisbajud",
+        "line": 160,
+        "used_by": [
+          "PEC\\processamento_listas.py",
+          "PEC\\regras_pec.py",
+          "SISB\\batch.py",
+          "SISB\\core.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "processar_bloqueios",
+        "line": 164,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "debug_sisbajud_status",
+        "line": 200,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "SISB\\standards.py": {
+    "total_defs": 42,
+    "used_count": 19,
+    "unused_count": 14,
+    "unused": [
+      {
+        "name": "TipoMinuta",
+        "line": 111
+      },
+      {
+        "name": "SerieSisbajud",
+        "line": 157
+      },
+      {
+        "name": "OrdemSisbajud",
+        "line": 179
+      },
+      {
+        "name": "ElementoNaoEncontradoException",
+        "line": 241
+      },
+      {
+        "name": "TimeoutExcedidoException",
+        "line": 250
+      },
+      {
+        "name": "CaptchaDetectadoException",
+        "line": 259
+      },
+      {
+        "name": "SessaoExpiradaException",
+        "line": 268
+      },
+      {
+        "name": "validar_numero_processo_padronizado",
+        "line": 288
+      },
+      {
+        "name": "formatar_valor_monetario_padronizado",
+        "line": 315
+      },
+      {
+        "name": "calcular_data_limite_padronizada",
+        "line": 335
+      },
+      {
+        "name": "criar_timestamp_padronizado",
+        "line": 348
+      },
+      {
+        "name": "log_operacao",
+        "line": 359
+      },
+      {
+        "name": "validar_parametros",
+        "line": 379
+      },
+      {
+        "name": "retry_on_failure",
+        "line": 393
+      }
+    ],
+    "used": [
+      {
+        "name": "SISBConstants",
+        "line": 14,
+        "used_by": [
+          "SISB\\__init__.py",
+          "SISB\\performance.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "StatusProcessamento",
+        "line": 97,
+        "used_by": [
+          "SISB\\__init__.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "TipoFluxo",
+        "line": 105,
+        "used_by": [
+          "SISB\\__init__.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "DadosProcesso",
+        "line": 120,
+        "used_by": [
+          "SISB\\__init__.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "ResultadoProcessamento",
+        "line": 137,
+        "used_by": [
+          "SISB\\__init__.py",
+          "SISB\\s_orquestrador.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "SISBLogger",
+        "line": 189,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "SISBException",
+        "line": 233,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "DadosInvalidosException",
+        "line": 277,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "valor_bloqueado_text",
+        "line": 169,
+        "used_by": [
+          "SISB\\processamento\\series_filtro.py",
+          "SISB\\series\\processor.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "valor_bloquear_text",
+        "line": 174,
+        "used_by": [
+          "SISB\\processamento\\series_filtro.py",
+          "SISB\\series\\processor.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "log",
+        "line": 205,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log_erro",
+        "line": 220,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "log_sucesso",
+        "line": 224,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "decorator",
+        "line": 366,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "decorator",
+        "line": 386,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "decorator",
+        "line": 401,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "wrapper",
+        "line": 367,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py",
+          "atos\\comunicacao.py",
+          "atos\\judicial_fluxo.py",
+          "p2.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "wrapper",
+        "line": 387,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py",
+          "atos\\comunicacao.py",
+          "atos\\judicial_fluxo.py",
+          "p2.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "wrapper",
+        "line": 402,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py",
+          "atos\\comunicacao.py",
+          "atos\\judicial_fluxo.py",
+          "p2.py"
+        ],
+        "total_users": 4
+      }
+    ]
+  },
+  "api\\variaveis_client.py": {
+    "total_defs": 15,
+    "used_count": 13,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "execucao_gigs",
+        "line": 44
+      }
+    ],
+    "used": [
+      {
+        "name": "PjeApiClient",
+        "line": 7,
+        "used_by": [
+          "Fix\\utils_editor.py",
+          "Fix\\variaveis.py",
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "PEC\\regras_pec.py"
+        ],
+        "total_users": 12
+      },
+      {
+        "name": "session_from_driver",
+        "line": 190,
+        "used_by": [
+          "Fix\\utils_editor.py",
+          "Fix\\variaveis.py",
+          "PEC\\regras_pec.py",
+          "Prazo\\loop_base.py",
+          "Prazo\\loop_ciclo2_processamento.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "_url",
+        "line": 13,
+        "used_by": [
+          "Fix\\variaveis_client.py",
+          "Fix\\variaveis_helpers.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "timeline",
+        "line": 19,
+        "used_by": [
+          "Fix\\variaveis_resolvers.py",
+          "Mandado\\processamento_outros.py",
+          "Prazo\\p2b_api.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "documento_por_id",
+        "line": 31,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_helpers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "processo_por_id",
+        "line": 53,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_helpers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "partes",
+        "line": 60,
+        "used_by": [
+          "Fix\\gigs\\__init__.py",
+          "Fix\\log.py",
+          "Fix\\log_cleaner.py",
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py"
+        ],
+        "total_users": 19
+      },
+      {
+        "name": "id_processo_por_numero",
+        "line": 67,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "calculos",
+        "line": 102,
+        "used_by": [
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "pericias",
+        "line": 110,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Fix\\variaveis_resolvers.py",
+          "api\\variaveis_helpers.py",
+          "api\\variaveis_resolvers.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "atividades_gigs",
+        "line": 118,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "Prazo\\loop_api.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "debitos_trabalhistas_bndt",
+        "line": 139,
+        "used_by": [
+          "Fix\\variaveis_helpers.py",
+          "api\\variaveis_helpers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "domicilio_eletronico",
+        "line": 173,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "atos\\wrappers_pec.py"
+        ],
+        "total_users": 2
+      }
+    ]
+  },
+  "apiaud.py": {
+    "total_defs": 8,
+    "used_count": 7,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_normalizar_lista",
+        "line": 19
+      }
+    ],
+    "used": [
+      {
+        "name": "criar_driver_e_logar",
+        "line": 29,
+        "used_by": [
+          "Prazo\\t3.py",
+          "testpet.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "buscar_lista_triagem",
+        "line": 123,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_is_triagem_inicial",
+        "line": 154,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_numero_cnj",
+        "line": 162,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "enriquecer_processo",
+        "line": 167,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "executar_teste_lista_triagem",
+        "line": 189,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "run_apiaud",
+        "line": 243,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "atos\\comunicacao_finalizacao.py": {
+    "total_defs": 22,
+    "used_count": 19,
+    "unused_count": 3,
+    "unused": [
+      {
+        "name": "remover_destinatarios_invalidos",
+        "line": 386
+      },
+      {
+        "name": "_aguardar_confirmar_save_js",
+        "line": 438
+      },
+      {
+        "name": "limpar_destinatarios_existentes",
+        "line": 741
+      }
+    ],
+    "used": [
+      {
+        "name": "_detectar_tipo_ato_para_modelo",
+        "line": 11,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_linhas_correios",
+        "line": 47,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_botao_confeccionar_correios",
+        "line": 60,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_contar_linhas_correios",
+        "line": 71,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_abrir_e_limpar_editor",
+        "line": 75,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_inserir_modelo_por_nome",
+        "line": 121,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "trocar_modelo_minuta",
+        "line": 160,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "alterar_meio_expedicao",
+        "line": 206,
+        "used_by": [
+          "atos\\comunicacao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "salvar_minuta_final",
+        "line": 496,
+        "used_by": [
+          "atos\\comunicacao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "log",
+        "line": 13,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 77,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 123,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 162,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 208,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 388,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 452,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 498,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 744,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      },
+      {
+        "name": "log",
+        "line": 747,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      }
+    ]
+  },
+  "atos\\core.py": {
+    "total_defs": 5,
+    "used_count": 4,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "aguardar_e_verificar_detalhe",
+        "line": 315
+      }
+    ],
+    "used": [
+      {
+        "name": "selecionar_opcao_select",
+        "line": 27,
+        "used_by": [
+          "atos\\__init__.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "verificar_carregamento_pagina",
+        "line": 64,
+        "used_by": [
+          "atos\\judicial_fluxo.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "aguardar_e_verificar_aba",
+        "line": 147,
+        "used_by": [
+          "atos\\comunicacao_navigation.py",
+          "atos\\judicial_fluxo.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "verificar_carregamento_detalhe",
+        "line": 195,
+        "used_by": [
+          "Fix\\extraction\\indexacao.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "atos\\judicial_fluxo.py": {
+    "total_defs": 5,
+    "used_count": 4,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "_verificar_reaplicar_sigilo_pec",
+        "line": 77
+      }
+    ],
+    "used": [
+      {
+        "name": "fluxo_cls",
+        "line": 52,
+        "used_by": [
+          "atos\\__init__.py",
+          "atos\\judicial.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "ato_judicial",
+        "line": 386,
+        "used_by": [
+          "Mandado\\atos_wrapper.py",
+          "Mandado\\core.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "make_ato_wrapper",
+        "line": 984,
+        "used_by": [
+          "atos\\__init__.py",
+          "atos\\judicial.py",
+          "atos\\wrappers_ato.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "wrapper",
+        "line": 1008,
+        "used_by": [
+          "Fix\\otimizacao_wrapper.py",
+          "SISB\\standards.py",
+          "atos\\comunicacao.py",
+          "p2.py"
+        ],
+        "total_users": 4
+      }
+    ]
+  },
+  "atos\\movimentos_chips.py": {
+    "total_defs": 4,
+    "used_count": 3,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "def_chip_custom",
+        "line": 110
+      }
+    ],
+    "used": [
+      {
+        "name": "def_chip",
+        "line": 7,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "PEC\\sobrestamento.py",
+          "atos\\movimentos.py",
+          "dom.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "log_msg",
+        "line": 29,
+        "used_by": [
+          "Fix\\utils_collect_content.py",
+          "Fix\\utils_collect_timeline.py",
+          "PEC\\ajuste_gigs.py",
+          "PEC\\core_pos_carta.py",
+          "PEC\\prescricao.py"
+        ],
+        "total_users": 8
+      },
+      {
+        "name": "log_msg",
+        "line": 132,
+        "used_by": [
+          "Fix\\utils_collect_content.py",
+          "Fix\\utils_collect_timeline.py",
+          "PEC\\ajuste_gigs.py",
+          "PEC\\core_pos_carta.py",
+          "PEC\\prescricao.py"
+        ],
+        "total_users": 8
+      }
+    ]
+  },
+  "atos\\movimentos_fluxo.py": {
+    "total_defs": 17,
+    "used_count": 16,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "verificar_minuta_preenchida",
+        "line": 756
+      }
+    ],
+    "used": [
+      {
+        "name": "_localizar_botao_tarefa",
+        "line": 13,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_obter_tarefa_atual_robusta",
+        "line": 51,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "mov_simples",
+        "line": 107,
+        "used_by": [
+          "atos\\movimentos.py",
+          "atos\\wrappers_mov.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "mov",
+        "line": 226,
+        "used_by": [
+          "Prazo\\p2b_fluxo_lazy.py",
+          "atos\\__init__.py",
+          "atos\\movimentos.py",
+          "atos\\wrappers_mov.py",
+          "carta\\anexos.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "_remover_acentos",
+        "line": 435,
+        "used_by": [
+          "PEC\\regras.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_localizar_botao_destino_movimento",
+        "line": 442,
+        "used_by": [
+          "atos\\movimentos_navegacao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "movimentar_inteligente",
+        "line": 501,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "Prazo\\p2b_fluxo_helpers.py",
+          "atos\\wrappers_mov.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "clicar_ultimo_lance",
+        "line": 690,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "chip_responsavel",
+        "line": 729,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "log_debug",
+        "line": 128,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "log_debug",
+        "line": 250,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "buscar_aba_detalhe",
+        "line": 257,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "tentar_encontrar_alvo",
+        "line": 278,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_texto_normalizado",
+        "line": 457,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_match",
+        "line": 463,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "log",
+        "line": 505,
+        "used_by": [
+          "Fix\\core.py",
+          "Fix\\documents\\search.py",
+          "Fix\\drivers\\lifecycle.py",
+          "Fix\\extracao_conteudo.py",
+          "Fix\\gigs\\__init__.py"
+        ],
+        "total_users": 53
+      }
+    ]
+  },
+  "atos\\movimentos_navegacao.py": {
+    "total_defs": 23,
+    "used_count": 21,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "_obter_nome_tarefa_via_api",
+        "line": 88
+      },
+      {
+        "name": "mov_cls",
+        "line": 363
+      }
+    ],
+    "used": [
+      {
+        "name": "navegar_para_tarefa",
+        "line": 14,
+        "used_by": [
+          "atos\\movimentos_fluxo.py",
+          "atos\\wrappers_mov.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_obter_tarefa_atual",
+        "line": 69,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_extrair_tarefa_do_dom",
+        "line": 93,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_normalizar_tarefa",
+        "line": 107,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_deve_interromper_movimento",
+        "line": 122,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_executar_movimento_para_destino",
+        "line": 139,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_de_analise",
+        "line": 180,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_comunicacoes",
+        "line": 209,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_arquivo_provisorio",
+        "line": 227,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_sobrestamento_final",
+        "line": 247,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_padrao_para_analise",
+        "line": 270,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_para_analise_se_necessario",
+        "line": 291,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_esperar_transicao",
+        "line": 299,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_arquivo",
+        "line": 326,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_iniciar_execucao",
+        "line": 330,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_iniciar_liquidacao",
+        "line": 334,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_remeter",
+        "line": 338,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_prazos_secretaria",
+        "line": 342,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_prazos_gabinete",
+        "line": 346,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_recurso_interno",
+        "line": 350,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_movimento_transito_julgado",
+        "line": 354,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "atos\\wrappers_mov.py": {
+    "total_defs": 6,
+    "used_count": 4,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "mov_para_analise",
+        "line": 93
+      },
+      {
+        "name": "mov_para_comunicacoes",
+        "line": 101
+      }
+    ],
+    "used": [
+      {
+        "name": "mov_arquivar",
+        "line": 19,
+        "used_by": [
+          "Mandado\\atos_wrapper.py",
+          "Mandado\\core.py",
+          "Mandado\\processamento.py",
+          "Mandado\\regras.py",
+          "Mandado\\utils.py"
+        ],
+        "total_users": 9
+      },
+      {
+        "name": "mov_exec",
+        "line": 31,
+        "used_by": [
+          "atos\\__init__.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "mov_aud",
+        "line": 49,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "atos\\__init__.py",
+          "atos\\wrappers_pec.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "mov_prazo",
+        "line": 77,
+        "used_by": [
+          "atos\\__init__.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "atos\\wrappers_pec.py": {
+    "total_defs": 2,
+    "used_count": 0,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "wrapper_pec_ord_com_domicilio",
+        "line": 238
+      },
+      {
+        "name": "wrapper_pec_sum_com_domicilio",
+        "line": 297
+      }
+    ],
+    "used": []
+  },
+  "carta\\anexos.py": {
+    "total_defs": 34,
+    "used_count": 33,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "extrair_numero_processo_da_pagina",
+        "line": 96
+      }
+    ],
+    "used": [
+      {
+        "name": "carta_wrapper",
+        "line": 142,
+        "used_by": [
+          "PEC\\anexos\\__init__.py",
+          "PEC\\carta.py",
+          "carta\\carta.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "consulta_wrapper",
+        "line": 187,
+        "used_by": [
+          "PEC\\anexos\\__init__.py",
+          "PEC\\processamento_listas.py",
+          "SISB\\core.py",
+          "SISB\\integration\\pje_integration.py",
+          "SISB\\processamento\\integracao.py"
+        ],
+        "total_users": 5
+      },
+      {
+        "name": "wrapper_bloqneg",
+        "line": 205,
+        "used_by": [
+          "PEC\\anexos\\__init__.py",
+          "SISB\\integration\\pje_integration.py",
+          "SISB\\processamento\\integracao.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "wrapper_parcial",
+        "line": 219,
+        "used_by": [
+          "PEC\\anexos\\__init__.py",
+          "SISB\\integration\\pje_integration.py",
+          "SISB\\processamento\\integracao.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "formatar_conteudo_ecarta",
+        "line": 237,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_obter_conteudo_relatorio_sisbajud",
+        "line": 247,
+        "used_by": [
+          "PEC\\anexos\\anexos_sisbajud.py",
+          "PEC\\anexos\\anexos_wrappers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_wrapper_sisbajud_generico",
+        "line": 267,
+        "used_by": [
+          "PEC\\anexos\\anexos_wrappers.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "wrapper_juntada_geral",
+        "line": 318,
+        "used_by": [
+          "PEC\\anexos\\anexos_sisbajud.py",
+          "PEC\\anexos\\anexos_wrappers.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "create_juntador",
+        "line": 433,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "executar_juntada_ate_editor",
+        "line": 507,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "executar_juntada",
+        "line": 553,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_escolher_opcao_gigs",
+        "line": 606,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_preencher_input_gigs",
+        "line": 638,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_clicar_elemento_gigs",
+        "line": 685,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py"
+        ],
+        "total_users": 3
+      },
+      {
+        "name": "_selecionar_modelo_gigs",
+        "line": 774,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_helpers.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "_executar_coleta_opcional",
+        "line": 818,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_preencher_tipo",
+        "line": 838,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_preencher_descricao",
+        "line": 844,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_configurar_sigilo",
+        "line": 852,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_selecionar_e_inserir_modelo",
+        "line": 860,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_inserir_conteudo_customizado",
+        "line": 868,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_salvar_documento",
+        "line": 939,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_assinar_se_necessario",
+        "line": 963,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_abrir_interface_anexacao",
+        "line": 975,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_preencher_campos_basicos",
+        "line": 1006,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_inserir_modelo",
+        "line": 1032,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "substituir_marcador_por_conteudo",
+        "line": 1088,
+        "used_by": [
+          "Fix\\utils_editor.py",
+          "PEC\\anexos\\__init__.py",
+          "PEC\\anexos\\anexos_juntador_helpers.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py",
+          "PEC\\anexos\\anexos_sisbajud.py"
+        ],
+        "total_users": 7
+      },
+      {
+        "name": "salvar_conteudo_clipboard",
+        "line": 1368,
+        "used_by": [
+          "Fix\\utils_collect_content.py",
+          "Fix\\utils_collect_timeline.py",
+          "PEC\\anexos\\__init__.py",
+          "PEC\\carta.py",
+          "SISB\\minutas\\processor.py"
+        ],
+        "total_users": 11
+      },
+      {
+        "name": "extrair_numero_processo_da_url",
+        "line": 1428,
+        "used_by": [
+          "PEC\\anexos\\anexos_configuracao.py",
+          "PEC\\anexos\\anexos_juntador.py",
+          "PEC\\anexos\\anexos_juntador_base.py",
+          "PEC\\anexos\\anexos_juntador_metodos.py",
+          "atos\\comunicacao_coleta.py"
+        ],
+        "total_users": 6
+      },
+      {
+        "name": "inserir_fn",
+        "line": 165,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador_metodos.py",
+          "PEC\\anexos\\anexos_sisbajud.py",
+          "PEC\\anexos\\anexos_wrappers.py",
+          "atos\\comunicacao_preenchimento.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "inserir_fn",
+        "line": 279,
+        "used_by": [
+          "PEC\\anexos\\anexos_juntador_metodos.py",
+          "PEC\\anexos\\anexos_sisbajud.py",
+          "PEC\\anexos\\anexos_wrappers.py",
+          "atos\\comunicacao_preenchimento.py"
+        ],
+        "total_users": 4
+      },
+      {
+        "name": "carregar_clipboard_arquivo",
+        "line": 1114,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_condicao_html",
+        "line": 1309,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  },
+  "carta\\carta.py": {
+    "total_defs": 10,
+    "used_count": 9,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "teste_juntada_carta_html",
+        "line": 1021
+      }
+    ],
+    "used": [
+      {
+        "name": "_carregar_calendario_dias_uteis",
+        "line": 21,
+        "used_by": [
+          "PEC\\carta_utils.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_somar_dias_uteis",
+        "line": 50,
+        "used_by": [
+          "PEC\\carta_formatacao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_parse_data_ecarta",
+        "line": 77,
+        "used_by": [
+          "PEC\\carta_formatacao.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_obter_numero_processo",
+        "line": 100,
+        "used_by": [
+          "PEC\\carta.py",
+          "PEC\\carta_ecarta.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "carta",
+        "line": 127,
+        "used_by": [
+          "PEC\\regras_pec.py",
+          "Prazo\\p2b_fluxo.py"
+        ],
+        "total_users": 2
+      },
+      {
+        "name": "_texto_e_correio",
+        "line": 147,
+        "used_by": [
+          "PEC\\carta_ecarta.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_extrair_texto_completo",
+        "line": 155,
+        "used_by": [
+          "PEC\\carta_ecarta.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "_processar_item",
+        "line": 190,
+        "used_by": [
+          "PEC\\carta_ecarta.py"
+        ],
+        "total_users": 1
+      },
+      {
+        "name": "gerar_html_carta_para_juntada",
+        "line": 803,
+        "used_by": [
+          "PEC\\carta_formatacao.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "dom.py": {
+    "total_defs": 15,
+    "used_count": 13,
+    "unused_count": 2,
+    "unused": [
+      {
+        "name": "buscar_processos_dom_eletronico",
+        "line": 56
+      },
+      {
+        "name": "navigate_to_list",
+        "line": 104
+      }
+    ],
+    "used": [
+      {
+        "name": "create_driver_and_login",
+        "line": 90,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "has_dom_eletronico_reminder",
+        "line": 281,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "checar_empresas",
+        "line": 294,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "is_processo_100_digital",
+        "line": 409,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "callback_bucket2",
+        "line": 419,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "navigate_to_activities_and_filter",
+        "line": 594,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "execute_list_with_bucket2_callback",
+        "line": 659,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "processar_processo_dom",
+        "line": 747,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_gerenciar_abas_apos_processo_dom",
+        "line": 901,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "main",
+        "line": 963,
+        "used_by": [
+          "Mandado\\core.py",
+          "PEC\\core.py",
+          "Prazo\\__init__.py",
+          "Prazo\\t3.py",
+          "Script\\bin\\bump_loader.py"
+        ],
+        "total_users": 13
+      },
+      {
+        "name": "callback_bucket1",
+        "line": 344,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "processar_item_dom",
+        "line": 701,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "filtro_chips",
+        "line": 987,
+        "used_by": [
+          "Mandado\\core.py"
+        ],
+        "total_users": 1
+      }
+    ]
+  },
+  "p2.py": {
+    "total_defs": 14,
+    "used_count": 13,
+    "unused_count": 1,
+    "unused": [
+      {
+        "name": "buscar_peticoes_escaninho_direto",
+        "line": 5
+      }
+    ],
+    "used": [
+      {
+        "name": "_to_query",
+        "line": 35,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_as_array",
+        "line": 38,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_clean_text",
+        "line": 53,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_is_numeric_like",
+        "line": 62,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_pick",
+        "line": 66,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_pick_textual",
+        "line": 72,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_deep_find_by_keys",
+        "line": 79,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_extract_numero_processo",
+        "line": 128,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_normalize_item",
+        "line": 133,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_do_fetch",
+        "line": 214,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_read_total_pages",
+        "line": 220,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_build_candidates",
+        "line": 240,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      },
+      {
+        "name": "_try_candidate",
+        "line": 261,
+        "used_by": [
+          "(internal only)"
+        ],
+        "total_users": 0
+      }
+    ]
+  }
+}

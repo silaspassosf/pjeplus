@@ -32,13 +32,13 @@ class BotaoAtalhoNovaAba {
         } else if (typeof this.getPrefixo === 'string') {
             prefixo = this.getPrefixo;
         }
-    
+
         if (typeof this.gerarSufixo === 'function') {
             sufixo = await this.gerarSufixo(idProcesso, idDocumento, nrProcesso);
         } else if (typeof this.gerarSufixo === 'string') {
             sufixo = this.gerarSufixo;
         }
-		
+
 		if (sufixo.includes(prefixo)) {
 			return `${sufixo}`;
 		} else {
@@ -57,15 +57,18 @@ class BotaoAtalhoNovaAba {
         span.id = this.id;
         span.style = `--p:${posicao};--d:-1;--c:0;`;
         const tag = !!this.originalOnClick ? 'button' : 'a';
-        let link = document.createElement(tag);        
+        let link = document.createElement(tag);
+        link.id = tag + '_' +this.id;
         link.setAttribute('aria-label', this.aria);
         link.setAttribute('maisPje-tooltip-menuEsquerda', this.aria);
         link.setAttribute('maisPje-tooltip-menuDireita', this.aria);
         link.setAttribute('maisPje-tooltip-menuAcima', this.aria);
         link.setAttribute('maisPje-tooltip-menuAbaixo', this.aria);
         link.style.backgroundColor = this.cor_de_fundo;
-        link.onmouseenter = () => { link.style.filter = 'grayscale(1)' };
-        link.onmouseleave = () => { link.style.filter = 'grayscale(0)' };
+        if (!preferencias.extrasAcionarBotoesSemCliqueAtivar) {
+            link.onmouseenter = () => { link.style.filter = 'grayscale(1)' };
+            link.onmouseleave = () => { link.style.filter = 'grayscale(0)' };
+        }
         const acao = this.onClick;
         const executarAcao =  (event) => {
             event.preventDefault();
@@ -93,6 +96,14 @@ class BotaoAtalhoNovaAba {
 
 function getAtalhosNovaAba() {
     const atalhos = {
+        configuracoesCliqueRapido: new BotaoAtalhoNovaAba({
+            id: "maisPje_menuKaizen_itemmenu_cliqueRapido",
+            icone: "icone clickrapido t100 tamanho60",
+            aria: "Configurar Clique Rápido",
+            cor_de_fundo: "orangered",
+            onClick: () => configurarBotoesMapeados(),
+            condicao_adicionar: () => preferencias.extrasAcionarBotoesSemCliqueAtivar
+        }),
         consultaRapidaPJe: new BotaoAtalhoNovaAba({
             id: "maisPje_menuKaizen_itemmenu_consulta_rapida",
             icone: "icone bolt t100 tamanho45",
@@ -231,7 +242,7 @@ function getAtalhosNovaAba() {
             icone: "textoComoIcone t100 tamanho70",
             texto: "F3",
             aria: (!preferencias.tempF3) ? "Atalho F3: [definir]" : "Atalho F3: " + preferencias.tempF3,
-            cor_de_fundo: (!preferencias.tempF3) ? "darkcyan" : "rgb(159, 56, 18)",            
+            cor_de_fundo: (!preferencias.tempF3) ? "darkcyan" : "rgb(159, 56, 18)",
             onClick: async function () {
                 const button = document.querySelector('#maisPje_menuKaizen_itemmenu_preferencia_f3 button');
                 preferencias.tempF3 = await criarCaixaDeSelecaoComAAs(preferencias, 'Escolha uma Ação Automatizada para guardar no atalho "F3"', preferencias.tempF3, button);
@@ -313,7 +324,7 @@ function getAtalhosNovaAba() {
                 if (gigsURL == "") {
                     criarCaixaDeAlerta("DICA", 'Consulte o relatório do SAO e verifique se o seu TRT possui um relatório específico para este atividade. Caso exista encaminhe um email para fernando.marcon@trt12.jus.br que adicionaremos o atalho aqui.', 20);
                     return;
-                } else if (gigsURL.includes('?maisPje=true')) {  
+                } else if (gigsURL.includes('?maisPje=true')) {
                     return gigsURL + `&cpfcnpj=${documento}&fase=Execução`;
                 } else {
                     return gigsURL + `?maisPje=true&cpfcnpj=${documento}&fase=Execução`;
@@ -362,7 +373,7 @@ function getAtalhosNovaAba() {
                     criarCaixaDeAlerta('ALERTA', 'Não foi possível obter o ID do processo através do número encontrado (' + nrProcesso + ').', 15);
                     return;
                 }
-                
+
                 return `/pjekz/processo/${idProcesso}/documento/anexar`;
             },
             condicao_adicionar: () => false
@@ -380,23 +391,13 @@ function getAtalhosNovaAba() {
             icone: "icone search-dollar2 t100 tamanho70",
             aria: "Conferir Alvarás",
             cor_de_fundo: "#0078aa",
-            onClick: async function () { 
+            onClick: async function () {
                 let opcoes = await criarCaixaSelecao(['Caixa Econômica Federal','Banco do Brasil'],titulo='Escolha a Instituição Financeira');
                 if (opcoes == 'Caixa Econômica Federal') {
                     janelaAlvarasSIF('SIF');
                 } else {
-
-                    // let opcoes = await criarCaixaSelecao(['Sim','Não'], 'Você já efetuou o login no sistema SISCONDJ?','Nenhum',false,true);
-			        // if (!opcoes) {
-                        janelaAlvarasSISCONDJ('SISCONDJ');
-                    // } else {
-                    //     fundo(false)
-                    //     await criarCaixaDeAlerta('Atenção','Para utilizar a funcionalidade de CONFERIR ALVARÁS é obrigatório que vc já esteja logado no sistema SISCONDJ!\n Faça o login e execute novamente a função.',60,0,"Fazer login");
-                    //     browser.runtime.sendMessage({tipo: 'criarJanela', url: preferencias.configURLs.urlSiscondj, posx: preferencias.gigsTarefaLeft, posy: preferencias.gigsTarefaTop, width: preferencias.gigsTarefaWidth, height: preferencias.gigsTarefaHeight});                        
-                    // }
-                    
+                    janelaAlvarasSISCONDJ('SISCONDJ');
                 }
-
             }
         })
     };

@@ -4,6 +4,18 @@ from Fix.smart_finder import buscar
 from Fix.core import aguardar_renderizacao_nativa
 
 
+def _parse_atividade_xs_param(valor: str) -> tuple:
+    partes = valor.split('/')
+    if len(partes) >= 3:
+        prazo = partes[0].strip()
+        responsavel = partes[1].strip() if partes[1].strip() else None
+        observacao = '/'.join(partes[2:]).strip()
+        return prazo, responsavel, observacao
+    if len(partes) == 2:
+        return partes[0].strip(), None, partes[1].strip()
+    return None, None, valor.strip()
+
+
 def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
     """Cria atividade 'xs' para processos selecionados."""
     try:
@@ -31,37 +43,91 @@ def _ciclo2_criar_atividade_xs(driver: WebDriver) -> bool:
                 driver.execute_script("arguments[0].click();", btn)
                 sucesso_atividade = True
                 break
-        
+
         if not sucesso_atividade:
             # Fallback: buscar via SmartFinder
             btn_atividade = buscar(driver, 'ciclo2_btn_atividade', [
                 "//button[contains(normalize-space(.), 'Atividade')]",
+                "//button[contains(translate(normalize-space(.), 'ATIVIDADE', 'atividade'), 'atividade')]",
+                "button[aria-label*='Atividade']",
+                "button[aria-label*='atividade']",
                 "button.mat-menu-item"
             ])
             if btn_atividade:
                 driver.execute_script("arguments[0].click();", btn_atividade)
                 sucesso_atividade = True
-        
+
         if not sucesso_atividade:
             logger.error('[CICLO2][XS] Botão "Atividade" não encontrado')
             return False
 
         # Aguardar renderização do formulário de atividade
-        aguardar_renderizacao_nativa(driver, "textarea[formcontrolname='observacao']", timeout=10)
+        try:
+            aguardar_renderizacao_nativa(driver, "textarea[formcontrolname='observacao']", timeout=10)
+        except Exception:
+            pass
+
+        prazo, _, observacao = _parse_atividade_xs_param('-1//xs1')
+
+        # Preencher prazo, se o campo existir
+        if prazo is not None:
+            campo_prazo = None
+            for seletor in [
+                'input[formcontrolname="prazo"]',
+                'input[aria-label="Prazo em dias úteis"]',
+                'mat-form-field input[type="number"]'
+            ]:
+                try:
+                    campo = driver.find_element(By.CSS_SELECTOR, seletor)
+                    if campo.is_displayed():
+                        campo_prazo = campo
+                        break
+                except Exception:
+                    continue
+            if campo_prazo:
+                campo_prazo.click()
+                campo_prazo.clear()
+                campo_prazo.send_keys(prazo)
 
         # Preencher observação
-        campo_obs = driver.find_element(By.CSS_SELECTOR, "textarea[formcontrolname='observacao']")
+        campo_obs = None
+        for seletor in [
+            "textarea[formcontrolname='observacao']",
+            "textarea[aria-label*='Observa']",
+            "textarea"
+        ]:
+            try:
+                campo = driver.find_element(By.CSS_SELECTOR, seletor)
+                if campo.is_displayed():
+                    campo_obs = campo
+                    break
+            except Exception:
+                continue
+
+        if not campo_obs:
+            logger.error('[CICLO2][XS] Campo de observação não encontrado')
+            return False
+
         campo_obs.click()
         campo_obs.clear()
-        campo_obs.send_keys('-1//xs1')
+        campo_obs.send_keys(observacao)
         
         # Aguardar até que o textarea contenha o texto (sincronização mínima)
-        WebDriverWait(driver, 6).until(lambda d: '-1//xs1' in campo_obs.get_attribute('value'))
+        try:
+            WebDriverWait(driver, 6).until(lambda d: observacao in campo_obs.get_attribute('value'))
+        except Exception:
+            pass
 
         # Encontrar e clicar no botão Salvar
         spans = driver.find_elements(By.CSS_SELECTOR, "button.mat-raised-button span")
         btn_salvar = next((s for s in spans if "Salvar" in s.text), None)
         if not btn_salvar:
+            try:
+                btn_salvar = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Salvar'] span")
+            except Exception:
+                btn_salvar = None
+        if not btn_salvar:
+            logger.error('[CICLO2][XS] Botão Salvar não encontrado')
             return False
         btn_pai = btn_salvar.find_element(By.XPATH, "..")
         

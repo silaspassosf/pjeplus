@@ -92,21 +92,6 @@ from Fix.documents import buscar_documentos_sequenciais
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit, extrair_pdf
 from Fix.log import logger
-from atos import (
-    ato_judicial,
-    ato_meios,
-    ato_pesquisas,
-    ato_crda,
-    ato_crte,
-    ato_bloq,
-    ato_idpj,
-    ato_termoE,
-    ato_termoS,
-    ato_edital,
-    ato_idpj,
-    mov_arquivar,
-    ato_meiosub
-)
 from .utils import (
     fechar_intimacao,
     retirar_sigilo,

@@ -474,7 +474,7 @@
             for (const k of unitKeys) {
                 if (raw[k] && typeof raw[k] === 'string' && /vara/i.test(raw[k])) return true;
             }
-            return false;
+            return true; // sem dado de instância: assume 1ª instância
         }
 
         async function readTextoFor(it) {
@@ -627,10 +627,15 @@
 
     function encontrarItemTimeline(href) {
         if (!href) return null;
+        let uid = null;
+        try { uid = new URL(href).searchParams.get('documentoId'); } catch (e) { /* ignore */ }
+        if (!uid) return null;
         const items = getTimelineItems();
         for (const item of items) {
-            const link = item.querySelector('a.tl-documento[target="_blank"]');
-            if (link && link.href === href) return item;
+            const textLink = item.querySelector('a.tl-documento:not([target="_blank"])');
+            if (!textLink) continue;
+            const m = textLink.textContent.trim().match(/\s-\s([A-Za-z0-9]+)$/);
+            if (m && m[1] === uid) return item;
         }
         return null;
     }
@@ -756,6 +761,7 @@
                 const ocorreuDepoisDoAcordao = oldestAcordaoItemIdx !== -1 && recItemIdx < oldestAcordaoItemIdx;
                 const poloDetectado = _detectarPoloPassivo(rec._raw, passivo);
                 if (!ocorreuDepoisDoAcordao && poloDetectado !== 'PASSIVO') return null;
+                if (rec.anexos.length === 0) return null;
 
                 const depositante = rec.nomeParte ||
                     passivo.map(function(p) { return p.nome; }).find(function(n) { return _normalize(rec.titulo).includes(_normalize(n)); }) || '';

@@ -242,6 +242,66 @@
             } catch (e) { dbg('[hcalc] direct localStorage fallback error', e); }
         }
 
+        // Handler do botão API ⇒ (registrado aqui para funcionar sem abrir o overlay)
+        async function carregarPlanilhaPorUidBotao(uid) {
+            uid = (uid || '').trim();
+            if (!uid) throw new Error('UID vazio');
+            const m = location.pathname.match(/\/processo\/(\d+)/);
+            if (!m) throw new Error('ID do processo não encontrado na URL');
+            const idProcesso = m[1];
+            const getCookie = (name) => {
+                const c = document.cookie.split(';').map(s => s.trim())
+                    .find(s => s.toLowerCase().startsWith(name.toLowerCase() + '='));
+                return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
+            };
+            const xsrf = getCookie('XSRF-TOKEN');
+            const headers = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
+            if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
+            const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${uid}/conteudo`;
+            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar documento uid=${uid}`);
+            const buffer = await resp.arrayBuffer();
+            if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia para uid=' + uid);
+            const loaded = await window.carregarPDFJSSeNecessario();
+            if (!loaded) throw new Error('PDF.js não disponível');
+            const fakeFile = new File([buffer], `Documento_${uid}.pdf`, { type: 'application/pdf' });
+            return window.processarPlanilhaPDF(fakeFile);
+        }
+        const btnUidEarly = document.getElementById('btn-planilha-uid');
+        const inputUidEarly = document.getElementById('input-planilha-uid');
+        if (btnUidEarly && inputUidEarly) {
+            btnUidEarly.addEventListener('click', async () => {
+                const uid = inputUidEarly.value.trim();
+                if (!uid) { alert('Informe o UID da planilha.'); return; }
+                const btnMain = document.getElementById('btn-abrir-homologacao');
+                btnUidEarly.disabled = true;
+                btnUidEarly.textContent = '⏳';
+                if (btnMain) { btnMain.textContent = '⏳ Buscando...'; btnMain.disabled = true; }
+                try {
+                    const dados = await carregarPlanilhaPorUidBotao(uid);
+                    if (!dados || !dados.sucesso) throw new Error(dados && dados.erro ? dados.erro : 'Falha na extração');
+                    window.hcalcState.planilhaExtracaoData = dados;
+                    window.hcalcState.planilhaCarregada = true;
+                    if (window.hcalcAtualizarResumoPlanilha) window.hcalcAtualizarResumoPlanilha(dados);
+                    if (window.hcalcAtualizarDropdownsPlanilhas) window.hcalcAtualizarDropdownsPlanilhas();
+                    if (btnMain) { btnMain.textContent = '✓ Dados Extraídos (API)'; btnMain.style.background = '#10b981'; btnMain.disabled = false; }
+                    btnUidEarly.textContent = '✓';
+                    inputUidEarly.value = '';
+                    setTimeout(() => {
+                        if (btnMain) { btnMain.textContent = 'Gerar Homologação'; btnMain.style.background = '#00509e'; }
+                        btnUidEarly.textContent = 'API ⇒';
+                        btnUidEarly.disabled = false;
+                    }, 2000);
+                } catch (e) {
+                    console.error('[HCalc] carregarPlanilhaPorUid falhou:', e.message);
+                    alert('Erro ao carregar via API: ' + e.message);
+                    btnUidEarly.textContent = 'API ⇒';
+                    btnUidEarly.disabled = false;
+                    if (btnMain) { btnMain.textContent = '📄 Carregar Planilha'; btnMain.disabled = false; }
+                }
+            });
+        }
+
         // Handler do botão — inicializa overlay lazy na primeira vez
         btn.onclick = async () => {
             if (!window.__hcalcOverlayInitialized) {
@@ -899,6 +959,11 @@
         }
 
         window.hcalcAtualizarResumoPlanilha = atualizarResumoPlanilha;
+        window.hcalcAtualizarDropdownsPlanilhas = () => {
+            if (responsabilidadesController && typeof responsabilidadesController.atualizarDropdownsPlanilhas === 'function') {
+                responsabilidadesController.atualizarDropdownsPlanilhas();
+            }
+        };
         const draftController = overlayDraftApi.createController({
             $, modalEl, warn, atualizarResumoPlanilha, adicionarLinhaPeridoDiverso,
             adicionarDepositoRecursal, adicionarPagamentoAntecipado,
@@ -1668,71 +1733,6 @@
             });
         }
 
-        // Carrega planilha a partir de UID via API (sem selecionar arquivo)
-        async function carregarPlanilhaPorUid(uid) {
-            uid = (uid || '').trim();
-            if (!uid) throw new Error('UID vazio');
-            const m = location.pathname.match(/\/processo\/(\d+)/);
-            if (!m) throw new Error('ID do processo não encontrado na URL');
-            const idProcesso = m[1];
-
-            const getCookie = (name) => {
-                const c = document.cookie.split(';').map(s => s.trim())
-                    .find(s => s.toLowerCase().startsWith(name.toLowerCase() + '='));
-                return c ? decodeURIComponent(c.split('=').slice(1).join('=')) : '';
-            };
-            const xsrf = getCookie('XSRF-TOKEN');
-            const headers = { 'Accept': '*/*', 'X-Grau-Instancia': '1' };
-            if (xsrf) headers['X-XSRF-TOKEN'] = xsrf;
-
-            const url = `${location.origin}/pje-comum-api/api/processos/id/${idProcesso}/documentos/id/${uid}/conteudo`;
-            const resp = await fetch(url, { method: 'GET', credentials: 'include', headers });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar documento uid=${uid}`);
-
-            const buffer = await resp.arrayBuffer();
-            if (!buffer || buffer.byteLength < 100) throw new Error('Resposta vazia para uid=' + uid);
-
-            const loaded = await carregarPDFJSSeNecessario();
-            if (!loaded) throw new Error('PDF.js não disponível');
-            const fakeFile = new File([buffer], `Documento_${uid}.pdf`, { type: 'application/pdf' });
-            return processarPlanilhaPDF(fakeFile);
-        }
-
-        // Handler do botão API ⇒
-        const btnUid = document.getElementById('btn-planilha-uid');
-        const inputUid = document.getElementById('input-planilha-uid');
-        if (btnUid && inputUid) {
-            btnUid.addEventListener('click', async () => {
-                const uid = inputUid.value.trim();
-                if (!uid) { alert('Informe o UID da planilha.'); return; }
-                const btnMain = $('btn-abrir-homologacao');
-                btnUid.disabled = true;
-                btnUid.textContent = '⏳';
-                if (btnMain) { btnMain.textContent = '⏳ Buscando...'; btnMain.disabled = true; }
-                try {
-                    const dados = await carregarPlanilhaPorUid(uid);
-                    if (!dados || !dados.sucesso) throw new Error(dados && dados.erro ? dados.erro : 'Falha na extração');
-                    window.hcalcState.planilhaExtracaoData = dados;
-                    window.hcalcState.planilhaCarregada = true;
-                    if (window.hcalcAtualizarResumoPlanilha) window.hcalcAtualizarResumoPlanilha(dados);
-                    if (typeof atualizarDropdownsPlanilhas === 'function') atualizarDropdownsPlanilhas();
-                    if (btnMain) { btnMain.textContent = '✓ Dados Extraídos (API)'; btnMain.style.background = '#10b981'; btnMain.disabled = false; }
-                    btnUid.textContent = '✓';
-                    inputUid.value = '';
-                    setTimeout(() => {
-                        if (btnMain) { btnMain.textContent = 'Gerar Homologação'; btnMain.style.background = '#00509e'; }
-                        btnUid.textContent = 'API ⇒';
-                        btnUid.disabled = false;
-                    }, 2000);
-                } catch (e) {
-                    console.error('[HCalc] carregarPlanilhaPorUid falhou:', e.message);
-                    alert('Erro ao carregar via API: ' + e.message);
-                    btnUid.textContent = 'API ⇒';
-                    btnUid.disabled = false;
-                    if (btnMain) { btnMain.textContent = '📄 Carregar Planilha'; btnMain.disabled = false; }
-                }
-            });
-        }
         $('btn-reload-planilha').onclick = () => {
             const inputFile = $('input-planilha-pdf');
             inputFile.click();

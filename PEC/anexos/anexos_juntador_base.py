@@ -79,25 +79,25 @@ def wrapper_juntada_geral(
     # Guard clause: validar driver
     if not driver:
         if debug:
-            print('[WRAPPER_JUNTADA_GERAL] ✗ Driver inválido')
+            logger.error('[WRAPPER_JUNTADA_GERAL] Driver inválido')
         return False
 
     if debug:
-        print('[WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...')
+        logger.info('[WRAPPER_JUNTADA_GERAL] Iniciando juntada automática...')
 
     # 0. Coleta de conteúdo (opcional)
     if coleta_conteudo:
         try:
             numero_processo = extrair_numero_processo_da_url(driver)
             if numero_processo:
-                print(f'[WRAPPER_JUNTADA_GERAL][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo}')
+                logger.info(f'[WRAPPER_JUNTADA_GERAL][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo}')
                 executar_coleta_parametrizavel(driver, numero_processo, coleta_conteudo, debug=debug)
             else:
                 if debug:
-                    print('[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Número do processo não identificado')
+                    logger.warning('[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Número do processo não identificado')
         except Exception as e:
             if debug:
-                print(f'[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Falha ao executar coleta opcional: {e}')
+                logger.warning(f'[WRAPPER_JUNTADA_GERAL][COLETA][WARN] Falha ao executar coleta opcional: {e}')
 
     # 1. Cria juntador
     juntador = create_juntador(driver)
@@ -116,15 +116,15 @@ def wrapper_juntada_geral(
         resultado = juntador.executar_juntada(configuracao, substituir_link=substituir_link)
     else:
         if debug:
-            print('[WRAPPER_JUNTADA_GERAL][ERRO] Objeto juntador não possui método executar_juntada')
+            logger.error('[WRAPPER_JUNTADA_GERAL][ERRO] Objeto juntador não possui método executar_juntada')
         return False
 
     if resultado:
         if debug:
-            print('[WRAPPER_JUNTADA_GERAL] ✓ Juntada automática concluída com sucesso!')
+            logger.info('[WRAPPER_JUNTADA_GERAL] Juntada automática concluída com sucesso!')
     else:
         if debug:
-            print('[WRAPPER_JUNTADA_GERAL] ✗ Juntada automática falhou ou foi pulada')
+            logger.warning('[WRAPPER_JUNTADA_GERAL] Juntada automática falhou ou foi pulada')
     return resultado
 
 

@@ -39,56 +39,83 @@ def _filtrar_series(driver, data_limite):
         except Exception:
             logger.info('[SISBAJUD]  Timeout aguardando tabela — tentando JS mesmo assim')
 
-        # ETAPA 1: EXTRAIR DADOS DA TABELA VIA JS (usando lógica do bookmarklet funcional)
+        # ETAPA 1: EXTRAIR DADOS DA TABELA VIA JS (alinhado à estrutura atual da grade)
         # IMPORTANTE: execute_script precisa de 'return' no nível top-level,
         # senão retorna None mesmo que o IIFE retorne algo internamente.
-        script_extrair = """
+        script_extrair = r"""
         return (function() {
             try {
+                var MONTHS = {JAN:0, FEV:1, MAR:2, ABR:3, MAI:4, JUN:5, JUL:6, AGO:7, SET:8, OUT:9, NOV:10, DEZ:11};
+
+                function norm(text) {
+                    return String(text || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+                }
+
+                function findSeriesTable() {
+                    var tables = Array.prototype.slice.call(document.querySelectorAll('table[mat-table], table.mat-table'));
+                    return tables.find(function(table) {
+                        var header = table.querySelector('thead');
+                        var headerText = norm(header ? header.textContent : table.textContent).toUpperCase();
+                        return headerText.indexOf('ID DA SÉRIE') >= 0 || headerText.indexOf('ID DA SERIE') >= 0;
+                    }) || null;
+                }
+
+                function getCell(row, dataLabel, legacyClass) {
+                    return row.querySelector('td[data-label="' + dataLabel + '"]') || row.querySelector('td.' + legacyClass) || null;
+                }
+
+                function parseSisDate(dateText) {
+                    var parts = norm(dateText).toUpperCase().split(' ');
+                    if (parts.length < 5) return null;
+                    var day = parseInt(parts[0], 10);
+                    var month = MONTHS[parts[2]];
+                    var year = parseInt(parts[4], 10);
+                    if (isNaN(day) || month === undefined || isNaN(year)) return null;
+                    return new Date(year, month, day);
+                }
+
                 var series = [];
-                var rows = document.querySelectorAll('table.mat-table tbody tr.mat-row');
-                var months = {JAN:0, FEV:1, MAR:2, ABR:3, MAI:4, JUN:5,
-                              JUL:6, AGO:7, SET:8, OUT:9, NOV:10, DEZ:11};
-                var now = new Date();
-                var limit = new Date();
-                limit.setDate(now.getDate() - 15);
+                var table = findSeriesTable();
+                if (!table) {
+                    return {sucesso: false, erro: 'Tabela de séries não encontrada'};
+                }
+
+                var rows = table.querySelectorAll('tbody tr[mat-row], tbody tr.mat-row');
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                var limit = new Date(today);
+                limit.setDate(limit.getDate() - 30);
 
                 rows.forEach(function(row) {
                     try {
-                        var id       = row.querySelector('td[data-label="sequencial"]');
-                        var protocolo = row.querySelector('td[data-label="protocolo"]');
-                        var processo  = row.querySelector('td[data-label="processo"]');
-                        var situacao  = row.querySelector('td[data-label="dataFim"]');
-                        var sched     = row.querySelector('td[data-label="dataProgramada"]');
-                        var blocked   = row.querySelector('td[data-label="valorBloqueado"]');
-                        var bloquear  = row.querySelector('td[data-label="valorBloquear"]');
+                        var id = getCell(row, 'sequencial', 'cdk-column-sequencial');
+                        var protocolo = getCell(row, 'protocolo', 'cdk-column-protocolo');
+                        var processo = getCell(row, 'processo', 'cdk-column-processo');
+                        var situacao = getCell(row, 'dataFim', 'cdk-column-dataFim');
+                        var sched = getCell(row, 'dataProgramada', 'cdk-column-dataProgramada');
+                        var blocked = getCell(row, 'valorBloqueado', 'cdk-column-valorBloqueado');
+                        var bloquear = getCell(row, 'valorBloquear', 'cdk-column-valorBloquear');
 
-                        if (id && sched && blocked) {
-                            var dateText = sched.textContent.trim();
-                            var parts = dateText.replace(/\\./g, '').toUpperCase().split(' ');
-
-                            if (parts.length >= 5) {
-                                var day   = parseInt(parts[0], 10);
-                                var month = months[parts[2]];
-                                var year  = parseInt(parts[4], 10);
-
-                                if (!isNaN(day) && month !== undefined && !isNaN(year)) {
-                                    var parsed = new Date(year, month, day);
-                                    if (parsed >= limit) {
-                                        series.push({
-                                            id_serie:             id.textContent.trim(),
-                                            protocolo:            protocolo ? protocolo.textContent.trim() : '',
-                                            processo:             processo  ? processo.textContent.trim()  : '',
-                                            situacao:             situacao  ? situacao.textContent.trim()  : '',
-                                            data_conclusao:       dateText,
-                                            valor_bloqueado_text: blocked.textContent.trim(),
-                                            valor_bloquear_text:  bloquear ? bloquear.textContent.trim() : 'R$ 0,00',
-                                            acao: ''
-                                        });
-                                    }
-                                }
-                            }
+                        if (!id || !sched || !blocked) {
+                            return;
                         }
+
+                        var dateText = norm(sched.textContent);
+                        var parsed = parseSisDate(dateText);
+                        if (!parsed || parsed < limit) {
+                            return;
+                        }
+
+                        series.push({
+                            id_serie:             norm(id.textContent),
+                            protocolo:            protocolo ? norm(protocolo.textContent) : '',
+                            processo:             processo ? norm(processo.textContent) : '',
+                            situacao:             situacao ? norm(situacao.textContent) : '',
+                            data_conclusao:       dateText,
+                            valor_bloqueado_text: norm(blocked.textContent),
+                            valor_bloquear_text:  bloquear ? norm(bloquear.textContent) : 'R$ 0,00',
+                            acao: ''
+                        });
                     } catch(e) {}
                 });
 
@@ -516,7 +543,7 @@ def _processar_series(driver, series_validas, tipo_fluxo, log=True, estrategia=N
                         # Executar ação conforme estratégia
                         if acao in ['TRANSFERIR', 'TRANSFERIR_PARCIAL']:
                             if log and usar_estrategia_parcial and acao == 'TRANSFERIR':
-                                logger.info(f'[SISBAJUD]    ▶  Ordem {sequencial_ordem}: TRANSFERIR (R$ {valor_ordem:.2f})')
+                                logger.info(f'[SISBAJUD]    Ordem {sequencial_ordem}: TRANSFERIR (R$ {valor_ordem:.2f})')
                             
                             from ..processamento import _processar_ordem
                             

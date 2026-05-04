@@ -3,22 +3,16 @@ logger = logging.getLogger(__name__)
 
 """
 @module: Peticao
-@responsibility: Análise e processamento de petições eletrônicas
+@responsibility: Analise e processamento de peticoes eletronicas
 @depends_on: Fix, atos
-@used_by: Workflows de triagem de petições
+@used_by: Workflows de triagem de peticoes
 @entry_points: analisar_peticao, processar_peticao
 @tags: #peticao #analise #processamento #triagem
 @created: 2026-01-29
-@note: Módulo consolidado de pet.py, pet2.py e pet_novo.py (serão refatorados posteriormente)
+@note: Modulo consolidado — runtime principal em runtime_pet.py
 """
 
-# Arquivos consolidados aqui (pendente refatoração):
-# - pet.py
-# - pet2.py
-# - pet_novo.py
-#
-# TODO: Consolidar duplicação entre pet2 e pet_novo (~80% overlap)
-
 from . import helpers
+from .runtime_pet import run_pet, executar_fluxo_pet
 
-__all__ = ['helpers']
+__all__ = ['helpers', 'run_pet', 'executar_fluxo_pet']

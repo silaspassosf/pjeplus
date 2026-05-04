@@ -1,3 +1,4 @@
+# LEGADO — fora do caminho de execucao do x.py atual. Preservado como referencia.
 import logging
 logger = logging.getLogger(__name__)
 
@@ -21,109 +22,15 @@ logger = logging.getLogger(__name__)
 # ====================================================
 
 # 0. Importações Padrão
-import json
 import os
-import re
 import sys
-import time
-import unicodedata
 from datetime import datetime
-from typing import Optional, Dict, List, Union, Tuple, Callable, Any
 
-# Selenium
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchWindowException,
-    StaleElementReferenceException,
-)
-
-# ===== IMPORTS PESADOS REMOVIDOS (LAZY LOADING) =====
-# Movidos para cache sob demanda para carregamento 8-10x mais rápido
-# Anteriormente importados do Fix e outros módulos no topo
-# Agora cada função importa apenas o que precisa, quando precisa
-
-# Cache de módulos para lazy loading
-_mandado_modules_cache = {}
-
-def _lazy_import_mandado():
-    """Carrega módulos pesados sob demanda (lazy loading)."""
-    global _mandado_modules_cache
-    
-    if not _mandado_modules_cache:
-        from Fix.core import navegar_para_tela, buscar_seletor_robusto
-        from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_direto, extrair_dados_processo, buscar_mandado_autor, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
-        from Fix.gigs import criar_gigs
-        from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
-        from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
-        
-        _mandado_modules_cache.update({
-            'navegar_para_tela': navegar_para_tela,
-            'extrair_pdf': extrair_pdf,
-            'analise_outros': analise_outros,
-            'extrair_documento': extrair_documento,
-            'extrair_direto': extrair_direto,
-            'criar_gigs': criar_gigs,
-            'esperar_elemento': esperar_elemento,
-            'aguardar_e_clicar': aguardar_e_clicar,
-            'buscar_seletor_robusto': buscar_seletor_robusto,
-            'limpar_temp_selenium': limpar_temp_selenium,
-            'indexar_e_processar_lista': indexar_e_processar_lista,
-            'extrair_dados_processo': extrair_dados_processo,
-            'buscar_mandado_autor': buscar_mandado_autor,
-            'buscar_ultimo_mandado': buscar_ultimo_mandado,
-            'extrair_destinatarios_decisao': extrair_destinatarios_decisao,
-            'configurar_recovery_driver': configurar_recovery_driver,
-        })
-    
-    return _mandado_modules_cache
-
-# Módulos Locais (mantidos leves)
-from Fix.utils import verificar_e_tratar_acesso_negado_global, handle_exception_with_recovery
-from Fix.core import buscar_documento_argos
-from Fix.selenium_base import preencher_campo
-from Fix.extracao import salvar_destinatarios_cache
-from Fix.documents import buscar_documentos_sequenciais
-from Fix.abas import validar_conexao_driver
-from Fix.extracao import criar_lembrete_posit, extrair_pdf
-from Fix.log import logger
-from .utils import (
-    fechar_intimacao,
-    retirar_sigilo,
-    retirar_sigilo_fluxo_argos,
-    retirar_sigilo_certidao_devolucao_primeiro,
-    retirar_sigilo_demais_documentos_especificos,
-)
-from .regras import aplicar_regras_argos
+from .processamento_argos import processar_argos
+from .processamento_outros import fluxo_mandados_outros
 
 with open("log.py", "w", encoding="utf-8") as f:
     f.write(f"# Última execução: {datetime.now()}\n")
     f.write(f"# Script: {os.path.abspath(sys.argv[0])}\n")
     f.write(f"# Argumentos: {' '.join(sys.argv[1:])}\n")
-
-# ====================================================
-# CONTROLE DE SESSÃO E PROGRESSO UNIFICADO
-# ====================================================
-
-# Use o monitoramento unificado para extração e marcação de progresso
-# Isso garante comportamento idêntico ao usado em p2b.py (validação/formato do número)
-
-from .processamento_anexos import (
-    _SIGILO_TYPES,
-    _SELETORES_ANEXOS,
-    _identificar_tipo_anexo,
-    _localizar_modal_visibilidade,
-    _processar_modal_visibilidade,
-    _extrair_executados_pdf,
-    processar_sisbajud,
-    tratar_anexos_argos,
-)
-from .processamento_argos import processar_argos
-from .processamento_outros import ultimo_mdd, fluxo_mandados_outros
-from .processamento_fluxo import fluxo_mandado
             

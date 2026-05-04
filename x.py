@@ -1,20 +1,7 @@
-def _executar_mandado_bloco(driver):
-    resultado = executar_mandado(driver)
+def _executar_com_reset(driver, executor):
+    resultado = executor(driver)
     resetar_driver(driver)
     return resultado
-
-def _executar_prazo_bloco(driver):
-    resultado = executar_prazo(driver)
-    resetar_driver(driver)
-    return resultado
-
-def _executar_p2b_bloco(driver):
-    resultado = executar_p2b(driver)
-    resetar_driver(driver)
-    return resultado
-
-def _executar_pec_bloco(driver):
-    return executar_pec(driver)
 
 
 """
@@ -45,35 +32,27 @@ import time
 import logging
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, Callable
 from enum import Enum
-# Selenium imports
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.firefox.service import Service
 # Imports dos módulos refatorados
-from Fix.core import finalizar_driver as finalizar_driver_fix
+from Fix.core import finalizar_driver as finalizar_driver_fix, criar_driver_pc, criar_driver_vt
 from Fix.utils import login_cpf
 from Prazo import loop_prazo
 from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
-from Mandado.processamento_api import processar_mandados_devolvidos_api
+from Mandado.entrada_api import processar_mandados_devolvidos_api
 
 # Otimização de imports (plano_imports_otimizacao.md)
 import traceback
-# from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b  # Comentado - será importado quando necessário
+from Fix.log import logger
 
-# Imports opcionais (carregados somente quando necessário)
-# from Triagem.runner import run_triagem
-# from Peticao.pet import run_pet
+# Imports de fluxos orquestrados — movidos para o topo (Task 9)
+from Triagem.runner import run_triagem
+from Peticao.pet import run_pet
+from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
 
 # ============================================================================
 # CONFIGURAES GLOBAIS
 # ============================================================================
-
-# Caminho do geckodriver
-GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'geckodriver.exe')
-if not os.path.exists(GECKODRIVER_PATH):
-    GECKODRIVER_PATH = os.path.join(os.path.dirname(__file__), 'Fix', 'geckodriver.exe')
 
 # Diretrio de logs
 LOG_DIR = "logs_execucao"
@@ -81,8 +60,6 @@ if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
 
 TIMESTAMP = datetime.now().strftime('%Y%m%d_%H%M%S')
-# Flag para pular finalização lenta quando já usamos o finalizador imediato (Ctrl+C)
-skip_finalizar = False
 
 
 class DriverType(Enum):
@@ -118,322 +95,40 @@ class TeeOutput:
 
 
 # ============================================================================
-# DRIVERS - PC
-# ============================================================================
-
-def criar_driver_pc(headless=False):
-    """
-    Cria driver Firefox para PC (padro).
-    Firefox Developer Edition com configuraes otimizadas.
-    """
-    try:
-        options = Options()
-        
-        if headless:
-            options.add_argument('-headless')
-        
-        # Configuraes de automao
-        options.set_preference("dom.webdriver.enabled", False)
-        options.set_preference('useAutomationExtension', False)
-        options.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0")
-        
-        # Cache e performance
-        options.set_preference("browser.cache.disk.enable", True)
-        options.set_preference("browser.cache.memory.enable", True)
-        options.set_preference("browser.cache.offline.enable", True)
-        options.set_preference("network.http.use-cache", True)
-        
-        # Notificaes
-        options.set_preference("dom.webnotifications.enabled", False)
-        options.set_preference("media.volume_scale", "0.0")
-        
-        # Downloads headless-safe
-        if headless:
-            options.set_preference("browser.download.folderList", 2)
-            options.set_preference("browser.download.manager.showWhenStarting", False)
-            options.set_preference("browser.download.dir", os.path.join(os.path.dirname(__file__), "downloads"))
-            options.set_preference("browser.helperApps.neverAsk.saveToDisk",
-                "application/pdf,application/octet-stream,application/zip,"
-                "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-            options.set_preference("pdfjs.disabled", True)
-        
-        # Anti-throttling
-        options.set_preference("dom.min_background_timeout_value", 0)
-        options.set_preference("dom.timeout.throttling_delay", 0)
-        options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-        options.set_preference("page.load.animation.disabled", True)
-        options.set_preference("dom.disable_window_move_resize", False)
-        
-        # Firefox binary
-        options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-        
-        service = Service(executable_path=GECKODRIVER_PATH)
-        driver = webdriver.Firefox(options=options, service=service)
-        driver.implicitly_wait(10)
-        
-        if not headless:
-            driver.maximize_window()
-        else:
-            driver.set_window_size(1920, 1080)
-        
-        # Ocultar webdriver
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        print("[DRIVER_PC]  Driver PC criado com sucesso")
-        return driver
-        
-    except Exception as e:
-        print(f"[DRIVER_PC]  Erro ao criar driver: {e}")
-        return None
-
-
-# ============================================================================
-# DRIVERS - VT (Mquina Especfica)
-# ============================================================================
-
-def criar_driver_vt(headless=False):
-    """
-    Cria driver Firefox para VT (mquina especfica).
-    Usa perfis e configuraes VT com otimizaes de startup.
-    """
-    # Configuraes VT
-    FIREFOX_BINARY = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
-    FIREFOX_BINARY_ALT = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
-    
-    VT_PROFILE_PJE = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
-    VT_PROFILE_PJE_ALT = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
-    
-    if not os.path.exists(GECKODRIVER_PATH):
-        print(f"[DRIVER_VT]  Geckodriver no encontrado em {GECKODRIVER_PATH}")
-        return None
-    
-    # Encontrar binrio
-    firefox_bin = None
-    for bin_path in [FIREFOX_BINARY, FIREFOX_BINARY_ALT]:
-        if os.path.exists(bin_path):
-            firefox_bin = bin_path
-            break
-    
-    if not firefox_bin:
-        print(f"[DRIVER_VT]  Nenhum binrio Firefox encontrado")
-        return None
-    
-    print(f"[DRIVER_VT] Usando binrio: {firefox_bin}")
-    
-    try:
-        options = Options()
-        
-        if headless:
-            options.add_argument('-headless')
-            #  OTIMIZAO HEADLESS: Viewport maior para evitar overlays
-            options.add_argument('--width=1920')
-            options.add_argument('--height=1200')
-        
-        # ===== DESABILITAR EXTENSES PARA ACELERAR STARTUP =====
-        options.add_argument('-no-remote')
-        options.add_argument('-new-instance')
-        
-        options.binary_location = firefox_bin
-        
-        # Tenta com perfil (opcional - pode deixar mais lento)
-        # Se USAR_PERFIL_VT = False, cria driver sem perfil (mais rpido)
-        USAR_PERFIL_VT = False
-        
-        if USAR_PERFIL_VT:
-            if os.path.exists(VT_PROFILE_PJE):
-                options.profile = VT_PROFILE_PJE
-                print(f"[DRIVER_VT] Usando perfil: {VT_PROFILE_PJE}")
-            elif os.path.exists(VT_PROFILE_PJE_ALT):
-                options.profile = VT_PROFILE_PJE_ALT
-                print(f"[DRIVER_VT] Usando perfil alternativo: {VT_PROFILE_PJE_ALT}")
-        
-        # Anti-automao
-        options.set_preference("dom.webdriver.enabled", False)
-        options.set_preference('useAutomationExtension', False)
-        
-        # ===== DESABILITAR EXTENSES =====
-        options.set_preference("extensions.update.enabled", False)
-        options.set_preference("extensions.update.autoUpdateDefault", False)
-        options.set_preference("xpinstall.enabled", False)
-        
-        # ===== OTIMIZAES DE PERFORMANCE =====
-        options.set_preference("browser.sessionstore.max_tabs_undo", 0)
-        options.set_preference("browser.sessionstore.max_windows_undo", 0)
-        options.set_preference("browser.cache.disk.enable", False)
-        options.set_preference("browser.cache.memory.enable", False)
-        options.set_preference("browser.shell.checkDefaultBrowser", False)
-        options.set_preference("browser.safebrowsing.malware.enabled", False)
-        options.set_preference("browser.safebrowsing.phishing.enabled", False)
-        options.set_preference("browser.safebrowsing.downloads.enabled", False)
-        
-        # Anti-throttling
-        options.set_preference("dom.min_background_timeout_value", 0)
-        options.set_preference("dom.timeout.throttling_delay", 0)
-        options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-        
-        #  OTIMIZAO HEADLESS: Performance e cache
-        if headless:
-            # MANTER cache em headless para melhor performance
-            options.set_preference("browser.cache.disk.enable", True)
-            options.set_preference("browser.cache.memory.enable", True)
-            # Desabilitar animaes que causam overlays
-            options.set_preference("ui.prefersReducedMotion", 1)
-            options.set_preference("browser.tabs.animate", False)
-            options.set_preference("toolkit.cosmeticAnimations.enabled", False)
-        else:
-            # Performance normal para modo visvel
-            options.set_preference("browser.cache.disk.enable", False)
-            options.set_preference("browser.cache.memory.enable", False)
-        
-        # Performance geral
-        options.set_preference("browser.sessionstore.max_tabs_undo", 0)
-        options.set_preference("browser.sessionstore.max_windows_undo", 0)
-        options.set_preference("browser.shell.checkDefaultBrowser", False)
-        options.set_preference("browser.safebrowsing.malware.enabled", False)
-        options.set_preference("browser.safebrowsing.phishing.enabled", False)
-        options.set_preference("browser.safebrowsing.downloads.enabled", False)
-        options.set_preference("browser.startup.homepage", "about:blank")
-        options.set_preference("startup.homepage_welcome_url", "about:blank")
-        options.set_preference("browser.startup.page", 0)
-        options.set_preference("datareporting.healthreport.uploadEnabled", False)
-        options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
-        options.set_preference("toolkit.telemetry.enabled", False)
-        
-        service = Service(executable_path=GECKODRIVER_PATH)
-        print("[DRIVER_VT]  Criando instncia Firefox...")
-        t0 = time.time()
-        driver = webdriver.Firefox(options=options, service=service)
-        print(f"[DRIVER_VT]  Configurando driver... (launch {time.time() - t0:.1f}s)")
-        driver.implicitly_wait(10)
-        
-        if not headless:
-            driver.maximize_window()
-        else:
-            driver.set_window_size(1920, 1080)
-        
-        # Ocultar webdriver
-        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        
-        print("[DRIVER_VT]  Driver VT criado com sucesso")
-        return driver
-        
-    except Exception as e:
-        print(f"[DRIVER_VT]  Erro com configuraes otimizadas: {e}")
-        print("[DRIVER_VT]  Fallback: criando driver com configuraes mnimas...")
-        
-        try:
-            options = Options()
-            
-            if headless:
-                options.add_argument('-headless')
-            
-            # ===== DESABILITAR EXTENSES PARA ACELERAR STARTUP =====
-            options.add_argument('-no-remote')
-            options.add_argument('-new-instance')
-            
-            options.binary_location = firefox_bin
-            
-            # Anti-automao
-            options.set_preference("dom.webdriver.enabled", False)
-            options.set_preference('useAutomationExtension', False)
-            
-            # ===== DESABILITAR EXTENSES =====
-            options.set_preference("extensions.update.enabled", False)
-            options.set_preference("extensions.update.autoUpdateDefault", False)
-            options.set_preference("xpinstall.enabled", False)
-            
-            # ===== OTIMIZAES DE PERFORMANCE =====
-            options.set_preference("browser.sessionstore.max_tabs_undo", 0)
-            options.set_preference("browser.sessionstore.max_windows_undo", 0)
-            options.set_preference("browser.cache.disk.enable", False)
-            options.set_preference("browser.cache.memory.enable", False)
-            options.set_preference("browser.shell.checkDefaultBrowser", False)
-            options.set_preference("browser.safebrowsing.malware.enabled", False)
-            options.set_preference("browser.safebrowsing.phishing.enabled", False)
-            options.set_preference("browser.safebrowsing.downloads.enabled", False)
-            
-            # Anti-throttling
-            options.set_preference("dom.min_background_timeout_value", 0)
-            options.set_preference("dom.timeout.throttling_delay", 0)
-            options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-            
-            # Performance
-            options.set_preference("browser.startup.homepage", "about:blank")
-            options.set_preference("startup.homepage_welcome_url", "about:blank")
-            options.set_preference("startup.homepage_welcome_url.additional", "about:blank")
-            options.set_preference("browser.startup.firstrunSkipsHomepage", True)
-            options.set_preference("browser.startup.page", 0)
-            options.set_preference("browser.tabs.drawInTitlebar", True)
-            options.set_preference("browser.privatebrowsing.autostart", False)
-            options.set_preference("toolkit.cosmeticAnimations.enabled", False)
-            options.set_preference("alerts.useSystemBackend", False)
-            
-            # Telemetria
-            options.set_preference("datareporting.healthreport.uploadEnabled", False)
-            options.set_preference("datareporting.policy.dataSubmissionEnabled", False)
-            options.set_preference("toolkit.telemetry.enabled", False)
-            options.set_preference("toolkit.startup.max_pinned_tabs", 0)
-            
-            # Desabilitar notificaes
-            options.set_preference("dom.disable_beforeunload", True)
-            options.set_preference("browser.sessionstore.resuming_notification.delayed", False)
-            
-            service = Service(executable_path=GECKODRIVER_PATH)
-            t0 = time.time()
-            driver = webdriver.Firefox(options=options, service=service)
-            print(f"[DRIVER_VT]  Configurando driver... (fallback launch {time.time() - t0:.1f}s)")
-            driver.implicitly_wait(10)
-            
-            if not headless:
-                driver.maximize_window()
-            else:
-                driver.set_window_size(1920, 1080)
-            
-            driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            
-            print("[DRIVER_VT]  Driver VT criado (fallback)")
-            return driver
-        
-        except Exception as e2:
-            print(f"[DRIVER_VT]  Falha total: {e2}")
-            return None
-
-
-# ============================================================================
 # CRIAR E LOGAR DRIVER
 # ============================================================================
 
 def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
     """Cria driver apropriado e faz login"""
-    
+
     headless = driver_type in [DriverType.PC_HEADLESS, DriverType.VT_HEADLESS]
     vt_mode = driver_type in [DriverType.VT_VISIBLE, DriverType.VT_HEADLESS]
-    
-    print(f"\n Criando driver: {driver_type.value}")
-    
+
+    logger.debug("criando driver: %s", driver_type.value)
+
     try:
         # Criar driver
         if vt_mode:
             driver = criar_driver_vt(headless=headless)
         else:
             driver = criar_driver_pc(headless=headless)
-        
+
         if not driver:
-            print(" Falha ao criar driver")
+            logger.error("ERRO em criar_e_logar_driver: falha ao criar driver")
             return None
-        
+
         # Login
-        print(" Fazendo login...")
+        logger.debug("fazendo login...")
         if not login_cpf(driver):
-            print(" Falha no login")
+            logger.error("ERRO em criar_e_logar_driver: falha no login")
             finalizar_driver_fix(driver)
             return None
 
-        print(" Driver criado e logado com sucesso")
+        # Driver criado e logado com sucesso (silencioso)
         return driver
-        
+
     except Exception as e:
-        print(f" Erro ao criar driver: {e}")
+        logger.error("ERRO em criar_e_logar_driver: %s: %s", type(e).__name__, e)
         import traceback
         traceback.print_exc()
         return None
@@ -454,10 +149,41 @@ def normalizar_resultado(resultado: Any) -> Dict[str, Any]:
     return {"sucesso": False, "status": "ERRO", "erro": str(resultado)}
 
 
+def _executar_fluxo(nome: str, fn: Callable[[Any], Any], driver: Any,
+                    normalizar: bool = True, on_none_error: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Wrapper unificado para execução de fluxos.
+
+    Args:
+        nome: Nome do fluxo (para logs)
+        fn: Função que recebe driver e retorna resultado
+        driver: Driver do Selenium
+        normalizar: Se True, normaliza o resultado com normalizar_resultado()
+        on_none_error: Dict usado quando fn retorna None (padrão: gera erro genérico)
+    """
+    start_time = time.time()
+    try:
+        resultado = fn(driver)
+        if resultado is None:
+            if on_none_error is not None:
+                resultado = on_none_error
+            else:
+                resultado = {"sucesso": False, "status": "ERRO", "erro": f"{nome} retornou None"}
+        elif normalizar:
+            resultado = normalizar_resultado(resultado)
+        resultado["tempo"] = time.time() - start_time
+        status = "OK" if resultado.get("sucesso", False) else "FALHA"
+        logger.info("[%s] %s (%.1fs)", nome.upper(), status, resultado['tempo'])
+        return resultado
+    except Exception as e:
+        tempo = time.time() - start_time
+        # Erro ja foi logado pela funcao real (R5)
+        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": f"{type(e).__name__}: {e}", "tempo": tempo}
+
+
 def resetar_driver(driver) -> bool:
     """Reseta driver entre módulos"""
     try:
-        print(" Resetando driver...")
+        logger.debug("resetando driver...")
 
         # Fechar abas extras
         abas = driver.window_handles
@@ -466,8 +192,8 @@ def resetar_driver(driver) -> bool:
                 try:
                     driver.switch_to.window(aba)
                     driver.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning("ERRO em resetar_driver: %s: %s", type(e).__name__, e)
             driver.switch_to.window(abas[0])
 
         # Resetar zoom
@@ -477,16 +203,16 @@ def resetar_driver(driver) -> bool:
         driver.get("https://pje.trt2.jus.br/pjekz/")
         time.sleep(2)
 
-        print(" Driver resetado")
+        logger.debug("driver resetado")
         return True
 
     except Exception as e:
-        print(f" Erro ao resetar driver: {e}")
+        logger.error("ERRO em resetar_driver: %s: %s", type(e).__name__, e)
         return False
 
 
 def executar_bloco_completo(driver) -> Dict[str, Any]:
-    """Bloco Completo: Mandado  Prazo  PEC"""
+    """Bloco Completo: Mandado + Prazo + P2B + PEC"""
     resultados = {
         "mandado": None,
         "prazo": None,
@@ -495,14 +221,10 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         "sucesso_geral": False
     }
     try:
-        print("=" * 80)
-        print("BLOCO COMPLETO: MANDADO  PRAZO  PEC")
-        print("=" * 80)
-
-        resultados["mandado"] = _executar_mandado_bloco(driver)
-        resultados["prazo"] = _executar_prazo_bloco(driver)
-        resultados["p2b"] = _executar_p2b_bloco(driver)
-        resultados["pec"] = _executar_pec_bloco(driver)
+        resultados["mandado"] = _executar_com_reset(driver, executar_mandado)
+        resultados["prazo"] = _executar_com_reset(driver, executar_prazo)
+        resultados["p2b"] = _executar_com_reset(driver, executar_p2b)
+        resultados["pec"] = executar_pec(driver)
 
         todos_sucesso = all([
             resultados["mandado"].get("sucesso", False),
@@ -512,222 +234,178 @@ def executar_bloco_completo(driver) -> Dict[str, Any]:
         ])
         resultados["sucesso_geral"] = todos_sucesso
 
-        print("=" * 80)
-        print(" RESUMO DO BLOCO COMPLETO:")
-        print(f"  Mandado: {'' if resultados['mandado'].get('sucesso', False) else ''}")
-        print(f"  Prazo:   {'' if resultados['prazo'].get('sucesso', False) else ''}")
-        print(f"  PEC:     {'' if resultados['pec'].get('sucesso', False) else ''}")
-        print(f"  GERAL:   {' SUCESSO' if todos_sucesso else ' FALHAS PARCIAIS'}")
-        print("=" * 80)
+        m_status = "OK" if resultados["mandado"].get("sucesso", False) else "FALHA"
+        p_status = "OK" if resultados["prazo"].get("sucesso", False) else "FALHA"
+        b_status = "OK" if resultados["p2b"].get("sucesso", False) else "FALHA"
+        pec_status = "OK" if resultados["pec"].get("sucesso", False) else "FALHA"
+        logger.info("[BLOCO] mandado=%s prazo=%s p2b=%s pec=%s sucesso_geral=%s",
+                    m_status, p_status, b_status, pec_status,
+                    "OK" if todos_sucesso else "FALHAS_PARCIAIS")
 
         return resultados
     except Exception as e:
-        print(f" Erro no bloco completo: {e}")
+        logger.error("ERRO em executar_bloco_completo: %s: %s", type(e).__name__, e)
         resultados["erro_geral"] = str(e)
         return resultados
 
 
 def executar_mandado(driver) -> Dict[str, Any]:
     """Mandado Isolado — API (sem navegação DOM inicial)"""
-    print("\n" + "=" * 80)
-    print(" MANDADO ISOLADO")
-    print("=" * 80)
-    inicio = datetime.now()
-    try:
-        resultado = processar_mandados_devolvidos_api(driver)
-        resultado = normalizar_resultado(resultado)
-        tempo = (datetime.now() - inicio).total_seconds()
-        resultado['tempo'] = tempo
-        if resultado.get("sucesso"):
-            print(f"[MANDADO]  Concluído")
-        else:
-            print(f"[MANDADO]  Falha: {resultado.get('erro', 'Desconhecido')}")
+    def _fluxo(d):
+        resultado = processar_mandados_devolvidos_api(d)
+        if not resultado.get("sucesso"):
+            logger.warning("[MANDADO] falha: %s", resultado.get('erro', 'Desconhecido'))
         return resultado
-    except Exception as e:
-        tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[MANDADO]  Exceção: {e}")
-        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
+
+    return _executar_fluxo("Mandado", _fluxo, driver)
 
 
 def executar_prazo(driver) -> Dict[str, Any]:
     """Prazo Isolado — loop ciclo1+2+3 + P2B (sempre executa p2b mesmo se loop falhar)."""
-    print("\n" + "=" * 80)
-    print(" PRAZO ISOLADO")
-    print("=" * 80)
+    def _fluxo(d):
+        resultado_loop = {"sucesso": False, "erro": "nao executado"}
+        resultado_p2b = {"sucesso": False, "erro": "nao executado"}
 
-    inicio = datetime.now()
+        try:
+            logger.debug("[PRAZO] executando loop_prazo (ciclo1 + ciclo2 + ciclo3)...")
+            resultado_loop = loop_prazo(d)
+            resultado_loop = normalizar_resultado(resultado_loop)
+            if not resultado_loop.get("sucesso"):
+                logger.warning("[PRAZO] loop_prazo com falha: %s — continuando com P2B",
+                              resultado_loop.get('erro'))
+        except Exception as e:
+            logger.warning("[PRAZO] excecao no loop_prazo: %s — continuando com P2B", e)
+            resultado_loop = {"sucesso": False, "erro": str(e)}
 
-    resultado_loop = {"sucesso": False, "erro": "não executado"}
-    resultado_p2b = {"sucesso": False, "erro": "não executado"}
+        try:
+            logger.debug("[PRAZO] executando P2B (atividades sem prazo XS)...")
+            resultado_p2b = executar_p2b(d)
+            resultado_p2b = normalizar_resultado(resultado_p2b)
+            if not resultado_p2b.get("sucesso"):
+                logger.warning("[PRAZO] P2B com falha: %s", resultado_p2b.get('erro'))
+        except Exception as e:
+            logger.warning("[PRAZO] excecao no P2B: %s", e)
+            resultado_p2b = {"sucesso": False, "erro": str(e)}
 
-    try:
-        print("[PRAZO] Executando loop_prazo (ciclo1 + ciclo2 + ciclo3)...")
-        resultado_loop = loop_prazo(driver)
-        resultado_loop = normalizar_resultado(resultado_loop)
-        if resultado_loop.get("sucesso"):
-            print("[PRAZO] ✅ loop_prazo concluído")
-        else:
-            print(f"[PRAZO] ⚠ loop_prazo com falha: {resultado_loop.get('erro')} — continuando com P2B")
-    except Exception as e:
-        print(f"[PRAZO] ⚠ Exceção no loop_prazo: {e} — continuando com P2B")
-        resultado_loop = {"sucesso": False, "erro": str(e)}
+        sucesso_geral = resultado_loop.get("sucesso", False) and resultado_p2b.get("sucesso", False)
 
-    try:
-        print("[PRAZO] Executando P2B (atividades sem prazo XS)...")
-        resultado_p2b = executar_p2b(driver)
-        resultado_p2b = normalizar_resultado(resultado_p2b)
-        if resultado_p2b.get("sucesso"):
-            print("[PRAZO] ✅ P2B concluído")
-        else:
-            print(f"[PRAZO] ⚠ P2B com falha: {resultado_p2b.get('erro')}")
-    except Exception as e:
-        print(f"[PRAZO] ⚠ Exceção no P2B: {e}")
-        resultado_p2b = {"sucesso": False, "erro": str(e)}
+        return {
+            "sucesso": sucesso_geral,
+            "status": "SUCESSO" if sucesso_geral else "PARCIAL",
+            "loop_prazo": resultado_loop,
+            "p2b": resultado_p2b,
+        }
 
-    tempo = (datetime.now() - inicio).total_seconds()
-    sucesso_geral = resultado_loop.get("sucesso", False) and resultado_p2b.get("sucesso", False)
-
-    return {
-        "sucesso": sucesso_geral,
-        "status": "SUCESSO" if sucesso_geral else "PARCIAL",
-        "tempo": tempo,
-        "loop_prazo": resultado_loop,
-        "p2b": resultado_p2b,
-    }
+    return _executar_fluxo("Prazo", _fluxo, driver, normalizar=False)
 
 
 def executar_pec(driver) -> Dict[str, Any]:
     """PEC Isolado — API modular (sem navegação DOM inicial)"""
-    print("\n" + "=" * 80)
-    print(" PEC ISOLADO")
-    print("=" * 80)
-    inicio = datetime.now()
-    try:
-        resultado = pec_fluxo_api(driver)
-        tempo = (datetime.now() - inicio).total_seconds()
-        resultado['tempo'] = tempo
-        print(f"[PEC] Total: {resultado.get('total', 0)} | Sucesso: {resultado.get('sucesso_count', resultado.get('total', 0) - resultado.get('erro', 0))} | Erro: {resultado.get('erro', 0)}")
+    def _fluxo(d):
+        resultado = pec_fluxo_api(d)
+        total = resultado.get('total', 0)
+        erros = resultado.get('erro', 0)
+        sucessos = resultado.get('sucesso_count', total - erros)
+        logger.info("[PEC] total=%s sucesso=%s erro=%s", total, sucessos, erros)
         return resultado
-    except Exception as e:
-        tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[PEC] Excecao: {e}")
-        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
+
+    return _executar_fluxo("PEC", _fluxo, driver)
 
 
 def executar_triagem(driver) -> Dict[str, Any]:
     """Triagem Isolada — fluxo completo com análise pós-triagem e ações por alerta."""
-    print("\n" + "=" * 80)
-    print(" TRIAGEM ISOLADA")
-    print("=" * 80)
-    inicio = datetime.now()
-    try:
-        from Triagem.runner import run_triagem
-        resultado = run_triagem(driver)
-        tempo = (datetime.now() - inicio).total_seconds()
+    def _fluxo(d):
+        resultado = run_triagem(d)
         if resultado is None:
-            return {"sucesso": False, "status": "ERRO_EXECUCAO", "tempo": tempo,
-                    "erro": "run_triagem retornou None"}
-        resultado["tempo"] = tempo
-        print(f"[TRIAGEM] Processados: {resultado.get('processados', 0)} / "
-              f"{resultado.get('total', '?')} "
-              f"| Sucesso: {resultado.get('sucesso_count', '?')}")
+            return None
+        logger.info("[TRIAGEM] processados=%s total=%s sucesso=%s",
+                    resultado.get('processados', 0),
+                    resultado.get('total', '?'),
+                    resultado.get('sucesso_count', '?'))
         return resultado
-    except Exception as e:
-        tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[TRIAGEM] Exceção: {e}")
-        traceback.print_exc()
-        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
+
+    return _executar_fluxo("Triagem", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_triagem retornou None"})
 
 
 def executar_pet(driver) -> Dict[str, Any]:
     """Petição Isolada — fluxo completo de petições (escaninho)."""
-    print("\n" + "=" * 80)
-    print(" PETIÇÃO ISOLADA")
-    print("=" * 80)
-    inicio = datetime.now()
-    try:
-        from Peticao.pet import run_pet
-        resultado = run_pet(driver)
-        tempo = (datetime.now() - inicio).total_seconds()
+    def _fluxo(d):
+        resultado = run_pet(d)
         if resultado is None:
-            return {"sucesso": False, "status": "ERRO_EXECUCAO", "tempo": tempo,
-                    "erro": "run_pet retornou None"}
-        resultado["tempo"] = tempo
+            return None
         return resultado
-    except Exception as e:
-        tempo = (datetime.now() - inicio).total_seconds()
-        print(f"[PET] Exceção: {e}")
-        traceback.print_exc()
-        return {"sucesso": False, "status": "ERRO_EXECUCAO", "erro": str(e), "tempo": tempo}
+
+    return _executar_fluxo("Petição", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_pet retornou None"})
+
+
+def executar_dom(driver) -> Dict[str, Any]:
+    """Análise DOM — run_dom."""
+    def _fluxo(d):
+        from Triagem.dom import run_dom
+        resultado = run_dom(d)
+        if resultado is None:
+            return None
+        return resultado
+
+    return _executar_fluxo("DOM", _fluxo, driver,
+                          on_none_error={"sucesso": False, "status": "ERRO_EXECUCAO", "erro": "run_dom retornou None"})
 
 
 def executar_p2b(driver) -> Dict[str, Any]:
     """P2B Isolado (API GIGS sem prazo XS + processamento por processo)"""
-    print("\n" + "=" * 80)
-    print(" P2B ISOLADO")
-    print("=" * 80)
-    
-    inicio = datetime.now()
-    
-    try:
+    def _fluxo(d):
         # Executar API + fluxo de cada processo (substitui lista antiga)
-        print("[P2B] Executando fluxo_prazo via API GIGS sem prazo XS...")
-        from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
-        atividades = testar_gigs_sem_prazo(driver, tamanho_pagina=100)
-        print(f"[P2B] Processos encontrados: {len(atividades)}")
+        logger.debug("[P2B] executando fluxo_prazo via API GIGS sem prazo XS...")
+        atividades = testar_gigs_sem_prazo(d, tamanho_pagina=100)
+        logger.debug("[P2B] processos encontrados: %s", len(atividades))
         if atividades:
             numeros_processos = [item.get('processo', {}).get('numero') or item.get('numeroProcesso') or item.get('numero') for item in atividades]
-            print(f"[P2B] Números dos processos: {numeros_processos}")
+            logger.debug("[P2B] numeros dos processos: %s", numeros_processos)
 
-        resultado = processar_gigs_sem_prazo_p2b(driver, tamanho_pagina=100, max_processos=0)
+        resultado = processar_gigs_sem_prazo_p2b(d, tamanho_pagina=100, max_processos=0)
 
-        print("[P2B]  Processamento individual concluído")
-        
-        tempo = (datetime.now() - inicio).total_seconds()
-
+        logger.debug("[P2B] processamento individual concluido")
         sucesso = resultado.get('sucesso', False)
         return {
             'sucesso': sucesso,
             'status': 'SUCESSO' if sucesso else 'FALHA',
-            'tempo': tempo,
             'detalhes': resultado,
         }
-        
-    except Exception as e:
-        print(f"[P2B]  Erro: {e}")
-        import traceback
-        traceback.print_exc()
-        return {'sucesso': False, 'erro': str(e)}
+
+    return _executar_fluxo("P2B", _fluxo, driver)
 
 
 # ============================================================================
 # MENUS
 # ============================================================================
 
-def menu_ambiente() -> Optional[DriverType]:
+def menu_ambiente() -> Optional[Tuple[DriverType, bool]]:
     """Menu 1: Selecionar Ambiente"""
-    print("\n" + "=" * 80)
-    print(" MENU 1: SELECIONAR AMBIENTE")
-    print("=" * 80)
-    print("\n  A - PC + Visvel (1.py)")
-    print("  B - PC + Headless (1b.py)")
-    print("  C - VT + Visvel (2.py)")
-    print("  D - VT + Headless (2b.py)")
-    print("\n  [DEBUG] Adicione 'D' no final para modo debug interativo")
-    print("           Ex: 'DD' = VT Headless + Debug ativo")
-    print("  X - Cancelar")
-    print("=" * 80)
-    
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("MENU 1: SELECIONAR AMBIENTE")
+    logger.info("=" * 80)
+    logger.info("A - PC + Visivel (1.py)")
+    logger.info("B - PC + Headless (1b.py)")
+    logger.info("C - VT + Visivel (2.py)")
+    logger.info("D - VT + Headless (2b.py)")
+    logger.info("[DEBUG] Adicione 'D' no final para modo debug interativo")
+    logger.info("         Ex: 'DD' = VT Headless + Debug ativo")
+    logger.info("X - Cancelar")
+    logger.info("=" * 80)
+
     while True:
         opcao = input("\n Escolha um ambiente (A/B/C/D/X ou AD/BD/CD/DD para debug): ").strip().upper()
-        
+
         #  NOVO: Detectar modo debug
         debug_mode = opcao.endswith('D') and len(opcao) > 1
         if debug_mode:
             opcao = opcao[0]  # Remove 'D' do final
-        
+
         if opcao == "X":
-            return None, False
+            return None
         elif opcao == "A":
             return DriverType.PC_VISIBLE, debug_mode
         elif opcao == "B":
@@ -737,33 +415,52 @@ def menu_ambiente() -> Optional[DriverType]:
         elif opcao == "D":
             return DriverType.VT_HEADLESS, debug_mode
         else:
-            print(" Opo invlida!")
+            logger.info("opcao invalida!")
 
 
 def menu_execucao() -> Optional[str]:
     """Menu 2: Selecionar Fluxo"""
-    print("\n" + "=" * 80)
-    print("  MENU 2: SELECIONAR FLUXO DE EXECUÇÃO")
-    print("=" * 80)
-    print("\n  A - Bloco Completo (Mandado → Prazo → PEC)")
-    print("  B - Mandado Isolado")
-    print("  C - Prazo Isolado (ciclo1+2+3 + P2B)")
-    print("  D - P2B Isolado")
-    print("  E - PEC Isolado")
-    print("  F - Triagem Isolada (análise pós-triagem com alertas)")
-    print("  G - Petição Isolada (escaninho)")
-    print("  X - Cancelar")
-    print("=" * 80)
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("MENU 2: SELECIONAR FLUXO DE EXECUCAO")
+    logger.info("=" * 80)
+    logger.info("A - Bloco Completo (Mandado + Prazo + PEC)")
+    logger.info("B - Mandado Isolado")
+    logger.info("C - Prazo Isolado (ciclo1+2+3 + P2B)")
+    logger.info("D - P2B Isolado")
+    logger.info("E - PEC Isolado")
+    logger.info("F - Triagem Isolada (analise pos-triagem com alertas)")
+    logger.info("G - Peticao Isolada (escaninho)")
+    logger.info("H - Analise DOM (run_dom)")
+    logger.info("X - Cancelar")
+    logger.info("=" * 80)
 
     while True:
-        opcao = input("\n Escolha um fluxo (A/B/C/D/E/F/G/X): ").strip().upper()
+        opcao = input("\n Escolha um fluxo (A/B/C/D/E/F/G/H/X): ").strip().upper()
 
         if opcao == "X":
             return None
-        elif opcao in ["A", "B", "C", "D", "E", "F", "G"]:
+        elif opcao in ["A", "B", "C", "D", "E", "F", "G", "H"]:
             return opcao
         else:
-            print(" Opção inválida!")
+            logger.info("opcao invalida!")
+
+
+def selecionar_ambiente_e_fluxo() -> Optional[Tuple[DriverType, bool, str]]:
+    """Seleciona ambiente e fluxo, repetindo apenas quando o fluxo e cancelado."""
+    while True:
+        resultado_menu = menu_ambiente()
+        if not resultado_menu:
+            return None
+
+        driver_type, debug_mode = resultado_menu
+
+        fluxo = menu_execucao()
+        if not fluxo:
+            logger.info("cancelado")
+            continue
+
+        return driver_type, debug_mode, fluxo
 
 
 # ============================================================================
@@ -819,32 +516,16 @@ def configurar_logging(driver_type: DriverType, debug: bool = False):
     return log_file, tee
 
 
-def safe_immediate_shutdown(driver, tee_output=None, reason=None):
-    """Força shutdown imediato: suprime logs ruidosos, finaliza driver e sai do processo.
-
-    Usa finalização best-effort do driver e `os._exit(0)` para liberar o terminal
-    imediatamente, evitando flood de mensagens de teardown.
-    """
-    try:
-        import logging as _logging
-        try:
-            _logging.getLogger('urllib3.connectionpool').disabled = True
-            _logging.getLogger('urllib3').setLevel(_logging.CRITICAL)
-        except Exception:
-            pass
-        try:
-            if driver:
-                finalizar_driver_fix(driver, log=False)
-        except Exception:
-            pass
-        try:
-            if tee_output:
-                tee_output.close()
-        except Exception:
-            pass
-    finally:
-        # Saída imediata sem executar handlers adicionais
-        os._exit(0)
+FLOW_HANDLERS = {
+    "A": executar_bloco_completo,
+    "B": executar_mandado,
+    "C": executar_prazo,
+    "D": executar_p2b,
+    "E": executar_pec,
+    "F": executar_triagem,
+    "G": executar_pet,
+    "H": executar_dom,
+}
 
 
 # ============================================================================
@@ -853,135 +534,91 @@ def safe_immediate_shutdown(driver, tee_output=None, reason=None):
 
 def main():
     """Funo principal"""
-    global skip_finalizar
     driver = None
-    
-    #  NOVO: Inicializar otimizaes
-    try:
-        from Fix.otimizacao_wrapper import inicializar_otimizacoes
-        inicializar_otimizacoes()
-    except:
-        pass
-
     tee_output = None
     log_file = None
     try:
-        while True:
-            # Menu 1: Ambiente
-            resultado_menu = menu_ambiente()
-            if not resultado_menu:
-                print(" Cancelado")
-                break
+        try:
+            from Fix.otimizacao_wrapper import inicializar_otimizacoes
+            inicializar_otimizacoes()
+        except Exception:
+            pass
 
-            driver_type, debug_mode = resultado_menu
+        selecao = selecionar_ambiente_e_fluxo()
+        if not selecao:
+            logger.info("cancelado")
+            return
 
-            # Menu 2: Fluxo
-            fluxo = menu_execucao()
-            if not fluxo:
-                print("Cancelado")
-                continue
+        driver_type, debug_mode, fluxo = selecao
 
-            # Configurar logging
-            log_file, tee_output = configurar_logging(driver_type)
+        # Configurar logging
+        log_file, tee_output = configurar_logging(driver_type, debug=debug_mode)
 
-            print("\n" + "=" * 80)
-            print("ORQUESTRADOR UNIFICADO PJEPlus")
-            print("=" * 80)
-            print(f" Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
-            print(f" Ambiente: {driver_type.value}")
-            print(f"  Fluxo: {fluxo}")
-            print(f" Log: {log_file}")
-            print("=" * 80)
+        logger.info("ORQUESTRADOR UNIFICADO PJEPlus")
+        logger.info("data/hora: %s", datetime.now().strftime('%d/%m/%Y %H:%M:%S'))
+        logger.info("ambiente: %s", driver_type.value)
+        logger.info("fluxo: %s", fluxo)
+        logger.info("log: %s", log_file)
 
-            driver = criar_e_logar_driver(driver_type)
-            if not driver:
-                print(" Falha ao inicializar driver/logar")
-                continue
+        driver = criar_e_logar_driver(driver_type)
+        if not driver:
+            logger.error("ERRO em main: falha ao inicializar driver/logar")
+            return
 
-            try:
-                inicio = datetime.now()
-                resultado = None
-                if fluxo == "A":
-                    resultado = executar_bloco_completo(driver)
-                elif fluxo == "B":
-                    resultado = executar_mandado(driver)
-                elif fluxo == "C":
-                    resultado = executar_prazo(driver)
-                elif fluxo == "D":
-                    resultado = executar_p2b(driver)
-                elif fluxo == "E":
-                    resultado = executar_pec(driver)
-                elif fluxo == "F":
-                    resultado = executar_triagem(driver)
-                elif fluxo == "G":
-                    resultado = executar_pet(driver)
-                tempo_total = (datetime.now() - inicio).total_seconds()
-                # Relatório final
-                print("\n" + "=" * 80)
-                print(" RELATRIO FINAL")
-                print("=" * 80)
-                if resultado:
-                    if 'sucesso_geral' in resultado:
-                        print(f" Sucesso geral: {resultado['sucesso_geral']}")
-                    elif 'sucesso' in resultado:
-                        print(f" Sucesso: {resultado['sucesso']}")
-                print(f"  Tempo total: {tempo_total:.2f}s")
-                print("=" * 80)
-            except KeyboardInterrupt:
-                print("\n Interrompido (Ctrl+C) — finalizando imediatamente")
-                safe_immediate_shutdown(driver, tee_output, reason='KeyboardInterrupt')
-            except Exception as e:
-                print(f" Erro: {e}")
-                import traceback
-                traceback.print_exc()
-            # Fechar log
-            if tee_output:
-                tee_output.close()
-            print("Encerrando")
-            break
-    
+        inicio = datetime.now()
+        resultado = None
+        handler = FLOW_HANDLERS.get(fluxo)
+        if not handler:
+            raise ValueError(f"Fluxo invalido: {fluxo}")
+
+        resultado = handler(driver)
+        tempo_total = (datetime.now() - inicio).total_seconds()
+
+        # Relatorio final
+        if resultado:
+            if 'sucesso_geral' in resultado:
+                logger.info("sucesso geral: %s", resultado['sucesso_geral'])
+            elif 'sucesso' in resultado:
+                logger.info("sucesso: %s", resultado['sucesso'])
+        logger.info("tempo total: %.2fs", tempo_total)
+        logger.info("encerrando")
+
     except KeyboardInterrupt:
-        print("\n Interrompido pelo usurio — finalizando imediatamente")
-        safe_immediate_shutdown(driver, tee_output, reason='OuterKeyboardInterrupt')
+        logger.warning("interrompido pelo usuario — finalizando de forma cooperativa")
     except Exception as e:
-        print(f" Erro fatal: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error("ERRO em main: %s: %s", type(e).__name__, e)
     
     finally:
         if driver:
             try:
-                if not skip_finalizar:
-                    finalizar_driver_fix(driver)
-            except:
+                finalizar_driver_fix(driver)
+            except Exception:
                 pass
         if tee_output:
-            tee_output.close()
+            try:
+                tee_output.close()
+            except Exception:
+                pass
         
         #  NOVO: Finalizar otimizaes
         try:
             from Fix.otimizacao_wrapper import finalizar_otimizacoes
             finalizar_otimizacoes()
-        except:
+        except Exception:
             pass
 
 
 if __name__ == "__main__":
-    print("=" * 80)
-    print("ORQUESTRADOR UNIFICADO PJEPlus (x.py)")
-    print("=" * 80)
-    print(f"Executando como: {os.path.basename(__file__)}")
-    print("100% STANDALONE - Nao depende de 1.py, 1b.py, 2.py, 2b.py")
-    print("=" * 80 + "\n")
-    
+    logger.info("ORQUESTRADOR UNIFICADO PJEPlus (x.py)")
+    logger.info("executando como: %s", os.path.basename(__file__))
+    logger.info("100%% STANDALONE — nao depende de 1.py, 1b.py, 2.py, 2b.py")
+
     try:
         main()
     except Exception as e:
-        print(f"Erro fatal: {e}")
+        logger.error("ERRO: %s: %s", type(e).__name__, e)
         sys.exit(1)
     finally:
-        print("\n" + "=" * 80)
-        print("Orquestrador finalizado")
-        print("=" * 80)
-    
+        logger.info("orquestrador finalizado")
+
     sys.exit(0)

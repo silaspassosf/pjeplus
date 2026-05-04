@@ -1,13 +1,19 @@
 """Fachada do pacote `triagem`.
 
-Exporta `triagem_peticao` do serviço interno `triagem.service`.
-Mantém contrato: `from triagem import triagem_peticao`.
+Exporta simbolos principais do runtime consolidado e de modulos
+nao-consolidados (acoes, citacao, service).
+
+Mantem contrato: `from triagem import triagem_peticao`.
 """
-from .api import buscar_lista_triagem, enriquecer_processo, _is_triagem_inicial
+from .runtime_triagem import (
+    buscar_lista_triagem,
+    criar_driver_e_logar,
+    enriquecer_processo,
+    _is_triagem_inicial,
+    run_triagem,
+)
 from .acoes import acao_bucket_a, acao_bucket_b, acao_bucket_c, acao_bucket_d
 from .citacao import def_citacao
-from .driver import criar_driver_e_logar
-from .runner import run_triagem
 from .service import triagem_peticao
 
 __all__ = [

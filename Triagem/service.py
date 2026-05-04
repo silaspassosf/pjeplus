@@ -1,6 +1,8 @@
 import re
 from typing import Any, Dict, List
 
+from Fix.log import logger
+
 from .coleta import _coletar_textos_processo
 from .regras import (
     _checar_art611b,
@@ -179,20 +181,20 @@ def triagem_peticao(driver) -> str:
         import pytesseract
     except ImportError:
         _pytesseract_ok = False
-        print('[TRIAGEM] ⚠ pytesseract nao instalado — OCR indisponivel (documentos de identidade podem retornar vazio)')
+        logger.warning('[TRIAGEM] ⚠ pytesseract nao instalado — OCR indisponivel (documentos de identidade podem retornar vazio)')
 
     try:
         import pdf2image
     except ImportError:
         _pdf2image_ok = False
-        print('[TRIAGEM] ⚠ pdf2image nao instalado — OCR indisponivel')
+        logger.warning('[TRIAGEM] ⚠ pdf2image nao instalado — OCR indisponivel')
 
     if not (_pytesseract_ok and _pdf2image_ok):
-        print('[TRIAGEM] ℹ️ Para extrair texto de documentos digitalizados (RG, CNH), instale: pip install pytesseract pdf2image')
+        logger.warning('[TRIAGEM] Para extrair texto de documentos digitalizados (RG, CNH), instale: pip install pytesseract pdf2image')
 
-    print('[TRIAGEM] ▶ Iniciando _coletar_textos_processo...')
+    logger.info('[TRIAGEM] Iniciando _coletar_textos_processo...')
     coleta = _coletar_textos_processo(driver)
-    print(f'[TRIAGEM] _coletar_textos_processo retornou: erro={coleta.get("erro")}')
+    logger.info(f'[TRIAGEM] _coletar_textos_processo retornou: erro={coleta.get("erro")}')
     if coleta.get('erro'):
         return f"ERRO: {coleta['erro']}"
 

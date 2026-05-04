@@ -14,6 +14,7 @@ from api.variaveis import PjeApiClient, session_from_driver
 from Fix.variaveis_helpers import obter_texto_documento
 from Triagem.preprocess import _strip_cabecalho_rodape
 from Triagem.utils import _norm, _formatar_endereco_parte
+from Fix.log import logger
 
 # Diretório local para tessdata — evita gravar em Program Files (requer admin)
 _TESSDATA_LOCAL = pathlib.Path(__file__).parent.parent / 'cache' / 'tessdata'
@@ -152,13 +153,13 @@ def _garantir_tessdata_por() -> 'pathlib.Path | None':
     if destino.exists():
         return tessdata_dir
     url = 'https://github.com/tesseract-ocr/tessdata_fast/raw/main/por.traineddata'
-    print('[TRIAGEM] OCR: baixando por.traineddata de tessdata_fast...')
+    logger.debug('[TRIAGEM] OCR: baixando por.traineddata de tessdata_fast...')
     try:
         urllib.request.urlretrieve(url, destino)
-        print(f'[TRIAGEM] OCR: por.traineddata salvo em {destino}')
+        logger.debug('[TRIAGEM] OCR: por.traineddata salvo em %s', destino)
         return tessdata_dir
     except Exception as e:
-        print(f'[TRIAGEM] OCR: falha ao baixar por.traineddata: {e}')
+        logger.error("ERRO em _garantir_tessdata_por: %s: %s", type(e).__name__, e)
         return None
 
 
@@ -184,7 +185,7 @@ def _ocr_via_pymupdf(pdf_bytes: bytes, id_doc: str, fallback: str, fracao: float
                 pytesseract.pytesseract.tesseract_cmd = str(tess_exe)
                 break
         if tess_exe is None:
-            print(f'[TRIAGEM] OCR indisponivel ({id_doc}): tesseract.exe não encontrado — instale com: winget install UB-Mannheim.TesseractOCR')
+            logger.error("ERRO em _ocr_via_pymupdf: tesseract.exe nao encontrado para %s", id_doc)
             return fallback
         tessdata_dir = _garantir_tessdata_por()
         if tessdata_dir:
@@ -205,13 +206,13 @@ def _ocr_via_pymupdf(pdf_bytes: bytes, id_doc: str, fallback: str, fracao: float
             if t.strip():
                 textos_ocr.append(t)
         resultado = '\n'.join(textos_ocr).strip()
-        print(f'[TRIAGEM] OCR PyMuPDF {id_doc}: {len(resultado)} chars ({len(doc)} pag, fracao={fracao})')
+        logger.debug('[TRIAGEM] OCR PyMuPDF %s: %s chars (%s pag, fracao=%s)', id_doc, len(resultado), len(doc), fracao)
         return resultado if resultado else fallback
     except ImportError as e:
-        print(f'[TRIAGEM] OCR indisponivel ({id_doc}): {e} — instale com: winget install UB-Mannheim.TesseractOCR')
+        logger.error("ERRO em _ocr_via_pymupdf: %s: %s", type(e).__name__, e)
         return fallback
     except Exception as e:
-        print(f'[TRIAGEM] OCR falhou ({id_doc}): {e}')
+        logger.error("ERRO em _ocr_via_pymupdf: %s: %s", type(e).__name__, e)
         return fallback
 
 
@@ -249,15 +250,15 @@ def _extrair_texto_pdf_api(client: 'PjeApiClient', id_processo: str, id_doc: str
         texto_nativo = '\n'.join(textos).strip()
         media = len(texto_nativo) / total if total else 0
         if media >= LIMIAR:
-            print(f'[TRIAGEM] PDF {id_doc}: texto nativo OK ({len(texto_nativo)} chars, {total} pag, media={media:.0f})')
+            logger.debug('[TRIAGEM] PDF %s: texto nativo OK (%s chars, %s pag, media=%.0f)', id_doc, len(texto_nativo), total, media)
             return texto_nativo
-        print(f'[TRIAGEM] PDF {id_doc}: texto nativo insuficiente ({len(texto_nativo)} chars, {total} pag, media={media:.0f}) — tentando OCR via PyMuPDF')
+        logger.debug('[TRIAGEM] PDF %s: texto nativo insuficiente (%s chars, %s pag, media=%.0f) — tentando OCR via PyMuPDF', id_doc, len(texto_nativo), total, media)
 
         return _ocr_via_pymupdf(pdf_bytes, id_doc, texto_nativo)
     except _ErroAutenticacao401:
         raise
     except Exception as e:
-        print(f'[TRIAGEM] ERRO PDF {id_doc}: {e}')
+        logger.error("ERRO em _extrair_texto_pdf_api: %s: %s", type(e).__name__, e)
         return ''
 
 
@@ -274,7 +275,7 @@ def _listar_documentos_timeline(timeline: list) -> list:
 
 
 def _coletar_textos_processo(driver) -> Dict[str, Any]:
-    print('[TRIAGEM] [_coletar] 1/6 Inicializando cliente API...')
+    logger.debug('[TRIAGEM] [_coletar] 1/6 Inicializando cliente API...')
     resultado: Dict[str, Any] = {
         'texto_inicial': '',
         'texto_capa': '',
@@ -287,10 +288,10 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     try:
         sessao, trt_host = session_from_driver(driver, grau=1)
         client = PjeApiClient(sessao, trt_host, grau=1)
-        print('[TRIAGEM] [_coletar] ✓ Cliente API inicializado')
+        logger.debug('[TRIAGEM] [_coletar] Cliente API inicializado')
     except Exception as e:
         resultado['erro'] = f'falha ao montar cliente autenticado: {e}'
-        print(f'[TRIAGEM] [_coletar] ✗ ERRO ao montar cliente: {resultado["erro"]}')
+        logger.error("ERRO em _coletar_textos_processo: %s: %s", type(e).__name__, e)
         return resultado
 
     # Helper: tenta extrair PDF; em caso de 401 renova sessão UMA vez e retenta
@@ -303,7 +304,7 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         except _ErroAutenticacao401:
             if _reauth_done[0]:
                 raise
-            print(f'[TRIAGEM] 401 doc {id_doc} — renovando sessão (tentativa única)...')
+            logger.debug('ERRO em _coletar_textos_processo: 401 doc %s — renovando sessao (tentativa unica)...', id_doc)
             _reauth_done[0] = True
             try:
                 s2, h2 = session_from_driver(driver, grau=1)
@@ -315,10 +316,10 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     id_processo = _extrair_id_processo_da_url(driver.current_url)
     if not id_processo:
         resultado['erro'] = f'id_processo nao encontrado na URL: {driver.current_url}'
-        print(f'[TRIAGEM] [_coletar] ✗ ERRO: {resultado["erro"]}')
+        logger.error("ERRO em _coletar_textos_processo: %s", resultado['erro'])
         return resultado
-    
-    print(f'[TRIAGEM] [_coletar] 2/6 ID processo extraído: {id_processo}')
+
+    logger.debug('[TRIAGEM] [_coletar] 2/6 ID processo extraido: %s', id_processo)
     resultado['id_processo'] = id_processo
 
     # Buscar partes ANTES de ler qualquer PDF — dados do endpoint são definitivos
@@ -328,76 +329,76 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
         _partes_raw = client.partes(id_processo) or {}
         _qtd_a = len(_partes_raw.get('ATIVO') or [])
         _qtd_p = len(_partes_raw.get('PASSIVO') or [])
-        print(f'[TRIAGEM] partes_api: {_qtd_a} ativo(s), {_qtd_p} passivo(s)')
+        logger.debug('[TRIAGEM] partes_api: %s ativo(s), %s passivo(s)', _qtd_a, _qtd_p)
 
         url_endereco = client._url(f"/pje-comum-api/api/processos/id/{id_processo}/partes?retornaEndereco=true")
         r_endereco = client.sess.get(url_endereco, timeout=15)
         if r_endereco.ok:
             _partes_endereco = r_endereco.json()
-            print(f'[TRIAGEM] partes+endereco OK - ativo(s)={len(_partes_endereco.get("ATIVO") or [])} passivo(s)={len(_partes_endereco.get("PASSIVO") or [])}')
+            logger.debug('[TRIAGEM] partes+endereco OK - ativo(s)=%s passivo(s)=%s', len(_partes_endereco.get("ATIVO") or []), len(_partes_endereco.get("PASSIVO") or []))
     except Exception as _e_partes:
-        print(f'[TRIAGEM] partes_api: falha ({_e_partes})')
+        logger.error("ERRO em _coletar_textos_processo: partes_api falha (%s)", _e_partes)
 
     # Buscar processos associados (prevenção detectada pelo sistema)
     try:
         _associados = client.associados(id_processo) or []
         resultado['associados_sistema'] = _associados
         if _associados:
-            print(f'[TRIAGEM] associados_sistema: {len(_associados)} associado(s) encontrado(s)')
+            logger.debug('[TRIAGEM] associados_sistema: %s associado(s) encontrado(s)', len(_associados))
         else:
-            print('[TRIAGEM] associados_sistema: nenhum')
+            logger.debug('[TRIAGEM] associados_sistema: nenhum')
     except Exception as _e_assoc:
-        print(f'[TRIAGEM] associados_sistema: falha ({_e_assoc})')
+        logger.error("ERRO em _coletar_textos_processo: associados_sistema falha (%s)", _e_assoc)
         resultado['associados_sistema'] = []
 
     # Buscar timeline com timeout para evitar travamentos
     timeline = None
     timeline_erro = None
-    
+
     def _buscar_timeline():
         nonlocal timeline, timeline_erro
         try:
-            print(f'[TRIAGEM] Iniciando busca de timeline com timeout (id={id_processo})')
+            logger.debug('[TRIAGEM] Iniciando busca de timeline com timeout (id=%s)', id_processo)
             timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
-            print(f'[TRIAGEM] Timeline recebida com sucesso')
+            logger.debug('[TRIAGEM] Timeline recebida com sucesso')
         except Exception as e:
             timeline_erro = f'erro ao buscar timeline: {e}'
-            print(f'[TRIAGEM] ERRO ao buscar timeline: {timeline_erro}')
-    
+            logger.error("ERRO em _coletar_textos_processo: %s", timeline_erro)
+
     thread = threading.Thread(target=_buscar_timeline, daemon=False)
     thread.start()
     thread.join(timeout=30)  # Timeout de 30 segundos
-    
+
     if thread.is_alive():
-        print('[TRIAGEM] ⚠️ TIMEOUT ao buscar timeline — thread ainda ativa após 30s')
+        logger.error("ERRO em _coletar_textos_processo: TIMEOUT ao buscar timeline — thread ainda ativa apos 30s")
         resultado['erro'] = 'timeout ao buscar timeline (>30s)'
         return resultado
-    
+
     if timeline_erro:
         resultado['erro'] = timeline_erro
         return resultado
 
     if not timeline:
         resultado['erro'] = 'timeline vazia ou indisponivel'
-        print(f'[TRIAGEM] [_coletar] ✗ ERRO: {resultado["erro"]}')
+        logger.error("ERRO em _coletar_textos_processo: %s", resultado['erro'])
         return resultado
 
-    print('[TRIAGEM] [_coletar] 3/6 Timeline obtida, processando documentos...')
+    logger.debug('[TRIAGEM] [_coletar] 3/6 Timeline obtida, processando documentos...')
     documentos = _listar_documentos_timeline(timeline)
-    print(f'[TRIAGEM] [_coletar] Documentos processados: {len(documentos) or 0} itens')
-    
+    logger.debug('[TRIAGEM] [_coletar] Documentos processados: %s itens', len(documentos) or 0)
+
     peticao = next((d for d in documentos if _eh_peticao_inicial(d)), None)
     if not peticao:
         resultado['erro'] = 'peticao inicial nao localizada na timeline'
-        print(f'[TRIAGEM] [_coletar] ✗ ERRO: {resultado["erro"]}')
+        logger.error("ERRO em _coletar_textos_processo: %s", resultado['erro'])
         return resultado
-    
-    print('[TRIAGEM] [_coletar] 4/6 Petição inicial localizada, extraindo texto...')
+
+    logger.debug('[TRIAGEM] [_coletar] 4/6 Peticao inicial localizada, extraindo texto...')
 
     id_inicial = str(peticao.get('id') or peticao.get('idUnicoDocumento') or '')
     if not id_inicial:
         resultado['erro'] = 'id do documento da peticao inicial nao disponivel'
-        print(f'[TRIAGEM] [_coletar] ✗ ERRO: {resultado["erro"]}')
+        logger.error("ERRO em _coletar_textos_processo: %s", resultado['erro'])
         return resultado
 
     try:
@@ -405,33 +406,33 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     except _ErroAutenticacao401 as e:
         resultado['erro'] = f'ERRO_CRITICO_401: peticao inicial — {e}'
         resultado['erro_critico'] = True
-        print(f'[TRIAGEM] 🛑 ERRO CRÍTICO 401 — {resultado["erro"]}')
+        logger.error("ERRO CRITICO 401 em _coletar_textos_processo: %s", resultado['erro'])
         return resultado
     chars_bruto = len(resultado['texto_inicial'])
     resultado['texto_inicial'] = _strip_cabecalho_rodape(resultado['texto_inicial'])
     chars_limpo = len(resultado['texto_inicial'])
-    print(f'[TRIAGEM] [_coletar] ✓ Texto da petição extraído: '
-          f'{chars_bruto} chars bruto → {chars_limpo} chars após strip cabecalho/rodape '
-          f'({chars_bruto - chars_limpo} removidos)')
+    logger.debug('[TRIAGEM] [_coletar] Texto da peticao extraido: '
+           '%s chars bruto → %s chars apos strip cabecalho/rodape '
+           '(%s removidos)', chars_bruto, chars_limpo, chars_bruto - chars_limpo)
 
     anexos_raw = peticao.get('anexos') or []
     if not anexos_raw:
         anexos_raw = [d for d in documentos if d.get('idDocumentoPai') == peticao.get('id')]
-        print(f'[TRIAGEM] anexos_raw vazios na peticao; fallback para idDocumentoPai encontrou {len(anexos_raw)} itens')
+        logger.debug('[TRIAGEM] anexos_raw vazios na peticao; fallback para idDocumentoPai encontrou %s itens', len(anexos_raw))
 
-    print(f'[TRIAGEM] anexos_raw: {len(anexos_raw)} itens')
+    logger.debug('[TRIAGEM] anexos_raw: %s itens', len(anexos_raw))
 
 
     # Filtrar apenas anexos essenciais: Procuração + Documento de Identidade
     procuracoes = [a for a in anexos_raw if _eh_procuracao(a)]
     docs_identidade = [a for a in anexos_raw if _eh_documento_identidade(a)]
-    print(f'[TRIAGEM] anexos: procuracao={len(procuracoes)} doc_identidade={len(docs_identidade)} (total={len(anexos_raw)})')
+    logger.debug('[TRIAGEM] anexos: procuracao=%s doc_identidade=%s (total=%s)', len(procuracoes), len(docs_identidade), len(anexos_raw))
 
     anexos_extraidos = []
     for anx in procuracoes:
         id_anx = str(anx.get('id') or anx.get('idUnicoDocumento') or '')
         titulo_anx = (anx.get('titulo') or anx.get('tipo') or '').strip()
-        print(f'[TRIAGEM] procuracao detectada: id={id_anx or "(sem id)"} titulo="{titulo_anx}"')
+        logger.debug('[TRIAGEM] procuracao detectada: id=%s titulo="%s"', id_anx or "(sem id)", titulo_anx)
         # Tenta primeiro via API HTML (documentos digitados no sistema)
         texto_anx = ''
         if id_anx:
@@ -439,9 +440,9 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                 texto_api = obter_texto_documento(client, id_processo, id_anx)
                 if texto_api and len(texto_api) > 100:
                     texto_anx = texto_api
-                    print(f'[TRIAGEM] procuracao extraida via API HTML: {len(texto_anx)} chars')
+                    logger.debug('[TRIAGEM] procuracao extraida via API HTML: %s chars', len(texto_anx))
             except Exception as _e_api:
-                print(f'[TRIAGEM] procuracao: API HTML falhou ({_e_api}), tentando PDF')
+                logger.debug('[TRIAGEM] procuracao: API HTML falhou (%s), tentando PDF', _e_api)
         # Fallback: PDF + OCR (documentos digitalizados/escaneados)
         if not texto_anx and id_anx:
             try:
@@ -449,17 +450,17 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             except _ErroAutenticacao401 as e:
                 resultado['erro'] = f'ERRO_CRITICO_401: procuracao {id_anx} — {e}'
                 resultado['erro_critico'] = True
-                print(f'[TRIAGEM] 🛑 ERRO CRÍTICO 401 — {resultado["erro"]}')
+                logger.error("ERRO CRITICO 401 em _coletar_textos_processo: %s", resultado['erro'])
                 return resultado
         if not texto_anx:
-            print(f'[TRIAGEM] AVISO procuracao extraida vazia: id={id_anx or "(sem id)"} titulo="{titulo_anx}"')
+            logger.warning('[TRIAGEM] AVISO procuracao extraida vazia: id=%s titulo="%s"', id_anx or "(sem id)", titulo_anx)
         extrato = texto_anx[:400].replace('\n', ' ').strip() if texto_anx else ''
-        print(f'[TRIAGEM] procuracao extraida: "{titulo_anx}" {len(texto_anx)} chars | extrato: {extrato!r}')
+        logger.debug('[TRIAGEM] procuracao extraida: "%s" %s chars | extrato: %r', titulo_anx, len(texto_anx), extrato)
         anexos_extraidos.append({'titulo': titulo_anx, 'tipo': (anx.get('tipo') or '').strip(), 'texto': texto_anx})
     for anx in docs_identidade:
         titulo_anx = (anx.get('titulo') or anx.get('tipo') or '').strip()
         id_anx = str(anx.get('id') or anx.get('idUnicoDocumento') or '')
-        print(f'[TRIAGEM] doc_identidade detectado: id={id_anx or "(sem id)"} titulo="{titulo_anx}"')
+        logger.debug('[TRIAGEM] doc_identidade detectado: id=%s titulo="%s"', id_anx or "(sem id)", titulo_anx)
         anexos_extraidos.append({'titulo': titulo_anx, 'tipo': (anx.get('tipo') or '').strip(), 'texto': ''})
     resultado['anexos'] = anexos_extraidos
 
@@ -470,37 +471,36 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
     if candidatas:
         certidao = next(
             (d for d in candidatas if (d.get('data') or '')[:10] == _data_pi),
-            candidatas[0]
-        )
+            candidatas[0])
     texto_capa = ''
     if certidao:
         id_cert = str(certidao.get('id') or certidao.get('idUnicoDocumento') or '')
         titulo_cert = (certidao.get('titulo') or certidao.get('tipo') or '(sem titulo)').strip()
-        print(f'[TRIAGEM] certidao_distribuicao: localizada id={id_cert} titulo="{titulo_cert}"')
+        logger.debug('[TRIAGEM] certidao_distribuicao: localizada id=%s titulo="%s"', id_cert, titulo_cert)
         if id_cert:
             try:
                 texto_capa = _extrair_com_reauth(id_cert)
             except _ErroAutenticacao401 as e:
                 resultado['erro'] = f'ERRO_CRITICO_401: certidao {id_cert} — {e}'
                 resultado['erro_critico'] = True
-                print(f'[TRIAGEM] 🛑 ERRO CRÍTICO 401 — {resultado["erro"]}')
+                logger.error("ERRO CRITICO 401 em _coletar_textos_processo: %s", resultado['erro'])
                 return resultado
             if texto_capa:
-                print(f'[TRIAGEM] certidao_distribuicao: extracao OK chars={len(texto_capa)}')
+                logger.debug('[TRIAGEM] certidao_distribuicao: extracao OK chars=%s', len(texto_capa))
             else:
-                print('[TRIAGEM] certidao_distribuicao: ERRO - texto extraido vazio (PDF sem texto nativo e OCR indisponivel ou falhou)')
+                logger.warning('[TRIAGEM] certidao_distribuicao: ERRO - texto extraido vazio (PDF sem texto nativo e OCR indisponivel ou falhou)')
         else:
-            print('[TRIAGEM] certidao_distribuicao: ERRO - id do documento nao disponivel na timeline')
+            logger.warning('[TRIAGEM] certidao_distribuicao: ERRO - id do documento nao disponivel na timeline')
     else:
         nomes = [(_norm(d.get('titulo') or d.get('tipo') or '')) for d in documentos[:12]]
-        print(f'[TRIAGEM] certidao_distribuicao: NAO LOCALIZADA - docs disponiveis (ate 12): {nomes}')
+        logger.warning('[TRIAGEM] certidao_distribuicao: NAO LOCALIZADA - docs disponiveis (ate 12): %s', nomes)
 
     resultado['texto_capa'] = texto_capa
     if texto_capa:
         resultado['capa_dados'] = _parsear_capa(texto_capa)
     else:
         resultado['capa_dados'] = {}
-        print('[TRIAGEM] capa_dados: nao extraidos (certidao ausente ou vazia) - B13/rito indisponivel')
+        logger.debug('[TRIAGEM] capa_dados: nao extraidos (certidao ausente ou vazia) - B13/rito indisponivel')
 
     # Enriquecer capa_dados com partes definitivas da API (sobrescreve certidão quando disponível)
     if _partes_raw:
@@ -524,13 +524,13 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                     resultado['capa_dados']['reclamante_municipio'] = _norm(_mun_rec)
                     resultado['capa_dados']['reclamante_uf'] = _norm(_uf_rec)
                     resultado['capa_dados']['reclamante_end_fonte'] = 'api'
-                    print(f'[TRIAGEM] reclamante_end_api: municipio={_mun_rec!r} uf={_uf_rec!r}')
+                    logger.debug('[TRIAGEM] reclamante_end_api: municipio=%r uf=%r', _mun_rec, _uf_rec)
                 else:
                     resultado['capa_dados']['reclamante_end_fonte'] = 'api_vazio'
-                    print('[TRIAGEM] reclamante_end_api: VAZIO (municipio/uf ausentes no endpoint endereco) - fallback para texto')
+                    logger.debug('[TRIAGEM] reclamante_end_api: VAZIO (municipio/uf ausentes no endpoint endereco) - fallback para texto')
             else:
                 resultado['capa_dados']['reclamante_end_fonte'] = 'api_sem_ativo'
-                print('[TRIAGEM] reclamante_end_api: ATIVO ausente em partes_endereco - fallback para texto')
+                logger.debug('[TRIAGEM] reclamante_end_api: ATIVO ausente em partes_endereco - fallback para texto')
         if passivos:
             reclamados_lista = []
             reclamadas_sem_endereco = []
@@ -558,7 +558,7 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
                 cep = re.sub(r'[^\d]', '', cep_raw) if cep_raw else None
                 endereco_desc = _formatar_endereco_parte(endereco)
                 _dom_status = 'SIM' if tem_domicilio else ('NAO' if dom_via_api is not None else f'flag={dom_flag_raw}')
-                print(f'[TRIAGEM] passivo: {nome_parte} | domicilio={_dom_status} | cep={cep or "(sem)"} | end={endereco_desc[:60] or "(sem)"}')
+                logger.debug('[TRIAGEM] passivo: %s | domicilio=%s | cep=%s | end=%s', nome_parte, _dom_status, cep or "(sem)", endereco_desc[:60] or "(sem)")
                 if cep and len(cep) == 8:
                     _doc_parte = re.sub(r'\D', '', _parte.get('documento') or '')
                     for item in reclamados_lista:
@@ -595,13 +595,13 @@ def _coletar_textos_processo(driver) -> Dict[str, Any]:
             except (TypeError, ValueError):
                 pass
     except Exception as e_api:
-        print(f'[TRIAGEM] valor_causa API: falha ({e_api})')
+        logger.error("ERRO em _coletar_textos_processo: valor_causa API falha (%s)", e_api)
 
     cd = resultado['capa_dados']
-    print(f'[TRIAGEM] capa_dados: valor_causa={cd.get("valor_causa")} '
-            f'rito={cd.get("rito_declarado")} juizo_digital={cd.get("juizo_digital")} '
-            f'distribuido_em={cd.get("distribuido_em")}')
-    print('[TRIAGEM] [_coletar] 6/6 ✓ Coleta de textos concluída com sucesso')
+    logger.debug('[TRIAGEM] capa_dados: valor_causa=%s rito=%s juizo_digital=%s distribuido_em=%s',
+            cd.get("valor_causa"), cd.get("rito_declarado"), cd.get("juizo_digital"),
+            cd.get("distribuido_em"))
+    logger.debug('[TRIAGEM] [_coletar] 6/6 Coleta de textos concluida com sucesso')
     return resultado
 
 __all__ = ['_coletar_textos_processo', '_extrair_texto_pdf_api', '_ErroAutenticacao401']

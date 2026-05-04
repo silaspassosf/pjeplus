@@ -41,8 +41,15 @@ from Fix.variaveis import buscar_painel_com_filtros
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Importar funções de recuperação de acesso negado
-from x import resetar_driver
+# Import lazy para evitar circular import com x.py
+_resetar_driver = None
+
+def _get_resetar_driver():
+    global _resetar_driver
+    if _resetar_driver is None:
+        from x import resetar_driver as _rd
+        _resetar_driver = _rd
+    return _resetar_driver
 # Progresso unificado (evitar reprocessar itens já concluídos)
 from Fix.monitoramento_progresso_unificado import (
     carregar_progresso_unificado,
@@ -52,40 +59,6 @@ from Fix.monitoramento_progresso_unificado import (
 
 LIST_URL = 'https://pje.trt2.jus.br/pjekz/painel/global/todos/lista-processos'
 
-
-def buscar_processos_dom_eletronico(driver: WebDriver) -> List[Dict[str, Any]]:
-    """Busca processos em fase Conhecimento com chips de domicílio eletrônico.
-    
-    Chips buscados:
-    - Ciência Automática
-    - Ciência Expirado (Prazo de Ciência Expirado)
-    - Erro de Transmissão
-    
-    Args:
-        driver: WebDriver Selenium autenticado
-    
-    Returns:
-        Lista de processos encontrados
-    """
-    logger.info('[DOM] Buscando processos fase Conhecimento + chips Dom Eletrônico...')
-    
-    # Chips específicos para Dom Eletrônico
-    chips_domelez = [
-        'Ciência Automática',
-        'Ciência Expirado',
-        'Erro de Transmissão'
-    ]
-    
-    # Executar busca via API
-    processos = buscar_painel_com_filtros(
-        driver=driver,
-        fase='Conhecimento',
-        sub_caixa=chips_domelez,
-        tam_pagina=100
-    )
-    
-    logger.info(f'[DOM] Encontrados {len(processos)} processos')
-    return processos
 
 def create_driver_and_login():
     """1. Driver e login PC (copiar de x.py)"""
@@ -1054,6 +1027,45 @@ def main():
                 logger.info('[DOM] Driver fechado')
             except:
                 pass
+
+def run_dom(driver=None):
+    """Entrypoint para x.py — processa fluxo Dom Eletrônico.
+
+    Compatível com _executar_fluxo() de x.py:
+        from Triagem.dom import run_dom
+        resultado = run_dom(driver)
+
+    Returns:
+        dict com chave 'sucesso' (bool)
+    """
+    from utilitarios_processamento import resultado_ok, resultado_falha
+
+    if driver is not None:
+        logger.info('[DOM] Driver recebido do x.py — executando fluxo')
+        try:
+            driver.get(LIST_URL)
+            WebDriverWait(driver, 30).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody tr.tr-class')))
+
+            from Fix.core import filtrofases
+            filtrofases(driver, fases_alvo=['conhecimento'])
+            time.sleep(2)
+
+            navigate_to_activities_and_filter(driver)
+            execute_list_with_bucket2_callback(driver)
+
+            logger.info('[DOM] Execução concluída com sucesso')
+            return resultado_ok(sucesso=True)
+        except Exception as e:
+            logger.error(f'[DOM] Erro geral: {e}')
+            return resultado_falha(str(e))
+    else:
+        logger.info('[DOM] Sem driver — usando fluxo standalone')
+        ok = main()
+        if ok:
+            return {'sucesso': True}
+        return {'sucesso': False, 'erro': 'Falha no fluxo Dom Eletrônico'}
+
 
 if __name__ == '__main__':
     main()

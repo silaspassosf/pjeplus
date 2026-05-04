@@ -5,6 +5,7 @@ e identificação de fingerprint de cabeçalho.
 """
 import re
 from typing import List
+from Fix.log import logger
 from Triagem.utils import _norm
 
 # Nível 1: artefatos PJe determinísticos (risco zero)
@@ -99,11 +100,11 @@ def _strip_cabecalho_rodape(texto: str) -> str:
     texto = _remover_artefatos_pje(texto)
     fingerprint = _aprender_cabecalho(texto)
     if fingerprint:
-        print(f'[TRIAGEM] cabecalho_fingerprint: {len(fingerprint)} linha(s) identificadas: '
-              f'{fingerprint[:3]}')
+        logger.info(f'[TRIAGEM] cabecalho_fingerprint: {len(fingerprint)} linha(s) identificadas: '
+                     f'{fingerprint[:3]}')
         texto = _remover_cabecalho_por_pagina(texto, fingerprint)
     else:
-        print('[TRIAGEM] cabecalho_fingerprint: nao identificado (texto inicia direto no conteudo juridico)')
+        logger.info('[TRIAGEM] cabecalho_fingerprint: nao identificado (texto inicia direto no conteudo juridico)')
     texto = re.sub(r'\n{3,}', '\n\n', texto)
     return texto.strip()
 

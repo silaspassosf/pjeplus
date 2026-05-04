@@ -14,13 +14,13 @@ Entrypoint publico: fluxo_mandados_outros()
 # ════════════════════════════════════════
 
 import os
-import time
-import unicodedata
+from Fix.utils import remover_acentos
 from typing import Optional, Any, List, Tuple
 
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import extrair_direto, extrair_documento, criar_lembrete_posit
@@ -166,15 +166,13 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
         except Exception:
             btn_sigilo.click()
 
-        for _ in range(8):
-            time.sleep(0.25)
-            try:
-                if not _tem_sigilo_link():
-                    if debug:
-                        logger.info('[SIGILO_DEBUG] is-sigiloso removido após clique')
-                    return True
-            except Exception:
-                pass
+        try:
+            WebDriverWait(driver, 2).until(lambda _: not _tem_sigilo_link())
+            if debug:
+                logger.info('[SIGILO_DEBUG] is-sigiloso removido após clique')
+            return True
+        except Exception:
+            pass
 
         if debug:
             logger.error('[SIGILO_DEBUG] Clique executado, mas classe is-sigiloso permaneceu')
@@ -233,8 +231,8 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
                 if log:
                     logger.info(f'[SIGILO_ARGOS] Certidão de devolução identificada: {texto[:50]}...')
                 break
-        except:
-            continue
+        except Exception:
+            continue  # item individual, continua
 
     if not certidao_encontrada:
         if log:
@@ -626,7 +624,7 @@ def fluxo_mandados_outros(driver: WebDriver, log: bool = True) -> None:
         logger.info('[MANDADOS][OUTROS] ENTER analise_padrao()')
         # Normalizar texto removendo acentos para facilitar matching
         try:
-            texto_norm = ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+            texto_norm = remover_acentos(texto)
         except Exception as e:
             logger.info(f'[MANDADOS][OUTROS] analise_padrao: falha na normalizacao: {e}')
             texto_norm = texto

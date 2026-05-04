@@ -1,103 +1,59 @@
+"""
+SISB - Fachada de compatibilidade
+Reexporta nomes publicos de SISB.facades_contratos
+"""
 import logging
+
 logger = logging.getLogger(__name__)
+__version__ = '3.0.0'
 
-"""
-Módulo SISB - Automação SISBAJUD/BACEN (Refatorado)
-Integra funcionalidades para criação de minutas de bloqueio
-
-Arquitetura Modular:
-- core.py: Inicialização, login, configuração
-- processamento.py: Lógica de negócio (minutas, ordens)
-- utils.py: Utilitários, helpers, validações
-- standards.py: Padrões, constantes, tipos
-- performance.py: Otimizações de performance
-- s_orquestrador.py: Orquestrador principal
-"""
-
-# Imports dos módulos core
-from .core import (
+from SISB.facades_contratos import (  # noqa: E402, F401
+    # Core
     iniciar_sisbajud,
     driver_sisbajud,
     login_automatico_sisbajud,
-    login_manual_sisbajud
-)
+    login_manual_sisbajud,
 
-# Imports dos módulos de processamento
-from .processamento import (
-    minuta_bloqueio_refatorada,
-)
-
-# Imports dos utilitários refatorados
-from .utils import (
+    # Utils
     criar_js_otimizado,
     safe_click,
     aguardar_elemento,
     log_sisbajud,
     validar_numero_processo,
-    formatar_valor_monetario
-)
+    formatar_valor_monetario,
 
-# Imports dos padrões
-from .standards import (
+    # Padroes
     SISBConstants,
     StatusProcessamento,
     TipoFluxo,
     DadosProcesso,
     ResultadoProcessamento,
-    sisb_logger
-)
+    sisb_logger,
 
-# Imports das otimizações de performance
-from .performance import (
+    # Performance
     performance_optimizer,
     polling_reducer,
     cache_manager,
-    parallel_processor
-)
-
-# Import do orquestrador principal
-from .s_orquestrador import executar_sisbajud_completo
-
-# Import do módulo batch para processamento em lote
-from .batch import processar_lote_sisbajud
-
-__all__ = [
-    # Core
-    'iniciar_sisbajud',
-    'driver_sisbajud',
-    'login_automatico_sisbajud',
-    'login_manual_sisbajud',
-
-    # Processamento
-    'minuta_bloqueio_refatorada',
-
-    # Utilitários
-    'criar_js_otimizado',
-    'safe_click',
-    'aguardar_elemento',
-    'log_sisbajud',
-    'validar_numero_processo',
-    'formatar_valor_monetario',
-
-    # Padrões
-    'SISBConstants',
-    'StatusProcessamento',
-    'TipoFluxo',
-    'DadosProcesso',
-    'ResultadoProcessamento',
-    'sisb_logger',
-
-    # Performance
-    'performance_optimizer',
-    'polling_reducer',
-    'cache_manager',
-    'parallel_processor',
+    parallel_processor,
 
     # Orquestrador
-    'executar_sisbajud_completo',
-    
-    # Batch (lote)
-    'processar_lote_sisbajud'
-]
+    executar_sisbajud_completo,
 
-__version__ = '3.0.0'
+    # Batch
+    processar_lote_sisbajud,
+
+    # Processamento
+    minuta_bloqueio_refatorada,
+)
+
+__all__ = [
+    'iniciar_sisbajud', 'driver_sisbajud', 'login_automatico_sisbajud', 'login_manual_sisbajud',
+    'minuta_bloqueio_refatorada',
+    'criar_js_otimizado', 'safe_click', 'aguardar_elemento', 'log_sisbajud',
+    'validar_numero_processo', 'formatar_valor_monetario',
+    'SISBConstants', 'StatusProcessamento', 'TipoFluxo', 'DadosProcesso', 'ResultadoProcessamento',
+    'sisb_logger',
+    'performance_optimizer', 'polling_reducer', 'cache_manager', 'parallel_processor',
+    'executar_sisbajud_completo',
+    'processar_lote_sisbajud',
+]

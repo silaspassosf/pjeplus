@@ -25,10 +25,10 @@ ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from Peticao.api_client import PeticaoAPIClient, PeticaoItem
+from Peticao.runtime_pet import PeticaoAPIClient, PeticaoItem
 from Peticao.core.utils import criar_driver_e_logar
-from Peticao.orquestrador import ESCANINHO_URL
-from Peticao.pet import classificar, resolver_acao
+from Peticao.runtime_pet import ESCANINHO_URL
+from Peticao.runtime_pet import classificar, resolver_acao
 
 BUCKETS_ORDEM = ['apagar', 'diretos', 'pericias', 'recurso', 'analise']
 
@@ -179,7 +179,7 @@ def _acao_analise_seca(driver, item: PeticaoItem) -> str:
     Lê a petição via API e determina a ação que seria tomada (dry run).
     Se a API não retornar texto, reporta ato_gen como fallback.
     """
-    from Peticao.pet import extrair_texto_peticao_via_api, _detectar_acao_analise, _Dados
+    from Peticao.runtime_pet import extrair_texto_peticao_via_api, _detectar_acao_analise, _Dados
 
     texto = extrair_texto_peticao_via_api(driver, item)
     if not texto:

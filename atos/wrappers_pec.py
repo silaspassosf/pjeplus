@@ -2,7 +2,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 """
-Wrappers para comunicações processuais - Instâncias da factory make_comunicacao_wrapper
+Wrappers para comunicações processuais - Instâncias da factory make_comunicacao_wrapper.
+
+Contrato unificado: atos/regras.py registra todos os wrappers
+deste modulo no RuleRegistry (bucket 'comunicacao_judicial').
 """
 
 from .comunicacao import make_comunicacao_wrapper

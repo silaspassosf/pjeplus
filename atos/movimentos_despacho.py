@@ -34,8 +34,7 @@ def despacho_generico(driver: WebDriver, peticao) -> bool:
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
-        import time
-        
+
         # ===== ETAPA 1: GARANTIR QUE ESTÁ EM /DETALHE =====
         abas_atuais = driver.window_handles
         aba_detalhe = None
@@ -57,21 +56,18 @@ def despacho_generico(driver: WebDriver, peticao) -> bool:
         
         abas_antes = set(driver.window_handles)
         safe_click(driver, btn_abrir_tarefa)
-        
+
         # ===== ETAPA 3: TROCAR PARA NOVA ABA =====
-        time.sleep(1)
         nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
-        
+        if abas_antes:
+            try:
+                from Fix.abas import aguardar_nova_aba
+                nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=10)
+            except Exception:
+                logger.info('[DESPACHO_GENERICO] Nenhuma nova aba detectada (continuando na mesma aba)')
+
         if nova_aba:
             driver.switch_to.window(nova_aba)
-            time.sleep(1)
         
         # ===== ETAPA 4: TENTAR CLICAR EM "CONCLUSÃO AO MAGISTRADO" =====
         
@@ -103,7 +99,11 @@ def despacho_generico(driver: WebDriver, peticao) -> bool:
             
             if btn_analise:
                 safe_click(driver, btn_analise)
-                time.sleep(1.5)
+                try:
+                    from Fix.core import aguardar_renderizacao_nativa
+                    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', 'aparecer', timeout=8)
+                except Exception:
+                    pass
                 
                 # Tenta novamente encontrar "Conclusão ao Magistrado"
                 try:
@@ -120,7 +120,11 @@ def despacho_generico(driver: WebDriver, peticao) -> bool:
         
         if btn_conclusao:
             safe_click(driver, btn_conclusao)
-            time.sleep(1)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', 'aparecer', timeout=8)
+            except Exception:
+                pass
         else:
             return False
         
@@ -139,7 +143,11 @@ def despacho_generico(driver: WebDriver, peticao) -> bool:
         
         if btn_despacho:
             safe_click(driver, btn_despacho)
-            time.sleep(1)
+            try:
+                from Fix.core import aguardar_renderizacao_nativa
+                aguardar_renderizacao_nativa(driver, timeout=5)
+            except Exception:
+                pass
             return True
         else:
             return False

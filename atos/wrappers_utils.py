@@ -13,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
 import time
 from Fix.utils import sleep_fixed, aguardar_pagina_carregar
+from Fix.core import aguardar_renderizacao_nativa
 
 
 def esperar_insercao_modelo(driver, timeout=8000):
@@ -138,8 +139,9 @@ def _refresh_e_aguardar(driver, log):
         WebDriverWait(driver, 10).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
-    except:
-        pass
+    except Exception:
+        if log:
+            logger.warning('[VISIBILIDADE] WebDriverWait readyState timeout apos refresh, prosseguindo')
     return True
 
 def _ativar_multipla_selecao(driver, log):
@@ -215,8 +217,8 @@ def _ocultar_multipla_selecao(driver):
     try:
         btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
         btn_ocultar.click()
-    except:
-        pass
+    except Exception:
+        logger.debug('[VISIBILIDADE] Botão ocultar múltipla seleção não encontrado (normal se já oculto)')
 
 def visibilidade_sigilosos(driver, polo='ativo', log=False):
     """
@@ -275,9 +277,12 @@ def executar_visibilidade_sigilosos_se_necessario(driver, sigilo_ativado, debug=
         
         # NOVO: Atualiza a página com F5 como primeira ação
         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.F5)
-        
-        # Aguarda a página recarregar
-        time.sleep(3)
+
+        # Aguarda a página recarregar (observer, sem time.sleep)
+        try:
+            aguardar_renderizacao_nativa(driver, 'ul.pje-timeline', modo='aparecer', timeout=10)
+        except Exception:
+            logger.info('[VISIBILIDADE] Observer timeout no F5, prosseguindo mesmo assim')
         
         # Usa a função local que já tem tab switching e F5
         resultado = visibilidade_sigilosos(driver, log=debug)

@@ -27,7 +27,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from core.resultado_execucao import ResultadoExecucao
 
 from Fix.core import buscar_documento_argos
-from Fix.documents import buscar_documentos_sequenciais
+from Fix.core import buscar_documentos_sequenciais
 from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_pdf, salvar_destinatarios_cache
 from Fix.log import logger
 
@@ -36,7 +36,8 @@ from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_pro
 from atos import ato_meios
 
 from .regras import aplicar_regras_argos
-from .utils import fechar_intimacao, retirar_sigilo_fluxo_argos
+from .apoio_fluxos import retirar_sigilo_fluxo_argos
+from .entrada_api import fechar_intimacao
 
 
 # ══════════════════════ 1. processamento_anexos.py ══════════════════════
@@ -96,13 +97,11 @@ def _localizar_modal_visibilidade(driver: WebDriver, timeout: int = 4) -> Option
 def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: bool = True) -> bool:
     """Processa modal: seleciona checkboxes e salva."""
     try:
-        time.sleep(0.12)
         # STEP 1: Tentar "Selecionar Todos"
         selecionar_todos_ok = False
         try:
             icone = modal.find_element(By.CSS_SELECTOR, _SELETORES_ANEXOS['selecionar_todos'])
             driver.execute_script("arguments[0].click();", icone)
-            time.sleep(0.15)
             selecionar_todos_ok = True
         except Exception:
             pass
@@ -113,19 +112,18 @@ def _processar_modal_visibilidade(driver: WebDriver, modal: WebElement, log: boo
                     checkbox_input = checkbox.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
                     if not checkbox_input.is_selected():
                         driver.execute_script("arguments[0].click();", checkbox)
-                        time.sleep(0.1)
                 except Exception:
                     continue
         # STEP 3: Salvar
-        time.sleep(0.08)
-        btn_salvar = modal.find_element(By.XPATH, _SELETORES_ANEXOS['btn_salvar'])
+        btn_salvar = WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.XPATH, _SELETORES_ANEXOS['btn_salvar']))
+        )
         if not (btn_salvar.is_displayed() and btn_salvar.is_enabled()):
             return False
         driver.execute_script("arguments[0].click();", btn_salvar)
         # STEP 4: Verificar fechamento
         try:
             WebDriverWait(driver, 4, poll_frequency=0.1).until(EC.staleness_of(modal))
-            time.sleep(0.05)
             return True
         except TimeoutException:
             return False
@@ -252,7 +250,12 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             driver.execute_script("arguments[0].click();", btn_anexos[0])
             if log:
                 logger.info('[ARGOS][ANEXOS]  Anexos abertos (via clique no botão de anexos)')
-            time.sleep(2)
+            try:
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, _SELETORES_ANEXOS['anexos']))
+                )
+            except TimeoutException:
+                pass
         except Exception as e:
             if log:
                 logger.info(f'[ARGOS][ANEXOS][ERRO] Falha ao abrir anexos: {e}')
@@ -312,7 +315,12 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             try:
                 if btn_sigilo and len(btn_sigilo) > 0:
                     driver.execute_script("arguments[0].click();", btn_sigilo[0])
-                    time.sleep(0.5)
+                    try:
+                        WebDriverWait(driver, 3).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, _SELETORES_ANEXOS['icone_plus']))
+                        )
+                    except TimeoutException:
+                        pass
                     sigilo_foi_aplicado = True
                     sigilo_anexos[tipo] = "sim"
                     if log:
@@ -334,13 +342,11 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
                 # Buscar e clicar apenas no ícone + do anexo atual
                 icone_plus = anexo.find_element(By.CSS_SELECTOR, _SELETORES_ANEXOS['icone_plus'])
                 driver.execute_script("arguments[0].click();", icone_plus)
-                time.sleep(1.5)  # AUMENTADO: Espera adequada para modal abrir completamente
 
                 # Processar modal de visibilidade com verificação robusta
-                modal = _localizar_modal_visibilidade(driver, timeout=6)  # AUMENTADO timeout
+                modal = _localizar_modal_visibilidade(driver, timeout=6)
                 if modal:
-                    # Verificação adicional: aguardar modal estar totalmente carregado
-                    time.sleep(0.8)  # Espera extra para estabilização
+                    # DOM-settle: modal ja localizado via WebDriverWait
 
                     modal_ok = _processar_modal_visibilidade(driver, modal, log=False)
                     if modal_ok:
@@ -349,14 +355,14 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
                         if log:
                             logger.info(f'[ARGOS][ANEXOS]  {tipo.upper()} processado (visibilidade aplicada)')
 
-                        # Espera adicional após processamento bem-sucedido
-                        time.sleep(0.5)
                     else:
                         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                        time.sleep(1.5)  # AUMENTADO espera após ESCAPE
+                        try:
+                            WebDriverWait(driver, 3).until(EC.staleness_of(modal))
+                        except TimeoutException:
+                            pass
                 else:
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                    time.sleep(1.5)  # AUMENTADO espera após ESCAPE
 
             except Exception as e:
                 try:
@@ -390,7 +396,12 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
             if log:
                 logger.info('[ARGOS][ANEXOS][SISBAJUD] Clicando no documento SISBAJUD...')
             documento_sisbajud.click()
-            time.sleep(1)
+            try:
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '.conteudo-principal'))
+                )
+            except TimeoutException:
+                pass
             if log:
                 logger.info('[ARGOS][ANEXOS][SISBAJUD]  Documento SISBAJUD clicado, aguardando carregamento...')
     except Exception as e:

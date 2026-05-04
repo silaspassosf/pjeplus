@@ -38,7 +38,8 @@ from Fix.monitoramento_progresso_unificado import (
     salvar_progresso_unificado,
 )
 from Fix.selenium_base.wait_operations import esperar_elemento
-from Fix.utils_observer import aguardar_renderizacao_nativa as _aguardar_renderizacao
+from Fix.core import aguardar_renderizacao_nativa as _aguardar_renderizacao
+from Fix.abas import fechar_abas_extras as _fechar_abas_extras
 
 # ============================================================================
 # Dependencias — Peticao
@@ -53,7 +54,7 @@ from Fix.utils_observer import aguardar_renderizacao_nativa as _aguardar_renderi
 from Peticao.core.extracao import criar_gigs, extrair_direto, extrair_documento
 from Peticao.core.utils.observer import aguardar_renderizacao_nativa
 from Peticao.core.utils.utils import criar_driver_e_logar
-from Peticao.regras import (
+from Peticao.regras_execucao import (
     _Dados,
     _dados,
     _detectar_acao_analise,
@@ -168,7 +169,7 @@ def extrair_texto_peticao_via_api(driver: WebDriver, peticao) -> Optional[str]:
         return None
 
     try:
-        from Fix.variaveis_client import session_from_driver, PjeApiClient
+        from api.variaveis_client import session_from_driver, PjeApiClient
         import pdfplumber
     except ImportError as e:
         logger.debug(f'[PET_API] Dependencia ausente para extracao via API: {e}')
@@ -330,22 +331,6 @@ def _abrir_processo(driver: WebDriver, item) -> bool:
     return True
 
 
-def _fechar_abas_extras(driver: WebDriver):
-    try:
-        handles = driver.window_handles
-        if len(handles) > 1:
-            principal = handles[0]
-            for h in handles[1:]:
-                try:
-                    driver.switch_to.window(h)
-                    driver.close()
-                except Exception:
-                    pass
-            driver.switch_to.window(principal)
-    except Exception:
-        pass
-
-
 def _executar_bucket_normal(driver: WebDriver, nome: str, itens: list,
                             progresso: dict) -> Dict[str, int]:
     """Buckets que requerem abertura individual do processo."""
@@ -441,7 +426,7 @@ def _executar_bucket_apagar(itens: list) -> Dict[str, int]:
 def _consolidar_delete_bookmarklet():
     """Consolida delete.js apos habilitacao e gera bookmarklet."""
     try:
-        from Peticao.consolida_delete import consolidar_delete_com_bookmarklet
+        from Peticao.suporte_pet import consolidar_delete_com_bookmarklet
         consolidar_delete_com_bookmarklet()
         logger.info('[PET_ORQ] delete.js consolidado e bookmarklet gerado')
     except Exception as e:

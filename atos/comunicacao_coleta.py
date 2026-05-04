@@ -56,7 +56,7 @@ def executar_coleta_conteudo(driver, config_coleta, debug=False) -> bool:
 
             # Fallback DOM/timeline
             try:
-                from Prazo.p2b_fluxo_helpers import _encontrar_documento_relevante
+                from Prazo.p2b_documentos import _encontrar_documento_relevante
                 doc_encontrado, doc_link, doc_idx = _encontrar_documento_relevante(driver)
                 if doc_link:
                     try:

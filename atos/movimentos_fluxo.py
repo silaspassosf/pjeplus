@@ -1,9 +1,11 @@
 import logging
 logger = logging.getLogger(__name__)
 
+from Fix.utils import remover_acentos
+
 from .core import *
 from Fix.core import aguardar_renderizacao_nativa
-from Fix.selenium_base.click_operations import safe_click_no_scroll
+from Fix.selenium_base import safe_click_no_scroll
 
 from typing import Optional
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -51,7 +53,6 @@ def _localizar_botao_tarefa(driver: WebDriver, timeout: int = 8):
 def _obter_tarefa_atual_robusta(driver: WebDriver, timeout: int = 6, debug: bool = False) -> Optional[str]:
     """Obtém a tarefa atual pelo cabeçalho e, se necessário, pelo botão de abrir tarefa."""
     from selenium.webdriver.common.by import By
-    import time
 
     try:
         tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=timeout)
@@ -76,13 +77,17 @@ def _obter_tarefa_atual_robusta(driver: WebDriver, timeout: int = 6, debug: bool
                 try:
                     abas_antes = set(driver.window_handles)
                     if safe_click_no_scroll(driver, tarefa_btn, log=debug):
-                        for _ in range(20):
-                            novas_abas = set(driver.window_handles) - abas_antes
-                            if novas_abas:
-                                driver.switch_to.window(novas_abas.pop())
-                                break
-                            time.sleep(0.2)
-                        time.sleep(0.8)
+                        try:
+                            from Fix.abas import aguardar_nova_aba
+                            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=4)
+                            if nova_aba:
+                                driver.switch_to.window(nova_aba)
+                        except Exception:
+                            pass
+                        try:
+                            aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=5)
+                        except Exception:
+                            pass
 
                         tarefa_el = esperar_elemento(driver, 'pje-cabecalho-tarefa h1.titulo-tarefa', timeout=timeout)
                         if tarefa_el and (tarefa_el.text or '').strip():
@@ -123,12 +128,11 @@ def mov_simples(
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    import time
 
     def log_debug(msg):
         if debug:
             try:
-                print(msg)
+                logger.debug(msg)
             except Exception:
                 pass
 
@@ -180,13 +184,11 @@ def mov_simples(
             return False
 
         nova_aba = None
-        for _ in range(20):
-            abas_depois = set(driver.window_handles)
-            novas_abas = abas_depois - abas_antes
-            if novas_abas:
-                nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
+        try:
+            from Fix.abas import aguardar_nova_aba
+            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=6)
+        except Exception:
+            pass
 
         if nova_aba:
             driver.switch_to.window(nova_aba)
@@ -241,16 +243,15 @@ def mov(
     5. Clica no botão alvo
     6. (Opcional) Confirma ação se texto_confirmacao for fornecido
     """
-    print(f'[MOV] 🔍 Iniciando movimento geral - Seletor: {seletor_alvo}')  # Log forçado para debug
+    logger.info(f'[MOV] Iniciando movimento geral - Seletor: {seletor_alvo}')
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
-    import time
-    
+
     def log_debug(msg):
         if debug:
             try:
-                print(msg)
+                logger.debug(msg)
             except Exception:
                 pass
 
@@ -272,7 +273,7 @@ def mov(
             driver.switch_to.window(aba_detalhe)
             return True
         else:
-            print('[MOV][ERRO] Aba /detalhe não encontrada!')
+            logger.error('[MOV][ERRO] Aba /detalhe não encontrada!')
             return False
     
     def tentar_encontrar_alvo():
@@ -318,7 +319,10 @@ def mov(
             
             if btn_analise:
                 safe_click(driver, btn_analise)
-                time.sleep(1.5)  # Aguarda carregamento após análise
+                try:
+                    aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao', modo='aparecer', timeout=8)
+                except Exception:
+                    pass
                 
                 # Segunda tentativa: buscar o alvo após Análise
                 try:
@@ -377,15 +381,13 @@ def mov(
                 if tentativa == 2:
                     return False
                 continue
-            
+
             nova_aba = None
-            for _ in range(20):
-                abas_depois = set(driver.window_handles)
-                novas_abas = abas_depois - abas_antes
-                if novas_abas:
-                    nova_aba = novas_abas.pop()
-                    break
-                time.sleep(0.3)
+            try:
+                from Fix.abas import aguardar_nova_aba
+                nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=6)
+            except Exception:
+                pass
             
             if nova_aba:
                 driver.switch_to.window(nova_aba)
@@ -433,10 +435,9 @@ def mov(
 
 
 def _remover_acentos(texto: str) -> str:
-    import unicodedata
     if not texto:
         return ''
-    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
+    return remover_acentos(texto)
 
 
 def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout: int = 8):
@@ -500,11 +501,10 @@ def _localizar_botao_destino_movimento(driver: WebDriver, destino: str, timeout:
 
 def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: Optional[str] = None, responsavel: Optional[str] = None, timeout: int = 15) -> bool:
     from selenium.webdriver.common.by import By
-    import time
 
     def log(msg):
         try:
-            print(msg)
+            logger.info(msg)
         except Exception:
             pass
 
@@ -549,23 +549,24 @@ def movimentar_inteligente(driver, destino: str, ultimo_lance: str = '', chip: O
                         url_tarefa = f"{base}/pjekz/processo/{id_processo}/tarefa/{id_tarefa}"
                         abas_antes = set(driver.window_handles)
                         driver.execute_script(f"window.open('{url_tarefa}', '_blank');")
-                        for _ in range(25):
-                            novas_abas = set(driver.window_handles) - abas_antes
-                            if novas_abas:
-                                driver.switch_to.window(novas_abas.pop())
-                                break
-                            _time.sleep(0.2)
+                        try:
+                            from Fix.abas import aguardar_nova_aba
+                            nova_aba = aguardar_nova_aba(driver, next(iter(abas_antes)), timeout=5)
+                            if nova_aba:
+                                driver.switch_to.window(nova_aba)
+                        except Exception:
+                            pass
                         try:
                             aguardar_renderizacao_nativa(driver, 'pje-cabecalho-tarefa', modo='aparecer', timeout=min(8, timeout))
                         except Exception:
-                            _time.sleep(1.5)
+                            _time.sleep(1.5)  # fallback — observer timeout
                         
                         # Após abrir a tarefa via API, aguardar que os botões de transição estejam disponíveis
                         try:
                             aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', modo='aparecer', timeout=min(8, timeout))
                         except Exception:
                             # Fallback para garantir que a página carregou
-                            _time.sleep(1.5)
+                            _time.sleep(1.5)  # fallback — observer timeout
                             
                         log(f'[MOV_INT] Tarefa aberta via API: processo={id_processo} tarefa={id_tarefa}')
                     else:
@@ -751,29 +752,3 @@ def chip_responsavel(driver, chip: Optional[str] = None, responsavel: Optional[s
                 pass
     except Exception:
         pass
-
-
-def verificar_minuta_preenchida(driver, timeout: int = 2) -> bool:
-    """Heurística simples para detectar minuta em elaboração.
-
-    Retorna True se identificar sinais de minuta em edição, False caso contrário.
-    """
-    try:
-        # tentar detectar editor de texto/minuta (heurística)
-        possible = ['pje-editor', 'textarea', 'cke_editable', 'editor-minuta']
-        for sel in possible:
-            try:
-                el = esperar_elemento(driver, sel, timeout=timeout)
-                if el:
-                    text = ''
-                    try:
-                        text = el.text or el.get_attribute('value') or ''
-                    except Exception:
-                        text = ''
-                    if text and len(text.strip()) > 5:
-                        return True
-            except Exception:
-                continue
-        return False
-    except Exception:
-        return False

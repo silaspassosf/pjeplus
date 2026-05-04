@@ -85,11 +85,6 @@ def _obter_tarefa_atual(driver: WebDriver, debug: bool) -> Optional[str]:
         return None
 
 
-def _obter_nome_tarefa_via_api(driver: WebDriver) -> Optional[str]:
-    """REMOVIDO: Usar tarefa conhecida do botão ao invés de API"""
-    return None
-
-
 def _extrair_tarefa_do_dom(driver: WebDriver) -> Optional[str]:
     """Extrai nome da tarefa do DOM da página"""
     try:
@@ -153,15 +148,7 @@ def _executar_movimento_para_destino(
     movimentos = {
         'comunicacoes e expedientes': lambda: _movimento_comunicacoes(driver, debug),
         'arquivo provisorio': lambda: _movimento_arquivo_provisorio(driver, debug),
-        'arquivo': lambda: _movimento_arquivo(driver, debug),
         'aguardando final do sobrestamento': lambda: _movimento_sobrestamento_final(driver, debug),
-        'iniciar execucao': lambda: _movimento_iniciar_execucao(driver, debug),
-        'iniciar liquidacao': lambda: _movimento_iniciar_liquidacao(driver, debug),
-        'remeter': lambda: _movimento_remeter(driver, debug),
-        'prazos vencidos - secretaria': lambda: _movimento_prazos_secretaria(driver, debug),
-        'prazos vencidos - gabinete': lambda: _movimento_prazos_gabinete(driver, debug),
-        'analise de recurso interno': lambda: _movimento_recurso_interno(driver, debug),
-        'transito em julgado': lambda: _movimento_transito_julgado(driver, debug),
     }
 
     movimento_func = movimentos.get(tarefa_atual)
@@ -320,72 +307,3 @@ def _esperar_transicao(driver: WebDriver, debug: bool, esperar: bool = True, tem
         if debug:
             logger.error(f'[TRANSICAO] Erro aguardando transição: {e}')
         return False
-
-
-# Stubs para implementações futuras
-def _movimento_arquivo(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para arquivo definitivo"""
-    return False
-
-def _movimento_iniciar_execucao(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para iniciar execução"""
-    return False
-
-def _movimento_iniciar_liquidacao(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para iniciar liquidação"""
-    return False
-
-def _movimento_remeter(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para remeter"""
-    return False
-
-def _movimento_prazos_secretaria(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para prazos vencidos secretaria"""
-    return False
-
-def _movimento_prazos_gabinete(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para prazos vencidos gabinete"""
-    return False
-
-def _movimento_recurso_interno(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para análise de recurso interno"""
-    return False
-
-def _movimento_transito_julgado(driver: WebDriver, debug: bool) -> bool:
-    """Movimento para trânsito em julgado"""
-    return False
-
-
-# ============================================================================
-# WRAPPER ESPECÍFICO PARA CLS
-# ============================================================================
-
-def mov_cls(driver: WebDriver, debug: bool = False, tarefa_atual_conhecida: Optional[str] = None) -> bool:
-    """
-    Movimento específico para CLS: Navega para "Conclusão ao Magistrado"
-    
-    Usa navegação inteligente baseada na aaMovimentos para levar o processo
-    diretamente para "Conclusão ao Magistrado", independente da tarefa atual.
-    
-    Este wrapper é usado pelo fluxo_cls para navegação inteligente antes
-    da escolha do tipo de conclusão.
-    
-    Args:
-        driver: WebDriver instance
-        debug: Habilita logs detalhados
-        tarefa_atual_conhecida: Nome da tarefa atual lida do botão (opcional)
-        
-    Returns:
-        bool: True se conseguiu navegar para conclusão, False caso contrário
-    """
-    logger.info('[MOV_CLS] Iniciando navegação para "Conclusão ao Magistrado"...')
-    
-    # Usar navegação inteligente para ir diretamente para "conclusão ao magistrado"
-    sucesso = navegar_para_tarefa(driver, "conclusão ao magistrado", debug=debug, tarefa_atual_conhecida=tarefa_atual_conhecida)
-    
-    if sucesso:
-        logger.info('[MOV_CLS] Navegação para conclusão bem-sucedida')
-    else:
-        logger.warning('[MOV_CLS] Falha na navegação inteligente para conclusão')
-    
-    return sucesso

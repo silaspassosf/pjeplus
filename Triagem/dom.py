@@ -36,7 +36,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webdriver import WebDriver
 from Fix.selenium_base import aguardar_e_clicar
-from Fix.variaveis import buscar_painel_com_filtros
+from Triagem.api import buscar_painel_com_filtros
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -296,7 +296,8 @@ def checar_empresas(driver) -> str:
     finally:
         try:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            time.sleep(0.5)
+            WebDriverWait(driver, 2).until(
+                EC.invisibility_of_element_located((By.CSS_SELECTOR, '.cdk-overlay-backdrop')))
         except Exception:
             pass
 
@@ -433,7 +434,7 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
         if empresas_falha:
             conteudo_lembrete += f' ({empresas_falha})'
         logger.info(f'[DOM][B2][CALLBACK] Criando lembrete DomicEletr')
-        from Fix.gigs import criar_lembrete_posit
+        from Fix.extracao import criar_lembrete_posit
         lembrete_result = criar_lembrete_posit(
             driver_detalhes,
             titulo="DomicEletr",
@@ -445,7 +446,11 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
         # AGUARDAR SALVAMENTO COMPLETO DO LEMBRETE ANTES DE CONTINUAR
         if lembrete_result:
             logger.info(f'[DOM][B2][CALLBACK] Aguardando salvamento completo do lembrete...')
-            time.sleep(2)  # Pausa adicional para garantir que o lembrete foi salvo
+            try:
+                WebDriverWait(driver, 8).until(
+                    lambda d: any("DomicEletr" in el.text for el in d.find_elements(By.CSS_SELECTOR, 'mat-panel-title.post-it-titulo')))
+            except Exception:
+                pass
         else:
             logger.error(f'[DOM][B2][CALLBACK] Falha ao criar lembrete - mas continuando com PEC')
 
@@ -567,7 +572,7 @@ def callback_bucket2(driver_detalhes, tipo_processo='desconhecido'):
 def navigate_to_activities_and_filter(driver):
     """Navegar para atividades e aplicar filtro dom.e (copiado do fluxo prazo)"""
     try:
-        from Fix.navigation import aplicar_filtro_100
+        from Fix.core import aplicar_filtro_100
         from Fix.selenium_base import safe_click, esperar_elemento, aguardar_e_clicar
         from selenium.webdriver.common.by import By
         from selenium.webdriver.common.keys import Keys
@@ -614,13 +619,15 @@ def navigate_to_activities_and_filter(driver):
             campo_descricao.send_keys(Keys.ENTER)
             logger.info('[DOM] Filtro dom.e aplicado no painel de atividades')
             # Aguardar aplicação do filtro
-            time.sleep(3)
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
 
         # Aplicar filtro 100
         aplicar_filtro_100(driver)
         logger.info('[DOM] Filtro 100 aplicado')
         # Aguardar estabilização após filtro 100
-        time.sleep(2)
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
 
     except Exception as e:
         logger.error(f'[DOM] Erro na navegação para atividades: {e}')
@@ -653,7 +660,8 @@ def execute_list_with_bucket2_callback(driver):
                 if not navigate_to_activities_and_filter(driver):
                     logger.error('[DOM] Falha ao navegar para painel de atividades')
                     return False
-                time.sleep(1)
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
         except Exception as _e:
             logger.debug(f'[DOM] Erro no pre-check de página: {_e}')
 
@@ -689,7 +697,7 @@ def execute_list_with_bucket2_callback(driver):
 
             # Pequeno delay entre itens para reduzir chance de rate-limit / ACESSO_NEGADO
             try:
-                time.sleep(1.25)
+                time.sleep(1.25)  # rate-limit
             except Exception:
                 pass
 
@@ -898,7 +906,8 @@ def _gerenciar_abas_apos_processo_dom(driver: WebDriver, aba_lista_original: str
                 continue
             try:
                 driver.switch_to.window(handle)
-                time.sleep(0.25)  # pequena pausa antes de fechar
+                WebDriverWait(driver, 3).until(
+                    lambda d: d.execute_script("return document.readyState") == "complete")
                 driver.close()
                 logger.info(f'[DOM] Aba fechada: {handle[:20]}...')
             except Exception as e:
@@ -918,7 +927,7 @@ def _gerenciar_abas_apos_processo_dom(driver: WebDriver, aba_lista_original: str
             raise Exception(f'RESTART_DRIVER: switch_to_failed ({e})')
 
         # Pequena espera para evitar rate-limit e dar tempo ao SPA atualizar a lista
-        time.sleep(2.0)
+        time.sleep(2.0)  # rate-limit
         try:
             WebDriverWait(driver, 6).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'tr.cdk-drag')))
         except Exception:
@@ -954,7 +963,8 @@ def main():
         logger.info('[DOM] Aplicando filtro de fase: conhecimento')
         from Fix.core import filtrofases
         filtrofases(driver, fases_alvo=['conhecimento'])
-        time.sleep(2)
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody tr.tr-class')))
 
         logger.info('[DOM] Aplicando filtro de chips: domicilio eletronico')
         def filtro_chips(driver, chips_alvo):
@@ -977,10 +987,10 @@ def main():
                 logger.error('[DOM] Elemento chips não encontrado')
                 return False
             driver.execute_script("arguments[0].click();", chips_element)
-            time.sleep(1)
             painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
             painel = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.CSS_SELECTOR, painel_selector)))
-            time.sleep(2)
+            WebDriverWait(driver, 5).until(
+                EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'mat-option')))
             opcoes = painel.find_elements(By.XPATH, ".//mat-option")
             chips_selecionados = []
             for chip in chips_alvo_mapeados:
@@ -990,14 +1000,16 @@ def main():
                         if chip in texto and opcao.is_displayed():
                             driver.execute_script("arguments[0].click();", opcao)
                             chips_selecionados.append(chip)
-                            time.sleep(0.5)
+                            WebDriverWait(driver, 3).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, 'mat-option.mat-selected')))
                             break
                     except Exception:
                         continue
             try:
                 botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Filtrar"]')
                 driver.execute_script("arguments[0].click();", botao_filtrar)
-                time.sleep(2)
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody tr.tr-class')))
             except Exception as e:
                 logger.error(f'[DOM] Erro ao clicar filtrar: {e}')
                 return False
@@ -1005,7 +1017,8 @@ def main():
             return len(chips_selecionados) > 0
 
         filtro_chips(driver, ['domicilio eletronico expirado', 'domicilio eletronico expedido', 'domicilio eletronico erro na transmissao'])
-        time.sleep(2)
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody tr.tr-class')))
 
         # 5. Navegar para atividades e aplicar filtro dom.e
         navigate_to_activities_and_filter(driver)
@@ -1025,7 +1038,7 @@ def main():
             try:
                 driver.quit()
                 logger.info('[DOM] Driver fechado')
-            except:
+            except Exception:
                 pass
 
 def run_dom(driver=None):
@@ -1049,7 +1062,8 @@ def run_dom(driver=None):
 
             from Fix.core import filtrofases
             filtrofases(driver, fases_alvo=['conhecimento'])
-            time.sleep(2)
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody tr.tr-class')))
 
             navigate_to_activities_and_filter(driver)
             execute_list_with_bucket2_callback(driver)

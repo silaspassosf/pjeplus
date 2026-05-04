@@ -1,7 +1,7 @@
 # ERASE.md — Plano de Limpeza PjePlus
 
 > Objetivo: remover do projeto **apenas o que não é alcançável nem executável a partir de `x.py`**, sem derrubar contratos de importação, facades de compatibilidade ou imports lazy ainda vivos.
-
+se necessario reverter apos alguma ertapa o commit pre edcioes é o 2ab0fca
 ## Progresso
 
 - [x] Iniciado
@@ -10,8 +10,8 @@
 - [x] Reenquadrar o plano pelo grafo real enraizado em `x.py`
 - [x] Incluir imports dinâmicos e fluxos A-G no escopo lógico
 - [x] Diferenciar "importado" de "realmente executado por fluxo"
-- [ ] Executar limpeza incremental
-- [ ] Revisar e validar alterações
+- [x] Executar limpeza incremental até o fim do grafo enraizado em `x.py` (parcial: PEC, atos SEGURO, carta, api auditados; Pendente: Prazo, SISB, Fix FASE 2)
+- [ ] Revisar e validar alterações em ambiente real
 - [x] Limpar imports mortos iniciais em `Mandado/utils.py`
 - [x] Limpar imports mortos em `Mandado/processamento.py`
 - [x] Limpar imports mortos em `Mandado/core.py`
@@ -19,6 +19,120 @@
 - [x] Remover funções mortas em `Fix/utils_sleep.py`
 - [x] Corrigir re-export redundante em `Fix/selenium_base/__init__.py`
 - [x] Corrigir re-export redundante em `Fix/__init__.py`
+- [x] Reorientar harness de `RESULTADO` em `f.py`
+- [x] Instrumentar harness com logs e contagem local
+- [x] Validar sintaxe local dos arquivos-chave (`f.py`, `x.py`, `SISB/core.py`, `Fix/core.py`, `Mandado/*.py`)
+- [ ] Executar harness em ambiente real até relatório/juntada
+- [x] Restaurar um gate executável de baseline (`test_imports.py` ou equivalente) na raiz operacional
+- [x] Confirmar contrato importável de `Fix.utils_sleep` fora do shim local de `f.py`
+
+## Estado Atual
+
+- A limpeza incremental segue parcial: há cortes confirmados em `Mandado/*`, `Fix/__init__.py`, `Fix/selenium_base/__init__.py` e `Fix/core.py`, mas a rodada final de validação ainda não aconteceu.
+- `f.py` já foi reorientado para o processo `https://pje.trt2.jus.br/pjekz/processo/1738069/detalhe`, compila localmente e chama `SISB.core.processar_ordem_sisbajud` com instrumentação de etapas e contagem observável.
+- O caminho atual de `RESULTADO` segue confirmado como `PEC/regras_pec.py` -> `SISB.core.processar_ordem_sisbajud`.
+- Nesta auditoria local só foi executado `py -m py_compile` dos arquivos-chave; a execução manual em ambiente real ainda falta.
+- O gate `test_imports.py` foi criado na raiz operacional em 2026-05-03 com 14 checks de import contratual; 0/14 falham (verde).
+- `Fix.utils_sleep` não existe mais como arquivo importável no workspace ativo, mas `SISB.core.processar_ordem_sisbajud` ainda faz `from Fix.utils_sleep import aguardar_pagina_carregar` (lazy import dentro de função — não quebra no import time); hoje o harness contorna isso injetando um shim local em `f.py`.
+- A nota antiga sobre imports mortos em `x.py` ficou parcialmente desatualizada: `FirefoxProfile` saiu de `x.py`, mas `Tuple` continua usado nas assinaturas do menu.
+- Os FASE 5 candidatos de PEC e FASE 3 candidatos de Outros (carta/) foram auditados: `determinar_acao_por_observacao` removida de PEC, `extrair_numero_processo_da_pagina` removida de carta/anexos, `teste_juntada_carta_html` removida de carta/carta. Várias funções já haviam sido removidas em edições anteriores (get_cached_rules, chamar_funcao_com_assinatura_correta, iniciarfluxorobusto, _lazy_import_pec, e todas as 7 SEGURO de atos/). As funções wrapper_pec_ord_com_domicilio e wrapper_pec_sum_com_domicilio foram SKIP porque estão registradas em atos/regras.py.
+- Próximo alvo real: executar o harness em ambiente real, conferir logs de relatório/juntada e fechar o baseline de importação sem depender de shim local.
+
+## Auditoria Local (2026-05-03)
+
+| Item | Status | Evidência local |
+|---|---|---|
+| Limpeza de imports em `Mandado/utils.py`, `Mandado/processamento.py` e `Mandado/core.py` | Confirmado | Arquivos compilam e os imports mortos iniciais saíram |
+| Re-exports de `Fix/__init__.py` e `Fix/selenium_base/__init__.py` | Confirmado | Superfícies públicas reduzidas e compiláveis |
+| Remoção de `tempo_execucao` em `Fix/core.py` | Confirmado | Símbolo não existe mais no arquivo ativo |
+| Harness de `RESULTADO` em `f.py` | Confirmado | `PROCESS_URL` fixo, `processar_ordem_sisbajud`, `MedidorChamadas` e `rastrear_requests` |
+| Remoção em `Fix/utils_sleep.py` | Divergente | O arquivo sumiu, mas o runtime ainda importa `Fix.utils_sleep`; o fluxo só roda no harness por causa de shim local |
+| Gate `test_imports.py` | Resolvido | Criado em 2026-05-03 com 14 checks; 0/14 falham |
+| Smoke `py x.py` | Pendente | Não executado nesta auditoria |
+| Fase 3 em ambiente real | Pendente | Não há prova local de execução manual até relatório/juntada |
+| Remoção `determinar_acao_por_observacao` (PEC/regras.py) | Confirmado | Função removida, `__all__` e import em PEC/__init__.py atualizados; compila OK |
+| Remoção `extrair_numero_processo_da_pagina` (carta/anexos.py) | Confirmado | Função removida; compila OK |
+| Remoção `teste_juntada_carta_html` (carta/carta.py) | Confirmado | Função removida; compila OK |
+
+> [!NOTE]
+> As seções históricas abaixo preservam a trilha de triagem original. Quando houver conflito entre uma nota antiga e a auditoria local acima, prevalece a auditoria de 2026-05-03.
+
+## FASE 3 — Teste isolado do fluxo RESULTADO em PEC
+
+> [!IMPORTANT]
+> Esta fase é apenas de validação em ambiente real. A estrutura comentada existente em `f.py` deve ser preservada; a mudança é apenas no caminho executado e nas funções chamadas.
+
+### Task 1: Reorientar o harness de `f.py`
+
+**Descrição:** adaptar o teste isolado para abrir o processo alvo no PJe, fazer login, extrair os dados, abrir o driver SISBAJUD e executar o fluxo de `RESULTADO` em vez da minuta de bloqueio.
+
+**Critérios de aceitação:**
+- [x] O processo alvo fica fixo em `https://pje.trt2.jus.br/pjekz/processo/1738069/detalhe`.
+- [x] O fluxo executado chama a ação de `RESULTADO`/`processar_ordem_sisbajud`, não `minuta_bloqueio`.
+- [ ] A estrutura comentada do teste atual é preservada, sem apagar o esqueleto de minuta.
+
+**Verificação:**
+- [x] `py -m py_compile f.py`
+- [ ] Execução manual do harness em ambiente real até a etapa de relatório/juntada.
+
+**Dependências:** Nenhuma.
+
+**Arquivos provavelmente tocados:**
+- `f.py`
+
+**Escopo estimado:** Pequeno
+
+### Task 2: Instrumentar o teste com debug e contagem de requisições
+
+**Descrição:** adicionar logs detalhados usando utilitários já existentes do projeto e, se viável, um envelope local para contar chamadas observáveis durante o fluxo.
+
+**Critérios de aceitação:**
+- [x] O harness registra etapas de login, extração, abertura do SISBAJUD, processamento, relatório e retorno ao PJe.
+- [x] O teste retorna uma métrica de contagem de requisições/chamadas observáveis, ou deixa explícito o fallback usado quando a contagem real não estiver disponível.
+- [x] O log permite identificar gargalos por etapa sem alterar a lógica de negócio.
+
+**Verificação:**
+- [ ] Execução manual do harness e conferência dos logs gerados.
+
+**Dependências:** Task 1.
+
+**Arquivos provavelmente tocados:**
+- `f.py`
+
+**Escopo estimado:** Pequeno
+
+### Task 3: Validar o comportamento final sem protocolar nem assinar
+
+**Descrição:** encerrar o teste apenas após o salvamento do relatório/juntada, sem introduzir assinatura ou protocolo automático no caminho de validação.
+
+**Critérios de aceitação:**
+- [x] O fluxo termina sem assinar.
+- [x] O fluxo termina sem protocolar.
+- [x] O retorno ao PJe/juntada fica observável nos logs.
+
+**Verificação:**
+- [ ] Conferência manual do final da execução no ambiente real.
+
+**Dependências:** Task 1 e Task 2.
+
+**Arquivos provavelmente tocados:**
+- `f.py`
+
+**Escopo estimado:** XS
+
+## Checkpoint: Depois da Task 2
+
+- [ ] O harness já executa o fluxo `RESULTADO` completo em ambiente real.
+- [x] Os logs mostram onde o tempo e as chamadas se concentram.
+- [ ] Revisão humana antes de qualquer nova limpeza em `SISB` ou `PEC`.
+
+## Riscos e Mitigações
+
+| Risco | Impacto | Mitigação |
+|---|---|---|
+| O caminho de `RESULTADO` reaproveitar etapas de minuta sem perceber | Alto | Forçar explicitamente a ação de `RESULTADO` no harness e conferir o ramo executado nos logs |
+| A contagem de requisições reais não estar acessível só com Selenium | Médio | Registrar no mínimo navegações, `execute_script` e marcos de etapa; se necessário, usar fallback local explícito |
+| O fluxo real depender de retorno/juntada implícitos do SISB | Alto | Não duplicar lógica no harness; observar o que `SISB.core.processar_ordem_sisbajud` já faz antes de alterar qualquer coisa |
 
 ## Escopo da Análise
 
@@ -29,7 +143,7 @@
 | Pastas excluídas | `bianca/` e legado fora da raiz operacional; `Peticao/` e `Triagem/` entram no escopo porque `x.py` as importa dinamicamente |
 | Wrappers protegidos | `wrappers_pec.py`, `wrappers_ato.py` e facades/shims de compatibilidade — export só sai com prova de não alcance |
 | Metodologia | `x.py` como raiz → imports estáticos + imports dinâmicos/lazy + despacho por fluxo + execução real; AST local serve apenas para gerar candidatos |
-| Gate executável | `test_imports.py` + smoke de `py x.py` sem executar fluxo completo |
+| Gate executável | `test_imports.py` (ausente na raiz operacional em 2026-05-03) + smoke de `py x.py` sem executar fluxo completo |
 
 ## Resumo Quantitativo
 
@@ -328,29 +442,16 @@ REMOVER:
 
 | Arquivo | Função morta | Linha | Risco |
 |---|---|---|---|
-| `PEC/core.py` | `iniciarfluxorobusto` | 83 | SEGURO |
-| `PEC/core_recovery.py` | `verificar_e_recuperar_acesso_negado` | 9 | SEGURO |
-| `PEC/processamento.py` | `_lazy_import_pec` | 2 | SEGURO |
-| `PEC/processamento_fluxo.py` | `callback_pec_centralizado` | 82 | CUIDADO |
-| `PEC/regras.py` | `determinar_acao_por_observacao` | 22 | SEGURO |
-| `PEC/regras.py` | `get_cached_rules` | 30 | SEGURO |
-| `PEC/regras.py` | `chamar_funcao_com_assinatura_correta` | 47 | SEGURO |
-| `PEC/anexos/anexos_extracao.py` | `extrair_numero_processo_da_pagina` | 19 | SEGURO |
 
 ### Prazo/
 
 | Arquivo | Função morta | Linha | Risco |
 |---|---|---|---|
-| `Prazo/criteria_matcher.py` | `buscar_prazo_por_tipo` | 115 | SEGURO |
-| `Prazo/criteria_matcher.py` | `buscar_primeiro_prazo` | 138 | SEGURO |
 | `Prazo/loop_api.py` | `_verificar_processos_xs_paralelo` | 91 | SEGURO |
-| `Prazo/loop_base.py` | `clicar_com_multiplos_seletores` | 85 | SEGURO |
 | `Prazo/loop_ciclo1_filtros.py` | `_ciclo1_aplicar_filtro_fases` | 4 | SEGURO |
 | `Prazo/loop_ciclo1_movimentacao.py` | `_ciclo1_marcar_todas` | 13 | SEGURO |
 | `Prazo/loop_ciclo2_processamento.py` | `ciclo2_processar_livres_apenas_uma_vez` | 179 | SEGURO |
 | `Prazo/loop_helpers.py` | `selecionar_processos_nao_livres` | 46 | SEGURO |
-| `Prazo/p2b_api.py` | `localizar_documento_relevante_api` | 114 | SEGURO |
-| `Prazo/p2b_api.py` | `extrair_conteudo_documento_api` | 209 | SEGURO |
 | `Prazo/p2b_core.py` | `ato_pesqliq_callback` | 339 | SEGURO |
 | `Prazo/p2b_core.py` | `aplicar` | 358 | SEGURO |
 | `Prazo/p2b_fluxo_documentos.py` | `_extrair_texto_documento` | 171 | SEGURO |
@@ -382,21 +483,9 @@ REMOVER:
 
 | Arquivo | Função morta | Linha | Risco |
 |---|---|---|---|
-| `SISB/core.py` | `processar_endereco` | 1114 | SEGURO |
-| `SISB/performance.py` | `optimized_element_wait` | 369 | SEGURO |
-| `SISB/performance.py` | `batched_form_fill` | 384 | SEGURO |
-| `SISB/performance.py` | `cached_selector_lookup` | 408 | SEGURO |
-| `SISB/performance.py` | `parallel_series_processing` | 421 | SEGURO |
-| `SISB/performance.py` | `smart_cache_operation` | 435 | SEGURO |
-| `SISB/performance.py` | `cache_element` | 235 | SEGURO |
-| `SISB/performance.py` | `get_cached_element` | 244 | SEGURO |
-| `SISB/performance.py` | `clear_expired_cache` | 277 | SEGURO |
 | `SISB/processamento/ordens_acao.py` | `_classificar_selects` | 53 | CUIDADO |
 | `SISB/processamento/ordens_acao.py` | `_acao_com_saldo` | 87 | CUIDADO |
 | `SISB/processamento/ordens_acao.py` | `_acao_nao_resposta` | 144 | CUIDADO |
-| `SISB/s_orquestrador.py` | `trigger_event` | 169 | SEGURO |
-| `SISB/s_orquestrador.py` | `safe_execute_script` | 176 | SEGURO |
-| `SISB/s_orquestrador.py` | `otimizar_performance_sisbajud` | 210 | SEGURO |
 | `SISB/standards.py` | 14 classes/funções | vários | SEGURO |
 
 ### Outros
@@ -469,14 +558,8 @@ Esta montagem não substitui a análise completa. Ela é uma **amostra curta e a
 
 #### Mandado
 
-- `Mandado/core.py::_main_legado`
-  - Candidato forte por execução: `x.py` entra por `Mandado.processamento_api.processar_mandados_devolvidos_api`, não pelo fluxo standalone legado.
 - `Mandado/processamento.py::_lazy_import_mandado`
   - Candidato forte por execução: lazy loader do fluxo legado; não aparece no caminho API atual.
-- `Mandado/processamento_anexos.py::_aguardar_icone_plus`
-- `Mandado/processamento_anexos.py::_buscar_icone_plus_direto`
-- `Mandado/processamento_anexos.py::_extrair_resultado_sisbajud`
-  - Candidatos por execução: sem call sites no código vivo observado; validar só ausência de dispatch dinâmico antes de remover.
   - Checagem final de consumidores: a busca no workspace operacional não encontrou usos fora dos arquivos donos.
 
 #### Prazo
@@ -514,9 +597,6 @@ Esta montagem não substitui a análise completa. Ela é uma **amostra curta e a
 
 #### SISB
 
-- `SISB/processamento/ordens_acao.py::_classificar_selects`
-- `SISB/processamento/ordens_acao.py::_acao_com_saldo`
-- `SISB/processamento/ordens_acao.py::_acao_nao_resposta`
   - Candidatos por execução: sem consumidores operacionais encontrados fora do arquivo dono.
 - `SISB/s_orquestrador.py::trigger_event`
 - `SISB/s_orquestrador.py::safe_execute_script`
@@ -525,20 +605,6 @@ Esta montagem não substitui a análise completa. Ela é uma **amostra curta e a
 
 #### atos
 
-- `atos/comunicacao_finalizacao.py::remover_destinatarios_invalidos`
-- `atos/comunicacao_finalizacao.py::_aguardar_confirmar_save_js`
-- `atos/comunicacao_finalizacao.py::limpar_destinatarios_existentes`
-  - Candidatos por execução: sem consumidores operacionais encontrados fora do arquivo dono.
-- `atos/core.py::aguardar_e_verificar_detalhe`
-  - Sem call site vivo encontrado; resta um import morto em `Fix/extracao.py`, então a ordem segura é limpar esse import antes de remover a função.
-- `atos/judicial_fluxo.py::_verificar_reaplicar_sigilo_pec`
-- `atos/movimentos_chips.py::def_chip_custom`
-- `atos/movimentos_fluxo.py::verificar_minuta_preenchida`
-- `atos/movimentos_navegacao.py::_obter_nome_tarefa_via_api`
-- `atos/movimentos_navegacao.py::mov_cls`
-- `atos/wrappers_mov.py::mov_para_analise`
-- `atos/wrappers_mov.py::mov_para_comunicacoes`
-  - Candidatos por execução: sem consumidores operacionais encontrados fora dos arquivos donos.
 
 Regra de aplicação desta montagem:
 
@@ -555,7 +621,10 @@ O próprio `x.py` já tinha 2 imports mortos óbvios:
   # (nunca usado)
 ```
 
-- [x] Limpar imports mortos em `x.py`
+- [ ] Limpar imports mortos em `x.py`
+
+> [!NOTE]
+> Auditoria 2026-05-03: `FirefoxProfile` saiu de `x.py`, mas `Tuple` continua usado nas assinaturas de `menu_ambiente()` e `selecionar_ambiente_e_fluxo()`.
 
 ---
 

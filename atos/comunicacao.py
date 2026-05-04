@@ -332,5 +332,9 @@ def make_comunicacao_wrapper(
 
         except Exception as e:
             log_fn(f"[COMUNICACAO][ORQUESTRA][ERRO] Falha no fluxo: {e}")
-    
+
     return wrapper
+
+
+# Registry de regras/acoes (contrato unificado)
+from .regras import registry

@@ -12,3 +12,6 @@ __all__ = [
     'def_chip',
     'despacho_generico',
 ]
+
+# Registry de regras/acoes (contrato unificado)
+from .regras import registry

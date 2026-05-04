@@ -3,6 +3,7 @@ import time
 import traceback
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
@@ -36,7 +37,7 @@ def login_automatico_sisbajud(driver):
         logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD...')
         driver.get('https://sisbajud.cnj.jus.br/')
 
-        time.sleep(random.uniform(1.0, 1.5))
+        time.sleep(random.uniform(1.0, 1.5))  # rate-limit: aguardar carregamento inicial
 
         current_url = driver.current_url
         if not any(indicador in current_url.lower() for indicador in ['login', 'auth', 'realms']):
@@ -48,17 +49,17 @@ def login_automatico_sisbajud(driver):
             username_field = driver.find_element(By.ID, "username")
             simular_movimento_humano(driver, username_field)
             username_field.click()
-            time.sleep(random.uniform(0.3, 0.7))
+            time.sleep(random.uniform(0.3, 0.7))  # rate-limit: simulacao humana
             cpf = "30069277885"
             for char in cpf:
                 if random.random() < 0.05:
                     erro_char = str(random.randint(0, 9))
                     username_field.send_keys(erro_char)
-                    time.sleep(random.uniform(0.08, 0.18))
+                    time.sleep(random.uniform(0.08, 0.18))  # rate-limit: simulacao de erro de digitacao
                     username_field.send_keys(Keys.BACKSPACE)
-                    time.sleep(random.uniform(0.08, 0.18))
+                    time.sleep(random.uniform(0.08, 0.18))  # rate-limit: pausa apos backspace
                 username_field.send_keys(char)
-                time.sleep(random.uniform(0.09, 0.22))
+                time.sleep(random.uniform(0.09, 0.22))  # rate-limit: intervalo entre caracteres
         except Exception as e:
             logger.info(f'[SISBAJUD][LOGIN] Erro ao digitar CPF: {e}')
             return False
@@ -68,17 +69,17 @@ def login_automatico_sisbajud(driver):
             password_field = driver.find_element(By.ID, "password")
             simular_movimento_humano(driver, password_field)
             password_field.click()
-            time.sleep(random.uniform(0.3, 0.7))
+            time.sleep(random.uniform(0.3, 0.7))  # rate-limit: simulacao humana
             senha = "Fl@quinho182"
             for char in senha:
                 if random.random() < 0.05:
                     erro_char = chr(random.randint(33, 126))
                     password_field.send_keys(erro_char)
-                    time.sleep(random.uniform(0.08, 0.18))
+                    time.sleep(random.uniform(0.08, 0.18))  # rate-limit: simulacao de erro de digitacao
                     password_field.send_keys(Keys.BACKSPACE)
-                    time.sleep(random.uniform(0.08, 0.18))
+                    time.sleep(random.uniform(0.08, 0.18))  # rate-limit: pausa apos backspace
                 password_field.send_keys(char)
-                time.sleep(random.uniform(0.09, 0.22))
+                time.sleep(random.uniform(0.09, 0.22))  # rate-limit: intervalo entre caracteres
         except Exception as e:
             logger.info(f'[SISBAJUD][LOGIN] Erro ao digitar senha: {e}')
             return False
@@ -93,28 +94,26 @@ def login_automatico_sisbajud(driver):
             return False
 
         logger.info('[SISBAJUD][LOGIN] Aguardando redirecionamento...')
-        max_tentativas = 20
-        for _ in range(max_tentativas):
-            time.sleep(0.5)
+        try:
+            WebDriverWait(driver, 10).until(
+                lambda d: 'sisbajud.cnj.jus.br' in (d.current_url or '').lower()
+                and not any(ind in (d.current_url or '').lower() for ind in ['login', 'auth', 'realms'])
+            )
+            logger.info('[SISBAJUD][LOGIN] Login realizado com sucesso')
             try:
-                current_url = driver.current_url.lower()
-                if 'sisbajud.cnj.jus.br' in current_url and not any(ind in current_url for ind in ['login', 'auth', 'realms']):
-                    logger.info('[SISBAJUD][LOGIN] Login realizado com sucesso')
-                    try:
-                        driver.maximize_window()
-                    except Exception:
-                        pass
-                    return True
-
-                if any(ind in current_url for ind in ['auth', 'realms']) and 'kc-login' not in driver.page_source:
-                    logger.info('[SISBAJUD][LOGIN] Login automatico nao concluido - pode necessitar verificacao manual')
-                    logger.info('[SISBAJUD][LOGIN] URL atual:', driver.current_url)
-                    return 'manual_needed'
-
+                driver.maximize_window()
             except Exception:
                 pass
+            return True
+        except Exception:
+            pass
 
         current_url = driver.current_url.lower()
+        if any(ind in current_url for ind in ['auth', 'realms']) and 'kc-login' not in driver.page_source:
+            logger.info('[SISBAJUD][LOGIN] Login automatico nao concluido - pode necessitar verificacao manual')
+            logger.info('[SISBAJUD][LOGIN] URL atual:', driver.current_url)
+            return 'manual_needed'
+
         if 'sisbajud.cnj.jus.br' in current_url and not any(ind in current_url for ind in ['login', 'auth', 'realms']):
             logger.info('[SISBAJUD][LOGIN] Login realizado com sucesso (apos timeout)')
             return True
@@ -141,30 +140,27 @@ def login_manual_sisbajud(driver, aguardar_url_final=True):
 
         target_indicator = 'sisbajud.cnj.jus.br'
         timeout = 300
-        inicio = time.time()
-        while True:
+        if not aguardar_url_final:
+            return False
+        try:
+            WebDriverWait(driver, timeout).until(
+                lambda d: target_indicator in (d.current_url or '').lower()
+                and not any(ind in (d.current_url or '').lower() for ind in ['login', 'auth', 'realms'])
+            )
+            logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou).')
             try:
-                current = driver.current_url.lower()
-                if target_indicator in current and not any(ind in current for ind in ['login', 'auth', 'realms']):
-                    logger.info('[SISBAJUD][LOGIN_MANUAL] Login detectado manualmente (URL mudou).')
+                from driver_config import salvar_cookies_sessao, salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
+                if SALVAR_COOKIES_AUTOMATICO:
                     try:
-                        from driver_config import salvar_cookies_sessao, salvar_cookies_sisbajud, SALVAR_COOKIES_AUTOMATICO
-                        if SALVAR_COOKIES_AUTOMATICO:
-                            try:
-                                salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
-                            except Exception as e:
-                                logger.info(f"[SISBAJUD][LOGIN_MANUAL] Falha ao salvar cookies: {e}")
-                    except Exception:
-                        pass
-                    return True
+                        salvar_cookies_sisbajud(driver, info_extra='login_manual_sisbajud')
+                    except Exception as e:
+                        logger.info(f"[SISBAJUD][LOGIN_MANUAL] Falha ao salvar cookies: {e}")
             except Exception:
                 pass
-            if not aguardar_url_final:
-                return False
-            if time.time() - inicio > timeout:
-                logger.info('[SISBAJUD][LOGIN_MANUAL] Timeout aguardando login manual.')
-                return False
-            time.sleep(0.5)
+            return True
+        except Exception:
+            logger.info('[SISBAJUD][LOGIN_MANUAL] Timeout aguardando login manual.')
+            return False
     except Exception as e:
         logger.info(f'[SISBAJUD][LOGIN_MANUAL] Erro durante login manual: {e}')
         return False

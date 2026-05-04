@@ -1,15 +1,9 @@
 """Mandado - Processamento Automatizado de Mandados PJe TRT2.
 
-Arquivos consolidados (entrypoints ativos):
+Entrypoints ativos:
 - entrada_api: API e entrypoint principal
 - fluxo_argos: Processamento Argos e anexos
 - apoio_fluxos: Core, utils, sigilo, lembrete, intimacao
-
-Arquivos LEGADO (thin shims de compatibilidade):
-- processamento.py, processamento_fluxo.py, core.py
-- processamento_api.py, processamento_argos.py, processamento_anexos.py
-- processamento_outros.py, utils.py, utils_intimacao.py
-- utils_sigilo.py, utils_lembrete.py, regras.py, atos_wrapper.py
 """
 
 from .entrada_api import (

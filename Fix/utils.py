@@ -5,22 +5,14 @@ Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 """
 
 import os
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import (
-    TimeoutException, NoSuchElementException, StaleElementReferenceException,
-    WebDriverException, NoSuchWindowException, ElementClickInterceptedException, 
-    ElementNotInteractableException
-)
-from typing import Optional, Dict, Any, List, Union, Callable
+from typing import Optional
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-import re, time, datetime, json, pyperclip, logging, glob
+import re, time, datetime, json, pyperclip, glob
+import unicodedata
 from datetime import timedelta, datetime
-from pathlib import Path
 from .log import logger
 
 # Configuração global para recuperação automática de driver
@@ -29,6 +21,19 @@ _driver_recovery_config = {
     'criar_driver': None,
     'login_func': None
 }
+
+
+def remover_acentos(txt: str) -> str:
+    """Remove acentos/diacríticos de texto — fonte canônica do projeto."""
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', str(txt))
+        if unicodedata.category(c) != 'Mn'
+    )
+
+
+def normalizar_texto(txt: str) -> str:
+    """Remove acentos e converte para minúsculas."""
+    return remover_acentos(txt.lower())
 
 
 def sleep_fixed(segundos=1):
@@ -162,41 +167,6 @@ def normalizar_cpf_cnpj(documento):
     return documento_limpo
 
 
-def extrair_raiz_cnpj(cnpj):
-    """
-    Extrai apenas a raiz do CNPJ (antes de 000)
-    Para CNPJ no formato 38448964000170, retorna 38448964
-    """
-    if not cnpj:
-        return ""
-    
-    # Normaliza primeiro (remove pontuação)
-    cnpj_limpo = normalizar_cpf_cnpj(cnpj)
-    
-    # Se tem 14 dígitos (CNPJ completo), pega os primeiros 8 dígitos (raiz)
-    if len(cnpj_limpo) == 14:
-        return cnpj_limpo[:8]
-    
-    # Se não é CNPJ de 14 dígitos, retorna como está
-    return cnpj_limpo
-
-
-def identificar_tipo_documento(documento):
-    """
-    Identifica se é CPF (11 dígitos) ou CNPJ (14 dígitos)
-    """
-    if not documento:
-        return "UNKNOWN"
-    
-    documento_limpo = normalizar_cpf_cnpj(documento)
-    
-    if len(documento_limpo) == 11:
-        return "CPF"
-    elif len(documento_limpo) == 14:
-        return "CNPJ"
-    else:
-        return "UNKNOWN"
-
 # Flag simples para ativar logs detalhados quando necessário (sem novos arquivos)
 DEBUG = os.getenv('PJEPLUS_DEBUG', '0') in ('1', 'true', 'TRUE', 'on', 'ON')
 
@@ -226,12 +196,11 @@ def _audit(event, selector, status, extra=None):
 # Helpers de log locais (sem arquivos novos)
 
 def _log_info(msg):
-    if DEBUG:
-        print(msg)
+    logger.debug(msg)
 
 
 def _log_error(msg):
-    print(msg)
+    logger.error(msg)
 
 # =========================
 # 2. FUNÇÕES DE SETUP E INICIALIZAÇÃO
@@ -264,12 +233,12 @@ def limpar_temp_selenium():
                         os.remove(filepath)
                         deleted += 1
                 except Exception as e:
-                    print(f'[AVISO] Não removeu {filepath}: {str(e)}')
-        
-        print(f'[SELENIUM] Limpeza concluída - {deleted} arquivos removidos')
+                    logger.warning('limpar_temp_selenium: Nao removeu %s: %s', filepath, str(e))
+
+        logger.debug('[SELENIUM] Limpeza concluida - %s arquivos removidos', deleted)
         return True
     except Exception as e:
-        print(f'[ERRO] Falha na limpeza: {str(e)}')
+        logger.error('ERRO em limpar_temp_selenium: %s: %s', type(e).__name__, e)
         return False
 
 # Seção: Navegação
@@ -289,16 +258,16 @@ def login_manual(driver, aguardar_url_painel=True):
         return True
     
     url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
-    print(f'[LOGIN_MANUAL] Navegando para tela de login: {url_login}')
+    logger.info('[LOGIN_MANUAL] Navegando para tela de login: %s', url_login)
     driver.get(url_login)
     painel_url = 'https://pje.trt2.jus.br/pjekz/gigs/meu-painel'
-    print(f'[LOGIN_MANUAL] Aguarde, faça o login manualmente e navegue até: {painel_url}')
-    
+    logger.info('[LOGIN_MANUAL] Aguarde o login manual ate: %s', painel_url)
+
     if aguardar_url_painel:
         while True:
             try:
                 if driver.current_url.startswith(painel_url):
-                    print('[LOGIN_MANUAL] Painel detectado! Login realizado com sucesso.')
+                    logger.debug('[LOGIN_MANUAL] Painel detectado, login realizado')
                     if SALVAR_COOKIES_AUTOMATICO:
                         salvar_cookies_sessao(driver, info_extra='login_manual')
                     break
@@ -320,45 +289,41 @@ def login_automatico(driver):
     import subprocess
     login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
     driver.get(login_url)
-    print(f"[LOGIN_AUTOMATICO] Navegando para a URL de login: {login_url}")
-    
+    logger.info("[LOGIN_AUTOMATICO] Navegando para URL de login: %s", login_url)
+
     try:
-        # Usar aguardar_e_clicar (OTIMIZADO)
         if not aguardar_e_clicar(driver, '#btnSsoPdpj', timeout=10):
-            print("[LOGIN_AUTOMATICO][ERRO] Botão #btnSsoPdpj não encontrado")
+            logger.error("ERRO em login_automatico: Botao #btnSsoPdpj nao encontrado")
             return False
-        print("[LOGIN_AUTOMATICO] Botão #btnSsoPdpj clicado com sucesso.")
-        
+
         if not aguardar_e_clicar(driver, '.botao-certificado-titulo', timeout=10):
-            print("[LOGIN_AUTOMATICO][ERRO] Botão certificado não encontrado")
+            logger.error("ERRO em login_automatico: Botao certificado nao encontrado")
             return False
-        print("[LOGIN_AUTOMATICO] Botão .botao-certificado-titulo clicado com sucesso.")
-        
-        # Usar função auxiliar (OTIMIZADO - evita duplicação)
+
         ahk_exe, ahk_script = _obter_caminhos_ahk()
 
         if not ahk_exe or not os.path.exists(ahk_exe):
-            print(f"[LOGIN_AUTOMATICO][ERRO] Executável AutoHotkey não encontrado: {ahk_exe}")
+            logger.error("ERRO em login_automatico: Executavel AutoHotkey nao encontrado: %s", ahk_exe)
             return False
         if not ahk_script or not os.path.exists(ahk_script):
-            print(f"[LOGIN_AUTOMATICO][ERRO] Script AutoHotkey não encontrado: {ahk_script}")
+            logger.error("ERRO em login_automatico: Script AutoHotkey nao encontrado: %s", ahk_script)
             return False
 
         subprocess.Popen([ahk_exe, ahk_script])
-        print("[LOGIN_AUTOMATICO] Script AutoHotkey chamado para digitar a senha.")
-        
+        logger.debug("[LOGIN_AUTOMATICO] Script AutoHotkey chamado para digitar a senha")
+
         for _ in range(60):
             if "login" not in driver.current_url.lower():
-                print("[LOGIN_AUTOMATICO] Login detectado, prosseguindo.")
+                logger.debug("[LOGIN_AUTOMATICO] Login detectado, prosseguindo")
                 if SALVAR_COOKIES_AUTOMATICO:
                     salvar_cookies_sessao(driver, info_extra='login_automatico')
                 return True
             time.sleep(1)
-        
-        print("[ERRO] Timeout aguardando login.")
+
+        logger.error("ERRO em login_automatico: Timeout aguardando login")
         return False
     except Exception as e:
-        print(f"[ERRO] Falha no processo de login: {e}")
+        logger.error("ERRO em login_automatico: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -366,53 +331,49 @@ def login_automatico_direto(driver):
     """Login automático DIRETO via AutoHotkey - OTIMIZADO: usa aguardar_e_clicar() e _obter_caminhos_ahk()"""
     import subprocess
     
-    print('[LOGIN_AUTOMATICO_DIRETO] Iniciando login direto sem cookies...')
+    logger.info('[LOGIN_AUTOMATICO_DIRETO] Iniciando login direto sem cookies')
     login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
     driver.get(login_url)
-    print(f"[LOGIN_AUTOMATICO_DIRETO] Navegando para a URL de login: {login_url}")
-    
+    logger.info("[LOGIN_AUTOMATICO_DIRETO] Navegando para URL de login: %s", login_url)
+
     try:
-        # Usar aguardar_e_clicar (OTIMIZADO)
         if not aguardar_e_clicar(driver, '#btnSsoPdpj', timeout=10):
-            print("[LOGIN_AUTOMATICO_DIRETO][ERRO] Botão #btnSsoPdpj não encontrado")
+            logger.error("ERRO em login_automatico_direto: Botao #btnSsoPdpj nao encontrado")
             return False
-        print("[LOGIN_AUTOMATICO_DIRETO] Botão #btnSsoPdpj clicado com sucesso.")
-        
+
         if not aguardar_e_clicar(driver, '.botao-certificado-titulo', timeout=10):
-            print("[LOGIN_AUTOMATICO_DIRETO][ERRO] Botão certificado não encontrado")
+            logger.error("ERRO em login_automatico_direto: Botao certificado nao encontrado")
             return False
-        print("[LOGIN_AUTOMATICO_DIRETO] Botão .botao-certificado-titulo clicado com sucesso.")
-        
-        # Usar função auxiliar (OTIMIZADO - evita duplicação)
+
         ahk_exe, ahk_script = _obter_caminhos_ahk()
 
         if not ahk_exe or not os.path.exists(ahk_exe):
-            print(f"[LOGIN_AUTOMATICO_DIRETO][ERRO] Executável AutoHotkey não encontrado: {ahk_exe}")
+            logger.error("ERRO em login_automatico_direto: Executavel AutoHotkey nao encontrado: %s", ahk_exe)
             return False
         if not ahk_script or not os.path.exists(ahk_script):
-            print(f"[LOGIN_AUTOMATICO_DIRETO][ERRO] Script AutoHotkey não encontrado: {ahk_script}")
+            logger.error("ERRO em login_automatico_direto: Script AutoHotkey nao encontrado: %s", ahk_script)
             return False
 
         subprocess.Popen([ahk_exe, ahk_script])
-        print("[LOGIN_AUTOMATICO_DIRETO] Script AutoHotkey chamado para digitar a senha.")
-        
+        logger.debug("[LOGIN_AUTOMATICO_DIRETO] Script AutoHotkey chamado para digitar a senha")
+
         for _ in range(60):
             if "login" not in driver.current_url.lower():
-                print("[LOGIN_AUTOMATICO_DIRETO] Login detectado, prosseguindo.")
+                logger.debug("[LOGIN_AUTOMATICO_DIRETO] Login detectado, prosseguindo")
                 if SALVAR_COOKIES_AUTOMATICO:
                     salvar_cookies_sessao(driver, info_extra='login_automatico_direto')
                 return True
             time.sleep(1)
-        
-        print("[LOGIN_AUTOMATICO_DIRETO] Timeout aguardando login.")
+
+        logger.error("ERRO em login_automatico_direto: Timeout aguardando login")
         return False
-        
+
     except Exception as e:
-        print(f"[LOGIN_AUTOMATICO_DIRETO] Falha no processo de login: {e}")
+        logger.error("ERRO em login_automatico_direto: %s: %s", type(e).__name__, e)
         return False
 
 
-def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguardar_url_final=True):
+def login_cpf(driver, url_login=None, cpf=None, senha=None, aguardar_url_final=True):
     """Login automático por CPF/senha - OTIMIZADO: usa preencher_multiplos_campos()"""
     try:
         # tentar aplicar cookies previamente salvos
@@ -427,30 +388,55 @@ def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguar
         from selenium.webdriver.common.by import By
         import time
 
+        if cpf is None:
+            cpf = os.environ.get('PJE_USER')
+            if not cpf:
+                try:
+                    import keyring
+                    cpf = keyring.get_password('pjeplus', 'PJE_USER')
+                except Exception:
+                    pass
+        if senha is None:
+            senha = os.environ.get('PJE_SENHA')
+            if not senha:
+                try:
+                    import keyring
+                    senha = keyring.get_password('pjeplus', 'PJE_SENHA')
+                except Exception:
+                    pass
+        if not cpf or not senha:
+            logger.error('ERRO em login_cpf: Credenciais ausentes. Defina PJE_USER/PJE_SENHA como variavel de ambiente ou no keyring (servico "pjeplus").')
+            return False
+
         if not url_login:
             url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
 
-        print(f"[LOGIN_CPF] Navegando para: {url_login}")
+        logger.info("[LOGIN_CPF] Navegando para: %s", url_login)
         driver.get(url_login)
-        time.sleep(1.2)
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+        except Exception:
+            pass
 
-        # Se já estamos logados (URL não contém 'login'/'auth'), retorna True
+        # Se ja estamos logados (URL nao contem 'login'/'auth'), retorna True
         try:
             cur = driver.current_url.lower()
             if not any(k in cur for k in ['login', 'auth', 'realms']):
-                print('[LOGIN_CPF] ✅ Já autenticado (URL indica sessão ativa)')
+                logger.debug('[LOGIN_CPF] Ja autenticado (URL indica sessao ativa)')
                 return True
         except Exception:
             pass
 
-        # Clicar no botão SSO PDPJ antes de preencher credenciais
+        # Clicar no botao SSO PDPJ antes de preencher credenciais
         try:
             btn_sso = driver.find_element(By.ID, 'btnSsoPdpj')
             btn_sso.click()
-            print('[LOGIN_CPF] ✅ Botão SSO PDPJ clicado')
+            logger.debug('[LOGIN_CPF] Botao SSO PDPJ clicado')
             time.sleep(1.0)
         except Exception as e:
-            print(f"[LOGIN_CPF] ❌ Falha ao clicar no botão SSO PDPJ: {e}")
+            logger.error("ERRO em login_cpf: Falha ao clicar no botao SSO PDPJ: %s", e)
             return False
 
         # Digitar CPF no campo username
@@ -460,9 +446,9 @@ def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguar
             for ch in str(cpf):
                 username_field.send_keys(ch)
                 time.sleep(0.07)
-            print('[LOGIN_CPF] ✅ CPF digitado')
+            logger.debug('[LOGIN_CPF] CPF digitado')
         except Exception as e:
-            print(f"[LOGIN_CPF] ❌ Não foi possível preencher CPF: {e}")
+            logger.error("ERRO em login_cpf: Nao foi possivel preencher CPF: %s", e)
             return False
 
         # Digitar senha no campo password
@@ -472,18 +458,18 @@ def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguar
             for ch in str(senha):
                 password_field.send_keys(ch)
                 time.sleep(0.07)
-            print('[LOGIN_CPF] ✅ Senha digitada')
+            logger.debug('[LOGIN_CPF] Senha digitada')
         except Exception as e:
-            print(f"[LOGIN_CPF] ❌ Não foi possível preencher senha: {e}")
+            logger.error("ERRO em login_cpf: Nao foi possivel preencher senha: %s", e)
             return False
 
-        # Clicar no botão de login (id comum do Keycloak)
+        # Clicar no botao de login (id comum do Keycloak)
         try:
             btn = driver.find_element(By.ID, 'kc-login')
             btn.click()
-            print('[LOGIN_CPF] ✅ Botão de login clicado')
+            logger.debug('[LOGIN_CPF] Botao de login clicado')
         except Exception as e:
-            print(f"[LOGIN_CPF] ❌ Falha ao clicar no botão de login: {e}")
+            logger.error("ERRO em login_cpf: Falha ao clicar no botao de login: %s", e)
             return False
 
         # Aguardar redirecionamento/URL final
@@ -494,7 +480,7 @@ def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguar
                 try:
                     cur = driver.current_url.lower()
                     if 'pjekz' in cur or 'sisbajud' in cur or not any(k in cur for k in ['login', 'auth', 'realms']):
-                        print('[LOGIN_CPF] ✅ Login detectado por mudança de URL')
+                        logger.debug('[LOGIN_CPF] Login detectado por mudanca de URL')
                         try:
                             if SALVAR_COOKIES_AUTOMATICO:
                                 salvar_cookies_sessao(driver, info_extra='login_cpf')
@@ -504,14 +490,14 @@ def login_cpf(driver, url_login=None, cpf='35305203813', senha='SpF59866', aguar
                 except Exception:
                     pass
                 time.sleep(0.5)
-            print('[LOGIN_CPF] ⚠️ Timeout aguardando redirecionamento pós-login')
+            logger.warning('[LOGIN_CPF] Timeout aguardando redirecionamento pos-login')
             return False
 
-        # Se não aguardamos, consideramos sucesso imediato
+        # Se nao aguardamos, consideramos sucesso imediato
         return True
 
     except Exception as e:
-        print(f"[LOGIN_CPF] Erro durante login_cpf: {e}")
+        logger.error("ERRO em login_cpf: %s: %s", type(e).__name__, e)
         return False
 
 # ====================================================================
@@ -541,8 +527,7 @@ def _obter_caminhos_ahk():
 
 def _log_msg_coleta(contexto: str, msg: str, debug: bool = False):
     """Função de logging unificada para coleta/inserção"""
-    if debug:
-        print(f"[{contexto}] {msg}")
+    logger.debug("[%s] %s", contexto, msg)
 
 
 def _extrair_numero_processo_cnj(driver) -> Optional[str]:
@@ -1035,7 +1020,7 @@ def _get_editable(driver, debug: bool = False):
             el = driver.find_element(By.CSS_SELECTOR, sel)
             if el and el.is_displayed() and el.is_enabled():
                 if debug:
-                    print(f"[EDITOR]  Editor encontrado por seletor: {sel}")
+                    logger.debug("[EDITOR] Editor encontrado por seletor: %s", sel)
                 return el
         except Exception:
             continue
@@ -1080,8 +1065,8 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
     """Insere conteúdo HTML no editor CKEditor"""
     try:
         if debug:
-            print(f'[EDITOR] Iniciando inserção HTML')
-            print(f'[EDITOR] Marcador: "{marcador}"')
+            logger.debug('[EDITOR] Iniciando insercao HTML')
+            logger.debug('[EDITOR] Marcador: "%s"', marcador)
 
         editable = _get_editable(driver, debug)
 
@@ -1095,7 +1080,7 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
 
         if not _place_selection_at_marker(driver, editable, marcador, modo, debug):
             if debug:
-                print(f'[EDITOR] Marcador "{marcador}" não encontrado')
+                logger.debug('[EDITOR] Marcador "%s" nao encontrado', marcador)
             return False
 
         html_content_clean = (html_content.replace('\x00', '').replace('\r', '').strip())
@@ -1141,7 +1126,7 @@ def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "
     """Insere texto simples no editor CKEditor"""
     try:
         if debug:
-            print(f'[EDITOR] Iniciando inserção de texto: {texto[:50]}...')
+            logger.debug('[EDITOR] Iniciando insercao de texto: %s...', texto[:50])
 
         editable = _get_editable(driver, debug)
 
@@ -1152,7 +1137,7 @@ def inserir_texto_editor(driver, texto: str, marcador: str = "--", modo: str = "
 
         if not _place_selection_at_marker(driver, editable, marcador, modo, debug):
             if debug:
-                print(f'[EDITOR] Marcador "{marcador}" não encontrado')
+                logger.debug('[EDITOR] Marcador "%s" nao encontrado', marcador)
             return False
 
         if modo == "replace":
@@ -1197,14 +1182,13 @@ def obter_ultimo_conteudo_clipboard(numero_processo: Optional[str] = None, tipo_
     """Obtém o último conteúdo salvo no clipboard"""
     try:
         if debug:
-            print(f'[CLIPBOARD] Buscando último conteúdo para processo: {numero_processo}')
-        # Local do arquivo: projeto_root/PEC/clipboard.txt
+            logger.debug('[CLIPBOARD] Buscando ultimo conteudo para processo: %s', numero_processo)
         projeto_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         clipboard_file = os.path.join(projeto_root, 'PEC', 'clipboard.txt')
 
         if not os.path.exists(clipboard_file):
             if debug:
-                print(f'[CLIPBOARD] Arquivo não encontrado: {clipboard_file}')
+                logger.debug('[CLIPBOARD] Arquivo nao encontrado: %s', clipboard_file)
             return None
 
         with open(clipboard_file, 'r', encoding='utf-8') as f:
@@ -1217,7 +1201,7 @@ def obter_ultimo_conteudo_clipboard(numero_processo: Optional[str] = None, tipo_
 
         if not matches:
             if debug:
-                print('[CLIPBOARD] Nenhum registro encontrado no arquivo de clipboard')
+                logger.debug('[CLIPBOARD] Nenhum registro encontrado no arquivo de clipboard')
             return None
 
         # Se foi solicitado um número de processo específico, localizar o último registro correspondente
@@ -1237,7 +1221,7 @@ def obter_ultimo_conteudo_clipboard(numero_processo: Optional[str] = None, tipo_
                             continue
                     return conteudo
             if debug:
-                print(f'[CLIPBOARD] Nenhum registro correspondente ao processo {numero_processo} encontrado')
+                logger.debug('[CLIPBOARD] Nenhum registro correspondente ao processo %s encontrado', numero_processo)
             return None
 
         # Se não pediu processo específico, retorna o último registro (possivelmente filtrado por tipo)
@@ -1251,11 +1235,11 @@ def obter_ultimo_conteudo_clipboard(numero_processo: Optional[str] = None, tipo_
             return conteudo
 
         if debug:
-            print('[CLIPBOARD] Nenhum registro passou no filtro tipo_regex')
+            logger.debug('[CLIPBOARD] Nenhum registro passou no filtro tipo_regex')
         return None
     except Exception as e:
         if debug:
-            print(f'[CLIPBOARD] Erro ao obter conteúdo: {e}')
+            logger.debug('[CLIPBOARD] Erro ao obter conteudo: %s', e)
         return None
 
 
@@ -1275,22 +1259,22 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
     """
     try:
         if debug:
-            print(f'[EDITOR] Iniciando inserção HTML')
-            print(f'[EDITOR] Marcador: "{marcador}"')
-            print(f'[EDITOR] HTML: {html_content[:100]}...')
+            logger.debug('[EDITOR] Iniciando insercao HTML')
+            logger.debug('[EDITOR] Marcador: "%s"', marcador)
+            logger.debug('[EDITOR] HTML: %s...', html_content[:100])
 
         editable = _get_editable(driver, debug)
 
         if debug:
             try:
                 conteudo_atual = driver.execute_script("return arguments[0].innerHTML;", editable)
-                print(f'[EDITOR] Conteúdo atual do editor: {conteudo_atual[:200]}...')
+                logger.debug('[EDITOR] Conteudo atual do editor: %s...', conteudo_atual[:200])
                 if marcador in conteudo_atual:
-                    print(f'[EDITOR] ✅ Marcador "{marcador}" encontrado no conteúdo')
+                    logger.debug('[EDITOR] Marcador "%s" encontrado no conteudo', marcador)
                 else:
-                    print(f'[EDITOR] ❌ Marcador "{marcador}" NÃO encontrado no conteúdo')
+                    logger.debug('[EDITOR] Marcador "%s" NAO encontrado no conteudo', marcador)
             except Exception as e:
-                print(f'[EDITOR] Erro ao verificar conteúdo: {e}')
+                logger.debug('[EDITOR] Erro ao verificar conteudo: %s', e)
 
         driver.execute_script('arguments[0].scrollIntoView({block:"center"});', editable)
         time.sleep(0.2)
@@ -1300,13 +1284,13 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
             driver.execute_script('arguments[0].focus();', editable)
         time.sleep(0.1)
 
-        # Posicionar seleção no marcador
+        # Posicionar selecao no marcador
         if not _place_selection_at_marker(driver, editable, marcador, modo, debug):
             if debug:
-                print(f'[EDITOR] Marcador "{marcador}" não encontrado')
+                logger.debug('[EDITOR] Marcador "%s" nao encontrado', marcador)
             return False
 
-        # Limpar e escapar conteúdo
+        # Limpar e escapar conteudo
         html_content_clean = (html_content.replace('\x00', '').replace('\r', '').strip())
         html_escaped = (html_content_clean
                        .replace('\\', '\\\\')
@@ -1316,12 +1300,12 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
                        .replace('\n', '\\n')
                        .replace('\t', '\\t'))
 
-        # Inserir via JavaScript - tentar múltiplas abordagens
+        # Inserir via JavaScript - tentar multiplas abordagens
         js_insert = f"""
         const sel = window.getSelection();
         const html = `{html_escaped}`;
-        
-        // Abordagem 1: Usar execCommand (mais compatível com CKEditor)
+
+        // Abordagem 1: Usar execCommand (mais compativel com CKEditor)
         try {{
             if (document.execCommand && typeof document.execCommand === 'function') {{
                 document.execCommand('insertHTML', false, html);
@@ -1330,8 +1314,8 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
         }} catch (e) {{
             console.log('execCommand falhou:', e);
         }}
-        
-        // Abordagem 2: Usar CKEditor API se disponível
+
+        // Abordagem 2: Usar CKEditor API se disponivel
         try {{
             if (window.CKEDITOR && window.CKEDITOR.instances) {{
                 const instances = Object.values(window.CKEDITOR.instances);
@@ -1344,8 +1328,8 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
         }} catch (e) {{
             console.log('CKEditor API falhou:', e);
         }}
-        
-        // Abordagem 3: Inserção manual via range (fallback)
+
+        // Abordagem 3: Insercao manual via range (fallback)
         try {{
             if (sel.rangeCount > 0) {{
                 const range = sel.getRangeAt(0);
@@ -1360,63 +1344,62 @@ def inserir_html_editor(driver, html_content: str, marcador: str = "--", modo: s
                 return true;
             }}
         }} catch (e) {{
-            console.log('Inserção manual falhou:', e);
+            console.log('Insercao manual falhou:', e);
         }}
-        
+
         return false;
         """
 
         sucesso = driver.execute_script(js_insert)
         if sucesso and debug:
-            print('[EDITOR] ✅ HTML inserido com sucesso')
+            logger.debug('[EDITOR] HTML inserido com sucesso')
 
             try:
                 conteudo_apos = driver.execute_script("return arguments[0].innerHTML;", editable)
-                print(f'[EDITOR] Conteúdo após inserção: {conteudo_apos[:200]}...')
+                logger.debug('[EDITOR] Conteudo apos insercao: %s...', conteudo_apos[:200])
                 if html_content in conteudo_apos:
-                    print(f'[EDITOR] ✅ HTML inserido encontrado no conteúdo')
+                    logger.debug('[EDITOR] HTML inserido encontrado no conteudo')
                 else:
-                    print(f'[EDITOR] ❌ HTML inserido NÃO encontrado no conteúdo')
+                    logger.debug('[EDITOR] HTML inserido NAO encontrado no conteudo')
             except Exception as e:
-                print(f'[EDITOR] Erro ao verificar conteúdo após: {e}')
+                logger.debug('[EDITOR] Erro ao verificar conteudo apos: %s', e)
 
         return bool(sucesso)
 
     except Exception as e:
         if debug:
-            print(f'[EDITOR] ❌ Erro na inserção: {e}')
+            logger.error("ERRO em inserir_html_editor: %s: %s", type(e).__name__, e)
         return False
 
 
 def inserir_link_ato(driver, numero_processo: Optional[str] = None, modo: str = 'after', debug: bool = False) -> bool:
-    """Insere link de validação de ato no editor (coleta + inserção)"""
+    """Insere link de validacao de ato no editor (coleta + insercao)"""
     try:
         if debug:
-            print(f'[LINK_ATO] Iniciando inserção de link para processo: {numero_processo}')
+            logger.debug('[LINK_ATO] Iniciando insercao de link para processo: %s', numero_processo)
 
         link_validacao = obter_ultimo_conteudo_clipboard(numero_processo, r"/validacao/", debug)
 
-        # CORREÇÃO: Se não encontrou com numero_processo específico, tentar buscar o último geral
+        # CORRECAO: Se nao encontrou com numero_processo especifico, tentar buscar o ultimo geral
         if not link_validacao:
             if debug:
-                print(f'[LINK_ATO] Link não encontrado para processo {numero_processo}, tentando busca geral...')
+                logger.debug('[LINK_ATO] Link nao encontrado para processo %s, tentando busca geral...', numero_processo)
             link_validacao = obter_ultimo_conteudo_clipboard(None, r"/validacao/", debug)
 
         if link_validacao:
-            # Usar a mesma lógica que funciona na carta.py: substituir marcador por conteúdo
             from PEC.anexos import substituir_marcador_por_conteudo
             resultado = substituir_marcador_por_conteudo(driver, link_validacao, debug, "--")
             if debug:
-                print(f'[LINK_ATO] Resultado da chamada substituir_marcador_por_conteudo: {resultado}')
+                logger.debug('[LINK_ATO] Resultado da chamada substituir_marcador_por_conteudo: %s', resultado)
             return resultado
         else:
             if debug:
-                print('[LINK_ATO] Não foi possível obter link de validação')
+                logger.debug('[LINK_ATO] Nao foi possivel obter link de validacao')
             return False
 
     except Exception as e:
         if debug:
-            print(f'[LINK_ATO] Erro: {e}')
+            logger.error("ERRO em inserir_link_ato: %s: %s", type(e).__name__, e)
         return False
 
 # Funções de compatibilidade para manter APIs existentes
@@ -1456,32 +1439,29 @@ def inserir_conteudo_formatado(driver, numero_processo: Optional[str] = None, mo
     """
     try:
         if debug:
-            print(f'[CONTEUDO_FORMATADO] Iniciando inserção de conteúdo para processo: {numero_processo}')
+            logger.debug('[CONTEUDO_FORMATADO] Iniciando insercao de conteudo para processo: %s', numero_processo)
 
-        # Buscar conteúdo formatado no clipboard interno
         conteudo = obter_ultimo_conteudo_clipboard(numero_processo, r"Transcrição do\(a\)", debug)
 
-        # Se não encontrou com numero_processo específico, tentar busca geral
         if not conteudo:
             if debug:
-                print(f'[CONTEUDO_FORMATADO] Conteúdo não encontrado para processo {numero_processo}, tentando busca geral...')
+                logger.debug('[CONTEUDO_FORMATADO] Conteudo nao encontrado para processo %s, tentando busca geral...', numero_processo)
             conteudo = obter_ultimo_conteudo_clipboard(None, r"Transcrição do\(a\)", debug)
 
         if conteudo:
-            # Usar a mesma lógica que funciona na carta.py: substituir marcador por conteúdo
             from PEC.anexos import substituir_marcador_por_conteudo
             resultado = substituir_marcador_por_conteudo(driver, conteudo, debug, "--")
             if debug:
-                print(f'[CONTEUDO_FORMATADO] Resultado da inserção: {resultado}')
+                logger.debug('[CONTEUDO_FORMATADO] Resultado da insercao: %s', resultado)
             return resultado
         else:
             if debug:
-                print('[CONTEUDO_FORMATADO] Não foi possível obter conteúdo formatado do clipboard')
+                logger.debug('[CONTEUDO_FORMATADO] Nao foi possivel obter conteudo formatado do clipboard')
             return False
 
     except Exception as e:
         if debug:
-            print(f'[CONTEUDO_FORMATADO] Erro: {e}')
+            logger.error("ERRO em inserir_conteudo_formatado: %s: %s", type(e).__name__, e)
         return False
 
 # --- FUNÇÕES DE CRIAÇÃO DE DRIVER ---
@@ -1529,15 +1509,15 @@ def verificar_e_tratar_acesso_negado_global(driver):
         if 'acesso-negado' not in url_atual.lower() and 'login.jsp' not in url_atual.lower():
             return None
         
-        print(f"[RECOVERY_GLOBAL]  ACESSO NEGADO DETECTADO: {url_atual}")
-        print("[RECOVERY_GLOBAL]  Iniciando recuperação automática...")
-        
+        logger.warning("[RECOVERY_GLOBAL] ACESSO NEGADO DETECTADO: %s", url_atual)
+        logger.warning("[RECOVERY_GLOBAL] Iniciando recuperacao automatica...")
+
         # Fechar driver atual
         try:
             driver.quit()
             logger.info("Driver anterior fechado")
         except Exception as e:
-            print(f"[RECOVERY_GLOBAL]  Erro ao fechar driver: {e}")
+            logger.warning("[RECOVERY_GLOBAL] Erro ao fechar driver: %s", e)
         
         # Verificar se temos funções configuradas
         if not _driver_recovery_config['criar_driver'] or not _driver_recovery_config['login_func']:
@@ -1559,13 +1539,13 @@ def verificar_e_tratar_acesso_negado_global(driver):
             raise Exception("Falha no login durante recuperação")
         
         logger.info("Login efetuado com sucesso")
-        print("[RECOVERY_GLOBAL]  RECUPERAÇÃO COMPLETA!")
-        
+        logger.info("[RECOVERY_GLOBAL] RECUPERACAO COMPLETA!")
+
         return novo_driver
-        
+
     except Exception as e:
-        print(f"[RECOVERY_GLOBAL]  ERRO CRÍTICO NA RECUPERAÇÃO: {e}")
-        print(f"[RECOVERY_GLOBAL]  Driver será encerrado")
+        logger.error("ERRO em verificar_e_tratar_acesso_negado_global: %s: %s", type(e).__name__, e)
+        logger.error("[RECOVERY_GLOBAL] Driver sera encerrado")
         raise
 
 
@@ -1597,16 +1577,15 @@ def handle_exception_with_recovery(e, driver, funcao_nome=""):
     prefixo = f"[{funcao_nome}]" if funcao_nome else "[EXCEPTION]"
     
     try:
-        # Verifica se é acesso negado
         novo_driver = verificar_e_tratar_acesso_negado_global(driver)
         if novo_driver:
-            print(f"{prefixo}  Driver recuperado automaticamente após acesso negado")
+            logger.info("%s Driver recuperado automaticamente apos acesso negado", prefixo)
             return novo_driver
     except Exception as recovery_error:
-        print(f"{prefixo}  Falha na recuperação automática: {recovery_error}")
-    
-    # Se não foi acesso negado ou falhou a recuperação, apenas loga o erro original
-    print(f"{prefixo}  Erro: {e}")
+        logger.warning("%s Falha na recuperacao automatica: %s", prefixo, recovery_error)
+
+    # Se nao foi acesso negado ou falhou a recuperacao, apenas loga o erro original
+    logger.error("%s Erro: %s", prefixo, e)
     return None
 
 
@@ -1628,7 +1607,7 @@ def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
     import datetime as dt
     try:
         if not hasattr(driver, 'session_id') or driver.session_id is None:
-            print(f'[{contexto}][CONEXÃO][ERRO] Driver não possui session_id válido')
+            logger.error('[%s][CONEXAO] Driver nao possui session_id valido', contexto)
             return False
         try:
             try:
@@ -1636,9 +1615,9 @@ def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
             except Exception as url_err:
                 if is_browsing_context_discarded_error(url_err):
                     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f'[{contexto}][CONEXÃO][FATAL] [{timestamp}] Contexto descartado')
+                    logger.error('[%s][CONEXAO][FATAL] [%s] Contexto descartado', contexto, timestamp)
                     if proc_id:
-                        print(f'[{contexto}][CONEXÃO][FATAL] Processo: {proc_id}')
+                        logger.error('[%s][CONEXAO][FATAL] Processo: %s', contexto, proc_id)
                     try:
                         with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
                             f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{url_err}\n{traceback.format_exc()}\n\n")
@@ -1651,9 +1630,9 @@ def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
             except Exception as handles_err:
                 if is_browsing_context_discarded_error(handles_err):
                     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f'[{contexto}][CONEXÃO][FATAL] [{timestamp}] Contexto descartado')
+                    logger.error('[%s][CONEXAO][FATAL] [%s] Contexto descartado', contexto, timestamp)
                     if proc_id:
-                        print(f'[{contexto}][CONEXÃO][FATAL] Processo: {proc_id}')
+                        logger.error('[%s][CONEXAO][FATAL] Processo: %s', contexto, proc_id)
                     try:
                         with open("erro_fatal_selenium.log", "a", encoding="utf-8") as f:
                             f.write(f"[{timestamp}] [{contexto}] Processo: {proc_id}\n{handles_err}\n{traceback.format_exc()}\n\n")
@@ -1661,17 +1640,17 @@ def validar_conexao_driver(driver, contexto="GERAL", proc_id=None):
                         pass
                     return "FATAL"
                 return False
-            print(f'[{contexto}][CONEXÃO][OK] URL: {current_url[:50]}... | Abas: {len(window_handles)}')
+            logger.debug('[%s][CONEXAO][OK] URL: %s... | Abas: %s', contexto, current_url[:50], len(window_handles))
             return True
         except Exception as connection_test_err:
             if is_browsing_context_discarded_error(connection_test_err):
                 return "FATAL"
-            print(f'[{contexto}][CONEXÃO][ERRO] Falha no teste: {connection_test_err}')
+            logger.error('[%s][CONEXAO] Falha no teste: %s', contexto, connection_test_err)
             return False
     except Exception as validation_err:
         if is_browsing_context_discarded_error(validation_err):
             return "FATAL"
-        print(f'[{contexto}][CONEXÃO][ERRO] Falha na validação: {validation_err}')
+        logger.error('[%s][CONEXAO] Falha na validacao: %s', contexto, validation_err)
         return False
 
 
@@ -1698,7 +1677,7 @@ def obter_driver_padronizado(headless=False):
         driver.implicitly_wait(10)
         return driver
     except Exception as e:
-        print(f"[DRIVER] Erro ao iniciar Firefox: {e}")
+        logger.error("ERRO em obter_driver_padronizado: %s: %s", type(e).__name__, e)
         raise
 
 
@@ -1713,22 +1692,22 @@ def navegar_para_tela(driver, url=None, seletor=None, delay=2, timeout=30, log=T
     import time
     try:
         if log:
-            print(f'[NAVEGAR] Iniciando navegação...')
+            logger.info('[NAVEGAR] Iniciando navegacao...')
         if url:
             driver.get(url)
             if log:
-                print(f'[NAVEGAR] URL: {url}')
+                logger.info('[NAVEGAR] URL: %s', url)
         if seletor:
             element = driver.find_element(By.CSS_SELECTOR, seletor)
             driver.execute_script('arguments[0].scrollIntoView(true);', element)
             element.click()
             time.sleep(delay)
             if log:
-                print(f'[NAVEGAR] Clicou: {seletor}')
+                logger.info('[NAVEGAR] Clicou: %s', seletor)
         return True
     except Exception as e:
         if log:
-            print(f'[NAVEGAR][ERRO] {str(e)}')
+            logger.error("ERRO em navegar_para_tela: %s", e)
         return False
 
 
@@ -1737,26 +1716,26 @@ def login_pc(driver):
     import subprocess
     login_url = "https://pje.trt2.jus.br/primeirograu/login.seam"
     driver.get(login_url)
-    print(f"[INFO] Navegando para a URL de login: {login_url}")
+    logger.info("[LOGIN_PC] Navegando para URL de login: %s", login_url)
     try:
         btn_sso = driver.find_element(By.CSS_SELECTOR, "#btnSsoPdpj")
         btn_sso.click()
-        print("[INFO] Botão #btnSsoPdpj clicado com sucesso.")
+        logger.debug("[LOGIN_PC] Botao #btnSsoPdpj clicado")
         btn_certificado = driver.find_element(By.CSS_SELECTOR, ".botao-certificado-titulo")
         btn_certificado.click()
-        print("[INFO] Botão .botao-certificado-titulo clicado com sucesso.")
+        logger.debug("[LOGIN_PC] Botao .botao-certificado-titulo clicado")
         time.sleep(1)
         subprocess.Popen([r"C:\\Program Files\\AutoHotkey\\AutoHotkey.exe", r"D:\\PjePlus\\Login.ahk"])
-        print("[INFO] Script AutoHotkey chamado para digitar a senha.")
+        logger.debug("[LOGIN_PC] Script AutoHotkey chamado para digitar a senha")
         for _ in range(60):
             if "login" not in driver.current_url.lower():
-                print("[INFO] Login detectado, prosseguindo.")
+                logger.debug("[LOGIN_PC] Login detectado, prosseguindo")
                 return True
             time.sleep(1)
-        print("[ERRO] Timeout aguardando login.")
+        logger.error("ERRO em login_pc: Timeout aguardando login")
         return False
     except Exception as e:
-        print(f"[ERRO] Falha no processo de login: {e}")
+        logger.error("ERRO em login_pc: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -1808,16 +1787,14 @@ def aguardar_e_clicar(driver, seletor, timeout=10, by=By.CSS_SELECTOR, usar_js=T
             """
             resultado = driver.execute_async_script(script)
             if log:
-                status = "" if resultado else ""
-                print(f"{status} aguardar_e_clicar: {seletor}")
+                logger.debug("aguardar_e_clicar: %s", seletor)
             return resultado
         except Exception as e:
             if log:
-                print(f" aguardar_e_clicar JS falhou: {e}")
-            # Fallback para Python
+                logger.debug("aguardar_e_clicar JS falhou: %s", e)
             usar_js = False
-    
-    # Fallback Python (ou escolha explícita)
+
+    # Fallback Python (ou escolha explicita)
     if not usar_js:
         try:
             elemento = WebDriverWait(driver, timeout).until(
@@ -1825,11 +1802,11 @@ def aguardar_e_clicar(driver, seletor, timeout=10, by=By.CSS_SELECTOR, usar_js=T
             )
             elemento.click()
             if log:
-                print(f" aguardar_e_clicar (Python): {seletor}")
+                logger.debug("aguardar_e_clicar (Python): %s", seletor)
             return True
         except Exception as e:
             if log:
-                print(f" aguardar_e_clicar falhou: {e}")
+                logger.debug("aguardar_e_clicar falhou: %s", e)
             return False
 
 
@@ -1922,7 +1899,7 @@ def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
     try:
         cookies = driver.get_cookies()
         if not cookies:
-            print('[COOKIES] Nenhum cookie encontrado para salvar.')
+            logger.debug('[COOKIES] Nenhum cookie encontrado para salvar')
             return False
         if not caminho_arquivo:
             pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
@@ -1930,20 +1907,19 @@ def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             info = f'_{info_extra}' if info_extra else ''
             caminho_arquivo = os.path.join(pasta, f'cookies_sessao{info}_{timestamp}.json')
-        
-        # Adiciona metadados para validação
+
         dados_cookies = {
             'timestamp': datetime.now().isoformat(),
             'url_base': driver.current_url,
             'cookies': cookies
         }
-        
+
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
             json.dump(dados_cookies, f, ensure_ascii=False, indent=2)
-        print(f'[COOKIES] Cookies salvos em: {caminho_arquivo}')
+        logger.debug('[COOKIES] Cookies salvos em: %s', caminho_arquivo)
         return True
     except Exception as e:
-        print(f'[COOKIES][ERRO] Falha ao salvar cookies: {e}')
+        logger.error("ERRO em salvar_cookies_sessao: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -1955,16 +1931,14 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
     try:
         pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
         if not os.path.exists(pasta):
-            print('[COOKIES] Pasta de cookies não encontrada.')
+            logger.debug('[COOKIES] Pasta de cookies nao encontrada')
             return False
-        
-        # Busca todos os arquivos de cookies
+
         arquivos_cookies = glob.glob(os.path.join(pasta, 'cookies_sessao*.json'))
         if not arquivos_cookies:
-            print('[COOKIES] Nenhum arquivo de cookies encontrado.')
+            logger.debug('[COOKIES] Nenhum arquivo de cookies encontrado')
             return False
-        
-        # Encontra o arquivo mais recente
+
         arquivo_mais_recente = max(arquivos_cookies, key=os.path.getmtime)
         
         with open(arquivo_mais_recente, 'r', encoding='utf-8') as f:
@@ -1984,53 +1958,46 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
         idade = datetime.now() - timestamp_cookies
 
         if idade > timedelta(hours=max_idade_horas):
-            print(f'[COOKIES] Cookies muito antigos ({idade.total_seconds()/3600:.1f}h). Pulando.')
+            logger.debug('[COOKIES] Cookies muito antigos (%.1fh). Pulando.', idade.total_seconds()/3600)
             return False
 
-        # Navega para o domínio antes de carregar cookies
         driver.get('https://pje.trt2.jus.br/primeirograu/')
 
-        # Carrega cookies
         cookies_carregados = 0
         for cookie in cookies:
             try:
-                # Remove campos que podem causar problemas
                 cookie_limpo = {k: v for k, v in cookie.items() if k not in ['expiry', 'httpOnly', 'secure', 'sameSite']}
                 driver.add_cookie(cookie_limpo)
                 cookies_carregados += 1
             except Exception as e:
-                print(f'[COOKIES] Erro ao carregar cookie {cookie.get("name", "unknown")}: {e}')
+                logger.warning('carregar_cookies_sessao: Erro ao carregar cookie %s: %s', cookie.get("name", "unknown"), e)
 
-        print(f'[COOKIES] {cookies_carregados} cookies carregados de {os.path.basename(arquivo_mais_recente)}')
+        logger.debug('[COOKIES] %s cookies carregados de %s', cookies_carregados, os.path.basename(arquivo_mais_recente))
 
-        # Testa se os cookies funcionam navegando para uma página protegida
         driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
+        try:
+            WebDriverWait(driver, 5).until(EC.url_contains("gigs/meu-painel"))
+        except Exception:
+            pass
 
-        # Aguarda um pouco para a página carregar
-        time.sleep(3)
-
-        # Verifica se recebeu a URL de acesso negado
         if 'acesso-negado' in driver.current_url.lower():
-            print('[COOKIES] URL de acesso negado detectada. Apagando cookies carregados; não dispararemos login automático aqui.')
-            # Apaga todos os cookies do navegador
+            logger.warning('[COOKIES] URL de acesso negado detectada. Apagando cookies carregados.')
             try:
                 driver.delete_all_cookies()
-                print('[COOKIES] Cookies apagados do navegador.')
+                logger.debug('[COOKIES] Cookies apagados do navegador')
             except Exception as e:
-                print(f'[COOKIES] Erro ao apagar cookies: {e}')
-            # Não iniciar login automático aqui; retornar False para que o chamador decida o fallback
+                logger.warning('[COOKIES] Erro ao apagar cookies: %s', e)
             return False
-        
-        # Verifica se está logado (não é redirecionado para login)
+
         if 'login' in driver.current_url.lower():
-            print('[COOKIES] Cookies inválidos - ainda redirecionando para login.')
+            logger.warning('[COOKIES] Cookies invalidos - ainda redirecionando para login')
             return False
         else:
-            print('[COOKIES] ✅ Cookies válidos! Login automático realizado.')
+            logger.debug('[COOKIES] Cookies validos! Login automatico realizado')
             return True
-            
+
     except Exception as e:
-        print(f'[COOKIES][ERRO] Falha ao carregar cookies: {e}')
+        logger.error("ERRO em carregar_cookies_sessao: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -2041,58 +2008,65 @@ def verificar_e_aplicar_cookies(driver):
     """
     if not USAR_COOKIES_AUTOMATICO:
         return False
-    
-    print('[COOKIES] Tentando login automático via cookies salvos...')
+
+    logger.info('[COOKIES] Tentando login automatico via cookies salvos...')
     sucesso = carregar_cookies_sessao(driver)
-    
+
     if sucesso:
-        # Verificar se após aplicar cookies não caiu em acesso negado
         try:
             current_url = driver.current_url
             if 'acesso-negado' in current_url:
-                print('[COOKIES] ⚠️ Acesso negado detectado após aplicar cookies - forçando login CPF...')
-                # Forçar login CPF direto
+                logger.warning('[COOKIES] Acesso negado detectado apos aplicar cookies - forcando login CPF...')
                 from selenium.webdriver.common.by import By
-                
+
                 url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
-                print(f"[COOKIES][LOGIN_FORCE] Navegando para: {url_login}")
+                logger.info("[COOKIES][LOGIN_FORCE] Navegando para: %s", url_login)
                 driver.get(url_login)
-                time.sleep(1.2)
-                
-                # Login CPF direto
                 try:
+                    WebDriverWait(driver, 5).until(
+                        lambda d: d.execute_script("return document.readyState") == "complete"
+                    )
+                except Exception:
+                    pass
+
+                try:
+                    cpf = os.environ.get('PJE_USER')
+                    senha = os.environ.get('PJE_SENHA')
+                    if not cpf or not senha:
+                        logger.error('ERRO em verificar_e_aplicar_cookies: Credenciais ausentes para login forcado')
+                        return False
+
                     username_field = driver.find_element(By.NAME, 'username')
                     password_field = driver.find_element(By.NAME, 'password')
                     submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
-                    
+
                     username_field.clear()
-                    username_field.send_keys('35305203813')
+                    username_field.send_keys(cpf)
                     time.sleep(0.3)
-                    
+
                     password_field.clear()
-                    password_field.send_keys('SpF59866')
+                    password_field.send_keys(senha)
                     time.sleep(0.3)
-                    
+
                     submit_button.click()
                     time.sleep(3)
-                    
-                    # Salvar novos cookies após login bem-sucedido
+
                     if SALVAR_COOKIES_AUTOMATICO:
                         salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
-                    
-                    print('[COOKIES] ✅ Login forçado realizado após acesso negado!')
+
+                    logger.info('[COOKIES] Login forcado realizado apos acesso negado!')
                     return True
-                    
+
                 except Exception as e:
-                    print(f'[COOKIES][ERRO] Falha no login forçado: {e}')
+                    logger.error("ERRO em verificar_e_aplicar_cookies: Falha no login forcado: %s", e)
                     return False
             else:
-                print('[COOKIES] ✅ Login realizado via cookies! Pularemos a tela de login.')
+                logger.info('[COOKIES] Login realizado via cookies!')
         except Exception as e:
-            print(f'[COOKIES][WARN] Erro ao verificar URL atual: {e}')
+            logger.warning('[COOKIES] Erro ao verificar URL atual: %s', e)
     else:
-        print('[COOKIES] ❌ Cookies inválidos ou inexistentes. Login manual necessário.')
-    
+        logger.warning('[COOKIES] Cookies invalidos ou inexistentes. Login manual necessario.')
+
     return sucesso
 
 
@@ -2240,19 +2214,19 @@ def preencher_campos_angular_material(driver, campos=None, debug=False):
         resultado = driver.execute_async_script(script)
         
         if debug:
-            print(f"[PREENCHER] === DEBUG COMPLETO ===")
+            logger.debug("[PREENCHER] === DEBUG COMPLETO ===")
             if resultado and 'debug' in resultado:
                 for linha in resultado['debug'].split('\n'):
                     if linha.strip():
-                        print(f"[PREENCHER] {linha}")
+                        logger.debug("[PREENCHER] %s", linha)
             else:
-                print(f"[PREENCHER] Resultado: {resultado}")
-        
+                logger.debug("[PREENCHER] Resultado: %s", resultado)
+
         return resultado or {'sucesso': False, 'erros': ['Retorno nulo do script']}
-        
+
     except Exception as e:
         if debug:
-            print(f"[PREENCHER] ❌ ERRO EXECUÇÃO: {e}")
+            logger.error("ERRO em preencher_campos_angular_material: %s", e)
         return {
             'sucesso': False,
             'campos_preenchidos': {},

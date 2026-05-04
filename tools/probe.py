@@ -229,7 +229,7 @@ def fetch_processo_completo(driver, id_processo: str):
     finally:
         try:
             driver.set_script_timeout(30)
-        except:
+        except Exception:  # cleanup, ignora falha ao redefinir timeout
             pass
 
     if not res:
@@ -284,8 +284,10 @@ def main():
     ok = login_cpf(drv)
     if not ok:
         logger.error("[API] Login falhou")
-        try: drv.quit()
-        except: pass
+        try:
+            drv.quit()
+        except Exception:  # cleanup, ignora falha ao fechar driver
+            pass
         return
 
     print(f"[API] Login OK, buscando dados completos...")
@@ -329,7 +331,7 @@ def main():
 
     try:
         drv.quit()
-    except:
+    except Exception:  # cleanup, ignora falha ao fechar driver
         pass
 
 if __name__ == '__main__':

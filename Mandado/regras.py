@@ -26,24 +26,17 @@ import os
 import re
 import sys
 import time
-import unicodedata
+from Fix.utils import remover_acentos, normalizar_texto
 from datetime import datetime
-from typing import Optional, Dict, List, Union, Tuple, Callable, Any
+from typing import Dict, List
 
 # Selenium
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import (
-    TimeoutException,
-    StaleElementReferenceException,
-)
 
 # ===== IMPORTS PESADOS REMOVIDOS (LAZY LOADING) =====
 # Movidos para cache sob demanda para carregamento 8-10x mais rápido
+
+from core.rule_registry import RuleRegistry
 
 # Cache de módulos para lazy loading
 _mandado_regras_modules_cache = {}
@@ -56,7 +49,7 @@ def _lazy_import_mandado_regras():
         from Fix.utils import navegar_para_tela
         from Fix.core import buscar_seletor_robusto, buscar_documento_argos
         from Fix.extracao import extrair_pdf, analise_outros, extrair_documento, extrair_dados_processo, buscar_mandado_autor, buscar_ultimo_mandado, extrair_destinatarios_decisao, indexar_e_processar_lista
-        from Fix.gigs import criar_gigs
+        from Fix.extracao import criar_gigs
         from Fix.selenium_base import esperar_elemento, aguardar_e_clicar
         from Fix.utils import limpar_temp_selenium, configurar_recovery_driver
         
@@ -88,7 +81,7 @@ from Fix.extracao import salvar_destinatarios_cache
 from Fix.abas import validar_conexao_driver
 from Fix.extracao import criar_lembrete_posit
 from Prazo.p2b_core import checar_prox
-from .atos_wrapper import (
+from .apoio_fluxos import (
     ato_judicial,
     ato_meios,
     ato_pesquisas,
@@ -113,7 +106,7 @@ with open("log.py", "w", encoding="utf-8") as f:
 def _normalizar_texto_match(valor: str) -> str:
     if not valor:
         return ''
-    txt = unicodedata.normalize('NFD', str(valor)).encode('ascii', 'ignore').decode('ascii').lower()
+    txt = normalizar_texto(str(valor))
     txt = re.sub(r'[^a-z0-9\s]', ' ', txt)
     txt = re.sub(r'\s+', ' ', txt).strip()
     return txt
@@ -254,11 +247,11 @@ def _identificar_destinatarios_idpj(texto_documento: str, debug: bool = False) -
 def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Regra IDPJ por decisão; SISBAJUD afeta apenas lembrete."""
     txt_lower = texto_documento.lower() if texto_documento else ''
-    tipo_norm = unicodedata.normalize('NFD', str(tipo_documento or '')).encode('ascii', 'ignore').decode('ascii').lower()
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'decisao' not in tipo_norm:
         return False
     # diagnóstico: verificar presença com e sem normalização de acentos
-    normalized = unicodedata.normalize('NFD', texto_documento).encode('ascii', 'ignore').decode('ascii').lower() if texto_documento else ''
+    normalized = normalizar_texto(texto_documento) if texto_documento else ''
     
     # Lista expandida de palavras-chave para detectar IDPJ
     palavras_idpj = [
@@ -334,7 +327,7 @@ def estrategia_defiro_instauracao(driver, resultado_sisbajud, sigilo_anexos, tip
 
 def estrategia_despacho_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Prioridade: documento com palavra 'ARGOS'"""
-    tipo_norm = unicodedata.normalize('NFD', str(tipo_documento or '')).encode('ascii', 'ignore').decode('ascii').lower()
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'despacho' not in tipo_norm:
         return False
 
@@ -400,7 +393,7 @@ def estrategia_despacho_argos(driver, resultado_sisbajud, sigilo_anexos, tipo_do
 
 def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Despacho com 'Realize-se a pesquisa INFOJUD'"""
-    tipo_norm = unicodedata.normalize('NFD', str(tipo_documento or '')).encode('ascii', 'ignore').decode('ascii').lower()
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'despacho' not in tipo_norm:
         return False
 
@@ -460,7 +453,7 @@ def estrategia_infojud(driver, resultado_sisbajud, sigilo_anexos, tipo_documento
 
 def estrategia_decisao_manifestar(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Decisão com 'devendo se manifestar'"""
-    tipo_norm = unicodedata.normalize('NFD', str(tipo_documento or '')).encode('ascii', 'ignore').decode('ascii').lower()
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'decisao' not in tipo_norm:
         return False
 
@@ -482,7 +475,7 @@ def estrategia_decisao_manifestar(driver, resultado_sisbajud, sigilo_anexos, tip
 
 def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tipo_documento, texto_documento, debug=False):
     """Decisão com 'tendo em vista que' — analisa número de reclamadas e escolhe ação."""
-    tipo_norm = unicodedata.normalize('NFD', str(tipo_documento or '')).encode('ascii', 'ignore').decode('ascii').lower()
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'decisao' in tipo_norm and texto_documento:
         # Normalizar texto para detecção robusta (remover acentos)
         txt_lower = texto_documento.lower()
@@ -573,6 +566,19 @@ def estrategia_tendo_em_vista_que(driver, resultado_sisbajud, sigilo_anexos, tip
 
 # Adicione outras estratégias conforme necessário
 
+# ─── Text-pattern registry for argos rules (complementary layer) ─────────────
+
+registry_argos = RuleRegistry("argos", ["tendo_vista", "idpj", "manifestar", "despacho_argos", "infojud"])
+
+# Patterns extracted from strategy functions for centralized text matching
+registry_argos.register(r'defiro a instaura[cç][aã]o|desconsidera[cç][aã]o|idpj|inclua.se no polo passivo|s[óo]cio retirante',
+                        'idpj', None)
+registry_argos.register(r'tendo em vista que', 'tendo_vista', None)
+registry_argos.register(r'devendo se manifestar|nada a deferir', 'manifestar', None)
+registry_argos.register(r'argos', 'despacho_argos', None)
+registry_argos.register(r'realize.se a pesquisa infojud|pesquisa infojud|atrav[ée]s do sistema argos',
+                        'infojud', None)
+
 ESTRATEGIAS_ARGOS = [
     ("decisao+tendo_em_vista", estrategia_tendo_em_vista_que),  #  PRIMEIRA: Triagem por quantidade de reclamadas
     ("IDPJ (instauração/855-A/desconsideração)", estrategia_defiro_instauracao),
@@ -626,7 +632,7 @@ def aplicar_regras_argos(
     if not texto_documento:
         return False
 
-    tipo_norm = unicodedata.normalize('NFD', str(tipo_documento or '')).encode('ascii', 'ignore').decode('ascii').lower()
+    tipo_norm = normalizar_texto(str(tipo_documento or ''))
     if 'decisao' in tipo_norm:
         estrategias_em_uso = ESTRATEGIAS_ARGOS_DECISAO
     elif 'despacho' in tipo_norm:
@@ -640,8 +646,17 @@ def aplicar_regras_argos(
             raw_snippet = texto_documento[:1200].replace('\n', ' ')
         except Exception:
             raw_snippet = str(texto_documento)[:1200]
-        normalized_snippet = unicodedata.normalize('NFD', texto_documento).encode('ascii', 'ignore').decode('ascii')[:1200] if texto_documento else ''
+        normalized_snippet = remover_acentos(texto_documento)[:1200] if texto_documento else ''
     
+    # Registry pre-check: text-pattern matching (complementary diagnostic layer)
+    if texto_documento:
+        registry_bucket, _ = registry_argos.match(texto_documento)
+        if debug:
+            if registry_bucket:
+                logger.info(f'[ARGOS][REGRAS][REGISTRY] Text match: bucket={registry_bucket}')
+            else:
+                logger.info(f'[ARGOS][REGRAS][REGISTRY] No text pattern matched')
+
     # ===== TENTAR CADA ESTRATÉGIA EM ORDEM =====
     inicio_aplicacao = time.time()
     regra_aplicada = False

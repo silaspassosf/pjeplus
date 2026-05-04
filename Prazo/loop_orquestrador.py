@@ -377,7 +377,10 @@ def _selecionar_processos_por_gigs_aj_jt(driver: WebDriver, client: 'PjeApiClien
             try:
                 aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.5)
             except Exception:
-                time.sleep(1.5)
+                try:
+                    WebDriverWait(driver, 1.5).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+                except Exception:
+                    pass
             return selecionados
 
         logger.info('[CICLO2][GIGS-AJ-JT] Nenhum processo com atividade AJ-JT encontrado')
@@ -496,7 +499,10 @@ def ciclo1(driver: WebDriver, opcao_destino: str = 'Análise') -> Union[bool, st
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
         except Exception:
-            time.sleep(1)
+            try:
+                WebDriverWait(driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            except Exception:
+                pass
         processos = driver.find_elements(By.CSS_SELECTOR, 'tbody tr.tr-class')
         qtd_processos = len(processos)
         logger.info(f'[CICLO1] Detectados {qtd_processos} processo(s) na lista')
@@ -531,7 +537,7 @@ def ciclo1(driver: WebDriver, opcao_destino: str = 'Análise') -> Union[bool, st
     # Pequena pausa para garantir que a lista e UI estabilizaram
     try:
         logger.info('[CICLO1] Pausa breve (2s) para verificação visual da seleção antes do lote')
-        time.sleep(2.0)
+        aguardar_renderizacao_nativa(driver, timeout=2)
         # Também oferece a pausa interativa se DEBUG_PAUSAS_LOOP estiver habilitado
         pausar_confirmacao('CICLO1/VERIFICAR_SELECAO', 'Verificar seleção antes de abrir suitcase')
     except Exception:
@@ -613,7 +619,7 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
                 break
 
             logger.info("[LOOP_PRAZO] Ciclo 1 concluído. Verificando se há mais...")
-            time.sleep(2)
+            aguardar_renderizacao_nativa(driver, timeout=4)
 
         # 2. Navegar para Painel Global 8 (Cumprimento de providências)
         url_painel8 = "https://pje.trt2.jus.br/pjekz/painel/global/8/lista-processos"
@@ -621,7 +627,10 @@ def loop_prazo(driver: WebDriver) -> Dict[str, Any]:
             return ResultadoExecucao(sucesso=False, status='FALHA', erro="Abortado pelo usuário em navegar painel 8")
         logger.info(f'[LOOP_PRAZO] Navegando para Painel Global 8: {url_painel8}')
         driver.get(url_painel8)
-        time.sleep(3)
+        try:
+            WebDriverWait(driver, 5).until(EC.url_contains("painel/global/8"))
+        except Exception:
+            pass
 
         # FASE 2: Ciclo 2
         logger.info("[LOOP_PRAZO] Fase 2: Executando ciclo 2")

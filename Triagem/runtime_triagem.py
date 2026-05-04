@@ -11,7 +11,7 @@ Estrutura:
   Entrada     — fluxo principal de execução (run_triagem)
 
 Uso:
-  from Triagem.runner import run_triagem          # via thin shim (compatibilidade)
+  from Triagem.runtime_triagem import run_triagem  # direto (repeated for emphasis)
   from Triagem.runtime_triagem import run_triagem  # direto
 
   py -m Triagem.runtime_triagem                    # execução direta
@@ -27,10 +27,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 
 from Fix.core import esperar_elemento
-from Fix.gigs import criar_comentario, criar_gigs
+from Fix.extracao import criar_comentario, criar_gigs
 from Fix.log import log_fim, log_item, log_start
-from Fix.progresso_unificado import ProgressoUnificado
+from Fix.monitoramento_progresso_unificado import ProgressoUnificado
+from Fix.abas import fechar_abas_extras
 from api import PjeApiClient, session_from_driver
+from Fix.variaveis import url_processo_detalhe
 from utilitarios_processamento import resultado_falha, resultado_ok, run_batch
 
 logger = logging.getLogger(__name__)
@@ -466,7 +468,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
     try:
         logger.debug("[TRIAGEM] Navegando para %s", URL_LISTA_TRIAGEM)
         drv.get(URL_LISTA_TRIAGEM)
-        time.sleep(3)
+        esperar_elemento(drv, 'tr.cdk-drag,.cdk-virtual-scroll-viewport', timeout=15)
 
         # 1. Buscar lista
         itens_brutos = buscar_lista_triagem(drv)
@@ -490,20 +492,6 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
         progresso = _progresso.carregar_progresso()
         handle_principal = drv.current_window_handle
 
-        def _fechar_abas_extras():
-            """Fecha abas extras mantendo apenas a principal."""
-            try:
-                for h in list(drv.window_handles):
-                    if h != handle_principal:
-                        try:
-                            drv.switch_to.window(h)
-                            drv.close()
-                        except Exception:
-                            pass
-                drv.switch_to.window(handle_principal)
-            except Exception:
-                pass
-
         def should_skip(proc):
             return _progresso.processo_ja_executado(proc.get("numero"), progresso)
 
@@ -513,7 +501,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
             if not id_processo:
                 return resultado_falha("Sem id_processo")
             try:
-                url = "https://pje.trt2.jus.br/pjekz/processo/%s/detalhe/" % id_processo
+                url = url_processo_detalhe(id_processo)
                 drv.get(url)
                 esperar_elemento(drv, "pje-cabecalho-processo,pje-timeline",
                                  by=By.CSS_SELECTOR, timeout=15)
@@ -521,7 +509,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
             except Exception as e:
                 return resultado_falha(str(e))
             finally:
-                _fechar_abas_extras()
+                fechar_abas_extras(drv, handle_principal)
 
         def execute_item(proc):
             from Triagem.service import triagem_peticao
@@ -552,7 +540,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
                         traceback.print_exc()
 
                 # Barreira: aguardar tabela de atividades GIGS pronta
-                from Fix.utils_observer import aguardar_renderizacao_nativa as _aguardar
+                from Fix.core import aguardar_renderizacao_nativa as _aguardar
                 _aguardar(drv, 'pje-gigs-lista-atividades button', 'aparecer', 8)
 
                 # Aplicar ação pós-triagem baseada em alertas
@@ -568,7 +556,7 @@ def run_triagem(driver: Optional[WebDriver] = None) -> Optional[Dict[str, Any]]:
             except Exception as e:
                 return resultado_falha(str(e))
             finally:
-                _fechar_abas_extras()
+                fechar_abas_extras(drv, handle_principal)
 
         def persist_result(proc, result):
             numero = proc.get("numero", "?")

@@ -2,8 +2,11 @@ import time
 from selenium.webdriver.common.by import By
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar
-from Fix.utils_observer import aguardar_renderizacao_nativa
-from Fix.exceptions import ElementoNaoEncontradoError, NavegacaoError
+from Fix.core import aguardar_renderizacao_nativa
+from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
+from Fix.log import log_start, log_fim
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 from .wrappers_utils import executar_visibilidade_sigilosos_se_necessario, preparar_campo_filtro_modelo
 
@@ -134,7 +137,10 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
             campo_filtro,
             modelo_nome
         )
-        time.sleep(1.0)
+        try:
+            aguardar_renderizacao_nativa(driver, '.nodo-filtrado', modo='aparecer', timeout=5)
+        except Exception:
+            pass
 
         nodo = wait_for_clickable(driver, '.nodo-filtrado', timeout=10, by=By.CSS_SELECTOR)
         if not nodo:
@@ -142,7 +148,10 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
             return False
 
         driver.execute_script('arguments[0].click();', nodo)
-        time.sleep(0.5)
+        try:
+            aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=5)
+        except Exception:
+            pass
 
         btn_inserir = wait_for_clickable(driver, 'pje-dialogo-visualizar-modelo button', timeout=8, by=By.CSS_SELECTOR)
         if not btn_inserir:
@@ -150,7 +159,10 @@ def _inserir_modelo_por_nome(driver, modelo_nome, debug=False, log=None):
             return False
 
         driver.execute_script('arguments[0].click();', btn_inserir)
-        time.sleep(1.0)
+        try:
+            aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
+        except Exception:
+            pass
         return True
     except Exception as e:
         log(f'[COMUNICACAO][WARN] Falha ao inserir modelo "{modelo_nome}": {e}')
@@ -208,6 +220,7 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
         def log(_msg):
             return None
 
+    log_start('COMUNICACAO_MEIO_EXPEDICAO')
     try:
         log('[COMUNICACAO]  Alterando meio de expedição IMEDIATAMENTE (pós-seleção de destinatários, pré-salvamento)...')
         t0_expediente = time.perf_counter()
@@ -246,37 +259,35 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
                 ok_rows = False
 
             if not ok_rows:
-                # Fallback: quick polling
-                max_espera = 5
-                tempo_espera = 0
-                while tempo_espera < max_espera:
+                # Fallback: WebDriverWait
+                try:
+                    WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag'))
+                    )
                     linhas_tabela = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
-                    if len(linhas_tabela) > 0:
-                        break
-                    time.sleep(0.2)
-                    tempo_espera += 0.2
-
-                if tempo_espera >= max_espera:
+                except Exception:
                     log('[COMUNICACAO][WARN] Timeout aguardando destinatários, prosseguindo mesmo assim')
                     return False
-                else:
-                    tempo_dest = time.perf_counter() - t_dest
-                    if debug:
-                        log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (polling fallback)')
+
+                tempo_dest = time.perf_counter() - t_dest
+                if debug:
+                    log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (WebDriverWait)')
             else:
                 tempo_dest = time.perf_counter() - t_dest
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Destinatários apareceram em {tempo_dest:.3f}s (observer)')
 
-            # Aguardar estabilização rápida (simplificada)
+            # Aguardar estabilização via WebDriverWait
             log('[COMUNICACAO] Verificação rápida de estabilização...')
             contagem_inicial = len(linhas_tabela)
-            
-            # Verificação ultra-rápida: só 1 verificação adicional
-            time.sleep(0.2)
+            try:
+                WebDriverWait(driver, 2).until(
+                    lambda d: len(d.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')) >= contagem_inicial
+                )
+            except Exception:
+                pass
             linhas_atual = driver.find_elements(By.CSS_SELECTOR, 'tbody.cdk-drop-list tr.cdk-drag')
             contagem_atual = len(linhas_atual)
-            
             if contagem_atual != contagem_inicial:
                 if debug:
                     log(f'[COMUNICACAO][DEBUG] Contagem mudou {contagem_inicial} → {contagem_atual}')
@@ -326,7 +337,6 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
 
                 # Clicar dropdown (usar aguardar_e_clicar em vez de scrollIntoView + click)
                 aguardar_e_clicar(driver, dropdown, log=False, timeout=3)
-                time.sleep(0.2)
 
                 try:
                     if not esperar_elemento(driver, 'mat-option', timeout=2, by=By.CSS_SELECTOR):
@@ -343,7 +353,11 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
                         log(f'[COMUNICACAO]  Linha {idx}: Domicílio Eletrônico → Correio')
                         alterados += 1
                         correio_clicado = True
-                        time.sleep(0.1)
+                        # UI-transition: aguardar dropdown fechar apos selecao
+                        try:
+                            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-pane', modo='sumir', timeout=2)
+                        except Exception:
+                            pass
                         break
 
                 if not correio_clicado:
@@ -377,120 +391,12 @@ def alterar_meio_expedicao(driver, debug=False, log=None, trocar_modelo=False):
         if trocar_modelo and alterados > 0:
             trocar_modelo_minuta(driver, debug=debug, log=log)
 
+        log_fim('COMUNICACAO_MEIO_EXPEDICAO', {'status': 'sucesso', 'alterados': alterados, 'total': total_linhas})
         return True
     except Exception as e:
         log(f'[COMUNICACAO][WARN] Falha ao alterar meio de expedição para Correio: {e}')
+        log_fim('COMUNICACAO_MEIO_EXPEDICAO', {'status': 'erro', 'motivo': str(e)[:80]})
         raise NavegacaoError(f'alterar_meio_expedicao_para_correio: {e}')
-
-
-def remover_destinatarios_invalidos(driver, debug=False, log=None):
-    if log is None:
-        def log(_msg):
-            return None
-
-    try:
-        log('[COMUNICACAO] Verificando destinatários com ícone vermelho (endereço inválido)')
-        try:
-            red_icons = driver.find_elements(By.CSS_SELECTOR, '.pec-icone-vermelho-endereco-tabela-destinatarios')
-            removidos = 0
-            for ic in red_icons:
-                try:
-                    try:
-                        row = ic.find_element(By.XPATH, './ancestor::tr[1]')
-                    except Exception:
-                        elem = ic
-                        row = None
-                        for _ in range(6):
-                            try:
-                                elem = elem.find_element(By.XPATH, './..')
-                                if elem.tag_name.lower() == 'tr':
-                                    row = elem
-                                    break
-                            except Exception:
-                                break
-                        if row is None:
-                            continue
-
-                    try:
-                        btn_excluir = row.find_element(By.XPATH, ".//button[.//i[contains(@class,'fa-trash-alt')]]")
-                        driver.execute_script('arguments[0].scrollIntoView(true);', btn_excluir)
-                        time.sleep(0.2)
-                        driver.execute_script('arguments[0].click();', btn_excluir)
-                        removidos += 1
-                        log(f'[COMUNICACAO]  Destinatário com ícone vermelho removido (linha). Total removidos: {removidos}')
-                        time.sleep(0.6)
-                    except Exception as ebtn:
-                        log(f'[COMUNICACAO][WARN] Não encontrou botão de excluir na linha do ícone vermelho: {ebtn}')
-                        continue
-                except Exception as einner:
-                    log(f'[COMUNICACAO][WARN] Erro ao processar ícone vermelho: {einner}')
-                    continue
-            if removidos == 0:
-                log('[COMUNICACAO] Nenhum destinatário com ícone vermelho encontrado')
-        except Exception as echeck:
-            log(f'[COMUNICACAO][WARN] Falha ao varrer ícones vermelhos: {echeck}')
-        return True
-    except Exception as e:
-        log(f'[COMUNICACAO][WARN] Erro inesperado na verificação de ícones vermelhos: {e}')
-        raise NavegacaoError(f'verificar_icones_vermelhos: {e}')
-
-
-def _aguardar_confirmar_save_js(driver, timeout=15, log=None):
-    """Race JS entre btnFinalizarExpedientes habilitado e snackbar de erro.
-
-    Monitora em paralelo via MutationObserver nativo:
-    - button[name="btnFinalizarExpedientes"] visivel E !disabled  -> {'tipo': 'assinar'}
-    - snack-bar-container visivel                                  -> {'tipo': 'snackbar', 'texto': '...'}
-    - timeout esgotado                                             -> {'tipo': 'timeout'}
-
-    Vantagem critica sobre observer+esperar_elemento em serie:
-    - Happy path: retorna assim que o botao fica habilitado (zero wait fixo)
-    - Error path: retorna assim que o snackbar aparece (sem esperar timeout)
-    - Verifica !disabled, nao apenas visibilidade (display !== none)
-    """
-    if log is None:
-        def log(_msg): return None
-    try:
-        driver.set_script_timeout(timeout + 2)
-    except Exception:
-        pass
-    resultado = driver.execute_async_script("""
-        var timeoutMs = arguments[0] * 1000;
-        var callback = arguments[arguments.length - 1];
-
-        function checar() {
-            var btn = document.querySelector('button[name="btnFinalizarExpedientes"]');
-            if (btn && !btn.disabled && !btn.hasAttribute('disabled') && btn.offsetParent !== null) {
-                return {tipo: 'assinar', texto: ''};
-            }
-            var snack = document.querySelector('snack-bar-container');
-            if (snack && snack.offsetParent !== null) {
-                return {tipo: 'snackbar', texto: snack.innerText || ''};
-            }
-            return null;
-        }
-
-        var r = checar();
-        if (r) { callback(r); return; }
-
-        var observer = new MutationObserver(function(mutations, me) {
-            var r2 = checar();
-            if (r2) { me.disconnect(); clearTimeout(tid); callback(r2); }
-        });
-        observer.observe(document.body, {
-            childList: true, subtree: true,
-            attributes: true, attributeFilter: ['disabled', 'aria-disabled', 'class', 'style']
-        });
-        var tid = setTimeout(function() {
-            observer.disconnect();
-            callback({tipo: 'timeout', texto: ''});
-        }, timeoutMs);
-    """, timeout)
-
-    if resultado is None:
-        resultado = {'tipo': 'timeout', 'texto': ''}
-    log(f'[SAVE_JS] tipo={resultado.get("tipo")} texto="{str(resultado.get("texto", ""))[:80]}')
-    return resultado
 
 
 def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, executar_visibilidade=False, assinar=False):
@@ -498,6 +404,7 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
         def log(_msg):
             return None
 
+    log_start('COMUNICACAO_SALVAR_MINUTA')
     # --- 1. Localizar botão Salvar (igual ao atalhos.js: name="btnSalvarExpedientes") ---
     btn_salvar = wait_for_clickable(driver, 'button[name="btnSalvarExpedientes"]', timeout=10, by=By.CSS_SELECTOR)
     if not btn_salvar:
@@ -510,10 +417,12 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                     btn_salvar = candidate
                     break
         except Exception:
-            pass
+            if debug:
+                log('[COMUNICACAO][DEBUG] Fallback Salvar por span não disponível')
 
     if not btn_salvar:
         log('[COMUNICACAO][ERRO] Botão Salvar não encontrado!')
+        log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'btn_salvar_nao_encontrado'})
         return False
 
     try:
@@ -547,7 +456,8 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             btn_finalizar = driver.find_element(By.CSS_SELECTOR, 'button[name="btnFinalizarExpedientes"]')
             log('[COMUNICACAO] Salvamento confirmado — botao Assinar habilitado.')
         except Exception:
-            pass
+            if debug:
+                log('[COMUNICACAO][DEBUG] btnFinalizarExpedientes não encontrado via seletor direto (esperado)')
     else:
         btn_finalizar = None
         # Fallback por texto
@@ -555,11 +465,13 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             elementos = driver.find_elements(By.XPATH, "//button[.//span[contains(normalize-space(text()),'Assinar ato')]]")
             btn_finalizar = next((b for b in elementos if b.is_displayed() and b.is_enabled()), None)
         except Exception:
-            pass
+            if debug:
+                log('[COMUNICACAO][DEBUG] Fallback texto para Assinar ato não disponível')
         if btn_finalizar:
             log('[COMUNICACAO][WARN] Timeout observer mas botao Assinar encontrado por fallback texto.')
         else:
             log('[COMUNICACAO][ERRO] Botao Assinar nao habilitou em 15s.')
+            log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'erro', 'motivo': 'assinar_nao_habilitou'})
             return False
 
     if gigs_extra:
@@ -578,13 +490,13 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             try:
                 _estado_antes = capturar_estado_browser(driver)
             except Exception:
-                pass
+                log('[COMUNICACAO][DEBUG] capturar_estado_browser falhou (não crítico)')
 
         try:
             from Fix.assinatura_cookies import reinjetar_antes_assinatura
             reinjetar_antes_assinatura(driver)
         except Exception:
-            pass
+            log('[COMUNICACAO][DEBUG] reinjetar_antes_assinatura não disponível (1a assinatura)')
 
         try:
             driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", btn_finalizar)
@@ -695,12 +607,12 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                 from Fix.assinatura_cookies import capturar_apos_assinatura
                 capturar_apos_assinatura(driver)
             except Exception:
-                pass
+                log('[COMUNICACAO][DEBUG] capturar_apos_assinatura não disponível')
             if _debug_assin and _estado_antes:
                 try:
                     salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
                 except Exception:
-                    pass
+                    log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
             snack_final = esperar_elemento(driver, 'snack-bar-container', timeout=15, by=By.CSS_SELECTOR)
             if snack_final:
                 txt = snack_final.text or ''
@@ -718,12 +630,12 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
                 from Fix.assinatura_cookies import capturar_apos_assinatura
                 capturar_apos_assinatura(driver)
             except Exception:
-                pass
+                log('[COMUNICACAO][DEBUG] capturar_apos_assinatura não disponível')
             if _debug_assin and _estado_antes:
                 try:
                     salvar_delta(diff_estado(_estado_antes, capturar_estado_browser(driver)))
                 except Exception:
-                    pass
+                    log('[COMUNICACAO][DEBUG] salvar_delta falhou (não crítico)')
             snack_sucesso = esperar_elemento(driver, 'snack-bar-container', timeout=5, by=By.CSS_SELECTOR)
             if snack_sucesso:
                 txt = snack_sucesso.text or ''
@@ -734,54 +646,8 @@ def salvar_minuta_final(driver, sigilo, gigs_extra=None, debug=False, log=None, 
             else:
                 log('[COMUNICACAO][WARN] Snackbar de confirmação de assinatura não detectado em 30s.')
 
+    log_fim('COMUNICACAO_SALVAR_MINUTA', {'status': 'sucesso'})
     log('Comunicação processual finalizada.')
     return True
 
 
-def limpar_destinatarios_existentes(driver, debug=False):
-    """Fluxo rápido: aguarda 1.5s, seleciona todos e clica em excluir sem verificações extras."""
-    if debug:
-        def log(msg):
-            print(f"[DEBUG] {msg}")
-    else:
-        def log(_msg):
-            return None
-
-    try:
-        # esperar tempo curto para a tela estabilizar (otimizado para velocidade)
-        log('[COMUNICACAO] Fluxo rápido de limpeza: aguardando 0.6s para povoar destinatários (otimizado)')
-        import time as _time
-        _time.sleep(0.6)
-
-        # Clicar no checkbox 'selecionar todos' (input interno) via JS - método rápido
-        try:
-            input_el = driver.find_element(By.ID, 'todosSelecionados-input')
-            driver.execute_script("arguments[0].click();", input_el)
-            log('[COMUNICACAO] Checkbox "Selecionar todos" clicado (input id)')
-        except Exception as e:
-            log(f'[COMUNICACAO][WARN] Não conseguiu clicar checkbox selecionar todos (input id): {e}')
-
-        # Clicar no botão de excluir usando JS click (rápido) e prosseguir sem esperas longas
-        try:
-            btn = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Excluir expedientes selecionados"]')
-            try:
-                driver.execute_script("arguments[0].click();", btn)
-                log('[COMUNICACAO][DEBUG] JS click no botão excluir realizado (rápido)')
-            except Exception as e_js:
-                log(f'[COMUNICACAO][DEBUG] JS click falhou: {e_js} - tentando Selenium click')
-                try:
-                    btn.click()
-                    log('[COMUNICACAO][DEBUG] Selenium click no botão excluir realizado')
-                except Exception as e_click:
-                    log(f'[COMUNICACAO][WARN] Falha ao clicar botão excluir: {e_click}')
-
-        except Exception as e:
-            log(f'[COMUNICACAO][WARN] Botão excluir não encontrado pelo selector aria-label: {e}')
-
-        # Não realizar verificações adicionais para manter fluxo rápido
-        log('[COMUNICACAO] Fluxo rápido completado (prosseguindo sem checagem)')
-        return True
-
-    except Exception as e:
-        log(f'[COMUNICACAO][ERRO] Falha geral no fluxo rápido de limpeza: {e}')
-        raise NavegacaoError(f'limpar_destinatarios_existentes: {e}')

@@ -12,7 +12,7 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
     Busca até 4 documentos (sentença, decisão ou despacho) e aplica regras específicas.
     """
     from Fix.extracao import extrair_documento
-    from Fix.gigs import criar_gigs
+    from Fix.extracao import criar_gigs
 
     def log_msg(msg):
         if debug:
@@ -51,7 +51,7 @@ def analisar_documentos_pos_carta(driver, numero_processo, observacao, debug=Fal
 
                 try:
                     from pathlib import Path
-                    from Fix.scripts import carregar_js
+                    from Fix.facade_publica import carregar_js
                     SCRIPTS_DIR = Path(__file__).parent / "scripts"
                     script_scroll = carregar_js("scroll_into_view_center.js", SCRIPTS_DIR)
                     driver.execute_script(script_scroll, link)

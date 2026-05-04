@@ -149,7 +149,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
                 EC.presence_of_element_located((By.XPATH, xpath_linha))
             )
             logger.debug("[SISBAJUD] [ORDEM] Linha localizada via XPath direto +%.1fs", time_module.time()-_start_geral)
-        except:
+        except Exception:  # item individual, continua
             logger.debug("[SISBAJUD] [ORDEM] Fallback: buscando linha por CSS selector...")
             # Fallback: buscar via CSS selector de tabela
             try:
@@ -173,7 +173,7 @@ def _processar_ordem(driver, ordem, tipo_fluxo, log=True, valor_parcial=None, ap
                             linha_el = linha
                             logger.debug("[SISBAJUD] [ORDEM] Linha encontrada: ordem %s", sequencial)
                             break
-                    except:
+                    except Exception:  # item individual, continua
                         continue
 
                 if not linha_el:

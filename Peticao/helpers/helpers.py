@@ -1,7 +1,9 @@
 """
-Helpers para checagens específicas de regras em Petições Iniciais
-Módulo para validações customizadas antes da execução de ações
+Helpers para checagens especificas de regras em Peticoes Iniciais
+Modulo para validacoes customizadas antes da execucao de acoes
 """
+
+from Fix.log import logger
 
 import re
 import json
@@ -11,47 +13,44 @@ from pathlib import Path
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from Fix.selenium_base.wait_operations import esperar_elemento
-from ..core.log import get_module_logger
-
-logger = get_module_logger(__name__)
 
 # Import para API calls
 from ..api.client import PjeApiClient, session_from_driver
 from ..core.extracao import extrair_direto, extrair_documento, criar_gigs, extrair_dados_processo
-from ..api.resolvers import obter_chave_ultimo_despacho_decisao_sentenca
-from ..pet import extrair_texto_peticao_via_api
+from Fix.variaveis import obter_chave_ultimo_despacho_decisao_sentenca
+from ..runtime_pet import extrair_texto_peticao_via_api
 
 
 def _buscar_documento_relevante_timeline(driver: WebDriver) -> Tuple[Optional[Any], Optional[Any], str]:
     """
-    Busca documento relevante (sentença/decisão/despacho) na timeline via DOM.
-    
-    Baseado na implementação do p2b_fluxo_documentos.py.
+    Busca documento relevante (sentenca/decisao/despacho) na timeline via DOM.
+
+    Baseado na implementacao do p2b_fluxo_documentos.py.
     Busca APENAS no tipo real do documento (primeiro <span> dentro do link).
-    
+
     Returns:
         Tupla (doc_encontrado, doc_link, tipo_documento)
     """
     from selenium.webdriver.common.by import By
-    
+
     itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
-    
+
     # Busca do mais recente para o mais antigo
     for item in itens:
         try:
             link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
-            
+
             # Extrair apenas o primeiro <span> (tipo real do documento)
             primeiro_span = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
             tipo_real = primeiro_span.text.lower().strip() if primeiro_span else ''
-            
-            # Verificar se o tipo REAL é um dos procurados
-            if tipo_real and re.search(r'^(despacho|decisão|sentença)', tipo_real):
+
+            # Verificar se o tipo REAL e um dos procurados
+            if tipo_real and re.search(r'^(despacho|decisao|sentenca)', tipo_real):
                 return item, link, tipo_real.title()  # Retorna capitalizado
-                
+
         except Exception:
             continue
-    
+
     return None, None, ""
 import re
 from typing import Optional, Tuple, Any
@@ -79,7 +78,7 @@ def _normalizar_delete_processes(delete_processes: dict) -> dict:
 
 def apagar(numero_processo: str, id_documento: str):
     """
-    Registra processo no arquivo delete.js para não ser processado.
+    Registra processo no arquivo delete.js para nao ser processado.
     Formato: {numero_processo: [id_doc]}
     """
     try:
@@ -120,26 +119,26 @@ def apagar(numero_processo: str, id_documento: str):
 
         # Escrever de volta (sempre acumulando)
         with open(delete_file, 'w', encoding='utf-8') as f:
-            f.write("// Arquivo para registrar processos que devem ser \"apagados\" (não processados)\n")
+            f.write("// Arquivo para registrar processos que devem ser \"apagados\" (nao processados)\n")
             f.write("// Formato: {numero_processo: [id_doc]}\n\n")
             f.write("const delete_processes = ")
             json.dump(delete_processes, f, indent=2, ensure_ascii=False)
             f.write(";\n\nmodule.exports = delete_processes;\n")
 
     except Exception as e:
-        print(f"Erro ao registrar processo no delete.js: {e}")
+        logger.error("ERRO em apagar: Erro ao registrar processo no delete.js: %s: %s", type(e).__name__, e)
 
 def checar_habilitacao(item, driver: WebDriver) -> bool:
     """
-    Checagem completa para a regra de direitos-habilitação
-    Inclui verificação de advogado + verificações de audiência para ato_ceju
+    Checagem completa para a regra de direitos-habilitacao
+    Inclui verificacao de advogado + verificacoes de audiencia para ato_ceju
 
     Args:
-        item: Item da petição com atributos do processo
+        item: Item da peticao com atributos do processo
         driver: WebDriver para acesso ao PJe
 
     Returns:
-        bool: True se deve executar ato_ceju, False caso contrário
+        bool: True se deve executar ato_ceju, False caso contrario
     """
     try:
         numero_processo = getattr(item, 'numero_processo', '')
@@ -151,12 +150,12 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
         try:
             extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
         except Exception as e:
-            print(f"Erro ao extrair dados do processo: {e}")
+            logger.warning('[HABILITACAO] Erro ao extrair dados do processo: %s', e)
             return False
 
-        # 1. VERIFICAÇÃO DE ADVOGADO (não afeta resultado final)
+        # 1. VERIFICACAO DE ADVOGADO (nao afeta resultado final)
         def _extrair_nome_assinante(texto_pdf):
-            """Helper: extrai nome do assinante da primeira página"""
+            """Helper: extrai nome do assinante da primeira pagina"""
             try:
                 linhas = texto_pdf.split('\n')
                 for linha in reversed(linhas):
@@ -169,13 +168,13 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
                             return nome
                 return None
             except Exception as e:
-                print(f"Erro ao extrair nome do assinante: {e}")
+                logger.warning('[HABILITACAO] Erro ao extrair nome do assinante: %s', e)
                 return None
 
         def _extrair_id_doc_peticao():
-            """ID numérico da petição selecionada na timeline.
+            """ID numerico da peticao selecionada na timeline.
             Selecionada = li.tl-item-container com style contendo background-color (azul claro).
-            id do li: 'doc_453562049' → '453562049'.
+            id do li: 'doc_453562049' -> '453562049'.
             """
             try:
                 sel = driver.find_element(
@@ -189,7 +188,7 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
                 return ''
 
         def _obter_lista_advogados():
-            """Helper: obtém lista de advogados de dadosatuais.json"""
+            """Helper: obtem lista de advogados de dadosatuais.json"""
             try:
                 dados_path = Path('dadosatuais.json')
                 if not dados_path.exists():
@@ -205,10 +204,10 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
                         advogados.append(reu['advogado']['nome'])
                 return advogados
             except Exception as e:
-                print(f"Erro ao obter lista de advogados: {e}")
+                logger.warning('[HABILITACAO] Erro ao obter lista de advogados: %s', e)
                 return []
 
-        # 1. VERIFICAR AUDIÊNCIA → define ato_ceju (não depende de advogado)
+        # 1. VERIFICAR AUDIENCIA -> define ato_ceju (nao depende de advogado)
         tem_ata_audiencia = False
         try:
             sess, trt = session_from_driver(driver)
@@ -221,25 +220,25 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
                 if timeline:
                     for doc in timeline:
                         titulo = doc.get('titulo', '').lower()
-                        if 'ata' in titulo and 'audiência' in titulo:
+                        if 'ata' in titulo and 'audiencia' in titulo:
                             tem_ata_audiencia = True
-                            print(f"Processo {numero_processo} - tem ata de audiência (ato_ceju=True)")
+                            logger.debug('[HABILITACAO] Processo %s - tem ata de audiencia (ato_ceju=True)', numero_processo)
                             break
         except Exception as e:
-            print(f"Aviso: Erro ao verificar ata de audiência via API: {e}")
+            logger.warning('[HABILITACAO] Aviso: Erro ao verificar ata de audiencia via API: %s', e)
 
-        # ato_ceju depende APENAS da audiência
+        # ato_ceju depende APENAS da audiencia
         executar_ato_ceju = tem_ata_audiencia
 
-        # 2. VERIFICAR ADVOGADO — SEMPRE, independente de ato_ceju
+        # 2. VERIFICAR ADVOGADO -- SEMPRE, independente de ato_ceju
         id_doc_peticao = _extrair_id_doc_peticao()
         fez_gigs = False
         texto_pdf = extrair_texto_peticao_via_api(driver, item)
         if texto_pdf:
             texto_lower = texto_pdf.lower()
-            contem_exclusao = "excluir" in texto_lower or "exclusão" in texto_lower
+            contem_exclusao = "excluir" in texto_lower or "exclusao" in texto_lower
             nome_assinante = _extrair_nome_assinante(texto_pdf)
-            print(f"Processo {numero_processo} - assinante: {nome_assinante or '(não identificado)'} | contem_exclusao: {contem_exclusao}")
+            logger.debug('[HABILITACAO] Processo %s - assinante: %s | contem_exclusao: %s', numero_processo, nome_assinante or '(nao identificado)', contem_exclusao)
             adv_diverso = False
             if nome_assinante:
                 advogados = _obter_lista_advogados()
@@ -251,9 +250,9 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
                     if not assinante_eh_advogado:
                         adv_diverso = True
                 else:
-                    print(f"Processo {numero_processo} - lista de advogados vazia/indisponível")
+                    logger.debug('[HABILITACAO] Processo %s - lista de advogados vazia/indisponivel', numero_processo)
             else:
-                print(f"Processo {numero_processo} - assinante não identificado no PDF")
+                logger.debug('[HABILITACAO] Processo %s - assinante nao identificado no PDF', numero_processo)
 
             if adv_diverso and contem_exclusao:
                 tipo_gigs = "hab adv diverso + exclusao"
@@ -265,66 +264,66 @@ def checar_habilitacao(item, driver: WebDriver) -> bool:
                 tipo_gigs = None
 
             if adv_diverso and contem_exclusao:
-                print(f"Processo {numero_processo} - Adv diverso + exclusao")
+                logger.debug('[HABILITACAO] Processo %s - Adv diverso + exclusao', numero_processo)
             elif adv_diverso:
-                print(f"Processo {numero_processo} - Adv diverso")
+                logger.debug('[HABILITACAO] Processo %s - Adv diverso', numero_processo)
             elif contem_exclusao:
-                print(f"Processo {numero_processo} - Pede exclusao")
+                logger.debug('[HABILITACAO] Processo %s - Pede exclusao', numero_processo)
             elif nome_assinante:
-                print(f"Processo {numero_processo} - Advogado ok")
+                logger.debug('[HABILITACAO] Processo %s - Advogado ok', numero_processo)
 
             if tipo_gigs:
                 try:
                     criar_gigs(driver, "-1", "", tipo_gigs)
                     fez_gigs = True
-                    print(f"Processo {numero_processo} - GIGS: {tipo_gigs}")
+                    logger.debug('[HABILITACAO] Processo %s - GIGS: %s', numero_processo, tipo_gigs)
                 except Exception as e:
-                    print(f"Erro ao criar GIGS para {numero_processo}: {e}")
+                    logger.warning('[HABILITACAO] Erro ao criar GIGS para %s: %s', numero_processo, e)
         else:
-            print(f"Processo {numero_processo} - texto PDF não extraído, verificação de advogado ignorada")
+            logger.debug('[HABILITACAO] Processo %s - texto PDF nao extraido, verificacao de advogado ignorada', numero_processo)
 
-        # 3. Decisão final
+        # 3. Decisao final
         if executar_ato_ceju:
-            # Tem audiência → executa ato_ceju, nada mais
-            print(f"Processo {numero_processo} - ato_ceju=True → executa ato_ceju, nada mais")
+            # Tem audiencia -> executa ato_ceju, nada mais
+            logger.debug('[HABILITACAO] Processo %s - ato_ceju=True, executa ato_ceju, nada mais', numero_processo)
             return True
 
-        # ato_ceju=False: apagar apenas se não fez GIGS
+        # ato_ceju=False: apagar apenas se nao fez GIGS
         if not fez_gigs:
             apagar(numero_processo, id_doc_peticao)
-            print(f"Processo {numero_processo} - ato_ceju=False → registrado para apagar")
+            logger.debug('[HABILITACAO] Processo %s - ato_ceju=False, registrado para apagar', numero_processo)
         else:
-            print(f"Processo {numero_processo} - ato_ceju=False + GIGS feito → não apagar")
+            logger.debug('[HABILITACAO] Processo %s - ato_ceju=False + GIGS feito, nao apagar', numero_processo)
         return False
 
     except Exception as e:
-        print(f"Erro na checagem de habilitação: {e}")
+        logger.error("ERRO em checar_habilitacao: %s: %s", type(e).__name__, e)
         return False
 
 
 def agravo_peticao(item, driver: WebDriver) -> bool:
     """
-    Processa Agravo de Petição: busca documento relevante na timeline via DOM
-    e executa ato apropriado baseado no conteúdo.
-    
+    Processa Agravo de Peticao: busca documento relevante na timeline via DOM
+    e executa ato apropriado baseado no conteudo.
+
     Fluxo:
-    1. Buscar documento relevante (sentença/decisão/despacho) na timeline
-    2. Se sentença: extrair conteúdo e verificar por "defiro" ou "indefiro" + "desconsideração"
+    1. Buscar documento relevante (sentenca/decisao/despacho) na timeline
+    2. Se sentenca: extrair conteudo e verificar por "defiro" ou "indefiro" + "desconsideracao"
     3. Executar ato correspondente
     """
-    logger.info(f'[AGPET] Iniciando processamento de agravo de petição: {item.numero_processo}')
-    
+    logger.info('[AGPET] Iniciando processamento de agravo de peticao: %s', item.numero_processo)
+
     # 1. Buscar documento relevante na timeline via DOM
     doc_encontrado, doc_link, tipo_documento = _buscar_documento_relevante_timeline(driver)
-    
+
     if not doc_encontrado or not doc_link:
-        logger.warning(f'[AGPET] Nenhum documento relevante encontrado na timeline')
+        logger.warning('[AGPET] Nenhum documento relevante encontrado na timeline')
         return False
-    
-    logger.info(f'[AGPET] Documento relevante encontrado: {tipo_documento}')
-    
-    # 2. Se for sentença, extrair conteúdo para análise
-    if tipo_documento.lower() == 'sentença':
+
+    logger.info('[AGPET] Documento relevante encontrado: %s', tipo_documento)
+
+    # 2. Se for sentenca, extrair conteudo para analise
+    if tipo_documento.lower() == 'sentenca':
         # Clicar no documento e aguardar carregamento
         doc_link.click()
         try:
@@ -333,20 +332,20 @@ def agravo_peticao(item, driver: WebDriver) -> bool:
         except Exception:
             import time
             time.sleep(2)
-        
-        # Extrair conteúdo usando extrair_direto
+
+        # Extrair conteudo usando extrair_direto
         texto = None
         try:
             resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=True)
-            
+
             if resultado_direto and resultado_direto.get('sucesso'):
                 if resultado_direto.get('conteudo'):
                     texto = resultado_direto['conteudo'].lower()
                 elif resultado_direto.get('conteudo_bruto'):
                     texto = resultado_direto['conteudo_bruto'].lower()
         except Exception as e:
-            logger.warning(f'[AGPET] Erro na extração DIRETA: {e}')
-        
+            logger.warning('[AGPET] Erro na extracao DIRETA: %s', e)
+
         # Fallback para extrair_documento se extrair_direto falhar
         if not texto:
             try:
@@ -354,65 +353,65 @@ def agravo_peticao(item, driver: WebDriver) -> bool:
                 if texto_tuple and texto_tuple[0]:
                     texto = texto_tuple[0].lower()
             except Exception as e:
-                logger.warning(f'[AGPET] Erro na extração DOCUMENTO: {e}')
-        
+                logger.warning('[AGPET] Erro na extracao DOCUMENTO: %s', e)
+
         if not texto:
-            logger.error(f'[AGPET] Não foi possível extrair texto da sentença')
+            logger.error("ERRO em agravo_peticao: Nao foi possivel extrair texto da sentenca")
             return False
-        
-        # 3. Verificar conteúdo da sentença
+
+        # 3. Verificar conteudo da sentenca
         texto_normalizado = texto.lower()
-        
-        # Verificar se contém "defiro" ou "indefiro" + "desconsideração"
-        if 'desconsideração' in texto_normalizado:
+
+        # Verificar se contem "defiro" ou "indefiro" + "desconsideracao"
+        if 'desconsideracao' in texto_normalizado:
             if 'defiro' in texto_normalizado or 'indefiro' in texto_normalizado:
-                logger.info(f'[AGPET] Sentença contém decisão sobre desconsideração - executando ato_agpetidpj')
+                logger.info('[AGPET] Sentenca contem decisao sobre desconsideracao - executando ato_agpetidpj')
                 try:
                     from ..atos.wrappers import ato_agpetidpj
                     ato_agpetidpj(driver)
-                    logger.info(f'[AGPET] ato_agpetidpj executado com sucesso')
+                    logger.info('[AGPET] ato_agpetidpj executado com sucesso')
                     return True
                 except Exception as e:
-                    logger.error(f'[AGPET] Erro ao executar ato_agpetidpj: {e}')
+                    logger.error("ERRO em agravo_peticao: Erro ao executar ato_agpetidpj: %s: %s", type(e).__name__, e)
                     return False
             else:
-                logger.info(f'[AGPET] Sentença menciona desconsideração mas sem decisão clara')
-        
-        # Demais casos de sentença
-        logger.info(f'[AGPET] Sentença sem decisão específica sobre desconsideração - executando ato_agpet')
+                logger.info('[AGPET] Sentenca menciona desconsideracao mas sem decisao clara')
+
+        # Demais casos de sentenca
+        logger.info('[AGPET] Sentenca sem decisao especifica sobre desconsideracao - executando ato_agpet')
         try:
             from ..atos.wrappers import ato_agpet
             ato_agpet(driver)
-            logger.info(f'[AGPET] ato_agpet executado com sucesso')
+            logger.info('[AGPET] ato_agpet executado com sucesso')
             return True
         except Exception as e:
-            logger.error(f'[AGPET] Erro ao executar ato_agpet: {e}')
+            logger.error("ERRO em agravo_peticao: Erro ao executar ato_agpet: %s: %s", type(e).__name__, e)
             return False
-    
-    # 4. Para decisões e despachos, executar ato_agpinter
+
+    # 4. Para decisoes e despachos, executar ato_agpinter
     else:
-        logger.info(f'[AGPET] Documento é {tipo_documento} - executando ato_agpinter')
+        logger.info('[AGPET] Documento e %s - executando ato_agpinter', tipo_documento)
         try:
             from ..atos.wrappers import ato_agpinter
             ato_agpinter(driver)
-            logger.info(f'[AGPET] ato_agpinter executado com sucesso')
+            logger.info('[AGPET] ato_agpinter executado com sucesso')
             return True
         except Exception as e:
-            logger.error(f'[AGPET] Erro ao executar ato_agpinter: {e}')
+            logger.error("ERRO em agravo_peticao: Erro ao executar ato_agpinter: %s: %s", type(e).__name__, e)
             return False
 
 
 def def_quesitos(item, driver: WebDriver) -> bool:
     """
-    Processa petições com quesitos: analisa se deve admitir assistente técnico ou apagar.
-    
-    Lógica:
-    1. Seleciona primeira petição com quesitos na timeline.
+    Processa peticoes com quesitos: analisa se deve admitir assistente tecnico ou apagar.
+
+    Logica:
+    1. Seleciona primeira peticao com quesitos na timeline.
     2. Extrai texto direto de Fix.extracao.
-    3. Se texto contém "indicar assistente/assistentes" ou "assistente/assistentes técnicos":
+    3. Se texto contem "indicar assistente/assistentes" ou "assistente/assistentes tecnicos":
        - Chama _desp_assist para analisar despachos subsequentes.
-    4. Caso contrário: flag apagar.
-    
+    4. Caso contrario: flag apagar.
+
     Returns:
         bool: True se deve executar ato_assistente, False se deve apagar.
     """
@@ -420,8 +419,8 @@ def def_quesitos(item, driver: WebDriver) -> bool:
         numero_processo = getattr(item, 'numero_processo', '')
         if not numero_processo:
             return False
-        
-        # 1. Selecionar primeira petição com quesitos na timeline
+
+        # 1. Selecionar primeira peticao com quesitos na timeline
         link_peticao = None
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         for item_timeline in itens:
@@ -429,16 +428,16 @@ def def_quesitos(item, driver: WebDriver) -> bool:
                 link = item_timeline.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 span_texto = link.find_element(By.CSS_SELECTOR, 'span:not(.sr-only)')
                 texto_link = span_texto.text.lower()
-                if 'quesitos' in texto_link or 'apresentação de quesitos' in texto_link:
+                if 'quesitos' in texto_link or 'apresentacao de quesitos' in texto_link:
                     link_peticao = link
                     break
             except Exception:
                 continue
-        
+
         if not link_peticao:
-            logger.warning(f'[QUESITOS] Nenhuma petição com quesitos encontrada na timeline para {numero_processo}')
+            logger.warning('[QUESITOS] Nenhuma peticao com quesitos encontrada na timeline para %s', numero_processo)
             return False
-        
+
         # 2. Extrair texto direto
         link_peticao.click()
         try:
@@ -446,56 +445,56 @@ def def_quesitos(item, driver: WebDriver) -> bool:
             aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
         except Exception:
             pass
-        
+
         texto_peticao = None
         try:
             resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
             if resultado and resultado.get('sucesso'):
                 texto_peticao = resultado.get('conteudo') or resultado.get('conteudo_bruto')
         except Exception as e:
-            logger.warning(f'[QUESITOS] Erro ao extrair texto da petição: {e}')
-        
+            logger.warning('[QUESITOS] Erro ao extrair texto da peticao: %s', e)
+
         if not texto_peticao:
-            logger.warning(f'[QUESITOS] Não foi possível extrair texto da petição para {numero_processo}')
+            logger.warning('[QUESITOS] Nao foi possivel extrair texto da peticao para %s', numero_processo)
             return False
-        
+
         texto_lower = texto_peticao.lower()
-        
-        # 3. Verificar se contém "indicar assistente/assistentes" ou "assistente/assistentes técnicos"
+
+        # 3. Verificar se contem "indicar assistente/assistentes" ou "assistente/assistentes tecnicos"
         if ('indicar assistente' in texto_lower or 'indicar assistentes' in texto_lower or
-            'assistente técnico' in texto_lower or 'assistentes técnicos' in texto_lower):
+            'assistente tecnico' in texto_lower or 'assistentes tecnicos' in texto_lower):
             # Chamar _desp_assist
             return _desp_assist(driver, numero_processo)
         else:
-            # Não contém: flag apagar
-            logger.info(f'[QUESITOS] Petição não contém indicação de assistente - apagando {numero_processo}')
+            # Nao contem: flag apagar
+            logger.info('[QUESITOS] Peticao nao contem indicacao de assistente - apagando %s', numero_processo)
             apagar(numero_processo, getattr(item, 'id_item', ''))
             return False
-    
+
     except Exception as e:
-        logger.error(f'[QUESITOS] Erro em def_quesitos para {numero_processo}: {e}')
+        logger.error("ERRO em def_quesitos: %s: %s", type(e).__name__, e)
         return False
 
 
 def _desp_assist(driver: WebDriver, numero_processo: str) -> bool:
     """
-    Analisa despachos subsequentes à petição de quesitos para decidir admissão de assistente.
-    
-    Lógica:
-    - Checa primeiro Despacho abaixo da petição.
-    - Se contém "venham a ser nomeados futuramente": flag apagar.
-    - Senão, itera próximos despachos.
-    - Se no segundo contém: flag apagar.
-    - Senão: ato_assistente.
-    
+    Analisa despachos subsequentes a peticao de quesitos para decidir admissao de assistente.
+
+    Logica:
+    - Checa primeiro Despacho abaixo da peticao.
+    - Se contem "venham a ser nomeados futuramente": flag apagar.
+    - Senao, itera proximos despachos.
+    - Se no segundo contem: flag apagar.
+    - Senao: ato_assistente.
+
     Returns:
         bool: True se deve executar ato_assistente, False se deve apagar.
     """
     try:
-        # Buscar despachos na timeline após a petição
+        # Buscar despachos na timeline apos a peticao
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         despachos = []
-        
+
         for item_timeline in itens:
             try:
                 link = item_timeline.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
@@ -505,41 +504,41 @@ def _desp_assist(driver: WebDriver, numero_processo: str) -> bool:
                     despachos.append(link)
             except Exception:
                 continue
-        
+
         if len(despachos) < 1:
-            logger.warning(f'[DESP_ASSIST] Nenhum despacho encontrado para {numero_processo}')
+            logger.warning('[DESP_ASSIST] Nenhum despacho encontrado para %s', numero_processo)
             return False
-        
+
         # Checar primeiro despacho
         texto_primeiro = _extrair_texto_despacho(driver, despachos[0])
         if texto_primeiro and 'venham a ser nomeados futuramente' in texto_primeiro.lower():
-            logger.info(f'[DESP_ASSIST] Primeiro despacho contém "venham a ser nomeados futuramente" - apagando {numero_processo}')
+            logger.info('[DESP_ASSIST] Primeiro despacho contem "venham a ser nomeados futuramente" - apagando %s', numero_processo)
             return False
-        
-        # Se não, checar segundo despacho se existir
+
+        # Se nao, checar segundo despacho se existir
         if len(despachos) > 1:
             texto_segundo = _extrair_texto_despacho(driver, despachos[1])
             if texto_segundo and 'venham a ser nomeados futuramente' in texto_segundo.lower():
-                logger.info(f'[DESP_ASSIST] Segundo despacho contém "venham a ser nomeados futuramente" - apagando {numero_processo}')
+                logger.info('[DESP_ASSIST] Segundo despacho contem "venham a ser nomeados futuramente" - apagando %s', numero_processo)
                 return False
-        
-        # Se nenhum contém: ato_assistente
-        logger.info(f'[DESP_ASSIST] Nenhum despacho contém "venham a ser nomeados futuramente" - executando ato_assistente para {numero_processo}')
+
+        # Se nenhum contem: ato_assistente
+        logger.info('[DESP_ASSIST] Nenhum despacho contem "venham a ser nomeados futuramente" - executando ato_assistente para %s', numero_processo)
         try:
             from ..atos.wrappers import ato_assistente
             if ato_assistente:
                 ato_assistente(driver)
-                logger.info(f'[DESP_ASSIST] ato_assistente executado com sucesso para {numero_processo}')
+                logger.info('[DESP_ASSIST] ato_assistente executado com sucesso para %s', numero_processo)
                 return True
             else:
-                logger.warning(f'[DESP_ASSIST] ato_assistente não disponível')
+                logger.warning('[DESP_ASSIST] ato_assistente nao disponivel')
                 return False
         except Exception as e:
-            logger.error(f'[DESP_ASSIST] Erro ao executar ato_assistente: {e}')
+            logger.error("ERRO em _desp_assist: Erro ao executar ato_assistente: %s: %s", type(e).__name__, e)
             return False
-    
+
     except Exception as e:
-        logger.error(f'[DESP_ASSIST] Erro em _desp_assist para {numero_processo}: {e}')
+        logger.error("ERRO em _desp_assist: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -554,28 +553,28 @@ def _extrair_texto_despacho(driver: WebDriver, link_despacho) -> Optional[str]:
             aguardar_renderizacao_nativa(driver, '.timeline, .document-viewer, div.tl-item-container', timeout=2)
         except Exception:
             pass
-        
+
         resultado = extrair_direto(driver, timeout=10, debug=False, formatar=True)
         if resultado and resultado.get('sucesso'):
             return resultado.get('conteudo') or resultado.get('conteudo_bruto')
         return None
     except Exception as e:
-        logger.warning(f'[EXTRACAO_DESPACHO] Erro ao extrair texto do despacho: {e}')
+        logger.warning('[EXTRACAO_DESPACHO] Erro ao extrair texto do despacho: %s', e)
         return None
 
 
 def contesta_calc(item, driver: WebDriver) -> bool:
     """
-    Processa petição de cálculos de liquidação:
-    1. Busca despacho na timeline (ignora decisão/sentença)
+    Processa peticao de calculos de liquidacao:
+    1. Busca despacho na timeline (ignora decisao/sentenca)
     2. Extrai texto do despacho
-    3. Verifica se contém frase de intimação para calculos de liquidação
+    3. Verifica se contem frase de intimacao para calculos de liquidacao
     4. Se sim: verifica advogado da reclamada em dadosatuais.json
-       - com advogado → ato_contestar
-       - sem advogado  → ato_revel
+       - com advogado -> ato_contestar
+       - sem advogado  -> ato_revel
     """
     numero_processo = item.numero_processo
-    logger.info(f'[CONTESTA_CALC] Iniciando para {numero_processo}')
+    logger.info('[CONTESTA_CALC] Iniciando para %s', numero_processo)
 
     # 1. Buscar despacho na timeline
     itens_tl = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
@@ -592,19 +591,19 @@ def contesta_calc(item, driver: WebDriver) -> bool:
             continue
 
     if not link_despacho:
-        logger.info(f'[CONTESTA_CALC] Nenhum despacho encontrado — sem acao')
+        logger.info('[CONTESTA_CALC] Nenhum despacho encontrado -- sem acao')
         return False
 
     # 2. Extrair dados do processo
     try:
         extrair_dados_processo(driver, caminho_json='dadosatuais.json', debug=False)
     except Exception as e:
-        logger.warning(f'[CONTESTA_CALC] Falha ao extrair dados do processo: {e}')
+        logger.warning('[CONTESTA_CALC] Falha ao extrair dados do processo: %s', e)
 
     # 3. Extrair texto do despacho e verificar frase
     texto = _extrair_texto_despacho(driver, link_despacho)
     if not texto:
-        logger.warning(f'[CONTESTA_CALC] Nao foi possivel extrair texto do despacho')
+        logger.warning('[CONTESTA_CALC] Nao foi possivel extrair texto do despacho')
         return False
 
     FRASE = 'para apresentar calculos de liquidacao'
@@ -615,10 +614,10 @@ def contesta_calc(item, driver: WebDriver) -> bool:
     texto_norm = ''.join(c for c in texto_norm if unicodedata.category(c) != 'Mn')
 
     if FRASE not in texto_norm:
-        logger.info(f'[CONTESTA_CALC] Despacho nao contem frase de calculos — sem acao')
+        logger.info('[CONTESTA_CALC] Despacho nao contem frase de calculos -- sem acao')
         return False
 
-    logger.info(f'[CONTESTA_CALC] Frase encontrada — verificando advogado da reclamada')
+    logger.info('[CONTESTA_CALC] Frase encontrada -- verificando advogado da reclamada')
 
     # 4. Verificar advogado da reclamada em dadosatuais.json
     tem_advogado_reclamada = False
@@ -636,16 +635,16 @@ def contesta_calc(item, driver: WebDriver) -> bool:
                         tem_advogado_reclamada = True
                         break
     except Exception as e:
-        logger.warning(f'[CONTESTA_CALC] Erro ao ler dadosatuais.json: {e}')
+        logger.warning('[CONTESTA_CALC] Erro ao ler dadosatuais.json: %s', e)
 
     try:
         from ..atos.wrappers import ato_contestar, ato_revel
         if tem_advogado_reclamada:
-            logger.info(f'[CONTESTA_CALC] Reclamada tem advogado — executando ato_contestar')
+            logger.info('[CONTESTA_CALC] Reclamada tem advogado -- executando ato_contestar')
             return bool(ato_contestar(driver))
         else:
-            logger.info(f'[CONTESTA_CALC] Reclamada sem advogado (revel) — executando ato_revel')
+            logger.info('[CONTESTA_CALC] Reclamada sem advogado (revel) -- executando ato_revel')
             return bool(ato_revel(driver))
     except Exception as e:
-        logger.error(f'[CONTESTA_CALC] Erro ao executar ato: {e}')
+        logger.error("ERRO em contesta_calc: Erro ao executar ato: %s: %s", type(e).__name__, e)
         return False

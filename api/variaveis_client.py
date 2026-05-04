@@ -1,7 +1,22 @@
-from typing import Optional, Any, Dict, List, Tuple
+from typing import Optional, Any, Dict, List, Tuple, TypedDict
 from urllib.parse import urlparse
 
 import requests
+
+
+class GatewayError(TypedDict):
+    type: str
+    message: str
+    method: str
+    path: str
+    status: Optional[int]
+
+
+class GatewayResult(TypedDict):
+    ok: bool
+    status: Optional[int]
+    data: Any
+    error: Optional[GatewayError]
 
 
 class PjeApiClient:
@@ -15,6 +30,141 @@ class PjeApiClient:
         if not base.startswith('http'):
             base = 'https://' + base
         return f"{base}{path}"
+
+    def _xsrf_token(self) -> Optional[str]:
+        for cookie_name in ('XSRF-TOKEN', 'xsrf-token', 'csrf-token', 'X-CSRF-TOKEN'):
+            token = self.sess.cookies.get(cookie_name)
+            if token:
+                return token
+        return None
+
+    def _normalizar_erro(
+        self,
+        *,
+        erro_tipo: str,
+        mensagem: str,
+        metodo: str,
+        path: str,
+        status: Optional[int] = None,
+    ) -> GatewayResult:
+        return {
+            'ok': False,
+            'status': status,
+            'data': None,
+            'error': {
+                'type': erro_tipo,
+                'message': mensagem,
+                'method': metodo.upper(),
+                'path': path,
+                'status': status,
+            },
+        }
+
+    def request_gateway(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Optional[Dict[str, Any]] = None,
+        json_data: Optional[Any] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> GatewayResult:
+        request_headers: Dict[str, str] = {}
+        if headers:
+            request_headers.update(headers)
+
+        token = self._xsrf_token()
+        if token and 'X-XSRF-TOKEN' not in request_headers:
+            request_headers['X-XSRF-TOKEN'] = token
+
+        url = self._url(path)
+
+        try:
+            response = self.sess.request(
+                method=method.upper(),
+                url=url,
+                params=params,
+                json=json_data,
+                headers=request_headers,
+                timeout=timeout,
+            )
+        except requests.RequestException as exc:
+            return self._normalizar_erro(
+                erro_tipo='request_error',
+                mensagem=str(exc),
+                metodo=method,
+                path=path,
+                status=None,
+            )
+
+        if not response.ok:
+            mensagem = response.text.strip()[:300] if response.text else f'HTTP {response.status_code}'
+            return self._normalizar_erro(
+                erro_tipo='http_error',
+                mensagem=mensagem,
+                metodo=method,
+                path=path,
+                status=response.status_code,
+            )
+
+        try:
+            parsed = response.json()
+        except ValueError:
+            parsed = response.text
+
+        return {
+            'ok': True,
+            'status': response.status_code,
+            'data': parsed,
+            'error': None,
+        }
+
+    def gateway_get(
+        self,
+        path: str,
+        *,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> GatewayResult:
+        return self.request_gateway('GET', path, params=params, headers=headers, timeout=timeout)
+
+    def gateway_post(
+        self,
+        path: str,
+        *,
+        json_data: Optional[Any] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> GatewayResult:
+        return self.request_gateway(
+            'POST',
+            path,
+            params=params,
+            json_data=json_data,
+            headers=headers,
+            timeout=timeout,
+        )
+
+    def gateway_patch(
+        self,
+        path: str,
+        *,
+        json_data: Optional[Any] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 15,
+    ) -> GatewayResult:
+        return self.request_gateway(
+            'PATCH',
+            path,
+            params=params,
+            json_data=json_data,
+            headers=headers,
+            timeout=timeout,
+        )
 
     def timeline(self, id_processo: str, buscarDocumentos: bool = True, buscarMovimentos: bool = False) -> Optional[List[Dict[str, Any]]]:
         url = self._url(f"/pje-comum-api/api/processos/id/{id_processo}/timeline")

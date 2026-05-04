@@ -1,4 +1,4 @@
-from Fix.selenium_base.element_interaction import safe_click
+from Fix.selenium_base import safe_click
 from Fix.log import logger
 from Fix.extracao import bndt
 from selenium.webdriver.common.by import By
@@ -127,7 +127,7 @@ def verificar_bloqueio_recente(driver, debug=False):
             lembretes_section = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'div.post-it-set'))
             )
-        except:
+        except Exception:
             return False
         
         # Encontrar todos os lembretes expandidos

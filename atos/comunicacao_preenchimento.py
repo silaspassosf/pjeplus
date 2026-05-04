@@ -1,22 +1,15 @@
 import time
 import re
-import unicodedata
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
 from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
 from Fix.core import aguardar_renderizacao_nativa
-from Fix.exceptions import ElementoNaoEncontradoError, NavegacaoError
+from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 from Fix.log import logger
+from Fix.utils import normalizar_texto as normalizar_string
 from typing import Optional, Union, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
-
-def normalizar_string(valor):
-    if not valor:
-        return ''
-    valor_norm = unicodedata.normalize('NFD', str(valor))
-    valor_norm = ''.join(ch for ch in valor_norm if unicodedata.category(ch) != 'Mn')
-    return valor_norm.lower()
 
 
 def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], max_tentativas: int = 3, debug: bool = False) -> bool:
@@ -47,11 +40,11 @@ def preencher_input_js(driver: WebDriver, seletor: str, valor: Union[str, int], 
                 return True
             if tentativa < max_tentativas:
                 # backoff leve entre tentativas de preencher via JS, pois a UI pode precisar de microtempo.
-                time.sleep(0.4)
+                time.sleep(0.4)  # retry-backoff
         except Exception:
             if tentativa < max_tentativas:
                 # backoff leve entre tentativas de preencher via JS, pois a UI pode precisar de microtempo.
-                time.sleep(0.4)
+                time.sleep(0.4)  # retry-backoff
     return False
 
 
@@ -187,10 +180,10 @@ def _aguardar_ck_com_conteudo(driver: WebDriver, timeout: int = 8) -> bool:
             # esperar_insercao_modelo usa ms; dar um pequeno pulso de 500ms
             esperar_insercao_modelo(driver, timeout=500)
         except Exception:
-            time.sleep(0.3)
+            time.sleep(0.3)  # fallback
 
         # Polling leve durante a espera pelo conteúdo do editor.
-        time.sleep(0.3)
+        time.sleep(0.3)  # poll-interval
 
     return False
 
@@ -444,16 +437,7 @@ def executar_preenchimento_minuta(
                         raise Exception('Nodo filtrado não clicável')
                     driver.execute_script("arguments[0].click();", nodo)
 
-                    modal_aberto = False
-                    for tentativa in range(5):
-                        try:
-                            modal = driver.find_element(By.CSS_SELECTOR, 'pje-dialogo-visualizar-modelo')
-                            if modal.is_displayed():
-                                modal_aberto = True
-                                break
-                        except Exception:
-                            pass
-                        time.sleep(0.5)
+                    modal_aberto = aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'aparecer', timeout=3)
 
                     if not modal_aberto:
                         log('[MODELO][WARN] Modal de visualização não abriu, tentando inserir mesmo assim...')
@@ -472,7 +456,7 @@ def executar_preenchimento_minuta(
                     except Exception as _e:
                         logger.warning(f'[MODELO] Exceção ao executar esperar_insercao_modelo: {_e}')
 
-                    time.sleep(1.5)
+                    time.sleep(1.5)  # fallback — settle after model insertion
                     aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', 'sumir', 10)
                     if not _aguardar_ck_com_conteudo(driver, timeout=8):
                         log('[MODELO][WARN] Timeout aguardando conteúdo no editor após inserção de modelo')

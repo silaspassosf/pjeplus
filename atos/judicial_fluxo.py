@@ -8,11 +8,12 @@ usando os módulos especializados para navegação, conclusão, modelos,
 prazos e bloqueios.
 """
 
-from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
-from Fix.selenium_base.element_interaction import safe_click
-from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable, esperar_url_conter
-from Fix.selenium_base.element_interaction import preencher_multiplos_campos
-from Fix.utils_observer import aguardar_renderizacao_nativa
+from Fix.selenium_base import (
+    aguardar_e_clicar, safe_click_no_scroll, safe_click,
+    esperar_elemento, wait_for_clickable, esperar_url_conter,
+    preencher_multiplos_campos,
+)
+from Fix.core import aguardar_renderizacao_nativa
 from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
@@ -297,7 +298,7 @@ def ato_judicial(
     :return: (sucesso: bool, sigilo_ativado: bool)
     '''
     from selenium.webdriver.common.by import By
-    from Fix.selenium_base.wait_operations import wait_for_clickable, esperar_elemento
+    from Fix.selenium_base import wait_for_clickable, esperar_elemento
     import time
     # Extrair flag de visibilidade (se o wrapper solicitou aplicar visibilidade após sigilo)
     atribuir_visibilidade_autor = False
@@ -361,7 +362,6 @@ def ato_judicial(
                             });
                             input.blur();
                         """, campo_descricao, descricao)
-                        time.sleep(0.3)
                         logger.info('[ATO][DESCRICAO]  Descrição preenchida')
                     else:
                         raise Exception('Campo descrição não encontrado')
@@ -422,8 +422,7 @@ def ato_judicial(
                 # Localiza botão inserir - buscar elemento FRESCO para evitar stale element
                 # Usa retry loop para lidar com StaleElementReferenceException
                 seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
-                time.sleep(0.5)
-                
+
                 btn_inserir = None
                 for tentativa in range(5):
                     try:
@@ -434,7 +433,6 @@ def ato_judicial(
                         raise TimeoutException('Botão inserir não clicável')
                     except (TimeoutException, StaleElementReferenceException):
                         if tentativa < 4:  # Não é a última tentativa
-                            time.sleep(0.3)
                             continue
                         else:
                             logger.error('[ATO][MODELO] Botão inserir não encontrado após 5 tentativas!')
@@ -502,7 +500,6 @@ def ato_judicial(
                 guia_intimacoes = esperar_elemento(driver, 'pje-editor-lateral div[aria-posinset="1"]', timeout=10, by=By.CSS_SELECTOR)
                 if guia_intimacoes and guia_intimacoes.get_attribute('aria-selected') == "false":
                     guia_intimacoes.click()
-                    time.sleep(0.5)
 
                 toggle_intimar = esperar_elemento(driver, 'pje-intimacao-automatica label.mat-slide-toggle-label', timeout=10, by=By.CSS_SELECTOR)
                 if toggle_intimar:
@@ -596,8 +593,7 @@ def ato_judicial(
                     except Exception:
                         safe_click_no_scroll(driver, pec_checkbox, log=False)
                         driver.execute_script('arguments[0].click();', pec_checkbox)
-                    
-                    time.sleep(0.3)
+
                     logger.info(f'[ATO][PEC] {"Marcado" if marcar_pec_bool else "Desmarcado"}')
                 else:
                     logger.info('[ATO][PEC] Ja esta conforme esperado')
@@ -627,6 +623,21 @@ def ato_judicial(
         if movimento:
             logger.info(f'[ATO][MOVIMENTO] Selecionando movimento: {movimento}')
             try:
+                # Clicar na aba "Movimentos" primeiro (via Python, mais confiável que JS setTimeout)
+                try:
+                    from selenium.webdriver.common.by import By
+                    from selenium.webdriver.support.ui import WebDriverWait
+                    from selenium.webdriver.support import expected_conditions as EC
+                    aba_mov = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class,'mat-tab-label') and .//span[contains(translate(text(),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'movimentos')]"))
+                    )
+                    if aba_mov.get_attribute('aria-selected') != 'true':
+                        safe_click_no_scroll(driver, aba_mov, log=False)
+                        logger.debug('[ATO][MOVIMENTO] Aba Movimentos clicada')
+                        aguardar_renderizacao_nativa(driver)
+                except Exception as e:
+                    logger.debug('[ATO][MOVIMENTO] Nao foi possivel clicar na aba Movimentos: %s', e)
+
                 # Movimento multi-estágio (combobox) vs simples (checkbox)
                 if '/' in movimento or '-' in movimento:
                     # Fluxo combobox de dois estágios
@@ -635,43 +646,32 @@ def ato_judicial(
                         return False, False
                     logger.info('[ATO][MOVIMENTO]  Movimento selecionado via combobox')
                 else:
-                    # Fluxo checkbox simples (legado)
+                    # Fluxo checkbox simples (JS sem tab-finding — a aba ja foi clicada acima)
                     js_mov = f'''
                     (function() {{
-                        var tentativas = 0, abaMov = null;
-                        while (tentativas < 3 && !abaMov) {{
-                            var abas = Array.from(document.querySelectorAll('.mat-tab-label'));
-                            abaMov = abas.find(a => a.textContent && a.textContent.normalize('NFD').replace(/[\\W_]/g, '').toLowerCase().includes('movimentos'));
-                            if (abaMov && abaMov.getAttribute('aria-selected') !== 'true') {{
-                                abaMov.click();
-                                break;
-                            }}
-                            tentativas++;
-                        }}
-                        
                         setTimeout(function() {{
                             var textoMov = '{movimento}'.trim().toLowerCase().replace(/\\s+/g, ' ');
                             var checkboxes = Array.from(document.querySelectorAll('mat-checkbox.mat-checkbox.movimento'));
                             var selecionado = false;
-                            
+
                             function normalizarTexto(texto) {{
                                 return texto.normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().trim();
                             }}
-                            
+
                             var termoPesquisa = normalizarTexto(textoMov);
-                              
+
                             for (var cb of checkboxes) {{
                                 try {{
                                     var label = cb.querySelector('label.mat-checkbox-layout .mat-checkbox-label');
                                     var labelText = label && label.textContent ? label.textContent : '';
                                     var labelNorm = labelText.trim().toLowerCase().replace(/\\s+/g, ' ');
                                     var labelSemAcento = normalizarTexto(labelText);
-                                    
-                                    var encontrado = labelNorm.includes(textoMov) || 
+
+                                    var encontrado = labelNorm.includes(textoMov) ||
                                                     labelSemAcento.includes(termoPesquisa) ||
                                                     (textoMov === 'frustrada' && (labelSemAcento.includes('execucao frustrada') || labelSemAcento.includes('276'))) ||
                                                     (textoMov.match(/^\\d+$/) && labelText.includes('(' + textoMov + ')'));
-                                    
+
                                     if (encontrado) {{
                                         var input = cb.querySelector('input[type="checkbox"]');
                                         if (input && !input.checked) {{
@@ -691,7 +691,7 @@ def ato_judicial(
                                     console.warn('[ATO][MOVIMENTO] Erro ao processar checkbox:', e);
                                 }}
                             }}
-                            
+
                             if (!selecionado) {{
                                 console.warn('[ATO][MOVIMENTO] Movimento não encontrado');
                                 window.selecionadoMovimento = false;
@@ -777,7 +777,6 @@ def ato_judicial(
                                             driver.execute_script('''var el = arguments[0].querySelector('input[type="checkbox"]') || arguments[0]; el.checked = true; el.dispatchEvent(new Event('change', {bubbles:true}));''', slide)
                                         except Exception:
                                             logger.debug('[ATO][SIGILO] Fallback de JS para marcar sigilo falhou')
-                                time.sleep(0.5)
                             sigilo_ativado = True
                             logger.info('[ATO][SIGILO] Sigilo aplicado (após movimento)')
                         except Exception as e:

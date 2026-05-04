@@ -162,7 +162,12 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
         else:  # DESBLOQUEIO
             acao_alvo = 'Desbloquear valor'
 
-        time.sleep(0.5)
+        try:
+            WebDriverWait(driver, 2).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "mat-select"))
+            )
+        except Exception:
+            pass
 
         selects = driver.find_elements(By.CSS_SELECTOR, "mat-select")
 
@@ -182,10 +187,8 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                         safe_click(driver, parent_element, 'click')
                     else:
                         safe_click(driver, select_element, 'click')
-                except:
+                except Exception:  # item individual, continua
                     safe_click(driver, select_element, 'click')
-
-                time.sleep(0.8)
 
                 opcoes = None
                 max_tentativas_opcoes = 2
@@ -196,23 +199,27 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                                 (By.CSS_SELECTOR, "mat-option[role='option']")
                             )
                         )
-                        if opcoes and len(opcoes) > 0:
+                        if opcoes:
                             break
-                        else:
-                            if tentativa_opcoes < max_tentativas_opcoes - 1:
-                                time.sleep(1.5)
                     except Exception:
                         if tentativa_opcoes < max_tentativas_opcoes - 1:
-                            time.sleep(1.5)
+                            time.sleep(1.5)  # rate-limit
                         else:
                             continue
 
                 if not opcoes or len(opcoes) == 0:
                     try:
                         driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
-                    except:
+                    except Exception:  # cleanup, continua
                         continue
-                    time.sleep(0.3)
+                    try:
+                        WebDriverWait(driver, 1).until(
+                            EC.invisibility_of_element_located(
+                                (By.CSS_SELECTOR, "mat-option[role='option']")
+                            )
+                        )
+                    except Exception:
+                        pass
                     continue
 
                 opcao_encontrada = False
@@ -226,9 +233,8 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                             and 'remanescente' in texto_opcao.lower()
                         ):
                             safe_click(driver, opcao, 'click')
-                            time.sleep(0.5)
                             try:
-                                campo_valor = WebDriverWait(driver, 2).until(
+                                campo_valor = WebDriverWait(driver, 3).until(
                                     EC.presence_of_element_located(
                                         (By.CSS_SELECTOR,
                                          "input[placeholder='Valor'][prefix='R$ ']")
@@ -248,7 +254,14 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
 
                         elif tipo_fluxo == 'POSITIVO' and texto_opcao == 'Transferir valor':
                             safe_click(driver, opcao, 'click')
-                            time.sleep(0.3)
+                            try:
+                                WebDriverWait(driver, 2).until(
+                                    EC.invisibility_of_element_located(
+                                        (By.CSS_SELECTOR, "mat-option[role='option']")
+                                    )
+                                )
+                            except Exception:
+                                pass
                             return True
 
                         elif (
@@ -256,7 +269,14 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                             and 'Desbloquear valor' in texto_opcao
                         ):
                             safe_click(driver, opcao, 'click')
-                            time.sleep(0.3)
+                            try:
+                                WebDriverWait(driver, 2).until(
+                                    EC.invisibility_of_element_located(
+                                        (By.CSS_SELECTOR, "mat-option[role='option']")
+                                    )
+                                )
+                            except Exception:
+                                pass
                             return True
 
                     except Exception as e_opcao:
@@ -269,8 +289,15 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
 
                 try:
                     driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
-                    time.sleep(0.3)
-                except:
+                    try:
+                        WebDriverWait(driver, 1).until(
+                            EC.invisibility_of_element_located(
+                                (By.CSS_SELECTOR, "mat-option[role='option']")
+                            )
+                        )
+                    except Exception:
+                        pass
+                except Exception:  # cleanup, continua
                     continue
 
             except Exception as e_dropdown:
@@ -281,9 +308,16 @@ def _aplicar_acao_por_fluxo(driver, tipo_fluxo, log=True, valor_parcial=None):
                     )
                 try:
                     driver.find_element("tag name", "body").send_keys(Keys.ESCAPE)
-                except:
+                except Exception:  # cleanup, continua
                     continue
-                time.sleep(0.3)
+                try:
+                    WebDriverWait(driver, 1).until(
+                        EC.invisibility_of_element_located(
+                            (By.CSS_SELECTOR, "mat-option[role='option']")
+                        )
+                    )
+                except Exception:
+                    pass
                 continue
 
         return False
@@ -398,7 +432,12 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
                 return True
             return False
 
-        time.sleep(1)
+        try:
+            WebDriverWait(driver, 3).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+        except Exception:
+            pass
 
         seletores_voltar = [
             "button[aria-label='Voltar'] i.fa-chevron-left",
@@ -448,16 +487,17 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
         if not botao_encontrado:
             return False
 
-        for _i in range(10):
-            time.sleep(0.5)
-            if "/desdobrar" not in driver.current_url:
-                break
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: "/desdobrar" not in d.current_url
+            )
+        except Exception:
+            pass
 
         try:
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
             )
-            time.sleep(1.5)
         except Exception as e:
             if log:
                 logger.error(f"[SISBAJUD] Erro ao aguardar tabela: {e}")
@@ -493,7 +533,14 @@ def _voltar_para_lista_principal(driver, log=True):
                 for overlay in overlays:
                     try:
                         overlay.click()
-                        time.sleep(0.5)
+                        try:
+                            WebDriverWait(driver, 1).until(
+                                EC.invisibility_of_element_located(
+                                    (By.CSS_SELECTOR, ".cdk-overlay-backdrop-showing")
+                                )
+                            )
+                        except Exception:
+                            pass
                     except Exception:
                         try:
                             driver.execute_script(
@@ -501,7 +548,12 @@ def _voltar_para_lista_principal(driver, log=True):
                             )
                         except Exception:
                             pass
-                time.sleep(1.0)
+                try:
+                    WebDriverWait(driver, 2).until(
+                        lambda d: d.execute_script("return document.readyState") == "complete"
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -523,7 +575,10 @@ def _voltar_para_lista_principal(driver, log=True):
                 url_volta = "https://sisbajud.cnj.jus.br/teimosinha"
 
             driver.get(url_volta)
-            time.sleep(3)
+            try:
+                WebDriverWait(driver, 5).until(EC.url_contains("teimosinha"))
+            except Exception:
+                pass
             return True
 
         for _clique in range(2):
@@ -540,7 +595,14 @@ def _voltar_para_lista_principal(driver, log=True):
                 try:
                     try:
                         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                        time.sleep(0.5)
+                        try:
+                            WebDriverWait(driver, 1).until(
+                                EC.invisibility_of_element_located(
+                                    (By.CSS_SELECTOR, ".cdk-overlay-pane")
+                                )
+                            )
+                        except Exception:
+                            pass
                     except Exception:
                         pass
 
@@ -554,7 +616,12 @@ def _voltar_para_lista_principal(driver, log=True):
 
                     driver.execute_script("arguments[0].click();", botao)
                     botao_voltar_clicado = True
-                    time.sleep(2)
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
+                        )
+                    except Exception:
+                        pass
                     break
                 except Exception:
                     continue

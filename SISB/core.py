@@ -24,7 +24,6 @@ import os
 import json
 import time
 import random
-import traceback
 from datetime import datetime, timedelta
 
 # Selenium imports
@@ -33,6 +32,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 
 # Imports do projeto
@@ -106,8 +106,15 @@ def login_automatico_sisbajud(driver):
         logger.info('[SISBAJUD][LOGIN] Navegando para SISBAJUD...')
         driver.get('https://sisbajud.cnj.jus.br/')
 
-        # Aguardar carregamento otimizado
-        time.sleep(random.uniform(1.0, 1.5))  # Reduzido de 2.5-4.0 para 1.0-1.5
+        # Aguardar carregamento com wait condicional (time.sleep substituído)
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+        except TimeoutException:
+            logger.info('[SISBAJUD][LOGIN] Timeout aguardando readyState - continuando')
+        except Exception:
+            pass
 
         # Verificar se já está logado
         current_url = driver.current_url
@@ -449,28 +456,31 @@ def iniciar_sisbajud(driver_pje=None, extrair_dados=False):
             return None
 
         # Se chegou aqui, o login foi bem-sucedido — agora AGUARDAR explicitamente pela URL /minuta
-        minuta_indicator = 'sisbajud.cnj.jus.br/minuta'
-        url_timeout = 120
-        inicio_url = time.time()
+        # (time.sleep polling loop substituído por WebDriverWait com EC.url_contains)
         url_ready = False
-        while time.time() - inicio_url < url_timeout:
-            try:
-                current = driver.current_url.lower()
-                if minuta_indicator in current:
-                    logger.info('[SISBAJUD]  URL /minuta detectada')
-                    url_ready = True
-                    break
-            except Exception as e:
-                _ = e
-            time.sleep(0.5)
+        try:
+            WebDriverWait(driver, 120).until(
+                EC.url_contains('sisbajud.cnj.jus.br/minuta')
+            )
+            logger.info('[SISBAJUD]  URL /minuta detectada')
+            url_ready = True
+        except TimeoutException:
+            logger.info('[SISBAJUD]  Timeout aguardando a URL /minuta')
+        except Exception:
+            pass
 
         if not url_ready:
             logger.info('[SISBAJUD]  Timeout aguardando a URL https://sisbajud.cnj.jus.br/minuta após login')
             return None
 
         # Após detectar a URL específica, aguardar 2 segundos
-        logger.info('[SISBAJUD]  URL /minuta confirmada, aguardando 2 segundos...')
-        time.sleep(2)
+        logger.info('[SISBAJUD]  URL /minuta confirmada, aguardando renderização...')
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+        except Exception:
+            pass
 
         # Maximizar janela rapidamente
         try:
@@ -583,7 +593,15 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
         sucesso_nova_minuta = driver.execute_script(script_nova_minuta)
         if sucesso_nova_minuta:
             logger.info('[SISBAJUD]  Botão "Nova Minuta" clicado automaticamente')
-            time.sleep(2)  # Aguardar navegação
+            # Aguardar navegação com wait condicional (time.sleep(2) substituído)
+            try:
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder*="Juiz"], .mat-form-field, form'))
+                )
+            except TimeoutException:
+                logger.info('[SISBAJUD] Timeout aguardando formulário da minuta - continuando')
+            except Exception:
+                pass
         else:
             logger.info('[SISBAJUD]  Botão "Nova Minuta" não encontrado')
             return {
@@ -656,7 +674,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                 # A juntada da minuta de bloqueio deve usar o próprio modelo da minuta
                 # (modelo 'xteim') — não usar os wrappers de ordem genéricos.
                 if log:
-                    logger.info('[SISBAJUD] ▶ Executando juntada DA MINUTA no PJe (modelo xteim)...')
+                    logger.info('[SISBAJUD] Executando juntada DA MINUTA no PJe (modelo xteim)...')
 
                 # Garantir que o foco está na aba /detalhe do PJe antes de executar a juntada
                 try:
@@ -739,7 +757,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     if juntada_executada and driver_pje:
                         from atos.wrappers_utils import executar_visibilidade_sigilosos_se_necessario
                         if log:
-                            logger.info('[SISBAJUD] ▶ Aplicando visibilidade para certidão sigilosa no PJe (/detalhe)...')
+                            logger.info('[SISBAJUD] Aplicando visibilidade para certidão sigilosa no PJe (/detalhe)...')
                         vis_ok = executar_visibilidade_sigilosos_se_necessario(driver_pje, True, debug=log)
                         resultado['visibilidade_certidao_sigilosa'] = bool(vis_ok)
                         if vis_ok and log:
@@ -750,7 +768,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         # Criar GIGS 22/xs resultado (após visibilidade, ainda em /detalhe)
                         from Fix.extracao import criar_gigs
                         if log:
-                            logger.info('[SISBAJUD] ▶ Criando GIGS 22/xs resultado...')
+                            logger.info('[SISBAJUD] Criando GIGS 22/xs resultado...')
                         resultado_gigs = criar_gigs(driver_pje, '22/xs resultado', log=log)
                         if resultado_gigs and log:
                             logger.info('[SISBAJUD]  GIGS 22/xs resultado criado')
@@ -776,7 +794,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     logger.info(f'[SISBAJUD]  Erro ao fechar driver: {e}')
         else:
             if log:
-                logger.info('[SISBAJUD] ℹ Driver SISBAJUD mantido aberto (modo lote)')
+                logger.info('[SISBAJUD] Driver SISBAJUD mantido aberto (modo lote)')
 
         resultado['status'] = 'concluido'
         if log:
@@ -880,10 +898,10 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
             resultado['erros'].append(erro)
             return resultado
 
-        # 2. Calcular data limite para filtro (10/12/2025 devido a recesso)
-        data_limite = datetime(2025, 12, 10)  # Aceitar desde 10/12/2025
+        # 2. Calcular data limite para filtro (30 dias atrás)
+        data_limite = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=30)
         if log:
-            logger.info(f'[SISBAJUD] Data limite para filtro: {data_limite.strftime("%d/%m/%Y")} (recesso)')
+            logger.info(f'[SISBAJUD] Data limite para filtro: {data_limite.strftime("%d/%m/%Y")} (30 dias)')
 
         # 3. Filtrar séries válidas
         series_validas = helpers._filtrar_series(driver, data_limite)
@@ -1032,7 +1050,7 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                     logger.info(f'[SISBAJUD]  Erro ao fechar driver: {e}')
         else:
             if log:
-                logger.info('[SISBAJUD] ℹ Driver SISBAJUD mantido aberto (modo lote)')
+                logger.info('[SISBAJUD] Driver SISBAJUD mantido aberto (modo lote)')
 
         resultado['status'] = 'concluido'
         if log:
@@ -1107,46 +1125,6 @@ def processar_bloqueios(driver_pje=None):
 
     except Exception as e:
         logger.info(f'[SISBAJUD][ERRO] Falha no processamento de bloqueios: {e}')
-        logger.exception("Erro detectado")
-        return None
-
-
-def processar_endereco(driver_pje=None):
-    """
-    Processa endereços no SISBAJUD (placeholder)
-    SEMPRE carrega dados de dadosatuais.json - nenhum parâmetro necessário
-    """
-    try:
-        logger.info('\n[SISBAJUD] INICIANDO PROCESSAMENTO DE ENDEREÇO')
-        logger.info('=' * 60)
-
-        # 1. Inicializar SISBAJUD
-        driver_sisbajud = iniciar_sisbajud(driver_pje=driver_pje)
-        if not driver_sisbajud:
-            logger.info('[SISBAJUD]  Falha ao inicializar SISBAJUD')
-            return None
-
-        # 2. Carregar dados do processo do arquivo (ÚNICA FONTE)
-        dados_processo = utils.carregar_dados_processo()
-        if not dados_processo:
-            logger.info('[SISBAJUD]  Arquivo dadosatuais.json não encontrado. Execute extrair_dados_processo NO PJE antes!')
-            driver_sisbajud.quit()
-            return None
-
-        # Placeholder para implementação futura
-        logger.info('[SISBAJUD]  Função processar_endereco ainda não implementada')
-
-        # Fechar driver
-        driver_sisbajud.quit()
-
-        return {
-            'status': 'pendente',
-            'mensagem': 'Função processar_endereco ainda não implementada',
-            'acao_posterior': None
-        }
-
-    except Exception as e:
-        logger.info(f'[SISBAJUD][ERRO] Falha no processamento de endereço: {e}')
         logger.exception("Erro detectado")
         return None
 

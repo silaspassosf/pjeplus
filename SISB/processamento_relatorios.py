@@ -32,7 +32,7 @@ def _salvar_minuta(driver):
         """
 
         if driver.execute_script(script_salvar):
-            log_sisbajud("✅ Botão salvar clicado")
+            log_sisbajud("Botão salvar clicado")
             time.sleep(3)
 
             # Verificar se salvou
@@ -48,17 +48,17 @@ def _salvar_minuta(driver):
             """)
 
             if status == 'SALVO':
-                log_sisbajud("✅ Minuta salva com sucesso")
+                log_sisbajud("Minuta salva com sucesso")
                 return True
             else:
-                log_sisbajud("⚠️ Status de salvamento incerto")
+                log_sisbajud("Status de salvamento incerto")
                 return False
         else:
-            log_sisbajud("❌ Falha ao clicar no botão salvar")
+            log_sisbajud("Falha ao clicar no botão salvar")
             return False
 
     except Exception as e:
-        log_sisbajud(f"❌ Erro ao salvar minuta: {e}", "ERROR")
+        log_sisbajud(f"Erro ao salvar minuta: {e}", "ERROR")
         return False
 
 def _gerar_relatorio_minuta(driver, dados_processo):
@@ -79,7 +79,7 @@ def _gerar_relatorio_minuta(driver, dados_processo):
         try:
             from .core import coletar_dados_minuta_sisbajud
         except ImportError:
-            log_sisbajud(f"⚠️ Não foi possível importar coletar_dados_minuta_sisbajud do core")
+            log_sisbajud(f"Não foi possível importar coletar_dados_minuta_sisbajud do core")
             # Fallback para relatório simples
             dados_relatorio = f"""
             <h3>Minuta de Bloqueio SISBAJUD</h3>
@@ -92,7 +92,7 @@ def _gerar_relatorio_minuta(driver, dados_processo):
         dados_relatorio = coletar_dados_minuta_sisbajud(driver)
 
         if not dados_relatorio:
-            log_sisbajud("⚠️ Não foi possível coletar dados da minuta, usando relatório básico")
+            log_sisbajud("Não foi possível coletar dados da minuta, usando relatório básico")
             dados_relatorio = f"""
             <h3>Minuta de Bloqueio SISBAJUD</h3>
             <p>Processo: {numero_processo or 'N/A'}</p>
@@ -102,7 +102,7 @@ def _gerar_relatorio_minuta(driver, dados_processo):
         return _salvar_relatorios(dados_relatorio, numero_processo)
 
     except Exception as e:
-        log_sisbajud(f"⚠️ Erro ao gerar relatório: {e}")
+        log_sisbajud(f"Erro ao gerar relatório: {e}")
         # Em caso de erro, gerar relatório básico
         numero_processo = None
         if dados_processo:
@@ -133,17 +133,17 @@ def _salvar_relatorios(dados_relatorio, numero_processo=None):
             )
 
             if sucesso:
-                log_sisbajud("✅ Relatório salvo no clipboard.txt centralizado")
+                log_sisbajud("Relatório salvo no clipboard.txt centralizado")
             else:
-                log_sisbajud("⚠️ Falha ao salvar no clipboard centralizado")
+                log_sisbajud("Falha ao salvar no clipboard centralizado")
 
         except ImportError as e:
-            log_sisbajud(f"⚠️ Não foi possível importar salvar_conteudo_clipboard: {e}")
+            log_sisbajud(f"Não foi possível importar salvar_conteudo_clipboard: {e}")
 
         return dados_relatorio
 
     except Exception as e:
-        log_sisbajud(f"❌ Erro ao salvar relatórios: {e}")
+        log_sisbajud(f"Erro ao salvar relatórios: {e}")
         return None
 
 def _finalizar_minuta(driver_sisbajud, driver_pje, driver_created):
@@ -152,15 +152,15 @@ def _finalizar_minuta(driver_sisbajud, driver_pje, driver_created):
         # Fechar driver se foi criado aqui
         if driver_created and driver_sisbajud:
             driver_sisbajud.quit()
-            log_sisbajud("✅ Driver SISBAJUD fechado")
+            log_sisbajud("Driver SISBAJUD fechado")
 
         # Retornar foco para PJE
         if driver_pje:
             try:
                 driver_pje.switch_to.window(driver_pje.window_handles[-1])
-                log_sisbajud("✅ Foco retornado para PJE")
+                log_sisbajud("Foco retornado para PJE")
             except Exception as e:
-                log_sisbajud(f"⚠️ Erro ao retornar foco para PJE: {e}")
+                log_sisbajud(f"Erro ao retornar foco para PJE: {e}")
 
     except Exception as e:
-        log_sisbajud(f"⚠️ Erro na finalização: {e}")
+        log_sisbajud(f"Erro na finalização: {e}")

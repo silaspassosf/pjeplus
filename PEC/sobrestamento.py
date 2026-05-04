@@ -41,21 +41,23 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
     Returns:
         bool: True se executado com sucesso
     """
+    # ── ETAPA 0: Verificacao de condicoes ──
+
     # Guard clauses - validação de parâmetros obrigatórios
     if not driver:
-        logger.error("[DEF_SOB] ❌ driver não fornecido")
+        logger.error("[DEF_SOB] driver não fornecido")
         return False
     
     if not numero_processo or not isinstance(numero_processo, str):
-        logger.error(f"[DEF_SOB] ❌ numero_processo inválido: {numero_processo}")
+        logger.error(f"[DEF_SOB] numero_processo inválido: {numero_processo}")
         return False
     
     if not observacao or not isinstance(observacao, str):
-        logger.error(f"[DEF_SOB] ❌ observacao inválida: {observacao}")
+        logger.error(f"[DEF_SOB] observacao inválida: {observacao}")
         return False
     
     if timeout <= 0:
-        logger.error(f"[DEF_SOB] ❌ timeout deve ser positivo: {timeout}")
+        logger.error(f"[DEF_SOB] timeout deve ser positivo: {timeout}")
         return False
     
     def log_msg(msg):
@@ -63,21 +65,21 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             logger.info(f"[DEF_SOB] {msg}")
 
     # Log inicial SEMPRE exibido
-    logger.info(f"[DEF_SOB] ▶ Iniciando análise sobrestamento: {numero_processo}")
+    logger.info(f"[DEF_SOB] Iniciando análise sobrestamento: {numero_processo}")
     log_msg(f"Observação: {observacao}")
 
     try:
-        # ===== ETAPA 0: ABRIR TAREFA DO PROCESSO =====
+        # ── ETAPA 1: Consulta de sobrestamento ──
         log_msg("0. Abrindo tarefa do processo...")
         btn_tarefa = esperar_elemento(driver, BTN_TAREFA_PROCESSO, timeout=15)
         if not btn_tarefa:
-            logger.error("[DEF_SOB] ❌ Botão tarefa do processo não encontrado")
+            logger.error("[DEF_SOB] Botão tarefa do processo não encontrado")
             return False
         if not safe_click(driver, btn_tarefa):
-            logger.error("[DEF_SOB] ❌ Falha ao clicar no botão tarefa do processo")
+            logger.error("[DEF_SOB] Falha ao clicar no botão tarefa do processo")
             return False
 
-        # ===== ETAPA 1: ENCONTRAR E ITERAR DECISÕES =====
+        # Sub-etapa: encontrar e iterar decisoes na timeline
         log_msg("1. Selecionando decisões na timeline...")
 
         # Procura itens da timeline
@@ -106,7 +108,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
                 continue
                 
         if not docs_decisao:
-            logger.error("[DEF_SOB] ❌ Nenhuma decisão encontrada na timeline")
+            logger.error("[DEF_SOB] Nenhuma decisão encontrada na timeline")
             return False
 
         # Inicia a iteração
@@ -114,7 +116,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
         for doc_item, doc_link in docs_decisao:
             if iteracoes >= 3:
                 log_msg(" Limite de 3 decisões analisadas atingido.")
-                logger.warning(f"[DEF_SOB] ⚠️ Limite de iterações atingido sem encontrar regra no processo {numero_processo}. Encaminhando para verificação manual.")
+                logger.warning(f"[DEF_SOB] Limite de iterações atingido sem encontrar regra no processo {numero_processo}. Encaminhando para verificação manual.")
                 return True
                 
             iteracoes += 1
@@ -145,7 +147,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
                 log_msg(f" Erro ao clicar no documento: {e}")
                 continue
 
-            # ===== ETAPA 2: EXTRAIR CONTEÚDO =====
+            # Sub-etapa: extrair conteudo do documento
             log_msg("2. Extraindo conteúdo do documento...")
             texto = None
             try:
@@ -176,7 +178,7 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
             log_texto = texto[:200] + '...' if len(texto) > 200 else texto
             log_msg(f"Texto extraído: {log_texto}")
             
-            # ===== ETAPA 3: APLICAR REGRAS BASEADAS NO CONTEÚDO =====
+            # ── ETAPA 2: Aplicacao do sobrestamento ──
             log_msg("3. Analisando conteúdo e aplicando regras...")
             
             def remover_acentos(txt):
@@ -282,13 +284,13 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
                 for termo in termos:
                     regex = gerar_regex_geral(termo)
                     if regex.search(texto_normalizado):
-                        logger.info(f"[DEF_SOB] ✓ Regra encontrada: {descricao} (termo: '{termo}') no doc {doc_link.text}")
+                        logger.info(f"[DEF_SOB] Regra encontrada: {descricao} (termo: '{termo}') no doc {doc_link.text}")
                         resultado = acao_func()
                         if resultado:
-                            logger.info(f"[DEF_SOB] ✅ Regra '{descricao}' executada com sucesso")
+                            logger.info(f"[DEF_SOB] Regra '{descricao}' executada com sucesso")
                             return True
                         else:
-                            logger.error(f"[DEF_SOB] ❌ Falha na regra '{descricao}'")
+                            logger.error(f"[DEF_SOB] Falha na regra '{descricao}'")
                             regra_com_sucesso = True 
                         break
                 if regra_com_sucesso:
@@ -301,12 +303,14 @@ def def_sob(driver: Any, numero_processo: str, observacao: str, debug: bool = Fa
                 
             log_msg(" Nenhuma regra aplicada neste documento, tentando a próxima decisão na timeline...")
         
+        # ── ETAPA 3: Finalizacao ──
+
         # Fim do loop, Nenhuma regra aplicável a NENHUM documento
-        logger.warning(f"[DEF_SOB] ⚠️ Nenhuma decisão na timeline validou as regras de sobrestamento para {numero_processo}. Encaminhando para verificação manual.")
+        logger.warning(f"[DEF_SOB] Nenhuma decisão na timeline validou as regras de sobrestamento para {numero_processo}. Encaminhando para verificação manual.")
         return True
         
     except Exception as e:
-        logger.error(f"[DEF_SOB] ❌ Erro geral em def_sob ({numero_processo}): {e}")
+        logger.error(f"[DEF_SOB] Erro geral em def_sob ({numero_processo}): {e}")
         import traceback
         logger.exception("Erro detectado em def_sob")
         return False

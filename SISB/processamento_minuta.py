@@ -116,6 +116,6 @@ def minuta_bloqueio_refatorada(driver_sisbajud, dados_processo, driver_pje=None,
             except Exception as e:
                 _ = e
         else:
-            log_sisbajud("🔍 DEBUG: Mantendo driver SISBAJUD aberto para inspeção do erro")
+            log_sisbajud("DEBUG: Mantendo driver SISBAJUD aberto para inspeção do erro")
 
         return None

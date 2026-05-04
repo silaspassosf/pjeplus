@@ -149,7 +149,7 @@ def _processar_reus_otimizado(driver, dados_processo):
         if resultado and resultado.get('sucesso'):
             adicionados = resultado.get('adicionados', 0)
             removidos = resultado.get('removidos', 0)
-            log_sisbajud(f"✅ Réus processados: {adicionados} adicionados, {removidos} removidos")
+            log_sisbajud(f"Réus processados: {adicionados} adicionados, {removidos} removidos")
 
             if resultado.get('log'):
                 for msg in resultado['log']:
@@ -162,11 +162,11 @@ def _processar_reus_otimizado(driver, dados_processo):
             }
         else:
             erro = resultado.get('erro', 'Erro desconhecido') if resultado else 'Script falhou'
-            log_sisbajud(f"❌ Falha no processamento de réus: {erro}", "ERROR")
+            log_sisbajud(f"Falha no processamento de réus: {erro}", "ERROR")
             return {'sucesso': False, 'erro': erro}
 
     except Exception as e:
-        log_sisbajud(f"❌ Erro no processamento de réus: {e}", "ERROR")
+        log_sisbajud(f"Erro no processamento de réus: {e}", "ERROR")
         return {'sucesso': False, 'erro': str(e)}
 
 def _configurar_valor(driver, dados_processo):
@@ -226,10 +226,10 @@ def _configurar_valor(driver, dados_processo):
             return false;
             """)
 
-            log_sisbajud("✅ Valor configurado")
+            log_sisbajud("Valor configurado")
 
     except Exception as e:
-        log_sisbajud(f"⚠️ Erro ao configurar valor: {e}")
+        log_sisbajud(f"Erro ao configurar valor: {e}")
 
 def _configurar_opcoes_adicionais(driver, dados_processo):
     """Configura opções adicionais como conta-salário."""
@@ -242,7 +242,7 @@ def _configurar_opcoes_adicionais(driver, dados_processo):
                 toggles[i].click();
             }
             """)
-            log_sisbajud("✅ Conta-salário ativada")
+            log_sisbajud("Conta-salário ativada")
 
     except Exception as e:
-        log_sisbajud(f"⚠️ Erro ao configurar opções adicionais: {e}")
+        log_sisbajud(f"Erro ao configurar opções adicionais: {e}")

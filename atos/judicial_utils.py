@@ -120,9 +120,9 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             from Fix.selenium_base.element_interaction import preencher_multiplos_campos
             resultado = preencher_multiplos_campos(driver, campos_prazo, log=True)
             if all(resultado.values()):
-                logger.info(f'[PRAZOS] ✅ Todos os {len(campos_prazo)} campos de prazo preenchidos com sucesso')
+                logger.info(f'[PRAZOS] Todos os {len(campos_prazo)} campos de prazo preenchidos com sucesso')
             else:
-                logger.warning(f'[PRAZOS] ⚠️ Alguns campos de prazo podem não ter sido preenchidos corretamente')
+                logger.warning(f'[PRAZOS] Alguns campos de prazo podem não ter sido preenchidos corretamente')
                 return False
         else:
             logger.warning('[PRAZOS] Nenhum campo de prazo para preencher')
@@ -151,25 +151,25 @@ def preencher_prazos_destinatarios(driver, prazo, apenas_primeiro=False, perito=
             if btn_gravar_prazo.is_displayed() and btn_gravar_prazo.is_enabled():
                 from Fix.selenium_base.click_operations import safe_click_no_scroll
                 if safe_click_no_scroll(driver, btn_gravar_prazo, log=False):
-                    logger.info('[PRAZOS] ✅ Prazos gravados via safe_click_no_scroll')
+                    logger.info('[PRAZOS] Prazos gravados via safe_click_no_scroll')
                 else:
                     logger.warning('[PRAZOS] Falha em safe_click_no_scroll, tentando .click()')
                     btn_gravar_prazo.click()
-                    logger.info('[PRAZOS] ✅ Prazos gravados via Selenium')
+                    logger.info('[PRAZOS] Prazos gravados via Selenium')
 
                 time.sleep(1)
-                logger.info('[PRAZOS] ✅ Gravação de prazos concluída')
+                logger.info('[PRAZOS] Gravação de prazos concluída')
             else:
                 logger.warning('[PRAZOS] Botão Gravar não está disponível')
 
         except Exception as e:
             logger.warning(f'[PRAZOS] Não foi possível gravar prazos automaticamente: {e}')
 
-        logger.info('[PRAZOS] ✅ Preenchimento de prazos concluído')
+        logger.info('[PRAZOS] Preenchimento de prazos concluído')
         return True
 
     except Exception as e:
-        logger.error(f'[PRAZOS] ❌ Erro geral ao preencher prazos: {e}')
+        logger.error(f'[PRAZOS] Erro geral ao preencher prazos: {e}')
         return False
 
 

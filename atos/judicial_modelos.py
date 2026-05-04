@@ -135,9 +135,9 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
             driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
             time.sleep(0.3)
             driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
-            logger.info(f'[CONCLUSÃO] ✅ Botão de conclusão "{conclusao_tipo}" clicado')
+            logger.info(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" clicado')
         except Exception as click_err:
-            logger.error(f'[CONCLUSÃO] ❌ Erro ao clicar: {click_err}')
+            logger.error(f'[CONCLUSÃO] Erro ao clicar: {click_err}')
             return False
 
         # Aguardar estabilização

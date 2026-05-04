@@ -53,7 +53,7 @@ def salvar_conteudo_clipboard(conteudo: str, numero_processo: str, tipo_conteudo
         debug: Se deve exibir logs
     """
     if debug:
-        print(f"[CLIPBOARD] Salvando conteúdo tipo '{tipo_conteudo}'...")
+        logger.info(f"[CLIPBOARD] Salvando conteúdo tipo '{tipo_conteudo}'...")
 
     try:
         # Validar número do processo
@@ -80,20 +80,20 @@ def salvar_conteudo_clipboard(conteudo: str, numero_processo: str, tipo_conteudo
             f.flush()
 
         if debug:
-            print(f"[CLIPBOARD] ✅ Conteúdo salvo: {len(conteudo)} chars")
-            print(f"[CLIPBOARD] ✅ Processo: {numero_processo}")
-            print(f"[CLIPBOARD] ✅ Tipo (informativo): {tipo_conteudo}")
-            print(f"[CLIPBOARD] ✅ Arquivo: {clipboard_file}")
+            logger.info(f"[CLIPBOARD] Conteúdo salvo: {len(conteudo)} chars")
+            logger.info(f"[CLIPBOARD] Processo: {numero_processo}")
+            logger.info(f"[CLIPBOARD] Tipo (informativo): {tipo_conteudo}")
+            logger.info(f"[CLIPBOARD] Arquivo: {clipboard_file}")
 
         return True
 
     except Exception as e:
         if debug:
             try:
-                print(f"[CLIPBOARD] ✗ Erro ao salvar: {e}")
-                print(f"[CLIPBOARD] CWD: {os.getcwd()}")
+                logger.error(f"[CLIPBOARD] Erro ao salvar: {e}")
+                logger.info(f"[CLIPBOARD] CWD: {os.getcwd()}")
                 base_dir = os.path.dirname(os.path.abspath(__file__))
-                print(f"[CLIPBOARD] Destino esperado: {os.path.join(base_dir, 'clipboard.txt')}")
+                logger.info(f"[CLIPBOARD] Destino esperado: {os.path.join(base_dir, 'clipboard.txt')}")
             except Exception:
                 pass
         return False

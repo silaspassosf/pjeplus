@@ -35,11 +35,11 @@ def _preencher_campos_principais(driver, dados_processo):
 
         # VERIFICAÇÃO: Garantir que CPF/CNPJ tenha o tamanho correto
         if len(cpf_cnpj_autor_completo) == 11:
-            log_sisbajud(f"✅ CPF válido: {cpf_cnpj_autor_completo} (11 dígitos)")
+            log_sisbajud(f"CPF válido: {cpf_cnpj_autor_completo} (11 dígitos)")
         elif len(cpf_cnpj_autor_completo) == 14:
-            log_sisbajud(f"✅ CNPJ válido: {cpf_cnpj_autor_completo} (14 dígitos)")
+            log_sisbajud(f"CNPJ válido: {cpf_cnpj_autor_completo} (14 dígitos)")
         else:
-            log_sisbajud(f"⚠️ CPF/CNPJ com tamanho inválido: {cpf_cnpj_autor_completo} ({len(cpf_cnpj_autor_completo)} dígitos)")
+            log_sisbajud(f"CPF/CNPJ com tamanho inválido: {cpf_cnpj_autor_completo} ({len(cpf_cnpj_autor_completo)} dígitos)")
 
         nome_autor = _extrair_nome_autor(dados_processo)
 
@@ -391,16 +391,16 @@ def _preencher_campos_principais(driver, dados_processo):
         resultado = driver.execute_async_script(script_preenchimento)
 
         if resultado and resultado.get('sucesso'):
-            log_sisbajud("✅ Campos principais preenchidos com sucesso")
+            log_sisbajud("Campos principais preenchidos com sucesso")
             if resultado.get('log'):
                 for msg in resultado['log']:
                     log_sisbajud(f"  {msg}")
             return {'sucesso': True}
         else:
             erro = resultado.get('erro', 'Erro desconhecido') if resultado else 'Script falhou'
-            log_sisbajud(f"❌ Falha no preenchimento: {erro}", "ERROR")
+            log_sisbajud(f"Falha no preenchimento: {erro}", "ERROR")
             return {'sucesso': False, 'erro': erro}
 
     except Exception as e:
-        log_sisbajud(f"❌ Erro no preenchimento de campos: {e}", "ERROR")
+        log_sisbajud(f"Erro no preenchimento de campos: {e}", "ERROR")
         return {'sucesso': False, 'erro': str(e)}

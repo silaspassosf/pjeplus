@@ -12,7 +12,8 @@ from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_
 from Fix.selenium_base.element_interaction import safe_click
 from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable, esperar_url_conter
 from Fix.selenium_base.element_interaction import preencher_multiplos_campos
-from Fix.log import getmodulelogger
+from Fix.utils_observer import aguardar_renderizacao_nativa
+from Fix.log import getmodulelogger, log_start, log_fim
 logger = getmodulelogger(__name__)
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from Fix.utils import executar_coleta_parametrizavel, inserir_link_ato_validacao
@@ -67,141 +68,12 @@ def fluxo_cls(
     Returns:
         bool: True se sucesso, False se falha
     '''
+    log_start('CLS')
     # === TIMING: INICIO ===
     timing_inicio = time.time()
     logger.info('[CLS][TIMING][INICIO]')
-    
+
     try:
-        # Helper local: verifica e reaplica PEC após um save que possa ter resetado o estado
-        # NOTE: sigilo deve ser tratado somente na fase final do fluxo (após movimentos)
-        def _verificar_reaplicar_sigilo_pec():
-            try:
-                changed = False
-                # Reaplicar PEC se solicitado
-                if marcar_pec is not None:
-                    want_pec = str(marcar_pec).lower() in ("sim", "true", "1", "yes")
-                    try:
-                        pec_elem = None
-                        try:
-                            pec_elem = driver.find_element(By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]')
-                        except Exception:
-                            try:
-                                pec_elem = driver.find_element(By.CSS_SELECTOR, 'pje-intimacao-automatica mat-checkbox[aria-label="Enviar para PEC"]')
-                            except Exception:
-                                try:
-                                    pec_input = driver.find_element(By.CSS_SELECTOR, 'input[aria-label="Enviar para PEC"]')
-                                    pec_elem = pec_input.find_element(By.XPATH, '..')
-                                except Exception:
-                                    pec_elem = None
-
-                        if pec_elem:
-                            # Implementação legada mais robusta para togglear PEC (scroll + clicar label via JS)
-                            try:
-                                # localizar pec_checkbox e pec_input como no legado
-                                pec_checkbox = None
-                                pec_input = None
-                                try:
-                                    pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'mat-checkbox[aria-label="Enviar para PEC"]')
-                                    pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                                except Exception:
-                                    try:
-                                        pec_checkbox = driver.find_element(By.CSS_SELECTOR, 'div.checkbox-pec mat-checkbox')
-                                        pec_input = pec_checkbox.find_element(By.CSS_SELECTOR, 'input[type="checkbox"]')
-                                    except Exception:
-                                        try:
-                                            pec_input = driver.find_element(By.CSS_SELECTOR, 'input[type="checkbox"][aria-label="Enviar para PEC"]')
-                                            pec_checkbox = pec_input.find_element(By.XPATH, './ancestor::mat-checkbox[1]')
-                                        except Exception:
-                                            pec_checkbox = None
-                                            pec_input = None
-
-                                if not pec_checkbox or not pec_input:
-                                    logger.debug('[ATO][PEC] Checkbox PEC não encontrado na estrutura esperada')
-                                else:
-                                    # debug: estado antes
-                                    try:
-                                        cls = pec_checkbox.get_attribute('class') or ''
-                                    except Exception:
-                                        cls = ''
-                                    try:
-                                        aria_checked = pec_input.get_attribute('aria-checked')
-                                    except Exception:
-                                        aria_checked = None
-                                    try:
-                                        checked_attr = pec_input.get_attribute('checked')
-                                    except Exception:
-                                        checked_attr = None
-                                    try:
-                                        is_selected_prop = pec_input.is_selected()
-                                    except Exception:
-                                        is_selected_prop = None
-                                    
-
-                                    checked = False
-                                    try:
-                                        if aria_checked == 'true' or checked_attr == 'true' or is_selected_prop or 'mat-checkbox-checked' in cls:
-                                            checked = True
-                                    except Exception:
-                                        checked = False
-
-                                    # ação: marcar ou desmarcar via clique no label quando disponível
-                                    if want_pec and not checked:
-                                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', pec_checkbox)
-                                        time.sleep(0.2)
-                                        try:
-                                            label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
-                                            driver.execute_script('arguments[0].click();', label)
-                                        except Exception:
-                                            driver.execute_script('arguments[0].click();', pec_checkbox)
-                                        logger.info('[ATO][PEC] Marcado (legado)')
-                                        time.sleep(0.3)
-                                    elif not want_pec and checked:
-                                        driver.execute_script('arguments[0].scrollIntoView({block: "center"});', pec_checkbox)
-                                        time.sleep(0.2)
-                                        try:
-                                            label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
-                                            driver.execute_script('arguments[0].click();', label)
-                                        except Exception:
-                                            driver.execute_script('arguments[0].click();', pec_checkbox)
-                                        logger.info('[ATO][PEC] Desmarcado (legado)')
-                                        time.sleep(0.3)
-
-                                    # debug: estado depois
-                                    try:
-                                        cls2 = pec_checkbox.get_attribute('class') or ''
-                                    except Exception:
-                                        cls2 = ''
-                                    try:
-                                        aria_checked2 = pec_input.get_attribute('aria-checked')
-                                    except Exception:
-                                        aria_checked2 = None
-                                    try:
-                                        checked_attr2 = pec_input.get_attribute('checked')
-                                    except Exception:
-                                        checked_attr2 = None
-                                    try:
-                                        is_selected_prop2 = pec_input.is_selected()
-                                    except Exception:
-                                        is_selected_prop2 = None
-                                    
-
-                                    changed = True
-                                    try:
-                                        btn_gravar_local = wait_for_clickable(driver, 'pje-intimacao-automatica button[aria-label*="Gravar"]', timeout=2, by=By.CSS_SELECTOR)
-                                        if btn_gravar_local:
-                                            btn_gravar_local.click()
-                                            time.sleep(0.6)
-                                    except Exception:
-                                        pass
-                            except Exception as e:
-                                logger.error(f'[ATO][PEC] Erro na rotina legada de PEC: {e}')
-                    except Exception as e:
-                        logger.debug(f'[ATO][PEC] Não foi possível verificar/reaplicar PEC: {e}')
-
-                return changed
-            except Exception as e:
-                logger.debug(f'[ATO][REAPLICAR] Erro geral ao reaplicar sigilo/PEC: {e}')
-                return False
         logger.info('=' * 60)
         logger.info('FLUXO CLS - INICIANDO')
         logger.info('=' * 60)
@@ -373,11 +245,13 @@ def fluxo_cls(
         logger.info('=' * 60)
         
         timing_total = time.time() - timing_inicio
+        log_fim('CLS', {'status': 'sucesso', 'tempo': f'{timing_total:.3f}s'})
         logger.info(f'[CLS][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
         return True
 
     except Exception as e:
         timing_total = time.time() - timing_inicio
+        log_fim('CLS', {'status': 'erro', 'motivo': str(e)[:80]})
         logger.error(f'[CLS][TIMING][ERRO] {timing_total:.3f}s erro inesperado: {e}')
         logger.error(f'[CLS] Erro inesperado no fluxo CLS: {e}')
         return False
@@ -432,6 +306,7 @@ def ato_judicial(
     except Exception:
         atribuir_visibilidade_autor = False
 
+    log_start('ATO')
     # === TIMING: INÍCIO ===
     timing_inicio = time.time()
     logger.info('[ATO][TIMING][INICIO] conclusao_tipo={} modelo_nome={}'.format(conclusao_tipo, modelo_nome))
@@ -513,8 +388,11 @@ def ato_judicial(
                 campo_filtro_modelo.send_keys(Keys.ENTER)
                 logger.info(f'[ATO][MODELO] Modelo "{modelo_nome}" preenchido via JS e ENTER pressionado no filtro.')
 
-                # Aguarda carregamento da tela após filtro (como no jud.py)
-                time.sleep(2)
+                # Aguarda carregamento da tela após filtro (observer, sem time.sleep)
+                try:
+                    aguardar_renderizacao_nativa(driver, '.nodo-filtrado', modo='aparecer', timeout=10)
+                except Exception:
+                    logger.warning('[ATO][MODELO] Timeout aguardando nodo-filtrado, prosseguindo...')
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao preencher filtro do modelo: {e}')
@@ -533,18 +411,11 @@ def ato_judicial(
                     return False, False
                 logger.info('[ATO][MODELO] Clique em nodo-filtrado realizado!')
 
-                # Aguarda modal de visualização abrir - como no jud.py
-                modal_aberto = False
-                for tentativa in range(5):
-                    try:
-                        modal = driver.find_element(By.CSS_SELECTOR, 'pje-dialogo-visualizar-modelo')
-                        if modal.is_displayed():
-                            modal_aberto = True
-                            break
-                    except:
-                        pass
-                    time.sleep(0.5)
-
+                # Aguarda modal de visualização abrir (observer, sem polling)
+                try:
+                    modal_aberto = aguardar_renderizacao_nativa(driver, 'pje-dialogo-visualizar-modelo', modo='aparecer', timeout=5)
+                except Exception:
+                    modal_aberto = False
                 if not modal_aberto:
                     logger.warning('[ATO][MODELO] Modal não abriu, tentando inserir mesmo assim...')
 
@@ -579,8 +450,12 @@ def ato_judicial(
                     btn_inserir = driver.find_element(By.CSS_SELECTOR, seletor_btn_inserir)
                     btn_inserir.send_keys(Keys.SPACE)
                     logger.info('[ATO][MODELO] Modelo inserido (2a tentativa)')
-                
-                time.sleep(1.5)
+
+                # Aguarda confirmação da inserção (observer, sem time.sleep)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
+                except Exception:
+                    pass
 
             except Exception as e:
                 logger.error(f'[ATO][MODELO] Erro ao inserir modelo: {e}')
@@ -605,12 +480,15 @@ def ato_judicial(
             safe_click(driver, btn_salvar)
             logger.info('[ATO][SALVAR] Clique no botao Salvar realizado')
 
-            # Aguardar transição para aba de destinatários
-            time.sleep(1.5)
+            # Aguardar transição para aba de destinatários (observer, sem time.sleep)
+            try:
+                aguardar_renderizacao_nativa(driver, 'pje-editor-lateral', modo='aparecer', timeout=10)
+            except Exception:
+                logger.warning('[ATO][SALVAR] Timeout aguardando aba destinatários, prosseguindo...')
             logger.info('[ATO][SALVAR] Aguardando ativação da aba destinatários...')
 
         except Exception as e:
-            logger.error(f'[ATO][SALVAR] ❌ Botão Salvar não encontrado ou não clicável: {e}')
+            logger.error(f'[ATO][SALVAR] Botão Salvar não encontrado ou não clicável: {e}')
             return False, False
 
         # ===== ABA DESTINATÁRIOS - PRAZOS =====
@@ -661,7 +539,7 @@ def ato_judicial(
                     from Fix.core import aguardar_renderizacao_nativa
                     aguardar_renderizacao_nativa(driver, '.cdk-overlay-backdrop, .mat-dialog-container, .cdk-overlay-pane', modo='sumir', timeout=3)
                 except Exception:
-                    pass
+                    logger.debug('[ATO][PRAZO] Observer overlays indisponível (não crítico)')
                 
                 logger.info('[ATO][PRAZO]  Prazos concluídos')
             except Exception as e:
@@ -704,7 +582,7 @@ def ato_judicial(
                         pec_input.is_selected() or 
                         'mat-checkbox-checked' in pec_checkbox.get_attribute('class')):
                         is_checked = True
-                except:
+                except Exception:
                     is_checked = False
                 
                 logger.info(f'[ATO][PEC] Estado: {"marcado" if is_checked else "desmarcado"} → esperado: {"marcar" if marcar_pec_bool else "desmarcar"}')
@@ -715,7 +593,7 @@ def ato_judicial(
                     try:
                         label = pec_checkbox.find_element(By.CSS_SELECTOR, 'label.mat-checkbox-layout')
                         safe_click_no_scroll(driver, label, log=False)
-                    except:
+                    except Exception:
                         safe_click_no_scroll(driver, pec_checkbox, log=False)
                         driver.execute_script('arguments[0].click();', pec_checkbox)
                     
@@ -725,7 +603,7 @@ def ato_judicial(
                     logger.info('[ATO][PEC] Ja esta conforme esperado')
                     
             except Exception as e:
-                logger.error(f'[ATO][PEC] ❌ {e}')
+                logger.error(f'[ATO][PEC] {e}')
                 # Não interrompe o fluxo
 
         # ===== GRAVAR INTIMAÇÕES (uma vez, após prazos e PEC) =====
@@ -735,7 +613,10 @@ def ato_judicial(
             if btn_gravar_intim:
                 safe_click_no_scroll(driver, btn_gravar_intim, log=False)
                 logger.info('[ATO][GRAVAR] Intimações gravadas')
-                time.sleep(1)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
+                except Exception:
+                    pass
             else:
                 logger.debug('[ATO][GRAVAR] Botão Gravar não encontrado (sem alterações?)')
         except Exception as e:
@@ -821,8 +702,12 @@ def ato_judicial(
                     }})();
                     '''
                     driver.execute_script(js_mov)
-                    time.sleep(1.5)
-                    
+                    # Aguarda execução do JS (observer, sem time.sleep)
+                    try:
+                        aguardar_renderizacao_nativa(driver, '.mat-checkbox-checked', modo='aparecer', timeout=5)
+                    except Exception:
+                        pass
+
                     # Verificar se foi selecionado
                     selecionado = driver.execute_script('return window.selecionadoMovimento;')
                     if not selecionado:
@@ -836,14 +721,20 @@ def ato_judicial(
                 btn_gravar_mov = wait_for_clickable(driver, "button[aria-label='Gravar os movimentos a serem lançados']", timeout=10, by=By.CSS_SELECTOR)
                 if btn_gravar_mov:
                     btn_gravar_mov.click()
-                time.sleep(1.5)
-                
+                try:
+                    aguardar_renderizacao_nativa(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", modo='aparecer', timeout=8)
+                except Exception:
+                    pass
+
                 # Confirmar com "Sim"
                 logger.info('[ATO][MOVIMENTO] Confirmando...')
                 btn_sim = wait_for_clickable(driver, "//button[contains(@class, 'mat-button') and contains(@class, 'mat-primary') and .//span[text()='Sim']]", timeout=10, by=By.XPATH)
                 if btn_sim:
                     btn_sim.click()
-                    time.sleep(1)
+                    try:
+                        aguardar_renderizacao_nativa(driver, 'simple-snack-bar', modo='aparecer', timeout=5)
+                    except Exception:
+                        pass
                     logger.info('[ATO][MOVIMENTO]  Movimento gravado e confirmado')
                 else:
                     logger.warning('[ATO][MOVIMENTO] Botão Sim não encontrado')
@@ -892,7 +783,7 @@ def ato_judicial(
                         except Exception as e:
                             logger.debug(f'[ATO][SIGILO] Falha ao aplicar sigilo após movimento: {e}')
                 except Exception:
-                    pass
+                    logger.debug('[ATO][SIGILO] Exceção no bloco sigilo (não crítico, continuando)')
                 
             except Exception as e:
                 logger.error(f'[ATO][MOVIMENTO]  Erro ao selecionar movimento: {e}')
@@ -919,7 +810,10 @@ def ato_judicial(
 
                 btn_salvar.click()
                 logger.info('[ATO][SALVAR] Ato salvo')
-                time.sleep(1.5)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'button#assinar', modo='aparecer', timeout=8)
+                except Exception:
+                    pass
 
             except Exception as e:
                 logger.error(f'[ATO][SALVAR]  Erro ao salvar após movimento: {e}')
@@ -933,9 +827,12 @@ def ato_judicial(
                     raise Exception('Botão Salvar não disponível')
                 btn_salvar_final.click()
                 logger.info('[ATO][SALVAR] Ato salvo')
-                time.sleep(1.5)
+                try:
+                    aguardar_renderizacao_nativa(driver, 'button#assinar', modo='aparecer', timeout=8)
+                except Exception:
+                    pass
             except Exception as e:
-                logger.error(f'[ATO][SALVAR] ❌ {e}')
+                logger.error(f'[ATO][SALVAR] {e}')
                 return False, False
 
         # 8. ASSINAR: Clicar em assinar se especificado
@@ -967,15 +864,16 @@ def ato_judicial(
             elif sigilo_ativado and not atribuir_visibilidade_autor:
                 logger.debug('[ATO][VISIBILIDADE] Sigilo ativado, mas wrapper não solicitou atribuição automática de visibilidade; pulando execução')
         except Exception:
-            # Não permitir que falha na visibilidade quebre o fluxo principal
-            pass
+            logger.warning('[ATO][VISIBILIDADE] Exceção inesperada no bloco de visibilidade (não crítico)')
 
         timing_total = time.time() - timing_inicio
+        log_fim('ATO', {'status': 'sucesso', 'sigilo': sigilo_ativado, 'tempo': f'{timing_total:.3f}s'})
         logger.info(f'[ATO][TIMING][SUCESSO] {timing_total:.3f}s (fluxo completo)')
         return True, sigilo_ativado
 
     except Exception as e:
         timing_total = time.time() - timing_inicio
+        log_fim('ATO', {'status': 'erro', 'motivo': str(e)[:80]})
         logger.error(f'[ATO][TIMING][ERRO] {timing_total:.3f}s erro inesperado: {e}')
         logger.error(f'[ATO]  Erro inesperado no ato judicial: {e}')
         return False, False

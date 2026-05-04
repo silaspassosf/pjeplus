@@ -1,76 +1,53 @@
 """Mandado - Processamento Automatizado de Mandados PJe TRT2.
 
-Módulo modularizado com 4 submódulos:
-- core: Setup, login, navegação e main
-- processamento: Fluxos Argos e Outros  
-- regras: Estratégias e regras de negócio (Strategy Pattern)
-- utils: Funções utilitárias (lembrete, sigilo, intimação)
+Arquivos consolidados (entrypoints ativos):
+- entrada_api: API e entrypoint principal
+- fluxo_argos: Processamento Argos e anexos
+- apoio_fluxos: Core, utils, sigilo, lembrete, intimacao
 
-Uso:
-    from Mandado import main, processar_argos, fluxo_mandados_outros
-    
-    if __name__ == "__main__":
-        main()
+Arquivos LEGADO (thin shims de compatibilidade):
+- processamento.py, processamento_fluxo.py, core.py
+- processamento_api.py, processamento_argos.py, processamento_anexos.py
+- processamento_outros.py, utils.py, utils_intimacao.py
+- utils_sigilo.py, utils_lembrete.py, regras.py, atos_wrapper.py
 """
 
-from .core import (
-    navegacao,
-    iniciar_fluxo_robusto,
-)
-
-from .processamento import (
-    processar_argos,
-    fluxo_mandados_outros,
-    ultimo_mdd,
-    fluxo_mandado,
-)
-from .processamento_api import (
-    obter_mandados_devolvidos,
-    processar_mandado_detalhe,
+from .entrada_api import (
     processar_mandados_devolvidos_api,
-    _gigs_sem_prazo_via_js,
-    testar_api_gigs_sem_prazo,
+    fechar_intimacao,
 )
 
-from .regras import (
-    aplicar_regras_argos,
+from .fluxo_argos import (
+    processar_argos,
+    processar_sisbajud,
+    tratar_anexos_argos,
 )
 
-from .utils import (
+from .apoio_fluxos import (
+    fluxo_mandados_outros,
     lembrete_bloq,
     retirar_sigilo,
     retirar_sigilo_fluxo_argos,
     retirar_sigilo_certidao_devolucao_primeiro,
     retirar_sigilo_demais_documentos_especificos,
     retirar_sigilo_documentos_especificos,
-    fechar_intimacao,
 )
 
 __all__ = [
-    # core
-    'setup_driver',
-    'navegacao',
-    'iniciar_fluxo_robusto',
-    'main',
-    # processamento
-    'processar_argos',
-    'fluxo_mandados_outros',
-    'ultimo_mdd',
-    'fluxo_mandado',
-    'obter_mandados_devolvidos',
-    'processar_mandado_detalhe',
+    # entrada_api
     'processar_mandados_devolvidos_api',
-    '_gigs_sem_prazo_via_js',
-    'testar_api_gigs_sem_prazo',
-    # regras
-    'aplicar_regras_argos',
-    # utils
+    'fechar_intimacao',
+    # fluxo_argos
+    'processar_argos',
+    'processar_sisbajud',
+    'tratar_anexos_argos',
+    # apoio_fluxos
+    'fluxo_mandados_outros',
     'lembrete_bloq',
     'retirar_sigilo',
     'retirar_sigilo_fluxo_argos',
     'retirar_sigilo_certidao_devolucao_primeiro',
     'retirar_sigilo_demais_documentos_especificos',
     'retirar_sigilo_documentos_especificos',
-    'fechar_intimacao',
 ]
 

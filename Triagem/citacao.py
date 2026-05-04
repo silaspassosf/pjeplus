@@ -4,6 +4,7 @@ Cálculo de citação e GIGS para Triagem Inicial.
 import re
 from typing import Dict
 from selenium.webdriver.remote.webdriver import WebDriver
+from Fix.log import logger
 from api.variaveis import PjeApiClient, session_from_driver
 
 _FALHA_CITACAO = {
@@ -24,25 +25,25 @@ def def_citacao(driver: WebDriver, processo_info: Dict) -> Dict:
         sessao, trt_host = session_from_driver(driver, grau=1)
         client = PjeApiClient(sessao, trt_host, grau=1)
     except Exception as e:
-        print(f"[TRIAGEM/CITACAO] ERRO cliente API: {e}")
+        logger.error(f"[TRIAGEM/CITACAO] ERRO cliente API: {e}")
         return _FALHA_CITACAO
 
     m = re.search(r'/processo/(\d+)(?:/|$)', driver.current_url)
     if not m:
-        print("[TRIAGEM/CITACAO] ERRO: ID nao encontrado na URL")
+        logger.error("[TRIAGEM/CITACAO] ERRO: ID nao encontrado na URL")
         return _FALHA_CITACAO
     id_processo = m.group(1)
 
     try:
         partes_raw = client.partes(id_processo) or {}
     except Exception as e:
-        print(f"[TRIAGEM/CITACAO] ERRO partes: {e}")
+        logger.error(f"[TRIAGEM/CITACAO] ERRO partes: {e}")
         return _FALHA_CITACAO
 
     passivos = partes_raw.get('PASSIVO') or []
     total = len(passivos)
     if total == 0:
-        print("[TRIAGEM/CITACAO] POLO PASSIVO VAZIO — abortando.")
+        logger.warning("[TRIAGEM/CITACAO] POLO PASSIVO VAZIO — abortando.")
         return _FALHA_CITACAO
 
     com_dom = 0

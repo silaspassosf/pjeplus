@@ -1,5 +1,8 @@
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
+
+from Fix.log import logger
+from core.rule_registry import RuleRegistry
 
 from .constants import ALCADA, INTERVALOS_CEP_ZONA_SUL, INTERVALOS_CEP_ZONA_LESTE, INTERVALOS_CEP_RUI_BARBOSA, RITO_SUMARISSIMO_MAX
 from .utils import _norm
@@ -141,7 +144,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
     _reclamados_api = capa_dados.get('reclamados') or []
     ceps_api = [r.get('cep') for r in _reclamados_api if r.get('cep')]
     if ceps_api:
-        print(f'[TRIAGEM] ceps_api encontrados: {ceps_api}')
+        logger.debug(f'[TRIAGEM] ceps_api encontrados: {ceps_api}')
 
     if _reclamados_api:
         _todos_nomes = ' '.join(r.get('nome', '') for r in _reclamados_api)
@@ -191,7 +194,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                     continue
                 _cn = int(_cep_raw)
                 _cf = f"{_cep_raw[:2]}.{_cep_raw[2:5]}-{_cep_raw[5:]}"
-                print(f'[TRIAGEM] cep_api testado: {_cf} ({_cn})')
+                logger.debug(f'[TRIAGEM] cep_api testado: {_cf} ({_cn})')
                 if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_ZONA_SUL):
                     _cep_resultado = (_cn, _cf, 'ZONA_SUL')
                     break
@@ -201,7 +204,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                 if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_RUI_BARBOSA):
                     _cep_resultado = (_cn, _cf, 'RUI BARBOSA')
                     break
-                print(f'[TRIAGEM] cep_api {_cf} nao pertence a nenhuma faixa SP conhecida — ignorado')
+                logger.debug(f'[TRIAGEM] cep_api {_cf} nao pertence a nenhuma faixa SP conhecida — ignorado')
             if _cep_resultado:
                 _cn, _cf, _zona = _cep_resultado
                 if _zona == 'ZONA_SUL':
@@ -248,7 +251,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
         matched = next(((lo, hi) for lo, hi in INTERVALOS_CEP_ZONA_SUL if lo <= cep_num <= hi), None)
         if matched:
             lo_match, hi_match = matched
-            print(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → Zona Sul')
+            logger.debug(f'[TRIAGEM] cep_detectado: {cep_fmt} ({cep_num}) → Zona Sul')
             return (f"B2_CEP: OK - {cep_fmt} ({cep_num}) "
                 f"no intervalo {lo_match}-{hi_match} Zona Sul [{label}]{_sufixo_territ(best_tag)}")
         # Fora da Zona Sul: registrar como evidência para Fase 2
@@ -264,7 +267,7 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
                     break
         if _foro_ctx:
             _cands_ctx_fora_zona_sul.append(f'{cep_fmt} ({_foro_ctx})')
-            print(f'[TRIAGEM] cep_ctx_fora_zona_sul: {cep_fmt} ({cep_num}) → {_foro_ctx}')
+            logger.debug(f'[TRIAGEM] cep_ctx_fora_zona_sul: {cep_fmt} ({cep_num}) → {_foro_ctx}')
 
     def _prefixo_alerta() -> str:
         """Monta prefixo descritivo para ALERTA de Fase 2 incluindo evidência de Fase 1."""
@@ -283,17 +286,17 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
             _cn = int(_cep_raw)
             _cf = f"{_cep_raw[:2]}.{_cep_raw[2:5]}-{_cep_raw[5:]}"
             if any(lo <= _cn <= hi for lo, hi in INTERVALOS_CEP_ZONA_SUL):
-                print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → Zona Sul')
+                logger.debug(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → Zona Sul')
                 _ok_sfx = ' (apos nao localizar CEP de prestacao de servicos)' if _cands_ctx_fora_zona_sul else ''
                 return (f"B2_CEP: OK - {_cf} ({_cn}) Zona Sul [{_label_sub}{_ok_sfx}]")
             for lo, hi in INTERVALOS_CEP_ZONA_LESTE:
                 if lo <= _cn <= hi:
-                    print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → ZONA LESTE')
+                    logger.debug(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → ZONA LESTE')
                     return (_prefixo_alerta() +
                             f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: ZONA LESTE")
             for lo, hi in INTERVALOS_CEP_RUI_BARBOSA:
                 if lo <= _cn <= hi:
-                    print(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → RUI BARBOSA')
+                    logger.debug(f'[TRIAGEM] cep_api_detectado: {_cf} ({_cn}) → RUI BARBOSA')
                     return (_prefixo_alerta() +
                             f"CEP {_cf} ({_cn}) [{_label_sub}] | foro competente: RUI BARBOSA")
 
@@ -310,10 +313,10 @@ def _checar_cep(texto: str, capa_dados: Dict[str, Any]) -> str:
         label_r = _TAG_LABEL[_CEP_TAG_RECLAMANTE]
         for lo, hi in INTERVALOS_CEP_ZONA_SUL:
             if lo <= cep_num_r <= hi:
-                print(f'[TRIAGEM] cep_reclamante_dom: {cep_fmt_r} ({cep_num_r}) → Zona Sul (pedido domicilio)')
+                logger.debug(f'[TRIAGEM] cep_reclamante_dom: {cep_fmt_r} ({cep_num_r}) → Zona Sul (pedido domicilio)')
                 return (f"B2_CEP: OK - {cep_fmt_r} ({cep_num_r}) "
                         f"no intervalo {lo}-{hi} Zona Sul [{label_r}] | DOMICILIO_AUTOR")
-        print(f'[TRIAGEM] cep_reclamante_dom: {cep_fmt_r} ({cep_num_r}) pedido domicilio mas fora da Zona Sul — ignorado')
+        logger.debug(f'[TRIAGEM] cep_reclamante_dom: {cep_fmt_r} ({cep_num_r}) pedido domicilio mas fora da Zona Sul — ignorado')
 
     return "B2_CEP: ALERTA - nenhum CEP de SP (Zona Sul/Leste/Rui Barbosa) identificado no processo"
 
@@ -933,6 +936,52 @@ def _checar_art611b(texto: str) -> str:
     return "B14_ART611B: OK"
 
 
+# ============================================================================
+# Registry de alertas para acao pos-triagem (usado por runner.py)
+# ============================================================================
+
+alerta_registry = RuleRegistry(
+    "triagem_alerta",
+    ['pre_bucket', 'b2_incompetencia', 'c_pedidos', 'd_docs', 'b1_normal']
+)
+
+alerta_registry.register(
+    r'domicilio do reclamante como referencia subsidiaria',
+    'pre_bucket',
+    None,
+)
+alerta_registry.register(
+    r'(zona sul nao detectado|incompetencia territorial|fora dos intervalos)',
+    'b2_incompetencia',
+    None,
+)
+alerta_registry.register(
+    r'pedidos\s+liquidados:.*sem\s+valores',
+    'c_pedidos',
+    None,
+)
+alerta_registry.register(
+    r'documentos\s+essenciais:.*falta',
+    'd_docs',
+    None,
+)
+
+
+def determinar_acao_pos_triagem(triagem_txt: str) -> tuple:
+    """Retorna (bucket, action) a partir do alerta_registry.
+
+    Usa alerta_registry.match() para encontrar o primeiro bucket
+    cujo padrao seja encontrado no texto da triagem.
+    Se nenhum bucket corresponder, retorna ('b1_normal', None).
+    """
+    if not isinstance(triagem_txt, str):
+        return None, None
+    bucket, action = alerta_registry.match(triagem_txt)
+    if bucket is None:
+        return 'b1_normal', None
+    return bucket, action
+
+
 __all__ = [
     '_detectar_pjdp_api',
     '_checar_procuracao_e_identidade',
@@ -949,4 +998,6 @@ __all__ = [
     '_checar_endereco_reclamante',
     '_checar_rito',
     '_checar_art611b',
+    'alerta_registry',
+    'determinar_acao_pos_triagem',
 ]

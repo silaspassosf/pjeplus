@@ -12,6 +12,7 @@ from Fix.headless_helpers import limpar_overlays_headless
 from Fix.gigs import criar_gigs
 from Fix.abas import trocar_para_nova_aba
 from Triagem.citacao import def_citacao
+from Fix.log import logger
 
 
 def _abrir_nova_aba(driver: WebDriver, url: str, aba_origem: str, url_fragmento: Optional[str] = None, timeout: int = 10) -> Optional[str]:
@@ -37,7 +38,7 @@ def _abrir_nova_aba(driver: WebDriver, url: str, aba_origem: str, url_fragmento:
             time.sleep(0.2)
         return trocar_para_nova_aba(driver, aba_origem)
     except Exception as e:
-        print(f"[TRIAGEM/ACOES] ❌ Erro ao abrir nova aba: {e}")
+        logger.error("ERRO em _abrir_nova_aba: %s: %s", type(e).__name__, e)
         return None
 
 
@@ -98,7 +99,7 @@ def desmarcar_100(driver: WebDriver, id_processo: str) -> Optional[str]:
             time.sleep(1)
         return nova_aba
     except Exception as e:
-        print(f"[TRIAGEM/ACOES] ❌ Erro ao desmarcar 100%: {e}")
+        logger.error("ERRO em desmarcar_100: %s: %s", type(e).__name__, e)
         return nova_aba
 
 
@@ -136,7 +137,7 @@ def remarcar_100_pos_aud(driver: WebDriver):
             )
             time.sleep(1)
     except Exception as e:
-        print(f"[TRIAGEM/ACOES] ❌ Erro ao remarcar 100%: {e}")
+        logger.error("ERRO em remarcar_100_pos_aud: %s: %s", type(e).__name__, e)
 
 
 def marcar_aud(driver: WebDriver, numero_processo: str, rito: str, aba_retorno: str):
@@ -218,7 +219,7 @@ def marcar_aud(driver: WebDriver, numero_processo: str, rito: str, aba_retorno: 
                 time.sleep(0.5)
         sucesso = True
     except Exception as e:
-        print(f"[TRIAGEM/ACOES] ❌ Erro ao marcar audiência: {e}")
+        logger.error("ERRO em marcar_aud: %s: %s", type(e).__name__, e)
     finally:
         if sucesso:
             try:
@@ -240,30 +241,30 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
         numero_formatado = processo_info.get('numero')
         id_processo = str(processo_info.get('id_processo') or '')
         if not numero_formatado or not id_processo:
-            print(f"[TRIAGEM/A] ❌ Falha ao extrair número/ID do processo {numero_processo}")
+            logger.error("ERRO em acao_bucket_a: Falha ao extrair numero/ID do processo %s", numero_processo)
             return False
 
         rito = 'ATSum' if tipo == 'ATSUM' else 'ATOrd'
 
         if not tem_100:
-            print(f"[TRIAGEM/A] Processo {numero_processo} sem 100% digital. Marcando audiência.")
+            logger.debug("[TRIAGEM/A] Processo %s sem 100%% digital. Marcando audiencia.", numero_processo)
 
             limpar_overlays_headless(driver)
 
             citacao_a = def_citacao(driver, processo_info)
             if not citacao_a.get('sucesso', True):
-                print(f"[TRIAGEM/A] 🛑 Polo passivo vazio — abortando execução de GIGS para {numero_processo}")
+                logger.warning("[TRIAGEM/A] Polo passivo vazio — abortando execucao de GIGS para %s", numero_processo)
                 return False
             for obs in citacao_a['gigs_obs']:
                 try:
                     criar_gigs(driver, "1", "", obs)
                 except Exception as e:
-                    print(f"[TRIAGEM/A] ⚠ Erro ao criar GIGS ({obs}): {e}")
+                    logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS (%s): %s", obs, e)
 
             try:
                 criar_gigs(driver, "", "", "Processo entrou sem audiencia, conferir marcacao e despacho")
             except Exception as e:
-                print(f"[TRIAGEM/A] \u26a0 Erro ao criar GIGS sem-aud: {e}")
+                logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS sem-aud: %s", e)
 
             marcar_aud(driver, numero_formatado, rito, driver.current_window_handle)
             limpar_overlays_headless(driver)
@@ -272,22 +273,22 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
                 from atos import ato_unap
                 return bool(ato_unap(driver, debug=True))
             except Exception as e:
-                print(f"[TRIAGEM/A] ⚠ Erro ao executar ato_unap: {e}")
+                logger.error("ERRO em acao_bucket_a: Erro ao executar ato_unap: %s", e)
                 return False
 
         if tipo not in ['ATORD', 'ATSUM', 'ACUM', 'ACCUM']:
-            print(f"[TRIAGEM/A] Processo {numero_processo} não atende critérios de rito. Pulando.")
+            logger.debug("[TRIAGEM/A] Processo %s nao atende criterios de rito. Pulando.", numero_processo)
             return True
 
         aba_retificar = desmarcar_100(driver, id_processo)
         if not aba_retificar:
-            print(f"[TRIAGEM/A] ❌ Não foi possível abrir/usar aba retificar")
+            logger.error("ERRO em acao_bucket_a: Nao foi possivel abrir/usar aba retificar")
             return False
 
         try:
             criar_gigs(driver, "", "", "Processo entrou sem audiencia, conferir marcacao e despacho")
         except Exception as e:
-            print(f"[TRIAGEM/A] \u26a0 Erro ao criar GIGS sem-aud: {e}")
+            logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS sem-aud: %s", e)
 
         marcar_aud(driver, numero_formatado, rito, aba_retificar)
 
@@ -297,7 +298,7 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
                 remarcar_100_pos_aud(driver)
                 driver.close()
         except Exception as e:
-            print(f"[TRIAGEM/A] ⚠ Erro ao finalizar retificar: {e}")
+            logger.error("ERRO em acao_bucket_a: Erro ao finalizar retificar: %s", e)
 
         try:
             for handle in driver.window_handles:
@@ -312,23 +313,23 @@ def acao_bucket_a(driver: WebDriver, numero_processo: str, processo_info: Dict) 
 
         citacao_a2 = def_citacao(driver, processo_info)
         if not citacao_a2.get('sucesso', True):
-            print(f"[TRIAGEM/A] 🛑 Polo passivo vazio após triagem — abortando GIGS para {numero_processo}")
+            logger.warning("[TRIAGEM/A] Polo passivo vazio apos triagem — abortando GIGS para %s", numero_processo)
             return False
         for obs in citacao_a2['gigs_obs']:
             try:
                 criar_gigs(driver, "1", "", obs)
             except Exception as e:
-                print(f"[TRIAGEM/A] ⚠ Erro ao criar GIGS ({obs}): {e}")
+                logger.error("ERRO em acao_bucket_a: Erro ao criar GIGS (%s): %s", obs, e)
 
         try:
             from atos import ato_100
             ato_100(driver, debug=True)
         except Exception as e:
-            print(f"[TRIAGEM/A] ⚠ Erro ao executar ato_100: {e}")
+            logger.error("ERRO em acao_bucket_a: Erro ao executar ato_100: %s", e)
 
         return True
     except Exception as e:
-        print(f"[TRIAGEM/A] Erro ao executar ações: {e}")
+        logger.error("ERRO em acao_bucket_a: Erro ao executar acoes: %s", e)
         traceback.print_exc()
         return False
 
@@ -341,22 +342,22 @@ def acao_bucket_b(driver: WebDriver, numero_processo: str, processo_info: Dict) 
 
         citacao_b = def_citacao(driver, processo_info)
         if not citacao_b.get('sucesso', True):
-            print(f"[TRIAGEM/B] 🛑 Polo passivo vazio — abortando GIGS para {numero_processo}")
+            logger.warning("[TRIAGEM/B] Polo passivo vazio — abortando GIGS para %s", numero_processo)
             return False
 
         for obs in citacao_b['gigs_obs']:
-            print(f"[TRIAGEM/B] Criando GIGS para {numero_processo} (prazo: 1, observacao: {obs})")
+            logger.debug("[TRIAGEM/B] Criando GIGS para %s (prazo: 1, observacao: %s)", numero_processo, obs)
             criar_gigs(driver, "1", "", obs)
 
         try:
             from atos import ato_100
             ato_100(driver, debug=True)
         except Exception as e:
-            print(f"[TRIAGEM/B] ⚠ Erro ao executar ato_100: {e}")
+            logger.error("ERRO em acao_bucket_b: Erro ao executar ato_100: %s", e)
 
         return True
     except Exception as e:
-        print(f"[TRIAGEM/B] Erro ao criar GIGS: {e}")
+        logger.error("ERRO em acao_bucket_b: Erro ao criar GIGS: %s", e)
         traceback.print_exc()
         return False
 
@@ -370,25 +371,25 @@ def acao_bucket_c(driver: WebDriver, numero_processo: str, processo_info: Dict) 
 
         citacao_c = def_citacao(driver, processo_info)
         if not citacao_c.get('sucesso', True):
-            print(f"[TRIAGEM/C] 🛑 Polo passivo vazio — abortando PEC para {numero_processo}")
+            logger.warning("[TRIAGEM/C] Polo passivo vazio — abortando PEC para %s", numero_processo)
             return False
 
         ok = False
         for pec_nome in citacao_c['pec_wrappers']:
             pec_fn = _PEC_MAP.get(pec_nome)
             if pec_fn:
-                print(f"[TRIAGEM/C] Executando {pec_nome} para {numero_processo}")
+                logger.debug("[TRIAGEM/C] Executando %s para %s", pec_nome, numero_processo)
                 try:
                     ok = bool(pec_fn(driver, debug=True)) or ok
                 except Exception as e:
-                    print(f"[TRIAGEM/C] ⚠ Erro em {pec_nome}: {e}")
+                    logger.error("ERRO em acao_bucket_c: Erro em %s: %s", pec_nome, e)
 
         if ok:
-            print(f"[TRIAGEM/C] Executando mov_aud para {numero_processo}")
+            logger.debug("[TRIAGEM/C] Executando mov_aud para %s", numero_processo)
             return bool(mov_aud(driver, debug=True))
         return ok
     except Exception as e:
-        print(f"[TRIAGEM/C] Erro na ação: {e}")
+        logger.error("ERRO em acao_bucket_c: Erro na acao: %s", e)
         traceback.print_exc()
         return False
 
@@ -400,17 +401,17 @@ def acao_bucket_d(driver: WebDriver, numero_processo: str, processo_info: Dict) 
         try:
             from atos import ato_ratif
         except ImportError:
-            print(f"[TRIAGEM/D] ato_ratif não disponível")
+            logger.error("ERRO em acao_bucket_d: ato_ratif nao disponivel")
             return False
 
         try:
-            print(f"[TRIAGEM/D] Executando ato_ratif para {numero_processo}")
+            logger.debug("[TRIAGEM/D] Executando ato_ratif para %s", numero_processo)
             return bool(ato_ratif(driver, debug=True))
         except Exception as e:
-            print(f"[TRIAGEM/D] Erro ao executar ato_ratif: {e}")
+            logger.error("ERRO em acao_bucket_d: Erro ao executar ato_ratif: %s", e)
             return False
     except Exception as e:
-        print(f"[TRIAGEM/D] Erro geral na ação: {e}")
+        logger.error("ERRO em acao_bucket_d: Erro geral na acao: %s", e)
         traceback.print_exc()
         return False
 

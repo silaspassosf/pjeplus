@@ -7,20 +7,17 @@ Migrado automaticamente de Fix.py (PARTE 5 - Modularização).
 import os
 from selenium import webdriver
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
     TimeoutException, NoSuchElementException, StaleElementReferenceException,
-    WebDriverException, NoSuchWindowException, ElementClickInterceptedException, 
+    WebDriverException, ElementClickInterceptedException,
     ElementNotInteractableException
 )
-from typing import Optional, Dict, Any, List, Union, Callable
+from typing import Optional, Union
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-import re, time, datetime, json, pyperclip, logging
-from pathlib import Path
+import re, time, datetime, json
 from .log import logger
 
 # Variáveis de compatibilidade para logs antigos
@@ -43,7 +40,8 @@ def medir_tempo(label: str = None):
         try:
             _wrapper.__name__ = func.__name__
             _wrapper.__doc__ = func.__doc__
-        except Exception:
+        except Exception as e:
+            logger.debug("medir_tempo: falha ao copiar __name__/__doc__: %s", e)
             pass
         return _wrapper
     return _decorator
@@ -84,13 +82,15 @@ def aguardar_renderizacao_nativa(
             return []
         try:
             return web_driver.find_elements(By.CSS_SELECTOR, seletor)
-        except Exception:
+        except Exception as e:
+            logger.debug("_coletar_elementos: %s", e)
             return []
 
     def _elemento_visivel(element):
         try:
             return element.is_displayed()
-        except Exception:
+        except Exception as e:
+            logger.debug("_elemento_visivel: %s", e)
             return False
 
     timeout_segundos = float(timeout)
@@ -129,7 +129,8 @@ def aguardar_renderizacao_nativa(
         return True
     except TimeoutException:
         return False
-    except Exception:
+    except Exception as e:
+        logger.warning("aguardar_renderizacao_nativa: %s", e)
         return False
 
 def wait(driver, selector, timeout=10, by=By.CSS_SELECTOR):
@@ -159,7 +160,8 @@ def wait_for_page_load(driver, timeout=10):
         return True
     except TimeoutException:
         return False
-    except Exception:
+    except Exception as e:
+        logger.warning("wait_for_page_load: %s", e)
         return False
 
 # Função de clique seguro
@@ -181,7 +183,7 @@ def wait_for_visible(driver, selector, timeout=10, by=None):
         return element
     except (TimeoutException, NoSuchElementException):
         if isinstance(selector, str):
-            print(f"[WAIT_VISIBLE] Elemento não visível: {selector}")
+            logger.warning("[WAIT_VISIBLE] Elemento nao visivel: %s", selector)
         return None
 
 
@@ -202,7 +204,7 @@ def wait_for_clickable(driver, selector, timeout=10, by=None):
         return element
     except (TimeoutException, NoSuchElementException):
         if isinstance(selector, str):
-            print(f"[WAIT_CLICKABLE] Elemento não clicável: {selector}")
+            logger.warning("[WAIT_CLICKABLE] Elemento nao clicavel: %s", selector)
         return None
 
 
@@ -231,7 +233,8 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
                     _log_info('[CLICK] Clicked KZ details icon (img.mat-tooltip-trigger)')
                 _audit('click', 'img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"]', 'ok')
                 return True
-            except Exception:
+            except Exception as e:
+                logger.debug("aguardar_e_clicar: falha ao clicar no icone KZ: %s", e)
                 element = None
             # Try clicking the parent button if img not clickable
             try:
@@ -242,7 +245,8 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
                     _log_info('[CLICK] Clicked parent button of KZ details icon')
                 _audit('click', 'button(parentOf: img.mat-tooltip-trigger[aria-label*="Detalhes do Processo"])', 'ok')
                 return True
-            except Exception:
+            except Exception as e:
+                logger.debug("aguardar_e_clicar: falha ao clicar no botao pai do KZ: %s", e)
                 pass
         if element and element.is_displayed():
                 try:
@@ -256,7 +260,7 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
                     # Tentativa de fallback: reduzir zoom temporariamente e tentar JS click novamente
                     try:
                         if log:
-                            print(f'[CLICK][WARN] JS click falhou: {e_click} - tentando fallback de zoom')
+                            logger.warning("[CLICK] JS click falhou: %s - tentando fallback de zoom", e_click)
                         prev_zoom = driver.execute_script("return document.body.style.zoom || '';")
                         driver.execute_script("document.body.style.zoom = '60%';")
                         time.sleep(0.12)
@@ -264,7 +268,8 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
                         # restaurar zoom
                         try:
                             driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
-                        except Exception:
+                        except Exception as e:
+                            logger.debug("aguardar_e_clicar: falha ao restaurar zoom: %s", e)
                             pass
                         if DEBUG:
                             _log_info(f'[CLICK] Click via JS com zoom reduzido: {selector_or_element}')
@@ -272,11 +277,12 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
                         return True
                     except Exception as e_fallback:
                         if log:
-                            print(f'[CLICK][ERROR] Fallback click falhou: {e_fallback}')
+                            logger.error("[CLICK] Fallback click falhou: %s", e_fallback)
                         try:
                             # tentar restaurar zoom mesmo em caso de erro
                             driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
-                        except Exception:
+                        except Exception as e:
+                            logger.debug("aguardar_e_clicar: falha ao restaurar zoom apos erro: %s", e)
                             pass
                         _log_error(f'[CLICK][ERROR] Failed to click after fallback: {e_fallback}')
                         _audit('click', selector_or_element, 'fail', {'error': str(e_fallback)[:300]})
@@ -297,7 +303,8 @@ def safe_click(driver, selector_or_element, timeout=10, by=None, log=False):
                 driver.execute_script("arguments[0].click();", element)
                 try:
                     driver.execute_script(f"document.body.style.zoom = '{prev_zoom}';")
-                except Exception:
+                except Exception as e:
+                    logger.debug("aguardar_e_clicar: falha ao restaurar zoom no hidden element: %s", e)
                     pass
                 if DEBUG:
                     _log_info(f'[CLICK] Click via JS com zoom reduzido em elemento não visível: {selector_or_element}')
@@ -323,7 +330,7 @@ def safe_click_no_scroll(driver, element, log=False):
         return True
     except Exception as e:
         if log:
-            print(f'[CLICK][ERROR] safe_click_no_scroll falhou: {e}')
+            logger.error("[CLICK] safe_click_no_scroll falhou: %s", e)
         return False
 
 
@@ -339,7 +346,7 @@ def buscar_seletor_robusto(driver, textos, contexto=None, timeout=5, log=False):
             return input_associado
         except Exception as e:
             if log:
-                print(f'[ROBUSTO][DEBUG] Falha ao buscar input associado: {e}')
+                logger.debug("[ROBUSTO] Falha ao buscar input associado: %s", e)
             return None
     try:
         # Fase 1: Busca direta por inputs editáveis
@@ -469,7 +476,8 @@ def esperar_elemento(driver, seletor, texto=None, timeout=10, by=By.CSS_SELECTOR
                     )
                 logger.info(f"[HEADLESS][RETRY] Sucesso após limpar overlays: '{seletor}'")
                 return el
-            except Exception:
+            except Exception as e:
+                logger.debug("esperar_elemento: retry headless falhou: %s", e)
                 pass  # Falhou mesmo com retry
         
         logger.error(f"[ESPERAR][ERRO] Falha ao esperar elemento: '{seletor}' (by={by}, timeout={timeout}, texto={texto}) -> {e}")
@@ -510,7 +518,7 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
             from Fix.headless_helpers import click_headless_safe, is_headless_mode
             if is_headless_mode(driver):
                 if log:
-                    print(f"[HEADLESS] Usando click_headless_safe para: {seletor}")
+                    logger.debug("aguardar_e_clicar: usando click_headless_safe para: %s", seletor)
                 return click_headless_safe(driver, seletor, timeout=timeout)
     except ImportError:
         pass  # headless_helpers não disponível, continuar normal
@@ -550,15 +558,14 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
             """
             resultado = driver.execute_async_script(script)
             if log:
-                status = "✅" if resultado else "❌"
-                print(f"{status} aguardar_e_clicar JS: {seletor}")
+                logger.debug("aguardar_e_clicar JS: %s -> %s", seletor, resultado)
             return resultado
         except Exception as e:
             if log:
-                print(f"⚠️ aguardar_e_clicar JS falhou: {e}")
+                logger.warning("aguardar_e_clicar JS falhou: %s", e)
             # Fallback para Python
             usar_js = False
-    
+
     # Fallback Python (ou escolha explícita) - usar safe_click existente
     if not usar_js:
         elemento = esperar_elemento(driver, seletor, timeout=timeout, by=by, log=log)
@@ -566,15 +573,15 @@ def aguardar_e_clicar(driver, seletor, log=False, timeout=10, by=By.CSS_SELECTOR
             try:
                 elemento.click()
                 if log:
-                    print(f"✅ aguardar_e_clicar (Python): {seletor}")
+                    logger.debug("aguardar_e_clicar (Python): %s", seletor)
                 return True
             except Exception as e:
                 if log:
-                    print(f"❌ aguardar_e_clicar click falhou: {e}")
+                    logger.warning("aguardar_e_clicar click falhou: %s", e)
                 return False
         else:
             if log:
-                print(f"❌ aguardar_e_clicar elemento não encontrado: {seletor}")
+                logger.warning("aguardar_e_clicar elemento nao encontrado: %s", seletor)
             return False
 
 
@@ -594,7 +601,7 @@ def _clicar_botao_movimentar(driver, timeout=10, log=False):
     for seletor in seletores_prioridade:
         try:
             if log:
-                print(f" Tentando seletor: {seletor}")
+                logger.debug("_clicar_botao_movimentar: tentando seletor: %s", seletor)
 
             if "//" in seletor or "contains(" in seletor:
                 by_type = By.XPATH
@@ -605,25 +612,25 @@ def _clicar_botao_movimentar(driver, timeout=10, log=False):
             if elemento:
                 elemento.click()
                 if log:
-                    print(f"✅ Botão 'Movimentar processos' clicado com: {seletor}")
+                    logger.debug("_clicar_botao_movimentar: clicado com: %s", seletor)
                 time.sleep(0.5)
                 return True
 
         except Exception as e:
             if log:
-                print(f"⚠️ Seletor {seletor} falhou: {e}")
+                logger.warning("_clicar_botao_movimentar: seletor %s falhou: %s", seletor, e)
             continue
 
     if log:
-        print("❌ Todos os seletores para 'Movimentar processos' falharam")
+        logger.error("ERRO em _clicar_botao_movimentar: todas as estrategias falharam")
     return False
 
 
 def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
     """
-    Estratégia especializada para clicar no botão "Abrir tarefa do processo" do PJe
-    Problema: Falha no contexto Mandado após buscar_documento_argos, mas funciona no Prazo
-    Solução: Verificar overlays, tentar múltiplas abordagens de clique
+    Estrategia especializada para clicar no botao Abrir tarefa do processo do PJe
+    Problema: Falha no contexto Mandado apos buscar_documento_argos, mas funciona no Prazo
+    Solucao: Verificar overlays, tentar multiplas abordagens de clique
     """
     seletor = 'button[mattooltip="Abre a tarefa do processo"]'
     
@@ -632,94 +639,94 @@ def _clicar_botao_tarefa_processo(driver, timeout=10, log=False):
         elemento = esperar_elemento(driver, seletor, timeout=timeout, by=By.CSS_SELECTOR, log=log)
         if not elemento:
             if log:
-                print("❌ Botão 'Abrir tarefa do processo' não encontrado")
+                logger.error("ERRO em _clicar_botao_tarefa_processo: botao nao encontrado")
             return False
-        
+
         if log:
-            print("✅ Botão 'Abrir tarefa do processo' encontrado")
-        
-        # Passo 2: Verificar se há overlays que podem interceptar o clique
+            logger.debug("_clicar_botao_tarefa_processo: botao encontrado")
+
+        # Passo 2: Verificar se ha overlays que podem interceptar o clique
         try:
             overlays = driver.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')
             if overlays:
                 if log:
-                    print(f"⚠️ {len(overlays)} overlay(s) detectado(s) - aguardando desaparecer...")
+                    logger.debug("_clicar_botao_tarefa_processo: %d overlay(s) detectado(s) - aguardando desaparecer...", len(overlays))
                 # Aguardar overlays desaparecerem
                 WebDriverWait(driver, 5).until(
                     lambda d: len(d.find_elements(By.CSS_SELECTOR, '.cdk-overlay-backdrop, .mat-overlay-transparent-backdrop, .mat-menu-panel')) == 0
                 )
                 if log:
-                    print("✅ Overlays desapareceram")
+                    logger.debug("_clicar_botao_tarefa_processo: overlays desapareceram")
         except Exception as e:
             if log:
-                print(f"⚠️ Erro ao verificar overlays: {e}")
-        
+                logger.warning("_clicar_botao_tarefa_processo: erro ao verificar overlays: %s", e)
+
         # Passo 3: Scroll para o elemento
         try:
             driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'center'});", elemento)
             time.sleep(0.5)
         except Exception as e:
             if log:
-                print(f"⚠️ Erro no scroll: {e}")
-        
+                logger.warning("_clicar_botao_tarefa_processo: erro no scroll: %s", e)
+
         # Passo 4: Tentar clique direto primeiro
         try:
             elemento.click()
             if log:
-                print("✅ Clique direto no botão 'Abrir tarefa do processo' realizado")
-            time.sleep(1)  # Aguardar navegação
+                logger.debug("_clicar_botao_tarefa_processo: clique direto realizado")
+            time.sleep(1)
             return True
         except ElementClickInterceptedException:
             if log:
-                print("⚠️ Clique interceptado - tentando alternativas...")
+                logger.warning("_clicar_botao_tarefa_processo: clique interceptado - tentando alternativas...")
         except Exception as e:
             if log:
-                print(f"⚠️ Clique direto falhou: {e}")
-        
+                logger.warning("_clicar_botao_tarefa_processo: clique direto falhou: %s", e)
+
         # Passo 5: Tentar JavaScript click
         try:
             driver.execute_script("arguments[0].click();", elemento)
             if log:
-                print("✅ JavaScript click no botão 'Abrir tarefa do processo' realizado")
+                logger.debug("_clicar_botao_tarefa_processo: JavaScript click realizado")
             time.sleep(1)
             return True
         except Exception as e:
             if log:
-                print(f"⚠️ JavaScript click falhou: {e}")
-        
+                logger.warning("_clicar_botao_tarefa_processo: JS click falhou: %s", e)
+
         # Passo 6: Tentar ActionChains com move e click
         try:
             from selenium.webdriver.common.action_chains import ActionChains
             actions = ActionChains(driver)
             actions.move_to_element(elemento).click().perform()
             if log:
-                print("✅ ActionChains click no botão 'Abrir tarefa do processo' realizado")
+                logger.debug("_clicar_botao_tarefa_processo: ActionChains click realizado")
             time.sleep(1)
             return True
         except Exception as e:
             if log:
-                print(f"⚠️ ActionChains click falhou: {e}")
-        
-        # Passo 7: Último recurso - tentar parent element se existir
+                logger.warning("_clicar_botao_tarefa_processo: ActionChains click falhou: %s", e)
+
+        # Passo 7: Ultimo recurso - tentar parent element se existir
         try:
             parent = elemento.find_element(By.XPATH, "./ancestor::button[1]") if elemento != elemento.find_element(By.XPATH, "./ancestor::button[1]") else elemento
             if parent != elemento:
                 parent.click()
                 if log:
-                    print("✅ Clique no parent button realizado")
+                    logger.debug("_clicar_botao_tarefa_processo: parent click realizado")
                 time.sleep(1)
                 return True
         except Exception as e:
             if log:
-                print(f"⚠️ Parent click falhou: {e}")
-        
+                logger.warning("_clicar_botao_tarefa_processo: parent click falhou: %s", e)
+
         if log:
-            print("❌ Todas as estratégias para 'Abrir tarefa do processo' falharam")
+            logger.error("ERRO em _clicar_botao_tarefa_processo: todas as estrategias falharam")
         return False
-        
+
     except Exception as e:
         if log:
-            print(f"❌ Erro geral no _clicar_botao_tarefa_processo: {e}")
+            logger.error("ERRO em _clicar_botao_tarefa_processo: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -799,7 +806,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
         # Nome conhecido -> lista de seletores possíveis
         seletores_possiveis = mapeamento_dropdowns[seletor_dropdown]
         if log:
-            print(f"[SELECIONAR_OPCAO] Nome conhecido '{seletor_dropdown}' -> tentando {len(seletores_possiveis)} seletores")
+            logger.debug("[SELECIONAR_OPCAO] Nome conhecido '%s' -> tentando %d seletores", seletor_dropdown, len(seletores_possiveis))
     elif isinstance(seletor_dropdown, str):
         # Seletor CSS direto -> lista com um item
         seletores_possiveis = [seletor_dropdown]
@@ -812,7 +819,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
         # ✅ FUNCIONANDO BEM - Manter esta lógica principal
         if seletores_possiveis is None:
             if log:
-                print(f"[SELECIONAR_OPCAO] Auto-detecção ativada para '{texto_opcao}'")
+                logger.debug("[SELECIONAR_OPCAO] Auto-deteccao ativada para '%s'", texto_opcao)
 
             # Estratégias de auto-detecção em ordem de prioridade
             estrategias_auto = [
@@ -827,7 +834,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
             for seletor_auto in estrategias_auto:
                 try:
                     if log:
-                        print(f"[SELECIONAR_OPCAO] Tentando seletor auto-detectado: {seletor_auto}")
+                        logger.debug("[SELECIONAR_OPCAO] Tentando seletor auto-detectado: %s", seletor_auto)
 
                     dropdown = WebDriverWait(driver, 5).until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_auto))
@@ -839,7 +846,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     # Tentativa 1: Click direto
                     try:
                         dropdown.click()
-                        time.sleep(0.5)
                         dropdown_aberto = True
                     except:
                         pass
@@ -849,7 +855,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                         try:
                             driver.execute_script("arguments[0].focus();", dropdown)
                             dropdown.send_keys(Keys.ENTER)
-                            time.sleep(0.5)
                             dropdown_aberto = True
                         except:
                             pass
@@ -859,7 +864,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                         try:
                             driver.execute_script("arguments[0].focus();", dropdown)
                             dropdown.send_keys(Keys.ARROW_DOWN)
-                            time.sleep(0.5)
                             dropdown_aberto = True
                         except:
                             pass
@@ -867,7 +871,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     if not dropdown_aberto:
                         continue
 
-                    # MELHORIA: Aguardar opções aparecerem (inspiração esperarColecao do a.py)
+                    # Aguardar opções aparecerem (WebDriverWait substitui time.sleep animação)
                     try:
                         WebDriverWait(driver, 3).until(
                             lambda d: len(d.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option')) >= 1
@@ -889,7 +893,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
 
                             if encontrado:
                                 if log:
-                                    print(f"[SELECIONAR_OPCAO] ✅ Opção '{texto_opcao}' selecionada via auto-detecção (seletor: {seletor_auto})")
+                                    logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada via auto-deteccao (seletor: %s)", texto_opcao, seletor_auto)
                                 opcao.click()
                                 time.sleep(0.3)
                                 return True
@@ -900,19 +904,18 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
 
                 except Exception as e_auto:
                     if log:
-                        print(f"[SELECIONAR_OPCAO] Seletor auto-detectado {seletor_auto} falhou: {e_auto}")
+                        logger.warning("[SELECIONAR_OPCAO] Seletor auto-detectado %s falhou: %s", seletor_auto, e_auto)
                     continue
 
             if log:
-                print(f"[SELECIONAR_OPCAO] ❌ Auto-detecção falhou para '{texto_opcao}'")
+                logger.error("ERRO em selecionar_opcao: auto-deteccao falhou para '%s'", texto_opcao)
             return False
 
         # SELEÇÃO POR SELETORES RESOLVIDOS: Tenta cada seletor possível
-        # ✅ FUNCIONANDO BEM - Lógica aprimorada para nomes conhecidos
         for seletor_atual in seletores_possiveis:
             try:
                 if log:
-                    print(f"[SELECIONAR_OPCAO] Tentando seletor: {seletor_atual}")
+                    logger.debug("[SELECIONAR_OPCAO] Tentando seletor: %s", seletor_atual)
 
                 dropdown = WebDriverWait(driver, timeout).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_atual))
@@ -924,7 +927,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                 # Tentativa 1: Click direto
                 try:
                     dropdown.click()
-                    time.sleep(0.5)
                     dropdown_aberto = True
                 except:
                     pass
@@ -935,7 +937,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                         driver.execute_script("arguments[0].focus();", dropdown)
                         from selenium.webdriver.common.keys import Keys
                         dropdown.send_keys(Keys.ENTER)
-                        time.sleep(0.5)
                         dropdown_aberto = True
                     except:
                         pass
@@ -945,7 +946,6 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     try:
                         driver.execute_script("arguments[0].focus();", dropdown)
                         dropdown.send_keys(Keys.ARROW_DOWN)
-                        time.sleep(0.5)
                         dropdown_aberto = True
                     except:
                         pass
@@ -953,7 +953,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                 if not dropdown_aberto:
                     continue
 
-                # MELHORIA: Aguardar opções aparecerem
+                # Aguardar opções aparecerem (WebDriverWait substitui time.sleep animação)
                 try:
                     WebDriverWait(driver, 3).until(
                         lambda d: len(d.find_elements(By.CSS_SELECTOR, 'mat-option[role="option"], option')) >= 1
@@ -975,7 +975,7 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
 
                         if encontrado:
                             if log:
-                                print(f"[SELECIONAR_OPCAO] ✅ Opção '{texto_opcao}' selecionada (seletor: {seletor_atual})")
+                                logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada (seletor: %s)", texto_opcao, seletor_atual)
                             opcao.click()
                             time.sleep(0.3)
                             return True
@@ -986,14 +986,13 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
 
             except Exception as e_seletor:
                 if log:
-                    print(f"[SELECIONAR_OPCAO] Seletor {seletor_atual} falhou: {e_seletor}")
+                    logger.warning("[SELECIONAR_OPCAO] Seletor %s falhou: %s", seletor_atual, e_seletor)
                 continue
 
-        # FALLBACK: Estratégia 2 (padrão do código original) - pode ser removida futuramente
-        # ⚠️ PODE SER REMOVIDO - Esta lógica está duplicada na auto-detecção
+        # FALLBACK: Estratégia 2
         try:
             if log:
-                print("[SELECIONAR_OPCAO] Tentando estratégia 2: formcontrolname='destinos'")
+                logger.debug("[SELECIONAR_OPCAO] Tentando estrategia 2: formcontrolname='destinos'")
 
             select = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, 'mat-select[formcontrolname="destinos"]'))
@@ -1015,20 +1014,20 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
                     if texto_opcao.lower() in texto:
                         driver.execute_script("arguments[0].click();", opcao)
                         if log:
-                            print(f"[SELECIONAR_OPCAO] ✅ Opção '{texto_opcao}' selecionada via painel (estratégia 2)")
+                            logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada via painel (estrategia 2)", texto_opcao)
                         return True
-                except Exception:
+                except Exception as e:
+                    logger.debug("selecionar_opcao: opcao falhou: %s", e)
                     continue
 
         except Exception as e2:
             if log:
-                print(f"[SELECIONAR_OPCAO] Estratégia 2 falhou: {e2}")
+                logger.warning("[SELECIONAR_OPCAO] Estrategia 2 falhou: %s", e2)
 
-        # FALLBACK: Estratégia 3 (JavaScript direto) - pode ser simplificada
-        # ⚠️ PODE SER SIMPLIFICADO - Script JS muito complexo
+        # FALLBACK: Estratégia 3 (JavaScript direto)
         try:
             if log:
-                print("[SELECIONAR_OPCAO] Tentando estratégia 3: JavaScript direto")
+                logger.debug("[SELECIONAR_OPCAO] Tentando estrategia 3: JavaScript direto")
 
             script = f"""
             try {{
@@ -1070,20 +1069,20 @@ def selecionar_opcao(driver, seletor_dropdown, texto_opcao, timeout=10, exato=Fa
             resultado = driver.execute_script(script)
             if resultado:
                 if log:
-                    print(f"[SELECIONAR_OPCAO] ✅ Opção '{texto_opcao}' selecionada via JavaScript (estratégia 3)")
+                    logger.debug("[SELECIONAR_OPCAO] Opcao '%s' selecionada via JavaScript (estrategia 3)", texto_opcao)
                 return True
 
         except Exception as e3:
             if log:
-                print(f"[SELECIONAR_OPCAO] Estratégia 3 falhou: {e3}")
+                logger.warning("[SELECIONAR_OPCAO] Estrategia 3 falhou: %s", e3)
 
         if log:
-            print(f"[SELECIONAR_OPCAO] ❌ Todas as estratégias falharam para '{texto_opcao}'")
+            logger.error("ERRO em selecionar_opcao: todas as estrategias falharam para '%s'", texto_opcao)
         return False
 
     except Exception as e:
         if log:
-            print(f"[SELECIONAR_OPCAO] ❌ Erro geral: {e}")
+            logger.error("ERRO em selecionar_opcao: %s: %s", type(e).__name__, e)
         return False
 
 
@@ -1152,17 +1151,16 @@ def preencher_campo(driver, seletor, valor, trigger_events=True, limpar=True, lo
         
         resultado = driver.execute_async_script(script)
         if log:
-            status = "✅" if resultado else "❌"
-            # Garantir que o valor é string antes de fatiar (evita TypeError se for int/None)
             try:
                 val_preview = str(valor)[:50]
-            except Exception:
+            except Exception as e:
+                logger.debug("preencher_campo: falha ao formatar valor: %s", e)
                 val_preview = '[unrepresentable]'
-            print(f"{status} preencher_campo: {seletor} = '{val_preview}'")
+            logger.debug("preencher_campo: %s = '%s' -> %s", seletor, val_preview, resultado)
         return resultado
     except Exception as e:
         if log:
-            print(f"⚠️ preencher_campo falhou: {e}")
+            logger.warning("preencher_campo falhou: %s", e)
         return False
 
 
@@ -1172,29 +1170,29 @@ def preencher_campos_prazo(driver, valor=0, timeout=10, log=True):
         form = wait(driver, '#mat-tab-content-0-0 > div > pje-intimacao-automatica > div > form', timeout)
         if not form:
             if log:
-                print('[Fix.core] Formulário de minuta/comunicação não encontrado.')
+                logger.warning("[Fix.core] Formulario de minuta/comunicacao nao encontrado.")
             return False
-        
+
         inputs = form.find_elements(By.CSS_SELECTOR, 'input[type="text"].mat-input-element')
         if not inputs:
             if log:
-                print('[Fix.core] Nenhum campo de prazo encontrado.')
+                logger.warning("[Fix.core] Nenhum campo de prazo encontrado.")
             return False
-        
+
         for campo in inputs:
             driver.execute_script("arguments[0].focus();", campo)
             campo.clear()
             campo.send_keys(str(valor))
             driver.execute_script('arguments[0].dispatchEvent(new Event("input", {bubbles:true}));', campo)
             driver.execute_script('arguments[0].dispatchEvent(new Event("change", {bubbles:true}));', campo)
-            
+
             if log:
-                print(f'[Fix.core] Campo de prazo preenchido com {valor}')
-        
+                logger.debug("[Fix.core] Campo de prazo preenchido com %s", valor)
+
         return True
     except Exception as e:
         if log:
-            print(f'[Fix.core] Erro ao preencher campos de prazo: {e}')
+            logger.error("[Fix.core] Erro ao preencher campos de prazo: %s", e)
         return False
 
 
@@ -1257,13 +1255,12 @@ def preencher_multiplos_campos(driver, campos_dict, log=False):
 
         if log:
             for seletor, sucesso in resultado.items():
-                status = "" if sucesso else ""
-                print(f"{status} {seletor}")
+                logger.debug("preencher_multiplos_campos: %s -> %s", seletor, sucesso)
 
         return resultado
     except Exception as e:
         if log:
-            print(f" preencher_multiplos_campos falhou: {e}")
+            logger.warning("preencher_multiplos_campos falhou: %s", e)
         return {seletor: False for seletor in campos_dict.keys()}
 
 
@@ -1278,6 +1275,201 @@ if not os.path.exists(GECKODRIVER_PATH):
     logger.warning(f'AVISO: Geckodriver não encontrado em {GECKODRIVER_PATH}')
 else:
     logger.info(f'Geckodriver encontrado: {GECKODRIVER_PATH}')
+
+# --- HELPERS DE DRIVER (movidos de x.py na Task 12) ---
+
+
+def _aplicar_preferencias(options, preferencias):
+    """Aplica preferencias no Firefox mantendo a ordem declarada."""
+    for chave, valor in preferencias:
+        options.set_preference(chave, valor)
+
+
+def _configurar_driver_pos_criacao(driver, headless=False):
+    """Padroniza passos pos-criacao do driver Firefox."""
+    driver.implicitly_wait(10)
+    if not headless:
+        driver.maximize_window()
+    else:
+        driver.set_window_size(1920, 1080)
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+
+
+def _criar_driver_firefox(options, headless=False):
+    """Cria instancia Firefox com service padrao do projeto."""
+    from selenium.webdriver.firefox.service import Service
+    service = Service(executable_path=GECKODRIVER_PATH)
+    driver = webdriver.Firefox(options=options, service=service)
+    _configurar_driver_pos_criacao(driver, headless=headless)
+    return driver
+
+
+def _montar_options_pc(headless=False):
+    """Monta options para driver PC."""
+    from selenium.webdriver.firefox.options import Options
+    options = Options()
+
+    if headless:
+        options.add_argument('-headless')
+
+    prefs_anti_automacao = [
+        ("dom.webdriver.enabled", False),
+        ('useAutomationExtension', False),
+    ]
+    prefs_pc_base = [
+        ("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0"),
+        ("browser.cache.disk.enable", True),
+        ("browser.cache.memory.enable", True),
+        ("browser.cache.offline.enable", True),
+        ("network.http.use-cache", True),
+        ("dom.webnotifications.enabled", False),
+        ("media.volume_scale", "0.0"),
+    ]
+    prefs_download_headless = [
+        ("browser.download.folderList", 2),
+        ("browser.download.manager.showWhenStarting", False),
+        ("browser.download.dir", os.path.join(os.path.dirname(__file__), "..", "downloads")),
+        (
+            "browser.helperApps.neverAsk.saveToDisk",
+            "application/pdf,application/octet-stream,application/zip,"
+            "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        ("pdfjs.disabled", True),
+    ]
+    prefs_anti_throttling = [
+        ("dom.min_background_timeout_value", 0),
+        ("dom.timeout.throttling_delay", 0),
+        ("dom.timeout.budget_throttling_max_delay", 0),
+        ("page.load.animation.disabled", True),
+        ("dom.disable_window_move_resize", False),
+    ]
+
+    _aplicar_preferencias(options, prefs_anti_automacao)
+    _aplicar_preferencias(options, prefs_pc_base)
+    if headless:
+        _aplicar_preferencias(options, prefs_download_headless)
+    _aplicar_preferencias(options, prefs_anti_throttling)
+
+    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
+    return options
+
+
+def _montar_options_vt(
+    headless=False,
+    firefox_bin=None,
+    usar_perfil_vt=False,
+    vt_profile_pje=None,
+    vt_profile_pje_alt=None,
+    modo_fallback=False,
+):
+    """Monta options VT (normal ou fallback) sem duplicar blocos de preferencias."""
+    from selenium.webdriver.firefox.options import Options
+    options = Options()
+
+    if headless:
+        options.add_argument('-headless')
+        if not modo_fallback:
+            options.add_argument('--width=1920')
+            options.add_argument('--height=1200')
+
+    options.add_argument('-no-remote')
+    options.add_argument('-new-instance')
+
+    if firefox_bin:
+        options.binary_location = firefox_bin
+
+    if usar_perfil_vt and not modo_fallback:
+        if vt_profile_pje and os.path.exists(vt_profile_pje):
+            options.profile = vt_profile_pje
+            logger.debug("[DRIVER_VT] Usando perfil: %s", vt_profile_pje)
+        elif vt_profile_pje_alt and os.path.exists(vt_profile_pje_alt):
+            options.profile = vt_profile_pje_alt
+            logger.debug("[DRIVER_VT] Usando perfil alternativo: %s", vt_profile_pje_alt)
+
+    prefs_anti_automacao = [
+        ("dom.webdriver.enabled", False),
+        ('useAutomationExtension', False),
+    ]
+    prefs_extensoes = [
+        ("extensions.update.enabled", False),
+        ("extensions.update.autoUpdateDefault", False),
+        ("xpinstall.enabled", False),
+    ]
+    prefs_performance_base = [
+        ("browser.sessionstore.max_tabs_undo", 0),
+        ("browser.sessionstore.max_windows_undo", 0),
+        ("browser.cache.disk.enable", False),
+        ("browser.cache.memory.enable", False),
+        ("browser.shell.checkDefaultBrowser", False),
+        ("browser.safebrowsing.malware.enabled", False),
+        ("browser.safebrowsing.phishing.enabled", False),
+        ("browser.safebrowsing.downloads.enabled", False),
+    ]
+    prefs_anti_throttling = [
+        ("dom.min_background_timeout_value", 0),
+        ("dom.timeout.throttling_delay", 0),
+        ("dom.timeout.budget_throttling_max_delay", 0),
+    ]
+
+    _aplicar_preferencias(options, prefs_anti_automacao)
+    _aplicar_preferencias(options, prefs_extensoes)
+    _aplicar_preferencias(options, prefs_performance_base)
+    _aplicar_preferencias(options, prefs_anti_throttling)
+
+    if modo_fallback:
+        prefs_fallback = [
+            ("browser.startup.homepage", "about:blank"),
+            ("startup.homepage_welcome_url", "about:blank"),
+            ("startup.homepage_welcome_url.additional", "about:blank"),
+            ("browser.startup.firstrunSkipsHomepage", True),
+            ("browser.startup.page", 0),
+            ("browser.tabs.drawInTitlebar", True),
+            ("browser.privatebrowsing.autostart", False),
+            ("toolkit.cosmeticAnimations.enabled", False),
+            ("alerts.useSystemBackend", False),
+            ("datareporting.healthreport.uploadEnabled", False),
+            ("datareporting.policy.dataSubmissionEnabled", False),
+            ("toolkit.telemetry.enabled", False),
+            ("toolkit.startup.max_pinned_tabs", 0),
+            ("dom.disable_beforeunload", True),
+            ("browser.sessionstore.resuming_notification.delayed", False),
+        ]
+        _aplicar_preferencias(options, prefs_fallback)
+    else:
+        if headless:
+            prefs_headless = [
+                ("browser.cache.disk.enable", True),
+                ("browser.cache.memory.enable", True),
+                ("ui.prefersReducedMotion", 1),
+                ("browser.tabs.animate", False),
+                ("toolkit.cosmeticAnimations.enabled", False),
+            ]
+        else:
+            prefs_headless = [
+                ("browser.cache.disk.enable", False),
+                ("browser.cache.memory.enable", False),
+            ]
+
+        prefs_performance_geral = [
+            ("browser.sessionstore.max_tabs_undo", 0),
+            ("browser.sessionstore.max_windows_undo", 0),
+            ("browser.shell.checkDefaultBrowser", False),
+            ("browser.safebrowsing.malware.enabled", False),
+            ("browser.safebrowsing.phishing.enabled", False),
+            ("browser.safebrowsing.downloads.enabled", False),
+            ("browser.startup.homepage", "about:blank"),
+            ("startup.homepage_welcome_url", "about:blank"),
+            ("browser.startup.page", 0),
+            ("datareporting.healthreport.uploadEnabled", False),
+            ("datareporting.policy.dataSubmissionEnabled", False),
+            ("toolkit.telemetry.enabled", False),
+        ]
+
+        _aplicar_preferencias(options, prefs_headless)
+        _aplicar_preferencias(options, prefs_performance_geral)
+
+    return options
+
 
 # --- FUNÇÕES DE LOGIN ---
 
@@ -1309,28 +1501,28 @@ def com_retry(func, max_tentativas=3, backoff_base=2, log=False, *args, **kwargs
         resultado = com_retry(minha_funcao, max_tentativas=3)
     """
     import time
-    
+
     for tentativa in range(max_tentativas):
         try:
             resultado = func(*args, **kwargs)
             if resultado or resultado == 0:  # Permite 0 como resultado válido
                 if log:
-                    print(f" com_retry: sucesso na tentativa {tentativa + 1}")
+                    logger.debug("com_retry: sucesso na tentativa %d", tentativa + 1)
                 return resultado
         except Exception as e:
             if log:
-                print(f" com_retry tentativa {tentativa + 1}/{max_tentativas}: {e}")
-            
+                logger.warning("com_retry tentativa %d/%d: %s", tentativa + 1, max_tentativas, e)
+
             if tentativa < max_tentativas - 1:
                 delay = backoff_base ** tentativa
                 if log:
-                    print(f"⏳ Aguardando {delay}s antes da próxima tentativa...")
+                    logger.debug("com_retry: aguardando %ds antes da proxima tentativa...", delay)
                 time.sleep(delay)
             else:
                 if log:
-                    print(f" com_retry: todas {max_tentativas} tentativas falharam")
+                    logger.error("ERRO em com_retry: todas %d tentativas falharam", max_tentativas)
                 return None
-    
+
     return None
 
 
@@ -1366,19 +1558,19 @@ def escolher_opcao_inteligente(driver, valor, estrategias_custom=None, debug=Fal
             elem = driver.find_element(by, seletor)
             elem.click()
             if debug:
-                print(f" Seletor {by} funcionou para '{valor}'")
+                logger.debug("escolher_opcao_inteligente: seletor %s funcionou para '%s'", by, valor)
             return True
         except (NoSuchElementException, TimeoutException):
             if debug:
-                print(f" Seletor {by} falhou")
+                logger.debug("escolher_opcao_inteligente: seletor %s falhou", by)
             continue
         except Exception as e:
             if debug:
-                print(f" Erro inesperado em {by}: {e}")
+                logger.warning("escolher_opcao_inteligente: erro em %s: %s", by, e)
             continue
-    
+
     if debug:
-        print(f" NENHUM seletor funcionou para: '{valor}'")
+        logger.warning("escolher_opcao_inteligente: nenhum seletor funcionou para: '%s'", valor)
     return False
 
 
@@ -1402,13 +1594,13 @@ def encontrar_elemento_inteligente(driver, valor, estrategias_custom=None, debug
         try:
             elem = driver.find_element(by, seletor)
             if debug:
-                print(f" Encontrado com {by}")
+                logger.debug("encontrar_elemento_inteligente: encontrado com %s", by)
             return elem
         except (NoSuchElementException, TimeoutException):
             continue
-    
+
     if debug:
-        print(f" Elemento não encontrado: '{valor}'")
+        logger.warning("encontrar_elemento_inteligente: elemento nao encontrado: '%s'", valor)
     return None
 
 
@@ -1433,48 +1625,43 @@ class ErroCollector:
             'modulo': modulo,
             'timestamp': datetime.datetime.now().strftime('%H:%M:%S')
         })
-        print(f" Erro em {processo}: {str(erro)[:100]}")
-    
+        logger.error("[ErroCollector] Erro em %s: %s", processo, str(erro)[:100])
+
     def registrar_sucesso(self, processo):
         """Registra processamento bem-sucedido"""
         self.sucessos.append(processo)
-        print(f" Sucesso: {processo}")
-    
+        logger.info("[ErroCollector] Sucesso: %s", processo)
+
     def gerar_relatorio(self):
-        """Imprime relatório completo de execução"""
+        """Imprime relatorio completo de execucao (stdout para visibilidade imediata)"""
         total = len(self.sucessos) + len(self.erros)
         taxa_sucesso = (len(self.sucessos) / total * 100) if total > 0 else 0
-        
-        print("\n" + "="*70)
-        print(" RELATÓRIO DE EXECUÇÃO")
-        print("="*70)
-        print(f"Total processados: {total}")
-        print(f" Sucessos: {len(self.sucessos)} ({taxa_sucesso:.1f}%)")
-        print(f" Erros: {len(self.erros)} ({100-taxa_sucesso:.1f}%)")
-        
+
+        logger.info("=== RELATORIO DE EXECUCAO ===")
+        logger.info("Total processados: %d", total)
+        logger.info("Sucessos: %d (%.1f%%)", len(self.sucessos), taxa_sucesso)
+        logger.info("Erros: %d (%.1f%%)", len(self.erros), 100 - taxa_sucesso)
+
         if self.erros:
-            print("\n" + "="*70)
-            print("DETALHES DOS ERROS:")
-            print("="*70)
+            logger.info("=== DETALHES DOS ERROS ===")
             for erro in self.erros:
-                print(f"\n Processo: {erro['processo']}")
+                detalhe = "Processo: %s" % erro['processo']
                 if erro['modulo']:
-                    print(f"   Módulo: {erro['modulo']}")
-                print(f"   Erro: {erro['erro'][:200]}")
-                print(f"   Horário: {erro['timestamp']}")
-        
-        print("\n" + "="*70)
-    
+                    detalhe += " | Modulo: %s" % erro['modulo']
+                detalhe += " | Erro: %s" % erro['erro'][:200]
+                detalhe += " | Horario: %s" % erro['timestamp']
+                logger.error("[ErroCollector] %s", detalhe)
+
     def exportar_csv(self, arquivo='erros.csv'):
-        """Exporta erros para CSV para análise posterior"""
+        """Exporta erros para CSV para analise posterior"""
         if not self.erros:
-            print("Nenhum erro para exportar")
+            logger.info("[ErroCollector] Nenhum erro para exportar")
             return
-        
+
         import csv
         with open(arquivo, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Processo', 'Módulo', 'Erro', 'Timestamp'])
+            writer.writerow(['Processo', 'Modulo', 'Erro', 'Timestamp'])
             for erro in self.erros:
                 writer.writerow([
                     erro['processo'],
@@ -1482,8 +1669,8 @@ class ErroCollector:
                     erro['erro'],
                     erro['timestamp']
                 ])
-        
-        print(f" Erros exportados para: {arquivo}")
+
+        logger.info("[ErroCollector] Erros exportados para: %s", arquivo)
     
     def limpar(self):
         """Limpa todos os registros"""
@@ -1601,61 +1788,90 @@ def js_base():
 
 
 def criar_driver_PC(headless=False):
-    """Driver PC - Firefox Developer Edition com configurações otimizadas"""
-    from selenium.webdriver.firefox.options import Options
-    from selenium.webdriver.firefox.service import Service
-    
-    options = Options()
-    if headless:
-        options.add_argument('-headless')
-    
-    options.set_preference("dom.webdriver.enabled", False)
-    options.set_preference('useAutomationExtension', False)
-    options.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0")
-    options.set_preference("browser.cache.disk.enable", True)
-    options.set_preference("browser.cache.memory.enable", True)
-    options.set_preference("browser.cache.offline.enable", True)
-    options.set_preference("network.http.use-cache", True)
-    options.set_preference("dom.webnotifications.enabled", False)
-    options.set_preference("media.volume_scale", "0.0")
-    
-    # ===== ANTI-THROTTLING: Evitar lentidão quando janela está em background =====
-    options.set_preference("dom.min_background_timeout_value", 0)  # Não reduzir velocidade de timers em background
-    options.set_preference("dom.timeout.throttling_delay", 0)  # Não atrasar execução em abas inativas
-    options.set_preference("dom.timeout.budget_throttling_max_delay", 0)  # Sem delay de budget
-    options.set_preference("page.load.animation.disabled", True)  # Desabilitar animações de carregamento
-    options.set_preference("dom.disable_window_move_resize", False)  # Permitir resize mesmo em background
-    
-    options.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
-    
-    service = Service(executable_path=GECKODRIVER_PATH)
-    driver = webdriver.Firefox(options=options, service=service)
-    driver.implicitly_wait(10)
-    print("[DRIVER_PC] Driver PC (Firefox Developer Edition) criado com sucesso")
-    return driver
+    """
+    Cria driver Firefox para PC (padrao).
+    Firefox Developer Edition com configuracoes otimizadas.
+    """
+    try:
+        options = _montar_options_pc(headless=headless)
+        driver = _criar_driver_firefox(options, headless=headless)
+        logger.info("driver criado: PC")
+        return driver
+    except Exception as e:
+        logger.error("ERRO em criar_driver_PC: %s: %s", type(e).__name__, e)
+        return None
 
 
 def criar_driver_VT(headless=False):
-    """Driver VT - Perfil padrão"""
-    from selenium.webdriver.firefox.options import Options
-    from selenium.webdriver.firefox.service import Service
-    
-    options = Options()
-    if headless:
-        options.add_argument('-headless')
-    options.binary_location = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
-    options.profile = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
-    
-    # ===== ANTI-THROTTLING: Evitar lentidão quando janela está em background =====
-    options.set_preference("dom.min_background_timeout_value", 0)
-    options.set_preference("dom.timeout.throttling_delay", 0)
-    options.set_preference("dom.timeout.budget_throttling_max_delay", 0)
-    
-    service = Service(executable_path=GECKODRIVER_PATH)
-    driver = webdriver.Firefox(options=options, service=service)
-    driver.implicitly_wait(10)
-    print("[DRIVER_VT] Driver VT criado com sucesso")
-    return driver
+    """
+    Cria driver Firefox para VT (maquina especifica).
+    Usa perfis e configuracoes VT com otimizacoes de startup.
+    """
+    FIREFOX_BINARY = r'C:\Program Files\Firefox Developer Edition\firefox.exe'
+    FIREFOX_BINARY_ALT = r'C:\Users\s164283\AppData\Local\Firefox Developer Edition\firefox.exe'
+    VT_PROFILE_PJE = r'C:\Users\Silas\AppData\Roaming\Mozilla\Firefox\Profiles\13zemix3.default-release-1623328432485'
+    VT_PROFILE_PJE_ALT = r'C:\Users\s164283\AppData\Roaming\Mozilla\Firefox\Profiles\2bge54ld.Robot'
+
+    if not os.path.exists(GECKODRIVER_PATH):
+        logger.error("ERRO em criar_driver_VT: geckodriver nao encontrado em %s", GECKODRIVER_PATH)
+        return None
+
+    firefox_bin = None
+    for bin_path in [FIREFOX_BINARY, FIREFOX_BINARY_ALT]:
+        if os.path.exists(bin_path):
+            firefox_bin = bin_path
+            break
+    if not firefox_bin:
+        logger.error("ERRO em criar_driver_VT: nenhum binario Firefox encontrado")
+        return None
+
+    logger.info("criar_driver_VT: usando binario: %s", firefox_bin)
+
+    try:
+        USAR_PERFIL_VT = False
+        options = _montar_options_vt(
+            headless=headless,
+            firefox_bin=firefox_bin,
+            usar_perfil_vt=USAR_PERFIL_VT,
+            vt_profile_pje=VT_PROFILE_PJE,
+            vt_profile_pje_alt=VT_PROFILE_PJE_ALT,
+            modo_fallback=False,
+        )
+
+        logger.debug("criar_driver_VT: criando instancia Firefox...")
+        t0 = time.time()
+        driver = _criar_driver_firefox(options, headless=headless)
+        logger.debug("criar_driver_VT: configurando driver... (launch %.1fs)", time.time() - t0)
+        logger.info("driver criado: VT")
+        return driver
+
+    except Exception as e:
+        logger.warning("criar_driver_VT: erro com configuracoes otimizadas: %s - tentando fallback...", e)
+
+        try:
+            options = _montar_options_vt(
+                headless=headless,
+                firefox_bin=firefox_bin,
+                usar_perfil_vt=False,
+                vt_profile_pje=VT_PROFILE_PJE,
+                vt_profile_pje_alt=VT_PROFILE_PJE_ALT,
+                modo_fallback=True,
+            )
+
+            t0 = time.time()
+            driver = _criar_driver_firefox(options, headless=headless)
+            logger.debug("criar_driver_VT: configurando driver... (fallback launch %.1fs)", time.time() - t0)
+            logger.info("driver criado: VT (fallback)")
+            return driver
+
+        except Exception as e2:
+            logger.error("ERRO em criar_driver_VT: %s: %s", type(e2).__name__, e2)
+            return None
+
+
+# Aliases lowercase para compatibilidade com x.py e f.py
+criar_driver_pc = criar_driver_PC
+criar_driver_vt = criar_driver_VT
 
 
 def criar_driver_notebook(headless=False):
@@ -1680,7 +1896,7 @@ def criar_driver_notebook(headless=False):
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
-    print("[DRIVER_NOTEBOOK] Driver NOTEBOOK criado com sucesso")
+    logger.info("driver criado: NOTEBOOK")
     return driver
 
 # --- DRIVERS SISBAJUD ---
@@ -1724,21 +1940,21 @@ def criar_driver_sisb_pc(headless=False):
         if os.path.exists(SISB_PROFILE_PC):
             profile = FirefoxProfile(SISB_PROFILE_PC)
             options.profile = profile
-            print(f"[DRIVER_SISB_PC] Usando perfil: {SISB_PROFILE_PC}")
+            logger.debug("[DRIVER_SISB_PC] Usando perfil: %s", SISB_PROFILE_PC)
         else:
-            print(f"[DRIVER_SISB_PC] Perfil não encontrado: {SISB_PROFILE_PC}, usando perfil temporário")
+            logger.warning("[DRIVER_SISB_PC] Perfil nao encontrado: %s, usando perfil temporario", SISB_PROFILE_PC)
     except Exception as e:
-        print(f"[DRIVER_SISB_PC] Erro ao carregar perfil: {e}, usando perfil temporário")
-    
+        logger.warning("[DRIVER_SISB_PC] Erro ao carregar perfil: %s, usando perfil temporario", e)
+
     service = Service(executable_path=GECKODRIVER_PATH)
-    
+
     try:
         driver = webdriver.Firefox(service=service, options=options)
         driver.implicitly_wait(10)
-        print("[DRIVER_SISB_PC] Driver SISBAJUD PC (Developer Edition) criado com sucesso")
+        logger.info("driver criado: SISB_PC")
         return driver
     except Exception as e:
-        print(f"[DRIVER_SISB_PC] Erro ao criar driver: {e}")
+        logger.warning("criar_driver_sisb_pc: erro ao criar driver: %s - tentando fallback...", e)
         try:
             options_fallback = Options()
             if headless:
@@ -1746,10 +1962,10 @@ def criar_driver_sisb_pc(headless=False):
             options_fallback.binary_location = r"C:\Program Files\Firefox Developer Edition\firefox.exe"
             driver = webdriver.Firefox(service=service, options=options_fallback)
             driver.implicitly_wait(10)
-            print("[DRIVER_SISB_PC] Driver SISBAJUD PC (Developer Edition - fallback) criado com sucesso")
+            logger.info("driver criado: SISB_PC (fallback)")
             return driver
         except Exception as e2:
-            print(f"[DRIVER_SISB_PC] Falha total ao criar driver: {e2}")
+            logger.error("ERRO em criar_driver_sisb_pc: %s: %s", type(e2).__name__, e2)
             return None
 
 
@@ -1772,7 +1988,7 @@ def criar_driver_sisb_notebook(headless=False):
     service = Service(executable_path=GECKODRIVER_PATH)
     driver = webdriver.Firefox(options=options, service=service)
     driver.implicitly_wait(10)
-    print("[DRIVER_SISB_NOTEBOOK] Driver SISBAJUD NOTEBOOK criado com sucesso")
+    logger.info("driver criado: SISB_NOTEBOOK")
     return driver
 
 # --- SISTEMA DE COOKIES ---
@@ -1790,18 +2006,19 @@ def finalizar_driver(driver, log=True):
                 driver.close()
             driver.switch_to.window(janela_principal)
         
-        # Pequeno delay para operações pendentes
+        # Pequeno delay para operações pendentes (mantido pois não há condição
+        # observável para esperar — operações internas do Selenium/Geckodriver)
         time.sleep(0.5)
         
         # Fecha o driver
         driver.quit()
         
         if log:
-            print('[DRIVER] Driver finalizado com sucesso')
+            logger.debug("[DRIVER] Driver finalizado com sucesso")
         return True
     except Exception as e:
         if log:
-            print(f'[DRIVER][AVISO] Erro ao finalizar driver: {e}')
+            logger.warning("[DRIVER] Erro ao finalizar driver: %s", e)
         return False
 
 # =========================
@@ -1814,28 +2031,28 @@ def salvar_cookies_sessao(driver, caminho_arquivo=None, info_extra=None):
     try:
         cookies = driver.get_cookies()
         if not cookies:
-            print('[COOKIES] Nenhum cookie encontrado para salvar.')
+            logger.warning('[COOKIES] Nenhum cookie encontrado para salvar.')
             return False
-        
+
         if not caminho_arquivo:
             pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
             os.makedirs(pasta, exist_ok=True)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             info = f'_{info_extra}' if info_extra else ''
             caminho_arquivo = os.path.join(pasta, f'cookies_sessao{info}_{timestamp}.json')
-        
+
         dados_cookies = {
             'timestamp': datetime.now().isoformat(),
             'url_base': driver.current_url,
             'cookies': cookies
         }
-        
+
         with open(caminho_arquivo, 'w', encoding='utf-8') as f:
             json.dump(dados_cookies, f, ensure_ascii=False, indent=2)
-        print(f'[COOKIES] Cookies salvos em: {caminho_arquivo}')
+        logger.info('[COOKIES] Cookies salvos em: %s', caminho_arquivo)
         return True
     except Exception as e:
-        print(f'[COOKIES][ERRO] Falha ao salvar cookies: {e}')
+        logger.error('[COOKIES] Falha ao salvar cookies: %s', e)
         return False
 
 
@@ -1856,9 +2073,9 @@ def credencial(tipo_driver='PC', tipo_login='CPF', headless=False, cpf=None, sen
         driver: Driver configurado e logado, ou None se falhar
     """
     try:
-        # 1. CRIAR DRIVER baseado no tipo
-        print(f"[CREDENCIAL] Criando driver tipo: {tipo_driver}")
-        
+        logger.info("[CREDENCIAL] sessao iniciada")
+        logger.debug("[CREDENCIAL] Criando driver tipo: %s", tipo_driver)
+
         if tipo_driver.upper() == 'PC':
             driver = criar_driver_PC(headless=headless)
         elif tipo_driver.upper() == 'VT':
@@ -1870,74 +2087,66 @@ def credencial(tipo_driver='PC', tipo_login='CPF', headless=False, cpf=None, sen
         elif tipo_driver.lower() == 'sisb_notebook':
             driver = criar_driver_sisb_notebook(headless=headless)
         else:
-            print(f"[CREDENCIAL] ❌ Tipo de driver inválido: {tipo_driver}")
+            logger.error("ERRO em credencial: tipo de driver invalido: %s", tipo_driver)
             return None
-        
+
         if not driver:
-            print("[CREDENCIAL] ❌ Falha ao criar driver")
+            logger.error("ERRO em credencial: falha ao criar driver")
             return None
-        
-        print(f"[CREDENCIAL] ✅ Driver {tipo_driver} criado")
-        
-        # 2. CARREGAR COOKIES (sempre ativo)
-        print("[CREDENCIAL] Tentando carregar cookies existentes...")
+
+        logger.debug("[CREDENCIAL] Driver %s criado", tipo_driver)
+
+        # 2. CARREGAR COOKIES
+        logger.debug("[CREDENCIAL] Tentando carregar cookies existentes...")
         cookies_carregados = carregar_cookies_sessao(driver, max_idade_horas=max_idade_cookies)
-        
+
         if cookies_carregados:
-            print("[CREDENCIAL] ✅ Cookies carregados - login desnecessário")
+            logger.debug("[CREDENCIAL] Cookies carregados - login desnecessario")
             return driver
-        
-        # 3. FAZER LOGIN baseado no tipo
-        print(f"[CREDENCIAL] Fazendo login tipo: {tipo_login}")
-        
+
+        # 3. FAZER LOGIN
+        logger.debug("[CREDENCIAL] Fazendo login tipo: %s", tipo_login)
+
         if tipo_login.upper() == 'PC':
-            # Login por certificado
             from Fix.utils import login_pc
             sucesso_login = login_pc(driver)
-            
+
         elif tipo_login.upper() == 'CPF':
-            # Login por CPF/senha
             from Fix.utils import login_cpf
-            
-            # Usar valores padrão se não fornecidos
-            if not cpf:
-                cpf = '35305203813'
-            if not senha:
-                senha = 'SpF59866'
-            
+
             sucesso_login = login_cpf(
-                driver, 
-                url_login=url_login, 
-                cpf=cpf, 
-                senha=senha, 
+                driver,
+                url_login=url_login,
+                cpf=cpf,
+                senha=senha,
                 aguardar_url_final=True
             )
         else:
-            print(f"[CREDENCIAL] ❌ Tipo de login inválido: {tipo_login}")
+            logger.error("ERRO em credencial: tipo de login invalido: %s", tipo_login)
             driver.quit()
             return None
-        
+
         if not sucesso_login:
-            print(f"[CREDENCIAL] ❌ Falha no login {tipo_login}")
+            logger.error("ERRO em credencial: falha no login %s", tipo_login)
             driver.quit()
             return None
-        
-        print(f"[CREDENCIAL] ✅ Login {tipo_login} realizado")
-        
-        # 4. SALVAR COOKIES (sempre ativo)
-        print("[CREDENCIAL] Salvando cookies da sessão...")
+
+        logger.debug("[CREDENCIAL] Login %s realizado", tipo_login)
+
+        # 4. SALVAR COOKIES
+        logger.debug("[CREDENCIAL] Salvando cookies da sessao...")
         try:
             info_extra = f"credencial_{tipo_driver}_{tipo_login}"
             salvar_cookies_sessao(driver, info_extra=info_extra)
-            print("[CREDENCIAL] ✅ Cookies salvos")
+            logger.debug("[CREDENCIAL] Cookies salvos")
         except Exception as e:
-            print(f"[CREDENCIAL] ⚠️ Erro ao salvar cookies: {e}")
-        
-        print("[CREDENCIAL] ✅ Processo completo finalizado")
+            logger.warning("[CREDENCIAL] Erro ao salvar cookies: %s", e)
+
+        logger.info("[CREDENCIAL] sessao finalizada")
         return driver
-        
+
     except Exception as e:
-        print(f"[CREDENCIAL] ❌ Erro geral: {e}")
+        logger.error("ERRO em credencial: %s: %s", type(e).__name__, e)
         if 'driver' in locals():
             try:
                 driver.quit()
@@ -1951,20 +2160,20 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
     try:
         pasta = os.path.join(os.getcwd(), 'cookies_sessoes')
         if not os.path.exists(pasta):
-            print('[COOKIES] Pasta de cookies não encontrada.')
+            logger.warning('[COOKIES] Pasta de cookies nao encontrada.')
             return False
-        
+
         import glob
         arquivos_cookies = glob.glob(os.path.join(pasta, 'cookies_sessao*.json'))
         if not arquivos_cookies:
-            print('[COOKIES] Nenhum arquivo de cookies encontrado.')
+            logger.warning('[COOKIES] Nenhum arquivo de cookies encontrado.')
             return False
-        
+
         arquivo_mais_recente = max(arquivos_cookies, key=os.path.getmtime)
-        
+
         with open(arquivo_mais_recente, 'r', encoding='utf-8') as f:
             dados = json.load(f)
-        
+
         if 'timestamp' in dados:
             timestamp_str = dados['timestamp']
             cookies = dados['cookies']
@@ -1978,7 +2187,7 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
         idade = datetime.now() - timestamp_cookies
 
         if idade > timedelta(hours=max_idade_horas):
-            print(f'[COOKIES] Cookies muito antigos ({idade.total_seconds()/3600:.1f}h). Pulando.')
+            logger.warning('[COOKIES] Cookies muito antigos (%.1fh). Pulando.', idade.total_seconds() / 3600)
             return False
 
         driver.get('https://pje.trt2.jus.br/primeirograu/')
@@ -1990,31 +2199,32 @@ def carregar_cookies_sessao(driver, max_idade_horas=24):
                 driver.add_cookie(cookie_limpo)
                 cookies_carregados += 1
             except Exception as e:
-                print(f'[COOKIES] Erro ao carregar cookie {cookie.get("name", "unknown")}: {e}')
+                logger.warning('[COOKIES] Erro ao carregar cookie %s: %s', cookie.get("name", "unknown"), e)
 
-        print(f'[COOKIES] {cookies_carregados} cookies carregados de {os.path.basename(arquivo_mais_recente)}')
+        logger.debug('[COOKIES] %d cookies carregados de %s', cookies_carregados, os.path.basename(arquivo_mais_recente))
 
         driver.get('https://pje.trt2.jus.br/pjekz/gigs/meu-painel')
-        time.sleep(3)
+        wait_for_page_load(driver, timeout=10)
+        esperar_url_conter(driver, 'meu-painel', timeout=8)
 
         if 'acesso-negado' in driver.current_url.lower():
-            print('[COOKIES] URL de acesso negado detectada. Apagando cookies carregados.')
+            logger.warning('[COOKIES] URL de acesso negado detectada. Apagando cookies carregados.')
             try:
                 driver.delete_all_cookies()
-                print('[COOKIES] Cookies apagados do navegador.')
+                logger.debug('[COOKIES] Cookies apagados do navegador.')
             except Exception as e:
-                print(f'[COOKIES] Erro ao apagar cookies: {e}')
+                logger.warning('[COOKIES] Erro ao apagar cookies: %s', e)
             return False
-        
+
         if 'login' in driver.current_url.lower():
-            print('[COOKIES] Cookies inválidos - ainda redirecionando para login.')
+            logger.warning('[COOKIES] Cookies invalidos - ainda redirecionando para login.')
             return False
         else:
-            logger.info('Cookies válidos! Login automático realizado.')
+            logger.info('Cookies validos! Login automatico realizado.')
             return True
-            
+
     except Exception as e:
-        print(f'[COOKIES][ERRO] Falha ao carregar cookies: {e}')
+        logger.error('[COOKIES] Falha ao carregar cookies: %s', e)
         return False
 
 
@@ -2022,53 +2232,59 @@ def verificar_e_aplicar_cookies(driver):
     """Função integrada que verifica e aplica cookies automaticamente"""
     if not USAR_COOKIES_AUTOMATICO:
         return False
-    
-    print('[COOKIES] Tentando login automático via cookies salvos...')
+
+    logger.debug('[COOKIES] Tentando login automatico via cookies salvos...')
     sucesso = carregar_cookies_sessao(driver)
-    
+
     if sucesso:
         try:
             current_url = driver.current_url
             if 'acesso-negado' in current_url:
-                logger.warning('Acesso negado detectado após aplicar cookies - forçando login CPF...')
-                
+                logger.warning('Acesso negado detectado apos aplicar cookies - forcando login CPF...')
+
                 url_login = 'https://pje.trt2.jus.br/primeirograu/login.seam'
-                print(f"[COOKIES][LOGIN_FORCE] Navegando para: {url_login}")
+                logger.debug("[COOKIES] Navegando para: %s", url_login)
                 driver.get(url_login)
                 time.sleep(1.2)
-                
+
                 try:
+                    cpf = os.environ.get('PJE_USER')
+                    senha = os.environ.get('PJE_SENHA')
+                    if not cpf or not senha:
+                        logger.error('[COOKIES] Credenciais ausentes para login forcado. Defina PJE_USER e PJE_SENHA.')
+                        return False
+
                     username_field = driver.find_element(By.NAME, 'username')
                     password_field = driver.find_element(By.NAME, 'password')
                     submit_button = driver.find_element(By.CSS_SELECTOR, 'input[type="submit"], button[type="submit"]')
-                    
+
                     username_field.clear()
-                    username_field.send_keys('35305203813')
+                    username_field.send_keys(cpf)
                     time.sleep(0.3)
-                    
+
                     password_field.clear()
-                    password_field.send_keys('SpF59866')
+                    password_field.send_keys(senha)
                     time.sleep(0.3)
-                    
+
                     submit_button.click()
                     time.sleep(3)
-                    
+
                     if SALVAR_COOKIES_AUTOMATICO:
                         salvar_cookies_sessao(driver, info_extra='login_forcado_apos_acesso_negado')
-                    
-                    logger.info('Login forçado realizado após acesso negado!')
+
+                    logger.info('Login forcado realizado apos acesso negado!')
                     return True
-                    
+
                 except Exception as e:
-                    print(f'[COOKIES][ERRO] Falha no login forçado: {e}')
+                    logger.error('[COOKIES] Falha no login forcado: %s', e)
                     return False
             else:
                 logger.info('Login realizado via cookies! Pularemos a tela de login.')
         except Exception as e:
-            print(f'[COOKIES][WARN] Erro ao verificar URL atual: {e}')
+            logger.warning('[COOKIES] Erro ao verificar URL atual: %s', e)
     else:
-        logger.error('Cookies inválidos ou inexistentes. Login manual necessário.')
-    
+        logger.error('Cookies invalidos ou inexistentes. Login manual necessario.')
+
     return sucesso
 
 # --- CONFIGURAÇÕES ATIVAS ---
@@ -2105,8 +2321,7 @@ def exibir_configuracao_ativa():
     else:
         driver_nome = "Notebook"
     
-    print(f"[CONFIG] Login: {login_nome}")
-    print(f"[CONFIG] Driver: {driver_nome}")
+    logger.info("[CONFIG] Login: %s | Driver: %s", login_nome, driver_nome)
     return login_nome, driver_nome
 
 
@@ -2134,7 +2349,6 @@ def aplicar_filtro_100(driver):
                 span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
                 mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
                 mat_select.click()
-                time.sleep(0.5)
                 from selenium.webdriver.support.ui import WebDriverWait
                 from selenium.webdriver.support import expected_conditions as EC
                 overlay = WebDriverWait(driver, 5).until(
@@ -2143,24 +2357,23 @@ def aplicar_filtro_100(driver):
                 opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
                 opcao_100.click()
                 time.sleep(1)
-                print('[FILTRO_LISTA_100] Clique real na opção 100 confirmado.')
+                logger.debug('[FILTRO_LISTA_100] Clique na opcao 100 confirmado.')
                 return True
             except Exception as e:
-                print(f'[FILTRO_LISTA_100][ERRO] Falha ao clicar em 100: {e}')
+                logger.warning('[FILTRO_LISTA_100] Falha ao clicar em 100: %s', e)
                 return False
 
-        # Aplica com retry automático
         resultado = com_retry(_selecionar, max_tentativas=3, backoff_base=1.5, log=True)
 
         if resultado:
             logger.info('Filtro lista 100 aplicado')
         else:
-            logger.error('Filtro lista 100 falhou após todas tentativas')
+            logger.error('Filtro lista 100 falhou apos todas tentativas')
 
         return resultado
-        
+
     except Exception as e:
-        print(f'[FILTRO_LISTA_100][ERRO] Falha geral: {e}')
+        logger.error('[FILTRO_LISTA_100] Falha geral: %s', e)
         return False
 
 
@@ -2178,7 +2391,7 @@ def filtro_fase(driver):
         
         # Abre dropdown com aguardar_e_clicar (MutationObserver)
         if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
-            print('[FILTRO_FASE][ERRO] Dropdown não encontrado.')
+            logger.error('[FILTRO_FASE] Dropdown nao encontrado.')
             return False
         
         time.sleep(0.3)
@@ -2206,7 +2419,7 @@ def filtro_fase(driver):
         selecionadas = driver.execute_script(script)
         
         if selecionadas != 2:
-            print(f'[FILTRO_FASE][AVISO] Apenas {selecionadas}/2 fases selecionadas')
+            logger.warning('[FILTRO_FASE] Apenas %d/2 fases selecionadas', selecionadas)
         
         # Fecha dropdown
         driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
@@ -2234,11 +2447,11 @@ def _aguardar_loader_painel(driver, timeout=10):
         )
         time.sleep(0.3)
     except TimeoutException:
-        print('[FILTRO] Loader não desapareceu dentro do timeout.')
+        logger.warning('[FILTRO] Loader nao desapareceu dentro do timeout.')
 
 
-def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
-    print(f'Filtrando fase processual: {", ".join(fases_alvo).title()}...')
+def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
+    logger.info('Filtrando fase processual: %s...', ', '.join(fases_alvo).title())
     try:
         fase_element = None
         try:
@@ -2251,10 +2464,10 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                         fase_element = elem
                         break
             except Exception:
-                print('[ERRO] Não encontrou o seletor de fase processual.')
+                logger.error('[filtrofases] Nao encontrou o seletor de fase processual.')
                 return False
         if not fase_element:
-            print('[ERRO] Não encontrou o seletor de fase processual.')
+            logger.error('[filtrofases] Nao encontrou o seletor de fase processual.')
             return False
         driver.execute_script("arguments[0].click();", fase_element)
         time.sleep(1)
@@ -2268,16 +2481,15 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
             except Exception:
                 time.sleep(0.3)
         if not painel or not painel.is_displayed():
-            print('[ERRO] Painel de opções não apareceu.')
+            logger.error('[filtrofases] Painel de opcoes nao apareceu.')
             return False
-        # Aguardar opções reais aparecerem no painel
         opcoes = []
         for _ in range(20):
             opcoes = painel.find_elements(By.XPATH, ".//mat-option")
             textos = [o.text.strip().lower() for o in opcoes if o.text.strip()]
             if any(fase in texto for fase in fases_alvo for texto in textos):
                 break
-            if textos and not any(t in ['nenhuma opção', 'carregando itens...'] for t in textos):
+            if textos and not any(t in ['nenhuma opcao', 'carregando itens...'] for t in textos):
                 break
             time.sleep(0.3)
         fases_clicadas = set()
@@ -2288,28 +2500,27 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                     if fase in texto and opcao.is_displayed():
                         driver.execute_script("arguments[0].click();", opcao)
                         fases_clicadas.add(fase)
-                        print(f'[OK] Fase "{fase}" selecionada.')
+                        logger.debug('[filtrofases] Fase "%s" selecionada.', fase)
                         time.sleep(0.5)
                         break
                 except Exception:
                     continue
         if len(fases_clicadas) == 0:
-            print(f'[ERRO] Não encontrou opções {fases_alvo} no painel.')
+            logger.error('[filtrofases] Nao encontrou opcoes %s no painel.', fases_alvo)
             return False
         try:
             botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
             driver.execute_script('arguments[0].click();', botao_filtrar)
-            print('[OK] Fases selecionadas e filtro aplicado (botão filtrar).')
+            logger.debug('[filtrofases] Fases selecionadas e filtro aplicado.')
             time.sleep(1)
             _aguardar_loader_painel(driver)
         except Exception as e:
-            print(f'[ERRO] Não conseguiu clicar no botão de filtrar: {e}')
-        # Generalização da seleção de tarefa
+            logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar: %s', e)
         if tarefas_alvo:
-            print(f'Filtrando tarefa: {", ".join(tarefas_alvo).title()}...')
+            logger.info('Filtrando tarefa: %s...', ', '.join(tarefas_alvo).title())
             tarefa_element = None
             try:
-                tarefa_element = driver.find_element(By.XPATH, f"//span[contains(text(), '{seletor_tarefa}')]")
+                tarefa_element = driver.find_element(By.XPATH, "//span[contains(text(), '%s')]" % seletor_tarefa)
             except Exception:
                 try:
                     seletor = 'span.ng-tns-c82-22.ng-star-inserted'
@@ -2318,10 +2529,10 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                             tarefa_element = elem
                             break
                 except Exception:
-                    print(f'[ERRO] Não encontrou o seletor de tarefa: {seletor_tarefa}.')
+                    logger.error('[filtrofases] Nao encontrou o seletor de tarefa: %s.', seletor_tarefa)
                     return False
             if not tarefa_element:
-                print(f'[ERRO] Não encontrou o seletor de tarefa: {seletor_tarefa}.')
+                logger.error('[filtrofases] Nao encontrou o seletor de tarefa: %s.', seletor_tarefa)
                 return False
             driver.execute_script("arguments[0].click();", tarefa_element)
             time.sleep(1)
@@ -2335,16 +2546,15 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                 except Exception:
                     time.sleep(0.3)
             if not painel or not painel.is_displayed():
-                print('[ERRO] Painel de opções de tarefa não apareceu.')
+                logger.error('[filtrofases] Painel de opcoes de tarefa nao apareceu.')
                 return False
-            # Aguardar opções reais de tarefa aparecerem
             opcoes = []
             for _ in range(20):
                 opcoes = painel.find_elements(By.XPATH, ".//mat-option")
                 textos = [o.text.strip().lower() for o in opcoes if o.text.strip()]
                 if any(tarefa.lower() in texto for tarefa in tarefas_alvo for texto in textos):
                     break
-                if textos and not any(t in ['nenhuma opção', 'carregando itens...'] for t in textos):
+                if textos and not any(t in ['nenhuma opcao', 'carregando itens...'] for t in textos):
                     break
                 time.sleep(0.3)
             tarefas_clicadas = set()
@@ -2355,24 +2565,24 @@ def filtrofases(driver, fases_alvo=['liquidação', 'execução'], tarefas_alvo=
                         if tarefa.lower() in texto and opcao.is_displayed():
                             driver.execute_script("arguments[0].click();", opcao)
                             tarefas_clicadas.add(tarefa)
-                            print(f'[OK] Tarefa "{tarefa}" selecionada.')
+                            logger.debug('[filtrofases] Tarefa "%s" selecionada.', tarefa)
                             time.sleep(0.5)
                             break
                     except Exception:
                         continue
             if len(tarefas_clicadas) == 0:
-                print(f'[ERRO] Não encontrou opções {tarefas_alvo} no painel de tarefas.')
+                logger.error('[filtrofases] Nao encontrou opcoes %s no painel de tarefas.', tarefas_alvo)
                 return False
             try:
                 botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
                 driver.execute_script('arguments[0].click();', botao_filtrar)
-                print('[OK] Tarefas selecionadas e filtro aplicado (botão filtrar).')
+                logger.debug('[filtrofases] Tarefas selecionadas e filtro aplicado.')
                 time.sleep(1)
                 _aguardar_loader_painel(driver)
             except Exception as e:
-                print(f'[ERRO] Não conseguiu clicar no botão de filtrar para tarefas: {e}')
+                logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar para tarefas: %s', e)
     except Exception as e:
-        print(f'[ERRO] Erro no filtro de fase: {e}')
+        logger.error('[filtrofases] Erro no filtro de fase: %s', e)
         return False
     return True
 
@@ -2400,10 +2610,10 @@ def esperar_url_conter(driver, substring, timeout=10):
         )
         return True
     except TimeoutException:
-        print(f'[URL][ERRO] Timeout esperando URL conter: "{substring}". URL atual: {driver.current_url}')
+        logger.error('[URL] Timeout esperando URL conter: "%s". URL atual: %s', substring, driver.current_url)
         return False
     except Exception as e:
-        print(f'[URL][ERRO] Erro ao esperar URL: {e}')
+        logger.error('[URL] Erro ao esperar URL: %s', e)
         return False
 
 def verificar_documento_decisao_sentenca(driver):
@@ -2414,14 +2624,14 @@ def verificar_documento_decisao_sentenca(driver):
 
         for nome_element in nomes_docs:
             doc_text = nome_element.text.lower()
-            if 'decisão' in doc_text or 'sentença' in doc_text:
-                print(f'[DOC CHECK] Documento encontrado: "{doc_text}"')
+            if 'decisao' in doc_text or 'sentenca' in doc_text:
+                logger.debug('[DOC CHECK] Documento encontrado: "%s"', doc_text)
                 return True
 
-        print('[DOC CHECK] Nenhum documento de decisão/sentença encontrado.')
+        logger.debug('[DOC CHECK] Nenhum documento de decisao/sentenca encontrado.')
         return False
     except Exception as e:
-        print(f'[DOC CHECK][ERRO] Falha ao verificar documentos: {e}')
+        logger.error('[DOC CHECK] Falha ao verificar documentos: %s', e)
         return False
 
 
@@ -2442,19 +2652,18 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
         sigiloso_link = driver.find_element(By.CSS_SELECTOR, 'ul.pje-timeline a.tl-documento.is-sigiloso:last-child')
         if not sigiloso_link:
             if log:
-                print('[VISIBILIDADE][ERRO] Documento sigiloso não encontrado na timeline.')
+                logger.error('[VISIBILIDADE] Documento sigiloso nao encontrado na timeline.')
             return False
-        # Extrai id do documento
         aria_label = sigiloso_link.get_attribute('aria-label')
         import re
         m = re.search(r'Id[:\.\s]+([A-Za-z0-9]{6,8})', aria_label or '')
         if not m:
             if log:
-                print('[VISIBILIDADE][ERRO] Não foi possível extrair o ID do documento.')
+                logger.error('[VISIBILIDADE] Nao foi possivel extrair o ID do documento.')
             return False
         id_documento = m.group(1)
         if log:
-            print(f'[VISIBILIDADE] Documento sigiloso encontrado: {id_documento}')
+            logger.debug('[VISIBILIDADE] Documento sigiloso encontrado: %s', id_documento)
         # 2. Ativa múltipla seleção
         btn_multi = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Exibir múltipla seleção."]')
         # ✨ OTIMIZADO: Click headless-safe
@@ -2462,7 +2671,10 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
             btn_multi.click()
         except ElementClickInterceptedException:
             driver.execute_script("arguments[0].click();", btn_multi)
-        time.sleep(0.5)
+        # Aguardar checkbox do documento aparecer (substitui time.sleep(0.5))
+        WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox'))
+        )
         # 3. Marca o checkbox do documento
         mat_checkbox = driver.find_element(By.CSS_SELECTOR, f'mat-card[id*="{id_documento}"] mat-checkbox label')
         # ✨ OTIMIZADO: Click headless-safe
@@ -2470,7 +2682,10 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
             mat_checkbox.click()
         except ElementClickInterceptedException:
             driver.execute_script("arguments[0].click();", mat_checkbox)
-        time.sleep(0.5)
+        # Aguardar botão de visibilidade (substitui time.sleep(0.5))
+        WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]'))
+        )
         # 4. Clica no botão de visibilidade
         btn_visibilidade = driver.find_element(By.CSS_SELECTOR, 'div.div-todas-atividades-em-lote button[mattooltip="Visibilidade para Sigilo"]')
         # ✨ OTIMIZADO: Click headless-safe
@@ -2478,7 +2693,10 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
             btn_visibilidade.click()
         except ElementClickInterceptedException:
             driver.execute_script("arguments[0].click();", btn_visibilidade)
-        time.sleep(1)
+        # Aguardar modal de sigilo (substitui time.sleep(1))
+        WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"]'))
+        )
         # 5. No modal, seleciona o polo desejado
         if polo == 'ativo':
             icones = driver.find_elements(By.CSS_SELECTOR, 'pje-data-table[nametabela="Tabela de Controle de Sigilo"] i.icone-polo-ativo')
@@ -2501,7 +2719,13 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
             EC.element_to_be_clickable((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]'))
         )
         btn_salvar.click()
-        time.sleep(1)
+        # Aguardar modal fechar (substitui time.sleep(1))
+        try:
+            WebDriverWait(driver, 5).until(
+                EC.invisibility_of_element_located((By.XPATH, '//button[.//span[contains(text(),"Salvar")]]/ancestor::div[contains(@class,"cdk-overlay")]'))
+            )
+        except TimeoutException:
+            pass  # Continua mesmo se o modal não fechar
         # 7. Oculta múltipla seleção
         try:
             btn_ocultar = driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Ocultar múltipla seleção."]')
@@ -2509,11 +2733,11 @@ def visibilidade_sigilosos(driver, polo='ativo', log=True):
         except:
             pass
         if log:
-            print('[VISIBILIDADE] Visibilidade aplicada com sucesso.')
+            logger.debug('[VISIBILIDADE] Visibilidade aplicada com sucesso.')
         return True
     except Exception as e:
         if log:
-            print(f'[VISIBILIDADE][ERRO] Falha ao aplicar visibilidade: {e}')
+            logger.error('[VISIBILIDADE] Falha ao aplicar visibilidade: %s', e)
         return False
 
 
@@ -2587,38 +2811,35 @@ def buscar_ultimo_mandado(driver, log=True):
         itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens_timeline:
             if log:
-                print('[MANDADO] Nenhum item encontrado na timeline.')
+                logger.warning('[MANDADO] Nenhum item encontrado na timeline.')
             return None, None
 
-        # Procura pelo último documento do tipo 'mandado'
         for item in itens_timeline:
             try:
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = link.text.lower()
 
-                # Verifica se é do tipo 'mandado'
                 if 'mandado' in doc_text:
                     link.click()
                     time.sleep(1)
 
-                    # Extrai o texto do documento
                     texto = item.text
                     if log:
-                        print(f'[MANDADO] Documento encontrado: {doc_text}')
+                        logger.debug('[MANDADO] Documento encontrado: %s', doc_text)
                     return texto, 'mandado'
 
             except Exception as e:
                 if log:
-                    print(f'[MANDADO][ERRO] Falha ao processar item: {e}')
+                    logger.warning('[MANDADO] Falha ao processar item: %s', e)
                 continue
 
         if log:
-            print('[MANDADO] Nenhum documento do tipo mandado encontrado.')
+            logger.debug('[MANDADO] Nenhum documento do tipo mandado encontrado.')
         return None, None
 
     except Exception as e:
         if log:
-            print(f'[MANDADO][ERRO] Falha geral: {e}')
+            logger.error('[MANDADO] Falha geral: %s', e)
         return None, None
 
 
@@ -2632,7 +2853,7 @@ def buscar_mandado_autor(driver, log=True):
         itens_timeline = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens_timeline:
             if log:
-                print('[MANDADO] Nenhum item encontrado na timeline.')
+                logger.warning('[MANDADO] Nenhum item encontrado na timeline.')
             return None
 
         for item in itens_timeline:
@@ -2644,10 +2865,8 @@ def buscar_mandado_autor(driver, log=True):
                     time.sleep(1)
                     texto = item.text
                     autor = 'DESCONHECIDO'
-                    # Busca o ícone de martelo (gavel) e extrai o nome do autor
                     try:
                         gavel_icon = item.find_element(By.CSS_SELECTOR, 'i.fa-gavel, i.fas.fa-gavel')
-                        # O nome do autor pode estar em um elemento próximo ao ícone
                         parent = gavel_icon.find_element(By.XPATH, './ancestor::*[1]')
                         autor_text = parent.text.strip().upper()
                         if 'SILAS PASSOS' in autor_text:
@@ -2655,23 +2874,23 @@ def buscar_mandado_autor(driver, log=True):
                         else:
                             autor = autor_text
                         if log:
-                            print(f'[MANDADO] Autor identificado: {autor}')
+                            logger.debug('[MANDADO] Autor identificado: %s', autor)
                     except Exception:
                         if log:
-                            print('[MANDADO] Ícone gavel ou autor não localizado.')
+                            logger.debug('[MANDADO] Icone gavel ou autor nao localizado.')
                     if log:
-                        print(f'[MANDADO] Documento encontrado: {doc_text}')
+                        logger.debug('[MANDADO] Documento encontrado: %s', doc_text)
                     return {'texto': texto, 'tipo': 'mandado', 'autor': autor}
             except Exception as e:
                 if log:
-                    print(f'[MANDADO][ERRO] Falha ao processar item: {e}')
+                    logger.warning('[MANDADO] Falha ao processar item: %s', e)
                 continue
         if log:
-            print('[MANDADO] Nenhum documento do tipo mandado encontrado.')
+            logger.debug('[MANDADO] Nenhum documento do tipo mandado encontrado.')
         return None
     except Exception as e:
         if log:
-            print(f'[MANDADO][ERRO] Falha geral: {e}')
+            logger.error('[MANDADO] Falha geral: %s', e)
         return None
 
 # =========================
@@ -2720,79 +2939,82 @@ def buscar_documentos_sequenciais(driver, log=True):
     """
     try:
         if log:
-            print(f'[DOCUMENTOS_SEQUENCIAIS] Buscando documentos do bloco ARGOS')
+            logger.debug('[DOCUMENTOS_SEQUENCIAIS] Buscando documentos do bloco ARGOS')
 
-        # Aguardar timeline
-        time.sleep(2)
+        aguardar_renderizacao_nativa(driver, timeout=10)
+        from selenium.webdriver.support.ui import WebDriverWait
+        try:
+            WebDriverWait(driver, 8).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
+            )
+        except TimeoutException:
+            if log:
+                logger.warning('[DOCUMENTOS_SEQUENCIAIS] Timeline pode nao ter carregado completamente')
         elementos = driver.find_elements(By.CSS_SELECTOR, "li.tl-item-container")
-        
+
         if not elementos:
             if log:
-                print('[DOCUMENTOS_SEQUENCIAIS][ERRO] Timeline vazia')
+                logger.error('[DOCUMENTOS_SEQUENCIAIS] Timeline vazia')
             return []
-        
-        # ETAPA 1: Encontrar certidão de devolução (início do bloco)
+
         idx_cert_devolucao = None
         for idx, elem in enumerate(elementos):
             texto = elem.text.strip().lower()
-            if "certidão de devolução" in texto or "certidao de devolucao" in texto:
+            if "certidao de devolucao" in texto:
                 idx_cert_devolucao = idx
                 if log:
-                    print(f'[DOCUMENTOS_SEQUENCIAIS] ✅ Encontrado: "Certidão de devolução" - {texto[:50]}...')
+                    logger.debug('[DOCUMENTOS_SEQUENCIAIS] Encontrado: Certidao de devolucao - %s...', texto[:50])
                 break
-        
+
         if idx_cert_devolucao is None:
             if log:
-                print('[DOCUMENTOS_SEQUENCIAIS][ERRO] Certidão de devolução não encontrada')
+                logger.error('[DOCUMENTOS_SEQUENCIAIS] Certidao de devolucao nao encontrada')
             return []
-        
-        # ETAPA 2: Encontrar decisão (fim do bloco) APÓS certidão devolução
+
         idx_decisao = None
         for idx in range(idx_cert_devolucao + 1, len(elementos)):
             texto = elementos[idx].text.strip().lower()
-            if "decisão(" in texto or "decisao(" in texto:
+            if "decisao(" in texto:
                 idx_decisao = idx
                 if log:
-                    print(f'[DOCUMENTOS_SEQUENCIAIS] ✅ Encontrado: "Decisão" - {texto[:50]}...')
+                    logger.debug('[DOCUMENTOS_SEQUENCIAIS] Encontrado: Decisao - %s...', texto[:50])
                 break
-        
+
         if idx_decisao is None:
             if log:
-                print('[DOCUMENTOS_SEQUENCIAIS][ERRO] Decisão não encontrada após certidão')
+                logger.error('[DOCUMENTOS_SEQUENCIAIS] Decisao nao encontrada apos certidao')
             return []
-        
-        # ETAPA 3: Buscar documentos do meio APENAS entre certidão e decisão
-        resultados = [elementos[idx_cert_devolucao]]  # Adicionar certidão
-        
+
+        resultados = [elementos[idx_cert_devolucao]]
+
         tipos_meio = {
-            'Certidão de expedição': ['certidão de expedição', 'certidao de expedicao'],
-            'Planilha': ['planilha de atualização', 'planilha de atualizacao'],
-            'Intimação': ['intimação(', 'intimacao(']
+            'Certidao de expedicao': ['certidao de expedicao'],
+            'Planilha': ['planilha de atualizacao'],
+            'Intimacao': ['intimacao(']
         }
-        
+
         for idx in range(idx_cert_devolucao + 1, idx_decisao):
             elem = elementos[idx]
             texto = elem.text.strip().lower()
-            
+
             for tipo_nome, palavras in tipos_meio.items():
                 for palavra in palavras:
                     if palavra in texto:
                         resultados.append(elem)
                         if log:
-                            print(f'[DOCUMENTOS_SEQUENCIAIS] ✅ Encontrado: "{tipo_nome}" - {texto[:50]}...')
+                            logger.debug('[DOCUMENTOS_SEQUENCIAIS] Encontrado: %s - %s...', tipo_nome, texto[:50])
                         break
-        
-        # ETAPA 4: Adicionar decisão (fim do bloco)
+
         resultados.append(elementos[idx_decisao])
-        
+
         if log:
-            print(f'[DOCUMENTOS_SEQUENCIAIS] ✅ RESULTADO: {len(resultados)} documentos encontrados (máximo 5)')
-        
+            logger.info('[DOCUMENTOS_SEQUENCIAIS] encontrados: %d', len(resultados))
+
         return resultados
-        
+
     except Exception as e:
         if log:
-            print(f'[DOCUMENTOS_SEQUENCIAIS][ERRO] {str(e)}')
+            logger.error('[DOCUMENTOS_SEQUENCIAIS] %s', str(e))
         return []
 
 
@@ -2811,58 +3033,54 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
     """
     try:
         if debug:
-            print("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Iniciando busca de documentos do polo ativo...")
+            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Iniciando busca de documentos do polo ativo...")
 
-        # Aguardar timeline carregar
-        time.sleep(2)
+        aguardar_renderizacao_nativa(driver, timeout=10)
+        try:
+            WebDriverWait(driver, 8).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
+            )
+        except TimeoutException:
+            if debug:
+                logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Timeline pode nao ter carregado completamente")
 
-        # Encontrar todos os itens da timeline
         elementos = driver.find_elements(By.CSS_SELECTOR, "li.tl-item-container")
 
         if debug:
-            print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] Encontrados {len(elementos)} itens na timeline")
+            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Encontrados %d itens na timeline", len(elementos))
 
         documentos_encontrados = []
 
         for idx, elemento in enumerate(elementos):
             try:
-                # Verificar se é documento do polo ativo (autor)
-                # Procurar por ícones ou indicadores do polo ativo
                 polos_ativos = elemento.find_elements(By.CSS_SELECTOR, 'i.icone-polo-ativo, .polo-ativo, [aria-label*="Ativo"], [title*="Ativo"]')
 
                 if not polos_ativos:
-                    # Tentar outras formas de identificar polo ativo
                     texto_elemento = elemento.text.lower()
                     if 'autor' in texto_elemento or 'ativo' in texto_elemento:
-                        pass  # Considerar como polo ativo
+                        pass
                     else:
-                        continue  # Pular se não for polo ativo
+                        continue
 
-                # Extrair nome do documento
                 try:
                     link_doc = elemento.find_element(By.CSS_SELECTOR, 'a.tl-documento')
                     nome_doc = link_doc.text.strip()
                 except:
-                    # Fallback: tentar pegar do texto geral
                     nome_doc = elemento.text.split('\n')[0].strip()
 
-                # Extrair data do documento
                 data_doc = ""
                 try:
-                    # Procurar por elementos de data na timeline
                     data_elements = elemento.find_elements(By.CSS_SELECTOR, '.tl-data, .data-documento, time, [datetime]')
                     if data_elements:
                         data_doc = data_elements[0].text.strip() or data_elements[0].get_attribute('datetime') or ""
 
-                    # Se não encontrou, tentar extrair do texto
                     if not data_doc:
                         texto_completo = elemento.text
-                        # Procurar padrões de data no texto
                         import re
                         padroes_data = [
-                            r'(\d{1,2}/\d{1,2}/\d{4})',  # DD/MM/YYYY
-                            r'(\d{1,2}\s+\w{3}\.?\s+\d{4})',  # DD MMM YYYY
-                            r'(\d{4}-\d{2}-\d{2})'  # YYYY-MM-DD
+                            r'(\d{1,2}/\d{1,2}/\d{4})',
+                            r'(\d{1,2}\s+\w{3}\.?\s+\d{4})',
+                            r'(\d{4}-\d{2}-\d{2})'
                         ]
 
                         for padrao in padroes_data:
@@ -2873,9 +3091,8 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
 
                 except Exception as e:
                     if debug:
-                        print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao extrair data do documento {idx}: {e}")
+                        logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao extrair data do documento %d: %s", idx, e)
 
-                # Adicionar documento encontrado
                 if nome_doc:
                     doc_info = {
                         'data': data_doc,
@@ -2885,79 +3102,77 @@ def buscar_documentos_polo_ativo(driver, data_decisao_str=None, debug=False):
                     documentos_encontrados.append(doc_info)
 
                     if debug:
-                        print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] Documento encontrado: {nome_doc} ({data_doc})")
+                        logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Documento encontrado: %s (%s)", nome_doc, data_doc)
 
             except Exception as e:
                 if debug:
-                    print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao processar item {idx}: {e}")
+                    logger.warning("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao processar item %d: %s", idx, e)
                 continue
 
         if debug:
-            print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] Total de documentos do polo ativo encontrados: {len(documentos_encontrados)}")
+            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Total de documentos do polo ativo encontrados: %d", len(documentos_encontrados))
 
         return documentos_encontrados
 
     except Exception as e:
         if debug:
-            print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro geral: {e}")
+            logger.error("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro geral: %s", e)
         return []
 
 def _tentar_click_padrao(driver, element, log, attempt):
-    """Estratégia 1: Click padrão."""
+    """Estrategia 1: Click padrao."""
     try:
         if log and attempt == 0:
-            print(f"[SAFE_CLICK] Tentando click padrão")
+            logger.debug("[SAFE_CLICK] Tentando click padrao")
         element.click()
         if log:
-            print(f"[SAFE_CLICK] Click bem sucedido!")
+            logger.debug("[SAFE_CLICK] Click bem sucedido!")
         return True
     except (ElementClickInterceptedException, ElementNotInteractableException, WebDriverException) as e:
         if log:
-            print(f"[SAFE_CLICK] Click padrão falhou: {str(e)}")
+            logger.warning("[SAFE_CLICK] Click padrao falhou: %s", str(e))
         return False
     except:
         return False
 
 
-
 def _tentar_click_javascript(driver, element, log):
-    """Estratégia 2: JavaScript click."""
+    """Estrategia 2: JavaScript click."""
     try:
         if log:
-            print(f"[SAFE_CLICK] Tentando click via JavaScript")
+            logger.debug("[SAFE_CLICK] Tentando click via JavaScript")
         driver.execute_script("arguments[0].click();", element)
         if log:
-            print(f"[SAFE_CLICK] Click JavaScript bem sucedido!")
+            logger.debug("[SAFE_CLICK] Click JavaScript bem sucedido!")
         return True
     except Exception as e:
         if log:
-            print(f"[SAFE_CLICK] Click JavaScript falhou: {str(e)}")
+            logger.warning("[SAFE_CLICK] Click JavaScript falhou: %s", str(e))
         return False
-
 
 
 def _tentar_click_actionchains(driver, element, log):
-    """Estratégia 3: ActionChains click."""
+    """Estrategia 3: ActionChains click."""
     try:
+        from selenium.webdriver.common.action_chains import ActionChains
         if log:
-            print(f"[SAFE_CLICK] Tentando click via ActionChains")
+            logger.debug("[SAFE_CLICK] Tentando click via ActionChains")
         actions = ActionChains(driver)
         actions.move_to_element(element).click().perform()
         if log:
-            print(f"[SAFE_CLICK] Click ActionChains bem sucedido!")
+            logger.debug("[SAFE_CLICK] Click ActionChains bem sucedido!")
         return True
     except Exception as e:
         if log:
-            print(f"[SAFE_CLICK] Click ActionChains falhou: {str(e)}")
+            logger.warning("[SAFE_CLICK] Click ActionChains falhou: %s", str(e))
         return False
 
 
-
 def _tentar_click_javascript_avancado(driver, element, log):
-    """Estratégia 4: Advanced JavaScript click."""
+    """Estrategia 4: Advanced JavaScript click."""
     try:
         if log:
-            print(f"[SAFE_CLICK] Tentando click JavaScript avançado")
+            logger.debug("[SAFE_CLICK] Tentando click JavaScript avancado")
         script = """
             var element = arguments[0];
             var e = document.createEvent('MouseEvents');
@@ -2971,11 +3186,11 @@ def _tentar_click_javascript_avancado(driver, element, log):
         """
         driver.execute_script(script, element)
         if log:
-            print(f"[SAFE_CLICK] Click JavaScript avançado bem sucedido!")
+            logger.debug("[SAFE_CLICK] Click JavaScript avancado bem sucedido!")
         return True
     except Exception as e:
         if log:
-            print(f"[SAFE_CLICK] Click JavaScript avançado falhou: {str(e)}")
+            logger.warning("[SAFE_CLICK] Click JavaScript avancado falhou: %s", str(e))
         return False
 
 
@@ -2999,12 +3214,10 @@ def buscar_documentos_polo_ativo(driver, polo="autor", limite_dias=None, debug=F
     """
     try:
         if debug:
-            print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO]  Buscando documentos do polo {polo} na timeline...")
+            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Buscando documentos do polo %s na timeline...", polo)
 
-        # Aguardar timeline carregar
         esperar_elemento(driver, "li.tl-item-container", timeout=10)
 
-        # Usar JavaScript para extrair dados da timeline de forma otimizada
         script = """
             var poloTarget = arguments[0];
             var limiteDias = arguments[1];
@@ -3092,12 +3305,12 @@ def buscar_documentos_polo_ativo(driver, polo="autor", limite_dias=None, debug=F
         documentos = driver.execute_script(script, polo, limite_dias)
 
         if debug:
-            print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] ✅ Encontrados {len(documentos)} documentos do polo {polo}")
+            logger.debug("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Encontrados %d documentos do polo %s", len(documentos), polo)
         return documentos
 
     except Exception as e:
         if debug:
-            print(f"[BUSCAR_DOCUMENTOS_POLO_ATIVO] ❌ Erro ao buscar documentos do polo ativo: {str(e)}")
+            logger.error("[BUSCAR_DOCUMENTOS_POLO_ATIVO] Erro ao buscar documentos do polo ativo: %s", str(e))
         return []
 
 
@@ -3131,59 +3344,53 @@ def buscar_documento_argos(driver, log=True):
     
     try:
         if log:
-            print('[ARGOS][DOC] Buscando próximo documento com REGRAS ARGOS na timeline...')
+            logger.debug('[ARGOS][DOC] Buscando proximo documento com REGRAS ARGOS na timeline...')
 
-        # ✨ USAR ÍNDICE PERSISTENTE (como em checar_prox)
-        # Inicializar índice se não existir
         if not hasattr(driver, '_argos_doc_idx'):
-            driver._argos_doc_idx = -1  # Começar em -1 para que primeira busca comece em 0
+            driver._argos_doc_idx = -1
             if log:
-                print('[ARGOS][DOC] Inicializando índice persistente')
+                logger.debug('[ARGOS][DOC] Inicializando indice persistente')
 
         itens = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
         if not itens:
             if log:
-                print('[ARGOS][DOC] Nenhum item na timeline')
+                logger.warning('[ARGOS][DOC] Nenhum item na timeline')
             return None, None
 
-        # Localizar índice da primeira planilha (se houver) - LIMITE DE BUSCA
-        planilha_idx = len(itens)  # Default: buscar até o final
+        planilha_idx = len(itens)
         for i, it in enumerate(itens):
             try:
                 link = it.find_element(By.CSS_SELECTOR, 'a.tl-documento')
                 txt = (link.text or '').lower()
-                if 'planilha de atualização' in txt or 'planilha de atuali' in txt:
+                if 'planilha de atualizacao' in txt or 'planilha de atuali' in txt:
                     planilha_idx = i
                     break
             except Exception:
                 continue
 
-        # ✅ ITERAR A PARTIR DO PRÓXIMO ÍNDICE (como checar_prox faz)
         start_idx = driver._argos_doc_idx + 1
         if log:
-            print(f'[ARGOS][DOC] Começando busca do índice {start_idx} (limite planilha: {planilha_idx})')
+            logger.debug('[ARGOS][DOC] Comecando busca do indice %d (limite planilha: %d)', start_idx, planilha_idx)
 
         for idx in range(start_idx, planilha_idx):
             try:
                 item = itens[idx]
                 link = item.find_element(By.CSS_SELECTOR, 'a.tl-documento:not([target="_blank"])')
                 doc_text = (link.text or '').lower()
-                
-                # ✅ Validar se é despacho/decisão/sentença/conclusão
-                if not re.search(r'^(despacho|decisão|sentença|conclusão)', doc_text.strip()):
+
+                if not re.search(r'^(despacho|decisao|sentenca|conclusao)', doc_text.strip()):
                     if log:
-                        print(f'[ARGOS][DOC] Índice {idx}: "{doc_text[:30]}" - não é documento relevante, continuando...')
+                        logger.debug('[ARGOS][DOC] Indice %d: "%s" - nao e documento relevante, continuando...', idx, doc_text[:30])
                     continue
-                
+
                 if log:
-                    print(f'[ARGOS][DOC] Índice {idx}: "{doc_text[:50]}" - documento relevante encontrado, abrindo...')
-                
+                    logger.debug('[ARGOS][DOC] Indice %d: "%s" - documento relevante encontrado, abrindo...', idx, doc_text[:50])
+
             except Exception as e:
                 if log:
-                    print(f'[ARGOS][DOC] Erro ao validar elemento {idx}: {e}')
+                    logger.warning('[ARGOS][DOC] Erro ao validar elemento %d: %s', idx, e)
                 continue
-            
-            # ✨ CLICAR NO DOCUMENTO
+
             try:
                 try:
                     from Fix.headless_helpers import limpar_overlays_headless, scroll_to_element_safe
@@ -3192,108 +3399,107 @@ def buscar_documento_argos(driver, log=True):
                     time.sleep(0.3)
                 except ImportError:
                     pass
-                
-                # Tentar click normal primeiro
+
                 try:
                     link.click()
                 except ElementClickInterceptedException:
                     if log:
-                        print(f'[ARGOS][DOC] Click intercepted, usando JS fallback')
+                        logger.debug('[ARGOS][DOC] Click intercepted, usando JS fallback')
                     driver.execute_script("arguments[0].click();", link)
-                
-                time.sleep(2)  # Aguardar carregamento
+
+                aguardar_renderizacao_nativa(driver, timeout=15)
             except Exception as e:
                 if log:
-                    print(f'[ARGOS][DOC] Falha ao clicar no documento: {e}')
+                    logger.warning('[ARGOS][DOC] Falha ao clicar no documento: %s', e)
                 continue
 
-            # ✨ EXTRAIR TEXTO
-            time.sleep(1.5)
             texto = None
             try:
                 if log:
-                    print('[ARGOS][DOC] Extraindo conteúdo...')
+                    logger.debug('[ARGOS][DOC] Extraindo conteudo...')
                 resultado = extrair_direto(driver, timeout=10, debug=log, formatar=True)
                 texto = resultado.get('conteudo') if resultado and resultado.get('sucesso') else None
             except Exception as e:
                 if log:
-                    print(f'[ARGOS][DOC] extrair_direto falhou: {e}')
+                    logger.warning('[ARGOS][DOC] extrair_direto falhou: %s', e)
 
             if not texto:
                 try:
                     texto = extrair_documento(driver, regras_analise=None, timeout=10, log=log)
                 except Exception as e:
                     if log:
-                        print(f'[ARGOS][DOC] extrair_documento falhou: {e}')
-            
-            # ✅ VERIFICAR REGRAS ARGOS
+                        logger.warning('[ARGOS][DOC] extrair_documento falhou: %s', e)
+
             if texto:
                 if log:
-                    print(f'[ARGOS][DOC] Texto extraído: {len(texto)} chars. Verificando regras...')
-                
+                    logger.debug('[ARGOS][DOC] Texto extraido: %d chars. Verificando regras...', len(texto))
+
                 texto_lower = texto.lower()
                 encontrou_regra = False
                 regra_encontrada = None
-                
-                # Verificar regras principais ARGOS
+
                 for regra in REGRAS_ARGOS:
                     if regra in texto_lower:
                         encontrou_regra = True
                         regra_encontrada = regra
                         break
-                
-                # FALLBACK: Se não encontrou regra ARGOS mas tem sigilo, tratar como ARGOS
+
                 if not encontrou_regra:
-                    if 'este despacho permanecerá em sigilo' in texto_lower or \
-                       'este despacho permanecera em sigilo' in texto_lower:
+                    if 'este despacho permanecera em sigilo' in texto_lower:
                         encontrou_regra = True
                         regra_encontrada = 'sigilo (fallback)'
                         if log:
-                            print('[ARGOS][DOC] ℹ️ Encontrado sigilo - tratando como ARGOS')
-                
+                            logger.debug('[ARGOS][DOC] Encontrado sigilo - tratando como ARGOS')
+
                 if encontrou_regra:
-                    # ✅ SALVAR ÍNDICE ATUAL PARA PRÓXIMA BUSCA
                     driver._argos_doc_idx = idx
                     if log:
-                        print(f'[ARGOS][DOC] ✅ REGRA "{regra_encontrada}" no índice {idx} - USANDO ESTE DOCUMENTO')
-                    tipo = 'decisao' if 'decisão' in doc_text or 'sentença' in doc_text else 'despacho'
+                        logger.debug('[ARGOS][DOC] REGRA "%s" no indice %d - USANDO ESTE DOCUMENTO', regra_encontrada, idx)
+                    tipo = 'decisao' if 'decisao' in doc_text or 'sentenca' in doc_text else 'despacho'
                     return texto, tipo
                 else:
-                    # REGRA NÃO ENCONTRADA - VOLTAR À TIMELINE E CONTINUAR COM PRÓXIMO
                     if log:
-                        print(f'[ARGOS][DOC] ⚠️ Sem REGRA ARGOS no índice {idx} - voltando à timeline para próximo...')
-                    
-                    # ✅ VOLTAR À TIMELINE (fechar detalhe)
+                        logger.debug('[ARGOS][DOC] Sem REGRA ARGOS no indice %d - voltando a timeline para proximo...', idx)
+
                     try:
-                        driver.back()  # Usar back() para voltar à página anterior
-                        time.sleep(1)  # Aguardar timeline recarregar
+                        driver.back()
+                        aguardar_renderizacao_nativa(driver, timeout=10)
+                        try:
+                            WebDriverWait(driver, 8).until(
+                                lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
+                            )
+                        except TimeoutException:
+                            pass
                     except Exception as back_err:
                         if log:
-                            print(f'[ARGOS][DOC] Erro ao voltar: {back_err}')
-                    
-                    # Continuar para próxima iteração
+                            logger.warning('[ARGOS][DOC] Erro ao voltar: %s', back_err)
+
                     continue
             else:
                 if log:
-                    print(f'[ARGOS][DOC] ⚠️ Falha ao extrair texto do índice {idx} - continuando...')
-                
-                # Voltar à timeline
+                    logger.warning('[ARGOS][DOC] Falha ao extrair texto do indice %d - continuando...', idx)
+
                 try:
                     driver.back()
-                    time.sleep(1)
+                    aguardar_renderizacao_nativa(driver, timeout=10)
+                    try:
+                        WebDriverWait(driver, 8).until(
+                            lambda d: len(d.find_elements(By.CSS_SELECTOR, "li.tl-item-container")) > 0
+                        )
+                    except TimeoutException:
+                        pass
                 except Exception:
                     pass
-                
+
                 continue
 
-        # ✅ FIM: Nenhum documento teve regra
         if log:
-            print('[ARGOS][DOC] ❌ Nenhum despacho/decisão com REGRAS ARGOS encontrado (fim da timeline)')
+            logger.warning('[ARGOS][DOC] Nenhum despacho/decisao com REGRAS ARGOS encontrado (fim da timeline)')
         return None, None
 
     except Exception as e:
         if log:
-            print(f'[ARGOS][DOC][ERRO] buscar_documento_argos falhou: {e}')
+            logger.error('[ARGOS][DOC][ERRO] buscar_documento_argos falhou: %s', e)
         return None, None
 
 

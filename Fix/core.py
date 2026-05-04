@@ -2456,7 +2456,8 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
         fase_element = None
         try:
             fase_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Fase processual')]")
-        except Exception:
+        except Exception as e:
+            logger.debug("filtrofases: primeira busca de fase processual falhou: %s", e)
             try:
                 seletor_fase = 'span.ng-tns-c82-22.ng-star-inserted'
                 for elem in driver.find_elements(By.CSS_SELECTOR, seletor_fase):
@@ -2478,7 +2479,8 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                 painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
                 if painel.is_displayed():
                     break
-            except Exception:
+            except Exception as e:
+                logger.debug("filtrofases: painel de fase nao encontrado: %s", e)
                 time.sleep(0.3)
         if not painel or not painel.is_displayed():
             logger.error('[filtrofases] Painel de opcoes nao apareceu.')
@@ -2503,7 +2505,8 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                         logger.debug('[filtrofases] Fase "%s" selecionada.', fase)
                         time.sleep(0.5)
                         break
-                except Exception:
+                except Exception as e:
+                    logger.debug("filtrofases: erro ao processar opcao de fase: %s", e)
                     continue
         if len(fases_clicadas) == 0:
             logger.error('[filtrofases] Nao encontrou opcoes %s no painel.', fases_alvo)
@@ -2521,7 +2524,8 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
             tarefa_element = None
             try:
                 tarefa_element = driver.find_element(By.XPATH, "//span[contains(text(), '%s')]" % seletor_tarefa)
-            except Exception:
+            except Exception as e:
+                logger.debug("filtrofases: primeira busca de tarefa falhou: %s", e)
                 try:
                     seletor = 'span.ng-tns-c82-22.ng-star-inserted'
                     for elem in driver.find_elements(By.CSS_SELECTOR, seletor):
@@ -2543,7 +2547,8 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                     painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
                     if painel.is_displayed():
                         break
-                except Exception:
+                except Exception as e:
+                    logger.debug("filtrofases: painel de tarefa nao encontrado: %s", e)
                     time.sleep(0.3)
             if not painel or not painel.is_displayed():
                 logger.error('[filtrofases] Painel de opcoes de tarefa nao apareceu.')
@@ -2568,7 +2573,8 @@ def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None
                             logger.debug('[filtrofases] Tarefa "%s" selecionada.', tarefa)
                             time.sleep(0.5)
                             break
-                    except Exception:
+                    except Exception as e:
+                        logger.debug("filtrofases: erro ao processar opcao de tarefa: %s", e)
                         continue
             if len(tarefas_clicadas) == 0:
                 logger.error('[filtrofases] Nao encontrou opcoes %s no painel de tarefas.', tarefas_alvo)
@@ -3329,10 +3335,11 @@ def buscar_documento_argos(driver, log=True):
     # Importar localmente para evitar import circular entre Fix.core <-> Fix.extracao
     try:
         from .extracao import extrair_direto, extrair_documento
-    except Exception:
+    except Exception as e:
+        logger.debug("buscar_documento_argos: import de extracao via subpacote falhou, tentando via package: %s", e)
         # Fallback para import via package
         from Fix.extracao import extrair_direto, extrair_documento
-    
+
     # ✅ REGRAS ARGOS que o documento deve conter
     REGRAS_ARGOS = [
         'defiro a instauração',
@@ -3365,7 +3372,8 @@ def buscar_documento_argos(driver, log=True):
                 if 'planilha de atualizacao' in txt or 'planilha de atuali' in txt:
                     planilha_idx = i
                     break
-            except Exception:
+            except Exception as e:
+                logger.debug("buscar_documento_argos: erro ao processar item da timeline: %s", e)
                 continue
 
         start_idx = driver._argos_doc_idx + 1
@@ -3488,7 +3496,8 @@ def buscar_documento_argos(driver, log=True):
                         )
                     except TimeoutException:
                         pass
-                except Exception:
+                except Exception as e:
+                    logger.debug("buscar_documento_argos: erro ao voltar na timeline: %s", e)
                     pass
 
                 continue

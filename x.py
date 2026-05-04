@@ -33,7 +33,10 @@ import logging
 import os
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, Callable
+from Fix.tipos import ResultadoFluxo
 from enum import Enum
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 # Imports dos módulos refatorados
 from Fix.core import finalizar_driver as finalizar_driver_fix, criar_driver_pc, criar_driver_vt
 from Fix.utils import login_cpf
@@ -41,14 +44,12 @@ from Prazo import loop_prazo
 from PEC.orquestrador import executar_fluxo_novo_simplificado as pec_fluxo_api
 from Mandado.entrada_api import processar_mandados_devolvidos_api
 
-# Otimização de imports (plano_imports_otimizacao.md)
-import traceback
 from Fix.log import logger
 
 # Imports de fluxos orquestrados — movidos para o topo (Task 9)
-from Triagem.runner import run_triagem
-from Peticao.pet import run_pet
-from Prazo.fluxo_api import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
+from Triagem.runtime_triagem import run_triagem
+from Peticao.runtime_pet import run_pet
+from Prazo.p2b_gateway import processar_gigs_sem_prazo_p2b, testar_gigs_sem_prazo
 
 # ============================================================================
 # CONFIGURAES GLOBAIS
@@ -138,7 +139,7 @@ def criar_e_logar_driver(driver_type: DriverType) -> Optional[Any]:
 # FUNES DE EXECUO
 # ============================================================================
 
-def normalizar_resultado(resultado: Any) -> Dict[str, Any]:
+def normalizar_resultado(resultado: Any) -> ResultadoFluxo:
     """Normaliza retorno para dict padro"""
     if isinstance(resultado, dict):
         return resultado
@@ -150,7 +151,7 @@ def normalizar_resultado(resultado: Any) -> Dict[str, Any]:
 
 
 def _executar_fluxo(nome: str, fn: Callable[[Any], Any], driver: Any,
-                    normalizar: bool = True, on_none_error: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                    normalizar: bool = True, on_none_error: Optional[ResultadoFluxo] = None) -> ResultadoFluxo:
     """Wrapper unificado para execução de fluxos.
 
     Args:
@@ -201,7 +202,10 @@ def resetar_driver(driver) -> bool:
 
         # Navegar para página inicial
         driver.get("https://pje.trt2.jus.br/pjekz/")
-        time.sleep(2)
+        try:
+            WebDriverWait(driver, 5).until(EC.url_contains("pjekz"))
+        except Exception:
+            pass
 
         logger.debug("driver resetado")
         return True
@@ -299,10 +303,10 @@ def executar_prazo(driver) -> Dict[str, Any]:
     return _executar_fluxo("Prazo", _fluxo, driver, normalizar=False)
 
 
-def executar_pec(driver) -> Dict[str, Any]:
+def executar_pec(driver, data_minima: Optional[str] = None) -> Dict[str, Any]:
     """PEC Isolado — API modular (sem navegação DOM inicial)"""
     def _fluxo(d):
-        resultado = pec_fluxo_api(d)
+        resultado = pec_fluxo_api(d, data_minima=data_minima)
         total = resultado.get('total', 0)
         erros = resultado.get('erro', 0)
         sucessos = resultado.get('sucesso_count', total - erros)

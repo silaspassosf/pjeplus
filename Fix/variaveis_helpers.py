@@ -1,6 +1,6 @@
 """Compatibilidade para o namespace legado Fix.variaveis_helpers."""
 
-from api.variaveis_helpers import (
+from .facade_publica import (
     obter_gigs_com_fase,
     obter_texto_documento,
     buscar_atividade_gigs_por_observacao,

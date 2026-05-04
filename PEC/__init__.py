@@ -2,19 +2,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 """
-Módulo PEC - Petições Eletrônicas (Refatorado)
+Modulo PEC - Petices Eletronicas (Refatorado)
 
-[IMPORTANTE] Todos os imports foram desabilitados. Use importações diretas:
-- from xx.PEC.rules import determinar_acoes_por_observacao
-- from xx.PEC.regras import ... (compatibilidade)
+Estrutura consolidada:
+  runtime_pec.py     — API client, helpers, progresso, carta utils/formatacao, orquestrador
+  regras_execucao.py — Regras de bucket/acao e sobrestamento
+
+Shims de compatibilidade (thin shims que reexportam dos consolidados):
+  api_client.py, helpers.py, core_progresso.py, carta_utils.py,
+  carta_formatacao.py, orquestrador.py, regras_pec.py, sobrestamento.py
 """
 
-# ===== TODOS OS IMPORTS DESABILITADOS =====
-# Motivo: Estrutura xx/PEC/... tem importações absolutas quebradas
-
-# Fornecer stubs para manter compatibilidade básica
-# (Compat layer: re-export apenas o que o código legacy `ref/PEC` importa)
-from .core_progresso import (
+# Re-exports dos modulos consolidados
+from .runtime_pec import (
+    AtividadePEC,
+    PECAPIClient,
+    PECOrquestrador,
+    executar_fluxo_novo_simplificado,
     carregar_progresso_pec,
     salvar_progresso_pec,
     extrair_numero_processo_pec,
@@ -22,6 +26,14 @@ from .core_progresso import (
     processo_ja_executado_pec,
     marcar_processo_executado_pec,
 )
+from .regras_execucao import (
+    BUCKET_ORDEM,
+    REGRAS,
+    determinar_regra,
+    def_sob,
+)
+
+# Modulos congelados / existentes
 from .core_navegacao import (
     navegar_para_atividades,
     aplicar_filtro_xs,
@@ -30,10 +42,20 @@ from .core_navegacao import (
 from .core_pos_carta import (
     analisar_documentos_pos_carta,
 )
+from .regras import (
+    determinar_acoes_por_observacao,
+)
 
 __all__ = [
+    'AtividadePEC',
+    'PECAPIClient',
+    'PECOrquestrador',
+    'executar_fluxo_novo_simplificado',
+    'BUCKET_ORDEM',
+    'REGRAS',
+    'determinar_regra',
+    'def_sob',
     'determinar_acoes_por_observacao',
-    'determinar_acao_por_observacao',
     # Compatibility exports for legacy/ref modules
     'carregar_progresso_pec',
     'salvar_progresso_pec',

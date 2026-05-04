@@ -26,6 +26,8 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
+from Fix.utils import remover_acentos, normalizar_texto
+
 logger = logging.getLogger(__name__)
 
 
@@ -370,15 +372,6 @@ REGEX_PATTERNS = {
 
 
 # ===== FUNÇÕES AUXILIARES COMPARTILHADAS =====
-
-def remover_acentos(texto: str) -> str:
-    """Remove acentos de um texto."""
-    return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
-
-
-def normalizar_texto(texto: str) -> str:
-    """Normaliza texto: remove acentos e converte para minúsculo."""
-    return remover_acentos(texto.lower())
 
 
 def gerar_regex_geral(termo: str) -> re.Pattern:

@@ -1,9 +1,119 @@
-from typing import Optional, Any, Dict, List
+from typing import Optional, Any, Dict, List, Tuple
 
 import html as _html
 import re
 
-from Fix.variaveis_client import PjeApiClient
+from api.variaveis_client import PjeApiClient
+
+
+def _erro_gateway(tipo: str, mensagem: str, path: str, status: Optional[int] = None) -> Dict[str, Any]:
+    return {
+        'ok': False,
+        'status': status,
+        'data': None,
+        'error': {
+            'type': tipo,
+            'message': mensagem,
+            'method': 'GET',
+            'path': path,
+            'status': status,
+        },
+    }
+
+
+def _extrair_itens_pagina(payload: Any, pagina_atual: int, tamanho_pagina: int) -> Tuple[List[Any], bool]:
+    if isinstance(payload, list):
+        return payload, len(payload) >= tamanho_pagina
+
+    if not isinstance(payload, dict):
+        return [], False
+
+    itens = payload.get('items')
+    if itens is None:
+        itens = payload.get('itens')
+    if itens is None:
+        itens = payload.get('content')
+    if itens is None:
+        itens = payload.get('resultados')
+    if itens is None:
+        itens = payload.get('resultado')
+    if itens is None:
+        itens = payload.get('data')
+
+    if not isinstance(itens, list):
+        itens = []
+
+    total_paginas = payload.get('totalPaginas')
+    if isinstance(total_paginas, int):
+        return itens, pagina_atual < total_paginas
+
+    total_paginas = payload.get('totalPages')
+    if isinstance(total_paginas, int):
+        return itens, pagina_atual < total_paginas
+
+    ultima = payload.get('ultima')
+    if isinstance(ultima, bool):
+        return itens, not ultima
+
+    return itens, len(itens) >= tamanho_pagina
+
+
+def buscar_todas_paginas(
+    client: PjeApiClient,
+    path: str,
+    *,
+    params_base: Optional[Dict[str, Any]] = None,
+    page_param: str = 'pagina',
+    size_param: str = 'tamanhoPagina',
+    pagina_inicial: int = 1,
+    tamanho_pagina: int = 100,
+    limite_paginas: int = 100,
+    timeout: int = 15,
+) -> Dict[str, Any]:
+    if limite_paginas < 1:
+        return _erro_gateway('pagination_error', 'limite_paginas deve ser >= 1', path)
+
+    itens_total: List[Any] = []
+    pagina_atual = pagina_inicial
+
+    for _ in range(limite_paginas):
+        params = dict(params_base or {})
+        params[page_param] = pagina_atual
+        params[size_param] = tamanho_pagina
+
+        resposta = client.gateway_get(path, params=params, timeout=timeout)
+        if not resposta.get('ok'):
+            erro = resposta.get('error') or {}
+            mensagem = erro.get('message') or f'Falha na pagina {pagina_atual}'
+            return _erro_gateway(
+                erro.get('type') or 'http_error',
+                mensagem,
+                path,
+                resposta.get('status'),
+            )
+
+        itens_pagina, tem_mais = _extrair_itens_pagina(
+            resposta.get('data'),
+            pagina_atual=pagina_atual,
+            tamanho_pagina=tamanho_pagina,
+        )
+        itens_total.extend(itens_pagina)
+
+        if not tem_mais:
+            return {
+                'ok': True,
+                'status': resposta.get('status'),
+                'data': itens_total,
+                'error': None,
+            }
+
+        pagina_atual += 1
+
+    return _erro_gateway(
+        'pagination_limit',
+        f'Limite de paginas atingido: {limite_paginas}',
+        path,
+    )
 
 
 def obter_gigs_com_fase(client: PjeApiClient, id_processo: str) -> Optional[Dict[str, Any]]:

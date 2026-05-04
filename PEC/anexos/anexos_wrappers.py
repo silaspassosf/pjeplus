@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from typing import Optional, Callable, Any
 from selenium.webdriver.remote.webdriver import WebDriver
 from .anexos_sisbajud import _wrapper_sisbajud_generico, _obter_conteudo_relatorio_sisbajud
-from .anexos_juntador import wrapper_juntada_geral
+from .anexos_juntador_base import wrapper_juntada_geral
 
 
 def carta_wrapper(

@@ -1,6 +1,6 @@
 """Compatibilidade para o namespace legado Fix.variaveis_resolvers."""
 
-from api.variaveis_resolvers import (
+from .facade_publica import (
     obter_codigo_validacao_documento,
     obter_peca_processual_da_timeline,
     resolver_variavel,

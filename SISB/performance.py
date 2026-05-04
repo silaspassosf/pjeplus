@@ -13,7 +13,7 @@ from functools import lru_cache
 from typing import Dict, List, Any, Optional
 import threading
 
-from .standards import sisb_logger, SISBConstants
+# sisb_logger e SISBConstants importados lazy nas funcoes para evitar circular import com facades_contratos
 
 class PerformanceOptimizer:
     """Otimizador de performance para operações SISBAJUD"""
@@ -112,13 +112,15 @@ class PerformanceOptimizer:
 
             # Log de performance
             if execution_time > 2.0:
+                from .facades_contratos import sisb_logger
                 sisb_logger.log(f"Script lento executado em {execution_time:.2f}s", "WARNING", "performance")
 
             return result
         except Exception as e:
             execution_time = time.time() - start_time
-            sisb_logger.log(f"Erro em script após {execution_time:.2f}s: {e}", "ERROR", "performance")
-            raise
+        from .facades_contratos import SISBConstants as _SISBConstants
+        timeout = timeout or _SISBConstants.TIMEOUTS['elemento_padrao'] * 1000
+        return polling_reducer.replace_polling_with_observer(driver, seletor, timeout)
 
 class PollingReducer:
     """Redutor de polling para operações mais eficientes"""
@@ -232,27 +234,6 @@ class CacheManager:
         self.cache_timeout = 300  # 5 minutos
         self.lock = threading.Lock()
 
-    def cache_element(self, key: str, element, ttl: int = None):
-        """Cache de elementos WebElement"""
-        with self.lock:
-            self.element_cache[key] = {
-                'element': element,
-                'timestamp': time.time(),
-                'ttl': ttl or self.cache_timeout
-            }
-
-    def get_cached_element(self, key: str):
-        """Recupera elemento do cache se ainda válido"""
-        with self.lock:
-            if key in self.element_cache:
-                cached = self.element_cache[key]
-                if time.time() - cached['timestamp'] < cached['ttl']:
-                    return cached['element']
-                else:
-                    # Cache expirado
-                    del self.element_cache[key]
-        return None
-
     def cache_data(self, key: str, data: Any, ttl: int = None):
         """Cache de dados estruturados"""
         with self.lock:
@@ -273,26 +254,6 @@ class CacheManager:
                     # Cache expirado
                     del self.data_cache[key]
         return None
-
-    def clear_expired_cache(self):
-        """Limpa cache expirado"""
-        current_time = time.time()
-        with self.lock:
-            # Limpar elementos
-            expired_elements = [
-                key for key, cached in self.element_cache.items()
-                if current_time - cached['timestamp'] >= cached['ttl']
-            ]
-            for key in expired_elements:
-                del self.element_cache[key]
-
-            # Limpar dados
-            expired_data = [
-                key for key, cached in self.data_cache.items()
-                if current_time - cached['timestamp'] >= cached['ttl']
-            ]
-            for key in expired_data:
-                del self.data_cache[key]
 
 class ParallelProcessor:
     """Processador paralelo para operações SISBAJUD"""
@@ -354,6 +315,7 @@ class ParallelProcessor:
             results.extend(batch_results)
 
             # Delay entre batches para evitar detecção
+            from .facades_contratos import SISBConstants
             time.sleep(SISBConstants.RATE_LIMITS['delay_minimo'] / 1000)
 
         return results
@@ -364,97 +326,3 @@ polling_reducer = PollingReducer()
 cache_manager = CacheManager()
 parallel_processor = ParallelProcessor()
 
-# ===== FUNÇÕES DE OTIMIZAÇÃO PRONTAS PARA USO =====
-
-def optimized_element_wait(driver, seletor: str, timeout: int = None) -> Any:
-    """
-    Espera otimizada por elemento usando MutationObserver.
-
-    Args:
-        driver: WebDriver instance
-        seletor: Seletor CSS
-        timeout: Timeout em ms
-
-    Returns:
-        Any: Elemento encontrado
-    """
-    timeout = timeout or SISBConstants.TIMEOUTS['elemento_padrao'] * 1000
-    return polling_reducer.replace_polling_with_observer(driver, seletor, timeout)
-
-def batched_form_fill(driver, fields: Dict[str, str]) -> bool:
-    """
-    Preenchimento otimizado de formulários em batch.
-
-    Args:
-        driver: WebDriver instance
-        fields: Dicionário seletor -> valor
-
-    Returns:
-        bool: True se todos os campos preenchidos
-    """
-    operations = []
-    for selector, value in fields.items():
-        operations.append({
-            'type': 'fill',
-            'selector': selector,
-            'value': value
-        })
-
-    batch_script = performance_optimizer.batch_dom_operations(operations)
-    result = performance_optimizer.optimize_javascript_execution(driver, batch_script)
-
-    return result and result.get('sucesso', False)
-
-def cached_selector_lookup(seletor: str, contexto: str) -> str:
-    """
-    Lookup otimizado de seletor com cache.
-
-    Args:
-        seletor: Seletor CSS
-        contexto: Contexto de uso
-
-    Returns:
-        str: Seletor otimizado
-    """
-    return performance_optimizer.cache_element_selector(seletor, contexto)
-
-def parallel_series_processing(driver, series: List[Dict], process_func: callable) -> List[Any]:
-    """
-    Processamento paralelo de séries com controle de rate limiting.
-
-    Args:
-        driver: WebDriver instance
-        series: Lista de séries
-        process_func: Função de processamento por série
-
-    Returns:
-        List[Any]: Resultados do processamento
-    """
-    return parallel_processor.process_series_parallel(driver, series, process_func)
-
-def smart_cache_operation(key: str, operation: callable, ttl: int = None) -> Any:
-    """
-    Operação com cache inteligente.
-
-    Args:
-        key: Chave do cache
-        operation: Função a executar se não em cache
-        ttl: Time to live do cache
-
-    Returns:
-        Any: Resultado da operação (cacheado ou novo)
-    """
-    # Verificar cache
-    cached_result = cache_manager.get_cached_data(key)
-    if cached_result is not None:
-        sisb_logger.log(f"Cache hit para: {key}", "DEBUG", "cache")
-        return cached_result
-
-    # Executar operação
-    result = operation()
-
-    # Armazenar em cache
-    cache_manager.cache_data(key, result, ttl)
-    sisb_logger.log(f"Cache miss - armazenado: {key}", "DEBUG", "cache")
-
-    return result

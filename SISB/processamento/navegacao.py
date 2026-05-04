@@ -37,8 +37,13 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
                 return True
             return False
 
-        # Aguardar um pouco para garantir que a pagina esta carregada
-        time.sleep(1)
+        # Aguardar pagina carregar completamente
+        try:
+            WebDriverWait(driver, 3).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+        except Exception:
+            pass
 
         # Seletores para o botao voltar (chevron-left)
         seletores_voltar = [
@@ -103,7 +108,6 @@ def _voltar_para_lista_ordens_serie(driver, log=True):
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
             )
-            time.sleep(1.5)
         except Exception as e:
             if log:
                 logger.error(f"[SISBAJUD]  Erro ao aguardar tabela: {e}")
@@ -164,7 +168,10 @@ def _voltar_para_lista_principal(driver, log=True):
                 url_volta = "https://sisbajud.cnj.jus.br/teimosinha"
 
             driver.get(url_volta)
-            time.sleep(3)
+            try:
+                WebDriverWait(driver, 5).until(EC.url_contains("teimosinha"))
+            except Exception:
+                pass
             return True
 
         # Se nao esta em pagina de detalhes, tentar usar botao voltar (duas vezes)
@@ -196,7 +203,12 @@ def _voltar_para_lista_principal(driver, log=True):
 
                     driver.execute_script("arguments[0].click();", botao)
                     botao_voltar_clicado = True
-                    time.sleep(2)
+                    try:
+                        WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, 'table.mat-table'))
+                        )
+                    except Exception:
+                        pass
                     break
                 except Exception:
                     continue

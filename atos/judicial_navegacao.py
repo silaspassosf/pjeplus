@@ -6,11 +6,9 @@ Funções para abertura de tarefas, navegação entre estados do PJE,
 limpeza de overlays e transição entre URLs.
 """
 
-from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
-from Fix.selenium_base.element_interaction import safe_click
-from Fix.selenium_base.wait_operations import esperar_url_conter
+from Fix.selenium_base import aguardar_e_clicar, safe_click_no_scroll, safe_click, esperar_url_conter
 from Fix.abas import aguardar_nova_aba
-from Fix.core import wait_for_page_load
+from Fix.core import wait_for_page_load, aguardar_renderizacao_nativa
 from Fix.log import logger
 from Fix.selectors_pje import BTN_TAREFA_PROCESSO
 from selenium.webdriver.common.by import By
@@ -108,7 +106,7 @@ def limpar_overlays(driver: WebDriver) -> None:
         driver.implicitly_wait(10)
         if overlays:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            time.sleep(0.15)
+            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing', 'sumir', timeout=2)
             logger.info('[NAVEGAÇÃO] Overlays removidos')
     except Exception as e:
         driver.implicitly_wait(10)
@@ -141,8 +139,8 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
             logger.warning('[NAVEGAÇÃO] Botões de transição não carregaram')
             # Fallback rápido: aguardar 2s e dar refresh para tentar recuperar os botões
             try:
-                logger.info('[NAVEGAÇÃO] Tentando refresh rápido em 2s para recarregar botões...')
-                time.sleep(2)
+                logger.info('[NAVEGAÇÃO] Aguardando 2s para refresh...')
+                time.sleep(2)  # page-settle
                 try:
                     driver.refresh()
                 except Exception as rerr:
@@ -198,7 +196,7 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
                         if overlays_visiveis:
                             logger.info(f'[NAVEGAÇÃO] Overlay detectado (tentativa {tentativa + 1}/{max_tentativas_overlay})')
                             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                            time.sleep(0.3)
+                            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing', 'sumir', timeout=2)
                         else:
                             logger.info('[NAVEGAÇÃO] Nenhum overlay detectado')
                             break
@@ -207,7 +205,7 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
                         break
 
                 # Aguardar pausa para estabilização
-                time.sleep(0.5)
+                aguardar_renderizacao_nativa(driver, 'pje-botoes-transicao button', 'aparecer', timeout=3)
 
                 # Aguardar botões novamente
                 try:
@@ -247,12 +245,12 @@ def navegar_para_conclusao(driver: WebDriver) -> bool:
                         # Tentar remover overlays
                         try:
                             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                            time.sleep(0.5)
+                            aguardar_renderizacao_nativa(driver, 'div.cdk-overlay-backdrop.cdk-overlay-dark-backdrop.cdk-overlay-backdrop-showing', 'sumir', timeout=2)
                         except Exception:
                             pass
                     except Exception as other_err:
                         logger.warning(f'[NAVEGAÇÃO] Erro na tentativa {tentativa_clique + 1}: {other_err}')
-                        time.sleep(0.5)
+                        time.sleep(0.5)  # retry-backoff
 
                 if not btn_conclusao_encontrado:
                     logger.error('[NAVEGAÇÃO] Falha ao clicar em "Conclusão ao magistrado" após todas as tentativas')
@@ -314,7 +312,7 @@ def preparar_campo_minutar(driver: WebDriver) -> bool:
         driver.execute_script('var el=arguments[0]; el.dispatchEvent(new Event("input", {bubbles:true})); el.dispatchEvent(new Event("keyup", {bubbles:true}));', campo_filtro_modelo)
 
         logger.info('[NAVEGAÇÃO] Campo de filtro preparado com sucesso')
-        time.sleep(0.3)
+        aguardar_renderizacao_nativa(driver, 'input#inputFiltro', 'aparecer', timeout=2)
         return True
 
     except Exception as e:

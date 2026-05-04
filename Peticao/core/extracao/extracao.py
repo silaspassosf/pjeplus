@@ -343,7 +343,7 @@ def extrair_dados_processo(driver: WebDriver, caminho_json: str = 'dadosatuais.j
                 match_clipboard = re.search(r"(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})", aria_label)
                 if match_clipboard:
                     return match_clipboard.group(1)
-        except:
+        except Exception:
             pass
 
         return None
@@ -434,7 +434,7 @@ def extrair_dados_processo(driver: WebDriver, caminho_json: str = 'dadosatuais.j
         try:
             dtobj = datetime.fromisoformat(dt.replace('Z', '+00:00'))
             processo_memoria["dtAutuacao"] = dtobj.strftime('%d/%m/%Y')
-        except:
+        except Exception:
             processo_memoria["dtAutuacao"] = dt
 
     def criar_pessoa_limpa(parte: Dict[str, Any]) -> Dict[str, Any]:

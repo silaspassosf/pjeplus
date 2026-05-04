@@ -11,7 +11,7 @@ from typing import List, Dict, Any
 
 import pathlib
 from api.variaveis import PjeApiClient, session_from_driver
-from Fix.variaveis_helpers import obter_texto_documento
+from api.variaveis_helpers import obter_texto_documento
 from Triagem.preprocess import _strip_cabecalho_rodape
 from Triagem.utils import _norm, _formatar_endereco_parte
 from Fix.log import logger

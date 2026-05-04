@@ -9,8 +9,8 @@ Este módulo fornece funções para processar múltiplos processos SISBAJUD
 usando um único driver compartilhado, otimizando o tempo de execução.
 """
 
-import time
 from typing import Any, Dict, List, Optional, Callable, Tuple
+from Fix.core import aguardar_renderizacao_nativa
 
 # URL base para navegação entre processos
 URL_MINUTA = "https://sisbajud.pdpj.jus.br/minuta"
@@ -141,7 +141,7 @@ def processar_lote_sisbajud(
         if driver_sisbajud:
             try:
                 driver_sisbajud.quit()
-            except:
+            except Exception:  # cleanup, ignora falha ao fechar driver
                 pass
     
     if log:
@@ -198,7 +198,7 @@ def _processar_grupo(
             linha = proc.get('linha')
             try:
                 linha.is_displayed()
-            except:
+            except Exception:  # item individual, continua
                 linha = fn_reindexar_linha(driver_pje, numero_processo)
             
             if not linha:
@@ -209,7 +209,7 @@ def _processar_grupo(
                         fn_marcar_executado(numero_processo, progresso)
                         resultados['erro'] += 1
                         continue
-                except:
+                except Exception:  # verificacao de URL, continua
                     pass
                 
                 resultados['erro'] += 1
@@ -224,20 +224,20 @@ def _processar_grupo(
                         fn_marcar_executado(numero_processo, progresso)
                         resultados['erro'] += 1
                         continue
-                except:
+                except Exception:  # verificacao de URL, continua
                     pass
                 
                 resultados['erro'] += 1
                 continue
             
-            time.sleep(1)
+            aguardar_renderizacao_nativa(driver_pje, timeout=1)
             nova_aba = fn_trocar_aba(driver_pje, aba_lista_pje)
             if not nova_aba:
                 resultados['erro'] += 1
                 continue
             
-            time.sleep(2)
-            
+            aguardar_renderizacao_nativa(driver_pje, timeout=2)
+
             # Extrair dados do processo
             dados_processo = extrair_dados_processo(driver_pje)
             if not dados_processo:
@@ -261,11 +261,11 @@ def _processar_grupo(
                                 try:
                                     driver_pje.switch_to.window(handle)
                                     driver_pje.close()
-                                except:
+                                except Exception:  # item individual, continua
                                     pass
-                        
+
                         driver_pje.switch_to.window(aba_lista_pje)
-                except:
+                except Exception:  # cleanup, continua
                     pass
                 
                 resultados['erro'] += 1
@@ -289,12 +289,12 @@ def _processar_grupo(
                                     try:
                                         driver_pje.switch_to.window(handle)
                                         driver_pje.close()
-                                    except:
+                                    except Exception:  # item individual, continua
                                         pass
                             
                             # Garantir que estamos na lista
                             driver_pje.switch_to.window(aba_lista_pje)
-                    except:
+                    except Exception:  # cleanup, continua
                         pass
                     
                     # Contar como sucesso (GIGS criado)
@@ -315,13 +315,13 @@ def _processar_grupo(
                                     try:
                                         driver_pje.switch_to.window(handle)
                                         driver_pje.close()
-                                    except:
+                                    except Exception:  # item individual, continua
                                         pass
                             
                             driver_pje.switch_to.window(aba_lista_pje)
-                    except:
+                    except Exception:  # cleanup, continua
                         pass
-                    
+
                     resultados['erro'] += 1
                     continue
             
@@ -357,10 +357,10 @@ def _processar_grupo(
                                     try:
                                         driver_pje.switch_to.window(handle)
                                         driver_pje.close()
-                                    except:
+                                    except Exception:  # item individual, continua
                                         pass
                             driver_pje.switch_to.window(aba_lista_pje)
-                    except:
+                    except Exception:  # cleanup, continua
                         pass
                     resultados['erro'] += 1
                     continue
@@ -373,7 +373,7 @@ def _processar_grupo(
                         logger.error(f"[SISBAJUD_LOTE] Driver SISBAJUD inválido após criação for {numero_processo}: {ok_sisb}")
                         try:
                             driver_sisbajud.quit()
-                        except:
+                        except Exception:  # cleanup, ignora falha ao fechar driver
                             pass
                         resultados['erro'] += 1
                         continue
@@ -383,7 +383,7 @@ def _processar_grupo(
                 
             try:
                 driver_sisbajud.get(URL_MINUTA)
-                time.sleep(1)
+                aguardar_renderizacao_nativa(driver_sisbajud, timeout=1)
             except Exception as e_get:
                 logger.error(f"[SISBAJUD_LOTE] Falha ao navegar para {URL_MINUTA}: {e_get}")
                 # Se navegar ao SISBAJUD falhar, tentar recuperar foco no PJE e continuar
@@ -422,7 +422,7 @@ def _processar_grupo(
                             try:
                                 driver_pje.switch_to.window(handle)
                                 driver_pje.close()
-                            except:
+                            except Exception:  # item individual, continua
                                 pass
                     
                     # Garantir que estamos na lista
@@ -432,7 +432,7 @@ def _processar_grupo(
                     logger.error(f"   Erro ao fechar abas: {e}")
                 try:
                     driver_pje.switch_to.window(aba_lista_pje)
-                except:
+                except Exception:  # cleanup, continua
                     pass
             
             # Avaliar resultado
@@ -451,7 +451,7 @@ def _processar_grupo(
                             try:
                                 driver_pje.switch_to.window(handle)
                                 driver_pje.close()
-                            except:
+                            except Exception:  # item individual, continua
                                 pass
                     
                 fn_marcar_executado(numero_processo, progresso)
@@ -469,7 +469,7 @@ def _processar_grupo(
             resultados['erro'] += 1
             try:
                 driver_pje.switch_to.window(aba_lista_pje)
-            except:
+            except Exception:  # cleanup, continua
                 pass
-    
+
     return driver_sisbajud, resultados

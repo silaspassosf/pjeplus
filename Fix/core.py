@@ -2331,50 +2331,38 @@ def exibir_configuracao_ativa():
 def aplicar_filtro_100(driver):
     """
     Aplica filtro para exibir 100 itens por página no painel global.
-    OTIMIZADO: Usa selecionar_opcao() + com_retry() - 1 requisição vs 8-12 anteriores.
+    Usa safe_click_no_scroll (JS direto, sem scrollIntoView) + aguardar_renderizacao_nativa.
     """
     from selenium.webdriver.common.by import By
-    import time
-    
-    try:
-        # Zoom out para facilitar cliques
-        driver.execute_script("document.body.style.zoom='50%'")
-        time.sleep(0.3)
-        
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
 
-        # Função interna para selecionar com múltiplos seletores
-        def _selecionar():
-            try:
-                from selenium.webdriver.common.by import By
-                span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
-                mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
-                mat_select.click()
-                from selenium.webdriver.support.ui import WebDriverWait
-                from selenium.webdriver.support import expected_conditions as EC
-                overlay = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
-                )
-                opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
-                opcao_100.click()
-                time.sleep(1)
-                logger.debug('[FILTRO_LISTA_100] Clique na opcao 100 confirmado.')
-                return True
-            except Exception as e:
-                logger.warning('[FILTRO_LISTA_100] Falha ao clicar em 100: %s', e)
-                return False
+    def _selecionar():
+        try:
+            span_20 = driver.find_element(By.XPATH, "//span[contains(@class,'mat-select-min-line') and normalize-space(text())='20']")
+            mat_select = span_20.find_element(By.XPATH, "ancestor::mat-select[@role='combobox']")
+            safe_click_no_scroll(driver, mat_select)
+            aguardar_renderizacao_nativa(driver)
+            overlay = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
+            )
+            opcao_100 = overlay.find_element(By.XPATH, ".//mat-option[.//span[normalize-space(text())='100']]")
+            safe_click_no_scroll(driver, opcao_100)
+            aguardar_renderizacao_nativa(driver)
+            logger.debug('[FILTRO_LISTA_100] Clique na opcao 100 confirmado.')
+            return True
+        except Exception as e:
+            logger.warning('[FILTRO_LISTA_100] Falha ao clicar em 100: %s', e)
+            return False
 
-        resultado = com_retry(_selecionar, max_tentativas=3, backoff_base=1.5, log=True)
+    resultado = com_retry(_selecionar, max_tentativas=3, backoff_base=1.5, log=True)
 
-        if resultado:
-            logger.info('Filtro lista 100 aplicado')
-        else:
-            logger.error('Filtro lista 100 falhou apos todas tentativas')
+    if resultado:
+        logger.info('Filtro lista 100 aplicado')
+    else:
+        logger.error('Filtro lista 100 falhou apos todas tentativas')
 
-        return resultado
-
-    except Exception as e:
-        logger.error('[FILTRO_LISTA_100] Falha geral: %s', e)
-        return False
+    return resultado
 
 
 def filtro_fase(driver):
@@ -2451,145 +2439,109 @@ def _aguardar_loader_painel(driver, timeout=10):
 
 
 def filtrofases(driver, fases_alvo=['liquidacao', 'execucao'], tarefas_alvo=None, seletor_tarefa='Tarefa do processo'):
-    logger.info('Filtrando fase processual: %s...', ', '.join(fases_alvo).title())
+    """
+    Aplica filtros de fase processual e tarefa no painel global.
+    Usa mesma logica JS do filtro_fase: clica no botao de filtrar apenas UMA vez ao final.
+    """
+    from selenium.webdriver.common.keys import Keys
+    import time
+
+    # Normalizar nomes das fases (primeira letra maiuscula)
+    fases = [f.strip().capitalize() for f in fases_alvo]
+
+    logger.info('[filtrofases] Filtrando fase processual: %s...', ', '.join(fases))
+
+    # ── 1. Filtro de fase processual ──
     try:
-        fase_element = None
-        try:
-            fase_element = driver.find_element(By.XPATH, "//span[contains(text(), 'Fase processual')]")
-        except Exception as e:
-            logger.debug("filtrofases: primeira busca de fase processual falhou: %s", e)
-            try:
-                seletor_fase = 'span.ng-tns-c82-22.ng-star-inserted'
-                for elem in driver.find_elements(By.CSS_SELECTOR, seletor_fase):
-                    if 'Fase processual' in elem.text:
-                        fase_element = elem
-                        break
-            except Exception:
-                logger.error('[filtrofases] Nao encontrou o seletor de fase processual.')
-                return False
-        if not fase_element:
-            logger.error('[filtrofases] Nao encontrou o seletor de fase processual.')
+        seletor = 'mat-select[formcontrolname="fpglobal_faseProcessual"], mat-select[placeholder*="Fase processual"]'
+        if not aguardar_e_clicar(driver, seletor, timeout=5, usar_js=True):
+            logger.error('[filtrofases] Dropdown de fase nao encontrado.')
             return False
-        driver.execute_script("arguments[0].click();", fase_element)
-        time.sleep(1)
-        painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-        painel = None
-        for _ in range(10):
-            try:
-                painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
-                if painel.is_displayed():
-                    break
-            except Exception as e:
-                logger.debug("filtrofases: painel de fase nao encontrado: %s", e)
-                time.sleep(0.3)
-        if not painel or not painel.is_displayed():
-            logger.error('[filtrofases] Painel de opcoes nao apareceu.')
-            return False
-        opcoes = []
-        for _ in range(20):
-            opcoes = painel.find_elements(By.XPATH, ".//mat-option")
-            textos = [o.text.strip().lower() for o in opcoes if o.text.strip()]
-            if any(fase in texto for fase in fases_alvo for texto in textos):
-                break
-            if textos and not any(t in ['nenhuma opcao', 'carregando itens...'] for t in textos):
-                break
-            time.sleep(0.3)
-        fases_clicadas = set()
-        for fase in fases_alvo:
-            for opcao in opcoes:
-                try:
-                    texto = opcao.text.strip().lower()
-                    if fase in texto and opcao.is_displayed():
-                        driver.execute_script("arguments[0].click();", opcao)
-                        fases_clicadas.add(fase)
-                        logger.debug('[filtrofases] Fase "%s" selecionada.', fase)
-                        time.sleep(0.5)
-                        break
-                except Exception as e:
-                    logger.debug("filtrofases: erro ao processar opcao de fase: %s", e)
-                    continue
-        if len(fases_clicadas) == 0:
+        aguardar_renderizacao_nativa(driver)
+        script_fases = """
+        var fases = arguments[0];
+        var sucesso = 0;
+        for (var i = 0; i < fases.length; i++) {
+            var opcoes = document.querySelectorAll('mat-option span.mat-option-text');
+            for (var j = 0; j < opcoes.length; j++) {
+                if (opcoes[j].textContent.trim() === fases[i]) {
+                    opcoes[j].parentElement.click();
+                    sucesso++;
+                    break;
+                }
+            }
+        }
+        return sucesso;
+        """
+        selecionadas = driver.execute_script(script_fases, fases)
+        if selecionadas < 1:
             logger.error('[filtrofases] Nao encontrou opcoes %s no painel.', fases_alvo)
             return False
-        try:
-            botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-            driver.execute_script('arguments[0].click();', botao_filtrar)
-            logger.debug('[filtrofases] Fases selecionadas e filtro aplicado.')
-            time.sleep(1)
-            _aguardar_loader_painel(driver)
-        except Exception as e:
-            logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar: %s', e)
-        if tarefas_alvo:
-            logger.info('Filtrando tarefa: %s...', ', '.join(tarefas_alvo).title())
-            tarefa_element = None
-            try:
-                tarefa_element = driver.find_element(By.XPATH, "//span[contains(text(), '%s')]" % seletor_tarefa)
-            except Exception as e:
-                logger.debug("filtrofases: primeira busca de tarefa falhou: %s", e)
-                try:
-                    seletor = 'span.ng-tns-c82-22.ng-star-inserted'
-                    for elem in driver.find_elements(By.CSS_SELECTOR, seletor):
-                        if seletor_tarefa in elem.text:
-                            tarefa_element = elem
-                            break
-                except Exception:
-                    logger.error('[filtrofases] Nao encontrou o seletor de tarefa: %s.', seletor_tarefa)
-                    return False
-            if not tarefa_element:
-                logger.error('[filtrofases] Nao encontrou o seletor de tarefa: %s.', seletor_tarefa)
-                return False
-            driver.execute_script("arguments[0].click();", tarefa_element)
-            time.sleep(1)
-            painel = None
-            painel_selector = '.mat-select-panel-wrap.ng-trigger-transformPanelWrap'
-            for _ in range(10):
-                try:
-                    painel = driver.find_element(By.CSS_SELECTOR, painel_selector)
-                    if painel.is_displayed():
-                        break
-                except Exception as e:
-                    logger.debug("filtrofases: painel de tarefa nao encontrado: %s", e)
-                    time.sleep(0.3)
-            if not painel or not painel.is_displayed():
-                logger.error('[filtrofases] Painel de opcoes de tarefa nao apareceu.')
-                return False
-            opcoes = []
-            for _ in range(20):
-                opcoes = painel.find_elements(By.XPATH, ".//mat-option")
-                textos = [o.text.strip().lower() for o in opcoes if o.text.strip()]
-                if any(tarefa.lower() in texto for tarefa in tarefas_alvo for texto in textos):
-                    break
-                if textos and not any(t in ['nenhuma opcao', 'carregando itens...'] for t in textos):
-                    break
-                time.sleep(0.3)
-            tarefas_clicadas = set()
-            for tarefa in tarefas_alvo:
-                for opcao in opcoes:
-                    try:
-                        texto = opcao.text.strip().lower()
-                        if tarefa.lower() in texto and opcao.is_displayed():
-                            driver.execute_script("arguments[0].click();", opcao)
-                            tarefas_clicadas.add(tarefa)
-                            logger.debug('[filtrofases] Tarefa "%s" selecionada.', tarefa)
-                            time.sleep(0.5)
-                            break
-                    except Exception as e:
-                        logger.debug("filtrofases: erro ao processar opcao de tarefa: %s", e)
-                        continue
-            if len(tarefas_clicadas) == 0:
-                logger.error('[filtrofases] Nao encontrou opcoes %s no painel de tarefas.', tarefas_alvo)
-                return False
-            try:
-                botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
-                driver.execute_script('arguments[0].click();', botao_filtrar)
-                logger.debug('[filtrofases] Tarefas selecionadas e filtro aplicado.')
-                time.sleep(1)
-                _aguardar_loader_painel(driver)
-            except Exception as e:
-                logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar para tarefas: %s', e)
+        logger.debug('[filtrofases] %d/%d fases selecionadas.', selecionadas, len(fases))
+        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+        aguardar_renderizacao_nativa(driver)
     except Exception as e:
         logger.error('[filtrofases] Erro no filtro de fase: %s', e)
         return False
+
+    # ── 2. Filtro de tarefa (opcional) ──
+    if tarefas_alvo:
+        logger.info('[filtrofases] Filtrando tarefa: %s...', ', '.join(tarefas_alvo).title())
+        try:
+            # Buscar o label/span da tarefa usando seletor mais robusto
+            tarefa_element = None
+            for seletor_tarefa_css in [
+                f"//span[contains(text(), '{seletor_tarefa}')]",
+                "//mat-label[contains(text(), 'Tarefa')]",
+                "//label[contains(text(), 'Tarefa')]",
+            ]:
+                try:
+                    tarefa_element = driver.find_element(By.XPATH, seletor_tarefa_css)
+                    if tarefa_element and tarefa_element.is_displayed():
+                        break
+                except Exception:
+                    continue
+            if not tarefa_element:
+                logger.warning('[filtrofases] Seletor de tarefa "%s" nao encontrado — pulando filtro de tarefa.', seletor_tarefa)
+            else:
+                safe_click_no_scroll(driver, tarefa_element)
+                aguardar_renderizacao_nativa(driver)
+                script_tarefas = """
+                var tarefas = arguments[0];
+                var sucesso = 0;
+                for (var i = 0; i < tarefas.length; i++) {
+                    var opcoes = document.querySelectorAll('mat-option span.mat-option-text');
+                    for (var j = 0; j < opcoes.length; j++) {
+                        if (opcoes[j].textContent.trim().toLowerCase() === tarefas[i].toLowerCase()) {
+                            opcoes[j].parentElement.click();
+                            sucesso++;
+                            break;
+                        }
+                    }
+                }
+                return sucesso;
+                """
+                selecionadas = driver.execute_script(script_tarefas, tarefas_alvo)
+                if selecionadas < 1:
+                    logger.error('[filtrofases] Nao encontrou opcoes %s no painel de tarefas.', tarefas_alvo)
+                    return False
+                logger.debug('[filtrofases] %d/%d tarefas selecionadas.', selecionadas, len(tarefas_alvo))
+                driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
+                aguardar_renderizacao_nativa(driver)
+        except Exception as e:
+            logger.error('[filtrofases] Erro no filtro de tarefa: %s', e)
+            return False
+
+    # ── 3. Clicar no botao de filtrar uma unica vez ──
+    try:
+        botao_filtrar = driver.find_element(By.CSS_SELECTOR, 'i.fas.fa-filter')
+        safe_click_no_scroll(driver, botao_filtrar)
+        logger.debug('[filtrofases] Filtros aplicados.')
+        _aguardar_loader_painel(driver)
+    except Exception as e:
+        logger.warning('[filtrofases] Nao conseguiu clicar no botao de filtrar: %s', e)
+
+    logger.info('[filtrofases] Filtros aplicados com sucesso.')
     return True
 
 # Função para processar lista de processos

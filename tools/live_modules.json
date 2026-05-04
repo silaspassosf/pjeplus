@@ -62,7 +62,6 @@
   "Fix/utils_observer.py",
   "Fix/utils_paths.py",
   "Fix/utils_selectors.py",
-  "Fix/utils_sleep.py",
   "Fix/utils_tempo.py",
   "Fix/variaveis.py",
   "Fix/variaveis_client.py",

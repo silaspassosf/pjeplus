@@ -36,7 +36,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
     def log_msg(msg):
         if debug:
             try:
-                print(msg)
+                logger.debug(msg)
             except Exception:
                 pass
 
@@ -159,13 +159,16 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
 
         # Aguarda nova aba e troca para ela (preferir aba com '/detalhe')
         nova_aba = None
-        for _ in range(20):
+        try:
+            WebDriverWait(driver, 6).until(
+                lambda d: len(d.window_handles) > len(abas_antes)
+            )
             abas_depois = set(driver.window_handles)
             novas_abas = abas_depois - abas_antes
             if novas_abas:
                 nova_aba = novas_abas.pop()
-                break
-            time.sleep(0.3)
+        except Exception:
+            pass
 
         if nova_aba:
             # Ao abrir a tarefa, a nova aba é a que devemos usar (não procurar por '/detalhe').
@@ -178,7 +181,13 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
         try:
             wait_for_page_load(driver, 8)
         except Exception:
-            time.sleep(0.8)
+            # DOM-settle: aguardar documento pronto
+            try:
+                WebDriverWait(driver, 2).until(
+                    lambda d: d.execute_script('return document.readyState') == 'complete'
+                )
+            except Exception:
+                pass
 
         # Guard: só executar este movimento se a aba da tarefa indicar a página
         # de sobrestamento em estado 'aguardandofinal'. Caso contrário, tornar
@@ -254,7 +263,13 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             campo_prazo.clear()
             campo_prazo.send_keys(prazo_meses)
             log_msg(f" Prazo {prazo_meses} meses preenchido no campo")
-            time.sleep(0.5)
+            # DOM-settle: aguardar campo refletir valor
+            try:
+                WebDriverWait(driver, 2).until(
+                    lambda d: d.find_element(By.CSS_SELECTOR, "input[formcontrolname='mesesPrazoControl']").get_attribute('value') == prazo_meses
+                )
+            except Exception:
+                pass
         except Exception as e:
             log_msg(f' Erro ao preencher prazo no modal: {e}')
             return False
@@ -269,8 +284,7 @@ def mov_sob(driver, numero_processo, observacao, debug=False, timeout=15):
             except Exception:
                 driver.execute_script('arguments[0].click();', btn_prosseguir)
             log_msg(' Botão "Prosseguir" clicado')
-            time.sleep(1.5)  # Reduzido de 2.5 para 1.5
-            
+
             # AGUARDAR SUCESSO: Verificar snackbar de sucesso OU fechamento do modal
             sucesso_detectado = False
             

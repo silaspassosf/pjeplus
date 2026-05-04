@@ -60,7 +60,11 @@ def escolher_opcao_sisbajud(driver, seletor_input, valor, timeout=TIMEOUTS['elem
 
         input_element.clear()
         input_element.send_keys(valor)
-        time.sleep(1)
+
+        # Aguardar dropdown autocomplete renderizar
+        WebDriverWait(driver, 1).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, 'span.mat-option-text'))
+        )
 
         opcao_seletor = f'span.mat-option-text:contains("{valor}")'
         return aguardar_e_clicar(driver, opcao_seletor, 5)
@@ -156,7 +160,7 @@ def smart_wait(driver, condition, timeout=TIMEOUTS['elemento_padrao'], interval=
         try:
             if detectar_captcha(driver):
                 log_sisbajud("CAPTCHA detectado! Aguardando intervencao manual...", "WARNING")
-                time.sleep(30)
+                time.sleep(30)  # rate-limit — CAPTCHA, aguarda intervencao manual
                 continue
 
             result = condition()
@@ -166,6 +170,6 @@ def smart_wait(driver, condition, timeout=TIMEOUTS['elemento_padrao'], interval=
         except Exception as e:
             log_sisbajud(f"Erro durante smart_wait: {e}", "WARNING")
 
-        time.sleep(interval)
+        time.sleep(interval)  # rate-limit
 
     return None

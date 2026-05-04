@@ -125,6 +125,20 @@ from Prazo import (
 - Tratamento de interrupções
 - Logging detalhado
 
+## Superficies ATIVA vs LEGADO
+
+### Caminho ATIVO: loop_prazo (handler C do x.py)
+__init__.py → loop_base.py → loop_helpers.py → loop_api.py →
+loop_ciclo1.py → loop_ciclo1_filtros.py → loop_ciclo1_movimentacao.py →
+loop_ciclo2_processamento.py → loop_ciclo2_selecao.py → loop_ciclo3.py
+
+### Caminho ATIVO: P2B (handler D do x.py)
+fluxo_api.py → p2b_fluxo.py → p2b_api.py → p2b_fluxo_helpers.py →
+p2b_fluxo_documentos.py → p2b_fluxo_regras.py → p2b_core.py → criteria_matcher.py
+
+### Arquivos LEGADO (fora do caminho do x.py)
+p2b_prazo.py, p2b_fluxo_prescricao.py, p2b_fluxo_lazy.py, t3.py
+
 ## 🛠️ Desenvolvimento
 
 ### Adicionando Novas Regras

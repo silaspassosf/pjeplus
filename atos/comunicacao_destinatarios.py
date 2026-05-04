@@ -1,21 +1,13 @@
 from Fix.selenium_base.click_operations import safe_click_no_scroll
 from Fix.selenium_base.wait_operations import esperar_elemento, wait_for_clickable
-from Fix.utils_observer import aguardar_renderizacao_nativa
+from Fix.core import aguardar_renderizacao_nativa
 from Fix.headless_helpers import click_headless_safe
+from Fix.utils import normalizar_texto as normalizar_string
 import re
 import json
-import unicodedata
 import time
 from selenium.webdriver.common.by import By
 from Fix.log import log_seletor_multiplo, logger
-
-
-def normalizar_string(valor):
-    if not valor:
-        return ''
-    valor_norm = unicodedata.normalize('NFD', str(valor))
-    valor_norm = ''.join(ch for ch in valor_norm if unicodedata.category(ch) != 'Mn')
-    return valor_norm.lower()
 
 
 def _normalizar_nome_para_match(nome):
@@ -148,8 +140,12 @@ def _incluir_tribunal_por_cep(driver, log, debug=False):
         campo_cep.clear()
         for char in '01302906':
             campo_cep.send_keys(char)
-            time.sleep(0.1)
-        time.sleep(1)
+            time.sleep(0.1)  # rate-limit: simulacao de digitacao humana
+        # DOM-settle: aguardar resultado da busca de CEP
+        try:
+            aguardar_renderizacao_nativa(driver, '.mat-option-text', modo='aparecer', timeout=3)
+        except Exception:
+            pass
 
         opcao_tribunal = wait_for_clickable(
             driver,
@@ -168,7 +164,11 @@ def _incluir_tribunal_por_cep(driver, log, debug=False):
         btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
         if btn_fechar:
             safe_click_no_scroll(driver, btn_fechar, log=False)
-        time.sleep(0.5)
+        # DOM-settle: aguardar fechamento do dialog
+        try:
+            aguardar_renderizacao_nativa(driver, 'i.fa.fa-window-close.btn-fechar', modo='sumir', timeout=2)
+        except Exception:
+            pass
         return True
     except Exception as e:
         if debug:
@@ -208,7 +208,11 @@ def _selecionar_endereco_tribunal(driver, log, debug=False):
                     btn_fechar = wait_for_clickable(driver, 'i.fa.fa-window-close.btn-fechar', timeout=10, by=By.CSS_SELECTOR)
                     if btn_fechar:
                         safe_click_no_scroll(driver, btn_fechar, log=False)
-                    time.sleep(0.5)
+                    # DOM-settle: aguardar fechamento do dialog
+                    try:
+                        aguardar_renderizacao_nativa(driver, 'i.fa.fa-window-close.btn-fechar', modo='sumir', timeout=2)
+                    except Exception:
+                        pass
                     return True
             except Exception:
                 continue

@@ -20,7 +20,7 @@ from Fix.core import (
     com_retry,
 )
 from Fix.extracao import filtrofases
-from Fix.smart_finder import buscar
+from Fix.facade_publica import buscar
 
 from .loop_orquestrador import (
     GIGS_API_MAX_WORKERS,
@@ -128,7 +128,7 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
             except Exception:
                 pass
 
-            time.sleep(0.15)  # Sleep curto entre tentativas
+            time.sleep(0.15)  # Sleep curto entre tentativas (polling interval)  # TODO: classificar
 
         # Timeout da espera atingido - fazer avaliação final rápida
         t_lista = time.perf_counter() - t1
@@ -156,7 +156,7 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
         except Exception:
             pass
 
-        time.sleep(0.2)
+        time.sleep(0.2)  # TODO: classificar
         return True
     except Exception as e:
         logger.error(f'[CICLO1] Erro ao aplicar filtro de fases: {e}')
@@ -168,40 +168,62 @@ def _ciclo1_aplicar_filtro_fases(driver: WebDriver) -> Union[bool, str]:
 # ═══════════════════════════════════════════════
 
 def _ciclo1_marcar_todas(driver: WebDriver) -> str:
-    """Seleciona todos os processos via botão marcar-todas."""
+    """Seleciona todos os processos via botão marcar-todas.
+
+    Correção: clica no <button> pai (não no <i>) e valida checkboxes
+    apenas nas linhas da tabela (tr.cdk-drag) com baseline pré-clique.
+    Referência: legado atalhos_backup.js + idx.md (P4, P8).
+    """
     logger.info("[CICLO1/MARCAR_TODAS] Iniciando busca e clique")
+
+    # Baseline: contar checkboxes já marcados nas linhas da tabela (exclui filtros/menus)
+    baseline = driver.execute_script(
+        "return document.querySelectorAll('tr.cdk-drag mat-checkbox input[type=\"checkbox\"]:checked').length;"
+    ) or 0
+    total_linhas = driver.execute_script(
+        "return document.querySelectorAll('tr.cdk-drag').length;"
+    ) or 0
+    logger.info(f"[CICLO1/MARCAR_TODAS] Baseline: {baseline}/{total_linhas} checkbox(es) marcados nas linhas")
 
     def _tentar_marcar():
         logger.info("[CICLO1/MARCAR_TODAS] Aguardando botão marcar-todas...")
-        btn = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'marcar-todas')]") )
+        icone = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.XPATH, "//i[contains(@class, 'marcar-todas')]"))
         )
-        html = btn.get_attribute('outerHTML')
+        html = icone.get_attribute('outerHTML')
         logger.info(f"[CICLO1/MARCAR_TODAS] Botão encontrado: {html[:200]}")
-        logger.info("[CICLO1/MARCAR_TODAS] Executando clique via JS...")
+        # (legado) clicar no button pai que tem o event handler Angular, não no <i>
+        logger.info("[CICLO1/MARCAR_TODAS] Executando clique via JS no button pai...")
         try:
-            result = driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click(); return true;", btn)
+            result = driver.execute_script("""
+                var icone = arguments[0];
+                var btn = icone.closest('button, div[role="button"]') || icone;
+                btn.scrollIntoView({block: 'center'});
+                btn.click();
+                return true;
+            """, icone)
         except Exception:
             result = False
         if result:
             try:
                 aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
             except Exception:
-                time.sleep(1)
+                aguardar_renderizacao_nativa(driver, timeout=1)
         return result
 
     try:
         if com_retry(_tentar_marcar, max_tentativas=5, backoff_base=1.5, log=True):
-            # Validar checkboxes marcados
+            # Validar: contar apenas checkboxes nas linhas da tabela, comparado ao baseline
             marcados = driver.execute_script(
-                "return document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').length;"
-            )
-            logger.info(f"[CICLO1/MARCAR_TODAS] {marcados} checkbox(es) marcado(s)")
-            if int(marcados or 0) > 0:
+                "return document.querySelectorAll('tr.cdk-drag mat-checkbox input[type=\"checkbox\"]:checked').length;"
+            ) or 0
+            novos = marcados - baseline
+            logger.info(f"[CICLO1/MARCAR_TODAS] {novos} novo(s) checkbox(es) marcado(s) (total na tabela: {marcados}/{total_linhas})")
+            if novos > 0:
                 logger.info("[CICLO1/MARCAR_TODAS] Sucesso")
                 return "success"
             else:
-                logger.error("[CICLO1/MARCAR_TODAS] Nenhum checkbox marcado após clique")
+                logger.error("[CICLO1/MARCAR_TODAS] Nenhum checkbox novo marcado após clique")
                 return "marcar_todas_not_found_but_continue"
         else:
             logger.info("[LOOP_PRAZO] Todas as tentativas de marcar-todas falharam")
@@ -259,7 +281,7 @@ def _ciclo1_abrir_suitcase(driver: WebDriver) -> bool:
             try:
                 aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1)
             except Exception:
-                time.sleep(1)
+                aguardar_renderizacao_nativa(driver, timeout=1)
             return True
         else:
             logger.info("[LOOP_PRAZO] Todas as tentativas de abrir suitcase falharam")
@@ -299,7 +321,7 @@ def _ciclo1_aguardar_movimentacao_lote(driver: WebDriver) -> bool:
             logger.error("[CICLO1/LOTE] Algum processo do lote não possui a transição de destino — abortando")
             return False
 
-        time.sleep(0.5)
+        aguardar_renderizacao_nativa(driver, timeout=2)
         return True
     except Exception as e:
         logger.info(f"[LOOP_PRAZO][ERRO] URL de movimentacao-lote não carregou: {e}")
@@ -322,18 +344,17 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
             seta_dropdown = WebDriverWait(driver, 15).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "div.mat-select-arrow-wrapper"))
             )
-            time.sleep(1.5)                                                     # legado: dar tempo ao Angular
+            aguardar_renderizacao_nativa(driver, timeout=1.5)  # DOM-settle: Angular before JS click
             driver.execute_script("arguments[0].scrollIntoView(true);", seta_dropdown)
             driver.execute_script("document.body.style.zoom='100%'")           # legado: garantir zoom neutro
-            time.sleep(0.5)
+            aguardar_renderizacao_nativa(driver, timeout=0.5)  # DOM-settle: before click attempt
 
             # Até 3 cliques por tentativa, verificando se overlay apareceu
             for click_num in range(1, 4):
                 try:
                     driver.execute_script("arguments[0].click();", seta_dropdown)
                     logger.info(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Clique {click_num} executado")
-                    time.sleep(2.0)                                             # legado: espera generosa
-
+                    # WebDriverWait abaixo aguarda overlay aparecer — time.sleep substituído
                     overlay = WebDriverWait(driver, 5).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
                     )
@@ -344,14 +365,14 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
                         dropdown_aberto = True
                         break
                 except Exception:
-                    time.sleep(1.0)
+                    time.sleep(1.0)  # rate-limit
 
             if dropdown_aberto:
                 break
 
         except Exception as e:
             logger.warning(f"[CICLO1/PROVIDENCIAS_DROPDOWN] Erro tentativa {tent}: {e}")
-            time.sleep(1.0)
+            time.sleep(1.0)  # rate-limit
 
     if not dropdown_aberto:
         logger.error(f"[LOOP_PRAZO] Falha ao abrir dropdown de providências após {max_tent_abrir} tentativas")
@@ -382,33 +403,32 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
 
             if opcao_elemento:
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", opcao_elemento)
-                time.sleep(0.5)
+                aguardar_renderizacao_nativa(driver, timeout=0.5)  # DOM-settle: before option click
                 try:
                     opcao_elemento.click()
                 except Exception:
                     driver.execute_script("arguments[0].click();", opcao_elemento)
                 logger.info(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção selecionada na tentativa {tent}")
-                time.sleep(1.5)
+                aguardar_renderizacao_nativa(driver, timeout=1.5)  # DOM-settle: after option click
                 break
             else:
                 logger.warning(f"[CICLO1/PROVIDENCIAS_OPCAO] Opção não encontrada, reabrindo dropdown...")
                 if tent < max_tent_opcao:
                     try:
                         driver.execute_script("document.body.click();")
-                        time.sleep(0.5)
+                        aguardar_renderizacao_nativa(driver, timeout=0.5)  # DOM-settle: after close dropdown
                         seta = driver.find_element(By.CSS_SELECTOR, "div.mat-select-arrow-wrapper")
                         seta.click()
-                        time.sleep(1.5)
+                        aguardar_renderizacao_nativa(driver, timeout=1.5)  # DOM-settle: after re-open dropdown
                     except Exception:
                         pass
         except Exception as e:
             logger.error(f"[CICLO1/PROVIDENCIAS_OPCAO] Erro tentativa {tent}: {e}")
             if tent == max_tent_opcao:
                 return False
-            time.sleep(1.0)
+            time.sleep(1.0)  # rate-limit
 
     # ── Passo 3: clicar Movimentar ──
-    time.sleep(3.0)                                                             # legado: aguardar botão habilitar
     seletor_btn = "button.mat-raised-button[color='primary']"
     try:
         btn = WebDriverWait(driver, 10).until(
@@ -418,7 +438,7 @@ def _ciclo1_movimentar_destino_providencias(driver: WebDriver) -> bool:
         result = driver.execute_script("arguments[0].click(); return true;", btn)
         if result:
             logger.info("[LOOP_PRAZO] Botão 'Movimentar processos' clicado")
-            time.sleep(2.0)
+            aguardar_renderizacao_nativa(driver, timeout=2.0)  # DOM-settle: after Movimentar click
             return True
         logger.error("[LOOP_PRAZO] JS click no botão Movimentar retornou falso")
         return False
@@ -452,7 +472,7 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.2)
         except Exception:
-            time.sleep(1.2)
+            aguardar_renderizacao_nativa(driver, timeout=1.2)  # fallback: DOM ready
 
         overlay = WebDriverWait(driver, 6).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".cdk-overlay-pane"))
@@ -470,12 +490,12 @@ def _ciclo1_movimentar_destino(driver: WebDriver, opcao_destino: str) -> bool:
         try:
             aguardar_renderizacao_nativa(driver, '.cdk-overlay-pane', timeout=0.3)
         except Exception:
-            time.sleep(0.3)
+            aguardar_renderizacao_nativa(driver, timeout=0.3)  # fallback: DOM ready
         driver.execute_script("arguments[0].click();", opcao_elemento)
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=1.0)
         except Exception:
-            time.sleep(1.0)
+            aguardar_renderizacao_nativa(driver, timeout=1.0)  # fallback: DOM ready
 
         if not pausar_confirmacao('CICLO1/DESTINO_MOVIMENTAR', 'Clique no botão Movimentar'):
             return False
@@ -510,7 +530,7 @@ def _ciclo1_retornar_lista(driver: WebDriver) -> None:
         try:
             aguardar_renderizacao_nativa(driver, 'span.total-registros', timeout=2)
         except Exception:
-            time.sleep(2)
+            aguardar_renderizacao_nativa(driver, timeout=2)  # fallback: DOM ready
         # Garantir fechamento de modais se sobrarem
         driver.execute_script("document.querySelectorAll('.cdk-overlay-backdrop').forEach(e => e.click())")
     except Exception as e:
@@ -625,7 +645,7 @@ def _ciclo2_selecionar_nao_livres(driver: WebDriver, max_processos: int = 20) ->
         # Desselecionar todos primeiro — time.sleep(0.6) idêntico ao legado para Angular estabilizar
         # NOTA: WebDriverWait+len() era bugado (execute_script retorna int, len(int) → TypeError silenciado)
         driver.execute_script("document.querySelectorAll('mat-checkbox input[type=\"checkbox\"]:checked').forEach(c=>c.click());")
-        time.sleep(0.6)
+        aguardar_renderizacao_nativa(driver, timeout=0.6)  # DOM-settle: Angular stabilize after uncheck
 
         _t0 = time.perf_counter()
         resultado = driver.execute_script(SCRIPT_SELECAO_NAO_LIVRES, max_processos)

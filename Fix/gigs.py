@@ -1,5 +1,5 @@
-"""Fix.gigs - Re-exporte para Fix.extracao."""
+"""Shim de compatibilidade: re-exporta de Fix.facade_publica."""
 
-from .extracao import criar_gigs, criar_comentario
+from .facade_publica import criar_gigs, criar_comentario, criar_lembrete_posit
 
-__all__ = ['criar_gigs', 'criar_comentario']
+__all__ = ["criar_gigs", "criar_comentario", "criar_lembrete_posit"]

@@ -85,6 +85,7 @@ __all__ = [
     'mov',
     'ato_meios',
     'ato_reitmeios',
+    'ato_ratif',
     'ato_100',
     'ato_unap',
     'ato_crda',

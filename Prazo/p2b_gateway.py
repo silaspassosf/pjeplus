@@ -25,10 +25,10 @@ from .p2b_core import (
     carregar_progresso_p2b, marcar_processo_executado_p2b, normalizar_texto,
     parse_gigs_param, processo_ja_executado_p2b,
 )
-from .p2b_fluxo_documentos import _fechar_aba_processo
+from .p2b_documentos import _fechar_aba_processo
 from .p2b_fluxo_lazy import _lazy_import
 from .p2b_fluxo_prescricao import prescreve, analisar_timeline_prescreve_js_puro
-from .p2b_fluxo_regras import _definir_regras_processamento, _processar_regras_gerais
+from .p2b_documentos import _definir_regras_processamento, _processar_regras_gerais
 
 # Fallback para extrair_dados_processo
 try:
@@ -37,6 +37,8 @@ except Exception:
     extrair_dados_processo = None
 
 logger = logging.getLogger(__name__)
+
+from Fix.variaveis import url_processo_detalhe
 
 
 # ═══════════════════════════════════════════
@@ -51,7 +53,7 @@ def extrair_documento_relevante(driver: WebDriver) -> Dict[str, Any]:
 
     Retorna dict com chaves: sucesso, conteudo, tipo, titulo, id_documento, id_processo, erro
     """
-    from Fix.variaveis_client import session_from_driver
+    from api.variaveis_client import session_from_driver
 
     # 1) obter id_processo da URL
     m = re.search(r'/processo/(\d+)', driver.current_url)
@@ -509,7 +511,7 @@ def processar_gigs_sem_prazo_p2b(driver, tamanho_pagina: int = 100, max_processo
             pass
 
         id_processo = item['id']
-        detalhe_url = f'https://pje.trt2.jus.br/pjekz/processo/{id_processo}/detalhe/'
+        detalhe_url = url_processo_detalhe(id_processo)
         logger.info(f'[PRAZO_API] Abrindo processo id={id_processo} numero={item.get("numero")}')
         driver.get(detalhe_url)
         try:

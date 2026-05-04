@@ -1,220 +1,200 @@
-# 🧠 Manifesto de Arquitetura e Contexto - PJePlus (IDX)
+# PJePlus — Arquitetura e Contexto (IDX)
 
-## 🎯 1. Visão Geral e Objetivos do Projeto
-O **PJePlus** é um ecossistema avançado de automação em Python (Selenium) focado no Processo Judicial Eletrônico (PJe). 
-* **Navegador Alvo:** Exclusivamente **Mozilla Firefox**.
-* **Objetivo de Longo Prazo:** Migrar a execução principal (atualmente baseada no script `x.py` com interface gráfica) para execução 100% automatizada e **Headless** em nuvem (ex: GitHub Actions).
-* **Filosofia de Manutenção:** **NÃO FAZER REFATORAÇÕES GIGANTESCAS**. As mudanças devem ser cirúrgicas, focadas em escalabilidade, diminuição de erros (`TimeoutException`, *Race Conditions* do Angular) e aumento de eficiência térmica/rede.
+Atualizado: 2026-05-02 (pós-Xcode Phase 6)
 
----
+> **Nota de refatoração (xcode):** Ainda em fase de testes. Para consultar qualquer arquivo no estado anterior ao xcode, usar:
+> ```bash
+> git show 2ab0fca:<caminho/do/arquivo.py>
+> # Exemplo: git show 2ab0fca:Fix/core.py
+> ```
+> `2ab0fca` = "snapshot pre-erase baseline" (01/05/2026) — estado salvo imediatamente antes do xcode começar.
 
-## 📂 2. Topologia do Projeto (Onde a Mágica Acontece)
+## 1. Visao Geral
 
-### 🔥 CORE (O Coração da Automação)
-Qualquer alteração de alto impacto ocorrerá nestas pastas. Elas contêm as regras de negócio ativas:
-* `Fix/`: O motor utilitário. Contém as funções de login, criação do driver, injeções JS, gerenciamento de cache de seletores e manipulação de DOM. **Deve ser à prova de balas para rodar em Headless**.
-* `atos/`: Wrappers e orquestradores para movimentações e ações gerais no processo.
-* `Mandado/`, `PEC/`, `Prazo/`, `SISB/`: Módulos de negócio específicos.
-* `x.py` (e variações): O grande orquestrador final. É o script que deve ser preparado para rodar na nuvem.
+O **PJePlus** e um ecossistema de automacao em Python (Selenium + Firefox) focado no Processo Judicial Eletronico (PJe TRT2).
 
-### 📚 REFERÊNCIAS FRONT-END (Extensões)
-Pastas que contêm extensões de terceiros para o Firefox (`maispje/` e `AVJT/`). **Não são o alvo da automação Python**, mas são nossa biblioteca de "códigos geniais" para manipulação nativa via JS.
-
-### 🏛️ LEGADO FUNCIONAL (O Plano B)
-* `ref/` e `ORIGINAIS/`: Códigos antigos. Se uma otimização no CORE quebrar, a IA deve consultar estas pastas para engenharia reversa.
+- **Navegador:** Firefox (PC visivel ou headless)
+- **Meta:** Execucao 100% headless em nuvem (GitHub Actions)
+- **Entry points:** `x.py` (principal, ~630 linhas), `f.py` (variante)
+- **Filosofia:** Mudancas cirurgicas, sem mega-refatoracoes. Foco em eliminacao de `time.sleep`, reducao de erros de corrida Angular, e eficiencia termica/rede.
 
 ---
 
-## � 2b. Artefatos de Infraestrutura (Novos — reta3)
+## 2. Topologia do Projeto
 
-| Arquivo | Papel |
+### Core (Infraestrutura compartilhada)
+
+| Diretorio | Papel |
 |---|---|
-| `Fix/exceptions.py` | Hierarquia de exceções tipadas: `PJePlusError`, `DriverFatalError`, `ElementoNaoEncontradoError`, `TimeoutFluxoError`, `NavegacaoError`, `LoginError` |
-| `Fix/scripts/__init__.py` | Loader JS com cache em memória: `carregar_js(nome, pasta)` / `limpar_cache_js()` |
-| `Fix/drivers/lifecycle.py` | `driver_session(tipo, headless)` — context manager que cria e finaliza o driver automaticamente |
-| `Fix/sessionpool.py` | `SessionPool` — reutilização de driver/sessão entre módulos |
-| `Fix/progress.py` | `ProgressoUnificado` — progresso persistido em `status_execucao.json` |
-| `Fix/log.py` | `PJePlusLogger` + `getmodulelogger()` — logger centralizado (sem emoji no texto) |
-| `Fix/smartfinder.py` | `SmartFinder` — busca com cache e fallback heurístico; **usar** `buscar(driver, chave, candidatos)` como ponto único de entrada |
-| `Fix/headlesshelpers.py` | `click_headless_safe`, `wait_and_click_headless`, `limpar_overlays_headless` |
-| `atos/movimentos_fluxo.py` | `movimentar_inteligente(driver, destino)` — único ponto de entrada para movimentação por destino |
-| `Mandado/processamento_api.py` | `processar_mandados_devolvidos_api(driver)` — fluxo Mandado iniciado por API |
-| `Prazo/fluxo_api.py` | `processar_gigs_sem_prazo_p2b(driver)` — fluxo P2B iniciado por API GIGS |
-| `PEC/orquestrador.py` | `executar_fluxo_novo_simplificado(driver)` — fluxo PEC modular iniciado por API |
+| `Fix/` | Motor utilitario: login, driver, injecoes JS, cache de seletores, extracao, progresso, logs |
+| `core/` | Contratos e registries compartilhados: `RuleRegistry`, `ResultadoExecucao`, `adapt_action` |
+| `api/` | API Gateway Core: `PjeApiClient`, `variaveis_client`, `variaveis_helpers` |
+| `atos/` | Wrappers de movimentacao e acoes judiciais (20+ modulos) |
+| `utilitarios_processamento.py` | Flow Engine generico: `run_batch()`, `resultado_ok()`, `resultado_falha()`, `create_skip_checker()` |
 
-### Padrões obrigatórios (reta3 — já aplicados)
+### Modulos de Negocio
 
-| Código | Regra |
+| Diretorio | Fluxo | Entry point |
+|---|---|---|
+| `Mandado/` | Fluxos A, B — processamento de mandados (Argos + Outros) | `processamento_api.py` |
+| `Prazo/` | Fluxos C, D — prazos e P2B | `fluxo_api.py`, `p2b_fluxo.py` |
+| `PEC/` | Fluxo E — PEC (comunicacoes, sob, cartas, SISBAJUD) | `orquestrador.py`, `regras_pec.py` |
+| `Triagem/` | Fluxo F — Triagem Inicial de processos | `runner.py`, `regras.py` |
+| `Peticao/` | Fluxo G — Processamento de petições | `pet.py`, `regras.py`, `orquestrador.py` |
+| `SISB/` | Integracao SISBAJUD (bloqueios, minutas, ordens) | `core.py`, `s_orquestrador.py` |
+
+### Extensoes Firefox (referencia JS)
+
+| Diretorio | Descricao |
 |---|---|
-| P1 | Sem wrappers de uma linha em `Fix/core.py` — apenas re-exportações |
-| P2 | Máx 3 níveis de indentação; auxiliares privadas com `_` imediatamente acima |
-| P3 | Infraestrutura levanta exceção tipada de `Fix/exceptions.py`; nunca `return False` silencioso |
-| P4 | Sem `time.sleep()` — usar `aguardar_renderizacao_nativa` (Fix/utils/observer.py) |
-| P5 | JS longo → arquivo `.js` em `scripts/` do módulo; carregado via `carregar_js()` |
-| P6 | Retornos complexos → `@dataclass` (modelo: `SISB/standards.py`) |
-| P7 | Driver via `driver_session()` context manager em orquestradores novos |
-| P8 | Imports sempre no topo do módulo — nunca dentro de função |
+| `AVJT/` | Extensao principal: paineis, GIGS, calculos, captcha, correios |
+| `maispje/` | Extensao complementar: interface PJe avancada |
+
+### Ferramentas e Suporte
+
+| Diretorio | Descricao |
+|---|---|
+| `Agente/` | Extensao VSCode para PJePlus (TypeScript) |
+| `AHK/` | Scripts AutoHotKey (UX Windows) |
+| `scripts/` | Scripts auxiliares |
+| `tools/` | Ferramentas de diagnostico e analise |
+| `docs/` | Documentacao complementar |
+| `xcode/` | Plano de simplificacao (9 docs + README) — referencia da refatoracao |
+| `_archive/` | Codigo removido/legado organizado por data |
+| `ref/` | Referencia externa e manifests de arquitetura |
+| `cache/tessdata/` | Dados Tesseract OCR |
+| `logs_execucao/` | Logs de execucao |
+| `cookies_sessoes/` | Cookies de sessao persistentes |
 
 ---
 
-## �🛠️ 3. Diretrizes de Otimização e Código Limpo (A Bíblia do PJePlus)
+## 3. Phase 6 — Unified Rules-Action (2026-05-02)
 
-A IA que ler este documento deve respeitar as seguintes regras de ouro ao alterar qualquer arquivo do CORE:
+### Registry unificado de regras
 
-### A. O Padrão "Monitor Silencioso" e Cache Dinâmico de Seletores
-O código legado possuía funções engessadas tentando múltiplas listas de seletores (`try css1, try css2, try xpath...`), poluindo os logs e a CPU (conforme mapeado no antigo `monitor.py`). Isso está **terminantemente proibido** nas novas refatorações.
+`core/rule_registry.py` fornece o contrato padrao para todos os modulos:
 
-**Como implementar a busca de elementos agora:**
-1. **Limpeza do Código de Negócio:** Módulos nas pastas `atos/`, `PEC/`, etc., não devem mais conter listas de `try...except` para achar um botão. O código deve ser declarativo.
-2. **Uso do Cache (`Fix.utils_selectors`):** Toda busca de elementos mutáveis deve ser roteada por uma classe utilitária (ex: `SmartFinder` ou `Monitor`).
-3. **Execução Paralela e Silenciosa:** O `SmartFinder` deve consultar um arquivo `cache_seletores.json`. Se o seletor em cache funcionar, ele retorna o elemento. Se falhar, o utilitário fará a varredura na lista de fallback em silêncio, atualizará o `.json` em background com o novo seletor vencedor e retornará o elemento.
-4. **Logs Isolados:** Falhas de seletores e reajustes de cache **não devem aparecer no log principal** da automação. Eles devem ser direcionados para um arquivo de debug isolado (ex: `monitor_aprendizado.log`).
+```python
+from core.rule_registry import RuleRegistry, adapt_action
 
-### B. Injeção JS Nativa vs Waits do Selenium (Fim do Polling)
-O PJe é um SPA pesado em Angular. O uso de `time.sleep()` ou `WebDriverWait` em loops gera lentidão extrema e sobrecarrega a porta de rede do WebDriver.
-* Sempre que precisar aguardar uma tabela renderizar, um spinner `.loading-spinner` sumir ou uma animação acabar, utilize a função utilitária `aguardar_renderizacao_nativa` localizada no módulo `Fix` (que injeta um `MutationObserver` nativo no navegador).
+# Action = Callable[[Any, dict], Optional[dict]]
+registry = RuleRegistry("nome", ["bucket1", "bucket2", ...])
+registry.register(r'pattern', 'bucket1', acao_fn)
+bucket, action = registry.match(observacao)
+```
 
-### C. Sanitização de Logs para Nuvem
-* Remova logs de "tentativa 1", "buscando...", "scroll realizado".
-* Mantenha no fluxo principal apenas: **Mudança de Estado do Processo** (ex: "Minuta Salva"), **Sucessos** e **Falhas Críticas que abortaram a execução**. O terminal da nuvem precisa ser analítico, não verboso.
+### Status por modulo
 
-### D. Instrumentação de Tempo (Tempo de Execução)
-
-- **Local:** `Fix/core.py` — adicionados `tempo_execucao` (context manager) e `medir_tempo` (decorator).
-- **Ativação:** defina a variável de ambiente `PJEPLUS_TIME=1` (ou `true`) para habilitar logs de medição.
-- **Uso rápido:**
-	- Context manager:
-
-		```
-		from Fix.core import tempo_execucao
-		with tempo_execucao('minha_etapa'):
-				fazer_algo()
-		```
-
-	- Decorator:
-
-		```
-		from Fix.core import medir_tempo
-
-		@medir_tempo('fluxo_cls')
-		def fluxo_cls(...):
-				...
-		```
-
-- **Exemplos já instrumentados:** `atos/judicial_fluxo.py` (`fluxo_cls`) e `Prazo/p2b_fluxo_regras.py` (`_processar_regras_gerais`).
-- **Objetivo:** permitir medição rápida de latências e identificação de bursts de requisições sem modificar a lógica de negócio — útil para debugging e tuning em ambiente Headless.
-
-## ☁️ 4. Diretrizes para Cloud / Headless (Próximos Passos)
-
-Para garantir a futura conteinerização do `x.py` no GitHub Actions:
-1. **O Firefox será invisível (`-headless`):** Lógicas que dependem de ActionChains complexos, coordenadas absolutas de tela ou manipulação de janelas nativas do SO (Windows/Linux) **vão falhar**.
-2. **Downloads Silenciosos:** O profile do Firefox deve forçar downloads diretos via MIME types, ignorando caixas de diálogo nativas (`browser.helperApps.neverAsk.saveToDisk`).
-3. **Scroll Virtual:** Como a viewport virtual headless não possui rolagem física de usuário, antes de qualquer `.click()`, faça o elemento entrar em foco injetando: `driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", elemento)`.
-
-4. **PJEPLUS_TIME e CI**
-- Defina `PJEPLUS_TIME=1` em todos os workflows de CI (GitHub Actions, runner local) para ativar instrumentação de tempo automática.
-- Faça um job leve de sanity com `py -m py_compile Fix/log_cleaner.py Fix/__init__.py` e `py -m pytest -q tests/test_fix_log_cleaner.py`.
-- Capture métricas de tempo em log de build para análise de regressão de performance em cada merge.
-
-5. **Respostas de incidentes com Fix.log_cleaner**
-- Em caso de erro crítico (`TimeoutException`, `NoSuchElementException`) no ambiente de produção, execute:
-  ```py
-  from Fix.log_cleaner import resumir_excecao
-
-  try:
-      executar_fluxo_principal(driver, processo)
-  except Exception as e:
-      relatorio = resumir_excecao(e, contexto='fluxo_prod', max_frames=4)
-      logger.error('INCIDENTE PJEPLUS:\n%s', relatorio)
-      raise
-  ```
-- Para análise de logs locais antes de abrir sessão IA, filtre só linhas relevantes:
-  ```py
-  from Fix.log_cleaner import filtrar_log_arquivo
-
-  for linha in filtrar_log_arquivo('logs_execucao/run.log', nivel='ERROR', max_linhas=40):
-      print(linha)
-  ```
-- Para DOM copiado do DevTools, reduzir peso com:
-  ```py
-  from Fix.log_cleaner import extrair_seletor_dom
-  print(extrair_seletor_dom(html_bruto))
-  ```
-
-***
-**INSTRUÇÃO FINAL PARA A IA:** Ao iniciar a sessão, confirme a leitura do `IDX.md`, compreenda a topologia e aguarde a indicação do usuário sobre qual módulo (ou implantação do `SmartFinder` / Cache) será trabalhado hoje.
+| Modulo | Registry | Estado |
+|---|---|---|
+| `PEC/regras_pec.py` | `registry = RuleRegistry("pec", BUCKET_ORDEM)` | Concluido |
+| `Mandado/regras.py` | `registry_argos` — camada complementar sobre estrategias | Concluido |
+| `Triagem/regras.py` | `alerta_registry` — alertas pos-triagem | Concluido |
+| `Peticao/regras.py` | `peticao_registry` — buckets apagar/pericias/recurso/diretos/analise | Concluido |
+| `Prazo/p2b_fluxo_regras.py` | `prazo_registry` — 22 buckets de prioridade | Concluido |
 
 ---
 
-## 🖱️ 6. API de Interação Obrigatória (Fix) — Referência Rápida
+## 4. Diretrizes de Codigo (A Biblia do PJePlus)
 
-Antes de criar ou editar qualquer função que interaja com o navegador (clicar, esperar, encontrar elemento), consulte esta tabela. **Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `element.click()` direto nos módulos de negócio.**
+### A. Busca de Elementos — SmartFinder + Cache
+
+- Proibido `try css1, try css2, try xpath...` em modulos de negocio
+- Usar `SmartFinder` com consulta a cache de seletores
+- Falhas de seletor → log isolado (`monitor_aprendizado.log`), nunca no log principal
+
+### B. Waits — Fim do Polling
+
+- Proibido `time.sleep()` e `WebDriverWait` em loops
+- Usar `aguardar_renderizacao_nativa` (MutationObserver nativo)
+- Ver secao 6 para referencia rapida de API
+
+### C. Sanitizacao de Logs
+
+- Log principal: apenas mudancas de estado, sucessos, falhas criticas
+- Sem "tentativa 1", "buscando...", "scroll realizado"
+
+### D. Instrumentacao de Tempo
+
+- `Fix/core.py`: `tempo_execucao` (context manager), `medir_tempo` (decorator)
+- Ativar: `PJEPLUS_TIME=1`
+- Exemplos instrumentados: `atos/judicial_fluxo.py`, `Prazo/p2b_fluxo_regras.py`
+
+### E. Padroes Obrigatorios
+
+| ID | Regra |
+|---|---|
+| P1 | Sem wrappers de uma linha em `Fix/core.py` — apenas re-exportacoes |
+| P2 | Max 3 niveis de indentacao; auxiliares `_privadas` imediatamente acima |
+| P3 | Infra usa excecao tipada; nunca `return False` silencioso |
+| P4 | Sem `time.sleep()` — usar `aguardar_renderizacao_nativa` |
+| P5 | JS longo → arquivo `.js` em `scripts/` do modulo; carregar via `carregar_js()` |
+| P6 | Retornos complexos → `@dataclass` |
+| P7 | Driver via context manager em orquestradores novos |
+| P8 | Imports sempre no topo do modulo — nunca dentro de funcao |
+
+---
+
+## 5. Diretrizes para Cloud / Headless
+
+1. **Firefox invisivel (`-headless`):** ActionChains complexos e coordenadas absolutas falham
+2. **Downloads silenciosos:** MIME types no profile Firefox, sem dialogos nativos
+3. **Scroll virtual:** `scrollIntoView({block: 'center'})` antes de qualquer `.click()`
+4. **CI:** `PJEPLUS_TIME=1` em todos os workflows; sanity com `py_compile` e `test_imports.py`
+5. **Incidentes:** usar `Fix.log_cleaner` para filtrar excecoes e DOM bruto
+
+---
+
+## 6. API de Interacao Obrigatoria (Fix) — Referencia Rapida
+
+Proibido usar `WebDriverWait`, `ActionChains`, `time.sleep` ou `element.click()` direto nos modulos de negocio.
 
 ### 6.1 Clique
 
-| Situação | Função | Import |
+| Situacao | Funcao | Import |
 |---|---|---|
-| Caso geral (headless-safe, 3 estratégias) | `click_headless_safe(driver, seletor, by=By.CSS_SELECTOR, timeout=10)` | `from Fix.headless_helpers import click_headless_safe` |
-| Elemento já encontrado, sem scroll automático | `safe_click_no_scroll(driver, elemento)` | `from Fix.selenium_base.click_operations import safe_click_no_scroll` |
-
-```python
-# Clicar via seletor (caso comum):
-from Fix.headless_helpers import click_headless_safe
-from selenium.webdriver.common.by import By
-
-click_headless_safe(driver, 'button[name="btnSalvar"]')
-click_headless_safe(driver, '//mat-expansion-panel-header[...]', by=By.XPATH)
-```
+| Caso geral (headless-safe) | `click_headless_safe(driver, seletor, by=By.CSS_SELECTOR, timeout=10)` | `from Fix.headless_helpers import click_headless_safe` |
+| Elemento ja encontrado | `safe_click_no_scroll(driver, elemento)` | `from Fix.selenium_base.click_operations import safe_click_no_scroll` |
 
 ### 6.2 Esperar Elemento
 
-| Situação | Função | Import |
+| Situacao | Funcao | Import |
 |---|---|---|
-| Esperar presença (retorna elemento ou None) | `esperar_elemento(driver, seletor, timeout=10, by=By.CSS_SELECTOR)` | `from Fix.selenium_base.wait_operations import esperar_elemento` |
-| Esperar clicável (retorna elemento ou None) | `wait_for_clickable(driver, seletor, timeout=10, by=By.CSS_SELECTOR)` | `from Fix.selenium_base.wait_operations import wait_for_clickable` |
-| Aguardar renderização Angular/DOM | `aguardar_renderizacao_nativa(driver, seletor, modo='aparecer', timeout=5)` | `from Fix.utils_observer import aguardar_renderizacao_nativa` |
+| Esperar presenca | `esperar_elemento(driver, seletor, timeout=10, by=By.CSS_SELECTOR)` | `from Fix.selenium_base.wait_operations import esperar_elemento` |
+| Esperar clicavel | `wait_for_clickable(driver, seletor, timeout=10, by=By.CSS_SELECTOR)` | `from Fix.selenium_base.wait_operations import wait_for_clickable` |
+| Aguardar renderizacao Angular | `aguardar_renderizacao_nativa(driver, seletor, modo='aparecer', timeout=5)` | `from Fix.utils_observer import aguardar_renderizacao_nativa` |
 
-```python
-# Esperar presença antes de ler texto:
-from Fix.selenium_base.wait_operations import esperar_elemento
-el = esperar_elemento(driver, '.pec-titulo', timeout=10)
-if not el:
-    log('[MODULO][ERRO] Elemento não encontrado')
-    return
+### 6.3 Regras de Combinacao
 
-# Aguardar Angular terminar de renderizar tabela:
-from Fix.utils_observer import aguardar_renderizacao_nativa
-aguardar_renderizacao_nativa(driver, 'mat-row', modo='aparecer', timeout=8)
-```
+1. **Para clicar:** `click_headless_safe` com seletor — nao buscar separado
+2. **Para ler texto/atributo:** `esperar_elemento` → ler do elemento retornado
+3. **Para checar estado:** `esperar_elemento` → `.get_attribute()`
+4. **Para aguardar tabela/lista:** `aguardar_renderizacao_nativa` antes de `find_elements`
+5. **Nunca:** `WebDriverWait(driver, N).until(EC...)` em modulos de negocio
 
-### 6.3 Regras de Combinação
+---
 
-1. **Para clicar:** use sempre `click_headless_safe` com o seletor — não busque o elemento separado para depois clicar.
-2. **Para ler texto/atributo após clicar:** busque com `esperar_elemento` → leia do elemento retornado.
-3. **Para checar estado antes de agir** (ex: `aria-expanded`): use `esperar_elemento` → `elemento.get_attribute()`.
-4. **Para aguardar tabela/lista renderizar após ação:** use `aguardar_renderizacao_nativa` antes de `find_elements`.
-5. **Nunca:** `WebDriverWait(driver, N).until(EC.element_to_be_clickable(...))` nos módulos de negócio — isso é papel de `wait_for_clickable`.
+## 7. Registro de Bugs
 
-Registro de bugs críticos encontrados em produção com causa raiz e fix. Acrescentar cada novo bug aqui.
-
-| Data | ID | Módulo | Sintoma | Causa Raiz | Fix |
+| Data | ID | Modulo | Sintoma | Causa Raiz | Fix |
 |---|---|---|---|---|---|
-| 31/03/2026 | #001 | `Fix/navigation/filters.py` | `aplicar_filtro_100` retorna False silenciosamente; não loga nada | `com_retry` chamado com `log=True` mas implementação usa `log_enabled` → TypeError silencioso a cada tentativa | Trocar `log=True` → `log_enabled=True` na linha 244 |
+| 31/03/2026 | #001 | `Fix/navigation/filters.py` | `aplicar_filtro_100` retorna False silencioso | `com_retry` chamado com `log=True` mas implementacao usa `log_enabled` → TypeError silencioso | Trocar `log=True` → `log_enabled=True` |
 
 ### Regra derivada do Bug #001
 
-**`com_retry` — dois contextos de import:**
-
 ```python
-# VIA Fix.core (wrapper público — usar log=True):
+# VIA Fix.core (wrapper publico — usar log=True):
 from Fix.core import com_retry
-com_retry(func, max_tentativas=3, log=True)  # ✅ OK
+com_retry(func, max_tentativas=3, log=True)  # OK
 
-# VIA Fix.selenium_base.retry_logic (implementação direta — usar log_enabled=True):
+# VIA Fix.selenium_base.retry_logic (direto — usar log_enabled=True):
 from Fix.selenium_base.retry_logic import com_retry
-com_retry(func, max_tentativas=3, log_enabled=True)  # ✅ OK
-com_retry(func, max_tentativas=3, log=True)  # ❌ ERRO SILENCIOSO — não usar
+com_retry(func, max_tentativas=3, log_enabled=True)  # OK
+com_retry(func, max_tentativas=3, log=True)  # ERRO SILENCIOSO
 ```
 
-Preferir sempre o import via `Fix.core` para evitar incompatibilidades de parâmetro.
+Preferir sempre o import via `Fix.core`.
 
+---
+
+**INSTRUCAO FINAL PARA A IA:** Ao iniciar a sessao, confirme a leitura do `IDX.md`, compreenda a topologia e aguarde a indicacao do usuario sobre qual modulo sera trabalhado hoje.

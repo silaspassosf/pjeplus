@@ -1,10 +1,10 @@
-"""Thin shim: re-export ProgressoUnificado from the unified monitor module.
+"""Thin shim: re-export ProgressoUnificado do modulo de monitoramento unificado.
 
-This file exists to preserve legacy import locations (`from Fix.progresso_unificado
-import ProgressoUnificado`) while centralizing the implementation in
-`Fix.monitoramento_progresso_unificado`.
+Este arquivo preserva imports legados (``from Fix.progresso_unificado import
+ProgressoUnificado``) enquanto a implementacao fica centralizada em
+``Fix.monitoramento_progresso_unificado`` (via ``Fix.facade_publica``).
 """
 
-from Fix.monitoramento_progresso_unificado import ProgressoUnificado
+from .facade_publica import ProgressoUnificado
 
 __all__ = ["ProgressoUnificado"]

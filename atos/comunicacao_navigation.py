@@ -5,7 +5,8 @@ from Fix.log import getmodulelogger
 logger = getmodulelogger(__name__)
 
 from Fix.core import aguardar_renderizacao_nativa, esperar_url_conter
-from Fix.exceptions import NavegacaoError
+from Fix.errors import NavegacaoError
+from Fix.variaveis import url_processo_detalhe
 from .core import aguardar_e_verificar_aba, aguardar_e_clicar
 
 
@@ -28,7 +29,7 @@ def abrir_minutas(driver, debug=False):
             raise Exception('ID do processo não encontrado na URL /detalhe')
 
         processo_id = match.group(1)
-        url_minutas = f'https://pje.trt2.jus.br/pjekz/processo/{processo_id}/comunicacoesprocessuais/minutas'
+        url_minutas = url_processo_detalhe(processo_id, "comunicacoesprocessuais/minutas")
         if debug:
             logger.info(f'[URL] Abrindo URL de minutas: {url_minutas}')
 

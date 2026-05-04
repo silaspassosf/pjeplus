@@ -1,6 +1,6 @@
 """Compatibilidade para o namespace legado Fix.progress.monitoramento."""
 
-from Fix.monitoramento_progresso_unificado import (
+from ..facade_publica import (
     ProgressoUnificado,
     carregar_progresso_unificado,
     salvar_progresso_unificado,

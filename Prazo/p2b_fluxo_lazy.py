@@ -1,3 +1,4 @@
+# LEGADO — fora do caminho de execucao do x.py atual. Preservado como referencia.
 from typing import Dict
 
 # Cache de módulos carregados para evitar reimportações

@@ -1,4 +1,4 @@
-from Fix.exceptions import PJePlusError
+from Fix.errors import PJePlusError
 import logging
 logger = logging.getLogger(__name__)
 
@@ -86,20 +86,3 @@ def mov_prazo(driver, debug=False):
     return True
 
 
-# ====================================================
-# EXEMPLOS DE USO DA NOVA NAVEGAÇÃO INTELIGENTE
-# ====================================================
-
-def mov_para_analise(driver, debug=False):
-    """
-    Exemplo: Move o processo para "Análise" independente de onde estiver
-    Baseado na lógica da aaMovimentos da a.py
-    """
-    return navegar_para_tarefa(driver, "análise", debug=debug)
-
-
-def mov_para_comunicacoes(driver, debug=False):
-    """
-    Exemplo: Move o processo para "Comunicações e Expedientes"
-    """
-    return navegar_para_tarefa(driver, "comunicações e expedientes", debug=debug)

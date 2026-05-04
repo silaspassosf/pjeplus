@@ -27,7 +27,7 @@ def _obter_conteudo_relatorio_sisbajud(numero_processo: Optional[str] = None, de
             return None
 
     except Exception as e:
-        if debug: print(f'[SISB]  Erro: {e}')
+        if debug: logger.info(f'[SISB]  Erro: {e}')
         return None
 
 

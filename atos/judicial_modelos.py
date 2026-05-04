@@ -6,10 +6,7 @@ Funções para inserção e monitoramento de modelos, além de seleção
 de tipos de conclusão no editor de atos judiciais.
 """
 
-import time
-from Fix.selenium_base.click_operations import aguardar_e_clicar, safe_click_no_scroll
-from Fix.selenium_base.element_interaction import safe_click
-from Fix.selenium_base.wait_operations import esperar_url_conter
+from Fix.selenium_base import aguardar_e_clicar, safe_click_no_scroll, safe_click, esperar_url_conter
 from Fix.log import logger
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -23,26 +20,27 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 def esperar_insercao_modelo(driver: WebDriver, timeout: int = 8000) -> bool:
     """
-    Aguarda a inserção do modelo com timeout simples.
-    NOTA: Monitoramento complexo removido - usa apenas sleep.
+    Aguarda a inserção do modelo com timeout configurável.
+    Usa WebDriverWait para detectar conteudo no editor.
 
     Args:
         driver: WebDriver instance
         timeout: Timeout em ms para aguardar inserção (padrão: 8000ms)
 
     Returns:
-        bool: True (sempre retorna True após aguardar)
+        bool: True (sempre retorna True para não interromper fluxo)
     """
     try:
-        # Converte timeout de ms para segundos
         timeout_segundos = timeout / 1000.0
-        logger.info(f'[MODELO] Aguardando {timeout_segundos}s para inserção do modelo...')
-        time.sleep(timeout_segundos)
-        logger.info('[MODELO] Timeout de espera concluído')
-        return True
+        logger.info(f'[MODELO] Aguardando até {timeout_segundos}s para inserção do modelo...')
+        WebDriverWait(driver, timeout_segundos).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, '.ck-editor__editable[contenteditable="true"]')) > 0
+            and d.find_element(By.CSS_SELECTOR, '.ck-editor__editable[contenteditable="true"]').text.strip() != ''
+        )
+        logger.info('[MODELO] Modelo inserido no editor')
     except Exception as e:
-        logger.warning(f'[MODELO] Erro na espera: {e}')
-        return True  # Retorna True mesmo em caso de erro para não interromper fluxo
+        logger.warning(f'[MODELO] Timeout ou erro aguardando inserção do modelo: {e}')
+    return True
 
 
 
@@ -133,15 +131,26 @@ def escolher_tipo_conclusao(driver: WebDriver, conclusao_tipo: str) -> bool:
         logger.info(f'[CONCLUSÃO] Clicando em tipo de conclusão...')
         try:
             driver.execute_script('arguments[0].scrollIntoView({block: "center"});', btn_tipo_conclusao)
-            time.sleep(0.3)
+            # DOM-settle: aguardar estabilizacao do DOM apos scroll
+            try:
+                WebDriverWait(driver, 1).until(
+                    lambda d: d.execute_script('return document.readyState') == 'complete'
+                )
+            except Exception:
+                pass
             driver.execute_script('arguments[0].click();', btn_tipo_conclusao)
             logger.info(f'[CONCLUSÃO] Botão de conclusão "{conclusao_tipo}" clicado')
         except Exception as click_err:
             logger.error(f'[CONCLUSÃO] Erro ao clicar: {click_err}')
             return False
 
-        # Aguardar estabilização
-        time.sleep(1)
+        # UI-transition: aguardar estabilizacao do DOM apos clique
+        try:
+            WebDriverWait(driver, 3).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+        except Exception:
+            pass
         return True
 
     except Exception as e:

@@ -5,7 +5,6 @@
 
 import os
 import json
-import time
 import re
 import shutil
 from datetime import datetime
@@ -81,9 +80,9 @@ def _log_progresso(tipo_execucao: str, mensagem: str, numero_processo: Optional[
     prefixo = config.get('prefixo_log', '[PROGRESSO]')
 
     if numero_processo:
-        print(f"{prefixo}[{numero_processo}] {mensagem}")
+        logger.info(f"{prefixo}[{numero_processo}] {mensagem}")
     else:
-        print(f"{prefixo} {mensagem}")
+        logger.info(f"{prefixo} {mensagem}")
 
 def _validar_tipo_execucao(tipo_execucao: str) -> bool:
     """Valida se o tipo de execução é suportado"""
@@ -697,11 +696,11 @@ def exemplo_uso_monitoramento_unificado():
     pass
 
 if __name__ == "__main__":
-    print("Sistema de Monitoramento de Progresso Unificado")
-    print("=" * 60)
-    print("Arquivo único de progresso: progresso.json")
-    print("Estrutura: {p2b: {...}, m1: {...}, pec: {...}}")
-    print("Use as funções importadas em seus scripts p2b.py, m1.py e pec.py")
+    logger.info("Sistema de Monitoramento de Progresso Unificado")
+    logger.info("=" * 60)
+    logger.info("Arquivo único de progresso: progresso.json")
+    logger.info("Estrutura: {p2b: {...}, m1: {...}, pec: {...}}")
+    logger.info("Use as funções importadas em seus scripts p2b.py, m1.py e pec.py")
     
 
 # ===============================================

@@ -35,6 +35,9 @@ from .wrappers_ato import (
     ato_parcela,
 )
 
+# Registry de regras/acoes (contrato unificado)
+from .regras import registry
+
 
 def fluxo_cls(
     driver: WebDriver,

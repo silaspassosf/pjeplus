@@ -4,7 +4,7 @@ try:
     from driver_config import criar_driver_sisb
 except Exception:
     try:
-        from Fix.drivers.lifecycle import criar_driver_sisb_pc as criar_driver_sisb
+        from Fix.core import criar_driver_sisb_pc as criar_driver_sisb
     except Exception:
         criar_driver_sisb = None
 

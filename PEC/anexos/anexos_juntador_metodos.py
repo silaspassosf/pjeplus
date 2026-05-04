@@ -1,12 +1,11 @@
 """
-PEC.anexos.juntador.metodos - Métodos da classe Juntador.
+PEC.anexos.juntador.metodos - Metodos da classe Juntador.
 
 Parte da refatoracao do PEC/anexos/core.py para melhor granularidade IA.
-Contém os métodos específicos da classe Juntador (_escolher_opcao_gigs, etc.).
+Contem os metodos especificos da classe Juntador (_escolher_opcao_gigs, etc.).
 """
 
-import logging
-logger = logging.getLogger(__name__)
+from Fix.log import logger
 
 import os
 import re
@@ -35,7 +34,7 @@ from Fix.utils import (
     inserir_link_ato_validacao,
 )
 
-# Imports dos módulos refatorados
+# Imports dos modulos refatorados
 from .anexos_extracao import extrair_numero_processo_da_url
 from .anexos_formatacao import formatar_conteudo_ecarta
 
@@ -48,26 +47,29 @@ def _escolher_opcao_gigs(self, seletor: str, valor: str, nome_campo: str) -> boo
         # 1. Encontra o campo
         campo = driver.find_element(By.CSS_SELECTOR, seletor)
 
-        # 2. Clica no elemento pai para abrir dropdown (padrão GIGS)
+        # 2. Clica no elemento pai para abrir dropdown (padrao GIGS)
         parent_element = campo.find_element(By.XPATH, '../..')
         driver.execute_script("arguments[0].click();", parent_element)
-        time.sleep(1)
+        try:
+            WebDriverWait(self.driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+        except Exception:
+            pass
 
-        # 3. Aguarda opções aparecerem e clica na desejada
+        # 3. Aguarda opcoes aparecerem e clica na desejada
         wait = WebDriverWait(driver, 10)
         opcoes = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "mat-option[role='option']")))
 
         for opcao in opcoes:
             if valor.lower() in opcao.text.lower():
                 driver.execute_script("arguments[0].click();", opcao)
-                print(f'[JUNTADA][DEBUG] {nome_campo} selecionado: {valor}')
+                logger.debug('[JUNTADA] %s selecionado: %s', nome_campo, valor)
                 return True
 
-        print(f'[JUNTADA][ERRO] Opção "{valor}" não encontrada em {nome_campo}')
+        logger.error("ERRO em _escolher_opcao_gigs: Opcao \"%s\" nao encontrada em %s", valor, nome_campo)
         return False
 
     except Exception as e:
-        print(f'[JUNTADA][ERRO] Falha ao selecionar {nome_campo}: {e}')
+        logger.error("ERRO em _escolher_opcao_gigs: Falha ao selecionar %s: %s: %s", nome_campo, type(e).__name__, e)
         return False
 
 
@@ -84,10 +86,10 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
             const elemento = arguments[0];
             const valor = arguments[1];
 
-            // Focus no elemento (JavaScript, não WebElement)
+            // Focus no elemento (JavaScript, nao WebElement)
             elemento.focus();
 
-            // Define valor usando Object.getOwnPropertyDescriptor (padrão GIGS)
+            // Define valor usando Object.getOwnPropertyDescriptor (padrao GIGS)
             Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(elemento, valor);
 
             // Dispara eventos exatos do GIGS
@@ -101,7 +103,7 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
             triggerEvent(elemento, 'dateChange');
             triggerEvent(elemento, 'keyup');
 
-            // Simula Enter (padrão GIGS)
+            // Simula Enter (padrao GIGS)
             const enterEvent = new KeyboardEvent('keydown', {key: 'Enter', keyCode: 13, bubbles: true});
             elemento.dispatchEvent(enterEvent);
 
@@ -114,16 +116,16 @@ def _preencher_input_gigs(self, seletor: str, valor: str, nome_campo: str) -> bo
         return True
 
     except Exception as e:
-        logger.error(f'[JUNTADA][ERRO] Falha ao preencher {nome_campo}: {e}')
+        logger.error("ERRO em _preencher_input_gigs: Falha ao preencher %s: %s: %s", nome_campo, type(e).__name__, e)
         return False
 
 
 def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
-    """Implementa clicarBotao do gigs-plugin.js com múltiplas tentativas"""
+    """Implementa clicarBotao do gigs-plugin.js com multiplas tentativas"""
     try:
         driver = self.driver
 
-        # Lista de seletores alternativos para botão Salvar
+        # Lista de seletores alternativos para botao Salvar
         if 'Salvar' in nome_elemento:
             seletores = [
                 'button[aria-label="Salvar"]',
@@ -133,7 +135,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                 'button:contains("Salvar")',
                 '[aria-label="Salvar"]'
             ]
-        # Lista de seletores alternativos para botão Assinar
+        # Lista de seletores alternativos para botao Assinar
         elif 'Assinar' in nome_elemento:
             seletores = [
                 'button[aria-label="Assinar documento e juntar ao processo"]',
@@ -149,7 +151,7 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
 
         for i, sel in enumerate(seletores):
             try:
-                print(f'[JUNTADA][DEBUG] Tentando seletor {i + 1}: {sel}')
+                logger.debug('[JUNTADA] Tentando seletor %s: %s', i + 1, sel)
 
                 # Tenta encontrar o elemento
                 if ':contains(' in sel:
@@ -166,45 +168,48 @@ def _clicar_elemento_gigs(self, seletor: str, nome_elemento: str) -> bool:
                     elemento = elementos[0] if elementos else None
 
                 if elemento:
-                    print(f'[JUNTADA][DEBUG] Elemento encontrado com seletor {i + 1}: {sel}')
+                    logger.debug('[JUNTADA] Elemento encontrado com seletor %s: %s', i + 1, sel)
 
-                    # Múltiplas tentativas de clique
+                    # Multiplas tentativas de clique
                     for tentativa in range(3):
                         try:
                             # Scroll para o elemento
                             driver.execute_script("arguments[0].scrollIntoView(true);", elemento)
-                            time.sleep(0.5)
+                            try:
+                                WebDriverWait(driver, 1).until(lambda d: elemento.is_displayed() and elemento.is_enabled())
+                            except Exception:
+                                pass
 
-                            # Verifica se elemento é clicável
+                            # Verifica se elemento e clicavel
                             if elemento.is_enabled() and elemento.is_displayed():
                                 # Tenta clique JavaScript
                                 driver.execute_script("arguments[0].click();", elemento)
-                                print(f'[JUNTADA][DEBUG] ✅ Clique realizado: {nome_elemento} (seletor {i+1}, tentativa {tentativa + 1})')
+                                logger.debug('[JUNTADA] Clique realizado: %s (seletor %s, tentativa %s)', nome_elemento, i+1, tentativa + 1)
                                 return True
                             else:
-                                print(f'[JUNTADA][DEBUG] Elemento não clicável (enabled: {elemento.is_enabled()}, visible: {elemento.is_displayed()})')
+                                logger.debug('[JUNTADA] Elemento nao clicavel (enabled: %s, visible: %s)', elemento.is_enabled(), elemento.is_displayed())
 
                         except Exception as e:
-                            if tentativa < 2:  # Não é a última tentativa
-                                print(f'[JUNTADA][DEBUG] Tentativa {tentativa + 1} falhou para {nome_elemento}: {e}')
-                                time.sleep(1)
+                            if tentativa < 2:  # Nao e a ultima tentativa
+                                logger.debug('[JUNTADA] Tentativa %s falhou para %s: %s', tentativa + 1, nome_elemento, e)
+                                time.sleep(1)  # rate-limit
                             else:
-                                print(f'[JUNTADA][AVISO] Todas as tentativas falharam para {nome_elemento} com seletor {sel}: {e}')
+                                logger.warning('[JUNTADA] Todas as tentativas falharam para %s com seletor %s: %s', nome_elemento, sel, e)
                 else:
-                    print(f'[JUNTADA][DEBUG] Elemento não encontrado com seletor {i + 1}: {sel}')
+                    logger.debug('[JUNTADA] Elemento nao encontrado com seletor %s: %s', i + 1, sel)
 
             except Exception as e:
-                if i < len(seletores) - 1:  # Não é o último seletor
-                    print(f'[JUNTADA][DEBUG] Seletor {i + 1} "{sel}" falhou: {e}')
+                if i < len(seletores) - 1:  # Nao e o ultimo seletor
+                    logger.debug('[JUNTADA] Seletor %s "%s" falhou: %s', i + 1, sel, e)
                     continue
                 else:
-                    print(f'[JUNTADA][ERRO] Último seletor "{sel}" falhou: {e}')
+                    logger.error("ERRO em _clicar_elemento_gigs: Ultimo seletor \"%s\" falhou: %s: %s", sel, type(e).__name__, e)
 
-        print(f'[JUNTADA][ERRO] Todos os seletores falharam para {nome_elemento}')
+        logger.error("ERRO em _clicar_elemento_gigs: Todos os seletores falharam para %s", nome_elemento)
         return False
 
     except Exception as e:
-        print(f'[JUNTADA][ERRO] Falha geral ao clicar {nome_elemento}: {e}')
+        logger.error("ERRO em _clicar_elemento_gigs: Falha geral ao clicar %s: %s: %s", nome_elemento, type(e).__name__, e)
         return False
 
 
@@ -228,62 +233,68 @@ def _selecionar_modelo_gigs(self, modelo: str) -> bool:
         driver.execute_script('arguments[0].scrollIntoView({block:"center"});', nodo)
         driver.execute_script('arguments[0].click();', nodo)
 
-        # 3) Aguarda preview e localiza botão Inserir (seletor de atos.py)
+        # 3) Aguarda preview e localiza botao Inserir (seletor de atos.py)
         seletor_btn_inserir = 'pje-dialogo-visualizar-modelo > div > div.div-preview-botoes > div.div-botao-inserir > button'
         btn_inserir = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, seletor_btn_inserir)))
-        time.sleep(0.6)
+        try:
+            WebDriverWait(self.driver, 1).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+        except Exception:
+            pass
 
-        # 4) Inserir com tecla ESPAÇO (padrão MaisPje)
+        # 4) Inserir com tecla ESPACO (padrao MaisPje)
         btn_inserir.send_keys(Keys.SPACE)
 
-        # 5) Pequeno aguardo para o editor receber o conteúdo
-        time.sleep(2)
+        # 5) Pequeno aguardo para o editor receber o conteudo
+        try:
+            WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+        except Exception:
+            pass
         return True
     except Exception as e:
-        logger.error(f'[JUNTADA][ERRO] Falha ao selecionar/inserir modelo (modo atos.py): {e}')
+        logger.error("ERRO em _selecionar_modelo_gigs: Falha ao selecionar/inserir modelo (modo atos.py): %s: %s", type(e).__name__, e)
         return False
 
 
 def _executar_coleta_opcional(self, configuracao: Dict[str, Any]) -> bool:
-    """Executa coleta de conteúdo se configurada."""
+    """Executa coleta de conteudo se configurada."""
     coleta_conteudo = configuracao.get('coleta_conteudo')
     if not coleta_conteudo:
-        return True  # Não é erro não ter coleta
+        return True  # Nao e erro nao ter coleta
 
     numero_processo_atual = extrair_numero_processo_da_url(self.driver)
     if not numero_processo_atual:
-        print('[JUNTADA][COLETA][WARN] Número do processo não identificado')
-        return True  # Não falha por não conseguir extrair número
+        logger.warning('[JUNTADA][COLETA] Numero do processo nao identificado')
+        return True  # Nao falha por nao conseguir extrair numero
 
     try:
-        print(f'[JUNTADA][COLETA] Iniciando coleta: {coleta_conteudo} | processo: {numero_processo_atual}')
+        logger.debug('[JUNTADA][COLETA] Iniciando coleta: %s | processo: %s', coleta_conteudo, numero_processo_atual)
         executar_coleta_parametrizavel(self.driver, numero_processo_atual, coleta_conteudo, debug=True)
         return True
     except Exception as e:
-        print(f'[JUNTADA][COLETA][WARN] Falha ao executar coleta opcional: {e}')
-        return True  # Coleta opcional não deve falhar a juntada
+        logger.warning('[JUNTADA][COLETA] Falha ao executar coleta opcional: %s', e)
+        return True  # Coleta opcional nao deve falhar a juntada
 
 
 def _preencher_tipo(self, configuracao: Dict[str, Any]) -> bool:
     """Preenche Tipo de Documento."""
-    tipo = configuracao.get('tipo', 'Certidão')
+    tipo = configuracao.get('tipo', 'Certidao')
     return self._escolher_opcao_gigs('input[aria-label="Tipo de Documento"]', tipo, 'Tipo de Documento')
 
 
 def _preencher_descricao(self, configuracao: Dict[str, Any]) -> bool:
-    """Preenche Descrição."""
+    """Preenche Descricao."""
     descricao = configuracao.get('descricao', '')
     if not descricao:
-        return True  # Descrição opcional
-    return self._preencher_input_gigs('input[aria-label="Descrição"]', descricao, 'Descrição')
+        return True  # Descricao opcional
+    return self._preencher_input_gigs('input[aria-label="Descricao"]', descricao, 'Descricao')
 
 
 def _configurar_sigilo(self, configuracao: Dict[str, Any]) -> bool:
-    """Configura sigilo se necessário."""
+    """Configura sigilo se necessario."""
     sigilo = configuracao.get('sigilo', 'nao').lower()
     if 'sim' in sigilo:
         return self._clicar_elemento_gigs('input[name="sigiloso"]', 'Sigilo')
-    return True  # Não é erro não configurar sigilo
+    return True  # Nao e erro nao configurar sigilo
 
 
 def _selecionar_e_inserir_modelo(self, configuracao: Dict[str, Any]) -> bool:
@@ -295,7 +306,7 @@ def _selecionar_e_inserir_modelo(self, configuracao: Dict[str, Any]) -> bool:
 
 
 def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir_link: bool = False) -> bool:
-    """Insere conteúdo customizado ou substitui link."""
+    """Insere conteudo customizado ou substitui link."""
     try:
         inserir_conteudo = configuracao.get('inserir_conteudo')
         if inserir_conteudo:
@@ -305,9 +316,9 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
                     if inserir_conteudo.lower() in ('link_ato', 'link_ato_validacao'):
                         inserir_fn = inserir_link_ato_validacao
                 except Exception as _e:
-                    logger.warning(f"[JUNTADA][INSERIR][WARN] Não foi possível resolver função por string: {inserir_conteudo} -> {_e}")
+                    logger.warning('[JUNTADA][INSERIR] Nao foi possivel resolver funcao por string: %s -> %s', inserir_conteudo, _e)
 
-            # Número do processo: priorizar dadosatuais.json (número CNJ) em vez de ID da URL
+            # Numero do processo: priorizar dadosatuais.json (numero CNJ) em vez de ID da URL
             numero_processo_atual = None
             try:
                 import json
@@ -321,12 +332,12 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
                     elif isinstance(numero, str) and numero.strip():
                         numero_processo_atual = numero.strip()
             except Exception as e:
-                logger.error(f'[JUNTADA][INSERIR][WARN] Erro ao ler dadosatuais.json: {e}')
+                logger.error("ERRO em _inserir_conteudo_customizado: Erro ao ler dadosatuais.json: %s: %s", type(e).__name__, e)
 
-            # Fallback: extrair da URL se não conseguiu do JSON
+            # Fallback: extrair da URL se nao conseguiu do JSON
             if not numero_processo_atual:
                 numero_processo_atual = extrair_numero_processo_da_url(self.driver)
-                logger.warning(f'[JUNTADA][INSERIR][WARN] Usando ID da URL como fallback: {numero_processo_atual}')
+                logger.warning('[JUNTADA][INSERIR] Usando ID da URL como fallback: %s', numero_processo_atual)
 
             ok = False
             try:
@@ -338,47 +349,59 @@ def _inserir_conteudo_customizado(self, configuracao: Dict[str, Any], substituir
                     try:
                         ok = inserir_fn(self.driver)
                     except Exception as e3:
-                        logger.error(f"[JUNTADA][INSERIR][ERRO] Todas as tentativas de chamada falharam: {e3}")
+                        logger.error("ERRO em _inserir_conteudo_customizado: Todas as tentativas de chamada falharam: %s: %s", type(e3).__name__, e3)
                         return False
 
             return ok
 
         elif substituir_link:
-            # Compat: caminho antigo de substituição
-            time.sleep(3)
+            # Compat: caminho antigo de substituicao
+            try:
+                WebDriverWait(self.driver, 5).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            except Exception:
+                pass
             if not substituir_marcador_por_conteudo(self.driver, debug=True):
-                logger.error('[JUNTADA][ERRO] Falha na substituição do link!')
+                logger.error("ERRO em _inserir_conteudo_customizado: Falha na substituicao do link")
                 return False
-            time.sleep(2)
+            try:
+                WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            except Exception:
+                pass
             return True
 
-        return True  # Não é erro não ter conteúdo para inserir
+        return True  # Nao e erro nao ter conteudo para inserir
 
     except Exception as e:
-        logger.error(f"[JUNTADA][INSERIR][WARN] Erro durante inserção opcional: {e}")
+        logger.error("ERRO em _inserir_conteudo_customizado: Erro durante insercao opcional: %s: %s", type(e).__name__, e)
         return False
 
 
 def _salvar_documento(self) -> bool:
     """Salva documento com retry."""
-    print('[JUNTADA] Salvando documento final...')
+    logger.info('[JUNTADA] Salvando documento final...')
     if not self._clicar_elemento_gigs('button[aria-label="Salvar"]', 'Salvar documento'):
-        print('[JUNTADA][ERRO] Falha no salvamento principal!')
+        logger.error("ERRO em _salvar_documento: Falha no salvamento principal")
         return False
 
     # Aguardar processamento
-    print('[JUNTADA] Aguardando processamento do salvamento...')
-    time.sleep(2)
+    logger.info('[JUNTADA] Aguardando processamento do salvamento...')
+    try:
+        WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+    except Exception:
+        pass
 
     # Verificar se salvamento foi efetivo
     try:
         salvar_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[aria-label="Salvar"]')
         if salvar_btn.is_enabled():
-            print('[JUNTADA][WARN] Documento ainda não salvo, tentando novamente...')
+            logger.warning('[JUNTADA] Documento ainda nao salvo, tentando novamente...')
             self.driver.execute_script("arguments[0].click();", salvar_btn)
-            time.sleep(2)
-    except:
-        print('[JUNTADA][INFO] Botão Salvar não disponível - documento já salvo')
+            try:
+                WebDriverWait(self.driver, 3).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+            except Exception:
+                pass
+    except Exception:
+        logger.info('[JUNTADA] Botao Salvar nao disponivel - documento ja salvo')
 
     return True
 
@@ -386,6 +409,9 @@ def _salvar_documento(self) -> bool:
 def _assinar_se_necessario(self, configuracao: Dict[str, Any]) -> bool:
     """Assina documento se configurado."""
     if configuracao.get('assinar', 'nao').lower() == 'sim':
-        time.sleep(3)
+        try:
+            WebDriverWait(self.driver, 5).until(lambda d: d.execute_script('return document.readyState') == 'complete')
+        except Exception:
+            pass
         return self._clicar_elemento_gigs('button[aria-label="Assinar documento e juntar ao processo"]', 'Assinar')
-    return True  # Não é erro não assinar
+    return True  # Nao e erro nao assinar

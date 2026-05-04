@@ -11,11 +11,11 @@ from Fix.selenium_base.wait_operations import esperar_elemento, esperar_url_cont
 from Fix.selenium_base.retry_logic import buscar_seletor_robusto, com_retry
 from Fix.selenium_base.click_operations import aguardar_e_clicar
 from Fix.selenium_base import selecionar_opcao, preencher_campo
-from Fix.gigs import criar_gigs
-from Fix.navigation import aplicar_filtro_100
+from Fix.extracao import criar_gigs
+from Fix.core import aplicar_filtro_100, buscar_documentos_sequenciais
 from Fix.utils import limpar_temp_selenium
-from Fix.documents import buscar_documentos_sequenciais, indexar_e_processar_lista, extrair_dados_processo, carregar_destinatarios_cache
-from Fix.exceptions import ElementoNaoEncontradoError, NavegacaoError
+from Fix.extracao import indexar_e_processar_lista, extrair_dados_processo, carregar_destinatarios_cache
+from Fix.errors import ElementoNaoEncontradoError, NavegacaoError
 import os
 import logging
 import time
@@ -312,49 +312,3 @@ def verificar_carregamento_detalhe(
     raise NavegacaoError(f"verificar_carregamento_detalhe: falha após {max_tentativas} tentativas")
 
 
-def aguardar_e_verificar_detalhe(
-    driver: WebDriver,
-    timeout_aba: int = 10,
-    timeout_carregamento: float = 2.0,
-    max_tentativas_reload: int = 3,
-    log: bool = False
-) -> bool:
-    """
-    Aguarda uma nova aba /detalhe carregar e verifica se não está travada.
-    Útil para quando se abre um processo da lista e precisa garantir que a aba /detalhe carregou.
-    
-    Args:
-        driver: WebDriver do Selenium
-        timeout_aba: Timeout em segundos para aguardar a URL /detalhe aparecer
-        timeout_carregamento: Tempo em segundos para aguardar antes de verificar o botão de filtro
-        max_tentativas_reload: Número máximo de tentativas de reload se não encontrar o botão
-        log: Ativa logs detalhados
-    
-    Returns:
-        bool: True se a aba carregou corretamente, False caso contrário
-    """
-    try:
-        # Aguarda URL conter /detalhe
-        try:
-            WebDriverWait(driver, timeout_aba).until(
-                lambda d: '/detalhe' in (d.current_url or '').lower()
-            )
-        except TimeoutException:
-            current_url = driver.current_url or ''
-            if log:
-                logger.warning(f"[DETALHE_ABA]  Timeout aguardando /detalhe. URL atual: {current_url}")
-            # Se não for página de detalhe, não bloqueia
-            if '/detalhe' not in current_url.lower():
-                return True
-        
-        # Verifica se a página carregou (botão de filtro presente)
-        return verificar_carregamento_detalhe(
-            driver,
-            timeout_inicial=timeout_carregamento,
-            max_tentativas=max_tentativas_reload,
-            log=log
-        )
-        
-    except Exception as e:
-        logger.error(f"[DETALHE_ABA] Erro ao verificar aba: {e}")
-        raise NavegacaoError(f'aguardar_e_verificar_detalhe: {e}')

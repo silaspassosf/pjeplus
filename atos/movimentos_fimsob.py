@@ -33,7 +33,7 @@ def mov_fimsob(driver, debug=False, timeout=15):
     def log_msg(msg):
         if debug:
             try:
-                print(msg)
+                logger.debug(msg)
             except Exception:
                 pass
 
@@ -83,13 +83,10 @@ def mov_fimsob(driver, debug=False, timeout=15):
             
             # Aguarda nova aba e troca para ela
             nova_aba = None
-            for _ in range(20):
-                abas_depois = set(driver.window_handles)
-                novas_abas = abas_depois - abas_antes
-                if novas_abas:
-                    nova_aba = novas_abas.pop()
-                    break
-                time.sleep(0.3)
+            WebDriverWait(driver, 6).until(lambda d: len(d.window_handles) > len(abas_antes))
+            abas_depois = set(driver.window_handles)
+            novas_abas = abas_depois - abas_antes
+            nova_aba = novas_abas.pop() if novas_abas else None
             
             if nova_aba:
                 driver.switch_to.window(nova_aba)
@@ -124,7 +121,13 @@ def mov_fimsob(driver, debug=False, timeout=15):
             )
             btn_encerrar.click()
             log_msg(" Botão 'Encerrar sobrestamento' clicado")
-            time.sleep(1)  # Aguarda modal de confirmação
+            # UI-transition: aguardar modal de confirmacao
+            try:
+                WebDriverWait(driver, timeout).until(
+                    EC.visibility_of_element_located((By.XPATH, "//span[contains(text(),'Sim')]"))
+                )
+            except TimeoutException:
+                log_msg(" Modal de confirmacao nao apareceu apos encerrar sobrestamento")
         except Exception as e:
             log_msg(f" Erro ao clicar no botão 'Encerrar sobrestamento': {e}")
             
@@ -137,7 +140,13 @@ def mov_fimsob(driver, debug=False, timeout=15):
                 )
                 btn_encerrar.click()
                 log_msg(" Botão 'Encerrar sobrestamento' clicado (fallback)")
-                time.sleep(1)
+                # UI-transition: aguardar modal de confirmacao
+                try:
+                    WebDriverWait(driver, timeout).until(
+                        EC.visibility_of_element_located((By.XPATH, "//span[contains(text(),'Sim')]"))
+                    )
+                except TimeoutException:
+                    log_msg(" Modal de confirmacao nao apareceu apos encerrar sobrestamento")
             except Exception as e2:
                 log_msg(f" Erro no fallback: {e2}")
                 return False
@@ -155,7 +164,13 @@ def mov_fimsob(driver, debug=False, timeout=15):
             if 'Sim' in btn_sim.text:
                 btn_sim.click()
                 log_msg(" Botão 'Sim' clicado")
-                time.sleep(2)  # Aguarda processamento
+                # UI-transition: aguardar fechamento do modal apos confirmacao
+                try:
+                    WebDriverWait(driver, timeout).until(
+                        EC.invisibility_of_element(btn_sim)
+                    )
+                except Exception:
+                    pass
             else:
                 # Fallback por XPath
                 btn_sim = WebDriverWait(driver, timeout).until(
@@ -164,8 +179,14 @@ def mov_fimsob(driver, debug=False, timeout=15):
                 )
                 btn_sim.click()
                 log_msg(" Botão 'Sim' clicado (fallback)")
-                time.sleep(2)
-                
+                # UI-transition: aguardar fechamento do modal apos confirmacao
+                try:
+                    WebDriverWait(driver, timeout).until(
+                        EC.invisibility_of_element(btn_sim)
+                    )
+                except Exception:
+                    pass
+
         except Exception as e:
             log_msg(f" Erro ao confirmar com 'Sim': {e}")
             return False
@@ -175,10 +196,14 @@ def mov_fimsob(driver, debug=False, timeout=15):
             log_msg("4. Fechando aba e retornando para aba /detalhe...")
             try:
                 handle_atual = driver.current_window_handle
+                handles_before_close = len(driver.window_handles)
                 driver.close()  # Fecha aba atual
 
-                # Aguarda pequenas mudanças nas abas
-                time.sleep(0.8)
+                # DOM-settle: aguardar atualizacao dos handles apos fechar aba
+                try:
+                    WebDriverWait(driver, 3).until(lambda d: len(d.window_handles) < handles_before_close)
+                except Exception:
+                    pass
 
                 abas_restantes = driver.window_handles
                 if not abas_restantes:
@@ -201,7 +226,6 @@ def mov_fimsob(driver, debug=False, timeout=15):
                         log_msg(f" Trocou para aba /detalhe: {driver.current_url}")
                         try:
                             driver.refresh()
-                            time.sleep(1.2)
                             log_msg(" /detalhe atualizado (refresh) após fimsob")
                         except Exception as _:
                             log_msg(" Falha ao atualizar /detalhe (refresh) — continuando")
@@ -212,7 +236,6 @@ def mov_fimsob(driver, debug=False, timeout=15):
                             log_msg(f" Aba /detalhe não encontrada, trocando para primeira aba disponível: {driver.current_url}")
                             try:
                                 driver.refresh()
-                                time.sleep(1.2)
                                 log_msg(" Aba atual atualizada (refresh) após fimsob")
                             except Exception:
                                 log_msg(" Falha ao dar refresh na aba atual")

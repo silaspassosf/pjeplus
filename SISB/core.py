@@ -40,7 +40,7 @@ try:
     from driver_config import criar_driver_sisb
 except Exception:
     try:
-        from Fix.drivers.lifecycle import criar_driver_sisb_pc as criar_driver_sisb
+        from Fix.core import criar_driver_sisb_pc as criar_driver_sisb
     except Exception:
         criar_driver_sisb = None
 from . import helpers
@@ -721,12 +721,12 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                     # DEBUG: imprimir estado das janelas/abas do driver_pje antes da juntada (prints para garantir visibilidade)
                     try:
                         handles = list(driver_pje.window_handles)
-                        print(f'[SISBAJUD][DEBUG] driver_pje.handles: {handles}')
+                        logger.debug('driver_pje.handles: %s', handles)
                         try:
                             active = driver_pje.current_window_handle
                         except Exception:
                             active = None
-                        print(f'[SISBAJUD][DEBUG] driver_pje.active_handle: {active}')
+                        logger.debug('driver_pje.active_handle: %s', active)
                         for h in handles:
                             try:
                                 driver_pje.switch_to.window(h)
@@ -734,9 +734,9 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                                     url = driver_pje.current_url
                                 except Exception:
                                     url = '<unreadable>'
-                                print(f'[SISBAJUD][DEBUG] handle={h} url={url}')
+                                logger.debug('handle=%s url=%s', h, url)
                             except Exception as e:
-                                print(f'[SISBAJUD][DEBUG] handle={h} error reading url: {e}')
+                                logger.debug('handle=%s error reading url: %s', h, e)
                         # restore active
                         try:
                             if active:
@@ -744,7 +744,7 @@ def minuta_bloqueio(driver, dados_processo=None, driver_pje=None, log=True, fech
                         except Exception:
                             pass
                     except Exception as e:
-                        print(f'[SISBAJUD][DEBUG] Erro ao coletar handles do PJe: {e}')
+                        logger.debug('Erro ao coletar handles do PJe: %s', e)
                     # chamar consulta_wrapper com modelo correto
                     juntada_executada = consulta_wrapper(driver_pje, numero_processo, debug=log, modelo='xteim')
                     resultado['juntada_executada'] = bool(juntada_executada)
@@ -884,7 +884,7 @@ def processar_ordem_sisbajud(driver, dados_processo, driver_pje=None, log=True, 
                 logger.info('[SISBAJUD]  Processo inserido e ENTER pressionado')
 
             # Aguardar carregamento da série
-            from Fix.utils_sleep import aguardar_pagina_carregar
+            from Fix.utils import aguardar_pagina_carregar
             aguardar_pagina_carregar(driver, timeout=15)
 
             if log:

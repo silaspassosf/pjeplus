@@ -2,7 +2,7 @@ from typing import Optional, Any, Dict, List
 
 import re
 
-from Fix.variaveis_client import PjeApiClient
+from api.variaveis_client import PjeApiClient
 
 
 def obter_codigo_validacao_documento(client: PjeApiClient, id_processo: str, id_documento: str) -> Optional[str]:

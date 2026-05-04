@@ -21,43 +21,32 @@ logger = logging.getLogger(__name__)
 # ====================================================
 
 # 0. Importações Padrão
-import json
 import os
-import re
 import sys
 import time
-import unicodedata
 from datetime import datetime
-from typing import Optional, Dict, List, Union, Tuple, Callable, Any
+from typing import Dict, Any
+from Fix.tipos import ResultadoFluxo
 
 # Selenium
 from selenium.webdriver.remote.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import (
     TimeoutException,
-    NoSuchWindowException,
-    StaleElementReferenceException,
 )
 
 # Módulos Locais Fix
 from Fix.core import (
     aguardar_e_clicar,
 )
-from Fix.drivers import criar_driver_PC
 from Fix.extracao import (
     indexar_e_processar_lista,
     indexar_processos,
-    criar_lembrete_posit,
 )
 from Fix.utils import (
     navegar_para_tela,
-    configurar_recovery_driver,
-    handle_exception_with_recovery,
-    login_pc,
 )
 from Fix.abas import validar_conexao_driver
 from Fix.abas import forcar_fechamento_abas_extras
@@ -223,8 +212,8 @@ def navegacao(driver: WebDriver) -> bool:
                         filtro_encontrado = True
                         logger.info(f'[NAV][FILTRO]  Filtro encontrado: "{chip_text}"')
                         break
-                except:
-                    continue
+                except Exception:
+                    continue  # item individual, continua
 
             if filtro_encontrado:
                 logger.info('[NAV][FILTRO]  Filtro "Mandados devolvidos" confirmado com chip presente')
@@ -255,9 +244,6 @@ def navegacao(driver: WebDriver) -> bool:
         except Exception as filtro_error:
             logger.info(f'[NAV][FILTRO][ERRO] Erro na verificação: {filtro_error}')
             return False
-        else:
-            logger.info('[NAV] Falha ao clicar no ícone de mandados devolvidos')
-            return False
 
     except Exception as e:
         logger.info(f'[NAV][ERRO] Falha na navegação: {e}')
@@ -265,7 +251,7 @@ def navegacao(driver: WebDriver) -> bool:
 
 
 
-def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
+def iniciar_fluxo_robusto(driver: WebDriver) -> ResultadoFluxo:
     """Função que decide qual fluxo será aplicado com controle de sessão"""
     # Carrega progresso
     progresso = carregar_progresso()
@@ -427,63 +413,4 @@ def iniciar_fluxo_robusto(driver: WebDriver) -> Dict[str, Any]:
     return ResultadoExecucao(sucesso=success, processos=processed)
 
 # 3. Funções de Processamento
-
-# main() removido — fluxo standalone substituído por processar_mandados_devolvidos_api (processamento_api.py)
-def _main_legado(tipo_driver='PC', tipo_login='CPF', headless=False) -> None:
-    """Função principal que coordena todo o fluxo do programa com controle de sessão.
-    
-    Args:
-        tipo_driver: Tipo de driver ('PC', 'VT', etc.)
-        tipo_login: Tipo de login ('CPF', 'PC')
-        headless: Executar em modo headless
-    
-    1. Setup inicial usando credencial() unificada
-    2. Navegação para a lista de documentos internos
-    3. Execução do fluxo automatizado sobre a lista com recuperação de sessão
-    """
-    # Verifica argumentos da linha de comando para funções utilitárias
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--status":
-            progresso = carregar_progresso()
-            logger.info(f"[PROGRESSO][STATUS] {len(progresso)} processos executados")
-            logger.info(f"[PROGRESSO][STATUS] Sistema de progresso unificado ativo")
-            return
-    
-    # ===== SETUP UNIFICADO COM CREDENCIAL =====
-    logger.info(f"[M1] Iniciando com driver={tipo_driver}, login={tipo_login}, headless={headless}")
-    
-    from Fix.core import credencial
-    driver = credencial(
-        tipo_driver=tipo_driver,
-        tipo_login=tipo_login, 
-        headless=headless
-    )
-    
-    if not driver:
-        logger.info('[M1][ERRO] Falha ao criar driver com credencial()')
-        return
-        
-    logger.info('[M1]  Driver criado e login realizado via credencial()')
-    
-    # ===== CONFIGURAR RECOVERY GLOBAL =====
-    # Usar credencial() também no recovery
-    def recovery_credencial():
-        return credencial(tipo_driver=tipo_driver, tipo_login=tipo_login, headless=headless)
-    
-    configurar_recovery_driver(recovery_credencial, lambda d: True)  # Login já feito
-    logger.info("[M1]  Sistema de recuperação automática configurado")
-
-    # Navegação para a lista de documentos internos
-    if not navegacao(driver):
-        driver.quit()
-        return
-
-    # Processa a lista de documentos internos com controle de sessão
-    iniciar_fluxo_robusto(driver)
-
-    logger.info("[INFO] Processamento concluído. Pressione ENTER para encerrar...")
-    driver.quit()
-
-if __name__ == "__main__":
-    main()
 

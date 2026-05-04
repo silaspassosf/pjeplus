@@ -1,3 +1,6 @@
+# SATELITE: fora do caminho principal do x.py, mantido como legado
+# LEGADO — fora do caminho de execucao do x.py atual. Preservado como referencia.
+
 import logging
 import time
 

@@ -1451,3 +1451,17 @@ PROCESSO: 1000558-66.2021.5.02.0703
 Prazo: 8 dias (04/05/2026)
 ==================================================
 
+
+==================================================
+PROCESSO: 1001176-50.2017.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Relatório de séries executadas:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">- (Série 20050616) - Data da finalização: (13/04/2026) - Total bloqueado: (R$ 0,00)</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">- (Série 20050719) - Data da finalização: (10/04/2026) - Total bloqueado: (R$ 0,98)</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Considerando as regras sobre bloqueios irrisórios, as quantias localizadas foram <strong>DESBLOQUEADAS</strong>, ação que será efetivada em até 48h úteis.</p>
+==================================================
+
+
+==================================================
+PROCESSO: 1001176-50.2017.5.02.0703
+==================================================
+<p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;"><strong>Relatório de séries executadas:</strong></p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">- (Série 20050616) - Data da finalização: (13/04/2026) - Total bloqueado: (R$ 0,00)</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">- (Série 20050719) - Data da finalização: (10/04/2026) - Total bloqueado: (R$ 0,98)</p><p class="corpo" style="font-size:12pt;line-height:1.5;margin-left:0 !important;text-align:justify !important;text-indent:4.5cm;">Considerando as regras sobre bloqueios irrisórios, as quantias localizadas foram <strong>DESBLOQUEADAS</strong>, ação que será efetivada em até 48h úteis.</p>
+==================================================
+

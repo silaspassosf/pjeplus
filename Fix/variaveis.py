@@ -77,6 +77,24 @@ import requests
 import re
 import html as _html
 from urllib.parse import urlparse
+from Fix.log import logger
+
+
+# ── URL base do PJe TRT2 ───────────────────────────────────────────────────
+PJE_BASE_URL = "https://pje.trt2.jus.br"
+
+
+def url_processo_detalhe(id_processo, rota: str = "detalhe") -> str:
+    """Constrói URL canônica de acesso a um processo no PJe.
+
+    Args:
+        id_processo: ID numérico do processo (int ou str)
+        rota: segmento de rota após o ID (default: 'detalhe')
+
+    Returns:
+        str: URL completa, ex: 'https://pje.trt2.jus.br/pjekz/processo/12345/detalhe'
+    """
+    return f"{PJE_BASE_URL}/pjekz/processo/{id_processo}/{rota}"
 
 
 class PjeApiClient:
@@ -676,10 +694,10 @@ def obter_chave_ultimo_despacho_decisao_sentenca(client: PjeApiClient, id_proces
                             
                             # Se contém "Comunique-se por edital", pular este despacho
                             if 'comunique-se por edital' in conteudo or 'comunique se por edital' in conteudo:
-                                print(f'[VARIAVEIS] ⚠️ Despacho com "Comunique-se por edital" encontrado - pulando para próximo')
+                                logger.debug('[VARIAVEIS] Despacho com "Comunique-se por edital" encontrado - pulando para proximo')
                                 continue  # Pular para próximo documento
                     except Exception as e_check:
-                        print(f'[VARIAVEIS][WARN] Erro ao verificar conteúdo do despacho: {e_check} - prosseguindo')
+                        logger.warning('[VARIAVEIS][WARN] Erro ao verificar conteudo do despacho: %s - prosseguindo', e_check)
                 
                 # Documento válido: obter chave
                 chave = obter_codigo_validacao_documento(client, id_processo, doc_id)
@@ -863,7 +881,7 @@ def obter_todas_atividades_gigs_com_observacao(client: PjeApiClient, id_processo
 
 
 if __name__ == '__main__':
-    print('Módulo Fix.variaveis: importe e utilize PjeApiClient + resolver_variavel')
+    logger.debug('Modulo Fix.variaveis: importe e utilize PjeApiClient + resolver_variavel')
 
 
 # ============================================================================
@@ -1109,11 +1127,11 @@ def obter_domicilio_eletronico_parte(client: PjeApiClient, id_parte: str, verbos
     
     if verbose:
         if resultado is True:
-            print(f"✅ Parte {id_parte}: Domicílio Eletrônico SIM")
+            logger.debug("[VARIAVEIS] Parte %s: Domicilio Eletronico SIM", id_parte)
         elif resultado is False:
-            print(f"❌ Parte {id_parte}: Domicílio Eletrônico NÃO")
+            logger.debug("[VARIAVEIS] Parte %s: Domicilio Eletronico NAO", id_parte)
         else:
-            print(f"⚠️ Parte {id_parte}: Erro ao consultar domicílio")
+            logger.debug("[VARIAVEIS] Parte %s: Erro ao consultar domicilio", id_parte)
     
     return resultado
 

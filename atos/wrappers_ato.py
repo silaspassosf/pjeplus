@@ -2,7 +2,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 """
-Wrappers para atos judiciais - Instâncias da factory make_ato_wrapper
+Wrappers para atos judiciais - Instâncias da factory make_ato_wrapper.
+
+Contrato unificado: atos/regras.py registra todos os wrappers
+deste modulo no RuleRegistry (bucket 'ato_judicial').
 """
 
 from .judicial_fluxo import make_ato_wrapper

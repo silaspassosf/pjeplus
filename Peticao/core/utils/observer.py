@@ -1,3 +1,6 @@
+# LEGADO — codigo movido para Peticao/runtime_pet.py
+# Mantido in-situ para evitar circular import com extracao/extracao.py (congelado)
+
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.common.exceptions import TimeoutException
 from ..log import get_module_logger
@@ -10,7 +13,7 @@ def aguardar_renderizacao_nativa(driver: WebDriver, seletor: str, modo: str = "a
     Injeta um MutationObserver no browser e aguarda o DOM mudar.
 
     modo: 'aparecer' | 'sumir'
-    Retorna True se a condição for atingida dentro do timeout, False caso contrário.
+    Retorna True se a condicao for atingida dentro do timeout, False caso contrario.
     """
     logger.debug(f"[OBSERVER] Vigiando '{seletor}' (modo: {modo}) timeout={timeout}s")
     try:

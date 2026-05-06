@@ -1,0 +1,74 @@
+{
+  "timestamp": "2025-12-10T15:06:31.005205",
+  "url_base": "https://pje.trt2.jus.br/pjekz/",
+  "cookies": [
+    {
+      "name": "ASSINADOR_PJE",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "MO",
+      "value": "PJEOFFICE",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": false,
+      "httpOnly": false,
+      "sameSite": "None"
+    },
+    {
+      "name": "sso_refresh_token",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI4ZmViYjJiOS0zYmIzLTQzZmItYTMxMS0xMjJmMmNlODIwNGUifQ.eyJleHAiOjE3NjU0MTg3ODgsImlhdCI6MTc2NTM4OTk4OSwianRpIjoiMGVhOWFmMDMtNWZiZi00OGQ3LWE1ZTYtNDY3ZTIwZDI3NDY3IiwiaXNzIjoiaHR0cHM6Ly9zc28uY2xvdWQucGplLmp1cy5ici9hdXRoL3JlYWxtcy9wamUiLCJhdWQiOiJodHRwczovL3Nzby5jbG91ZC5wamUuanVzLmJyL2F1dGgvcmVhbG1zL3BqZSIsInN1YiI6IjAzNDcwZGMxLTg2ZGQtNDRhOS1hNTE5LTI5NGE0OTE5OTBlNCIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJwamUtdHJ0Mi0xZyIsInNlc3Npb25fc3RhdGUiOiI2NDhkMDM1Mi02MTY1LTQ2NjctOGRiZS02NDM5ODM4NmExMTUiLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiNjQ4ZDAzNTItNjE2NS00NjY3LThkYmUtNjQzOTgzODZhMTE1In0.UlHebhXdaNH7I3K2z12Zo7QrD5GHOURg2-ShRZQU-Sk",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": true,
+      "httpOnly": true,
+      "expiry": 1799949989,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "access_token",
+      "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiIyMTM1NWFjNC04NDRlLTQ2NDMtOWUzYS05Y2QyY2I1MWE0MTYiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc2NTM4OTk4OSwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc2NTM5MzU4OSwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiVVNVQVJJTyIsImlkIjo2Nzg4MzksImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJub21lIjoiU0lMQVMgUEFTU09TIEZFUlJFSVJBIiwicGVyZmlsIjoyMDY4MjAsInBhcGVsIjp7ImlkIjo1Mzk5LCJub21lIjoiU2VjcmV0w6FyaW8gZGUgQXVkacOqbmNpYSIsImlkZW50aWZpY2Fkb3IiOiJTRUNSRVRBUklPIn0sInBhcGVsS3oiOnsiaWQiOjIzLCJub21lIjoiU2Vydmlkb3IiLCJpZGVudGlmaWNhZG9yIjoiU0VSVklET1IifSwibG9jYWxpemFjYW8iOnsiaWQiOjQsImRlc2NyaWNhbyI6IkNvbnRyb2xlIGRlIEF1ZGnDqm5jaWEifSwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJzaWQiOiJjMmM1YjY5Mi02Y2Q5LTQxMWYtYTkxNS05YzY2YzVhMGI2M2QiLCJvcmdhb0p1bGdhZG9yIjp7ImlkIjoxODcsImRlc2NyaWNhbyI6IjPCqiBWYXJhIGRvIFRyYWJhbGhvIGRlIFPDo28gUGF1bG8gLSBab25hIFN1bCJ9LCJvcmlnZW0iOiJUUlQyIiwib3RwUGVyc2lzdGlkbyI6ZmFsc2V9",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": true,
+      "httpOnly": false,
+      "expiry": 1765393589,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "access_token_footer",
+      "value": "3WChlo8Fa9KtiMgc5IB8FuNEpEdWA3qivrVjHLxujsaOlKPadtMcFC2DongfEsOfV1KShVn4vM1hJWP5ypkLAw",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": true,
+      "httpOnly": true,
+      "expiry": 1765393589,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "Xsrf-Token",
+      "value": "B52F7E87E56916E7D565EBB11B7C9A8FB20A4684CF5A2CBCB1B08A270D597A0B7D7800D16800EDDD8C34CF9A4A7DDFF04C2C",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": true,
+      "httpOnly": false,
+      "expiry": 1765418789,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "refresh_token",
+      "value": "eyJraWQiOiJJWDBETTdYYkN4ZGNIR0x1WE1kZW1XSnZYaFF1UmN3b0piZ3gwU3JnVHFRIiwiYWxnIjoiRVMyNTYifQ.eyJqdGkiOiJlZjNlYjQ0OC03MDE4LTQzOTUtOGQ2ZC02NTJmZGVlOWJiZTAiLCJpc3MiOiJodHRwczovL3BqZS50cnQyLmp1cy5ici9wamUtc2VndXJhbmNhLyIsImlhdCI6MTc2NTM4OTk4OSwic3ViIjoiZTk5NzVhY2EtYTMxOS00N2VlLWE1MDYtZDk2Y2RkNTMyZTI2LnBqZSIsImV4cCI6MTc2NTQzMzE4OSwic2lnbGFTaXN0ZW1hIjoiUEpFIiwiaW5zdGFuY2lhIjoxLCJ0aXBvIjoiUkVGUkVTSF9UT0tFTiIsImxvZ2luIjoiMzUzMDUyMDM4MTMiLCJwZXJmaWwiOjIwNjgyMCwic2lkIjoiYzJjNWI2OTItNmNkOS00MTFmLWE5MTUtOWM2NmM1YTBiNjNkIiwibWV0b2RvQXV0ZW50aWNhY2FvIjoiQ0VSVElGSUNBRE8iLCJvcmlnZW0iOiJUUlQyIn0.oyepmHGMMRTlwuQ8HS4KPqf_qHB0VnFLjVWMCDLYCgu1as52cGi9XiuNoOajJPYGvJWHvJ0aeZvrSvv_HwOIRQ",
+      "path": "/",
+      "domain": "pje.trt2.jus.br",
+      "secure": true,
+      "httpOnly": true,
+      "expiry": 1765433189,
+      "sameSite": "Lax"
+    }
+  ]
+}

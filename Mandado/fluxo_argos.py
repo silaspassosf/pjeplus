@@ -28,7 +28,7 @@ from core.resultado_execucao import ResultadoExecucao
 
 from Fix.core import buscar_documento_argos
 from Fix.core import buscar_documentos_sequenciais
-from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_pdf, salvar_destinatarios_cache
+from Fix.extracao import extrair_dados_processo, extrair_destinatarios_decisao, extrair_direto, salvar_destinatarios_cache
 from Fix.log import logger
 
 from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_processo
@@ -36,7 +36,7 @@ from PEC.core_progresso import extrair_numero_processo_pec as extrair_numero_pro
 from atos import ato_meios
 
 from .regras import aplicar_regras_argos
-from .apoio_fluxos import retirar_sigilo_fluxo_argos
+from .apoio_fluxos import retirar_sigilo_fluxo_argos, buscar_documentos_sequenciais_via_api
 from .entrada_api import fechar_intimacao
 
 
@@ -375,80 +375,51 @@ def tratar_anexos_argos(driver: WebDriver, documentos_sequenciais: List[WebEleme
     if log:
         pass
 
-    # === FASE 2: PROCESSAR SISBAJUD ===
+    # === FASE 2: SISBAJUD VIA EXTRAÇÃO DIRETA DA CERTIDÃO ===
+    # A certidão já está carregada no painel principal — extração direta sem
+    # procurar documento nos anexos.
     try:
         if log:
-            logger.info('[ARGOS][ANEXOS][SISBAJUD] Procurando documento SISBAJUD...')
-
-        documento_sisbajud = None
-        for anexo in anexos:
-            texto = anexo.text.strip()
-            if "Certidão de devolução de ordem de pesquisa patrimonial" in texto:
-                documento_sisbajud = anexo
-                if log:
-                    logger.info(f'[ARGOS][ANEXOS][SISBAJUD]  Documento SISBAJUD encontrado: {texto[:50]}...')
-                break
-
-        if not documento_sisbajud:
-            if log:
-                logger.info('[ARGOS][ANEXOS][SISBAJUD]  Nenhum documento SISBAJUD encontrado nos anexos')
-        else:
-            if log:
-                logger.info('[ARGOS][ANEXOS][SISBAJUD] Clicando no documento SISBAJUD...')
-            documento_sisbajud.click()
-            try:
-                WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, '.conteudo-principal'))
-                )
-            except TimeoutException:
-                pass
-            if log:
-                logger.info('[ARGOS][ANEXOS][SISBAJUD]  Documento SISBAJUD clicado, aguardando carregamento...')
+            logger.info('[ARGOS][ANEXOS][SISBAJUD] Extraindo certidao via extrair_direto...')
+        resultado_direto = extrair_direto(driver, timeout=10, debug=False, formatar=True)
+        texto_certidao = resultado_direto.get('conteudo') if resultado_direto and resultado_direto.get('sucesso') else None
+        if not texto_certidao:
+            texto_certidao = resultado_direto.get('conteudo_bruto') if resultado_direto else None
     except Exception as e:
+        texto_certidao = None
         if log:
-            logger.info(f'[ARGOS][ANEXOS][SISBAJUD][ERRO] Falha ao localizar/clicar documento SISBAJUD: {e}')
-        pass
+            logger.info('[ARGOS][ANEXOS][SISBAJUD] extrair_direto falhou: %s', e)
 
-    texto_pdf = extrair_pdf(driver, log=False)
-    if texto_pdf:
+    motivo = 'extração falhou'
+    if texto_certidao:
         if log:
-            # Mostrar preview do texto
-            preview = texto_pdf[:200].replace('\n', ' ').strip()
-    else:
-        texto_pdf = None
-    if texto_pdf:
-        executados = _extrair_executados_pdf(texto_pdf)
-        if log:
-            if executados:
-                for i, exec_data in enumerate(executados[:3]):  # Mostrar até 3 primeiros
-                    pass
+            preview = texto_certidao[:200].replace('\n', ' ').strip()
+            logger.debug('[ARGOS][ANEXOS][SISBAJUD] Certidao: %d chars | %s...', len(texto_certidao), preview)
+        executados = _extrair_executados_pdf(texto_certidao)
         try:
-            resultado_sisbajud, motivo, executados = processar_sisbajud(texto_pdf, log=False)
-            # Log limpo: apenas SISBAJUD POSITIVO/NEGATIVO com valor detectado
+            resultado_sisbajud, motivo, executados = processar_sisbajud(texto_certidao, log=False)
             if resultado_sisbajud == 'positivo':
                 valor_detectado = motivo.split('R$ ')[-1] if 'R$ ' in motivo else ''
+                if log:
+                    logger.info('[ARGOS][ANEXOS][SISBAJUD] POSITIVO: %s', valor_detectado)
             elif resultado_sisbajud == 'negativo':
-                pass
-            # Log de executados: apenas quantidade
-            if len(executados) == 1:
-                pass
-            elif len(executados) > 1:
-                pass
+                if log:
+                    logger.info('[ARGOS][ANEXOS][SISBAJUD] NEGATIVO')
         except ValueError as ve:
-            # Erro da função SISBAJUD - reportar no log
             logger.error(f'[SISBAJUD][ERRO] {ve}')
             resultado_sisbajud = None
+            motivo = str(ve)
             executados = []
         except Exception as e:
-            # Qualquer outro erro - reportar como erro da função
-            logger.error(f'[SISBAJUD][ERRO] Erro na análise SISBAJUD: {e}')
+            logger.error(f'[SISBAJUD][ERRO] Erro na analise SISBAJUD: {e}')
             resultado_sisbajud = None
+            motivo = str(e)
             executados = []
     else:
         executados = []
         resultado_sisbajud = None
-    if log:
-        status_sisbajud = resultado_sisbajud if resultado_sisbajud else f"SEM SISBAJUD ({motivo})"
+        if log:
+            logger.info('[ARGOS][ANEXOS][SISBAJUD] Sem conteudo da certidao')
 
     return ResultadoExecucao(
         sucesso=True,
@@ -499,7 +470,13 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         # ════════════════════════════════════════
         # === ETAPA 1: IDENTIFICAR DOCUMENTOS SEQUENCIAIS ===
         logger.info('[ARGOS][ETAPA 1] Identificando documentos sequenciais (certidão, ordem de pesquisa, cálculos, intimação, decisão)...')
-        documentos_sequenciais = buscar_documentos_sequenciais(driver, log=log)
+        documentos_sequenciais, uids_sigilosos_hint = buscar_documentos_sequenciais_via_api(driver, log=log)
+        if documentos_sequenciais:
+            logger.info(f'[ARGOS][ETAPA 1]  {len(documentos_sequenciais)} doc(s) identificados via API')
+        else:
+            logger.info('[ARGOS][ETAPA 1] API sem resultado — fallback DOM')
+            documentos_sequenciais = buscar_documentos_sequenciais(driver, log=log)
+            uids_sigilosos_hint = None
         if not documentos_sequenciais:
             logger.info('[ARGOS][ETAPA 1][ERRO] Nenhum documento sequencial encontrado - abortando fluxo')
             return False
@@ -508,7 +485,7 @@ def processar_argos(driver: WebDriver, log: bool = False) -> bool:
         # ════════════════════════════════════════
         # === ETAPA 1.5: RETIRAR SIGILO DOS DOCUMENTOS SEQUENCIAIS ===
         logger.info('[ARGOS][ETAPA 1.5] Removendo sigilo dos documentos sequenciais (se houver)...')
-        resultado_sigilo = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log=log)
+        resultado_sigilo = retirar_sigilo_fluxo_argos(driver, documentos_sequenciais, log=log, uids_sigilosos_hint=uids_sigilosos_hint)
         if resultado_sigilo.get('total_processados', 0) > 0:
             logger.info(f'[ARGOS][ETAPA 1.5]  {resultado_sigilo["total_processados"]} documento(s) tiveram sigilo removido')
         else:

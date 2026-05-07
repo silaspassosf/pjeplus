@@ -569,6 +569,10 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
 
                     if prazo == '30' and fechado != "sim":
                         linha_prazo_30 = row
+                        assinatura_linha = tuple(
+                            cell.text.strip().lower()
+                            for cell in cells[:10]
+                        )
                         logger.info(f'[INTIMACAO] [4]  Linha {i+1} selecionada (prazo 30, nao fechado)')
                         break
             except Exception as e:
@@ -607,26 +611,68 @@ def fechar_intimacao(driver: WebDriver, log: bool = True) -> bool:
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
             return False
         logger.info('[INTIMACAO] [6]  Botao Fechar Expedientes clicado')
-        try:
-            WebDriverWait(driver, 3).until(
-                lambda d: d.execute_script("return document.readyState === 'complete'")
-            )
-        except TimeoutException:
-            pass
+        aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='aparecer', timeout=5)
 
-        # 7. Confirmar
+        # 7. Confirmar no botao do dialogo, e nao por foco global
         logger.info('[INTIMACAO] [7] Confirmando fechamento...')
-        driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.SPACE)
+        btn_sim = None
+        for xpath in (
+            "//div[contains(@class,'cdk-overlay-container')]//mat-dialog-container//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']",
+            "//div[contains(@class,'cdk-overlay-pane')]//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']",
+            "//button[.//span[normalize-space(.)='Sim'] or normalize-space(.)='Sim']",
+        ):
+            try:
+                btn_sim = WebDriverWait(driver, 3).until(
+                    EC.element_to_be_clickable((By.XPATH, xpath))
+                )
+                break
+            except TimeoutException:
+                continue
+
+        if not btn_sim:
+            logger.info('[INTIMACAO] [7]  FALHOU: botao Sim nao encontrado')
+            return False
+
+        try:
+            driver.execute_script('arguments[0].click();', btn_sim)
+        except Exception:
+            btn_sim.click()
+
+        if not aguardar_renderizacao_nativa(driver, '.cdk-overlay-container mat-dialog-container', modo='sumir', timeout=5):
+            logger.info('[INTIMACAO] [7]  FALHOU: dialogo de confirmacao permaneceu aberto')
+            return False
+
+        try:
+            def _linha_alvo_fechada(drv):
+                for row in drv.find_elements(By.CSS_SELECTOR, 'tbody tr'):
+                    try:
+                        cells = row.find_elements(By.TAG_NAME, 'td')
+                        if len(cells) < 11:
+                            continue
+                        assinatura_atual = tuple(
+                            cell.text.strip().lower()
+                            for cell in cells[:10]
+                        )
+                        if assinatura_atual != assinatura_linha:
+                            continue
+                        return cells[10].text.strip().lower() == 'sim'
+                    except StaleElementReferenceException:
+                        continue
+                return True
+
+            WebDriverWait(driver, 5).until(_linha_alvo_fechada)
+        except TimeoutException:
+            logger.info('[INTIMACAO] [7]  FALHOU: linha alvo nao ficou fechada')
+            return False
+
+        # Aguardar timeline pronta apos fechamento (sem sleep fixo)
+        logger.info('[INTIMACAO] [8] Aguardando timeline estabilizar...')
         try:
             WebDriverWait(driver, 3).until(
-                lambda d: d.execute_script("return document.readyState === 'complete'")
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')) > 0
             )
         except TimeoutException:
             pass
-
-        # AGUARDAR LATENCIA APOS FECHAR INTIMACAO
-        logger.info('[INTIMACAO] [8] Aguardando latencia pos-fechamento...')
-        time.sleep(3)  # rate-limit: estabilizacao PJe apos fechar intimacao
 
         logger.info('[INTIMACAO] === SUCESSO ===')
 

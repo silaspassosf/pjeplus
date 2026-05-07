@@ -14,6 +14,7 @@ Entrypoint publico: fluxo_mandados_outros()
 # ════════════════════════════════════════
 
 import os
+import re
 from Fix.utils import remover_acentos
 from typing import Optional, Any, List, Tuple
 
@@ -184,13 +185,307 @@ def retirar_sigilo(elemento: WebElement, driver: Optional[WebDriver] = None, deb
         return False
 
 
-def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[WebElement], log: bool = True, debug: bool = False) -> dict:
+# ── helpers API para identificação de documentos sigilosos ──────────────────
+
+def _extrair_id_processo_da_url(driver: WebDriver) -> Optional[str]:
+    """Extrai id_processo numérico da URL atual do PJe (/processo/{id}/)."""
+    try:
+        m = re.search(r'/processo/(\d+)/', driver.current_url)
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
+
+def _criar_api_client_local(driver: WebDriver):
+    """Cria PjeApiClient a partir do driver (lazy import)."""
+    try:
+        from api.variaveis_client import PjeApiClient, session_from_driver
+        sess, trt_host = session_from_driver(driver)
+        return PjeApiClient(sess, trt_host, grau=1)
+    except Exception:
+        return None
+
+
+def _identificar_uids_sigilosos_por_api(driver: WebDriver, log: bool = False) -> List[str]:
+    """Consulta timeline via API e retorna UIDs de docs sigilosos.
+
+    Candidatos: certidão de devolução + 4 documentos mais recentes.
+    Retorna lista vazia em caso de falha (fallback para DOM).
+    """
+    id_processo = _extrair_id_processo_da_url(driver)
+    if not id_processo:
+        if log:
+            logger.info('[SIGILO_API] id_processo não encontrado na URL — usando fallback DOM')
+        return []
+
+    client = _criar_api_client_local(driver)
+    if not client:
+        if log:
+            logger.info('[SIGILO_API] Falha ao criar API client — usando fallback DOM')
+        return []
+
+    try:
+        timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if not timeline:
+            return []
+
+        # Apenas itens com idUnicoDocumento (documentos, não movimentos)
+        docs = [item for item in timeline if item.get('idUnicoDocumento')]
+        if not docs:
+            return []
+
+        # Separar certidão de devolução dos demais
+        certidao = None
+        outros: List[dict] = []
+        for doc in docs:
+            tipo = (doc.get('tipo') or '').lower()
+            titulo = (doc.get('titulo') or '').lower()
+            if ('certid' in tipo and 'devolu' in tipo) or ('certid' in titulo and 'devolu' in titulo):
+                if certidao is None:
+                    certidao = doc
+            else:
+                outros.append(doc)
+
+        # Candidatos: certidão de devolução + 4 mais recentes (timeline já ordenada)
+        candidatos: List[dict] = []
+        if certidao:
+            candidatos.append(certidao)
+        candidatos.extend(outros[:4])
+
+        # UIDs com sigilo=True
+        uids_sigilosos: List[str] = []
+        for doc in candidatos:
+            tem_sigilo = (
+                doc.get('sigiloso')
+                or doc.get('sigilo')
+                or doc.get('isSigiloso')
+                or doc.get('isSignificant')
+            )
+            if tem_sigilo:
+                uid = str(doc.get('idUnicoDocumento', ''))
+                if uid:
+                    uids_sigilosos.append(uid)
+                    if log:
+                        logger.info(
+                            f'[SIGILO_API] Sigiloso via API: {doc.get("tipo")} uid={uid}'
+                        )
+
+        if log:
+            logger.info(
+                f'[SIGILO_API] {len(uids_sigilosos)} documento(s) sigilosos identificados via API'
+            )
+        return uids_sigilosos
+
+    except Exception as e:
+        if log:
+            logger.info(f'[SIGILO_API] Erro ao consultar timeline: {e} — usando fallback DOM')
+        return []
+
+
+def _encontrar_elemento_por_uid(
+    documentos_sequenciais: List[WebElement], uid: str
+) -> Optional[WebElement]:
+    """Retorna o WebElement de documentos_sequenciais cujo link contém o uid."""
+    uid_norm = (uid or '').strip().lower()
+    if not uid_norm:
+        return None
+
+    for elem in documentos_sequenciais:
+        try:
+            links = elem.find_elements(By.CSS_SELECTOR, 'a[href]')
+            for link in links:
+                href = (link.get_attribute('href') or '').lower()
+                if uid_norm in href:
+                    return elem
+        except Exception:
+            continue
+    return None
+
+
+# ── identificação de documentos sequenciais via API ─────────────────────────
+
+def buscar_documentos_sequenciais_via_api(driver: WebDriver, log: bool = True) -> tuple:
+    """Identifica documentos do bloco ARGOS via API + DOM e retorna (elementos, uids_sigilosos).
+
+    Estratégia hibrida:
+    1. API confirma quais documentos existem (certidao, decisao, etc.) e extrai
+       UIDs sigilosos.
+    2. DOM localiza os WebElements por matching de texto (mesmo algoritmo de
+       buscar_documentos_sequenciais em Fix/core.py), sem depender de UIDs que
+       nao correspondem aos hrefs do DOM.
+
+    uids_sigilosos: UIDs cujo campo sigiloso=True na API (para passar direto a
+    retirar_sigilo_fluxo_argos e evitar segunda chamada à API).
+
+    Retorna ([], []) em caso de falha — caller deve usar fallback DOM.
+    """
+    import unicodedata
+
+    def _norm(t: str) -> str:
+        return unicodedata.normalize('NFD', (t or '').lower()).encode('ascii', 'ignore').decode()
+
+    id_processo = _extrair_id_processo_da_url(driver)
+    if not id_processo:
+        return [], []
+
+    client = _criar_api_client_local(driver)
+    if not client:
+        return [], []
+
+    try:
+        timeline = client.timeline(id_processo, buscarDocumentos=True, buscarMovimentos=False)
+        if log:
+            _tl_shape = type(timeline).__name__ if timeline is not None else 'None'
+            _tl_len = len(timeline) if isinstance(timeline, list) else '?'
+            logger.info('[SEQUENCIAIS_API] timeline HTTP ok=%s  shape=%s  n=%s', timeline is not None, _tl_shape, _tl_len)
+            if isinstance(timeline, list) and timeline:
+                logger.debug('[SEQUENCIAIS_API] keys[0]=%s', list(timeline[0].keys()))
+        if not timeline:
+            return [], []
+
+        docs = [item for item in timeline if item.get('idUnicoDocumento')]
+        if not docs:
+            return [], []
+
+        # Certidão de devolução — mais recente (primeira na timeline)
+        idx_cert = None
+        for i, doc in enumerate(docs):
+            t = _norm(doc.get('tipo', '')) + ' ' + _norm(doc.get('titulo', ''))
+            if 'certid' in t and 'devolu' in t:
+                idx_cert = i
+                if log:
+                    logger.debug('[SEQUENCIAIS_API] certidao_devolucao idx=%d uid=%s', i, doc['idUnicoDocumento'])
+                break
+
+        if idx_cert is None:
+            if log:
+                logger.info('[SEQUENCIAIS_API] Certidao de devolucao nao encontrada na API')
+            return [], []
+
+        # Decisão — primeira após certidão de devolução
+        idx_decisao = None
+        for i in range(idx_cert + 1, len(docs)):
+            t = _norm(docs[i].get('tipo', '')) + ' ' + _norm(docs[i].get('titulo', ''))
+            if 'decis' in t and 'certid' not in t:
+                idx_decisao = i
+                if log:
+                    logger.debug('[SEQUENCIAIS_API] decisao idx=%d uid=%s', i, docs[i]['idUnicoDocumento'])
+                break
+
+        if idx_decisao is None:
+            if log:
+                logger.info('[SEQUENCIAIS_API] Decisao nao encontrada apos certidao na API')
+            return [], []
+
+        # UIDs sigilosos (campo sigiloso da API) — para repassar a retirar_sigilo
+        def _tem_sigilo_api(doc: dict) -> bool:
+            return bool(
+                doc.get('sigiloso') or doc.get('sigilo')
+                or doc.get('isSigiloso') or doc.get('isSignificant')
+            )
+
+        # UIDs sigilosos dentro do bloco (para hint em retirar_sigilo_fluxo_argos)
+        bloco_idx = [idx_cert] + list(range(idx_cert + 1, idx_decisao)) + [idx_decisao]
+        uids_sigilosos: List[str] = [
+            docs[i]['idUnicoDocumento'] for i in bloco_idx if _tem_sigilo_api(docs[i])
+        ]
+        if log and uids_sigilosos:
+            logger.debug('[SEQUENCIAIS_API] %d uid(s) sigilosos no bloco', len(uids_sigilosos))
+
+        # Localizar no DOM por matching de texto (mesmo algoritmo de
+        # buscar_documentos_sequenciais em Fix/core.py).
+        # API ja confirmou que os documentos existem; agora encontramos os
+        # WebElements correspondentes pelo conteudo textual, sem depender de
+        # UIDs que nao batem com os hrefs do DOM.
+        try:
+            WebDriverWait(driver, 5).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')) > 0
+            )
+        except Exception:
+            pass
+
+        elementos = driver.find_elements(By.CSS_SELECTOR, 'li.tl-item-container')
+        if log:
+            logger.debug('[SEQUENCIAIS_API] %d li.tl-item-container no DOM', len(elementos))
+        if not elementos:
+            return [], []
+
+        # Encontrar certidao de devolucao por texto no DOM
+        idx_cert_dom = None
+        for idx, elem in enumerate(elementos):
+            texto = _norm(elem.text.strip())
+            if 'certidao de devolucao' in texto:
+                idx_cert_dom = idx
+                if log:
+                    logger.debug('[SEQUENCIAIS_API] DOM: certidao_devolucao idx=%d', idx)
+                break
+
+        if idx_cert_dom is None:
+            if log:
+                logger.info('[SEQUENCIAIS_API] Certidao de devolucao nao localizada no DOM')
+            return [], []
+
+        # Encontrar decisao apos certidao por texto no DOM
+        idx_decisao_dom = None
+        for idx in range(idx_cert_dom + 1, len(elementos)):
+            texto = _norm(elementos[idx].text.strip())
+            if 'decisao(' in texto:
+                idx_decisao_dom = idx
+                if log:
+                    logger.debug('[SEQUENCIAIS_API] DOM: decisao idx=%d', idx)
+                break
+
+        if idx_decisao_dom is None:
+            if log:
+                logger.info('[SEQUENCIAIS_API] Decisao nao localizada no DOM')
+            return [], []
+
+        resultado: List[WebElement] = [elementos[idx_cert_dom]]
+
+        # Documentos do meio (entre certidao e decisao)
+        _TERMOS_MEIO_DOM = {
+            'certidao_expedicao': ['certidao de expedicao'],
+            'planilha':           ['planilha de atualizacao'],
+            'intimacao':          ['intimacao('],
+        }
+        for idx in range(idx_cert_dom + 1, idx_decisao_dom):
+            texto = _norm(elementos[idx].text.strip())
+            for nome, palavras in _TERMOS_MEIO_DOM.items():
+                for palavra in palavras:
+                    if palavra in texto:
+                        resultado.append(elementos[idx])
+                        if log:
+                            logger.debug('[SEQUENCIAIS_API] DOM: %s idx=%d', nome, idx)
+                        break
+
+        resultado.append(elementos[idx_decisao_dom])
+
+        if log:
+            logger.info('[SEQUENCIAIS_API] %d documento(s) identificados via API+DOM', len(resultado))
+
+        if len(resultado) >= 2:
+            return resultado, uids_sigilosos
+        return [], []
+
+    except Exception as e:
+        if log:
+            logger.info('[SEQUENCIAIS_API] Erro: %s — fallback para DOM', e)
+        return [], []
+
+
+# ── função principal ─────────────────────────────────────────────────────────
+
+def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[WebElement], log: bool = True, debug: bool = False, uids_sigilosos_hint: Optional[List[str]] = None) -> dict:
     """
      FUNÇÃO ÚNICA PARA TODO O FLUXO DE REMOÇÃO DE SIGILO DO ARGOS
 
     Respeita a ORDEM OBRIGATÓRIA do fluxo ARGOS:
     1º - Certidão de devolução (PRIMEIRO)
     2º - Demais documentos: certidão expedição, intimação, decisão, planilha
+
+    Estratégia: identifica documentos sigilosos via API (atributo sigilo +
+    uid), e usa o uid para localizar o elemento DOM correto antes de clicar.
+    Fallback para varredura de texto no DOM se a API não responder.
 
     Args:
         driver: WebDriver Selenium
@@ -212,215 +507,140 @@ def retirar_sigilo_fluxo_argos(driver: WebDriver, documentos_sequenciais: List[W
         'total_processados': 0
     }
 
-    if log:
-        pass
-
     # =======================================================
-    # ETAPA 1: CERTIDÃO DE DEVOLUÇÃO (PRIMEIRO - DOCUMENTO ÚNICO!)
+    # CAMINHO 1: Identificação via API (atributo sigilo + uid)
     # =======================================================
-    certidao_encontrada = None
-    # No fluxo Argos, buscar a certidão mais recente que está no FINAL da lista
-    # A lista vem do topo para baixo da timeline, mas precisamos buscar de baixo para cima
-    # para pegar o documento mais recente do bloco (mesmo comportamento do legado)
-    for doc in reversed(documentos_sequenciais):
-        try:
-            texto = doc.text.strip().lower()
-            # Marcador único: "certidão de devolução" (documento único, sempre o primeiro)
-            if "certidão de devolução" in texto or "certidao de devolucao" in texto:
-                certidao_encontrada = doc
-                if log:
-                    logger.info(f'[SIGILO_ARGOS] Certidão de devolução identificada: {texto[:50]}...')
-                break
-        except Exception:
-            continue  # item individual, continua
+    # Se hint fornecido (já veio de buscar_documentos_sequenciais_via_api), reusar.
+    uids_sigilosos = uids_sigilosos_hint if uids_sigilosos_hint is not None else _identificar_uids_sigilosos_por_api(driver, log=log)
 
-    if not certidao_encontrada:
+    if uids_sigilosos:
         if log:
-            logger.info("[SIGILO_ARGOS] Certidão de devolução não encontrada - pulando")
-        resultado['certidao_devolucao'] = {'status': 'nao_encontrada'}
-    else:
-        # Verificar se tem sigilo (lógica simplificada do legado)
-        links_doc = certidao_encontrada.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
-        tem_sigilo = False
-
-        if links_doc:
-            link_correto = None
-            for link in links_doc:
-                target = link.get_attribute('target') or ''
-                role = link.get_attribute('role') or ''
-                if role == 'button' or target != '_blank':
-                    link_correto = link
-                    break
-
-            if not link_correto and links_doc:
-                link_correto = links_doc[-1]
-
-            if link_correto:
-                classes_link = (link_correto.get_attribute('class') or '')
-                tem_sigilo = 'is-sigiloso' in classes_link
-
-                if debug:
-                    logger.info(f"[SIGILO_ARGOS][DEBUG] Classes do link: {classes_link}")
-                    logger.info(f"[SIGILO_ARGOS][DEBUG] tem_sigilo (pré-check): {tem_sigilo}")
-
-        if not tem_sigilo:
-            if log:
-                logger.info("[SIGILO_ARGOS] Certidão JÁ SEM SIGILO (verificação prévia)")
-            resultado['certidao_devolucao'] = {'status': 'ja_sem_sigilo'}
-        else:
-            if log:
-                logger.info("[SIGILO_ARGOS] Removendo sigilo da certidão (detectado via is-sigiloso)...")
-            # A função retirar_sigilo fará verificação definitiva via aria-label
-            if retirar_sigilo(certidao_encontrada, driver, debug=debug):
+            logger.info(f'[SIGILO_ARGOS] API: {len(uids_sigilosos)} uid(s) sigilosos para processar')
+        for uid in uids_sigilosos:
+            elemento = _encontrar_elemento_por_uid(documentos_sequenciais, uid)
+            if not elemento:
                 if log:
-                    logger.info("[SIGILO_ARGOS] Sigilo removido com sucesso")
-                resultado['certidao_devolucao'] = {'status': 'removido'}
+                    logger.info(f'[SIGILO_ARGOS] uid={uid} não localizado no DOM — pulando')
+                continue
+            if debug:
+                logger.info(f'[SIGILO_ARGOS][DEBUG] Processando uid={uid}')
+            if retirar_sigilo(elemento, driver, debug=debug):
+                if log:
+                    logger.info(f'[SIGILO_ARGOS] Sigilo removido uid={uid}')
                 resultado['total_processados'] += 1
             else:
                 if log:
-                    logger.error("[SIGILO_ARGOS] Falha ao remover sigilo")
-                resultado['certidao_devolucao'] = {'status': 'erro'}
+                    logger.error(f'[SIGILO_ARGOS] Falha ao remover sigilo uid={uid}')
                 resultado['sucesso'] = False
 
-    # =======================================================
-    # ETAPA 2: DEMAIS DOCUMENTOS ESPECÍFICOS (DENTRO DO BLOCO)
-    # =======================================================
-    tipos_especificos = {
-        'certidao_pesquisa': {
-            'palavras': ['certidão de pesquisa', 'certidao de pesquisa', 'certidão de devolução de pesquisa', 'certidao de devolucao de pesquisa'],
-            'limite': 1,
-            'encontrados': []
-        },
-        'certidao_expedicao': {
-            'palavras': ['certidão de expedição', 'certidao de expedicao'],
-            'limite': 1,
-            'encontrados': []
-        },
-        'intimacao': {
-            'palavras': ['intimação(', 'intimacao(', 'intimação', 'intimacao'],
-            'limite': 1,
-            'encontrados': []
-        },
-        'decisao': {
-            'palavras': ['decisão', 'decisao'],
-            'limite': 1,
-            'encontrados': []
-        },
-        'planilha': {
-            'palavras': ['planilha de atualização', 'planilha de atualizacao'],
-            'limite': 1,
-            'encontrados': []
-        }
-    }
+        if log:
+            logger.info(
+                f'[SIGILO_ARGOS] Concluído (via API): {resultado["total_processados"]} documento(s) processados'
+            )
+        return resultado
 
-    # Encontrar onde está a decisão (fim do bloco)
-    idx_decisao = None
-    for idx in range(len(documentos_sequenciais)):
-        texto = documentos_sequenciais[idx].text.strip().lower()
-        if "decisão(" in texto or "decisao(" in texto:
-            idx_decisao = idx
+    # =======================================================
+    # CAMINHO 2: Fallback — varredura de texto no DOM (legado)
+    # =======================================================
+    if log:
+        logger.info('[SIGILO_ARGOS] API indisponível — usando varredura de texto no DOM (fallback)')
+
+    # ETAPA 1: CERTIDÃO DE DEVOLUÇÃO
+    certidao_encontrada = None
+    for doc in reversed(documentos_sequenciais):
+        try:
+            texto = doc.text.strip().lower()
+            if "certidão de devolução" in texto or "certidao de devolucao" in texto:
+                certidao_encontrada = doc
+                break
+        except Exception:
+            continue
+
+    if not certidao_encontrada:
+        resultado['certidao_devolucao'] = {'status': 'nao_encontrada'}
+    else:
+        links_doc = certidao_encontrada.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
+        tem_sigilo = False
+        if links_doc:
+            link_correto = next(
+                (l for l in links_doc if (l.get_attribute('role') or '').lower() == 'button'
+                 or (l.get_attribute('target') or '').lower() != '_blank'),
+                links_doc[-1]
+            )
+            tem_sigilo = 'is-sigiloso' in (link_correto.get_attribute('class') or '')
             if debug:
-                logger.info(f"[SIGILO_ARGOS][DEBUG] Decisão no índice {idx} - FIM DO BLOCO")
+                logger.info(f'[SIGILO_ARGOS][DEBUG] certidao classes={link_correto.get_attribute("class")} sigiloso={tem_sigilo}')
+
+        if not tem_sigilo:
+            resultado['certidao_devolucao'] = {'status': 'ja_sem_sigilo'}
+        elif retirar_sigilo(certidao_encontrada, driver, debug=debug):
+            resultado['certidao_devolucao'] = {'status': 'removido'}
+            resultado['total_processados'] += 1
+        else:
+            resultado['certidao_devolucao'] = {'status': 'erro'}
+            resultado['sucesso'] = False
+
+    # ETAPA 2: DEMAIS DOCUMENTOS (certidão expedição, intimação, decisão, planilha)
+    _tipos = {
+        'certidao_expedicao': (['certidão de expedição', 'certidao de expedicao'], 1),
+        'intimacao':          (['intimação(', 'intimacao(', 'intimação', 'intimacao'], 1),
+        'decisao':            (['decisão', 'decisao'], 1),
+        'planilha':           (['planilha de atualização', 'planilha de atualizacao'], 1),
+    }
+    encontrados: dict = {k: [] for k in _tipos}
+
+    idx_decisao = None
+    for idx, elem in enumerate(documentos_sequenciais):
+        texto = elem.text.strip().lower()
+        if 'decisão(' in texto or 'decisao(' in texto:
+            idx_decisao = idx
             break
 
     if idx_decisao is None:
         if log:
-            logger.info("[SIGILO_ARGOS] Decisão não encontrada")
+            logger.info('[SIGILO_ARGOS] Decisão não encontrada no DOM')
         return resultado
 
-    # Processar índices 1, 2, 3... até ANTES da decisão
     for idx in range(1, idx_decisao):
-        doc = documentos_sequenciais[idx]
-        texto = doc.text.strip().lower()
-
-        for tipo_nome, tipo_config in tipos_especificos.items():
-            if len(tipo_config['encontrados']) >= tipo_config['limite']:
+        texto = documentos_sequenciais[idx].text.strip().lower()
+        for tipo_nome, (palavras, limite) in _tipos.items():
+            if len(encontrados[tipo_nome]) >= limite:
                 continue
-
-            for palavra in tipo_config['palavras']:
+            for palavra in palavras:
                 if palavra in texto:
-                    tipo_config['encontrados'].append({
-                        'elemento': doc,
-                        'texto': texto[:50],
-                        'palavra': palavra
-                    })
+                    encontrados[tipo_nome].append(documentos_sequenciais[idx])
                     break
 
-    # Adicionar decisão (índice 4 - fim do bloco)
-    doc_decisao = documentos_sequenciais[idx_decisao]
-    texto_decisao = doc_decisao.text.strip().lower()
-    tipos_especificos['decisao']['encontrados'].append({
-        'elemento': doc_decisao,
-        'texto': texto_decisao[:50],
-        'palavra': 'decisão'
-    })
+    # Adicionar a decisão
+    encontrados['decisao'].append(documentos_sequenciais[idx_decisao])
 
-    # Remover sigilo dos demais documentos
-    for tipo_nome, tipo_config in tipos_especificos.items():
-        if not tipo_config['encontrados']:
-            continue
-
-        for doc_info in tipo_config['encontrados']:
-            elemento = doc_info['elemento']
-            texto = doc_info['texto']
-
-            # Verificar se tem sigilo
+    for tipo_nome, elems in encontrados.items():
+        for elemento in elems:
             links_doc = elemento.find_elements(By.CSS_SELECTOR, 'a.tl-documento')
             tem_sigilo = False
-
             if links_doc:
-                link_correto = None
-                for link in links_doc:
-                    target = link.get_attribute('target') or ''
-                    role = link.get_attribute('role') or ''
-                    if role == 'button' or target != '_blank':
-                        link_correto = link
-                        break
-
-                if not link_correto and links_doc:
-                    link_correto = links_doc[-1]
-
-                if link_correto:
-                    classes_link = (link_correto.get_attribute('class') or '')
-                    tem_sigilo = 'is-sigiloso' in classes_link
-
-                    if debug:
-                        logger.info(f"[SIGILO_ARGOS][DEBUG] {tipo_nome.upper()} - Classes link: {classes_link}")
-                        logger.info(f"[SIGILO_ARGOS][DEBUG] {tipo_nome.upper()} - tem_sigilo: {tem_sigilo}")
+                link_correto = next(
+                    (l for l in links_doc if (l.get_attribute('role') or '').lower() == 'button'
+                     or (l.get_attribute('target') or '').lower() != '_blank'),
+                    links_doc[-1]
+                )
+                tem_sigilo = 'is-sigiloso' in (link_correto.get_attribute('class') or '')
+                if debug:
+                    logger.info(f'[SIGILO_ARGOS][DEBUG] {tipo_nome} sigiloso={tem_sigilo}')
 
             if not tem_sigilo:
-                if log:
-                    logger.info(f"[SIGILO_ARGOS] {tipo_nome.upper()}: JÁ SEM SIGILO - {texto}")
-                resultado['demais_documentos'].append({
-                    'tipo': tipo_nome,
-                    'texto': texto,
-                    'status': 'ja_sem_sigilo'
-                })
+                resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'ja_sem_sigilo'})
+            elif retirar_sigilo(elemento, driver, debug=debug):
+                resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'removido'})
+                resultado['total_processados'] += 1
             else:
-                if log:
-                    logger.info(f"[SIGILO_ARGOS] {tipo_nome.upper()}: Removendo sigilo...")
-                if retirar_sigilo(elemento, driver, debug=debug):
-                    if log:
-                        logger.info(f"[SIGILO_ARGOS] {tipo_nome.upper()}: Removido")
-                    resultado['demais_documentos'].append({
-                        'tipo': tipo_nome,
-                        'texto': texto,
-                        'status': 'removido'
-                    })
-                    resultado['total_processados'] += 1
-                else:
-                    if log:
-                        logger.error(f"[SIGILO_ARGOS] {tipo_nome.upper()}: Erro")
-                    resultado['demais_documentos'].append({
-                        'tipo': tipo_nome,
-                        'texto': texto,
-                        'status': 'erro'
-                    })
-                    resultado['sucesso'] = False
+                resultado['demais_documentos'].append({'tipo': tipo_nome, 'status': 'erro'})
+                resultado['sucesso'] = False
 
     if log:
-        logger.info(f"[SIGILO_ARGOS] Concluído: {resultado['total_processados']} documentos processados")
-
+        logger.info(
+            f'[SIGILO_ARGOS] Concluído (fallback DOM): {resultado["total_processados"]} documento(s) processados'
+        )
     return resultado
 
 
